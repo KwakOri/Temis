@@ -1,10 +1,11 @@
 "use client";
 
-import TimeTableEditor from "@/components/TimeTableEditor/TimeTableEditor";
+import TimeTableEditor from "@/app/test/_components/TimeTableEditor";
+import "./_styles/index.css";
 
 const TestPage = () => {
   return (
-    <div className=" w-lvw h-lvh">
+    <div className={`fixed inset-0 w-full h-full`}>
       <TimeTableEditor />
     </div>
   );

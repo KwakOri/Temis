@@ -16,7 +16,7 @@ const TimeTableControls: React.FC<TimeTableControlsProps> = ({
   onDownloadClick,
 }) => {
   return (
-    <div className="w-full p-4 flex justify-between">
+    <div className="w-full p-4 flex justify-between relative z-30 bg-white">
       <div className="flex items-center gap-4">
         <label className="text-sm text-gray-600 font-medium">
           미리보기 배율: {scale.toFixed(1)}x
