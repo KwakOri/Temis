@@ -1,15 +1,13 @@
+import {
+  Data,
+  ThemeTypes,
+} from "@/app/test/_components/TimeTablePreview/types";
+
+import TimeTableControls from "@/app/test/_components/TimeTableControls";
+import TimeTableForm from "@/app/test/_components/TimeTableForm";
 import * as htmlToImage from "html-to-image";
 import React, { useEffect, useState, type ChangeEvent } from "react";
-import TimeTableControls from "./TimeTableControls";
 import TimeTablePreview from "./TimeTablePreview";
-import TimeTableForm from "./TimeTableForm";
-
-export interface Data {
-  day: number;
-  isHoliday: boolean;
-  time: string;
-  description: string;
-}
 
 const getDefaultMondayString = (): string => {
   const today = new Date();
@@ -24,21 +22,71 @@ const getDefaultMondayString = (): string => {
 const TimeTableEditor: React.FC = () => {
   const [scale, setScale] = useState(0.5);
   const [data, setData] = useState<Data[]>([
-    { day: 0, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
-    { day: 1, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
-    { day: 2, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
-    { day: 3, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
-    { day: 4, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
-    { day: 5, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
-    { day: 6, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+    {
+      day: 0,
+      isHoliday: false,
+      time: "09:00",
+      topic: "소제목 적는 곳",
+      description: "한 줄당 7글자",
+    },
+    {
+      day: 1,
+      isHoliday: false,
+      time: "09:00",
+      topic: "소제목 적는 곳",
+      description: "한 줄당 7글자",
+    },
+    {
+      day: 2,
+      isHoliday: false,
+      time: "09:00",
+      topic: "소제목 적는 곳",
+      description: "한 줄당 7글자",
+    },
+    {
+      day: 3,
+      isHoliday: false,
+      time: "09:00",
+      topic: "소제목 적는 곳",
+      description: "한 줄당 7글자",
+    },
+    {
+      day: 4,
+      isHoliday: false,
+      time: "09:00",
+      topic: "소제목 적는 곳",
+      description: "한 줄당 7글자",
+    },
+    {
+      day: 5,
+      isHoliday: false,
+      time: "09:00",
+      topic: "소제목 적는 곳",
+      description: "한 줄당 7글자",
+    },
+    {
+      day: 6,
+      isHoliday: false,
+      time: "09:00",
+      topic: "소제목 적는 곳",
+      description: "한 줄당 7글자",
+    },
   ]);
 
+  const [profileText, setProfileText] = useState<string>("아티스트");
+
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+
+  const [currentTheme, setCurrentTheme] = useState<ThemeTypes>("blue");
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
     getDefaultMondayString()
   );
   const [weekDates, setWeekDates] = useState<Date[]>([]);
+
+  const onProfileTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProfileText(e.target.value);
+  };
 
   const getThisWeekDatesFromMonday = (monday: Date): Date[] => {
     monday.setHours(0, 0, 0, 0);
@@ -61,6 +109,10 @@ const TimeTableEditor: React.FC = () => {
     } else {
       alert("⚠️ 선택한 날짜는 월요일이 아닙니다. 월요일만 선택 가능합니다.");
     }
+  };
+
+  const onThemeButtonClick = (value: ThemeTypes) => {
+    setCurrentTheme(value);
   };
 
   useEffect(() => {
@@ -127,14 +179,20 @@ const TimeTableEditor: React.FC = () => {
         onDateChange={handleChange}
         onDownloadClick={downloadImage}
       />
-      <div className="flex grow">
+      <div className="flex items-center flex-1 min-h-0">
         <TimeTablePreview
+          currentTheme={currentTheme}
+          profileText={profileText}
           scale={scale}
           data={data}
           weekDates={weekDates}
           imageSrc={imageSrc}
         />
         <TimeTableForm
+          currentTheme={currentTheme}
+          onThemeButtonClick={onThemeButtonClick}
+          profileText={profileText}
+          onProfileTextChange={onProfileTextChange}
           data={data}
           setData={setData}
           onImageChange={handleImageChange}
