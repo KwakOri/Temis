@@ -1,15 +1,13 @@
 import React from "react";
 
-import {
-  Data,
-  ThemeTypes,
-} from "@/app/test/_components/TimeTablePreview/types";
+import { TDefaultCard } from "@/app/sample/_settings/general";
+import { TTheme } from "@/app/sample/_settings/settings";
 import TimeTableCell from "./TimeTableCell";
 
 interface TimeTableGridProps {
-  data: Data[];
+  data: TDefaultCard[];
   weekDates: Date[];
-  currentTheme: ThemeTypes;
+  currentTheme: TTheme;
 }
 
 const TimeTableGrid: React.FC<TimeTableGridProps> = ({

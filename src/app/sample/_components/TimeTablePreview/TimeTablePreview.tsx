@@ -1,23 +1,20 @@
-import TimeTableGrid from "@/app/test/_components/TimeTablePreview/TimeTableGrid";
+import TimeTableGrid from "@/app/sample/_components/TimeTablePreview/TimeTableGrid";
+import { colors } from "@/app/sample/_styles/colors";
+
+import { Imgs } from "@/app/sample/_img/imgs";
+import { months, TDefaultCard } from "@/app/sample/_settings/general";
 import {
-  Data,
-  months,
-  ThemeTypes,
-} from "@/app/test/_components/TimeTablePreview/types";
-import { colors } from "@/app/test/_styles/colors";
+  fontOption,
+  monthOption,
+  TTheme,
+} from "@/app/sample/_settings/settings";
 import React from "react";
-import blueBG from "../../_img/blue/bg.png";
-import blueFlag from "../../_img/blue/week.png";
-import pinkBG from "../../_img/pink/bg.png";
-import pinkFlag from "../../_img/pink/week.png";
-import yellowBG from "../../_img/yellow/bg.png";
-import yellowFlag from "../../_img/yellow/week.png";
 import ProfileImage from "./ProfileImage";
 
 export interface TimeTablePreviewProps {
-  currentTheme: ThemeTypes;
+  currentTheme: TTheme;
   scale: number;
-  data: Data[];
+  data: TDefaultCard[];
   weekDates: Date[];
   imageSrc: string | null;
   profileText: string;
@@ -33,14 +30,6 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
 }) => {
   const containerWidth = 1280 * scale;
   const containerHeight = 720 * scale;
-
-  const themeAssets = {
-    blue: { bg: blueBG, flag: blueFlag },
-    pink: { bg: pinkBG, flag: pinkFlag },
-    yellow: { bg: yellowBG, flag: yellowFlag },
-  };
-
-  console.log(currentTheme);
 
   if (weekDates.length === 0) return null;
   return (
@@ -59,7 +48,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
           className="w-[1280px] h-[720px] box-border text-[26px] select-none font-sans origin-top-left relative overflow-hidden"
           style={{
             transform: `scale(${scale})`,
-            backgroundImage: `url(${themeAssets[currentTheme].bg.src})`,
+            backgroundImage: `url(${Imgs[currentTheme].bg.src})`,
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
@@ -69,7 +58,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
             <div
               className="absolute z-10 w-full h-full justify-center pr-1 pb-2 flex flex-col "
               style={{
-                fontFamily: "LOTTERIACHAB",
+                fontFamily: fontOption.secondary,
               }}
             >
               <p
@@ -78,7 +67,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
                 }}
                 className={`w-full h-[60px] flex justify-center items-center shrink-0`}
               >
-                {months[weekDates[0].getMonth()]}
+                {months[monthOption][weekDates[0].getMonth()]}
               </p>
               <div
                 style={{
@@ -96,10 +85,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
               </div>
             </div>
 
-            <img
-              className="relative"
-              src={themeAssets[currentTheme].flag.src}
-            />
+            <img className="relative" src={Imgs[currentTheme]["week"].src} />
           </div>
           <TimeTableGrid
             data={data}

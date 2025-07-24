@@ -1,19 +1,19 @@
+import { TDefaultCard, weekdays } from "@/app/sample/_settings/general";
 import {
-  Data,
-  ThemeTypes,
-} from "@/app/test/_components/TimeTablePreview/types";
+  buttonThemes,
+  TTheme,
+  weekdayOption,
+} from "@/app/sample/_settings/settings";
 import React from "react";
 
-const weekdays = ["월", "화", "수", "목", "금", "토", "일"];
-
 interface TimeTableFormProps {
-  data: Data[];
-  setData: React.Dispatch<React.SetStateAction<Data[]>>;
+  data: TDefaultCard[];
+  setData: React.Dispatch<React.SetStateAction<TDefaultCard[]>>;
   onImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   profileText: string;
   onProfileTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   currentTheme: string;
-  onThemeButtonClick: (value: ThemeTypes) => void;
+  onThemeButtonClick: (value: TTheme) => void;
 }
 
 const TimeTableForm: React.FC<TimeTableFormProps> = ({
@@ -25,16 +25,11 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   currentTheme,
   onThemeButtonClick,
 }) => {
-  const themes = [
-    { value: "blue", label: "파랑" },
-    { value: "yellow", label: "노랑" },
-    { value: "pink", label: "분홍" },
-  ];
   return (
     <div className="shrink-0 w-1/3 h-full flex flex-col bg-quaternary p-4">
       <div className="flex-1 overflow-y-auto">
         <div className="flex gap-2 w-full h-16">
-          {themes.map((theme) => (
+          {buttonThemes.map((theme) => (
             <button
               className={` rounded-md bg-gray-200 ${
                 currentTheme === theme.value
@@ -42,7 +37,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
                   : "hover:brightness-110 cursor-pointer"
               } `}
               key={theme.value}
-              onClick={() => onThemeButtonClick(theme.value as ThemeTypes)}
+              onClick={() => onThemeButtonClick(theme.value as TTheme)}
             >
               {theme.label}
             </button>
@@ -74,14 +69,14 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
               className="bg-gray-400 flex flex-col gap-2 p-4 rounded-md"
             >
               <div className="flex justify-center items-center gap-4 p-4 bg-gray-200 w-full rounded-md">
-                <p>{weekdays[day.day]}</p>
+                <p>{weekdays[weekdayOption][day.day]}</p>
                 <button
                   className={`shrink-0 bg-gray-300 rounded-md p-2 cursor-pointer hover:brightness-90 ${
-                    day.isHoliday ? "bg-gray-600 text-white" : ""
+                    day.isOffline ? "bg-gray-600 text-white" : ""
                   }`}
                   onClick={() => {
                     const newData = [...data];
-                    newData[index].isHoliday = !newData[index].isHoliday;
+                    newData[index].isOffline = !newData[index].isOffline;
                     setData(newData);
                   }}
                 >
