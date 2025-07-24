@@ -1,3 +1,5 @@
+"use client";
+
 import TimeTableEditor from "@/components/TimeTableEditor/TimeTableEditor";
 
 const TestPage = () => {

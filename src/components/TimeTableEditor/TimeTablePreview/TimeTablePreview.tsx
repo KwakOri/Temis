@@ -29,7 +29,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
             className="w-[1280px] h-[720px] box-border text-[26px] select-none font-sans origin-top-left relative overflow-hidden"
             style={{
               transform: `scale(${scale})`,
-              backgroundImage: "url(/board.png)",
+              backgroundImage: "url(/img/board.png)",
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",
