@@ -1,14 +1,23 @@
 import React from "react";
 
-import { Imgs } from "@/app/test/_img/imgs";
-import { colors } from "@/app/test/_styles/colors";
-import { Data, ThemeTypes, weekdays } from "./types";
+import { Imgs } from "@/app/sample/_img/imgs";
+import { TDefaultCard, weekdays } from "@/app/sample/_settings/general";
+import {
+  fontOption,
+  offlineCardHeight,
+  offlineCardWidth,
+  onlineCardHeight,
+  onlineCardWidth,
+  TTheme,
+  weekdayOption,
+} from "@/app/sample/_settings/settings";
+import { colors } from "@/app/sample/_styles/colors";
 
 interface TimeTableCellProps {
-  time: Data;
+  time: TDefaultCard;
   weekDate: Date;
   index: number;
-  currentTheme: ThemeTypes;
+  currentTheme: TTheme;
 }
 
 const TimeTableCell: React.FC<TimeTableCellProps> = ({
@@ -17,11 +26,16 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   index,
   currentTheme,
 }) => {
-  const descriptionFontSize = 20;
   if (!weekDate) return "Loading";
-  if (time.isHoliday) {
+  if (time.isOffline) {
     return (
-      <div key={time.day}>
+      <div
+        style={{
+          width: offlineCardWidth + "px",
+          height: offlineCardHeight + "px",
+        }}
+        key={time.day}
+      >
         <img src={Imgs[currentTheme]["offline"].src} />
       </div>
     );
@@ -30,15 +44,15 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   return (
     <div
       style={{
-        width: "188px",
-        height: "228px",
+        width: onlineCardWidth + "px",
+        height: onlineCardHeight + "px",
       }}
       key={time.day}
       className="relative"
     >
       <div
         style={{
-          fontFamily: "Ownglyph_ParkDaHyun",
+          fontFamily: fontOption.primary,
         }}
         className="w-full flex flex-col pt-[20px] px-6"
       >
@@ -48,7 +62,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className="flex justify-center items-center h-10 text-[20px]"
         >
-          {weekdays[time.day]} {`(${weekDate.getDate()})`}
+          {weekdays[weekdayOption][time.day]} {`(${weekDate.getDate()})`}
         </p>
         <p
           style={{

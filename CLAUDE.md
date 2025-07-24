@@ -20,6 +20,7 @@ This is a Next.js 15.4.3 React application called "Temis" that creates a timetab
 The app follows a modular component architecture with two main directory patterns:
 
 1. **App Router Components** (`src/app/test/_components/`):
+
    - Main timetable editor logic and state management
    - Handles image export functionality using html-to-image library
 
@@ -29,12 +30,14 @@ The app follows a modular component architecture with two main directory pattern
 ### Core Functionality
 
 **TimeTableEditor** (`src/app/test/_components/TimeTableEditor.tsx`):
+
 - Main component managing timetable state and user interactions
 - Handles date calculations (automatic Monday detection)
 - Manages scale, data array for 7 days, and profile image upload
 - Exports timetable as 1280x720 PNG using html-to-image library
 
 **TimeTablePreview** (`src/app/test/_components/TimeTablePreview/`):
+
 - Renders the visual timetable with customizable themes (blue/pink/yellow)
 - Fixed 1280x720 canvas with scalable preview
 - Uses static background images and profile image overlay
@@ -42,11 +45,12 @@ The app follows a modular component architecture with two main directory pattern
 ### Data Structure
 
 The main data type is defined in `types.ts`:
+
 ```typescript
 interface Data {
-  day: number;        // 0-6 (Mon-Sun)
-  isHoliday: boolean;
-  time: string;       // Format: "HH:MM"
+  day: number; // 0-6 (Mon-Sun)
+  isOffline: boolean;
+  time: string; // Format: "HH:MM"
   description: string; // Max 7 characters per line
 }
 ```
@@ -54,6 +58,7 @@ interface Data {
 ### Theme System
 
 The app supports multiple color themes (blue, pink, yellow) with corresponding image assets in `src/app/test/_img/[theme]/`:
+
 - `bg.png` - Background image
 - `week.png` - Week header flag
 - `online.png`, `offline.png` - Status indicators

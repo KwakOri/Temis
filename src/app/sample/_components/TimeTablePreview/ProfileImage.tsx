@@ -1,11 +1,18 @@
-import { Imgs } from "@/app/test/_img/imgs";
-import { colors } from "@/app/test/_styles/colors";
+import { Imgs } from "@/app/sample/_img/imgs";
+import {
+  fontOption,
+  profileFrameHeight,
+  profileFrameWidth,
+  profileImageHeight,
+  profileImageWidth,
+  TTheme,
+} from "@/app/sample/_settings/settings";
+import { colors } from "@/app/sample/_styles/colors";
 import Image from "next/image";
 import React from "react";
-import { profileImageHeight, profileImageWidth, ThemeTypes } from "./types";
 
 interface ProfileImageProps {
-  currentTheme: ThemeTypes;
+  currentTheme: TTheme;
   imageSrc: string | null;
   profileText: string;
 }
@@ -19,8 +26,8 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
     <div
       className={` absolute right-0 z-10 rounded-md flex justify-center text-white rotate-6`}
       style={{
-        width: profileImageWidth,
-        height: profileImageHeight,
+        width: profileFrameWidth,
+        height: profileFrameHeight,
       }}
     >
       <div
@@ -31,7 +38,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
       >
         <p
           style={{
-            fontFamily: "Ownglyph_ParkDaHyun",
+            fontFamily: fontOption.primary,
           }}
           className="text-center"
         >
@@ -41,22 +48,22 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
       <div
         className="absolute z-20"
         style={{
-          width: profileImageWidth,
-          height: profileImageHeight,
+          width: profileFrameWidth + "px",
+          height: profileFrameHeight + "px",
         }}
       >
         <Image
           src={Imgs[currentTheme]["profile"]}
-          width={profileImageWidth}
-          height={profileImageHeight}
+          width={profileFrameWidth}
+          height={profileFrameHeight}
           alt="preview"
           className="w-full h-full object-cover"
         />
       </div>
       <div
         style={{
-          width: 440,
-          height: 480,
+          width: profileImageWidth + "px",
+          height: profileImageHeight + "px",
         }}
         className="relative mt-6"
       >
@@ -75,7 +82,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           >
             <p
               style={{
-                fontFamily: "Ownglyph_ParkDaHyun",
+                fontFamily: fontOption.primary,
               }}
               className="text-white text-center text-[32px]"
             >

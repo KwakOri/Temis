@@ -1,10 +1,7 @@
-import {
-  Data,
-  ThemeTypes,
-} from "@/app/test/_components/TimeTablePreview/types";
-
-import TimeTableControls from "@/app/test/_components/TimeTableControls";
-import TimeTableForm from "@/app/test/_components/TimeTableForm";
+import TimeTableControls from "@/app/sample/_components/TimeTableControls";
+import TimeTableForm from "@/app/sample/_components/TimeTableForm";
+import { defaultCards, TDefaultCard } from "@/app/sample/_settings/general";
+import { defaultTheme, TTheme } from "@/app/sample/_settings/settings";
 import * as htmlToImage from "html-to-image";
 import React, { useEffect, useState, type ChangeEvent } from "react";
 import TimeTablePreview from "./TimeTablePreview";
@@ -21,63 +18,13 @@ const getDefaultMondayString = (): string => {
 
 const TimeTableEditor: React.FC = () => {
   const [scale, setScale] = useState(0.5);
-  const [data, setData] = useState<Data[]>([
-    {
-      day: 0,
-      isHoliday: false,
-      time: "09:00",
-      topic: "소제목 적는 곳",
-      description: "내용 적는 곳",
-    },
-    {
-      day: 1,
-      isHoliday: false,
-      time: "09:00",
-      topic: "소제목 적는 곳",
-      description: "내용 적는 곳",
-    },
-    {
-      day: 2,
-      isHoliday: false,
-      time: "09:00",
-      topic: "소제목 적는 곳",
-      description: "내용 적는 곳",
-    },
-    {
-      day: 3,
-      isHoliday: false,
-      time: "09:00",
-      topic: "소제목 적는 곳",
-      description: "내용 적는 곳",
-    },
-    {
-      day: 4,
-      isHoliday: false,
-      time: "09:00",
-      topic: "소제목 적는 곳",
-      description: "내용 적는 곳",
-    },
-    {
-      day: 5,
-      isHoliday: false,
-      time: "09:00",
-      topic: "소제목 적는 곳",
-      description: "내용 적는 곳",
-    },
-    {
-      day: 6,
-      isHoliday: false,
-      time: "09:00",
-      topic: "소제목 적는 곳",
-      description: "내용 적는 곳",
-    },
-  ]);
+  const [data, setData] = useState<TDefaultCard[]>(defaultCards);
 
   const [profileText, setProfileText] = useState<string>("아티스트");
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
 
-  const [currentTheme, setCurrentTheme] = useState<ThemeTypes>("blue");
+  const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
     getDefaultMondayString()
@@ -111,7 +58,7 @@ const TimeTableEditor: React.FC = () => {
     }
   };
 
-  const onThemeButtonClick = (value: ThemeTypes) => {
+  const onThemeButtonClick = (value: TTheme) => {
     setCurrentTheme(value);
   };
 
