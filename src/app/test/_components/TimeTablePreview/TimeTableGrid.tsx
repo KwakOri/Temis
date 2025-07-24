@@ -18,7 +18,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   currentTheme,
 }) => {
   return (
-    <div className="absolute bottom-11 flex gap-2 justify-center items-center rounded-md z-20 w-[780px] flex-wrap">
+    <div className="absolute bottom-11 left-2 flex gap-2 justify-center items-center rounded-md z-20 w-[780px] flex-wrap">
       {/* <TimeTableHeader weekDates={weekDates} /> */}
 
       {data.map((time, i) => (
