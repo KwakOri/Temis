@@ -1,0 +1,147 @@
+import * as htmlToImage from "html-to-image";
+import React, { useEffect, useState, type ChangeEvent } from "react";
+import TimeTableControls from "./TimeTableControls";
+import TimeTablePreview from "./TimeTablePreview";
+import TimeTableForm from "./TimeTableForm";
+
+export interface Data {
+  day: number;
+  isHoliday: boolean;
+  time: string;
+  description: string;
+}
+
+const getDefaultMondayString = (): string => {
+  const today = new Date();
+  const day = today.getDay(); // 0 (Sun) ~ 6 (Sat)
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(today);
+  monday.setDate(today.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  return monday.toISOString().split("T")[0];
+};
+
+const TimeTableEditor: React.FC = () => {
+  const [scale, setScale] = useState(0.5);
+  const [data, setData] = useState<Data[]>([
+    { day: 0, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+    { day: 1, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+    { day: 2, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+    { day: 3, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+    { day: 4, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+    { day: 5, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+    { day: 6, isHoliday: false, time: "09:00", description: "한 줄당 7글자" },
+  ]);
+
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+
+  const [mondayDateStr, setMondayDateStr] = useState<string>(
+    getDefaultMondayString()
+  );
+  const [weekDates, setWeekDates] = useState<Date[]>([]);
+
+  const getThisWeekDatesFromMonday = (monday: Date): Date[] => {
+    monday.setHours(0, 0, 0, 0);
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      return date;
+    });
+  };
+
+  const isMonday = (dateStr: string): boolean => {
+    const date = new Date(dateStr);
+    return date.getDay() === 1;
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.value;
+    if (isMonday(selected)) {
+      setMondayDateStr(selected);
+    } else {
+      alert("⚠️ 선택한 날짜는 월요일이 아닙니다. 월요일만 선택 가능합니다.");
+    }
+  };
+
+  useEffect(() => {
+    const monday = new Date(mondayDateStr);
+    setWeekDates(getThisWeekDatesFromMonday(monday));
+  }, [mondayDateStr]);
+
+  useEffect(() => {
+    const getDefaultMondayString = (): string => {
+      const today = new Date();
+      const day = today.getDay();
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() + diffToMonday + 1);
+      monday.setHours(0, 0, 0, 0);
+      return monday.toISOString().split("T")[0];
+    };
+
+    setMondayDateStr(getDefaultMondayString());
+  }, []);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImageSrc(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const downloadImage = () => {
+    const node = document.getElementById("timetable");
+    if (!node) return;
+
+    htmlToImage
+      .toPng(node, {
+        width: 1280,
+        height: 720,
+        pixelRatio: 1,
+        style: {
+          transform: "scale(1)",
+          transformOrigin: "top left",
+        },
+      })
+      .then((dataUrl) => {
+        const link = document.createElement("a");
+        link.download = "weekly-timetable.png";
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.error("이미지 생성 실패:", err);
+      });
+  };
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      <TimeTableControls
+        scale={scale}
+        onScaleChange={setScale}
+        mondayDateStr={mondayDateStr}
+        onDateChange={handleChange}
+        onDownloadClick={downloadImage}
+      />
+      <div className="flex grow">
+        <TimeTablePreview
+          scale={scale}
+          data={data}
+          weekDates={weekDates}
+          imageSrc={imageSrc}
+        />
+        <TimeTableForm
+          data={data}
+          setData={setData}
+          onImageChange={handleImageChange}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default TimeTableEditor;
