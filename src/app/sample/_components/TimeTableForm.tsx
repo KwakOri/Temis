@@ -112,7 +112,6 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
               >
                 {/* 내부 래퍼로 마진 분리 */}
                 <div className="pt-2 flex flex-col gap-4">
-                  {/* 시간 입력 */}
                   <input
                     type="time"
                     className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none mt-2"
