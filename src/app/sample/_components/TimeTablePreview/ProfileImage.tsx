@@ -1,4 +1,6 @@
-import { Imgs } from "@/app/sample/_img/imgs";
+import Image from "next/image";
+import React from "react";
+import { Imgs } from "../../_img/imgs";
 import {
   colors,
   fontOption,
@@ -7,9 +9,7 @@ import {
   profileImageHeight,
   profileImageWidth,
   TTheme,
-} from "@/app/sample/_settings/settings";
-import Image from "next/image";
-import React from "react";
+} from "../../_settings/settings";
 
 interface ProfileImageProps {
   currentTheme: TTheme;
