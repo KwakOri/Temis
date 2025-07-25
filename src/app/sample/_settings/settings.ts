@@ -29,7 +29,7 @@ export const monthOption: TLanOpt = "en";
 /** Theme 설정 */
 /** Theme 설정 */
 
-/** 단일 테마의 경우 primary로 통일하세요. */
+/** 단일 테마의 경우 normal로 통일하세요. */
 /** _styles/colors.ts에 먼저 컬러 팔레트를 등록하세요. */
 
 export type TTheme = "blue" | "yellow" | "pink";
