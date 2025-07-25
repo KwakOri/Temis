@@ -1,4 +1,4 @@
-import { TLanOpt } from "@/app/sample/_types/types";
+import { TLanOpt } from "../_types/types";
 
 /** ---------------------------------------------- */
 
