@@ -1,8 +1,9 @@
 import React from "react";
 
-import { Imgs } from "@/app/sample/_img/imgs";
-import { TDefaultCard, weekdays } from "@/app/sample/_settings/general";
+import { Imgs } from "../../_img/imgs";
+import { TDefaultCard, weekdays } from "../../_settings/general";
 import {
+  colors,
   fontOption,
   offlineCardHeight,
   offlineCardWidth,
@@ -10,8 +11,7 @@ import {
   onlineCardWidth,
   TTheme,
   weekdayOption,
-} from "@/app/sample/_settings/settings";
-import { colors } from "@/app/sample/_styles/colors";
+} from "../../_settings/settings";
 
 interface TimeTableCellProps {
   time: TDefaultCard;

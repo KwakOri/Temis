@@ -1,4 +1,4 @@
-import { initialCard, TInitialCard } from "@/app/sample/_settings/settings";
+import { initialCard, TInitialCard } from "./settings";
 
 export const weekdays = {
   en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],

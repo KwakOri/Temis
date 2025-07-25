@@ -1,7 +1,7 @@
-import TimeTableControls from "@/app/sample/_components/TimeTableControls";
-import TimeTableForm from "@/app/sample/_components/TimeTableForm";
-import { defaultCards, TDefaultCard } from "@/app/sample/_settings/general";
-import { defaultTheme, TTheme } from "@/app/sample/_settings/settings";
+import TimeTableControls from "./TimeTableControls";
+import TimeTableForm from "./TimeTableForm";
+import { defaultCards, TDefaultCard } from "../_settings/general";
+import { defaultTheme, TTheme } from "../_settings/settings";
 import * as htmlToImage from "html-to-image";
 import React, { useEffect, useState, type ChangeEvent } from "react";
 import TimeTablePreview from "./TimeTablePreview";

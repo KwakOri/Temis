@@ -1,13 +1,13 @@
-import TimeTableGrid from "@/app/sample/_components/TimeTablePreview/TimeTableGrid";
-import { colors } from "@/app/sample/_styles/colors";
+import TimeTableGrid from "./TimeTableGrid";
 
-import { Imgs } from "@/app/sample/_img/imgs";
-import { months, TDefaultCard } from "@/app/sample/_settings/general";
+import { Imgs } from "../../_img/imgs";
+import { months, TDefaultCard } from "../../_settings/general";
 import {
+  colors,
   fontOption,
   monthOption,
   TTheme,
-} from "@/app/sample/_settings/settings";
+} from "../../_settings/settings";
 import React from "react";
 import ProfileImage from "./ProfileImage";
 

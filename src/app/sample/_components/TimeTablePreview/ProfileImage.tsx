@@ -1,15 +1,15 @@
-import { Imgs } from "@/app/sample/_img/imgs";
+import Image from "next/image";
+import React from "react";
+import { Imgs } from "../../_img/imgs";
 import {
+  colors,
   fontOption,
   profileFrameHeight,
   profileFrameWidth,
   profileImageHeight,
   profileImageWidth,
   TTheme,
-} from "@/app/sample/_settings/settings";
-import { colors } from "@/app/sample/_styles/colors";
-import Image from "next/image";
-import React from "react";
+} from "../../_settings/settings";
 
 interface ProfileImageProps {
   currentTheme: TTheme;
@@ -32,9 +32,9 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
     >
       <div
         style={{
-          color: colors[currentTheme]["tertiary"],
+          color: colors[currentTheme]["primary"],
         }}
-        className="absolute z-30 bottom-27 right-11 text-[36px] w-[220px] h-[60px] text-black flex justify-center items-center"
+        className="absolute z-30 bottom-27 right-11 text-[36px] w-[220px] h-[60px] flex justify-center items-center"
       >
         <p
           style={{
