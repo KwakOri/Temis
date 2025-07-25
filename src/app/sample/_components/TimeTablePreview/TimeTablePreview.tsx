@@ -1,9 +1,9 @@
 import TimeTableGrid from "@/app/sample/_components/TimeTablePreview/TimeTableGrid";
-import { colors } from "@/app/sample/_styles/colors";
 
 import { Imgs } from "@/app/sample/_img/imgs";
 import { months, TDefaultCard } from "@/app/sample/_settings/general";
 import {
+  colors,
   fontOption,
   monthOption,
   TTheme,
