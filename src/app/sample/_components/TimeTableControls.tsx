@@ -3,46 +3,39 @@ import React from "react";
 interface TimeTableControlsProps {
   scale: number;
   onScaleChange: (newScale: number) => void;
-  mondayDateStr: string;
-  onDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDownloadClick: () => void;
 }
 
 const TimeTableControls: React.FC<TimeTableControlsProps> = ({
   scale,
   onScaleChange,
-  mondayDateStr,
-  onDateChange,
-  onDownloadClick,
 }) => {
   return (
-    <div className="w-full p-4 flex justify-between relative z-30 bg-white">
-      <div className="flex items-center gap-4">
-        <label className="text-sm text-gray-600 font-medium">
-          미리보기 배율: {scale.toFixed(1)}x
-        </label>
-        <input
-          type="range"
-          min={0.3}
-          max={2}
-          step={0.1}
-          value={scale}
-          onChange={(e) => onScaleChange(parseFloat(e.target.value))}
-          className="w-64"
-        />
-      </div>
-      <div className="p-4">
-        <label>
-          기준 월요일 선택:{" "}
-          <input type="date" value={mondayDateStr} onChange={onDateChange} />
-        </label>
-      </div>
-      <button
-        onClick={onDownloadClick}
-        className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
-      >
-        이미지로 저장 (1280x720)
-      </button>
+    <div className="fixed top-4 left-4 z-50 bg-white/80 px-4 py-2 rounded ">
+      <label className="text-sm text-gray-600 font-medium">
+        미리보기 배율: {scale.toFixed(1)}x
+      </label>
+      <input
+        type="range"
+        min={0.3}
+        max={2}
+        step={0.1}
+        value={scale}
+        onChange={(e) => onScaleChange(parseFloat(e.target.value))}
+        className="ml-2 w-60 h-2 rounded-lg appearance-none bg-gray-300
+        accent-[#3E4A82]
+        [&::-webkit-slider-thumb]:appearance-none
+        [&::-webkit-slider-thumb]:h-5
+        [&::-webkit-slider-thumb]:w-5
+        [&::-webkit-slider-thumb]:rounded-full
+        [&::-webkit-slider-thumb]:bg-[#3E4A82]
+        [&::-webkit-slider-thumb]:shadow-md
+        [&::-moz-range-thumb]:h-5
+        [&::-moz-range-thumb]:w-5
+        [&::-moz-range-thumb]:rounded-full
+        [&::-moz-range-thumb]:bg-[#3E4A82]
+        [&::-moz-range-thumb]:shadow-md
+        "
+      />
     </div>
   );
 };
