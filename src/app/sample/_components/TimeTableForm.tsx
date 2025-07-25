@@ -24,7 +24,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   return (
     <div className="shrink-0 w-1/4 h-full flex flex-col bg-gray-100 p-4">
       <div className="flex-1 overflow-y-auto relative pb-6">
-        {/* 테마 버튼 선택 (탭 UI 스타일) */}
+        {/* 테마 버튼 선택 */}
         <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 mx-2 mt-2">
           {buttonThemes.map((theme) => {
             const isActive = currentTheme === theme.value;
@@ -124,7 +124,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
                     }}
                   />
 
-                  {/* Subtitle (topic) */}
+                  {/*주제 */}
                   <div className="flex flex-col">
                     <input
                       value={day.topic}
@@ -139,7 +139,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
                     />
                   </div>
 
-                  {/* Description */}
+                  {/* 설명 */}
                   <textarea
                     value={day.description}
                     placeholder="설명 입력"
