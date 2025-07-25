@@ -1,4 +1,3 @@
-import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
 import {
@@ -52,10 +51,8 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           height: profileFrameHeight + "px",
         }}
       >
-        <Image
-          src={Imgs[currentTheme]["profile"]}
-          width={profileFrameWidth}
-          height={profileFrameHeight}
+        <img
+          src={Imgs[currentTheme]["profile"].src}
           alt="preview"
           className="w-full h-full object-cover"
         />
@@ -68,7 +65,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         className="relative mt-6"
       >
         {imageSrc ? (
-          <Image
+          <img
             src={imageSrc}
             alt="preview"
             className="w-full h-full object-cover"
