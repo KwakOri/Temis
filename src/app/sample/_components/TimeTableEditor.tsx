@@ -20,7 +20,7 @@ const TimeTableEditor: React.FC = () => {
   const [scale, setScale] = useState(0.5);
   const [data, setData] = useState<TDefaultCard[]>(defaultCards);
 
-  const [profileText, setProfileText] = useState<string>("아티스트");
+  const [profileText, setProfileText] = useState<string>("작가명 입력");
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
 
@@ -119,13 +119,7 @@ const TimeTableEditor: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <TimeTableControls
-        scale={scale}
-        onScaleChange={setScale}
-        mondayDateStr={mondayDateStr}
-        onDateChange={handleChange}
-        onDownloadClick={downloadImage}
-      />
+      <TimeTableControls scale={scale} onScaleChange={setScale} />
       <div className="flex items-center flex-1 min-h-0">
         <TimeTablePreview
           currentTheme={currentTheme}
@@ -143,6 +137,9 @@ const TimeTableEditor: React.FC = () => {
           data={data}
           setData={setData}
           onImageChange={handleImageChange}
+          mondayDateStr={mondayDateStr}
+          onDateChange={handleChange}
+          onDownloadClick={downloadImage}
         />
       </div>
     </div>
