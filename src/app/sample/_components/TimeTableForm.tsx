@@ -1,9 +1,5 @@
 import { TDefaultCard, weekdays } from "../_settings/general";
-import {
-  buttonThemes,
-  TTheme,
-  weekdayOption,
-} from "../_settings/settings";
+import { buttonThemes, TTheme, weekdayOption } from "../_settings/settings";
 import React from "react";
 
 interface TimeTableFormProps {
