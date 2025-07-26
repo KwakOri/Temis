@@ -1,13 +1,13 @@
-import TimeTableGrid from "@/app/sample/_components/TimeTablePreview/TimeTableGrid";
+import TimeTableGrid from "./TimeTableGrid";
 
-import { Imgs } from "@/app/sample/_img/imgs";
-import { months, TDefaultCard } from "@/app/sample/_settings/general";
+import { Imgs } from "../../_img/imgs";
+import { months, TDefaultCard } from "../../_settings/general";
 import {
   colors,
   fontOption,
   monthOption,
   TTheme,
-} from "@/app/sample/_settings/settings";
+} from "../../_settings/settings";
 import React from "react";
 import ProfileImage from "./ProfileImage";
 
@@ -33,9 +33,9 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
 
   if (weekDates.length === 0) return null;
   return (
-    <div className=" flex justify-center items-center grow overflow-hidden">
+    <div className=" flex justify-center items-center grow overflow-hidden  ">
       <div
-        className="border rounded shadow bg-gray-50"
+        className="shadow-md"
         style={{
           width: containerWidth,
           height: containerHeight,
@@ -45,7 +45,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
       >
         <div
           id="timetable"
-          className="w-[1280px] h-[720px] box-border text-[26px] select-none font-sans origin-top-left relative overflow-hidden"
+          className="w-[1280px] h-[720px] box-border text-[26px] select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
           style={{
             transform: `scale(${scale})`,
             backgroundImage: `url(${Imgs[currentTheme].bg.src})`,
