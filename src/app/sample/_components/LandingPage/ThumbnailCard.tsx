@@ -12,6 +12,8 @@ const ThumbnailCard = ({ id }: Props) => (
         className="w-full h-full object-cover"
         width={300}
         height={200}
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
       />
     </div>
   </div>
