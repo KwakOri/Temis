@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signJWT, verifyPassword } from '@/lib/auth';
-
-// 임시 사용자 데이터 (실제로는 데이터베이스에서 가져와야 함)
-const mockUsers = [
-  {
-    id: '1',
-    email: 'admin@example.com',
-    password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeSwJeJ5pFsI9/9vq', // 'password123'
-    name: '관리자'
-  },
-  {
-    id: '2',
-    email: 'user@example.com', 
-    password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeSwJeJ5pFsI9/9vq', // 'password123'
-    name: '사용자'
-  }
-];
+import { UserService } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,8 +15,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 사용자 조회 (실제로는 데이터베이스에서 조회)
-    const user = mockUsers.find(u => u.email === email);
+    // Supabase에서 사용자 조회
+    const user = await UserService.findByEmail(email);
     if (!user) {
       return NextResponse.json(
         { error: '존재하지 않는 사용자입니다.' },
@@ -40,6 +25,13 @@ export async function POST(request: NextRequest) {
     }
 
     // 비밀번호 검증
+    if (!user.password) {
+      return NextResponse.json(
+        { error: '비밀번호가 설정되지 않은 계정입니다.' },
+        { status: 401 }
+      );
+    }
+
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
       return NextResponse.json(

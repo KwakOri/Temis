@@ -1,47 +1,47 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from "@/contexts/AuthContext";
+import React, { useState } from "react";
 
 interface LoginFormProps {
   onSuccess?: () => void;
   className?: string;
 }
 
-export function LoginForm({ onSuccess, className = '' }: LoginFormProps) {
+export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
   const { login } = useAuth();
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
   });
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
     // 입력 시 에러 메시지 초기화
-    if (error) setError('');
+    if (error) setError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
       const result = await login(formData.email, formData.password);
-      
+
       if (result.success) {
         onSuccess?.();
       } else {
-        setError(result.error || '로그인에 실패했습니다.');
+        setError(result.error || "로그인에 실패했습니다.");
       }
     } catch (error) {
-      setError('로그인 중 오류가 발생했습니다.');
+      setError("로그인 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +51,10 @@ export function LoginForm({ onSuccess, className = '' }: LoginFormProps) {
     <div className={`max-w-md mx-auto ${className}`}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="email"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             이메일
           </label>
           <input
@@ -68,7 +71,10 @@ export function LoginForm({ onSuccess, className = '' }: LoginFormProps) {
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700 mb-1"
+          >
             비밀번호
           </label>
           <input
@@ -95,14 +101,14 @@ export function LoginForm({ onSuccess, className = '' }: LoginFormProps) {
           disabled={isLoading}
           className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isLoading ? '로그인 중...' : '로그인'}
+          {isLoading ? "로그인 중..." : "로그인"}
         </button>
       </form>
 
       <div className="mt-4 text-center text-sm text-gray-600">
         <p>테스트 계정:</p>
-        <p>이메일: admin@example.com 또는 user@example.com</p>
-        <p>비밀번호: password123</p>
+        <p>이메일: test@test.com</p>
+        <p>비밀번호: Test.1234</p>
       </div>
     </div>
   );
