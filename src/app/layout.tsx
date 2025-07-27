@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Temis",
-  description: "버튜버를 위한 맞춤형 시간표 플랫폼",
+  description: "테미스, 버튜버를 위한 맞춤형 시간표 플랫폼 ",
 };
 
 export default function RootLayout({

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 const StepSection = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -31,7 +31,7 @@ const StepSection = () => {
 
   return (
     <section className="py-20 bg-white  px-4 text-center">
-      <h2 className="text-2xl font-bold mb-12">temis 어떻게 사용해요?</h2>
+      <h2 className="text-2xl font-bold mb-12">TEMIS 어떻게 사용해요?</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
         {steps.map(({ step, text, img }, idx) => {
           const isActive = currentStep === idx;
@@ -61,6 +61,8 @@ const StepSection = () => {
                   className="mt-4 rounded-xl shadow w-full"
                   width={300}
                   height={200}
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
                 />
               </div>
             </div>
