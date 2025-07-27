@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 const StepSection = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -54,10 +55,12 @@ const StepSection = () => {
                 <p className="text-base leading-relaxed whitespace-pre-line text-center text-gray-700">
                   {text}
                 </p>
-                <img
-                  src={img}
+                <Image
+                  src={img.replace("./", "/")}
                   alt={step}
                   className="mt-4 rounded-xl shadow w-full"
+                  width={300}
+                  height={200}
                 />
               </div>
             </div>

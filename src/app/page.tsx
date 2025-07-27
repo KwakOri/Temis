@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import ThumbnailCard from "./sample/_components/LandingPage/ThumbnailCard";
 import StepSection from "./sample/_components/LandingPage/StepSection";
+import Image from "next/image";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -124,7 +125,7 @@ export default function Home() {
           {[
             {
               text: "폰트도 다운로드, \n 포토샵이 없다면 구매까지...",
-              emoji: "./img/landingpage/9.png",
+              emoji: "/img/landingpage/9.png",
             },
             {
               text: "포토샵에 익숙하지 않아서 \n 디자인이 살짝 달라졌내...",
@@ -143,10 +144,12 @@ export default function Home() {
               <div className="rounded-[24px] px-4 py-3 mb-4 text-sm whitespace-pre-line bg-white/10 text-white backdrop-blur-md shadow-[inset_0_0_10px_rgba(255,255,255,0.1),_0_0_20px_rgba(0,0,0,0.3)] border border-white/10">
                 {item.text}
               </div>
-              <img
-                src={item.emoji}
+              <Image
+                src={item.emoji.replace("./", "/")}
                 alt="emoji"
                 className="w-auto h-auto mx-auto mb-2 mask-fade-bottom"
+                width={300}
+                height={300}
               />
             </div>
           ))}
