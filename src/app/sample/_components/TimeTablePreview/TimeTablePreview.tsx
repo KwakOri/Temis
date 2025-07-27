@@ -10,6 +10,7 @@ import {
 } from "../../_settings/settings";
 import React from "react";
 import ProfileImage from "./ProfileImage";
+import Image from "next/image";
 
 export interface TimeTablePreviewProps {
   currentTheme: TTheme;
@@ -85,7 +86,13 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
               </div>
             </div>
 
-            <img className="relative" src={Imgs[currentTheme]["week"].src} />
+            <Image
+              className="relative"
+              src={Imgs[currentTheme]["week"].src.replace("./", "/")}
+              alt="week"
+              width={120}
+              height={60}
+            />
           </div>
           <TimeTableGrid
             data={data}
