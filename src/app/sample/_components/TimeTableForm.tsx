@@ -139,9 +139,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
         </div>
       </div>
 
-      {/* 하단 고정 입력 영역 */}
       <div className="bg-gray-50 border-t border-gray-300 p-4 space-y-2 select-none">
-        {/* 날짜 입력 */}
         <div>
           <label className="block text-sm text-gray-700 font-semibold mb-1">
             기준 월요일 선택
