@@ -150,6 +150,8 @@ export default function Home() {
                 className="w-auto h-auto mx-auto mb-2 mask-fade-bottom"
                 width={300}
                 height={300}
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
               />
             </div>
           ))}
