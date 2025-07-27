@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import { Imgs } from "../../_img/imgs";
 import {
   colors,
@@ -51,10 +52,12 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           height: profileFrameHeight + "px",
         }}
       >
-        <img
-          src={Imgs[currentTheme]["profile"].src}
+        <Image
+          src={Imgs[currentTheme]["profile"].src.replace("./", "/")}
           alt="preview"
           className="w-full h-full object-cover"
+          width={profileFrameWidth}
+          height={profileFrameHeight}
         />
       </div>
       <div
@@ -65,10 +68,14 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         className="relative mt-6"
       >
         {imageSrc ? (
-          <img
-            src={imageSrc}
+          <Image
+            src={
+              imageSrc.startsWith("/") ? imageSrc : imageSrc.replace("./", "/")
+            }
             alt="preview"
             className="w-full h-full object-cover"
+            width={profileImageWidth}
+            height={profileImageHeight}
           />
         ) : (
           <div

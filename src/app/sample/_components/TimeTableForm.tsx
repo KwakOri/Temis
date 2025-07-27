@@ -64,7 +64,6 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
               key={day.day}
               className="bg-white backdrop-blur-md rounded-xl p-4 shadow-[0_4px_5px_rgba(0,0,0,0.15)]"
             >
-              {/* 요일 + 휴일 */}
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-700">
                   {weekdays[weekdayOption][day.day]}
@@ -91,7 +90,6 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
                 </div>
               </div>
 
-              {/* 접힘 처리 영역 */}
               <div
                 className={`transition-all duration-300 overflow-hidden ${
                   day.isOffline
