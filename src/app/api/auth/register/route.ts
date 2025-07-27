@@ -53,6 +53,11 @@ export async function POST(request: NextRequest) {
       email,
       password: hashedPassword,
       name,
+      twitter_access_token: null,
+      twitter_access_token_secret: null,
+      twitter_user_id: null,
+      twitter_username: null,
+      twitter_connected_at: null,
     });
 
     // JWT 토큰 생성

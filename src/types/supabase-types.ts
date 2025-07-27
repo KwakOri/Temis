@@ -100,6 +100,11 @@ export type Database = {
           id: number;
           name: string;
           password: string;
+          twitter_access_token: string | null;
+          twitter_access_token_secret: string | null;
+          twitter_user_id: string | null;
+          twitter_username: string | null;
+          twitter_connected_at: string | null;
           updated_at: string;
         };
         Insert: {
@@ -108,6 +113,11 @@ export type Database = {
           id?: number;
           name: string;
           password: string;
+          twitter_access_token?: string | null;
+          twitter_access_token_secret?: string | null;
+          twitter_user_id?: string | null;
+          twitter_username?: string | null;
+          twitter_connected_at?: string | null;
           updated_at: string;
         };
         Update: {
@@ -116,6 +126,11 @@ export type Database = {
           id?: number;
           name?: string;
           password?: string;
+          twitter_access_token?: string | null;
+          twitter_access_token_secret?: string | null;
+          twitter_user_id?: string | null;
+          twitter_username?: string | null;
+          twitter_connected_at?: string | null;
           updated_at?: string;
         };
         Relationships: [];

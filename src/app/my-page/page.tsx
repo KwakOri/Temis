@@ -2,7 +2,8 @@
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { Template } from "@/types/supabase-types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 interface UserTemplate {
   id: string | number;
@@ -11,14 +12,44 @@ interface UserTemplate {
   templates: Template;
 }
 
-const MyPage = () => {
+interface TwitterStatus {
+  isConnected: boolean;
+  twitterUsername: string | null;
+  connectedAt: string | null;
+}
+
+const MyPageContent = () => {
+  const searchParams = useSearchParams();
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [twitterStatus, setTwitterStatus] = useState<TwitterStatus>({
+    isConnected: false,
+    twitterUsername: null,
+    connectedAt: null
+  });
+  const [twitterLoading, setTwitterLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     fetchUserTemplates();
+    fetchTwitterStatus();
   }, []);
+
+  // Handle Twitter callback
+  useEffect(() => {
+    const twitterParam = searchParams.get('twitter');
+    const oauthToken = searchParams.get('oauth_token');
+    const oauthVerifier = searchParams.get('oauth_verifier');
+
+    if (twitterParam === 'callback' && oauthToken && oauthVerifier) {
+      handleTwitterCallback(oauthToken, oauthVerifier);
+    } else if (twitterParam === 'cancelled') {
+      setError('트위터 연동이 취소되었습니다.');
+    } else if (twitterParam === 'error') {
+      setError('트위터 연동 중 오류가 발생했습니다.');
+    }
+  }, [searchParams]);
 
   const fetchUserTemplates = async () => {
     try {
@@ -37,6 +68,128 @@ const MyPage = () => {
       setError(error instanceof Error ? error.message : '오류가 발생했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTwitterStatus = async () => {
+    try {
+      const response = await fetch('/api/user/twitter-status', {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setTwitterStatus(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch Twitter status:', error);
+    }
+  };
+
+  const handleTwitterConnect = async () => {
+    try {
+      setTwitterLoading(true);
+      setError('');
+      
+      const response = await fetch('/api/auth/twitter?action=request_token', {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('트위터 연동 요청에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.authUrl) {
+        // Store token secret temporarily in sessionStorage
+        sessionStorage.setItem('twitter_token_secret', data.oauthTokenSecret);
+        // Redirect to Twitter authorization
+        window.location.href = data.authUrl;
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '트위터 연동 중 오류가 발생했습니다.');
+    } finally {
+      setTwitterLoading(false);
+    }
+  };
+
+  const handleTwitterCallback = async (oauthToken: string, oauthVerifier: string) => {
+    try {
+      setTwitterLoading(true);
+      setError('');
+      
+      const oauthTokenSecret = sessionStorage.getItem('twitter_token_secret');
+      if (!oauthTokenSecret) {
+        throw new Error('토큰 정보가 누락되었습니다.');
+      }
+
+      const response = await fetch('/api/auth/twitter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          oauthToken,
+          oauthVerifier,
+          oauthTokenSecret
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('트위터 계정 연동에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccessMessage('트위터 계정이 성공적으로 연동되었습니다!');
+        await fetchTwitterStatus();
+        sessionStorage.removeItem('twitter_token_secret');
+        
+        // Clear URL parameters
+        window.history.replaceState({}, '', '/my-page');
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '트위터 연동 처리 중 오류가 발생했습니다.');
+    } finally {
+      setTwitterLoading(false);
+    }
+  };
+
+  const handleTwitterDisconnect = async () => {
+    if (!confirm('트위터 계정 연동을 해제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      setTwitterLoading(true);
+      setError('');
+      
+      const response = await fetch('/api/auth/twitter/disconnect', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('트위터 연동 해제에 실패했습니다.');
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccessMessage('트위터 계정 연동이 해제되었습니다.');
+        setTwitterStatus({
+          isConnected: false,
+          twitterUsername: null,
+          connectedAt: null
+        });
+      }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '트위터 연동 해제 중 오류가 발생했습니다.');
+    } finally {
+      setTwitterLoading(false);
     }
   };
 
@@ -84,6 +237,19 @@ const MyPage = () => {
             </p>
           </div>
 
+          {/* Success Message */}
+          {successMessage && (
+            <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
+              <div className="text-green-800">{successMessage}</div>
+              <button
+                onClick={() => setSuccessMessage('')}
+                className="mt-2 text-sm text-green-600 hover:text-green-800"
+              >
+                닫기
+              </button>
+            </div>
+          )}
+
           {/* Error Message */}
           {error && (
             <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
@@ -96,6 +262,54 @@ const MyPage = () => {
               </button>
             </div>
           )}
+
+          {/* Twitter Integration Section */}
+          <div className="mb-8">
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    <svg className="h-8 w-8 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+                    </svg>
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-semibold text-gray-900">트위터 연동</h3>
+                    <p className="text-sm text-gray-600">
+                      {twitterStatus.isConnected 
+                        ? `@${twitterStatus.twitterUsername}으로 연동됨`
+                        : '시간표 이미지를 트위터에 바로 공유하세요'
+                      }
+                    </p>
+                    {twitterStatus.isConnected && twitterStatus.connectedAt && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        연동일: {new Date(twitterStatus.connectedAt).toLocaleDateString('ko-KR')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-shrink-0">
+                  {twitterStatus.isConnected ? (
+                    <button
+                      onClick={handleTwitterDisconnect}
+                      disabled={twitterLoading}
+                      className="px-4 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {twitterLoading ? '처리 중...' : '연동 해제'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleTwitterConnect}
+                      disabled={twitterLoading}
+                      className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {twitterLoading ? '연결 중...' : '트위터 연동'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Loading State */}
           {loading ? (
@@ -204,6 +418,18 @@ const MyPage = () => {
         </div>
       </div>
     </ProtectedRoute>
+  );
+};
+
+const MyPage = () => {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    }>
+      <MyPageContent />
+    </Suspense>
   );
 };
 
