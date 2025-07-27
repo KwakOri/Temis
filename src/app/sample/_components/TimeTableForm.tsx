@@ -34,10 +34,10 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   };
 
   return (
-    <div className="shrink-0 w-1/4 h-full flex flex-col bg-gray-100 border-l-2 border-gray-300">
+    <div className="shrink-0 w-1/4 h-full flex flex-col bg-gray-100 border-l-2 border-gray-300 ">
       <div className="flex-1 overflow-y-auto p-4">
         {/* 테마 버튼 선택 */}
-        <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 mb-4">
+        <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 mb-4 select-none">
           {buttonThemes.map((theme) => {
             const isActive = currentTheme === theme.value;
             return (
@@ -58,23 +58,22 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
         </div>
 
         {/* 요일 카드 */}
-        <div className="flex flex-col gap-4 w-full">
+        <div className="flex flex-col gap-4 w-full select-none">
           {data.map((day, index) => (
             <div
               key={day.day}
               className="bg-white backdrop-blur-md rounded-xl p-4 shadow-[0_4px_5px_rgba(0,0,0,0.15)]"
             >
-              {/* 요일 + 휴일 */}
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-gray-700">
                   {weekdays[weekdayOption][day.day]}
                 </span>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">휴방</span>
+                  <span className="text-sm text-gray-500 ">휴방</span>
                   <button
                     type="button"
-                    className={`w-10 h-5 flex items-center rounded-full p-1 duration-300 ease-in-out ${
-                      day.isOffline ? "bg-blue-500" : "bg-gray-300"
+                    className={`w-10 h-5 flex items-center rounded-full p-1 duration-300 ease-in-out  ${
+                      day.isOffline ? "bg-[#3E4A82]" : "bg-gray-300"
                     }`}
                     onClick={() => {
                       const newData = [...data];
@@ -83,7 +82,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
                     }}
                   >
                     <div
-                      className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out ${
+                      className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out  ${
                         day.isOffline ? "translate-x-4" : "translate-x-0"
                       }`}
                     />
@@ -91,7 +90,6 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
                 </div>
               </div>
 
-              {/* 접힘 처리 영역 */}
               <div
                 className={`transition-all duration-300 overflow-hidden ${
                   day.isOffline
@@ -139,9 +137,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
         </div>
       </div>
 
-      {/* 하단 고정 입력 영역 */}
-      <div className="bg-gray-50 border-t border-gray-300 p-4 space-y-2">
-        {/* 날짜 입력 */}
+      <div className="bg-gray-50 border-t border-gray-300 p-4 space-y-2 select-none">
         <div>
           <label className="block text-sm text-gray-700 font-semibold mb-1">
             기준 월요일 선택

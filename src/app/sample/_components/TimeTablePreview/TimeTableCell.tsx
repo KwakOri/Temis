@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 
 import { Imgs } from "../../_img/imgs";
 import { TDefaultCard, weekdays } from "../../_settings/general";
@@ -36,7 +37,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         }}
         key={time.day}
       >
-        <img src={Imgs[currentTheme]["offline"].src} />
+        <Image
+          src={Imgs[currentTheme]["offline"].src.replace("./", "/")}
+          alt="offline"
+          width={offlineCardWidth}
+          height={offlineCardHeight}
+        />
       </div>
     );
   }
@@ -98,9 +104,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           {time.time}
         </p>
       </div>
-      <img
+      <Image
         className="absolute top-0 left-0 -z-10"
-        src={Imgs[currentTheme]["online"].src}
+        src={Imgs[currentTheme]["online"].src.replace("./", "/")}
+        alt="online"
+        width={onlineCardWidth}
+        height={onlineCardHeight}
       />
     </div>
   );
