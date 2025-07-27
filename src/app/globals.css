@@ -9,3 +9,35 @@
   --color-holiday: #8a3747;
   --color-dark-gray: #2d2d2d;
 }
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes slideLoop {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-slide-loop-fast {
+  animation: slideLoop 40s linear infinite;
+}
+
+.animate-slide-loop-slow {
+  animation: slideLoop 45s linear infinite;
+}
+body {
+  font-family: "Pretendard", sans-serif;
+}
+.mask-fade-bottom {
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
