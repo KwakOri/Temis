@@ -129,6 +129,7 @@ const TimeTableEditor: React.FC = () => {
           weekDates={weekDates}
           imageSrc={imageSrc}
         />
+
         <TimeTableForm
           currentTheme={currentTheme}
           onThemeButtonClick={onThemeButtonClick}

@@ -10,8 +10,8 @@ const TimeTableControls: React.FC<TimeTableControlsProps> = ({
   onScaleChange,
 }) => {
   return (
-    <div className="fixed top-4 left-4 z-50 bg-white/80 px-4 py-2 rounded ">
-      <label className="text-sm text-gray-600 font-medium">
+    <div className="fixed top-4 left-4 z-50 bg-white/80 px-4 py-2 rounded select-none ">
+      <label className="text-sm text-gray-600 font-medium ">
         미리보기 배율: {scale.toFixed(1)}x
       </label>
       <input
