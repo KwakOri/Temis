@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { defaultCards, TDefaultCard, weekdays } from "../_settings/general";
 import {
   buttonThemes,
@@ -20,6 +20,7 @@ interface TimeTableFormProps {
   onDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadClick: () => void;
   setProfileText: React.Dispatch<React.SetStateAction<string>>;
+  isMobile: boolean;
 }
 
 const TimeTableForm: React.FC<TimeTableFormProps> = ({
@@ -34,12 +35,32 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   mondayDateStr,
   onDateChange,
   onDownloadClick,
+  isMobile,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 모바일 아코디언 상태 관리
+  const [activeTab, setActiveTab] = useState<"id1" | "id2" | null>(
+    isMobile ? "id1" : null
+  );
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
+
+  const toggleTab = (tabId: "id1" | "id2") => {
+    if (!isMobile) return;
+    setActiveTab(activeTab === tabId ? null : tabId);
+  };
+
+  // isMobile 상태 변경 시 activeTab 초기화
+  useEffect(() => {
+    if (isMobile) {
+      setActiveTab("id1"); // 모바일로 전환 시 첫 번째 탭 열기
+    } else {
+      setActiveTab(null); // 데스크톱으로 전환 시 초기화
+    }
+  }, [isMobile]);
 
   const onResetFormButtonClick = () => {
     const isOk = confirm("모든 내용을 지우시겠습니까?");
@@ -50,8 +71,44 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   };
 
   return (
-    <div className="shrink-0 w-full lg:w-1/4 h-full flex flex-col bg-gray-100 border-t-2 lg:border-t-0 lg:border-l-2 border-gray-300 ">
-      <div id="id1" className="flex-1 overflow-y-auto p-4">
+    <div className={`shrink-0 w-full lg:w-1/4 ${isMobile ? 'h-auto' : 'h-full'} flex flex-col bg-gray-100 border-t-2 lg:border-t-0 lg:border-l-2 border-gray-300`}>
+      {/* 모바일 토글 헤더 - 메인 설정 */}
+      {isMobile && (
+        <button
+          onClick={() => toggleTab("id1")}
+          className="flex items-center justify-between p-4 bg-gray-200 border-b border-gray-300 hover:bg-gray-300 transition-colors"
+        >
+          <span className="font-medium text-gray-700">시간표 설정</span>
+          <svg
+            className={`w-5 h-5 transition-transform ${
+              activeTab === "id1" ? "rotate-180" : ""
+            }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+      )}
+
+      <div
+        id="id1"
+        className={`${
+          isMobile ? "" : "flex-1"
+        } transition-all duration-300 box-border ${
+          isMobile
+            ? activeTab === "id1"
+              ? "max-h-[calc(100vh-16rem)] overflow-y-auto p-4"
+              : "max-h-0 p-0 overflow-hidden"
+            : "overflow-y-auto p-4"
+        }`}
+      >
         {/* 테마 버튼 선택 */}
         <div className="flex gap-2">
           <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 mb-4 select-none">
@@ -163,9 +220,42 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
         </div>
       </div>
 
+      {/* 모바일 토글 헤더 - 날짜/액션 설정 */}
+      {isMobile && (
+        <button
+          onClick={() => toggleTab("id2")}
+          className="flex items-center justify-between p-4 bg-gray-200 border-b border-gray-300 hover:bg-gray-300 transition-colors"
+        >
+          <span className="font-medium text-gray-700">날짜 및 저장</span>
+          <svg
+            className={`w-5 h-5 transition-transform ${
+              activeTab === "id2" ? "rotate-180" : ""
+            }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+      )}
+
       <div
         id="id2"
-        className="bg-gray-50 border-t border-gray-300 p-4 space-y-2 select-none"
+        className={`bg-gray-50 space-y-2 select-none transition-all duration-300 ${
+          isMobile
+            ? `border-0 ${
+                activeTab === "id2"
+                  ? "max-h-[calc(100vh-16rem)] p-4 overflow-y-auto"
+                  : "max-h-0 p-0 overflow-hidden"
+              }`
+            : "border-t border-gray-300 p-4"
+        }`}
       >
         <div>
           <label className="block text-sm text-gray-700 font-semibold mb-1">

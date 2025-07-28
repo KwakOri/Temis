@@ -216,6 +216,7 @@ const TimeTableEditor: React.FC = () => {
           mondayDateStr={mondayDateStr}
           onDateChange={handleChange}
           onDownloadClick={downloadImage}
+          isMobile={isMobile}
         />
       </div>
     </div>
