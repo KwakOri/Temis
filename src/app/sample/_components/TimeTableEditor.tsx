@@ -162,6 +162,16 @@ const TimeTableEditor: React.FC = () => {
     const node = document.getElementById("timetable");
     if (!node) return;
 
+    // 현재 시간을 기반으로 파일명 생성 (YYYYMMDDHHMMSS)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const fileName = `timetable_${year}${month}${day}${hours}${minutes}${seconds}.png`;
+
     domToPng(node, {
       width: 1280,
       height: 720,
@@ -173,7 +183,7 @@ const TimeTableEditor: React.FC = () => {
     })
       .then((dataUrl) => {
         const link = document.createElement("a");
-        link.download = "weekly-timetable.png";
+        link.download = fileName;
         link.href = dataUrl;
         link.click();
 
@@ -192,7 +202,7 @@ const TimeTableEditor: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      <TimeTableControls scale={scale} onScaleChange={setScale} />
+      {!isMobile && <TimeTableControls scale={scale} onScaleChange={setScale} />}
       <div className="flex flex-col md:flex-row md:items-center flex-1 min-h-0 gap-4 md:gap-0">
         <TimeTablePreview
           currentTheme={currentTheme}
