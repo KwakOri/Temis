@@ -29,7 +29,7 @@ const TimeTableEditor: React.FC = () => {
   // 모바일에서는 더 작은 초기 scale 사용
   const getInitialScale = () => {
     if (typeof window !== "undefined") {
-      return window.innerWidth < 1024 ? 0.25 : 0.5;
+      return window.innerWidth < 768 ? 0.25 : 0.5;
     }
     return 0.5;
   };
@@ -50,7 +50,7 @@ const TimeTableEditor: React.FC = () => {
   
   // 모바일 상태 관리
   const [isMobile, setIsMobile] = useState(
-    typeof window !== "undefined" ? window.innerWidth < 1024 : false
+    typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
 
   const onProfileTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -134,7 +134,7 @@ const TimeTableEditor: React.FC = () => {
   // 화면 크기 변경 시 scale 조정 및 isMobile 상태 업데이트
   useEffect(() => {
     const handleResize = () => {
-      const isCurrentlyMobile = window.innerWidth < 1024;
+      const isCurrentlyMobile = window.innerWidth < 768;
       setIsMobile(isCurrentlyMobile);
       
       const newScale = isCurrentlyMobile ? 0.25 : 0.5;
@@ -193,7 +193,7 @@ const TimeTableEditor: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col">
       <TimeTableControls scale={scale} onScaleChange={setScale} />
-      <div className="flex flex-col lg:flex-row lg:items-center flex-1 min-h-0 gap-4 lg:gap-0">
+      <div className="flex flex-col md:flex-row md:items-center flex-1 min-h-0 gap-4 md:gap-0">
         <TimeTablePreview
           currentTheme={currentTheme}
           profileText={profileText}

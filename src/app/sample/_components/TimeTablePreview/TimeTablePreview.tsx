@@ -90,7 +90,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
   if (weekDates.length === 0) return null;
   return (
     <div
-      className="flex justify-center items-center lg:overflow-hidden w-full lg:w-3/4"
+      className="flex justify-center items-center md:overflow-hidden w-full md:w-3/4"
       style={{
         // 모바일에서 명시적인 높이 설정, 데스크톱에서는 grow 사용
         height: isMobile ? containerHeight : "auto",
