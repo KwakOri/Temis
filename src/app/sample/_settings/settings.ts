@@ -84,8 +84,14 @@ export type TInitialCard = {
 export const initialCard: TInitialCard = {
   isOffline: false,
   time: "09:00",
+  topic: "",
+  description: "",
+};
+
+export const placeholders = {
   topic: "소제목 적는 곳",
   description: "내용 적는 곳",
+  profileText: "사용자 이름",
 };
 
 /** ---------------------------------------------- */
