@@ -50,8 +50,8 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   };
 
   return (
-    <div className="shrink-0 w-1/4 h-full flex flex-col bg-gray-100 border-l-2 border-gray-300 ">
-      <div className="flex-1 overflow-y-auto p-4">
+    <div className="shrink-0 w-full lg:w-1/4 h-full flex flex-col bg-gray-100 border-t-2 lg:border-t-0 lg:border-l-2 border-gray-300 ">
+      <div id="id1" className="flex-1 overflow-y-auto p-4">
         {/* 테마 버튼 선택 */}
         <div className="flex gap-2">
           <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 mb-4 select-none">
@@ -163,7 +163,10 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
         </div>
       </div>
 
-      <div className="bg-gray-50 border-t border-gray-300 p-4 space-y-2 select-none">
+      <div
+        id="id2"
+        className="bg-gray-50 border-t border-gray-300 p-4 space-y-2 select-none"
+      >
         <div>
           <label className="block text-sm text-gray-700 font-semibold mb-1">
             기준 월요일 선택

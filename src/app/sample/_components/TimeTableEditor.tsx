@@ -26,7 +26,15 @@ const getDefaultMondayString = (): string => {
 };
 
 const TimeTableEditor: React.FC = () => {
-  const [scale, setScale] = useState(0.5);
+  // 모바일에서는 더 작은 초기 scale 사용
+  const getInitialScale = () => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth < 1024 ? 0.25 : 0.5;
+    }
+    return 0.5;
+  };
+
+  const [scale, setScale] = useState(getInitialScale());
   const [data, setData] = useState<TDefaultCard[]>(defaultCards);
 
   const [profileText, setProfileText] = useState<string>("");
@@ -39,6 +47,11 @@ const TimeTableEditor: React.FC = () => {
     getDefaultMondayString()
   );
   const [weekDates, setWeekDates] = useState<Date[]>([]);
+  
+  // 모바일 상태 관리
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 1024 : false
+  );
 
   const onProfileTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newText = e.target.value;
@@ -118,6 +131,22 @@ const TimeTableEditor: React.FC = () => {
     saveTimeTableData(data);
   }, [data]);
 
+  // 화면 크기 변경 시 scale 조정 및 isMobile 상태 업데이트
+  useEffect(() => {
+    const handleResize = () => {
+      const isCurrentlyMobile = window.innerWidth < 1024;
+      setIsMobile(isCurrentlyMobile);
+      
+      const newScale = isCurrentlyMobile ? 0.25 : 0.5;
+      if (scale > newScale && isCurrentlyMobile) {
+        setScale(newScale);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [scale]);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -164,7 +193,7 @@ const TimeTableEditor: React.FC = () => {
   return (
     <div className="w-full h-full flex flex-col">
       <TimeTableControls scale={scale} onScaleChange={setScale} />
-      <div className="flex items-center flex-1 min-h-0">
+      <div className="flex flex-col lg:flex-row lg:items-center flex-1 min-h-0 gap-4 lg:gap-0">
         <TimeTablePreview
           currentTheme={currentTheme}
           profileText={profileText}
@@ -172,6 +201,7 @@ const TimeTableEditor: React.FC = () => {
           data={data}
           weekDates={weekDates}
           imageSrc={imageSrc}
+          isMobile={isMobile}
         />
 
         <TimeTableForm
