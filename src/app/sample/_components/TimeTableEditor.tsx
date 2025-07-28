@@ -1,5 +1,6 @@
 import * as htmlToImage from "html-to-image";
 import React, { useEffect, useState, type ChangeEvent } from "react";
+import Loading from "../../../components/Loading/Loading";
 import { defaultCards, TDefaultCard } from "../_settings/general";
 import { defaultTheme, TTheme } from "../_settings/settings";
 import {
@@ -157,6 +158,8 @@ const TimeTableEditor: React.FC = () => {
         console.error("이미지 생성 실패:", err);
       });
   };
+
+  if (weekDates.length === 0) return <Loading />;
 
   return (
     <div className="w-full h-full flex flex-col">
