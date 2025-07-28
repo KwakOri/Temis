@@ -47,7 +47,7 @@ const TimeTableEditor: React.FC = () => {
     getDefaultMondayString()
   );
   const [weekDates, setWeekDates] = useState<Date[]>([]);
-  
+
   // 모바일 상태 관리
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
@@ -136,7 +136,7 @@ const TimeTableEditor: React.FC = () => {
     const handleResize = () => {
       const isCurrentlyMobile = window.innerWidth < 768;
       setIsMobile(isCurrentlyMobile);
-      
+
       const newScale = isCurrentlyMobile ? 0.25 : 0.5;
       if (scale > newScale && isCurrentlyMobile) {
         setScale(newScale);
@@ -178,9 +178,10 @@ const TimeTableEditor: React.FC = () => {
         link.click();
 
         // 이미지 다운로드 완료 후 페이지 새로고침
-        setTimeout(() => {
-          window.location.reload();
-        }, 500); // 500ms 지연 후 새로고침 (다운로드 완료를 위한 여유시간)
+        // setTimeout(() => {
+        //   window.location.reload();
+        // }, 500);
+        // 500ms 지연 후 새로고침 (다운로드 완료를 위한 여유시간)
       })
       .catch((err) => {
         console.error("이미지 생성 실패:", err);
