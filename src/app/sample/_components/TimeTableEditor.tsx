@@ -1,4 +1,4 @@
-import * as htmlToImage from "html-to-image";
+import { domToPng } from "modern-screenshot";
 import React, { useEffect, useState, type ChangeEvent } from "react";
 import Loading from "../../../components/Loading/Loading";
 import { defaultCards, TDefaultCard } from "../_settings/general";
@@ -162,16 +162,15 @@ const TimeTableEditor: React.FC = () => {
     const node = document.getElementById("timetable");
     if (!node) return;
 
-    htmlToImage
-      .toPng(node, {
-        width: 1280,
-        height: 720,
-        pixelRatio: 1,
-        style: {
-          transform: "scale(1)",
-          transformOrigin: "top left",
-        },
-      })
+    domToPng(node, {
+      width: 1280,
+      height: 720,
+      scale: 1,
+      style: {
+        transform: "scale(1)",
+        transformOrigin: "top left",
+      },
+    })
       .then((dataUrl) => {
         const link = document.createElement("a");
         link.download = "weekly-timetable.png";
