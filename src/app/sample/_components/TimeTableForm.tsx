@@ -71,7 +71,11 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   };
 
   return (
-    <div className={`shrink-0 w-full md:w-1/4 ${isMobile ? 'h-auto' : 'h-full'} flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300`}>
+    <div
+      className={`shrink-0 w-full md:w-1/4 ${
+        isMobile ? "h-auto" : "h-full"
+      } flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300`}
+    >
       {/* 모바일 토글 헤더 - 메인 설정 */}
       {isMobile && (
         <button
@@ -101,12 +105,12 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
         id="id1"
         className={`${
           isMobile ? "" : "flex-1"
-        } transition-all duration-300 box-border ${
+        } transition-all duration-300 box-border  ${
           isMobile
             ? activeTab === "id1"
               ? "max-h-[calc(100vh-16rem)] overflow-y-auto p-4"
               : "max-h-0 p-0 overflow-hidden"
-            : "overflow-y-auto p-4"
+            : "overflow-y-auto p-4 "
         }`}
       >
         {/* 테마 버튼 선택 */}
@@ -133,7 +137,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
 
           <button
             onClick={onResetFormButtonClick}
-            className={` mb-4 flex shrink-0 py-2 px-1 text-sm font-medium text-center transition-all duration-200 rounded-md text-gray-500 hover:bg-white border border-gray-300 hover:text-red-600 hover:border hover:border-red-400 hover:shadow-sm cursor-pointer"
+            className={` mb-4 flex shrink-0 py-2 px-1 text-sm font-medium text-center transition-all duration-200 rounded-md text-gray-500 hover:bg-white border border-gray-300 hover:text-red-600 hover:border hover:border-red-400 hover:shadow-sm cursor-pointer "
                   `}
           >
             초기화
@@ -141,7 +145,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
         </div>
 
         {/* 요일 카드 */}
-        <div className="flex flex-col gap-4 w-full select-none">
+        <div className="flex flex-col gap-4 w-full select-none md:pb-0 sm:pb-60 pb-30">
           {data.map((day, index) => (
             <div
               key={day.day}
