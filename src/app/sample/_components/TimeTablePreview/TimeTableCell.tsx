@@ -1,5 +1,5 @@
-import React from "react";
 import Image from "next/image";
+import React from "react";
 
 import { Imgs } from "../../_img/imgs";
 import { TDefaultCard, weekdays } from "../../_settings/general";
@@ -10,6 +10,7 @@ import {
   offlineCardWidth,
   onlineCardHeight,
   onlineCardWidth,
+  placeholders,
   TTheme,
   weekdayOption,
 } from "../../_settings/settings";
@@ -76,24 +77,35 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center h-[30px] text-[16px] pt-2"
         >
-          {time.topic}
+          {time.topic ? time.topic : placeholders.topic}
         </p>
 
         <div className="flex flex-col justify-center items-center  h-[77px] pb-2">
-          {time.description
-            .split("\n")
-            .filter((line) => line.trim() !== "") // 공백 줄 제거
-            .map((line, idx) => (
-              <p
-                style={{
-                  color: colors[currentTheme]["primary"],
-                }}
-                className=" text-[32px] leading-none text-center"
-                key={index + "-" + idx}
-              >
-                {line}
-              </p>
-            ))}
+          {time.description ? (
+            time.description
+              .split("\n")
+              .filter((line) => line.trim() !== "") // 공백 줄 제거
+              .map((line, idx) => (
+                <p
+                  style={{
+                    color: colors[currentTheme]["primary"],
+                  }}
+                  className=" text-[32px] leading-none text-center"
+                  key={index + "-" + idx}
+                >
+                  {line}
+                </p>
+              ))
+          ) : (
+            <p
+              style={{
+                color: colors[currentTheme]["primary"],
+              }}
+              className=" text-[32px] leading-none text-center"
+            >
+              {placeholders.description}
+            </p>
+          )}
         </div>
         <p
           style={{

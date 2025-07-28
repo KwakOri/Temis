@@ -1,9 +1,10 @@
-import React from "react";
 import Image from "next/image";
+import React from "react";
 import { Imgs } from "../../_img/imgs";
 import {
   colors,
   fontOption,
+  placeholders,
   profileFrameHeight,
   profileFrameWidth,
   profileImageHeight,
@@ -42,7 +43,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           }}
           className="text-center"
         >
-          {profileText}
+          {profileText ? profileText : placeholders.profileText}
         </p>
       </div>
       <div

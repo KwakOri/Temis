@@ -1,6 +1,12 @@
 import React, { useRef } from "react";
-import { TDefaultCard, weekdays } from "../_settings/general";
-import { buttonThemes, TTheme, weekdayOption } from "../_settings/settings";
+import { defaultCards, TDefaultCard, weekdays } from "../_settings/general";
+import {
+  buttonThemes,
+  placeholders,
+  TTheme,
+  weekdayOption,
+} from "../_settings/settings";
+import { clearAllTimeTableData } from "../_utils/localStorage";
 
 interface TimeTableFormProps {
   data: TDefaultCard[];
@@ -13,9 +19,11 @@ interface TimeTableFormProps {
   mondayDateStr: string;
   onDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDownloadClick: () => void;
+  setProfileText: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const TimeTableForm: React.FC<TimeTableFormProps> = ({
+  setProfileText,
   data,
   setData,
   onImageChange,
@@ -33,28 +41,46 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
     fileInputRef.current?.click();
   };
 
+  const onResetFormButtonClick = () => {
+    const isOk = confirm("모든 내용을 지우시겠습니까?");
+    if (!isOk) return;
+    clearAllTimeTableData();
+    setProfileText("");
+    setData(defaultCards);
+  };
+
   return (
     <div className="shrink-0 w-1/4 h-full flex flex-col bg-gray-100 border-l-2 border-gray-300 ">
       <div className="flex-1 overflow-y-auto p-4">
         {/* 테마 버튼 선택 */}
-        <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 mb-4 select-none">
-          {buttonThemes.map((theme) => {
-            const isActive = currentTheme === theme.value;
-            return (
-              <button
-                key={theme.value}
-                onClick={() => onThemeButtonClick(theme.value as TTheme)}
-                className={`flex-1 py-2 px-1 text-sm font-medium text-center transition-all duration-200 rounded-md
+        <div className="flex gap-2">
+          <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 mb-4 select-none">
+            {buttonThemes.map((theme) => {
+              const isActive = currentTheme === theme.value;
+              return (
+                <button
+                  key={theme.value}
+                  onClick={() => onThemeButtonClick(theme.value as TTheme)}
+                  className={`flex-1 py-2 px-1 text-sm font-medium text-center transition-all duration-200 rounded-md
                   ${
                     isActive
                       ? "bg-white text-blue-600 border border-blue-400 shadow-sm"
                       : "text-gray-500 hover:bg-gray-200 border border-transparent"
                   }`}
-              >
-                {theme.label}
-              </button>
-            );
-          })}
+                >
+                  {theme.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={onResetFormButtonClick}
+            className={` mb-4 flex shrink-0 py-2 px-1 text-sm font-medium text-center transition-all duration-200 rounded-md text-gray-500 hover:bg-white border border-gray-300 hover:text-red-600 hover:border hover:border-red-400 hover:shadow-sm cursor-pointer"
+                  `}
+          >
+            초기화
+          </button>
         </div>
 
         {/* 요일 카드 */}
@@ -111,8 +137,8 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
 
                   <input
                     value={day.topic}
-                    placeholder="소제목 적는 곳"
-                    className="w-full bg-gray-100 rounded-xl p-3 text-gray-400 placeholder-gray-400 focus:outline-none"
+                    placeholder={placeholders.topic}
+                    className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
                     onChange={(e) => {
                       const newData = [...data];
                       newData[index].topic = e.target.value;
@@ -122,8 +148,8 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
 
                   <textarea
                     value={day.description}
-                    placeholder="내용 적는 곳"
-                    className="w-full bg-gray-100 rounded-xl p-3 text-gray-400 placeholder-gray-400 focus:outline-none resize-none"
+                    placeholder={placeholders.description}
+                    className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
                     onChange={(e) => {
                       const newData = [...data];
                       newData[index].description = e.target.value;
@@ -164,7 +190,8 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
             id="profile-text"
             value={profileText}
             onChange={onProfileTextChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder={placeholders.profileText}
           />
 
           <input

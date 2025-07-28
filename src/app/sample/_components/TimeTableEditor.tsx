@@ -1,9 +1,18 @@
-import TimeTableControls from "./TimeTableControls";
-import TimeTableForm from "./TimeTableForm";
-import { defaultCards, TDefaultCard } from "../_settings/general";
-import { defaultTheme, TTheme } from "../_settings/settings";
 import * as htmlToImage from "html-to-image";
 import React, { useEffect, useState, type ChangeEvent } from "react";
+import Loading from "../../../components/Loading/Loading";
+import { defaultCards, TDefaultCard } from "../_settings/general";
+import { defaultTheme, TTheme } from "../_settings/settings";
+import {
+  loadProfileText,
+  loadTheme,
+  loadTimeTableData,
+  saveProfileText,
+  saveTheme,
+  saveTimeTableData,
+} from "../_utils/localStorage";
+import TimeTableControls from "./TimeTableControls";
+import TimeTableForm from "./TimeTableForm";
 import TimeTablePreview from "./TimeTablePreview";
 
 const getDefaultMondayString = (): string => {
@@ -20,7 +29,7 @@ const TimeTableEditor: React.FC = () => {
   const [scale, setScale] = useState(0.5);
   const [data, setData] = useState<TDefaultCard[]>(defaultCards);
 
-  const [profileText, setProfileText] = useState<string>("작가명 입력");
+  const [profileText, setProfileText] = useState<string>("");
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
 
@@ -32,7 +41,9 @@ const TimeTableEditor: React.FC = () => {
   const [weekDates, setWeekDates] = useState<Date[]>([]);
 
   const onProfileTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setProfileText(e.target.value);
+    const newText = e.target.value;
+    setProfileText(newText);
+    saveProfileText(newText);
   };
 
   const getThisWeekDatesFromMonday = (monday: Date): Date[] => {
@@ -60,6 +71,7 @@ const TimeTableEditor: React.FC = () => {
 
   const onThemeButtonClick = (value: TTheme) => {
     setCurrentTheme(value);
+    saveTheme(value);
   };
 
   useEffect(() => {
@@ -67,7 +79,27 @@ const TimeTableEditor: React.FC = () => {
     setWeekDates(getThisWeekDatesFromMonday(monday));
   }, [mondayDateStr]);
 
+  // localStorage에서 데이터 로드하는 useEffect
   useEffect(() => {
+    // 시간표 데이터 로드
+    const savedData = loadTimeTableData();
+    if (savedData) {
+      setData(savedData);
+    }
+
+    // 테마 로드
+    const savedTheme = loadTheme();
+    if (savedTheme) {
+      setCurrentTheme(savedTheme);
+    }
+
+    // 작가명 로드
+    const savedProfileText = loadProfileText();
+    if (savedProfileText) {
+      setProfileText(savedProfileText);
+    }
+
+    // 기본 월요일 날짜 설정
     const getDefaultMondayString = (): string => {
       const today = new Date();
       const day = today.getDay();
@@ -80,6 +112,11 @@ const TimeTableEditor: React.FC = () => {
 
     setMondayDateStr(getDefaultMondayString());
   }, []);
+
+  // data 변경 시 localStorage에 저장
+  useEffect(() => {
+    saveTimeTableData(data);
+  }, [data]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,11 +148,18 @@ const TimeTableEditor: React.FC = () => {
         link.download = "weekly-timetable.png";
         link.href = dataUrl;
         link.click();
+
+        // 이미지 다운로드 완료 후 페이지 새로고침
+        setTimeout(() => {
+          window.location.reload();
+        }, 500); // 500ms 지연 후 새로고침 (다운로드 완료를 위한 여유시간)
       })
       .catch((err) => {
         console.error("이미지 생성 실패:", err);
       });
   };
+
+  if (weekDates.length === 0) return <Loading />;
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -137,6 +181,7 @@ const TimeTableEditor: React.FC = () => {
           onProfileTextChange={onProfileTextChange}
           data={data}
           setData={setData}
+          setProfileText={setProfileText}
           onImageChange={handleImageChange}
           mondayDateStr={mondayDateStr}
           onDateChange={handleChange}
