@@ -1,5 +1,5 @@
 import { domToPng } from "modern-screenshot";
-import React, { useEffect, useState, type ChangeEvent } from "react";
+import React, { useEffect, useState } from "react";
 import Loading from "../../../components/Loading/Loading";
 import { defaultCards, TDefaultCard } from "../_settings/general";
 import { defaultTheme, TTheme } from "../_settings/settings";
@@ -68,18 +68,9 @@ const TimeTableEditor: React.FC = () => {
     });
   };
 
-  const isMonday = (dateStr: string): boolean => {
-    const date = new Date(dateStr);
-    return date.getDay() === 1;
-  };
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.value;
-    if (isMonday(selected)) {
-      setMondayDateStr(selected);
-    } else {
-      alert("⚠️ 선택한 날짜는 월요일이 아닙니다. 월요일만 선택 가능합니다.");
-    }
+  const handleDateChange = (dateStr: string) => {
+    setMondayDateStr(dateStr);
   };
 
   const onThemeButtonClick = (value: TTheme) => {
@@ -224,7 +215,7 @@ const TimeTableEditor: React.FC = () => {
           setProfileText={setProfileText}
           onImageChange={handleImageChange}
           mondayDateStr={mondayDateStr}
-          onDateChange={handleChange}
+          onDateChange={handleDateChange}
           onDownloadClick={downloadImage}
           isMobile={isMobile}
         />

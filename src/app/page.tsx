@@ -1,8 +1,8 @@
 "use client";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import StepSection from "./sample/_components/LandingPage/StepSection";
-import ThumbnailCard from "./sample/_components/LandingPage/ThumbnailCard";
+import StepSection from "../components/LandingPage/StepSection";
+import ThumbnailCard from "../components/LandingPage/ThumbnailCard";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import React from "react";
 
+import AutoResizeText from "../../../../components/AutoResizeTextCard/AutoResizeText";
 import { Imgs } from "../../_img/imgs";
 import { TDefaultCard, weekdays } from "../../_settings/general";
 import {
@@ -82,20 +83,30 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
         <div className="flex flex-col justify-center items-center  h-[77px] pb-2">
           {time.description ? (
-            time.description
-              .split("\n")
-              .filter((line) => line.trim() !== "") // 공백 줄 제거
-              .map((line, idx) => (
-                <p
-                  style={{
-                    color: colors[currentTheme]["primary"],
-                  }}
-                  className=" text-[32px] leading-none text-center"
-                  key={index + "-" + idx}
-                >
-                  {line}
-                </p>
-              ))
+            // time.description
+            //   .split("\n")
+            //   .filter((line) => line.trim() !== "") // 공백 줄 제거
+            //   .map((line, idx) => (
+            //     <p
+            //       style={{
+            //         color: colors[currentTheme]["primary"],
+            //       }}
+            //       className=" text-[32px] leading-none text-center"
+            //       key={index + "-" + idx}
+            //     >
+            //       {line}
+            //     </p>
+            //   ))
+            <AutoResizeText
+              style={{
+                color: colors[currentTheme]["primary"],
+              }}
+              className=" text-[32px] leading-none text-center"
+              multiline={true}
+              maxFontSize={32}
+            >
+              {time.description}
+            </AutoResizeText>
           ) : (
             <p
               style={{
@@ -107,14 +118,15 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             </p>
           )}
         </div>
-        <p
+
+        <AutoResizeText
           style={{
             color: colors[currentTheme]["primary"],
           }}
           className=" flex justify-center items-center  h-[27px] text-[16px]"
         >
           {time.time}
-        </p>
+        </AutoResizeText>
       </div>
       <Image
         className="absolute top-0 left-0 -z-10"

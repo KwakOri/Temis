@@ -7,6 +7,7 @@ import {
   weekdayOption,
 } from "../_settings/settings";
 import { clearAllTimeTableData } from "../_utils/localStorage";
+import MondaySelector from "./MondaySelector";
 
 interface TimeTableFormProps {
   data: TDefaultCard[];
@@ -17,7 +18,7 @@ interface TimeTableFormProps {
   currentTheme: string;
   onThemeButtonClick: (value: TTheme) => void;
   mondayDateStr: string;
-  onDateChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDateChange: (dateStr: string) => void;
   onDownloadClick: () => void;
   setProfileText: React.Dispatch<React.SetStateAction<string>>;
   isMobile: boolean;
@@ -261,17 +262,10 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
             : "border-t border-gray-300 p-4"
         }`}
       >
-        <div>
-          <label className="block text-sm text-gray-700 font-semibold mb-1">
-            기준 월요일 선택
-          </label>
-          <input
-            type="date"
-            value={mondayDateStr}
-            onChange={onDateChange}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </div>
+        <MondaySelector
+          mondayDateStr={mondayDateStr}
+          onDateChange={onDateChange}
+        />
 
         <hr className="border-t-2 border-gray-300 my-4" />
 
