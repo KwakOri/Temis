@@ -48,7 +48,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   isMobile,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // TODO: 트위터 기능 활성화 시 주석 해제
   // // 트위터 관련 상태
   // const [twitterStatus, setTwitterStatus] = useState<TwitterStatus>({
@@ -91,7 +91,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   //       const response = await fetch('/api/user/twitter-status', {
   //         credentials: 'include',
   //       });
-  //       
+  //
   //       if (response.ok) {
   //         const data = await response.json();
   //         setTwitterStatus(data);
@@ -155,7 +155,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
   //     // dataUrl을 Blob으로 변환
   //     const response = await fetch(dataUrl);
   //     const blob = await response.blob();
-  //     
+  //
   //     // FormData 생성
   //     const formData = new FormData();
   //     formData.append('text', finalTweetText);
@@ -202,9 +202,9 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
 
   return (
     <div
-      className={`shrink-0 w-full md:w-1/4 ${
+      className={`shrink-0 w-100 ${
         isMobile ? "h-auto" : "h-full"
-      } flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300`}
+      } flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 md:max-w-[400px] md:min-w-[300px] md:w-1/4`}
     >
       {/* 모바일 토글 헤더 - 메인 설정 */}
       {isMobile && (

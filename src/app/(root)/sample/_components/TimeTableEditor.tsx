@@ -30,7 +30,7 @@ const TimeTableEditor: React.FC = () => {
   // 모바일에서는 더 작은 초기 scale 사용
   const getInitialScale = () => {
     if (typeof window !== "undefined") {
-      return window.innerWidth < 768 ? 0.25 : 0.5;
+      return window.innerWidth < 768 ? 0.3 : 0.5;
     }
     return 0.5;
   };
@@ -53,6 +53,7 @@ const TimeTableEditor: React.FC = () => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
+
 
   const onProfileTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newText = e.target.value;
@@ -77,6 +78,7 @@ const TimeTableEditor: React.FC = () => {
     setCurrentTheme(value);
     saveTheme(value);
   };
+
 
   useEffect(() => {
     const monday = new Date(mondayDateStr);
@@ -128,9 +130,9 @@ const TimeTableEditor: React.FC = () => {
       const isCurrentlyMobile = window.innerWidth < 768;
       setIsMobile(isCurrentlyMobile);
 
-      const newScale = isCurrentlyMobile ? 0.25 : 0.5;
-      if (scale > newScale && isCurrentlyMobile) {
-        setScale(newScale);
+      // 모바일에서 최대 배율 제한만 적용
+      if (isCurrentlyMobile && scale > 1.0) {
+        setScale(1.0);
       }
     };
 
@@ -200,11 +202,11 @@ const TimeTableEditor: React.FC = () => {
 
       {/* 모바일 버전 - 상단 헤더에 뒤로가기 + 배율 조절 */}
       {isMobile && (
-        <div className="flex items-center justify-between p-4 bg-white/95 border-b border-gray-200 z-50">
+        <div className="sticky top-0 flex items-center justify-between p-4 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
           {/* 뒤로가기 버튼 */}
           <Link
             href="/"
-            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+            className="flex items-center text-gray-600 active:text-gray-900 transition-colors touch-manipulation"
           >
             <svg
               className="w-6 h-6 mr-2"
@@ -224,36 +226,61 @@ const TimeTableEditor: React.FC = () => {
 
           {/* 배율 조절 */}
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600 whitespace-nowrap">
-              {scale.toFixed(1)}x
-            </span>
-            <input
-              type="range"
-              min={0.1}
-              max={0.5}
-              step={0.05}
-              value={scale}
-              onChange={(e) => setScale(parseFloat(e.target.value))}
-              className="w-20 h-2 rounded-lg appearance-none bg-gray-300
-              accent-[#3E4A82]
-              [&::-webkit-slider-thumb]:appearance-none
-              [&::-webkit-slider-thumb]:h-4
-              [&::-webkit-slider-thumb]:w-4
-              [&::-webkit-slider-thumb]:rounded-full
-              [&::-webkit-slider-thumb]:bg-[#3E4A82]
-              [&::-webkit-slider-thumb]:shadow-sm
-              [&::-moz-range-thumb]:h-4
-              [&::-moz-range-thumb]:w-4
-              [&::-moz-range-thumb]:rounded-full
-              [&::-moz-range-thumb]:bg-[#3E4A82]
-              [&::-moz-range-thumb]:shadow-sm
-              "
-            />
+            <button
+              onClick={() => setScale(Math.max(0.1, scale - 0.1))}
+              className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 active:bg-gray-300 transition-colors touch-manipulation"
+              disabled={scale <= 0.1}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              </svg>
+            </button>
+            
+            <div className="flex flex-col items-center">
+              <span className="text-xs text-gray-600 whitespace-nowrap">
+                {Math.round(scale * 100)}%
+              </span>
+              <input
+                type="range"
+                min={0.1}
+                max={1.0}
+                step={0.05}
+                value={scale}
+                onChange={(e) => setScale(parseFloat(e.target.value))}
+                className="w-24 h-3 rounded-lg appearance-none bg-gray-300
+                accent-[#3E4A82]
+                [&::-webkit-slider-thumb]:appearance-none
+                [&::-webkit-slider-thumb]:h-5
+                [&::-webkit-slider-thumb]:w-5
+                [&::-webkit-slider-thumb]:rounded-full
+                [&::-webkit-slider-thumb]:bg-[#3E4A82]
+                [&::-webkit-slider-thumb]:shadow-md
+                [&::-webkit-slider-thumb]:cursor-pointer
+                [&::-moz-range-thumb]:h-5
+                [&::-moz-range-thumb]:w-5
+                [&::-moz-range-thumb]:rounded-full
+                [&::-moz-range-thumb]:bg-[#3E4A82]
+                [&::-moz-range-thumb]:shadow-md
+                [&::-moz-range-thumb]:cursor-pointer
+                [&::-moz-range-thumb]:border-none
+                "
+              />
+            </div>
+            
+            <button
+              onClick={() => setScale(Math.min(1.0, scale + 0.1))}
+              className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 active:bg-gray-300 transition-colors touch-manipulation"
+              disabled={scale >= 1.0}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           </div>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center flex-1 min-h-0 gap-4 md:gap-0">
+      <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-4 md:gap-0">
         <TimeTablePreview
           currentTheme={currentTheme}
           profileText={profileText}
@@ -262,6 +289,7 @@ const TimeTableEditor: React.FC = () => {
           weekDates={weekDates}
           imageSrc={imageSrc}
           isMobile={isMobile}
+          onScaleChange={setScale}
         />
 
         <TimeTableForm
