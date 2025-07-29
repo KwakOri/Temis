@@ -34,9 +34,12 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
   const containerHeight = 720 * scale;
 
 
-  // use-gesture 드래그 핸들러 (자유 드래그)
+  // use-gesture 드래그 핸들러 (한 손가락 드래그)
   const bindDrag = useDrag(
-    ({ movement: [mx, my], first, memo }) => {
+    ({ movement: [mx, my], first, memo, touches }) => {
+      // 두 손가락 이상인 경우 드래그 무시 (핀치 제스처에 우선권)
+      if (touches && touches > 1) return memo;
+
       // 첫 번째 드래그 시작 시 현재 위치를 memo에 저장
       if (first) {
         memo = [position.x, position.y];
@@ -60,23 +63,56 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
       axis: undefined, // 모든 방향 드래그 허용
       threshold: 1, // 1px 이상 움직여야 드래그 시작
       enabled: true, // 항상 드래그 허용
+      pointer: { touch: true }, // 터치 이벤트 활성화
     }
   );
 
-  // 핀치 줌 핸들러 (모바일에서만 활성화)
+  // 핀치 줌 및 팬 핸들러 (두 손가락 제스처)
   const bindPinch = usePinch(
-    ({ offset: [scale_offset] }) => {
-      if (isMobile && onScaleChange) {
+    ({ offset: [scale_offset], movement: [mx, my], first, memo, touches }) => {
+      if (!isMobile) return memo;
+
+      // 두 손가락이 아닌 경우 무시
+      if (!touches || touches < 2) return memo;
+
+      // 첫 번째 핀치 시작 시 현재 상태를 memo에 저장
+      if (first) {
+        memo = {
+          scale: scale,
+          position: { x: position.x, y: position.y }
+        };
+      }
+
+      if (!memo) {
+        memo = {
+          scale: scale,
+          position: { x: position.x, y: position.y }
+        };
+      }
+
+      // 스케일 변경 (핀치 줌)
+      if (onScaleChange && Math.abs(scale_offset) > 0.001) {
         const newScale = Math.min(
-          Math.max(scale + scale_offset * 0.01, 0.1),
+          Math.max(memo.scale + scale_offset * 0.01, 0.1),
           1.0
         );
         onScaleChange(newScale);
       }
+
+      // 두 손가락으로 이동 (팬) - 스케일 변경이 미미할 때만
+      if (Math.abs(scale_offset) < 0.01) {
+        const newX = memo.position.x + mx * 0.5; // 감도 조절
+        const newY = memo.position.y + my * 0.5;
+        setPosition({ x: newX, y: newY });
+      }
+
+      return memo;
     },
     {
       scaleBounds: { min: 0.1, max: 1.0 },
       rubberband: true,
+      threshold: 0.1, // 핀치 감도
+      pointer: { touch: true }, // 터치 이벤트 활성화
     }
   );
 
