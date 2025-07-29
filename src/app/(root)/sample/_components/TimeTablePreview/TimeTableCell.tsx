@@ -1,7 +1,7 @@
 import Image from "next/image";
 import React from "react";
 
-import AutoResizeText from "../../../../components/AutoResizeTextCard/AutoResizeText";
+import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { Imgs } from "../../_img/imgs";
 import { TDefaultCard, weekdays } from "../../_settings/general";
 import {

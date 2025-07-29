@@ -1,6 +1,7 @@
+import Loading from "@/components/Loading";
 import { domToPng } from "modern-screenshot";
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import Loading from "../../../components/Loading/Loading";
 import { defaultCards, TDefaultCard } from "../_settings/general";
 import { defaultTheme, TTheme } from "../_settings/settings";
 import {
@@ -67,7 +68,6 @@ const TimeTableEditor: React.FC = () => {
       return date;
     });
   };
-
 
   const handleDateChange = (dateStr: string) => {
     setMondayDateStr(dateStr);
@@ -156,11 +156,11 @@ const TimeTableEditor: React.FC = () => {
     // 현재 시간을 기반으로 파일명 생성 (YYYYMMDDHHMMSS)
     const now = new Date();
     const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const seconds = String(now.getSeconds()).padStart(2, "0");
     const fileName = `timetable_${year}${month}${day}${hours}${minutes}${seconds}.png`;
 
     domToPng(node, {
@@ -193,7 +193,66 @@ const TimeTableEditor: React.FC = () => {
 
   return (
     <div className="w-full h-full flex flex-col">
-      {!isMobile && <TimeTableControls scale={scale} onScaleChange={setScale} />}
+      {/* 데스크탑 버전 - TimeTableControls (뒤로가기 + 배율 조절 통합) */}
+      {!isMobile && (
+        <TimeTableControls scale={scale} onScaleChange={setScale} />
+      )}
+
+      {/* 모바일 버전 - 상단 헤더에 뒤로가기 + 배율 조절 */}
+      {isMobile && (
+        <div className="flex items-center justify-between p-4 bg-white/95 border-b border-gray-200 z-50">
+          {/* 뒤로가기 버튼 */}
+          <Link
+            href="/"
+            className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          >
+            <svg
+              className="w-6 h-6 mr-2"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            <span className="font-medium">뒤로가기</span>
+          </Link>
+
+          {/* 배율 조절 */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-600 whitespace-nowrap">
+              {scale.toFixed(1)}x
+            </span>
+            <input
+              type="range"
+              min={0.1}
+              max={0.5}
+              step={0.05}
+              value={scale}
+              onChange={(e) => setScale(parseFloat(e.target.value))}
+              className="w-20 h-2 rounded-lg appearance-none bg-gray-300
+              accent-[#3E4A82]
+              [&::-webkit-slider-thumb]:appearance-none
+              [&::-webkit-slider-thumb]:h-4
+              [&::-webkit-slider-thumb]:w-4
+              [&::-webkit-slider-thumb]:rounded-full
+              [&::-webkit-slider-thumb]:bg-[#3E4A82]
+              [&::-webkit-slider-thumb]:shadow-sm
+              [&::-moz-range-thumb]:h-4
+              [&::-moz-range-thumb]:w-4
+              [&::-moz-range-thumb]:rounded-full
+              [&::-moz-range-thumb]:bg-[#3E4A82]
+              [&::-moz-range-thumb]:shadow-sm
+              "
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center flex-1 min-h-0 gap-4 md:gap-0">
         <TimeTablePreview
           currentTheme={currentTheme}

@@ -1,11 +1,13 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import StepSection from "../components/LandingPage/StepSection";
-import ThumbnailCard from "../components/LandingPage/ThumbnailCard";
+import StepSection from "../../components/LandingPage/StepSection";
+import ThumbnailCard from "../../components/LandingPage/ThumbnailCard";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -15,6 +17,24 @@ export default function Home() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.mobile-menu-container')) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,15 +57,102 @@ export default function Home() {
           >
             TEMIS
           </div>
-          <a
-            href="https://docs.google.com/forms/d/e/1FAIpQLSc5kQKh6c0kbz0uKkaSCvPFsKWcd5rIN5oIHwHd3moyBmPH0g/viewform?usp=dialog"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <button className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-              맞춤형 시간표 예약하기
+          {/* 데스크탑 버전 - md 이상에서 표시 */}
+          <div className="hidden md:flex gap-2">
+            <a
+              href="https://docs.google.com/forms/d/e/1FAIpQLSc5kQKh6c0kbz0uKkaSCvPFsKWcd5rIN5oIHwHd3moyBmPH0g/viewform?usp=dialog"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                맞춤형 시간표 예약하기
+              </p>
+            </a>
+            <Link href="./my-page">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                마이페이지
+              </p>
+            </Link>
+          </div>
+
+          {/* 모바일 버전 - md 미만에서 표시 */}
+          <div className="md:hidden mobile-menu-container relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className={`p-2 rounded-lg transition-colors ${
+                scrolled ? "hover:bg-gray-200" : "hover:bg-white/20"
+              }`}
+              aria-label="메뉴 열기"
+            >
+              <svg
+                className={`w-6 h-6 transition-colors ${
+                  scrolled ? "text-gray-900" : "text-white"
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
             </button>
-          </a>
+
+            {/* 드롭다운 메뉴 */}
+            {isMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
+                <a
+                  href="https://docs.google.com/forms/d/e/1FAIpQLSc5kQKh6c0kbz0uKkaSCvPFsKWcd5rIN5oIHwHd3moyBmPH0g/viewform?usp=dialog"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span className="font-medium">맞춤형 시간표 예약하기</span>
+                  </div>
+                </a>
+                <Link
+                  href="./my-page"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    <span className="font-medium">마이페이지</span>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <section className="relative h-screen w-full overflow-hidden">

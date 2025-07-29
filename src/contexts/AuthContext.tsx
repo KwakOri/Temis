@@ -81,6 +81,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // 로그아웃
   const logout = async () => {
     try {
+      // 서버에 로그아웃 요청 (쿠키 제거)
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include', // 쿠키 포함
@@ -89,11 +90,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
         },
       });
 
+      // 클라이언트 상태 초기화
       setUser(null);
+
+      // 로컬스토리지 및 세션스토리지에서 인증 관련 데이터 제거
+      if (typeof window !== 'undefined') {
+        const authKeys = ['auth-token', 'token', 'user', 'access_token', 'jwt_token'];
+        authKeys.forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
+      }
     } catch (error) {
       console.error('Logout failed:', error);
+      
       // 로그아웃은 항상 성공으로 처리 (클라이언트에서 상태 초기화)
       setUser(null);
+      
+      // 에러가 발생해도 클라이언트 데이터는 정리
+      if (typeof window !== 'undefined') {
+        const authKeys = ['auth-token', 'token', 'user', 'access_token', 'jwt_token'];
+        authKeys.forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
+      }
     }
   };
 

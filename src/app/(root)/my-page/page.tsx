@@ -3,7 +3,10 @@
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Loading from "@/components/Loading";
 import { Template } from "@/types/supabase-types";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
+// TODO: 트위터 기능 활성화 시 주석 해제
+// import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 import { Suspense, useEffect, useState } from "react";
 
 interface UserTemplate {
@@ -13,45 +16,52 @@ interface UserTemplate {
   templates: Template;
 }
 
-interface TwitterStatus {
-  isConnected: boolean;
-  twitterUsername: string | null;
-  connectedAt: string | null;
-}
+// TODO: 트위터 기능 활성화 시 주석 해제
+// interface TwitterStatus {
+//   isConnected: boolean;
+//   twitterUsername: string | null;
+//   connectedAt: string | null;
+// }
 
 const MyPageContent = () => {
-  const searchParams = useSearchParams();
+  // TODO: 트위터 기능 활성화 시 주석 해제
+  // const searchParams = useSearchParams();
   const router = useRouter();
+  const { logout: authLogout } = useAuth();
   const [templates, setTemplates] = useState<UserTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [twitterStatus, setTwitterStatus] = useState<TwitterStatus>({
-    isConnected: false,
-    twitterUsername: null,
-    connectedAt: null,
-  });
-  const [twitterLoading, setTwitterLoading] = useState(false);
+  // TODO: 트위터 기능 활성화 시 주석 해제
+  // const [twitterStatus, setTwitterStatus] = useState<TwitterStatus>({
+  //   isConnected: false,
+  //   twitterUsername: null,
+  //   connectedAt: null,
+  // });
+  // const [twitterLoading, setTwitterLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [logoutLoading, setLogoutLoading] = useState(false);
 
   useEffect(() => {
     fetchUserTemplates();
-    fetchTwitterStatus();
+    // TODO: 트위터 기능 활성화 시 주석 해제
+    // fetchTwitterStatus();
   }, []);
 
-  // Handle Twitter callback
-  useEffect(() => {
-    const twitterParam = searchParams.get("twitter");
-    const oauthToken = searchParams.get("oauth_token");
-    const oauthVerifier = searchParams.get("oauth_verifier");
+  // TODO: 트위터 기능 활성화 시 주석 해제
+  // // Handle Twitter callback
+  // useEffect(() => {
+  //   const twitterParam = searchParams.get("twitter");
+  //   const oauthToken = searchParams.get("oauth_token");
+  //   const oauthVerifier = searchParams.get("oauth_verifier");
 
-    if (twitterParam === "callback" && oauthToken && oauthVerifier) {
-      handleTwitterCallback(oauthToken, oauthVerifier);
-    } else if (twitterParam === "cancelled") {
-      setError("트위터 연동이 취소되었습니다.");
-    } else if (twitterParam === "error") {
-      setError("트위터 연동 중 오류가 발생했습니다.");
-    }
-  }, [searchParams]);
+  //   if (twitterParam === "callback" && oauthToken && oauthVerifier) {
+  //     handleTwitterCallback(oauthToken, oauthVerifier);
+  //   } else if (twitterParam === "cancelled") {
+  //     setError("트위터 연동이 취소되었습니다.");
+  //   } else if (twitterParam === "error") {
+  //     setError("트위터 연동 중 오류가 발생했습니다.");
+  //   }
+  // }, [searchParams]);
 
   const fetchUserTemplates = async () => {
     try {
@@ -73,140 +83,199 @@ const MyPageContent = () => {
     }
   };
 
-  const fetchTwitterStatus = async () => {
-    try {
-      const response = await fetch("/api/user/twitter-status", {
-        credentials: "include",
-      });
+  // TODO: 트위터 기능 활성화 시 주석 해제
+  // const fetchTwitterStatus = async () => {
+  //   try {
+  //     const response = await fetch("/api/user/twitter-status", {
+  //       credentials: "include",
+  //     });
 
-      if (response.ok) {
-        const data = await response.json();
-        setTwitterStatus(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch Twitter status:", error);
-    }
-  };
+  //     if (response.ok) {
+  //       const data = await response.json();
+  //       setTwitterStatus(data);
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to fetch Twitter status:", error);
+  //   }
+  // };
 
-  const handleTwitterConnect = async () => {
-    try {
-      setTwitterLoading(true);
-      setError("");
+  // TODO: 트위터 기능 활성화 시 주석 해제
+  // const handleTwitterConnect = async () => {
+  //   try {
+  //     setTwitterLoading(true);
+  //     setError("");
 
-      const response = await fetch("/api/auth/twitter?action=request_token", {
-        credentials: "include",
-      });
+  //     const response = await fetch("/api/auth/twitter?action=request_token", {
+  //       credentials: "include",
+  //     });
 
-      if (!response.ok) {
-        throw new Error("트위터 연동 요청에 실패했습니다.");
-      }
+  //     if (!response.ok) {
+  //       throw new Error("트위터 연동 요청에 실패했습니다.");
+  //     }
 
-      const data = await response.json();
+  //     const data = await response.json();
 
-      if (data.success && data.authUrl) {
-        // Store token secret temporarily in sessionStorage
-        sessionStorage.setItem("twitter_token_secret", data.oauthTokenSecret);
-        // Redirect to Twitter authorization
-        window.location.href = data.authUrl;
-      }
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "트위터 연동 중 오류가 발생했습니다."
-      );
-    } finally {
-      setTwitterLoading(false);
-    }
-  };
+  //     if (data.success && data.authUrl) {
+  //       // Store token secret temporarily in sessionStorage
+  //       sessionStorage.setItem("twitter_token_secret", data.oauthTokenSecret);
+  //       // Redirect to Twitter authorization
+  //       window.location.href = data.authUrl;
+  //     }
+  //   } catch (error) {
+  //     setError(
+  //       error instanceof Error
+  //         ? error.message
+  //         : "트위터 연동 중 오류가 발생했습니다."
+  //     );
+  //   } finally {
+  //     setTwitterLoading(false);
+  //   }
+  // };
 
-  const handleTwitterCallback = async (
-    oauthToken: string,
-    oauthVerifier: string
-  ) => {
-    try {
-      setTwitterLoading(true);
-      setError("");
+  // TODO: 트위터 기능 활성화 시 주석 해제
+  // const handleTwitterCallback = async (
+  //   oauthToken: string,
+  //   oauthVerifier: string
+  // ) => {
+  //   try {
+  //     setTwitterLoading(true);
+  //     setError("");
 
-      const oauthTokenSecret = sessionStorage.getItem("twitter_token_secret");
-      if (!oauthTokenSecret) {
-        throw new Error("토큰 정보가 누락되었습니다.");
-      }
+  //     const oauthTokenSecret = sessionStorage.getItem("twitter_token_secret");
+  //     if (!oauthTokenSecret) {
+  //       throw new Error("토큰 정보가 누락되었습니다.");
+  //     }
 
-      const response = await fetch("/api/auth/twitter", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          oauthToken,
-          oauthVerifier,
-          oauthTokenSecret,
-        }),
-      });
+  //     const response = await fetch("/api/auth/twitter", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       credentials: "include",
+  //       body: JSON.stringify({
+  //         oauthToken,
+  //         oauthVerifier,
+  //         oauthTokenSecret,
+  //       }),
+  //     });
 
-      if (!response.ok) {
-        throw new Error("트위터 계정 연동에 실패했습니다.");
-      }
+  //     if (!response.ok) {
+  //       throw new Error("트위터 계정 연동에 실패했습니다.");
+  //     }
 
-      const data = await response.json();
+  //     const data = await response.json();
 
-      if (data.success) {
-        setSuccessMessage("트위터 계정이 성공적으로 연동되었습니다!");
-        await fetchTwitterStatus();
-        sessionStorage.removeItem("twitter_token_secret");
+  //     if (data.success) {
+  //       setSuccessMessage("트위터 계정이 성공적으로 연동되었습니다!");
+  //       await fetchTwitterStatus();
+  //       sessionStorage.removeItem("twitter_token_secret");
 
-        // Clear URL parameters
-        window.history.replaceState({}, "", "/my-page");
-      }
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "트위터 연동 처리 중 오류가 발생했습니다."
-      );
-    } finally {
-      setTwitterLoading(false);
-    }
-  };
+  //       // Clear URL parameters
+  //       window.history.replaceState({}, "", "/my-page");
+  //     }
+  //   } catch (error) {
+  //     setError(
+  //       error instanceof Error
+  //         ? error.message
+  //         : "트위터 연동 처리 중 오류가 발생했습니다."
+  //     );
+  //   } finally {
+  //     setTwitterLoading(false);
+  //   }
+  // };
 
-  const handleTwitterDisconnect = async () => {
-    if (!confirm("트위터 계정 연동을 해제하시겠습니까?")) {
+  // TODO: 트위터 기능 활성화 시 주석 해제
+  // const handleTwitterDisconnect = async () => {
+  //   if (!confirm("트위터 계정 연동을 해제하시겠습니까?")) {
+  //     return;
+  //   }
+
+  //   try {
+  //     setTwitterLoading(true);
+  //     setError("");
+
+  //     const response = await fetch("/api/auth/twitter/disconnect", {
+  //       method: "POST",
+  //       credentials: "include",
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error("트위터 연동 해제에 실패했습니다.");
+  //     }
+
+  //     const data = await response.json();
+
+  //     if (data.success) {
+  //       setSuccessMessage("트위터 계정 연동이 해제되었습니다.");
+  //       setTwitterStatus({
+  //         isConnected: false,
+  //         twitterUsername: null,
+  //         connectedAt: null,
+  //       });
+  //     }
+  //   } catch (error) {
+  //     setError(
+  //       error instanceof Error
+  //         ? error.message
+  //         : "트위터 연동 해제 중 오류가 발생했습니다."
+  //     );
+  //   } finally {
+  //     setTwitterLoading(false);
+  //   }
+  // };
+
+  const handleLogout = async () => {
+    if (!confirm("로그아웃 하시겠습니까?")) {
       return;
     }
 
     try {
-      setTwitterLoading(true);
+      setLogoutLoading(true);
       setError("");
 
-      const response = await fetch("/api/auth/twitter/disconnect", {
-        method: "POST",
-        credentials: "include",
+      // AuthContext의 logout 함수를 사용하여 쿠키 제거
+      await authLogout();
+
+      // 로컬스토리지에서 인증 관련 데이터 모두 제거
+      // const authKeys = [
+      //   "auth-token",
+      //   "token",
+      //   "user",
+      //   "access_token",
+      //   "jwt_token",
+      // ];
+      // authKeys.forEach((key) => {
+      //   localStorage.removeItem(key);
+      //   sessionStorage.removeItem(key);
+      // });
+
+      // 로그아웃 성공 메시지
+      // setSuccessMessage("로그아웃되었습니다.");
+
+      // 약간의 지연 후 리다이렉트 (사용자가 메시지를 볼 수 있도록)
+    } catch (error) {
+      console.error("Logout error:", error);
+
+      // 로그아웃 실패 시에도 클라이언트 상태는 초기화
+      const authKeys = [
+        "auth-token",
+        "token",
+        "user",
+        "access_token",
+        "jwt_token",
+      ];
+      authKeys.forEach((key) => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
       });
 
-      if (!response.ok) {
-        throw new Error("트위터 연동 해제에 실패했습니다.");
-      }
+      setError("로그아웃 처리 중 오류가 발생했지만 로그아웃되었습니다.");
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSuccessMessage("트위터 계정 연동이 해제되었습니다.");
-        setTwitterStatus({
-          isConnected: false,
-          twitterUsername: null,
-          connectedAt: null,
-        });
-      }
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : "트위터 연동 해제 중 오류가 발생했습니다."
-      );
+      setTimeout(() => {
+        router.push("/");
+      }, 1000);
     } finally {
-      setTwitterLoading(false);
+      setLogoutLoading(false);
     }
   };
 
@@ -245,22 +314,57 @@ const MyPageContent = () => {
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">마이페이지</h1>
-            <p className="mt-2 text-gray-600">
-              접근 권한이 있는 템플릿 목록을 확인하고 관리하세요.
-            </p>
+          <div className="mb-6 md:mb-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="text-center md:text-left">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">마이페이지</h1>
+                <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
+                  접근 권한이 있는 템플릿 목록을 확인하고 관리하세요.
+                </p>
+              </div>
+              <div className="flex justify-center md:justify-start">
+                <button
+                  onClick={handleLogout}
+                  disabled={logoutLoading}
+                  className="w-full md:w-auto px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
+                >
+                  {logoutLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      로그아웃 중...
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                      </svg>
+                      로그아웃
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Success Message */}
           {successMessage && (
-            <div className="mb-6 bg-green-50 border border-green-200 rounded-md p-4">
-              <div className="text-green-800">{successMessage}</div>
+            <div className="mb-4 md:mb-6 bg-green-50 border border-green-200 rounded-md p-3 md:p-4">
+              <div className="text-sm md:text-base text-green-800">{successMessage}</div>
               <button
                 onClick={() => setSuccessMessage("")}
-                className="mt-2 text-sm text-green-600 hover:text-green-800"
+                className="mt-2 text-xs md:text-sm text-green-600 hover:text-green-800"
               >
                 닫기
               </button>
@@ -269,19 +373,20 @@ const MyPageContent = () => {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-              <div className="text-red-800">{error}</div>
+            <div className="mb-4 md:mb-6 bg-red-50 border border-red-200 rounded-md p-3 md:p-4">
+              <div className="text-sm md:text-base text-red-800">{error}</div>
               <button
                 onClick={() => setError("")}
-                className="mt-2 text-sm text-red-600 hover:text-red-800"
+                className="mt-2 text-xs md:text-sm text-red-600 hover:text-red-800"
               >
                 닫기
               </button>
             </div>
           )}
 
+          {/* TODO: 트위터 기능 활성화 시 주석 해제 */}
           {/* Twitter Integration Section */}
-          <div className="mb-8">
+          {/* <div className="mb-8">
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
@@ -334,7 +439,7 @@ const MyPageContent = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Loading State */}
           {loading ? (
@@ -342,12 +447,12 @@ const MyPageContent = () => {
           ) : (
             <>
               {/* Stats */}
-              <div className="mb-8">
-                <div className="bg-white rounded-lg shadow p-6">
-                  <div className="flex items-center">
+              <div className="mb-6 md:mb-8">
+                <div className="bg-white rounded-lg shadow p-4 md:p-6">
+                  <div className="flex items-center justify-center md:justify-start">
                     <div className="flex-shrink-0">
                       <svg
-                        className="h-8 w-8 text-indigo-600"
+                        className="h-6 w-6 md:h-8 md:w-8 text-indigo-600"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -360,11 +465,11 @@ const MyPageContent = () => {
                         />
                       </svg>
                     </div>
-                    <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-500">
+                    <div className="ml-3 md:ml-4 text-center md:text-left">
+                      <p className="text-xs md:text-sm font-medium text-gray-500">
                         접근 가능한 템플릿
                       </p>
-                      <p className="text-2xl font-semibold text-gray-900">
+                      <p className="text-xl md:text-2xl font-semibold text-gray-900">
                         {templates.length}개
                       </p>
                     </div>
@@ -374,9 +479,9 @@ const MyPageContent = () => {
 
               {/* Templates Grid */}
               {templates.length === 0 ? (
-                <div className="text-center py-20">
+                <div className="text-center py-12 md:py-20">
                   <svg
-                    className="mx-auto h-12 w-12 text-gray-400"
+                    className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -388,15 +493,15 @@ const MyPageContent = () => {
                       d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                     />
                   </svg>
-                  <h3 className="mt-4 text-lg font-medium text-gray-900">
+                  <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-gray-900">
                     템플릿이 없습니다
                   </h3>
-                  <p className="mt-2 text-gray-500">
+                  <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-500 px-4">
                     아직 접근 권한이 부여된 템플릿이 없습니다.
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                   {templates.map((template) => (
                     <div
                       key={`${template.templates.id}-${template.id}`}
@@ -414,7 +519,7 @@ const MyPageContent = () => {
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <svg
-                              className="h-12 w-12 text-gray-400"
+                              className="h-8 w-8 md:h-12 md:w-12 text-gray-400"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -431,13 +536,13 @@ const MyPageContent = () => {
                       </div>
 
                       {/* Template Info */}
-                      <div className="p-4">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 truncate">
+                      <div className="p-3 md:p-4">
+                        <div className="flex items-start justify-between mb-1 md:mb-2">
+                          <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
                             {template.templates.name}
                           </h3>
                           <span
-                            className={`ml-2 px-2 py-1 text-xs font-medium rounded-full border ${getAccessLevelColor(
+                            className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getAccessLevelColor(
                               template.access_level
                             )}`}
                           >
@@ -446,15 +551,15 @@ const MyPageContent = () => {
                         </div>
 
                         {template.templates.description && (
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                          <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-2">
                             {template.templates.description}
                           </p>
                         )}
 
-                        <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-gray-500">
                           <div className="flex items-center space-x-1">
                             <span
-                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                              className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
                                 template.templates.is_public
                                   ? "bg-green-100 text-green-800"
                                   : "bg-gray-100 text-gray-800"
@@ -464,7 +569,7 @@ const MyPageContent = () => {
                             </span>
                           </div>
                           {template.granted_at && (
-                            <span>
+                            <span className="text-xs">
                               권한 부여:{" "}
                               {new Date(template.granted_at).toLocaleDateString(
                                 "ko-KR"

@@ -30,6 +30,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         width: profileFrameWidth,
         height: profileFrameHeight,
       }}
+      draggable={false}
     >
       <div
         style={{
@@ -59,6 +60,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           className="w-full h-full object-cover"
           width={profileFrameWidth}
           height={profileFrameHeight}
+          draggable={false}
         />
       </div>
       <div
