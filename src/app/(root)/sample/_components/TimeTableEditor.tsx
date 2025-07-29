@@ -177,12 +177,6 @@ const TimeTableEditor: React.FC = () => {
         link.download = fileName;
         link.href = dataUrl;
         link.click();
-
-        // 이미지 다운로드 완료 후 페이지 새로고침
-        // setTimeout(() => {
-        //   window.location.reload();
-        // }, 500);
-        // 500ms 지연 후 새로고침 (다운로드 완료를 위한 여유시간)
       })
       .catch((err) => {
         console.error("이미지 생성 실패:", err);
@@ -224,26 +218,6 @@ const TimeTableEditor: React.FC = () => {
 
           {/* 배율 조절 */}
           <div className="flex items-center gap-2">
-            {/* <button
-              onClick={() => setScale(Math.max(0.1, scale - 0.1))}
-              className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 active:bg-gray-300 transition-colors touch-manipulation"
-              disabled={scale <= 0.1}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M20 12H4"
-                />
-              </svg>
-            </button> */}
-
             <div className="flex flex-col items-center">
               <span className="text-xs text-gray-600 whitespace-nowrap">
                 {Math.round(scale * 100)}%
@@ -274,31 +248,11 @@ const TimeTableEditor: React.FC = () => {
                 "
               />
             </div>
-
-            {/* <button
-              onClick={() => setScale(Math.min(1.0, scale + 0.1))}
-              className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 active:bg-gray-300 transition-colors touch-manipulation"
-              disabled={scale >= 1.0}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-            </button> */}
           </div>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0">
+      <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0 h-full">
         <TimeTablePreview
           currentTheme={currentTheme}
           profileText={profileText}
