@@ -33,63 +33,22 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
   const containerWidth = 1280 * scale;
   const containerHeight = 720 * scale;
 
-  // 모바일에서 컨테이너 경계 계산 (useCallback으로 메모화)
-  const getContainerBounds = useCallback(() => {
-    if (typeof window === "undefined" || !isMobile) return null;
-    
-    const viewportHeight = window.innerHeight * 0.6; // 60vh
-    const viewportWidth = window.innerWidth;
-    
-    // 이미지가 컨테이너보다 큰지 확인
-    const isImageLarger = containerWidth > viewportWidth || containerHeight > viewportHeight;
-    
-    if (!isImageLarger) return null;
-    
-    // 드래그 가능한 범위 계산
-    const maxX = Math.max(0, (containerWidth - viewportWidth) / 2);
-    const maxY = Math.max(0, (containerHeight - viewportHeight) / 2);
-    
-    return {
-      minX: -maxX,
-      maxX: maxX,
-      minY: -maxY,
-      maxY: maxY,
-    };
-  }, [containerWidth, containerHeight, isMobile]);
 
-  // use-gesture 드래그 핸들러 (경계 제한 포함)
+  // use-gesture 드래그 핸들러 (자유 드래그)
   const bindDrag = useDrag(
     ({ movement: [mx, my], first, memo }) => {
-      console.log("Drag event:", {
-        mx,
-        my,
-        first,
-        currentPosition: position,
-      });
-
       // 첫 번째 드래그 시작 시 현재 위치를 memo에 저장
       if (first) {
         memo = [position.x, position.y];
-        console.log("Drag started, initial position:", memo);
       }
 
       if (!memo) {
         memo = [0, 0]; // 안전한 기본값
       }
 
-      // 경계 계산
-      const bounds = getContainerBounds();
-      
-      let newX = memo[0] + mx;
-      let newY = memo[1] + my;
-
-      // 모바일에서 경계 제한 적용
-      if (bounds && isMobile) {
-        newX = Math.max(bounds.minX, Math.min(bounds.maxX, newX));
-        newY = Math.max(bounds.minY, Math.min(bounds.maxY, newY));
-      }
-
-      console.log("Movement to:", { newX, newY, bounds });
+      // 새로운 위치 계산 (경계 제한 없음)
+      const newX = memo[0] + mx;
+      const newY = memo[1] + my;
 
       setPosition({ x: newX, y: newY });
 
@@ -100,7 +59,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
       filterTaps: true, // 짧은 탭은 드래그로 처리하지 않음
       axis: undefined, // 모든 방향 드래그 허용
       threshold: 1, // 1px 이상 움직여야 드래그 시작
-      enabled: isMobile ? getContainerBounds() !== null : true, // 드래그 가능할 때만 활성화
+      enabled: true, // 항상 드래그 허용
     }
   );
 
@@ -108,54 +67,45 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
   const bindPinch = usePinch(
     ({ offset: [scale_offset] }) => {
       if (isMobile && onScaleChange) {
-        const newScale = Math.min(Math.max(scale + scale_offset * 0.01, 0.1), 1.0);
+        const newScale = Math.min(
+          Math.max(scale + scale_offset * 0.01, 0.1),
+          1.0
+        );
         onScaleChange(newScale);
       }
     },
     {
       scaleBounds: { min: 0.1, max: 1.0 },
       rubberband: true,
-    }  
+    }
   );
 
   // 드래그와 핀치 제스처 결합
   const bind = () => {
     const dragBindings = bindDrag();
     const pinchBindings = isMobile ? bindPinch() : {};
-    
+
     return {
       ...dragBindings,
       ...pinchBindings,
     };
   };
 
-  // scale이 변경될 때 위치 조정
+  // scale이 변경될 때 위치 초기화 (데스크톱만)
   useEffect(() => {
-    const bounds = getContainerBounds();
-    if (bounds && isMobile) {
-      // 현재 위치가 새로운 경계를 벗어나면 조정
-      setPosition(prev => ({
-        x: Math.max(bounds.minX, Math.min(bounds.maxX, prev.x)),
-        y: Math.max(bounds.minY, Math.min(bounds.maxY, prev.y)),
-      }));
-    } else {
-      // 모바일이 아니거나 이미지가 작으면 중앙으로 초기화
+    if (!isMobile) {
       setPosition({ x: 0, y: 0 });
     }
-  }, [scale, isMobile, getContainerBounds]);
+  }, [scale, isMobile]);
 
   // 드래그 가능 여부 계산
-  const isDraggable = isMobile ? getContainerBounds() !== null : true;
+  const isDraggable = true;
 
-  // 화면 크기 변경 시 위치 재조정
+  // 화면 크기 변경 시 위치 초기화 (모바일)
   useEffect(() => {
     const handleResize = () => {
-      const bounds = getContainerBounds();
-      if (bounds && isMobile) {
-        setPosition(prev => ({
-          x: Math.max(bounds.minX, Math.min(bounds.maxX, prev.x)),
-          y: Math.max(bounds.minY, Math.min(bounds.maxY, prev.y)),
-        }));
+      if (isMobile) {
+        setPosition({ x: 0, y: 0 });
       }
     };
 
@@ -163,34 +113,34 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
       window.addEventListener("resize", handleResize);
       return () => window.removeEventListener("resize", handleResize);
     }
-  }, [isMobile, getContainerBounds]);
+  }, [isMobile]);
+
+  // 스타일 계산 함수들
+  const getViewportStyle = () => ({
+    height: isMobile ? "30vh" : "100%",
+    flex: isMobile ? "none" : "1",
+  });
+
+  const getDraggableStyle = () => ({
+    width: containerWidth,
+    height: containerHeight,
+    transform: `translate(${position.x}px, ${position.y}px)`,
+    cursor: isDraggable ? "grab" : "default",
+    transition: "width 0.1s ease, height 0.1s ease",
+    touchAction: "none",
+  });
 
   if (weekDates.length === 0) return null;
+
   return (
-    <div 
-      className="w-full overflow-hidden"
-      style={{
-        // 모바일에서는 고정 높이, 데스크톱에서는 flex-1
-        height: isMobile ? "60vh" : "100%",
-        flex: isMobile ? "none" : "1",
-      }}
-    >
-      <div
-        id={"container"}
-        className="flex justify-center items-center overflow-hidden h-full pt-4 md:p-0"
-      >
+    // 뷰포트 컨테이너 - 전체 영역 정의
+    <div className="w-full overflow-hidden" style={getViewportStyle()}>
+      {/* 프리뷰 컨테이너 - 중앙 정렬 및 패딩 */}
+      <div className="flex justify-center items-center h-full overflow-hidden pt-4 md:p-0">
+        {/* 드래그 가능한 시간표 */}
         <div
-          id={"draggableObject"}
-          className="shadow-md overflow-hidden"
-          style={{
-            width: containerWidth,
-            height: containerHeight,
-            transition: "width 0.1s, height 0.1s",
-            cursor: isDraggable ? "grab" : "default",
-            touchAction: "none", // 모바일에서 기본 터치 동작 방지
-            position: "relative", // 포지셔닝 컨텍스트 제공
-            transform: `translate(${position.x}px, ${position.y}px)`,
-          }}
+          className="relative shadow-lg rounded-sm"
+          style={getDraggableStyle()}
           {...bind()}
         >
           <TimeTableContent

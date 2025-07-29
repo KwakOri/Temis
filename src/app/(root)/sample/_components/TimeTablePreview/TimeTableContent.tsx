@@ -31,7 +31,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   return (
     <div
       id="timetable"
-      className="w-[1280px] h-[720px] box-border text-[26px] select-none font-sans origin-top-left relative overflow-visible shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
+      className="w-[1280px] h-[720px] box-border text-[26px] select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
       style={{
         transform: `scale(${scale})`,
         backgroundImage: `url(${Imgs[currentTheme].bg.src})`,
@@ -61,13 +61,9 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
             }}
             className="h-full grow flex flex-col justify-center items-center"
           >
-            <p className="text-[26px] leading-none">
-              {weekDates[0].getDate()}
-            </p>
+            <p className="text-[26px] leading-none">{weekDates[0].getDate()}</p>
             <p className="text-[26px] leading-4.5">~</p>
-            <p className="text-[26px] leading-none">
-              {weekDates[6].getDate()}
-            </p>
+            <p className="text-[26px] leading-none">{weekDates[6].getDate()}</p>
           </div>
         </div>
 
