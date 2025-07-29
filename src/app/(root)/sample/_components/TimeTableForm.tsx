@@ -204,7 +204,7 @@ const TimeTableForm: React.FC<TimeTableFormProps> = ({
     <div
       className={`shrink-0 w-100 ${
         isMobile ? "h-auto" : "h-full"
-      } flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 md:max-w-[400px] md:min-w-[300px] md:w-1/4`}
+      } flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full md:max-w-[400px] md:min-w-[300px] md:w-1/4`}
     >
       {/* 모바일 토글 헤더 - 메인 설정 */}
       {isMobile && (

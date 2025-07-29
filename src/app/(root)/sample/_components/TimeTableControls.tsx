@@ -1,5 +1,5 @@
-import React from "react";
 import Link from "next/link";
+import React from "react";
 
 interface TimeTableControlsProps {
   scale: number;
@@ -13,29 +13,29 @@ const TimeTableControls: React.FC<TimeTableControlsProps> = ({
   return (
     <div className="fixed top-4 left-4 z-50 bg-white/80 px-4 py-2 rounded select-none flex items-center gap-4">
       {/* 뒤로가기 버튼 */}
-      <Link 
-        href="/" 
+      <Link
+        href="/"
         className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
       >
-        <svg 
-          className="w-4 h-4 mr-1" 
-          fill="none" 
-          stroke="currentColor" 
+        <svg
+          className="w-4 h-4 mr-1"
+          fill="none"
+          stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path 
-            strokeLinecap="round" 
-            strokeLinejoin="round" 
-            strokeWidth={2} 
-            d="M15 19l-7-7 7-7" 
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 19l-7-7 7-7"
           />
         </svg>
         <span className="text-sm font-medium">뒤로가기</span>
       </Link>
-      
+
       {/* 구분선 */}
       <div className="w-px h-6 bg-gray-300"></div>
-      
+
       {/* 배율 조절 */}
       <div className="flex items-center">
         <label className="text-sm text-gray-600 font-medium">

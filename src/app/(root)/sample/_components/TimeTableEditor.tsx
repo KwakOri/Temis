@@ -54,7 +54,6 @@ const TimeTableEditor: React.FC = () => {
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
 
-
   const onProfileTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newText = e.target.value;
     setProfileText(newText);
@@ -78,7 +77,6 @@ const TimeTableEditor: React.FC = () => {
     setCurrentTheme(value);
     saveTheme(value);
   };
-
 
   useEffect(() => {
     const monday = new Date(mondayDateStr);
@@ -226,16 +224,26 @@ const TimeTableEditor: React.FC = () => {
 
           {/* 배율 조절 */}
           <div className="flex items-center gap-2">
-            <button
+            {/* <button
               onClick={() => setScale(Math.max(0.1, scale - 0.1))}
               className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 active:bg-gray-300 transition-colors touch-manipulation"
               disabled={scale <= 0.1}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 12H4"
+                />
               </svg>
-            </button>
-            
+            </button> */}
+
             <div className="flex flex-col items-center">
               <span className="text-xs text-gray-600 whitespace-nowrap">
                 {Math.round(scale * 100)}%
@@ -266,21 +274,31 @@ const TimeTableEditor: React.FC = () => {
                 "
               />
             </div>
-            
-            <button
+
+            {/* <button
               onClick={() => setScale(Math.min(1.0, scale + 0.1))}
               className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 active:bg-gray-300 transition-colors touch-manipulation"
               disabled={scale >= 1.0}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
               </svg>
-            </button>
+            </button> */}
           </div>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-4 md:gap-0">
+      <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0">
         <TimeTablePreview
           currentTheme={currentTheme}
           profileText={profileText}
