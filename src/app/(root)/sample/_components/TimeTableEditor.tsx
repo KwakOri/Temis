@@ -277,6 +277,11 @@ const TimeTableEditor: React.FC = () => {
           onDateChange={handleDateChange}
           onDownloadClick={downloadImage}
           isMobile={isMobile}
+          addons={
+            <div className="p-4 text-center text-gray-500">
+              <p>여기에 트위터 공유 기능이 추가될 수 있습니다.</p>
+            </div>
+          }
         />
       </div>
     </div>
