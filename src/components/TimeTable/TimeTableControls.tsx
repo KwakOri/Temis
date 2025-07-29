@@ -1,15 +1,9 @@
+import { useTimeTableUI } from "@/contexts/TimeTableContext";
 import Link from "next/link";
 import React from "react";
 
-interface TimeTableControlsProps {
-  scale: number;
-  onScaleChange: (newScale: number) => void;
-}
-
-const TimeTableControls: React.FC<TimeTableControlsProps> = ({
-  scale,
-  onScaleChange,
-}) => {
+const TimeTableControls: React.FC = () => {
+  const { scale, updateScale } = useTimeTableUI();
   return (
     <div className="fixed top-4 left-4 z-50 bg-white/80 px-4 py-2 rounded select-none flex items-center gap-4">
       {/* 뒤로가기 버튼 */}
@@ -47,7 +41,7 @@ const TimeTableControls: React.FC<TimeTableControlsProps> = ({
           max={2}
           step={0.1}
           value={scale}
-          onChange={(e) => onScaleChange(parseFloat(e.target.value))}
+          onChange={(e) => updateScale(parseFloat(e.target.value))}
           className="ml-2 w-60 h-2 rounded-lg appearance-none bg-gray-300
           accent-[#3E4A82]
           [&::-webkit-slider-thumb]:appearance-none

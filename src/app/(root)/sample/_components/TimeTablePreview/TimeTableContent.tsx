@@ -1,3 +1,4 @@
+import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
@@ -13,21 +14,17 @@ import TimeTableGrid from "./TimeTableGrid";
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;
-  scale: number;
+
   data: TDefaultCard[];
-  weekDates: Date[];
-  imageSrc: string | null;
-  profileText: string;
 }
 
 const TimeTableContent: React.FC<TimeTableContentProps> = ({
   currentTheme,
-  scale,
+
   data,
-  weekDates,
-  imageSrc,
-  profileText,
 }) => {
+  const { imageSrc, weekDates, profileText } = useTimeTableData();
+  const { scale } = useTimeTableUI();
   return (
     <div
       id="timetable"

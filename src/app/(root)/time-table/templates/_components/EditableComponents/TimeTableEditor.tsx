@@ -8,23 +8,17 @@ import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
 import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { useTimeTableState } from "@/hooks/useTimeTableState";
 
-import ThemeTabs from "@/app/(root)/sample/_components/ThemeTabs";
-import TimeTableInputList from "../_components/TimeTableInputList";
-import { defaultCards, TDefaultCard } from "../_settings/general";
-import { defaultTheme, TTheme } from "../_settings/settings";
-import TimeTableContent from "./TimeTablePreview/TimeTableContent";
+import { defaultCards, TDefaultCard } from "../../_settings/general";
+import { defaultTheme, TTheme } from "../../_settings/settings";
+import TimeTableContent from "../FixedComponents/TimeTableContent";
+import TimeTableInputList from "../FixedComponents/TimeTableInputList";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
   const [data, setData] = useState<TDefaultCard[]>(defaultCards);
   const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
   const { state } = useTimeTableState();
-
   const updateData = (newData: TDefaultCard[]) => setData(newData);
-  const updateTheme = (theme: TTheme) => setCurrentTheme(theme);
-  const handleThemeChange = (theme: TTheme) => {
-    setCurrentTheme(theme);
-  };
 
   if (state.weekDates.length === 0) return <Loading />;
 
@@ -40,14 +34,7 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTablePreview>
           <TimeTableContent currentTheme={currentTheme} data={data} />
         </TimeTablePreview>
-        <TimeTableForm
-          addons={
-            <ThemeTabs
-              currentTheme={currentTheme}
-              handleThemeChange={handleThemeChange}
-            />
-          }
-        >
+        <TimeTableForm addons={null}>
           <TimeTableInputList data={data} onDataChange={updateData} />
         </TimeTableForm>
       </div>

@@ -1,31 +1,11 @@
-import TimeTableContent from "./TimeTableContent";
-
+import { useTimeTable } from "@/contexts/TimeTableContext";
 import { useGesture } from "@use-gesture/react";
-import React, { useEffect, useState } from "react";
-import { TDefaultCard } from "../../_settings/general";
-import { TTheme } from "../../_settings/settings";
+import { PropsWithChildren, useEffect, useState } from "react";
 
-export interface TimeTablePreviewProps {
-  currentTheme: TTheme;
-  scale: number;
-  data: TDefaultCard[];
-  weekDates: Date[];
-  imageSrc: string | null;
-  profileText: string;
-  isMobile: boolean;
-  onScaleChange?: (newScale: number) => void;
-}
-
-const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
-  currentTheme,
-  scale,
-  data,
-  weekDates,
-  imageSrc,
-  profileText,
-  isMobile,
-  onScaleChange,
-}) => {
+const TimeTablePreview = ({ children }: PropsWithChildren) => {
+  const { state, actions } = useTimeTable();
+  const { scale, weekDates, isMobile } = state;
+  const { updateScale } = actions;
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
   const containerWidth = 1280 * scale;
@@ -60,7 +40,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
             position: { x: position.x, y: position.y },
           };
         }
-        
+
         if (!memo) {
           memo = {
             scale: scale,
@@ -68,12 +48,12 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
           };
         }
 
-        if (onScaleChange && Math.abs(scale_offset) > 0.001) {
+        if (updateScale && Math.abs(scale_offset) > 0.001) {
           const newScale = Math.min(
             Math.max(memo.scale + scale_offset * 0.01, 0.1),
             1.0
           );
-          onScaleChange(newScale);
+          updateScale(newScale);
         }
 
         return memo;
@@ -141,14 +121,7 @@ const TimeTablePreview: React.FC<TimeTablePreviewProps> = ({
         style={getDraggableStyle()}
         {...bind()}
       >
-        <TimeTableContent
-          currentTheme={currentTheme}
-          scale={scale}
-          data={data}
-          weekDates={weekDates}
-          imageSrc={imageSrc}
-          profileText={profileText}
-        />
+        {children}
       </div>
     </div>
   );

@@ -82,20 +82,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
         <div className="flex flex-col justify-center items-center  h-[77px] pb-2">
           {time.description ? (
-            // time.description
-            //   .split("\n")
-            //   .filter((line) => line.trim() !== "") // 공백 줄 제거
-            //   .map((line, idx) => (
-            //     <p
-            //       style={{
-            //         color: colors[currentTheme]["primary"],
-            //       }}
-            //       className=" text-[32px] leading-none text-center"
-            //       key={index + "-" + idx}
-            //     >
-            //       {line}
-            //     </p>
-            //   ))
             <AutoResizeText
               style={{
                 color: colors[currentTheme]["primary"],
