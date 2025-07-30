@@ -34,6 +34,58 @@
 .animate-slide-loop-slow {
   animation: slideLoop 45s linear infinite;
 }
+
+/* Gallery Hover Optimization - Ultra Smooth */
+.hover-card {
+  /* 모든 변경될 속성을 미리 선언 */
+  will-change: transform, opacity;
+  /* GPU 레이어 강제 생성 및 최적화 */
+  transform: translateZ(0) scale(1);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  /* 더 부드러운 전환을 위한 최적화된 곡선 */
+  transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* 그림자를 미리 설정하여 계산 부하 감소 */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  /* 상위 레이어로 미리 설정 */
+  position: relative;
+  z-index: 10;
+}
+
+.hover-card:hover {
+  /* 단일 transform으로 통합하여 성능 최적화 */
+  transform: translateZ(0) scale(1.05);
+  /* 그림자 강도만 조절 (새로운 계산 없음) */
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 
+              0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  z-index: 50;
+}
+
+/* 슬라이딩 애니메이션 최적화 */
+.animate-slide-loop-fast,
+.animate-slide-loop-slow {
+  will-change: transform;
+  transform: translate3d(0, 0, 0); /* 3D 변환으로 GPU 최적화 */
+  /* 애니메이션 레이어를 별도로 분리 */
+  contain: layout style paint;
+}
+
+/* GPU 가속 유틸리티 */
+.transform-gpu {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  /* 렌더링 컨텍스트 분리 */
+  contain: layout style paint;
+}
+
+/* 추가 성능 최적화 */
+.gallery-container {
+  /* 하드웨어 가속 활성화 */
+  transform: translateZ(0);
+  /* 레이어 분리로 리페인트 최소화 */
+  isolation: isolate;
+}
 body {
   font-family: "Pretendard", sans-serif;
 }
