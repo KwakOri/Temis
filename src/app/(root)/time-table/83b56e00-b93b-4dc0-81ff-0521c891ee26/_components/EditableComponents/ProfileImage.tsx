@@ -25,7 +25,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
 }) => {
   return (
     <div
-      className={` absolute right-0 z-10 rounded-md flex justify-center text-white rotate-6`}
+      className={` absolute top-2 right-6 z-10 rounded-md flex justify-center text-white rotate-4`}
       style={{
         width: profileFrameWidth,
         height: profileFrameHeight,
@@ -35,12 +35,14 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
       <div
         style={{
           color: colors[currentTheme]["primary"],
+          filter: "blur(0.8px)",
         }}
-        className="absolute z-30 bottom-27 right-11 text-[36px] w-[220px] h-[60px] flex justify-center items-center"
+        className="absolute z-30 bottom-17 right-11 text-[32px] w-[220px] h-[60px] flex justify-center items-center "
       >
         <p
           style={{
             fontFamily: fontOption.primary,
+            color: colors[currentTheme]["secondary"],
           }}
           className="text-center"
         >
@@ -68,8 +70,14 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           width: profileImageWidth + "px",
           height: profileImageHeight + "px",
         }}
-        className="relative mt-6"
+        className="relative mt-14 z-20 "
       >
+        <div
+          style={{
+            boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.3) inset",
+          }}
+          className="absolute inset-0 z-30"
+        ></div>
         {imageSrc ? (
           <Image
             src={
@@ -77,24 +85,20 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
             }
             alt="preview"
             className="w-full h-full object-cover"
-            width={profileImageWidth}
-            height={profileImageHeight}
+            fill
           />
         ) : (
           <div
-            style={{
-              backgroundColor: colors[currentTheme].tertiary,
-            }}
-            className={`w-full h-full flex justify-center items-center`}
+            className={`w-full h-full flex justify-center items-center relative`}
           >
-            <p
-              style={{
-                fontFamily: fontOption.primary,
-              }}
-              className="text-white text-center text-[32px]"
-            >
-              프로필 이미지 자리
-            </p>
+            <Image
+              fill
+              src={Imgs[currentTheme]["placeholder_image"].src.replace(
+                "./",
+                "/"
+              )}
+              alt={"placeholder"}
+            />
           </div>
         )}
       </div>

@@ -8,8 +8,8 @@ import { TLanOpt } from "../_types/types";
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const fontOption = {
-  primary: "Ownglyph_ParkDaHyun",
-  secondary: "LOTTERIACHAB",
+  primary: "Ansungtangmyun-Bold",
+  secondary: "",
   tertiary: "",
   quaternary: "",
 };
@@ -21,7 +21,7 @@ export const fontOption = {
 
 /** kr | en | jp */
 
-export const weekdayOption: TLanOpt = "en";
+export const weekdayOption: TLanOpt = "kr";
 export const monthOption: TLanOpt = "en";
 
 /** ---------------------------------------------- */
@@ -46,21 +46,21 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const colors = {
   first: {
-    primary: "#0A5B7A",
-    secondary: "#4F8DC2",
-    tertiary: "#63A0D2",
+    primary: "#F8EDE9",
+    secondary: "#1A1A1A",
+    tertiary: "",
     quaternary: "",
   },
   second: {
-    primary: "#7A0A5B",
-    secondary: "#C24F8D",
-    tertiary: "#D263A0",
+    primary: "",
+    secondary: "",
+    tertiary: "",
     quaternary: "",
   },
   third: {
-    primary: "#5B7A0A",
-    secondary: "#8DC24F",
-    tertiary: "#A0D263",
+    primary: "",
+    secondary: "",
+    tertiary: "",
     quaternary: "",
   },
 };
@@ -70,8 +70,8 @@ export const colors = {
 /** Online 카드 구성 */
 /** Online 카드 구성 */
 
-export const onlineCardWidth: number = 188;
-export const onlineCardHeight: number = 228;
+export const onlineCardWidth: number = 249;
+export const onlineCardHeight: number = 193;
 
 // CARD_INPUT_CONFIG와 연동되는 초기 카드 (추천)
 // 레거시 initialCard와는 달리 CARD_INPUT_CONFIG에 정의된 모든 필드를 포함
@@ -115,13 +115,15 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     {
       key: "topic",
       type: "text",
-      placeholder: "소제목 적는 곳",
+      placeholder: "소제목 적는곳",
+      defaultValue: "",
       maxLength: 50,
     },
     {
       key: "description",
       type: "textarea",
-      placeholder: "내용 적는 곳",
+      placeholder: "제목 적는곳",
+      defaultValue: "",
       maxLength: 200,
     },
   ],
@@ -191,20 +193,6 @@ export const createInitialCardFromConfig = (): TDynamicCard => {
   return card;
 };
 
-export type TInitialCard = {
-  isOffline: boolean;
-  time: string;
-  topic: string;
-  description: string;
-};
-
-export const initialCard: TInitialCard = {
-  isOffline: false,
-  time: "09:00",
-  topic: "",
-  description: "",
-};
-
 // 레거시 placeholders (하위 호환성을 위해 유지)
 export const placeholders = {
   topic: "소제목 적는 곳",
@@ -217,16 +205,16 @@ export const placeholders = {
 /** Offline 카드 구성 */
 /** Offline 카드 구성 */
 
-export const offlineCardWidth: number = 188;
-export const offlineCardHeight: number = 228;
+export const offlineCardWidth: number = 249;
+export const offlineCardHeight: number = 193;
 
 /** ---------------------------------------------- */
 
 /** Week Flag 카드 구성 */
 /** Week Flag 카드 구성 */
 
-export const weekFlagCardWidth: number = 188;
-export const weekFlagCardHeight: number = 228;
+export const weekFlagCardWidth: number = 0;
+export const weekFlagCardHeight: number = 0;
 
 /** ---------------------------------------------- */
 
@@ -235,12 +223,12 @@ export const weekFlagCardHeight: number = 228;
 
 /** Profile Frame 크기 */
 
-export const profileFrameHeight = 720;
-export const profileFrameWidth = 515;
+export const profileFrameWidth = 455;
+export const profileFrameHeight = 743;
 
 /** Profile Image 크기 */
 
-export const profileImageWidth = 440;
-export const profileImageHeight = 480;
+export const profileImageWidth = 368;
+export const profileImageHeight = 542;
 
 /** ---------------------------------------------- */

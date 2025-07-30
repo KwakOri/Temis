@@ -1,12 +1,4 @@
-import Image from "next/image";
-import { Imgs } from "../../_img/imgs";
-import { months } from "../../_settings/general";
-import {
-  colors,
-  fontOption,
-  monthOption,
-  TTheme,
-} from "../../_settings/settings";
+import { colors, fontOption, TTheme } from "../../_settings/settings";
 
 interface TimeTableWeekFlagProps {
   currentTheme: TTheme;
@@ -17,41 +9,40 @@ const TimeTableWeekFlag = ({
   currentTheme,
   weekDates,
 }: TimeTableWeekFlagProps) => {
+  const dateFormatter = (date: number) => {
+    if (date < 10) return `0${date}`;
+    return date;
+  };
+
+  const startDate = `${weekDates[0].getFullYear()}.${dateFormatter(
+    weekDates[0].getMonth() + 1
+  )}.${dateFormatter(weekDates[0].getDate())}`;
+  const endDate = `${weekDates[6].getFullYear()}.${dateFormatter(
+    weekDates[6].getMonth() + 1
+  )}.${dateFormatter(weekDates[6].getDate())}`;
   return (
-    <div className="absolute left-[620px] z-20">
+    <div
+      className="absolute top-64 left-26 z-20 "
+      style={{
+        transform: "rotate(-1.5deg)",
+      }}
+    >
       <div
-        className="absolute z-10 w-full h-full justify-center pr-1 pb-2 flex flex-col "
+        className="absolute z-10 w-full h-full justify-center pr-1 pb-2 flex flex-col"
         style={{
-          fontFamily: fontOption.secondary,
+          fontFamily: fontOption.primary,
         }}
       >
-        <p
-          style={{
-            color: colors[currentTheme]["secondary"],
-          }}
-          className={`w-full h-[60px] flex justify-center items-center shrink-0`}
-        >
-          {months[monthOption][weekDates[0].getMonth()]}
-        </p>
         <div
           style={{
             color: colors[currentTheme]["secondary"],
           }}
-          className="h-full grow flex flex-col justify-center items-center"
         >
-          <p className="text-[26px] leading-none">{weekDates[0].getDate()}</p>
-          <p className="text-[26px] leading-4.5">~</p>
-          <p className="text-[26px] leading-none">{weekDates[6].getDate()}</p>
+          <p className="text-[26px] w-100 text-center">
+            {startDate} ~ {endDate}
+          </p>
         </div>
       </div>
-
-      <Image
-        className="relative"
-        src={Imgs[currentTheme]["week"].src.replace("./", "/")}
-        alt="week"
-        width={120}
-        height={60}
-      />
     </div>
   );
 };

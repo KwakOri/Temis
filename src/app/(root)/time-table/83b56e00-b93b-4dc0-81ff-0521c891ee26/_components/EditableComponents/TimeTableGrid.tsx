@@ -16,7 +16,12 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   currentTheme,
 }) => {
   return (
-    <div className="absolute grid grid-cols-3 z-20">
+    <div
+      className="absolute left-11 top-21 grid grid-cols-3 z-20  gap-x-2 gap-y-3"
+      style={{
+        transform: "rotate(-1.5deg)",
+      }}
+    >
       <div></div>
       <div></div>
       {data.map((time, i) => (

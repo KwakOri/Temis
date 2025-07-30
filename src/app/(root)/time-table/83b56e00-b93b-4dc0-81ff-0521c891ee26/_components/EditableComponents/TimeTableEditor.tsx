@@ -5,7 +5,6 @@ import MobileHeader from "@/components/TimeTable/MobileHeader";
 import TimeTableControls from "@/components/TimeTable/TimeTableControls";
 import TimeTableForm from "@/components/TimeTable/TimeTableForm";
 import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
-import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableState } from "@/hooks/useTimeTableState";
@@ -40,10 +39,7 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTablePreview>
           <TimeTableContent currentTheme={currentTheme} data={data} />
         </TimeTablePreview>
-        <TimeTableForm
-          onReset={resetData}
-          addons={<TimeTableDesignGuideController />}
-        >
+        <TimeTableForm onReset={resetData} addons={null}>
           <TimeTableInputList data={data} onDataChange={updateData} />
         </TimeTableForm>
       </div>
