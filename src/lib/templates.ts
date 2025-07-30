@@ -64,7 +64,7 @@ export class TemplateService {
   ): Promise<UserTemplateAccess[]> {
     try {
       // Note: created_by 컬럼이 제거되어 소유한 템플릿 조회 불가
-      const ownedTemplates: Template[] = [];
+      // const ownedTemplates: Template[] = [];
 
       // 2. 접근 권한이 있는 템플릿
       const { data: accessibleTemplates, error: accessError } = await supabase

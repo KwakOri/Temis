@@ -1,6 +1,6 @@
 import React from "react";
-import { TDefaultCard, TExtendedCard, weekdays } from "../_settings/general";
-import { placeholders, weekdayOption, getCardInputConfig, SimpleFieldConfig } from "../_settings/settings";
+import { TDefaultCard, TExtendedCard, weekdays } from "../../_settings/general";
+import { placeholders, weekdayOption, getCardInputConfig, SimpleFieldConfig } from "../../_settings/settings";
 
 // 개별 필드 렌더러 타입 정의
 export interface FieldRenderer {

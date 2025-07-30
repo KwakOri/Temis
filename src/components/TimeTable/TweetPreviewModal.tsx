@@ -70,15 +70,15 @@ const TweetPreviewModal: React.FC<TweetPreviewModalProps> = ({
     onConfirm(tweetText);
   };
 
-  const formatDate = () => {
-    const now = new Date();
-    const hours = now.getHours();
-    const minutes = now.getMinutes();
-    const ampm = hours >= 12 ? '오후' : '오전';
-    const displayHours = hours % 12 || 12;
+  // const formatDate = () => {
+  //   const now = new Date();
+  //   const hours = now.getHours();
+  //   const minutes = now.getMinutes();
+  //   const ampm = hours >= 12 ? '오후' : '오전';
+  //   const displayHours = hours % 12 || 12;
     
-    return `${ampm} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
-  };
+  //   return `${ampm} ${displayHours}:${minutes.toString().padStart(2, '0')}`;
+  // };
 
   const formatRelativeTime = () => {
     return '지금';

@@ -60,18 +60,9 @@ function generateOAuthHeader(
     oauth_version: '1.0'
   };
 
-  console.log('OAuth params before signature:', {
-    method,
-    url,
-    consumer_key: consumerKey.substring(0, 8) + '...',
-    access_token: accessToken.substring(0, 8) + '...',
-    timestamp: oauthParams.oauth_timestamp,
-    nonce: oauthParams.oauth_nonce.substring(0, 8) + '...'
-  });
 
   const signature = generateOAuthSignature(method, url, oauthParams, consumerSecret, tokenSecret);
   
-  console.log('Generated OAuth signature:', signature.substring(0, 10) + '...');
   
   const authParams = { ...oauthParams, oauth_signature: signature };
   
@@ -146,7 +137,6 @@ export async function POST(request: NextRequest) {
     const mediaFormData = new FormData();
     mediaFormData.append('media_data', base64Image);
 
-    console.log('Uploading media with auth header:', mediaAuthHeader.substring(0, 50) + '...');
 
     const mediaResponse = await fetch(mediaUploadUrl, {
       method: 'POST',
@@ -168,7 +158,6 @@ export async function POST(request: NextRequest) {
     const mediaResult = await mediaResponse.json();
     const mediaId = mediaResult.media_id_string;
 
-    console.log('Media uploaded successfully, ID:', mediaId);
 
     // Step 2: Post tweet with media using v2 API
     const tweetUrl = 'https://api.twitter.com/2/tweets';
@@ -191,7 +180,6 @@ export async function POST(request: NextRequest) {
       twitter_access_token_secret!
     );
 
-    console.log('Posting tweet with auth header:', tweetAuthHeader.substring(0, 50) + '...');
 
     const tweetResponse = await fetch(tweetUrl, {
       method: 'POST',

@@ -27,7 +27,6 @@ const TimeTableForm = ({
     setActiveTab(nextTab);
   };
 
-  console.log(addons);
 
   const renderMainSettings = () => (
     <div className="space-y-6">
@@ -105,8 +104,6 @@ const TimeTableForm = ({
             이미지로 저장 (1280×720)
           </button>
         </div>
-        {/* TODO: 트위터 모달 (주석 처리됨) */}
-        {/* <TweetPreviewModal ... /> */}
       </div>
     </div>
   );

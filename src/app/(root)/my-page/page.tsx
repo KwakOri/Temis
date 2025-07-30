@@ -95,7 +95,7 @@ const MyPageContent = () => {
   //       setTwitterStatus(data);
   //     }
   //   } catch (error) {
-  //     console.error("Failed to fetch Twitter status:", error);
+  //     // Error handling for Twitter status fetch
   //   }
   // };
 
@@ -306,8 +306,6 @@ const MyPageContent = () => {
   };
 
   const handleTemplateClick = (template: Template) => {
-    // TODO: 템플릿 상세 페이지로 이동 또는 템플릿 사용 페이지로 이동
-    console.log("Navigate to template:", template.id);
     router.push(`/templates/${template.id}`);
   };
 

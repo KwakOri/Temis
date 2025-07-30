@@ -3,16 +3,13 @@ import { requireAdmin } from '@/lib/auth/admin';
 import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
-  console.log('Admin templates API called');
   
   const adminCheck = await requireAdmin(request);
   
   if (adminCheck instanceof NextResponse) {
-    console.log('Admin check failed, returning error response');
     return adminCheck;
   }
 
-  console.log('Admin check passed, proceeding with templates query');
 
   try {
     const { searchParams } = new URL(request.url);
@@ -31,7 +28,6 @@ export async function GET(request: NextRequest) {
       throw error;
     }
 
-    console.log(`Found ${templates?.length || 0} templates in database`);
 
     return NextResponse.json({
       success: true,

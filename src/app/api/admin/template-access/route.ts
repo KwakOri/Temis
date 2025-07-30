@@ -55,10 +55,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    console.log("templateId", templateId);
-    console.log("userId", userId);
-    console.log("accessLevel", accessLevel);
-    console.log("granted_by", user.userId);
 
     const access = await TemplateAccessService.grantAccess({
       template_id: templateId,

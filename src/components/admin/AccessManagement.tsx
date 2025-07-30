@@ -75,7 +75,6 @@ export default function AccessManagement() {
       if (response.ok) {
         const data = await response.json();
 
-        console.log("data", data);
         setTemplateAccess(data.accessList || []);
       } else {
         throw new Error("접근 권한 목록을 가져올 수 없습니다.");
@@ -508,9 +507,7 @@ export default function AccessManagement() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {templateAccess.map((access) => {
-                      console.log(access);
-                      return (
+                    {templateAccess.map((access) => (
                         <tr key={access.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
@@ -570,8 +567,7 @@ export default function AccessManagement() {
                             </button>
                           </td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
