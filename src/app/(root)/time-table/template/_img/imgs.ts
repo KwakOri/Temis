@@ -13,6 +13,20 @@ export const Imgs = {
     week: MainWeek,
     profile: MainProfile,
   },
+  second: {
+    bg: MainBG,
+    offline: MainOffline,
+    online: MainOnline,
+    week: MainWeek,
+    profile: MainProfile,
+  },
+  third: {
+    bg: MainBG,
+    offline: MainOffline,
+    online: MainOnline,
+    week: MainWeek,
+    profile: MainProfile,
+  },
 };
 
 export type ImgTypes = {

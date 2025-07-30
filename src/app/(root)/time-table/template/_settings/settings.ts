@@ -51,6 +51,18 @@ export const colors = {
     tertiary: "#63A0D2",
     quaternary: "",
   },
+  second: {
+    primary: "#7A0A5B",
+    secondary: "#C24F8D",
+    tertiary: "#D263A0",
+    quaternary: "",
+  },
+  third: {
+    primary: "#5B7A0A",
+    secondary: "#8DC24F",
+    tertiary: "#A0D263",
+    quaternary: "",
+  },
 };
 
 /** ---------------------------------------------- */
