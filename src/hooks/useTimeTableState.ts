@@ -33,8 +33,18 @@ const getInitialScale = () => {
 };
 
 export const useTimeTableState = () => {
-  const [profileText, setProfileText] = useState<string>("");
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [profileText, setProfileText] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("profileText") || "";
+    }
+    return "";
+  });
+  const [imageSrc, setImageSrc] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("imageSrc") || null;
+    }
+    return null;
+  });
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
     getDefaultMondayString()
@@ -52,6 +62,23 @@ export const useTimeTableState = () => {
     const monday = new Date(mondayDateStr);
     setWeekDates(getThisWeekDatesFromMonday(monday));
   }, [mondayDateStr]);
+
+  // profileText 또는 imageSrc 변경 시 localStorage에 저장
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("profileText", profileText);
+    }
+  }, [profileText]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (imageSrc) {
+        localStorage.setItem("imageSrc", imageSrc);
+      } else {
+        localStorage.removeItem("imageSrc");
+      }
+    }
+  }, [imageSrc]);
 
   // localStorage에서 데이터 로드
   useEffect(() => {
