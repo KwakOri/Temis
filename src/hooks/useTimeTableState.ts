@@ -116,7 +116,6 @@ export const useTimeTableState = () => {
     // 기본 업데이트 함수들
     updateProfileText: (text: string) => setProfileText(text),
     updateImageSrc: (src: string | null) => setImageSrc(src),
-
     updateMondayDate: (dateStr: string) => setMondayDateStr(dateStr),
     updateScale: (newScale: number) => setScale(newScale),
     updateIsMobile: (mobile: boolean) => setIsMobile(mobile),

@@ -1,4 +1,4 @@
-import { buttonThemes, TTheme } from "../_settings/settings";
+import { buttonThemes, TTheme } from "../../_settings/settings";
 
 interface ThemeTabsProps {
   currentTheme: TTheme;

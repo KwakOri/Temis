@@ -1,18 +1,21 @@
 import MondaySelector from "@/components/TimeTable/MondaySelector";
+import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable, useTimeTableActions } from "@/contexts/TimeTableContext";
 import React, { PropsWithChildren, useRef, useState } from "react";
 
 interface TimeTableFormProps {
   addons?: React.ReactNode;
+  onReset: () => void;
 }
 
 const TimeTableForm = ({
   addons,
   children,
+  onReset,
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
-  const { profileText, mondayDateStr } = state;
+  const { profileText, mondayDateStr, imageSrc } = state;
   const { handleImageChange, handleProfileTextChange, handleDateChange } =
     actions;
   const { downloadImage } = useTimeTableActions();
@@ -43,7 +46,7 @@ const TimeTableForm = ({
           onClick={handleUploadClick}
           className="w-full bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
         >
-          프로필 이미지 업로드
+          {imageSrc ? "프로필 이미지 변경" : "프로필 이미지 업로드"}
         </button>
         <input
           ref={fileInputRef}
@@ -95,13 +98,14 @@ const TimeTableForm = ({
           </div>
         </div>
 
-        <div className="p-4 border-t border-gray-300 bg-gray-50">
+        <div className="p-4 border-t border-gray-300 bg-gray-50 flex gap-2">
           <button
             onClick={downloadImage}
             className="w-full bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
           >
             이미지로 저장 (1280×720)
           </button>
+          <ResetButton onReset={onReset} />
         </div>
       </div>
     </div>

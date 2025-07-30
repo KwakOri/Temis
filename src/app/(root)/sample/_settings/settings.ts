@@ -31,34 +31,41 @@ export const monthOption: TLanOpt = "en";
 
 /** 단일 테마의 경우 normal로 통일하세요. */
 /** _styles/colors.ts에 먼저 컬러 팔레트를 등록하세요. */
+export const Themes = ["first", "second", "third"] as const;
+export type TTheme = (typeof Themes)[number];
 
-export type TTheme = "blue" | "yellow" | "pink";
-export const defaultTheme: TTheme = "blue";
+export const defaultTheme: TTheme = "first";
 export interface TButtonTheme {
   value: TTheme;
   label: string;
 }
 
 export const buttonThemes: TButtonTheme[] = [
-  { value: "blue", label: "파랑" },
-  { value: "yellow", label: "노랑" },
-  { value: "pink", label: "분홍" },
+  { value: "first", label: "BLUE" },
+  {
+    value: "second",
+    label: "YELLOW",
+  },
+  {
+    value: "third",
+    label: "PINK",
+  },
 ];
 
 export const colors = {
-  blue: {
+  first: {
     primary: "#0A5B7A",
     secondary: "#4F8DC2",
     tertiary: "#63A0D2",
     quaternary: "",
   },
-  yellow: {
+  second: {
     primary: "#7A330A",
     secondary: "#C28E4F",
     tertiary: "#D2A063",
     quaternary: "",
   },
-  pink: {
+  third: {
     primary: "#7A0A43",
     secondary: "#C24F75",
     tertiary: "#D26388",
@@ -144,7 +151,7 @@ export const getCardInputConfig = (): Readonly<CardInputConfig> => {
 export type TDynamicCard = {
   isOffline: boolean; // 기본 속성
 } & {
-  [K in (typeof CARD_INPUT_CONFIG.fields)[number]["key"]]:
+  [K in (typeof CARD_INPUT_CONFIG.fields)[number]["key"]]?:  // ? 추가
     | string
     | number
     | boolean;
@@ -154,7 +161,8 @@ export type TDynamicCard = {
     | string
     | number
     | boolean
-    | Array<{ text: string; checked: boolean }>;
+    | Array<{ text: string; checked: boolean }>
+    | undefined; // undefined 추가
 };
 
 // CARD_INPUT_CONFIG만을 기반으로 초기 카드 생성 함수

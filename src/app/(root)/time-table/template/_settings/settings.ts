@@ -129,7 +129,7 @@ export const getCardInputConfig = (): Readonly<CardInputConfig> => {
 export type TDynamicCard = {
   isOffline: boolean; // 기본 속성
 } & {
-  [K in (typeof CARD_INPUT_CONFIG.fields)[number]["key"]]:
+  [K in (typeof CARD_INPUT_CONFIG.fields)[number]["key"]]?: // ? 추가
     | string
     | number
     | boolean;
@@ -139,7 +139,8 @@ export type TDynamicCard = {
     | string
     | number
     | boolean
-    | Array<{ text: string; checked: boolean }>;
+    | Array<{ text: string; checked: boolean }>
+    | undefined; // undefined 추가
 };
 
 // CARD_INPUT_CONFIG만을 기반으로 초기 카드 생성 함수

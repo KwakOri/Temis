@@ -15,8 +15,14 @@ import TimeTableContent from "./TimeTableContent";
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
   // 통합 상태 관리 훅 사용
-  const { state, data, updateData, currentTheme, handleThemeChange } =
-    useTimeTableEditor();
+  const {
+    state,
+    data,
+    updateData,
+    currentTheme,
+    handleThemeChange,
+    resetData,
+  } = useTimeTableEditor();
 
   if (state.weekDates.length === 0) return <Loading />;
 
@@ -32,7 +38,7 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTablePreview>
           <TimeTableContent currentTheme={currentTheme} data={data} />
         </TimeTablePreview>
-        <TimeTableForm addons={null}>
+        <TimeTableForm onReset={resetData} addons={null}>
           <TimeTableInputList data={data} onDataChange={updateData} />
         </TimeTableForm>
       </div>

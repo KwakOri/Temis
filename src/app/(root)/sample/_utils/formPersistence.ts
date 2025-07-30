@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { TDefaultCard, defaultCards } from "../_settings/general";
-import { TTheme, defaultTheme } from "../_settings/settings";
+import { defaultCards, TDefaultCard } from "../_settings/general";
+import { defaultTheme, TTheme } from "../_settings/settings";
 import {
   clearAllTimeTableStorage,
   createAutoSave,
