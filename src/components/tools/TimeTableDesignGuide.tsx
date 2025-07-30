@@ -1,22 +1,34 @@
+"use client";
+
 import Image from "next/image";
+import React from "react";
 
 interface TimeTableDesignGuideProps {
   id: string;
-  opacity?: number;
+  isVisible: boolean;
+  opacity: number;
+  className?: string;
 }
-const TimeTableDesignGuide = ({
+
+const TimeTableDesignGuide: React.FC<TimeTableDesignGuideProps> = ({
   id,
-  opacity = 0.8,
-}: TimeTableDesignGuideProps) => {
+  isVisible,
+  opacity,
+  className = "",
+}) => {
+  if (!isVisible) return null;
+
   return (
     <Image
       style={{
         opacity: opacity,
       }}
-      className="absolute inset-0 z-50"
+      className={`absolute inset-0 z-40 pointer-events-none ${className}`}
       src={`/thumbnail/${id}.png`}
-      alt={"도안"}
+      alt="도안 가이드"
       fill
+      priority={false}
+      unoptimized={true}
     />
   );
 };
