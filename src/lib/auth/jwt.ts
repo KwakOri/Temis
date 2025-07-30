@@ -6,6 +6,8 @@ const key = new TextEncoder().encode(secretKey);
 export interface JWTPayload {
   userId: string | number;
   email?: string | null;
+  name?: string | null;
+  role?: string | null;
   [key: string]: string | number | boolean | null | undefined;
 }
 
