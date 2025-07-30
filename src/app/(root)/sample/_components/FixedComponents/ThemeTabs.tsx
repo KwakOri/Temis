@@ -7,7 +7,7 @@ interface ThemeTabsProps {
 
 const ThemeTabs = ({ currentTheme, handleThemeChange }: ThemeTabsProps) => {
   return (
-    <div className="space-y-2 flex flex-col items-start">
+    <div className="space-y-2 flex flex-col items-start h-full">
       <h3 className="font-bold text-lg text-gray-800">테마</h3>
       <div className="flex w-full border border-gray-300 rounded-md bg-gray-100 select-none">
         {buttonThemes.map((theme) => {

@@ -3,8 +3,7 @@ import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { Imgs } from "../../_img/imgs";
-import { weekdays } from "../../_settings/general";
-import { TDefaultCard } from "../../_settings/general";
+import { TDefaultCard, weekdays } from "../../_settings/general";
 import {
   colors,
   fontOption,
@@ -40,10 +39,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         key={time.day}
       >
         <Image
+          className="pointer-events-none"
           src={Imgs[currentTheme]["offline"].src.replace("./", "/")}
           alt="offline"
           width={offlineCardWidth}
           height={offlineCardHeight}
+          draggable={false}
         />
       </div>
     );
