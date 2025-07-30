@@ -1,9 +1,9 @@
-import { useTimeTableState } from "@/hooks/useTimeTableState";
+import { useTimeTable } from "@/contexts/TimeTableContext";
 import Link from "next/link";
 import React from "react";
 
 const MobileHeader: React.FC = () => {
-  const { state, actions } = useTimeTableState();
+  const { state, actions } = useTimeTable();
   return (
     <div className="sticky top-0 flex items-center justify-between p-4 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
       {/* 뒤로가기 버튼 */}

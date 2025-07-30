@@ -84,7 +84,7 @@ const TimeTableForm = ({
   const renderAddonsContent = () => (addons ? <>{addons}</> : null);
 
   return (
-    <div className="md:h-full min-h-0 md:max-w-[400px] md:min-w-[300px] md:w-1/4">
+    <div className="md:h-full min-h-0 md:max-w-[400px] md:min-w-[300px] md:w-1/4 h-full">
       <div className="h-full shrink-0 flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full ">
         <div className="flex-1 flex flex-col min-h-0">
           <TimeTableFormTabs
@@ -92,7 +92,7 @@ const TimeTableForm = ({
             onChangeActiveTab={onChangeActiveTab}
             isAddons={!!addons}
           />
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-4 h-full">
             {activeTab === "main" && renderMainSettings()}
             {activeTab === "addons" && renderAddonsContent()}
           </div>
