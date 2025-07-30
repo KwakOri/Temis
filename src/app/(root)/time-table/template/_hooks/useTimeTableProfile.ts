@@ -2,52 +2,27 @@ import { useState, useCallback } from 'react';
 import { useFormPersistence } from '../_utils/formPersistence';
 
 /**
- * 타임테이블 프로필 상태 관리 훅
+ * 타임테이블 프로필 이미지 상태 관리 훅
+ * (profileText는 공용 컴포넌트에서 처리하므로 제외)
  */
 export const useTimeTableProfile = () => {
   const { loadPersistedData } = useFormPersistence();
 
-  // localStorage에서 저장된 프로필 데이터 로드하여 초기값 설정
-  const [profileText, setProfileText] = useState<string>(() => {
-    const persistedData = loadPersistedData();
-    return persistedData.profileText || "";
-  });
-
+  // localStorage에서 저장된 프로필 이미지 로드하여 초기값 설정
   const [profileImage, setProfileImage] = useState<string>(() => {
     const persistedData = loadPersistedData();
     return persistedData.profileImage || "";
   });
-
-  // 프로필 텍스트 업데이트 함수
-  const updateProfileText = useCallback((text: string) => {
-    setProfileText(text);
-  }, []);
 
   // 프로필 이미지 업데이트 함수
   const updateProfileImage = useCallback((image: string) => {
     setProfileImage(image);
   }, []);
 
-  // 프로필 텍스트 초기화
-  const clearProfileText = useCallback(() => {
-    setProfileText("");
-  }, []);
-
   // 프로필 이미지 초기화
   const clearProfileImage = useCallback(() => {
     setProfileImage("");
   }, []);
-
-  // 모든 프로필 데이터 초기화
-  const clearProfile = useCallback(() => {
-    setProfileText("");
-    setProfileImage("");
-  }, []);
-
-  // 프로필 텍스트 유효성 검사
-  const isProfileTextValid = useCallback((text: string = profileText) => {
-    return text.trim().length > 0 && text.length <= 50; // 최대 50자 제한
-  }, [profileText]);
 
   // 프로필 이미지 유효성 검사 (Base64 형식 체크)
   const isProfileImageValid = useCallback((image: string = profileImage) => {
@@ -57,11 +32,6 @@ export const useTimeTableProfile = () => {
     const base64Pattern = /^data:image\/(jpeg|jpg|png|gif);base64,/;
     return base64Pattern.test(image);
   }, [profileImage]);
-
-  // 프로필 데이터 전체 유효성 검사
-  const isProfileValid = useCallback(() => {
-    return isProfileTextValid() && isProfileImageValid();
-  }, [isProfileTextValid, isProfileImageValid]);
 
   // 파일에서 이미지를 Base64로 변환하는 헬퍼 함수
   const convertFileToBase64 = useCallback((file: File): Promise<string> => {
@@ -104,22 +74,16 @@ export const useTimeTableProfile = () => {
 
   return {
     // 상태
-    profileText,
     profileImage,
     
     // 업데이트 함수들
-    updateProfileText,
     updateProfileImage,
     
     // 초기화 함수들
-    clearProfileText,
     clearProfileImage,
-    clearProfile,
     
     // 유효성 검사 함수들
-    isProfileTextValid,
     isProfileImageValid,
-    isProfileValid,
     
     // 파일 처리 함수들
     handleFileUpload,

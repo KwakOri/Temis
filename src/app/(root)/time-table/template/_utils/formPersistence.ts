@@ -14,7 +14,6 @@ export const useFormPersistence = () => {
   const loadPersistedData = useCallback(() => {
     return {
       data: timeTableStorage.loadDataSafely([]),
-      profileText: timeTableStorage.loadProfileText(""),
       profileImage: timeTableStorage.loadProfileImage(""),
       theme: timeTableStorage.loadTheme("main" as TTheme),
       scale: timeTableStorage.loadScale(1),
@@ -28,9 +27,6 @@ export const useFormPersistence = () => {
     return timeTableStorage.saveData(data);
   }, []);
 
-  const saveProfileText = useCallback((text: string) => {
-    return timeTableStorage.saveProfileText(text);
-  }, []);
 
   const saveProfileImage = useCallback((imageData: string) => {
     return timeTableStorage.saveProfileImage(imageData);  
@@ -49,7 +45,6 @@ export const useFormPersistence = () => {
    */
   const saveAll = useCallback((payload: {
     data: TDefaultCard[];
-    profileText?: string;
     profileImage?: string;
     theme?: TTheme;
     scale?: number;
@@ -77,7 +72,6 @@ export const useFormPersistence = () => {
     
     // 개별 저장 함수들
     saveData,
-    saveProfileText,
     saveProfileImage, 
     saveTheme,
     saveScale,
@@ -98,7 +92,6 @@ export const useFormPersistence = () => {
  */
 export const useAutoSavePersistence = (
   data: TDefaultCard[],
-  profileText: string,
   profileImage: string,
   theme: TTheme,
   scale: number,
@@ -111,19 +104,18 @@ export const useAutoSavePersistence = (
     createAutoSave(() => {
       saveAll({
         data,
-        profileText,
         profileImage,
         theme,
         scale
       });
     }, autoSaveDelay), 
-    [saveAll, data, profileText, profileImage, theme, scale, autoSaveDelay]
+    [saveAll, data, profileImage, theme, scale, autoSaveDelay]
   );
 
   // 데이터 변경 시 자동 저장 트리거
   useEffect(() => {
     autoSave();
-  }, [data, profileText, profileImage, theme, scale, autoSave]);
+  }, [data, profileImage, theme, scale, autoSave]);
 
   return autoSave;
 };
@@ -133,7 +125,6 @@ export const useAutoSavePersistence = (
  */
 export const useBeforeUnloadSave = (
   data: TDefaultCard[],
-  profileText: string,
   profileImage: string,
   theme: TTheme,
   scale: number
@@ -145,7 +136,6 @@ export const useBeforeUnloadSave = (
       // 브라우저 종료/새로고침 전에 데이터 저장
       saveAll({
         data,
-        profileText,
         profileImage,
         theme,
         scale
@@ -161,7 +151,6 @@ export const useBeforeUnloadSave = (
       if (document.visibilityState === 'hidden') {
         saveAll({
           data,
-          profileText,
           profileImage,
           theme,
           scale
@@ -176,7 +165,7 @@ export const useBeforeUnloadSave = (
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [data, profileText, profileImage, theme, scale, saveAll]);
+  }, [data, profileImage, theme, scale, saveAll]);
 };
 
 /**
@@ -232,10 +221,9 @@ export const backupSystem = {
   /**
    * 현재 데이터를 백업으로 저장
    */
-  createBackup: (data: TDefaultCard[], profileText: string, theme: TTheme, scale: number) => {
+  createBackup: (data: TDefaultCard[], theme: TTheme, scale: number) => {
     const backup = {
       data,
-      profileText,
       theme,
       scale,
       timestamp: new Date().toISOString(),

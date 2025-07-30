@@ -36,19 +36,16 @@ export const useTimeTableEditor = () => {
   } = useTimeTableTheme();
 
   const {
-    profileText,
     profileImage,
-    updateProfileText,
     updateProfileImage,
-    clearProfile,
-    isProfileValid,
+    clearProfileImage,
+    isProfileImageValid,
     handleFileUpload,
   } = useTimeTableProfile();
 
   // 데이터 지속성 관리
   const { autoSave } = useTimeTablePersistence(
     data,
-    profileText,
     profileImage,
     currentTheme,
     state.scale || 1,
@@ -75,13 +72,11 @@ export const useTimeTableEditor = () => {
     handleThemeChange,
     resetTheme,
     
-    // 프로필 상태와 함수들
-    profileText,
+    // 프로필 상태와 함수들  
     profileImage,
-    updateProfileText,
     updateProfileImage,
-    clearProfile,
-    isProfileValid,
+    clearProfileImage,
+    isProfileImageValid,
     handleFileUpload,
     
     // 지속성 관리

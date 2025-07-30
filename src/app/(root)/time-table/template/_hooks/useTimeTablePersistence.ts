@@ -9,7 +9,6 @@ import { useAutoSavePersistence, useBeforeUnloadSave } from '../_utils/formPersi
  */
 export const useTimeTablePersistence = (
   data: TDefaultCard[],
-  profileText: string,
   profileImage: string,
   currentTheme: TTheme,
   scale: number,
@@ -19,7 +18,6 @@ export const useTimeTablePersistence = (
   // 자동 저장 기능 활성화 (디바운스 적용)
   const autoSave = useAutoSavePersistence(
     data, 
-    profileText, 
     profileImage, 
     currentTheme, 
     scale, 
@@ -29,7 +27,6 @@ export const useTimeTablePersistence = (
   // 브라우저 종료/새로고침 시 저장
   useBeforeUnloadSave(
     data, 
-    profileText, 
     profileImage, 
     currentTheme, 
     scale
@@ -40,13 +37,12 @@ export const useTimeTablePersistence = (
     if (process.env.NODE_ENV === 'development') {
       console.debug('TimeTable persistence data updated:', {
         dataLength: data.length,
-        profileTextLength: profileText.length,
         hasProfileImage: !!profileImage,
         currentTheme,
         scale
       });
     }
-  }, [data, profileText, profileImage, currentTheme, scale]);
+  }, [data, profileImage, currentTheme, scale]);
 
   return {
     // 자동 저장 함수 (수동 트리거용)

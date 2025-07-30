@@ -4,7 +4,6 @@ import { TTheme } from "../_settings/settings";
 // localStorage 키 상수
 export const STORAGE_KEYS = {
   TIMETABLE_DATA: "template-timetable-data",
-  PROFILE_TEXT: "template-timetable-profile-text", 
   PROFILE_IMAGE: "template-timetable-profile-image",
   THEME: "template-timetable-theme",
   SCALE: "template-timetable-scale",
@@ -94,19 +93,6 @@ export const timeTableStorage = {
     return loadFromStorage(STORAGE_KEYS.TIMETABLE_DATA, defaultData);
   },
 
-  /**
-   * 프로필 텍스트 저장
-   */
-  saveProfileText: (text: string): boolean => {
-    return saveToStorage(STORAGE_KEYS.PROFILE_TEXT, text);
-  },
-
-  /**
-   * 프로필 텍스트 로드
-   */
-  loadProfileText: (defaultText: string = ""): string => {
-    return loadFromStorage(STORAGE_KEYS.PROFILE_TEXT, defaultText);
-  },
 
   /**
    * 프로필 이미지 저장 (Base64 문자열)
@@ -155,7 +141,6 @@ export const timeTableStorage = {
    */
   saveAll: (payload: {
     data: TDefaultCard[];
-    profileText?: string;
     profileImage?: string;
     theme?: TTheme;
     scale?: number;
@@ -163,10 +148,6 @@ export const timeTableStorage = {
     let success = true;
     
     success = success && timeTableStorage.saveData(payload.data);
-    
-    if (payload.profileText !== undefined) {
-      success = success && timeTableStorage.saveProfileText(payload.profileText);
-    }
     
     if (payload.profileImage !== undefined) {
       success = success && timeTableStorage.saveProfileImage(payload.profileImage);
@@ -188,14 +169,12 @@ export const timeTableStorage = {
    */
   loadAll: (defaults: {
     data: TDefaultCard[];
-    profileText?: string;
     profileImage?: string;
     theme?: TTheme;
     scale?: number;
   }) => {
     return {
       data: timeTableStorage.loadData(defaults.data),
-      profileText: timeTableStorage.loadProfileText(defaults.profileText),
       profileImage: timeTableStorage.loadProfileImage(defaults.profileImage),
       theme: timeTableStorage.loadTheme(defaults.theme || "main"),
       scale: timeTableStorage.loadScale(defaults.scale || 1),
