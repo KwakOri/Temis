@@ -1,13 +1,26 @@
 import React from "react";
-import { TExtendedCard, weekdays, TDefaultCard } from "../_settings/general";
-import { placeholders, weekdayOption, getCardInputConfig, SimpleFieldConfig } from "../_settings/settings";
+import { TDefaultCard, weekdays } from "../_settings/general";
+import {
+  getCardInputConfig,
+  placeholders,
+  SimpleFieldConfig,
+  weekdayOption,
+} from "../_settings/settings";
 
 // 개별 필드 렌더러 타입 정의
 export interface FieldRenderer {
   (props: {
-    day: TDefaultCard | TExtendedCard;
+    day: TDefaultCard;
     index: number;
-    onChange: (index: number, field: keyof TDefaultCard | keyof TExtendedCard, value: string | number | boolean | Array<{ text: string; checked: boolean }>) => void;
+    onChange: (
+      index: number,
+      field: keyof TDefaultCard,
+      value:
+        | string
+        | number
+        | boolean
+        | Array<{ text: string; checked: boolean }>
+    ) => void;
   }): React.ReactNode;
 }
 
@@ -17,26 +30,26 @@ export const defaultFieldRenderers = {
     <input
       type="time"
       className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
-      value={day.time}
-      onChange={(e) => onChange(index, 'time', e.target.value)}
+      value={day.time as string}
+      onChange={(e) => onChange(index, "time", e.target.value)}
     />
   ),
 
   topic: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
     <input
-      value={day.topic}
+      value={day.topic as string}
       placeholder={placeholders.topic}
       className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
-      onChange={(e) => onChange(index, 'topic', e.target.value)}
+      onChange={(e) => onChange(index, "topic", e.target.value)}
     />
   ),
 
   description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
     <textarea
-      value={day.description}
+      value={day.description as string}
       placeholder={placeholders.description}
       className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
-      onChange={(e) => onChange(index, 'description', e.target.value)}
+      onChange={(e) => onChange(index, "description", e.target.value)}
     />
   ),
 };
@@ -51,16 +64,16 @@ export interface CustomFieldRenderer {
 export interface TimeTableInputListProps {
   data: TDefaultCard[];
   onDataChange: (newData: TDefaultCard[]) => void;
-  
+
   // UI 커스터마이징
   containerClassName?: string;
   itemClassName?: string;
   headerClassName?: string;
   fieldsContainerClassName?: string;
-  
+
   // 요일 표시 커스터마이징
   weekdayRenderer?: (day: TDefaultCard) => React.ReactNode;
-  
+
   // 애니메이션 설정
   expandAnimation?: {
     duration?: number;
@@ -83,23 +96,30 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 }) => {
   // settings.ts에서 필드 구성 가져오기
   const cardConfig = getCardInputConfig();
-  
+
   // 오프라인 토글 설정 (기본값 지정)
   const offlineToggleConfig = cardConfig.offlineToggle || {
     label: "휴방",
     activeColor: "bg-[#3E4A82]",
     inactiveColor: "bg-gray-300",
   };
-  
+
   // 필드 렌더링 함수
-  const renderInputField = (fieldConfig: SimpleFieldConfig, day: TDefaultCard, index: number) => {
-    const extendedDay = day as TExtendedCard;
-    const value = String(extendedDay[fieldConfig.key] || fieldConfig.defaultValue || '');
-    
-    const commonClassName = "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none";
-    
+  const renderInputField = (
+    fieldConfig: SimpleFieldConfig,
+    day: TDefaultCard,
+    index: number
+  ) => {
+    const extendedDay = day as TDefaultCard;
+    const value = String(
+      extendedDay[fieldConfig.key] || fieldConfig.defaultValue || ""
+    );
+
+    const commonClassName =
+      "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none";
+
     switch (fieldConfig.type) {
-      case 'text':
+      case "text":
         return (
           <input
             type="text"
@@ -108,11 +128,17 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             maxLength={fieldConfig.maxLength}
             required={fieldConfig.required}
             className={commonClassName}
-            onChange={(e) => handleFieldChange(index, fieldConfig.key as keyof TExtendedCard, e.target.value)}
+            onChange={(e) =>
+              handleFieldChange(
+                index,
+                fieldConfig.key as keyof TDefaultCard,
+                e.target.value
+              )
+            }
           />
         );
-        
-      case 'textarea':
+
+      case "textarea":
         return (
           <textarea
             value={value}
@@ -121,39 +147,59 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             required={fieldConfig.required}
             rows={3}
             className={`${commonClassName} resize-none`}
-            onChange={(e) => handleFieldChange(index, fieldConfig.key as keyof TExtendedCard, e.target.value)}
+            onChange={(e) =>
+              handleFieldChange(
+                index,
+                fieldConfig.key as keyof TDefaultCard,
+                e.target.value
+              )
+            }
           />
         );
-        
-      case 'time':
+
+      case "time":
         return (
           <input
             type="time"
             value={value}
             required={fieldConfig.required}
             className={commonClassName}
-            onChange={(e) => handleFieldChange(index, fieldConfig.key as keyof TExtendedCard, e.target.value)}
+            onChange={(e) =>
+              handleFieldChange(
+                index,
+                fieldConfig.key as keyof TDefaultCard,
+                e.target.value
+              )
+            }
           />
         );
-        
-      case 'select':
+
+      case "select":
         return (
           <select
             value={value}
             required={fieldConfig.required}
             className={commonClassName}
-            onChange={(e) => handleFieldChange(index, fieldConfig.key as keyof TExtendedCard, e.target.value)}
+            onChange={(e) =>
+              handleFieldChange(
+                index,
+                fieldConfig.key as keyof TDefaultCard,
+                e.target.value
+              )
+            }
           >
-            <option value="" disabled>{fieldConfig.placeholder}</option>
-            {fieldConfig.options?.map(option => (
+            <option value="" disabled>
+              {fieldConfig.placeholder}
+            </option>
+            {fieldConfig.options?.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
             ))}
           </select>
         );
-        
-      case 'number':
+
+      case "number":
         return (
           <input
             type="number"
@@ -161,10 +207,16 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             placeholder={fieldConfig.placeholder}
             required={fieldConfig.required}
             className={commonClassName}
-            onChange={(e) => handleFieldChange(index, fieldConfig.key as keyof TExtendedCard, parseInt(e.target.value) || 0)}
+            onChange={(e) =>
+              handleFieldChange(
+                index,
+                fieldConfig.key as keyof TDefaultCard,
+                parseInt(e.target.value) || 0
+              )
+            }
           />
         );
-        
+
       default:
         return (
           <input
@@ -172,7 +224,13 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             value={value}
             placeholder={fieldConfig.placeholder}
             className={commonClassName}
-            onChange={(e) => handleFieldChange(index, fieldConfig.key as keyof TExtendedCard, e.target.value)}
+            onChange={(e) =>
+              handleFieldChange(
+                index,
+                fieldConfig.key as keyof TDefaultCard,
+                e.target.value
+              )
+            }
           />
         );
     }
@@ -180,8 +238,8 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
   // 데이터 변경 핸들러
   const handleFieldChange = (
-    index: number, 
-    field: keyof TDefaultCard | keyof TExtendedCard, 
+    index: number,
+    field: keyof TDefaultCard,
     value: string | number | boolean | Array<{ text: string; checked: boolean }>
   ) => {
     const newData = [...data];
@@ -204,9 +262,16 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   );
 
   // 기본 필드 렌더링 (기존 호환성 유지)
-  const renderDefaultField = (fieldKey: string, day: TDefaultCard, index: number) => {
-    const renderer = defaultFieldRenderers[fieldKey as keyof typeof defaultFieldRenderers];
-    return renderer ? renderer({ day, index, onChange: handleFieldChange }) : null;
+  const renderDefaultField = (
+    fieldKey: string,
+    day: TDefaultCard,
+    index: number
+  ) => {
+    const renderer =
+      defaultFieldRenderers[fieldKey as keyof typeof defaultFieldRenderers];
+    return renderer
+      ? renderer({ day, index, onChange: handleFieldChange })
+      : null;
   };
 
   return (
@@ -215,19 +280,29 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         <div key={day.day} className={itemClassName}>
           {/* 헤더 - 요일과 오프라인 토글 */}
           <div className={headerClassName}>
-            {weekdayRenderer ? weekdayRenderer(day) : defaultWeekdayRenderer(day)}
-            
+            {weekdayRenderer
+              ? weekdayRenderer(day)
+              : defaultWeekdayRenderer(day)}
+
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">{offlineToggleConfig.label}</span>
+              <span className="text-sm text-gray-500">
+                {offlineToggleConfig.label}
+              </span>
               <button
                 type="button"
-                className={`w-10 h-5 flex items-center rounded-full p-1 duration-${expandAnimation.duration} ease-in-out ${
-                  day.isOffline ? offlineToggleConfig.activeColor : offlineToggleConfig.inactiveColor
+                className={`w-10 h-5 flex items-center rounded-full p-1 duration-${
+                  expandAnimation.duration
+                } ease-in-out ${
+                  day.isOffline
+                    ? offlineToggleConfig.activeColor
+                    : offlineToggleConfig.inactiveColor
                 }`}
                 onClick={() => handleOfflineToggle(index)}
               >
                 <div
-                  className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-${expandAnimation.duration} ease-in-out ${
+                  className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-${
+                    expandAnimation.duration
+                  } ease-in-out ${
                     day.isOffline ? "translate-x-4" : "translate-x-0"
                   }`}
                 />
@@ -237,7 +312,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
           {/* 확장 가능한 입력 필드들 */}
           <div
-            className={`transition-all duration-${expandAnimation.duration} overflow-hidden ${
+            className={`transition-all duration-${
+              expandAnimation.duration
+            } overflow-hidden ${
               day.isOffline
                 ? "max-h-0 opacity-0"
                 : `max-h-[${expandAnimation.maxHeight}] opacity-100`
@@ -247,7 +324,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
               {cardConfig.fields.map((fieldConfig) => {
                 // 기본 필드인지 확인
                 const isDefaultField = fieldConfig.key in defaultFieldRenderers;
-                
+
                 return (
                   <div key={fieldConfig.key}>
                     {fieldConfig.label && cardConfig.showLabels && (
@@ -255,10 +332,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                         {fieldConfig.label}
                       </label>
                     )}
-                    {isDefaultField 
+                    {isDefaultField
                       ? renderDefaultField(fieldConfig.key, day, index)
-                      : renderInputField(fieldConfig, day, index)
-                    }
+                      : renderInputField(fieldConfig, day, index)}
                   </div>
                 );
               })}

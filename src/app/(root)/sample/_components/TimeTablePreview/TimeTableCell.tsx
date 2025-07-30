@@ -78,7 +78,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center h-[30px] text-[16px] pt-2"
         >
-          {time.topic ? time.topic : placeholders.topic}
+          {time.topic ? (time.topic as string) : placeholders.topic}
         </p>
 
         <div className="flex flex-col justify-center items-center  h-[77px] pb-2">
@@ -105,7 +105,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
               multiline={true}
               maxFontSize={32}
             >
-              {time.description}
+              {time.description as string}
             </AutoResizeText>
           ) : (
             <p
@@ -125,7 +125,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center  h-[27px] text-[16px]"
         >
-          {time.time}
+          {time.time as string}
         </AutoResizeText>
       </div>
       <Image

@@ -10,15 +10,20 @@ import { useTimeTableState } from "@/hooks/useTimeTableState";
 
 import { defaultCards, TDefaultCard } from "../../_settings/general";
 import { defaultTheme, TTheme } from "../../_settings/settings";
-import TimeTableContent from "../FixedComponents/TimeTableContent";
 import TimeTableInputList from "../FixedComponents/TimeTableInputList";
+import TimeTableContent from "./TimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
   const [data, setData] = useState<TDefaultCard[]>(defaultCards);
   const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
   const { state } = useTimeTableState();
+
   const updateData = (newData: TDefaultCard[]) => setData(newData);
+  const updateTheme = (theme: TTheme) => setCurrentTheme(theme);
+  const handleThemeChange = (theme: TTheme) => {
+    setCurrentTheme(theme);
+  };
 
   if (state.weekDates.length === 0) return <Loading />;
 

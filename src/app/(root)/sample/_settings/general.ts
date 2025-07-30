@@ -1,4 +1,4 @@
-import { getInitialCard, initialCard, TInitialCard } from "./settings";
+import { getInitialCard, TDynamicCard } from "./settings";
 
 export const weekdays = {
   en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -50,20 +50,12 @@ export const months = {
   ],
 };
 
-export interface TDefaultCard extends TInitialCard {
+export interface TDefaultCard extends TDynamicCard {
   day: number;
 }
 
 // 확장된 카드 타입 (settings.ts의 동적 필드 지원)
-export interface TExtendedCard extends TDefaultCard {
-  // 인덱스 시그니처로 동적 필드 지원
-  [key: string]:
-    | string
-    | number
-    | boolean
-    | Array<{ text: string; checked: boolean }>
-    | undefined;
-}
+// TDynamicCard가 이미 동적 필드를 지원하므로 TDefaultCard를 그대로 사용
 
 export const week = [0, 1, 2, 3, 4, 5, 6];
 export const defaultCards: TDefaultCard[] = week.map((day) => {
@@ -71,12 +63,4 @@ export const defaultCards: TDefaultCard[] = week.map((day) => {
     day,
     ...getInitialCard(),
   } as TDefaultCard;
-});
-
-// 레거시 지원을 위한 기존 defaultCards (사용 비추천)
-export const defaultCardsLegacy: TDefaultCard[] = week.map((day) => {
-  return {
-    day,
-    ...initialCard,
-  };
 });

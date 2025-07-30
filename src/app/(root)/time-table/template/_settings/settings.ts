@@ -41,10 +41,7 @@ export interface TButtonTheme {
 
 export const buttonThemes: TButtonTheme[] = [{ value: "main", label: "main" }];
 
-export const colors: Record<
-  TTheme,
-  { primary: string; secondary: string; tertiary: string; quaternary: string }
-> = {
+export const colors = {
   main: {
     primary: "#0A5B7A",
     secondary: "#4F8DC2",
@@ -61,24 +58,9 @@ export const colors: Record<
 export const onlineCardWidth: number = 188;
 export const onlineCardHeight: number = 228;
 
-export type TInitialCard = {
-  isOffline: boolean;
-  time: string;
-  topic: string;
-  description: string;
-};
-
-export const initialCard: TInitialCard = {
-  isOffline: false,
-  time: "09:00",
-  topic: "",
-  description: "",
-};
-
 // CARD_INPUT_CONFIG와 연동되는 초기 카드 (추천)
 // 레거시 initialCard와는 달리 CARD_INPUT_CONFIG에 정의된 모든 필드를 포함
-export const getInitialCard = (): Record<string, string | number | boolean> =>
-  createInitialCardFromConfig();
+export const getInitialCard = (): TDynamicCard => createInitialCardFromConfig();
 
 // 개발자용 간단한 필드 타입 정의
 export interface SimpleFieldConfig {
@@ -142,15 +124,29 @@ export const getCardInputConfig = (): Readonly<CardInputConfig> => {
   return CARD_INPUT_CONFIG;
 };
 
+// CARD_INPUT_CONFIG 기반 동적 카드 타입 정의
+export type TDynamicCard = {
+  isOffline: boolean; // 기본 속성
+} & {
+  [K in (typeof CARD_INPUT_CONFIG.fields)[number]["key"]]:
+    | string
+    | number
+    | boolean;
+} & {
+  // 확장 가능한 필드 지원 (TExtendedCard 호환성)
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | Array<{ text: string; checked: boolean }>;
+};
+
 // CARD_INPUT_CONFIG만을 기반으로 초기 카드 생성 함수
-export const createInitialCardFromConfig = (): Record<
-  string,
-  string | number | boolean
-> => {
+export const createInitialCardFromConfig = (): TDynamicCard => {
   // isOffline은 카드의 기본 속성이므로 항상 포함
-  const card: Record<string, string | number | boolean> = {
+  const card: TDynamicCard = {
     isOffline: false,
-  };
+  } as TDynamicCard;
 
   // CARD_INPUT_CONFIG의 모든 필드를 기반으로 기본값 설정
   CARD_INPUT_CONFIG.fields.forEach((field) => {
@@ -177,6 +173,20 @@ export const createInitialCardFromConfig = (): Record<
   });
 
   return card;
+};
+
+export type TInitialCard = {
+  isOffline: boolean;
+  time: string;
+  topic: string;
+  description: string;
+};
+
+export const initialCard: TInitialCard = {
+  isOffline: false,
+  time: "09:00",
+  topic: "",
+  description: "",
 };
 
 // 레거시 placeholders (하위 호환성을 위해 유지)

@@ -3,7 +3,8 @@ import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { Imgs } from "../../_img/imgs";
-import { weekdays, TDefaultCard } from "../../_settings/general";
+import { weekdays } from "../../_settings/general";
+import { TDefaultCard } from "../../_settings/general";
 import {
   colors,
   fontOption,
@@ -77,11 +78,25 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center h-[30px] text-[16px] pt-2"
         >
-          {time.topic ? time.topic : placeholders.topic}
+          {time.topic ? (time.topic as string) : placeholders.topic}
         </p>
 
         <div className="flex flex-col justify-center items-center  h-[77px] pb-2">
           {time.description ? (
+            // time.description
+            //   .split("\n")
+            //   .filter((line) => line.trim() !== "") // 공백 줄 제거
+            //   .map((line, idx) => (
+            //     <p
+            //       style={{
+            //         color: colors[currentTheme]["primary"],
+            //       }}
+            //       className=" text-[32px] leading-none text-center"
+            //       key={index + "-" + idx}
+            //     >
+            //       {line}
+            //     </p>
+            //   ))
             <AutoResizeText
               style={{
                 color: colors[currentTheme]["primary"],
@@ -90,7 +105,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
               multiline={true}
               maxFontSize={32}
             >
-              {time.description}
+              {time.description as string}
             </AutoResizeText>
           ) : (
             <p
@@ -110,7 +125,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center  h-[27px] text-[16px]"
         >
-          {time.time}
+          {time.time as string}
         </AutoResizeText>
       </div>
       <Image

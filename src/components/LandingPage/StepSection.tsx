@@ -63,6 +63,7 @@ const StepSection = () => {
                   height={200}
                   draggable={false}
                   onDragStart={(e) => e.preventDefault()}
+                  unoptimized
                 />
               </div>
             </div>
