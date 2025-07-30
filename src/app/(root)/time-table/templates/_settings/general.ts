@@ -80,3 +80,4 @@ export const defaultCardsLegacy: TDefaultCard[] = week.map((day) => {
     ...initialCard,
   };
 });
+

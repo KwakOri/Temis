@@ -74,20 +74,6 @@ export const colors = {
 export const onlineCardWidth: number = 188;
 export const onlineCardHeight: number = 228;
 
-export type TInitialCard = {
-  isOffline: boolean;
-  time: string;
-  topic: string;
-  description: string;
-};
-
-export const initialCard: TInitialCard = {
-  isOffline: false,
-  time: "09:00",
-  topic: "",
-  description: "",
-};
-
 // CARD_INPUT_CONFIG와 연동되는 초기 카드 (추천)
 // 레거시 initialCard와는 달리 CARD_INPUT_CONFIG에 정의된 모든 필드를 포함
 export const getInitialCard = (): Record<string, string | number | boolean> =>
@@ -190,6 +176,20 @@ export const createInitialCardFromConfig = (): Record<
   });
 
   return card;
+};
+
+export type TInitialCard = {
+  isOffline: boolean;
+  time: string;
+  topic: string;
+  description: string;
+};
+
+export const initialCard: TInitialCard = {
+  isOffline: false,
+  time: "09:00",
+  topic: "",
+  description: "",
 };
 
 // 레거시 placeholders (하위 호환성을 위해 유지)

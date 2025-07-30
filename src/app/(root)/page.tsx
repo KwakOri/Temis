@@ -22,17 +22,17 @@ export default function Home() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (!target.closest('.mobile-menu-container')) {
+      if (!target.closest(".mobile-menu-container")) {
         setIsMenuOpen(false);
       }
     };
 
     if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isMenuOpen]);
 
@@ -181,9 +181,9 @@ export default function Home() {
       {/* Gallery Section */}
       <section className="pb-20 pt-8 px-4 text-center bg-white ">
         <h2 className="text-2xl font-bold mb-8">작업물 포트폴리오</h2>
-        <div className="mx-auto space-y-6">
+        <div className="mx-auto space-y-6 gallery-container">
           <div className="overflow-x-hidden scrollbar-hidden">
-            <div className="flex h-[210px] w-max gap-4 animate-slide-loop-slow pointer-events-none">
+            <div className="flex h-[210px] w-max gap-4 animate-slide-loop-slow pointer-events-none transform-gpu">
               {Array(4)
                 .fill(0)
                 .flatMap((_, groupIdx) =>
@@ -199,7 +199,7 @@ export default function Home() {
             </div>
           </div>
           <div className="overflow-x-hidden scrollbar-hidden">
-            <div className="flex h-[210px] w-max gap-4 animate-slide-loop-fast pointer-events-none">
+            <div className="flex h-[210px] w-max gap-4 animate-slide-loop-fast pointer-events-none transform-gpu">
               {Array(4)
                 .fill(0)
                 .flatMap((_, groupIdx) =>
@@ -273,12 +273,12 @@ export default function Home() {
         <h2 className="text-2xl font-bold mb-8">
           TEMIS로 편리한 Vtuber 생활 시작해 볼까요?
         </h2>
-        <a
-          href="https://temis.kr/sample"
+        <Link
+          href="/sample"
           className="inline-block bg-[#3E4A82] text-white px-8 py-4 rounded-xl text-lg hover:bg-[#2a304b] transition"
         >
           30일 무료 체험 하러가기
-        </a>
+        </Link>
       </section>
     </div>
   );

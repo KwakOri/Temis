@@ -3,7 +3,8 @@ import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { Imgs } from "../../_img/imgs";
-import { TDefaultCard, weekdays } from "../../_settings/general";
+import { weekdays } from "../../_settings/general";
+import { TDefaultCard } from "../../_settings/general";
 import {
   colors,
   fontOption,

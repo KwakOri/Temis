@@ -2,7 +2,8 @@ import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
-import { months, TDefaultCard } from "../../_settings/general";
+import { months } from "../../_settings/general";
+import { TDefaultCard } from "../../_settings/general";
 import {
   colors,
   fontOption,
