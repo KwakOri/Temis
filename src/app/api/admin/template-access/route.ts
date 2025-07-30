@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth/admin";
+import { requireAdmin } from "@/lib/auth/middleware";
 import { TemplateAccessService } from "@/lib/templates";
 import { NextRequest, NextResponse } from "next/server";
 

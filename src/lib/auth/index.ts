@@ -1,6 +1,7 @@
 export * from './jwt';
 export * from './password';
 export * from './middleware';
+export * from './admin';
 
 import { NextRequest } from 'next/server';
 import { requireAuth } from './middleware';

@@ -38,8 +38,8 @@ BEGIN
   
   SELECT email INTO user_email FROM users WHERE id = user_id;
   
-  -- 관리자 이메일 체크 (필요시 수정)
-  RETURN user_email IN ('admin@temis.com', 'admin@example.com');
+  -- 관리자 이메일 체크 (환경변수 ADMIN_EMAILS와 일치하도록 수정)
+  RETURN user_email IN ('test@test.com');
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

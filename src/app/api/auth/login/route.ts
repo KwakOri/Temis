@@ -40,11 +40,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 관리자 여부 확인
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(email => email.trim()) || [];
+    const isAdmin = adminEmails.includes(user.email);
+
     // JWT 토큰 생성
     const token = await signJWT({
       userId: user.id,
       email: user.email,
-      name: user.name
+      name: user.name,
+      role: isAdmin ? 'admin' : 'user'
     });
 
     // 응답 생성
@@ -53,7 +58,9 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
-        name: user.name
+        name: user.name,
+        role: isAdmin ? 'admin' : 'user',
+        isAdmin: isAdmin
       }
     });
 
