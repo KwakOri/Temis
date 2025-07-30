@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth/admin';
+import { requireAdmin } from '@/lib/auth/middleware';
 import { UserService } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
