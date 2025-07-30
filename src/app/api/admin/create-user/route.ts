@@ -1,26 +1,14 @@
 import { hashPassword, validatePasswordStrength } from "@/lib/auth";
-import { isAuthenticated, isAdmin } from "@/lib/auth/middleware";
+import { requireAdmin } from "@/lib/auth/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { UserService } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   try {
-    // 인증 확인
-    const authResult = await isAuthenticated(request);
-    if (!authResult.isAuthenticated) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
-    }
-
-    // 관리자 권한 확인
-    const adminResult = await isAdmin(request);
-    if (!adminResult.isAdmin) {
-      return NextResponse.json(
-        { error: "관리자 권한이 필요합니다." },
-        { status: 403 }
-      );
+    // 관리자 권한 확인 (인증도 함께 확인됨)
+    const adminResult = await requireAdmin(request);
+    if (adminResult instanceof NextResponse) {
+      return adminResult;
     }
 
     const body = await request.json();
