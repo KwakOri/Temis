@@ -9,10 +9,7 @@ export const useTimeTableTheme = () => {
   const { loadPersistedData } = useFormPersistence();
 
   // localStorage에서 저장된 테마 로드하여 초기값 설정
-  const [currentTheme, setCurrentTheme] = useState<TTheme>(() => {
-    const persistedData = loadPersistedData();
-    return defaultTheme;
-  });
+  const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
 
   // 테마 업데이트 함수
   const updateTheme = useCallback((theme: TTheme) => {

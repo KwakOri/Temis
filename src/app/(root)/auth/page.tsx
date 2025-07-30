@@ -1,6 +1,6 @@
 "use client";
 
-import { LoginForm, UserProfile } from "@/components/auth";
+import { LoginForm } from "@/components/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,46 +23,9 @@ function AuthContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 md:h-32 md:w-32 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-3 md:mt-4 text-sm md:text-base text-gray-600">인증 상태 확인 중...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (user) {
-    return (
-      <div className="min-h-screen bg-gray-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md mx-auto">
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-6">
-            <h2 className="text-xl md:text-2xl font-bold text-center mb-4 md:mb-6 text-green-600">
-              ✅ 로그인 성공!
-            </h2>
-            <UserProfile />
-
-            <div className="mt-4 md:mt-6 bg-gray-50 p-3 md:p-4 rounded-lg">
-              <h3 className="text-sm md:text-base font-semibold mb-2">사용자 정보:</h3>
-              <ul className="space-y-1 text-xs md:text-sm">
-                <li>
-                  <strong>ID:</strong> {user.id}
-                </li>
-                <li>
-                  <strong>이메일:</strong> {user.email}
-                </li>
-                <li>
-                  <strong>이름:</strong> {user.name}
-                </li>
-              </ul>
-            </div>
-
-            <div className="mt-4 md:mt-6">
-              <button
-                onClick={handleAuthSuccess}
-                className="w-full bg-blue-600 text-white py-2.5 md:py-2 px-4 rounded-md hover:bg-blue-700 transition-colors text-sm md:text-base"
-              >
-                계속하기
-              </button>
-            </div>
-          </div>
+          <p className="mt-3 md:mt-4 text-sm md:text-base text-gray-600">
+            인증 상태 확인 중...
+          </p>
         </div>
       </div>
     );
@@ -71,17 +34,22 @@ function AuthContent() {
   return (
     <div className="min-h-screen bg-gray-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="inline-flex items-center text-sm md:text-base text-gray-600 hover:text-gray-900 mb-4 md:mb-6 transition-colors"
         >
-          <svg 
-            className="w-4 h-4 mr-1" 
-            fill="none" 
-            stroke="currentColor" 
+          <svg
+            className="w-4 h-4 mr-1"
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           뒤로가기
         </Link>
@@ -93,8 +61,18 @@ function AuthContent() {
           {/* 로그인 전용 헤더 */}
           <div className="text-center mb-4 md:mb-6">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              <svg
+                className="w-6 h-6 text-blue-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
               </svg>
             </div>
             <h2 className="text-xl font-bold text-gray-900">로그인</h2>
@@ -116,7 +94,9 @@ export default function AuthPage() {
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 md:h-32 md:w-32 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-3 md:mt-4 text-sm md:text-base text-gray-600">로딩 중...</p>
+            <p className="mt-3 md:mt-4 text-sm md:text-base text-gray-600">
+              로딩 중...
+            </p>
           </div>
         </div>
       }

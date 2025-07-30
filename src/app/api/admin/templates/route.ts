@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/admin';
 import { supabase } from '@/lib/supabase';
+import { TemplateInsert } from '@/types/supabase-types';
 
 export async function GET(request: NextRequest) {
   
@@ -42,6 +43,92 @@ export async function GET(request: NextRequest) {
     console.error('Admin templates fetch error:', error);
     return NextResponse.json(
       { error: '템플릿 목록 조회 중 오류가 발생했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const adminCheck = await requireAdmin(request);
+  
+  if (adminCheck instanceof NextResponse) {
+    return adminCheck;
+  }
+
+  try {
+    const body = await request.json();
+    const { name, description, thumbnail_url, is_public } = body;
+
+    // 입력 검증
+    if (!name || name.trim().length === 0) {
+      return NextResponse.json(
+        { error: '템플릿 이름은 필수입니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (name.trim().length > 100) {
+      return NextResponse.json(
+        { error: '템플릿 이름은 100자를 초과할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (description && description.length > 500) {
+      return NextResponse.json(
+        { error: '설명은 500자를 초과할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+
+    // 중복 이름 검사
+    const { data: existingTemplate, error: checkError } = await supabase
+      .from('templates')
+      .select('id')
+      .eq('name', name.trim())
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Template name check error:', checkError);
+      throw checkError;
+    }
+
+    if (existingTemplate) {
+      return NextResponse.json(
+        { error: '이미 존재하는 템플릿 이름입니다.' },
+        { status: 409 }
+      );
+    }
+
+    // 새 템플릿 생성
+    const templateData: TemplateInsert = {
+      name: name.trim(),
+      description: description?.trim() || '',
+      thumbnail_url: thumbnail_url?.trim() || '',
+      is_public: Boolean(is_public)
+    };
+
+    const { data: newTemplate, error: insertError } = await supabase
+      .from('templates')
+      .insert(templateData)
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Template creation error:', insertError);
+      throw insertError;
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '템플릿이 성공적으로 생성되었습니다.',
+      template: newTemplate
+    }, { status: 201 });
+
+  } catch (error) {
+    console.error('Template creation error:', error);
+    return NextResponse.json(
+      { error: '템플릿 생성 중 오류가 발생했습니다.' },
       { status: 500 }
     );
   }

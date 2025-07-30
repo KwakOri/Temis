@@ -1,4 +1,5 @@
 "use client";
+import { useAuth } from "@/contexts/AuthContext"; // useAuth 임포트
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +10,7 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth(); // isAuthenticated 가져오기
 
   useEffect(() => {
     const onScroll = () => {
@@ -68,9 +70,10 @@ export default function Home() {
                 맞춤형 시간표 예약하기
               </p>
             </a>
-            <Link href="./my-page">
+
+            <Link href={user ? "/my-page" : "/auth"}>
               <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                마이페이지
+                {user ? "마이페이지" : "로그인"}
               </p>
             </Link>
           </div>
@@ -129,7 +132,7 @@ export default function Home() {
                   </div>
                 </a>
                 <Link
-                  href="./my-page"
+                  href={user ? "/my-page" : "/auth"}
                   className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -147,7 +150,9 @@ export default function Home() {
                         d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                       />
                     </svg>
-                    <span className="font-medium">마이페이지</span>
+                    <span className="font-medium">
+                      {user ? "마이페이지" : "로그인"}
+                    </span>
                   </div>
                 </Link>
               </div>

@@ -4,7 +4,9 @@
       "mcp__sequential-thinking__sequentialthinking",
       "Bash(npm run build:*)",
       "Bash(rm:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(npm run lint)",
+      "Bash(npm install:*)"
     ],
     "deny": []
   }

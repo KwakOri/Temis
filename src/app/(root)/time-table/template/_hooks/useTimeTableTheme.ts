@@ -1,18 +1,12 @@
-import { useState, useCallback } from 'react';
-import { TTheme, defaultTheme } from '../_settings/settings';
-import { useFormPersistence } from '../_utils/formPersistence';
+import { useCallback, useState } from "react";
+import { TTheme, defaultTheme } from "../_settings/settings";
 
 /**
  * 타임테이블 테마 상태 관리 훅
  */
 export const useTimeTableTheme = () => {
-  const { loadPersistedData } = useFormPersistence();
-
   // localStorage에서 저장된 테마 로드하여 초기값 설정
-  const [currentTheme, setCurrentTheme] = useState<TTheme>(() => {
-    const persistedData = loadPersistedData();
-    return persistedData.theme || defaultTheme;
-  });
+  const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
 
   // 테마 업데이트 함수
   const updateTheme = useCallback((theme: TTheme) => {
@@ -38,11 +32,11 @@ export const useTimeTableTheme = () => {
   return {
     // 상태
     currentTheme,
-    
+
     // 업데이트 함수들
     updateTheme,
     handleThemeChange,
-    
+
     // 유틸리티 함수들
     resetTheme,
     toggleTheme,

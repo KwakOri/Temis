@@ -104,12 +104,6 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
           {isLoading ? "로그인 중..." : "로그인"}
         </button>
       </form>
-
-      <div className="mt-4 text-center text-sm text-gray-600">
-        <p>테스트 계정:</p>
-        <p>이메일: test@test.com</p>
-        <p>비밀번호: Test.1234</p>
-      </div>
     </div>
   );
 }

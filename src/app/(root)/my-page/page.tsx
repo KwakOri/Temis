@@ -306,7 +306,7 @@ const MyPageContent = () => {
   };
 
   const handleTemplateClick = (template: Template) => {
-    router.push(`/templates/${template.id}`);
+    router.push(`/time-table/${template.id}`);
   };
 
   return (
@@ -317,12 +317,33 @@ const MyPageContent = () => {
           <div className="mb-6 md:mb-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="text-center md:text-left">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">마이페이지</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  마이페이지
+                </h1>
                 <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
                   접근 권한이 있는 템플릿 목록을 확인하고 관리하세요.
                 </p>
               </div>
-              <div className="flex justify-center md:justify-start">
+              <div className="flex justify-center md:justify-start gap-2">
+                <button
+                  onClick={() => router.push("/")}
+                  className="w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center gap-2 text-sm md:text-base"
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                    />
+                  </svg>
+                  홈으로
+                </button>
                 <button
                   onClick={handleLogout}
                   disabled={logoutLoading}
@@ -359,7 +380,9 @@ const MyPageContent = () => {
           {/* Success Message */}
           {successMessage && (
             <div className="mb-4 md:mb-6 bg-green-50 border border-green-200 rounded-md p-3 md:p-4">
-              <div className="text-sm md:text-base text-green-800">{successMessage}</div>
+              <div className="text-sm md:text-base text-green-800">
+                {successMessage}
+              </div>
               <button
                 onClick={() => setSuccessMessage("")}
                 className="mt-2 text-xs md:text-sm text-green-600 hover:text-green-800"
@@ -504,7 +527,7 @@ const MyPageContent = () => {
                     <div
                       key={`${template.templates.id}-${template.id}`}
                       onClick={() => handleTemplateClick(template.templates)}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75 transition-all"
+                      className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
                     >
                       {/* Template Thumbnail */}
                       <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">

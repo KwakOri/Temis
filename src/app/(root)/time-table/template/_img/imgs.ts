@@ -6,7 +6,7 @@ import MainProfile from "./main/profile.png";
 import MainWeek from "./main/week.png";
 
 export const Imgs = {
-  main: {
+  first: {
     bg: MainBG,
     offline: MainOffline,
     online: MainOnline,

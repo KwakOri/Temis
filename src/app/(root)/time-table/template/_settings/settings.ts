@@ -31,19 +31,21 @@ export const monthOption: TLanOpt = "en";
 
 /** 단일 테마의 경우 normal로 통일하세요. */
 /** _styles/colors.ts에 먼저 컬러 팔레트를 등록하세요. */
-export const Themes = ["main"] as const;
+export const Themes = ["first", "second", "third"] as const;
 export type TTheme = (typeof Themes)[number];
 
-export const defaultTheme: TTheme = "main";
+export const defaultTheme: TTheme = "first";
 export interface TButtonTheme {
   value: TTheme;
   label: string;
 }
 
-export const buttonThemes: TButtonTheme[] = [{ value: "main", label: "main" }];
+export const buttonThemes: TButtonTheme[] = [
+  { value: "first", label: "first" },
+];
 
 export const colors = {
-  main: {
+  first: {
     primary: "#0A5B7A",
     secondary: "#4F8DC2",
     tertiary: "#63A0D2",
@@ -129,7 +131,7 @@ export const getCardInputConfig = (): Readonly<CardInputConfig> => {
 export type TDynamicCard = {
   isOffline: boolean; // 기본 속성
 } & {
-  [K in (typeof CARD_INPUT_CONFIG.fields)[number]["key"]]?: // ? 추가
+  [K in (typeof CARD_INPUT_CONFIG.fields)[number]["key"]]?:  // ? 추가
     | string
     | number
     | boolean;
