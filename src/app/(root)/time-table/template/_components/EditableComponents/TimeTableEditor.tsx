@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 
 import Loading from "@/components/Loading";
 import MobileHeader from "@/components/TimeTable/MobileHeader";
@@ -8,22 +8,15 @@ import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
 import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { useTimeTableState } from "@/hooks/useTimeTableState";
 
-import { defaultCards, TDefaultCard } from "../../_settings/general";
-import { defaultTheme, TTheme } from "../../_settings/settings";
+import { useTimeTableEditor } from "../../_hooks";
 import TimeTableInputList from "../FixedComponents/TimeTableInputList";
 import TimeTableContent from "./TimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
-  const [data, setData] = useState<TDefaultCard[]>(defaultCards);
-  const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
-  const { state } = useTimeTableState();
-
-  const updateData = (newData: TDefaultCard[]) => setData(newData);
-  const updateTheme = (theme: TTheme) => setCurrentTheme(theme);
-  const handleThemeChange = (theme: TTheme) => {
-    setCurrentTheme(theme);
-  };
+  // 통합 상태 관리 훅 사용
+  const { state, data, updateData, currentTheme, handleThemeChange } =
+    useTimeTableEditor();
 
   if (state.weekDates.length === 0) return <Loading />;
 

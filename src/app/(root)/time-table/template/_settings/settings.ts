@@ -31,8 +31,9 @@ export const monthOption: TLanOpt = "en";
 
 /** 단일 테마의 경우 normal로 통일하세요. */
 /** _styles/colors.ts에 먼저 컬러 팔레트를 등록하세요. */
+export const Themes = ["main"] as const;
+export type TTheme = (typeof Themes)[number];
 
-export type TTheme = "main";
 export const defaultTheme: TTheme = "main";
 export interface TButtonTheme {
   value: TTheme;

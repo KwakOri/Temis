@@ -1,3 +1,4 @@
+import { StaticImageData } from "next/image";
 import MainBG from "./main/bg.png";
 import MainOffline from "./main/offline.png";
 import MainOnline from "./main/online.png";
@@ -12,4 +13,12 @@ export const Imgs = {
     week: MainWeek,
     profile: MainProfile,
   },
+};
+
+export type ImgTypes = {
+  bg: StaticImageData;
+  offline: StaticImageData;
+  online: StaticImageData;
+  week: StaticImageData;
+  profile: StaticImageData;
 };
