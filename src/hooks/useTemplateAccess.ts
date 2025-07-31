@@ -27,31 +27,14 @@ export function useTemplateAccess({
     "admin_access" | "template_access" | "no_access" | null
   >(null);
 
-  console.log("🔐 useTemplateAccess state:", {
-    hasAccess,
-    isAdmin,
-    reason,
-    loading,
-    error,
-    templateId,
-    userEmail: user?.email
-  });
-
   useEffect(() => {
     async function checkAccess() {
       // 클라이언트 사이드에서만 실행
-      if (typeof window === 'undefined') {
+      if (typeof window === "undefined") {
         return;
       }
-      
-      console.log('Debug - checkAccess called with:', { 
-        userEmail: user?.email, 
-        templateId,
-        userObject: user 
-      });
-      
+
       if (!user || !templateId) {
-        console.log('Debug - Missing user or templateId, keeping loading state');
         // 사용자나 templateId가 없을 때는 로딩 상태 유지
         setLoading(true);
         return;
@@ -62,8 +45,7 @@ export function useTemplateAccess({
         setError(null);
 
         // 서버 사이드에서 안전하게 검증
-        console.log('Debug - Making API call to:', `/api/template-access?templateId=${encodeURIComponent(templateId)}`);
-        
+
         const response = await fetch(
           `/api/template-access?templateId=${encodeURIComponent(templateId)}`,
           {
@@ -75,19 +57,15 @@ export function useTemplateAccess({
           }
         );
 
-        console.log('Debug - Response status:', response.status);
-        console.log('Debug - Response ok:', response.ok);
-
         if (!response.ok) {
           const errorText = await response.text();
-          console.log('Debug - Error response status:', response.status);
-          console.log('Debug - Error response text:', errorText);
-          console.log('Debug - Response headers:', Object.fromEntries(response.headers.entries()));
-          throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+
+          throw new Error(
+            `HTTP error! status: ${response.status} - ${errorText}`
+          );
         }
 
         const data = await response.json();
-        console.log("Debug - API response data:", data);
 
         setHasAccess(data.hasAccess);
         setIsAdmin(data.isAdmin);

@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
     }
 
     const { user } = authResult;
-    console.log('Debug - Authenticated user:', JSON.stringify(user, null, 2));
 
     // 2. 쿼리 파라미터에서 templateId 추출
     const { searchParams } = new URL(request.url);
@@ -42,22 +41,15 @@ export async function GET(request: NextRequest) {
     // 3. 관리자 권한 확인 (이메일 직접 비교 + role 확인)
     const adminEmails =
       process.env.ADMIN_EMAILS?.split(",").map((email) => email.trim()) || [];
-    console.log('Debug - Admin emails:', adminEmails);
-    console.log('Debug - User email:', user.email);
-    console.log('Debug - User role:', user.role);
-    
+
     // 두 가지 방법으로 관리자 확인: role 필드 또는 이메일 매칭
-    const isUserAdminByRole = user.role === 'admin';
+    const isUserAdminByRole = user.role === "admin";
     const isUserAdminByEmail = user.email && adminEmails.includes(user.email);
     const isUserAdmin = isUserAdminByRole || isUserAdminByEmail;
-    
-    console.log('Debug - Is admin by role:', isUserAdminByRole);
-    console.log('Debug - Is admin by email:', isUserAdminByEmail);
-    console.log('Debug - Is user admin (final):', isUserAdmin);
-    
+
     if (isUserAdmin) {
       // 관리자는 모든 템플릿에 접근 가능
-      console.log('Debug - Returning admin access');
+
       return NextResponse.json({
         hasAccess: true,
         isAdmin: true,
