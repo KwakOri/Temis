@@ -81,7 +81,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           }}
           className="absolute inset-0 z-30"
         ></div>
-        {imageSrc ? (
+        {imageSrc && (
           <Image
             src={
               imageSrc.startsWith("/") ? imageSrc : imageSrc.replace("./", "/")
@@ -90,19 +90,6 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
             className="w-full h-full object-cover"
             fill
           />
-        ) : (
-          <div
-            className={`w-full h-full flex justify-center items-center relative`}
-          >
-            <Image
-              fill
-              src={Imgs[currentTheme]["placeholder_image"].src.replace(
-                "./",
-                "/"
-              )}
-              alt={"placeholder"}
-            />
-          </div>
         )}
       </div>
     </div>
