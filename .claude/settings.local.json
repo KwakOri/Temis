@@ -12,7 +12,10 @@
       "Bash(sed:*)",
       "Bash(pkill:*)",
       "Bash(node:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(gh pr list:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
