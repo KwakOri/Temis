@@ -1,3 +1,4 @@
+import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
@@ -42,15 +43,17 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         }}
         className="absolute z-30 bottom-17 right-11 text-[32px] w-[220px] h-[60px] flex justify-center items-center "
       >
-        <p
+        <AutoResizeText
           style={{
             fontFamily: fontOption.primary,
             color: colors[currentTheme]["secondary"],
           }}
           className="text-center"
+          maxFontSize={32}
+          minFontSize={20}
         >
           {profileText ? profileText : placeholders.profileText}
-        </p>
+        </AutoResizeText>
       </div>
       <div
         className="absolute z-20"
