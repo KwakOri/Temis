@@ -127,11 +127,36 @@ export const weekFlagCardHeight: number = 0;
 
 /** Profile Frame 크기 */
 
-export const profileImage = {
+export interface ProfileImageInfoInterface {
+  arrange: "onBottom" | "onTop";
+  rotation: number;
+  position: {
+    top: number;
+    right: number;
+  };
+}
+
+export const profileImageInfo: ProfileImageInfoInterface = {
+  arrange: "onTop",
   rotation: 4,
   position: {
     top: 8,
     right: 24,
+  },
+};
+
+export const profileTextInfo = {
+  size: {
+    width: 220,
+    height: 60,
+  },
+  position: {
+    bottom: 68,
+    right: 44,
+  },
+  font: {
+    maxSize: 32,
+    minSize: 20,
   },
 };
 
