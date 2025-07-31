@@ -1,5 +1,8 @@
 import { getInitialCard, TDynamicCard } from "./settings";
 
+// settings.ts에서 getInitialCard를 re-export
+export { getInitialCard } from "./settings";
+
 export const weekdays = {
   en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
   kr: ["월", "화", "수", "목", "금", "토", "일"],
