@@ -16,7 +16,7 @@ const TimeTableForm = ({
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
   const { profileText, mondayDateStr, imageSrc } = state;
-  const { handleImageChange, handleProfileTextChange, handleDateChange } =
+  const { handleImageChange, handleProfileTextChange, handleDateChange, updateImageSrc } =
     actions;
   const { downloadImage } = useTimeTableActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -24,6 +24,10 @@ const TimeTableForm = ({
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleImageDelete = () => {
+    updateImageSrc(null);
   };
 
   const onChangeActiveTab = (nextTab: string) => {
@@ -42,12 +46,35 @@ const TimeTableForm = ({
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
           placeholder={"사용자 이름"}
         />
-        <button
-          onClick={handleUploadClick}
-          className="w-full bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
-        >
-          {imageSrc ? "프로필 이미지 변경" : "프로필 이미지 업로드"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleUploadClick}
+            className="flex-1 bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
+          >
+            {imageSrc ? "프로필 이미지 변경" : "프로필 이미지 업로드"}
+          </button>
+          {imageSrc && (
+            <button
+              onClick={handleImageDelete}
+              className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
+              title="프로필 이미지 삭제"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
         <input
           ref={fileInputRef}
           id="file-upload"

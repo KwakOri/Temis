@@ -26,8 +26,6 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   const { imageSrc, weekDates, profileText } = useTimeTableData();
   const { scale } = useTimeTableUI();
 
-  console.log(currentTheme);
-
   return (
     <div
       id="timetable"

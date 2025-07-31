@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
       user: {
         id: payload.userId,
         email: payload.email,
-        name: payload.name
+        name: payload.name,
+        role: payload.role || 'user',
+        isAdmin: payload.role === 'admin'
       }
     });
 
@@ -87,7 +89,9 @@ export async function POST(request: NextRequest) {
       user: {
         id: payload.userId,
         email: payload.email,
-        name: payload.name
+        name: payload.name,
+        role: payload.role || 'user',
+        isAdmin: payload.role === 'admin'
       }
     });
 
