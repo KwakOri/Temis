@@ -6,6 +6,8 @@ interface User {
   id: string;
   email: string;
   name: string;
+  role?: string;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // 인증 상태 확인
   const checkAuth = async () => {
     try {
+      console.log('🔍 AuthContext: Checking authentication...');
       const response = await fetch('/api/auth/verify', {
         method: 'GET',
         credentials: 'include', // 쿠키 포함
@@ -38,14 +41,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
         },
       });
 
+      console.log('🔍 AuthContext: Verify response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('🔍 AuthContext: Verify response data:', data);
         setUser(data.user);
       } else {
+        console.log('🔍 AuthContext: Verify failed, user not authenticated');
         setUser(null);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('🔍 AuthContext: Auth check failed:', error);
       setUser(null);
     } finally {
       setLoading(false);

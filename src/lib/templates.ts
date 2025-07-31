@@ -172,13 +172,47 @@ export class TemplateService {
    */
   static async hasAccess(templateId: string, userId: string): Promise<boolean> {
     try {
-      const { data, error } = await supabase.rpc("has_template_access", {
-        p_template_id: templateId,
-        p_user_id: userId,
-      });
+      // Parameter validation
+      if (!templateId || !userId) {
+        return false;
+      }
 
-      if (error) throw error;
-      return data;
+      // Validate templateId is a UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(templateId)) {
+        return false;
+      }
+
+      // 1. 먼저 템플릿이 공개되어 있는지 확인
+      const { data: templateData, error: templateError } = await supabase
+        .from('templates')
+        .select('is_public')
+        .eq('id', templateId)
+        .single();
+
+      if (templateError) {
+        return false;
+      }
+
+      // 공개 템플릿이면 접근 허용
+      if (templateData?.is_public) {
+        return true;
+      }
+
+      // 2. template_access 테이블에서 권한 확인
+      const { data: accessData, error: accessError } = await supabase
+        .from('template_access')
+        .select('id')
+        .eq('template_id', templateId)
+        .eq('user_id', parseInt(userId))
+        .limit(1);
+
+      if (accessError) {
+        return false;
+      }
+
+      // 레코드가 존재하면 접근 권한이 있음
+      return accessData && accessData.length > 0;
     } catch (error) {
       console.error("Error checking template access:", error);
       return false;

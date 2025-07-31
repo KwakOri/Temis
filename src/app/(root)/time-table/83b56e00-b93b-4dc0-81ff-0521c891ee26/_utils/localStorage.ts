@@ -1,5 +1,5 @@
 import { TDefaultCard } from "../_settings/general";
-import { TTheme } from "../_settings/settings";
+import { TTheme } from "../_settings/general";
 
 // localStorage 키 상수
 export const STORAGE_KEYS = {

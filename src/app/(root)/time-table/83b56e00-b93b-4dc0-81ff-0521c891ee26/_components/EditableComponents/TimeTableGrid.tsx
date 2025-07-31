@@ -1,7 +1,7 @@
 import React from "react";
 
 import { TDefaultCard } from "../../_settings/general";
-import { TTheme } from "../../_settings/settings";
+import { TTheme } from "../../_settings/general";
 import TimeTableCell from "./TimeTableCell";
 
 interface TimeTableGridProps {

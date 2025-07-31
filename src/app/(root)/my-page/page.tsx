@@ -531,9 +531,9 @@ const MyPageContent = () => {
                     >
                       {/* Template Thumbnail */}
                       <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
-                        {template.templates.thumbnail_url ? (
+                        {template.templates.id ? (
                           <img
-                            src={template.templates.thumbnail_url}
+                            src={`/thumbnail/${template.templates.id}.png`}
                             alt={template.templates.name}
                             className="w-full h-full object-cover"
                           />

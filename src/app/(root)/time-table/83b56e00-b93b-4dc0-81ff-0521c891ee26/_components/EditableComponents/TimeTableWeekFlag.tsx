@@ -1,4 +1,5 @@
-import { colors, fontOption, TTheme } from "../../_settings/settings";
+import { TTheme } from "../../_settings/general";
+import { colors, fontOption } from "../../_settings/settings";
 
 interface TimeTableWeekFlagProps {
   currentTheme: TTheme;

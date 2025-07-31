@@ -1,15 +1,14 @@
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
+import { placeholders, TTheme } from "../../_settings/general";
 import {
   colors,
   fontOption,
-  placeholders,
   profileFrameHeight,
   profileFrameWidth,
   profileImageHeight,
   profileImageWidth,
-  TTheme,
 } from "../../_settings/settings";
 
 interface ProfileImageProps {

@@ -3,7 +3,7 @@ import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideC
 import React from "react";
 import { Imgs } from "../../_img/imgs";
 import { TDefaultCard } from "../../_settings/general";
-import { TTheme } from "../../_settings/settings";
+import { TTheme } from "../../_settings/general";
 import ProfileImage from "./ProfileImage";
 import TimeTableGrid from "./TimeTableGrid";
 import TimeTableWeekFlag from "./TimeTableWeekFlag";

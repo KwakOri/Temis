@@ -1,9 +1,8 @@
 import React from "react";
 import { TDefaultCard, weekdays } from "../../_settings/general";
+import { getCardInputConfig, SimpleFieldConfig } from "../../_settings/general";
 import {
-  getCardInputConfig,
   placeholders,
-  SimpleFieldConfig,
   weekdayOption,
 } from "../../_settings/settings";
 

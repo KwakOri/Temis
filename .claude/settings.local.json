@@ -9,7 +9,9 @@
       "Bash(npm install:*)",
       "Bash(npm run dev:*)",
       "Bash(find:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(pkill:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

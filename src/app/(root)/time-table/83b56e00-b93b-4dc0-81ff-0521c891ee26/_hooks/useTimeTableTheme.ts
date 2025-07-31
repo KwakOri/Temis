@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { TTheme, defaultTheme } from "../_settings/settings";
+import { TTheme } from "../_settings/general";
+import { defaultTheme } from "../_settings/settings";
 
 /**
  * 타임테이블 테마 상태 관리 훅
