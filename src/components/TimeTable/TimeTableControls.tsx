@@ -8,7 +8,7 @@ const TimeTableControls: React.FC = () => {
     <div className="fixed top-4 left-4 z-50 bg-white/80 px-4 py-2 rounded select-none flex items-center gap-4">
       {/* 뒤로가기 버튼 */}
       <Link
-        href="/"
+        href="/my-page"
         className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
       >
         <svg

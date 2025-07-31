@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from './middleware';
 import { UserService } from '../supabase';
-import { decodeJWT, extractTokenFromCookie } from './jwt';
 
 /**
  * 관리자 권한 확인
@@ -56,64 +55,3 @@ export async function requireAdminLegacy(request: NextRequest) {
   }
 }
 
-/**
- * 현재 로그인한 사용자가 관리자인지 확인 (클라이언트용)
- * @returns 관리자 여부
- */
-export function isCurrentUserAdmin(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  try {
-    // 쿠키에서 토큰 추출
-    const token = extractTokenFromCookie(document.cookie);
-    if (!token) {
-      return false;
-    }
-
-    // JWT 디코딩
-    const payload = decodeJWT(token);
-    if (!payload) {
-      return false;
-    }
-
-    // role이 admin인지 확인
-    return payload.role === 'admin';
-  } catch (error) {
-    console.error('Admin check error:', error);
-    return false;
-  }
-}
-
-/**
- * 현재 사용자 정보 가져오기 (클라이언트용)
- */
-export function getCurrentUserInfo() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  try {
-    const token = extractTokenFromCookie(document.cookie);
-    if (!token) {
-      return null;
-    }
-
-    const payload = decodeJWT(token);
-    if (!payload) {
-      return null;
-    }
-
-    return {
-      userId: payload.userId,
-      email: payload.email,
-      name: payload.name,
-      role: payload.role,
-      isAdmin: payload.role === 'admin'
-    };
-  } catch (error) {
-    console.error('User info error:', error);
-    return null;
-  }
-}
