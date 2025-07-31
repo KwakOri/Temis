@@ -167,10 +167,11 @@ export interface TDefaultCard extends TDynamicCard {
 
 export const week = [0, 1, 2, 3, 4, 5, 6];
 export const defaultCards: TDefaultCard[] = week.map((day) => {
-  return {
+  const card = {
     day,
     ...getInitialCard(),
   } as TDefaultCard;
+  return card;
 });
 
 export const placeholders: Record<string, string> = {

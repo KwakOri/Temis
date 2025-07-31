@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
-import { TDefaultCard, defaultCards } from "../_settings/general";
+import { TDefaultCard, defaultCards, week, getInitialCard } from "../_settings/general";
 import { useFormPersistence } from "../_utils/formPersistence";
 
 /**
  * 타임테이블 데이터 상태 관리 훅
  */
 export const useTimeTableData = () => {
-  const { loadPersistedData } = useFormPersistence();
+  const { loadPersistedData, clearAllData } = useFormPersistence();
 
   // localStorage에서 저장된 데이터 로드하여 초기값 설정
   const [data, setData] = useState<TDefaultCard[]>(() => {
@@ -66,14 +66,34 @@ export const useTimeTableData = () => {
 
   // 모든 카드를 기본값으로 리셋
   const resetData = useCallback(() => {
-    setData(defaultCards);
-  }, []);
+    // localStorage 데이터도 함께 초기화
+    clearAllData();
+    
+    // 새로운 defaultCards 인스턴스를 생성하여 참조 문제 방지
+    const freshDefaultCards = week.map((day) => ({
+      day,
+      ...getInitialCard(),
+    })) as TDefaultCard[];
+    
+    // isOffline 강제로 false로 설정
+    freshDefaultCards.forEach(card => {
+      card.isOffline = false;
+    });
+    
+    setData(freshDefaultCards);
+  }, [data, clearAllData]);
 
   // 특정 요일의 카드를 기본값으로 리셋
   const resetCard = useCallback(
     (dayIndex: number) => {
-      if (dayIndex >= 0 && dayIndex < defaultCards.length) {
-        updateCard(dayIndex, defaultCards[dayIndex]);
+      if (dayIndex >= 0 && dayIndex < week.length) {
+        // 새로운 카드 인스턴스 생성하여 참조 문제 방지
+        const freshCard = {
+          day: week[dayIndex],
+          ...getInitialCard(),
+        } as TDefaultCard;
+        freshCard.isOffline = false;
+        updateCard(dayIndex, freshCard);
       }
     },
     [updateCard]
