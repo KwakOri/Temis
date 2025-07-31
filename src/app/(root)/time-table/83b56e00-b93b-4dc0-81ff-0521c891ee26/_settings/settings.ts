@@ -127,6 +127,14 @@ export const weekFlagCardHeight: number = 0;
 
 /** Profile Frame 크기 */
 
+export const profileImage = {
+  rotation: 4,
+  position: {
+    top: 8,
+    right: 24,
+  },
+};
+
 export const profileFrameWidth = 455;
 export const profileFrameHeight = 743;
 

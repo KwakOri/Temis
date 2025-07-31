@@ -7,6 +7,7 @@ import {
   fontOption,
   profileFrameHeight,
   profileFrameWidth,
+  profileImage,
   profileImageHeight,
   profileImageWidth,
 } from "../../_settings/settings";
@@ -24,10 +25,13 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
 }) => {
   return (
     <div
-      className={` absolute top-2 right-6 z-10 rounded-md flex justify-center text-white rotate-4`}
+      className={` absolute z-10 rounded-md flex justify-center text-white`}
       style={{
         width: profileFrameWidth,
         height: profileFrameHeight,
+        transform: `rotate(${profileImage.rotation})`,
+        top: `${profileImage.position.top}px`,
+        right: `${profileImage.position.right}px`,
       }}
       draggable={false}
     >
