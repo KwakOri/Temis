@@ -1,3 +1,4 @@
+import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
@@ -7,9 +8,10 @@ import {
   fontOption,
   profileFrameHeight,
   profileFrameWidth,
-  profileImage,
   profileImageHeight,
+  profileImageInfo,
   profileImageWidth,
+  profileTextInfo,
 } from "../../_settings/settings";
 
 interface ProfileImageProps {
@@ -25,13 +27,13 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
 }) => {
   return (
     <div
-      className={` absolute z-10 rounded-md flex justify-center text-white`}
+      className={` absolute rounded-md flex justify-center text-white`}
       style={{
         width: profileFrameWidth,
         height: profileFrameHeight,
-        transform: `rotate(${profileImage.rotation})`,
-        top: `${profileImage.position.top}px`,
-        right: `${profileImage.position.right}px`,
+        transform: `rotate(${profileImageInfo.rotation}deg)`,
+        top: `${profileImageInfo.position.top}px`,
+        right: `${profileImageInfo.position.right}px`,
       }}
       draggable={false}
     >
@@ -39,24 +41,31 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         style={{
           color: colors[currentTheme]["primary"],
           filter: "blur(0.8px)",
+          bottom: profileTextInfo.position.bottom,
+          right: profileTextInfo.position.right,
+          width: profileTextInfo.size.width,
+          height: profileTextInfo.size.height,
         }}
-        className="absolute z-30 bottom-17 right-11 text-[32px] w-[220px] h-[60px] flex justify-center items-center "
+        className="absolute z-30 flex justify-center items-center "
       >
-        <p
+        <AutoResizeText
           style={{
             fontFamily: fontOption.primary,
             color: colors[currentTheme]["secondary"],
           }}
           className="text-center"
+          maxFontSize={profileTextInfo.font.maxSize}
+          minFontSize={profileTextInfo.font.minSize}
         >
           {profileText ? profileText : placeholders.profileText}
-        </p>
+        </AutoResizeText>
       </div>
       <div
-        className="absolute z-20"
+        className="absolute"
         style={{
           width: profileFrameWidth + "px",
           height: profileFrameHeight + "px",
+          zIndex: profileImageInfo.arrange === "onTop" ? "z-10" : "z-20",
         }}
       >
         <Image
@@ -72,8 +81,9 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         style={{
           width: profileImageWidth + "px",
           height: profileImageHeight + "px",
+          zIndex: profileImageInfo.arrange === "onTop" ? "z-20" : "z-10",
         }}
-        className="relative mt-14 z-20 "
+        className="relative mt-14"
       >
         <div
           style={{
@@ -81,29 +91,22 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           }}
           className="absolute inset-0 z-30"
         ></div>
-        {imageSrc ? (
+
+        <div
+          className={`w-full h-full flex justify-center items-center relative`}
+        >
           <Image
-            src={
-              imageSrc.startsWith("/") ? imageSrc : imageSrc.replace("./", "/")
-            }
-            alt="preview"
-            className="w-full h-full object-cover"
             fill
+            src={
+              imageSrc
+                ? imageSrc.startsWith("/")
+                  ? imageSrc
+                  : imageSrc.replace("./", "/")
+                : Imgs[currentTheme]["placeholder_image"].src.replace("./", "/")
+            }
+            alt={"placeholder"}
           />
-        ) : (
-          <div
-            className={`w-full h-full flex justify-center items-center relative`}
-          >
-            <Image
-              fill
-              src={Imgs[currentTheme]["placeholder_image"].src.replace(
-                "./",
-                "/"
-              )}
-              alt={"placeholder"}
-            />
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
