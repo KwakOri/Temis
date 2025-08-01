@@ -2,7 +2,6 @@ import React from "react";
 import { TDefaultCard, weekdays } from "../../_settings/general";
 import {
   getCardInputConfig,
-  placeholders,
   SimpleFieldConfig,
   weekdayOption,
 } from "../../_settings/settings";
@@ -24,93 +23,37 @@ export interface FieldRenderer {
   }): React.ReactNode;
 }
 
-// 시간 파싱 유틸리티 함수
-const parseTimeString = (timeString: string): { hour: number; minute: number } => {
-  if (!timeString || timeString === "") {
-    return { hour: 0, minute: 0 };
-  }
-  
-  const [hourStr, minuteStr] = timeString.split(":");
-  const hour = parseInt(hourStr) || 0;
-  const minute = parseInt(minuteStr) || 0;
-  
-  return {
-    hour: Math.max(0, Math.min(24, hour)),
-    minute: Math.max(0, Math.min(60, Math.floor(minute / 5) * 5))
-  };
-};
-
-// 시간 포맷팅 유틸리티 함수  
-const formatTimeString = (hour: number, minute: number): string => {
-  const validHour = Math.max(0, Math.min(24, hour));
-  const validMinute = Math.max(0, Math.min(60, Math.floor(minute / 5) * 5));
-  
-  return `${validHour.toString().padStart(2, '0')}:${validMinute.toString().padStart(2, '0')}`;
-};
-
 // 기본 필드 렌더러들
-export const defaultFieldRenderers = {
-  time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
-    const { hour, minute } = parseTimeString(day.time as string);
-    
-    const handleHourChange = (newHour: number) => {
-      const formattedTime = formatTimeString(newHour, minute);
-      onChange(index, "time", formattedTime);
-    };
-    
-    const handleMinuteChange = (newMinute: number) => {
-      const formattedTime = formatTimeString(hour, newMinute);
-      onChange(index, "time", formattedTime);
-    };
-    
-    return (
-      <div className="flex gap-2 items-center">
-        <div className="flex-1">
-          <input
-            type="number"
-            min="0"
-            max="24"
-            value={hour}
-            className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none text-center"
-            placeholder="시"
-            onChange={(e) => handleHourChange(parseInt(e.target.value) || 0)}
-          />
-        </div>
-        <span className="text-gray-500 font-semibold">:</span>
-        <div className="flex-1">
-          <input
-            type="number"
-            min="0"
-            max="60"
-            step="5"
-            value={minute}
-            className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none text-center"
-            placeholder="분"
-            onChange={(e) => handleMinuteChange(parseInt(e.target.value) || 0)}
-          />
-        </div>
-      </div>
-    );
-  },
+// export const defaultFieldRenderers = {
+//   time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+//     return (
+//       <input
+//         type="time"
+//         value={day.time as string}
+//         className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
+//         onChange={(e) => onChange(index, "time", e.target.value)}
+//       />
+//     );
+//   },
 
-  topic: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
-    <input
-      value={day.topic as string}
-      placeholder={placeholders.topic}
-      className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
-      onChange={(e) => onChange(index, "topic", e.target.value)}
-    />
-  ),
+//   topic: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
+//     <input
+//       value={day.topic as string}
+//       placeholder={placeholders.topic}
+//       className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
+//       onChange={(e) => onChange(index, "topic", e.target.value)}
+//     />
+//   ),
 
-  description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
-    <textarea
-      value={day.description as string}
-      placeholder={placeholders.description}
-      className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
-      onChange={(e) => onChange(index, "description", e.target.value)}
-    />
-  ),
-};
+//   description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
+//     <textarea
+//       value={day.description as string}
+//       placeholder={placeholders.description}
+//       className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
+//       onChange={(e) => onChange(index, "description", e.target.value)}
+//     />
+//   ),
+// };
 
 // 커스텀 필드 렌더러 타입
 export interface CustomFieldRenderer {
@@ -166,7 +109,8 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   const renderInputField = (
     fieldConfig: SimpleFieldConfig,
     day: TDefaultCard,
-    index: number
+    index: number,
+    fieldId: string
   ) => {
     const extendedDay = day as TDefaultCard;
     const value = String(
@@ -180,6 +124,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       case "text":
         return (
           <input
+            id={fieldId}
             type="text"
             value={value}
             placeholder={fieldConfig.placeholder}
@@ -199,6 +144,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       case "textarea":
         return (
           <textarea
+            id={fieldId}
             value={value}
             placeholder={fieldConfig.placeholder}
             maxLength={fieldConfig.maxLength}
@@ -216,60 +162,27 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         );
 
       case "time":
-        const { hour, minute } = parseTimeString(value);
-        
-        const handleHourChange = (newHour: number) => {
-          const formattedTime = formatTimeString(newHour, minute);
-          handleFieldChange(
-            index,
-            fieldConfig.key as keyof TDefaultCard,
-            formattedTime
-          );
-        };
-        
-        const handleMinuteChange = (newMinute: number) => {
-          const formattedTime = formatTimeString(hour, newMinute);
-          handleFieldChange(
-            index,
-            fieldConfig.key as keyof TDefaultCard,
-            formattedTime
-          );
-        };
-        
         return (
-          <div className="flex gap-2 items-center">
-            <div className="flex-1">
-              <input
-                type="number"
-                min="0"
-                max="24"
-                value={hour}
-                required={fieldConfig.required}
-                className={`${commonClassName} text-center`}
-                placeholder="시"
-                onChange={(e) => handleHourChange(parseInt(e.target.value) || 0)}
-              />
-            </div>
-            <span className="text-gray-500 font-semibold">:</span>
-            <div className="flex-1">
-              <input
-                type="number"
-                min="0"
-                max="60"
-                step="5"
-                value={minute}
-                required={fieldConfig.required}
-                className={`${commonClassName} text-center`}
-                placeholder="분"
-                onChange={(e) => handleMinuteChange(parseInt(e.target.value) || 0)}
-              />
-            </div>
-          </div>
+          <input
+            id={fieldId}
+            type="time"
+            value={value}
+            required={fieldConfig.required}
+            className={commonClassName}
+            onChange={(e) =>
+              handleFieldChange(
+                index,
+                fieldConfig.key as keyof TDefaultCard,
+                e.target.value
+              )
+            }
+          />
         );
 
       case "select":
         return (
           <select
+            id={fieldId}
             value={value}
             required={fieldConfig.required}
             className={commonClassName}
@@ -295,6 +208,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       case "number":
         return (
           <input
+            id={fieldId}
             type="number"
             value={value}
             placeholder={fieldConfig.placeholder}
@@ -313,6 +227,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       default:
         return (
           <input
+            id={fieldId}
             type="text"
             value={value}
             placeholder={fieldConfig.placeholder}
@@ -355,17 +270,17 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   );
 
   // 기본 필드 렌더링 (기존 호환성 유지)
-  const renderDefaultField = (
-    fieldKey: string,
-    day: TDefaultCard,
-    index: number
-  ) => {
-    const renderer =
-      defaultFieldRenderers[fieldKey as keyof typeof defaultFieldRenderers];
-    return renderer
-      ? renderer({ day, index, onChange: handleFieldChange })
-      : null;
-  };
+  // const renderDefaultField = (
+  //   fieldKey: string,
+  //   day: TDefaultCard,
+  //   index: number
+  // ) => {
+  //   const renderer =
+  //     defaultFieldRenderers[fieldKey as keyof typeof defaultFieldRenderers];
+  //   return renderer
+  //     ? renderer({ day, index, onChange: handleFieldChange })
+  //     : null;
+  // };
 
   return (
     <div className={containerClassName}>
@@ -416,18 +331,20 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             <div className={fieldsContainerClassName}>
               {cardConfig.fields.map((fieldConfig) => {
                 // 기본 필드인지 확인
-                const isDefaultField = fieldConfig.key in defaultFieldRenderers;
+                // const isDefaultField = fieldConfig.key in defaultFieldRenderers;
+                const fieldId = `${fieldConfig.key}-${day.day}-${index}`;
 
                 return (
                   <div key={fieldConfig.key}>
                     {fieldConfig.label && cardConfig.showLabels && (
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label 
+                        htmlFor={fieldId}
+                        className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer"
+                      >
                         {fieldConfig.label}
                       </label>
                     )}
-                    {isDefaultField
-                      ? renderDefaultField(fieldConfig.key, day, index)
-                      : renderInputField(fieldConfig, day, index)}
+                    {renderInputField(fieldConfig, day, index, fieldId)}
                   </div>
                 );
               })}
