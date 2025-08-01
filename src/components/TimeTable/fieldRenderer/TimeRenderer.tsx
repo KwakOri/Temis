@@ -6,8 +6,14 @@ interface TimeRendererProps {
   hour: number;
   minute: number;
   // 시간 입력 필드의 추가 속성들
-  hourProps?: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'min' | 'max'>;
-  minuteProps?: Omit<React.InputHTMLAttributes<HTMLInputElement>, 'type' | 'value' | 'onChange' | 'min' | 'max' | 'step'>;
+  hourProps?: Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    "type" | "value" | "onChange" | "min" | "max"
+  >;
+  minuteProps?: Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    "type" | "value" | "onChange" | "min" | "max" | "step"
+  >;
   // 컨테이너 스타일링
   containerClassName?: string;
   separatorClassName?: string;
@@ -23,23 +29,25 @@ const TimeRenderer = ({
   containerClassName,
   separatorClassName,
 }: TimeRendererProps) => {
-  const baseInputClassName = "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none text-center";
-  const defaultContainerClassName = "flex gap-2 items-center";
+  const baseInputClassName =
+    "w-full bg-gray-100 p-3 text-gray-700 placeholder-gray-400 focus:outline-none text-center";
+  const defaultContainerClassName =
+    "flex gap-2 items-center bg-gray-100 rounded-xl overflow-hidden";
   const defaultSeparatorClassName = "text-gray-500 font-semibold";
 
-  const finalContainerClassName = containerClassName 
+  const finalContainerClassName = containerClassName
     ? `${defaultContainerClassName} ${containerClassName}`
     : defaultContainerClassName;
 
-  const finalSeparatorClassName = separatorClassName 
+  const finalSeparatorClassName = separatorClassName
     ? `${defaultSeparatorClassName} ${separatorClassName}`
     : defaultSeparatorClassName;
 
-  const hourClassName = hourProps.className 
+  const hourClassName = hourProps.className
     ? `${baseInputClassName} ${hourProps.className}`
     : baseInputClassName;
 
-  const minuteClassName = minuteProps.className 
+  const minuteClassName = minuteProps.className
     ? `${baseInputClassName} ${minuteProps.className}`
     : baseInputClassName;
 
