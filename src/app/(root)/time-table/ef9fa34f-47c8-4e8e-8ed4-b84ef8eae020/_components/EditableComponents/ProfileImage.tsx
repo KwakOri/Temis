@@ -81,21 +81,21 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           />
         )}
       </div>
-      <div className="absolute bottom-0 right-0 z-50">
+      <div className="absolute bottom-0 right-0 z-50 w-[250px] h-[85px] flex justify-center items-center p-4">
         <div
-          className=" flex justify-center items-center px-8"
+          className=" flex justify-center items-center px-4"
           style={{
             transform: "rotate(-5deg)",
-            width: "200px",
-            height: "50px",
+            width: "220px",
+            height: "55px",
             zIndex: 50,
             position: "relative",
-            bottom: "28px",
+            bottom: "20px",
             right: "12px",
+            padding: "0 12px",
           }}
         >
           <AutoResizeText
-            padding={8}
             style={{
               fontFamily: fontOption.primary,
               color: colors[currentTheme]["primary"],

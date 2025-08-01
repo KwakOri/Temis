@@ -25,7 +25,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
 }) => {
   return (
     <div
-      className={` absolute right-0 z-10 rounded-md flex justify-center text-white rotate-6`}
+      className={`absolute right-0 z-10 rounded-md flex justify-center text-white rotate-6`}
       style={{
         width: profileFrameWidth,
         height: profileFrameHeight,
