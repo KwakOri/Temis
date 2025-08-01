@@ -88,7 +88,7 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     {
       key: "description",
       type: "textarea",
-      placeholder: "제목 적는곳",
+      placeholder: "메인 제목\n적는곳",
       defaultValue: "",
       maxLength: 200,
     },
@@ -156,7 +156,7 @@ export const profileTextInfo = {
   },
   font: {
     maxSize: 28,
-    minSize: 20,
+    minSize: 16,
   },
 };
 

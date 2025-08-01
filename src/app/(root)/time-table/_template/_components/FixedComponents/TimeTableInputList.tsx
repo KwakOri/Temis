@@ -1,5 +1,6 @@
 import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
 import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
+import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
 import React from "react";
 import {
   getCardInputConfig,
@@ -30,12 +31,12 @@ export interface FieldRenderer {
 // 기본 필드 렌더러들 - 동적 속성 지원 개선
 export const defaultFieldRenderers = {
   time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+    const fieldId = `time-${day.day}-${index}`;
     return (
-      <input
-        type="time"
+      <AdaptiveTimeRenderer
+        id={fieldId}
         value={day.time as string}
-        className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
-        onChange={(e) => onChange(index, "time", e.target.value)}
+        onChange={(newValue) => onChange(index, "time", newValue)}
       />
     );
   },
@@ -175,17 +176,16 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         );
 
       case "time":
+        const fieldId = `${fieldConfig.key}-${day.day}-${index}`;
         return (
-          <input
-            type="time"
+          <AdaptiveTimeRenderer
+            id={fieldId}
             value={value}
-            required={fieldConfig.required}
-            className={commonClassName}
-            onChange={(e) =>
+            onChange={(newValue) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                e.target.value
+                newValue
               )
             }
           />
