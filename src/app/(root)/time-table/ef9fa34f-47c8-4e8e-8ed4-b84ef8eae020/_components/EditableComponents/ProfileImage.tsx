@@ -83,7 +83,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
       </div>
       <div className="absolute bottom-0 right-0 z-50 w-[250px] h-[85px] flex justify-center items-center p-4">
         <div
-          className=" flex justify-center items-center px-4"
+          className="flex justify-center items-center px-4"
           style={{
             transform: "rotate(-5deg)",
             width: "220px",
@@ -92,7 +92,6 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
             position: "relative",
             bottom: "20px",
             right: "12px",
-            padding: "0 12px",
           }}
         >
           <AutoResizeText
@@ -101,6 +100,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
               color: colors[currentTheme]["primary"],
             }}
             className="text-center absolute"
+            padding={{ right: 8, left: 8 }}
             maxFontSize={profileTextInfo.font.maxSize}
             minFontSize={profileTextInfo.font.minSize}
           >

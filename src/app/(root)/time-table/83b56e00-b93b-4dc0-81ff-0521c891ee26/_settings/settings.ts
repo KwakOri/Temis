@@ -151,12 +151,12 @@ export const profileTextInfo = {
     height: 60,
   },
   position: {
-    bottom: 68,
+    bottom: 70,
     right: 44,
   },
   font: {
     maxSize: 32,
-    minSize: 20,
+    minSize: 16,
   },
 };
 

@@ -156,7 +156,7 @@ export const profileTextInfo = {
   },
   font: {
     maxSize: 28,
-    minSize: 20,
+    minSize: 12,
   },
 };
 

@@ -178,5 +178,5 @@ export const placeholders: Record<string, string> = {
   // CARD_INPUT_CONFIG에서 동적으로 생성
   ...createPlaceholdersFromConfig(),
   // 추가 필드들 (CARD_INPUT_CONFIG에 없는 필드들)
-  profileText: "사용자 이름",
+  profileText: "작가님 이름",
 };
