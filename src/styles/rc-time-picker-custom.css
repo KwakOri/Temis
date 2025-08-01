@@ -1,0 +1,189 @@
+/* react-time-picker 커스텀 스타일 */
+
+/* 기본 컨테이너 스타일 */
+.react-time-picker-wrapper {
+  width: 100%;
+  position: relative;
+}
+
+.react-time-picker {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+/* 입력 필드 스타일 */
+.react-time-picker__inputGroup {
+  width: 100% !important;
+  height: 48px !important;
+  background-color: #f3f4f6 !important;
+  border: none !important;
+  border-radius: 12px !important;
+  padding: 0 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+
+.react-time-picker__inputGroup:hover {
+  background-color: #e5e7eb !important;
+}
+
+.react-time-picker__inputGroup:focus-within {
+  background-color: #e5e7eb !important;
+  box-shadow: 0 0 0 2px #3b82f6 !important;
+}
+
+/* 개별 입력 필드 */
+.react-time-picker__inputGroup__input {
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  text-align: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: auto !important;
+  min-width: 20px !important;
+}
+
+.react-time-picker__inputGroup__input:focus {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 구분자 (:) 스타일 */
+.react-time-picker__inputGroup__divider {
+  color: #6b7280 !important;
+  font-weight: bold !important;
+  margin: 0 2px !important;
+}
+
+/* 버튼 제거 */
+.react-time-picker__button {
+  display: none !important;
+}
+
+.react-time-picker__clear-button {
+  display: none !important;
+}
+
+.react-time-picker__clock-button {
+  display: none !important;
+}
+
+/* 시계 팝업 스타일 */
+.react-time-picker__clock {
+  background: white !important;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15) !important;
+  padding: 16px !important;
+  z-index: 1000 !important;
+}
+
+/* 시계 내부 스타일 */
+.react-clock {
+  width: 200px !important;
+  height: 200px !important;
+}
+
+.react-clock__face {
+  border: 2px solid #e5e7eb !important;
+}
+
+.react-clock__hand {
+  stroke: #3b82f6 !important;
+}
+
+.react-clock__hand__body {
+  stroke: #3b82f6 !important;
+}
+
+.react-clock__hand__tip {
+  fill: #3b82f6 !important;
+  stroke: #3b82f6 !important;
+}
+
+.react-clock__mark {
+  stroke: #6b7280 !important;
+}
+
+.react-clock__mark__body {
+  stroke: #6b7280 !important;
+}
+
+.react-clock__number {
+  fill: #374151 !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* 모바일 대응 */
+@media (max-width: 768px) {
+  .react-time-picker__inputGroup {
+    height: 52px !important;
+    padding: 0 20px !important;
+  }
+  
+  .react-time-picker__inputGroup__input {
+    font-size: 18px !important;
+    min-width: 24px !important;
+  }
+  
+  .react-time-picker__clock {
+    width: 90vw !important;
+    max-width: 300px !important;
+    padding: 12px !important;
+  }
+  
+  .react-clock {
+    width: 240px !important;
+    height: 240px !important;
+  }
+  
+  .react-clock__number {
+    font-size: 16px !important;
+  }
+  
+  /* 모바일에서 시계 사용하도록 유도 */
+  .react-time-picker__inputGroup__input {
+    pointer-events: none !important;
+  }
+}
+
+/* 터치 디바이스에서 더 나은 UX */
+@media (pointer: coarse) {
+  .react-time-picker__inputGroup {
+    cursor: pointer !important;
+  }
+  
+  .react-time-picker__inputGroup__input {
+    cursor: pointer !important;
+    user-select: none !important;
+  }
+}
+
+/* 접근성 개선 */
+.react-time-picker__inputGroup:focus-within {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+}
+
+/* 애니메이션 */
+.react-time-picker__clock {
+  animation: slideUp 0.2s ease-out !important;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
