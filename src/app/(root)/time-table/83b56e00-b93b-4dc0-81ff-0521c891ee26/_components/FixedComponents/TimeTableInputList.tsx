@@ -175,17 +175,16 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         );
 
       case "time":
+        const fieldId = `${fieldConfig.key}-${day.day}-${index}`;
         return (
-          <input
-            type="time"
+          <TimeRenderer
+            id={fieldId}
             value={value}
-            required={fieldConfig.required}
-            className={commonClassName}
-            onChange={(e) =>
+            onChange={(newValue) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                e.target.value
+                newValue
               )
             }
           />
