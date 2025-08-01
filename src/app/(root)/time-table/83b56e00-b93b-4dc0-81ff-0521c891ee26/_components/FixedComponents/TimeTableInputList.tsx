@@ -1,3 +1,4 @@
+import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
 import TimeRenderer from "@/components/TimeTable/fieldRenderer/TimeRenderer";
 import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
 import React from "react";
@@ -35,10 +36,7 @@ export const defaultFieldRenderers = {
     };
 
     return (
-      <TimeRenderer
-        value={day.time as string}
-        onChange={handleTimeChange}
-      />
+      <TimeRenderer value={day.time as string} onChange={handleTimeChange} />
     );
   },
 
@@ -48,20 +46,29 @@ export const defaultFieldRenderers = {
     };
     return (
       <TopicRenderer
-        handleTopicChange={handleTopicChange}
-        placeholder={placeholders.topic}
         value={day.topic as string}
+        placeholder={placeholders.topic}
+        handleTopicChange={handleTopicChange}
+        maxLength={50}
+        autoComplete="off"
+        aria-label="주제 입력"
       />
     );
   },
 
   description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+    const handleDescriptionChange = (value: string) => {
+      onChange(index, "description", value);
+    };
     return (
-      <textarea
+      <DescriptionRenderer
         value={day.description as string}
         placeholder={placeholders.description}
-        className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
-        onChange={(e) => onChange(index, "description", e.target.value)}
+        handleDescriptionChange={handleDescriptionChange}
+        maxLength={200}
+        rows={3}
+        spellCheck={true}
+        aria-label="설명 입력"
       />
     );
   },
@@ -117,7 +124,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     inactiveColor: "bg-gray-300",
   };
 
-  // 필드 렌더링 함수
+  // 필드 렌더링 함수 - 새로운 fieldRenderer 컴포넌트들 사용
   const renderInputField = (
     fieldConfig: SimpleFieldConfig,
     day: TDefaultCard,
@@ -134,39 +141,36 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     switch (fieldConfig.type) {
       case "text":
         return (
-          <input
-            type="text"
+          <TopicRenderer
             value={value}
-            placeholder={fieldConfig.placeholder}
-            maxLength={fieldConfig.maxLength}
-            required={fieldConfig.required}
-            className={commonClassName}
-            onChange={(e) =>
+            placeholder={fieldConfig.placeholder || ""}
+            handleTopicChange={(newValue) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                e.target.value
+                newValue
               )
             }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
           />
         );
 
       case "textarea":
         return (
-          <textarea
+          <DescriptionRenderer
             value={value}
-            placeholder={fieldConfig.placeholder}
-            maxLength={fieldConfig.maxLength}
-            required={fieldConfig.required}
-            rows={3}
-            className={`${commonClassName} resize-none`}
-            onChange={(e) =>
+            placeholder={fieldConfig.placeholder || ""}
+            handleDescriptionChange={(newValue) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                e.target.value
+                newValue
               )
             }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
+            rows={3}
           />
         );
 
@@ -214,36 +218,34 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
       case "number":
         return (
-          <input
-            type="number"
+          <TopicRenderer
             value={value}
-            placeholder={fieldConfig.placeholder}
-            required={fieldConfig.required}
-            className={commonClassName}
-            onChange={(e) =>
+            placeholder={fieldConfig.placeholder || ""}
+            handleTopicChange={(newValue) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                parseInt(e.target.value) || 0
+                isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
               )
             }
+            type="number"
+            required={fieldConfig.required}
           />
         );
 
       default:
         return (
-          <input
-            type="text"
+          <TopicRenderer
             value={value}
-            placeholder={fieldConfig.placeholder}
-            className={commonClassName}
-            onChange={(e) =>
+            placeholder={fieldConfig.placeholder || ""}
+            handleTopicChange={(newValue) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                e.target.value
+                newValue
               )
             }
+            required={fieldConfig.required}
           />
         );
     }

@@ -127,10 +127,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             id={fieldId}
             type="text"
             value={value}
-            placeholder={fieldConfig.placeholder}
-            maxLength={fieldConfig.maxLength}
-            required={fieldConfig.required}
-            className={commonClassName}
+            placeholder={fieldConfig.placeholder || ""}
             onChange={(e) =>
               handleFieldChange(
                 index,
@@ -138,6 +135,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 e.target.value
               )
             }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
+            className={commonClassName}
           />
         );
 
@@ -146,11 +146,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           <textarea
             id={fieldId}
             value={value}
-            placeholder={fieldConfig.placeholder}
-            maxLength={fieldConfig.maxLength}
-            required={fieldConfig.required}
-            rows={3}
-            className={`${commonClassName} resize-none`}
+            placeholder={fieldConfig.placeholder || ""}
             onChange={(e) =>
               handleFieldChange(
                 index,
@@ -158,6 +154,10 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 e.target.value
               )
             }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
+            rows={3}
+            className={commonClassName}
           />
         );
 
@@ -211,16 +211,16 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             id={fieldId}
             type="number"
             value={value}
-            placeholder={fieldConfig.placeholder}
-            required={fieldConfig.required}
-            className={commonClassName}
+            placeholder={fieldConfig.placeholder || ""}
             onChange={(e) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                parseInt(e.target.value) || 0
+                isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value)
               )
             }
+            required={fieldConfig.required}
+            className={commonClassName}
           />
         );
 
@@ -230,8 +230,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             id={fieldId}
             type="text"
             value={value}
-            placeholder={fieldConfig.placeholder}
-            className={commonClassName}
+            placeholder={fieldConfig.placeholder || ""}
             onChange={(e) =>
               handleFieldChange(
                 index,
@@ -239,6 +238,8 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 e.target.value
               )
             }
+            required={fieldConfig.required}
+            className={commonClassName}
           />
         );
     }
@@ -337,7 +338,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 return (
                   <div key={fieldConfig.key}>
                     {fieldConfig.label && cardConfig.showLabels && (
-                      <label 
+                      <label
                         htmlFor={fieldId}
                         className="block text-sm font-medium text-gray-700 mb-1 cursor-pointer"
                       >
