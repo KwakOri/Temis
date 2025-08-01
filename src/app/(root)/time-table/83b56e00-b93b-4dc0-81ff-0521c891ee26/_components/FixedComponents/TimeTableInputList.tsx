@@ -1,3 +1,5 @@
+import TimeRenderer from "@/components/TimeTable/fieldRenderer/TimeRenderer";
+import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
 import React from "react";
 import {
   getCardInputConfig,
@@ -25,34 +27,82 @@ export interface FieldRenderer {
   }): React.ReactNode;
 }
 
+// 시간 파싱 유틸리티 함수
+const parseTimeString = (
+  timeString: string
+): { hour: number; minute: number } => {
+  if (!timeString || timeString === "") {
+    return { hour: 0, minute: 0 };
+  }
+
+  const [hourStr, minuteStr] = timeString.split(":");
+  const hour = parseInt(hourStr) || 0;
+  const minute = parseInt(minuteStr) || 0;
+
+  return {
+    hour: Math.max(0, Math.min(24, hour)),
+    minute: Math.max(0, Math.min(60, Math.floor(minute / 5) * 5)),
+  };
+};
+
+// 시간 포맷팅 유틸리티 함수
+const formatTimeString = (hour: number, minute: number): string => {
+  const validHour = Math.max(0, Math.min(24, hour));
+  const validMinute = Math.max(0, Math.min(60, Math.floor(minute / 5) * 5));
+
+  return `${validHour.toString().padStart(2, "0")}:${validMinute
+    .toString()
+    .padStart(2, "0")}`;
+};
+
 // 기본 필드 렌더러들
 export const defaultFieldRenderers = {
-  time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
-    <input
-      type="time"
-      className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
-      value={day.time as string}
-      onChange={(e) => onChange(index, "time", e.target.value)}
-    />
-  ),
+  time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+    const { hour, minute } = parseTimeString(day.time as string);
 
-  topic: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
-    <input
-      value={day.topic as string}
-      placeholder={placeholders.topic}
-      className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
-      onChange={(e) => onChange(index, "topic", e.target.value)}
-    />
-  ),
+    const handleHourChange = (newHour: number) => {
+      const formattedTime = formatTimeString(newHour, minute);
+      onChange(index, "time", formattedTime);
+    };
 
-  description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => (
-    <textarea
-      value={day.description as string}
-      placeholder={placeholders.description}
-      className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
-      onChange={(e) => onChange(index, "description", e.target.value)}
-    />
-  ),
+    const handleMinuteChange = (newMinute: number) => {
+      const formattedTime = formatTimeString(hour, newMinute);
+      onChange(index, "time", formattedTime);
+    };
+
+    return (
+      <TimeRenderer
+        handleHourChange={handleHourChange}
+        handleMinuteChange={handleMinuteChange}
+        hour={hour}
+        minute={minute}
+      />
+    );
+  },
+
+  topic: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+    const handleTopicChange = (value: string) => {
+      onChange(index, "topic", value);
+    };
+    return (
+      <TopicRenderer
+        handleTopicChange={handleTopicChange}
+        placeholder={placeholders.topic}
+        value={day.topic as string}
+      />
+    );
+  },
+
+  description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+    return (
+      <textarea
+        value={day.description as string}
+        placeholder={placeholders.description}
+        className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
+        onChange={(e) => onChange(index, "description", e.target.value)}
+      />
+    );
+  },
 };
 
 // 커스텀 필드 렌더러 타입
@@ -159,20 +209,59 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         );
 
       case "time":
+        const { hour, minute } = parseTimeString(value);
+
+        const handleHourChange = (newHour: number) => {
+          const formattedTime = formatTimeString(newHour, minute);
+          handleFieldChange(
+            index,
+            fieldConfig.key as keyof TDefaultCard,
+            formattedTime
+          );
+        };
+
+        const handleMinuteChange = (newMinute: number) => {
+          const formattedTime = formatTimeString(hour, newMinute);
+          handleFieldChange(
+            index,
+            fieldConfig.key as keyof TDefaultCard,
+            formattedTime
+          );
+        };
+
         return (
-          <input
-            type="time"
-            value={value}
-            required={fieldConfig.required}
-            className={commonClassName}
-            onChange={(e) =>
-              handleFieldChange(
-                index,
-                fieldConfig.key as keyof TDefaultCard,
-                e.target.value
-              )
-            }
-          />
+          <div className="flex gap-2 items-center">
+            <div className="flex-1">
+              <input
+                type="number"
+                min="0"
+                max="24"
+                value={hour}
+                required={fieldConfig.required}
+                className={`${commonClassName} text-center`}
+                placeholder="시"
+                onChange={(e) =>
+                  handleHourChange(parseInt(e.target.value) || 0)
+                }
+              />
+            </div>
+            <span className="text-gray-500 font-semibold">:</span>
+            <div className="flex-1">
+              <input
+                type="number"
+                min="0"
+                max="60"
+                step="5"
+                value={minute}
+                required={fieldConfig.required}
+                className={`${commonClassName} text-center`}
+                placeholder="분"
+                onChange={(e) =>
+                  handleMinuteChange(parseInt(e.target.value) || 0)
+                }
+              />
+            </div>
+          </div>
         );
 
       case "select":
