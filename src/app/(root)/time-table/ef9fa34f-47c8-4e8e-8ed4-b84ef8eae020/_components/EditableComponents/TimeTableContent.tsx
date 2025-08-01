@@ -1,3 +1,4 @@
+import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
 import React from "react";
@@ -34,6 +35,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         backgroundRepeat: "no-repeat",
       }}
     >
+      <TimeTableDesignGuide id="ef9fa34f-47c8-4e8e-8ed4-b84ef8eae020" />
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}
