@@ -15,17 +15,17 @@ const StepSection = () => {
     {
       step: "STEP 1",
       text: "휴방일, 방송시간, \n방송 제목, 소제목 작성하기",
-      img: "./img/landingpage/20.gif",
+      img: "./img/landing_page/20.gif",
     },
     {
       step: "STEP 2",
       text: "우측 하단에 위치한 이미지 입력 버튼\n 눌러 이미지 삽입하기",
-      img: "./img/landingpage/21.gif",
+      img: "./img/landing_page/21.gif",
     },
     {
       step: "STEP 3",
       text: "이미지로 저장버튼을 누르면\n잠시 후 자동으로 다운로드 완료",
-      img: "./img/landingpage/22.gif",
+      img: "./img/landing_page/22.gif",
     },
   ];
 
