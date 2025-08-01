@@ -16,8 +16,12 @@ const TimeTableForm = ({
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
   const { profileText, mondayDateStr, imageSrc } = state;
-  const { handleImageChange, handleProfileTextChange, handleDateChange, updateImageSrc } =
-    actions;
+  const {
+    handleImageChange,
+    handleProfileTextChange,
+    handleDateChange,
+    updateImageSrc,
+  } = actions;
   const { downloadImage } = useTimeTableActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("main");
@@ -38,26 +42,26 @@ const TimeTableForm = ({
     <div className="space-y-6">
       {/* 프로필 섹션 */}
       <div className="space-y-2">
-        <h3 className="font-bold text-lg text-gray-800">프로필</h3>
+        <h3 className="font-bold text-lg text-gray-800">이미지</h3>
         <input
           id="profile-text"
           value={profileText}
           onChange={handleProfileTextChange}
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          placeholder={"사용자 이름"}
+          placeholder={"내용을 입력해 주세요"}
         />
         <div className="flex gap-2">
           <button
             onClick={handleUploadClick}
             className="flex-1 bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
           >
-            {imageSrc ? "프로필 이미지 변경" : "프로필 이미지 업로드"}
+            {imageSrc ? "이미지 변경" : "이미지 업로드"}
           </button>
           {imageSrc && (
             <button
               onClick={handleImageDelete}
               className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
-              title="프로필 이미지 삭제"
+              title="이미지 삭제"
             >
               <svg
                 className="w-4 h-4"
@@ -95,16 +99,6 @@ const TimeTableForm = ({
         {/* settings.ts에서 구성된 시간표 입력 컴포넌트 */}
         {children}
       </div>
-
-      {/* 초기화 버튼 */}
-      {/* <div className="pt-4 border-t border-gray-200">
-        <button
-          onClick={onResetFormButtonClick}
-          className="w-full py-2 px-4 text-sm font-medium text-center transition-all duration-200 rounded-md text-gray-600 bg-white border border-gray-300 hover:bg-red-50 hover:text-red-600 hover:border-red-400 shadow-sm cursor-pointer"
-        >
-          모든 설정 초기화
-        </button>
-      </div> */}
     </div>
   );
 
