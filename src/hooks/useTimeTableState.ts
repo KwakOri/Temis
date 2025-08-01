@@ -2,6 +2,7 @@
 
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
+import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
 
 // 기본 월요일 날짜 계산 함수
 const getDefaultMondayString = (): string => {
@@ -35,13 +36,13 @@ const getInitialScale = () => {
 export const useTimeTableState = () => {
   const [profileText, setProfileText] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("profileText") || "";
+      return pageAwareStorage.getItem("profileText", "");
     }
     return "";
   });
   const [imageSrc, setImageSrc] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("imageSrc") || null;
+      return pageAwareStorage.getItem("imageSrc", null);
     }
     return null;
   });
@@ -66,16 +67,16 @@ export const useTimeTableState = () => {
   // profileText 또는 imageSrc 변경 시 localStorage에 저장
   useEffect(() => {
     if (typeof window !== "undefined") {
-      localStorage.setItem("profileText", profileText);
+      pageAwareStorage.setItem("profileText", profileText);
     }
   }, [profileText]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (imageSrc) {
-        localStorage.setItem("imageSrc", imageSrc);
+        pageAwareStorage.setItem("imageSrc", imageSrc);
       } else {
-        localStorage.removeItem("imageSrc");
+        pageAwareStorage.removeItem("imageSrc");
       }
     }
   }, [imageSrc]);

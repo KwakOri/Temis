@@ -1,7 +1,8 @@
 import { TDefaultCard } from "../_settings/general";
 import { TTheme } from "../_settings/general";
+import { createPageAwareStorage, getPageId } from "@/utils/pageAwareLocalStorage";
 
-// localStorage 키 상수
+// localStorage 키 상수 (페이지별로 고유하게 관리됨)
 export const STORAGE_KEYS = {
   TIMETABLE_DATA: "template-timetable-data",
   THEME: "template-timetable-theme",
@@ -10,69 +11,50 @@ export const STORAGE_KEYS = {
 // 브라우저 환경 체크
 const isClient = typeof window !== "undefined";
 
+// 현재 페이지의 storage 인스턴스 생성
+const getCurrentPageStorage = () => {
+  if (!isClient) return null;
+  return createPageAwareStorage(getPageId());
+};
+
 /**
- * localStorage에 데이터를 안전하게 저장하는 함수
+ * 페이지별 localStorage에 데이터를 안전하게 저장하는 함수
  */
 export const saveToStorage = <T>(key: string, data: T): boolean => {
-  if (!isClient) return false;
+  const storage = getCurrentPageStorage();
+  if (!storage) return false;
 
-  try {
-    const serializedData = JSON.stringify(data);
-    localStorage.setItem(key, serializedData);
-    return true;
-  } catch (error) {
-    console.warn(`Failed to save to localStorage (key: ${key}):`, error);
-    return false;
-  }
+  return storage.setItem(key, data);
 };
 
 /**
- * localStorage에서 데이터를 안전하게 불러오는 함수
+ * 페이지별 localStorage에서 데이터를 안전하게 불러오는 함수
  */
 export const loadFromStorage = <T>(key: string, defaultValue: T): T => {
-  if (!isClient) return defaultValue;
+  const storage = getCurrentPageStorage();
+  if (!storage) return defaultValue;
 
-  try {
-    const serializedData = localStorage.getItem(key);
-    if (serializedData === null) return defaultValue;
-
-    return JSON.parse(serializedData) as T;
-  } catch (error) {
-    console.warn(`Failed to load from localStorage (key: ${key}):`, error);
-    return defaultValue;
-  }
+  return storage.getItem(key, defaultValue);
 };
 
 /**
- * localStorage에서 특정 키의 데이터를 삭제하는 함수
+ * 페이지별 localStorage에서 특정 키의 데이터를 삭제하는 함수
  */
 export const removeFromStorage = (key: string): boolean => {
-  if (!isClient) return false;
+  const storage = getCurrentPageStorage();
+  if (!storage) return false;
 
-  try {
-    localStorage.removeItem(key);
-    return true;
-  } catch (error) {
-    console.warn(`Failed to remove from localStorage (key: ${key}):`, error);
-    return false;
-  }
+  return storage.removeItem(key);
 };
 
 /**
- * localStorage를 완전히 초기화하는 함수
+ * 현재 페이지의 localStorage를 완전히 초기화하는 함수
  */
 export const clearAllTimeTableStorage = (): boolean => {
-  if (!isClient) return false;
+  const storage = getCurrentPageStorage();
+  if (!storage) return false;
 
-  try {
-    Object.values(STORAGE_KEYS).forEach((key) => {
-      localStorage.removeItem(key);
-    });
-    return true;
-  } catch (error) {
-    console.warn("Failed to clear timetable storage:", error);
-    return false;
-  }
+  return storage.clearPageData();
 };
 
 // 타임테이블 특화 저장/로드 함수들
