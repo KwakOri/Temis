@@ -7,7 +7,7 @@ const ThumbnailCard = ({ id }: Props) => (
     {/* 썸네일 카드 */}
     <div className="w-[300px] h-[200px] aspect-square rounded-xl overflow-hidden bg-gray-100 shadow-md hover-card">
       <Image
-        src={`/img/landingpage/${id}.png`}
+        src={`/img/landing_page/thumbnail/${id}.png`}
         alt={`작업물 ${id}`}
         className="w-full h-full object-cover"
         width={300}

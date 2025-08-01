@@ -1,5 +1,6 @@
 "use client";
 import { useAuth } from "@/contexts/AuthContext"; // useAuth 임포트
+import { splitOddEven } from "@/utils/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -12,6 +13,7 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth(); // isAuthenticated 가져오기
 
+  const [odd, even] = splitOddEven(10);
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 1080);
@@ -189,10 +191,10 @@ export default function Home() {
         <div className="mx-auto space-y-6 gallery-container">
           <div className="overflow-x-hidden scrollbar-hidden">
             <div className="flex h-[210px] w-max gap-4 animate-slide-loop-slow pointer-events-none transform-gpu">
-              {Array(4)
+              {Array(odd.length)
                 .fill(0)
                 .flatMap((_, groupIdx) =>
-                  [6, 2, 3, 4].map((id) => (
+                  odd.map((id) => (
                     <div
                       key={`fast-${groupIdx}-${id}`}
                       className="pointer-events-auto"
@@ -205,10 +207,10 @@ export default function Home() {
           </div>
           <div className="overflow-x-hidden scrollbar-hidden">
             <div className="flex h-[210px] w-max gap-4 animate-slide-loop-fast pointer-events-none transform-gpu">
-              {Array(4)
+              {Array(even.length)
                 .fill(0)
                 .flatMap((_, groupIdx) =>
-                  [5, 1, 7, 8].map((id) => (
+                  even.map((id) => (
                     <div
                       key={`fast-${groupIdx}-${id}`}
                       className="pointer-events-auto"
@@ -237,19 +239,19 @@ export default function Home() {
           {[
             {
               text: "폰트도 다운로드, \n 포토샵이 없다면 구매까지...",
-              emoji: "/img/landingpage/9.png",
+              emoji: "/img/landing_page/9.png",
             },
             {
               text: "포토샵에 익숙하지 않아서 \n 디자인이 살짝 달라졌내...",
-              emoji: "./img/landingpage/12.png",
+              emoji: "./img/landing_page/12.png",
             },
             {
               text: "컴퓨터 사양이 안 좋아서 \n 저장하다가 날라갔어...",
-              emoji: "./img/landingpage/11.png",
+              emoji: "./img/landing_page/11.png",
             },
             {
               text: "지금 밖인데... 시간표 \n 수정해야해 어쩌지",
-              emoji: "./img/landingpage/10.png",
+              emoji: "./img/landing_page/10.png",
             },
           ].map((item, idx) => (
             <div key={idx} className="flex-shrink-0 w-[250px] text-center">
