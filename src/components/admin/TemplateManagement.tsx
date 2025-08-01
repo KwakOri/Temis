@@ -1,6 +1,7 @@
 "use client";
 
 import { Template } from "@/types/supabase-types";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface CreateTemplateForm {
@@ -13,6 +14,7 @@ interface CreateTemplateForm {
 // ThumbnailFile 인터페이스 제거 (더 이상 사용하지 않음)
 
 export default function TemplateManagement() {
+  const router = useRouter();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -183,6 +185,11 @@ export default function TemplateManagement() {
     setCopySuccess(false);
   };
 
+  const handleGoToTemplate = (templateId: string) => {
+    // 새 탭에서 템플릿 페이지 열기
+    window.open(`/time-table/${templateId}`, '_blank');
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -287,7 +294,7 @@ export default function TemplateManagement() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   생성일
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-60">
                   작업
                 </th>
               </tr>
@@ -358,25 +365,47 @@ export default function TemplateManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(template.created_at).toLocaleDateString("ko-KR")}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                      <button
-                        onClick={() => handleShowTemplateId(template)}
-                        className="px-3 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
-                      >
-                        ID 보기
-                      </button>
-                      <button
-                        onClick={() =>
-                          togglePublicStatus(template.id, template.is_public)
-                        }
-                        className={`px-3 py-1 rounded text-xs font-medium ${
-                          template.is_public
-                            ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            : "bg-green-100 text-green-700 hover:bg-green-200"
-                        } transition-colors`}
-                      >
-                        {template.is_public ? "비공개로 변경" : "공개로 변경"}
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => handleGoToTemplate(template.id)}
+                          className="px-3 py-1 rounded text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors flex items-center gap-1"
+                          title="새 탭에서 템플릿 열기"
+                        >
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
+                          </svg>
+                          템플릿 열기
+                        </button>
+                        <button
+                          onClick={() => handleShowTemplateId(template)}
+                          className="px-3 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                        >
+                          ID 보기
+                        </button>
+                        <button
+                          onClick={() =>
+                            togglePublicStatus(template.id, template.is_public)
+                          }
+                          className={`px-3 py-1 rounded text-xs font-medium ${
+                            template.is_public
+                              ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                              : "bg-green-100 text-green-700 hover:bg-green-200"
+                          } transition-colors`}
+                        >
+                          {template.is_public ? "비공개로 변경" : "공개로 변경"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ));
@@ -642,6 +671,25 @@ export default function TemplateManagement() {
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => handleGoToTemplate(selectedTemplateForId.id)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+                템플릿 열기
+              </button>
               <button
                 onClick={handleCopyTemplateId}
                 className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
