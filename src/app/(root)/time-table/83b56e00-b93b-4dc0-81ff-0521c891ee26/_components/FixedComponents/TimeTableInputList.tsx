@@ -1,3 +1,4 @@
+import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
 import TimeRenderer from "@/components/TimeTable/fieldRenderer/TimeRenderer";
 import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
 import React from "react";
@@ -94,12 +95,14 @@ export const defaultFieldRenderers = {
   },
 
   description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+    const handleDescriptionChange = (value: string) => {
+      onChange(index, "description", value);
+    };
     return (
-      <textarea
+      <DescriptionRenderer
+        handleDescriptionChange={handleDescriptionChange}
         value={day.description as string}
         placeholder={placeholders.description}
-        className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none resize-none"
-        onChange={(e) => onChange(index, "description", e.target.value)}
       />
     );
   },
