@@ -9,6 +9,7 @@ import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableState } from "@/hooks/useTimeTableState";
 
+import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { useTimeTableEditor } from "../../_hooks";
 import TimeTableInputList from "../FixedComponents/TimeTableInputList";
 import TimeTableContent from "./TimeTableContent";
@@ -39,7 +40,10 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTablePreview>
           <TimeTableContent currentTheme={currentTheme} data={data} />
         </TimeTablePreview>
-        <TimeTableForm onReset={resetData} addons={null}>
+        <TimeTableForm
+          onReset={resetData}
+          addons={<TimeTableDesignGuideController />}
+        >
           <TimeTableInputList data={data} onDataChange={updateData} />
         </TimeTableForm>
       </div>
