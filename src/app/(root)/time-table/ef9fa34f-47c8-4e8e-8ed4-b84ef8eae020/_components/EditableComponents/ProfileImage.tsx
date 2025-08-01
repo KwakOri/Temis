@@ -82,12 +82,13 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
         )}
 
         <div
-          className="absolute z-30  bottom-10 flex justify-center items-center"
+          className="absolute z-30   flex justify-center items-center"
           style={{
             transform: "rotate(-5deg)",
             width: "200px",
             height: "50px",
             right: "38px",
+            bottom: "38px",
           }}
         >
           <AutoResizeText
