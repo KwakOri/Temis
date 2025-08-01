@@ -5,6 +5,7 @@ import {
   SimpleFieldConfig,
   weekdayOption,
 } from "../../_settings/settings";
+import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
 
 // 개별 필드 렌더러 타입 정의
 export interface FieldRenderer {
@@ -163,17 +164,14 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
       case "time":
         return (
-          <input
+          <AdaptiveTimeRenderer
             id={fieldId}
-            type="time"
             value={value}
-            required={fieldConfig.required}
-            className={commonClassName}
-            onChange={(e) =>
+            onChange={(newValue) =>
               handleFieldChange(
                 index,
                 fieldConfig.key as keyof TDefaultCard,
-                e.target.value
+                newValue
               )
             }
           />

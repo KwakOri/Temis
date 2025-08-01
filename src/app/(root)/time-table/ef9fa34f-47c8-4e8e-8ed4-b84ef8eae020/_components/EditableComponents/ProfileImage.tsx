@@ -80,18 +80,22 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
             alt={"placeholder"}
           />
         )}
-
+      </div>
+      <div className="absolute bottom-0 right-0 z-50">
         <div
-          className="absolute z-30   flex justify-center items-center"
+          className=" flex justify-center items-center px-8"
           style={{
             transform: "rotate(-5deg)",
             width: "200px",
             height: "50px",
-            right: "38px",
-            bottom: "38px",
+            zIndex: 50,
+            position: "relative",
+            bottom: "28px",
+            right: "12px",
           }}
         >
           <AutoResizeText
+            padding={8}
             style={{
               fontFamily: fontOption.primary,
               color: colors[currentTheme]["primary"],
@@ -104,9 +108,11 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           </AutoResizeText>
         </div>
         <Image
-          className={"absolute right-3 bottom-5"}
+          className={"absolute right-3 bottom-5 z-40"}
           src={Imgs[currentTheme]["artist"]}
           alt={`artist`}
+          width={250}
+          height={85}
         />
       </div>
     </div>
