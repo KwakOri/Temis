@@ -2,6 +2,7 @@ import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable, useTimeTableActions } from "@/contexts/TimeTableContext";
+import { offlineToggle } from "@/utils/time-table/data";
 import React, { PropsWithChildren, useRef, useState } from "react";
 
 interface TimeTableFormProps {
@@ -15,12 +16,14 @@ const TimeTableForm = ({
   onReset,
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
-  const { profileText, mondayDateStr, imageSrc } = state;
+
+  const { profileText, mondayDateStr, imageSrc, isProfileTextVisible } = state;
   const {
     handleImageChange,
     handleProfileTextChange,
     handleDateChange,
     updateImageSrc,
+    toggleProfileTextVisible,
   } = actions;
   const { downloadImage } = useTimeTableActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,11 +46,36 @@ const TimeTableForm = ({
       {/* 프로필 섹션 */}
       <div className="space-y-2">
         <h3 className="font-bold text-lg text-gray-800">이미지</h3>
+
+        {/* 사용자 이름 표시 토글 버튼 */}
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-gray-700">
+            사용자 이름 표시
+          </label>
+          <button
+            onClick={toggleProfileTextVisible}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+              isProfileTextVisible
+                ? offlineToggle.activeColor
+                : offlineToggle.inactiveColor
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                isProfileTextVisible ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
         <input
           id="profile-text"
           value={profileText}
           onChange={handleProfileTextChange}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          disabled={!isProfileTextVisible}
+          className={`w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+            !isProfileTextVisible ? "bg-gray-100 text-gray-400" : ""
+          }`}
           placeholder={"내용을 입력해 주세요"}
         />
         <div className="flex gap-2">

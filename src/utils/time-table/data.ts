@@ -168,3 +168,9 @@ export const getFormattedTime = (time: string): string => {
   temp.shift();
   return temp.join("");
 };
+
+export const offlineToggle = {
+  label: "휴방",
+  activeColor: "bg-[#3E4A82]",
+  inactiveColor: "bg-gray-300",
+};

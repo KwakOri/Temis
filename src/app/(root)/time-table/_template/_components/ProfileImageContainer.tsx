@@ -20,6 +20,7 @@ interface ProfileImageProps {
   imageSrc: string | null;
   profileText: string;
   profileTextPlaceholder: string;
+  isProfileTextVisible: boolean;
 }
 
 const ProfileImageContainer: React.FC<ProfileImageProps> = ({
@@ -27,6 +28,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
   imageSrc,
   profileText,
   profileTextPlaceholder,
+  isProfileTextVisible,
 }) => {
   const formattedImageSrc = imageSrc
     ? imageSrc.startsWith("/")
@@ -46,30 +48,32 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
       }}
       draggable={false}
     >
-      <div
-        style={{
-          color: colors[currentTheme]["primary"],
-          filter: "blur(0.7px)",
-          bottom: profileTextInfo.position.bottom,
-          right: profileTextInfo.position.right,
-          width: profileTextInfo.size.width,
-          height: profileTextInfo.size.height,
-        }}
-        className="absolute z-30 flex justify-center items-center "
-      >
-        <AutoResizeText
+      {isProfileTextVisible && (
+        <div
           style={{
-            fontFamily: fontOption.primary,
-            color: colors[currentTheme]["secondary"],
+            color: colors[currentTheme]["primary"],
+            filter: "blur(0.7px)",
+            bottom: profileTextInfo.position.bottom,
+            right: profileTextInfo.position.right,
+            width: profileTextInfo.size.width,
+            height: profileTextInfo.size.height,
           }}
-          className="text-center"
-          padding={{ right: 8, left: 8 }}
-          maxFontSize={profileTextInfo.font.maxSize}
-          minFontSize={profileTextInfo.font.minSize}
+          className="absolute z-30 flex justify-center items-center "
         >
-          {profileText ? profileText : profileTextPlaceholder}
-        </AutoResizeText>
-      </div>
+          <AutoResizeText
+            style={{
+              fontFamily: fontOption.primary,
+              color: colors[currentTheme]["secondary"],
+            }}
+            className="text-center"
+            padding={{ right: 8, left: 8 }}
+            maxFontSize={profileTextInfo.font.maxSize}
+            minFontSize={profileTextInfo.font.minSize}
+          >
+            {profileText ? profileText : profileTextPlaceholder}
+          </AutoResizeText>
+        </div>
+      )}
       <div
         className="absolute"
         style={{

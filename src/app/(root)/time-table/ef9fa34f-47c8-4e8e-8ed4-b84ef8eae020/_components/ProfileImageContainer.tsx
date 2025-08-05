@@ -19,6 +19,7 @@ interface ProfileImageProps {
   imageSrc: string | null;
   profileText: string;
   profileTextPlaceholder: string;
+  isProfileTextVisible: boolean;
 }
 
 const ProfileImageContainer: React.FC<ProfileImageProps> = ({
@@ -26,6 +27,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
   imageSrc,
   profileText,
   profileTextPlaceholder,
+  isProfileTextVisible,
 }) => {
   const formattedImageSrc = imageSrc
     ? imageSrc.startsWith("/")
@@ -73,38 +75,42 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
         </div>
       </div>
       <div className="absolute bottom-0 right-0 z-50 w-[250px] h-[85px] flex justify-center items-center p-4">
-        <div
-          className="flex justify-center items-center px-4"
-          style={{
-            transform: "rotate(-5deg)",
-            width: "220px",
-            height: "55px",
-            zIndex: 50,
-            position: "relative",
-            bottom: "20px",
-            right: "12px",
-          }}
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors[currentTheme]["primary"],
-            }}
-            className="text-center absolute"
-            padding={{ right: 8, left: 8 }}
-            maxFontSize={profileTextInfo.font.maxSize}
-            minFontSize={profileTextInfo.font.minSize}
-          >
-            {profileText ? profileText : profileTextPlaceholder}
-          </AutoResizeText>
-        </div>
-        <Image
-          className={"absolute right-3 bottom-5 z-40"}
-          src={Imgs[currentTheme]["artist"]}
-          alt={`artist`}
-          width={250}
-          height={85}
-        />
+        {isProfileTextVisible && (
+          <>
+            <div
+              className="flex justify-center items-center px-4"
+              style={{
+                transform: "rotate(-5deg)",
+                width: "220px",
+                height: "55px",
+                zIndex: 50,
+                position: "relative",
+                bottom: "20px",
+                right: "12px",
+              }}
+            >
+              <AutoResizeText
+                style={{
+                  fontFamily: fontOption.primary,
+                  color: colors[currentTheme]["primary"],
+                }}
+                className="text-center absolute"
+                padding={{ right: 8, left: 8 }}
+                maxFontSize={profileTextInfo.font.maxSize}
+                minFontSize={profileTextInfo.font.minSize}
+              >
+                {profileText ? profileText : profileTextPlaceholder}
+              </AutoResizeText>
+            </div>
+            <Image
+              className={"absolute right-3 bottom-5 z-40"}
+              src={Imgs[currentTheme]["artist"]}
+              alt={`artist`}
+              width={250}
+              height={85}
+            />
+          </>
+        )}
       </div>
     </div>
   );

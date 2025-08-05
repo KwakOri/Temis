@@ -27,7 +27,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   placeholders,
 }) => {
   const { imageSrc, weekDates, profileText } = useTimeTableData();
-  const { scale } = useTimeTableUI();
+  const { scale, isProfileTextVisible } = useTimeTableUI();
   const { isVisible, opacity } = useTimeTableDesignGuideContext();
 
   return (
@@ -87,6 +87,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         profileText={profileText}
         profileTextPlaceholder={placeholders.profileText}
         currentTheme={currentTheme}
+        isProfileTextVisible={isProfileTextVisible}
       />
     </div>
   );

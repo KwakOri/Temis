@@ -14,6 +14,7 @@ export interface TimeTableState {
   // UI 상태
   scale: number;
   isMobile: boolean;
+  isProfileTextVisible: boolean;
 }
 
 export interface TimeTableActions {
@@ -26,12 +27,14 @@ export interface TimeTableActions {
   // UI 액션
   updateScale: (scale: number) => void;
   updateIsMobile: (isMobile: boolean) => void;
+  updateIsProfileTextVisible: (visible: boolean) => void;
 
   // 복합 액션
   handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleProfileTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 
   handleDateChange: (dateStr: string) => void;
+  toggleProfileTextVisible: () => void;
   downloadImage: () => void;
 }
 
@@ -78,18 +81,21 @@ export const useTimeTableData = () => {
   return {
     profileText: state.profileText,
     imageSrc: state.imageSrc,
+    isProfileTextVisible: state.isProfileTextVisible,
 
     mondayDateStr: state.mondayDateStr,
     weekDates: state.weekDates,
 
     updateProfileText: actions.updateProfileText,
     updateImageSrc: actions.updateImageSrc,
+    updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
 
     updateMondayDate: actions.updateMondayDate,
     handleImageChange: actions.handleImageChange,
     handleProfileTextChange: actions.handleProfileTextChange,
 
     handleDateChange: actions.handleDateChange,
+    toggleProfileTextVisible: actions.toggleProfileTextVisible,
   };
 };
 
@@ -98,8 +104,11 @@ export const useTimeTableUI = () => {
   return {
     scale: state.scale,
     isMobile: state.isMobile,
+    isProfileTextVisible: state.isProfileTextVisible,
     updateScale: actions.updateScale,
     updateIsMobile: actions.updateIsMobile,
+    updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
+    toggleProfileTextVisible: actions.toggleProfileTextVisible,
   };
 };
 
