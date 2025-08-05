@@ -37,8 +37,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   if (time.isOffline) {
     return (
       <div
-        className="py-2 pointer-events-none"
+        className=" pointer-events-none"
         style={{
+          paddingTop: 2,
           width: offlineCardWidth + "px",
           height: offlineCardHeight + "px",
         }}
@@ -67,31 +68,26 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         style={{
           fontFamily: fontOption.primary,
         }}
-        className="w-full h-full flex flex-col pt-[24px] px-8"
+        className="w-full h-full flex flex-col pt-[48px] px-8"
       >
         <p
           style={{
-            color: colors[currentTheme]["secondary"],
+            color: colors[currentTheme]["tertiary"],
+            top: 11,
+            left: 2,
+            width: 120,
           }}
-          className="absolute left-5.25 top-3.5 flex justify-center items-center h-10 text-[34px]"
+          className="absolute flex justify-center items-center h-10 text-[19px]"
         >
-          {weekdays[weekdayOption][time.day]}
-        </p>
-
-        <p
-          style={{
-            color: colors[currentTheme]["primary"],
-          }}
-          className=" flex justify-center items-center h-[34px] text-[15px] pt-4 pb-2"
-        >
-          {time.topic ? (time.topic as string) : placeholders.topic}
+          {weekdays[weekdayOption][time.day].toUpperCase()}{" "}
+          {getFormattedTime(time.time as string)}
         </p>
 
         <div
           style={{
-            height: "78px",
+            height: "80px",
           }}
-          className="flex justify-center items-center"
+          className="flex justify-center items-center "
         >
           <AutoResizeText
             style={{
@@ -100,27 +96,22 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             }}
             className="leading-none text-center w-full"
             multiline={true}
-            maxFontSize={31}
-            minFontSize={20}
+            maxFontSize={36}
+            minFontSize={10}
           >
             {time.description
               ? (time.description as string)
               : placeholders.description}
           </AutoResizeText>
         </div>
-
-        <div className="flex justify-center items-center h-[24px]">
-          <AutoResizeText
-            style={{
-              color: colors[currentTheme]["primary"],
-            }}
-            className="text-center w-full"
-            maxFontSize={20}
-            minFontSize={8}
-          >
-            {getFormattedTime(time.time as string)}
-          </AutoResizeText>
-        </div>
+        <p
+          style={{
+            color: colors[currentTheme]["primary"],
+          }}
+          className=" flex justify-center items-center h-[28px] text-[16px]"
+        >
+          {time.topic ? (time.topic as string) : placeholders.topic}
+        </p>
       </div>
       <Image
         className="absolute top-0 left-0 -z-10"

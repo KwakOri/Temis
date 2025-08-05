@@ -1,8 +1,8 @@
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
-import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
 import React from "react";
 import { Imgs } from "../_img/imgs";
 
+import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { TDefaultCard } from "@/utils/time-table/data";
@@ -23,7 +23,6 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
 }) => {
   const { imageSrc, weekDates, profileText } = useTimeTableData();
   const { scale } = useTimeTableUI();
-  const { isVisible, opacity } = useTimeTableDesignGuideContext();
 
   if (weekDates.length === 0) return null;
 
@@ -39,6 +38,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         backgroundRepeat: "no-repeat",
       }}
     >
+      <TimeTableDesignGuide id="e3053d98-d745-4adf-8b32-ce9210b9ee37" />
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}

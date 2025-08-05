@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Fragment } from "react";
 
 import { TTheme } from "@/types/time-table/theme";
 import { TDefaultCard } from "@/utils/time-table/data";
@@ -17,22 +17,34 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
 }) => {
   return (
     <div
-      className="absolute left-11 top-21 grid grid-cols-3 z-20  gap-x-2 gap-y-3"
+      className="absolute top-21 grid grid-cols-3 z-20"
       style={{
-        transform: "rotate(-1.5deg)",
+        left: 32,
+
+        columnGap: 6,
       }}
     >
-      <div></div>
-      <div></div>
-      {data.map((time, i) => (
-        <TimeTableCell
-          key={time.day}
-          time={time}
-          currentTheme={currentTheme}
-          weekDate={weekDates[i]}
-          index={i}
-        />
-      ))}
+      {data.map((time, i) =>
+        time.day === 1 || time.day === 3 ? (
+          <Fragment key={time.day}>
+            <TimeTableCell
+              time={time}
+              currentTheme={currentTheme}
+              weekDate={weekDates[i]}
+              index={i}
+            />
+            <div></div>
+          </Fragment>
+        ) : (
+          <TimeTableCell
+            key={time.day}
+            time={time}
+            currentTheme={currentTheme}
+            weekDate={weekDates[i]}
+            index={i}
+          />
+        )
+      )}
     </div>
   );
 };

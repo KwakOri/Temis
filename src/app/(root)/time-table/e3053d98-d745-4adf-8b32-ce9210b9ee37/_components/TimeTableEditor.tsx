@@ -10,6 +10,7 @@ import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideCon
 import { useTimeTableEditor } from "@/hooks";
 
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
+import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { placeholders } from "../_settings/general";
 import {
   CARD_INPUT_CONFIG,
@@ -46,7 +47,10 @@ const TimeTableEditorContent: React.FC = () => {
             placeholders={placeholders}
           />
         </TimeTablePreview>
-        <TimeTableForm onReset={resetData} addons={null}>
+        <TimeTableForm
+          onReset={resetData}
+          addons={<TimeTableDesignGuideController />}
+        >
           <TimeTableInputList
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}

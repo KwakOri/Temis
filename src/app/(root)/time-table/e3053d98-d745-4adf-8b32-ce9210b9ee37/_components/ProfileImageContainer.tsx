@@ -7,6 +7,8 @@ import { Imgs } from "../_img/imgs";
 import {
   colors,
   fontOption,
+  profileBackPlateHeight,
+  profileBackPlateWidth,
   profileFrameHeight,
   profileFrameWidth,
   profileImageHeight,
@@ -28,11 +30,11 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
   profileText,
   profileTextPlaceholder,
 }) => {
-  const formattedImageSrc = imageSrc
-    ? imageSrc.startsWith("/")
-      ? imageSrc
-      : imageSrc.replace("./", "/")
-    : Imgs[currentTheme]["placeholder"].src.replace("./", "/");
+  // const formattedImageSrc = imageSrc
+  //   ? imageSrc.startsWith("/")
+  //     ? imageSrc
+  //     : imageSrc.replace("./", "/")
+  //   : Imgs[currentTheme]["placeholder"].src.replace("./", "/");
 
   return (
     <div
@@ -48,38 +50,42 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
     >
       <div
         style={{
-          color: colors[currentTheme]["primary"],
+          color: colors[currentTheme]["tertiary"],
+          fontFamily: fontOption.primary,
           filter: "blur(0.7px)",
-          bottom: profileTextInfo.position.bottom,
-          right: profileTextInfo.position.right,
-          width: profileTextInfo.size.width,
+          bottom: 62,
+          left: 68,
+          width: "100%",
           height: profileTextInfo.size.height,
         }}
-        className="absolute z-30 flex justify-center items-center "
+        className="absolute z-30 flex justify-start items-center "
       >
-        <AutoResizeText
-          style={{
-            fontFamily: fontOption.primary,
-            color: colors[currentTheme]["secondary"],
-          }}
-          className="text-center"
-          padding={{ right: 8, left: 8 }}
-          maxFontSize={profileTextInfo.font.maxSize}
-          minFontSize={profileTextInfo.font.minSize}
+        <p style={{ fontSize: 38, width: 172 }}>ART BY ::</p>
+        <div
+          style={{ width: 180, height: 80 }}
+          className="flex justify-center items-center ml-2"
         >
-          {profileText ? profileText : profileTextPlaceholder}
-        </AutoResizeText>
+          <AutoResizeText
+            style={{}}
+            className="text-center"
+            padding={{}}
+            maxFontSize={profileTextInfo.font.maxSize}
+            minFontSize={profileTextInfo.font.minSize}
+          >
+            {profileText ? profileText : profileTextPlaceholder}
+          </AutoResizeText>
+        </div>
       </div>
       <div
         className="absolute"
         style={{
           width: profileFrameWidth + "px",
           height: profileFrameHeight + "px",
-          zIndex: profileImageInfo.arrange === "onTop" ? "z-10" : "z-20",
+          zIndex: profileImageInfo.arrange === "onTop" ? 10 : 20,
         }}
       >
         <Image
-          src={Imgs[currentTheme]["profile"].src.replace("./", "/")}
+          src={Imgs[currentTheme]["profileFrame"].src.replace("./", "/")}
           alt="preview"
           className="w-full h-full object-cover"
           width={profileFrameWidth}
@@ -91,17 +97,30 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
         style={{
           width: profileImageWidth + "px",
           height: profileImageHeight + "px",
-          zIndex: profileImageInfo.arrange === "onTop" ? "z-20" : "z-10",
+          position: "absolute",
+          top: 66,
+          left: 40,
+          zIndex: profileImageInfo.arrange === "onTop" ? 20 : 10,
         }}
-        className="relative mt-14"
       >
-        <div
-          style={{
-            boxShadow: "0px 0px 5px rgba(0, 0, 0, 0.3) inset",
-          }}
-          className="absolute inset-0 z-30"
-        ></div>
-        <ProfileImage imageSrc={formattedImageSrc} />
+        {imageSrc && <ProfileImage imageSrc={imageSrc} />}
+      </div>
+      <div
+        style={{
+          top: 75,
+          left: 51,
+          position: "absolute",
+          zIndex: "0",
+        }}
+      >
+        <Image
+          src={Imgs[currentTheme]["profileBG"].src.replace("./", "/")}
+          alt="profileBG"
+          className="object-cover"
+          width={profileBackPlateWidth}
+          height={profileBackPlateHeight}
+          draggable={false}
+        />
       </div>
     </div>
   );

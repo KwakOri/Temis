@@ -75,7 +75,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
         style={{
           width: profileFrameWidth + "px",
           height: profileFrameHeight + "px",
-          zIndex: profileImageInfo.arrange === "onTop" ? "z-10" : "z-20",
+          zIndex: profileImageInfo.arrange === "onTop" ? 10 : 20,
         }}
       >
         <Image
@@ -91,7 +91,7 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
         style={{
           width: profileImageWidth + "px",
           height: profileImageHeight + "px",
-          zIndex: profileImageInfo.arrange === "onTop" ? "z-20" : "z-10",
+          zIndex: profileImageInfo.arrange === "onTop" ? 20 : 10,
         }}
         className="relative mt-14"
       >

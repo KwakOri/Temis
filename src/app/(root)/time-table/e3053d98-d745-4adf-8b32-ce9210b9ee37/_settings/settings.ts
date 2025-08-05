@@ -9,7 +9,7 @@ import { TButtonTheme } from "@/types/time-table/theme";
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const fontOption = {
-  primary: "Ansungtangmyun-Bold",
+  primary: "BagelFatOne-Regular",
   secondary: "",
   tertiary: "",
   quaternary: "",
@@ -22,7 +22,7 @@ export const fontOption = {
 
 /** kr | en | jp */
 
-export const weekdayOption: TLanOpt = "kr";
+export const weekdayOption: TLanOpt = "en";
 export const monthOption: TLanOpt = "en";
 
 /** ---------------------------------------------- */
@@ -40,9 +40,9 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const colors = {
   first: {
-    primary: "#F8EDE9",
-    secondary: "#1A1A1A",
-    tertiary: "",
+    primary: "#313F68",
+    secondary: "#4C609B",
+    tertiary: "#FFFFFF",
     quaternary: "",
   },
   second: {
@@ -64,8 +64,8 @@ export const colors = {
 /** Online 카드 구성 */
 /** Online 카드 구성 */
 
-export const onlineCardWidth: number = 249;
-export const onlineCardHeight: number = 193;
+export const onlineCardWidth: number = 242;
+export const onlineCardHeight: number = 184;
 
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
@@ -109,8 +109,8 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 /** Offline 카드 구성 */
 /** Offline 카드 구성 */
 
-export const offlineCardWidth: number = 249;
-export const offlineCardHeight: number = 193;
+export const offlineCardWidth: number = 242;
+export const offlineCardHeight: number = 184;
 
 /** ---------------------------------------------- */
 
@@ -137,11 +137,11 @@ export interface ProfileImageInfoInterface {
 }
 
 export const profileImageInfo: ProfileImageInfoInterface = {
-  arrange: "onTop",
-  rotation: 4,
+  arrange: "onBottom",
+  rotation: 4.6,
   position: {
-    top: 8,
-    right: 24,
+    top: -1,
+    right: -10,
   },
 };
 
@@ -160,14 +160,17 @@ export const profileTextInfo = {
   },
 };
 
-export const profileFrameWidth = 455;
-export const profileFrameHeight = 743;
+export const profileFrameWidth = 482;
+export const profileFrameHeight = 711;
 
 /** Profile Image 크기 */
 
-export const profileImageWidth = 368;
-export const profileImageHeight = 542;
+export const profileImageWidth = 384;
+export const profileImageHeight = 498;
 
-export const profileTextPlaceholder = "사용자 이름";
+export const profileBackPlateWidth = 356;
+export const profileBackPlateHeight = 475;
+
+export const profileTextPlaceholder = "작가 이름";
 
 /** ---------------------------------------------- */

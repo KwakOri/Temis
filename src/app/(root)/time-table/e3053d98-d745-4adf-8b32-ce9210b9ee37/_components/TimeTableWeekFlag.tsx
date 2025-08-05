@@ -1,4 +1,5 @@
 import { TTheme } from "@/types/time-table/theme";
+import { months } from "@/utils/time-table/data";
 import { colors, fontOption } from "../_settings/settings";
 
 interface TimeTableWeekFlagProps {
@@ -10,40 +11,79 @@ const TimeTableWeekFlag = ({
   currentTheme,
   weekDates,
 }: TimeTableWeekFlagProps) => {
-  const dateFormatter = (date: number) => {
-    if (date < 10) return `0${date}`;
-    return date;
-  };
+  const splitDigits = (num: number) =>
+    num.toString().padStart(2, "0").split("");
 
-  const startDate = `${weekDates[0].getFullYear()}.${dateFormatter(
-    weekDates[0].getMonth() + 1
-  )}.${dateFormatter(weekDates[0].getDate())}`;
-  const endDate = `${weekDates[6].getFullYear()}.${dateFormatter(
-    weekDates[6].getMonth() + 1
-  )}.${dateFormatter(weekDates[6].getDate())}`;
+  const startMonth = months.en[weekDates[0].getMonth()].toUpperCase();
+  const startDate = splitDigits(weekDates[0].getDate());
+  const endMonth = months.en[weekDates[6].getMonth()].toUpperCase();
+  const endDate = splitDigits(weekDates[6].getDate());
+
+  const dateArr = [
+    {
+      value: 1,
+      date: startDate,
+      month: startMonth,
+    },
+    {
+      value: 2,
+      date: endDate,
+      month: endMonth,
+    },
+  ];
   return (
     <div
-      className="absolute top-64 left-26 z-20 "
+      className="absolute z-40 flex justify-between"
       style={{
-        transform: "rotate(-1.5deg)",
+        fontFamily: fontOption.primary,
+        width: 231,
+        left: 538,
+        top: 304,
       }}
     >
-      <div
-        className="absolute z-10 w-full h-full justify-center pr-1 pb-2 flex flex-col"
-        style={{
-          fontFamily: fontOption.primary,
-        }}
-      >
+      {dateArr.map((item) => (
         <div
+          key={item.value}
+          className="items-center flex flex-col "
           style={{
-            color: colors[currentTheme]["secondary"],
+            color: colors[currentTheme]["primary"],
+            width: 110,
           }}
         >
-          <p className="text-[26px] w-100 text-center">
-            {startDate} ~ {endDate}
+          <p style={{ lineHeight: 1 }} className="text-[84px] text-center">
+            {item.date}
+          </p>
+          <p
+            style={{
+              marginTop: 6,
+              color: colors[currentTheme]["tertiary"],
+              fontSize: 22,
+            }}
+          >
+            {item.month}
           </p>
         </div>
-      </div>
+      ))}
+      {/* <div
+        className="items-center flex flex-col "
+        style={{
+          color: colors[currentTheme]["primary"],
+          width: 110,
+        }}
+      >
+        <p style={{ lineHeight: 1 }} className="text-[84px] text-center">
+          {startDate}
+        </p>
+        <p
+          style={{
+            marginTop: 6,
+            color: colors[currentTheme]["tertiary"],
+            fontSize: 22,
+          }}
+        >
+          {startMonth}
+        </p>
+      </div> */}
     </div>
   );
 };
