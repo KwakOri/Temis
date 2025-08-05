@@ -14,6 +14,8 @@ import { placeholders } from "../_settings/general";
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
+  profileImageWidth,
+  profileImageHeight,
   weekdayOption,
 } from "../_settings/settings";
 import TimeTableContent from "./TimeTableContent";
@@ -46,7 +48,12 @@ const TimeTableEditorContent: React.FC = () => {
             placeholders={placeholders}
           />
         </TimeTablePreview>
-        <TimeTableForm onReset={resetData} addons={null}>
+        <TimeTableForm 
+          onReset={resetData} 
+          addons={null}
+          cropWidth={profileImageWidth}
+          cropHeight={profileImageHeight}
+        >
           <TimeTableInputList
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}

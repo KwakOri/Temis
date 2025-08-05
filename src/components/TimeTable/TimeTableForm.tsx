@@ -1,3 +1,4 @@
+import ImageCropModal from "@/components/ImageCropModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
@@ -8,18 +9,21 @@ import React, { PropsWithChildren, useRef, useState } from "react";
 interface TimeTableFormProps {
   addons?: React.ReactNode;
   onReset: () => void;
+  cropWidth?: number;
+  cropHeight?: number;
 }
 
 const TimeTableForm = ({
   addons,
   children,
   onReset,
+  cropWidth = 400,
+  cropHeight = 400,
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
 
   const { profileText, mondayDateStr, imageSrc, isProfileTextVisible } = state;
   const {
-    handleImageChange,
     handleProfileTextChange,
     handleDateChange,
     updateImageSrc,
@@ -28,6 +32,8 @@ const TimeTableForm = ({
   const { downloadImage } = useTimeTableActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("main");
+  const [showCropModal, setShowCropModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -35,6 +41,34 @@ const TimeTableForm = ({
 
   const handleImageDelete = () => {
     updateImageSrc(null);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSelectedImage(reader.result as string);
+      setShowCropModal(true);
+    };
+    reader.readAsDataURL(file);
+
+    // 파일 입력 초기화 (같은 파일을 다시 선택할 수 있도록)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCropComplete = (croppedImageSrc: string) => {
+    updateImageSrc(croppedImageSrc);
+    setShowCropModal(false);
+    setSelectedImage(null);
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    setSelectedImage(null);
   };
 
   const onChangeActiveTab = (nextTab: string) => {
@@ -111,8 +145,9 @@ const TimeTableForm = ({
           ref={fileInputRef}
           id="file-upload"
           type="file"
+          accept="image/*"
           className="hidden"
-          onChange={handleImageChange}
+          onChange={handleFileSelect}
         />
       </div>
 
@@ -133,31 +168,45 @@ const TimeTableForm = ({
   const renderAddonsContent = () => (addons ? <>{addons}</> : null);
 
   return (
-    <div className="md:h-full min-h-0 md:max-w-[400px] md:min-w-[300px] md:w-1/4 h-full">
-      <div className="h-full shrink-0 flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full ">
-        <div className="flex-1 flex flex-col min-h-0">
-          <TimeTableFormTabs
-            activeTab={activeTab}
-            onChangeActiveTab={onChangeActiveTab}
-            isAddons={!!addons}
-          />
-          <div className="flex-1 overflow-y-auto p-4 h-full">
-            {activeTab === "main" && renderMainSettings()}
-            {activeTab === "addons" && renderAddonsContent()}
+    <>
+      <div className="md:h-full min-h-0 md:max-w-[400px] md:min-w-[300px] md:w-1/4 h-full">
+        <div className="h-full shrink-0 flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full ">
+          <div className="flex-1 flex flex-col min-h-0">
+            <TimeTableFormTabs
+              activeTab={activeTab}
+              onChangeActiveTab={onChangeActiveTab}
+              isAddons={!!addons}
+            />
+            <div className="flex-1 overflow-y-auto p-4 h-full">
+              {activeTab === "main" && renderMainSettings()}
+              {activeTab === "addons" && renderAddonsContent()}
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-gray-300 bg-gray-50 flex gap-2">
+            <button
+              onClick={downloadImage}
+              className="w-full bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
+            >
+              이미지로 저장 (1280×720)
+            </button>
+            <ResetButton onReset={onReset} />
           </div>
         </div>
-
-        <div className="p-4 border-t border-gray-300 bg-gray-50 flex gap-2">
-          <button
-            onClick={downloadImage}
-            className="w-full bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
-          >
-            이미지로 저장 (1280×720)
-          </button>
-          <ResetButton onReset={onReset} />
-        </div>
       </div>
-    </div>
+
+      {/* 이미지 크롭 모달 */}
+      {selectedImage && (
+        <ImageCropModal
+          isOpen={showCropModal}
+          onClose={handleCropCancel}
+          imageSrc={selectedImage}
+          onCropComplete={handleCropComplete}
+          cropWidth={cropWidth}
+          cropHeight={cropHeight}
+        />
+      )}
+    </>
   );
 };
 
