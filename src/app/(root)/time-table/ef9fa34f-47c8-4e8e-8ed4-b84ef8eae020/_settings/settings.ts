@@ -1,7 +1,7 @@
-import { TLanOpt } from "../_types/types";
-import { CardInputConfig, TButtonTheme } from "./general";
-
 /** ---------------------------------------------- */
+
+import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
+import { TButtonTheme } from "@/types/time-table/theme";
 
 /** Fonts 설정 */
 /** Fonts 설정 */
@@ -160,8 +160,6 @@ export const profileTextInfo = {
   },
 };
 
-export const profileTextPlaceholder = "작가명 적는 곳";
-
 export const profileFrameWidth = 455;
 export const profileFrameHeight = 743;
 
@@ -169,5 +167,7 @@ export const profileFrameHeight = 743;
 
 export const profileImageWidth = 538;
 export const profileImageHeight = 720;
+
+export const profileTextPlaceholder = "작가명 적는 곳";
 
 /** ---------------------------------------------- */

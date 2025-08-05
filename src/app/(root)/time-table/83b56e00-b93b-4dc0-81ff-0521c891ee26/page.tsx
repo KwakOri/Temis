@@ -1,6 +1,6 @@
 "use client";
 
-import TimeTableEditor from "./_components/EditableComponents/TimeTableEditor";
+import TimeTableEditor from "./_components/TimeTableEditor";
 import "./_styles/index.css";
 
 const TestPage = () => {

@@ -1,12 +1,16 @@
-import { TTheme } from "@/types/time-table/theme";
-import { buttonThemes } from "@/utils/time-table/data";
+import { TButtonTheme, TTheme } from "@/types/time-table/theme";
 
 interface ThemeTabsProps {
   currentTheme: TTheme;
   handleThemeChange: (theme: TTheme) => void;
+  buttonThemes: TButtonTheme[];
 }
 
-const ThemeTabs = ({ currentTheme, handleThemeChange }: ThemeTabsProps) => {
+const ThemeTabs = ({
+  currentTheme,
+  handleThemeChange,
+  buttonThemes,
+}: ThemeTabsProps) => {
   return (
     <div className="space-y-2 flex flex-col items-start">
       <h3 className="font-bold text-lg text-gray-800">테마</h3>

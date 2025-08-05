@@ -1,27 +1,28 @@
+import { TTheme } from "@/types/time-table/theme";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
 import {
   colors,
   fontOption,
-  placeholders,
   profileFrameHeight,
   profileFrameWidth,
   profileImageHeight,
   profileImageWidth,
-  TTheme,
 } from "../../_settings/settings";
 
 interface ProfileImageProps {
   currentTheme: TTheme;
   imageSrc: string | null;
   profileText: string;
+  profileTextPlaceholder: string;
 }
 
 const ProfileImage: React.FC<ProfileImageProps> = ({
   currentTheme,
   imageSrc,
   profileText,
+  profileTextPlaceholder,
 }) => {
   return (
     <div
@@ -44,7 +45,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           }}
           className="text-center"
         >
-          {profileText ? profileText : placeholders.profileText}
+          {profileText ? profileText : profileTextPlaceholder}
         </p>
       </div>
       <div
