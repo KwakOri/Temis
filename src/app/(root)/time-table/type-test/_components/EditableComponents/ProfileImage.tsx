@@ -1,8 +1,8 @@
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TTheme } from "@/types/time-table/theme";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
-import { placeholders, TTheme } from "../../_settings/general";
 import {
   colors,
   fontOption,
@@ -18,12 +18,14 @@ interface ProfileImageProps {
   currentTheme: TTheme;
   imageSrc: string | null;
   profileText: string;
+  profileTextPlaceholder: string;
 }
 
 const ProfileImage: React.FC<ProfileImageProps> = ({
   currentTheme,
   imageSrc,
   profileText,
+  profileTextPlaceholder,
 }) => {
   return (
     <div
@@ -57,7 +59,7 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
           maxFontSize={profileTextInfo.font.maxSize}
           minFontSize={profileTextInfo.font.minSize}
         >
-          {profileText ? profileText : placeholders.profileText}
+          {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
       </div>
       <div

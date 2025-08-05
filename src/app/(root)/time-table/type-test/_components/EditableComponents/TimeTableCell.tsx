@@ -2,13 +2,14 @@ import Image from "next/image";
 import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { Imgs } from "../../_img/imgs";
+import { TTheme } from "@/types/time-table/theme";
 import {
-  placeholders,
+  getFormattedTime,
   TDefaultCard,
-  TTheme,
   weekdays,
-} from "../../_settings/general";
+} from "@/utils/time-table/data";
+import { Imgs } from "../../_img/imgs";
+import { placeholders } from "../../_settings/general";
 import {
   colors,
   fontOption,
@@ -32,14 +33,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   currentTheme,
 }) => {
   if (!weekDate) return "Loading";
-  const timeArr = (time.time as string).split("");
-
-  const getFormatedTime = () => {
-    if (timeArr[0] !== "0") return time.time;
-    const temp = timeArr;
-    temp.shift();
-    return temp.join("");
-  };
 
   if (time.isOffline) {
     return (
@@ -125,7 +118,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             maxFontSize={20}
             minFontSize={8}
           >
-            {getFormatedTime() as string}
+            {getFormattedTime(time.time as string)}
           </AutoResizeText>
         </div>
       </div>

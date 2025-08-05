@@ -1,11 +1,13 @@
-import { TDefaultCard } from "../_settings/general";
-import { TTheme } from "../_settings/general";
+import { TDefaultCard } from "@/utils/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import { CardInputConfig } from "@/types/time-table/data";
 import { createPageAwareStorage, getPageId } from "@/utils/pageAwareLocalStorage";
 
 // localStorage 키 상수 (페이지별로 고유하게 관리됨)
 export const STORAGE_KEYS = {
   TIMETABLE_DATA: "template-timetable-data",
   THEME: "template-timetable-theme",
+  CONFIG: "template-timetable-config", // CardInputConfig 저장용
 } as const;
 
 // 브라우저 환경 체크
@@ -88,24 +90,40 @@ export const timeTableStorage = {
   },
 
   /**
-   * 모든 타임테이블 데이터 한번에 저장
+   * CardInputConfig 저장
    */
-  saveAll: (payload: { data: TDefaultCard[]; theme: TTheme }): boolean => {
+  saveConfig: (config: CardInputConfig): boolean => {
+    return saveToStorage(STORAGE_KEYS.CONFIG, config);
+  },
+
+  /**
+   * CardInputConfig 로드
+   */
+  loadConfig: (defaultConfig: CardInputConfig): CardInputConfig => {
+    return loadFromStorage(STORAGE_KEYS.CONFIG, defaultConfig);
+  },
+
+  /**
+   * 모든 타임테이블 데이터 한번에 저장 (CardInputConfig 포함)
+   */
+  saveAll: (payload: { data: TDefaultCard[]; theme: TTheme; cardInputConfig: CardInputConfig }): boolean => {
     let success = true;
 
     success = success && timeTableStorage.saveData(payload.data);
     success = success && timeTableStorage.saveTheme(payload.theme);
+    success = success && timeTableStorage.saveConfig(payload.cardInputConfig);
 
     return success;
   },
 
   /**
-   * 모든 타임테이블 데이터 한번에 로드
+   * 모든 타임테이블 데이터 한번에 로드 (CardInputConfig 포함)
    */
-  loadAll: (defaults: { data: TDefaultCard[]; theme: TTheme }) => {
+  loadAll: (defaults: { data: TDefaultCard[]; theme: TTheme; cardInputConfig: CardInputConfig }) => {
     return {
       data: timeTableStorage.loadData(defaults.data),
       theme: timeTableStorage.loadTheme(defaults.theme),
+      cardInputConfig: timeTableStorage.loadConfig(defaults.cardInputConfig),
     };
   },
 
@@ -153,10 +171,8 @@ export const timeTableStorage = {
         card !== null &&
         typeof card.day === "number" &&
         card.day === index &&
-        typeof card.isOffline === "boolean" &&
-        typeof card.time === "string" &&
-        typeof card.topic === "string" &&
-        typeof card.description === "string"
+        typeof card.isOffline === "boolean"
+        // 동적 필드는 CardInputConfig에 따라 달라지므로 기본 검증만 수행
       );
     });
   },
@@ -196,29 +212,3 @@ export const createAutoSave = (
     }, delay);
   };
 };
-
-/**
- * 실시간 저장을 위한 React Hook 사용 예제 (주석으로 제공)
- *
- * // TimeTableEditor 컴포넌트에서 사용 예제:
- *
- * const [data, setData] = useState<TDefaultCard[]>(() => {
- *   return timeTableStorage.loadDataSafely(defaultCards);
- * });
- *
- * // 자동 저장 설정 (1초 디바운스)
- * const autoSave = useMemo(() =>
- *   createAutoSave(() => {
- *     timeTableStorage.saveAll({
- *       data,
- *       theme: currentTheme,
- *     });
- *   }, 1000), [data, currentTheme]
- * );
- *
- * // 데이터 변경 시 자동 저장 트리거
- * useEffect(() => {
- *   autoSave();
- * }, [data, theme, autoSave]);
- *
- */

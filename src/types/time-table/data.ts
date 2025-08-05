@@ -2,35 +2,6 @@
 export type TLanOpt = "kr" | "en" | "jp";
 
 /** 프로젝트 타입 */
-export interface Data {
-  day: number;
-  isOffline: boolean;
-  time: string;
-  topic: string;
-  description: string;
-}
-
-export type TTheme = "blue" | "yellow" | "pink";
-
-export type TInitialCard = {
-  isOffline: boolean;
-  time: string;
-  topic: string;
-  description: string;
-};
-
-export interface TDefaultCard extends TInitialCard {
-  day: number;
-}
-
-export interface TExtendedCard extends TDefaultCard {
-  [key: string]:
-    | string
-    | number
-    | boolean
-    | Array<{ text: string; checked: boolean }>
-    | undefined;
-}
 
 export interface SimpleFieldConfig {
   key: string;
@@ -52,3 +23,16 @@ export interface CardInputConfig {
     inactiveColor: string;
   };
 }
+
+// CARD_INPUT_CONFIG 기반 동적 카드 타입 정의
+export interface TDynamicCard {
+  isOffline: boolean;
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | Array<{ text: string; checked: boolean }>
+    | undefined;
+}
+
+export type TPlaceholders = Record<string, string> & { profileText: string };

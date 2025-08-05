@@ -1,15 +1,14 @@
+import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
 import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
 import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
-import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
-import React from "react";
 import {
-  getCardInputConfig,
-  placeholders,
+  CardInputConfig,
   SimpleFieldConfig,
-  TDefaultCard,
-  weekdays,
-} from "../../_settings/general";
-import { weekdayOption } from "../../_settings/settings";
+  TLanOpt,
+  TPlaceholders,
+} from "@/types/time-table/data";
+import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import React from "react";
 
 // 개별 필드 렌더러 타입 정의
 export interface FieldRenderer {
@@ -29,51 +28,6 @@ export interface FieldRenderer {
 }
 
 // 기본 필드 렌더러들 - 동적 속성 지원 개선
-export const defaultFieldRenderers = {
-  time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
-    const fieldId = `time-${day.day}-${index}`;
-    return (
-      <AdaptiveTimeRenderer
-        id={fieldId}
-        value={day.time as string}
-        onChange={(newValue) => onChange(index, "time", newValue)}
-      />
-    );
-  },
-
-  topic: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
-    const handleTopicChange = (value: string) => {
-      onChange(index, "topic", value);
-    };
-    return (
-      <TopicRenderer
-        value={day.topic as string}
-        placeholder={placeholders.topic}
-        handleTopicChange={handleTopicChange}
-        maxLength={50}
-        autoComplete="off"
-        aria-label="주제 입력"
-      />
-    );
-  },
-
-  description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
-    const handleDescriptionChange = (value: string) => {
-      onChange(index, "description", value);
-    };
-    return (
-      <DescriptionRenderer
-        value={day.description as string}
-        placeholder={placeholders.description}
-        handleDescriptionChange={handleDescriptionChange}
-        maxLength={200}
-        rows={3}
-        spellCheck={true}
-        aria-label="설명 입력"
-      />
-    );
-  },
-};
 
 // 커스텀 필드 렌더러 타입
 export interface CustomFieldRenderer {
@@ -100,6 +54,10 @@ export interface TimeTableInputListProps {
     duration?: number;
     maxHeight?: string;
   };
+
+  weekdayOption: TLanOpt;
+  cardInputConfig: CardInputConfig;
+  placeholders: TPlaceholders;
 }
 
 const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
@@ -110,16 +68,63 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   headerClassName = "flex justify-between items-center",
   fieldsContainerClassName = "pt-2 flex flex-col gap-4",
   weekdayRenderer,
+  weekdayOption,
   expandAnimation = {
     duration: 300,
     maxHeight: "500px",
   },
+  cardInputConfig,
+  placeholders,
 }) => {
+  const defaultFieldRenderers = {
+    time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+      const fieldId = `time-${day.day}-${index}`;
+      return (
+        <AdaptiveTimeRenderer
+          id={fieldId}
+          value={day.time as string}
+          onChange={(newValue) => onChange(index, "time", newValue)}
+        />
+      );
+    },
+
+    topic: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+      const handleTopicChange = (value: string) => {
+        onChange(index, "topic", value);
+      };
+      return (
+        <TopicRenderer
+          value={day.topic as string}
+          placeholder={placeholders.topic}
+          handleTopicChange={handleTopicChange}
+          maxLength={50}
+          autoComplete="off"
+          aria-label="주제 입력"
+        />
+      );
+    },
+
+    description: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
+      const handleDescriptionChange = (value: string) => {
+        onChange(index, "description", value);
+      };
+      return (
+        <DescriptionRenderer
+          value={day.description as string}
+          placeholder={placeholders.description}
+          handleDescriptionChange={handleDescriptionChange}
+          maxLength={200}
+          rows={3}
+          spellCheck={true}
+          aria-label="설명 입력"
+        />
+      );
+    },
+  };
   // settings.ts에서 필드 구성 가져오기
-  const cardConfig = getCardInputConfig();
 
   // 오프라인 토글 설정 (기본값 지정)
-  const offlineToggleConfig = cardConfig.offlineToggle || {
+  const offlineToggleConfig = cardInputConfig.offlineToggle || {
     label: "휴방",
     activeColor: "bg-[#3E4A82]",
     inactiveColor: "bg-gray-300",
@@ -336,13 +341,13 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             }`}
           >
             <div className={fieldsContainerClassName}>
-              {cardConfig.fields.map((fieldConfig) => {
+              {cardInputConfig.fields.map((fieldConfig) => {
                 // 기본 필드인지 확인
                 const isDefaultField = fieldConfig.key in defaultFieldRenderers;
 
                 return (
                   <div key={fieldConfig.key}>
-                    {fieldConfig.label && cardConfig.showLabels && (
+                    {fieldConfig.label && cardInputConfig.showLabels && (
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         {fieldConfig.label}
                       </label>

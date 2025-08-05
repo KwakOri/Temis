@@ -2,8 +2,10 @@ import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
-import { TDefaultCard } from "../../_settings/general";
-import { TTheme } from "../../_settings/general";
+
+import { TPlaceholders } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import { TDefaultCard } from "@/utils/time-table/data";
 import ProfileImage from "./ProfileImage";
 import TimeTableGrid from "./TimeTableGrid";
 import TimeTableWeekFlag from "./TimeTableWeekFlag";
@@ -11,11 +13,13 @@ import TimeTableWeekFlag from "./TimeTableWeekFlag";
 export interface TimeTableContentProps {
   currentTheme: TTheme;
   data: TDefaultCard[];
+  placeholders: TPlaceholders;
 }
 
 const TimeTableContent: React.FC<TimeTableContentProps> = ({
   currentTheme,
   data,
+  placeholders,
 }) => {
   const { imageSrc, weekDates, profileText } = useTimeTableData();
   const { scale } = useTimeTableUI();
@@ -44,6 +48,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       <ProfileImage
         imageSrc={imageSrc}
         profileText={profileText}
+        profileTextPlaceholder={placeholders.profileText}
         currentTheme={currentTheme}
       />
     </div>

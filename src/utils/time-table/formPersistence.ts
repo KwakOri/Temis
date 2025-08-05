@@ -1,7 +1,7 @@
+import { CardInputConfig } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import { TDefaultCard, getDefaultCards } from "@/utils/time-table/data";
 import { useCallback, useEffect, useMemo } from "react";
-import { TDefaultCard, defaultCards } from "../_settings/general";
-import { TTheme } from "../_settings/general";
-import { defaultTheme } from "../_settings/settings";
 import {
   clearAllTimeTableStorage,
   createAutoSave,
@@ -10,17 +10,26 @@ import {
 
 /**
  * 폼 데이터 지속성을 위한 커스텀 훅
+ * CardInputConfig를 받아서 동적으로 기본값을 생성합니다.
  */
-export const useFormPersistence = () => {
+export const useFormPersistence = (
+  cardInputConfig: CardInputConfig,
+  defaultTheme: TTheme
+) => {
   /**
    * 컴포넌트 마운트 시 저장된 데이터 로드
+   * CardInputConfig도 함께 반환하여 호환성 검증에 사용
    */
   const loadPersistedData = useCallback(() => {
-    return timeTableStorage.loadAll({
+    const defaultCards = getDefaultCards({ cardInputConfig });
+    const loadedData = timeTableStorage.loadAll({
       data: defaultCards,
       theme: defaultTheme,
+      cardInputConfig: cardInputConfig,
     });
-  }, []);
+    
+    return loadedData;
+  }, [cardInputConfig, defaultTheme]);
 
   /**
    * 데이터 저장 함수
@@ -34,13 +43,16 @@ export const useFormPersistence = () => {
   }, []);
 
   /**
-   * 모든 데이터 한번에 저장
+   * 모든 데이터 한번에 저장 (CardInputConfig 포함)
    */
   const saveAll = useCallback(
     (payload: { data: TDefaultCard[]; theme: TTheme }) => {
-      return timeTableStorage.saveAll(payload);
+      return timeTableStorage.saveAll({
+        ...payload,
+        cardInputConfig: cardInputConfig,
+      });
     },
-    []
+    [cardInputConfig]
   );
 
   /**
@@ -70,7 +82,6 @@ export const useFormPersistence = () => {
 
     // 개별 저장 함수들
     saveData,
-
     saveTheme,
 
     // 일괄 저장
@@ -86,13 +97,16 @@ export const useFormPersistence = () => {
 
 /**
  * 자동 저장 기능을 포함한 훅
+ * CardInputConfig와 defaultTheme을 받아서 useFormPersistence를 사용합니다.
  */
 export const useAutoSavePersistence = (
   data: TDefaultCard[],
   theme: TTheme,
+  cardInputConfig: CardInputConfig,
+  defaultTheme: TTheme,
   autoSaveDelay: number = 1000
 ) => {
-  const { saveAll } = useFormPersistence();
+  const { saveAll } = useFormPersistence(cardInputConfig, defaultTheme);
 
   // 자동 저장 함수 생성 (디바운스 적용)
   const autoSave = useMemo(
@@ -116,9 +130,15 @@ export const useAutoSavePersistence = (
 
 /**
  * 브라우저 종료/새로고침 시 데이터 저장을 위한 훅
+ * CardInputConfig와 defaultTheme을 받아서 useFormPersistence를 사용합니다.
  */
-export const useBeforeUnloadSave = (data: TDefaultCard[], theme: TTheme) => {
-  const { saveAll } = useFormPersistence();
+export const useBeforeUnloadSave = (
+  data: TDefaultCard[], 
+  theme: TTheme,
+  cardInputConfig: CardInputConfig,
+  defaultTheme: TTheme
+) => {
+  const { saveAll } = useFormPersistence(cardInputConfig, defaultTheme);
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -155,6 +175,7 @@ export const useBeforeUnloadSave = (data: TDefaultCard[], theme: TTheme) => {
 
 /**
  * 실시간 개별 필드 저장을 위한 유틸리티 함수들
+ * 공용 함수이므로 timeTableStorage를 직접 사용합니다.
  */
 export const fieldSavers = {
   /**
@@ -187,39 +208,18 @@ export const fieldSavers = {
   },
 
   /**
-   * 시간 필드 저장
+   * 동적 필드 저장 (CardInputConfig에 정의된 필드들)
    */
-  saveTimeField: (
+  saveDynamicField: (
     dayIndex: number,
-    time: string,
-    currentData: TDefaultCard[]
-  ) => {
-    return fieldSavers.saveCardField(dayIndex, "time", time, currentData);
-  },
-
-  /**
-   * 주제 필드 저장
-   */
-  saveTopicField: (
-    dayIndex: number,
-    topic: string,
-    currentData: TDefaultCard[]
-  ) => {
-    return fieldSavers.saveCardField(dayIndex, "topic", topic, currentData);
-  },
-
-  /**
-   * 설명 필드 저장
-   */
-  saveDescriptionField: (
-    dayIndex: number,
-    description: string,
+    fieldKey: string,
+    value: string | number | boolean,
     currentData: TDefaultCard[]
   ) => {
     return fieldSavers.saveCardField(
       dayIndex,
-      "description",
-      description,
+      fieldKey as keyof TDefaultCard,
+      value,
       currentData
     );
   },

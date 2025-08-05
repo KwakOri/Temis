@@ -7,25 +7,28 @@ import TimeTableForm from "@/components/TimeTable/TimeTableForm";
 import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
 import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
-import { useTimeTableState } from "@/hooks/useTimeTableState";
+import { useTimeTableEditor } from "@/hooks";
 
-import { useTimeTableEditor } from "../../_hooks";
-import TimeTableInputList from "../FixedComponents/TimeTableInputList";
+import TimeTableInputList from "../../../../../../components/TimeTable/FixedComponents/TimeTableInputList";
+import { placeholders } from "../../_settings/general";
+import {
+  CARD_INPUT_CONFIG,
+  defaultTheme,
+  weekdayOption,
+} from "../../_settings/settings";
 import TimeTableContent from "./TimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
-  // 통합 상태 관리 훅 사용
-  const {
-    state,
-    data,
-    updateData,
-    currentTheme,
-    handleThemeChange,
-    resetData,
-  } = useTimeTableEditor();
+  // 통합 상태 관리 훅 사용 - CardInputConfig 주입
+  const { state, data, updateData, currentTheme, resetData, isInitialized } =
+    useTimeTableEditor({
+      cardInputConfig: CARD_INPUT_CONFIG,
+      defaultTheme: defaultTheme,
+    });
 
-  if (state.weekDates.length === 0) return <Loading />;
+  // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
+  if (!isInitialized || state.weekDates.length === 0) return <Loading />;
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -37,10 +40,20 @@ const TimeTableEditorContent: React.FC = () => {
 
       <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0 h-full">
         <TimeTablePreview>
-          <TimeTableContent currentTheme={currentTheme} data={data} />
+          <TimeTableContent
+            currentTheme={currentTheme}
+            data={data}
+            placeholders={placeholders}
+          />
         </TimeTablePreview>
         <TimeTableForm onReset={resetData} addons={null}>
-          <TimeTableInputList data={data} onDataChange={updateData} />
+          <TimeTableInputList
+            cardInputConfig={CARD_INPUT_CONFIG}
+            placeholders={placeholders}
+            data={data}
+            onDataChange={updateData}
+            weekdayOption={weekdayOption}
+          />
         </TimeTableForm>
       </div>
     </div>
@@ -49,7 +62,14 @@ const TimeTableEditorContent: React.FC = () => {
 
 // 메인 TimeTableEditor 컴포넌트 (Context Provider 래퍼)
 const TimeTableEditor: React.FC = () => {
-  const timeTableState = useTimeTableState();
+  // 전역 상태는 통합 훅 내부에서 관리되므로 별도로 생성하지 않음
+  // Context는 내부 컴포넌트에서 전역 상태를 받아서 제공
+  const { state, actions } = useTimeTableEditor({
+    cardInputConfig: CARD_INPUT_CONFIG,
+    defaultTheme: defaultTheme,
+  });
+
+  const timeTableState = { state, actions };
 
   return (
     <TimeTableProvider value={timeTableState}>

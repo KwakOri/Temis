@@ -1,12 +1,11 @@
+import { TTheme } from "@/types/time-table/theme";
 import { useCallback, useState } from "react";
-import { TTheme } from "../_settings/general";
-import { defaultTheme } from "../_settings/settings";
 
 /**
  * 타임테이블 테마 상태 관리 훅
+ * 기본 테마를 받아서 초기화
  */
-export const useTimeTableTheme = () => {
-  // localStorage에서 저장된 테마 로드하여 초기값 설정
+export const useTimeTableTheme = (defaultTheme: TTheme = "first") => {
   const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
 
   // 테마 업데이트 함수
@@ -22,12 +21,11 @@ export const useTimeTableTheme = () => {
   // 테마를 기본값으로 리셋
   const resetTheme = useCallback(() => {
     setCurrentTheme(defaultTheme);
-  }, []);
+  }, [defaultTheme]);
 
-  // 테마 토글 (main 테마만 있어서 현재는 의미 없지만 확장성을 위해)
-  const toggleTheme = useCallback(() => {
-    // 현재 main 테마만 있어서 기본값으로 설정
-    setCurrentTheme(defaultTheme);
+  // 테마 토글 (확장성을 위해)
+  const toggleTheme = useCallback((newTheme: TTheme) => {
+    setCurrentTheme(newTheme);
   }, []);
 
   return {

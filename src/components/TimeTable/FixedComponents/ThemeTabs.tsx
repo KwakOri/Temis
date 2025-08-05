@@ -1,5 +1,5 @@
-import { TTheme } from "../../_settings/general";
-import { buttonThemes } from "../../_settings/settings";
+import { TTheme } from "@/types/time-table/theme";
+import { buttonThemes } from "@/utils/time-table/data";
 
 interface ThemeTabsProps {
   currentTheme: TTheme;

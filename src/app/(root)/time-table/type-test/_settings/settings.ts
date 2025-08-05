@@ -1,5 +1,4 @@
-import { TLanOpt } from "../_types/types";
-import { CardInputConfig, TButtonTheme } from "./general";
+import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
 
 /** ---------------------------------------------- */
 
@@ -33,10 +32,6 @@ export const monthOption: TLanOpt = "en";
 export const Themes = ["first", "second", "third"] as const;
 
 export const defaultTheme = "first" as const;
-
-export const buttonThemes: TButtonTheme[] = [
-  { value: "first", label: "first" },
-];
 
 export const colors = {
   first: {
@@ -167,5 +162,7 @@ export const profileFrameHeight = 743;
 
 export const profileImageWidth = 368;
 export const profileImageHeight = 542;
+
+export const profileTextPlaceholder = "사용자 이름";
 
 /** ---------------------------------------------- */
