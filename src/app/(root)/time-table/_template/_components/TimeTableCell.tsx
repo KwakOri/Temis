@@ -20,6 +20,112 @@ import {
   weekdayOption,
 } from "../_settings/settings";
 
+interface DayTextProps {
+  currentTheme?: TTheme;
+  day: number;
+}
+
+const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
+  return (
+    <p
+      style={{
+        color: colors[currentTheme || "first"]["tertiary"],
+        top: 11,
+        left: 2,
+        width: 120,
+      }}
+      className="absolute flex justify-center items-center h-10 text-[19px]"
+    >
+      {weekdays[weekdayOption][day]}
+    </p>
+  );
+};
+
+interface StreamingTimeProps {
+  time: string;
+  currentTheme?: TTheme;
+}
+
+const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+  return (
+    <p
+      style={{
+        color: colors[currentTheme || "first"]["tertiary"],
+        top: 11,
+        left: 2,
+        width: 120,
+      }}
+      className="absolute flex justify-center items-center h-10 text-[19px]"
+    >
+      {getFormattedTime(time)}
+    </p>
+  );
+};
+
+interface CellTextDescriptionProps {
+  currentTheme?: TTheme;
+  description: string;
+}
+
+const CellTextDescription = ({
+  currentTheme,
+  description,
+}: CellTextDescriptionProps) => {
+  return (
+    <div
+      style={{
+        height: "80px",
+      }}
+      className="flex justify-center items-center "
+    >
+      <AutoResizeText
+        style={{
+          color: colors[currentTheme || "first"]["primary"],
+          lineHeight: 1,
+        }}
+        className="leading-none text-center w-full"
+        multiline={true}
+        maxFontSize={36}
+      >
+        {description ? (description as string) : placeholders.description}
+      </AutoResizeText>
+    </div>
+  );
+};
+
+interface CellTextTopicProps {
+  cellTextTitle: string | null;
+}
+
+const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+  return (
+    <p
+      style={{
+        color: colors["first"]["primary"],
+      }}
+      className=" flex justify-center items-center h-[28px] text-[16px]"
+    >
+      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+    </p>
+  );
+};
+
+const OnlineCardBG = () => {
+  return (
+    <div
+      style={{ width: onlineCardWidth, height: onlineCardHeight }}
+      className="absolute -z-10"
+    >
+      <Image
+        className="object-cover"
+        src={Imgs["first"]["online"].src.replace("./", "/")}
+        alt="online"
+        fill
+      />
+    </div>
+  );
+};
+
 interface TimeTableCellProps {
   time: TDefaultCard;
   weekDate: Date;
@@ -37,8 +143,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   if (time.isOffline) {
     return (
       <div
-        className="py-2 pointer-events-none"
+        className=" pointer-events-none"
         style={{
+          paddingTop: 2,
           width: offlineCardWidth + "px",
           height: offlineCardHeight + "px",
         }}
@@ -57,8 +164,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   return (
     <div
       style={{
-        width: onlineCardWidth + "px",
-        height: onlineCardHeight + "px",
+        width: onlineCardWidth,
+        height: onlineCardHeight,
       }}
       key={time.day}
       className="relative"
@@ -67,68 +174,14 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         style={{
           fontFamily: fontOption.primary,
         }}
-        className="w-full h-full flex flex-col pt-[24px] px-8"
+        className="w-full h-full flex flex-col pt-[48px] px-8"
       >
-        <p
-          style={{
-            color: colors[currentTheme]["secondary"],
-          }}
-          className="absolute left-5.25 top-3.5 flex justify-center items-center h-10 text-[34px]"
-        >
-          {weekdays[weekdayOption][time.day]}
-        </p>
-
-        <p
-          style={{
-            color: colors[currentTheme]["primary"],
-          }}
-          className=" flex justify-center items-center h-[34px] text-[15px] pt-4 pb-2"
-        >
-          {time.topic ? (time.topic as string) : placeholders.topic}
-        </p>
-
-        <div
-          style={{
-            height: "78px",
-          }}
-          className="flex justify-center items-center"
-        >
-          <AutoResizeText
-            style={{
-              color: colors[currentTheme]["primary"],
-              lineHeight: 1,
-            }}
-            className="leading-none text-center w-full"
-            multiline={true}
-            maxFontSize={31}
-            minFontSize={20}
-          >
-            {time.description
-              ? (time.description as string)
-              : placeholders.description}
-          </AutoResizeText>
-        </div>
-
-        <div className="flex justify-center items-center h-[24px]">
-          <AutoResizeText
-            style={{
-              color: colors[currentTheme]["primary"],
-            }}
-            className="text-center w-full"
-            maxFontSize={20}
-            minFontSize={8}
-          >
-            {getFormattedTime(time.time as string)}
-          </AutoResizeText>
-        </div>
+        <StreamingDay day={time.day} />
+        <StreamingTime time={time.time as string} />
+        <CellTextDescription description={time.description as string} />
+        <CellTextTitle cellTextTitle={time.title as string} />
       </div>
-      <Image
-        className="absolute top-0 left-0 -z-10"
-        src={Imgs[currentTheme]["online"].src.replace("./", "/")}
-        alt="online"
-        width={onlineCardWidth}
-        height={onlineCardHeight}
-      />
+      <OnlineCardBG />
     </div>
   );
 };

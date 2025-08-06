@@ -174,3 +174,6 @@ export const offlineToggle = {
   activeColor: "bg-[#3E4A82]",
   inactiveColor: "bg-gray-300",
 };
+
+export const isGuideEnabled =
+  process.env.NEXT_PUBLIC_ENVIRONMENT === "development";

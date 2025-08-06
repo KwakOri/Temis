@@ -1,5 +1,9 @@
 import { TTheme } from "@/types/time-table/theme";
-import { colors, fontOption } from "../_settings/settings";
+import {
+  fontOption,
+  weekFlagCardHeight,
+  weekFlagCardWidth,
+} from "../_settings/settings";
 
 interface TimeTableWeekFlagProps {
   currentTheme: TTheme;
@@ -10,41 +14,25 @@ const TimeTableWeekFlag = ({
   currentTheme,
   weekDates,
 }: TimeTableWeekFlagProps) => {
-  const dateFormatter = (date: number) => {
-    if (date < 10) return `0${date}`;
-    return date;
-  };
+  const splitDigits = (num: number) =>
+    num.toString().padStart(2, "0").split("");
 
-  const startDate = `${weekDates[0].getFullYear()}.${dateFormatter(
-    weekDates[0].getMonth() + 1
-  )}.${dateFormatter(weekDates[0].getDate())}`;
-  const endDate = `${weekDates[6].getFullYear()}.${dateFormatter(
-    weekDates[6].getMonth() + 1
-  )}.${dateFormatter(weekDates[6].getDate())}`;
+  const startMonth = weekDates[0].getMonth();
+  const startDate = weekDates[0].getDate();
+  const endMonth = weekDates[6].getMonth();
+  const endDate = weekDates[6].getDate();
+
   return (
     <div
-      className="absolute top-64 left-26 z-20 "
+      className="absolute z-40 flex justify-between"
       style={{
-        transform: "rotate(-1.5deg)",
+        fontFamily: fontOption.primary,
+        width: weekFlagCardWidth,
+        height: weekFlagCardHeight,
+        top: 0,
+        left: 0,
       }}
-    >
-      <div
-        className="absolute z-10 w-full h-full justify-center pr-1 pb-2 flex flex-col"
-        style={{
-          fontFamily: fontOption.primary,
-        }}
-      >
-        <div
-          style={{
-            color: colors[currentTheme]["secondary"],
-          }}
-        >
-          <p className="text-[26px] w-100 text-center">
-            {startDate} ~ {endDate}
-          </p>
-        </div>
-      </div>
-    </div>
+    ></div>
   );
 };
 

@@ -1,12 +1,12 @@
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
-import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
 import React from "react";
 import { Imgs } from "../_img/imgs";
 
+import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard } from "@/utils/time-table/data";
-import ProfileImageContainer from "./ProfileImageContainer";
+import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
+import ProfileImageSection from "./ProfileImageContainer";
 import TimeTableGrid from "./TimeTableGrid";
 import TimeTableWeekFlag from "./TimeTableWeekFlag";
 
@@ -23,7 +23,6 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
 }) => {
   const { imageSrc, weekDates, profileText } = useTimeTableData();
   const { scale, isProfileTextVisible } = useTimeTableUI();
-  const { isVisible, opacity } = useTimeTableDesignGuideContext();
 
   if (weekDates.length === 0) return null;
 
@@ -39,13 +38,14 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         backgroundRepeat: "no-repeat",
       }}
     >
+      {isGuideEnabled && <TimeTableDesignGuide />}
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}
         weekDates={weekDates}
         currentTheme={currentTheme}
       />
-      <ProfileImageContainer
+      <ProfileImageSection
         imageSrc={imageSrc}
         profileText={profileText}
         profileTextPlaceholder={placeholders.profileText}

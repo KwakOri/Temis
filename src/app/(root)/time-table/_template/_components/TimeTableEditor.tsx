@@ -10,12 +10,14 @@ import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideCon
 import { useTimeTableEditor } from "@/hooks";
 
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
+import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
+import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../_settings/general";
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
-  profileImageWidth,
   profileImageHeight,
+  profileImageWidth,
   weekdayOption,
 } from "../_settings/settings";
 import TimeTableContent from "./TimeTableContent";
@@ -23,6 +25,7 @@ import TimeTableContent from "./TimeTableContent";
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
   // 통합 상태 관리 훅 사용 - CardInputConfig 주입
+
   const { state, data, updateData, currentTheme, resetData, isInitialized } =
     useTimeTableEditor({
       cardInputConfig: CARD_INPUT_CONFIG,
@@ -48,9 +51,9 @@ const TimeTableEditorContent: React.FC = () => {
             placeholders={placeholders}
           />
         </TimeTablePreview>
-        <TimeTableForm 
-          onReset={resetData} 
-          addons={null}
+        <TimeTableForm
+          onReset={resetData}
+          addons={isGuideEnabled && <TimeTableDesignGuideController />}
           cropWidth={profileImageWidth}
           cropHeight={profileImageHeight}
         >

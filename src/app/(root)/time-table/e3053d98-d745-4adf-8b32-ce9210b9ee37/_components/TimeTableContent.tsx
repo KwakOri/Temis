@@ -5,7 +5,7 @@ import { Imgs } from "../_img/imgs";
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard } from "@/utils/time-table/data";
+import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
 import ProfileImageContainer from "./ProfileImageContainer";
 import TimeTableGrid from "./TimeTableGrid";
 import TimeTableWeekFlag from "./TimeTableWeekFlag";
@@ -38,7 +38,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         backgroundRepeat: "no-repeat",
       }}
     >
-      <TimeTableDesignGuide id="e3053d98-d745-4adf-8b32-ce9210b9ee37" />
+      {isGuideEnabled && <TimeTableDesignGuide />}
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}
