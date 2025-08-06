@@ -1,5 +1,5 @@
-import { TLanOpt } from "../_types/types";
-import { CardInputConfig, TButtonTheme } from "./general";
+import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
+import { TButtonTheme } from "@/types/time-table/theme";
 
 /** ---------------------------------------------- */
 
@@ -167,5 +167,7 @@ export const profileFrameHeight = 743;
 
 export const profileImageWidth = 368;
 export const profileImageHeight = 542;
+
+export const profileTextPlaceholder = "사용자 이름";
 
 /** ---------------------------------------------- */

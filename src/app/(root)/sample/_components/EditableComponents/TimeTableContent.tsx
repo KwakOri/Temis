@@ -1,30 +1,34 @@
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
+import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
-import { months, TDefaultCard } from "../../_settings/general";
+
+import { TPlaceholders } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import { TDefaultCard, months } from "@/utils/time-table/data";
 import {
   colors,
   fontOption,
   monthOption,
-  TTheme,
 } from "../../_settings/settings";
 import ProfileImage from "./ProfileImage";
 import TimeTableGrid from "./TimeTableGrid";
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;
-
   data: TDefaultCard[];
+  placeholders: TPlaceholders;
 }
 
 const TimeTableContent: React.FC<TimeTableContentProps> = ({
   currentTheme,
-
   data,
+  placeholders,
 }) => {
   const { imageSrc, weekDates, profileText } = useTimeTableData();
-  const { scale } = useTimeTableUI();
+  const { scale, isProfileTextVisible } = useTimeTableUI();
+  const { isVisible, opacity } = useTimeTableDesignGuideContext();
 
   return (
     <div
@@ -81,7 +85,9 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       <ProfileImage
         imageSrc={imageSrc}
         profileText={profileText}
+        profileTextPlaceholder={placeholders.profileText}
         currentTheme={currentTheme}
+        isProfileTextVisible={isProfileTextVisible}
       />
     </div>
   );

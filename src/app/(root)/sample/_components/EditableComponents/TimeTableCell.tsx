@@ -2,8 +2,11 @@ import Image from "next/image";
 import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TTheme } from "@/types/time-table/theme";
+import { TDefaultCard, weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
-import { TDefaultCard, weekdays } from "../../_settings/general";
+
+import { placeholders } from "@/app/(root)/sample/_settings/general";
 import {
   colors,
   fontOption,
@@ -11,8 +14,6 @@ import {
   offlineCardWidth,
   onlineCardHeight,
   onlineCardWidth,
-  placeholders,
-  TTheme,
   weekdayOption,
 } from "../../_settings/settings";
 
