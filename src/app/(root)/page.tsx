@@ -1,11 +1,10 @@
 "use client";
 import { useAuth } from "@/contexts/AuthContext"; // useAuth 임포트
-import { splitOddEven } from "@/utils/utils";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import PortfolioGallery from "../../components/LandingPage/PortfolioGallery";
 import StepSection from "../../components/LandingPage/StepSection";
-import ThumbnailCard from "../../components/LandingPage/ThumbnailCard";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -13,7 +12,6 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth(); // isAuthenticated 가져오기
 
-  const [odd, even] = splitOddEven(10);
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 1080);
@@ -185,44 +183,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Gallery Section */}
-      <section className="pb-20 pt-8 px-4 text-center bg-white ">
-        <h2 className="text-2xl font-bold mb-8">작업물 포트폴리오</h2>
-        <div className="mx-auto space-y-6 gallery-container">
-          <div className="overflow-x-hidden scrollbar-hidden">
-            <div className="flex h-[210px] w-max gap-4 animate-slide-loop-slow pointer-events-none transform-gpu">
-              {Array(odd.length)
-                .fill(0)
-                .flatMap((_, groupIdx) =>
-                  odd.map((id) => (
-                    <div
-                      key={`fast-${groupIdx}-${id}`}
-                      className="pointer-events-auto"
-                    >
-                      <ThumbnailCard id={id} />
-                    </div>
-                  ))
-                )}
-            </div>
-          </div>
-          <div className="overflow-x-hidden scrollbar-hidden">
-            <div className="flex h-[210px] w-max gap-4 animate-slide-loop-fast pointer-events-none transform-gpu">
-              {Array(even.length)
-                .fill(0)
-                .flatMap((_, groupIdx) =>
-                  even.map((id) => (
-                    <div
-                      key={`fast-${groupIdx}-${id}`}
-                      className="pointer-events-auto"
-                    >
-                      <ThumbnailCard id={id} />
-                    </div>
-                  ))
-                )}
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Portfolio Gallery Section */}
+      <PortfolioGallery 
+        totalItems={11} 
+        speedPxPerSecond={50}
+        cardWidth={200}
+        gap={16}
+      />
 
       <section className="py-20 bg-[#2b303d] text-white px-4 text-center">
         <h2 className="text-2xl sm:text-3xl font-bold mb-2">
