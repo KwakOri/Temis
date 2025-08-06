@@ -46,6 +46,12 @@ export const useTimeTableState = () => {
     }
     return null;
   });
+  const [isProfileTextVisible, setIsProfileTextVisible] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return pageAwareStorage.getItem("isProfileTextVisible", true);
+    }
+    return true;
+  });
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
     getDefaultMondayString()
@@ -80,6 +86,12 @@ export const useTimeTableState = () => {
       }
     }
   }, [imageSrc]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      pageAwareStorage.setItem("isProfileTextVisible", isProfileTextVisible);
+    }
+  }, [isProfileTextVisible]);
 
   // localStorage에서 데이터 로드
   useEffect(() => {
@@ -120,6 +132,7 @@ export const useTimeTableState = () => {
     updateMondayDate: (dateStr: string) => setMondayDateStr(dateStr),
     updateScale: (newScale: number) => setScale(newScale),
     updateIsMobile: (mobile: boolean) => setIsMobile(mobile),
+    updateIsProfileTextVisible: (visible: boolean) => setIsProfileTextVisible(visible),
 
     // 복합 액션 함수들
     handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -140,6 +153,10 @@ export const useTimeTableState = () => {
 
     handleDateChange: (dateStr: string) => {
       setMondayDateStr(dateStr);
+    },
+
+    toggleProfileTextVisible: () => {
+      setIsProfileTextVisible(prev => !prev);
     },
 
     downloadImage: () => {
@@ -185,6 +202,7 @@ export const useTimeTableState = () => {
     weekDates,
     scale,
     isMobile,
+    isProfileTextVisible,
   };
 
   return { state, actions };

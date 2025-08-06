@@ -2,18 +2,22 @@
 
 import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import React from "react";
 
 interface TimeTableDesignGuideProps {
-  id: string;
   className?: string;
 }
 
 const TimeTableDesignGuide: React.FC<TimeTableDesignGuideProps> = ({
-  id,
   className = "",
 }) => {
   const { isVisible, opacity } = useTimeTableDesignGuideContext();
+
+  const pathname = usePathname();
+
+  const segments = pathname?.split("/").filter(Boolean);
+  const id = segments?.[segments.length - 1]; // 마지막 세그먼트
 
   if (!isVisible) return null;
 

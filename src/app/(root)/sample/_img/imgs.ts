@@ -1,4 +1,4 @@
-import { StaticImageData } from "next/image";
+import { ImgsType } from "@/types/time-table/image";
 import BlueBG from "./blue/bg.png";
 import BlueOffline from "./blue/offline.png";
 import BlueOnline from "./blue/online.png";
@@ -15,7 +15,7 @@ import YellowOnline from "./yellow/online.png";
 import YellowProfile from "./yellow/profile.png";
 import YellowWeek from "./yellow/week.png";
 
-export const Imgs = {
+export const Imgs: ImgsType = {
   first: {
     bg: BlueBG,
     offline: BlueOffline,
@@ -37,12 +37,4 @@ export const Imgs = {
     week: PinkWeek,
     profile: PinkProfile,
   },
-};
-
-export type ImgTypes = {
-  bg: StaticImageData;
-  offline: StaticImageData;
-  online: StaticImageData;
-  week: StaticImageData;
-  profile: StaticImageData;
 };

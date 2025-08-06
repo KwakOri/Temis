@@ -1,4 +1,4 @@
-import { StaticImageData } from "next/image";
+import { ImgsType } from "@/types/time-table/image";
 import MainArtist from "./main/artist_serah.png";
 import MainBG from "./main/bg_serah.png";
 import MainOffline from "./main/offline_serah.png";
@@ -8,7 +8,7 @@ import MainPlaceholder from "./main/placeholder_serah.png";
 import MainProfile from "./main/profile_serah.png";
 import MainWeek from "./main/week_serah.png";
 
-export const Imgs = {
+export const Imgs: ImgsType = {
   first: {
     bg: MainBG,
     offline: MainOffline,
@@ -39,15 +39,4 @@ export const Imgs = {
     placeholder: MainPlaceholder,
     artist: MainArtist,
   },
-};
-
-export type ImgTypes = {
-  bg: StaticImageData;
-  offline: StaticImageData;
-  online: StaticImageData;
-  week: StaticImageData;
-  profile: StaticImageData;
-  onlineTime: StaticImageData;
-  placeholder: StaticImageData;
-  artist: StaticImageData;
 };

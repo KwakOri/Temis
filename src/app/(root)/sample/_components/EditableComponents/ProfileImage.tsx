@@ -1,27 +1,30 @@
+import { TTheme } from "@/types/time-table/theme";
 import Image from "next/image";
 import React from "react";
 import { Imgs } from "../../_img/imgs";
 import {
   colors,
   fontOption,
-  placeholders,
   profileFrameHeight,
   profileFrameWidth,
   profileImageHeight,
   profileImageWidth,
-  TTheme,
 } from "../../_settings/settings";
 
 interface ProfileImageProps {
   currentTheme: TTheme;
   imageSrc: string | null;
   profileText: string;
+  profileTextPlaceholder: string;
+  isProfileTextVisible: boolean;
 }
 
 const ProfileImage: React.FC<ProfileImageProps> = ({
   currentTheme,
   imageSrc,
   profileText,
+  profileTextPlaceholder,
+  isProfileTextVisible,
 }) => {
   return (
     <div
@@ -32,21 +35,23 @@ const ProfileImage: React.FC<ProfileImageProps> = ({
       }}
       draggable={false}
     >
-      <div
-        style={{
-          color: colors[currentTheme]["primary"],
-        }}
-        className="absolute z-30 bottom-27 right-11 text-[36px] w-[220px] h-[60px] flex justify-center items-center"
-      >
-        <p
+      {isProfileTextVisible && (
+        <div
           style={{
-            fontFamily: fontOption.primary,
+            color: colors[currentTheme]["primary"],
           }}
-          className="text-center"
+          className="absolute z-30 bottom-27 right-11 text-[36px] w-[220px] h-[60px] flex justify-center items-center"
         >
-          {profileText ? profileText : placeholders.profileText}
-        </p>
-      </div>
+          <p
+            style={{
+              fontFamily: fontOption.primary,
+            }}
+            className="text-center"
+          >
+            {profileText ? profileText : profileTextPlaceholder}
+          </p>
+        </div>
+      )}
       <div
         className="absolute z-20"
         style={{
