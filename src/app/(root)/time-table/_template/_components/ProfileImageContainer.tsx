@@ -20,6 +20,16 @@ interface ProfileBackPlateProps {
   currentTheme?: TTheme;
 }
 
+interface ProfileImageProps {
+  imageSrc: string | null;
+}
+
+interface ProfileTextProps {
+  profileText: string;
+  profileTextPlaceholder: string;
+  isProfileTextVisible: boolean;
+}
+
 const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
   return (
     <div
@@ -42,10 +52,6 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
     </div>
   );
 };
-
-interface ProfileImageProps {
-  imageSrc: string | null;
-}
 
 const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
   return (
@@ -91,12 +97,6 @@ const ProfileFrame = () => {
     </div>
   );
 };
-
-interface ProfileTextProps {
-  profileText: string;
-  profileTextPlaceholder: string;
-  isProfileTextVisible: boolean;
-}
 
 const ProfileTextTitle = () => {
   return <p style={{ fontSize: 38, width: 172 }}>ART BY ::</p>;
