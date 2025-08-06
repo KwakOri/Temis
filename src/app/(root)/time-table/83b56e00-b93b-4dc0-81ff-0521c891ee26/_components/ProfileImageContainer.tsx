@@ -15,6 +15,56 @@ import {
   profileTextInfo,
 } from "../_settings/settings";
 
+interface ProfileTextProps {
+  profileText: string;
+  profileTextPlaceholder: string;
+  isProfileTextVisible: boolean;
+}
+
+const ProfileTextTitle = () => {
+  return (
+    <p style={{ fontSize: 28, width: 140, position: "relative" }}>
+      화공 이름 <span className="relative bottom-1">::</span>
+    </p>
+  );
+};
+
+const ProfileText = ({
+  profileText,
+  profileTextPlaceholder,
+  isProfileTextVisible,
+}: ProfileTextProps) => {
+  if (!isProfileTextVisible) return null;
+  return (
+    <div
+      style={{
+        color: colors["first"]["secondary"],
+        fontFamily: fontOption.primary,
+        bottom: 70,
+        left: 56,
+        width: "100%",
+        height: profileTextInfo.size.height,
+        filter: "blur(0.5px)",
+      }}
+      className="absolute z-30 flex justify-start items-center "
+    >
+      <ProfileTextTitle />
+      <div
+        style={{ width: 200, height: 80 }}
+        className="flex justify-center items-center"
+      >
+        <AutoResizeText
+          style={{}}
+          className="text-center"
+          maxFontSize={profileTextInfo.font.maxSize}
+        >
+          {profileText ? profileText : profileTextPlaceholder}
+        </AutoResizeText>
+      </div>
+    </div>
+  );
+};
+
 interface ProfileImageProps {
   currentTheme: TTheme;
   imageSrc: string | null;
@@ -49,30 +99,13 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
       draggable={false}
     >
       {isProfileTextVisible && (
-        <div
-          style={{
-            color: colors[currentTheme]["primary"],
-            filter: "blur(0.7px)",
-            bottom: profileTextInfo.position.bottom,
-            right: profileTextInfo.position.right,
-            width: profileTextInfo.size.width,
-            height: profileTextInfo.size.height,
-          }}
-          className="absolute z-30 flex justify-center items-center "
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors[currentTheme]["secondary"],
-            }}
-            className="text-center"
-            padding={{ right: 8, left: 8 }}
-            maxFontSize={profileTextInfo.font.maxSize}
-            minFontSize={profileTextInfo.font.minSize}
-          >
-            {profileText ? profileText : profileTextPlaceholder}
-          </AutoResizeText>
-        </div>
+        <>
+          <ProfileText
+            isProfileTextVisible={isProfileTextVisible}
+            profileText={profileText}
+            profileTextPlaceholder={profileTextPlaceholder}
+          />
+        </>
       )}
       <div
         className="absolute"
