@@ -1,5 +1,5 @@
 import Image from "next/image";
-import React from "react";
+import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
@@ -44,6 +44,11 @@ interface TimeTableCellProps {
   weekDate: Date;
   index: number;
   currentTheme: TTheme;
+}
+
+interface OfflineCardProps {
+  day: number;
+  currentTheme?: TTheme;
 }
 
 const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
@@ -133,6 +138,40 @@ const OnlineCardBG = () => {
   );
 };
 
+const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  return (
+    <div
+      className=" pointer-events-none"
+      style={{
+        paddingTop: 2,
+        width: offlineCardWidth + "px",
+        height: offlineCardHeight + "px",
+      }}
+      key={day}
+    >
+      <Image
+        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        alt="offline"
+        width={offlineCardWidth}
+        height={offlineCardHeight}
+      />
+    </div>
+  );
+};
+
+const CellContentArea = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      style={{
+        fontFamily: fontOption.primary,
+      }}
+      className="w-full h-full flex flex-col pt-[48px] px-8"
+    >
+      {children}
+    </div>
+  );
+};
+
 const TimeTableCell: React.FC<TimeTableCellProps> = ({
   time,
   weekDate,
@@ -141,24 +180,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   if (!weekDate) return "Loading";
 
   if (time.isOffline) {
-    return (
-      <div
-        className=" pointer-events-none"
-        style={{
-          paddingTop: 2,
-          width: offlineCardWidth + "px",
-          height: offlineCardHeight + "px",
-        }}
-        key={time.day}
-      >
-        <Image
-          src={Imgs[currentTheme]["offline"].src.replace("./", "/")}
-          alt="offline"
-          width={offlineCardWidth}
-          height={offlineCardHeight}
-        />
-      </div>
-    );
+    return <OfflineCard day={time.day} />;
   }
 
   return (
@@ -170,17 +192,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       key={time.day}
       className="relative"
     >
-      <div
-        style={{
-          fontFamily: fontOption.primary,
-        }}
-        className="w-full h-full flex flex-col pt-[48px] px-8"
-      >
+      <CellContentArea>
         <StreamingDay day={time.day} />
         <StreamingTime time={time.time as string} />
         <CellTextDescription description={time.description as string} />
         <CellTextTitle cellTextTitle={time.title as string} />
-      </div>
+      </CellContentArea>
       <OnlineCardBG />
     </div>
   );

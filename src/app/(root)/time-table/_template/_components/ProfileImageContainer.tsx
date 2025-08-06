@@ -30,6 +30,14 @@ interface ProfileTextProps {
   isProfileTextVisible: boolean;
 }
 
+interface ProfileImageSectionProps {
+  currentTheme: TTheme;
+  imageSrc: string | null;
+  profileText: string;
+  profileTextPlaceholder: string;
+  isProfileTextVisible: boolean;
+}
+
 const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
   return (
     <div
@@ -155,14 +163,6 @@ const ProfileImageContainer = ({ children }: PropsWithChildren) => {
   );
 };
 
-interface ProfileImageSectionProps {
-  currentTheme: TTheme;
-  imageSrc: string | null;
-  profileText: string;
-  profileTextPlaceholder: string;
-  isProfileTextVisible: boolean;
-}
-
 const ProfileImageSection = ({
   currentTheme,
   imageSrc,
@@ -177,7 +177,6 @@ const ProfileImageSection = ({
         profileTextPlaceholder={profileTextPlaceholder}
         isProfileTextVisible={isProfileTextVisible}
       />
-
       <ProfileFrame />
       <ProfileImage imageSrc={imageSrc} />
       <ProfileBackPlate />
