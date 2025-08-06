@@ -25,6 +25,27 @@ interface DayTextProps {
   day: number;
 }
 
+interface StreamingTimeProps {
+  time: string;
+  currentTheme?: TTheme;
+}
+
+interface CellTextDescriptionProps {
+  currentTheme?: TTheme;
+  description: string;
+}
+
+interface CellTextTopicProps {
+  cellTextTitle: string | null;
+}
+
+interface TimeTableCellProps {
+  time: TDefaultCard;
+  weekDate: Date;
+  index: number;
+  currentTheme: TTheme;
+}
+
 const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
   return (
     <p
@@ -41,11 +62,6 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
   );
 };
 
-interface StreamingTimeProps {
-  time: string;
-  currentTheme?: TTheme;
-}
-
 const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
   return (
     <p
@@ -61,11 +77,6 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
     </p>
   );
 };
-
-interface CellTextDescriptionProps {
-  currentTheme?: TTheme;
-  description: string;
-}
 
 const CellTextDescription = ({
   currentTheme,
@@ -92,10 +103,6 @@ const CellTextDescription = ({
     </div>
   );
 };
-
-interface CellTextTopicProps {
-  cellTextTitle: string | null;
-}
 
 const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
   return (
@@ -125,13 +132,6 @@ const OnlineCardBG = () => {
     </div>
   );
 };
-
-interface TimeTableCellProps {
-  time: TDefaultCard;
-  weekDate: Date;
-  index: number;
-  currentTheme: TTheme;
-}
 
 const TimeTableCell: React.FC<TimeTableCellProps> = ({
   time,
