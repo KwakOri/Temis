@@ -50,9 +50,13 @@ const TweetPreviewModal: React.FC<TweetPreviewModalProps> = ({
         return;
       }
 
+      // 원본 템플릿 크기나 1280x720을 기본값으로 사용
+      const targetWidth = captureSize?.width || 1280;
+      const targetHeight = captureSize?.height || 720;
+
       const dataUrl = await htmlToImage.toPng(node, {
-        width: captureSize?.width || 1280,
-        height: captureSize?.height || 720,
+        width: targetWidth,
+        height: targetHeight,
         pixelRatio: 1,
         style: {
           transform: "scale(1)",
