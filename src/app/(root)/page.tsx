@@ -10,7 +10,7 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth(); // isAuthenticated 가져오기
+  const { user, loading } = useAuth(); // user와 loading 상태 가져오기
 
   useEffect(() => {
     const onScroll = () => {
@@ -41,6 +41,13 @@ export default function Home() {
   const scrollToBottom = () => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  // 로딩 스피너 컴포넌트
+  const LoadingSpinner = () => (
+    <div className="flex items-center justify-center">
+      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
+    </div>
+  );
   return (
     <div className="w-full min-h-screen bg-gray-100 text-gray-900">
       {/* 상단 고정 바 */}
@@ -71,11 +78,17 @@ export default function Home() {
               </p>
             </a>
 
-            <Link href={user ? "/my-page" : "/auth"}>
-              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                {user ? "마이페이지" : "로그인"}
-              </p>
-            </Link>
+            {loading ? (
+              <div className="bg-gray-200 text-gray-500 font-medium px-4 py-2 rounded-lg cursor-not-allowed min-w-[80px] h-[40px] flex items-center justify-center">
+                <LoadingSpinner />
+              </div>
+            ) : (
+              <Link href={user ? "/my-page" : "/auth"}>
+                <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition min-w-[80px] h-[40px] flex items-center justify-center">
+                  {user ? "마이페이지" : "로그인"}
+                </p>
+              </Link>
+            )}
           </div>
 
           {/* 모바일 버전 - md 미만에서 표시 */}
@@ -131,30 +144,41 @@ export default function Home() {
                     <span className="font-medium">맞춤형 시간표 예약하기</span>
                   </div>
                 </a>
-                <Link
-                  href={user ? "/my-page" : "/auth"}
-                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <div className="flex items-center">
-                    <svg
-                      className="w-5 h-5 mr-3 text-gray-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    <span className="font-medium">
-                      {user ? "마이페이지" : "로그인"}
-                    </span>
+                {loading ? (
+                  <div className="block px-4 py-3 text-gray-500 cursor-not-allowed">
+                    <div className="flex items-center">
+                      <div className="w-5 h-5 mr-3 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500"></div>
+                      </div>
+                      <span className="font-medium">확인 중...</span>
+                    </div>
                   </div>
-                </Link>
+                ) : (
+                  <Link
+                    href={user ? "/my-page" : "/auth"}
+                    className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    <div className="flex items-center">
+                      <svg
+                        className="w-5 h-5 mr-3 text-gray-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                        />
+                      </svg>
+                      <span className="font-medium">
+                        {user ? "마이페이지" : "로그인"}
+                      </span>
+                    </div>
+                  </Link>
+                )}
               </div>
             )}
           </div>

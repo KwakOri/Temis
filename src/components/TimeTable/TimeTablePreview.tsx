@@ -4,12 +4,16 @@ import { PropsWithChildren, useEffect, useState } from "react";
 
 const TimeTablePreview = ({ children }: PropsWithChildren) => {
   const { state, actions } = useTimeTable();
-  const { scale, weekDates, isMobile } = state;
+  const { scale, weekDates, isMobile, captureSize } = state;
   const { updateScale } = actions;
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
-  const containerWidth = 1280 * scale;
-  const containerHeight = 720 * scale;
+  // 동적으로 템플릿 크기 사용 (기본값으로 1280x720 사용)
+  const templateWidth = captureSize?.width || 1280;
+  const templateHeight = captureSize?.height || 720;
+  
+  const containerWidth = templateWidth * scale;
+  const containerHeight = templateHeight * scale;
 
   const bind = useGesture(
     {

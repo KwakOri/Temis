@@ -1,14 +1,14 @@
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import React from "react";
-import { Imgs } from "../_img/imgs";
+import { Imgs } from "../../_img/imgs";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
-import ProfileImageSection from "./ProfileImageContainer";
-import TimeTableGrid from "./TimeTableGrid";
-import TimeTableWeekFlag from "./TimeTableWeekFlag";
+import ProfileImageSection from "../ProfileImageContainer";
+import TimeTableGrid from "../TimeTableGrid";
+import TimeTableWeekFlag from "../TimeTableWeekFlag";
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;

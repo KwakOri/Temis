@@ -68,17 +68,37 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
 };
 
 const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+  const getFormattedTimeByAki = (time: string): string => {
+    const tempArr = time.split(":");
+    const hour = Number(tempArr[0]);
+    const isAfter = hour >= 12;
+
+    // 12시간 형식으로 변환
+    let displayHour = hour;
+    if (hour === 0) {
+      displayHour = 12; // 자정 0시 -> AM 12시
+    } else if (hour > 12) {
+      displayHour = hour - 12; // 13시 이상 -> PM 1시 이상
+    }
+    // 12시(정오)는 그대로 PM 12시
+
+    tempArr[0] = displayHour.toString();
+    const amPm = isAfter ? "PM" : "AM";
+
+    return amPm + " " + getFormattedTime(tempArr.join(":"));
+  };
+
   return (
     <p
       style={{
-        color: colors[currentTheme || "first"]["tertiary"],
-        top: 11,
-        left: 2,
-        width: 120,
+        color: colors[currentTheme || "first"]["quaternary"],
+        bottom: 76,
+
+        width: 220,
       }}
-      className="absolute flex justify-center items-center h-10 text-[19px]"
+      className="absolute flex justify-center items-center h-10 text-[36px]"
     >
-      {getFormattedTime(time)}
+      {getFormattedTimeByAki(time)}
     </p>
   );
 };
@@ -90,18 +110,18 @@ const CellTextDescription = ({
   return (
     <div
       style={{
-        height: "80px",
+        height: "170px",
       }}
-      className="flex justify-center items-center "
+      className="flex justify-center items-center mt-5"
     >
       <AutoResizeText
         style={{
-          color: colors[currentTheme || "first"]["primary"],
+          color: colors[currentTheme || "first"]["secondary"],
           lineHeight: 1,
         }}
         className="leading-none text-center w-full"
         multiline={true}
-        maxFontSize={36}
+        maxFontSize={68}
       >
         {description ? (description as string) : placeholders.description}
       </AutoResizeText>
@@ -115,22 +135,36 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
       style={{
         color: colors["first"]["primary"],
       }}
-      className=" flex justify-center items-center h-[28px] text-[16px]"
+      className=" flex justify-center items-center h-[28px] text-[36px]"
     >
       {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
     </p>
   );
 };
 
-const OnlineCardBG = () => {
+interface OnlineCardBGProps {
+  day: number;
+}
+
+const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const dayName = days[day];
+
+  console.log(Imgs["first"][dayName]);
   return (
     <div
-      style={{ width: onlineCardWidth, height: onlineCardHeight }}
-      className="absolute -z-10"
+      style={{
+        width: onlineCardWidth,
+        height: onlineCardHeight,
+      }}
+      className="absolute inset-0 -z-10"
     >
       <Image
         className="object-cover"
-        src={Imgs["first"]["online"].src.replace("./", "/")}
+        style={{
+          transform: "rotate(2.7deg)",
+        }}
+        src={Imgs["first"][dayName].src.replace("./", "/")}
         alt="online"
         fill
       />
@@ -139,19 +173,23 @@ const OnlineCardBG = () => {
 };
 
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  const dayType = day % 2 ? "even" : "odd";
   return (
     <div
       className=" pointer-events-none"
       style={{
         paddingTop: 2,
-        width: offlineCardWidth + "px",
-        height: offlineCardHeight + "px",
+        width: offlineCardWidth,
+        height: offlineCardHeight,
       }}
       key={day}
     >
       <Image
-        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"][dayType].src.replace("./", "/")}
         alt="offline"
+        style={{
+          transform: "rotate(2.7deg)",
+        }}
         width={offlineCardWidth}
         height={offlineCardHeight}
       />
@@ -164,8 +202,12 @@ const CellContentArea = ({ children }: PropsWithChildren) => {
     <div
       style={{
         fontFamily: fontOption.primary,
+        width: 500,
+        height: 400,
+        marginTop: 118,
+        marginLeft: 12,
       }}
-      className="w-full h-full flex flex-col pt-[48px] px-8"
+      className="w-full h-full flex flex-col pt-16 pr-2 items-center"
     >
       {children}
     </div>
@@ -190,15 +232,14 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         height: onlineCardHeight,
       }}
       key={time.day}
-      className="relative"
+      className="relative flex justify-center"
     >
       <CellContentArea>
-        <StreamingDay day={time.day} />
-        <StreamingTime time={time.time as string} />
+        <CellTextTitle cellTextTitle={time.topic as string} />
         <CellTextDescription description={time.description as string} />
-        <CellTextTitle cellTextTitle={time.title as string} />
+        <StreamingTime time={time.time as string} />
       </CellContentArea>
-      <OnlineCardBG />
+      <OnlineCardBG day={time.day} />
     </div>
   );
 };

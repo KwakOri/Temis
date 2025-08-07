@@ -3,6 +3,13 @@
 import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
 
+export const templateSize = {
+  width: 1280,
+  height: 720,
+};
+
+/** ---------------------------------------------- */
+
 /** Fonts 설정 */
 /** Fonts 설정 */
 

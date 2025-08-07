@@ -13,7 +13,6 @@ import {
   profileImageHeight,
   profileImageInfo,
   profileImageWidth,
-  profileTextInfo,
 } from "../_settings/settings";
 
 interface ProfileBackPlateProps {
@@ -42,8 +41,8 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
   return (
     <div
       style={{
-        top: 75,
-        left: 51,
+        top: 20,
+        right: 24,
         position: "absolute",
         zIndex: "0",
         width: profileBackPlateWidth,
@@ -67,9 +66,11 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
       style={{
         width: profileImageWidth,
         height: profileImageHeight,
+        scale: "94%",
         position: "absolute",
-        top: 66,
-        left: 40,
+        top: 16,
+        right: 32,
+        transform: `rotate(${profileImageInfo.rotation}deg)`,
         zIndex: profileImageInfo.arrange === "onTop" ? 20 : 10,
       }}
     >
@@ -119,28 +120,36 @@ const ProfileText = ({
   return (
     <div
       style={{
-        color: colors["first"]["tertiary"],
+        color: colors["first"]["quaternary"],
         fontFamily: fontOption.primary,
-        bottom: 62,
-        left: 68,
-        width: "100%",
-        height: profileTextInfo.size.height,
+        bottom: -120,
+        right: 300,
+        width: 738,
+        height: 433,
       }}
       className="absolute z-30 flex justify-start items-center "
     >
-      <ProfileTextTitle />
       <div
-        style={{ width: 180, height: 80 }}
+        style={{
+          position: "relative",
+          top: 48,
+          left: 76,
+          width: 480,
+          height: 120,
+          transform: "rotate(12deg) ",
+          zIndex: 20,
+        }}
         className="flex justify-center items-center"
       >
-        <AutoResizeText
-          style={{}}
-          className="text-center"
-          maxFontSize={profileTextInfo.font.maxSize}
-        >
+        <AutoResizeText style={{}} className="text-center" maxFontSize={56}>
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
       </div>
+      <Image
+        src={Imgs["first"]["artist" as keyof (typeof Imgs)["first"]]}
+        alt=""
+        fill
+      />
     </div>
   );
 };
@@ -150,11 +159,11 @@ const ProfileImageContainer = ({ children }: PropsWithChildren) => {
     <div
       className={`absolute flex justify-center`}
       style={{
-        width: 0,
-        height: 0,
+        width: 1496,
+        height: 1707,
         transform: `rotate(0deg)`,
-        top: 0,
-        right: 0,
+        top: 376,
+        right: 164,
       }}
       draggable={false}
     >

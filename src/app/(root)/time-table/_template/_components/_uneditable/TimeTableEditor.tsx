@@ -12,14 +12,15 @@ import { useTimeTableEditor } from "@/hooks";
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { isGuideEnabled } from "@/utils/time-table/data";
-import { placeholders } from "../_settings/general";
+import { placeholders } from "../../_settings/general";
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
   profileImageHeight,
   profileImageWidth,
+  templateSize,
   weekdayOption,
-} from "../_settings/settings";
+} from "../../_settings/settings";
 import TimeTableContent from "./TimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
@@ -30,6 +31,7 @@ const TimeTableEditorContent: React.FC = () => {
     useTimeTableEditor({
       cardInputConfig: CARD_INPUT_CONFIG,
       defaultTheme: defaultTheme,
+      captureSize: templateSize,
     });
 
   // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
@@ -77,6 +79,7 @@ const TimeTableEditor: React.FC = () => {
   const { state, actions } = useTimeTableEditor({
     cardInputConfig: CARD_INPUT_CONFIG,
     defaultTheme: defaultTheme,
+    captureSize: templateSize,
   });
 
   const timeTableState = { state, actions };
