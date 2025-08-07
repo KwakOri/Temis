@@ -3,11 +3,6 @@ import { TButtonTheme } from "@/types/time-table/theme";
 
 /** ---------------------------------------------- */
 
-export const templateSize = {
-  width: 4000,
-  height: 2250,
-};
-
 /** Fonts 설정 */
 /** Fonts 설정 */
 
@@ -101,80 +96,96 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
   },
 };
 
-// CARD_INPUT_CONFIG에서 동적으로 생성된 placeholders와 추가 필드들을 병합
-
-/** ---------------------------------------------- */
-
-/** Online 카드 구성 */
-/** Online 카드 구성 */
-
-export const onlineCardWidth: number = 574;
-export const onlineCardHeight: number = 556;
-
-/** Offline 카드 구성 */
-/** Offline 카드 구성 */
-
-export const offlineCardWidth: number = 574;
-export const offlineCardHeight: number = 556;
-
-/** ---------------------------------------------- */
-
-/** Week Flag 카드 구성 */
-/** Week Flag 카드 구성 */
-
-export const weekFlagCardWidth: number = 800;
-export const weekFlagCardHeight: number = 200;
-
-/** ---------------------------------------------- */
-
-/** Profile Image 구성 */
-/** Profile Image 구성 */
-
-/** Profile Frame 크기 */
-
 export interface ProfileImageStyleProps {
   arrange: "onBottom" | "onTop";
-  rotation: number;
-  position: {
-    top: number;
-    right: number;
-  };
 }
 
 export const profileImageStyle: ProfileImageStyleProps = {
   arrange: "onBottom",
-  rotation: 4,
-  position: {
-    top: -1,
-    right: -10,
-  },
 };
-
-export const profileTextInfo = {
-  size: {
-    width: 220,
-    height: 60,
-  },
-  position: {
-    bottom: 70,
-    right: 44,
-  },
-  font: {
-    maxSize: 32,
-  },
-};
-
-export const profileFrameWidth = 1496;
-export const profileFrameHeight = 1707;
-
-/** Profile Image 크기 */
-
-export const profileImageWidth = 1327;
-export const profileImageHeight = 1484;
-
-export const profileBackPlateWidth = 1327;
-export const profileBackPlateHeight = 1484;
 
 export const profileTextPlaceholder = "작가 이름";
 
 /** ---------------------------------------------- */
+
+export const Settings = {
+  template: {
+    width: 4000,
+    height: 2250,
+  },
+  cell: {},
+  online: {
+    style: {
+      width: null,
+      height: null,
+      top: null,
+      right: null,
+    },
+  },
+  offline: {
+    style: {
+      width: null,
+      height: null,
+      top: null,
+      right: null,
+    },
+  },
+  flag: {
+    style: {
+      width: null,
+      height: null,
+      top: null,
+      right: null,
+    },
+  },
+  profile: {
+    image: {
+      style: {
+        width: null,
+        height: null,
+        top: null,
+        right: null,
+        transform: `rotate(${null}deg)`,
+      },
+    },
+    frame: {
+      style: {
+        width: null,
+        height: null,
+        top: null,
+        right: null,
+      },
+    },
+    text: {
+      wrapper: {
+        style: {
+          bottom: null,
+          right: null,
+          width: null,
+          height: null,
+        },
+      },
+      content: {
+        style: {
+          top: null,
+          left: null,
+          width: null,
+          height: null,
+          transform: `rotate(${null}deg)`,
+        },
+      },
+      font: {
+        maxSize: null,
+      },
+    },
+    backPlate: {
+      style: {
+        top: null,
+        right: null,
+        zIndex: "0",
+        width: 1327,
+        height: 1484,
+      },
+    },
+  },
+};

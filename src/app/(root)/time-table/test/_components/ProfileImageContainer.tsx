@@ -6,13 +6,8 @@ import { Imgs } from "../_img/imgs";
 import {
   colors,
   fontOption,
-  profileBackPlateHeight,
-  profileBackPlateWidth,
-  profileFrameHeight,
-  profileFrameWidth,
-  profileImageHeight,
   profileImageStyle,
-  profileImageWidth,
+  Settings,
 } from "../_settings/settings";
 
 interface ProfileBackPlateProps {
@@ -41,12 +36,8 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
   return (
     <div
       style={{
-        top: 20,
-        right: 24,
+        ...Settings.backPlate,
         position: "absolute",
-        zIndex: "0",
-        width: profileBackPlateWidth,
-        height: profileBackPlateHeight,
       }}
     >
       <Image
@@ -64,10 +55,8 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
   return (
     <div
       style={{
-        width: profileImageWidth,
-        height: profileImageHeight,
+        ...Settings.image,
         position: "absolute",
-        transform: `rotate(${profileImageStyle.rotation}deg)`,
         zIndex: profileImageStyle.arrange === "onTop" ? 20 : 10,
       }}
     >
@@ -87,8 +76,7 @@ const ProfileFrame = () => {
   return (
     <div
       style={{
-        width: profileFrameWidth,
-        height: profileFrameHeight,
+        ...Settings.frame,
         zIndex: profileImageStyle.arrange === "onTop" ? 10 : 20,
         position: "absolute",
       }}
@@ -117,28 +105,25 @@ const ProfileText = ({
   return (
     <div
       style={{
+        ...Settings.text.wrapper,
         color: colors["first"]["quaternary"],
         fontFamily: fontOption.primary,
-        bottom: -120,
-        right: 300,
-        width: 738,
-        height: 433,
       }}
       className="absolute z-30 flex justify-start items-center "
     >
       <div
         style={{
+          ...Settings.text.content,
           position: "relative",
-          top: 48,
-          left: 76,
-          width: 480,
-          height: 120,
-          transform: "rotate(12deg) ",
           zIndex: 20,
         }}
         className="flex justify-center items-center"
       >
-        <AutoResizeText style={{}} className="text-center" maxFontSize={56}>
+        <AutoResizeText
+          style={{}}
+          className="text-center"
+          maxFontSize={Settings.text.font.maxSize}
+        >
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
       </div>
