@@ -8,6 +8,7 @@ interface TweetPreviewModalProps {
   initialTweetText: string;
   twitterUsername: string | null;
   isUploading?: boolean;
+  captureSize?: { width: number; height: number };
 }
 
 const TweetPreviewModal: React.FC<TweetPreviewModalProps> = ({
@@ -16,7 +17,8 @@ const TweetPreviewModal: React.FC<TweetPreviewModalProps> = ({
   onConfirm,
   initialTweetText,
   twitterUsername,
-  isUploading = false
+  isUploading = false,
+  captureSize
 }) => {
   const [tweetText, setTweetText] = useState(initialTweetText);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -49,8 +51,8 @@ const TweetPreviewModal: React.FC<TweetPreviewModalProps> = ({
       }
 
       const dataUrl = await htmlToImage.toPng(node, {
-        width: 1280,
-        height: 720,
+        width: captureSize?.width || 1280,
+        height: captureSize?.height || 720,
         pixelRatio: 1,
         style: {
           transform: "scale(1)",

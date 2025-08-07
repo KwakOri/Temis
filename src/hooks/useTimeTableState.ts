@@ -26,14 +26,39 @@ const getThisWeekDatesFromMonday = (monday: Date): Date[] => {
 };
 
 // 초기 스케일 계산 함수
-const getInitialScale = () => {
-  if (typeof window !== "undefined") {
-    return window.innerWidth < 768 ? 0.3 : 0.5;
+const getInitialScale = (templateWidth?: number, templateHeight?: number) => {
+  if (typeof window === "undefined") {
+    return 0.5;
   }
-  return 0.5;
+
+  const isMobile = window.innerWidth < 768;
+  
+  // 템플릿 크기가 없으면 기본 배율 사용
+  if (!templateWidth || !templateHeight) {
+    return isMobile ? 0.3 : 0.5;
+  }
+
+  // 프리뷰 영역의 가용 크기 계산
+  const availableWidth = isMobile 
+    ? window.innerWidth - 32  // 모바일: 좌우 패딩 고려
+    : (window.innerWidth * 0.75) - 64; // 데스크탑: 75% 영역에서 패딩 고려
+  
+  const availableHeight = isMobile 
+    ? window.innerHeight * 0.3 - 32  // 모바일: 30vh에서 패딩 고려
+    : window.innerHeight - 120; // 데스크탑: 전체 높이에서 헤더/패딩 고려
+
+  // 가로/세로 비율 중 더 제한적인 것 기준으로 배율 계산
+  const scaleByWidth = availableWidth / templateWidth;
+  const scaleByHeight = availableHeight / templateHeight;
+  const calculatedScale = Math.min(scaleByWidth, scaleByHeight);
+
+  // 최소 0.1, 최대 1.0으로 제한
+  const clampedScale = Math.max(0.1, Math.min(calculatedScale, 1.0));
+  
+  return clampedScale;
 };
 
-export const useTimeTableState = () => {
+export const useTimeTableState = (captureSize?: { width: number; height: number }) => {
   const [profileText, setProfileText] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return pageAwareStorage.getItem("profileText", "");
@@ -59,7 +84,9 @@ export const useTimeTableState = () => {
   const [weekDates, setWeekDates] = useState<Date[]>([]);
 
   // UI 상태
-  const [scale, setScale] = useState(getInitialScale());
+  const [scale, setScale] = useState(() => 
+    getInitialScale(captureSize?.width, captureSize?.height)
+  );
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" ? window.innerWidth < 768 : false
   );
@@ -110,19 +137,26 @@ export const useTimeTableState = () => {
   }, []);
 
   // 화면 크기 변경 감지
+  // 창 크기 변경 시 배율 재계산
   useEffect(() => {
     const handleResize = () => {
       const isCurrentlyMobile = window.innerWidth < 768;
       setIsMobile(isCurrentlyMobile);
 
-      if (isCurrentlyMobile && scale > 1.0) {
-        setScale(1.0);
+      // 창 크기에 맞춰 최적 배율 재계산
+      const newOptimalScale = getInitialScale(captureSize?.width, captureSize?.height);
+      
+      // 현재 배율이 기본값들 중 하나인 경우에만 자동 조정
+      // (사용자가 수동으로 조정한 배율은 유지)
+      const defaultScales = [0.3, 0.5, 1.0];
+      if (defaultScales.some(s => Math.abs(scale - s) < 0.05) || scale > 1.0) {
+        setScale(Math.min(newOptimalScale, isCurrentlyMobile ? 1.0 : 2.0));
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [scale]);
+  }, [scale, captureSize]);
 
   // 액션 함수들
   const actions = {
@@ -159,38 +193,111 @@ export const useTimeTableState = () => {
       setIsProfileTextVisible(prev => !prev);
     },
 
-    downloadImage: () => {
+    downloadImage: async (imageScale: number = 1) => {
       const node = document.getElementById("timetable");
       if (!node) return;
 
-      // 현재 시간을 기반으로 파일명 생성
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      const seconds = String(now.getSeconds()).padStart(2, "0");
-      const fileName = `timetable_${year}${month}${day}${hours}${minutes}${seconds}.png`;
+      try {
+        // 현재 시간을 기반으로 파일명 생성
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, "0");
+        const day = String(now.getDate()).padStart(2, "0");
+        const hours = String(now.getHours()).padStart(2, "0");
+        const minutes = String(now.getMinutes()).padStart(2, "0");
+        const seconds = String(now.getSeconds()).padStart(2, "0");
+        const scalePercent = Math.round(imageScale * 100);
+        const fileName = `timetable_${year}${month}${day}${hours}${minutes}${seconds}_${scalePercent}%.png`;
 
-      domToPng(node, {
-        width: 1280,
-        height: 720,
-        scale: 1,
-        style: {
-          transform: "scale(1)",
-          transformOrigin: "top left",
-        },
-      })
-        .then((dataUrl) => {
+        // 원본 템플릿 크기 사용
+        const templateWidth = captureSize?.width || 1280;
+        const templateHeight = captureSize?.height || 720;
+
+        // 현재 스케일 임시 저장 및 원본 크기로 복원
+        const originalTransform = node.style.transform;
+        const originalWidth = node.style.width;
+        const originalHeight = node.style.height;
+        
+        // 캡처를 위해 원본 크기로 설정 (스케일 제거)
+        node.style.transform = 'scale(1)';
+        node.style.width = `${templateWidth}px`;
+        node.style.height = `${templateHeight}px`;
+        node.style.transformOrigin = 'top left';
+
+        // 폰트와 이미지 로딩 대기
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // 원본 사이즈로 캡처
+        const originalDataUrl = await domToPng(node, {
+          width: templateWidth,
+          height: templateHeight,
+          quality: 1,
+          backgroundColor: 'transparent',
+        });
+
+        // 원래 스타일 복원
+        node.style.transform = originalTransform;
+        node.style.width = originalWidth;
+        node.style.height = originalHeight;
+
+        // 캡처된 이미지를 원하는 크기로 리사이징
+        if (imageScale === 1) {
+          // 100%인 경우 원본 그대로 다운로드
           const link = document.createElement("a");
           link.download = fileName;
-          link.href = dataUrl;
+          link.href = originalDataUrl;
           link.click();
-        })
-        .catch((err) => {
-          console.error("이미지 생성 실패:", err);
-        });
+        } else {
+          // 리사이징이 필요한 경우
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            if (!ctx) return;
+
+            // 리사이징된 크기 계산
+            const scaledWidth = Math.round(templateWidth * imageScale);
+            const scaledHeight = Math.round(templateHeight * imageScale);
+            
+            canvas.width = scaledWidth;
+            canvas.height = scaledHeight;
+            
+            // 고품질 리샘플링 설정
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // 리사이징된 이미지 그리기
+            ctx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
+            
+            // 리사이징된 이미지를 다운로드
+            canvas.toBlob((blob) => {
+              if (!blob) return;
+              
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.download = fileName;
+              link.href = url;
+              link.click();
+              
+              // 메모리 정리
+              URL.revokeObjectURL(url);
+            }, 'image/png', 1);
+          };
+          
+          img.src = originalDataUrl;
+        }
+
+      } catch (err) {
+        console.error("이미지 생성 실패:", err);
+        // 에러 발생 시 원래 스타일 복원
+        const node = document.getElementById("timetable");
+        if (node) {
+          node.style.transform = originalTransform || `scale(${scale})`;
+          node.style.width = originalWidth || '';
+          node.style.height = originalHeight || '';
+        }
+      }
     },
   };
 
@@ -203,6 +310,7 @@ export const useTimeTableState = () => {
     scale,
     isMobile,
     isProfileTextVisible,
+    captureSize,
   };
 
   return { state, actions };

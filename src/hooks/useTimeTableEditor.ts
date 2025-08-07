@@ -21,13 +21,15 @@ export const useTimeTableEditor = ({
   cardInputConfig,
   defaultTheme = "first" as TTheme,
   autoSaveDelay = 1000,
+  captureSize,
 }: {
   cardInputConfig: CardInputConfig;
   defaultTheme?: TTheme;
   autoSaveDelay?: number;
+  captureSize?: { width: number; height: number };
 }) => {
   // 전역 상태 (Context에서 관리)
-  const { state, actions } = useTimeTableState();
+  const { state, actions } = useTimeTableState(captureSize);
 
   // 개별 상태 관리 훅들 (CardInputConfig 전파)
   const {
@@ -123,6 +125,7 @@ export const useTimeTableEditor = ({
 
     // 설정 정보
     cardInputConfig,
+    captureSize,
     isInitialized,
   };
 };

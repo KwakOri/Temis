@@ -2,6 +2,7 @@ import ImageCropModal from "@/components/ImageCropModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
+import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
 import { useTimeTable, useTimeTableActions } from "@/contexts/TimeTableContext";
 import { offlineToggle } from "@/utils/time-table/data";
 import React, { PropsWithChildren, useRef, useState } from "react";
@@ -22,7 +23,7 @@ const TimeTableForm = ({
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
 
-  const { profileText, mondayDateStr, imageSrc, isProfileTextVisible } = state;
+  const { profileText, mondayDateStr, imageSrc, isProfileTextVisible, captureSize } = state;
   const {
     handleProfileTextChange,
     handleDateChange,
@@ -34,6 +35,7 @@ const TimeTableForm = ({
   const [activeTab, setActiveTab] = useState("main");
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -73,6 +75,18 @@ const TimeTableForm = ({
 
   const onChangeActiveTab = (nextTab: string) => {
     setActiveTab(nextTab);
+  };
+
+  const handleSaveClick = () => {
+    setShowSaveModal(true);
+  };
+
+  const handleSaveModalClose = () => {
+    setShowSaveModal(false);
+  };
+
+  const handleImageSave = (scale: number) => {
+    downloadImage(scale);
   };
 
   const renderMainSettings = () => (
@@ -185,10 +199,10 @@ const TimeTableForm = ({
 
           <div className="p-4 border-t border-gray-300 bg-gray-50 flex gap-2">
             <button
-              onClick={downloadImage}
+              onClick={handleSaveClick}
               className="w-full bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
             >
-              이미지로 저장 (1280×720)
+              이미지로 저장
             </button>
             <ResetButton onReset={onReset} />
           </div>
@@ -206,6 +220,14 @@ const TimeTableForm = ({
           cropHeight={cropHeight}
         />
       )}
+
+      {/* 이미지 저장 배율 선택 모달 */}
+      <ImageSaveModal
+        isOpen={showSaveModal}
+        onClose={handleSaveModalClose}
+        onSave={handleImageSave}
+        templateSize={captureSize}
+      />
     </>
   );
 };

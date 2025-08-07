@@ -15,6 +15,9 @@ export interface TimeTableState {
   scale: number;
   isMobile: boolean;
   isProfileTextVisible: boolean;
+
+  // 템플릿 설정
+  captureSize: { width: number; height: number } | undefined;
 }
 
 export interface TimeTableActions {
