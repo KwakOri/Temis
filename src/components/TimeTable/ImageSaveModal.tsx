@@ -3,8 +3,15 @@ import React, { useState } from 'react';
 interface ImageSaveModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (scale: number) => void;
+  onSave: (width: number, height: number) => void;
   templateSize?: { width: number; height: number };
+}
+
+interface SizeOption {
+  width: number;
+  height: number;
+  label: string;
+  key: string;
 }
 
 const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
@@ -13,27 +20,66 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
   onSave,
   templateSize,
 }) => {
-  const [selectedScale, setSelectedScale] = useState<number>(100);
-
   // 기본 크기 설정 (templateSize가 없으면 기본값 사용)
-  const baseWidth = templateSize?.width || 4000;
-  const baseHeight = templateSize?.height || 2250;
+  const originalWidth = templateSize?.width || 1280;
+  const originalHeight = templateSize?.height || 720;
 
-  // 배율 옵션 (30%, 50%, 70%, 100%)
-  const scaleOptions = [
-    { value: 30, label: '30%' },
-    { value: 50, label: '50%' },
-    { value: 70, label: '70%' },
-    { value: 100, label: '100%' },
-  ];
+  // 16:9 비율 표준 크기 옵션 생성
+  const getSizeOptions = (): SizeOption[] => {
+    const options: SizeOption[] = [];
+    
+    // 1280 옵션 (항상 표시)
+    options.push({
+      width: 1280,
+      height: 720, // 16:9 비율
+      label: '1280p',
+      key: '1280'
+    });
+
+    // 1920 옵션 (원본이 1920보다 클 때만 표시)
+    if (originalWidth > 1920) {
+      options.push({
+        width: 1920,
+        height: 1080, // 16:9 비율
+        label: '1920p (Full HD)',
+        key: '1920'
+      });
+    }
+
+    // 4K 옵션 (원본이 3840보다 클 때만 표시)
+    if (originalWidth > 3840) {
+      options.push({
+        width: 3840,
+        height: 2160, // 16:9 비율
+        label: '4K (3840p)',
+        key: '4k'
+      });
+    }
+
+    // 원본 크기 옵션 (1280과 다를 때만 표시)
+    if (originalWidth !== 1280) {
+      const originalAspectRatio = originalHeight / originalWidth;
+      options.push({
+        width: originalWidth,
+        height: Math.round(originalWidth * originalAspectRatio),
+        label: `원본 (${originalWidth}p)`,
+        key: 'original'
+      });
+    }
+
+    return options;
+  };
+
+  const sizeOptions = getSizeOptions();
+  const [selectedOption, setSelectedOption] = useState<SizeOption>(sizeOptions[0]);
 
   const handleSave = () => {
-    onSave(selectedScale / 100); // 0.1 ~ 1.0으로 변환
+    onSave(selectedOption.width, selectedOption.height);
     onClose();
   };
 
   const handleClose = () => {
-    setSelectedScale(100); // 기본값으로 리셋
+    setSelectedOption(sizeOptions[0]); // 첫 번째 옵션으로 리셋
     onClose();
   };
 
@@ -44,7 +90,7 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         {/* 모달 헤더 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">이미지 저장 배율 선택</h2>
+          <h2 className="text-xl font-bold text-gray-900">이미지 저장 크기 선택</h2>
           <button
             onClick={handleClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -59,42 +105,64 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6">
           <div className="mb-4">
             <p className="text-sm text-gray-600 mb-4">
-              저장할 이미지의 해상도를 선택하세요. 높은 배율일수록 더 선명한 이미지가 저장됩니다.
+              저장할 이미지의 해상도를 선택하세요. 모든 크기는 16:9 비율로 표준화됩니다.
             </p>
           </div>
 
-          {/* 배율 선택 그리드 */}
-          <div className="grid grid-cols-2 gap-4">
-            {scaleOptions.map((option) => (
+          {/* 크기 선택 옵션 */}
+          <div className="space-y-3">
+            {sizeOptions.map((option) => (
               <button
-                key={option.value}
-                onClick={() => setSelectedScale(option.value)}
+                key={option.key}
+                onClick={() => setSelectedOption(option)}
                 className={`
-                  p-4 rounded-lg border-2 transition-all duration-200 text-center font-medium
-                  ${selectedScale === option.value
+                  w-full p-4 rounded-lg border-2 transition-all duration-200 text-left font-medium
+                  ${selectedOption.key === option.key
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-gray-200 hover:border-gray-300 text-gray-700'
                   }
                 `}
               >
-                <div className="text-lg font-bold">{option.label}</div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {Math.round(baseWidth * option.value / 100)}×{Math.round(baseHeight * option.value / 100)}
+                <div className="flex items-center justify-between">
+                  <div className="text-lg font-bold">{option.label}</div>
+                  <div className="text-sm text-gray-500">
+                    {option.width}×{option.height}px
+                  </div>
                 </div>
+                {option.key === 'original' && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    원본 템플릿 크기
+                  </div>
+                )}
+                {option.key === '1920' && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    풀HD 해상도
+                  </div>
+                )}
+                {option.key === '4k' && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Ultra HD (4K) 해상도
+                  </div>
+                )}
+                {option.key === '1280' && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    표준 HD 해상도
+                  </div>
+                )}
               </button>
             ))}
           </div>
 
-          {/* 선택된 배율 정보 */}
+          {/* 선택된 크기 정보 */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">선택된 배율:</span>
-              <span className="font-semibold text-gray-900">{selectedScale}%</span>
+              <span className="text-sm text-gray-600">선택된 크기:</span>
+              <span className="font-semibold text-gray-900">{selectedOption.label}</span>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-sm text-gray-600">저장될 크기:</span>
+              <span className="text-sm text-gray-600">해상도:</span>
               <span className="font-semibold text-gray-900">
-                {Math.round(baseWidth * selectedScale / 100)}×{Math.round(baseHeight * selectedScale / 100)}px
+                {selectedOption.width}×{selectedOption.height}px
               </span>
             </div>
           </div>

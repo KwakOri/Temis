@@ -193,7 +193,7 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
       setIsProfileTextVisible(prev => !prev);
     },
 
-    downloadImage: async (imageScale = 1) => {
+    downloadImage: async (targetWidth: number, targetHeight: number) => {
       const node = document.getElementById("timetable");
       if (!node) return;
 
@@ -206,8 +206,7 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
         const hours = String(now.getHours()).padStart(2, "0");
         const minutes = String(now.getMinutes()).padStart(2, "0");
         const seconds = String(now.getSeconds()).padStart(2, "0");
-        const scalePercent = Math.round(imageScale * 100);
-        const fileName = `timetable_${year}${month}${day}${hours}${minutes}${seconds}_${scalePercent}%.png`;
+        const fileName = `timetable_${year}${month}${day}${hours}${minutes}${seconds}_${targetWidth}x${targetHeight}.png`;
 
         // 원본 템플릿 크기 사용
         const templateWidth = captureSize?.width || 1280;
@@ -240,9 +239,9 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
         node.style.width = originalWidth;
         node.style.height = originalHeight;
 
-        // 캡처된 이미지를 원하는 크기로 리사이징
-        if (imageScale === 1) {
-          // 100%인 경우 원본 그대로 다운로드
+        // 캡처된 이미지를 타겟 크기로 리사이징
+        if (targetWidth === templateWidth && targetHeight === templateHeight) {
+          // 원본 크기와 같은 경우 원본 그대로 다운로드
           const link = document.createElement("a");
           link.download = fileName;
           link.href = originalDataUrl;
@@ -256,19 +255,15 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
             
             if (!ctx) return;
 
-            // 리사이징된 크기 계산
-            const scaledWidth = Math.round(templateWidth * imageScale);
-            const scaledHeight = Math.round(templateHeight * imageScale);
-            
-            canvas.width = scaledWidth;
-            canvas.height = scaledHeight;
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
             
             // 고품질 리샘플링 설정
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
             
-            // 리사이징된 이미지 그리기
-            ctx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
+            // 타겟 크기로 리사이징된 이미지 그리기
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
             
             // 리사이징된 이미지를 다운로드
             canvas.toBlob((blob) => {
