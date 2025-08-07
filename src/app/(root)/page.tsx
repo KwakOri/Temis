@@ -211,8 +211,6 @@ export default function Home() {
       <PortfolioGallery 
         totalItems={11} 
         speedPxPerSecond={50}
-        cardWidth={200}
-        gap={16}
       />
 
       <section className="py-20 bg-[#2b303d] text-white px-4 text-center">
