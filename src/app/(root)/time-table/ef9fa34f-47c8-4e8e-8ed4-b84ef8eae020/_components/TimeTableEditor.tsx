@@ -16,6 +16,7 @@ import {
   defaultTheme,
   profileImageWidth,
   profileImageHeight,
+  templateSize,
   weekdayOption,
 } from "../_settings/settings";
 import TimeTableContent from "./TimeTableContent";
@@ -74,6 +75,7 @@ const TimeTableEditor: React.FC = () => {
   const { state, actions } = useTimeTableEditor({
     cardInputConfig: CARD_INPUT_CONFIG,
     defaultTheme: defaultTheme,
+    captureSize: templateSize,
   });
 
   const timeTableState = { state, actions };

@@ -15,8 +15,6 @@ interface UseTemplateAccessResult {
   reason: "admin_access" | "template_access" | "no_access" | null;
 }
 
-console.log("hello");
-
 export function useTemplateAccess({
   templateId,
 }: UseTemplateAccessProps): UseTemplateAccessResult {

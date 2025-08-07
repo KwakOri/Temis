@@ -55,7 +55,6 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
           style={{
             color: colors[currentTheme]["tertiary"],
             fontFamily: fontOption.primary,
-            filter: "blur(0.7px)",
             bottom: 62,
             left: 68,
             width: "100%",

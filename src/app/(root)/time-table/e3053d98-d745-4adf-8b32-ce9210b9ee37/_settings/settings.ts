@@ -3,6 +3,13 @@ import { TButtonTheme } from "@/types/time-table/theme";
 
 /** ---------------------------------------------- */
 
+export const templateSize = {
+  width: 1280,
+  height: 720,
+};
+
+/** ---------------------------------------------- */
+
 /** Fonts 설정 */
 /** Fonts 설정 */
 
