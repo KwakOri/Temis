@@ -14,8 +14,8 @@ import { placeholders } from "../_settings/general";
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
-  profileImageWidth,
   profileImageHeight,
+  profileImageWidth,
   templateSize,
   weekdayOption,
 } from "../_settings/settings";
@@ -28,6 +28,7 @@ const TimeTableEditorContent: React.FC = () => {
     useTimeTableEditor({
       cardInputConfig: CARD_INPUT_CONFIG,
       defaultTheme: defaultTheme,
+      captureSize: templateSize,
     });
 
   // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
@@ -49,8 +50,8 @@ const TimeTableEditorContent: React.FC = () => {
             placeholders={placeholders}
           />
         </TimeTablePreview>
-        <TimeTableForm 
-          onReset={resetData} 
+        <TimeTableForm
+          onReset={resetData}
           addons={null}
           cropWidth={profileImageWidth}
           cropHeight={profileImageHeight}

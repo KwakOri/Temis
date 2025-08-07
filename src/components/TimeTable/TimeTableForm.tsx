@@ -91,8 +91,8 @@ const TimeTableForm = ({
     setShowSaveModal(false);
   };
 
-  const handleImageSave = (scale: number) => {
-    downloadImage(scale);
+  const handleImageSave = (width: number, height: number) => {
+    downloadImage(width, height);
   };
 
   const renderMainSettings = () => (
