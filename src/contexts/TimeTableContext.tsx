@@ -38,7 +38,7 @@ export interface TimeTableActions {
 
   handleDateChange: (dateStr: string) => void;
   toggleProfileTextVisible: () => void;
-  downloadImage: () => void;
+  downloadImage: (imageScale?: number) => Promise<void>;
 }
 
 export interface TimeTableContextType {

@@ -193,7 +193,7 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
       setIsProfileTextVisible(prev => !prev);
     },
 
-    downloadImage: async (imageScale: number = 1) => {
+    downloadImage: async (imageScale = 1) => {
       const node = document.getElementById("timetable");
       if (!node) return;
 
@@ -293,9 +293,9 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
         // 에러 발생 시 원래 스타일 복원
         const node = document.getElementById("timetable");
         if (node) {
-          node.style.transform = originalTransform || `scale(${scale})`;
-          node.style.width = originalWidth || '';
-          node.style.height = originalHeight || '';
+          node.style.transform = `scale(${scale})`;
+          node.style.width = '';
+          node.style.height = '';
         }
       }
     },

@@ -1,9 +1,9 @@
 import ImageCropModal from "@/components/ImageCropModal";
+import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
-import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
-import { useTimeTable, useTimeTableActions } from "@/contexts/TimeTableContext";
+import { useTimeTable } from "@/contexts/TimeTableContext";
 import { offlineToggle } from "@/utils/time-table/data";
 import React, { PropsWithChildren, useRef, useState } from "react";
 
@@ -23,14 +23,20 @@ const TimeTableForm = ({
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
 
-  const { profileText, mondayDateStr, imageSrc, isProfileTextVisible, captureSize } = state;
+  const {
+    profileText,
+    mondayDateStr,
+    imageSrc,
+    isProfileTextVisible,
+    captureSize,
+  } = state;
   const {
     handleProfileTextChange,
     handleDateChange,
     updateImageSrc,
     toggleProfileTextVisible,
+    downloadImage,
   } = actions;
-  const { downloadImage } = useTimeTableActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState("main");
   const [showCropModal, setShowCropModal] = useState(false);

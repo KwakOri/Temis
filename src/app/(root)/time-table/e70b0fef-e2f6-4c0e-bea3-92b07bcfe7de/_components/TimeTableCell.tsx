@@ -235,7 +235,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       className="relative flex justify-center"
     >
       <CellContentArea>
-        <CellTextTitle cellTextTitle={time.title as string} />
+        <CellTextTitle cellTextTitle={time.topic as string} />
         <CellTextDescription description={time.description as string} />
         <StreamingTime time={time.time as string} />
       </CellContentArea>
