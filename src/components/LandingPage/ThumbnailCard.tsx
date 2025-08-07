@@ -1,17 +1,27 @@
 import Image from "next/image";
 
-type Props = { id: number };
+interface ThumbnailCardProps {
+  id: number;
+  cardWidth?: number;
+  cardHeight?: number;
+}
 
-const ThumbnailCard = ({ id }: Props) => (
+const ThumbnailCard = ({ id, cardWidth = 300, cardHeight = 200 }: ThumbnailCardProps) => (
   <div className="relative group">
     {/* 썸네일 카드 */}
-    <div className="w-[300px] h-[200px] aspect-square rounded-xl overflow-hidden bg-gray-100 shadow-md hover-card">
+    <div 
+      className="rounded-xl overflow-hidden bg-gray-100 shadow-md hover-card transition-all duration-300"
+      style={{
+        width: `${cardWidth}px`,
+        height: `${cardHeight}px`,
+      }}
+    >
       <Image
         src={`/img/landing_page/thumbnail/${id}.png`}
         alt={`작업물 ${id}`}
         className="w-full h-full object-cover"
-        width={300}
-        height={200}
+        width={cardWidth}
+        height={cardHeight}
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
       />
