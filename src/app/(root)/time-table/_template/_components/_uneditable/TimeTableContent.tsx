@@ -6,6 +6,8 @@ import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
+import Image from "next/image";
+import { templateSize } from "../../_settings/settings";
 import ProfileImageSection from "../ProfileImageContainer";
 import TimeTableGrid from "../TimeTableGrid";
 import TimeTableWeekFlag from "../TimeTableWeekFlag";
@@ -29,16 +31,35 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   return (
     <div
       id="timetable"
-      className="w-[1280px] h-[720px] box-border text-[26px] select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
+      className=" box-border select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
       style={{
         transform: `scale(${scale})`,
         backgroundImage: `url(${Imgs[currentTheme].bg.src})`,
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
+        width: templateSize.width,
+        height: templateSize.height,
       }}
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
+      <div
+        style={{
+          width: 4000,
+          height: 2192,
+          position: "absolute",
+          zIndex: 30,
+          top: 16,
+        }}
+      >
+        <Image
+          src={Imgs["first"]["topObject"].src}
+          alt={"top-object"}
+          fill
+          draggable={false}
+        />
+      </div>
+
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}
