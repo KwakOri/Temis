@@ -38,10 +38,12 @@ const TimeTableWeekFlag = ({
         height: weekFlagCardHeight,
         top: 550,
         right: 1020,
-        lineHeight: 1.2,
+        outline: "1px solid red",
       }}
     >
-      {startDate} - {endDate}
+      <span>
+        {startDate} - {endDate}
+      </span>
     </div>
   );
 };
