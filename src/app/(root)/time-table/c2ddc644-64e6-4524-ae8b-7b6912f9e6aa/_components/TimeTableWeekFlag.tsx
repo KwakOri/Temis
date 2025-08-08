@@ -29,15 +29,16 @@ const TimeTableWeekFlag = ({
 
   return (
     <div
-      className="absolute z-40 flex justify-center"
+      className="absolute z-40 flex justify-center items-center"
       style={{
         fontFamily: fontOption.primary,
         color: colors["first"]["primary"],
         fontSize: 66,
         width: weekFlagCardWidth,
         height: weekFlagCardHeight,
-        top: 560,
+        top: 550,
         right: 1020,
+        lineHeight: 1.2,
       }}
     >
       {startDate} - {endDate}
