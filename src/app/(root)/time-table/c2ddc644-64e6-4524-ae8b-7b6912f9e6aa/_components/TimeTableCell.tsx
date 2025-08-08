@@ -97,6 +97,7 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
       <p
         style={{
           color: colors[currentTheme || "first"]["primary"],
+          lineHeight: 1.2,
         }}
         className="relative z-10 flex justify-center items-center text-[40px] "
       >
