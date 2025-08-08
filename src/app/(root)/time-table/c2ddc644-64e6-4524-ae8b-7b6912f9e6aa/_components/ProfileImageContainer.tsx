@@ -104,7 +104,11 @@ const ProfileText = ({
         }}
         className="flex justify-center items-center"
       >
-        <AutoResizeText style={{}} className="text-center" maxFontSize={40}>
+        <AutoResizeText
+          style={{ lineHeight: 1.2 }}
+          className="text-center"
+          maxFontSize={40}
+        >
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
       </div>
