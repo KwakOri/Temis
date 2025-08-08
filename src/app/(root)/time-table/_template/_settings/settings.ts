@@ -4,8 +4,8 @@ import { TButtonTheme } from "@/types/time-table/theme";
 /** ---------------------------------------------- */
 
 export const templateSize = {
-  width: 1280,
-  height: 720,
+  width: 4000,
+  height: 2250,
 };
 
 /** Fonts 설정 */
@@ -14,7 +14,7 @@ export const templateSize = {
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const fontOption = {
-  primary: "BagelFatOne-Regular",
+  primary: "HakgyoansimAllimjangTTF-R",
   secondary: "",
   tertiary: "",
   quaternary: "",
@@ -45,10 +45,10 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const colors = {
   first: {
-    primary: "#313F68",
-    secondary: "#4C609B",
-    tertiary: "#FFFFFF",
-    quaternary: "",
+    primary: "#C6AC88",
+    secondary: "#3D251C",
+    tertiary: "#AD9A89",
+    quaternary: "#FFFFFF",
   },
   second: {
     primary: "",
@@ -66,12 +66,6 @@ export const colors = {
 
 /** ---------------------------------------------- */
 
-/** Online 카드 구성 */
-/** Online 카드 구성 */
-
-export const onlineCardWidth: number = 242;
-export const onlineCardHeight: number = 184;
-
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
 export const CARD_INPUT_CONFIG: CardInputConfig = {
@@ -79,21 +73,21 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     {
       key: "time",
       type: "time",
-      placeholder: "00:00",
+      placeholder: "10:00",
       required: true,
-      defaultValue: "09:00",
+      defaultValue: "10:00",
     },
     {
       key: "topic",
       type: "text",
-      placeholder: "소제목 적는곳",
+      placeholder: "소제목 적는 곳",
       defaultValue: "",
       maxLength: 50,
     },
     {
       key: "description",
       type: "textarea",
-      placeholder: "메인 제목\n적는곳",
+      placeholder: "메인타이틀\n적는 곳",
       defaultValue: "",
       maxLength: 200,
     },
@@ -111,19 +105,25 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 
 /** ---------------------------------------------- */
 
+/** Online 카드 구성 */
+/** Online 카드 구성 */
+
+export const onlineCardWidth: number = 574;
+export const onlineCardHeight: number = 556;
+
 /** Offline 카드 구성 */
 /** Offline 카드 구성 */
 
-export const offlineCardWidth: number = 242;
-export const offlineCardHeight: number = 184;
+export const offlineCardWidth: number = 574;
+export const offlineCardHeight: number = 556;
 
 /** ---------------------------------------------- */
 
 /** Week Flag 카드 구성 */
 /** Week Flag 카드 구성 */
 
-export const weekFlagCardWidth: number = 0;
-export const weekFlagCardHeight: number = 0;
+export const weekFlagCardWidth: number = 800;
+export const weekFlagCardHeight: number = 200;
 
 /** ---------------------------------------------- */
 
@@ -132,7 +132,7 @@ export const weekFlagCardHeight: number = 0;
 
 /** Profile Frame 크기 */
 
-export interface ProfileImageInfoInterface {
+export interface ProfileImageStyleProps {
   arrange: "onBottom" | "onTop";
   rotation: number;
   position: {
@@ -141,9 +141,9 @@ export interface ProfileImageInfoInterface {
   };
 }
 
-export const profileImageInfo: ProfileImageInfoInterface = {
+export const profileImageStyle: ProfileImageStyleProps = {
   arrange: "onBottom",
-  rotation: 4.6,
+  rotation: 4,
   position: {
     top: -1,
     right: -10,
@@ -161,20 +161,19 @@ export const profileTextInfo = {
   },
   font: {
     maxSize: 32,
-    minSize: 16,
   },
 };
 
-export const profileFrameWidth = 482;
-export const profileFrameHeight = 711;
+export const profileFrameWidth = 1496;
+export const profileFrameHeight = 1707;
 
 /** Profile Image 크기 */
 
-export const profileImageWidth = 384;
-export const profileImageHeight = 498;
+export const profileImageWidth = 1327;
+export const profileImageHeight = 1484;
 
-export const profileBackPlateWidth = 356;
-export const profileBackPlateHeight = 475;
+export const profileBackPlateWidth = 1327;
+export const profileBackPlateHeight = 1484;
 
 export const profileTextPlaceholder = "작가 이름";
 
