@@ -36,7 +36,7 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
   return (
     <div
       style={{
-        ...Settings.backPlate,
+        ...Settings.profile.backPlate.style,
         position: "absolute",
       }}
     >
@@ -55,7 +55,7 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
   return (
     <div
       style={{
-        ...Settings.image,
+        ...Settings.profile.image.style,
         position: "absolute",
         zIndex: profileImageStyle.arrange === "onTop" ? 20 : 10,
       }}
@@ -76,7 +76,7 @@ const ProfileFrame = () => {
   return (
     <div
       style={{
-        ...Settings.frame,
+        ...Settings.profile.frame.style,
         zIndex: profileImageStyle.arrange === "onTop" ? 10 : 20,
         position: "absolute",
       }}
@@ -105,7 +105,7 @@ const ProfileText = ({
   return (
     <div
       style={{
-        ...Settings.text.wrapper,
+        ...Settings.profile.text.wrapper.style,
         color: colors["first"]["quaternary"],
         fontFamily: fontOption.primary,
       }}
@@ -113,7 +113,7 @@ const ProfileText = ({
     >
       <div
         style={{
-          ...Settings.text.content,
+          ...Settings.profile.text.content.style,
           position: "relative",
           zIndex: 20,
         }}
@@ -122,7 +122,7 @@ const ProfileText = ({
         <AutoResizeText
           style={{}}
           className="text-center"
-          maxFontSize={Settings.text.font.maxSize}
+          maxFontSize={Settings.profile.text.font.maxSize}
         >
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>

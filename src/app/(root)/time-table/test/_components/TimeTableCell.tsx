@@ -31,7 +31,6 @@ interface CellTextDescriptionProps {
   currentTheme?: TTheme;
   description: string;
 }
-
 interface CellTextTopicProps {
   cellTextTitle: string | null;
 }
@@ -150,7 +149,7 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
   return (
     <div
       style={{
-        ...Settings.offline,
+        ...Settings.offline.style,
       }}
       className="absolute inset-0 -z-10"
     >
@@ -173,7 +172,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
     <div
       className=" pointer-events-none"
       style={{
-        ...Settings.offline,
+        ...Settings.offline.style,
       }}
       key={day}
     >
@@ -183,8 +182,8 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
         style={{
           transform: "rotate(2.7deg)",
         }}
-        width={Settings.offline.width}
-        height={Settings.offline.height}
+        width={Settings.offline.style.width}
+        height={Settings.offline.style.height}
       />
     </div>
   );
@@ -221,8 +220,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   return (
     <div
       style={{
-        width: onlineCardWidth,
-        height: onlineCardHeight,
+        width: Settings.offline.style.width,
+        height: Settings.offline.style.height,
       }}
       key={time.day}
       className="relative flex justify-center"

@@ -7,7 +7,7 @@ import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
 import Image from "next/image";
-import { Settings.template } from "../../_settings/settings";
+import { Settings } from "../../_settings/settings";
 import ProfileImageSection from "../ProfileImageContainer";
 import TimeTableGrid from "../TimeTableGrid";
 import TimeTableWeekFlag from "../TimeTableWeekFlag";
