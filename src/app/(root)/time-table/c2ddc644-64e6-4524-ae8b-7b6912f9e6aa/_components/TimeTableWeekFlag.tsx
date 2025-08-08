@@ -36,9 +36,8 @@ const TimeTableWeekFlag = ({
         fontSize: 66,
         width: weekFlagCardWidth,
         height: weekFlagCardHeight,
-        top: 550,
+        top: 548,
         right: 1020,
-        outline: "1px solid red",
       }}
     >
       <span>
