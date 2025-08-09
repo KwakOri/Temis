@@ -17,14 +17,17 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
 }) => {
   return (
     <div
-      className="absolute  grid grid-cols-3 z-20"
+      className="absolute grid grid-cols-3 z-20"
       style={{
-        top: 0,
-        left: 0,
-        columnGap: 6,
-        rowGap: 0,
+        bottom: 90,
+        left: 280,
+        transform: "rotate(-2deg)",
+        columnGap: 24,
+        rowGap: 14,
       }}
     >
+      <div></div>
+      <div></div>
       {data.map((time, i) => (
         <TimeTableCell
           key={time.day}

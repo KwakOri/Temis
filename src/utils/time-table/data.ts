@@ -175,5 +175,7 @@ export const offlineToggle = {
   inactiveColor: "bg-gray-300",
 };
 
+export const fillZero = (num: number) => num.toString().padStart(2, "0");
+
 export const isGuideEnabled =
   process.env.NEXT_PUBLIC_ENVIRONMENT === "development";
