@@ -262,8 +262,8 @@ const WeekDay = ({ day }: WeekDayProps) => {
       style={{
         fontFamily: fontOption.primary,
         color: colors["first"]["primary"],
-        top: 40,
-        left: 35,
+        top: 41,
+        left: 34,
         width: 100,
         height: 100,
       }}
