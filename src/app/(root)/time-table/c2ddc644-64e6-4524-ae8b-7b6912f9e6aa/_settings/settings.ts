@@ -129,7 +129,7 @@ export const offlineCardHeight: number = 657;
 /** Week Flag 카드 구성 */
 
 export const weekFlagCardWidth: number = 1080;
-export const weekFlagCardHeight: number = 120;
+export const weekFlagCardHeight: number = 100;
 
 /** ---------------------------------------------- */
 
