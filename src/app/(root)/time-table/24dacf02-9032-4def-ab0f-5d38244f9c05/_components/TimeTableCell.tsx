@@ -71,14 +71,14 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
     <div
       style={{
         width: 80,
-        height: 300,
+        height: 332,
         bottom: 42,
-        right: 48,
+        right: 54,
         color: colors[currentTheme || "first"]["secondary"],
         lineHeight: 1,
         transform: "rotate(22deg)",
       }}
-      className="absolute flex flex-col justify-center items-center shrink-0 text-[40px] "
+      className="absolute flex flex-col justify-center items-center shrink-0 text-[44px] "
     >
       {formatTime(time, "full", false)
         .split("")
