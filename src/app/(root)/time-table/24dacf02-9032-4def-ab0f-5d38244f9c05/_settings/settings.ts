@@ -111,14 +111,14 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 /** Online 카드 구성 */
 /** Online 카드 구성 */
 
-export const onlineCardWidth: number = 806;
-export const onlineCardHeight: number = 477;
+export const onlineCardWidth: number = 860;
+export const onlineCardHeight: number = 510;
 
 /** Offline 카드 구성 */
 /** Offline 카드 구성 */
 
-export const offlineCardWidth: number = 718;
-export const offlineCardHeight: number = 551;
+export const offlineCardWidth: number = 770;
+export const offlineCardHeight: number = 590;
 
 export const cardContainerWidth: number = Math.max(
   onlineCardWidth,

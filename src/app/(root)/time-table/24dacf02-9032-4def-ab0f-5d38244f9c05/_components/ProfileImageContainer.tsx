@@ -122,7 +122,7 @@ const ProfileText = ({
         height: 482,
         transform: "rotate(5deg)",
       }}
-      className="absolute z-30 flex justify-center items-start pt-28 pr-8"
+      className="absolute z-30 flex justify-center items-start pt-26 pr-8"
     >
       <div
         style={{
