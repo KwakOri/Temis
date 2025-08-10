@@ -106,7 +106,7 @@ const CellTextDescription = ({
         }}
         className="leading-none text-center w-full"
         multiline={true}
-        maxFontSize={88}
+        maxFontSize={92}
         minFontSize={20}
       >
         {description ? (description as string) : placeholders.description}
@@ -181,7 +181,7 @@ const CellContentArea = ({ children }: PropsWithChildren) => {
         fontFamily: fontOption.primary,
         width: 440,
         height: 340,
-        marginTop: 72,
+        marginTop: 84,
         marginLeft: 52,
       }}
       className="w-full h-full flex flex-col items-center"
