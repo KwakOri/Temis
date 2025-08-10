@@ -19,11 +19,11 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
     <div
       className="absolute grid grid-cols-3 z-30"
       style={{
-        bottom: 110,
+        bottom: 120,
         left: 24,
-        transform: "rotate(-2.4deg)",
-        columnGap: 68,
-        rowGap: 80,
+        transform: "rotate(-2deg)",
+        columnGap: 6,
+        rowGap: 42,
       }}
     >
       <div></div>
