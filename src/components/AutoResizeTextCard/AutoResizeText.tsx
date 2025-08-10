@@ -35,6 +35,26 @@ const AutoResizeText: React.FC<Props> = ({
     const parent = el.parentElement;
     if (!parent) return;
 
+    // 정확한 텍스트 너비 측정을 위한 헬퍼 함수
+    const measureTextWidth = (fontSize: number): number => {
+      // 임시 측정 요소 생성
+      const tempEl = document.createElement('div');
+      tempEl.style.position = 'absolute';
+      tempEl.style.visibility = 'hidden';
+      tempEl.style.whiteSpace = 'nowrap';
+      tempEl.style.fontSize = `${fontSize}px`;
+      tempEl.style.fontFamily = el.style.fontFamily || 'inherit';
+      tempEl.style.fontWeight = el.style.fontWeight || 'inherit';
+      tempEl.style.letterSpacing = el.style.letterSpacing || 'inherit';
+      tempEl.textContent = children;
+      
+      document.body.appendChild(tempEl);
+      const width = tempEl.scrollWidth;
+      document.body.removeChild(tempEl);
+      
+      return width;
+    };
+
     const calculateFontSize = () => {
       // padding 값을 객체로 변환
       const paddingValues =
@@ -77,13 +97,28 @@ const AutoResizeText: React.FC<Props> = ({
       let iterations = 0;
       const maxIterations = 100; // 무한 루프 방지
       
-      while (
-        (el.scrollWidth > availableWidth || el.scrollHeight > availableHeight) &&
-        currentFont > minFontSize &&
-        iterations < maxIterations
-      ) {
-        currentFont -= 0.5;
+      while (currentFont > minFontSize && iterations < maxIterations) {
         el.style.fontSize = `${currentFont}px`;
+        
+        let exceedsWidth = false;
+        let exceedsHeight = false;
+
+        if (multiline) {
+          // multiline 모드에서는 실제 렌더링된 크기와 정확한 텍스트 너비를 모두 확인
+          const singleLineWidth = measureTextWidth(currentFont);
+          exceedsWidth = singleLineWidth > availableWidth && el.scrollWidth > availableWidth;
+          exceedsHeight = el.scrollHeight > availableHeight;
+        } else {
+          // single line 모드에서는 scrollWidth 사용
+          exceedsWidth = el.scrollWidth > availableWidth;
+          exceedsHeight = el.scrollHeight > availableHeight;
+        }
+
+        if (!exceedsWidth && !exceedsHeight) {
+          break;
+        }
+
+        currentFont -= 0.5;
         iterations++;
       }
 

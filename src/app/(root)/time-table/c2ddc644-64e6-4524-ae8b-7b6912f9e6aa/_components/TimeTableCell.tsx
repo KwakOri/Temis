@@ -128,7 +128,7 @@ const CellTextDescription = ({
         <AutoResizeText
           style={{
             color: colors[currentTheme || "first"]["primary"],
-            lineHeight: 1,
+            lineHeight: 1.2,
           }}
           className="leading-none text-center w-full"
           multiline={true}
