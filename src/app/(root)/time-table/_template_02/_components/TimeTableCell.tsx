@@ -1,0 +1,318 @@
+import Image from "next/image";
+import React, { PropsWithChildren } from "react";
+
+import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TTheme } from "@/types/time-table/theme";
+import { fillZero, TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { Imgs } from "../_img/imgs";
+import { placeholders } from "../_settings/general";
+import {
+  colors,
+  fontOption,
+  offlineCardHeight,
+  offlineCardWidth,
+  onlineCardHeight,
+  onlineCardWidth,
+  weekdayOption,
+} from "../_settings/settings";
+
+interface DayTextProps {
+  currentTheme?: TTheme;
+  day: number;
+}
+
+interface StreamingTimeProps {
+  time: string;
+  currentTheme?: TTheme;
+}
+
+interface CellTextDescriptionProps {
+  currentTheme?: TTheme;
+  description: string;
+}
+
+interface CellTextTopicProps {
+  cellTextTitle: string | null;
+}
+
+interface TimeTableCellProps {
+  time: TDefaultCard;
+  weekDate: Date;
+  index: number;
+  currentTheme: TTheme;
+}
+
+interface OfflineCardProps {
+  day: number;
+  currentTheme?: TTheme;
+}
+
+const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
+  return (
+    <p
+      style={{
+        color: colors[currentTheme || "first"]["tertiary"],
+        top: 11,
+        left: 2,
+        width: 120,
+      }}
+      className="absolute flex justify-center items-center h-10 text-[19px]"
+    >
+      {weekdays[weekdayOption][day]}
+    </p>
+  );
+};
+
+const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+  const getFormattedStreamingTime = (time: string): string => {
+    const tempArr = time.split(":");
+    const hour = Number(tempArr[0]);
+    const isAfter = hour >= 12;
+
+    // 12시간 형식으로 변환
+    let displayHour = hour;
+    if (hour === 0) {
+      displayHour = 12; // 자정 0시 -> AM 12시
+    } else if (hour > 12) {
+      displayHour = hour - 12; // 13시 이상 -> PM 1시 이상
+    }
+    // 12시(정오)는 그대로 PM 12시
+
+    tempArr[0] = displayHour.toString();
+    const amPm = isAfter ? "PM" : "AM";
+
+    return amPm + " " + fillZero(Number(tempArr[0])) + ":" + tempArr[1];
+  };
+
+  return (
+    <div
+      style={{
+        width: 326,
+        height: 90,
+        bottom: -18,
+        right: 60,
+      }}
+      className="absolute flex justify-center items-center shrink-0"
+    >
+      <p
+        style={{
+          color: colors[currentTheme || "first"]["primary"],
+          lineHeight: 1.2,
+        }}
+        className="relative z-10 flex justify-center items-center text-[40px] "
+      >
+        {getFormattedStreamingTime(time)}
+      </p>
+      <Image
+        alt=""
+        src={Imgs["first"]["onlineTime" as keyof (typeof Imgs)["first"]]}
+        fill
+      />
+    </div>
+  );
+};
+
+const CellTextDescription = ({
+  currentTheme,
+  description,
+}: CellTextDescriptionProps) => {
+  return (
+    <div className="flex justify-center items-center grow w-full">
+      <div
+        style={{
+          height: "240px",
+          width: "100%",
+        }}
+        className="flex justify-center items-center "
+      >
+        <AutoResizeText
+          style={{
+            color: colors[currentTheme || "first"]["primary"],
+            lineHeight: 1,
+          }}
+          className="leading-none text-center w-full"
+          multiline={true}
+          maxFontSize={78}
+        >
+          {description ? (description as string) : placeholders.description}
+        </AutoResizeText>
+      </div>
+    </div>
+  );
+};
+
+const CellTextWith = ({
+  currentTheme,
+  description,
+}: CellTextDescriptionProps) => {
+  return (
+    <div
+      style={{
+        height: "200px",
+        width: "100%",
+      }}
+      className="flex justify-center items-start"
+    >
+      <div
+        style={{
+          height: "160px",
+          width: "100%",
+        }}
+        className="flex justify-center items-center "
+      >
+        <AutoResizeText
+          style={{
+            color: colors[currentTheme || "first"]["secondary"],
+            lineHeight: 1,
+            fontFamily: fontOption.secondary,
+          }}
+          className="leading-none text-center w-full"
+          multiline={true}
+          maxFontSize={44}
+        >
+          {description ? (description as string) : placeholders.description}
+        </AutoResizeText>
+      </div>
+    </div>
+  );
+};
+
+const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+  return (
+    <p
+      style={{
+        color: colors["first"]["primary"],
+      }}
+      className=" flex justify-center items-center h-[28px] text-[36px]"
+    >
+      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+    </p>
+  );
+};
+
+interface OnlineCardBGProps {
+  isTogether?: boolean;
+}
+
+const OnlineCardBG = ({ isTogether }: OnlineCardBGProps) => {
+  return (
+    <div
+      style={{
+        width: onlineCardWidth,
+        height: onlineCardHeight,
+      }}
+      className="absolute inset-0 -z-10"
+    >
+      <Image
+        className="object-cover"
+        src={Imgs["first"][
+          isTogether ? "onlineTogether" : "online"
+        ].src.replace("./", "/")}
+        alt="online"
+        fill
+      />
+    </div>
+  );
+};
+
+const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  return (
+    <div
+      className=" pointer-events-none"
+      style={{
+        width: offlineCardWidth,
+        height: offlineCardHeight,
+      }}
+      key={day}
+    >
+      <Image
+        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        alt="offline"
+        width={offlineCardWidth}
+        height={offlineCardHeight}
+      />
+    </div>
+  );
+};
+
+const CellContentArea = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      style={{
+        fontFamily: fontOption.primary,
+        width: 650,
+        height: 550,
+        marginTop: 72,
+        marginLeft: 28,
+      }}
+      className="w-full h-full flex flex-col items-center"
+    >
+      {children}
+    </div>
+  );
+};
+
+interface WeekDayProps {
+  day: number;
+}
+
+const WeekDay = ({ day }: WeekDayProps) => {
+  return (
+    <p
+      style={{
+        fontFamily: fontOption.primary,
+        color: colors["first"]["primary"],
+        top: 41,
+        left: 34,
+        width: 100,
+        height: 100,
+      }}
+      className="absolute text-[54px] flex justify-center items-center"
+    >
+      {weekdays[weekdayOption][day]}
+    </p>
+  );
+};
+
+const TimeTableCell: React.FC<TimeTableCellProps> = ({
+  time,
+  weekDate,
+  currentTheme,
+}) => {
+  const isTogether = !!time.with;
+  if (!weekDate) return "Loading";
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: 657,
+      }}
+      className="relative"
+    >
+      <WeekDay day={time.day} />
+      {time.isOffline ? (
+        <OfflineCard day={time.day} />
+      ) : (
+        <div
+          style={{
+            width: onlineCardWidth,
+            height: onlineCardHeight,
+          }}
+          key={time.day}
+          className="relative flex justify-center"
+        >
+          <CellContentArea>
+            <CellTextDescription description={time.description as string} />
+            {isTogether && <CellTextWith description={time.with as string} />}
+
+            <StreamingTime time={time.time as string} />
+          </CellContentArea>
+          <OnlineCardBG isTogether={isTogether} />
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default TimeTableCell;
