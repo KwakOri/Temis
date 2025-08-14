@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.53.0",
+    "@types/nodemailer": "^6.4.17",
     "@types/uuid": "^10.0.0",
     "@use-gesture/react": "^10.3.1",
     "@vercel/analytics": "^1.5.0",
@@ -18,6 +19,7 @@
     "jose": "^6.0.12",
     "modern-screenshot": "^4.6.5",
     "next": "^15.4.5",
+    "nodemailer": "^7.0.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-easy-crop": "^5.5.0",

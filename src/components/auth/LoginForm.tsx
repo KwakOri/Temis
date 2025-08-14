@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import React, { useState } from "react";
+import ForgotPasswordForm from "./ForgotPasswordForm";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -16,6 +17,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -46,6 +48,20 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
       setIsLoading(false);
     }
   };
+
+  if (showForgotPassword) {
+    return (
+      <div className={`max-w-md mx-auto ${className}`}>
+        <ForgotPasswordForm
+          onSuccess={() => {
+            // 비밀번호 재설정 이메일 발송 후 로그인 폼으로 돌아가기
+            setTimeout(() => setShowForgotPassword(false), 3000);
+          }}
+          onBack={() => setShowForgotPassword(false)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`max-w-md mx-auto ${className}`}>
@@ -88,6 +104,17 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
             placeholder="비밀번호를 입력하세요"
             disabled={isLoading}
           />
+        </div>
+
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={() => setShowForgotPassword(true)}
+            className="text-sm text-indigo-600 hover:text-indigo-500"
+            disabled={isLoading}
+          >
+            비밀번호를 잊으셨나요?
+          </button>
         </div>
 
         {error && (

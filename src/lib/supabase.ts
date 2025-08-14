@@ -53,10 +53,17 @@ export class UserService {
    */
   static async findById(id: string | number): Promise<User | null> {
     try {
+      // ID 유효성 검증
+      const numericId = Number(id);
+      if (isNaN(numericId) || numericId <= 0) {
+        console.error("Invalid user ID provided:", id);
+        return null;
+      }
+
       const { data, error } = await supabase
         .from("users")
         .select("*")
-        .eq("id", Number(id))
+        .eq("id", numericId)
         .single();
 
       if (error) {

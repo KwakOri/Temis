@@ -1,16 +1,46 @@
 import { hashPassword, signJWT, validatePasswordStrength } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { EmailService } from "@/lib/email";
 import { UserService } from "@/lib/supabase";
+import { TokenService } from "@/lib/token";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, password, name } = body;
+    const { email, password, name, token } = body;
 
     // 입력 검증
     if (!email || !password || !name) {
       return NextResponse.json(
         { error: "이메일, 비밀번호, 이름을 모두 입력해주세요." },
+        { status: 400 }
+      );
+    }
+
+    // 토큰 검증 (초대 기반 회원가입)
+    if (!token) {
+      return NextResponse.json(
+        { error: "유효한 초대 토큰이 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    // 초대 토큰 유효성 검증
+    const tokenValidation = await TokenService.validateToken(
+      token,
+      "signup_invite"
+    );
+    if (!tokenValidation.isValid || !tokenValidation.tokenData) {
+      return NextResponse.json(
+        { error: tokenValidation.error || "유효하지 않은 초대 토큰입니다." },
+        { status: 400 }
+      );
+    }
+
+    // 토큰의 이메일과 요청 이메일이 일치하는지 확인
+    if (tokenValidation.tokenData.email !== email) {
+      return NextResponse.json(
+        { error: "초대된 이메일과 입력한 이메일이 일치하지 않습니다." },
         { status: 400 }
       );
     }
@@ -61,11 +91,22 @@ export async function POST(request: NextRequest) {
     });
 
     // JWT 토큰 생성
-    const token = await signJWT({
+    const jwtToken = await signJWT({
       userId: newUser.id,
       email: newUser.email,
       name: newUser.name,
     });
+
+    // 초대 토큰 사용 처리
+    await TokenService.markTokenAsUsed(token);
+
+    // 환영 이메일 발송
+    try {
+      await EmailService.sendWelcomeEmail(email, name);
+    } catch (emailError) {
+      console.error("Welcome email failed:", emailError);
+      // 이메일 실패는 회원가입을 실패시키지 않음
+    }
 
     // 응답 생성
     const response = NextResponse.json(
@@ -81,7 +122,7 @@ export async function POST(request: NextRequest) {
     );
 
     // HTTP-Only 쿠키로 토큰 설정
-    response.cookies.set("auth-token", token, {
+    response.cookies.set("auth-token", jwtToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

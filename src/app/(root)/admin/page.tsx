@@ -2,12 +2,13 @@
 
 import AccessManagement from "@/components/admin/AccessManagement";
 import AdminUserRegistration from "@/components/admin/AdminUserRegistration";
+import AdminInviteManagement from "@/components/admin/AdminInviteManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-type TabType = "templates" | "users" | "access" | "addUser";
+type TabType = "templates" | "users" | "access" | "addUser" | "invites";
 
 function AdminContent() {
   const { user } = useAuth();
@@ -91,7 +92,8 @@ function AdminContent() {
   const tabs = [
     { id: "templates" as TabType, name: "템플릿 관리", icon: "📄" },
     { id: "users" as TabType, name: "사용자 관리", icon: "👥" },
-    { id: "addUser" as TabType, name: "사용자 추가", icon: "👤➕" },
+    { id: "invites" as TabType, name: "사용자 초대", icon: "📧" },
+    { id: "addUser" as TabType, name: "직접 사용자 추가", icon: "👤➕" },
     { id: "access" as TabType, name: "접근 권한 관리", icon: "🔐" },
   ];
 
@@ -144,6 +146,7 @@ function AdminContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "users" && <UserManagement />}
+        {activeTab === "invites" && <AdminInviteManagement />}
         {activeTab === "addUser" && <AdminUserRegistration />}
         {activeTab === "access" && <AccessManagement />}
       </div>

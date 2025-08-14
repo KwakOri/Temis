@@ -50,7 +50,16 @@ export async function verifyJWT(token: string): Promise<JWTPayload | null> {
 
   try {
     const { payload } = await jwtVerify(token, key);
-    return payload as JWTPayload;
+    
+    // JWT 스펙에 따라 숫자는 문자열로 직렬화될 수 있으므로 변환
+    const processedPayload = {
+      ...payload,
+      userId: typeof payload.userId === 'string' ? 
+        (isNaN(Number(payload.userId)) ? payload.userId : Number(payload.userId)) : 
+        payload.userId
+    } as JWTPayload;
+    
+    return processedPayload;
   } catch (error) {
     console.error("JWT verification failed:", error);
     return null;

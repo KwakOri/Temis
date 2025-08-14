@@ -182,6 +182,50 @@ export type Database = {
           }
         ];
       };
+      tokens: {
+        Row: {
+          id: string;
+          email: string;
+          token: string;
+          type: "password_reset" | "signup_invite";
+          user_id: number | null;
+          expires_at: string;
+          used: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          token: string;
+          type: "password_reset" | "signup_invite";
+          user_id?: number | null;
+          expires_at: string;
+          used?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          token?: string;
+          type?: "password_reset" | "signup_invite";
+          user_id?: number | null;
+          expires_at?: string;
+          used?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tokens_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -366,6 +410,12 @@ export interface UserTemplateAccess {
   granted_at: string;
   granted_by: string | null;
 }
+
+// Token Types
+export type Token = Database["public"]["Tables"]["tokens"]["Row"];
+export type TokenInsert = Database["public"]["Tables"]["tokens"]["Insert"];
+export type TokenUpdate = Database["public"]["Tables"]["tokens"]["Update"];
+export type TokenType = "password_reset" | "signup_invite";
 
 // API Response Types
 export interface TemplateListResponse {
