@@ -79,9 +79,6 @@ const AutoResizeText: React.FC<Props> = ({
         return;
       }
 
-      let currentFont = maxFontSize;
-      el.style.fontSize = `${currentFont}px`;
-
       // multiline 지원을 위한 스타일 설정
       if (multiline) {
         el.style.whiteSpace = "pre-wrap";
@@ -93,19 +90,20 @@ const AutoResizeText: React.FC<Props> = ({
         el.style.overflowWrap = "normal";
       }
 
-      // 폰트 크기를 줄여가며 컨테이너에 맞춤
-      let iterations = 0;
-      const maxIterations = 100; // 무한 루프 방지
+      // 이진 탐색으로 최적의 폰트 크기 찾기
+      let low = minFontSize;
+      let high = maxFontSize;
+      let optimalFont = minFontSize;
       
-      while (currentFont > minFontSize && iterations < maxIterations) {
-        el.style.fontSize = `${currentFont}px`;
+      const testFontSize = (testFont: number): boolean => {
+        el.style.fontSize = `${testFont}px`;
         
         let exceedsWidth = false;
         let exceedsHeight = false;
 
         if (multiline) {
           // multiline 모드에서는 실제 렌더링된 크기와 정확한 텍스트 너비를 모두 확인
-          const singleLineWidth = measureTextWidth(currentFont);
+          const singleLineWidth = measureTextWidth(testFont);
           exceedsWidth = singleLineWidth > availableWidth && el.scrollWidth > availableWidth;
           exceedsHeight = el.scrollHeight > availableHeight;
         } else {
@@ -114,15 +112,22 @@ const AutoResizeText: React.FC<Props> = ({
           exceedsHeight = el.scrollHeight > availableHeight;
         }
 
-        if (!exceedsWidth && !exceedsHeight) {
-          break;
-        }
+        return !exceedsWidth && !exceedsHeight;
+      };
 
-        currentFont -= 0.5;
-        iterations++;
+      // 이진 탐색으로 최대 가능한 폰트 크기 찾기
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2 * 2) / 2; // 0.5 단위로 반올림
+        
+        if (testFontSize(mid)) {
+          optimalFont = mid;
+          low = mid + 0.5;
+        } else {
+          high = mid - 0.5;
+        }
       }
 
-      setFontSize(currentFont);
+      setFontSize(optimalFont);
     };
 
     // 초기 계산
