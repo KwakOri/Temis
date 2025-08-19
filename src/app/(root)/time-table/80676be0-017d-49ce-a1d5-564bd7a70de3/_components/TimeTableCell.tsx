@@ -1,0 +1,258 @@
+import React, { PropsWithChildren } from "react";
+
+import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TTheme } from "@/types/time-table/theme";
+import { formatTime } from "@/utils/time-formatter";
+import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { Imgs } from "../_img/imgs";
+import { placeholders } from "../_settings/general";
+import {
+  colors,
+  fontOption,
+  offlineCardHeight,
+  offlineCardWidth,
+  onlineCardHeight,
+  onlineCardWidth,
+  weekdayOption,
+} from "../_settings/settings";
+
+interface DayTextProps {
+  currentTheme?: TTheme;
+  day: number;
+}
+
+interface StreamingTimeProps {
+  time: string;
+  currentTheme?: TTheme;
+}
+
+interface DateTextProps {
+  date: number;
+  currentTheme?: TTheme;
+}
+
+interface CellTextDescriptionProps {
+  currentTheme?: TTheme;
+  description: string;
+}
+
+interface CellTextTopicProps {
+  cellTextTitle: string | null;
+}
+
+interface TimeTableCellProps {
+  time: TDefaultCard;
+  weekDate: Date;
+  index: number;
+  currentTheme: TTheme;
+}
+
+interface OfflineCardProps {
+  day: number;
+  currentTheme?: TTheme;
+}
+
+const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
+  return (
+    <p
+      style={{
+        color: colors[currentTheme || "first"]["tertiary"],
+        top: 11,
+        left: 2,
+        width: 120,
+      }}
+      className="absolute flex justify-center items-center h-10 text-[19px]"
+    >
+      {weekdays[weekdayOption][day]}
+    </p>
+  );
+};
+
+const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
+  return (
+    <p
+      style={{
+        color: colors[currentTheme || "first"]["tertiary"],
+        top: 48,
+        left: 28,
+        width: 120,
+        transform: "rotate(-22deg)",
+      }}
+      className="absolute flex justify-center items-center text-[56px] font-bold"
+    >
+      {date}
+    </p>
+  );
+};
+
+const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+  const [zone, formattedTime] = formatTime(time, "half").split(" ");
+  return (
+    <div
+      style={{
+        bottom: 46,
+        right: -6,
+
+        width: 220,
+        transform: "rotate(-12deg)",
+        lineHeight: 1,
+      }}
+      className="absolute flex flex-col justify-center items-center "
+    >
+      <p
+        style={{
+          color: colors[currentTheme || "first"]["quaternary"],
+        }}
+        className="text-[25px] "
+      >
+        {zone}
+      </p>
+      <p
+        style={{
+          color: colors[currentTheme || "first"]["tertiary"],
+        }}
+        className="text-[35px] mt-1.5 font-bold"
+      >
+        {formattedTime}
+      </p>
+    </div>
+  );
+};
+
+const CellTextDescription = ({
+  currentTheme,
+  description,
+}: CellTextDescriptionProps) => {
+  return (
+    <div
+      style={{
+        height: 200,
+        width: "100%",
+      }}
+      className="flex justify-center items-center shrink-0"
+    >
+      <AutoResizeText
+        style={{
+          color: colors[currentTheme || "first"]["primary"],
+          lineHeight: 1.2,
+        }}
+        className="leading-none text-center w-full"
+        multiline={true}
+        maxFontSize={77}
+      >
+        {description ? (description as string) : placeholders.description}
+      </AutoResizeText>
+    </div>
+  );
+};
+
+const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+  return (
+    <p
+      style={{
+        color: colors["first"]["secondary"],
+      }}
+      className=" flex justify-center items-center text-[40px] "
+    >
+      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+    </p>
+  );
+};
+
+interface OnlineCardBGProps {
+  day: number;
+}
+
+const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+  const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+  const dayName = days[day];
+
+  console.log(Imgs["first"][dayName]);
+  return (
+    <div
+      style={{
+        width: onlineCardWidth,
+        height: onlineCardHeight,
+      }}
+      className="absolute inset-0 -z-10"
+    >
+      <img
+        className="object-cover w-full h-full"
+        src={Imgs["first"][dayName].src.replace("./", "/")}
+        alt="online"
+      />
+    </div>
+  );
+};
+
+const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+  return (
+    <div
+      className=" pointer-events-none"
+      style={{
+        paddingTop: 2,
+        width: offlineCardWidth,
+        height: offlineCardHeight,
+      }}
+      key={day}
+    >
+      <img
+        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        alt="offline"
+        style={{
+          width: offlineCardWidth,
+          height: offlineCardHeight
+        }}
+      />
+    </div>
+  );
+};
+
+const CellContentArea = ({ children }: PropsWithChildren) => {
+  return (
+    <div
+      style={{
+        fontFamily: fontOption.primary,
+        width: 560,
+        height: 340,
+        marginTop: 140,
+      }}
+      className="w-full h-full flex flex-col pt-18 items-center "
+    >
+      {children}
+    </div>
+  );
+};
+
+const TimeTableCell: React.FC<TimeTableCellProps> = ({
+  time,
+  weekDate,
+  currentTheme,
+}) => {
+  if (!weekDate) return "Loading";
+
+  if (time.isOffline) {
+    return <OfflineCard day={time.day} />;
+  }
+
+  return (
+    <div
+      style={{
+        width: onlineCardWidth,
+        height: onlineCardHeight,
+      }}
+      key={time.day}
+      className="relative flex justify-center pl-4"
+    >
+      <CellContentArea>
+        <CellTextTitle cellTextTitle={time.topic as string} />
+        <CellTextDescription description={time.description as string} />
+        <StreamingDate date={weekDate.getDate()} />
+        <StreamingTime time={time.time as string} />
+      </CellContentArea>
+      <OnlineCardBG day={time.day} />
+    </div>
+  );
+};
+
+export default TimeTableCell;
