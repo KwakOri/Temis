@@ -29,6 +29,11 @@ interface AuthContextType {
     password: string,
     name: string
   ) => Promise<{ success: boolean; error?: string }>;
+  registerPublic: (
+    email: string,
+    password: string,
+    name: string
+  ) => Promise<{ success: boolean; error?: string }>;
   checkAuth: () => Promise<void>;
 }
 
@@ -146,7 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  // 회원가입
+  // 회원가입 (기존 초대 기반)
   const register = async (email: string, password: string, name: string) => {
     try {
       const response = await fetch("/api/auth/register", {
@@ -175,6 +180,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // 공개 회원가입 (이메일 인증 방식)
+  const registerPublic = async (email: string, password: string, name: string) => {
+    try {
+      const response = await fetch("/api/auth/register-public", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password, name }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          error: data.error || "회원가입에 실패했습니다.",
+        };
+      }
+    } catch (error) {
+      console.error("Public registration failed:", error);
+      return { success: false, error: "회원가입 중 오류가 발생했습니다." };
+    }
+  };
+
   // 컴포넌트 마운트 시 인증 상태 확인
   useEffect(() => {
     checkAuth();
@@ -186,6 +218,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     register,
+    registerPublic,
     checkAuth,
   };
 

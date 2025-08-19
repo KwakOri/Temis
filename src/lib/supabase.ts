@@ -198,6 +198,75 @@ export class UserService {
   }
 
   /**
+   * ID로 사용자 조회
+   */
+  static async getById(id: number): Promise<User | null> {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") {
+          return null;
+        }
+        throw error;
+      }
+
+      return data as User;
+    } catch (error) {
+      console.error("Error getting user by ID:", error);
+      return null;
+    }
+  }
+
+  /**
+   * 사용자 role 업데이트
+   */
+  static async updateRole(id: number, role: string): Promise<User | null> {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .update({ 
+          role,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return data as User;
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      return null;
+    }
+  }
+
+  /**
+   * 사용자 삭제 (ID로)
+   */
+  static async deleteById(id: number): Promise<boolean> {
+    try {
+      const { error } = await supabase.from("users").delete().eq("id", id);
+
+      if (error) {
+        throw error;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting user by ID:", error);
+      return false;
+    }
+  }
+
+  /**
    * JWT 토큰에서 userId를 가져와 최신 사용자 정보 조회
    * (미들웨어와 함께 사용하여 최신 사용자 정보 확인)
    */

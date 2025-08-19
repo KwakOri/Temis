@@ -187,7 +187,7 @@ export type Database = {
           id: string;
           email: string;
           token: string;
-          type: "password_reset" | "signup_invite";
+          type: "password_reset" | "signup_invite" | "email_verification";
           user_id: number | null;
           expires_at: string;
           used: boolean;
@@ -198,7 +198,7 @@ export type Database = {
           id?: string;
           email: string;
           token: string;
-          type: "password_reset" | "signup_invite";
+          type: "password_reset" | "signup_invite" | "email_verification";
           user_id?: number | null;
           expires_at: string;
           used?: boolean;
@@ -209,7 +209,7 @@ export type Database = {
           id?: string;
           email?: string;
           token?: string;
-          type?: "password_reset" | "signup_invite";
+          type?: "password_reset" | "signup_invite" | "email_verification";
           user_id?: number | null;
           expires_at?: string;
           used?: boolean;
@@ -415,7 +415,7 @@ export interface UserTemplateAccess {
 export type Token = Database["public"]["Tables"]["tokens"]["Row"];
 export type TokenInsert = Database["public"]["Tables"]["tokens"]["Insert"];
 export type TokenUpdate = Database["public"]["Tables"]["tokens"]["Update"];
-export type TokenType = "password_reset" | "signup_invite";
+export type TokenType = "password_reset" | "signup_invite" | "email_verification";
 
 // API Response Types
 export interface TemplateListResponse {

@@ -5,10 +5,11 @@ import AdminUserRegistration from "@/components/admin/AdminUserRegistration";
 import AdminInviteManagement from "@/components/admin/AdminInviteManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
+import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-type TabType = "templates" | "users" | "access" | "addUser" | "invites";
+type TabType = "templates" | "users" | "access" | "addUser" | "invites" | "emailPreview";
 
 function AdminContent() {
   const { user } = useAuth();
@@ -94,6 +95,7 @@ function AdminContent() {
     { id: "users" as TabType, name: "사용자 관리", icon: "👥" },
     { id: "invites" as TabType, name: "사용자 초대", icon: "📧" },
     { id: "addUser" as TabType, name: "직접 사용자 추가", icon: "👤➕" },
+    { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: "📮" },
     { id: "access" as TabType, name: "접근 권한 관리", icon: "🔐" },
   ];
 
@@ -148,6 +150,7 @@ function AdminContent() {
         {activeTab === "users" && <UserManagement />}
         {activeTab === "invites" && <AdminInviteManagement />}
         {activeTab === "addUser" && <AdminUserRegistration />}
+        {activeTab === "emailPreview" && <EmailTemplatePreview />}
         {activeTab === "access" && <AccessManagement />}
       </div>
     </div>
