@@ -1,4 +1,3 @@
-import Image from "next/image";
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -177,11 +176,10 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
       }}
       className="absolute inset-0 -z-10"
     >
-      <Image
-        className="object-cover"
+      <img
+        className="object-cover w-full h-full"
         src={Imgs["first"][dayName].src.replace("./", "/")}
         alt="online"
-        fill
       />
     </div>
   );
@@ -198,11 +196,13 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       }}
       key={day}
     >
-      <Image
+      <img
         src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
         alt="offline"
-        width={offlineCardWidth}
-        height={offlineCardHeight}
+        style={{
+          width: offlineCardWidth,
+          height: offlineCardHeight
+        }}
       />
     </div>
   );

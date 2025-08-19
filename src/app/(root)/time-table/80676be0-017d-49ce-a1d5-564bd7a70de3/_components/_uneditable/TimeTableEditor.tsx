@@ -54,6 +54,7 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
+          isArtist={false}
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
           cropWidth={profileImageWidth}

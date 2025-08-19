@@ -6,7 +6,6 @@ import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
-import Image from "next/image";
 import { templateSize } from "../../_settings/settings";
 import ProfileImageSection from "../ProfileImageContainer";
 import TimeTableGrid from "../TimeTableGrid";
@@ -31,7 +30,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   return (
     <div
       id="timetable"
-      className=" box-border select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)] bg-white"
+      className=" box-border select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
       style={{
         transform: `scale(${scale})`,
 
@@ -48,10 +47,9 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
           zIndex: 30,
         }}
       >
-        <Image
+        <img
           src={Imgs["first"]["topObject"].src}
           alt={"top-object"}
-          fill
           draggable={false}
         />
       </div>

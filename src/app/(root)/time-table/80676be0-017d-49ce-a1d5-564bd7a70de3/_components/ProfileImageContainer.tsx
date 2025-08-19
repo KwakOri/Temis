@@ -1,6 +1,5 @@
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
-import Image from "next/image";
 import { PropsWithChildren } from "react";
 import { Imgs } from "../_img/imgs";
 import {
@@ -43,12 +42,11 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
       }}
       className="absolute inset-0"
     >
-      <Image
+      <img
         src={Imgs[currentTheme || "first"]["profileBG"].src.replace("./", "/")}
         alt="profileBG"
-        className="object-cover"
+        className="object-cover w-full h-full"
         draggable={false}
-        fill
       />
     </div>
   );
@@ -69,9 +67,8 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
       }}
     >
       {
-        <Image
-          fill
-          className="object-cover"
+        <img
+          className="object-cover w-full h-full"
           src={imageSrc}
           alt={"placeholder"}
         />
@@ -92,10 +89,9 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
       }}
     >
       {
-        <Image
-          fill
-          className="object-cover"
-          src={Imgs["first"]["img"]}
+        <img
+          className="object-cover w-full h-full"
+          src={Imgs["first"]["img"].src}
           alt={"placeholder"}
         />
       }
@@ -113,11 +109,10 @@ const ProfileFrame = () => {
         position: "absolute",
       }}
     >
-      <Image
+      <img
         src={Imgs["first"]["profileFrame"].src.replace("./", "/")}
         alt="frame"
         className="object-cover"
-        fill
         draggable={false}
       />
     </div>
