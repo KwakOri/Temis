@@ -91,18 +91,18 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       defaultValue: "10:00",
     },
     {
-      key: "topic",
-      type: "text",
-      placeholder: "소제목 적는 곳",
-      defaultValue: "",
-      maxLength: 50,
-    },
-    {
       key: "description",
       type: "textarea",
       placeholder: "메인타이틀\n적는 곳",
       defaultValue: "",
       maxLength: 200,
+    },
+    {
+      key: "topic",
+      type: "text",
+      placeholder: "소제목 적는 곳",
+      defaultValue: "",
+      maxLength: 50,
     },
   ],
   showLabels: false, // 라벨 표시 여부
