@@ -63,6 +63,115 @@ export type Database = {
           }
         ];
       };
+      template_products: {
+        Row: {
+          id: string;
+          template_id: string;
+          title: string;
+          detailed_description: string | null;
+          price: number;
+          features: string[] | null;
+          requirements: string | null;
+          delivery_time: number | null;
+          sample_images: string[] | null;
+          is_available: boolean;
+          is_custom_order: boolean;
+          purchase_instructions: string | null;
+          bank_account_info: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          template_id: string;
+          title: string;
+          detailed_description?: string | null;
+          price: number;
+          features?: string[] | null;
+          requirements?: string | null;
+          delivery_time?: number | null;
+          sample_images?: string[] | null;
+          is_available?: boolean;
+          is_custom_order?: boolean;
+          purchase_instructions?: string | null;
+          bank_account_info?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          template_id?: string;
+          title?: string;
+          detailed_description?: string | null;
+          price?: number;
+          features?: string[] | null;
+          requirements?: string | null;
+          delivery_time?: number | null;
+          sample_images?: string[] | null;
+          is_available?: boolean;
+          is_custom_order?: boolean;
+          purchase_instructions?: string | null;
+          bank_account_info?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "template_products_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "templates";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      purchase_requests: {
+        Row: {
+          id: string;
+          template_id: string;
+          customer_name: string;
+          customer_email: string;
+          customer_phone: string;
+          message: string | null;
+          status: string;
+          admin_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          template_id: string;
+          customer_name: string;
+          customer_email: string;
+          customer_phone: string;
+          message?: string | null;
+          status?: string;
+          admin_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          template_id?: string;
+          customer_name?: string;
+          customer_email?: string;
+          customer_phone?: string;
+          message?: string | null;
+          status?: string;
+          admin_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "templates";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       templates: {
         Row: {
           created_at: string;
@@ -389,8 +498,17 @@ export type TemplateAccessInsert =
 export type TemplateAccessUpdate =
   Database["public"]["Tables"]["template_access"]["Update"];
 
+export type TemplateProduct = Database["public"]["Tables"]["template_products"]["Row"];
+export type TemplateProductInsert = Database["public"]["Tables"]["template_products"]["Insert"];
+export type TemplateProductUpdate = Database["public"]["Tables"]["template_products"]["Update"];
+
+export type PurchaseRequest = Database["public"]["Tables"]["purchase_requests"]["Row"];
+export type PurchaseRequestInsert = Database["public"]["Tables"]["purchase_requests"]["Insert"];
+export type PurchaseRequestUpdate = Database["public"]["Tables"]["purchase_requests"]["Update"];
+
 // Access Level Type
 export type AccessLevel = "read" | "write" | "admin";
+export type PurchaseStatus = "pending" | "processing" | "completed" | "cancelled";
 
 // Extended Types (관계 포함)
 export interface TemplateWithAccess extends Template {
@@ -409,6 +527,15 @@ export interface UserTemplateAccess {
   access_level: AccessLevel;
   granted_at: string;
   granted_by: string | null;
+}
+
+export interface TemplateWithProduct extends Template {
+  template_product?: TemplateProduct;
+}
+
+export interface PurchaseRequestWithTemplate extends PurchaseRequest {
+  template?: Template;
+  template_product?: TemplateProduct;
 }
 
 // Token Types

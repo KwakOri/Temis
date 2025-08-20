@@ -68,6 +68,12 @@ export default function Home() {
           </div>
           {/* 데스크탑 버전 - md 이상에서 표시 */}
           <div className="hidden md:flex gap-2">
+            <Link href="/shop">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                템플릿 상점
+              </p>
+            </Link>
+            
             <a
               href="https://docs.google.com/forms/d/e/1FAIpQLSc5kQKh6c0kbz0uKkaSCvPFsKWcd5rIN5oIHwHd3moyBmPH0g/viewform?usp=dialog"
               target="_blank"
@@ -120,6 +126,29 @@ export default function Home() {
             {/* 드롭다운 메뉴 */}
             {isMenuOpen && (
               <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
+                <Link
+                  href="/shop"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5H21"
+                      />
+                    </svg>
+                    <span className="font-medium">템플릿 상점</span>
+                  </div>
+                </Link>
+                
                 <a
                   href="https://docs.google.com/forms/d/e/1FAIpQLSc5kQKh6c0kbz0uKkaSCvPFsKWcd5rIN5oIHwHd3moyBmPH0g/viewform?usp=dialog"
                   target="_blank"
