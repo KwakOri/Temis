@@ -39,32 +39,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 공개 템플릿도 포함하여 조회 (중복 제거)
-    const { data: publicTemplates, error: publicError } = await supabase
-      .from("templates")
-      .select("*")
-      .eq("is_public", true)
-      .order("created_at", { ascending: false });
-
-    if (publicError) {
-      console.error("Public templates fetch error:", publicError);
-    }
-
-    // 사용자 전용 템플릿과 공개 템플릿 합치기 (중복 제거)
-    const userTemplateIds = userTemplates?.map(ut => ut.templates?.id).filter(Boolean) || [];
-    const additionalPublicTemplates = publicTemplates?.filter(pt => 
-      !userTemplateIds.includes(pt.id)
-    ).map(pt => ({
-      id: Date.now() + Math.random(), // 임시 ID
-      access_level: 'read' as const,
-      granted_at: null,
-      templates: pt
-    })) || [];
-
-    const allTemplates = [
-      ...(userTemplates || []),
-      ...additionalPublicTemplates
-    ];
+    // 접근 권한이 있는 템플릿만 반환
+    const allTemplates = userTemplates || [];
 
     return NextResponse.json({
       success: true,
