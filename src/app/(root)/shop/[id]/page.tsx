@@ -1,10 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
-import { Template } from '@/types/supabase-types';
+import { supabase } from "@/lib/supabase";
+import { Template } from "@/types/supabase-types";
+import Image from "next/image";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface TemplateProduct {
   id: string;
@@ -45,10 +46,10 @@ export default function TemplateDetailPage() {
     try {
       // 템플릿 기본 정보 조회
       const { data: templateData, error: templateError } = await supabase
-        .from('templates')
-        .select('*')
-        .eq('id', templateId)
-        .eq('is_public', true)
+        .from("templates")
+        .select("*")
+        .eq("id", templateId)
+        .eq("is_public", true)
         .single();
 
       if (templateError) throw templateError;
@@ -57,8 +58,8 @@ export default function TemplateDetailPage() {
       // TODO: template_products 테이블 생성 후 조인 쿼리 사용
       setTemplate(templateData);
     } catch (error) {
-      console.error('Error fetching template detail:', error);
-      router.push('/shop');
+      console.error("Error fetching template detail:", error);
+      router.push("/shop");
     } finally {
       setLoading(false);
     }
@@ -71,10 +72,10 @@ export default function TemplateDetailPage() {
     message: string;
   }) => {
     try {
-      const response = await fetch('/api/shop/purchase-request', {
-        method: 'POST',
+      const response = await fetch("/api/shop/purchase-request", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           template_id: template?.id,
@@ -88,14 +89,14 @@ export default function TemplateDetailPage() {
       const result = await response.json();
 
       if (response.ok) {
-        alert('구매 신청이 접수되었습니다. 곧 연락드리겠습니다.');
+        alert("구매 신청이 접수되었습니다. 곧 연락드리겠습니다.");
         setShowPurchaseForm(false);
       } else {
-        alert(result.error || '구매 신청 중 오류가 발생했습니다.');
+        alert(result.error || "구매 신청 중 오류가 발생했습니다.");
       }
     } catch (error) {
-      console.error('Purchase request error:', error);
-      alert('구매 신청 중 오류가 발생했습니다.');
+      console.error("Purchase request error:", error);
+      alert("구매 신청 중 오류가 발생했습니다.");
     }
   };
 
@@ -112,8 +113,8 @@ export default function TemplateDetailPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <p className="text-gray-500 mb-4">템플릿을 찾을 수 없습니다.</p>
-          <button 
-            onClick={() => router.push('/shop')}
+          <button
+            onClick={() => router.push("/shop")}
             className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
           >
             상점으로 돌아가기
@@ -126,8 +127,8 @@ export default function TemplateDetailPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* 뒤로가기 버튼 */}
-      <button 
-        onClick={() => router.push('/shop')}
+      <button
+        onClick={() => router.push("/shop")}
         className="mb-6 text-blue-600 hover:text-blue-800 flex items-center gap-2"
       >
         ← 상점으로 돌아가기
@@ -137,28 +138,22 @@ export default function TemplateDetailPage() {
         {/* 이미지 섹션 */}
         <div className="space-y-4">
           <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden">
-            {template.thumbnail_url ? (
-              <Image
-                src={template.thumbnail_url}
-                alt={template.name}
-                width={600}
-                height={338}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
-                미리보기 이미지 없음
-              </div>
-            )}
+            <Image
+              src={`/thumbnail/${template.id}.png`}
+              alt={template.name}
+              width={600}
+              height={338}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent) {
+                  parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400">썸네일 이미지 없음</div>';
+                }
+              }}
+            />
           </div>
-          
-          {/* 미리보기 링크 */}
-          <Link 
-            href={`/time-table/${template.id}`}
-            className="block w-full bg-gray-100 text-center py-3 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            실제 템플릿 미리보기
-          </Link>
         </div>
 
         {/* 상품 정보 섹션 */}
@@ -214,7 +209,7 @@ export default function TemplateDetailPage() {
 
       {/* 구매 신청 모달 */}
       {showPurchaseForm && (
-        <PurchaseModal 
+        <PurchaseModal
           template={template}
           onClose={() => setShowPurchaseForm(false)}
           onSubmit={handlePurchaseRequest}
@@ -227,15 +222,20 @@ export default function TemplateDetailPage() {
 interface PurchaseModalProps {
   template: Template;
   onClose: () => void;
-  onSubmit: (formData: { name: string; email: string; phone: string; message: string }) => Promise<void>;
+  onSubmit: (formData: {
+    name: string;
+    email: string;
+    phone: string;
+    message: string;
+  }) => Promise<void>;
 }
 
 function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    message: ''
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -246,8 +246,8 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
     try {
       await onSubmit(formData);
     } catch (error) {
-      console.error('Error submitting purchase request:', error);
-      alert('구매 신청 중 오류가 발생했습니다.');
+      console.error("Error submitting purchase request:", error);
+      alert("구매 신청 중 오류가 발생했습니다.");
     } finally {
       setSubmitting(false);
     }
@@ -258,7 +258,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
       <div className="bg-white rounded-lg max-w-md w-full p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">구매 신청</h2>
-          <button 
+          <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
           >
@@ -279,7 +279,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               type="text"
               required
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -290,7 +292,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               type="email"
               required
               value={formData.email}
-              onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, email: e.target.value }))
+              }
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -301,7 +305,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               type="tel"
               required
               value={formData.phone}
-              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, phone: e.target.value }))
+              }
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -310,7 +316,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
             <label className="block text-sm font-medium mb-1">요청사항</label>
             <textarea
               value={formData.message}
-              onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, message: e.target.value }))
+              }
               className="w-full border border-gray-300 rounded px-3 py-2 h-20 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="추가 요청사항이 있으시면 적어주세요"
             />
@@ -319,7 +327,8 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
           <div className="bg-blue-50 p-3 rounded">
             <h4 className="font-medium text-blue-800 mb-1">결제 안내</h4>
             <p className="text-sm text-blue-700">
-              구매 신청 후 계좌 정보를 안내해드립니다.<br />
+              구매 신청 후 계좌 정보를 안내해드립니다.
+              <br />
               입금 확인 후 1-2일 이내에 템플릿을 전달받으실 수 있습니다.
             </p>
           </div>
@@ -337,7 +346,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               disabled={submitting}
               className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700 disabled:opacity-50"
             >
-              {submitting ? '신청 중...' : '구매 신청'}
+              {submitting ? "신청 중..." : "구매 신청"}
             </button>
           </div>
         </form>

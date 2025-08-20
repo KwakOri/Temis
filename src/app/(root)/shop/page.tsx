@@ -54,19 +54,21 @@ export default function ShopPage() {
             className="group block bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
           >
             <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
-              {template.thumbnail_url ? (
-                <Image
-                  src={template.thumbnail_url}
-                  alt={template.name}
-                  width={400}
-                  height={225}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  미리보기 이미지 없음
-                </div>
-              )}
+              <Image
+                src={`/thumbnail/${template.id}.png`}
+                alt={template.name}
+                width={400}
+                height={225}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400">썸네일 이미지 없음</div>';
+                  }
+                }}
+              />
             </div>
             
             <div className="p-4">
