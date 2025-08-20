@@ -1,8 +1,12 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import React, { useState } from "react";
+<<<<<<< HEAD
+import React, { useState, useEffect } from "react";
 import ForgotPasswordForm from "./ForgotPasswordForm";
+=======
+import React, { useState, useEffect } from "react";
+>>>>>>> dev
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -17,7 +21,27 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
+<<<<<<< HEAD
+  const [rememberEmail, setRememberEmail] = useState(false);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("remembered-email");
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberEmail(true);
+    }
+  }, []);
+=======
+  const [rememberEmail, setRememberEmail] = useState(false);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("remembered-email");
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberEmail(true);
+    }
+  }, []);
+>>>>>>> dev
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -38,6 +62,11 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
+        if (rememberEmail) {
+          localStorage.setItem("remembered-email", formData.email);
+        } else {
+          localStorage.removeItem("remembered-email");
+        }
         onSuccess?.();
       } else {
         setError(result.error || "로그인에 실패했습니다.");
@@ -106,6 +135,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
           />
         </div>
 
+<<<<<<< HEAD
         <div className="flex items-center justify-end">
           <button
             type="button"
@@ -115,6 +145,23 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
           >
             비밀번호를 잊으셨나요?
           </button>
+=======
+        <div className="flex items-center">
+          <input
+            id="remember-email"
+            type="checkbox"
+            checked={rememberEmail}
+            onChange={(e) => setRememberEmail(e.target.checked)}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={isLoading}
+          />
+          <label
+            htmlFor="remember-email"
+            className="ml-2 block text-sm text-gray-700"
+          >
+            이메일 기억하기
+          </label>
+>>>>>>> dev
         </div>
 
         {error && (
