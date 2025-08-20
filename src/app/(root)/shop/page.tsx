@@ -5,14 +5,60 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Template } from '@/types/supabase-types';
+import BackButton from '@/components/BackButton';
+import { useAuth } from '@/contexts/AuthContext';
+import PurchaseHistory from '@/components/shop/PurchaseHistory';
+
+type SortOrder = 'newest' | 'oldest';
+type TabType = 'shop' | 'history';
 
 export default function ShopPage() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('shop');
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [showOnlyUnpurchased, setShowOnlyUnpurchased] = useState(false);
+  const [unpurchasedTemplateIds, setUnpurchasedTemplateIds] = useState<string[]>([]);
 
   useEffect(() => {
     fetchPublicTemplates();
   }, []);
+
+  useEffect(() => {
+    fetchPublicTemplates();
+  }, [sortOrder]);
+
+  useEffect(() => {
+    if (showOnlyUnpurchased && user) {
+      fetchUnpurchasedTemplates();
+    }
+  }, [showOnlyUnpurchased, user]);
+
+  const fetchUnpurchasedTemplates = async () => {
+    if (!user) return;
+    
+    try {
+      // 사용자가 접근 권한이 있는 템플릿 ID들을 가져옴
+      const { data: accessData, error: accessError } = await supabase
+        .from('template_access')
+        .select('template_id')
+        .eq('user_id', user.id);
+
+      if (accessError) throw accessError;
+
+      const accessibleTemplateIds = accessData?.map(item => item.template_id) || [];
+      
+      // 모든 공개 템플릿 중에서 접근 권한이 없는 템플릿만 필터링
+      const unpurchasedIds = templates
+        .filter(template => !accessibleTemplateIds.includes(template.id))
+        .map(template => template.id);
+        
+      setUnpurchasedTemplateIds(unpurchasedIds);
+    } catch (error) {
+      console.error('Error fetching template access:', error);
+    }
+  };
 
   const fetchPublicTemplates = async () => {
     try {
@@ -20,15 +66,27 @@ export default function ShopPage() {
         .from('templates')
         .select('*')
         .eq('is_public', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: sortOrder === 'oldest' });
 
       if (error) throw error;
       setTemplates(data || []);
+      
+      // 정렬 후 비구매 템플릿 필터링도 업데이트
+      if (showOnlyUnpurchased && user) {
+        fetchUnpurchasedTemplates();
+      }
     } catch (error) {
       console.error('Error fetching templates:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getFilteredTemplates = () => {
+    if (showOnlyUnpurchased && user) {
+      return templates.filter(template => unpurchasedTemplateIds.includes(template.id));
+    }
+    return templates;
   };
 
   if (loading) {
@@ -41,55 +99,134 @@ export default function ShopPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <div className="mb-6">
+        <BackButton className="mb-4" />
+      </div>
+      
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-4">템플릿 상점</h1>
         <p className="text-gray-600">다양한 시간표 템플릿을 둘러보고 구매하세요</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {templates.map((template) => (
-          <Link 
-            key={template.id} 
-            href={`/shop/${template.id}`}
-            className="group block bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
-          >
-            <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
-              <Image
-                src={`/thumbnail/${template.id}.png`}
-                alt={template.name}
-                width={400}
-                height={225}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  const parent = target.parentElement;
-                  if (parent) {
-                    parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400">썸네일 이미지 없음</div>';
-                  }
-                }}
-              />
-            </div>
-            
-            <div className="p-4">
-              <h3 className="font-semibold text-lg mb-2 group-hover:text-blue-600 transition-colors">
-                {template.name}
-              </h3>
-              <p className="text-gray-600 text-sm line-clamp-2">
-                {template.description}
-              </p>
-              <div className="mt-3 text-blue-600 text-sm font-medium">
-                자세히 보기 →
-              </div>
-            </div>
-          </Link>
-        ))}
+      {/* 탭 네비게이션 */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('shop')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'shop'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              템플릿 둘러보기
+            </button>
+            {user && (
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'history'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                주문내역
+              </button>
+            )}
+          </nav>
+        </div>
       </div>
 
-      {templates.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-gray-500">현재 판매 중인 템플릿이 없습니다.</p>
-        </div>
+      {/* 컨텐츠 영역 */}
+      {activeTab === 'shop' ? (
+        <>
+          {/* 정렬 및 필터 컨트롤 */}
+          <div className="mb-6 flex flex-wrap gap-4 items-center">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">정렬:</span>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as SortOrder)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="newest">최신 순</option>
+                <option value="oldest">오래된 순</option>
+              </select>
+            </div>
+            
+            {user && (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm font-medium text-gray-700">구매하지 않은 템플릿만:</span>
+                <button
+                  onClick={() => setShowOnlyUnpurchased(!showOnlyUnpurchased)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                    showOnlyUnpurchased ? 'bg-blue-600' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out ${
+                      showOnlyUnpurchased ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {getFilteredTemplates().map((template) => (
+              <Link 
+                key={template.id} 
+                href={`/shop/${template.id}`}
+                className="group block bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+              >
+                <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
+                  <Image
+                    src={`/thumbnail/${template.id}.png`}
+                    alt={template.name}
+                    width={400}
+                    height={225}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400">썸네일 이미지 없음</div>';
+                      }
+                    }}
+                  />
+                </div>
+                
+                <div className="p-4">
+                  <h3 className="font-semibold text-lg mb-2 group-hover:text-blue-600 transition-colors">
+                    {template.name}
+                  </h3>
+                  <p className="text-gray-600 text-sm line-clamp-2">
+                    {template.description}
+                  </p>
+                  <div className="mt-3 text-blue-600 text-sm font-medium">
+                    자세히 보기 →
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {getFilteredTemplates().length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-gray-500">
+                {showOnlyUnpurchased 
+                  ? '구매하지 않은 템플릿이 없습니다.' 
+                  : '현재 판매 중인 템플릿이 없습니다.'
+                }
+              </p>
+            </div>
+          )}
+        </>
+      ) : (
+        <PurchaseHistory />
       )}
     </div>
   );

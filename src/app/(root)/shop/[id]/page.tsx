@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TemplateProduct {
   id: string;
@@ -30,6 +31,7 @@ interface TemplateWithProduct extends Template {
 }
 
 export default function TemplateDetailPage() {
+  const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
   const [template, setTemplate] = useState<TemplateWithProduct | null>(null);
@@ -66,9 +68,7 @@ export default function TemplateDetailPage() {
   };
 
   const handlePurchaseRequest = async (formData: {
-    name: string;
-    email: string;
-    phone: string;
+    depositorName: string;
     message: string;
   }) => {
     try {
@@ -79,9 +79,7 @@ export default function TemplateDetailPage() {
         },
         body: JSON.stringify({
           template_id: template?.id,
-          customer_name: formData.name,
-          customer_email: formData.email,
-          customer_phone: formData.phone,
+          depositor_name: formData.depositorName,
           message: formData.message,
         }),
       });
@@ -194,12 +192,24 @@ export default function TemplateDetailPage() {
 
           {/* 구매 버튼 */}
           <div className="border-t pt-6">
-            <button
-              onClick={() => setShowPurchaseForm(true)}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
-            >
-              구매 신청하기
-            </button>
+            {user ? (
+              <button
+                onClick={() => setShowPurchaseForm(true)}
+                className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+              >
+                구매 신청하기
+              </button>
+            ) : (
+              <div className="text-center">
+                <p className="text-gray-600 mb-3">구매하려면 로그인이 필요합니다</p>
+                <Link
+                  href="/auth"
+                  className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-semibold"
+                >
+                  로그인하기
+                </Link>
+              </div>
+            )}
             <p className="text-sm text-gray-500 mt-2 text-center">
               계좌 송금으로 결제가 진행됩니다
             </p>
@@ -223,18 +233,15 @@ interface PurchaseModalProps {
   template: Template;
   onClose: () => void;
   onSubmit: (formData: {
-    name: string;
-    email: string;
-    phone: string;
+    depositorName: string;
     message: string;
   }) => Promise<void>;
 }
 
 function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
+    depositorName: "",
     message: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -272,42 +279,26 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
           <p className="text-lg font-bold text-blue-600 mt-2">₩15,000</p>
         </div>
 
+        {/* 사용자 정보 표시 */}
+        <div className="mb-4 p-3 bg-gray-50 rounded">
+          <h4 className="font-medium mb-2">구매자 정보</h4>
+          <div className="text-sm text-gray-600 space-y-1">
+            <p><span className="font-medium">이름:</span> {user?.name}</p>
+            <p><span className="font-medium">이메일:</span> {user?.email}</p>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">이름 *</label>
+            <label className="block text-sm font-medium mb-1">입금자명 *</label>
             <input
               type="text"
               required
-              value={formData.name}
+              value={formData.depositorName}
               onChange={(e) =>
-                setFormData((prev) => ({ ...prev, name: e.target.value }))
+                setFormData((prev) => ({ ...prev, depositorName: e.target.value }))
               }
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">이메일 *</label>
-            <input
-              type="email"
-              required
-              value={formData.email}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, email: e.target.value }))
-              }
-              className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">연락처 *</label>
-            <input
-              type="tel"
-              required
-              value={formData.phone}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, phone: e.target.value }))
-              }
+              placeholder="계좌 이체 시 사용할 입금자명을 입력하세요"
               className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -325,12 +316,12 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
           </div>
 
           <div className="bg-blue-50 p-3 rounded">
-            <h4 className="font-medium text-blue-800 mb-1">결제 안내</h4>
-            <p className="text-sm text-blue-700">
-              구매 신청 후 계좌 정보를 안내해드립니다.
-              <br />
-              입금 확인 후 1-2일 이내에 템플릿을 전달받으실 수 있습니다.
-            </p>
+            <h4 className="font-medium text-blue-800 mb-2">결제 안내</h4>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p>• 구매 신청 후 계좌 정보를 안내해드립니다</p>
+              <p>• 입금 시 위에 입력한 입금자명을 사용해주세요</p>
+              <p>• 입금 확인 후 1-2일 이내에 템플릿 권한이 부여됩니다</p>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">

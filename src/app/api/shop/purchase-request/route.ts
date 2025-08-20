@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { requireAuth } from '@/lib/auth/middleware';
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { template_id, customer_name, customer_email, customer_phone, message } = body;
+    // 인증 확인
+    const authResult = await requireAuth(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+    const { user } = authResult;
 
-    if (!template_id || !customer_name || !customer_email || !customer_phone) {
+    const body = await request.json();
+    const { template_id, depositor_name, message } = body;
+
+    if (!template_id || !depositor_name) {
       return NextResponse.json(
         { error: '필수 정보가 누락되었습니다.' },
         { status: 400 }
@@ -28,20 +36,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: 구매 신청 데이터를 저장할 purchase_requests 테이블 생성 필요
-    // 임시로 콘솔에 로그만 출력
-    console.log('Purchase request received:', {
-      template_id,
-      template_name: template.name,
-      customer_name,
-      customer_email,
-      customer_phone,
-      message,
-      created_at: new Date().toISOString()
-    });
+    // 구매 신청 데이터 저장
+    const { data: purchaseRequest, error: insertError } = await supabase
+      .from('purchase_requests')
+      .insert({
+        template_id,
+        customer_name: depositor_name, // 입금자명을 customer_name으로 저장
+        customer_email: user.email,
+        customer_phone: user.phone || '', // 전화번호가 있으면 사용, 없으면 빈 값
+        message,
+        status: 'pending'
+      })
+      .select()
+      .single();
 
-    // TODO: 이메일 알림 발송 (관리자에게)
-    // TODO: 고객에게 안내 이메일 발송
+    if (insertError) {
+      console.error('Purchase request insert error:', insertError);
+      return NextResponse.json(
+        { error: '구매 신청 저장에 실패했습니다.' },
+        { status: 500 }
+      );
+    }
+
+    console.log('Purchase request saved:', purchaseRequest);
 
     return NextResponse.json({
       success: true,
