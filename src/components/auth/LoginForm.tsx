@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -16,6 +16,15 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
   });
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(false);
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem("remembered-email");
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberEmail(true);
+    }
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -36,6 +45,11 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
+        if (rememberEmail) {
+          localStorage.setItem("remembered-email", formData.email);
+        } else {
+          localStorage.removeItem("remembered-email");
+        }
         onSuccess?.();
       } else {
         setError(result.error || "로그인에 실패했습니다.");
@@ -88,6 +102,23 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
             placeholder="비밀번호를 입력하세요"
             disabled={isLoading}
           />
+        </div>
+
+        <div className="flex items-center">
+          <input
+            id="remember-email"
+            type="checkbox"
+            checked={rememberEmail}
+            onChange={(e) => setRememberEmail(e.target.checked)}
+            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            disabled={isLoading}
+          />
+          <label
+            htmlFor="remember-email"
+            className="ml-2 block text-sm text-gray-700"
+          >
+            이메일 기억하기
+          </label>
         </div>
 
         {error && (
