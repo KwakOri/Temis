@@ -17,6 +17,7 @@ interface CustomOrderFormData {
   wantsOmakase: boolean;
   designKeywords: string;
   referenceFiles: File[];
+  priceQuoted: number;
 }
 
 type TabType = "order" | "history";
@@ -30,6 +31,7 @@ export default function CustomOrderPage() {
     try {
       // FormData를 API 호출에 맞는 형식으로 변환
       const requestData = {
+        priceQuoted: formData.priceQuoted,
         youtubeSnsAddress: formData.youtubeSnsAddress,
         emailDiscord: formData.emailDiscord,
         orderRequirements: formData.orderRequirements,
@@ -42,7 +44,9 @@ export default function CustomOrderPage() {
             size: file.size,
             type: file.type,
             // 추후 Cloudflare R2 URL로 대체 예정
-            tempUrl: `https://temp-storage.example.com/character-images/temp_${Date.now()}_${index}_${file.name}`
+            tempUrl: `https://temp-storage.example.com/character-images/temp_${Date.now()}_${index}_${
+              file.name
+            }`,
           })
         ),
         referenceFiles: formData.referenceFiles.map(
@@ -51,7 +55,9 @@ export default function CustomOrderPage() {
             size: file.size,
             type: file.type,
             // 추후 Cloudflare R2 URL로 대체 예정
-            tempUrl: `https://temp-storage.example.com/reference-files/temp_${Date.now()}_${index}_${file.name}`
+            tempUrl: `https://temp-storage.example.com/reference-files/temp_${Date.now()}_${index}_${
+              file.name
+            }`,
           })
         ),
       };
