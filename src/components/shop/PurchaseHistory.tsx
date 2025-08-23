@@ -2,18 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { PurchaseRequestWithTemplate, TemplateAccessWithUser } from '@/types/supabase-types';
+import { PurchaseRequestWithTemplate } from '@/types/supabase-types';
 import Image from 'next/image';
 import Link from 'next/link';
 
 interface PurchaseHistoryData {
   purchaseRequests: PurchaseRequestWithTemplate[];
-  templateAccess: TemplateAccessWithUser[];
 }
 
 export default function PurchaseHistory() {
   const { user } = useAuth();
-  const [data, setData] = useState<PurchaseHistoryData>({ purchaseRequests: [], templateAccess: [] });
+  const [data, setData] = useState<PurchaseHistoryData>({ purchaseRequests: [] });
   const [loading, setLoading] = useState(true);
   const [editingRequest, setEditingRequest] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ depositorName: '', message: '' });
@@ -143,56 +142,7 @@ export default function PurchaseHistory() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* 구매 완료된 템플릿 */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">구매 완료된 템플릿</h2>
-          <p className="text-sm text-gray-600">현재 사용 가능한 템플릿 목록입니다</p>
-        </div>
-
-        {data.templateAccess.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="text-gray-500">구매한 템플릿이 없습니다.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-            {data.templateAccess.map((access) => (
-              <div key={access.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                <div className="aspect-video bg-gray-100 rounded mb-3 overflow-hidden">
-                  <Image
-                    src={`/thumbnail/${access.template?.id}.png`}
-                    alt={access.template?.name || ''}
-                    width={300}
-                    height={169}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        parent.innerHTML = '<div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">썸네일 없음</div>';
-                      }
-                    }}
-                  />
-                </div>
-                <h3 className="font-medium text-gray-900 mb-1">{access.template?.name}</h3>
-                <p className="text-sm text-gray-600 mb-2">{access.template?.description}</p>
-                <div className="flex justify-between items-center text-xs text-gray-500">
-                  <span>구매일: {new Date(access.granted_at).toLocaleDateString('ko-KR')}</span>
-                  <Link
-                    href={`/time-table/${access.template?.id}`}
-                    className="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700"
-                  >
-                    사용하기
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
+    <div>
       {/* 구매 요청 내역 */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">

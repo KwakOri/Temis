@@ -7,10 +7,11 @@ import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
+import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
-type TabType = "templates" | "users" | "access" | "addUser" | "invites" | "emailPreview" | "purchases";
+type TabType = "templates" | "users" | "access" | "addUser" | "invites" | "emailPreview" | "purchases" | "customOrders";
 
 function AdminContent() {
   const { user } = useAuth();
@@ -95,6 +96,7 @@ function AdminContent() {
     { id: "templates" as TabType, name: "템플릿 관리", icon: "📄" },
     { id: "users" as TabType, name: "사용자 관리", icon: "👥" },
     { id: "purchases" as TabType, name: "결제 대기", icon: "💳" },
+    { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: "🎨" },
     { id: "invites" as TabType, name: "사용자 초대", icon: "📧" },
     { id: "addUser" as TabType, name: "직접 사용자 추가", icon: "👤➕" },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: "📮" },
@@ -151,6 +153,7 @@ function AdminContent() {
         {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "users" && <UserManagement />}
         {activeTab === "purchases" && <PurchaseManagement />}
+        {activeTab === "customOrders" && <CustomOrderManagement />}
         {activeTab === "invites" && <AdminInviteManagement />}
         {activeTab === "addUser" && <AdminUserRegistration />}
         {activeTab === "emailPreview" && <EmailTemplatePreview />}

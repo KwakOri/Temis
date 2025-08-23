@@ -9,7 +9,7 @@ export default function EmailTestPanel() {
   const [result, setResult] = useState<{
     type: "success" | "error";
     message: string;
-    details?: any;
+    details?: unknown;
   } | null>(null);
 
   const handleConnectionTest = async () => {

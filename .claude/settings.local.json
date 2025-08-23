@@ -21,7 +21,11 @@
       "mcp__supabase__apply_migration",
       "mcp__supabase__execute_sql",
       "mcp__supabase__get_logs",
-      "Bash(claude migrate-installer:*)"
+      "Bash(claude migrate-installer:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_click",
+      "Read(//Users/kwakori/Desktop/**)",
+      "mcp__supabase__list_branches"
     ],
     "deny": []
   },

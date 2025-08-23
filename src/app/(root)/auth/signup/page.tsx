@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function SignupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+  const { user, loading } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -14,11 +16,18 @@ export default function SignupPage() {
     confirmPassword: "",
     name: "",
   });
-  const [loading, setLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
   const [validating, setValidating] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [tokenValid, setTokenValid] = useState(false);
+
+  // 이미 로그인된 사용자는 메인 페이지로 리다이렉트
+  useEffect(() => {
+    if (!loading && user) {
+      router.push("/");
+    }
+  }, [user, loading, router]);
 
   // 토큰 유효성 검증
   useEffect(() => {
@@ -92,7 +101,7 @@ export default function SignupPage() {
       return;
     }
 
-    setLoading(true);
+    setFormLoading(true);
     setError("");
 
     try {
@@ -122,7 +131,7 @@ export default function SignupPage() {
     } catch (error) {
       setError("서버 오류가 발생했습니다.");
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -277,9 +286,9 @@ export default function SignupPage() {
             <button
               type="submit"
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading || success}
+              disabled={formLoading || success}
             >
-              {loading ? "가입 중..." : "회원가입"}
+              {formLoading ? "가입 중..." : "회원가입"}
             </button>
           </div>
 

@@ -330,7 +330,7 @@ const MyPageContent = () => {
                 <button
                   onClick={handleLogout}
                   disabled={logoutLoading}
-                  className="w-full md:w-auto px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
+                  className="w-full md:w-auto px-4 py-2 bg-[#1e3a8a] text-white rounded-md hover:bg-[#1e40af] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
                 >
                   {logoutLoading ? (
                     <>
@@ -456,7 +456,7 @@ const MyPageContent = () => {
                   <div className="flex items-center justify-center md:justify-start">
                     <div className="flex-shrink-0">
                       <svg
-                        className="h-6 w-6 md:h-8 md:w-8 text-indigo-600"
+                        className="h-6 w-6 md:h-8 md:w-8 text-[#1e3a8a]"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
