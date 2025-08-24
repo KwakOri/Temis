@@ -10,7 +10,7 @@ import OnlineImg from "./main/online_rubit.png";
 
 // Profile images
 import MainProfileFrame from "./main/profile_rubit.png";
-import TopObject from "./main/topObject_rubit.png";
+import TopObject from "./main/top_object_rubit.png";
 
 export const Imgs: ImgsType = {
   first: {
