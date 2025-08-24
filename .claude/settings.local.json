@@ -15,12 +15,14 @@
       "Bash(ls:*)",
       "Bash(gh pr list:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Read(//Users/kwakori/Desktop/**)",
+      "Read(//Users/kwakori/Desktop/**)"
     ],
     "deny": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "supabase"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }
