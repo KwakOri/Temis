@@ -136,7 +136,7 @@ const StreamingDayAndTime = ({
   return (
     <p
       style={{
-        top: 68,
+        top: 74,
         left: isPink ? 160 : 174,
         width: 280,
         lineHeight: 1,
@@ -165,8 +165,6 @@ const CellTextDescription = ({
         className="leading-none text-center w-full"
         multiline={true}
         maxFontSize={104}
-        maxHeight={220}
-        parentRotation={-8}
       >
         {description ? (description as string) : placeholders.description}
       </AutoResizeText>

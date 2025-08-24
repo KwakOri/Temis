@@ -13,7 +13,6 @@ interface Props {
     | { top?: number; right?: number; bottom?: number; left?: number };
   multiline?: boolean;
   maxHeight?: number;
-  parentRotation?: number;
 }
 
 const AutoResizeText: React.FC<Props> = ({
@@ -25,7 +24,6 @@ const AutoResizeText: React.FC<Props> = ({
   padding = 0,
   multiline = false,
   maxHeight,
-  parentRotation = 0,
 }) => {
   const textRef = useRef<HTMLDivElement>(null);
   const [fontSize, setFontSize] = useState(maxFontSize);
@@ -40,20 +38,20 @@ const AutoResizeText: React.FC<Props> = ({
     // 정확한 텍스트 너비 측정을 위한 헬퍼 함수
     const measureTextWidth = (fontSize: number): number => {
       // 임시 측정 요소 생성
-      const tempEl = document.createElement('div');
-      tempEl.style.position = 'absolute';
-      tempEl.style.visibility = 'hidden';
-      tempEl.style.whiteSpace = 'nowrap';
+      const tempEl = document.createElement("div");
+      tempEl.style.position = "absolute";
+      tempEl.style.visibility = "hidden";
+      tempEl.style.whiteSpace = "nowrap";
       tempEl.style.fontSize = `${fontSize}px`;
-      tempEl.style.fontFamily = el.style.fontFamily || 'inherit';
-      tempEl.style.fontWeight = el.style.fontWeight || 'inherit';
-      tempEl.style.letterSpacing = el.style.letterSpacing || 'inherit';
+      tempEl.style.fontFamily = el.style.fontFamily || "inherit";
+      tempEl.style.fontWeight = el.style.fontWeight || "inherit";
+      tempEl.style.letterSpacing = el.style.letterSpacing || "inherit";
       tempEl.textContent = children;
-      
+
       document.body.appendChild(tempEl);
       const width = tempEl.scrollWidth;
       document.body.removeChild(tempEl);
-      
+
       return width;
     };
 
@@ -74,8 +72,6 @@ const AutoResizeText: React.FC<Props> = ({
       if (maxHeight !== undefined) {
         availableHeight = Math.min(availableHeight, maxHeight);
       }
-
-      console.log(`Available space: ${availableWidth}x${availableHeight}, Parent: ${parent.clientWidth}x${parent.clientHeight}, Text: "${children}"`);
 
       // 최소 크기 확인
       if (availableWidth <= 0 || availableHeight <= 0) {
@@ -98,49 +94,32 @@ const AutoResizeText: React.FC<Props> = ({
       let low = minFontSize;
       let high = maxFontSize;
       let optimalFont = minFontSize;
-      
-      const measureTextSize = (fontSize: number): { width: number; height: number } => {
-        // 회전 영향을 받지 않는 임시 측정 요소 생성
-        const tempEl = document.createElement('div');
-        tempEl.style.position = 'fixed';
-        tempEl.style.top = '-9999px';
-        tempEl.style.left = '-9999px';
-        tempEl.style.visibility = 'hidden';
-        tempEl.style.fontSize = `${fontSize}px`;
-        tempEl.style.fontFamily = el.style.fontFamily || 'inherit';
-        tempEl.style.fontWeight = el.style.fontWeight || 'inherit';
-        tempEl.style.letterSpacing = el.style.letterSpacing || 'inherit';
-        tempEl.style.lineHeight = el.style.lineHeight || 'inherit';
-        tempEl.style.whiteSpace = multiline ? 'pre-wrap' : 'nowrap';
-        tempEl.style.wordBreak = multiline ? 'break-word' : 'normal';
-        tempEl.style.overflowWrap = multiline ? 'break-word' : 'normal';
-        tempEl.style.width = `${availableWidth}px`;
-        tempEl.style.transform = `rotate(${-parentRotation}deg)`; // 부모 회전의 반대값 적용
-        tempEl.textContent = children;
-        
-        document.body.appendChild(tempEl);
-        const width = tempEl.scrollWidth;
-        const height = tempEl.scrollHeight;
-        document.body.removeChild(tempEl);
-        
-        return { width, height };
-      };
 
       const testFontSize = (testFont: number): boolean => {
-        const { width, height } = measureTextSize(testFont);
-        
-        const exceedsWidth = width > availableWidth;
-        const exceedsHeight = height > availableHeight;
+        el.style.fontSize = `${testFont}px`;
 
-        console.log(`Font ${testFont}px: size ${width}x${height}, exceeds: W=${exceedsWidth} H=${exceedsHeight}`);
+        let exceedsWidth = false;
+        let exceedsHeight = false;
+
+        if (multiline) {
+          // multiline 모드에서는 실제 렌더링된 크기와 정확한 텍스트 너비를 모두 확인
+          const singleLineWidth = measureTextWidth(testFont);
+          exceedsWidth =
+            singleLineWidth > availableWidth && el.scrollWidth > availableWidth;
+          exceedsHeight = el.scrollHeight > availableHeight;
+        } else {
+          // single line 모드에서는 scrollWidth 사용
+          exceedsWidth = el.scrollWidth > availableWidth;
+          exceedsHeight = el.scrollHeight > availableHeight;
+        }
 
         return !exceedsWidth && !exceedsHeight;
       };
 
       // 이진 탐색으로 최대 가능한 폰트 크기 찾기
       while (low <= high) {
-        const mid = Math.floor((low + high) / 2 * 2) / 2; // 0.5 단위로 반올림
-        
+        const mid = Math.floor(((low + high) / 2) * 2) / 2; // 0.5 단위로 반올림
+
         if (testFontSize(mid)) {
           optimalFont = mid;
           low = mid + 0.5;
