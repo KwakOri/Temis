@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { uploadMultipleFiles, validateFiles } from '@/lib/file-utils';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { verifyJWT, extractTokenFromRequest, extractTokenFromCookie } from '@/lib/auth/jwt';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    // JWT 토큰에서 사용자 인증 확인
+    let token = extractTokenFromRequest(request);
+    if (!token) {
+      token = extractTokenFromCookie(request.headers.get('cookie'));
+    }
     
-    // 사용자 인증 확인
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-    
-    if (authError || !session) {
+    if (!token) {
       return NextResponse.json(
         { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    const payload = await verifyJWT(token);
+    if (!payload) {
+      return NextResponse.json(
+        { error: '유효하지 않은 토큰입니다.' },
         { status: 401 }
       );
     }
@@ -72,9 +80,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 파일 업로드
+    // 파일 업로드 (userId를 전달)
     const uploadedFiles = await uploadMultipleFiles(
       files,
+      Number(payload.userId),
       `uploads/custom-orders/${uploadType}`
     );
 
@@ -95,14 +104,23 @@ export async function POST(request: NextRequest) {
 // 파일 삭제 API
 export async function DELETE(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    // JWT 토큰에서 사용자 인증 확인
+    let token = extractTokenFromRequest(request);
+    if (!token) {
+      token = extractTokenFromCookie(request.headers.get('cookie'));
+    }
     
-    // 사용자 인증 확인
-    const { data: { session }, error: authError } = await supabase.auth.getSession();
-    
-    if (authError || !session) {
+    if (!token) {
       return NextResponse.json(
         { error: '인증이 필요합니다.' },
+        { status: 401 }
+      );
+    }
+
+    const payload = await verifyJWT(token);
+    if (!payload) {
+      return NextResponse.json(
+        { error: '유효하지 않은 토큰입니다.' },
         { status: 401 }
       );
     }

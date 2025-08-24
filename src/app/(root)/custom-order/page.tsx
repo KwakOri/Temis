@@ -3,6 +3,7 @@
 import BackButton from "@/components/BackButton";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
+import { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { Palette } from "lucide-react";
 import Link from "next/link";
@@ -13,10 +14,15 @@ interface CustomOrderFormData {
   emailDiscord: string;
   orderRequirements: string;
   hasCharacterImages: boolean;
-  characterImageFiles: File[];
+  characterImageFiles: FilePreviewItem[];
+  characterImageFileIds: string[];
   wantsOmakase: boolean;
   designKeywords: string;
-  referenceFiles: File[];
+  referenceFiles: FilePreviewItem[];
+  referenceFileIds: string[];
+  fastDelivery: boolean;
+  portfolioPrivate: boolean;
+  reviewEvent: boolean;
   priceQuoted: number;
 }
 
@@ -29,46 +35,13 @@ export default function CustomOrderPage() {
 
   const handleOrderSubmit = async (formData: CustomOrderFormData) => {
     try {
-      // FormData를 API 호출에 맞는 형식으로 변환
-      const requestData = {
-        priceQuoted: formData.priceQuoted,
-        youtubeSnsAddress: formData.youtubeSnsAddress,
-        emailDiscord: formData.emailDiscord,
-        orderRequirements: formData.orderRequirements,
-        hasCharacterImages: formData.hasCharacterImages,
-        wantsOmakase: formData.wantsOmakase,
-        designKeywords: formData.designKeywords,
-        characterImageFiles: formData.characterImageFiles.map(
-          (file: File, index: number) => ({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            // 추후 Cloudflare R2 URL로 대체 예정
-            tempUrl: `https://temp-storage.example.com/character-images/temp_${Date.now()}_${index}_${
-              file.name
-            }`,
-          })
-        ),
-        referenceFiles: formData.referenceFiles.map(
-          (file: File, index: number) => ({
-            name: file.name,
-            size: file.size,
-            type: file.type,
-            // 추후 Cloudflare R2 URL로 대체 예정
-            tempUrl: `https://temp-storage.example.com/reference-files/temp_${Date.now()}_${index}_${
-              file.name
-            }`,
-          })
-        ),
-      };
-
       const response = await fetch("/api/shop/custom-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify(requestData),
+        body: JSON.stringify(formData),
       });
 
       const result = await response.json();

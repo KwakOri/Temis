@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Eye, Edit, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import AdminFileManager from './AdminFileManager';
 
 interface CustomOrder {
   id: string;
@@ -11,9 +12,12 @@ interface CustomOrder {
   order_requirements: string;
   has_character_images: boolean;
   character_image_files: string[] | null;
+  character_image_file_ids: string[] | null;
   wants_omakase: boolean;
   design_keywords: string | null;
   reference_files: string[] | null;
+  reference_file_ids: string[] | null;
+  selected_options: string[] | null;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   admin_notes: string | null;
   price_quoted: number | null;
@@ -483,6 +487,24 @@ function OrderDetailModal({ order, onClose, onUpdate, updating }: OrderDetailMod
                 </div>
               )}
 
+              {order.selected_options && order.selected_options.length > 0 && (
+                <div>
+                  <label className="text-xs text-gray-500">선택된 옵션</label>
+                  <div className="mt-1 p-3 bg-gray-50 rounded-md">
+                    <div className="flex flex-wrap gap-2">
+                      {order.selected_options.map((option, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                          {option}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2">
                 {order.has_character_images && (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
@@ -507,6 +529,18 @@ function OrderDetailModal({ order, onClose, onUpdate, updating }: OrderDetailMod
               </div>
             </div>
           </div>
+
+          {/* 첨부파일 관리 */}
+          {((order.character_image_file_ids && order.character_image_file_ids.length > 0) || 
+            (order.reference_file_ids && order.reference_file_ids.length > 0)) && (
+            <div>
+              <AdminFileManager
+                characterImageIds={order.character_image_file_ids || []}
+                referenceFileIds={order.reference_file_ids || []}
+                title="주문 첨부파일"
+              />
+            </div>
+          )}
 
           {/* 관리자 작업 영역 */}
           <form onSubmit={handleSubmit} className="border-t pt-6">

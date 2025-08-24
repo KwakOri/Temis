@@ -1,8 +1,11 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@supabase/supabase-js';
 import { uploadFileToR2, deleteFileFromR2, getFileUrl } from './r2';
 import { v4 as uuidv4 } from 'uuid';
 
-const supabase = createClientComponentClient();
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export interface FileMetadata {
   id: string;
@@ -19,6 +22,7 @@ export interface FileMetadata {
  */
 export async function uploadFile(
   file: File,
+  userId: number,
   folder = 'uploads/custom-orders'
 ): Promise<FileMetadata> {
   try {
@@ -38,6 +42,7 @@ export async function uploadFile(
         original_name: file.name,
         file_size: file.size,
         mime_type: file.type,
+        created_by: userId,
       })
       .select()
       .single();
@@ -63,9 +68,10 @@ export async function uploadFile(
  */
 export async function uploadMultipleFiles(
   files: File[],
+  userId: number,
   folder = 'uploads/custom-orders'
 ): Promise<FileMetadata[]> {
-  const uploadPromises = files.map(file => uploadFile(file, folder));
+  const uploadPromises = files.map(file => uploadFile(file, userId, folder));
   return await Promise.all(uploadPromises);
 }
 

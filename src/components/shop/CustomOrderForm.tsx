@@ -1,5 +1,6 @@
 "use client";
 
+import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calculator, FileText, Palette, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -12,11 +13,11 @@ interface Step1Data {
 interface Step2Data {
   orderRequirements: string;
   hasCharacterImages: boolean;
-  characterImageFiles: File[];
+  characterImageFiles: FilePreviewItem[];
   characterImageFileIds: string[];
   wantsOmakase: boolean;
   designKeywords: string;
-  referenceFiles: File[];
+  referenceFiles: FilePreviewItem[];
   referenceFileIds: string[];
 }
 
@@ -47,16 +48,34 @@ interface PricingSettings {
   };
 }
 
-type FormData = Step1Data & Step2Data & Step3Data;
+type CustomFormData = Step1Data & Step2Data & Step3Data & { orderId?: string };
+
+interface CustomOrder {
+  id: string;
+  youtube_sns_address: string;
+  email_discord: string;
+  order_requirements: string;
+  has_character_images: boolean;
+  character_image_file_ids: string[];
+  wants_omakase: boolean;
+  design_keywords: string;
+  reference_file_ids: string[];
+  selected_options: string[];
+  price_quoted: number;
+}
 
 interface CustomOrderFormProps {
   onClose: () => void;
-  onSubmit: (formData: FormData) => Promise<void>;
+  onSubmit: (formData: CustomFormData) => Promise<void>;
+  existingOrder?: CustomOrder; // 수정 모드일 때 기존 주문 데이터
+  isEditMode?: boolean; // 수정 모드 여부
 }
 
 export default function CustomOrderForm({
   onClose,
   onSubmit,
+  existingOrder,
+  isEditMode = false,
 }: CustomOrderFormProps) {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
@@ -67,27 +86,32 @@ export default function CustomOrderForm({
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
-    youtubeSnsAddress: "",
-    emailDiscord: "",
+    youtubeSnsAddress: existingOrder?.youtube_sns_address || "",
+    emailDiscord: existingOrder?.email_discord || "",
   });
 
   const [step2Data, setStep2Data] = useState<Step2Data>({
-    orderRequirements: "",
-    hasCharacterImages: false,
-    characterImageFiles: [],
-    characterImageFileIds: [],
-    wantsOmakase: false,
-    designKeywords: "",
-    referenceFiles: [],
-    referenceFileIds: [],
+    orderRequirements: existingOrder?.order_requirements || "",
+    hasCharacterImages: existingOrder?.has_character_images || false,
+    characterImageFiles: [], // 파일은 별도 로드 필요
+    characterImageFileIds: existingOrder?.character_image_file_ids || [],
+    wantsOmakase: existingOrder?.wants_omakase || false,
+    designKeywords: existingOrder?.design_keywords || "",
+    referenceFiles: [], // 파일은 별도 로드 필요
+    referenceFileIds: existingOrder?.reference_file_ids || [],
   });
 
   const [step3Data, setStep3Data] = useState<Step3Data>({
-    fastDelivery: false,
-    portfolioPrivate: false,
-    reviewEvent: false,
-    priceQuoted: 80000, // 기본 가격
+    fastDelivery:
+      existingOrder?.selected_options?.includes("빠른 마감") || false,
+    portfolioPrivate:
+      existingOrder?.selected_options?.includes("포폴 비공개") || false,
+    reviewEvent:
+      existingOrder?.selected_options?.includes("후기 이벤트 참여") || false,
+    priceQuoted: existingOrder?.price_quoted || 80000,
   });
+
+  console.log("currentStep => ", currentStep);
 
   // 가격 설정 로드
   useEffect(() => {
@@ -193,10 +217,20 @@ export default function CustomOrderForm({
 
     setSubmitting(true);
     try {
-      await onSubmit({ ...step1Data, ...step2Data, ...step3Data });
+      const formData: CustomFormData = {
+        ...step1Data,
+        ...step2Data,
+        ...step3Data,
+        ...(isEditMode && existingOrder && { orderId: existingOrder.id }),
+      };
+      await onSubmit(formData);
     } catch (error) {
       console.error("Error submitting form:", error);
-      alert("신청 중 오류가 발생했습니다.");
+      alert(
+        isEditMode
+          ? "수정 중 오류가 발생했습니다."
+          : "신청 중 오류가 발생했습니다."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -208,34 +242,58 @@ export default function CustomOrderForm({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    // 파일 개수 제한 확인
+    const currentCount = step2Data.characterImageFiles.length;
+    const newCount = files.length;
+    if (currentCount + newCount > 5) {
+      alert(
+        `최대 5개의 파일까지 업로드할 수 있습니다. (현재: ${currentCount}개)`
+      );
+      return;
+    }
+
     setUploadingFiles(true);
     try {
       const formData = new FormData();
-      Array.from(files).forEach(file => {
-        formData.append('files', file);
+      Array.from(files).forEach((file) => {
+        formData.append("files", file);
       });
-      formData.append('type', 'character-images');
+      formData.append("type", "character-images");
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || '업로드에 실패했습니다.');
+        throw new Error(error.error || "업로드에 실패했습니다.");
       }
 
       const result = await response.json();
-      
+
+      // FilePreviewItem 형식으로 변환
+      const newFileItems: FilePreviewItem[] = Array.from(files).map(
+        (file, index) => ({
+          id: result.files[index].id,
+          file: file,
+          url: result.files[index].url,
+        })
+      );
+
       setStep2Data((prev) => ({
         ...prev,
-        characterImageFiles: Array.from(files),
-        characterImageFileIds: result.files.map((file: any) => file.id),
+        characterImageFiles: [...prev.characterImageFiles, ...newFileItems],
+        characterImageFileIds: [
+          ...prev.characterImageFileIds,
+          ...result.files.map((file: { id: string; url: string }) => file.id),
+        ],
       }));
     } catch (error) {
-      console.error('캐릭터 이미지 업로드 실패:', error);
-      alert(error instanceof Error ? error.message : '파일 업로드에 실패했습니다.');
+      console.error("캐릭터 이미지 업로드 실패:", error);
+      alert(
+        error instanceof Error ? error.message : "파일 업로드에 실패했습니다."
+      );
     } finally {
       setUploadingFiles(false);
     }
@@ -247,36 +305,128 @@ export default function CustomOrderForm({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    // 파일 개수 제한 확인
+    const currentCount = step2Data.referenceFiles.length;
+    const newCount = files.length;
+    if (currentCount + newCount > 10) {
+      alert(
+        `최대 10개의 파일까지 업로드할 수 있습니다. (현재: ${currentCount}개)`
+      );
+      return;
+    }
+
     setUploadingFiles(true);
     try {
       const formData = new FormData();
-      Array.from(files).forEach(file => {
-        formData.append('files', file);
+      Array.from(files).forEach((file) => {
+        formData.append("files", file);
       });
-      formData.append('type', 'reference-files');
+      formData.append("type", "reference-files");
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || '업로드에 실패했습니다.');
+        throw new Error(error.error || "업로드에 실패했습니다.");
       }
 
       const result = await response.json();
-      
+
+      // FilePreviewItem 형식으로 변환
+      const newFileItems: FilePreviewItem[] = Array.from(files).map(
+        (file, index) => ({
+          id: result.files[index].id,
+          file: file,
+          url: result.files[index].url,
+        })
+      );
+
       setStep2Data((prev) => ({
         ...prev,
-        referenceFiles: Array.from(files),
-        referenceFileIds: result.files.map((file: any) => file.id),
+        referenceFiles: [...prev.referenceFiles, ...newFileItems],
+        referenceFileIds: [
+          ...prev.referenceFileIds,
+          ...result.files.map((file: { id: string; url: string }) => file.id),
+        ],
       }));
     } catch (error) {
-      console.error('참고 파일 업로드 실패:', error);
-      alert(error instanceof Error ? error.message : '파일 업로드에 실패했습니다.');
+      console.error("참고 파일 업로드 실패:", error);
+      alert(
+        error instanceof Error ? error.message : "파일 업로드에 실패했습니다."
+      );
     } finally {
       setUploadingFiles(false);
+    }
+  };
+
+  // 캐릭터 이미지 파일 삭제
+  const handleRemoveCharacterImage = async (fileId: string) => {
+    try {
+      // API 호출하여 서버에서 파일 삭제
+      const response = await fetch("/api/upload", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileIds: [fileId] }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "파일 삭제에 실패했습니다.");
+      }
+
+      // 로컬 상태에서 파일 제거
+      setStep2Data((prev) => ({
+        ...prev,
+        characterImageFiles: prev.characterImageFiles.filter(
+          (file) => file.id !== fileId
+        ),
+        characterImageFileIds: prev.characterImageFileIds.filter(
+          (id) => id !== fileId
+        ),
+      }));
+    } catch (error) {
+      console.error("파일 삭제 실패:", error);
+      alert(
+        error instanceof Error ? error.message : "파일 삭제에 실패했습니다."
+      );
+    }
+  };
+
+  // 참고 파일 삭제
+  const handleRemoveReferenceFile = async (fileId: string) => {
+    try {
+      // API 호출하여 서버에서 파일 삭제
+      const response = await fetch("/api/upload", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ fileIds: [fileId] }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "파일 삭제에 실패했습니다.");
+      }
+
+      // 로컬 상태에서 파일 제거
+      setStep2Data((prev) => ({
+        ...prev,
+        referenceFiles: prev.referenceFiles.filter(
+          (file) => file.id !== fileId
+        ),
+        referenceFileIds: prev.referenceFileIds.filter((id) => id !== fileId),
+      }));
+    } catch (error) {
+      console.error("파일 삭제 실패:", error);
+      alert(
+        error instanceof Error ? error.message : "파일 삭제에 실패했습니다."
+      );
     }
   };
 
@@ -288,7 +438,7 @@ export default function CustomOrderForm({
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold text-slate-900">
-                TEMIS 맞춤형 시간표 제작 신청폼
+                {isEditMode ? "주문 수정" : "TEMIS 맞춤형 시간표 제작 신청폼"}
               </h2>
               <div className="flex items-center mt-2">
                 <div
@@ -496,14 +646,13 @@ export default function CustomOrderForm({
                       파일 업로드 중...
                     </div>
                   )}
-                  {step2Data.characterImageFiles.length > 0 && !uploadingFiles && (
-                    <div className="mt-2 text-sm text-slate-600">
-                      업로드 완료:{" "}
-                      {step2Data.characterImageFiles
-                        .map((f) => f.name)
-                        .join(", ")}
-                    </div>
-                  )}
+
+                  {/* 파일 미리보기 */}
+                  <FilePreview
+                    files={step2Data.characterImageFiles}
+                    onRemove={handleRemoveCharacterImage}
+                    maxFiles={5}
+                  />
                 </div>
 
                 <div>
@@ -612,19 +761,22 @@ export default function CustomOrderForm({
                       파일 선택
                     </label>
                   </div>
-                  {step2Data.referenceFiles.length > 0 && !uploadingFiles && (
-                    <div className="mt-2 text-sm text-slate-600">
-                      업로드 완료:{" "}
-                      {step2Data.referenceFiles.map((f) => f.name).join(", ")}
-                    </div>
-                  )}
+                  {/* 참고 파일 미리보기 */}
+                  <FilePreview
+                    files={step2Data.referenceFiles}
+                    onRemove={handleRemoveReferenceFile}
+                    maxFiles={10}
+                  />
                 </div>
               </div>
 
               <div className="flex justify-between">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(1)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentStep(1);
+                  }}
                   className="border border-slate-300 px-6 py-2 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
                 >
                   이전
@@ -782,7 +934,10 @@ export default function CustomOrderForm({
               <div className="flex justify-between">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(2)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentStep(2);
+                  }}
                   className="border border-slate-300 px-6 py-2 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
                 >
                   이전
@@ -792,7 +947,13 @@ export default function CustomOrderForm({
                   disabled={submitting || loadingPricing}
                   className="bg-[#1e3a8a] text-white px-6 py-2 rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium"
                 >
-                  {submitting ? "신청 중..." : "신청 완료"}
+                  {submitting
+                    ? isEditMode
+                      ? "수정 중..."
+                      : "신청 중..."
+                    : isEditMode
+                    ? "수정 완료"
+                    : "신청 완료"}
                 </button>
               </div>
             </form>

@@ -25,10 +25,15 @@
       "mcp__playwright__browser_navigate",
       "mcp__playwright__browser_click",
       "Read(//Users/kwakori/Desktop/**)",
-      "mcp__supabase__list_branches"
+      "mcp__supabase__list_branches",
+      "Bash(npx supabase db diff:*)",
+      "Bash(npm uninstall:*)",
+      "mcp__playwright__browser_type"
     ],
     "deny": []
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["supabase"]
+  "enabledMcpjsonServers": [
+    "supabase"
+  ]
 }

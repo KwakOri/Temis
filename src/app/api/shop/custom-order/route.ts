@@ -39,6 +39,9 @@ export async function POST(request: Request) {
       designKeywords,
       characterImageFiles, // base64 encoded files array
       referenceFiles, // base64 encoded files array
+      fastDelivery,
+      portfolioPrivate,
+      reviewEvent,
     } = body;
 
     // 필수 필드 검증
@@ -94,6 +97,12 @@ export async function POST(request: Request) {
       }
     }
 
+    // 선택된 옵션들을 배열로 변환
+    const selectedOptions: string[] = [];
+    if (fastDelivery) selectedOptions.push('빠른 마감');
+    if (portfolioPrivate) selectedOptions.push('포폴 비공개');
+    if (reviewEvent) selectedOptions.push('후기 이벤트 참여');
+
     // 데이터베이스에 주문 정보 저장
     const { data: order, error } = await supabase
       .from("custom_timetable_orders")
@@ -108,6 +117,7 @@ export async function POST(request: Request) {
         character_image_files: characterImagePaths,
         reference_files: referenceFilePaths,
         price_quoted: priceQuoted,
+        selected_options: selectedOptions,
         status: "pending",
       })
       .select()
@@ -173,6 +183,184 @@ export async function GET(request: Request) {
     return NextResponse.json({ orders }, { status: 200 });
   } catch (error) {
     console.error("Get orders error:", error);
+    return NextResponse.json(
+      { error: "서버 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+}
+
+// 주문 수정 (pending 상태에서만 가능)
+export async function PUT(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "로그인이 필요합니다." },
+        { status: 401 }
+      );
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const userId = parseInt(decoded.userId, 10);
+
+    const body = await request.json();
+    const {
+      orderId,
+      priceQuoted,
+      youtubeSnsAddress,
+      emailDiscord,
+      orderRequirements,
+      hasCharacterImages,
+      wantsOmakase,
+      designKeywords,
+      characterImageFileIds,
+      referenceFileIds,
+      fastDelivery,
+      portfolioPrivate,
+      reviewEvent,
+    } = body;
+
+    if (!orderId) {
+      return NextResponse.json(
+        { error: "주문 ID가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    // 기존 주문 확인 (본인 주문이고 pending 상태인지 확인)
+    const { data: existingOrder, error: fetchError } = await supabase
+      .from("custom_timetable_orders")
+      .select("*")
+      .eq("id", orderId)
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .single();
+
+    if (fetchError || !existingOrder) {
+      return NextResponse.json(
+        { error: "수정할 수 없는 주문입니다. (대기중 상태에서만 수정 가능)" },
+        { status: 403 }
+      );
+    }
+
+    // 선택된 옵션들을 배열로 변환
+    const selectedOptions: string[] = [];
+    if (fastDelivery) selectedOptions.push('빠른 마감');
+    if (portfolioPrivate) selectedOptions.push('포폴 비공개');
+    if (reviewEvent) selectedOptions.push('후기 이벤트 참여');
+
+    // 주문 업데이트
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from("custom_timetable_orders")
+      .update({
+        youtube_sns_address: youtubeSnsAddress,
+        email_discord: emailDiscord,
+        order_requirements: orderRequirements,
+        has_character_images: hasCharacterImages,
+        wants_omakase: wantsOmakase,
+        design_keywords: designKeywords,
+        character_image_file_ids: characterImageFileIds,
+        reference_file_ids: referenceFileIds,
+        price_quoted: priceQuoted,
+        selected_options: selectedOptions,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error("Database update error:", updateError);
+      return NextResponse.json(
+        { error: "주문 수정 중 오류가 발생했습니다." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message: "주문이 성공적으로 수정되었습니다.",
+        order: updatedOrder,
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Update order error:", error);
+    return NextResponse.json(
+      { error: "서버 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+}
+
+// 주문 취소 (pending 상태에서만 가능)
+export async function DELETE(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+
+    if (!token) {
+      return NextResponse.json(
+        { error: "로그인이 필요합니다." },
+        { status: 401 }
+      );
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
+    const userId = parseInt(decoded.userId, 10);
+
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get("orderId");
+
+    if (!orderId) {
+      return NextResponse.json(
+        { error: "주문 ID가 필요합니다." },
+        { status: 400 }
+      );
+    }
+
+    // 기존 주문 확인 (본인 주문이고 pending 상태인지 확인)
+    const { data: existingOrder, error: fetchError } = await supabase
+      .from("custom_timetable_orders")
+      .select("*")
+      .eq("id", orderId)
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .single();
+
+    if (fetchError || !existingOrder) {
+      return NextResponse.json(
+        { error: "취소할 수 없는 주문입니다. (대기중 상태에서만 취소 가능)" },
+        { status: 403 }
+      );
+    }
+
+    // 주문 상태를 cancelled로 변경
+    const { error: updateError } = await supabase
+      .from("custom_timetable_orders")
+      .update({
+        status: "cancelled",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", orderId);
+
+    if (updateError) {
+      console.error("Database update error:", updateError);
+      return NextResponse.json(
+        { error: "주문 취소 중 오류가 발생했습니다." },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "주문이 성공적으로 취소되었습니다." },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Cancel order error:", error);
     return NextResponse.json(
       { error: "서버 오류가 발생했습니다." },
       { status: 500 }

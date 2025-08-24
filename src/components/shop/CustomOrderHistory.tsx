@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Clock, CheckCircle, XCircle, AlertCircle, Edit, Trash2 } from "lucide-react";
+import CustomOrderForm from "./CustomOrderForm";
 
 interface CustomOrder {
   id: string;
@@ -23,6 +24,8 @@ export default function CustomOrderHistory() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<CustomOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingOrder, setEditingOrder] = useState<CustomOrder | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -93,6 +96,69 @@ export default function CustomOrderHistory() {
         return `${baseClass} bg-red-100 text-red-800`;
       default:
         return `${baseClass} bg-gray-100 text-gray-800`;
+    }
+  };
+
+  // 주문 수정 핸들러
+  const handleEditOrder = (order: CustomOrder) => {
+    setEditingOrder(order);
+    setShowEditForm(true);
+  };
+
+  // 주문 수정 제출 핸들러
+  const handleEditSubmit = async (formData: any) => {
+    if (!editingOrder) return;
+
+    try {
+      const response = await fetch("/api/shop/custom-order", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          orderId: editingOrder.id,
+          ...formData,
+        }),
+      });
+
+      if (response.ok) {
+        alert("주문이 성공적으로 수정되었습니다.");
+        setShowEditForm(false);
+        setEditingOrder(null);
+        fetchOrders(); // 목록 새로고침
+      } else {
+        const error = await response.json();
+        alert(error.error || "수정 중 오류가 발생했습니다.");
+      }
+    } catch (error) {
+      console.error("Edit order error:", error);
+      alert("수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 주문 취소 핸들러
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm("정말로 이 주문을 취소하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/shop/custom-order?orderId=${orderId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (response.ok) {
+        alert("주문이 성공적으로 취소되었습니다.");
+        fetchOrders(); // 목록 새로고침
+      } else {
+        const error = await response.json();
+        alert(error.error || "취소 중 오류가 발생했습니다.");
+      }
+    } catch (error) {
+      console.error("Cancel order error:", error);
+      alert("취소 중 오류가 발생했습니다.");
     }
   };
 
@@ -193,10 +259,43 @@ export default function CustomOrderHistory() {
                     <p className="text-sm text-blue-700">{order.admin_notes}</p>
                   </div>
                 )}
+
+                {/* 수정/취소 버튼 (pending 상태에서만 표시) */}
+                {order.status === "pending" && (
+                  <div className="flex gap-2 pt-3 border-t border-slate-100">
+                    <button
+                      onClick={() => handleEditOrder(order)}
+                      className="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <Edit className="h-3 w-3 mr-1" />
+                      수정
+                    </button>
+                    <button
+                      onClick={() => handleCancelOrder(order.id)}
+                      className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      취소
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* 수정 폼 모달 */}
+      {showEditForm && editingOrder && (
+        <CustomOrderForm
+          onClose={() => {
+            setShowEditForm(false);
+            setEditingOrder(null);
+          }}
+          onSubmit={handleEditSubmit}
+          existingOrder={editingOrder}
+          isEditMode={true}
+        />
       )}
     </div>
   );

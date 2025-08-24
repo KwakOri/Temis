@@ -6,7 +6,7 @@ CREATE TABLE files (
   file_size BIGINT NOT NULL,                -- 파일 크기 (bytes)
   mime_type VARCHAR(100) NOT NULL,          -- MIME 타입
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  created_by UUID REFERENCES users(id),     -- 업로드한 사용자
+  created_by BIGINT REFERENCES users(id),   -- 업로드한 사용자 (bigint 타입으로 수정)
   is_deleted BOOLEAN DEFAULT FALSE,         -- 소프트 삭제 플래그
   deleted_at TIMESTAMP WITH TIME ZONE,      -- 삭제된 시간
   UNIQUE(file_key)
@@ -18,27 +18,5 @@ CREATE INDEX idx_files_created_at ON files(created_at);
 CREATE INDEX idx_files_is_deleted ON files(is_deleted);
 CREATE INDEX idx_files_file_key ON files(file_key);
 
--- RLS 정책 활성화
-ALTER TABLE files ENABLE ROW LEVEL SECURITY;
 
--- 사용자는 자신이 업로드한 파일만 볼 수 있음
-CREATE POLICY "Users can view own files" ON files
-  FOR SELECT USING (created_by = auth.uid());
 
--- 사용자는 자신의 파일만 업로드할 수 있음
-CREATE POLICY "Users can insert own files" ON files
-  FOR INSERT WITH CHECK (created_by = auth.uid());
-
--- 사용자는 자신의 파일만 소프트 삭제할 수 있음
-CREATE POLICY "Users can soft delete own files" ON files
-  FOR UPDATE USING (created_by = auth.uid())
-  WITH CHECK (created_by = auth.uid());
-
--- 관리자는 모든 파일을 볼 수 있음
-CREATE POLICY "Admins can view all files" ON files
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM users 
-      WHERE id = auth.uid() AND role = 'admin'
-    )
-  );
