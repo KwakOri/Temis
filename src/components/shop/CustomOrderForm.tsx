@@ -13,9 +13,11 @@ interface Step2Data {
   orderRequirements: string;
   hasCharacterImages: boolean;
   characterImageFiles: File[];
+  characterImageFileIds: string[];
   wantsOmakase: boolean;
   designKeywords: string;
   referenceFiles: File[];
+  referenceFileIds: string[];
 }
 
 interface Step3Data {
@@ -62,6 +64,7 @@ export default function CustomOrderForm({
   const [pricingSettings, setPricingSettings] =
     useState<PricingSettings | null>(null);
   const [loadingPricing, setLoadingPricing] = useState(true);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
     youtubeSnsAddress: "",
@@ -72,9 +75,11 @@ export default function CustomOrderForm({
     orderRequirements: "",
     hasCharacterImages: false,
     characterImageFiles: [],
+    characterImageFileIds: [],
     wantsOmakase: false,
     designKeywords: "",
     referenceFiles: [],
+    referenceFileIds: [],
   });
 
   const [step3Data, setStep3Data] = useState<Step3Data>({
@@ -175,6 +180,11 @@ export default function CustomOrderForm({
       return;
     }
 
+    if (uploadingFiles) {
+      alert("파일 업로드가 진행 중입니다. 잠시 후 다시 시도해주세요.");
+      return;
+    }
+
     setCurrentStep(3);
   };
 
@@ -192,27 +202,81 @@ export default function CustomOrderForm({
     }
   };
 
-  const handleCharacterImageUpload = (
+  const handleCharacterImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = e.target.files;
-    if (files) {
+    if (!files || files.length === 0) return;
+
+    setUploadingFiles(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach(file => {
+        formData.append('files', file);
+      });
+      formData.append('type', 'character-images');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '업로드에 실패했습니다.');
+      }
+
+      const result = await response.json();
+      
       setStep2Data((prev) => ({
         ...prev,
         characterImageFiles: Array.from(files),
+        characterImageFileIds: result.files.map((file: any) => file.id),
       }));
+    } catch (error) {
+      console.error('캐릭터 이미지 업로드 실패:', error);
+      alert(error instanceof Error ? error.message : '파일 업로드에 실패했습니다.');
+    } finally {
+      setUploadingFiles(false);
     }
   };
 
-  const handleReferenceFileUpload = (
+  const handleReferenceFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = e.target.files;
-    if (files) {
+    if (!files || files.length === 0) return;
+
+    setUploadingFiles(true);
+    try {
+      const formData = new FormData();
+      Array.from(files).forEach(file => {
+        formData.append('files', file);
+      });
+      formData.append('type', 'reference-files');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '업로드에 실패했습니다.');
+      }
+
+      const result = await response.json();
+      
       setStep2Data((prev) => ({
         ...prev,
         referenceFiles: Array.from(files),
+        referenceFileIds: result.files.map((file: any) => file.id),
       }));
+    } catch (error) {
+      console.error('참고 파일 업로드 실패:', error);
+      alert(error instanceof Error ? error.message : '파일 업로드에 실패했습니다.');
+    } finally {
+      setUploadingFiles(false);
     }
   };
 
@@ -426,9 +490,15 @@ export default function CustomOrderForm({
                       파일 선택
                     </label>
                   </div>
-                  {step2Data.characterImageFiles.length > 0 && (
+                  {uploadingFiles && (
+                    <div className="mt-2 text-sm text-blue-600 flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                      파일 업로드 중...
+                    </div>
+                  )}
+                  {step2Data.characterImageFiles.length > 0 && !uploadingFiles && (
                     <div className="mt-2 text-sm text-slate-600">
-                      선택된 파일:{" "}
+                      업로드 완료:{" "}
                       {step2Data.characterImageFiles
                         .map((f) => f.name)
                         .join(", ")}
@@ -542,9 +612,9 @@ export default function CustomOrderForm({
                       파일 선택
                     </label>
                   </div>
-                  {step2Data.referenceFiles.length > 0 && (
+                  {step2Data.referenceFiles.length > 0 && !uploadingFiles && (
                     <div className="mt-2 text-sm text-slate-600">
-                      선택된 파일:{" "}
+                      업로드 완료:{" "}
                       {step2Data.referenceFiles.map((f) => f.name).join(", ")}
                     </div>
                   )}
