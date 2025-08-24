@@ -1,9 +1,9 @@
 "use client";
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import Loading from "@/components/Loading";
 import BackButton from "@/components/BackButton";
-import { Template } from "@/types/supabase-types";
+import Loading from "@/components/Loading";
+
 import { useRouter } from "next/navigation";
 // TODO: 트위터 기능 활성화 시 주석 해제
 // import { useSearchParams } from "next/navigation";
