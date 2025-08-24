@@ -34,7 +34,7 @@ const TimeTableWeekFlag = ({
         }}
       >
         <p>{start.monthEn.upper}</p>
-        <p>{start.date}</p>
+        <p className="pr-16">{start.date}</p>
       </div>
       <div
         className="grid grid-cols-2 justify-center items-center text-center"
@@ -44,7 +44,7 @@ const TimeTableWeekFlag = ({
         }}
       >
         <p>{end.monthEn.upper}</p>
-        <p>{end.date}</p>
+        <p className="pr-16">{end.date}</p>
       </div>
     </div>
   );
