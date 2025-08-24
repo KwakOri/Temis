@@ -48,8 +48,8 @@ export function validatePasswordStrength(password: string): {
 } {
   const errors: string[] = [];
 
-  if (password.length < 8) {
-    errors.push("비밀번호는 최소 8자 이상이어야 합니다.");
+  if (password.length < 6) {
+    errors.push("비밀번호는 최소 6자 이상이어야 합니다.");
   }
 
   // if (!/[A-Z]/.test(password)) {
