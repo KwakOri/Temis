@@ -208,10 +208,7 @@ export default function Home() {
       </section>
 
       {/* Portfolio Gallery Section */}
-      <PortfolioGallery 
-        totalItems={11} 
-        speedPxPerSecond={50}
-      />
+      <PortfolioGallery totalItems={9} speedPxPerSecond={50} />
 
       <section className="py-20 bg-[#2b303d] text-white px-4 text-center">
         <h2 className="text-2xl sm:text-3xl font-bold mb-2">
