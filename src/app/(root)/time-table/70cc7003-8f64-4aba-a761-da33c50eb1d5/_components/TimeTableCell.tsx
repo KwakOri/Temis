@@ -215,7 +215,6 @@ const OfflineCard = ({ isPink, day, currentTheme }: OfflineCardProps) => {
     <div
       className=" relative pointer-events-none"
       style={{
-        paddingTop: 2,
         width: offlineCardWidth,
         height: offlineCardHeight,
         left: isPink ? -20 : 0,
