@@ -3,7 +3,7 @@ export const splitOddEven = (n: number) => {
   const even = [];
   const start = 11;
 
-  for (let i = start; i <= n; i++) {
+  for (let i = start; i <= start + n - 1; i++) {
     if (i % 2 === 1) {
       odd.push(i);
     } else {
