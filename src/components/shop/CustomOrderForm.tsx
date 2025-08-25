@@ -56,10 +56,8 @@ interface CustomOrder {
   email_discord: string;
   order_requirements: string;
   has_character_images: boolean;
-  character_image_file_ids: string[];
   wants_omakase: boolean;
   design_keywords: string;
-  reference_file_ids: string[];
   selected_options: string[];
   price_quoted: number;
 }
@@ -93,12 +91,12 @@ export default function CustomOrderForm({
   const [step2Data, setStep2Data] = useState<Step2Data>({
     orderRequirements: existingOrder?.order_requirements || "",
     hasCharacterImages: existingOrder?.has_character_images || false,
-    characterImageFiles: [], // 파일은 별도 로드 필요
-    characterImageFileIds: existingOrder?.character_image_file_ids || [],
+    characterImageFiles: [], // 파일은 useEffect에서 로드
+    characterImageFileIds: [], // 파일은 useEffect에서 로드
     wantsOmakase: existingOrder?.wants_omakase || false,
     designKeywords: existingOrder?.design_keywords || "",
-    referenceFiles: [], // 파일은 별도 로드 필요
-    referenceFileIds: existingOrder?.reference_file_ids || [],
+    referenceFiles: [], // 파일은 useEffect에서 로드
+    referenceFileIds: [], // 파일은 useEffect에서 로드
   });
 
   const [step3Data, setStep3Data] = useState<Step3Data>({
@@ -112,6 +110,69 @@ export default function CustomOrderForm({
   });
 
   console.log("currentStep => ", currentStep);
+
+  // 수정 모드일 때 기존 파일들 로드
+  useEffect(() => {
+    const loadExistingFiles = async () => {
+      if (!isEditMode || !existingOrder) return;
+
+      try {
+        console.log('🔄 [Form] Loading files for order:', existingOrder.id);
+        
+        // 주문에 연결된 모든 파일들 로드
+        const response = await fetch(`/api/files/by-order/${existingOrder.id}`, {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          
+          // 파일 카테고리별로 분류
+          const characterImageFiles = result.files
+            .filter((file: any) => file.file_category === 'character_image')
+            .map((file: any) => ({
+              id: file.id,
+              file: null, // 수정 모드에서는 실제 File 객체가 없음
+              url: file.url,
+              mime_type: file.mime_type,
+              original_name: file.original_name,
+              file_size: file.file_size,
+            }));
+
+          const referenceFiles = result.files
+            .filter((file: any) => file.file_category === 'reference')
+            .map((file: any) => ({
+              id: file.id,
+              file: null, // 수정 모드에서는 실제 File 객체가 없음
+              url: file.url,
+              mime_type: file.mime_type,
+              original_name: file.original_name,
+              file_size: file.file_size,
+            }));
+          
+          setStep2Data(prev => ({
+            ...prev,
+            characterImageFiles,
+            referenceFiles,
+            characterImageFileIds: characterImageFiles.map((f: any) => f.id),
+            referenceFileIds: referenceFiles.map((f: any) => f.id),
+          }));
+          
+          console.log('✅ [Form] Files loaded:', {
+            characterImages: characterImageFiles.length,
+            references: referenceFiles.length
+          });
+        } else {
+          console.error('❌ [Form] Failed to load files:', response.statusText);
+        }
+      } catch (error) {
+        console.error('❌ [Form] Failed to load existing files:', error);
+      }
+    };
+
+    loadExistingFiles();
+  }, [isEditMode, existingOrder]);
 
   // 가격 설정 로드
   useEffect(() => {

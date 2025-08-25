@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { downloadFileFromR2 } from "@/lib/r2";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
@@ -91,30 +92,15 @@ async function createZipFromFiles(files: any[]): Promise<Buffer> {
   
   for (const file of files) {
     try {
-      if (file.file_path && file.file_path.startsWith('http')) {
-        // 외부 URL에서 파일 다운로드
-        const response = await fetch(file.file_path);
-        
-        if (response.ok) {
-          const buffer = await response.arrayBuffer();
-          const fileName = file.original_name || `file_${file.id}`;
-          zip.file(fileName, buffer);
-        } else {
-          console.warn(`Failed to download file ${file.original_name}: ${response.statusText}`);
-          // 다운로드 실패한 파일에 대한 정보 파일 추가
-          zip.file(`FAILED_${file.original_name}.txt`, 
-            `파일 다운로드 실패: ${file.file_path}\n오류: ${response.statusText}`);
-        }
-      } else {
-        // 로컬 파일이나 다른 경우 - 오류 정보만 추가
-        zip.file(`INFO_${file.original_name}.txt`, 
-          `파일 경로: ${file.file_path}\n파일 크기: ${file.file_size} bytes\n생성일: ${file.created_at}`);
-      }
+      // Cloudflare R2에서 파일 다운로드
+      const { buffer } = await downloadFileFromR2(file.file_key);
+      const fileName = file.original_name || `file_${file.id}`;
+      zip.file(fileName, buffer);
     } catch (error) {
-      console.error(`Failed to add file ${file.original_name}:`, error);
-      // 오류가 발생한 파일에 대한 정보 추가
-      zip.file(`ERROR_${file.original_name}.txt`, 
-        `파일 처리 중 오류 발생: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error(`Failed to download file ${file.original_name}:`, error);
+      // 다운로드 실패한 파일에 대한 정보 파일 추가
+      zip.file(`FAILED_${file.original_name}.txt`, 
+        `파일 다운로드 실패: ${file.file_key}\n오류: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
   

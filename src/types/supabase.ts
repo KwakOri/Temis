@@ -97,7 +97,6 @@ export type Database = {
       custom_timetable_orders: {
         Row: {
           admin_notes: string | null
-          character_image_files: string[] | null
           created_at: string | null
           design_keywords: string | null
           email_discord: string
@@ -105,7 +104,7 @@ export type Database = {
           id: string
           order_requirements: string
           price_quoted: number | null
-          reference_files: string[] | null
+          selected_options: Json | null
           status: string | null
           updated_at: string | null
           user_id: number
@@ -114,7 +113,6 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
-          character_image_files?: string[] | null
           created_at?: string | null
           design_keywords?: string | null
           email_discord: string
@@ -122,7 +120,7 @@ export type Database = {
           id?: string
           order_requirements: string
           price_quoted?: number | null
-          reference_files?: string[] | null
+          selected_options?: Json | null
           status?: string | null
           updated_at?: string | null
           user_id: number
@@ -131,7 +129,6 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
-          character_image_files?: string[] | null
           created_at?: string | null
           design_keywords?: string | null
           email_discord?: string
@@ -139,7 +136,7 @@ export type Database = {
           id?: string
           order_requirements?: string
           price_quoted?: number | null
-          reference_files?: string[] | null
+          selected_options?: Json | null
           status?: string | null
           updated_at?: string | null
           user_id?: number
@@ -152,6 +149,57 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          created_at: string | null
+          created_by: number | null
+          file_category: string | null
+          file_key: string
+          file_size: number
+          id: string
+          mime_type: string
+          order_id: string | null
+          original_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: number | null
+          file_category?: string | null
+          file_key: string
+          file_size: number
+          id?: string
+          mime_type: string
+          order_id?: string | null
+          original_name: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: number | null
+          file_category?: string | null
+          file_key?: string
+          file_size?: number
+          id?: string
+          mime_type?: string
+          order_id?: string | null
+          original_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "files_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "custom_timetable_orders"
             referencedColumns: ["id"]
           },
         ]

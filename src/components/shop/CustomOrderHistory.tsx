@@ -106,7 +106,7 @@ export default function CustomOrderHistory() {
   };
 
   // 주문 수정 제출 핸들러
-  const handleEditSubmit = async (formData: any) => {
+  const handleEditSubmit = async (formData: FormData) => {
     if (!editingOrder) return;
 
     try {

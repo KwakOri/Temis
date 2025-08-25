@@ -5,8 +5,11 @@ import { useState } from "react";
 
 export interface FilePreviewItem {
   id: string;
-  file: File;
+  file: File | null; // 수정 모드에서는 null일 수 있음
   url?: string;
+  mime_type?: string; // 수정 모드에서 타입 정보
+  original_name?: string; // 수정 모드에서 파일명
+  file_size?: number; // 수정 모드에서 파일 크기
 }
 
 interface FilePreviewProps {
@@ -18,24 +21,53 @@ interface FilePreviewProps {
 export default function FilePreview({ files, onRemove, maxFiles }: FilePreviewProps) {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({});
 
+  // 파일 MIME 타입 가져오기
+  const getMimeType = (item: FilePreviewItem): string => {
+    if (item.file && item.file.type) {
+      return item.file.type;
+    }
+    return item.mime_type || '';
+  };
+
+  // 파일명 가져오기
+  const getFileName = (item: FilePreviewItem): string => {
+    if (item.file && item.file.name) {
+      return item.file.name;
+    }
+    return item.original_name || `file-${item.id}`;
+  };
+
   // 이미지 미리보기 URL 생성
-  const getPreviewUrl = (file: File): string | null => {
-    if (file.type.startsWith('image/')) {
-      if (!previewUrls[file.name]) {
-        const url = URL.createObjectURL(file);
-        setPreviewUrls(prev => ({ ...prev, [file.name]: url }));
-        return url;
+  const getPreviewUrl = (item: FilePreviewItem): string | null => {
+    const mimeType = getMimeType(item);
+    
+    if (mimeType.startsWith('image/')) {
+      // 수정 모드에서는 서버에서 제공하는 URL 사용
+      if (item.url && !item.file) {
+        return item.url;
       }
-      return previewUrls[file.name];
+      
+      // 새 업로드 파일은 blob URL 생성
+      if (item.file) {
+        const fileName = getFileName(item);
+        if (!previewUrls[fileName]) {
+          const url = URL.createObjectURL(item.file);
+          setPreviewUrls(prev => ({ ...prev, [fileName]: url }));
+          return url;
+        }
+        return previewUrls[fileName];
+      }
     }
     return null;
   };
 
   // 파일 타입에 따른 아이콘 선택
-  const getFileIcon = (file: File) => {
-    if (file.type.startsWith('image/')) {
+  const getFileIcon = (item: FilePreviewItem) => {
+    const mimeType = getMimeType(item);
+    
+    if (mimeType.startsWith('image/')) {
       return <ImageIcon className="h-6 w-6 text-blue-500" />;
-    } else if (file.type === 'application/pdf') {
+    } else if (mimeType === 'application/pdf') {
       return <FileText className="h-6 w-6 text-red-500" />;
     } else {
       return <File className="h-6 w-6 text-gray-500" />;
@@ -63,7 +95,7 @@ export default function FilePreview({ files, onRemove, maxFiles }: FilePreviewPr
       
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {files.map((fileItem) => {
-          const previewUrl = getPreviewUrl(fileItem.file);
+          const previewUrl = getPreviewUrl(fileItem);
           
           return (
             <div
@@ -88,32 +120,35 @@ export default function FilePreview({ files, onRemove, maxFiles }: FilePreviewPr
                 {previewUrl ? (
                   <img
                     src={previewUrl}
-                    alt={fileItem.file.name}
+                    alt={getFileName(fileItem)}
                     className="w-full h-full object-cover rounded-md"
                     onError={() => {
                       // 이미지 로드 실패 시 아이콘으로 대체
-                      URL.revokeObjectURL(previewUrl);
-                      setPreviewUrls(prev => {
-                        const newUrls = { ...prev };
-                        delete newUrls[fileItem.file.name];
-                        return newUrls;
-                      });
+                      if (fileItem.file) {
+                        URL.revokeObjectURL(previewUrl);
+                        setPreviewUrls(prev => {
+                          const newUrls = { ...prev };
+                          delete newUrls[getFileName(fileItem)];
+                          return newUrls;
+                        });
+                      }
                     }}
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center p-2">
-                    {getFileIcon(fileItem.file)}
+                    {getFileIcon(fileItem)}
                   </div>
                 )}
               </div>
 
               {/* 파일 정보 */}
               <div className="text-xs text-slate-600">
-                <p className="font-medium truncate" title={fileItem.file.name}>
-                  {fileItem.file.name}
+                <p className="font-medium truncate" title={getFileName(fileItem)}>
+                  {getFileName(fileItem)}
                 </p>
                 <p className="text-slate-500 mt-1">
-                  {formatFileSize(fileItem.file.size)}
+                  {fileItem.file ? formatFileSize(fileItem.file.size) : 
+                   fileItem.file_size ? formatFileSize(fileItem.file_size) : 'Unknown size'}
                 </p>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase";
+import { downloadFileFromR2 } from "@/lib/r2";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
@@ -53,16 +54,24 @@ export async function GET(
       );
     }
 
-    // 실제 파일 다운로드 (현재는 URL 리다이렉트)
-    // TODO: Cloudflare R2나 실제 스토리지에서 파일을 가져와서 반환
-    if (file.file_path.startsWith('http')) {
-      // 외부 URL인 경우 리다이렉트
-      return NextResponse.redirect(file.file_path);
-    } else {
-      // 로컬 파일인 경우 (추후 구현)
+    // Cloudflare R2에서 파일 다운로드
+    try {
+      const { buffer, contentType, contentLength } = await downloadFileFromR2(file.file_key);
+      
+      return new NextResponse(buffer, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': contentLength.toString(),
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(file.original_name)}"`,
+          'Cache-Control': 'private, no-cache',
+        },
+      });
+    } catch (downloadError) {
+      console.error('File download error:', downloadError);
       return NextResponse.json(
-        { error: "파일을 찾을 수 없습니다." },
-        { status: 404 }
+        { error: "파일 다운로드에 실패했습니다." },
+        { status: 500 }
       );
     }
   } catch (error) {

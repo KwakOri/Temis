@@ -80,11 +80,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 파일 업로드 (userId를 전달)
+    // order_id와 file_category 추출
+    const orderId = formData.get('order_id') as string;
+    const fileCategory = formData.get('file_category') as 'character_image' | 'reference';
+    
+    console.log('📁 [Upload API] Extracted params:', { orderId, fileCategory, uploadType });
+
+    // 파일 업로드 (userId, orderId, fileCategory 전달)
     const uploadedFiles = await uploadMultipleFiles(
       files,
       Number(payload.userId),
-      `uploads/custom-orders/${uploadType}`
+      `uploads/custom-orders/${uploadType}`,
+      orderId,
+      fileCategory
     );
 
     return NextResponse.json({

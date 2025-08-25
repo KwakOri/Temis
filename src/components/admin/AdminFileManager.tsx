@@ -12,7 +12,7 @@ import { useState } from "react";
 
 interface FileData {
   id: string;
-  filename: string;
+  file_key: string;
   original_name: string;
   file_type: string;
   file_size: number;

@@ -45,9 +45,9 @@ export async function POST(request: Request) {
     }
 
     // 파일 정보 조회
-    const { data: files, error } = await supabase
+    const { data: rawFiles, error } = await supabase
       .from("files")
-      .select("*")
+      .select("id, file_key, original_name, file_size, mime_type, created_at")
       .in("id", fileIds)
       .order("created_at", { ascending: false });
 
@@ -58,6 +58,13 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
+
+    // mime_type을 file_type으로 매핑하고 file_path 추가
+    const files = rawFiles?.map(file => ({
+      ...file,
+      file_type: file.mime_type,
+      file_path: `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${file.file_key}`
+    })) || [];
 
     return NextResponse.json({ files }, { status: 200 });
   } catch (error) {

@@ -28,7 +28,8 @@
       "mcp__supabase__list_branches",
       "Bash(npx supabase db diff:*)",
       "Bash(npm uninstall:*)",
-      "mcp__playwright__browser_type"
+      "mcp__playwright__browser_type",
+      "Bash(npm run lint:*)"
     ],
     "deny": []
   },

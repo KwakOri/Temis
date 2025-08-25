@@ -37,8 +37,10 @@ export async function POST(request: Request) {
       hasCharacterImages,
       wantsOmakase,
       designKeywords,
-      characterImageFiles, // base64 encoded files array
-      referenceFiles, // base64 encoded files array
+      characterImageFiles, // base64 encoded files array (deprecated)
+      referenceFiles, // base64 encoded files array (deprecated)
+      characterImageFileIds, // file IDs from uploaded files
+      referenceFileIds, // file IDs from uploaded files
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
@@ -57,51 +59,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 파일 URL 처리 (현재는 더미 URL, 추후 Cloudflare R2로 대체 예정)
-    const characterImagePaths: string[] = [];
-    const referenceFilePaths: string[] = [];
-
-    // 캐릭터 이미지 파일 처리
-    if (characterImageFiles && characterImageFiles.length > 0) {
-      for (let i = 0; i < characterImageFiles.length; i++) {
-        const file = characterImageFiles[i];
-        // 현재는 더미 URL 저장, 추후 Cloudflare R2 업로드 후 실제 URL로 대체
-        const tempUrl =
-          file.tempUrl ||
-          `https://temp-storage.example.com/character-images/user_${userId}_${Date.now()}_${i}_${
-            file.name
-          }`;
-        characterImagePaths.push(tempUrl);
-
-        // TODO: Cloudflare R2 업로드 로직으로 대체 예정
-        // const actualUrl = await uploadToCloudflareR2(file.data, `character-images/${fileName}`);
-        // characterImagePaths.push(actualUrl);
-      }
-    }
-
-    // 레퍼런스 파일 처리
-    if (referenceFiles && referenceFiles.length > 0) {
-      for (let i = 0; i < referenceFiles.length; i++) {
-        const file = referenceFiles[i];
-        // 현재는 더미 URL 저장, 추후 Cloudflare R2 업로드 후 실제 URL로 대체
-        const tempUrl =
-          file.tempUrl ||
-          `https://temp-storage.example.com/reference-files/user_${userId}_${Date.now()}_${i}_${
-            file.name
-          }`;
-        referenceFilePaths.push(tempUrl);
-
-        // TODO: Cloudflare R2 업로드 로직으로 대체 예정
-        // const actualUrl = await uploadToCloudflareR2(file.data, `reference-files/${fileName}`);
-        // referenceFilePaths.push(actualUrl);
-      }
-    }
+    // 주문을 먼저 생성합니다 (파일은 별도 처리)
 
     // 선택된 옵션들을 배열로 변환
     const selectedOptions: string[] = [];
-    if (fastDelivery) selectedOptions.push('빠른 마감');
-    if (portfolioPrivate) selectedOptions.push('포폴 비공개');
-    if (reviewEvent) selectedOptions.push('후기 이벤트 참여');
+    if (fastDelivery) selectedOptions.push("빠른 마감");
+    if (portfolioPrivate) selectedOptions.push("포폴 비공개");
+    if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
 
     // 데이터베이스에 주문 정보 저장
     const { data: order, error } = await supabase
@@ -114,8 +78,6 @@ export async function POST(request: Request) {
         has_character_images: hasCharacterImages,
         wants_omakase: wantsOmakase,
         design_keywords: designKeywords,
-        character_image_files: characterImagePaths,
-        reference_files: referenceFilePaths,
         price_quoted: priceQuoted,
         selected_options: selectedOptions,
         status: "pending",
@@ -128,6 +90,87 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "주문 생성 중 오류가 발생했습니다." },
         { status: 500 }
+      );
+    }
+
+    // 주문 생성 성공 후 기존 파일들을 주문과 연결
+
+    console.log(
+      "📁 [Shop API] Starting file relationship setup for order:",
+      order.id
+    );
+    console.log(
+      "📁 [Shop API] Character file IDs count:",
+      characterImageFileIds?.length || 0
+    );
+    console.log(
+      "📁 [Shop API] Reference file IDs count:",
+      referenceFileIds?.length || 0
+    );
+
+    try {
+      // 캐릭터 이미지 파일들을 주문과 연결
+      if (characterImageFileIds && characterImageFileIds.length > 0) {
+        console.log(
+          "📁 [Shop API] Linking character image files to order:",
+          characterImageFileIds
+        );
+
+        const { error: characterError } = await supabase
+          .from("files")
+          .update({
+            order_id: order.id,
+            file_category: "character_image",
+          })
+          .in("id", characterImageFileIds);
+
+        if (characterError) {
+          console.error(
+            "📁 [Shop API] Character files linking error:",
+            characterError
+          );
+          throw characterError;
+        }
+
+        console.log("✅ [Shop API] Character images linked successfully");
+      }
+
+      // 레퍼런스 파일들을 주문과 연결
+      if (referenceFileIds && referenceFileIds.length > 0) {
+        console.log(
+          "📁 [Shop API] Linking reference files to order:",
+          referenceFileIds
+        );
+
+        const { error: referenceError } = await supabase
+          .from("files")
+          .update({
+            order_id: order.id,
+            file_category: "reference",
+          })
+          .in("id", referenceFileIds);
+
+        if (referenceError) {
+          console.error(
+            "📁 [Shop API] Reference files linking error:",
+            referenceError
+          );
+          throw referenceError;
+        }
+
+        console.log("✅ [Shop API] Reference files linked successfully");
+      }
+    } catch (fileUploadError) {
+      console.error("File upload error:", fileUploadError);
+      // 파일 업로드 실패 시에도 주문은 유지하고 경고 메시지만 전달
+      return NextResponse.json(
+        {
+          message:
+            "주문이 접수되었으나 일부 파일 업로드에 실패했습니다. 관리자에게 문의해주세요.",
+          orderId: order.id,
+          warning: "파일 업로드 실패",
+        },
+        { status: 201 }
       );
     }
 
@@ -216,8 +259,6 @@ export async function PUT(request: Request) {
       hasCharacterImages,
       wantsOmakase,
       designKeywords,
-      characterImageFileIds,
-      referenceFileIds,
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
@@ -248,9 +289,9 @@ export async function PUT(request: Request) {
 
     // 선택된 옵션들을 배열로 변환
     const selectedOptions: string[] = [];
-    if (fastDelivery) selectedOptions.push('빠른 마감');
-    if (portfolioPrivate) selectedOptions.push('포폴 비공개');
-    if (reviewEvent) selectedOptions.push('후기 이벤트 참여');
+    if (fastDelivery) selectedOptions.push("빠른 마감");
+    if (portfolioPrivate) selectedOptions.push("포폴 비공개");
+    if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
 
     // 주문 업데이트
     const { data: updatedOrder, error: updateError } = await supabase
@@ -262,8 +303,6 @@ export async function PUT(request: Request) {
         has_character_images: hasCharacterImages,
         wants_omakase: wantsOmakase,
         design_keywords: designKeywords,
-        character_image_file_ids: characterImageFileIds,
-        reference_file_ids: referenceFileIds,
         price_quoted: priceQuoted,
         selected_options: selectedOptions,
         updated_at: new Date().toISOString(),

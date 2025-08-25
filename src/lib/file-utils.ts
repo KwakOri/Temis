@@ -23,9 +23,19 @@ export interface FileMetadata {
 export async function uploadFile(
   file: File,
   userId: number,
-  folder = 'uploads/custom-orders'
+  folder = 'uploads/custom-orders',
+  orderId?: string,
+  fileCategory?: 'character_image' | 'reference'
 ): Promise<FileMetadata> {
   try {
+    console.log('📤 [FileUtils] Uploading file:', { 
+      fileName: file.name, 
+      fileSize: file.size, 
+      userId, 
+      folder, 
+      orderId, 
+      fileCategory 
+    });
     // 파일을 Buffer로 변환
     const buffer = Buffer.from(await file.arrayBuffer());
     
@@ -34,18 +44,34 @@ export async function uploadFile(
     
     // 데이터베이스에 메타데이터 저장
     const fileId = uuidv4();
+    const insertData: any = {
+      id: fileId,
+      file_key: fileKey,
+      original_name: file.name,
+      file_size: file.size,
+      mime_type: file.type,
+      created_by: userId,
+    };
+
+    // order_id와 file_category가 제공된 경우 추가
+    if (orderId) {
+      insertData.order_id = orderId;
+      console.log('📤 [FileUtils] Setting order_id:', orderId);
+    }
+    if (fileCategory) {
+      insertData.file_category = fileCategory;
+      console.log('📤 [FileUtils] Setting file_category:', fileCategory);
+    }
+
+    console.log('📤 [FileUtils] Insert data:', insertData);
+
     const { data, error } = await supabase
       .from('files')
-      .insert({
-        id: fileId,
-        file_key: fileKey,
-        original_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-        created_by: userId,
-      })
+      .insert(insertData)
       .select()
       .single();
+
+    console.log('📤 [FileUtils] Database insert result:', { success: !!data, error: !!error });
 
     if (error) {
       // R2에서 업로드된 파일 삭제 (롤백)
@@ -69,14 +95,16 @@ export async function uploadFile(
 export async function uploadMultipleFiles(
   files: File[],
   userId: number,
-  folder = 'uploads/custom-orders'
+  folder = 'uploads/custom-orders',
+  orderId?: string,
+  fileCategory?: 'character_image' | 'reference'
 ): Promise<FileMetadata[]> {
-  const uploadPromises = files.map(file => uploadFile(file, userId, folder));
+  const uploadPromises = files.map(file => uploadFile(file, userId, folder, orderId, fileCategory));
   return await Promise.all(uploadPromises);
 }
 
 /**
- * 파일을 소프트 삭제합니다.
+ * 파일을 완전히 삭제합니다 (R2와 데이터베이스 row 모두).
  */
 export async function deleteFile(fileId: string): Promise<void> {
   try {
@@ -85,7 +113,6 @@ export async function deleteFile(fileId: string): Promise<void> {
       .from('files')
       .select('file_key')
       .eq('id', fileId)
-      .eq('is_deleted', false)
       .single();
 
     if (fetchError || !file) {
@@ -95,17 +122,14 @@ export async function deleteFile(fileId: string): Promise<void> {
     // R2에서 실제 파일 삭제
     await deleteFileFromR2(file.file_key);
 
-    // 데이터베이스에서 소프트 삭제
-    const { error: updateError } = await supabase
+    // 데이터베이스에서 row 완전 삭제
+    const { error: deleteError } = await supabase
       .from('files')
-      .update({
-        is_deleted: true,
-        deleted_at: new Date().toISOString(),
-      })
+      .delete()
       .eq('id', fileId);
 
-    if (updateError) {
-      throw updateError;
+    if (deleteError) {
+      throw deleteError;
     }
   } catch (error) {
     console.error('파일 삭제 실패:', error);
@@ -131,7 +155,6 @@ export async function getFilesByIds(fileIds: string[]): Promise<FileMetadata[]> 
     .from('files')
     .select('*')
     .in('id', fileIds)
-    .eq('is_deleted', false)
     .order('created_at', { ascending: true });
 
   if (error) {
