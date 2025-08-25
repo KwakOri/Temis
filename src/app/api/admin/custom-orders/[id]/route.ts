@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
+import { TablesUpdate } from '@/types/supabase';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -67,7 +68,7 @@ export async function PUT(
     }
 
     // 업데이트할 데이터 구성
-    const updateData: any = {
+    const updateData: TablesUpdate<'custom_timetable_orders'> = {
       updated_at: new Date().toISOString()
     };
 

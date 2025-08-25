@@ -1,7 +1,15 @@
 "use client";
 
-import { User, TemplateAccessWithUser } from "@/types/supabase-types";
+import { Tables } from "@/types/supabase";
 import { useEffect, useState } from "react";
+
+type User = Tables<"users">;
+type TemplateAccess = Tables<"template_access">;
+type Template = Tables<"templates">;
+
+interface TemplateAccessWithUser extends TemplateAccess {
+  templates?: Template;
+}
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -16,7 +24,9 @@ export default function UserManagement() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [userTemplates, setUserTemplates] = useState<TemplateAccessWithUser[]>([]);
+  const [userTemplates, setUserTemplates] = useState<TemplateAccessWithUser[]>(
+    []
+  );
 
   useEffect(() => {
     fetchUsers();
@@ -55,15 +65,18 @@ export default function UserManagement() {
 
   const fetchUserTemplates = async (userId: number) => {
     try {
-      const response = await fetch(`/api/admin/user-templates?userId=${userId}`, {
-        credentials: 'include',
-      });
+      const response = await fetch(
+        `/api/admin/user-templates?userId=${userId}`,
+        {
+          credentials: "include",
+        }
+      );
       if (response.ok) {
         const data = await response.json();
         setUserTemplates(data.templates || []);
       }
     } catch (error) {
-      console.error('Failed to fetch user templates:', error);
+      console.error("Failed to fetch user templates:", error);
     }
   };
 
@@ -112,9 +125,7 @@ export default function UserManagement() {
           <p className="text-secondary">등록된 사용자를 조회하고 관리하세요</p>
         </div>
         <div className="bg-quaternary px-4 py-2 rounded-lg border">
-          <span className="text-primary font-semibold">
-            총 {totalUsers}명
-          </span>
+          <span className="text-primary font-semibold">총 {totalUsers}명</span>
         </div>
       </div>
 
@@ -186,13 +197,13 @@ export default function UserManagement() {
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center">
                           <span className="text-sm font-medium text-white">
-                            {user.name?.charAt(0).toUpperCase() || '?'}
+                            {user.name?.charAt(0).toUpperCase() || "?"}
                           </span>
                         </div>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900">
-                          {user.name || '이름 없음'}
+                          {user.name || "이름 없음"}
                         </div>
                         <div className="text-sm text-gray-500">
                           ID: {String(user.id).substring(0, 8)}...
@@ -201,13 +212,17 @@ export default function UserManagement() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{user.email || '이메일 없음'}</div>
+                    <div className="text-sm text-gray-900">
+                      {user.email || "이메일 없음"}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {new Date(user.created_at).toLocaleDateString("ko-KR")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.updated_at ? new Date(user.updated_at).toLocaleDateString("ko-KR") : '활동 없음'}
+                    {user.updated_at
+                      ? new Date(user.updated_at).toLocaleDateString("ko-KR")
+                      : "활동 없음"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
                     <button
@@ -350,17 +365,29 @@ export default function UserManagement() {
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">사용자 상세 정보</h3>
+                <h3 className="text-lg font-medium text-gray-900">
+                  사용자 상세 정보
+                </h3>
                 <button
                   onClick={closeModals}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center justify-center mb-6">
                   <div className="h-20 w-20 rounded-full bg-indigo-500 flex items-center justify-center">
@@ -369,37 +396,57 @@ export default function UserManagement() {
                     </span>
                   </div>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">이름</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedUser.name || '이름 없음'}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">이메일</label>
-                  <p className="mt-1 text-sm text-gray-900">{selectedUser.email || '이메일 없음'}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">사용자 ID</label>
-                  <p className="mt-1 text-sm text-gray-900 font-mono">{selectedUser.id}</p>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">가입일</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    이름
+                  </label>
                   <p className="mt-1 text-sm text-gray-900">
-                    {new Date(selectedUser.created_at).toLocaleString('ko-KR')}
+                    {selectedUser.name || "이름 없음"}
                   </p>
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">최근 활동</label>
+                  <label className="block text-sm font-medium text-gray-700">
+                    이메일
+                  </label>
                   <p className="mt-1 text-sm text-gray-900">
-                    {selectedUser.updated_at ? new Date(selectedUser.updated_at).toLocaleString('ko-KR') : '활동 없음'}
+                    {selectedUser.email || "이메일 없음"}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    사용자 ID
+                  </label>
+                  <p className="mt-1 text-sm text-gray-900 font-mono">
+                    {selectedUser.id}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    가입일
+                  </label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {new Date(selectedUser.created_at).toLocaleString("ko-KR")}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    최근 활동
+                  </label>
+                  <p className="mt-1 text-sm text-gray-900">
+                    {selectedUser.updated_at
+                      ? new Date(selectedUser.updated_at).toLocaleString(
+                          "ko-KR"
+                        )
+                      : "활동 없음"}
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={closeModals}
@@ -426,12 +473,22 @@ export default function UserManagement() {
                   onClick={closeModals}
                   className="text-gray-400 hover:text-gray-600"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
-              
+
               <div className="mb-4">
                 <div className="flex items-center space-x-3 mb-4">
                   <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center">
@@ -440,41 +497,76 @@ export default function UserManagement() {
                     </span>
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{selectedUser.name}</p>
-                    <p className="text-sm text-gray-500">{selectedUser.email}</p>
+                    <p className="font-medium text-gray-900">
+                      {selectedUser.name}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {selectedUser.email}
+                    </p>
                   </div>
                 </div>
               </div>
-              
+
               <div className="border-t pt-4">
-                <h4 className="text-md font-medium text-gray-900 mb-3">접근 가능한 템플릿</h4>
-                
+                <h4 className="text-md font-medium text-gray-900 mb-3">
+                  접근 가능한 템플릿
+                </h4>
+
                 {userTemplates.length === 0 ? (
                   <div className="text-center py-8 text-gray-500">
-                    <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                     <p>접근 권한이 부여된 템플릿이 없습니다.</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {userTemplates.map((template) => (
-                      <div key={template.template_id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <div
+                        key={template.template_id}
+                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
+                      >
                         <div className="flex-1">
-                          <h5 className="font-medium text-gray-900">{template.template?.name || '알 수 없는 템플릿'}</h5>
-                          <p className="text-sm text-gray-500">{template.template?.description || '설명 없음'}</p>
+                          <h5 className="font-medium text-gray-900">
+                            {template.templates?.name || "알 수 없는 템플릿"}
+                          </h5>
+                          <p className="text-sm text-gray-500">
+                            {template.templates?.description || "설명 없음"}
+                          </p>
                           <p className="text-xs text-gray-400 mt-1">
-                            권한 부여일: {template.granted_at ? new Date(template.granted_at).toLocaleDateString('ko-KR') : '날짜 없음'}
+                            권한 부여일:{" "}
+                            {template.granted_at
+                              ? new Date(
+                                  template.granted_at
+                                ).toLocaleDateString("ko-KR")
+                              : "날짜 없음"}
                           </p>
                         </div>
                         <div className="ml-4">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                            template.access_level === 'admin' ? 'bg-red-100 text-red-800' :
-                            template.access_level === 'write' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
-                            {template.access_level === 'admin' ? '관리자' :
-                             template.access_level === 'write' ? '편집' : '읽기'}
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                              template.access_level === "admin"
+                                ? "bg-red-100 text-red-800"
+                                : template.access_level === "write"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            {template.access_level === "admin"
+                              ? "관리자"
+                              : template.access_level === "write"
+                              ? "편집"
+                              : "읽기"}
                           </span>
                         </div>
                       </div>
@@ -482,7 +574,7 @@ export default function UserManagement() {
                   </div>
                 )}
               </div>
-              
+
               <div className="mt-6 flex justify-end space-x-3">
                 <button
                   onClick={closeModals}

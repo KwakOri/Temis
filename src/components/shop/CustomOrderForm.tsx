@@ -4,6 +4,19 @@ import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { Calculator, FileText, Palette, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Tables } from "@/types/supabase";
+
+// API 응답에서 받는 파일 데이터 타입 (DB + 동적 URL 포함)
+interface FileApiResponse {
+  id: string;
+  file_key: string;
+  original_name: string;
+  file_size: number;
+  mime_type: string;
+  file_category: string;
+  created_at: string;
+  url: string; // API에서 동적으로 추가된 필드
+}
 
 interface Step1Data {
   youtubeSnsAddress: string;
@@ -50,7 +63,8 @@ interface PricingSettings {
 
 type CustomFormData = Step1Data & Step2Data & Step3Data & { orderId?: string };
 
-interface CustomOrder {
+// 주문 생성/수정 시 사용하는 기본 데이터 (상태 정보 없음)
+interface CustomOrderData {
   id: string;
   youtube_sns_address: string;
   email_discord: string;
@@ -65,7 +79,7 @@ interface CustomOrder {
 interface CustomOrderFormProps {
   onClose: () => void;
   onSubmit: (formData: CustomFormData) => Promise<void>;
-  existingOrder?: CustomOrder; // 수정 모드일 때 기존 주문 데이터
+  existingOrder?: CustomOrderData; // 수정 모드일 때 기존 주문 데이터
   isEditMode?: boolean; // 수정 모드 여부
 }
 
@@ -130,8 +144,8 @@ export default function CustomOrderForm({
           
           // 파일 카테고리별로 분류
           const characterImageFiles = result.files
-            .filter((file: any) => file.file_category === 'character_image')
-            .map((file: any) => ({
+            .filter((file: FileApiResponse) => file.file_category === 'character_image')
+            .map((file: FileApiResponse) => ({
               id: file.id,
               file: null, // 수정 모드에서는 실제 File 객체가 없음
               url: file.url,
@@ -141,8 +155,8 @@ export default function CustomOrderForm({
             }));
 
           const referenceFiles = result.files
-            .filter((file: any) => file.file_category === 'reference')
-            .map((file: any) => ({
+            .filter((file: FileApiResponse) => file.file_category === 'reference')
+            .map((file: FileApiResponse) => ({
               id: file.id,
               file: null, // 수정 모드에서는 실제 File 객체가 없음
               url: file.url,
@@ -155,8 +169,8 @@ export default function CustomOrderForm({
             ...prev,
             characterImageFiles,
             referenceFiles,
-            characterImageFileIds: characterImageFiles.map((f: any) => f.id),
-            referenceFileIds: referenceFiles.map((f: any) => f.id),
+            characterImageFileIds: characterImageFiles.map((f: FilePreviewItem) => f.id),
+            referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
           }));
           
           console.log('✅ [Form] Files loaded:', {

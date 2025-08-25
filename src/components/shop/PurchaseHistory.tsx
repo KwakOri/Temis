@@ -4,6 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Tables } from "@/types/supabase";
+
+type PurchaseRequest = Tables<'purchase_requests'>;
+type Template = Tables<'templates'>;
+
+interface PurchaseRequestWithTemplate extends PurchaseRequest {
+  template?: Template;
+}
 
 interface PurchaseHistoryData {
   purchaseRequests: PurchaseRequestWithTemplate[];

@@ -171,7 +171,7 @@ export default function FilePreview({ files, onRemove, maxFiles }: FilePreviewPr
 export const useFilePreviewCleanup = () => {
   const cleanup = (files: FilePreviewItem[]) => {
     files.forEach(fileItem => {
-      if (fileItem.file.type.startsWith('image/')) {
+      if (fileItem.file && fileItem.file.type.startsWith('image/')) {
         const url = URL.createObjectURL(fileItem.file);
         URL.revokeObjectURL(url);
       }

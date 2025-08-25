@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
       email,
       password: hashedPassword,
       name,
+      role: 'user', // 기본 역할 설정
       twitter_access_token: null,
       twitter_access_token_secret: null,
       twitter_user_id: null,

@@ -1,6 +1,14 @@
 "use client";
 
-import { Template, TemplateAccessWithUser, User } from "@/types/supabase-types";
+import { Tables } from "@/types/supabase";
+
+type Template = Tables<'templates'>;
+type User = Tables<'users'>;
+type TemplateAccess = Tables<'template_access'>;
+
+interface TemplateAccessWithUser extends TemplateAccess {
+  users?: User;
+}
 import { useEffect, useState } from "react";
 
 export default function AccessManagement() {
@@ -706,16 +714,16 @@ export default function AccessManagement() {
                               <div className="flex-shrink-0 h-8 w-8">
                                 <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center">
                                   <span className="text-xs font-medium text-white">
-                                    {access.user?.name?.charAt(0).toUpperCase()}
+                                    {access.users?.name?.charAt(0).toUpperCase()}
                                   </span>
                                 </div>
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900">
-                                  {access.user?.name}
+                                  {access.users?.name}
                                 </div>
                                 <div className="text-sm text-gray-500">
-                                  {access.user?.email}
+                                  {access.users?.email}
                                 </div>
                               </div>
                             </div>

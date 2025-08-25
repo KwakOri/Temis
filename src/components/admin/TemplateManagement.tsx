@@ -1,6 +1,8 @@
 "use client";
 
-import { Template } from "@/types/supabase-types";
+import { Tables } from "@/types/supabase";
+
+type Template = Tables<'templates'>;
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth/middleware';
 import { supabase } from '@/lib/supabase';
-import { TemplateInsert } from '@/types/supabase-types';
+import { TablesInsert } from '@/types/supabase';
 
 export async function GET(request: NextRequest) {
   
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 새 템플릿 생성
-    const templateData: TemplateInsert = {
+    const templateData: TablesInsert<'templates'> = {
       name: name.trim(),
       description: description?.trim() || '',
       thumbnail_url: thumbnail_url?.trim() || '',

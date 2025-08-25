@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { requireAuth } from '@/lib/auth/middleware';
+import { TablesInsert } from '@/types/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,16 +38,18 @@ export async function POST(request: NextRequest) {
     }
 
     // 구매 신청 데이터 저장
+    const purchaseData: TablesInsert<'purchase_requests'> = {
+      template_id,
+      customer_name: depositor_name, // 입금자명을 customer_name으로 저장
+      customer_email: user.email || '',
+      customer_phone: String(user.phone || ''), // 전화번호가 있으면 사용, 없으면 빈 값
+      message,
+      status: 'pending'
+    };
+
     const { data: purchaseRequest, error: insertError } = await supabase
       .from('purchase_requests')
-      .insert({
-        template_id,
-        customer_name: depositor_name, // 입금자명을 customer_name으로 저장
-        customer_email: user.email,
-        customer_phone: user.phone || '', // 전화번호가 있으면 사용, 없으면 빈 값
-        message,
-        status: 'pending'
-      })
+      .insert(purchaseData)
       .select()
       .single();
 

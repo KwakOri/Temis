@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import JSZip from "jszip";
+import { Tables } from "@/types/supabase";
+
+type FileRecord = Tables<'files'>;
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -87,7 +90,7 @@ export async function POST(request: Request) {
 }
 
 // ZIP 파일 생성 헬퍼 함수
-async function createZipFromFiles(files: any[]): Promise<Buffer> {
+async function createZipFromFiles(files: FileRecord[]): Promise<Buffer> {
   const zip = new JSZip();
   
   for (const file of files) {

@@ -3,7 +3,7 @@
 import BackButton from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Template } from "@/types/supabase-types";
+import { Tables } from "@/types/supabase";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -27,6 +27,8 @@ interface TemplateProduct {
   created_at: string;
   updated_at: string;
 }
+
+type Template = Tables<'templates'>;
 
 interface TemplateWithProduct extends Template {
   template_product?: TemplateProduct;

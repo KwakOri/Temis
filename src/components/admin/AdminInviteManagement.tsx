@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Token } from "@/types/supabase-types";
+import { Tables } from "@/types/supabase";
+
+type Token = Tables<'tokens'>;
 import EmailTestPanel from "./EmailTestPanel";
 
 interface AdminInviteManagementProps {
@@ -374,7 +376,7 @@ export default function AdminInviteManagement({ onSuccess }: AdminInviteManageme
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(invite.created_at)}
+                      {formatDate(invite.created_at || '')}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(invite.expires_at)}

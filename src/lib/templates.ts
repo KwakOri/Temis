@@ -1,13 +1,20 @@
-import {
-  AccessLevel,
-  Template,
-  TemplateAccess,
-  TemplateAccessInsert,
-  TemplateAccessWithUser,
-  TemplateInsert,
-  TemplateUpdate,
-  UserTemplateAccess,
-} from "@/types/supabase-types";
+import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
+
+type Template = Tables<'templates'>;
+type TemplateAccess = Tables<'template_access'>;
+type User = Tables<'users'>;
+type TemplateInsert = TablesInsert<'templates'>;
+type TemplateUpdate = TablesUpdate<'templates'>;
+type TemplateAccessInsert = TablesInsert<'template_access'>;
+type AccessLevel = TemplateAccess['access_level'];
+
+interface TemplateAccessWithUser extends TemplateAccess {
+  users?: User;
+}
+
+interface UserTemplateAccess extends TemplateAccess {
+  templates?: Template;
+}
 import { supabase } from "./supabase";
 
 /**

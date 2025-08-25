@@ -29,7 +29,7 @@ export async function PUT(
       .from('purchase_requests')
       .select('*')
       .eq('id', id)
-      .eq('customer_email', user.email)
+      .eq('customer_email', user.email || '')
       .single();
 
     if (fetchError || !existingRequest) {
@@ -99,7 +99,7 @@ export async function DELETE(
       .from('purchase_requests')
       .select('*')
       .eq('id', id)
-      .eq('customer_email', user.email)
+      .eq('customer_email', user.email || '')
       .single();
 
     if (fetchError || !existingRequest) {

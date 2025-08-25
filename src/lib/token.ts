@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
-import { Token, TokenInsert, TokenType } from "@/types/supabase-types";
+import { Tables, TablesInsert } from "@/types/supabase";
+
+type Token = Tables<'tokens'>;
+type TokenInsert = TablesInsert<'tokens'>;
+type TokenType = Token['type'];
 import { randomBytes } from "crypto";
 
 /**

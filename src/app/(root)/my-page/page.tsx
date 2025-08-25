@@ -9,6 +9,9 @@ import { useRouter } from "next/navigation";
 // import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Suspense, useEffect, useState } from "react";
+import { Tables } from "@/types/supabase";
+
+type Template = Tables<'templates'>;
 
 interface UserTemplate {
   id: string | number;

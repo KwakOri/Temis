@@ -29,7 +29,9 @@
       "Bash(npx supabase db diff:*)",
       "Bash(npm uninstall:*)",
       "mcp__playwright__browser_type",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   },

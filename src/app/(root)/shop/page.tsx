@@ -4,7 +4,9 @@ import BackButton from "@/components/BackButton";
 import PurchaseHistory from "@/components/shop/PurchaseHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { Template } from "@/types/supabase-types";
+import { Tables } from "@/types/supabase";
+
+type Template = Tables<'templates'>;
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";

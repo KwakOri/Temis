@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
         *,
         template:templates(*)
       `)
-      .eq('customer_email', user.email)
+      .eq('customer_email', user.email || '')
       .order('created_at', { ascending: false });
 
     if (requestError) {
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         *,
         template:templates(*)
       `)
-      .eq('user_id', user.userId)
+      .eq('user_id', Number(user.userId))
       .order('granted_at', { ascending: false });
 
     if (accessError) {

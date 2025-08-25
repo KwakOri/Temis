@@ -1,11 +1,46 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
-import { Clock, CheckCircle, XCircle, AlertCircle, Edit, Trash2 } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle,
+  Clock,
+  Edit,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import CustomOrderForm from "./CustomOrderForm";
 
-interface CustomOrder {
+// CustomOrderForm에서 사용하는 타입들
+interface Step1Data {
+  youtubeSnsAddress: string;
+  emailDiscord: string;
+}
+
+interface Step2Data {
+  orderRequirements: string;
+  hasCharacterImages: boolean;
+  characterImageFiles: FilePreviewItem[];
+  characterImageFileIds: string[];
+  wantsOmakase: boolean;
+  designKeywords: string;
+  referenceFiles: FilePreviewItem[];
+  referenceFileIds: string[];
+}
+
+interface Step3Data {
+  fastDelivery: boolean;
+  portfolioPrivate: boolean;
+  reviewEvent: boolean;
+  priceQuoted: number;
+}
+
+type CustomFormData = Step1Data & Step2Data & Step3Data & { orderId?: string };
+
+// 주문 이력 조회 시 사용하는 완전한 데이터 (상태 정보 포함)
+interface CustomOrderWithStatus {
   id: string;
   youtube_sns_address: string;
   email_discord: string;
@@ -13,6 +48,7 @@ interface CustomOrder {
   has_character_images: boolean;
   wants_omakase: boolean;
   design_keywords: string;
+  selected_options: string[];
   status: "pending" | "in_progress" | "completed" | "cancelled";
   price_quoted?: number;
   admin_notes?: string;
@@ -22,9 +58,10 @@ interface CustomOrder {
 
 export default function CustomOrderHistory() {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<CustomOrder[]>([]);
+  const [orders, setOrders] = useState<CustomOrderWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingOrder, setEditingOrder] = useState<CustomOrder | null>(null);
+  const [editingOrder, setEditingOrder] =
+    useState<CustomOrderWithStatus | null>(null);
   const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
@@ -83,8 +120,9 @@ export default function CustomOrderHistory() {
   };
 
   const getStatusBadge = (status: string) => {
-    const baseClass = "inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full";
-    
+    const baseClass =
+      "inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full";
+
     switch (status) {
       case "pending":
         return `${baseClass} bg-yellow-100 text-yellow-800`;
@@ -99,14 +137,27 @@ export default function CustomOrderHistory() {
     }
   };
 
+  // CustomOrderWithStatus를 CustomOrderData로 변환
+  const convertToOrderData = (order: CustomOrderWithStatus) => ({
+    id: order.id,
+    youtube_sns_address: order.youtube_sns_address,
+    email_discord: order.email_discord,
+    order_requirements: order.order_requirements,
+    has_character_images: order.has_character_images,
+    wants_omakase: order.wants_omakase,
+    design_keywords: order.design_keywords,
+    selected_options: order.selected_options,
+    price_quoted: order.price_quoted || 0,
+  });
+
   // 주문 수정 핸들러
-  const handleEditOrder = (order: CustomOrder) => {
+  const handleEditOrder = (order: CustomOrderWithStatus) => {
     setEditingOrder(order);
     setShowEditForm(true);
   };
 
   // 주문 수정 제출 핸들러
-  const handleEditSubmit = async (formData: FormData) => {
+  const handleEditSubmit = async (formData: CustomFormData) => {
     if (!editingOrder) return;
 
     try {
@@ -144,10 +195,13 @@ export default function CustomOrderHistory() {
     }
 
     try {
-      const response = await fetch(`/api/shop/custom-order?orderId=${orderId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
+      const response = await fetch(
+        `/api/shop/custom-order?orderId=${orderId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
 
       if (response.ok) {
         alert("주문이 성공적으로 취소되었습니다.");
@@ -181,8 +235,12 @@ export default function CustomOrderHistory() {
   return (
     <div>
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-slate-900 mb-2">맞춤형 시간표 제작 신청 내역</h2>
-        <p className="text-sm text-slate-600">제작 신청한 커스텀 시간표의 진행 상황을 확인할 수 있습니다</p>
+        <h2 className="text-xl font-semibold text-slate-900 mb-2">
+          맞춤형 시간표 제작 신청 내역
+        </h2>
+        <p className="text-sm text-slate-600">
+          제작 신청한 커스텀 시간표의 진행 상황을 확인할 수 있습니다
+        </p>
       </div>
 
       {orders.length === 0 ? (
@@ -191,12 +249,17 @@ export default function CustomOrderHistory() {
             <Clock className="w-8 h-8 text-slate-400" />
           </div>
           <p className="text-slate-500 text-lg">아직 신청한 내역이 없습니다.</p>
-          <p className="text-sm text-slate-400 mt-1">맞춤형 시간표 제작을 신청해보세요!</p>
+          <p className="text-sm text-slate-400 mt-1">
+            맞춤형 시간표 제작을 신청해보세요!
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (
-            <div key={order.id} className="bg-white border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+            <div
+              key={order.id}
+              className="bg-white border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   {getStatusIcon(order.status)}
@@ -220,20 +283,36 @@ export default function CustomOrderHistory() {
 
               <div className="space-y-3">
                 <div>
-                  <h4 className="text-sm font-medium text-slate-700 mb-1">제작 요구사항</h4>
-                  <p className="text-sm text-slate-600 line-clamp-2">{order.order_requirements}</p>
+                  <h4 className="text-sm font-medium text-slate-700 mb-1">
+                    제작 요구사항
+                  </h4>
+                  <p className="text-sm text-slate-600 line-clamp-2">
+                    {order.order_requirements}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-4 text-xs text-slate-500">
                   <div className="flex items-center space-x-1">
                     <span>오마카세:</span>
-                    <span className={order.wants_omakase ? "text-green-600" : "text-slate-400"}>
+                    <span
+                      className={
+                        order.wants_omakase
+                          ? "text-green-600"
+                          : "text-slate-400"
+                      }
+                    >
                       {order.wants_omakase ? "예" : "아니요"}
                     </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <span>캐릭터 이미지:</span>
-                    <span className={order.has_character_images ? "text-green-600" : "text-slate-400"}>
+                    <span
+                      className={
+                        order.has_character_images
+                          ? "text-green-600"
+                          : "text-slate-400"
+                      }
+                    >
                       {order.has_character_images ? "첨부됨" : "없음"}
                     </span>
                   </div>
@@ -241,21 +320,31 @@ export default function CustomOrderHistory() {
 
                 {order.design_keywords && (
                   <div>
-                    <h4 className="text-sm font-medium text-slate-700 mb-1">디자인 키워드</h4>
-                    <p className="text-sm text-slate-600">{order.design_keywords}</p>
+                    <h4 className="text-sm font-medium text-slate-700 mb-1">
+                      디자인 키워드
+                    </h4>
+                    <p className="text-sm text-slate-600">
+                      {order.design_keywords}
+                    </p>
                   </div>
                 )}
 
                 {order.price_quoted && (
                   <div className="flex items-center justify-between pt-3 border-t border-slate-100">
-                    <span className="text-sm font-medium text-slate-700">견적 금액</span>
-                    <span className="text-lg font-bold text-[#1e3a8a]">₩{order.price_quoted.toLocaleString()}</span>
+                    <span className="text-sm font-medium text-slate-700">
+                      견적 금액
+                    </span>
+                    <span className="text-lg font-bold text-[#1e3a8a]">
+                      ₩{order.price_quoted.toLocaleString()}
+                    </span>
                   </div>
                 )}
 
                 {order.admin_notes && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <h4 className="text-sm font-medium text-blue-900 mb-1">관리자 메모</h4>
+                    <h4 className="text-sm font-medium text-blue-900 mb-1">
+                      관리자 메모
+                    </h4>
                     <p className="text-sm text-blue-700">{order.admin_notes}</p>
                   </div>
                 )}
@@ -293,7 +382,9 @@ export default function CustomOrderHistory() {
             setEditingOrder(null);
           }}
           onSubmit={handleEditSubmit}
-          existingOrder={editingOrder}
+          existingOrder={
+            editingOrder ? convertToOrderData(editingOrder) : undefined
+          }
           isEditMode={true}
         />
       )}
