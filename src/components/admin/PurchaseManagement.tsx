@@ -138,8 +138,8 @@ export default function PurchaseManagement() {
     <div className="space-y-6">
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">결제 대기 목록</h2>
-          <p className="text-sm text-gray-600">고객의 템플릿 구매 신청을 관리합니다</p>
+          <h2 className="text-lg font-medium text-primary">결제 대기 목록</h2>
+          <p className="text-sm text-secondary">고객의 템플릿 구매 신청을 관리합니다</p>
         </div>
 
         <div className="overflow-x-auto">

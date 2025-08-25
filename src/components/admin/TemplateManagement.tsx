@@ -27,10 +27,11 @@ export default function TemplateManagement() {
     thumbnail_url: "",
     is_public: false,
   });
-  
+
   // 템플릿 ID 모달 및 검색 관련 상태
   const [showIdModal, setShowIdModal] = useState(false);
-  const [selectedTemplateForId, setSelectedTemplateForId] = useState<Template | null>(null);
+  const [selectedTemplateForId, setSelectedTemplateForId] =
+    useState<Template | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -114,19 +115,22 @@ export default function TemplateManagement() {
       const thumbnailUrl = `/thumbnail/${createdTemplate.id}.png`;
 
       // thumbnail_url 업데이트
-      const updateResponse = await fetch(`/api/admin/templates/${createdTemplate.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          thumbnail_url: thumbnailUrl,
-        }),
-      });
+      const updateResponse = await fetch(
+        `/api/admin/templates/${createdTemplate.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            thumbnail_url: thumbnailUrl,
+          }),
+        }
+      );
 
       if (!updateResponse.ok) {
-        console.warn('썸네일 URL 업데이트 실패, 하지만 템플릿은 생성됨');
+        console.warn("썸네일 URL 업데이트 실패, 하지만 템플릿은 생성됨");
       }
 
       // 성공 시 모달 닫기 및 폼 초기화
@@ -135,7 +139,9 @@ export default function TemplateManagement() {
       // 템플릿 목록 새로고침
       await fetchTemplates();
     } catch (error) {
-      setCreateError(error instanceof Error ? error.message : "오류가 발생했습니다.");
+      setCreateError(
+        error instanceof Error ? error.message : "오류가 발생했습니다."
+      );
     } finally {
       setCreateLoading(false);
     }
@@ -147,7 +153,8 @@ export default function TemplateManagement() {
     const { name, value, type } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
+      [name]:
+        type === "checkbox" ? (e.target as HTMLInputElement).checked : value,
     }));
   };
 
@@ -174,7 +181,7 @@ export default function TemplateManagement() {
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
       } catch (error) {
-        console.error('복사 실패:', error);
+        console.error("복사 실패:", error);
       }
     }
   };
@@ -187,7 +194,7 @@ export default function TemplateManagement() {
 
   const handleGoToTemplate = (templateId: string) => {
     // 새 탭에서 템플릿 페이지 열기
-    window.open(`/time-table/${templateId}`, '_blank');
+    window.open(`/time-table/${templateId}`, "_blank");
   };
 
   if (loading) {
@@ -211,18 +218,18 @@ export default function TemplateManagement() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">템플릿 관리</h2>
-          <p className="text-gray-600">전체 템플릿을 조회하고 관리하세요</p>
+          <h2 className="text-2xl font-bold text-primary">템플릿 관리</h2>
+          <p className="text-secondary">전체 템플릿을 조회하고 관리하세요</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="bg-indigo-50 px-4 py-2 rounded-lg">
-            <span className="text-indigo-800 font-semibold">
+          <div className="bg-quaternary px-4 py-2 rounded-lg border">
+            <span className="text-[#F4FDFF] font-semibold">
               총 {templates.length}개
             </span>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md font-medium hover:bg-indigo-700 transition-colors"
+            className="bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium hover:bg-secondary transition-colors"
           >
             + 템플릿 추가
           </button>
@@ -330,7 +337,10 @@ export default function TemplateManagement() {
                               d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                             />
                           </svg>
-                          <p>&apos;{searchTerm}&apos;에 대한 검색 결과가 없습니다.</p>
+                          <p>
+                            &apos;{searchTerm}&apos;에 대한 검색 결과가
+                            없습니다.
+                          </p>
                         </div>
                       </td>
                     </tr>
@@ -363,7 +373,9 @@ export default function TemplateManagement() {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(template.created_at).toLocaleDateString("ko-KR")}
+                      {new Date(template.created_at).toLocaleDateString(
+                        "ko-KR"
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex flex-wrap gap-2">
@@ -478,7 +490,7 @@ export default function TemplateManagement() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   썸네일 이미지
                 </label>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <svg
@@ -499,7 +511,11 @@ export default function TemplateManagement() {
                         썸네일 자동 설정
                       </p>
                       <p className="text-blue-700">
-                        템플릿 생성 후 <code className="bg-blue-100 px-1 rounded text-xs">/public/thumbnail/[template_id].png</code> 경로에 썸네일 이미지를 추가하면 자동으로 표시됩니다.
+                        템플릿 생성 후{" "}
+                        <code className="bg-blue-100 px-1 rounded text-xs">
+                          /public/thumbnail/[template_id].png
+                        </code>{" "}
+                        경로에 썸네일 이미지를 추가하면 자동으로 표시됩니다.
                       </p>
                     </div>
                   </div>
@@ -662,8 +678,9 @@ export default function TemplateManagement() {
                       템플릿 ID 사용법
                     </p>
                     <p className="text-blue-700">
-                      이 ID를 사용하여 API 호출이나 직접 템플릿 참조가 가능합니다.
-                      개발자에게 전달하거나 시스템 연동 시 사용하세요.
+                      이 ID를 사용하여 API 호출이나 직접 템플릿 참조가
+                      가능합니다. 개발자에게 전달하거나 시스템 연동 시
+                      사용하세요.
                     </p>
                   </div>
                 </div>

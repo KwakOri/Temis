@@ -108,11 +108,11 @@ export default function UserManagement() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">사용자 관리</h2>
-          <p className="text-gray-600">등록된 사용자를 조회하고 관리하세요</p>
+          <h2 className="text-2xl font-bold text-primary">사용자 관리</h2>
+          <p className="text-secondary">등록된 사용자를 조회하고 관리하세요</p>
         </div>
-        <div className="bg-indigo-50 px-4 py-2 rounded-lg">
-          <span className="text-indigo-800 font-semibold">
+        <div className="bg-quaternary px-4 py-2 rounded-lg border">
+          <span className="text-primary font-semibold">
             총 {totalUsers}명
           </span>
         </div>

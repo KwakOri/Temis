@@ -234,8 +234,8 @@ export default function CustomOrderManagement() {
       {/* 헤더 */}
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">맞춤형 주문 관리</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-2xl font-bold text-primary">맞춤형 주문 관리</h2>
+          <p className="mt-1 text-sm text-secondary">
             고객의 맞춤형 시간표 제작 주문을 관리합니다.
           </p>
         </div>
@@ -266,7 +266,7 @@ export default function CustomOrderManagement() {
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label className="block text-sm font-medium text-primary mb-3">
               주문 상태
             </label>
             <div className="flex flex-wrap gap-2">
@@ -286,7 +286,7 @@ export default function CustomOrderManagement() {
                   className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
                     selectedStatus === status.value
                       ? status.color === "gray"
-                        ? "bg-gray-100 text-gray-900 border-gray-300"
+                        ? "bg-primary text-[#F4FDFF] border-primary"
                         : status.color === "yellow"
                         ? "bg-yellow-100 text-yellow-800 border-yellow-200"
                         : status.color === "blue"
@@ -294,7 +294,7 @@ export default function CustomOrderManagement() {
                         : status.color === "green"
                         ? "bg-green-100 text-green-800 border-green-200"
                         : "bg-red-100 text-red-800 border-red-200"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                      : "bg-white text-secondary border-gray-300 hover:bg-gray-50"
                   }`}
                 >
                   {status.label}
@@ -399,7 +399,7 @@ export default function CustomOrderManagement() {
                           setSelectedOrder(order);
                           setShowOrderModal(true);
                         }}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-blue-600 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-[#F4FDFF] bg-quaternary hover:bg-tertiary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         상세보기
@@ -568,7 +568,7 @@ function OrderDetailModal({
       <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl z-20">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-primary">
               주문 상세 정보
             </h3>
             <button
@@ -584,7 +584,7 @@ function OrderDetailModal({
           {/* 주문 기본 정보 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-4">
+              <h4 className="text-sm font-medium text-primary mb-4">
                 주문 정보
               </h4>
               <div className="space-y-3">
@@ -608,7 +608,7 @@ function OrderDetailModal({
             </div>
 
             <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-4">
+              <h4 className="text-sm font-medium text-primary mb-4">
                 고객 정보
               </h4>
               <div className="space-y-3">
@@ -739,7 +739,7 @@ function OrderDetailModal({
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <label className="block text-sm font-medium text-primary mb-3">
                     주문 상태
                   </label>
                   <div className="flex gap-2 justify-between">
@@ -780,7 +780,7 @@ function OrderDetailModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-primary mb-1">
                     견적 가격 (원)
                   </label>
                   <input
@@ -794,7 +794,7 @@ function OrderDetailModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-primary mb-1">
                   관리자 메모
                 </label>
                 <textarea
@@ -811,14 +811,14 @@ function OrderDetailModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-secondary bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
               >
                 취소
               </button>
               <button
                 type="submit"
                 disabled={updating}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 transition-colors"
               >
                 {updating ? "업데이트 중..." : "저장"}
               </button>
@@ -955,7 +955,7 @@ function NewFileManager({ files, title = "첨부파일" }: NewFileManagerProps) 
                 e.stopPropagation();
                 downloadAllFiles();
               }}
-              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-md transition-colors flex items-center space-x-1"
+              className="px-3 py-1 bg-primary hover:bg-secondary text-white text-sm rounded-md transition-colors flex items-center space-x-1"
             >
               <Download className="h-4 w-4" />
               <span>전체 다운로드</span>
