@@ -10,7 +10,7 @@ import { supabase } from '@/lib/supabase';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 인증 확인
@@ -20,7 +20,7 @@ export async function PUT(
     }
     const { user } = authResult;
 
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const { depositor_name, message } = body;
 
@@ -82,7 +82,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 인증 확인
@@ -92,7 +92,7 @@ export async function DELETE(
     }
     const { user } = authResult;
 
-    const { id } = params;
+    const { id } = await params;
 
     // 1. 기존 요청 확인 (사용자 본인의 요청인지, 삭제 가능한 상태인지)
     const { data: existingRequest, error: fetchError } = await supabase
