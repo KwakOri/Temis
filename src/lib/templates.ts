@@ -1,12 +1,13 @@
 import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
+import { supabase } from "./supabase";
 
-type Template = Tables<'templates'>;
-type TemplateAccess = Tables<'template_access'>;
-type User = Tables<'users'>;
-type TemplateInsert = TablesInsert<'templates'>;
-type TemplateUpdate = TablesUpdate<'templates'>;
-type TemplateAccessInsert = TablesInsert<'template_access'>;
-type AccessLevel = TemplateAccess['access_level'];
+type Template = Tables<"templates">;
+type TemplateAccess = Tables<"template_access">;
+type User = Tables<"users">;
+type TemplateInsert = TablesInsert<"templates">;
+type TemplateUpdate = TablesUpdate<"templates">;
+type TemplateAccessInsert = TablesInsert<"template_access">;
+type AccessLevel = TemplateAccess["access_level"];
 
 interface TemplateAccessWithUser extends TemplateAccess {
   users?: User;
@@ -15,7 +16,6 @@ interface TemplateAccessWithUser extends TemplateAccess {
 interface UserTemplateAccess extends TemplateAccess {
   templates?: Template;
 }
-import { supabase } from "./supabase";
 
 /**
  * 템플릿 관리 서비스
@@ -78,10 +78,13 @@ export class TemplateService {
         .from("template_access")
         .select(
           `
+          id,
+          template_id,
+          user_id,
           access_level,
           granted_at,
           granted_by,
-          template:templates(*)
+          templates:templates(*)
         `
         )
         .eq("user_id", userId);
@@ -96,15 +99,18 @@ export class TemplateService {
       // 접근 권한이 있는 템플릿
       accessibleTemplates.forEach((access) => {
         if (
-          access.template &&
-          typeof access.template === "object" &&
-          !Array.isArray(access.template)
+          access.templates &&
+          typeof access.templates === "object" &&
+          !Array.isArray(access.templates)
         ) {
           result.push({
-            template: access.template as Template,
+            id: access.id,
+            template_id: access.template_id,
+            user_id: access.user_id,
+            templates: access.templates as Template,
             access_level: access.access_level as AccessLevel,
             granted_at: access.granted_at || "",
-            granted_by: access.granted_by?.toString() || null,
+            granted_by: access.granted_by || 0,
           });
         }
       });
@@ -185,16 +191,17 @@ export class TemplateService {
       }
 
       // Validate templateId is a UUID format
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(templateId)) {
         return false;
       }
 
       // 1. 먼저 템플릿이 공개되어 있는지 확인
       const { data: templateData, error: templateError } = await supabase
-        .from('templates')
-        .select('is_public')
-        .eq('id', templateId)
+        .from("templates")
+        .select("is_public")
+        .eq("id", templateId)
         .single();
 
       if (templateError) {
@@ -208,10 +215,10 @@ export class TemplateService {
 
       // 2. template_access 테이블에서 권한 확인
       const { data: accessData, error: accessError } = await supabase
-        .from('template_access')
-        .select('id')
-        .eq('template_id', templateId)
-        .eq('user_id', parseInt(userId))
+        .from("template_access")
+        .select("id")
+        .eq("template_id", templateId)
+        .eq("user_id", parseInt(userId))
         .limit(1);
 
       if (accessError) {
