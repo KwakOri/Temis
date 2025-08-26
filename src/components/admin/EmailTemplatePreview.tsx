@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { EmailService } from "@/lib/email";
 import { 
   generateEmailVerificationTemplate, 
   generateWelcomeEmailTemplate, 

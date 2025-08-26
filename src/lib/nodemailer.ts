@@ -44,7 +44,6 @@ export class NodemailerService {
     try {
       const transporter = this.createTransporter();
       await transporter.verify();
-      console.log("✅ SMTP 연결이 성공적으로 확인되었습니다.");
       return true;
     } catch (error) {
       console.error("❌ SMTP 연결 실패:", error);
@@ -86,12 +85,6 @@ export class NodemailerService {
 
       const result = await transporter.sendMail(mailOptions);
 
-      console.log("✅ 이메일 발송 성공:", {
-        messageId: result.messageId,
-        to: options.to,
-        subject: options.subject,
-        type: options.type,
-      });
 
       return {
         success: true,
@@ -172,7 +165,6 @@ export class NodemailerService {
     if (this.transporter) {
       this.transporter.close();
       this.transporter = null;
-      console.log("📧 SMTP 연결이 종료되었습니다.");
     }
   }
 }

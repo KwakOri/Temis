@@ -115,7 +115,6 @@ function AuthContent() {
           {isSignupMode ? (
             <PublicRegisterForm 
               onSuccess={() => {
-                console.log("Registration email sent successfully");
               }}
               onBack={toggleSignupMode}
             />

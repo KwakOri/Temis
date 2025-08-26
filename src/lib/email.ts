@@ -46,7 +46,6 @@ export class EmailService {
     try {
       // 서버 사이드에서는 직접 NodemailerService 호출
       if (typeof window === "undefined") {
-        console.log("Sending email directly via NodemailerService");
         const result = await NodemailerService.sendEmail({
           to,
           subject,
@@ -59,7 +58,6 @@ export class EmailService {
       // 클라이언트 사이드에서는 API 호출 (실제로는 사용되지 않아야 함)
       const baseUrl = this.getBaseUrl();
       const apiUrl = `${baseUrl}/api/email/send`;
-      console.log("Sending email via API:", apiUrl);
 
       const response = await fetch(apiUrl, {
         method: "POST",

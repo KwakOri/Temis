@@ -84,7 +84,6 @@ export async function POST(request: NextRequest) {
     const orderId = formData.get('order_id') as string;
     const fileCategory = formData.get('file_category') as 'character_image' | 'reference';
     
-    console.log('📁 [Upload API] Extracted params:', { orderId, fileCategory, uploadType });
 
     // 파일 업로드 (userId, orderId, fileCategory 전달)
     const uploadedFiles = await uploadMultipleFiles(

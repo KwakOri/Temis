@@ -167,7 +167,6 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
   const days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
   const dayName = days[day];
 
-  console.log(Imgs["first"][dayName]);
   return (
     <div
       style={{

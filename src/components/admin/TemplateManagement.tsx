@@ -1,7 +1,6 @@
 "use client";
 
 import { Tables } from "@/types/supabase";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 type Template = Tables<"templates"> & {
@@ -29,7 +28,6 @@ interface ProductForm {
 // ThumbnailFile 인터페이스 제거 (더 이상 사용하지 않음)
 
 export default function TemplateManagement() {
-  const router = useRouter();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -44,7 +42,6 @@ export default function TemplateManagement() {
     is_public: false,
   });
 
-  console.log("templates =>", templates);
   
   // template_products 배열에서 첫 번째 상품 정보를 가져오는 함수 (1대1 관계)
   const getTemplateProduct = (template: Template): Tables<"template_products"> | null => {

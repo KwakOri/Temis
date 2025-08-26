@@ -18,7 +18,6 @@ export async function GET(
 ) {
   try {
     const { orderId } = await params;
-    console.log('📂 [Files API] Loading files for order:', orderId);
     
     // JWT 토큰 확인
     const cookieStore = await cookies();
@@ -29,7 +28,6 @@ export async function GET(
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    console.log('📂 [Files API] User ID:', decoded.userId);
 
     // 주문이 해당 사용자의 것인지 확인
     const { data: order, error: orderError } = await supabase
@@ -61,11 +59,6 @@ export async function GET(
       url: getFileUrl(file.file_key)
     }));
 
-    console.log('📂 [Files API] Files found:', {
-      total: filesWithUrls.length,
-      characterImages: filesWithUrls.filter(f => f.file_category === 'character_image').length,
-      references: filesWithUrls.filter(f => f.file_category === 'reference').length
-    });
 
     return NextResponse.json({
       files: filesWithUrls
