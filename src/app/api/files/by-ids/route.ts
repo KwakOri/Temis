@@ -14,7 +14,6 @@ interface JWTPayload {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📂 [Files API] File IDs lookup started');
     
     // JWT 토큰 확인
     const cookieStore = await cookies();
@@ -25,7 +24,6 @@ export async function POST(request: NextRequest) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    console.log('📂 [Files API] User ID:', decoded.userId);
 
     const { fileIds } = await request.json();
     
@@ -33,7 +31,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '파일 ID 목록이 필요합니다.' }, { status: 400 });
     }
 
-    console.log('📂 [Files API] Requested file IDs:', fileIds);
 
     // 파일 정보 조회 (사용자의 파일만)
     const { data: files, error } = await supabase
@@ -53,7 +50,6 @@ export async function POST(request: NextRequest) {
       url: getFileUrl(file.file_key)
     }));
 
-    console.log('📂 [Files API] Files found:', filesWithUrls.length);
 
     return NextResponse.json({
       files: filesWithUrls

@@ -30,7 +30,6 @@ export default function AccessManagement() {
   const [templateSearchTerm, setTemplateSearchTerm] = useState("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
 
-  console.log("templateAccess => ", templateAccess);
 
   useEffect(() => {
     fetchTemplates();

@@ -81,8 +81,6 @@ export async function POST(request: NextRequest) {
 
     // 개발 환경에서는 시뮬레이션
     if (process.env.NEXT_PUBLIC_ENVIRONMENT === "development") {
-      console.log("📧 [개발 모드] 일괄 이메일 발송 시뮬레이션:");
-      console.log(`총 ${emails.length}개 이메일 발송 예정`);
       
       const simulatedResults = emails.map((email, index) => ({
         email: email.to,

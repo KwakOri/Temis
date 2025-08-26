@@ -93,7 +93,6 @@ export async function POST(request: NextRequest) {
     );
 
     // 초대 이메일 발송
-    console.log("Sending invite email to:", email, "with token:", inviteToken.substring(0, 8) + "...");
     
     try {
       const emailSent = await EmailService.sendSignupInviteEmail(
@@ -101,7 +100,6 @@ export async function POST(request: NextRequest) {
         inviteToken
       );
 
-      console.log("Email sent result:", emailSent);
 
       if (!emailSent) {
         return NextResponse.json(

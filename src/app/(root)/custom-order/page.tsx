@@ -36,7 +36,6 @@ export default function CustomOrderPage() {
 
   const handleOrderSubmit = async (formData: CustomOrderFormData) => {
     try {
-      console.log("🚀 [Order Submit] 주문 제출 시작:", formData);
 
       const response = await fetch("/api/shop/custom-order", {
         method: "POST",
@@ -50,13 +49,11 @@ export default function CustomOrderPage() {
       const result = await response.json();
 
       if (response.ok) {
-        console.log("✅ [Order Submit] 주문 제출 성공:", result);
         alert("맞춤형 시간표 제작 신청이 완료되었습니다!");
         setShowOrderForm(false);
         // 주문 내역 탭으로 전환
         setActiveTab("history");
         // 새로고침 제거 - 필요시 CustomOrderHistory에서 데이터를 다시 로드하도록 수정
-        console.log("📍 [Order Submit] 새로고침 없이 완료됨");
       } else {
         console.error("❌ [Order Submit] 주문 제출 실패:", result);
         alert(result.error || "신청 중 오류가 발생했습니다.");

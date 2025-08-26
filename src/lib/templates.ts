@@ -13,9 +13,6 @@ interface TemplateAccessWithUser extends TemplateAccess {
   users?: User;
 }
 
-interface UserTemplateAccess extends TemplateAccess {
-  templates?: Template;
-}
 
 /**
  * 템플릿 관리 서비스
