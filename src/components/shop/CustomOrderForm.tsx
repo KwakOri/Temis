@@ -132,7 +132,6 @@ export default function CustomOrderForm({
     depositorName: existingOrder?.depositor_name || "",
   });
 
-  console.log("currentStep => ", currentStep);
 
   // 수정 모드일 때 기존 파일들 로드
   useEffect(() => {
@@ -140,7 +139,6 @@ export default function CustomOrderForm({
       if (!isEditMode || !existingOrder) return;
 
       try {
-        console.log("🔄 [Form] Loading files for order:", existingOrder.id);
 
         // 주문에 연결된 모든 파일들 로드
         const response = await fetch(
@@ -192,10 +190,6 @@ export default function CustomOrderForm({
             referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
           }));
 
-          console.log("✅ [Form] Files loaded:", {
-            characterImages: characterImageFiles.length,
-            references: referenceFiles.length,
-          });
         } else {
           console.error("❌ [Form] Failed to load files:", response.statusText);
         }

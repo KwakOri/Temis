@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Purchase request saved:', purchaseRequest);
 
     return NextResponse.json({
       success: true,

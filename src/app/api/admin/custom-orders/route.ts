@@ -35,12 +35,10 @@ async function checkAdminPermission(userId: number): Promise<boolean> {
 // 모든 맞춤형 주문 내역 조회 (관리자용)
 export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 [Admin API] 관리자 주문 조회 시작');
     
     // JWT 토큰 확인
     const cookieStore = await cookies();
     const token = cookieStore.get('auth-token')?.value;
-    console.log('🔍 [Admin API] Token exists:', !!token);
 
     if (!token) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
@@ -48,11 +46,9 @@ export async function GET(request: NextRequest) {
 
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     const userId = parseInt(decoded.userId, 10);
-    console.log('🔍 [Admin API] Decoded user ID:', userId);
 
     // 관리자 권한 확인
     const isAdmin = await checkAdminPermission(userId);
-    console.log('🔍 [Admin API] Admin permission:', isAdmin);
     
     if (!isAdmin) {
       return NextResponse.json({ error: '관리자 권한이 필요합니다.' }, { status: 403 });
@@ -65,7 +61,6 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(url.searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
     
-    console.log('🔍 [Admin API] Query params:', { status, page, limit, offset });
 
     // 쿼리 구성 - 간단한 LEFT JOIN 방식으로 수정
     let query = supabase
@@ -93,9 +88,7 @@ export async function GET(request: NextRequest) {
     // 페이지네이션
     query = query.range(offset, offset + limit - 1);
 
-    console.log('🔍 [Admin API] Executing query...');
     const { data: orders, error } = await query;
-    console.log('🔍 [Admin API] Query executed:', { ordersCount: orders?.length, hasError: !!error });
 
     if (error) {
       console.error('Database error:', error);
@@ -121,8 +114,6 @@ export async function GET(request: NextRequest) {
     const { count } = await countQuery;
 
     // 디버그 정보 추가
-    console.log('Orders fetched:', orders?.length || 0);
-    console.log('Sample order structure:', orders?.[0] ? JSON.stringify(orders[0], null, 2) : 'No orders');
 
     return NextResponse.json({
       orders: orders || [],

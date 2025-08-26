@@ -28,14 +28,6 @@ export async function uploadFile(
   fileCategory?: "character_image" | "reference"
 ): Promise<FileMetadata> {
   try {
-    console.log("📤 [FileUtils] Uploading file:", {
-      fileName: file.name,
-      fileSize: file.size,
-      userId,
-      folder,
-      orderId,
-      fileCategory,
-    });
     // 파일을 Buffer로 변환
     const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -70,14 +62,11 @@ export async function uploadFile(
     // order_id와 file_category가 제공된 경우 추가
     if (orderId) {
       insertData.order_id = orderId;
-      console.log("📤 [FileUtils] Setting order_id:", orderId);
     }
     if (fileCategory) {
       insertData.file_category = fileCategory;
-      console.log("📤 [FileUtils] Setting file_category:", fileCategory);
     }
 
-    console.log("📤 [FileUtils] Insert data:", insertData);
 
     const { data, error } = await supabase
       .from("files")
@@ -85,10 +74,6 @@ export async function uploadFile(
       .select()
       .single();
 
-    console.log("📤 [FileUtils] Database insert result:", {
-      success: !!data,
-      error: !!error,
-    });
 
     if (error) {
       // R2에서 업로드된 파일 삭제 (롤백)

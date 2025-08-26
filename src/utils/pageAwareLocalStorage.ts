@@ -197,9 +197,8 @@ export const debugStorage = {
     });
 
     console.group('LocalStorage Keys by Page:');
-    Object.entries(groupedKeys).forEach(([pageId, keys]) => {
+    Object.entries(groupedKeys).forEach(([pageId]) => {
       console.group(`Page: ${pageId}`);
-      keys.forEach(key => console.log(`- ${key}`));
       console.groupEnd();
     });
     console.groupEnd();
@@ -215,9 +214,7 @@ export const debugStorage = {
     const keys = storage.getAllKeysForCurrentPage();
     
     console.group(`Page Data for: ${pageId}`);
-    keys.forEach(key => {
-      const value = storage.getItem(key, null);
-      console.log(`${key}:`, value);
+    keys.forEach(_key => {
     });
     console.groupEnd();
   }

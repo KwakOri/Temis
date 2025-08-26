@@ -27,7 +27,6 @@ export default function ShopPage() {
     string[]
   >([]);
 
-  console.log("templates =>", templates);
 
   useEffect(() => {
     fetchPublicTemplates();

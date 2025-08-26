@@ -12,7 +12,6 @@ const TimeTableWeekFlag = ({
   weekDates,
 }: TimeTableWeekFlagProps) => {
   const { start, end } = getWeekDateRange(weekDates);
-  console.log(start, end);
 
   return (
     <div

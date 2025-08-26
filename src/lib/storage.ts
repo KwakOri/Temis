@@ -1,11 +1,5 @@
 // Cloudflare R2 Storage 유틸리티 (추후 구현 예정)
 
-interface FileUploadOptions {
-  bucket: string;
-  key: string;
-  body: Buffer | Uint8Array | string;
-  contentType?: string;
-}
 
 /**
  * Cloudflare R2에 파일 업로드 (추후 구현)
@@ -13,7 +7,7 @@ interface FileUploadOptions {
 export async function uploadToCloudflareR2(
   fileData: Buffer | Uint8Array | string,
   filePath: string,
-  contentType?: string
+  _contentType?: string
 ): Promise<string> {
   // TODO: Cloudflare R2 SDK를 사용한 실제 업로드 로직 구현
   
@@ -21,10 +15,6 @@ export async function uploadToCloudflareR2(
   const timestamp = Date.now();
   const dummyUrl = `https://your-r2-bucket.your-account-id.r2.cloudflarestorage.com/${filePath}?timestamp=${timestamp}`;
   
-  console.log(`[MOCK] Uploading file to R2: ${filePath}`);
-  console.log(`[MOCK] File size: ${fileData.length} bytes`);
-  console.log(`[MOCK] Content type: ${contentType || 'unknown'}`);
-  console.log(`[MOCK] Generated URL: ${dummyUrl}`);
   
   return dummyUrl;
 }
@@ -32,10 +22,9 @@ export async function uploadToCloudflareR2(
 /**
  * Cloudflare R2에서 파일 삭제 (추후 구현)
  */
-export async function deleteFromCloudflareR2(filePath: string): Promise<boolean> {
+export async function deleteFromCloudflareR2(_filePath: string): Promise<boolean> {
   // TODO: Cloudflare R2 SDK를 사용한 실제 삭제 로직 구현
   
-  console.log(`[MOCK] Deleting file from R2: ${filePath}`);
   
   return true;
 }

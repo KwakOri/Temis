@@ -34,11 +34,6 @@ export async function POST(request: NextRequest) {
 
     // 개발 환경에서는 콘솔 로그만 출력
     if (process.env.NEXT_PUBLIC_ENVIRONMENT === "development") {
-      console.log("📧 [개발 모드] 이메일 발송 시뮬레이션:");
-      console.log("To:", to);
-      console.log("Subject:", subject);
-      console.log("Type:", type);
-      console.log("HTML Content Length:", html.length);
       
       return NextResponse.json(
         {
