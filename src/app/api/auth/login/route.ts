@@ -24,6 +24,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 계정 인증 상태 확인
+    if (user.role === 'unauthorized') {
+      return NextResponse.json(
+        { 
+          error: '이메일 인증이 완료되지 않은 계정입니다. 이메일을 확인하여 인증을 완료해 주세요.',
+          code: 'EMAIL_NOT_VERIFIED'
+        },
+        { status: 403 }
+      );
+    }
+
     // 비밀번호 검증
     if (!user.password) {
       return NextResponse.json(
@@ -40,16 +51,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 관리자 여부 확인
+    // 사용자의 role 확인 (admin은 이미 DB에 저장되어 있음)
+    const userRole = user.role || 'user';
+    
+    // 관리자 여부 확인 (환경변수 기반 보조 체크)
     const adminEmails = process.env.ADMIN_EMAILS?.split(',').map(email => email.trim()) || [];
-    const isAdmin = adminEmails.includes(user.email);
+    const isAdminByEmail = adminEmails.includes(user.email);
+    
+    // DB role이 우선, 환경변수는 보조
+    const finalRole = userRole === 'admin' || isAdminByEmail ? 'admin' : 'user';
 
     // JWT 토큰 생성
     const token = await signJWT({
       userId: user.id,
       email: user.email,
       name: user.name,
-      role: isAdmin ? 'admin' : 'user'
+      role: finalRole
     });
 
     // 응답 생성
@@ -59,8 +76,8 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: isAdmin ? 'admin' : 'user',
-        isAdmin: isAdmin
+        role: finalRole,
+        isAdmin: finalRole === 'admin'
       }
     });
 

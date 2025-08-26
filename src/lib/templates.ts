@@ -1,14 +1,21 @@
-import {
-  AccessLevel,
-  Template,
-  TemplateAccess,
-  TemplateAccessInsert,
-  TemplateAccessWithUser,
-  TemplateInsert,
-  TemplateUpdate,
-  UserTemplateAccess,
-} from "@/types/supabase-types";
+import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
 import { supabase } from "./supabase";
+
+type Template = Tables<"templates">;
+type TemplateAccess = Tables<"template_access">;
+type User = Tables<"users">;
+type TemplateInsert = TablesInsert<"templates">;
+type TemplateUpdate = TablesUpdate<"templates">;
+type TemplateAccessInsert = TablesInsert<"template_access">;
+type AccessLevel = TemplateAccess["access_level"];
+
+interface TemplateAccessWithUser extends TemplateAccess {
+  users?: User;
+}
+
+interface UserTemplateAccess extends TemplateAccess {
+  templates?: Template;
+}
 
 /**
  * 템플릿 관리 서비스
@@ -53,82 +60,6 @@ export class TemplateService {
     } catch (error) {
       console.error("Error finding template:", error);
       throw new Error("템플릿 조회 중 오류가 발생했습니다.");
-    }
-  }
-
-  /**
-   * 사용자의 템플릿 목록 조회 (소유 + 접근 권한)
-   */
-  static async findUserTemplates(
-    userId: number
-  ): Promise<UserTemplateAccess[]> {
-    try {
-      // Note: created_by 컬럼이 제거되어 소유한 템플릿 조회 불가
-      // const ownedTemplates: Template[] = [];
-
-      // 2. 접근 권한이 있는 템플릿
-      const { data: accessibleTemplates, error: accessError } = await supabase
-        .from("template_access")
-        .select(
-          `
-          access_level,
-          granted_at,
-          granted_by,
-          template:templates(*)
-        `
-        )
-        .eq("user_id", userId);
-
-      if (accessError) throw accessError;
-
-      // 결과 조합
-      const result: UserTemplateAccess[] = [];
-
-      // Note: 소유한 템플릿 개념이 제거됨
-
-      // 접근 권한이 있는 템플릿
-      accessibleTemplates.forEach((access) => {
-        if (
-          access.template &&
-          typeof access.template === "object" &&
-          !Array.isArray(access.template)
-        ) {
-          result.push({
-            template: access.template as Template,
-            access_level: access.access_level as AccessLevel,
-            granted_at: access.granted_at || "",
-            granted_by: access.granted_by?.toString() || null,
-          });
-        }
-      });
-
-      return result;
-    } catch (error) {
-      console.error("Error finding user templates:", error);
-      throw new Error("사용자 템플릿 조회 중 오류가 발생했습니다.");
-    }
-  }
-
-  /**
-   * 공개 템플릿 목록 조회
-   */
-  static async findPublicTemplates(
-    limit = 20,
-    offset = 0
-  ): Promise<Template[]> {
-    try {
-      const { data, error } = await supabase
-        .from("templates")
-        .select("*")
-        .eq("is_public", true)
-        .range(offset, offset + limit - 1)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error("Error finding public templates:", error);
-      throw new Error("공개 템플릿 조회 중 오류가 발생했습니다.");
     }
   }
 
@@ -178,16 +109,17 @@ export class TemplateService {
       }
 
       // Validate templateId is a UUID format
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(templateId)) {
         return false;
       }
 
       // 1. 먼저 템플릿이 공개되어 있는지 확인
       const { data: templateData, error: templateError } = await supabase
-        .from('templates')
-        .select('is_public')
-        .eq('id', templateId)
+        .from("templates")
+        .select("is_public")
+        .eq("id", templateId)
         .single();
 
       if (templateError) {
@@ -201,10 +133,10 @@ export class TemplateService {
 
       // 2. template_access 테이블에서 권한 확인
       const { data: accessData, error: accessError } = await supabase
-        .from('template_access')
-        .select('id')
-        .eq('template_id', templateId)
-        .eq('user_id', parseInt(userId))
+        .from("template_access")
+        .select("id")
+        .eq("template_id", templateId)
+        .eq("user_id", parseInt(userId))
         .limit(1);
 
       if (accessError) {

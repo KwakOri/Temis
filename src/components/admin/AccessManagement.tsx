@@ -1,7 +1,15 @@
 "use client";
 
-import { Template, TemplateAccessWithUser, User } from "@/types/supabase-types";
+import { Tables } from "@/types/supabase";
 import { useEffect, useState } from "react";
+
+type Template = Tables<"templates">;
+type User = Tables<"users">;
+type TemplateAccess = Tables<"template_access">;
+
+interface TemplateAccessWithUser extends TemplateAccess {
+  user?: User;
+}
 
 export default function AccessManagement() {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -21,6 +29,8 @@ export default function AccessManagement() {
   >("read");
   const [templateSearchTerm, setTemplateSearchTerm] = useState("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
+
+  console.log("templateAccess => ", templateAccess);
 
   useEffect(() => {
     fetchTemplates();
@@ -421,7 +431,7 @@ export default function AccessManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-3">
                     사용자 선택
                   </label>
-                  
+
                   {(() => {
                     const availableUsers = users.filter(
                       (user) =>
@@ -447,7 +457,9 @@ export default function AccessManagement() {
                             />
                           </svg>
                           <p>권한을 부여할 수 있는 사용자가 없습니다.</p>
-                          <p className="text-sm">모든 사용자가 이미 접근 권한을 가지고 있습니다.</p>
+                          <p className="text-sm">
+                            모든 사용자가 이미 접근 권한을 가지고 있습니다.
+                          </p>
                         </div>
                       );
                     }
@@ -462,7 +474,9 @@ export default function AccessManagement() {
                                 type="text"
                                 placeholder="사용자 검색 (이름 또는 이메일)..."
                                 value={userSearchTerm}
-                                onChange={(e) => setUserSearchTerm(e.target.value)}
+                                onChange={(e) =>
+                                  setUserSearchTerm(e.target.value)
+                                }
                                 className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
                               />
                               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -532,8 +546,8 @@ export default function AccessManagement() {
                                   />
                                 </svg>
                                 <p>
-                                  &apos;{userSearchTerm}&apos;에 대한 검색 결과가
-                                  없습니다.
+                                  &apos;{userSearchTerm}&apos;에 대한 검색
+                                  결과가 없습니다.
                                 </p>
                               </div>
                             );
@@ -560,7 +574,7 @@ export default function AccessManagement() {
                                         </span>
                                       </div>
                                     </div>
-                                    
+
                                     {/* User Info */}
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-gray-900 truncate">
@@ -572,7 +586,9 @@ export default function AccessManagement() {
                                       <div className="mt-1">
                                         <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
                                           {user.created_at
-                                            ? `가입일: ${new Date(user.created_at).toLocaleDateString("ko-KR")}`
+                                            ? `가입일: ${new Date(
+                                                user.created_at
+                                              ).toLocaleDateString("ko-KR")}`
                                             : "정보 없음"}
                                         </span>
                                       </div>
@@ -700,65 +716,65 @@ export default function AccessManagement() {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {templateAccess.map((access) => (
-                        <tr key={access.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="flex-shrink-0 h-8 w-8">
-                                <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center">
-                                  <span className="text-xs font-medium text-white">
-                                    {access.user?.name?.charAt(0).toUpperCase()}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {access.user?.name}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {access.user?.email}
-                                </div>
+                      <tr key={access.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-8 w-8">
+                              <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center">
+                                <span className="text-xs font-medium text-white">
+                                  {access.user?.name?.charAt(0).toUpperCase()}
+                                </span>
                               </div>
                             </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAccessLevelColor(
-                                access.access_level
-                              )}`}
-                            >
-                              {getAccessLevelText(access.access_level)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {access.granted_at
-                              ? new Date(access.granted_at).toLocaleDateString(
-                                  "ko-KR"
-                                )
-                              : "날짜 없음"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                            <select
-                              value={access.access_level || "read"}
-                              onChange={(e) =>
-                                updateAccess(
-                                  access.user_id,
-                                  e.target.value as "read" | "write" | "admin"
-                                )
-                              }
-                              className="text-sm border-gray-300 rounded px-2 py-1"
-                            >
-                              <option value="read">읽기</option>
-                              <option value="write">편집</option>
-                              <option value="admin">관리자</option>
-                            </select>
-                            <button
-                              onClick={() => revokeAccess(access.user_id)}
-                              className="text-red-600 hover:text-red-900 font-medium"
-                            >
-                              제거
-                            </button>
-                          </td>
-                        </tr>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">
+                                {access.user?.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {access.user?.email}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getAccessLevelColor(
+                              access.access_level
+                            )}`}
+                          >
+                            {getAccessLevelText(access.access_level)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {access.granted_at
+                            ? new Date(access.granted_at).toLocaleDateString(
+                                "ko-KR"
+                              )
+                            : "날짜 없음"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                          <select
+                            value={access.access_level || "read"}
+                            onChange={(e) =>
+                              updateAccess(
+                                access.user_id,
+                                e.target.value as "read" | "write" | "admin"
+                              )
+                            }
+                            className="text-sm border-gray-300 rounded px-2 py-1"
+                          >
+                            <option value="read">읽기</option>
+                            <option value="write">편집</option>
+                            <option value="admin">관리자</option>
+                          </select>
+                          <button
+                            onClick={() => revokeAccess(access.user_id)}
+                            className="text-red-600 hover:text-red-900 font-medium"
+                          >
+                            제거
+                          </button>
+                        </td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
