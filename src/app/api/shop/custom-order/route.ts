@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
+      depositorName,
     } = body;
 
     // 필수 필드 검증
@@ -51,7 +52,8 @@ export async function POST(request: Request) {
       !youtubeSnsAddress ||
       !emailDiscord ||
       !orderRequirements ||
-      !designKeywords
+      !designKeywords ||
+      !depositorName
     ) {
       return NextResponse.json(
         { error: "필수 필드가 누락되었습니다." },
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
     // 선택된 옵션들을 배열로 변환
     const selectedOptions: string[] = [];
     if (fastDelivery) selectedOptions.push("빠른 마감");
-    if (portfolioPrivate) selectedOptions.push("포폴 비공개");
+    if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
     if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
 
     // 데이터베이스에 주문 정보 저장
@@ -80,6 +82,7 @@ export async function POST(request: Request) {
         design_keywords: designKeywords,
         price_quoted: priceQuoted,
         selected_options: selectedOptions,
+        depositor_name: depositorName,
         status: "pending",
       })
       .select()
@@ -262,6 +265,7 @@ export async function PUT(request: Request) {
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
+      depositorName,
     } = body;
 
     if (!orderId) {
@@ -290,7 +294,7 @@ export async function PUT(request: Request) {
     // 선택된 옵션들을 배열로 변환
     const selectedOptions: string[] = [];
     if (fastDelivery) selectedOptions.push("빠른 마감");
-    if (portfolioPrivate) selectedOptions.push("포폴 비공개");
+    if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
     if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
 
     // 주문 업데이트
@@ -305,6 +309,7 @@ export async function PUT(request: Request) {
         design_keywords: designKeywords,
         price_quoted: priceQuoted,
         selected_options: selectedOptions,
+        depositor_name: depositorName,
         updated_at: new Date().toISOString(),
       })
       .eq("id", orderId)

@@ -35,6 +35,7 @@ interface Step3Data {
   portfolioPrivate: boolean;
   reviewEvent: boolean;
   priceQuoted: number;
+  depositorName: string;
 }
 
 type CustomFormData = Step1Data & Step2Data & Step3Data & { orderId?: string };
@@ -51,6 +52,7 @@ interface CustomOrderWithStatus {
   selected_options: string[];
   status: "pending" | "in_progress" | "completed" | "cancelled";
   price_quoted?: number;
+  depositor_name?: string;
   admin_notes?: string;
   created_at: string;
   updated_at: string;
@@ -148,6 +150,7 @@ export default function CustomOrderHistory() {
     design_keywords: order.design_keywords,
     selected_options: order.selected_options,
     price_quoted: order.price_quoted || 0,
+    depositor_name: order.depositor_name || "",
   });
 
   // 주문 수정 핸들러
@@ -325,6 +328,17 @@ export default function CustomOrderHistory() {
                     </h4>
                     <p className="text-sm text-slate-600">
                       {order.design_keywords}
+                    </p>
+                  </div>
+                )}
+
+                {order.depositor_name && (
+                  <div>
+                    <h4 className="text-sm font-medium text-slate-700 mb-1">
+                      입금자명
+                    </h4>
+                    <p className="text-sm text-slate-600">
+                      {order.depositor_name}
                     </p>
                   </div>
                 )}

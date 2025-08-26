@@ -39,6 +39,7 @@ interface CustomOrder {
   status: "pending" | "in_progress" | "completed" | "cancelled";
   admin_notes: string | null;
   price_quoted: number | null;
+  depositor_name: string | null;
   created_at: string;
   updated_at: string;
   users: {
@@ -634,6 +635,14 @@ function OrderDetailModal({
                   </label>
                   <p className="text-sm text-gray-900">{order.email_discord}</p>
                 </div>
+                {order.depositor_name && (
+                  <div>
+                    <label className="text-xs text-gray-500">입금자명</label>
+                    <p className="text-sm text-gray-900 font-medium">
+                      {order.depositor_name}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

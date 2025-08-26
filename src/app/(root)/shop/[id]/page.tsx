@@ -205,6 +205,20 @@ export default function TemplateDetailPage() {
                 </div>
               </div>
 
+              {/* 상품 상세 설명 */}
+              {template.detailed_description && (
+                <div className="border-t border-slate-200 pt-6">
+                  <h3 className="font-semibold mb-3 text-slate-900">
+                    상품 상세 설명
+                  </h3>
+                  <div className="prose prose-sm max-w-none">
+                    <div className="text-slate-600 whitespace-pre-wrap leading-relaxed">
+                      {template.detailed_description}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 구매 버튼 */}
               <div className="border-t border-slate-200 pt-6">
                 {user ? (
@@ -307,9 +321,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                 송금 계좌 정보
               </h4>
               <div className="text-sm text-slate-700 mt-1 space-y-1">
-                <p>• 은행: 신한은행</p>
-                <p>• 계좌번호: 110-123-456789</p>
-                <p>• 예금주: 테미스</p>
+                <p>• 은행: 토스뱅크</p>
+                <p>• 계좌번호: 1000-7564-4995</p>
+                <p>• 예금주: 이세영</p>
                 <p>• 입금 확인 후 1-2일 이내에 템플릿 권한이 부여됩니다</p>
               </div>
             </div>

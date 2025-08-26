@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 interface CreateTemplateForm {
   name: string;
   description: string;
+  detailed_description: string;
   thumbnail_url: string;
   is_public: boolean;
 }
@@ -26,6 +27,7 @@ export default function TemplateManagement() {
   const [formData, setFormData] = useState<CreateTemplateForm>({
     name: "",
     description: "",
+    detailed_description: "",
     thumbnail_url: "",
     is_public: false,
   });
@@ -166,6 +168,7 @@ export default function TemplateManagement() {
     setFormData({
       name: "",
       description: "",
+      detailed_description: "",
       thumbnail_url: "",
       is_public: false,
     });
@@ -474,17 +477,35 @@ export default function TemplateManagement() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  설명
+                  간단 설명
                 </label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleInputChange}
-                  rows={3}
+                  rows={2}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="템플릿 설명을 입력하세요"
-                  maxLength={500}
+                  placeholder="템플릿 간단 설명을 입력하세요 (목록에 표시됨)"
+                  maxLength={200}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  상세 설명
+                </label>
+                <textarea
+                  name="detailed_description"
+                  value={formData.detailed_description}
+                  onChange={handleInputChange}
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="템플릿에 대한 자세한 설명을 입력하세요 (상세 페이지에 표시됨)"
+                  maxLength={2000}
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  줄바꿈은 자동으로 반영됩니다. 최대 2000자
+                </div>
               </div>
 
               {/* 썸네일 정보 섹션 */}

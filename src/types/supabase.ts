@@ -98,6 +98,7 @@ export type Database = {
         Row: {
           admin_notes: string | null
           created_at: string | null
+          depositor_name: string | null
           design_keywords: string | null
           email_discord: string
           has_character_images: boolean
@@ -114,6 +115,7 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           created_at?: string | null
+          depositor_name?: string | null
           design_keywords?: string | null
           email_discord: string
           has_character_images?: boolean
@@ -130,6 +132,7 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           created_at?: string | null
+          depositor_name?: string | null
           design_keywords?: string | null
           email_discord?: string
           has_character_images?: boolean
@@ -336,6 +339,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          detailed_description: string | null
           id: string
           is_public: boolean
           name: string
@@ -345,6 +349,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string
+          detailed_description?: string | null
           id?: string
           is_public?: boolean
           name: string
@@ -354,6 +359,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string
+          detailed_description?: string | null
           id?: string
           is_public?: boolean
           name?: string

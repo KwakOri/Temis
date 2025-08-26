@@ -2,9 +2,15 @@
 
 import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
-import { Calculator, FileText, Palette, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  Calculator,
+  CreditCard,
+  FileText,
+  Palette,
+  Upload,
+} from "lucide-react";
 import { useEffect, useState } from "react";
-import { Tables } from "@/types/supabase";
 
 // API 응답에서 받는 파일 데이터 타입 (DB + 동적 URL 포함)
 interface FileApiResponse {
@@ -39,6 +45,7 @@ interface Step3Data {
   portfolioPrivate: boolean;
   reviewEvent: boolean;
   priceQuoted: number;
+  depositorName: string;
 }
 
 // admin_settings 테이블의 setting_value에 저장되는 가격 설정 타입
@@ -74,6 +81,7 @@ interface CustomOrderData {
   design_keywords: string;
   selected_options: string[];
   price_quoted: number;
+  depositor_name: string;
 }
 
 interface CustomOrderFormProps {
@@ -117,10 +125,11 @@ export default function CustomOrderForm({
     fastDelivery:
       existingOrder?.selected_options?.includes("빠른 마감") || false,
     portfolioPrivate:
-      existingOrder?.selected_options?.includes("포폴 비공개") || false,
+      existingOrder?.selected_options?.includes("포트폴리오 비공개") || false,
     reviewEvent:
       existingOrder?.selected_options?.includes("후기 이벤트 참여") || false,
     priceQuoted: existingOrder?.price_quoted || 80000,
+    depositorName: existingOrder?.depositor_name || "",
   });
 
   console.log("currentStep => ", currentStep);
@@ -131,20 +140,26 @@ export default function CustomOrderForm({
       if (!isEditMode || !existingOrder) return;
 
       try {
-        console.log('🔄 [Form] Loading files for order:', existingOrder.id);
-        
+        console.log("🔄 [Form] Loading files for order:", existingOrder.id);
+
         // 주문에 연결된 모든 파일들 로드
-        const response = await fetch(`/api/files/by-order/${existingOrder.id}`, {
-          method: 'GET',
-          credentials: 'include',
-        });
+        const response = await fetch(
+          `/api/files/by-order/${existingOrder.id}`,
+          {
+            method: "GET",
+            credentials: "include",
+          }
+        );
 
         if (response.ok) {
           const result = await response.json();
-          
+
           // 파일 카테고리별로 분류
           const characterImageFiles = result.files
-            .filter((file: FileApiResponse) => file.file_category === 'character_image')
+            .filter(
+              (file: FileApiResponse) =>
+                file.file_category === "character_image"
+            )
             .map((file: FileApiResponse) => ({
               id: file.id,
               file: null, // 수정 모드에서는 실제 File 객체가 없음
@@ -155,7 +170,9 @@ export default function CustomOrderForm({
             }));
 
           const referenceFiles = result.files
-            .filter((file: FileApiResponse) => file.file_category === 'reference')
+            .filter(
+              (file: FileApiResponse) => file.file_category === "reference"
+            )
             .map((file: FileApiResponse) => ({
               id: file.id,
               file: null, // 수정 모드에서는 실제 File 객체가 없음
@@ -164,24 +181,26 @@ export default function CustomOrderForm({
               original_name: file.original_name,
               file_size: file.file_size,
             }));
-          
-          setStep2Data(prev => ({
+
+          setStep2Data((prev) => ({
             ...prev,
             characterImageFiles,
             referenceFiles,
-            characterImageFileIds: characterImageFiles.map((f: FilePreviewItem) => f.id),
+            characterImageFileIds: characterImageFiles.map(
+              (f: FilePreviewItem) => f.id
+            ),
             referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
           }));
-          
-          console.log('✅ [Form] Files loaded:', {
+
+          console.log("✅ [Form] Files loaded:", {
             characterImages: characterImageFiles.length,
-            references: referenceFiles.length
+            references: referenceFiles.length,
           });
         } else {
-          console.error('❌ [Form] Failed to load files:', response.statusText);
+          console.error("❌ [Form] Failed to load files:", response.statusText);
         }
       } catch (error) {
-        console.error('❌ [Form] Failed to load existing files:', error);
+        console.error("❌ [Form] Failed to load existing files:", error);
       }
     };
 
@@ -217,9 +236,9 @@ export default function CustomOrderForm({
             description: "빠른 마감",
           },
           portfolio_private: {
-            price: 30000,
+            price: 10000,
             enabled: true,
-            description: "포폴 비공개",
+            description: "포트폴리오 비공개",
           },
           review_event: {
             discount: 10000,
@@ -287,7 +306,12 @@ export default function CustomOrderForm({
     setCurrentStep(3);
   };
 
-  const handleStep3Submit = async (e: React.FormEvent) => {
+  const handleStep3Submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentStep(4);
+  };
+
+  const handleStep4Submit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     setSubmitting(true);
@@ -552,6 +576,20 @@ export default function CustomOrderForm({
                   }`}
                 >
                   3
+                </div>
+                <div
+                  className={`w-8 h-1 ${
+                    currentStep >= 4 ? "bg-[#1e3a8a]" : "bg-slate-200"
+                  }`}
+                ></div>
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                    currentStep >= 4
+                      ? "bg-[#1e3a8a] text-white"
+                      : "bg-slate-200 text-slate-600"
+                  }`}
+                >
+                  4
                 </div>
               </div>
             </div>
@@ -931,7 +969,7 @@ export default function CustomOrderForm({
                       </label>
                     )}
 
-                    {/* 포폴 비공개 옵션 */}
+                    {/* 포트폴리오 비공개 옵션 */}
                     {pricingSettings?.portfolio_private.enabled && (
                       <label className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
                         <div className="flex items-center">
@@ -1019,7 +1057,100 @@ export default function CustomOrderForm({
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting || loadingPricing}
+                  disabled={loadingPricing}
+                  className="bg-[#1e3a8a] text-white px-6 py-2 rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium"
+                >
+                  다음
+                </button>
+              </div>
+            </form>
+          ) : currentStep === 4 ? (
+            <form onSubmit={handleStep4Submit} className="space-y-6">
+              {/* 송금 안내 */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-[#1e3a8a] mb-2 flex items-center">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  송금 계좌 정보
+                </h3>
+                <div className="text-sm text-slate-700 space-y-1">
+                  <p>• 은행: 토스뱅크</p>
+                  <p>• 계좌번호: 1000-7564-4995</p>
+                  <p>• 예금주: 이세영</p>
+                  <p>
+                    • 총 결제 금액: ₩{step3Data.priceQuoted.toLocaleString()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h4 className="text-sm font-medium text-yellow-800">
+                      중요 안내
+                    </h4>
+                    <div className="text-sm text-yellow-700 mt-1 space-y-1">
+                      <p>• 위 계좌로 총 결제 금액을 송금해주세요.</p>
+                      <p>• 입금 확인 후 제작 작업이 시작됩니다.</p>
+                      <p>• 작업 시간은 약 3~4주가 소요됩니다.</p>
+                      <p>
+                        • 입금자명과 아래 입력한 정보가 일치하지 않으면 결제
+                        확인이 어렵습니다.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 사용자 정보 표시 */}
+              <div className="p-3 bg-slate-50 rounded-lg">
+                <h4 className="font-medium mb-2 text-slate-900">신청자 정보</h4>
+                <div className="text-sm text-slate-600 space-y-1">
+                  <p>
+                    <span className="font-medium">이름:</span> {user?.name}
+                  </p>
+                  <p>
+                    <span className="font-medium">이메일:</span> {user?.email}
+                  </p>
+                </div>
+              </div>
+
+              {/* 입금자명 입력 */}
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">
+                  입금자명 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={step3Data.depositorName}
+                  onChange={(e) =>
+                    setStep3Data((prev) => ({
+                      ...prev,
+                      depositorName: e.target.value,
+                    }))
+                  }
+                  placeholder="계좌 이체 시 사용할 입금자명을 입력하세요"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                />
+              </div>
+
+              <div className="flex justify-between">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setCurrentStep(3);
+                  }}
+                  className="border border-slate-300 px-6 py-2 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
+                >
+                  이전
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
                   className="bg-[#1e3a8a] text-white px-6 py-2 rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium"
                 >
                   {submitting

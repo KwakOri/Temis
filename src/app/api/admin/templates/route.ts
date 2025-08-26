@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, description, thumbnail_url, is_public } = body;
+    const { name, description, detailed_description, thumbnail_url, is_public } = body;
 
     // 입력 검증
     if (!name || name.trim().length === 0) {
@@ -74,9 +74,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (description && description.length > 500) {
+    if (description && description.length > 200) {
       return NextResponse.json(
-        { error: '설명은 500자를 초과할 수 없습니다.' },
+        { error: '간단 설명은 200자를 초과할 수 없습니다.' },
+        { status: 400 }
+      );
+    }
+
+    if (detailed_description && detailed_description.length > 2000) {
+      return NextResponse.json(
+        { error: '상세 설명은 2000자를 초과할 수 없습니다.' },
         { status: 400 }
       );
     }
@@ -104,6 +111,7 @@ export async function POST(request: NextRequest) {
     const templateData: TablesInsert<'templates'> = {
       name: name.trim(),
       description: description?.trim() || '',
+      detailed_description: detailed_description?.trim() || null,
       thumbnail_url: thumbnail_url?.trim() || '',
       is_public: Boolean(is_public)
     };

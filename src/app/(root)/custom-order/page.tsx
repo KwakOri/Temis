@@ -24,6 +24,7 @@ interface CustomOrderFormData {
   portfolioPrivate: boolean;
   reviewEvent: boolean;
   priceQuoted: number;
+  depositorName: string;
 }
 
 type TabType = "order" | "history";
