@@ -1,9 +1,9 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
+import { FilePreviewItem } from "@/components/FilePreview";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
-import { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { Palette } from "lucide-react";
 import Link from "next/link";
@@ -37,7 +37,7 @@ export default function CustomOrderPage() {
   const handleOrderSubmit = async (formData: CustomOrderFormData) => {
     try {
       console.log("🚀 [Order Submit] 주문 제출 시작:", formData);
-      
+
       const response = await fetch("/api/shop/custom-order", {
         method: "POST",
         headers: {
@@ -100,7 +100,7 @@ export default function CustomOrderPage() {
       <div className="max-w-7xl mx-auto">
         <BackButton className="mb-6" />
 
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-white/20 mb-8">
+        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 border border-white/20 mb-8">
           <div className="text-center mb-6 md:mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 bg-[#1e3a8a]">
               <Palette className="w-8 h-8 text-white" />
