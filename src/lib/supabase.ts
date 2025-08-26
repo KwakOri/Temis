@@ -1,4 +1,4 @@
-import { Database, User } from "@/types/supabase-types";
+import { Database } from "@/types/supabase";
 import { createClient } from "@supabase/supabase-js";
 
 // Supabase 설정
@@ -17,6 +17,8 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+export type User = Database["public"]["Tables"]["users"]["Row"];
 
 // Note: User type is now imported from @/types/database
 
@@ -215,6 +217,46 @@ export class UserService {
     } catch (error) {
       console.error("Error getting current user:", error);
       return null;
+    }
+  }
+
+  /**
+   * ID로 사용자 조회 (getById alias for findById)
+   */
+  static async getById(id: string | number): Promise<User | null> {
+    return this.findById(id);
+  }
+
+  /**
+   * ID로 사용자 삭제 (deleteById alias for delete)
+   */
+  static async deleteById(id: number): Promise<boolean> {
+    return this.delete(id);
+  }
+
+  /**
+   * 사용자 역할 업데이트
+   */
+  static async updateRole(id: number, role: string): Promise<User> {
+    try {
+      const { data, error } = await supabase
+        .from("users")
+        .update({ 
+          role,
+          updated_at: new Date().toISOString() 
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return data as User;
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      throw new Error("사용자 역할 업데이트 중 오류가 발생했습니다.");
     }
   }
 }

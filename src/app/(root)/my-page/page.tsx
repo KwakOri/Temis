@@ -1,14 +1,17 @@
 "use client";
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import Loading from "@/components/Loading";
 import BackButton from "@/components/BackButton";
-import { Template } from "@/types/supabase-types";
+import Loading from "@/components/Loading";
+
 import { useRouter } from "next/navigation";
 // TODO: 트위터 기능 활성화 시 주석 해제
 // import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Suspense, useEffect, useState } from "react";
+import { Tables } from "@/types/supabase";
+
+type Template = Tables<'templates'>;
 
 interface UserTemplate {
   id: string | number;
@@ -330,7 +333,7 @@ const MyPageContent = () => {
                 <button
                   onClick={handleLogout}
                   disabled={logoutLoading}
-                  className="w-full md:w-auto px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
+                  className="w-full md:w-auto px-4 py-2 bg-[#1e3a8a] text-white rounded-md hover:bg-[#1e40af] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
                 >
                   {logoutLoading ? (
                     <>
@@ -456,7 +459,7 @@ const MyPageContent = () => {
                   <div className="flex items-center justify-center md:justify-start">
                     <div className="flex-shrink-0">
                       <svg
-                        className="h-6 w-6 md:h-8 md:w-8 text-indigo-600"
+                        className="h-6 w-6 md:h-8 md:w-8 text-[#1e3a8a]"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"

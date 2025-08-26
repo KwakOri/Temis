@@ -10,7 +10,7 @@ export default function Home() {
   const [scrolled, setScrolled] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const { user, loading } = useAuth(); // user와 loading 상태 가져오기
+  const { user, loading, logout } = useAuth(); // user, loading, logout 상태 가져오기
 
   useEffect(() => {
     const onScroll = () => {
@@ -42,6 +42,13 @@ export default function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleAuthAction = async () => {
+    if (user) {
+      await logout();
+    }
+    // 로그인이 필요한 경우는 링크로 처리
+  };
+
   // 로딩 스피너 컴포넌트
   const LoadingSpinner = () => (
     <div className="flex items-center justify-center">
@@ -68,24 +75,39 @@ export default function Home() {
           </div>
           {/* 데스크탑 버전 - md 이상에서 표시 */}
           <div className="hidden md:flex gap-2">
-            <a
-              href="https://docs.google.com/forms/d/e/1FAIpQLSc5kQKh6c0kbz0uKkaSCvPFsKWcd5rIN5oIHwHd3moyBmPH0g/viewform?usp=dialog"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Link href="/shop">
               <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                맞춤형 시간표 예약하기
+                템플릿 상점
               </p>
-            </a>
+            </Link>
+
+            <Link href="/custom-order">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                맞춤형 시간표 제작
+              </p>
+            </Link>
+
+            <Link href="/my-page">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                마이페이지
+              </p>
+            </Link>
 
             {loading ? (
               <div className="bg-gray-200 text-gray-500 font-medium px-4 py-2 rounded-lg cursor-not-allowed min-w-[80px] h-[40px] flex items-center justify-center">
                 <LoadingSpinner />
               </div>
+            ) : user ? (
+              <button
+                onClick={handleAuthAction}
+                className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition min-w-[80px] h-[40px] flex items-center justify-center"
+              >
+                로그아웃
+              </button>
             ) : (
-              <Link href={user ? "/my-page" : "/auth"}>
+              <Link href="/auth">
                 <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition min-w-[80px] h-[40px] flex items-center justify-center">
-                  {user ? "마이페이지" : "로그인"}
+                  로그인
                 </p>
               </Link>
             )}
@@ -120,10 +142,31 @@ export default function Home() {
             {/* 드롭다운 메뉴 */}
             {isMenuOpen && (
               <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
-                <a
-                  href="https://docs.google.com/forms/d/e/1FAIpQLSc5kQKh6c0kbz0uKkaSCvPFsKWcd5rIN5oIHwHd3moyBmPH0g/viewform?usp=dialog"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href="/shop"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5H21"
+                      />
+                    </svg>
+                    <span className="font-medium">템플릿 상점</span>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/custom-order"
                   className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
                   onClick={() => setIsMenuOpen(false)}
                 >
@@ -141,9 +184,32 @@ export default function Home() {
                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                       />
                     </svg>
-                    <span className="font-medium">맞춤형 시간표 예약하기</span>
+                    <span className="font-medium">맞춤형 시간표 제작</span>
                   </div>
-                </a>
+                </Link>
+                <Link
+                  href="/my-page"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    <span className="font-medium">마이페이지</span>
+                  </div>
+                </Link>
+
                 {loading ? (
                   <div className="block px-4 py-3 text-gray-500 cursor-not-allowed">
                     <div className="flex items-center">
@@ -153,9 +219,31 @@ export default function Home() {
                       <span className="font-medium">확인 중...</span>
                     </div>
                   </div>
+                ) : user ? (
+                  <button
+                    onClick={handleAuthAction}
+                    className="block w-full px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <svg
+                        className="w-5 h-5 mr-3 text-gray-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                      </svg>
+                      <span className="font-medium">로그아웃</span>
+                    </div>
+                  </button>
                 ) : (
                   <Link
-                    href={user ? "/my-page" : "/auth"}
+                    href="/auth"
                     className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
                     onClick={() => setIsMenuOpen(false)}
                   >
@@ -170,12 +258,10 @@ export default function Home() {
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
-                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                          d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
                         />
                       </svg>
-                      <span className="font-medium">
-                        {user ? "마이페이지" : "로그인"}
-                      </span>
+                      <span className="font-medium">로그인</span>
                     </div>
                   </Link>
                 )}
@@ -197,7 +283,7 @@ export default function Home() {
           <p className="text-white text-sm sm:text-base">
             직접 활동하며 필요했던 기능만 쏙쏙 담았어요.
           </p>
-          <p className="mt-5  text-indigo-500 text-sm ">바로 체험 하기</p>
+          {/* <p className="mt-5  text-indigo-500 text-sm ">바로 체험 하기</p> */}
           <button
             onClick={scrollToBottom}
             className="mt-10 w-12 h-12 rounded-full bg-white flex items-center justify-center animate-bounce"
@@ -266,12 +352,12 @@ export default function Home() {
         <h2 className="text-2xl font-bold mb-8">
           TEMIS로 편리한 Vtuber 생활 시작해 볼까요?
         </h2>
-        <Link
+        {/* <Link
           href="/sample"
           className="inline-block bg-[#3E4A82] text-white px-8 py-4 rounded-xl text-lg hover:bg-[#2a304b] transition"
         >
           30일 무료 체험 하러가기
-        </Link>
+        </Link> */}
       </section>
     </div>
   );

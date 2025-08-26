@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from './middleware';
-import { UserService } from '../supabase';
+import { supabase } from '../supabase';
 
 /**
  * 관리자 권한 확인
@@ -9,12 +9,30 @@ import { UserService } from '../supabase';
  */
 export async function isAdmin(userId: string | number): Promise<boolean> {
   try {
-    const user = await UserService.findById(String(userId));
+    const numericId = Number(userId);
+    if (isNaN(numericId) || numericId <= 0) {
+      return false;
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('email, role')
+      .eq('id', numericId)
+      .single();
+    
+    if (error || !user) {
+      return false;
+    }
+
+    // role 기반 관리자 확인 또는 이메일 기반 확인
+    if (user.role === 'admin') {
+      return true;
+    }
     
     // 관리자 이메일 목록 (환경 변수 또는 하드코딩)
     const adminEmails = process.env.ADMIN_EMAILS?.split(',') || ['admin@example.com'];
     
-    return user ? adminEmails.includes(user.email || '') : false;
+    return adminEmails.includes(user.email || '');
   } catch (error) {
     console.error('Admin check error:', error);
     return false;

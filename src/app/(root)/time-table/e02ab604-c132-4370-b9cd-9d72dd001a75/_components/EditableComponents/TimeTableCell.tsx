@@ -6,7 +6,7 @@ import { TTheme } from "@/types/time-table/theme";
 import { TDefaultCard, weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 
-import { placeholders } from "@/app/(root)/sample/_settings/general";
+import { placeholders } from "../../_settings/general";
 import {
   colors,
   fontOption,
