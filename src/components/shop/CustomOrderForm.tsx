@@ -533,7 +533,7 @@ export default function CustomOrderForm({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 rounded-t-2xl">
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 rounded-t-2xl z-10">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold text-slate-900">
@@ -958,7 +958,8 @@ export default function CustomOrderForm({
                               {pricingSettings.fast_delivery.description}
                             </div>
                             <div className="text-sm text-slate-600">
-                              제작 기간을 단축합니다
+                              기본 마감 일정보다 우선 배정됩니다 7일 정도
+                              소요됩니다
                             </div>
                           </div>
                         </div>
@@ -1094,7 +1095,10 @@ export default function CustomOrderForm({
                     <div className="text-sm text-yellow-700 mt-1 space-y-1">
                       <p>• 위 계좌로 총 결제 금액을 송금해주세요.</p>
                       <p>• 입금 확인 후 제작 작업이 시작됩니다.</p>
-                      <p>• 작업 시간은 약 3~4주가 소요됩니다.</p>
+                      <p>
+                        • 작업 일정은 공식 X (Twitter) @TEMISforyou 를
+                        확인해주세요.
+                      </p>
                       <p>
                         • 입금자명과 아래 입력한 정보가 일치하지 않으면 결제
                         확인이 어렵습니다.

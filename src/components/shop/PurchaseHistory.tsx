@@ -1,13 +1,13 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { Tables } from "@/types/supabase";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Tables } from "@/types/supabase";
 
-type PurchaseRequest = Tables<'purchase_requests'>;
-type Template = Tables<'templates'>;
+type PurchaseRequest = Tables<"purchase_requests">;
+type Template = Tables<"templates">;
 
 interface PurchaseRequestWithTemplate extends PurchaseRequest {
   template?: Template;
@@ -182,9 +182,9 @@ export default function PurchaseHistory() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     입금자명
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     메시지
-                  </th>
+                  </th> */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     상태
                   </th>
@@ -240,7 +240,7 @@ export default function PurchaseHistory() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-sm">
+                    {/* <td className="px-6 py-4 text-sm">
                       {editingRequest === request.id ? (
                         <textarea
                           value={editForm.message}
@@ -260,7 +260,7 @@ export default function PurchaseHistory() {
                           {request.message || "-"}
                         </div>
                       )}
-                    </td>
+                    </td> */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(request.status || "pending")}
                     </td>

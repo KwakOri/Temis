@@ -10,35 +10,15 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-interface TemplateProduct {
-  id: string;
-  template_id: string;
-  title: string;
-  detailed_description: string | null;
-  price: number;
-  features: string[] | null;
-  requirements: string | null;
-  delivery_time: number | null;
-  sample_images: string[] | null;
-  is_available: boolean;
-  is_custom_order: boolean;
-  purchase_instructions: string | null;
-  bank_account_info: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-type Template = Tables<'templates'>;
-
-interface TemplateWithProduct extends Template {
-  template_product?: TemplateProduct;
-}
+type Template = Tables<"templates"> & {
+  template_products: Tables<"template_products">[];
+};
 
 export default function TemplateDetailPage() {
   const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
-  const [template, setTemplate] = useState<TemplateWithProduct | null>(null);
+  const [template, setTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
 
@@ -53,9 +33,10 @@ export default function TemplateDetailPage() {
       // 템플릿 기본 정보 조회
       const { data: templateData, error: templateError } = await supabase
         .from("templates")
-        .select("*")
+        .select(`*,template_products (*)`)
         .eq("id", templateId)
         .eq("is_public", true)
+        .eq("is_shop_visible", true)
         .single();
 
       if (templateError) throw templateError;
@@ -171,7 +152,7 @@ export default function TemplateDetailPage() {
               <div className="border-t border-slate-200 pt-6">
                 <div className="mb-4">
                   <span className="text-2xl font-bold text-[#1e3a8a]">
-                    ₩15,000
+                    ₩{template.template_products[0].price.toLocaleString()}
                   </span>
                 </div>
 
@@ -181,9 +162,11 @@ export default function TemplateDetailPage() {
                       포함 사항
                     </h3>
                     <ul className="list-disc list-inside text-slate-600 space-y-1">
-                      <li>고화질 시간표 템플릿</li>
-                      <li>커스터마이징 가능한 소스 파일</li>
-                      <li>사용 가이드</li>
+                      {template.template_products[0].features?.map(
+                        (feature: string) => (
+                          <li key={feature}>{feature}</li>
+                        )
+                      )}
                     </ul>
                   </div>
 
@@ -192,7 +175,7 @@ export default function TemplateDetailPage() {
                       요구사항
                     </h3>
                     <p className="text-slate-600">
-                      웹 브라우저만 있으면 사용 가능
+                      {template.template_products[0].requirements}
                     </p>
                   </div>
 
@@ -200,20 +183,23 @@ export default function TemplateDetailPage() {
                     <h3 className="font-semibold mb-2 text-slate-900">
                       배송 시간
                     </h3>
-                    <p className="text-slate-600">결제 확인 후 1-2일 이내</p>
+                    <p className="text-slate-600">
+                      결제 후 {template.template_products[0].delivery_time}일
+                      이내
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* 상품 상세 설명 */}
-              {template.detailed_description && (
+              {template.template_products[0].purchase_instructions && (
                 <div className="border-t border-slate-200 pt-6">
                   <h3 className="font-semibold mb-3 text-slate-900">
                     상품 상세 설명
                   </h3>
                   <div className="prose prose-sm max-w-none">
                     <div className="text-slate-600 whitespace-pre-wrap leading-relaxed">
-                      {template.detailed_description}
+                      {template.template_products[0].purchase_instructions}
                     </div>
                   </div>
                 </div>
@@ -309,7 +295,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
         <div className=" p-3 bg-slate-50 rounded">
           <p className="font-medium text-slate-900">{template.name}</p>
           <p className="text-sm text-slate-600">{template.description}</p>
-          <p className="text-lg font-bold text-[#1e3a8a] mt-2">₩15,000</p>
+          <p className="text-lg font-bold text-[#1e3a8a] mt-2">
+            ₩{template.template_products[0].price.toLocaleString()}
+          </p>
         </div>
         <div className="bg-blue-50 p-3 rounded">
           <div className="flex items-start">

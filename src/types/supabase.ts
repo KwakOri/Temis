@@ -300,30 +300,45 @@ export type Database = {
       template_products: {
         Row: {
           bank_account_info: string | null
+          created_at: string | null
           delivery_time: number | null
           features: string[] | null
           id: string
           price: number
+          purchase_instructions: string | null
           requirements: string | null
+          sample_images: string[] | null
           template_id: string | null
+          title: string | null
+          updated_at: string | null
         }
         Insert: {
           bank_account_info?: string | null
+          created_at?: string | null
           delivery_time?: number | null
           features?: string[] | null
           id?: string
           price: number
+          purchase_instructions?: string | null
           requirements?: string | null
+          sample_images?: string[] | null
           template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
         }
         Update: {
           bank_account_info?: string | null
+          created_at?: string | null
           delivery_time?: number | null
           features?: string[] | null
           id?: string
           price?: number
+          purchase_instructions?: string | null
           requirements?: string | null
+          sample_images?: string[] | null
           template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -342,6 +357,7 @@ export type Database = {
           detailed_description: string | null
           id: string
           is_public: boolean
+          is_shop_visible: boolean
           name: string
           thumbnail_url: string
           updated_at: string
@@ -352,6 +368,7 @@ export type Database = {
           detailed_description?: string | null
           id?: string
           is_public?: boolean
+          is_shop_visible?: boolean
           name: string
           thumbnail_url?: string
           updated_at?: string
@@ -362,6 +379,7 @@ export type Database = {
           detailed_description?: string | null
           id?: string
           is_public?: boolean
+          is_shop_visible?: boolean
           name?: string
           thumbnail_url?: string
           updated_at?: string

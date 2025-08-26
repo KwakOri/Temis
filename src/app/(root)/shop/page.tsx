@@ -5,11 +5,13 @@ import PurchaseHistory from "@/components/shop/PurchaseHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Tables } from "@/types/supabase";
-
-type Template = Tables<'templates'>;
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+
+type Template = Tables<"templates"> & {
+  template_products: Tables<"template_products">[];
+};
 
 type SortOrder = "newest" | "oldest";
 type TabType = "shop" | "history";
@@ -24,6 +26,8 @@ export default function ShopPage() {
   const [unpurchasedTemplateIds, setUnpurchasedTemplateIds] = useState<
     string[]
   >([]);
+
+  console.log("templates =>", templates);
 
   useEffect(() => {
     fetchPublicTemplates();
@@ -69,8 +73,9 @@ export default function ShopPage() {
     try {
       const { data, error } = await supabase
         .from("templates")
-        .select("*")
+        .select(`*,template_products (*)`)
         .eq("is_public", true)
+        .eq("is_shop_visible", true)
         .order("created_at", { ascending: sortOrder === "oldest" });
 
       if (error) throw error;

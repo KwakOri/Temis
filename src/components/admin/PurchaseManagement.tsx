@@ -34,6 +34,8 @@ export default function PurchaseManagement() {
         )
         .order("created_at", { ascending: false });
 
+      console.log("data => ", data);
+
       if (error) throw error;
       setPurchaseRequests(data || []);
     } catch (error) {
@@ -83,7 +85,7 @@ export default function PurchaseManagement() {
         .insert({
           template_id: templateId,
           user_id: userData.id,
-          access_level: "read",
+          access_level: "write",
           granted_by: adminData.id,
         });
 

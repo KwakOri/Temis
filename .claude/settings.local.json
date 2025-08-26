@@ -31,7 +31,9 @@
       "mcp__playwright__browser_type",
       "Bash(npm run lint:*)",
       "Bash(npx tsc:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npx supabase:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   },
