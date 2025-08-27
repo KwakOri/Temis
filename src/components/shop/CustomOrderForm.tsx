@@ -524,10 +524,10 @@ export default function CustomOrderForm({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-hidden sm:bg-black sm:bg-opacity-50 sm:flex sm:items-center sm:justify-center sm:p-4 sm:overflow-y-auto">
+      <div className="bg-white h-full w-full overflow-y-auto sm:rounded-2xl sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto">
         {/* 헤더 */}
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:rounded-t-2xl z-10">
           <div className="flex justify-between items-center">
             <div>
               <h2 className="text-xl font-bold text-slate-900">
@@ -596,7 +596,7 @@ export default function CustomOrderForm({
           </div>
         </div>
 
-        <div className="px-6 py-6">
+        <div className="px-4 sm:px-6 py-6">
           {currentStep === 1 ? (
             <form onSubmit={handleStep1Submit} className="space-y-6">
               {/* 가격 안내 */}
