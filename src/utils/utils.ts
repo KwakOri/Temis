@@ -2,6 +2,7 @@ export const splitOddEven = (n: number) => {
   const odd = [];
   const even = [];
   const start = 11;
+  const end = start + n - 1;
 
   for (let i = start; i <= start + n - 1; i++) {
     if (i % 2 === 1) {
@@ -12,7 +13,7 @@ export const splitOddEven = (n: number) => {
   }
 
   if (n % 2 === 1) {
-    even.push(start);
+    even.unshift(end);
   }
 
   return [odd, even];
