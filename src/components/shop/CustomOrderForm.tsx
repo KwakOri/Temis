@@ -717,7 +717,7 @@ export default function CustomOrderForm({
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
-                    버튜버 캐릭터 시간을 첨부해주세요 *
+                    버튜버 캐릭터 사진을 첨부해주세요 *
                   </label>
                   <p className="text-xs text-slate-600 mb-3">
                     지원되는 파일을 최대 5개까지 업로드하세요. 파일당 최대
