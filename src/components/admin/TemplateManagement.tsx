@@ -27,10 +27,13 @@ interface ProductForm {
 
 // ThumbnailFile 인터페이스 제거 (더 이상 사용하지 않음)
 
+type TemplateTab = "all" | "public" | "private";
+
 export default function TemplateManagement() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeTab, setActiveTab] = useState<TemplateTab>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
   const [createError, setCreateError] = useState("");
@@ -42,11 +45,12 @@ export default function TemplateManagement() {
     is_public: false,
   });
 
-  
   // template_products 배열에서 첫 번째 상품 정보를 가져오는 함수 (1대1 관계)
-  const getTemplateProduct = (template: Template): Tables<"template_products"> | null => {
-    return template.template_products && template.template_products.length > 0 
-      ? template.template_products[0] 
+  const getTemplateProduct = (
+    template: Template
+  ): Tables<"template_products"> | null => {
+    return template.template_products && template.template_products.length > 0
+      ? template.template_products[0]
       : null;
   };
 
@@ -245,6 +249,50 @@ export default function TemplateManagement() {
     window.open(`/time-table/${templateId}`, "_blank");
   };
 
+  // 탭별 템플릿 필터링
+  const getFilteredTemplates = () => {
+    let filtered = templates;
+    
+    // 탭에 따른 필터링
+    switch (activeTab) {
+      case "public":
+        filtered = templates.filter(template => template.is_public);
+        break;
+      case "private":
+        filtered = templates.filter(template => !template.is_public);
+        break;
+      case "all":
+      default:
+        filtered = templates;
+        break;
+    }
+
+    // 검색어 필터링
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (template) =>
+          template.name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          (template.description &&
+            template.description
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()))
+      );
+    }
+
+    return filtered;
+  };
+
+  // 탭별 통계
+  const getTabCounts = () => {
+    return {
+      all: templates.length,
+      public: templates.filter(template => template.is_public).length,
+      private: templates.filter(template => !template.is_public).length,
+    };
+  };
+
   // 상품 등록 모달 열기
   const handleCreateProduct = (template: Template) => {
     setSelectedTemplate(template);
@@ -367,6 +415,9 @@ export default function TemplateManagement() {
     );
   }
 
+  const tabCounts = getTabCounts();
+  const filteredTemplates = getFilteredTemplates();
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -387,6 +438,55 @@ export default function TemplateManagement() {
           >
             + 템플릿 추가
           </button>
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="bg-white p-4 rounded-lg shadow-sm">
+        <div className="mb-6">
+          <div className="border-b border-slate-200">
+            <nav className="-mb-px flex space-x-8 justify-center">
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "all"
+                    ? "border-[#1e3a8a] text-[#1e3a8a]"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                전체 템플릿
+                <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-slate-100 text-slate-600">
+                  {tabCounts.all}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("public")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "public"
+                    ? "border-[#1e3a8a] text-[#1e3a8a]"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                공개 템플릿
+                <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-green-100 text-green-600">
+                  {tabCounts.public}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("private")}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === "private"
+                    ? "border-[#1e3a8a] text-[#1e3a8a]"
+                    : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                }`}
+              >
+                비공개 템플릿
+                <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-slate-100 text-slate-600">
+                  {tabCounts.private}
+                </span>
+              </button>
+            </nav>
+          </div>
         </div>
       </div>
 
@@ -465,18 +565,7 @@ export default function TemplateManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {(() => {
-                const filteredTemplates = templates.filter(
-                  (template) =>
-                    template.name
-                      .toLowerCase()
-                      .includes(searchTerm.toLowerCase()) ||
-                    (template.description &&
-                      template.description
-                        .toLowerCase()
-                        .includes(searchTerm.toLowerCase()))
-                );
-
-                if (filteredTemplates.length === 0 && searchTerm) {
+                if (filteredTemplates.length === 0 && (searchTerm || activeTab !== "all")) {
                   return (
                     <tr>
                       <td colSpan={5} className="px-6 py-12 text-center">
@@ -495,8 +584,17 @@ export default function TemplateManagement() {
                             />
                           </svg>
                           <p>
-                            &apos;{searchTerm}&apos;에 대한 검색 결과가
-                            없습니다.
+                            {searchTerm ? (
+                              <>
+                                &apos;{searchTerm}&apos;에 대한 검색 결과가 없습니다.
+                              </>
+                            ) : activeTab === "public" ? (
+                              "공개 템플릿이 없습니다."
+                            ) : activeTab === "private" ? (
+                              "비공개 템플릿이 없습니다."
+                            ) : (
+                              "템플릿이 없습니다."
+                            )}
                           </p>
                         </div>
                       </td>
@@ -532,7 +630,7 @@ export default function TemplateManagement() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       {template.is_public ? (
                         hasProduct(template) ? (
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col items-start gap-1">
                             <span
                               className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                                 template.is_shop_visible
@@ -545,7 +643,10 @@ export default function TemplateManagement() {
                                 : "상점 비노출"}
                             </span>
                             <span className="text-xs text-gray-500">
-                              ₩{getTemplateProduct(template)!.price.toLocaleString()}
+                              ₩
+                              {getTemplateProduct(
+                                template
+                              )!.price.toLocaleString()}
                             </span>
                           </div>
                         ) : (
@@ -646,7 +747,7 @@ export default function TemplateManagement() {
           </table>
         </div>
 
-        {templates.length === 0 && !searchTerm && (
+        {templates.length === 0 && !searchTerm && activeTab === "all" && (
           <div className="text-center py-12">
             <div className="text-gray-500">등록된 템플릿이 없습니다.</div>
           </div>
@@ -981,9 +1082,7 @@ export default function TemplateManagement() {
           <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
-                {hasProduct(selectedTemplate)
-                  ? "상품 정보 수정"
-                  : "상품 등록"}
+                {hasProduct(selectedTemplate) ? "상품 정보 수정" : "상품 등록"}
               </h3>
               <button
                 onClick={() => {

@@ -14,7 +14,11 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const users = await UserService.findAll(limit, offset);
+    // 사용자 목록과 전체 수를 병렬로 조회
+    const [users, totalCount] = await Promise.all([
+      UserService.findAll(limit, offset),
+      UserService.countAll()
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -28,7 +32,7 @@ export async function GET(request: NextRequest) {
       pagination: {
         limit,
         offset,
-        total: users.length
+        total: totalCount
       }
     });
   } catch (error) {
