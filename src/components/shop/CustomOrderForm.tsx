@@ -132,14 +132,12 @@ export default function CustomOrderForm({
     depositorName: existingOrder?.depositor_name || "",
   });
 
-
   // 수정 모드일 때 기존 파일들 로드
   useEffect(() => {
     const loadExistingFiles = async () => {
       if (!isEditMode || !existingOrder) return;
 
       try {
-
         // 주문에 연결된 모든 파일들 로드
         const response = await fetch(
           `/api/files/by-order/${existingOrder.id}`,
@@ -189,7 +187,6 @@ export default function CustomOrderForm({
             ),
             referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
           }));
-
         } else {
           console.error("❌ [Form] Failed to load files:", response.statusText);
         }
@@ -952,8 +949,8 @@ export default function CustomOrderForm({
                               {pricingSettings.fast_delivery.description}
                             </div>
                             <div className="text-sm text-slate-600">
-                              기본 마감 일정보다 우선 배정됩니다 7일 정도
-                              소요됩니다
+                              <p>맨 앞 순서로 작업을 진행합니다</p>
+                              <p>일주일 안에 완성됩니다</p>
                             </div>
                           </div>
                         </div>
