@@ -64,8 +64,8 @@
   /* 단일 transform으로 통합하여 성능 최적화 */
   transform: translateZ(0) scale(1.05);
   /* 그림자 강도만 조절 (새로운 계산 없음) */
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 
-              0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
   z-index: 50;
 }
 
@@ -100,4 +100,12 @@ body {
 .mask-fade-bottom {
   mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, black 85%, transparent 100%);
+}
+
+@font-face {
+  font-family: "Yangjin";
+  src: url("https://cdn.jsdelivr.net/gh/supernovice-lab/font@0.9/yangjin.woff")
+    format("woff");
+  font-weight: normal;
+  font-display: swap;
 }
