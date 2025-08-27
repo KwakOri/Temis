@@ -1,4 +1,5 @@
 "use client";
+import TestComponent from "@/app/(root)/_sample/TestComponent";
 import { useAuth } from "@/contexts/AuthContext"; // useAuth 임포트
 import Image from "next/image";
 import Link from "next/link";
@@ -292,6 +293,7 @@ export default function Home() {
           </button>
         </div>
       </section>
+      <TestComponent />
 
       {/* Portfolio Gallery Section */}
       <PortfolioGallery totalItems={9} speedPxPerSecond={50} />

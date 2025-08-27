@@ -9,6 +9,7 @@ import React, { PropsWithChildren, useRef, useState } from "react";
 
 interface TimeTableFormProps {
   isArtist?: boolean;
+  saveable?: boolean;
   addons?: React.ReactNode;
   onReset: () => void;
   cropWidth?: number;
@@ -22,6 +23,7 @@ const TimeTableForm = ({
   cropWidth = 400,
   cropHeight = 400,
   isArtist = true,
+  saveable = true,
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
 
@@ -211,11 +213,18 @@ const TimeTableForm = ({
 
           <div className="p-4 border-t border-gray-300 bg-gray-50 flex gap-2">
             <button
-              onClick={handleSaveClick}
+              onClick={
+                saveable
+                  ? handleSaveClick
+                  : () => {
+                      alert("체험 모드에서는 제공되지 않는 기능입니다.");
+                    }
+              }
               className="w-full bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
             >
               이미지로 저장
             </button>
+
             <ResetButton onReset={onReset} />
           </div>
         </div>

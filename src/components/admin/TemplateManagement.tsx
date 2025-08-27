@@ -252,14 +252,14 @@ export default function TemplateManagement() {
   // 탭별 템플릿 필터링
   const getFilteredTemplates = () => {
     let filtered = templates;
-    
+
     // 탭에 따른 필터링
     switch (activeTab) {
       case "public":
-        filtered = templates.filter(template => template.is_public);
+        filtered = templates.filter((template) => template.is_public);
         break;
       case "private":
-        filtered = templates.filter(template => !template.is_public);
+        filtered = templates.filter((template) => !template.is_public);
         break;
       case "all":
       default:
@@ -271,9 +271,7 @@ export default function TemplateManagement() {
     if (searchTerm) {
       filtered = filtered.filter(
         (template) =>
-          template.name
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
+          template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (template.description &&
             template.description
               .toLowerCase()
@@ -288,8 +286,8 @@ export default function TemplateManagement() {
   const getTabCounts = () => {
     return {
       all: templates.length,
-      public: templates.filter(template => template.is_public).length,
-      private: templates.filter(template => !template.is_public).length,
+      public: templates.filter((template) => template.is_public).length,
+      private: templates.filter((template) => !template.is_public).length,
     };
   };
 
@@ -565,7 +563,10 @@ export default function TemplateManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {(() => {
-                if (filteredTemplates.length === 0 && (searchTerm || activeTab !== "all")) {
+                if (
+                  filteredTemplates.length === 0 &&
+                  (searchTerm || activeTab !== "all")
+                ) {
                   return (
                     <tr>
                       <td colSpan={5} className="px-6 py-12 text-center">
@@ -586,7 +587,8 @@ export default function TemplateManagement() {
                           <p>
                             {searchTerm ? (
                               <>
-                                &apos;{searchTerm}&apos;에 대한 검색 결과가 없습니다.
+                                &apos;{searchTerm}&apos;에 대한 검색 결과가
+                                없습니다.
                               </>
                             ) : activeTab === "public" ? (
                               "공개 템플릿이 없습니다."
