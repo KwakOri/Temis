@@ -171,6 +171,26 @@ export class UserService {
   }
 
   /**
+   * 전체 사용자 수 조회 (관리자용)
+   */
+  static async countAll(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from("users")
+        .select("id", { count: "exact", head: true });
+
+      if (error) {
+        throw error;
+      }
+
+      return count || 0;
+    } catch (error) {
+      console.error("Error counting all users:", error);
+      throw new Error("사용자 수 조회 중 오류가 발생했습니다.");
+    }
+  }
+
+  /**
    * 이메일 중복 체크
    */
   static async emailExists(email: string): Promise<boolean> {
