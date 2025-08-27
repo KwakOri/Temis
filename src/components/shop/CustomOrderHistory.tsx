@@ -1,6 +1,5 @@
 "use client";
 
-import { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertCircle,
@@ -11,34 +10,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import CustomOrderForm from "./CustomOrderForm";
-
-// CustomOrderForm에서 사용하는 타입들
-interface Step1Data {
-  youtubeSnsAddress: string;
-  emailDiscord: string;
-}
-
-interface Step2Data {
-  orderRequirements: string;
-  hasCharacterImages: boolean;
-  characterImageFiles: FilePreviewItem[];
-  characterImageFileIds: string[];
-  wantsOmakase: boolean;
-  designKeywords: string;
-  referenceFiles: FilePreviewItem[];
-  referenceFileIds: string[];
-}
-
-interface Step3Data {
-  fastDelivery: boolean;
-  portfolioPrivate: boolean;
-  reviewEvent: boolean;
-  priceQuoted: number;
-  depositorName: string;
-}
-
-type CustomFormData = Step1Data & Step2Data & Step3Data & { orderId?: string };
 
 // 주문 이력 조회 시 사용하는 완전한 데이터 (상태 정보 포함)
 interface CustomOrderWithStatus {
@@ -58,13 +29,18 @@ interface CustomOrderWithStatus {
   updated_at: string;
 }
 
-export default function CustomOrderHistory() {
+interface CustomOrderHistoryProps {
+  onEditOrder: (order: CustomOrderWithStatus) => void;
+  onCancelOrder: (orderId: string) => void;
+}
+
+export default function CustomOrderHistory({
+  onEditOrder,
+  onCancelOrder,
+}: CustomOrderHistoryProps) {
   const { user } = useAuth();
   const [orders, setOrders] = useState<CustomOrderWithStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingOrder, setEditingOrder] =
-    useState<CustomOrderWithStatus | null>(null);
-  const [showEditForm, setShowEditForm] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -139,85 +115,6 @@ export default function CustomOrderHistory() {
     }
   };
 
-  // CustomOrderWithStatus를 CustomOrderData로 변환
-  const convertToOrderData = (order: CustomOrderWithStatus) => ({
-    id: order.id,
-    youtube_sns_address: order.youtube_sns_address,
-    email_discord: order.email_discord,
-    order_requirements: order.order_requirements,
-    has_character_images: order.has_character_images,
-    wants_omakase: order.wants_omakase,
-    design_keywords: order.design_keywords,
-    selected_options: order.selected_options,
-    price_quoted: order.price_quoted || 0,
-    depositor_name: order.depositor_name || "",
-  });
-
-  // 주문 수정 핸들러
-  const handleEditOrder = (order: CustomOrderWithStatus) => {
-    setEditingOrder(order);
-    setShowEditForm(true);
-  };
-
-  // 주문 수정 제출 핸들러
-  const handleEditSubmit = async (formData: CustomFormData) => {
-    if (!editingOrder) return;
-
-    try {
-      const response = await fetch("/api/shop/custom-order", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          orderId: editingOrder.id,
-          ...formData,
-        }),
-      });
-
-      if (response.ok) {
-        alert("주문이 성공적으로 수정되었습니다.");
-        setShowEditForm(false);
-        setEditingOrder(null);
-        fetchOrders(); // 목록 새로고침
-      } else {
-        const error = await response.json();
-        alert(error.error || "수정 중 오류가 발생했습니다.");
-      }
-    } catch (error) {
-      console.error("Edit order error:", error);
-      alert("수정 중 오류가 발생했습니다.");
-    }
-  };
-
-  // 주문 취소 핸들러
-  const handleCancelOrder = async (orderId: string) => {
-    if (!confirm("정말로 이 주문을 취소하시겠습니까?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/api/shop/custom-order?orderId=${orderId}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        alert("주문이 성공적으로 취소되었습니다.");
-        fetchOrders(); // 목록 새로고침
-      } else {
-        const error = await response.json();
-        alert(error.error || "취소 중 오류가 발생했습니다.");
-      }
-    } catch (error) {
-      console.error("Cancel order error:", error);
-      alert("취소 중 오류가 발생했습니다.");
-    }
-  };
 
   if (!user) {
     return (
@@ -375,14 +272,14 @@ export default function CustomOrderHistory() {
                   {order.status === "pending" && (
                     <div className="flex gap-2 pt-3 border-t border-slate-100">
                       <button
-                        onClick={() => handleEditOrder(order)}
+                        onClick={() => onEditOrder(order)}
                         className="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
                       >
                         <Edit className="h-3 w-3 mr-1" />
                         수정
                       </button>
                       <button
-                        onClick={() => handleCancelOrder(order.id)}
+                        onClick={() => onCancelOrder(order.id)}
                         className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
                       >
                         <Trash2 className="h-3 w-3 mr-1" />
@@ -395,22 +292,7 @@ export default function CustomOrderHistory() {
             ))}
           </div>
         )}
-
-        {/* 수정 폼 모달 */}
       </div>
-      {showEditForm && editingOrder && (
-        <CustomOrderForm
-          onClose={() => {
-            setShowEditForm(false);
-            setEditingOrder(null);
-          }}
-          onSubmit={handleEditSubmit}
-          existingOrder={
-            editingOrder ? convertToOrderData(editingOrder) : undefined
-          }
-          isEditMode={true}
-        />
-      )}
     </>
   );
 }

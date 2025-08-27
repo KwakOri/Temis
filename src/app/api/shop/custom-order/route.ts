@@ -37,8 +37,6 @@ export async function POST(request: Request) {
       hasCharacterImages,
       wantsOmakase,
       designKeywords,
-      characterImageFiles, // base64 encoded files array (deprecated)
-      referenceFiles, // base64 encoded files array (deprecated)
       characterImageFileIds, // file IDs from uploaded files
       referenceFileIds, // file IDs from uploaded files
       fastDelivery,
@@ -114,8 +112,8 @@ export async function POST(request: Request) {
     try {
       // 캐릭터 이미지 파일들을 주문과 연결
       if (characterImageFileIds && characterImageFileIds.length > 0) {
-          console.log(
-            "📁 [Shop API] Linking character image files to order:",
+        console.log(
+          "📁 [Shop API] Linking character image files to order:",
           characterImageFileIds
         );
 
@@ -134,13 +132,12 @@ export async function POST(request: Request) {
           );
           throw characterError;
         }
-
       }
 
       // 레퍼런스 파일들을 주문과 연결
       if (referenceFileIds && referenceFileIds.length > 0) {
-          console.log(
-            "📁 [Shop API] Linking reference files to order:",
+        console.log(
+          "📁 [Shop API] Linking reference files to order:",
           referenceFileIds
         );
 
@@ -159,7 +156,6 @@ export async function POST(request: Request) {
           );
           throw referenceError;
         }
-
       }
     } catch (fileUploadError) {
       console.error("File upload error:", fileUploadError);
