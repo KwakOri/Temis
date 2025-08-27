@@ -98,12 +98,15 @@ export async function POST(request: Request) {
 
     // 주문 생성 성공 후 기존 파일들을 주문과 연결
 
+    console.log(
       "📁 [Shop API] Starting file relationship setup for order:",
       order.id
     );
+    console.log(
       "📁 [Shop API] Character file IDs count:",
       characterImageFileIds?.length || 0
     );
+    console.log(
       "📁 [Shop API] Reference file IDs count:",
       referenceFileIds?.length || 0
     );
@@ -111,7 +114,8 @@ export async function POST(request: Request) {
     try {
       // 캐릭터 이미지 파일들을 주문과 연결
       if (characterImageFileIds && characterImageFileIds.length > 0) {
-          "📁 [Shop API] Linking character image files to order:",
+          console.log(
+            "📁 [Shop API] Linking character image files to order:",
           characterImageFileIds
         );
 
@@ -135,7 +139,8 @@ export async function POST(request: Request) {
 
       // 레퍼런스 파일들을 주문과 연결
       if (referenceFileIds && referenceFileIds.length > 0) {
-          "📁 [Shop API] Linking reference files to order:",
+          console.log(
+            "📁 [Shop API] Linking reference files to order:",
           referenceFileIds
         );
 
