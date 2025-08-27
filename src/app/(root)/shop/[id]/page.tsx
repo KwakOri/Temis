@@ -227,9 +227,15 @@ export default function TemplateDetailPage() {
                     </Link>
                   </div>
                 )}
-                <p className="text-sm text-slate-500 mt-2 text-center">
-                  계좌 송금으로 결제가 진행됩니다
-                </p>
+                <div className="pl-2">
+                  <p className="text-sm text-slate-500 mt-2">
+                    구매하신 템플릿은 본인만 사용 가능하며 타인과 공유하거나
+                    타인에게 양도할 수 없습니다.
+                  </p>
+                  <p className="text-sm text-slate-500 mt-2">
+                    계좌 송금으로 결제가 진행됩니다
+                  </p>
+                </div>
               </div>
             </div>
           </div>
