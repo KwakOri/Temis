@@ -469,7 +469,7 @@ export default function CustomOrderForm({
         throw new Error(error.error || "파일 삭제에 실패했습니다.");
       }
 
-      // 로컬 상태에서 파일 제거
+      // 로컬 상태에서 파일 제
       setStep2Data((prev) => ({
         ...prev,
         characterImageFiles: prev.characterImageFiles.filter(
