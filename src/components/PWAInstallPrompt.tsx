@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[]
@@ -97,19 +98,27 @@ export default function PWAInstallPrompt() {
             Temis를 홈 화면에 추가하여 더 빠르게 접근하세요
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleDismiss}
-            className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex gap-2">
+            <button
+              onClick={handleDismiss}
+              className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
+            >
+              나중에
+            </button>
+            <button
+              onClick={handleInstallClick}
+              className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+            >
+              설치
+            </button>
+          </div>
+          <Link
+            href="/mobile-install"
+            className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 rounded-md hover:bg-blue-50 transition-colors text-center"
           >
-            나중에
-          </button>
-          <button
-            onClick={handleInstallClick}
-            className="px-4 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
-          >
-            설치
-          </button>
+            설치 가이드
+          </Link>
         </div>
       </div>
     </div>
