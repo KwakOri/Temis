@@ -52,7 +52,7 @@ interface CustomOrderWithStatus {
   wants_omakase: boolean;
   design_keywords: string;
   selected_options: string[];
-  status: "pending" | "in_progress" | "completed" | "cancelled";
+  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
   price_quoted?: number;
   depositor_name?: string;
   admin_notes?: string;
