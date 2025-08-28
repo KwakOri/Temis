@@ -190,7 +190,7 @@ export default function Home() {
                 </Link>
                 <Link
                   href="/my-page"
-                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <div className="flex items-center">
@@ -208,6 +208,29 @@ export default function Home() {
                       />
                     </svg>
                     <span className="font-medium">마이페이지</span>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/mobile-install"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <span className="font-medium">모바일 버전 안내</span>
                   </div>
                 </Link>
 
