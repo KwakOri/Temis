@@ -21,7 +21,7 @@ interface CustomOrderWithStatus {
   wants_omakase: boolean;
   design_keywords: string;
   selected_options: string[];
-  status: "pending" | "in_progress" | "completed" | "cancelled";
+  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
   price_quoted?: number;
   depositor_name?: string;
   admin_notes?: string;
@@ -71,8 +71,10 @@ export default function CustomOrderHistory({
     switch (status) {
       case "pending":
         return <Clock className="h-5 w-5 text-yellow-500" />;
+      case "accepted":
+        return <CheckCircle className="h-5 w-5 text-blue-500" />;
       case "in_progress":
-        return <AlertCircle className="h-5 w-5 text-blue-500" />;
+        return <AlertCircle className="h-5 w-5 text-indigo-500" />;
       case "completed":
         return <CheckCircle className="h-5 w-5 text-green-500" />;
       case "cancelled":
@@ -86,6 +88,8 @@ export default function CustomOrderHistory({
     switch (status) {
       case "pending":
         return "대기중";
+      case "accepted":
+        return "접수됨";
       case "in_progress":
         return "제작중";
       case "completed":
@@ -104,8 +108,10 @@ export default function CustomOrderHistory({
     switch (status) {
       case "pending":
         return `${baseClass} bg-yellow-100 text-yellow-800`;
-      case "in_progress":
+      case "accepted":
         return `${baseClass} bg-blue-100 text-blue-800`;
+      case "in_progress":
+        return `${baseClass} bg-indigo-100 text-indigo-800`;
       case "completed":
         return `${baseClass} bg-green-100 text-green-800`;
       case "cancelled":
@@ -268,8 +274,8 @@ export default function CustomOrderHistory({
                     </div>
                   )}
 
-                  {/* 수정/취소 버튼 (pending 상태에서만 표시) */}
-                  {order.status === "pending" && (
+                  {/* 수정/취소 버튼 (pending, accepted 상태에서만 표시) */}
+                  {(order.status === "pending" || order.status === "accepted") && (
                     <div className="flex gap-2 pt-3 border-t border-slate-100">
                       <button
                         onClick={() => onEditOrder(order)}

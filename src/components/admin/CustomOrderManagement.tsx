@@ -36,7 +36,7 @@ interface CustomOrder {
   wants_omakase: boolean;
   design_keywords: string | null;
   selected_options: string[] | null;
-  status: "pending" | "in_progress" | "completed" | "cancelled";
+  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
   admin_notes: string | null;
   price_quoted: number | null;
   depositor_name: string | null;
@@ -190,13 +190,15 @@ export default function CustomOrderManagement() {
   const getStatusBadge = (status: string) => {
     const styles = {
       pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-      in_progress: "bg-blue-100 text-blue-800 border-blue-200",
+      accepted: "bg-blue-100 text-blue-800 border-blue-200",
+      in_progress: "bg-indigo-100 text-indigo-800 border-indigo-200",
       completed: "bg-green-100 text-green-800 border-green-200",
       cancelled: "bg-red-100 text-red-800 border-red-200",
     };
 
     const labels = {
       pending: "대기 중",
+      accepted: "접수됨",
       in_progress: "진행 중",
       completed: "완료",
       cancelled: "취소",
@@ -219,8 +221,10 @@ export default function CustomOrderManagement() {
     switch (status) {
       case "pending":
         return <Clock className={`${iconClass} text-yellow-600`} />;
+      case "accepted":
+        return <CheckCircle className={`${iconClass} text-blue-600`} />;
       case "in_progress":
-        return <AlertTriangle className={`${iconClass} text-blue-600`} />;
+        return <AlertTriangle className={`${iconClass} text-indigo-600`} />;
       case "completed":
         return <CheckCircle className={`${iconClass} text-green-600`} />;
       case "cancelled":
@@ -274,7 +278,8 @@ export default function CustomOrderManagement() {
               {[
                 { value: "all", label: "전체", color: "gray" },
                 { value: "pending", label: "대기 중", color: "yellow" },
-                { value: "in_progress", label: "진행 중", color: "blue" },
+                { value: "accepted", label: "접수됨", color: "blue" },
+                { value: "in_progress", label: "진행 중", color: "indigo" },
                 { value: "completed", label: "완료", color: "green" },
                 { value: "cancelled", label: "취소", color: "red" },
               ].map((status) => (
@@ -292,6 +297,8 @@ export default function CustomOrderManagement() {
                         ? "bg-yellow-100 text-yellow-800 border-yellow-200"
                         : status.color === "blue"
                         ? "bg-blue-100 text-blue-800 border-blue-200"
+                        : status.color === "indigo"
+                        ? "bg-indigo-100 text-indigo-800 border-indigo-200"
                         : status.color === "green"
                         ? "bg-green-100 text-green-800 border-green-200"
                         : "bg-red-100 text-red-800 border-red-200"
@@ -754,7 +761,8 @@ function OrderDetailModal({
                   <div className="flex gap-2 justify-between">
                     {[
                       { value: "pending", label: "대기 중", color: "yellow" },
-                      { value: "in_progress", label: "진행 중", color: "blue" },
+                      { value: "accepted", label: "접수됨", color: "blue" },
+                      { value: "in_progress", label: "진행 중", color: "indigo" },
                       { value: "completed", label: "완료", color: "green" },
                       { value: "cancelled", label: "취소", color: "red" },
                     ].map((statusOption) => (
@@ -765,6 +773,7 @@ function OrderDetailModal({
                           setStatus(
                             statusOption.value as
                               | "pending"
+                              | "accepted"
                               | "in_progress"
                               | "completed"
                               | "cancelled"
@@ -776,6 +785,8 @@ function OrderDetailModal({
                               ? "bg-yellow-100 text-yellow-800 border-yellow-200"
                               : statusOption.color === "blue"
                               ? "bg-blue-100 text-blue-800 border-blue-200"
+                              : statusOption.color === "indigo"
+                              ? "bg-indigo-100 text-indigo-800 border-indigo-200"
                               : statusOption.color === "green"
                               ? "bg-green-100 text-green-800 border-green-200"
                               : "bg-red-100 text-red-800 border-red-200"
