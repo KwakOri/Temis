@@ -66,7 +66,13 @@ export async function PUT(
     const orderId = resolvedParams.id;
 
     // 유효한 상태값 검증
-    const validStatuses = ["pending", "in_progress", "completed", "cancelled"];
+    const validStatuses = [
+      "pending",
+      "accepted",
+      "in_progress",
+      "completed",
+      "cancelled",
+    ];
     if (status && !validStatuses.includes(status)) {
       return NextResponse.json(
         { error: "유효하지 않은 상태값입니다." },
