@@ -109,3 +109,55 @@ body {
   font-weight: normal;
   font-display: swap;
 }
+
+/* PWA 관련 스타일 */
+@supports (display: standalone) {
+  body {
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* 모바일 최적화 */
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  /* 터치 스크롤 개선 */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* PWA 설치 프롬프트 애니메이션 */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* iOS Safari 상단바 색상 대응 */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

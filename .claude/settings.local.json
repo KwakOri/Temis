@@ -33,7 +33,8 @@
       "Bash(npx tsc:*)",
       "Bash(grep:*)",
       "Bash(npx supabase:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm start)"
     ],
     "deny": []
   },
