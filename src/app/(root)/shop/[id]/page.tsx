@@ -273,6 +273,14 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // 구매 신청 전 확인
+    const confirmMessage = "구매 신청을 진행하기 전에 확인해주세요:\n\n1. 입금이 완료되었는지 확인해주세요.\n2. 입금자명이 일치하는지 확인해주세요.\n\n구매 신청을 계속 진행하시겠습니까?";
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
     setSubmitting(true);
 
     try {
@@ -334,6 +342,12 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               <p className="text-sm text-yellow-700 mt-1">
                 입금자명과 위에 입력한 정보가 일치하지 않으면 결제 확인이
                 어렵습니다.
+              </p>
+              <p className="text-sm text-yellow-700 mt-1">
+                계좌로 구매 금액을 이체한 후에 구매 신청 버튼을 눌러주세요
+              </p>
+              <p className="text-sm text-yellow-700 mt-1">
+                문의사항은 @TEMISforyou 테미스 공식 트위터로 부탁드립니다
               </p>
             </div>
           </div>
