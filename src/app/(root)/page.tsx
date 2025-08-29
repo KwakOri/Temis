@@ -94,6 +94,12 @@ export default function Home() {
               </p>
             </Link>
 
+            <Link href="/work-schedule">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                작업 예정표
+              </p>
+            </Link>
+
             {loading ? (
               <div className="bg-gray-200 text-gray-500 font-medium px-4 py-2 rounded-lg cursor-not-allowed min-w-[80px] h-[40px] flex items-center justify-center">
                 <LoadingSpinner />
@@ -208,6 +214,29 @@ export default function Home() {
                       />
                     </svg>
                     <span className="font-medium">마이페이지</span>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/work-schedule"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                      />
+                    </svg>
+                    <span className="font-medium">작업 일정표</span>
                   </div>
                 </Link>
 

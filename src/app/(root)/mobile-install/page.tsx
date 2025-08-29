@@ -1,21 +1,21 @@
-'use client'
+"use client";
 
-import { useDeviceDetection } from '@/components/mobile/DeviceDetector'
-import AndroidInstallGuide from '@/components/mobile/AndroidInstallGuide'
-import IOSInstallGuide from '@/components/mobile/IOSInstallGuide'
-import { ArrowLeft, Smartphone, Monitor, CheckCircle } from 'lucide-react'
-import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import AndroidInstallGuide from "@/components/mobile/AndroidInstallGuide";
+import { useDeviceDetection } from "@/components/mobile/DeviceDetector";
+import IOSInstallGuide from "@/components/mobile/IOSInstallGuide";
+import { ArrowLeft, CheckCircle, Monitor, Smartphone } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function MobileInstallPage() {
-  const router = useRouter()
-  const deviceInfo = useDeviceDetection()
-  const [mounted, setMounted] = useState(false)
+  const router = useRouter();
+  const deviceInfo = useDeviceDetection();
+  const [mounted, setMounted] = useState(false);
 
   // 클라이언트 사이드 렌더링 확인
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   // 로딩 중일 때 표시할 컴포넌트
   if (!mounted) {
@@ -23,7 +23,7 @@ export default function MobileInstallPage() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -54,9 +54,12 @@ export default function MobileInstallPage() {
                 )}
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">현재 환경</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  현재 환경
+                </h2>
                 <p className="text-gray-600 text-sm">
-                  {deviceInfo.isMobile ? '모바일 디바이스' : '데스크톱/태블릿'} · {deviceInfo.browserName}
+                  {deviceInfo.isMobile ? "모바일 디바이스" : "데스크톱/태블릿"}{" "}
+                  · {deviceInfo.browserName}
                 </p>
               </div>
             </div>
@@ -65,7 +68,9 @@ export default function MobileInstallPage() {
             {deviceInfo.isStandalone ? (
               <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
                 <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="text-green-800 font-medium">이미 PWA 앱으로 실행 중입니다!</span>
+                <span className="text-green-800 font-medium">
+                  이미 PWA 앱으로 실행 중입니다!
+                </span>
               </div>
             ) : deviceInfo.isInstallable ? (
               <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -106,62 +111,15 @@ export default function MobileInstallPage() {
                   모바일에서 앱으로 사용하기
                 </h2>
                 <p className="text-gray-600">
-                  모바일 디바이스에서 아래 가이드를 따라 Temis를 앱처럼 사용해보세요
+                  모바일 디바이스에서 아래 가이드를 따라 Temis를 앱처럼
+                  사용해보세요
                 </p>
               </div>
-              
+
               <AndroidInstallGuide browserName="Chrome" />
               <IOSInstallGuide browserName="Safari" />
             </>
           )}
-        </div>
-
-        {/* 추가 정보 */}
-        <div className="mt-8 bg-white rounded-xl p-6 shadow-sm border border-white/20">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            PWA 앱의 장점
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-green-600">🚀</span>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900">빠른 실행</h4>
-                <p className="text-sm text-gray-600">홈 화면에서 바로 실행</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-blue-600">📱</span>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900">네이티브 경험</h4>
-                <p className="text-sm text-gray-600">앱처럼 전체 화면 사용</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-purple-600">⚡</span>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900">오프라인 지원</h4>
-                <p className="text-sm text-gray-600">인터넷 없이도 일부 기능 사용</p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                <span className="text-orange-600">💾</span>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900">자동 업데이트</h4>
-                <p className="text-sm text-gray-600">항상 최신 버전 사용</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* 도움말 */}
@@ -169,15 +127,19 @@ export default function MobileInstallPage() {
           <div className="flex items-start gap-3">
             <div className="text-yellow-600 text-xl">❓</div>
             <div>
-              <h4 className="font-semibold text-yellow-800 mb-1">설치에 문제가 있나요?</h4>
+              <h4 className="font-semibold text-yellow-800 mb-1">
+                설치에 문제가 있나요?
+              </h4>
               <p className="text-yellow-700 text-sm">
-                브라우저를 새로고침하거나 다른 브라우저에서 시도해보세요. 
-                여전히 문제가 있다면 페이지를 북마크에 추가하여 빠르게 접근할 수 있습니다.
+                브라우저를 새로고침하거나 다른 브라우저에서 시도해보세요.
+              </p>
+              <p className="text-yellow-700 text-sm">
+                iOS의 경우 safari 브라우저만 지원합니다
               </p>
             </div>
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }

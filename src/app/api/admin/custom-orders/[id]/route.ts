@@ -61,7 +61,7 @@ export async function PUT(
       );
     }
 
-    const { status, admin_notes, price_quoted } = await request.json();
+    const { status, admin_notes, price_quoted, deadline } = await request.json();
     const resolvedParams = await params;
     const orderId = resolvedParams.id;
 
@@ -88,6 +88,7 @@ export async function PUT(
     if (status) updateData.status = status;
     if (admin_notes !== undefined) updateData.admin_notes = admin_notes;
     if (price_quoted !== undefined) updateData.price_quoted = price_quoted;
+    if (deadline !== undefined) updateData.deadline = deadline;
 
     // 데이터베이스 업데이트
     const { data: order, error } = await supabase

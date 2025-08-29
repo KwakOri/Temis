@@ -3,7 +3,10 @@
 import { getFileUrl } from "@/lib/r2";
 import {
   AlertTriangle,
+  Calendar,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Download,
   ExternalLink,
@@ -15,6 +18,25 @@ import {
   XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+// 상태별 아이콘을 위한 공통 헬퍼 함수
+const getStatusIconHelper = (status: string) => {
+  const iconClass = "w-4 h-4";
+  switch (status) {
+    case "pending":
+      return <Clock className={`${iconClass} text-yellow-600`} />;
+    case "accepted":
+      return <CheckCircle className={`${iconClass} text-blue-600`} />;
+    case "in_progress":
+      return <AlertTriangle className={`${iconClass} text-indigo-600`} />;
+    case "completed":
+      return <CheckCircle className={`${iconClass} text-green-600`} />;
+    case "cancelled":
+      return <XCircle className={`${iconClass} text-red-600`} />;
+    default:
+      return null;
+  }
+};
 
 interface FileData {
   id: string;
@@ -40,6 +62,7 @@ interface CustomOrder {
   admin_notes: string | null;
   price_quoted: number | null;
   depositor_name: string | null;
+  deadline: string | null;
   created_at: string;
   updated_at: string;
   users: {
@@ -73,6 +96,10 @@ export default function CustomOrderManagement() {
     needsMigration: number;
   } | null>(null);
   const [migrating, setMigrating] = useState(false);
+  const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+  const [selectedOrderForDeadline, setSelectedOrderForDeadline] =
+    useState<CustomOrder | null>(null);
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
 
   // 주문 목록 조회
   const fetchOrders = async () => {
@@ -154,8 +181,9 @@ export default function CustomOrderManagement() {
   const updateOrderStatus = async (
     orderId: string,
     status: string,
-    notes?: string,
-    price?: number
+    notes?: string | null,
+    price?: number | null,
+    deadline?: string
   ) => {
     try {
       setUpdating(true);
@@ -169,6 +197,7 @@ export default function CustomOrderManagement() {
           status,
           admin_notes: notes,
           price_quoted: price,
+          deadline,
         }),
       });
 
@@ -342,6 +371,9 @@ export default function CustomOrderManagement() {
                     견적가격
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    마감일
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     생성일
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -397,6 +429,28 @@ export default function CustomOrderManagement() {
                       {order.price_quoted
                         ? `₩${order.price_quoted.toLocaleString()}`
                         : "-"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {order.deadline ? (
+                        <div className="flex items-center space-x-1">
+                          <span
+                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              new Date(order.deadline) < new Date()
+                                ? "bg-red-100 text-red-800"
+                                : new Date(order.deadline) <=
+                                  new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-green-100 text-green-800"
+                            }`}
+                          >
+                            {new Date(order.deadline).toLocaleDateString(
+                              "ko-KR"
+                            )}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 text-xs">미설정</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(order.created_at).toLocaleDateString("ko-KR")}
@@ -527,6 +581,17 @@ export default function CustomOrderManagement() {
         )}
       </div>
 
+      {/* 데드라인 캘린더 뷰 */}
+      <DeadlineCalendarView
+        orders={orders}
+        onOrderClick={(order) => {
+          setSelectedOrderForDeadline(order);
+          setShowDeadlineModal(true);
+        }}
+        currentDate={currentCalendarDate}
+        onDateChange={setCurrentCalendarDate}
+      />
+
       {/* 주문 상세 모달 */}
       {showOrderModal && selectedOrder && (
         <OrderDetailModal
@@ -536,6 +601,28 @@ export default function CustomOrderManagement() {
             setSelectedOrder(null);
           }}
           onUpdate={updateOrderStatus}
+          updating={updating}
+        />
+      )}
+
+      {/* 데드라인 설정 모달 */}
+      {showDeadlineModal && selectedOrderForDeadline && (
+        <DeadlineModal
+          order={selectedOrderForDeadline}
+          onClose={() => {
+            setShowDeadlineModal(false);
+            setSelectedOrderForDeadline(null);
+          }}
+          onUpdate={async (orderId, deadline) => {
+            await updateOrderStatus(
+              orderId,
+              selectedOrderForDeadline.status,
+              selectedOrderForDeadline.admin_notes,
+              selectedOrderForDeadline.price_quoted,
+              deadline
+            );
+            await fetchOrders();
+          }}
           updating={updating}
         />
       )}
@@ -551,7 +638,8 @@ interface OrderDetailModalProps {
     orderId: string,
     status: string,
     notes?: string,
-    price?: number
+    price?: number,
+    deadline?: string
   ) => Promise<void>;
   updating: boolean;
 }
@@ -565,10 +653,17 @@ function OrderDetailModal({
   const [status, setStatus] = useState(order.status);
   const [notes, setNotes] = useState(order.admin_notes || "");
   const [price, setPrice] = useState(order.price_quoted || "");
+  const [deadline, setDeadline] = useState(order.deadline || "");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await onUpdate(order.id, status, notes, price ? Number(price) : undefined);
+    await onUpdate(
+      order.id,
+      status,
+      notes,
+      price ? Number(price) : undefined,
+      deadline || undefined
+    );
   };
 
   return (
@@ -753,8 +848,8 @@ function OrderDetailModal({
               관리자 작업
             </h4>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-primary mb-3">
                     주문 상태
                   </label>
@@ -762,7 +857,11 @@ function OrderDetailModal({
                     {[
                       { value: "pending", label: "대기 중", color: "yellow" },
                       { value: "accepted", label: "접수됨", color: "blue" },
-                      { value: "in_progress", label: "진행 중", color: "indigo" },
+                      {
+                        value: "in_progress",
+                        label: "진행 중",
+                        color: "indigo",
+                      },
                       { value: "completed", label: "완료", color: "green" },
                       { value: "cancelled", label: "취소", color: "red" },
                     ].map((statusOption) => (
@@ -801,16 +900,28 @@ function OrderDetailModal({
 
                 <div>
                   <label className="block text-sm font-medium text-primary mb-1">
-                    견적 가격 (원)
+                    마감 기한
                   </label>
                   <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(e.target.value)}
-                    placeholder="견적가격을 입력하세요"
+                    type="date"
+                    value={deadline}
+                    onChange={(e) => setDeadline(e.target.value)}
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-primary mb-1">
+                  견적 가격 (원)
+                </label>
+                <input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="견적가격을 입력하세요"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
               <div>
@@ -1131,6 +1242,394 @@ function FileCard({
           <ExternalLink className="h-3 w-3 text-gray-600" />
         </button>
       )}
+    </div>
+  );
+}
+
+// 데드라인 캘린더 뷰 컴포넌트
+interface DeadlineCalendarViewProps {
+  orders: CustomOrder[];
+  onOrderClick: (order: CustomOrder) => void;
+  currentDate: Date;
+  onDateChange: (date: Date) => void;
+}
+
+function DeadlineCalendarView({
+  orders,
+  onOrderClick,
+  currentDate,
+  onDateChange,
+}: DeadlineCalendarViewProps) {
+  // 마감기한이 없는 주문들
+  const unscheduledOrders = orders.filter(
+    (order) =>
+      !order.deadline &&
+      order.status !== "completed" &&
+      order.status !== "cancelled"
+  );
+
+  // 마감기한별로 주문 그룹핑
+  const ordersByDate = orders
+    .filter((order) => order.deadline)
+    .reduce((acc, order) => {
+      const dateKey = order.deadline!; // DATE 타입은 이미 YYYY-MM-DD 형태
+      if (!acc[dateKey]) {
+        acc[dateKey] = [];
+      }
+      acc[dateKey].push(order);
+      return acc;
+    }, {} as Record<string, CustomOrder[]>);
+
+  // 긴급도별로 정렬된 주문들 (3일 이내 마감)
+  const urgentOrders = orders
+    .filter((order) => {
+      if (
+        !order.deadline ||
+        order.status === "completed" ||
+        order.status === "cancelled"
+      )
+        return false;
+      const deadlineDate = new Date(order.deadline);
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+      return deadlineDate <= threeDaysFromNow;
+    })
+    .sort(
+      (a, b) =>
+        new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
+    );
+
+  // 캘린더 날짜 계산
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startDate = new Date(firstDay);
+  startDate.setDate(startDate.getDate() - firstDay.getDay());
+  const endDate = new Date(lastDay);
+  endDate.setDate(endDate.getDate() + (6 - lastDay.getDay()));
+
+  const calendarDays = [];
+  const current = new Date(startDate);
+  while (current <= endDate) {
+    calendarDays.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  const prevMonth = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() - 1);
+    onDateChange(newDate);
+  };
+
+  const nextMonth = () => {
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + 1);
+    onDateChange(newDate);
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* 헤더 */}
+      <div className="px-6 py-4 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-primary flex items-center">
+            <Calendar className="w-5 h-5 mr-2" />
+            주문 마감일 관리
+          </h3>
+        </div>
+      </div>
+
+      <div className="flex">
+        {/* 왼쪽 패널 - 1/4 너비 */}
+        <div className="w-1/4 border-r border-gray-200">
+          {/* 미등록 작업 목록 */}
+          <div className="p-4 border-b border-gray-100">
+            <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+              <Clock className="w-4 h-4 mr-2" />
+              미등록 작업 ({unscheduledOrders.length})
+            </h4>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {unscheduledOrders.length === 0 ? (
+                <p className="text-xs text-gray-500 py-2">
+                  모든 작업에 마감일이 설정되었습니다
+                </p>
+              ) : (
+                unscheduledOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    onClick={() => onOrderClick(order)}
+                    className="p-2 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-900 truncate">
+                          {order.users.name}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {order.order_requirements.slice(0, 30)}...
+                        </p>
+                      </div>
+                      <div className="ml-2 flex items-center">
+                        {getStatusIconHelper(order.status)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* 긴급 작업 스택 */}
+          <div className="p-4">
+            <h4 className="text-sm font-medium text-red-600 mb-3 flex items-center">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              긴급 작업 ({urgentOrders.length})
+            </h4>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {urgentOrders.length === 0 ? (
+                <p className="text-xs text-gray-500 py-2">
+                  긴급 작업이 없습니다
+                </p>
+              ) : (
+                urgentOrders.map((order, index) => (
+                  <div
+                    key={order.id}
+                    onClick={() => onOrderClick(order)}
+                    className={`p-3 rounded-md cursor-pointer transition-colors border-l-4 ${
+                      new Date(order.deadline!) < new Date()
+                        ? "bg-red-50 border-red-500 hover:bg-red-100"
+                        : "bg-yellow-50 border-yellow-500 hover:bg-yellow-100"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-bold text-gray-900">
+                            #{index + 1}
+                          </span>
+                          <span className="text-xs font-medium text-gray-900 truncate">
+                            {order.users.name}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          마감:{" "}
+                          {new Date(order.deadline!).toLocaleDateString(
+                            "ko-KR"
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {order.order_requirements.slice(0, 25)}...
+                        </p>
+                      </div>
+                      <div className="ml-2">
+                        {getStatusIconHelper(order.status)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* 오른쪽 캘린더 영역 - 3/4 너비 */}
+        <div className="flex-1 p-4">
+          {/* 캘린더 헤더 */}
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-medium text-gray-900">
+              {currentDate.toLocaleDateString("ko-KR", {
+                year: "numeric",
+                month: "long",
+              })}
+            </h4>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={prevMonth}
+                className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                onClick={nextMonth}
+                className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* 요일 헤더 */}
+          <div className="grid grid-cols-7 gap-1 mb-2">
+            {["일", "월", "화", "수", "목", "금", "토"].map((day) => (
+              <div
+                key={day}
+                className="p-2 text-center text-sm font-medium text-gray-500"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* 캘린더 그리드 */}
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map((date) => {
+              const dateKey = date.toISOString().split("T")[0];
+              const dayOrders = ordersByDate[dateKey] || [];
+              const isCurrentMonth = date.getMonth() === month;
+              const isToday = date.toDateString() === new Date().toDateString();
+
+              return (
+                <div
+                  key={date.toISOString()}
+                  className={`min-h-[100px] p-1 border border-gray-100 ${
+                    isCurrentMonth ? "bg-white" : "bg-gray-50"
+                  } ${isToday ? "ring-2 ring-blue-500 ring-opacity-50" : ""}`}
+                >
+                  <div
+                    className={`text-sm ${
+                      isCurrentMonth ? "text-gray-900" : "text-gray-400"
+                    } ${isToday ? "font-bold text-blue-600" : ""}`}
+                  >
+                    {date.getDate()}
+                  </div>
+                  <div className="mt-1 space-y-1">
+                    {dayOrders.slice(0, 3).map((order) => (
+                      <div
+                        key={order.id}
+                        onClick={() => onOrderClick(order)}
+                        className={`text-xs p-1 rounded cursor-pointer truncate ${
+                          new Date(order.deadline!) < new Date()
+                            ? "bg-red-100 text-red-800 hover:bg-red-200"
+                            : order.status === "completed"
+                            ? "bg-green-100 text-green-800 hover:bg-green-200"
+                            : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                        }`}
+                      >
+                        {order.users.name}
+                      </div>
+                    ))}
+                    {dayOrders.length > 3 && (
+                      <div className="text-xs text-gray-500 p-1">
+                        +{dayOrders.length - 3}개 더
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 데드라인 설정 모달
+interface DeadlineModalProps {
+  order: CustomOrder;
+  onClose: () => void;
+  onUpdate: (orderId: string, deadline?: string) => Promise<void>;
+  updating: boolean;
+}
+
+function DeadlineModal({
+  order,
+  onClose,
+  onUpdate,
+  updating,
+}: DeadlineModalProps) {
+  const [deadline, setDeadline] = useState(order.deadline || "");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onUpdate(order.id, deadline || undefined);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl max-w-md w-full">
+        <div className="px-6 py-4 border-b border-gray-200 rounded-t-2xl">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-semibold text-primary">마감일 설정</h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="px-6 py-6">
+          {/* 주문 정보 */}
+          <div className="mb-4 p-3 bg-gray-50 rounded-md">
+            <p className="text-sm font-medium text-gray-900">
+              {order.users.name}
+            </p>
+            <p className="text-xs text-gray-600 mt-1">
+              {order.order_requirements.slice(0, 100)}...
+            </p>
+            <div className="flex items-center mt-2 space-x-2">
+              {getStatusIconHelper(order.status)}
+              <span className="text-xs text-gray-500">
+                {order.status === "pending"
+                  ? "대기 중"
+                  : order.status === "accepted"
+                  ? "접수됨"
+                  : order.status === "in_progress"
+                  ? "진행 중"
+                  : order.status === "completed"
+                  ? "완료"
+                  : "취소"}
+              </span>
+            </div>
+          </div>
+
+          {/* 마감일 입력 */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-primary mb-2">
+              마감 기한
+            </label>
+            <input
+              type="date"
+              value={deadline}
+              onChange={(e) => setDeadline(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min={new Date().toISOString().split("T")[0]}
+            />
+            {deadline && (
+              <p className="text-xs text-gray-500 mt-1">
+                {new Date(deadline) < new Date()
+                  ? "⚠️ 과거 날짜입니다"
+                  : new Date(deadline) <=
+                    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+                  ? "🔥 긴급"
+                  : "📅 예정됨"}
+              </p>
+            )}
+          </div>
+
+          {/* 버튼 */}
+          <div className="flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-secondary bg-white hover:bg-gray-50 transition-colors"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={updating}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 transition-colors"
+            >
+              {updating ? "저장 중..." : "저장"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

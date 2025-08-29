@@ -3,13 +3,18 @@
 import { useRouter } from "next/navigation";
 
 interface BackButtonProps {
+  href?: string;
   className?: string;
 }
 
-const BackButton = ({ className = "" }: BackButtonProps) => {
+const BackButton = ({ href, className = "" }: BackButtonProps) => {
   const router = useRouter();
 
   const handleBack = () => {
+    if (href) {
+      router.push(href);
+      return;
+    }
     router.back();
   };
 
