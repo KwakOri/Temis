@@ -1,14 +1,13 @@
 "use client";
 
 import AccessManagement from "@/components/admin/AccessManagement";
-import AdminUserRegistration from "@/components/admin/AdminUserRegistration";
-import AdminInviteManagement from "@/components/admin/AdminInviteManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
 import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
 import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
+import WorkScheduleManagement from "@/components/admin/WorkScheduleManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
@@ -17,16 +16,15 @@ import {
   Users, 
   CreditCard, 
   Palette, 
-  Mail, 
-  UserPlus, 
   MailOpen, 
   Shield,
   AlertTriangle,
   ArrowLeft,
   Loader2,
-  Archive
+  Archive,
+  Calendar
 } from "lucide-react";
-type TabType = "templates" | "users" | "access" | "addUser" | "invites" | "emailPreview" | "purchases" | "customOrders" | "legacyOrders";
+type TabType = "templates" | "users" | "access" | "emailPreview" | "purchases" | "customOrders" | "legacyOrders" | "workSchedule";
 
 function AdminContent() {
   const { user } = useAuth();
@@ -102,8 +100,7 @@ function AdminContent() {
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
     { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
     { id: "legacyOrders" as TabType, name: "레거시 주문 관리", icon: Archive },
-    { id: "invites" as TabType, name: "사용자 초대", icon: Mail },
-    { id: "addUser" as TabType, name: "직접 사용자 추가", icon: UserPlus },
+    { id: "workSchedule" as TabType, name: "작업 일정 관리", icon: Calendar },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
     { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
   ];
@@ -163,8 +160,7 @@ function AdminContent() {
         {activeTab === "purchases" && <PurchaseManagement />}
         {activeTab === "customOrders" && <CustomOrderManagement />}
         {activeTab === "legacyOrders" && <LegacyOrderManagement />}
-        {activeTab === "invites" && <AdminInviteManagement />}
-        {activeTab === "addUser" && <AdminUserRegistration />}
+        {activeTab === "workSchedule" && <WorkScheduleManagement />}
         {activeTab === "emailPreview" && <EmailTemplatePreview />}
         {activeTab === "access" && <AccessManagement />}
       </div>

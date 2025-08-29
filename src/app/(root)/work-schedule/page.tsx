@@ -189,7 +189,7 @@ export default function WorkSchedulePage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center">
                 <Calendar className="w-8 h-8 mr-3 text-blue-600" />
-                작업 예정표
+                작업 일정표
               </h1>
               <p className="mt-2 text-sm text-gray-600">
                 현재 진행 중인 맞춤형 시간표 제작 작업 현황을 확인하실 수
@@ -215,7 +215,7 @@ export default function WorkSchedulePage() {
             >
               <div className="flex items-center space-x-2">
                 <Zap className="w-4 h-4" />
-                <span>빠른 마감</span>
+                <span>빠른 마감 일정</span>
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     activeTab === "fast"
@@ -237,7 +237,7 @@ export default function WorkSchedulePage() {
             >
               <div className="flex items-center space-x-2">
                 <BarChart3 className="w-4 h-4" />
-                <span>일반 마감</span>
+                <span>마감 일정</span>
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     activeTab === "normal"
@@ -276,12 +276,12 @@ export default function WorkSchedulePage() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {activeTab === "fast" ? "빠른 마감 일정" : "일반 마감 일정"}
+                  {activeTab === "fast" ? "빠른 마감 일정" : "마감 일정"}
                 </h3>
                 <p className="text-sm text-gray-500">
                   {activeTab === "fast"
                     ? "'빠른 마감' 옵션이 선택된 주문의 마감 일정입니다"
-                    : "일반 주문의 마감 일정입니다"}
+                    : "현재 진행중인 마감 일정입니다"}
                 </p>
               </div>
 
@@ -324,7 +324,7 @@ export default function WorkSchedulePage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">
-                            {order.email_prefix}...
+                            {order.email_prefix}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
