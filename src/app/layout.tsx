@@ -1,5 +1,4 @@
 import MaintenanceMode from "@/components/MaintenanceMode";
-import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -82,7 +81,7 @@ export default function RootLayout({
       >
         <MaintenanceMode>
           {children}
-          <PWAInstallPrompt />
+          {/* <PWAInstallPrompt /> */}
         </MaintenanceMode>
       </body>
     </html>
