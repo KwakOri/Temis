@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase";
-import { TablesUpdate } from "@/types/supabase";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
@@ -32,11 +31,12 @@ async function checkAdminPermission(userId: number): Promise<boolean> {
   }
 }
 
-// 주문 상태 업데이트
+// 레거시 주문 수정
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // JWT 토큰 확인
     const cookieStore = await cookies();
@@ -54,6 +54,7 @@ export async function PUT(
 
     // 관리자 권한 확인
     const isAdmin = await checkAdminPermission(userId);
+
     if (!isAdmin) {
       return NextResponse.json(
         { error: "관리자 권한이 필요합니다." },
@@ -61,69 +62,41 @@ export async function PUT(
       );
     }
 
-    const { status, admin_notes, price_quoted, deadline } = await request.json();
-    const resolvedParams = await params;
-    const orderId = resolvedParams.id;
+    const body = await request.json();
+    const { email, nickname, status, deadline } = body;
 
-    // 유효한 상태값 검증
-    const validStatuses = [
-      "pending",
-      "accepted",
-      "in_progress",
-      "completed",
-      "cancelled",
-    ];
-    if (status && !validStatuses.includes(status)) {
+    // 입력 검증
+    if (!email || !nickname || !status) {
       return NextResponse.json(
-        { error: "유효하지 않은 상태값입니다." },
+        { error: "필수 필드가 누락되었습니다." },
         { status: 400 }
       );
     }
 
-    // 업데이트할 데이터 구성
-    const updateData: TablesUpdate<"custom_timetable_orders"> = {
-      updated_at: new Date().toISOString(),
-    };
-
-    if (status) updateData.status = status;
-    if (admin_notes !== undefined) updateData.admin_notes = admin_notes;
-    if (price_quoted !== undefined) updateData.price_quoted = price_quoted;
-    if (deadline !== undefined) updateData.deadline = deadline;
-
-    // 데이터베이스 업데이트
-    const { data: order, error } = await supabase
-      .from("custom_timetable_orders")
-      .update(updateData)
-      .eq("id", orderId)
-      .select(
-        `
-        *,
-        users!inner(id, name, email)
-      `
-      )
+    // 레거시 주문 수정
+    const { data: updatedOrder, error } = await supabase
+      .from("legacy_custom_orders")
+      .update({
+        email,
+        nickname,
+        status,
+        deadline: deadline || null,
+      })
+      .eq("id", id)
+      .select()
       .single();
 
     if (error) {
       console.error("Database error:", error);
       return NextResponse.json(
-        { error: "주문 업데이트 중 오류가 발생했습니다." },
+        { error: "레거시 주문 수정 중 오류가 발생했습니다." },
         { status: 500 }
       );
     }
 
-    if (!order) {
-      return NextResponse.json(
-        { error: "주문을 찾을 수 없습니다." },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      message: "주문이 성공적으로 업데이트되었습니다.",
-      order,
-    });
+    return NextResponse.json({ order: updatedOrder });
   } catch (error) {
-    console.error("Order update error:", error);
+    console.error("Legacy order update error:", error);
     return NextResponse.json(
       { error: "서버 오류가 발생했습니다." },
       { status: 500 }
@@ -131,11 +104,12 @@ export async function PUT(
   }
 }
 
-// 주문 상세 조회
-export async function GET(
+// 레거시 주문 삭제
+export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     // JWT 토큰 확인
     const cookieStore = await cookies();
@@ -153,6 +127,7 @@ export async function GET(
 
     // 관리자 권한 확인
     const isAdmin = await checkAdminPermission(userId);
+
     if (!isAdmin) {
       return NextResponse.json(
         { error: "관리자 권한이 필요합니다." },
@@ -160,38 +135,23 @@ export async function GET(
       );
     }
 
-    const resolvedParams = await params;
-    const orderId = resolvedParams.id;
-
-    const { data: order, error } = await supabase
-      .from("custom_timetable_orders")
-      .select(
-        `
-        *,
-        users!inner(id, name, email)
-      `
-      )
-      .eq("id", orderId)
-      .single();
+    // 레거시 주문 삭제
+    const { error } = await supabase
+      .from("legacy_custom_orders")
+      .delete()
+      .eq("id", id);
 
     if (error) {
       console.error("Database error:", error);
       return NextResponse.json(
-        { error: "주문 조회 중 오류가 발생했습니다." },
+        { error: "레거시 주문 삭제 중 오류가 발생했습니다." },
         { status: 500 }
       );
     }
 
-    if (!order) {
-      return NextResponse.json(
-        { error: "주문을 찾을 수 없습니다." },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ order });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Order fetch error:", error);
+    console.error("Legacy order delete error:", error);
     return NextResponse.json(
       { error: "서버 오류가 발생했습니다." },
       { status: 500 }

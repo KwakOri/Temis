@@ -98,6 +98,7 @@ export type Database = {
         Row: {
           admin_notes: string | null
           created_at: string | null
+          deadline: string | null
           depositor_name: string | null
           design_keywords: string | null
           email_discord: string
@@ -115,6 +116,7 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           created_at?: string | null
+          deadline?: string | null
           depositor_name?: string | null
           design_keywords?: string | null
           email_discord: string
@@ -132,6 +134,7 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           created_at?: string | null
+          deadline?: string | null
           depositor_name?: string | null
           design_keywords?: string | null
           email_discord?: string
@@ -206,6 +209,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      legacy_custom_orders: {
+        Row: {
+          created_at: string | null
+          deadline: string | null
+          email: string
+          id: string
+          nickname: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deadline?: string | null
+          email: string
+          id?: string
+          nickname: string
+          status: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deadline?: string | null
+          email?: string
+          id?: string
+          nickname?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       purchase_requests: {
         Row: {
