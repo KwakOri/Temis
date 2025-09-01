@@ -85,6 +85,8 @@ export default function CustomOrderManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState<string>("created_at");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<CustomOrder | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -109,6 +111,8 @@ export default function CustomOrderManagement() {
         status: selectedStatus,
         page: currentPage.toString(),
         limit: "10",
+        sortBy: sortBy,
+        sortOrder: sortOrder,
       });
 
       const response = await fetch(`/api/admin/custom-orders?${params}`, {
@@ -132,7 +136,7 @@ export default function CustomOrderManagement() {
   useEffect(() => {
     fetchOrders();
     fetchMigrationStatus();
-  }, [selectedStatus, currentPage]);
+  }, [selectedStatus, currentPage, sortBy, sortOrder]);
 
   // 마이그레이션 상태 조회
   const fetchMigrationStatus = async () => {
@@ -298,7 +302,8 @@ export default function CustomOrderManagement() {
 
       {/* 필터링 */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-start gap-6">
+          {/* 주문 상태 필터 */}
           <div>
             <label className="block text-sm font-medium text-primary mb-3">
               주문 상태
@@ -337,6 +342,37 @@ export default function CustomOrderManagement() {
                   {status.label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* 정렬 기준 */}
+          <div>
+            <label className="block text-sm font-medium text-primary mb-3">
+              정렬 기준
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="created_at">접수 날짜</option>
+                <option value="deadline">마감 날짜</option>
+              </select>
+              <select
+                value={sortOrder}
+                onChange={(e) => {
+                  setSortOrder(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+              >
+                <option value="desc">최신순</option>
+                <option value="asc">오래된순</option>
+              </select>
             </div>
           </div>
         </div>
@@ -1355,27 +1391,44 @@ function DeadlineCalendarView({
                   모든 작업에 마감일이 설정되었습니다
                 </p>
               ) : (
-                unscheduledOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    onClick={() => onOrderClick(order)}
-                    className="p-2 bg-gray-50 rounded-md hover:bg-gray-100 cursor-pointer transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-900 truncate">
-                          {order.users.name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {order.order_requirements.slice(0, 30)}...
-                        </p>
-                      </div>
-                      <div className="ml-2 flex items-center">
-                        {getStatusIconHelper(order.status)}
+                unscheduledOrders.map((order) => {
+                  const isLegacy = order.files === null;
+                  return (
+                    <div
+                      key={order.id}
+                      onClick={() => onOrderClick(order)}
+                      className={`p-2 rounded-md cursor-pointer transition-colors ${
+                        isLegacy
+                          ? "bg-gray-50 border-l-2 border-gray-400 hover:bg-gray-100"
+                          : "bg-gray-50 hover:bg-gray-100"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-1">
+                            <p className="text-xs font-medium text-gray-900 truncate">
+                              {order.users.name}
+                            </p>
+                            {isLegacy && (
+                              <span 
+                                className="text-xs text-gray-500 bg-gray-200 px-1 rounded" 
+                                title="레거시 주문"
+                              >
+                                L
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500 truncate">
+                            {order.order_requirements.slice(0, 30)}...
+                          </p>
+                        </div>
+                        <div className="ml-2 flex items-center">
+                          {getStatusIconHelper(order.status)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -1392,42 +1445,53 @@ function DeadlineCalendarView({
                   긴급 작업이 없습니다
                 </p>
               ) : (
-                urgentOrders.map((order, index) => (
-                  <div
-                    key={order.id}
-                    onClick={() => onOrderClick(order)}
-                    className={`p-3 rounded-md cursor-pointer transition-colors border-l-4 ${
-                      new Date(order.deadline!) < new Date()
-                        ? "bg-red-50 border-red-500 hover:bg-red-100"
-                        : "bg-yellow-50 border-yellow-500 hover:bg-yellow-100"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-bold text-gray-900">
-                            #{index + 1}
-                          </span>
-                          <span className="text-xs font-medium text-gray-900 truncate">
-                            {order.users.name}
-                          </span>
+                urgentOrders.map((order, index) => {
+                  const isLegacy = order.files === null;
+                  return (
+                    <div
+                      key={order.id}
+                      onClick={() => onOrderClick(order)}
+                      className={`p-3 rounded-md cursor-pointer transition-colors border-l-4 ${
+                        new Date(order.deadline!) < new Date()
+                          ? "bg-red-50 border-red-500 hover:bg-red-100"
+                          : "bg-yellow-50 border-yellow-500 hover:bg-yellow-100"
+                      } ${isLegacy ? "relative" : ""}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-gray-900">
+                              #{index + 1}
+                            </span>
+                            <span className="text-xs font-medium text-gray-900 truncate">
+                              {order.users.name}
+                            </span>
+                            {isLegacy && (
+                              <span 
+                                className="text-xs text-gray-500 bg-gray-200 px-1 rounded" 
+                                title="레거시 주문"
+                              >
+                                L
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-600 mt-1">
+                            마감:{" "}
+                            {new Date(order.deadline!).toLocaleDateString(
+                              "ko-KR"
+                            )}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {order.order_requirements.slice(0, 25)}...
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">
-                          마감:{" "}
-                          {new Date(order.deadline!).toLocaleDateString(
-                            "ko-KR"
-                          )}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">
-                          {order.order_requirements.slice(0, 25)}...
-                        </p>
-                      </div>
-                      <div className="ml-2">
-                        {getStatusIconHelper(order.status)}
+                        <div className="ml-2">
+                          {getStatusIconHelper(order.status)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -1474,7 +1538,7 @@ function DeadlineCalendarView({
           {/* 캘린더 그리드 */}
           <div className="grid grid-cols-7 gap-1">
             {calendarDays.map((date) => {
-              const dateKey = date.toISOString().split("T")[0];
+              const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
               const dayOrders = ordersByDate[dateKey] || [];
               const isCurrentMonth = date.getMonth() === month;
               const isToday = date.toDateString() === new Date().toDateString();
@@ -1494,21 +1558,33 @@ function DeadlineCalendarView({
                     {date.getDate()}
                   </div>
                   <div className="mt-1 space-y-1">
-                    {dayOrders.slice(0, 3).map((order) => (
-                      <div
-                        key={order.id}
-                        onClick={() => onOrderClick(order)}
-                        className={`text-xs p-1 rounded cursor-pointer truncate ${
-                          new Date(order.deadline!) < new Date()
-                            ? "bg-red-100 text-red-800 hover:bg-red-200"
-                            : order.status === "completed"
-                            ? "bg-green-100 text-green-800 hover:bg-green-200"
-                            : "bg-blue-100 text-blue-800 hover:bg-blue-200"
-                        }`}
-                      >
-                        {order.users.name}
-                      </div>
-                    ))}
+                    {dayOrders.slice(0, 3).map((order) => {
+                      const isLegacy = order.files === null;
+                      return (
+                        <div
+                          key={order.id}
+                          onClick={() => onOrderClick(order)}
+                          className={`text-xs p-1 rounded cursor-pointer truncate relative ${
+                            new Date(order.deadline!) < new Date()
+                              ? "bg-red-100 text-red-800 hover:bg-red-200"
+                              : order.status === "completed"
+                              ? "bg-green-100 text-green-800 hover:bg-green-200"
+                              : isLegacy
+                              ? "bg-gray-100 text-gray-800 hover:bg-gray-200 border-l-2 border-gray-400"
+                              : "bg-blue-100 text-blue-800 hover:bg-blue-200"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="truncate">{order.users.name}</span>
+                            {isLegacy && (
+                              <span className="text-xs text-gray-500 ml-1" title="레거시 주문">
+                                L
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                     {dayOrders.length > 3 && (
                       <div className="text-xs text-gray-500 p-1">
                         +{dayOrders.length - 3}개 더

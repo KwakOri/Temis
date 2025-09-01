@@ -59,11 +59,16 @@ export async function GET(request: NextRequest) {
     const status = url.searchParams.get('status');
     const page = parseInt(url.searchParams.get('page') || '1');
     const limit = parseInt(url.searchParams.get('limit') || '20');
+    const sortBy = url.searchParams.get('sortBy') || 'created_at';
+    const sortOrder = url.searchParams.get('sortOrder') || 'desc';
     const offset = (page - 1) * limit;
     
 
-    // 쿼리 구성 - 간단한 LEFT JOIN 방식으로 수정
-    let query = supabase
+    // 정렬 설정
+    const ascending = sortOrder === 'asc';
+
+    // 현재 테이블 쿼리
+    let currentQuery = supabase
       .from('custom_timetable_orders')
       .select(`
         *,
@@ -78,40 +83,115 @@ export async function GET(request: NextRequest) {
           created_at
         )
       `)
-      .order('created_at', { ascending: false });
+      .order(sortBy, { ascending });
+
+    // 레거시 테이블 쿼리 (users 테이블과 관계 없음)
+    let legacyQuery = supabase
+      .from('legacy_custom_orders')
+      .select(`*`)
+      .order(sortBy, { ascending });
 
     // 상태 필터링
     if (status && status !== 'all') {
-      query = query.eq('status', status);
+      currentQuery = currentQuery.eq('status', status);
+      legacyQuery = legacyQuery.eq('status', status);
     }
 
-    // 페이지네이션
-    query = query.range(offset, offset + limit - 1);
+    // 두 테이블에서 데이터 가져오기
+    const [currentResult, legacyResult] = await Promise.all([
+      currentQuery,
+      legacyQuery
+    ]);
 
-    const { data: orders, error } = await query;
-
-    if (error) {
-      console.error('Database error:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
+    if (currentResult.error) {
+      console.error('Current orders database error:', currentResult.error);
       return NextResponse.json(
         { 
           error: '주문 내역 조회 중 오류가 발생했습니다.',
-          details: error.message || 'Unknown error'
+          details: currentResult.error.message || 'Unknown error'
         },
         { status: 500 }
       );
     }
 
+    if (legacyResult.error) {
+      console.error('Legacy orders database error:', legacyResult.error);
+      return NextResponse.json(
+        { 
+          error: '레거시 주문 내역 조회 중 오류가 발생했습니다.',
+          details: legacyResult.error.message || 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
+
+    // 레거시 주문에 files와 users 필드를 추가하여 형태 통일
+    const legacyOrders = (legacyResult.data || []).map(order => ({
+      ...order,
+      files: null,
+      users: {
+        id: null,
+        name: order.nickname || order.email,
+        email: order.email
+      },
+      // legacy 테이블에는 이 필드들이 없으므로 기본값 설정
+      order_requirements: '레거시 주문 (세부사항 없음)',
+      user_id: null
+    }));
+
+    // 두 결과를 합치고 정렬
+    const allOrders = [...(currentResult.data || []), ...legacyOrders]
+      .sort((a, b) => {
+        if (sortBy === 'deadline') {
+          const deadlineA = a.deadline;
+          const deadlineB = b.deadline;
+          
+          // 마감일이 없는 경우 정렬에서 뒤로
+          if (!deadlineA && !deadlineB) return 0;
+          if (!deadlineA) return 1;
+          if (!deadlineB) return -1;
+          
+          if (ascending) {
+            return new Date(deadlineA).getTime() - new Date(deadlineB).getTime();
+          } else {
+            return new Date(deadlineB).getTime() - new Date(deadlineA).getTime();
+          }
+        } else {
+          // created_at으로 정렬
+          const createdA = a.created_at || '';
+          const createdB = b.created_at || '';
+          
+          if (ascending) {
+            return new Date(createdA).getTime() - new Date(createdB).getTime();
+          } else {
+            return new Date(createdB).getTime() - new Date(createdA).getTime();
+          }
+        }
+      });
+
+    // 페이지네이션 적용
+    const orders = allOrders.slice(offset, offset + limit);
+
     // 전체 개수 조회
-    let countQuery = supabase
+    let currentCountQuery = supabase
       .from('custom_timetable_orders')
+      .select('id', { count: 'exact', head: true });
+    
+    let legacyCountQuery = supabase
+      .from('legacy_custom_orders')
       .select('id', { count: 'exact', head: true });
 
     if (status && status !== 'all') {
-      countQuery = countQuery.eq('status', status);
+      currentCountQuery = currentCountQuery.eq('status', status);
+      legacyCountQuery = legacyCountQuery.eq('status', status);
     }
 
-    const { count } = await countQuery;
+    const [currentCountResult, legacyCountResult] = await Promise.all([
+      currentCountQuery,
+      legacyCountQuery
+    ]);
+
+    const totalCount = (currentCountResult.count || 0) + (legacyCountResult.count || 0);
 
     // 디버그 정보 추가
 
@@ -120,11 +200,13 @@ export async function GET(request: NextRequest) {
       pagination: {
         page,
         limit,
-        total: count || 0,
-        totalPages: Math.ceil((count || 0) / limit)
+        total: totalCount || 0,
+        totalPages: Math.ceil((totalCount || 0) / limit)
       },
       debug: {
         ordersCount: orders?.length || 0,
+        currentOrdersCount: currentResult.data?.length || 0,
+        legacyOrdersCount: legacyResult.data?.length || 0,
         hasFiles: orders?.[0]?.files ? true : false
       }
     });
