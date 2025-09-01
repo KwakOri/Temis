@@ -3,8 +3,10 @@ import {
   generateEmailVerificationTemplate, 
   generateWelcomeEmailTemplate, 
   generatePasswordResetTemplate,
+  generateTemplateAccessGrantedTemplate,
   type EmailTemplateData 
 } from "@/lib/email-templates";
+import { TemplateAccessGrantedData } from "@/lib/email-templates/template-access-granted";
 
 /**
  * 이메일 서비스 클래스
@@ -41,7 +43,7 @@ export class EmailService {
     to: string,
     subject: string,
     htmlContent: string,
-    type: "password_reset" | "signup_invite" | "welcome"
+    type: "password_reset" | "signup_invite" | "welcome" | "template_access_granted"
   ): Promise<boolean> {
     try {
       // 서버 사이드에서는 직접 NodemailerService 호출
@@ -162,5 +164,26 @@ export class EmailService {
     
     const htmlContent = generateWelcomeEmailTemplate(templateData);
     return this.sendEmail(email, subject, htmlContent, "welcome");
+  }
+
+  /**
+   * 템플릿 접근 권한 부여 알림 이메일 발송
+   */
+  static async sendTemplateAccessGrantedEmail(
+    email: string,
+    userName: string,
+    templateName: string
+  ): Promise<boolean> {
+    const baseUrl = this.getBaseUrl();
+    const subject = "[Temis] 결제 완료 안내 📋";
+    
+    const templateData: TemplateAccessGrantedData = {
+      userName,
+      templateName,
+      baseUrl
+    };
+    
+    const htmlContent = generateTemplateAccessGrantedTemplate(templateData);
+    return this.sendEmail(email, subject, htmlContent, "template_access_granted");
   }
 }

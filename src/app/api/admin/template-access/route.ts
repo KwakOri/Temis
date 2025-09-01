@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth/middleware";
 import { TemplateAccessService } from "@/lib/templates";
+import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -62,6 +63,56 @@ export async function POST(request: NextRequest) {
       access_level: accessLevel,
       granted_by: Number(user.userId),
     });
+
+    // 사용자 정보와 템플릿 정보를 가져와서 메일 발송
+    try {
+      // 사용자 정보 조회
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('name, email')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userData) {
+        console.error('사용자 정보 조회 실패:', userError);
+      } else {
+        // 템플릿 정보 조회
+        const { data: templateData, error: templateError } = await supabase
+          .from('templates')
+          .select('name')
+          .eq('id', templateId)
+          .single();
+
+        if (templateError || !templateData) {
+          console.error('템플릿 정보 조회 실패:', templateError);
+        } else {
+          // 메일 발송
+          try {
+            const response = await fetch("/api/email/template-access-granted", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              credentials: "include",
+              body: JSON.stringify({
+                email: userData.email,
+                userName: userData.name || '고객',
+                templateName: templateData.name
+              }),
+            });
+
+            if (!response.ok) {
+              console.error('권한 부여 알림 메일 발송 실패');
+            }
+          } catch (emailError) {
+            console.error('메일 발송 요청 실패:', emailError);
+          }
+        }
+      }
+    } catch (emailError) {
+      console.error('메일 발송 중 오류:', emailError);
+      // 메일 발송 실패는 전체 작업을 중단하지 않음
+    }
 
     return NextResponse.json({
       success: true,
