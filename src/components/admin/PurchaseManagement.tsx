@@ -106,6 +106,51 @@ export default function PurchaseManagement() {
         return;
       }
 
+      // 4. 메일 발송
+      try {
+        // 사용자 정보 조회 (권한 부여된 사용자)
+        const { data: userDetails, error: userDetailsError } = await supabase
+          .from("users")
+          .select("name, email")
+          .eq("id", userData.id)
+          .single();
+
+        // 템플릿 정보 조회
+        const { data: templateData, error: templateError } = await supabase
+          .from("templates")
+          .select("name")
+          .eq("id", templateId)
+          .single();
+
+        if (!userDetailsError && userDetails && !templateError && templateData) {
+          // API를 통해 메일 발송
+          const response = await fetch("/api/email/template-access-granted", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              email: userDetails.email,
+              userName: userDetails.name || '고객',
+              templateName: templateData.name
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('권한 부여 알림 메일 발송 실패');
+          }
+        } else {
+          console.error('메일 발송을 위한 정보 조회 실패:', {
+            userDetailsError,
+            templateError
+          });
+        }
+      } catch (emailError) {
+        console.error('메일 발송 중 오류:', emailError);
+        // 메일 발송 실패는 전체 프로세스를 중단하지 않음
+      }
+
       // 성공 시 목록 새로고침
       alert("결제가 확인되고 권한이 부여되었습니다.");
       fetchPurchaseRequests();
