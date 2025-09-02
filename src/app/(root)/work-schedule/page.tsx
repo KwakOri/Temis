@@ -26,7 +26,7 @@ interface WorkScheduleOrder {
 export default function WorkSchedulePage() {
   const [orders, setOrders] = useState<WorkScheduleOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"fast" | "normal">("fast");
+  const [activeTab, setActiveTab] = useState<"fast" | "normal">("normal");
 
   // 주문 목록 조회
   const fetchWorkSchedule = async () => {
