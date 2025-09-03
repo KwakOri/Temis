@@ -4,7 +4,6 @@ import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
-import { offlineToggle } from "@/utils/time-table/data";
 import React, { PropsWithChildren, useRef, useState } from "react";
 
 interface TimeTableFormProps {
@@ -17,6 +16,31 @@ interface TimeTableFormProps {
   cropHeight?: number;
 }
 
+interface ProfileOptionButtonProps {
+  handler: () => void;
+
+  isChecked: boolean;
+  label: string;
+}
+const ProfileOptionButton = ({
+  handler,
+  isChecked,
+  label,
+}: ProfileOptionButtonProps) => {
+  return (
+    <button
+      onClick={handler}
+      className={`px-3 py-1 rounded-md text-[10px] font-bold transition-colors ${
+        isChecked
+          ? "bg-[#3E4A82] text-white "
+          : " text-gray-500 hover:bg-gray-200"
+      }`}
+    >
+      {label}
+    </button>
+  );
+};
+
 const TimeTableForm = ({
   addons,
   children,
@@ -24,7 +48,7 @@ const TimeTableForm = ({
   cropWidth = 400,
   cropHeight = 400,
   isArtist = true,
-  isMemo = true,
+  isMemo = false,
   saveable = true,
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
@@ -43,8 +67,6 @@ const TimeTableForm = ({
     handleMemoTextChange,
     handleDateChange,
     updateImageSrc,
-    toggleProfileTextVisible,
-    toggleMemoTextVisible,
     turnOnProfileTextVisible,
     turnOffProfileTextVisible,
     turnOnMemoTextVisible,
@@ -109,80 +131,81 @@ const TimeTableForm = ({
     downloadImage(width, height);
   };
 
+  const ProfileOptionButtons = [
+    {
+      handler: () => {
+        turnOnProfileTextVisible();
+        turnOffMemoTextVisible();
+      },
+      isEnabled: isArtist,
+      isChecked: isProfileTextVisible,
+      label: "이름",
+    },
+    {
+      handler: () => {
+        turnOnMemoTextVisible();
+        turnOffProfileTextVisible();
+      },
+      isEnabled: isMemo,
+      isChecked: isMemoTextVisible,
+      label: "메모",
+    },
+    {
+      handler: () => {
+        turnOffProfileTextVisible();
+        turnOffMemoTextVisible();
+      },
+      isEnabled: true,
+      isChecked:
+        (!isArtist || !isProfileTextVisible) && (!isMemo || !isMemoTextVisible),
+      label: "없음",
+    },
+  ];
+
   const renderMainSettings = () => (
     <div className="space-y-6">
       {/* 프로필 섹션 */}
       <div className="space-y-2">
-        <h3 className="font-bold text-lg text-gray-800">이미지</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-lg text-gray-800">프로필</h3>
 
-        {/* 사용자 이름 표시 토글 버튼 */}
-        {isArtist && (
-          <>
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-700">
-                사용자 이름 표시
-              </label>
-              <button
-                onClick={toggleProfileTextVisible}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  isProfileTextVisible
-                    ? offlineToggle.activeColor
-                    : offlineToggle.inactiveColor
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isProfileTextVisible ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
+          {/* 텍스트 표시 옵션 선택 */}
 
-            <input
-              id="profile-text"
-              value={profileText}
-              onChange={handleProfileTextChange}
-              disabled={!isProfileTextVisible}
-              className={`w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                !isProfileTextVisible ? "bg-gray-100 text-gray-400" : ""
-              }`}
-              placeholder={"내용을 입력해 주세요"}
-            />
-          </>
+          {isArtist ||
+            (isMemo && (
+              <div className="flex space-x-2 bg-gray-200 rounded-md p-1">
+                {ProfileOptionButtons.map(
+                  (button) =>
+                    button.isEnabled && (
+                      <ProfileOptionButton
+                        key={button.label}
+                        handler={button.handler}
+                        isChecked={button.isChecked}
+                        label={button.label}
+                      />
+                    )
+                )}
+              </div>
+            ))}
+        </div>
+        {/* 텍스트 입력 필드 */}
+        {isArtist && isProfileTextVisible && (
+          <input
+            id="profile-text"
+            value={profileText}
+            onChange={handleProfileTextChange}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="이름을 입력해 주세요"
+          />
         )}
-        {isMemo && (
-          <>
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-gray-700">
-                메모 표시
-              </label>
-              <button
-                onClick={toggleMemoTextVisible}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  isMemoTextVisible
-                    ? offlineToggle.activeColor
-                    : offlineToggle.inactiveColor
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    isMemoTextVisible ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
-            </div>
-
-            <input
-              id="memo-text"
-              value={memoText}
-              onChange={handleMemoTextChange}
-              disabled={!isMemoTextVisible}
-              className={`w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-                !isMemoTextVisible ? "bg-gray-100 text-gray-400" : ""
-              }`}
-              placeholder={"내용을 입력해 주세요"}
-            />
-          </>
+        {isMemo && isMemoTextVisible && (
+          <input
+            id="memo-text"
+            value={memoText}
+            onChange={handleMemoTextChange}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="메모를 입력해 주세요"
+          />
         )}
         <div className="flex gap-2">
           <button
