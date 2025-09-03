@@ -7,6 +7,7 @@ export interface TimeTableState {
   // 데이터 상태
 
   profileText: string;
+  memoText: string;
   imageSrc: string | null;
   mondayDateStr: string;
   weekDates: Date[];
@@ -15,6 +16,7 @@ export interface TimeTableState {
   scale: number;
   isMobile: boolean;
   isProfileTextVisible: boolean;
+  isMemoTextVisible: boolean;
 
   // 템플릿 설정
   captureSize: { width: number; height: number } | undefined;
@@ -24,6 +26,7 @@ export interface TimeTableActions {
   // 데이터 액션
 
   updateProfileText: (text: string) => void;
+  updateMemoText: (text: string) => void;
   updateImageSrc: (src: string | null) => void;
   updateMondayDate: (dateStr: string) => void;
 
@@ -35,9 +38,16 @@ export interface TimeTableActions {
   // 복합 액션
   handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleProfileTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleMemoTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 
   handleDateChange: (dateStr: string) => void;
   toggleProfileTextVisible: () => void;
+  turnOnProfileTextVisible: () => void;
+  turnOffProfileTextVisible: () => void;
+  toggleMemoTextVisible: () => void;
+  turnOnMemoTextVisible: () => void;
+  turnOffMemoTextVisible: () => void;
+
   downloadImage: (targetWidth: number, targetHeight: number) => Promise<void>;
 }
 
@@ -83,6 +93,7 @@ export const useTimeTableData = () => {
   const { state, actions } = useTimeTable();
   return {
     profileText: state.profileText,
+    memoText: state.memoText,
     imageSrc: state.imageSrc,
     isProfileTextVisible: state.isProfileTextVisible,
 
@@ -99,6 +110,12 @@ export const useTimeTableData = () => {
 
     handleDateChange: actions.handleDateChange,
     toggleProfileTextVisible: actions.toggleProfileTextVisible,
+    turnOnProfileTextVisible: actions.turnOnProfileTextVisible,
+    turnOffProfileTextVisible: actions.turnOffProfileTextVisible,
+
+    toggleMemoTextVisible: actions.toggleMemoTextVisible,
+    turnOnMemoTextVisible: actions.turnOnMemoTextVisible,
+    turnOffMemoTextVisible: actions.turnOffMemoTextVisible,
   };
 };
 
@@ -112,6 +129,7 @@ export const useTimeTableUI = () => {
     updateIsMobile: actions.updateIsMobile,
     updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
     toggleProfileTextVisible: actions.toggleProfileTextVisible,
+    toggleMemoTextVisible: actions.toggleMemoTextVisible,
   };
 };
 

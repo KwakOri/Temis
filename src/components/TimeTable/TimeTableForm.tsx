@@ -9,6 +9,7 @@ import React, { PropsWithChildren, useRef, useState } from "react";
 
 interface TimeTableFormProps {
   isArtist?: boolean;
+  isMemo?: boolean;
   saveable?: boolean;
   addons?: React.ReactNode;
   onReset: () => void;
@@ -23,22 +24,31 @@ const TimeTableForm = ({
   cropWidth = 400,
   cropHeight = 400,
   isArtist = true,
+  isMemo = true,
   saveable = true,
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
 
   const {
     profileText,
+    memoText,
     mondayDateStr,
     imageSrc,
     isProfileTextVisible,
+    isMemoTextVisible,
     captureSize,
   } = state;
   const {
     handleProfileTextChange,
+    handleMemoTextChange,
     handleDateChange,
     updateImageSrc,
     toggleProfileTextVisible,
+    toggleMemoTextVisible,
+    turnOnProfileTextVisible,
+    turnOffProfileTextVisible,
+    turnOnMemoTextVisible,
+    turnOffMemoTextVisible,
     downloadImage,
   } = actions;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -135,6 +145,40 @@ const TimeTableForm = ({
               disabled={!isProfileTextVisible}
               className={`w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                 !isProfileTextVisible ? "bg-gray-100 text-gray-400" : ""
+              }`}
+              placeholder={"내용을 입력해 주세요"}
+            />
+          </>
+        )}
+        {isMemo && (
+          <>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-gray-700">
+                메모 표시
+              </label>
+              <button
+                onClick={toggleMemoTextVisible}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  isMemoTextVisible
+                    ? offlineToggle.activeColor
+                    : offlineToggle.inactiveColor
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    isMemoTextVisible ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <input
+              id="memo-text"
+              value={memoText}
+              onChange={handleMemoTextChange}
+              disabled={!isMemoTextVisible}
+              className={`w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                !isMemoTextVisible ? "bg-gray-100 text-gray-400" : ""
               }`}
               placeholder={"내용을 입력해 주세요"}
             />

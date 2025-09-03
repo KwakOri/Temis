@@ -1,8 +1,8 @@
 "use client";
 
+import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
-import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
 
 // 기본 월요일 날짜 계산 함수
 const getDefaultMondayString = (): string => {
@@ -32,19 +32,19 @@ const getInitialScale = (templateWidth?: number, templateHeight?: number) => {
   }
 
   const isMobile = window.innerWidth < 768;
-  
+
   // 템플릿 크기가 없으면 기본 배율 사용
   if (!templateWidth || !templateHeight) {
     return isMobile ? 0.3 : 0.5;
   }
 
   // 프리뷰 영역의 가용 크기 계산
-  const availableWidth = isMobile 
-    ? window.innerWidth - 32  // 모바일: 좌우 패딩 고려
-    : (window.innerWidth * 0.75) - 64; // 데스크탑: 75% 영역에서 패딩 고려
-  
-  const availableHeight = isMobile 
-    ? window.innerHeight * 0.3 - 32  // 모바일: 30vh에서 패딩 고려
+  const availableWidth = isMobile
+    ? window.innerWidth - 32 // 모바일: 좌우 패딩 고려
+    : window.innerWidth * 0.75 - 64; // 데스크탑: 75% 영역에서 패딩 고려
+
+  const availableHeight = isMobile
+    ? window.innerHeight * 0.3 - 32 // 모바일: 30vh에서 패딩 고려
     : window.innerHeight - 120; // 데스크탑: 전체 높이에서 헤더/패딩 고려
 
   // 가로/세로 비율 중 더 제한적인 것 기준으로 배율 계산
@@ -54,14 +54,23 @@ const getInitialScale = (templateWidth?: number, templateHeight?: number) => {
 
   // 최소 0.1, 최대 1.0으로 제한
   const clampedScale = Math.max(0.1, Math.min(calculatedScale, 1.0));
-  
+
   return clampedScale;
 };
 
-export const useTimeTableState = (captureSize?: { width: number; height: number }) => {
+export const useTimeTableState = (captureSize?: {
+  width: number;
+  height: number;
+}) => {
   const [profileText, setProfileText] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return pageAwareStorage.getItem("profileText", "");
+    }
+    return "";
+  });
+  const [memoText, setMemoText] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return pageAwareStorage.getItem("memoText", "");
     }
     return "";
   });
@@ -71,9 +80,17 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
     }
     return null;
   });
-  const [isProfileTextVisible, setIsProfileTextVisible] = useState<boolean>(() => {
+  const [isProfileTextVisible, setIsProfileTextVisible] = useState<boolean>(
+    () => {
+      if (typeof window !== "undefined") {
+        return pageAwareStorage.getItem("isProfileTextVisible", true);
+      }
+      return true;
+    }
+  );
+  const [isMemoTextVisible, setIsMemoTextVisible] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      return pageAwareStorage.getItem("isProfileTextVisible", true);
+      return pageAwareStorage.getItem("isMemoTextVisible", true);
     }
     return true;
   });
@@ -84,7 +101,7 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
   const [weekDates, setWeekDates] = useState<Date[]>([]);
 
   // UI 상태
-  const [scale, setScale] = useState(() => 
+  const [scale, setScale] = useState(() =>
     getInitialScale(captureSize?.width, captureSize?.height)
   );
   const [isMobile, setIsMobile] = useState(
@@ -106,6 +123,12 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      pageAwareStorage.setItem("memoText", memoText);
+    }
+  }, [memoText]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
       if (imageSrc) {
         pageAwareStorage.setItem("imageSrc", imageSrc);
       } else {
@@ -119,6 +142,12 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
       pageAwareStorage.setItem("isProfileTextVisible", isProfileTextVisible);
     }
   }, [isProfileTextVisible]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      pageAwareStorage.setItem("isMemoTextVisible", isMemoTextVisible);
+    }
+  }, [isMemoTextVisible]);
 
   // localStorage에서 데이터 로드
   useEffect(() => {
@@ -144,12 +173,18 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
       setIsMobile(isCurrentlyMobile);
 
       // 창 크기에 맞춰 최적 배율 재계산
-      const newOptimalScale = getInitialScale(captureSize?.width, captureSize?.height);
-      
+      const newOptimalScale = getInitialScale(
+        captureSize?.width,
+        captureSize?.height
+      );
+
       // 현재 배율이 기본값들 중 하나인 경우에만 자동 조정
       // (사용자가 수동으로 조정한 배율은 유지)
       const defaultScales = [0.3, 0.5, 1.0];
-      if (defaultScales.some(s => Math.abs(scale - s) < 0.05) || scale > 1.0) {
+      if (
+        defaultScales.some((s) => Math.abs(scale - s) < 0.05) ||
+        scale > 1.0
+      ) {
         setScale(Math.min(newOptimalScale, isCurrentlyMobile ? 1.0 : 2.0));
       }
     };
@@ -162,11 +197,15 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
   const actions = {
     // 기본 업데이트 함수들
     updateProfileText: (text: string) => setProfileText(text),
+    updateMemoText: (text: string) => setMemoText(text),
     updateImageSrc: (src: string | null) => setImageSrc(src),
     updateMondayDate: (dateStr: string) => setMondayDateStr(dateStr),
     updateScale: (newScale: number) => setScale(newScale),
     updateIsMobile: (mobile: boolean) => setIsMobile(mobile),
-    updateIsProfileTextVisible: (visible: boolean) => setIsProfileTextVisible(visible),
+    updateIsProfileTextVisible: (visible: boolean) =>
+      setIsProfileTextVisible(visible),
+    updateIsMemoTextVisible: (visible: boolean) =>
+      setIsMemoTextVisible(visible),
 
     // 복합 액션 함수들
     handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -184,13 +223,33 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
       const newText = e.target.value;
       setProfileText(newText);
     },
+    handleMemoTextChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newText = e.target.value;
+      setMemoText(newText);
+    },
 
     handleDateChange: (dateStr: string) => {
       setMondayDateStr(dateStr);
     },
 
     toggleProfileTextVisible: () => {
-      setIsProfileTextVisible(prev => !prev);
+      setIsProfileTextVisible((prev) => !prev);
+    },
+    turnOnProfileTextVisible: () => {
+      setIsProfileTextVisible(true);
+    },
+    turnOffProfileTextVisible: () => {
+      setIsProfileTextVisible(false);
+    },
+
+    toggleMemoTextVisible: () => {
+      setIsMemoTextVisible((prev) => !prev);
+    },
+    turnOnMemoTextVisible: () => {
+      setIsMemoTextVisible(true);
+    },
+    turnOffMemoTextVisible: () => {
+      setIsMemoTextVisible(false);
     },
 
     downloadImage: async (targetWidth: number, targetHeight: number) => {
@@ -216,22 +275,22 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
         const originalTransform = node.style.transform;
         const originalWidth = node.style.width;
         const originalHeight = node.style.height;
-        
+
         // 캡처를 위해 원본 크기로 설정 (스케일 제거)
-        node.style.transform = 'scale(1)';
+        node.style.transform = "scale(1)";
         node.style.width = `${templateWidth}px`;
         node.style.height = `${templateHeight}px`;
-        node.style.transformOrigin = 'top left';
+        node.style.transformOrigin = "top left";
 
         // 폰트와 이미지 로딩 대기
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         // 원본 사이즈로 캡처
         const originalDataUrl = await domToPng(node, {
           width: templateWidth,
           height: templateHeight,
           quality: 1,
-          backgroundColor: 'transparent',
+          backgroundColor: "transparent",
         });
 
         // 원래 스타일 복원
@@ -250,47 +309,50 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
           // 리사이징이 필요한 경우
           const img = new Image();
           img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+
             if (!ctx) return;
 
             canvas.width = targetWidth;
             canvas.height = targetHeight;
-            
+
             // 고품질 리샘플링 설정
             ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            
+            ctx.imageSmoothingQuality = "high";
+
             // 타겟 크기로 리사이징된 이미지 그리기
             ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-            
+
             // 리사이징된 이미지를 다운로드
-            canvas.toBlob((blob) => {
-              if (!blob) return;
-              
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement("a");
-              link.download = fileName;
-              link.href = url;
-              link.click();
-              
-              // 메모리 정리
-              URL.revokeObjectURL(url);
-            }, 'image/png', 1);
+            canvas.toBlob(
+              (blob) => {
+                if (!blob) return;
+
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.download = fileName;
+                link.href = url;
+                link.click();
+
+                // 메모리 정리
+                URL.revokeObjectURL(url);
+              },
+              "image/png",
+              1
+            );
           };
-          
+
           img.src = originalDataUrl;
         }
-
       } catch (err) {
         console.error("이미지 생성 실패:", err);
         // 에러 발생 시 원래 스타일 복원
         const node = document.getElementById("timetable");
         if (node) {
           node.style.transform = `scale(${scale})`;
-          node.style.width = '';
-          node.style.height = '';
+          node.style.width = "";
+          node.style.height = "";
         }
       }
     },
@@ -299,12 +361,14 @@ export const useTimeTableState = (captureSize?: { width: number; height: number 
   // 상태와 액션 반환
   const state = {
     profileText,
+    memoText,
     imageSrc,
     mondayDateStr,
     weekDates,
     scale,
     isMobile,
     isProfileTextVisible,
+    isMemoTextVisible,
     captureSize,
   };
 
