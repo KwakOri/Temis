@@ -60,6 +60,7 @@ const TimeTableEditorContent: React.FC = () => {
           cropHeight={profileImageHeight}
         >
           <TimeTableInputList
+            isOfflineMemo
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}
             data={data}

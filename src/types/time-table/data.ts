@@ -27,6 +27,7 @@ export interface CardInputConfig {
 // CARD_INPUT_CONFIG 기반 동적 카드 타입 정의
 export interface TDynamicCard {
   isOffline: boolean;
+  offlineMemo?: string;
   [key: string]:
     | string
     | number
