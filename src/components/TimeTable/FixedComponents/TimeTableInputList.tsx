@@ -58,6 +58,7 @@ export interface TimeTableInputListProps {
   weekdayOption: TLanOpt;
   cardInputConfig: CardInputConfig;
   placeholders: TPlaceholders;
+  isOfflineMemo?: boolean;
 }
 
 const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
@@ -75,6 +76,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   },
   cardInputConfig,
   placeholders,
+  isOfflineMemo = false,
 }) => {
   const defaultFieldRenderers = {
     time: ({ day, index, onChange }: Parameters<FieldRenderer>[0]) => {
@@ -360,6 +362,22 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
               })}
             </div>
           </div>
+
+          {/* 오프라인 메모 필드 */}
+          {isOfflineMemo && day.isOffline && (
+            <div className="pt-2">
+              <textarea
+                value={day.offlineMemo || ""}
+                onChange={(e) =>
+                  handleFieldChange(index, "offlineMemo", e.target.value)
+                }
+                placeholder="휴방 메모를 입력하세요..."
+                className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                rows={3}
+                maxLength={200}
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>

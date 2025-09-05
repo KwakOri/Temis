@@ -187,7 +187,6 @@ const TimeTableForm = ({
           onDateChange={handleDateChange}
         />
 
-        {/* settings.ts에서 구성된 시간표 입력 컴포넌트 */}
         {children}
       </div>
     </div>
