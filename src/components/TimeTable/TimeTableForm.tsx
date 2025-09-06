@@ -171,22 +171,21 @@ const TimeTableForm = ({
 
           {/* 텍스트 표시 옵션 선택 */}
 
-          {isArtist ||
-            (isMemo && (
-              <div className="flex space-x-2 bg-gray-200 rounded-md p-1">
-                {ProfileOptionButtons.map(
-                  (button) =>
-                    button.isEnabled && (
-                      <ProfileOptionButton
-                        key={button.label}
-                        handler={button.handler}
-                        isChecked={button.isChecked}
-                        label={button.label}
-                      />
-                    )
-                )}
-              </div>
-            ))}
+          {(isMemo || isArtist) && (
+            <div className="flex space-x-2 bg-gray-200 rounded-md p-1">
+              {ProfileOptionButtons.map(
+                (button) =>
+                  button.isEnabled && (
+                    <ProfileOptionButton
+                      key={button.label}
+                      handler={button.handler}
+                      isChecked={button.isChecked}
+                      label={button.label}
+                    />
+                  )
+              )}
+            </div>
+          )}
         </div>
         {/* 텍스트 입력 필드 */}
         {isArtist && isProfileTextVisible && (
