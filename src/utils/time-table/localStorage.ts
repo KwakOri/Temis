@@ -171,24 +171,82 @@ export const timeTableStorage = {
         card !== null &&
         typeof card.day === "number" &&
         card.day === index &&
-        typeof card.isOffline === "boolean"
+        typeof card.isOffline === "boolean" &&
+        Array.isArray(card.entries) && // entries 배열 검증
+        card.entries.length > 0 && // 최소 하나의 엔트리 보장
+        card.entries.every(entry => typeof entry === "object" && entry !== null)
         // 동적 필드는 CardInputConfig에 따라 달라지므로 기본 검증만 수행
       );
     });
   },
 
   /**
-   * 안전한 데이터 로드 (검증 포함)
+   * 레거시 데이터를 새로운 구조로 마이그레이션하는 함수
    */
-  loadDataSafely: (defaultData: TDefaultCard[]): TDefaultCard[] => {
+  migrateLegacyData: (legacyData: any[], cardInputConfig: CardInputConfig): TDefaultCard[] => {
+    if (!Array.isArray(legacyData) || legacyData.length !== 7) {
+      return [];
+    }
+
+    return legacyData.map((legacyCard, index) => {
+      if (!legacyCard || typeof legacyCard !== 'object') {
+        return {
+          day: index,
+          isOffline: false,
+          entries: [{
+            time: "09:00",
+            ...cardInputConfig.fields.reduce((acc, field) => {
+              acc[field.key] = field.defaultValue || (field.type === 'number' ? 0 : '');
+              return acc;
+            }, {} as any)
+          }]
+        } as TDefaultCard;
+      }
+
+      // 새로운 구조인지 확인 (entries 배열이 있는지)
+      if (legacyCard.entries && Array.isArray(legacyCard.entries)) {
+        return legacyCard as TDefaultCard;
+      }
+
+      // 레거시 구조에서 새 구조로 변환
+      const { day, isOffline, offlineMemo, ...legacyFields } = legacyCard;
+      const newCard: TDefaultCard = {
+        day: typeof day === 'number' ? day : index,
+        isOffline: typeof isOffline === 'boolean' ? isOffline : false,
+        entries: [legacyFields] // 기존 필드들을 첫 번째 엔트리로 이동
+      };
+
+      if (offlineMemo) {
+        newCard.offlineMemo = offlineMemo;
+      }
+
+      return newCard;
+    });
+  },
+
+  /**
+   * 안전한 데이터 로드 (검증 및 마이그레이션 포함)
+   */
+  loadDataSafely: (defaultData: TDefaultCard[], cardInputConfig: CardInputConfig): TDefaultCard[] => {
     const data = timeTableStorage.loadData(defaultData);
 
     if (timeTableStorage.validateData(data)) {
       return data;
-    } else {
-      console.warn("Loaded data is invalid, using default data");
-      return defaultData;
     }
+
+    // 데이터가 유효하지 않은 경우, 레거시 데이터 마이그레이션 시도
+    console.warn("Attempting to migrate legacy data structure");
+    const migratedData = timeTableStorage.migrateLegacyData(data, cardInputConfig);
+
+    if (migratedData.length > 0 && timeTableStorage.validateData(migratedData)) {
+      // 마이그레이션된 데이터를 저장
+      timeTableStorage.saveData(migratedData);
+      console.info("Successfully migrated legacy data to new structure");
+      return migratedData;
+    }
+
+    console.warn("Migration failed, using default data");
+    return defaultData;
   },
 };
 

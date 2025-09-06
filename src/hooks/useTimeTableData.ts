@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { CardInputConfig } from "@/types/time-table/data";
-import { TDefaultCard, getDefaultCards, createInitialCardFromConfig, week } from "@/utils/time-table/data";
+import { TDefaultCard, getDefaultCards, createInitialCardFromConfig, createInitialEntryFromConfig, week } from "@/utils/time-table/data";
 
 /**
  * 타임테이블 데이터 상태 관리 훅
@@ -31,7 +31,7 @@ export const useTimeTableData = ({ cardInputConfig }: { cardInputConfig: CardInp
     []
   );
 
-  // 특정 필드 업데이트 함수
+  // 특정 필드 업데이트 함수 (오프라인 메모 등)
   const updateCardField = useCallback(
     (
       dayIndex: number,
@@ -46,6 +46,71 @@ export const useTimeTableData = ({ cardInputConfig }: { cardInputConfig: CardInp
       updateCard(dayIndex, { [fieldKey]: value } as Partial<TDefaultCard>);
     },
     [updateCard]
+  );
+
+  // 엔트리 필드 업데이트 함수
+  const updateEntryField = useCallback(
+    (
+      dayIndex: number,
+      entryIndex: number,
+      fieldKey: string,
+      value:
+        | string
+        | number
+        | boolean
+        | Array<{ text: string; checked: boolean }>
+        | undefined
+    ) => {
+      setData((prevData) => {
+        const newData = [...prevData];
+        if (dayIndex >= 0 && dayIndex < newData.length) {
+          const newEntries = [...newData[dayIndex].entries];
+          if (entryIndex >= 0 && entryIndex < newEntries.length) {
+            newEntries[entryIndex] = { ...newEntries[entryIndex], [fieldKey]: value };
+            newData[dayIndex] = { ...newData[dayIndex], entries: newEntries };
+          }
+        }
+        return newData;
+      });
+    },
+    []
+  );
+
+  // 엔트리 추가 함수
+  const addEntry = useCallback(
+    (dayIndex: number) => {
+      setData((prevData) => {
+        const newData = [...prevData];
+        if (dayIndex >= 0 && dayIndex < newData.length) {
+          const newEntry = createInitialEntryFromConfig({ cardInputConfig });
+          newData[dayIndex] = {
+            ...newData[dayIndex],
+            entries: [...newData[dayIndex].entries, newEntry],
+          };
+        }
+        return newData;
+      });
+    },
+    [cardInputConfig]
+  );
+
+  // 엔트리 제거 함수
+  const removeEntry = useCallback(
+    (dayIndex: number, entryIndex: number) => {
+      setData((prevData) => {
+        const newData = [...prevData];
+        if (dayIndex >= 0 && dayIndex < newData.length) {
+          const newEntries = newData[dayIndex].entries.filter((_, index) => index !== entryIndex);
+          // 최소 하나의 엔트리는 유지
+          if (newEntries.length === 0) {
+            newEntries.push(createInitialEntryFromConfig({ cardInputConfig }));
+          }
+          newData[dayIndex] = { ...newData[dayIndex], entries: newEntries };
+        }
+        return newData;
+      });
+    },
+    [cardInputConfig]
   );
 
   // 오프라인 토글 함수
@@ -100,7 +165,12 @@ export const useTimeTableData = ({ cardInputConfig }: { cardInputConfig: CardInp
     updateData,
     updateCard,
     updateCardField,
+    updateEntryField,
     toggleOffline,
+
+    // 엔트리 관리 함수들
+    addEntry,
+    removeEntry,
 
     // 리셋 함수들
     resetData,

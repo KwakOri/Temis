@@ -3,7 +3,7 @@
  * Supports both 12-hour (half) and 24-hour (full) time formats
  */
 
-export type TimeFormat = 'half' | 'full';
+export type TimeFormat = "half" | "full";
 
 /**
  * Formats time string according to specified format
@@ -12,13 +12,20 @@ export type TimeFormat = 'half' | 'full';
  * @param padZero - Whether to pad single digit hours with leading zero (default: true)
  * @returns Formatted time string
  */
-export function formatTime(time: string, format: TimeFormat = 'half', padZero: boolean = true): string {
-  const [hourStr, minute] = time.split(':');
+export function formatTime(
+  time: string,
+  format: TimeFormat = "half",
+  padZero: boolean = true
+): string {
+  console.log("time => ", time);
+  const [hourStr, minute] = time.split(":");
   const hour = Number(hourStr);
 
-  if (format === 'full') {
+  if (format === "full") {
     // 24-hour format: pad with zero if needed based on option
-    const formattedHour = padZero ? hour.toString().padStart(2, '0') : hour.toString();
+    const formattedHour = padZero
+      ? hour.toString().padStart(2, "0")
+      : hour.toString();
     return `${formattedHour}:${minute}`;
   }
 
@@ -34,8 +41,10 @@ export function formatTime(time: string, format: TimeFormat = 'half', padZero: b
   }
   // 12:00 (noon) stays as PM 12:00
 
-  const amPm = isAfternoon ? 'PM' : 'AM';
-  const formattedHour = padZero ? displayHour.toString().padStart(2, '0') : displayHour.toString();
+  const amPm = isAfternoon ? "PM" : "AM";
+  const formattedHour = padZero
+    ? displayHour.toString().padStart(2, "0")
+    : displayHour.toString();
 
   return `${amPm} ${formattedHour}:${minute}`;
 }
@@ -47,8 +56,11 @@ export function formatTime(time: string, format: TimeFormat = 'half', padZero: b
  * @returns Formatted time string with AM/PM
  * @deprecated Use formatTime(time, 'half', padZero) instead
  */
-export function getFormattedStreamingTime(time: string, padZero: boolean = true): string {
-  return formatTime(time, 'half', padZero);
+export function getFormattedStreamingTime(
+  time: string,
+  padZero: boolean = true
+): string {
+  return formatTime(time, "half", padZero);
 }
 
 /**
@@ -57,6 +69,9 @@ export function getFormattedStreamingTime(time: string, padZero: boolean = true)
  * @param padZero - Whether to pad single digit hours with leading zero (default: true)
  * @returns Formatted time string in 24-hour format
  */
-export function getFormatted24HourTime(time: string, padZero: boolean = true): string {
-  return formatTime(time, 'full', padZero);
+export function getFormatted24HourTime(
+  time: string,
+  padZero: boolean = true
+): string {
+  return formatTime(time, "full", padZero);
 }
