@@ -219,7 +219,7 @@ export const Settings = {
         fontColor: colors.first.tertiary,
       },
       description: {
-        fontSize: 56,
+        fontSize: 64,
         fontColor: colors.first.secondary,
       },
       title: {

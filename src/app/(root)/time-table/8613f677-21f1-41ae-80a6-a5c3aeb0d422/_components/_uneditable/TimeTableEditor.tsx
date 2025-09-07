@@ -58,11 +58,10 @@ const TimeTableEditorContent: React.FC = () => {
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
           cropWidth={profileImageWidth}
           cropHeight={profileImageHeight}
-          isMemo
         >
           <TimeTableInputList
             isMultiple
-            maxStreamingTimeByDay={3}
+            maxStreamingTimeByDay={2}
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}
             data={data}
