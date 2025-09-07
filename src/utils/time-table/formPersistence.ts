@@ -17,7 +17,7 @@ export const useFormPersistence = (
   defaultTheme: TTheme
 ) => {
   /**
-   * 컴포넌트 마운트 시 저장된 데이터 로드 (레거시 데이터 마이그레이션 포함)
+   * 컴포넌트 마운트 시 저장된 데이터 로드
    * CardInputConfig도 함께 반환하여 호환성 검증에 사용
    */
   const loadPersistedData = useCallback(() => {
@@ -28,12 +28,12 @@ export const useFormPersistence = (
       cardInputConfig: cardInputConfig,
     });
     
-    // 데이터 안전 로드 및 마이그레이션 적용
-    const migratedData = timeTableStorage.loadDataSafely(loadedData.data, cardInputConfig);
+    // 데이터 안전 로드 적용
+    const validatedData = timeTableStorage.loadDataSafely(loadedData.data);
     
     return {
       ...loadedData,
-      data: migratedData
+      data: validatedData
     };
   }, [cardInputConfig, defaultTheme]);
 
