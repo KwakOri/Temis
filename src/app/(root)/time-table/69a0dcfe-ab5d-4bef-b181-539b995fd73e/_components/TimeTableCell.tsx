@@ -36,6 +36,7 @@ interface CellTextTitleProps {
 }
 
 interface CellTextDescriptionProps {
+  isBig: boolean;
   description: string | null;
 }
 
@@ -107,10 +108,10 @@ const CellTextTitle = ({ currentTheme, title }: CellTextTitleProps) => {
   return (
     <div
       style={{
-        height: 120,
+        height: 160,
         width: "100%",
       }}
-      className="flex justify-start items-center shrink-0 mt-5"
+      className="flex justify-start items-center shrink-0"
     >
       <AutoResizeText
         style={{
@@ -126,14 +127,17 @@ const CellTextTitle = ({ currentTheme, title }: CellTextTitleProps) => {
   );
 };
 
-const CellTextDescription = ({ description }: CellTextDescriptionProps) => {
+const CellTextDescription = ({
+  isBig,
+  description,
+}: CellTextDescriptionProps) => {
   return (
     <div
       style={{
-        height: 100,
+        height: isBig ? 300 : 80,
         width: "100%",
       }}
-      className="flex justify-start items-center shrink-0 mt-1"
+      className="flex justify-start items-start shrink-0 mt-4"
     >
       <AutoResizeText
         style={{
@@ -142,7 +146,7 @@ const CellTextDescription = ({ description }: CellTextDescriptionProps) => {
         }}
         className="leading-none text-left w-full"
         maxFontSize={Settings.card.online.description.fontSize}
-        multiline
+        multiline={isBig ? true : false}
       >
         {description ? (description as string) : placeholders.description}
       </AutoResizeText>
@@ -224,12 +228,12 @@ const CellContentArea = ({
   return (
     <div
       style={{
-        width: 700,
+        width: 840,
         height: 280,
         top: isBig ? 72 : 64,
         left: 280,
       }}
-      className="w-full h-full flex flex-col items-center absolute"
+      className="w-full h-full flex flex-col items-center absolute pt-4"
     >
       {children}
     </div>
@@ -246,9 +250,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = primaryEntry.time as string || "09:00";
-  const entryDescription = primaryEntry.description as string || "";
-  const entryTopic = primaryEntry.topic as string || "";
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryDescription = (primaryEntry.description as string) || "";
+  const entryTopic = (primaryEntry.topic as string) || "";
 
   return (
     <div
@@ -293,7 +297,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           <StreamingTime isBig={isBig} time={entryTime} />
           <CellContentArea isBig={isBig}>
             <CellTextTitle title={entryTopic} />
-            <CellTextDescription description={entryDescription} />
+            <CellTextDescription isBig={isBig} description={entryDescription} />
           </CellContentArea>
           <OnlineCardBG day={time.day} isBig={isBig} />
         </>
