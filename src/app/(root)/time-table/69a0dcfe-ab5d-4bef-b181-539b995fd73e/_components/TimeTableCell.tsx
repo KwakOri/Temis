@@ -244,6 +244,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 }) => {
   if (!weekDate) return "Loading";
 
+  // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
+  const primaryEntry = time.entries?.[0] || {};
+  const entryTime = primaryEntry.time as string || "09:00";
+  const entryDescription = primaryEntry.description as string || "";
+  const entryTopic = primaryEntry.topic as string || "";
+
   return (
     <div
       style={{
@@ -284,10 +290,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       ) : (
         <>
           {" "}
-          <StreamingTime isBig={isBig} time={time.time as string} />
+          <StreamingTime isBig={isBig} time={entryTime} />
           <CellContentArea isBig={isBig}>
-            <CellTextTitle title={time.topic as string} />
-            <CellTextDescription description={time.description as string} />
+            <CellTextTitle title={entryTopic} />
+            <CellTextDescription description={entryDescription} />
           </CellContentArea>
           <OnlineCardBG day={time.day} isBig={isBig} />
         </>

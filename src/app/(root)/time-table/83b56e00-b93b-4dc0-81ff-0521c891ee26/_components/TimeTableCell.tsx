@@ -34,6 +34,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 }) => {
   if (!weekDate) return "Loading";
 
+  // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
+  const primaryEntry = time.entries?.[0] || {};
+  const entryTime = primaryEntry.time as string || "09:00";
+  const entryDescription = primaryEntry.description as string || "";
+  const entryTopic = primaryEntry.topic as string || "";
+
   if (time.isOffline) {
     return (
       <div
@@ -84,7 +90,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center h-[34px] text-[15px] pt-4 pb-2"
         >
-          {time.topic ? (time.topic as string) : placeholders.topic}
+          {entryTopic ? entryTopic : placeholders.topic}
         </p>
 
         <div
@@ -103,9 +109,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             maxFontSize={31}
             minFontSize={20}
           >
-            {time.description
-              ? (time.description as string)
-              : placeholders.description}
+            {entryDescription ? entryDescription : placeholders.description}
           </AutoResizeText>
         </div>
 
@@ -118,7 +122,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             maxFontSize={20}
             minFontSize={8}
           >
-            {getFormattedTime(time.time as string)}
+            {getFormattedTime(entryTime)}
           </AutoResizeText>
         </div>
       </div>
