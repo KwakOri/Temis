@@ -19,10 +19,10 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
     <div
       className="absolute grid grid-cols-3 z-20"
       style={{
-        top: 180,
-        left: 184,
-        columnGap: 20,
-        rowGap: 24,
+        top: 136,
+        left: 100,
+        columnGap: 32,
+        rowGap: 60,
       }}
     >
       {data.map((time, i) => (

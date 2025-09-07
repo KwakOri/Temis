@@ -60,6 +60,7 @@ const TimeTableEditorContent: React.FC = () => {
           cropHeight={profileImageHeight}
         >
           <TimeTableInputList
+            isOfflineMemo
             isMultiple
             maxStreamingTimeByDay={2}
             cardInputConfig={CARD_INPUT_CONFIG}

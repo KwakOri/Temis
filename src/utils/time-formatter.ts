@@ -17,7 +17,6 @@ export function formatTime(
   format: TimeFormat = "half",
   padZero: boolean = true
 ): string {
-  console.log("time => ", time);
   const [hourStr, minute] = time.split(":");
   const hour = Number(hourStr);
 
