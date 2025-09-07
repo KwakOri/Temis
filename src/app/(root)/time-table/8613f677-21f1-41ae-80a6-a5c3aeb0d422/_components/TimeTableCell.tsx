@@ -1,6 +1,7 @@
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { TDefaultCard, weekdays } from "@/utils/time-table/data";
@@ -34,7 +35,7 @@ interface CellTextDescriptionProps {
 }
 
 interface CellTextTopicProps {
-  cellTextTitle: string | null;
+  text: string | null;
 }
 
 interface TimeTableCellProps {
@@ -130,7 +131,7 @@ const CellTextDescription = ({
   );
 };
 
-const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+const CellTextTitle = ({ text }: CellTextTopicProps) => {
   return (
     <p
       style={{
@@ -139,7 +140,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
       }}
       className=" flex justify-center items-center"
     >
-      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+      {text ? (text as string) : placeholders.topic}
     </p>
   );
 };
@@ -210,9 +211,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = primaryEntry.time as string || "09:00";
-  const entryDescription = primaryEntry.description as string || "";
-  const entryTopic = primaryEntry.topic as string || "";
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryDescription = (primaryEntry.description as string) || "";
+  const entryTopic = (primaryEntry.topic as string) || "";
 
   if (time.isOffline) {
     return <OfflineCard day={time.day} />;
@@ -229,7 +230,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     >
       <CellContentArea>
         <CellTextDescription description={entryDescription} />
-        <CellTextTitle cellTextTitle={entryTopic} />
+        <CellTextTitle text={entryTopic} />
 
         <StreamingDay day={time.day} />
         <StreamingTime time={entryTime} />
@@ -240,3 +241,23 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 };
 
 export default TimeTableCell;
+
+interface MultipleCardsProps {
+  entriesLength: number;
+  entries: TEntry[];
+}
+
+const MultipleCards = ({ entries, entriesLength }: MultipleCardsProps) => {
+  return (
+    <>
+      {entries.map((entry: TEntry) => {
+        return (
+          <div key={entry.day as string}>
+            <CellTextDescription description={entry.description as string} />
+            <CellTextTitle text={entry.topic as string} />
+          </div>
+        );
+      })}
+    </>
+  );
+};
