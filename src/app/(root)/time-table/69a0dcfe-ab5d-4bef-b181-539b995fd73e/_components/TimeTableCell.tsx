@@ -134,10 +134,12 @@ const CellTextDescription = ({
   return (
     <div
       style={{
-        height: isBig ? 300 : 80,
+        height: isBig ? 300 : 90,
         width: "100%",
       }}
-      className="flex justify-start items-start shrink-0 mt-4"
+      className={`flex justify-start shrink-0 ${
+        isBig ? "items-start" : "items-center"
+      } `}
     >
       <AutoResizeText
         style={{
