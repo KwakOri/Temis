@@ -1,14 +1,23 @@
-import { TDefaultCard } from "@/utils/time-table/data";
-import { TTheme } from "@/types/time-table/theme";
 import { CardInputConfig } from "@/types/time-table/data";
-import { createPageAwareStorage, getPageId } from "@/utils/pageAwareLocalStorage";
+import { TTheme } from "@/types/time-table/theme";
+import {
+  createPageAwareStorage,
+  getPageId,
+} from "@/utils/pageAwareLocalStorage";
+import { TDefaultCard } from "@/utils/time-table/data";
 
 // localStorage 키 상수 (페이지별로 고유하게 관리됨)
 export const STORAGE_KEYS = {
   TIMETABLE_DATA: "template-timetable-data",
   THEME: "template-timetable-theme",
   CONFIG: "template-timetable-config", // CardInputConfig 저장용
+  VERSION: "template-timetable-version", // 데이터 구조 버전
 } as const;
+
+// 현재 데이터 구조 버전 (환경변수에서 가져오기)
+const getCurrentVersion = (): string => {
+  return process.env.NEXT_PUBLIC_DATA_VERSION || "1.0.0";
+};
 
 // 브라우저 환경 체크
 const isClient = typeof window !== "undefined";
@@ -59,19 +68,54 @@ export const clearAllTimeTableStorage = (): boolean => {
   return storage.clearPageData();
 };
 
+/**
+ * 버전 확인 및 데이터 무효화 처리
+ */
+const checkVersionAndClearIfNeeded = (): boolean => {
+  const storage = getCurrentPageStorage();
+  if (!storage) return false;
+
+  const currentVersion = getCurrentVersion();
+  const storedVersion = storage.getItem(STORAGE_KEYS.VERSION, null);
+
+  // 버전이 다르거나 존재하지 않는 경우 데이터 초기화
+  if (storedVersion !== currentVersion) {
+    console.info(`Data version mismatch. Stored: ${storedVersion}, Current: ${currentVersion}. Clearing localStorage.`);
+    
+    // 모든 데이터 삭제
+    storage.removeItem(STORAGE_KEYS.TIMETABLE_DATA);
+    storage.removeItem(STORAGE_KEYS.THEME);
+    storage.removeItem(STORAGE_KEYS.CONFIG);
+    
+    // 새 버전 저장
+    storage.setItem(STORAGE_KEYS.VERSION, currentVersion);
+    
+    return true; // 데이터가 초기화됨을 의미
+  }
+
+  return false; // 버전이 일치함
+};
+
 // 타임테이블 특화 저장/로드 함수들
 export const timeTableStorage = {
   /**
    * 타임테이블 데이터 저장 (TDefaultCard[] 타입)
    */
   saveData: (data: TDefaultCard[]): boolean => {
-    return saveToStorage(STORAGE_KEYS.TIMETABLE_DATA, data);
+    const success = saveToStorage(STORAGE_KEYS.TIMETABLE_DATA, data);
+    // 데이터 저장 시 현재 버전도 함께 저장
+    if (success) {
+      saveToStorage(STORAGE_KEYS.VERSION, getCurrentVersion());
+    }
+    return success;
   },
 
   /**
    * 타임테이블 데이터 로드 (TDefaultCard[] 타입)
    */
   loadData: (defaultData: TDefaultCard[]): TDefaultCard[] => {
+    // 버전 확인 후 데이터 로드
+    checkVersionAndClearIfNeeded();
     return loadFromStorage(STORAGE_KEYS.TIMETABLE_DATA, defaultData);
   },
 
@@ -86,6 +130,8 @@ export const timeTableStorage = {
    * 테마 로드 (TTheme 타입)
    */
   loadTheme: (defaultTheme: TTheme): TTheme => {
+    // 버전 확인 후 테마 로드
+    checkVersionAndClearIfNeeded();
     return loadFromStorage(STORAGE_KEYS.THEME, defaultTheme);
   },
 
@@ -100,13 +146,19 @@ export const timeTableStorage = {
    * CardInputConfig 로드
    */
   loadConfig: (defaultConfig: CardInputConfig): CardInputConfig => {
+    // 버전 확인 후 설정 로드
+    checkVersionAndClearIfNeeded();
     return loadFromStorage(STORAGE_KEYS.CONFIG, defaultConfig);
   },
 
   /**
    * 모든 타임테이블 데이터 한번에 저장 (CardInputConfig 포함)
    */
-  saveAll: (payload: { data: TDefaultCard[]; theme: TTheme; cardInputConfig: CardInputConfig }): boolean => {
+  saveAll: (payload: {
+    data: TDefaultCard[];
+    theme: TTheme;
+    cardInputConfig: CardInputConfig;
+  }): boolean => {
     let success = true;
 
     success = success && timeTableStorage.saveData(payload.data);
@@ -119,7 +171,11 @@ export const timeTableStorage = {
   /**
    * 모든 타임테이블 데이터 한번에 로드 (CardInputConfig 포함)
    */
-  loadAll: (defaults: { data: TDefaultCard[]; theme: TTheme; cardInputConfig: CardInputConfig }) => {
+  loadAll: (defaults: {
+    data: TDefaultCard[];
+    theme: TTheme;
+    cardInputConfig: CardInputConfig;
+  }) => {
     return {
       data: timeTableStorage.loadData(defaults.data),
       theme: timeTableStorage.loadTheme(defaults.theme),
@@ -171,7 +227,12 @@ export const timeTableStorage = {
         card !== null &&
         typeof card.day === "number" &&
         card.day === index &&
-        typeof card.isOffline === "boolean"
+        typeof card.isOffline === "boolean" &&
+        Array.isArray(card.entries) && // entries 배열 검증
+        card.entries.length > 0 && // 최소 하나의 엔트리 보장
+        card.entries.every(
+          (entry) => typeof entry === "object" && entry !== null
+        )
         // 동적 필드는 CardInputConfig에 따라 달라지므로 기본 검증만 수행
       );
     });
@@ -185,10 +246,10 @@ export const timeTableStorage = {
 
     if (timeTableStorage.validateData(data)) {
       return data;
-    } else {
-      console.warn("Loaded data is invalid, using default data");
-      return defaultData;
     }
+
+    console.warn("Loaded data is invalid, using default data");
+    return defaultData;
   },
 };
 

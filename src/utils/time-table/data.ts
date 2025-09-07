@@ -1,6 +1,7 @@
 import {
   CardInputConfig,
   TDynamicCard,
+  TEntry,
   TPlaceholders,
 } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
@@ -108,37 +109,49 @@ export interface CreateInitialCardFromConfigProps {
   cardInputConfig: CardInputConfig;
 }
 
-export const createInitialCardFromConfig = ({
+// 개별 엔트리 생성 함수
+export const createInitialEntryFromConfig = ({
   cardInputConfig,
-}: CreateInitialCardFromConfigProps): TDynamicCard => {
-  // isOffline은 카드의 기본 속성이므로 항상 포함
-  const card: TDynamicCard = {
-    isOffline: false,
-  } as TDynamicCard;
+}: CreateInitialCardFromConfigProps): TEntry => {
+  const entry: TEntry = {};
 
   // CARD_INPUT_CONFIG의 모든 필드를 기반으로 기본값 설정
   cardInputConfig.fields.forEach((field) => {
     if (field.defaultValue !== undefined) {
-      card[field.key] = field.defaultValue;
+      entry[field.key] = field.defaultValue;
     } else {
       // 타입에 따른 기본값 설정
       switch (field.type) {
         case "text":
         case "textarea":
         case "select":
-          card[field.key] = "";
+          entry[field.key] = "";
           break;
         case "number":
-          card[field.key] = 0;
+          entry[field.key] = 0;
           break;
         case "time":
-          card[field.key] = "09:00";
+          entry[field.key] = "09:00";
           break;
         default:
-          card[field.key] = "";
+          entry[field.key] = "";
       }
     }
   });
+
+  return entry;
+};
+
+export const createInitialCardFromConfig = ({
+  cardInputConfig,
+}: CreateInitialCardFromConfigProps): TDynamicCard => {
+  // 기본 엔트리 하나를 가진 카드 생성
+  const initialEntry = createInitialEntryFromConfig({ cardInputConfig });
+  
+  const card: TDynamicCard = {
+    isOffline: false,
+    entries: [initialEntry],
+  };
 
   return card;
 };
