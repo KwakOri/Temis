@@ -24,16 +24,21 @@ export interface CardInputConfig {
   };
 }
 
-// CARD_INPUT_CONFIG 기반 동적 카드 타입 정의
-export interface TDynamicCard {
-  isOffline: boolean;
-  offlineMemo?: string;
+// 개별 엔트리 타입 정의
+export interface TEntry {
   [key: string]:
     | string
     | number
     | boolean
     | Array<{ text: string; checked: boolean }>
     | undefined;
+}
+
+// CARD_INPUT_CONFIG 기반 동적 카드 타입 정의 (다중 엔트리 지원)
+export interface TDynamicCard {
+  isOffline: boolean;
+  offlineMemo?: string;
+  entries: TEntry[];
 }
 
 export type TPlaceholders = Record<string, string> & { profileText: string };

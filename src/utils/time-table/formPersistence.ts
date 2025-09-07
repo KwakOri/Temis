@@ -28,7 +28,13 @@ export const useFormPersistence = (
       cardInputConfig: cardInputConfig,
     });
     
-    return loadedData;
+    // 데이터 안전 로드 적용
+    const validatedData = timeTableStorage.loadDataSafely(loadedData.data);
+    
+    return {
+      ...loadedData,
+      data: validatedData
+    };
   }, [cardInputConfig, defaultTheme]);
 
   /**

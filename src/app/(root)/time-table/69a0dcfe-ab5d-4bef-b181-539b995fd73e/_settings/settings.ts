@@ -102,7 +102,7 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     {
       key: "description",
       type: "textarea",
-      placeholder: "내용, 소제목 적는 곳\n내용, 소제목 적는 곳",
+      placeholder: "소제목 적는 곳",
       defaultValue: "",
       maxLength: 200,
     },
@@ -219,11 +219,11 @@ export const Settings = {
         fontColor: colors.first.tertiary,
       },
       description: {
-        fontSize: 36,
+        fontSize: 64,
         fontColor: colors.first.secondary,
       },
       title: {
-        fontSize: 84,
+        fontSize: 110,
         fontColor: colors.first.primary,
       },
     },

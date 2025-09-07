@@ -30,6 +30,13 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   currentTheme,
 }) => {
   if (!weekDate) return "Loading";
+
+  // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
+  const primaryEntry = time.entries?.[0] || {};
+  const entryTime = primaryEntry.time as string || "09:00";
+  const entryDescription = primaryEntry.description as string || "";
+  const entryTopic = primaryEntry.topic as string || "";
+
   if (time.isOffline) {
     return (
       <div
@@ -80,12 +87,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center h-[30px] text-[16px] pt-2"
         >
-          {time.topic ? (time.topic as string) : placeholders.topic}
+          {entryTopic ? entryTopic : placeholders.topic}
         </p>
 
         <div className="flex flex-col justify-center items-center  h-[77px] pb-2">
-          {time.description ? (
-            // time.description
+          {entryDescription ? (
+            // entryDescription
             //   .split("\n")
             //   .filter((line) => line.trim() !== "") // 공백 줄 제거
             //   .map((line, idx) => (
@@ -107,7 +114,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
               multiline={true}
               maxFontSize={32}
             >
-              {time.description as string}
+              {entryDescription}
             </AutoResizeText>
           ) : (
             <p
@@ -127,7 +134,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center  h-[27px] text-[16px]"
         >
-          {time.time as string}
+          {entryTime}
         </AutoResizeText>
       </div>
       <Image
