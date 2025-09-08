@@ -22,6 +22,7 @@ interface DayTextProps {
 interface StreamingTimeProps {
   time: string;
   currentTheme?: TTheme;
+  isMultiple?: boolean;
 }
 
 interface DateTextProps {
@@ -30,6 +31,7 @@ interface DateTextProps {
 }
 
 interface CellTextDescriptionProps {
+  isMultiple?: boolean;
   currentTheme?: TTheme;
   description: string;
 }
@@ -46,6 +48,7 @@ interface TimeTableCellProps {
 }
 
 interface OfflineCardProps {
+  offlineMemo?: string;
   day: number;
   currentTheme?: TTheme;
 }
@@ -85,19 +88,36 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
-  return (
+const StreamingTime = ({
+  time,
+  currentTheme,
+  isMultiple,
+}: StreamingTimeProps) => {
+  return isMultiple ? (
     <p
       style={{
-        top: 60,
-        left: 232,
-        height: 90,
+        bottom: 12,
+        left: 112,
         width: 320,
         lineHeight: 1,
         color: Settings.card.online.time.fontColor,
-        fontSize: Settings.card.online.time.fontSize,
+        fontSize: 32,
       }}
-      className="absolute flex justify-center items-center "
+      className="absolute flex justify-center items-center"
+    >
+      {formatTime(time, "half")}
+    </p>
+  ) : (
+    <p
+      style={{
+        bottom: 58,
+        left: 232,
+        width: 320,
+        lineHeight: 1,
+        color: Settings.card.online.time.fontColor,
+        fontSize: 40,
+      }}
+      className="absolute flex justify-center items-center"
     >
       {formatTime(time, "half")}
     </p>
@@ -105,10 +125,31 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
 };
 
 const CellTextDescription = ({
+  isMultiple,
   currentTheme,
   description,
 }: CellTextDescriptionProps) => {
-  return (
+  return isMultiple ? (
+    <div
+      style={{
+        width: "100%",
+        height: 100,
+        top: 40,
+      }}
+      className="flex justify-center items-center shrink-0 absolute"
+    >
+      <AutoResizeText
+        style={{
+          color: Settings.card.online.description.fontColor,
+          lineHeight: 1.2,
+        }}
+        className="leading-none text-center w-full"
+        maxFontSize={56}
+      >
+        {description ? (description as string) : placeholders.description}
+      </AutoResizeText>
+    </div>
+  ) : (
     <div
       style={{
         height: 240,
@@ -146,10 +187,11 @@ const CellTextTitle = ({ text }: CellTextTopicProps) => {
 };
 
 interface OnlineCardBGProps {
-  day: number;
+  day?: number;
+  entriesLength?: number;
 }
 
-const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
+const OnlineCardBG = ({ day, entriesLength }: OnlineCardBGProps) => {
   return (
     <div
       style={{
@@ -160,27 +202,52 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"]["online"].src.replace("./", "/")}
+        src={Imgs["first"][
+          entriesLength === 1 ? "bigOnline" : "online"
+        ].src.replace("./", "/")}
         alt="online"
       />
     </div>
   );
 };
 
-const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+const OfflineCard = ({ day, currentTheme, offlineMemo }: OfflineCardProps) => {
   return (
     <div
-      className=" pointer-events-none"
+      className=" flex justify-center items-center pointer-events-none"
       style={{
         width: Settings.card.offline.width,
         height: Settings.card.offline.height,
         position: "relative",
-        top: 27,
       }}
       key={day}
     >
+      {offlineMemo && (
+        <div
+          style={{
+            width: "80%",
+            height: 240,
+          }}
+          className="flex justify-center items-center shrink-0 absolute"
+        >
+          <AutoResizeText
+            style={{
+              color: "#FFFFFF",
+              fontFamily: fontOption.primary,
+              lineHeight: 1.2,
+            }}
+            className="leading-none text-center w-full"
+            multiline
+            maxFontSize={80}
+          >
+            {offlineMemo ? (offlineMemo as string) : placeholders.description}
+          </AutoResizeText>
+        </div>
+      )}
       <img
-        src={Imgs[currentTheme || "first"]["offline"].src.replace("./", "/")}
+        src={Imgs[currentTheme || "first"][
+          offlineMemo ? "offlineMemo" : "offline"
+        ].src.replace("./", "/")}
         alt="offline"
         className="object-cover"
       />
@@ -195,7 +262,7 @@ const CellContentArea = ({ children }: PropsWithChildren) => {
         fontFamily: fontOption.primary,
         width: 540,
       }}
-      className="w-full h-full flex flex-col pt-4 items-center "
+      className="w-full h-full flex flex-col items-center"
     >
       {children}
     </div>
@@ -210,13 +277,15 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   if (!weekDate) return "Loading";
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
+
+  console.log("time => ", time);
   const primaryEntry = time.entries?.[0] || {};
   const entryTime = (primaryEntry.time as string) || "09:00";
-  const entryDescription = (primaryEntry.description as string) || "";
-  const entryTopic = (primaryEntry.topic as string) || "";
+  const entriesLength = time.entries.length;
+  const isMultiple = entriesLength > 1;
 
   if (time.isOffline) {
-    return <OfflineCard day={time.day} />;
+    return <OfflineCard offlineMemo={time.offlineMemo} day={time.day} />;
   }
 
   return (
@@ -226,16 +295,15 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         height: Settings.card.online.height,
       }}
       key={time.day}
-      className="relative flex justify-center pt-47"
+      className="relative flex justify-center py-8"
     >
       <CellContentArea>
-        <CellTextDescription description={entryDescription} />
-        <CellTextTitle text={entryTopic} />
+        <MultipleCards isMultiple={isMultiple} time={time} />
 
-        <StreamingDay day={time.day} />
-        <StreamingTime time={entryTime} />
+        {/* <StreamingDay day={time.day} /> */}
+        {/* <StreamingDate date={weekDate.getDate()} /> */}
       </CellContentArea>
-      <OnlineCardBG day={time.day} />
+      <OnlineCardBG entriesLength={entriesLength} />
     </div>
   );
 };
@@ -243,21 +311,44 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 export default TimeTableCell;
 
 interface MultipleCardsProps {
-  entriesLength: number;
-  entries: TEntry[];
+  time: TDefaultCard;
+  isMultiple: boolean;
 }
 
-const MultipleCards = ({ entries, entriesLength }: MultipleCardsProps) => {
+const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
+  const entries = time.entries;
+  const entriesLength = entries.length;
+  const day = time.day;
+  if (!entries) return null;
+  if (entriesLength === 1)
+    return (
+      <>
+        <div className="w-full h-full pt-34">
+          <CellTextDescription
+            isMultiple={isMultiple}
+            description={entries[0].description as string}
+          />
+        </div>
+        <StreamingTime time={entries[0].time as string} />
+      </>
+    );
   return (
-    <>
-      {entries.map((entry: TEntry) => {
+    <div className="w-full h-full flex flex-col gap-8 pt-1">
+      {entries.map((entry: TEntry, i) => {
         return (
-          <div key={entry.day as string}>
-            <CellTextDescription description={entry.description as string} />
-            <CellTextTitle text={entry.topic as string} />
+          <div className={"w-full h-full relative"} key={day + "-" + i}>
+            <CellTextDescription
+              isMultiple={isMultiple}
+              description={entry.description as string}
+            />
+            <StreamingTime
+              isMultiple={isMultiple}
+              time={entry.time as string}
+            />
+            {/* <CellTextTitle text={entry.topic as string} /> */}
           </div>
         );
       })}
-    </>
+    </div>
   );
 };

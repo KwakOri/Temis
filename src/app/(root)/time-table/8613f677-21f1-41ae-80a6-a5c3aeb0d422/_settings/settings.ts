@@ -16,7 +16,7 @@ export const templateSize = {
 export type options = "primary" | "secondary" | "tertiary" | "quaternary";
 
 export const fontOption = {
-  primary: "HakgyoansimDunggeunmisoTTF-B",
+  primary: "Cafe24ClassicType",
   secondary: "",
   tertiary: "",
   quaternary: "",
@@ -54,10 +54,10 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const colors = {
   first: {
-    primary: "#5080BE",
-    secondary: "#77B7D8",
-    tertiary: "#e0f2fc",
-    quaternary: "#f4fdff",
+    primary: "#DCEAFF",
+    secondary: "#D7BF8D",
+    tertiary: "",
+    quaternary: "",
   },
   second: {
     primary: "",
@@ -179,13 +179,13 @@ export const profileFrameHeight = 2250;
 
 /** Profile Image 크기 */
 
-export const profileImageWidth = 1060;
-export const profileImageHeight = 1640;
+export const profileImageWidth = 1440;
+export const profileImageHeight = 2250;
 
 export const profileBackPlateWidth = 1327;
 export const profileBackPlateHeight = 1484;
 
-export const profileTextPlaceholder = "아티스트 명 적는 곳";
+export const profileTextPlaceholder = "아티스트 명";
 
 /** ---------------------------------------------- */
 
@@ -196,22 +196,22 @@ export const Settings = {
       height: 2250,
     },
     image: {
-      width: 1060,
-      height: 1640,
+      width: 1440,
+      height: 2250,
     },
     artist: {
-      width: 760,
-      height: 160,
-      fontSize: 92,
-      fontColor: colors.first.quaternary,
+      width: 725,
+      height: 390,
+      fontSize: 84,
+      fontColor: colors.first.primary,
     },
   },
   card: {
     online: {
-      width: 750,
-      height: 602,
+      width: 786,
+      height: 622,
       time: {
-        fontSize: 54,
+        fontSize: 34,
         fontColor: colors.first.primary,
       },
       day: {
@@ -228,16 +228,16 @@ export const Settings = {
       },
     },
     offline: {
-      width: 749,
-      height: 597,
+      width: 786,
+      height: 622,
     },
   },
   week: {
     flag: {
-      width: 700,
-      height: 980,
+      width: 440,
+      height: 1220,
     },
     fontSize: 80,
-    fontColor: colors.first.quaternary,
+    fontColor: colors.first.secondary,
   },
 };
