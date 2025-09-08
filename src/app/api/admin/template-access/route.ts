@@ -88,12 +88,12 @@ export async function POST(request: NextRequest) {
         } else {
           // 메일 발송
           try {
-            const response = await fetch("/api/email/template-access-granted", {
+            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+            const response = await fetch(`${baseUrl}/api/email/template-access-granted`, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
               },
-              credentials: "include",
               body: JSON.stringify({
                 email: userData.email,
                 userName: userData.name || '고객',
