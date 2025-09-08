@@ -151,13 +151,21 @@ export class UserService {
   /**
    * 모든 사용자 조회 (관리자용)
    */
-  static async findAll(limit = 100, offset = 0): Promise<User[]> {
+  static async findAll(limit = 100, offset = 0, search?: string): Promise<User[]> {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from("users")
         .select("id, email, name, created_at, updated_at") // 비밀번호는 제외
         .range(offset, offset + limit - 1)
         .order("created_at", { ascending: false });
+
+      // 검색어가 있으면 이름 또는 이메일에서 검색
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        query = query.or(`name.ilike.${searchTerm},email.ilike.${searchTerm}`);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         throw error;
@@ -173,11 +181,19 @@ export class UserService {
   /**
    * 전체 사용자 수 조회 (관리자용)
    */
-  static async countAll(): Promise<number> {
+  static async countAll(search?: string): Promise<number> {
     try {
-      const { count, error } = await supabase
+      let query = supabase
         .from("users")
         .select("id", { count: "exact", head: true });
+
+      // 검색어가 있으면 이름 또는 이메일에서 검색
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        query = query.or(`name.ilike.${searchTerm},email.ilike.${searchTerm}`);
+      }
+
+      const { count, error } = await query;
 
       if (error) {
         throw error;

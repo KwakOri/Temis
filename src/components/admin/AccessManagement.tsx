@@ -19,6 +19,7 @@ export default function AccessManagement() {
     TemplateAccessWithUser[]
   >([]);
   const [loading, setLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
   const [error, setError] = useState("");
 
   // 새 권한 추가를 위한 상태
@@ -30,10 +31,47 @@ export default function AccessManagement() {
   const [templateSearchTerm, setTemplateSearchTerm] = useState("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
 
+  // 페이지네이션 상태
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [usersPerPage] = useState(12);
+  const [searchDebounceTimer, setSearchDebounceTimer] =
+    useState<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchTemplates();
+  }, []);
+
+  useEffect(() => {
     fetchUsers();
+  }, [currentPage]);
+
+  // 검색어가 변경될 때 디바운스 적용하여 API 호출
+  useEffect(() => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+
+    const timer = setTimeout(() => {
+      fetchUsers();
+    }, 300);
+
+    setSearchDebounceTimer(timer);
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
+  }, [userSearchTerm]);
+
+  // 컴포넌트 언마운트 시 타이머 정리
+  useEffect(() => {
+    return () => {
+      if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -41,6 +79,12 @@ export default function AccessManagement() {
       fetchTemplateAccess();
     }
   }, [selectedTemplate]);
+
+  // 검색어 변경 핸들러
+  const handleUserSearch = (searchTerm: string) => {
+    setUserSearchTerm(searchTerm);
+    setCurrentPage(1);
+  };
 
   const fetchTemplates = async () => {
     try {
@@ -58,15 +102,30 @@ export default function AccessManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/admin/users", {
+      setUsersLoading(true);
+      const offset = (currentPage - 1) * usersPerPage;
+      const params = new URLSearchParams({
+        limit: usersPerPage.toString(),
+        offset: offset.toString(),
+      });
+
+      if (userSearchTerm.trim()) {
+        params.append("search", userSearchTerm.trim());
+      }
+
+      const response = await fetch(`/api/admin/users?${params}`, {
         credentials: "include",
       });
+
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
+        setTotalUsers(data.pagination.total || 0);
       }
     } catch (error) {
       console.error("Failed to fetch users:", error);
+    } finally {
+      setUsersLoading(false);
     }
   };
 
@@ -84,7 +143,6 @@ export default function AccessManagement() {
 
       if (response.ok) {
         const data = await response.json();
-
         setTemplateAccess(data.accessList || []);
       } else {
         throw new Error("접근 권한 목록을 가져올 수 없습니다.");
@@ -208,6 +266,164 @@ export default function AccessManagement() {
     }
   };
 
+  // 페이지네이션 컴포넌트
+  const PaginationComponent = ({
+    currentPage,
+    totalItems,
+    itemsPerPage,
+    onPageChange,
+  }: {
+    currentPage: number;
+    totalItems: number;
+    itemsPerPage: number;
+    onPageChange: (page: number) => void;
+  }) => {
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+    if (totalPages <= 1) return null;
+
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+        <div className="flex justify-between flex-1 sm:hidden">
+          <button
+            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+            disabled={currentPage === 1}
+            className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            이전
+          </button>
+          <button
+            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+            disabled={currentPage === totalPages}
+            className="relative inline-flex items-center px-4 py-2 ml-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            다음
+          </button>
+        </div>
+
+        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm text-gray-700">
+              총 <span className="font-medium">{totalItems}</span>개 중{" "}
+              <span className="font-medium">
+                {(currentPage - 1) * itemsPerPage + 1}
+              </span>
+              -
+              <span className="font-medium">
+                {Math.min(currentPage * itemsPerPage, totalItems)}
+              </span>
+              개 표시
+            </p>
+          </div>
+          <div>
+            <nav
+              className="relative z-0 inline-flex -space-x-px rounded-md shadow-sm"
+              aria-label="Pagination"
+            >
+              <button
+                onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {startPage > 1 && (
+                <>
+                  <button
+                    onClick={() => onPageChange(1)}
+                    className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                  >
+                    1
+                  </button>
+                  {startPage > 2 && (
+                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300">
+                      ...
+                    </span>
+                  )}
+                </>
+              )}
+
+              {pages.map((page) => (
+                <button
+                  key={page}
+                  onClick={() => onPageChange(page)}
+                  className={`relative inline-flex items-center px-4 py-2 text-sm font-medium border ${
+                    currentPage === page
+                      ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
+                      : "text-gray-700 bg-white border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              {endPage < totalPages && (
+                <>
+                  {endPage < totalPages - 1 && (
+                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300">
+                      ...
+                    </span>
+                  )}
+                  <button
+                    onClick={() => onPageChange(totalPages)}
+                    className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+
+              <button
+                onClick={() =>
+                  onPageChange(Math.min(totalPages, currentPage + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="relative inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -226,7 +442,7 @@ export default function AccessManagement() {
           </div>
         ) : (
           <>
-            {/* Search Bar */}
+            {/* Template Search Bar */}
             {templates.length > 3 && (
               <div className="mb-4">
                 <div className="relative">
@@ -439,7 +655,7 @@ export default function AccessManagement() {
                         )
                     );
 
-                    if (availableUsers.length === 0) {
+                    if (totalUsers === 0 && !usersLoading) {
                       return (
                         <div className="text-center py-8 text-gray-500">
                           <svg
@@ -456,9 +672,6 @@ export default function AccessManagement() {
                             />
                           </svg>
                           <p>권한을 부여할 수 있는 사용자가 없습니다.</p>
-                          <p className="text-sm">
-                            모든 사용자가 이미 접근 권한을 가지고 있습니다.
-                          </p>
                         </div>
                       );
                     }
@@ -466,73 +679,37 @@ export default function AccessManagement() {
                     return (
                       <>
                         {/* Search Bar for Users */}
-                        {availableUsers.length > 3 && (
-                          <div className="mb-4">
-                            <div className="relative">
-                              <input
-                                type="text"
-                                placeholder="사용자 검색 (이름 또는 이메일)..."
-                                value={userSearchTerm}
-                                onChange={(e) =>
-                                  setUserSearchTerm(e.target.value)
-                                }
-                                className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                              />
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <svg
-                                  className="h-5 w-5 text-gray-400"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                                  />
-                                </svg>
-                              </div>
-                              {userSearchTerm && (
-                                <button
-                                  onClick={() => setUserSearchTerm("")}
-                                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                                >
-                                  <svg
-                                    className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M6 18L18 6M6 6l12 12"
-                                    />
-                                  </svg>
-                                </button>
-                              )}
+                        <div className="mb-4">
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="모든 사용자 검색 (이름 또는 이메일)..."
+                              value={userSearchTerm}
+                              onChange={(e) => handleUserSearch(e.target.value)}
+                              className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                              <svg
+                                className="h-5 w-5 text-gray-400"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                              </svg>
                             </div>
-                          </div>
-                        )}
-
-                        {(() => {
-                          const filteredUsers = availableUsers.filter(
-                            (user) =>
-                              user.name
-                                .toLowerCase()
-                                .includes(userSearchTerm.toLowerCase()) ||
-                              user.email
-                                .toLowerCase()
-                                .includes(userSearchTerm.toLowerCase())
-                          );
-
-                          if (filteredUsers.length === 0 && userSearchTerm) {
-                            return (
-                              <div className="text-center py-8 text-gray-500">
+                            {userSearchTerm && (
+                              <button
+                                onClick={() => handleUserSearch("")}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                              >
                                 <svg
-                                  className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                                  className="h-5 w-5 text-gray-400 hover:text-gray-600"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -541,20 +718,53 @@ export default function AccessManagement() {
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
                                     strokeWidth={2}
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                    d="M6 18L18 6M6 6l12 12"
                                   />
                                 </svg>
-                                <p>
-                                  &apos;{userSearchTerm}&apos;에 대한 검색
-                                  결과가 없습니다.
-                                </p>
-                              </div>
-                            );
-                          }
+                              </button>
+                            )}
+                          </div>
 
-                          return (
+                          {/* Search Results Info */}
+                          {userSearchTerm && (
+                            <div className="mt-2 text-sm text-gray-600">
+                              {`'${userSearchTerm}' 검색 결과: ${totalUsers}명`}
+                            </div>
+                          )}
+                        </div>
+
+                        {usersLoading ? (
+                          <div className="flex justify-center items-center py-12">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                            <span className="ml-3 text-gray-600">
+                              사용자 검색 중...
+                            </span>
+                          </div>
+                        ) : availableUsers.length === 0 ? (
+                          <div className="text-center py-8 text-gray-500">
+                            <svg
+                              className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                              />
+                            </svg>
+                            <p>
+                              {userSearchTerm
+                                ? `'${userSearchTerm}'에 대한 검색 결과가 없습니다.`
+                                : "권한을 부여할 수 있는 사용자가 없습니다."}
+                            </p>
+                          </div>
+                        ) : (
+                          <>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {filteredUsers.map((user) => (
+                              {availableUsers.map((user) => (
                                 <div
                                   key={user.id}
                                   onClick={() => setSelectedUser(user.id)}
@@ -615,8 +825,16 @@ export default function AccessManagement() {
                                 </div>
                               ))}
                             </div>
-                          );
-                        })()}
+
+                            {/* 페이지네이션 */}
+                            <PaginationComponent
+                              currentPage={currentPage}
+                              totalItems={totalUsers}
+                              itemsPerPage={usersPerPage}
+                              onPageChange={setCurrentPage}
+                            />
+                          </>
+                        )}
                       </>
                     );
                   })()}
