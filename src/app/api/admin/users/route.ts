@@ -1,44 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/auth/middleware';
-import { UserService } from '@/lib/supabase';
+import { requireAdmin } from "@/lib/auth/middleware";
+import { UserService } from "@/lib/supabase";
+import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   const adminCheck = await requireAdmin(request);
-  
+
   if (adminCheck instanceof NextResponse) {
     return adminCheck;
   }
 
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
+    const limit = parseInt(searchParams.get("limit") || "20");
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const search = searchParams.get("search") || undefined;
 
     // 사용자 목록과 전체 수를 병렬로 조회
     const [users, totalCount] = await Promise.all([
-      UserService.findAll(limit, offset),
-      UserService.countAll()
+      UserService.findAll(limit, offset, search),
+      UserService.countAll(search),
     ]);
 
     return NextResponse.json({
       success: true,
-      users: users.map(user => ({
+      users: users.map((user) => ({
         id: user.id,
         email: user.email,
         name: user.name,
         created_at: user.created_at,
-        updated_at: user.updated_at
+        updated_at: user.updated_at,
       })),
       pagination: {
         limit,
         offset,
-        total: totalCount
-      }
+        total: totalCount,
+      },
+      search,
     });
   } catch (error) {
-    console.error('Admin users fetch error:', error);
+    console.error("Admin users fetch error:", error);
     return NextResponse.json(
-      { error: '사용자 목록 조회 중 오류가 발생했습니다.' },
+      { error: "사용자 목록 조회 중 오류가 발생했습니다." },
       { status: 500 }
     );
   }

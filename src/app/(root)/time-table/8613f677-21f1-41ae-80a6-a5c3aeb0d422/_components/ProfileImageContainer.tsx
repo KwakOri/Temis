@@ -51,10 +51,9 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
         width: Settings.profile.image.width,
         height: Settings.profile.image.height,
         position: "absolute",
-        bottom: 300,
-        right: 200,
+        top: 0,
+        right: 120,
         zIndex: 10,
-        transform: "rotate(3deg)",
       }}
     >
       {imageSrc && (
@@ -103,21 +102,23 @@ const ProfileText = ({
       <div
         style={{
           color: Settings.profile.artist.fontColor,
-
           fontFamily: fontOption.primary,
           width: Settings.profile.artist.width,
           height: Settings.profile.artist.height,
-          bottom: 164,
-          right: 200,
-          transform: "rotate(2deg)",
+          bottom: -12,
+          right: 22,
         }}
         className="absolute z-30 flex justify-start items-center"
       >
         <div
           style={{
-            position: "relative",
+            position: "absolute",
+            top: 172,
+            left: 90,
+            width: 480,
+            height: 160,
           }}
-          className="flex justify-center items-center w-full h-full"
+          className="flex justify-center items-center"
         >
           <AutoResizeText
             className="text-center"
@@ -126,19 +127,12 @@ const ProfileText = ({
             {profileText ? profileText : profileTextPlaceholder}
           </AutoResizeText>
         </div>
+        <img
+          src={Imgs["first"]["artist"].src}
+          alt="artist"
+          className="object-cover"
+        />
       </div>
-      <img
-        src={Imgs["first"]["artist"].src}
-        alt="artist"
-        style={{
-          width: 535,
-          height: 577,
-          position: "absolute",
-          bottom: 72,
-          left: 2484,
-          zIndex: 30,
-        }}
-      />
     </>
   );
 };
