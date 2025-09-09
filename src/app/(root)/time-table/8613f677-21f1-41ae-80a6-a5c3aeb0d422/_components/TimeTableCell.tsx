@@ -93,6 +93,7 @@ const StreamingTime = ({
   currentTheme,
   isMultiple,
 }: StreamingTimeProps) => {
+  const isMorning = Number(time.split(":")[0]) <= 12 ? true : false;
   return isMultiple ? (
     <p
       style={{
@@ -105,7 +106,7 @@ const StreamingTime = ({
       }}
       className="absolute flex justify-center items-center"
     >
-      {formatTime(time, "half")}
+      {isMorning ? "AM" : "PM"} {formatTime(time, "full")}
     </p>
   ) : (
     <p
@@ -119,7 +120,7 @@ const StreamingTime = ({
       }}
       className="absolute flex justify-center items-center"
     >
-      {formatTime(time, "half")}
+      {isMorning ? "AM" : "PM"} {formatTime(time, "full")}
     </p>
   );
 };

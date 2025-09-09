@@ -99,13 +99,13 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       defaultValue: "",
       maxLength: 200,
     },
-    {
-      key: "topic",
-      type: "text",
-      placeholder: "소제목 적는 곳",
-      defaultValue: "",
-      maxLength: 50,
-    },
+    // {
+    //   key: "topic",
+    //   type: "text",
+    //   placeholder: "소제목 적는 곳",
+    //   defaultValue: "",
+    //   maxLength: 50,
+    // },
   ],
   showLabels: false, // 라벨 표시 여부
   // 오프라인 토글 설정
