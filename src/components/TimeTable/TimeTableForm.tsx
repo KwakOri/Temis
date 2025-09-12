@@ -4,7 +4,9 @@ import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
-import React, { PropsWithChildren, useRef, useState } from "react";
+import { CroppedAreaPixels } from "@/types/image-edit";
+import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
+import { Point } from "react-easy-crop";
 
 interface TimeTableFormProps {
   isArtist?: boolean;
@@ -83,8 +85,19 @@ const TimeTableForm = ({
     fileInputRef.current?.click();
   };
 
+  const handleEditClick = () => {
+    const editData = actions.startEditMode();
+    if (editData && editData.originalImageSrc) {
+      setSelectedImage(editData.originalImageSrc);
+      setShowCropModal(true);
+    } else {
+      alert("편집할 이미지가 없습니다.");
+    }
+  };
+
   const handleImageDelete = () => {
     updateImageSrc(null);
+    actions.resetImageEditData();
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -93,7 +106,12 @@ const TimeTableForm = ({
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setSelectedImage(reader.result as string);
+      const imageDataUrl = reader.result as string;
+      setSelectedImage(imageDataUrl);
+
+      // 새 이미지이므로 원본으로 설정
+      actions.setOriginalImage(imageDataUrl, cropWidth, cropHeight);
+
       setShowCropModal(true);
     };
     reader.readAsDataURL(file);
@@ -104,8 +122,25 @@ const TimeTableForm = ({
     }
   };
 
-  const handleCropComplete = (croppedImageSrc: string) => {
+  const handleCropComplete = (
+    croppedImageSrc: string,
+    croppedAreaPixels?: CroppedAreaPixels,
+    crop?: Point,
+    zoom?: number,
+    rotation?: number
+  ) => {
     updateImageSrc(croppedImageSrc);
+
+    // 편집 데이터 저장
+    if (selectedImage && croppedAreaPixels) {
+      actions.saveCroppedImage(croppedImageSrc, croppedAreaPixels);
+
+      // 현재 편집 정보도 업데이트
+      if (crop && zoom !== undefined && rotation !== undefined) {
+        actions.updateEditProgress(crop, zoom, rotation);
+      }
+    }
+
     setShowCropModal(false);
     setSelectedImage(null);
   };
@@ -206,34 +241,49 @@ const TimeTableForm = ({
             placeholder="메모를 입력해 주세요"
           />
         )}
-        <div className="flex gap-2">
-          <button
-            onClick={handleUploadClick}
-            className="flex-1 bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
-          >
-            {imageSrc ? "이미지 변경" : "이미지 업로드"}
-          </button>
-          {imageSrc && (
+        <div className="space-y-2">
+          {/* 이미지 업로드/교체 버튼 */}
+
+          {/* 이미지가 있을 때 편집/삭제 버튼 */}
+
+          <div className="flex gap-2">
             <button
-              onClick={handleImageDelete}
-              className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
-              title="이미지 삭제"
+              onClick={handleUploadClick}
+              className="w-full bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
+              {imageSrc ? "이미지 변경" : "새 이미지 업로드"}
             </button>
-          )}
+
+            {imageSrc && (
+              <Fragment>
+                <button
+                  onClick={handleEditClick}
+                  className="w-full bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
+                >
+                  이미지 편집
+                </button>
+                <button
+                  onClick={handleImageDelete}
+                  className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
+                  title="이미지 삭제"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </Fragment>
+            )}
+          </div>
         </div>
         <input
           ref={fileInputRef}
@@ -304,6 +354,13 @@ const TimeTableForm = ({
           onCropComplete={handleCropComplete}
           cropWidth={cropWidth}
           cropHeight={cropHeight}
+          initialCrop={state.imageEditData?.crop}
+          initialZoom={state.imageEditData?.zoom}
+          initialRotation={state.imageEditData?.rotation}
+          isEditMode={
+            !!state.imageEditData &&
+            selectedImage === state.imageEditData.originalImageSrc
+          }
         />
       )}
 

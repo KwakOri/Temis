@@ -1,5 +1,6 @@
 "use client";
 
+import { ImageEditData, CroppedAreaPixels } from "@/types/image-edit";
 import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
@@ -94,6 +95,14 @@ export const useTimeTableState = (captureSize?: {
     }
     return true;
   });
+  
+  // 이미지 편집 데이터 상태
+  const [imageEditData, setImageEditData] = useState<ImageEditData | null>(() => {
+    if (typeof window !== "undefined") {
+      return pageAwareStorage.getItem("imageEditData", null);
+    }
+    return null;
+  });
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
     getDefaultMondayString()
@@ -148,6 +157,17 @@ export const useTimeTableState = (captureSize?: {
       pageAwareStorage.setItem("isMemoTextVisible", isMemoTextVisible);
     }
   }, [isMemoTextVisible]);
+
+  // imageEditData 변경 시 localStorage에 저장
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (imageEditData) {
+        pageAwareStorage.setItem("imageEditData", imageEditData);
+      } else {
+        pageAwareStorage.removeItem("imageEditData");
+      }
+    }
+  }, [imageEditData]);
 
   // localStorage에서 데이터 로드
   useEffect(() => {
@@ -250,6 +270,54 @@ export const useTimeTableState = (captureSize?: {
     },
     turnOffMemoTextVisible: () => {
       setIsMemoTextVisible(false);
+    },
+
+    // 이미지 편집 액션 함수들
+    updateImageEditData: (data: Partial<ImageEditData>) => {
+      setImageEditData(prev => prev ? { ...prev, ...data } : null);
+    },
+
+    setOriginalImage: (imageSrc: string, cropWidth = 400, cropHeight = 400) => {
+      const newImageEditData: ImageEditData = {
+        crop: { x: 0, y: 0 },
+        zoom: 1,
+        rotation: 0,
+        originalImageSrc: imageSrc,
+        croppedImageSrc: null,
+        cropWidth,
+        cropHeight,
+        aspectRatio: cropWidth / cropHeight,
+      };
+      setImageEditData(newImageEditData);
+    },
+
+    saveCroppedImage: (croppedImageSrc: string, croppedAreaPixels: CroppedAreaPixels) => {
+      setImageEditData(prev => 
+        prev ? { 
+          ...prev, 
+          croppedImageSrc, 
+          croppedAreaPixels
+        } : null
+      );
+    },
+
+    updateEditProgress: (crop: { x: number; y: number }, zoom: number, rotation: number) => {
+      setImageEditData(prev => 
+        prev ? { 
+          ...prev, 
+          crop,
+          zoom,
+          rotation
+        } : null
+      );
+    },
+
+    resetImageEditData: () => {
+      setImageEditData(null);
+    },
+
+    startEditMode: (): ImageEditData | null => {
+      return imageEditData;
     },
 
     downloadImage: async (targetWidth: number, targetHeight: number) => {
@@ -363,6 +431,7 @@ export const useTimeTableState = (captureSize?: {
     profileText,
     memoText,
     imageSrc,
+    imageEditData,
     mondayDateStr,
     weekDates,
     scale,
