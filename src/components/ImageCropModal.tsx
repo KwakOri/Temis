@@ -1,16 +1,26 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
-import Cropper from "react-easy-crop";
-import { Area, Point } from "react-easy-crop";
+import React, { useCallback, useEffect, useState } from "react";
+import Cropper, { Area, Point } from "react-easy-crop";
 
 interface ImageCropModalProps {
   isOpen: boolean;
   onClose: () => void;
   imageSrc: string;
-  onCropComplete: (croppedImageSrc: string) => void;
+  onCropComplete: (
+    croppedImageSrc: string,
+    croppedAreaPixels?: Area,
+    crop?: Point,
+    zoom?: number,
+    rotation?: number
+  ) => void;
   cropWidth?: number;
   cropHeight?: number;
+  // 편집 모드용 props - 기존 편집 데이터를 전달받을 수 있음
+  initialCrop?: Point;
+  initialZoom?: number;
+  initialRotation?: number;
+  isEditMode?: boolean;
 }
 
 const ImageCropModal: React.FC<ImageCropModalProps> = ({
@@ -20,12 +30,16 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
   onCropComplete,
   cropWidth = 400,
   cropHeight = 400,
+  initialCrop = { x: 0, y: 0 },
+  initialZoom = 1,
+  initialRotation = 0,
+  isEditMode = false,
 }) => {
   // 크롭 비율 계산
   const aspectRatio = cropWidth / cropHeight;
-  const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
-  const [rotation, setRotation] = useState(0);
-  const [zoom, setZoom] = useState(1);
+  const [crop, setCrop] = useState<Point>(initialCrop);
+  const [rotation, setRotation] = useState(initialRotation);
+  const [zoom, setZoom] = useState(initialZoom);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -46,41 +60,60 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
         croppedAreaPixels,
         rotation
       );
-      onCropComplete(croppedImage);
+      onCropComplete(croppedImage, croppedAreaPixels, crop, zoom, rotation);
       onClose();
     } catch (error) {
       console.error("이미지 크롭 실패:", error);
     } finally {
       setIsProcessing(false);
     }
-  }, [croppedAreaPixels, imageSrc, rotation, onCropComplete, onClose]);
+  }, [
+    croppedAreaPixels,
+    imageSrc,
+    rotation,
+    crop,
+    zoom,
+    onCropComplete,
+    onClose,
+  ]);
 
   const handleCancel = useCallback(() => {
-    setCrop({ x: 0, y: 0 });
-    setRotation(0);
-    setZoom(1);
+    // 편집 모드가 아닌 경우에만 초기화
+    if (!isEditMode) {
+      setCrop({ x: 0, y: 0 });
+      setRotation(0);
+      setZoom(1);
+    } else {
+      // 편집 모드인 경우 초기값으로 복원
+      setCrop(initialCrop);
+      setRotation(initialRotation);
+      setZoom(initialZoom);
+    }
     onClose();
-  }, [onClose]);
+  }, [onClose, isEditMode, initialCrop, initialRotation, initialZoom]);
 
   // 키보드 이벤트 핸들러
-  const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (!isOpen) return;
-    
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      handleSave();
-    } else if (event.key === 'Escape') {
-      event.preventDefault();
-      handleCancel();
-    }
-  }, [isOpen, handleSave, handleCancel]);
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (!isOpen) return;
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        handleSave();
+      } else if (event.key === "Escape") {
+        event.preventDefault();
+        handleCancel();
+      }
+    },
+    [isOpen, handleSave, handleCancel]
+  );
 
   // 키보드 이벤트 리스너 등록/해제
   useEffect(() => {
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
       return () => {
-        document.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener("keydown", handleKeyDown);
       };
     }
   }, [isOpen, handleKeyDown]);
@@ -92,7 +125,9 @@ const ImageCropModal: React.FC<ImageCropModalProps> = ({
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-center mb-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">이미지 자르기</h2>
+            <h2 className="text-xl font-bold text-gray-800">
+              {isEditMode ? "이미지 편집" : "이미지 자르기"}
+            </h2>
             <p className="text-sm text-gray-600 mt-1">
               크롭 비율: {cropWidth} × {cropHeight} ({aspectRatio.toFixed(2)}:1)
             </p>
@@ -203,39 +238,53 @@ const getCroppedImg = (
           return;
         }
 
-        const maxSize = Math.max(image.width, image.height);
-        const safeArea = 2 * ((maxSize / 2) * Math.sqrt(2));
-
-        // 캔버스 크기 설정
-        canvas.width = safeArea;
-        canvas.height = safeArea;
-
-        // 중심점으로 이동하고 회전 적용
-        ctx.translate(safeArea / 2, safeArea / 2);
-        ctx.rotate((rotation * Math.PI) / 180);
-        ctx.translate(-safeArea / 2, -safeArea / 2);
-
-        // 이미지를 중앙에 그리기
-        ctx.drawImage(
-          image,
-          safeArea / 2 - image.width * 0.5,
-          safeArea / 2 - image.height * 0.5
+        // 회전이 있는 경우 더 큰 작업 영역 필요
+        const rotRad = (rotation * Math.PI) / 180;
+        const { width: bBoxWidth, height: bBoxHeight } = rotateSize(
+          image.width,
+          image.height,
+          rotation
         );
 
-        const data = ctx.getImageData(0, 0, safeArea, safeArea);
+        // 작업용 캔버스 크기 설정 (회전된 이미지를 담을 수 있는 크기)
+        canvas.width = bBoxWidth;
+        canvas.height = bBoxHeight;
 
-        // 크롭된 영역만큼 새 캔버스 생성
-        canvas.width = pixelCrop.width;
-        canvas.height = pixelCrop.height;
+        // 캔버스 중심으로 이동
+        ctx.translate(bBoxWidth / 2, bBoxHeight / 2);
+        // 회전 적용
+        ctx.rotate(rotRad);
+        // 이미지를 중심에 그리기
+        ctx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        ctx.putImageData(
-          data,
-          Math.round(0 - safeArea / 2 + image.width * 0.5 - pixelCrop.x),
-          Math.round(0 - safeArea / 2 + image.height * 0.5 - pixelCrop.y)
+        // 회전된 이미지에서 크롭 영역 추출
+        const croppedCanvas = document.createElement("canvas");
+        const croppedCtx = croppedCanvas.getContext("2d");
+
+        if (!croppedCtx) {
+          reject(new Error("Cropped canvas context를 가져올 수 없습니다."));
+          return;
+        }
+
+        // 크롭 캔버스 크기 설정
+        croppedCanvas.width = pixelCrop.width;
+        croppedCanvas.height = pixelCrop.height;
+
+        // 회전된 이미지에서 지정된 영역을 크롭하여 새 캔버스에 그리기
+        croppedCtx.drawImage(
+          canvas,
+          pixelCrop.x,
+          pixelCrop.y,
+          pixelCrop.width,
+          pixelCrop.height,
+          0,
+          0,
+          pixelCrop.width,
+          pixelCrop.height
         );
 
         // 최종 이미지 데이터 URL 반환
-        const croppedImageUrl = canvas.toDataURL("image/jpeg", 0.9);
+        const croppedImageUrl = croppedCanvas.toDataURL("image/jpeg", 0.9);
         resolve(croppedImageUrl);
       } catch (error) {
         reject(error);
@@ -248,6 +297,20 @@ const getCroppedImg = (
 
     image.src = imageSrc;
   });
+};
+
+/**
+ * 회전된 이미지의 바운딩 박스 크기를 계산하는 유틸리티 함수
+ */
+const rotateSize = (width: number, height: number, rotation: number) => {
+  const rotRad = (rotation * Math.PI) / 180;
+
+  return {
+    width:
+      Math.abs(Math.cos(rotRad) * width) + Math.abs(Math.sin(rotRad) * height),
+    height:
+      Math.abs(Math.sin(rotRad) * width) + Math.abs(Math.cos(rotRad) * height),
+  };
 };
 
 export default ImageCropModal;
