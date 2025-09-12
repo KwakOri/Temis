@@ -75,12 +75,6 @@ export const colors = {
 
 /** ---------------------------------------------- */
 
-/** Online 카드 구성 */
-/** Online 카드 구성 */
-
-export const onlineCardWidth: number = 727;
-export const onlineCardHeight: number = 534;
-
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
 export const CARD_INPUT_CONFIG: CardInputConfig = {
@@ -99,13 +93,13 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       defaultValue: "",
       maxLength: 200,
     },
-    // {
-    //   key: "topic",
-    //   type: "text",
-    //   placeholder: "소제목 적는 곳",
-    //   defaultValue: "",
-    //   maxLength: 50,
-    // },
+    {
+      key: "topic",
+      type: "text",
+      placeholder: "소제목 적는 곳",
+      defaultValue: "",
+      maxLength: 50,
+    },
   ],
   showLabels: false, // 라벨 표시 여부
   // 오프라인 토글 설정
@@ -120,70 +114,7 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 
 /** ---------------------------------------------- */
 
-/** Offline 카드 구성 */
-/** Offline 카드 구성 */
-
-export const offlineCardWidth: number = 727;
-export const offlineCardHeight: number = 534;
-
-/** ---------------------------------------------- */
-
-/** Week Flag 카드 구성 */
-/** Week Flag 카드 구성 */
-
-export const weekFlagCardWidth: number = 1240;
-export const weekFlagCardHeight: number = 100;
-
-/** ---------------------------------------------- */
-
-/** Profile Image 구성 */
-/** Profile Image 구성 */
-
-/** Profile Frame 크기 */
-
-export interface ProfileImageInfoInterface {
-  arrange: "onBottom" | "onTop";
-  rotation: number;
-  position: {
-    top: number;
-    right: number;
-  };
-}
-
-export const profileImageInfo: ProfileImageInfoInterface = {
-  arrange: "onBottom",
-  rotation: 4,
-  position: {
-    top: -1,
-    right: -10,
-  },
-};
-
-export const profileTextInfo = {
-  size: {
-    width: 220,
-    height: 60,
-  },
-  position: {
-    bottom: 70,
-    right: 44,
-  },
-  font: {
-    maxSize: 32,
-    minSize: 16,
-  },
-};
-
-export const profileFrameWidth = 4000;
-export const profileFrameHeight = 2250;
-
 /** Profile Image 크기 */
-
-export const profileImageWidth = 1440;
-export const profileImageHeight = 2250;
-
-export const profileBackPlateWidth = 1327;
-export const profileBackPlateHeight = 1484;
 
 export const profileTextPlaceholder = "아티스트 명";
 

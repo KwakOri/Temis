@@ -243,7 +243,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
 
-  console.log("time => ", time);
   const primaryEntry = time.entries?.[0] || {};
   const entryTime = (primaryEntry.time as string) || "09:00";
   const entriesLength = time.entries.length;
