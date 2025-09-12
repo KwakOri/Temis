@@ -33,7 +33,10 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       className=" box-border select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
       style={{
         transform: `scale(${scale})`,
-
+        backgroundImage: `url(${Imgs[currentTheme].bg.src})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
         width: templateSize.width,
         height: templateSize.height,
       }}
