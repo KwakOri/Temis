@@ -98,11 +98,11 @@ export default function WorkSchedulePage() {
 
     const deadlineDate = new Date(deadline);
     const now = new Date();
-    const threeDaysFromNow = new Date();
-    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
     if (deadlineDate < now) return "overdue";
-    if (deadlineDate <= threeDaysFromNow) return "urgent";
+    if (deadlineDate <= sevenDaysFromNow) return "urgent";
     return "normal";
   };
 
@@ -120,14 +120,14 @@ export default function WorkSchedulePage() {
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
             <AlertCircle className="w-3 h-3 mr-1" />
-            {dateString} (지연됨)
+            {dateString}
           </span>
         );
       case "urgent":
         return (
           <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
             <Flame className="w-3 h-3 mr-1" />
-            {dateString} (긴급)
+            {dateString}
           </span>
         );
       default:
