@@ -256,12 +256,12 @@ const TimeTableForm = ({
 
             {imageSrc && (
               <Fragment>
-                <button
+                {/* <button
                   onClick={handleEditClick}
                   className="w-full bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
                 >
                   이미지 편집
-                </button>
+                </button> */}
                 <button
                   onClick={handleImageDelete}
                   className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
