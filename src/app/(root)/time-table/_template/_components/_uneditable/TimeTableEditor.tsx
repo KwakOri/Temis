@@ -16,8 +16,7 @@ import { placeholders } from "../../_settings/general";
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
-  profileImageHeight,
-  profileImageWidth,
+  Settings,
   templateSize,
   weekdayOption,
 } from "../../_settings/settings";
@@ -56,8 +55,8 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTableForm
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
-          cropWidth={profileImageWidth}
-          cropHeight={profileImageHeight}
+          cropWidth={Settings.profile.image.width}
+          cropHeight={Settings.profile.image.height}
         >
           <TimeTableInputList
             isOfflineMemo
