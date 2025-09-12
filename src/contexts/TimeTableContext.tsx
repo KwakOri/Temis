@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, ReactNode, useContext } from "react";
+import { ImageEditData, CroppedAreaPixels } from "@/types/image-edit";
 
 // Context 타입 정의
 export interface TimeTableState {
@@ -11,6 +12,9 @@ export interface TimeTableState {
   imageSrc: string | null;
   mondayDateStr: string;
   weekDates: Date[];
+
+  // 이미지 편집 상태
+  imageEditData: ImageEditData | null;
 
   // UI 상태
   scale: number;
@@ -29,6 +33,14 @@ export interface TimeTableActions {
   updateMemoText: (text: string) => void;
   updateImageSrc: (src: string | null) => void;
   updateMondayDate: (dateStr: string) => void;
+
+  // 이미지 편집 액션
+  updateImageEditData: (data: Partial<ImageEditData>) => void;
+  setOriginalImage: (imageSrc: string, cropWidth?: number, cropHeight?: number) => void;
+  saveCroppedImage: (croppedImageSrc: string, croppedAreaPixels: CroppedAreaPixels) => void;
+  updateEditProgress: (crop: { x: number; y: number }, zoom: number, rotation: number) => void;
+  resetImageEditData: () => void;
+  startEditMode: () => ImageEditData | null;
 
   // UI 액션
   updateScale: (scale: number) => void;
