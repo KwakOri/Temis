@@ -66,13 +66,13 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
         zIndex: profileImageInfo.arrange === "onTop" ? 20 : 10,
       }}
     >
-      {
+      {imageSrc && (
         <img
           className="object-cover w-full h-full"
-          src={imageSrc || ""}
+          src={imageSrc}
           alt={"placeholder"}
         />
-      }
+      )}
     </div>
   );
 };
