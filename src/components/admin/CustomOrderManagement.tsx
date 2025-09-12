@@ -106,6 +106,8 @@ export default function CustomOrderManagement() {
   const [calendarOrders, setCalendarOrders] = useState<CustomOrder[]>([]);
   const [legacyOrders, setLegacyOrders] = useState<LegacyOrder[]>([]);
   const [loadingCalendar, setLoadingCalendar] = useState(false);
+  const [urgentOrders, setUrgentOrders] = useState<CustomOrder[]>([]);
+  const [urgentLegacyOrders, setUrgentLegacyOrders] = useState<LegacyOrder[]>([]);
 
   // 주문 목록 조회
   const fetchOrders = async () => {
@@ -147,23 +149,32 @@ export default function CustomOrderManagement() {
     try {
       setLoadingCalendar(true);
 
-      // 월 범위 계산
+      // 월 범위 계산 - 시간대 변환 없이 직접 날짜 문자열 생성
       const startDate = new Date(year, month, 1);
       const endDate = new Date(year, month + 1, 0);
+      
+      // YYYY-MM-DD 형식으로 직접 변환 (시간대 변환 방지)
+      const formatDate = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+      
+      const startDateStr = formatDate(startDate);
+      const endDateStr = formatDate(endDate);
+
+      console.log(`Fetching calendar data for ${year}년 ${month + 1}월: ${startDateStr} ~ ${endDateStr}`);
 
       // 맞춤 제작 주문 데이터 가져오기
       const customOrdersResponse = await fetch(
-        `/api/admin/custom-orders/calendar?startDate=${
-          startDate.toISOString().split("T")[0]
-        }&endDate=${endDate.toISOString().split("T")[0]}`,
+        `/api/admin/custom-orders/calendar?startDate=${startDateStr}&endDate=${endDateStr}`,
         { credentials: "include" }
       );
 
       // 레거시 주문 데이터 가져오기
       const legacyOrdersResponse = await fetch(
-        `/api/admin/legacy-orders/calendar?startDate=${
-          startDate.toISOString().split("T")[0]
-        }&endDate=${endDate.toISOString().split("T")[0]}`,
+        `/api/admin/legacy-orders/calendar?startDate=${startDateStr}&endDate=${endDateStr}`,
         { credentials: "include" }
       );
 
@@ -184,11 +195,63 @@ export default function CustomOrderManagement() {
   };
 
   // 캘린더 날짜 변경 시 데이터 가져오기
+  // 긴급 작업 데이터 가져오기 (현재 날짜 기준 3일 이내)
+  const fetchUrgentTasks = async () => {
+    try {
+      const now = new Date();
+      const threeDaysFromNow = new Date();
+      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+
+      const startDate = now.toISOString().split('T')[0];
+      const endDate = threeDaysFromNow.toISOString().split('T')[0];
+
+      // 맞춤 제작 긴급 주문 가져오기
+      const customOrdersResponse = await fetch(
+        `/api/admin/custom-orders/calendar?startDate=${startDate}&endDate=${endDate}`,
+        { credentials: "include" }
+      );
+
+      // 레거시 긴급 주문 가져오기
+      const legacyOrdersResponse = await fetch(
+        `/api/admin/legacy-orders/calendar?startDate=${startDate}&endDate=${endDate}`,
+        { credentials: "include" }
+      );
+
+      if (customOrdersResponse.ok && legacyOrdersResponse.ok) {
+        const customData = await customOrdersResponse.json();
+        const legacyData = await legacyOrdersResponse.json();
+
+        // 완료/취소되지 않은 주문들만 필터링
+        const filteredCustomOrders = (customData.orders || []).filter(
+          (order: CustomOrder) => 
+            order.status !== "completed" && order.status !== "cancelled"
+        );
+        
+        const filteredLegacyOrders = (legacyData.orders || []).filter(
+          (order: LegacyOrder) => 
+            order.status !== "completed" && order.status !== "cancelled"
+        );
+
+        setUrgentOrders(filteredCustomOrders);
+        setUrgentLegacyOrders(filteredLegacyOrders);
+      } else {
+        console.error("Failed to fetch urgent tasks data");
+      }
+    } catch (error) {
+      console.error("Error fetching urgent tasks data:", error);
+    }
+  };
+
   useEffect(() => {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
     fetchCalendarData(year, month);
   }, [currentCalendarDate]);
+
+  // 긴급 작업은 컴포넌트 마운트시 한 번만 가져오고, 주문 상태 변경시에도 업데이트
+  useEffect(() => {
+    fetchUrgentTasks();
+  }, []);
 
   // 마이그레이션 상태 조회
   const fetchMigrationStatus = async () => {
@@ -673,6 +736,9 @@ export default function CustomOrderManagement() {
       <DeadlineCalendarView
         orders={calendarOrders}
         legacyOrders={legacyOrders}
+        urgentOrders={urgentOrders}
+        urgentLegacyOrders={urgentLegacyOrders}
+        allOrders={orders} // 미등록 작업 표시용
         onOrderClick={(order) => {
           setSelectedOrderForDeadline(order);
           setShowDeadlineModal(true);
@@ -724,10 +790,13 @@ export default function CustomOrderManagement() {
                 );
 
                 if (response.ok) {
-                  await fetchCalendarData(
-                    currentCalendarDate.getFullYear(),
-                    currentCalendarDate.getMonth()
-                  );
+                  await Promise.all([
+                    fetchCalendarData(
+                      currentCalendarDate.getFullYear(),
+                      currentCalendarDate.getMonth()
+                    ),
+                    fetchUrgentTasks()
+                  ]);
                   setShowDeadlineModal(false);
                   setSelectedOrderForDeadline(null);
                 } else {
@@ -749,10 +818,13 @@ export default function CustomOrderManagement() {
                   : 0,
                 deadline
               );
-              await fetchCalendarData(
-                currentCalendarDate.getFullYear(),
-                currentCalendarDate.getMonth()
-              );
+              await Promise.all([
+                fetchCalendarData(
+                  currentCalendarDate.getFullYear(),
+                  currentCalendarDate.getMonth()
+                ),
+                fetchUrgentTasks()
+              ]);
               setShowDeadlineModal(false);
               setSelectedOrderForDeadline(null);
             }
@@ -1395,6 +1467,9 @@ interface LegacyOrder {
 interface DeadlineCalendarViewProps {
   orders: CustomOrder[];
   legacyOrders: LegacyOrder[];
+  urgentOrders: CustomOrder[];
+  urgentLegacyOrders: LegacyOrder[];
+  allOrders: CustomOrder[]; // 미등록 작업 표시용 (전체 주문 데이터)
   onOrderClick: (order: CustomOrder | LegacyOrder) => void;
   currentDate: Date;
   onDateChange: (date: Date) => void;
@@ -1404,6 +1479,9 @@ interface DeadlineCalendarViewProps {
 function DeadlineCalendarView({
   orders,
   legacyOrders,
+  urgentOrders,
+  urgentLegacyOrders,
+  allOrders,
   onOrderClick,
   currentDate,
   onDateChange,
@@ -1412,20 +1490,16 @@ function DeadlineCalendarView({
   console.log("orders", orders);
   console.log("legacyOrders", legacyOrders);
 
-  // 마감기한이 없는 주문들 (맞춤 제작 + 레거시)
-  const unscheduledOrders = orders.filter(
+  // 마감기한이 없는 주문들 (전체 주문 데이터에서 조회)
+  const unscheduledOrders = allOrders.filter(
     (order) =>
       !order.deadline &&
       order.status !== "completed" &&
       order.status !== "cancelled"
   );
 
-  const unscheduledLegacyOrders = legacyOrders.filter(
-    (order) =>
-      !order.deadline &&
-      order.status !== "completed" &&
-      order.status !== "cancelled"
-  );
+  // 레거시 주문은 별도 상태에서 관리되지 않으므로 빈 배열로 처리 (필요시 추가 구현)
+  const unscheduledLegacyOrders: LegacyOrder[] = [];
 
   // 마감기한별로 주문 그룹핑 (맞춤 제작 + 레거시)
   const ordersByDate = orders
@@ -1450,42 +1524,16 @@ function DeadlineCalendarView({
       ordersByDate[dateKey].legacy.push(order);
     });
 
-  // 긴급도별로 정렬된 주문들 (3일 이내 마감 - 맞춤 제작 + 레거시)
-  const urgentCustomOrders = orders
-    .filter((order) => {
-      if (
-        !order.deadline ||
-        order.status === "completed" ||
-        order.status === "cancelled"
-      )
-        return false;
-      const deadlineDate = new Date(order.deadline);
-      const threeDaysFromNow = new Date();
-      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-      return deadlineDate <= threeDaysFromNow;
-    })
-    .sort(
-      (a, b) =>
-        new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
-    );
+  // 긴급도별로 정렬된 주문들 (현재 날짜 기준 3일 이내, 별도 상태에서 관리)
+  const urgentCustomOrders = urgentOrders.sort(
+    (a, b) =>
+      new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
+  );
 
-  const urgentLegacyOrders = legacyOrders
-    .filter((order) => {
-      if (
-        !order.deadline ||
-        order.status === "completed" ||
-        order.status === "cancelled"
-      )
-        return false;
-      const deadlineDate = new Date(order.deadline);
-      const threeDaysFromNow = new Date();
-      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-      return deadlineDate <= threeDaysFromNow;
-    })
-    .sort(
-      (a, b) =>
-        new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
-    );
+  const urgentLegacyOrdersSorted = urgentLegacyOrders.sort(
+    (a, b) =>
+      new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime()
+  );
 
   // 캘린더 날짜 계산
   const year = currentDate.getFullYear();
@@ -1615,12 +1663,12 @@ function DeadlineCalendarView({
           <div className="p-4">
             <h4 className="text-sm font-medium text-red-600 mb-3 flex items-center">
               <AlertTriangle className="w-4 h-4 mr-2" />
-              긴급 작업 ({urgentCustomOrders.length + urgentLegacyOrders.length}
+              긴급 작업 ({urgentCustomOrders.length + urgentLegacyOrdersSorted.length}
               )
             </h4>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {urgentCustomOrders.length === 0 &&
-              urgentLegacyOrders.length === 0 ? (
+              urgentLegacyOrdersSorted.length === 0 ? (
                 <p className="text-xs text-gray-500 py-2">
                   긴급 작업이 없습니다
                 </p>
@@ -1671,7 +1719,7 @@ function DeadlineCalendarView({
                   ))}
 
                   {/* 레거시 긴급 주문 */}
-                  {urgentLegacyOrders.map((order, index) => (
+                  {urgentLegacyOrdersSorted.map((order, index) => (
                     <div
                       key={`urgent-legacy-${order.id}`}
                       className={`p-3 rounded-md cursor-pointer transition-colors border-l-4 ${
