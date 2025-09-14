@@ -228,6 +228,16 @@ const CellSideTab = ({
   subTitle,
   subDescription,
 }: CellSideTabProps) => {
+  const subTitleFontSizeByLength = {
+    1: 63,
+    2: 63,
+    3: 63,
+    4: 63,
+    5: 63,
+    6: 52,
+    7: 44,
+    8: 40,
+  };
   return (
     <div
       className="absolute flex justify-center items-center gap-2"
@@ -243,6 +253,10 @@ const CellSideTab = ({
         style={{
           fontFamily: fontOption.primary,
           lineHeight: 1,
+          fontSize:
+            subTitleFontSizeByLength[
+              subTitle.length as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+            ],
         }}
       >
         {subTitle.split("").map((char, i) => (
