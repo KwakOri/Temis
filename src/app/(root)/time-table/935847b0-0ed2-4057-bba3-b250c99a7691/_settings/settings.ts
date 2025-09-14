@@ -109,7 +109,7 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       type: "text",
       placeholder: "얀즈데이",
       defaultValue: "",
-      maxLength: 5,
+      maxLength: 8,
     },
     {
       key: "subDescription",
