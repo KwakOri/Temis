@@ -22,7 +22,6 @@ const CELL_STYLE: CellStyleProps[] = [
   {
     container: { left: -56, top: 0, opacity: 1 },
     contentArea: {
-      position: "absolute",
       left: 104,
       top: 212,
       color: "#262326",
@@ -40,7 +39,7 @@ const CELL_STYLE: CellStyleProps[] = [
   },
   {
     container: { left: 1220, top: -20, opacity: 1 },
-    contentArea: { left: 120, top: 232 },
+    contentArea: { left: 120, top: 232, color: "#262326" },
     sideTab: {
       top: 76,
       left: 586,
@@ -60,7 +59,7 @@ const CELL_STYLE: CellStyleProps[] = [
   },
   {
     container: { left: 516, top: 932, opacity: 1 },
-    contentArea: { left: 280, top: 214 },
+    contentArea: { left: 280, top: 214, color: "#262326" },
     sideTab: {
       left: 66,
       top: 56,
@@ -81,7 +80,7 @@ const CELL_STYLE: CellStyleProps[] = [
   },
   {
     container: { left: 1808, top: 904, opacity: 1, color: "#262326" },
-    contentArea: { left: 280, top: 236 },
+    contentArea: { left: 280, top: 236, color: "#262326" },
     sideTab: {
       left: 64,
       top: 70,
