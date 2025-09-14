@@ -108,23 +108,42 @@ const ProfileText = ({
 }: ProfileTextProps) => {
   if (!isProfileTextVisible) return null;
   return (
-    <div
-      style={{
-        color: "#4E4851",
-        fontFamily: fontOption.primary,
-        bottom: 504,
-        right: 12,
-        width: 360,
-        height: 139,
-        rotate: "4.6deg",
-        fontWeight: "600",
-      }}
-      className="absolute z-50 flex justify-start items-center"
-    >
-      <AutoResizeText className="text-center" maxFontSize={76}>
-        {profileText ? profileText : profileTextPlaceholder}
-      </AutoResizeText>
-    </div>
+    <>
+      <div
+        className="z-50"
+        style={{
+          width: 274,
+          height: 91,
+          position: "absolute",
+          right: 420,
+          bottom: 560,
+        }}
+      >
+        <img
+          src={Imgs["first"]["artist"].src.replace("./", "/")}
+          alt="artist"
+          className="object-cover"
+          draggable={false}
+        />
+      </div>
+      <div
+        style={{
+          color: "#4E4851",
+          fontFamily: fontOption.primary,
+          bottom: 504,
+          right: 12,
+          width: 360,
+          height: 139,
+          rotate: "4.6deg",
+          fontWeight: "600",
+        }}
+        className="absolute z-50 flex justify-start items-center"
+      >
+        <AutoResizeText className="text-center" maxFontSize={76}>
+          {profileText ? profileText : profileTextPlaceholder}
+        </AutoResizeText>
+      </div>
+    </>
   );
 };
 
