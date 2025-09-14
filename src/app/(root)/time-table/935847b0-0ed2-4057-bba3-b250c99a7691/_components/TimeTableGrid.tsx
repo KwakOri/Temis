@@ -25,10 +25,10 @@ const CELL_STYLE: CellStyleProps[] = [
       position: "absolute",
       left: 104,
       top: 212,
-      color: "black",
+      color: "#262326",
     },
     sideTab: { top: 64, left: 578 },
-    timestamp: { bottom: 95, left: 170, color: "black" },
+    timestamp: { bottom: 95, left: 170, color: "#262326" },
     offlineSticker: { left: -54, top: 56 },
   },
   {
@@ -45,7 +45,7 @@ const CELL_STYLE: CellStyleProps[] = [
       top: 76,
       left: 586,
     },
-    timestamp: { bottom: 76, left: 182, color: "black" },
+    timestamp: { bottom: 76, left: 182, color: "#262326" },
     offlineSticker: { left: -54, top: 56 },
   },
   {
@@ -66,7 +66,7 @@ const CELL_STYLE: CellStyleProps[] = [
       top: 56,
       flexDirection: "row-reverse",
     },
-    timestamp: { top: 72, left: 320, color: "black" },
+    timestamp: { top: 72, left: 320, color: "#262326" },
     offlineSticker: { left: 100, top: -30 },
   },
   {
@@ -80,14 +80,14 @@ const CELL_STYLE: CellStyleProps[] = [
     offlineSticker: { left: -54, top: 56 },
   },
   {
-    container: { left: 1808, top: 904, opacity: 1, color: "black" },
+    container: { left: 1808, top: 904, opacity: 1, color: "#262326" },
     contentArea: { left: 280, top: 236 },
     sideTab: {
       left: 64,
       top: 70,
       flexDirection: "row-reverse",
     },
-    timestamp: { top: 92, left: 320, color: "black" },
+    timestamp: { top: 92, left: 320, color: "#262326" },
     offlineSticker: { left: 100, top: -30 },
   },
 ];

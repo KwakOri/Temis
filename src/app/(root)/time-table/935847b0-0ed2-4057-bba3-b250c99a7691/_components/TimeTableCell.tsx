@@ -120,11 +120,11 @@ const CellTextDescription = ({
   return (
     <div
       style={{
-        height: 240,
+        height: 360,
         width: "90%",
         marginTop: 10,
       }}
-      className="flex justify-center items-center  font-black"
+      className="flex justify-center items-start font-black"
     >
       <AutoResizeText
         style={{
@@ -132,7 +132,7 @@ const CellTextDescription = ({
         }}
         className="leading-none text-start w-full"
         multiline={true}
-        maxFontSize={110}
+        maxFontSize={100}
       >
         {description ? (description as string) : placeholders.description}
       </AutoResizeText>
@@ -154,7 +154,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
       style={{
         height: 72,
         width: "90%",
-        marginTop: 30,
+        marginTop: 36,
       }}
       className="  font-bold flex items-center"
     >
@@ -281,7 +281,7 @@ const CellContentArea = ({
         rotate: "-0.6deg",
         ...cellStyle,
       }}
-      className="absolute w-full h-full flex flex-col items-center"
+      className="absolute w-full h-full ml-7"
     >
       {children}
     </div>

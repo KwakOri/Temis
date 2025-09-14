@@ -109,14 +109,14 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       type: "text",
       placeholder: "얀즈데이",
       defaultValue: "",
-      maxLength: 50,
+      maxLength: 5,
     },
     {
       key: "subDescription",
       type: "text",
       placeholder: "짧방",
       defaultValue: "",
-      maxLength: 50,
+      maxLength: 8,
     },
   ],
   showLabels: false, // 라벨 표시 여부

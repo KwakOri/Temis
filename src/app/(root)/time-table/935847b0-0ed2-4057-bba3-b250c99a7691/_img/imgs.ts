@@ -4,6 +4,7 @@ import { ImgsType } from "@/types/time-table/image";
 
 import MainBG from "./main/bg_yanz.png";
 
+import Artist from "./main/artist_yanz.png";
 import TopObject from "./main/top_object_yanz.png";
 
 // Online images
@@ -24,6 +25,7 @@ import MainProfileFrame from "./main/profile_yanz.png";
 export const Imgs: ImgsType = {
   first: {
     bg: MainBG,
+    artist: Artist,
     topObject: TopObject,
     offline: OfflineImg,
 
