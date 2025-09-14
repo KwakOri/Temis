@@ -1,47 +1,45 @@
-// 인증 관련 타입 정의
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  password: string;
-  created_at?: string;
-  updated_at?: string;
+// 회원가입 관련 타입
+export interface SignupTokenValidateResponse {
+  valid: boolean
+  email?: string
+  error?: string
 }
 
-export interface UserPublic {
-  id: string;
-  email: string;
-  name: string;
-  created_at?: string;
-  updated_at?: string;
+export interface RegisterData {
+  email: string
+  password: string
+  name: string
+  token: string
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
+export interface RegisterResponse {
+  success: boolean
+  error?: string
 }
 
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  name: string;
+// 이메일 인증 관련 타입
+export interface VerifyEmailData {
+  token: string
 }
 
-export interface AuthResponse {
-  message: string;
-  user: UserPublic;
+export interface VerifyEmailResponse {
+  success: boolean
+  error?: string
 }
 
-export interface JWTPayload {
-  userId: string;
-  email: string;
-  name: string;
-  iat?: number;
-  exp?: number;
+// 비밀번호 재설정 관련 타입
+export interface ResetPasswordTokenValidateResponse {
+  valid: boolean
+  email?: string
+  error?: string
 }
 
-export interface ApiError {
-  error: string;
-  details?: string[];
+export interface ResetPasswordData {
+  token: string
+  password: string
+}
+
+export interface ResetPasswordResponse {
+  success: boolean
+  error?: string
 }

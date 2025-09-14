@@ -1,30 +1,38 @@
 "use client";
 
 import AccessManagement from "@/components/admin/AccessManagement";
+import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
+import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
+import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
+import PurchaseManagement from "@/components/admin/PurchaseManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
-import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
-import PurchaseManagement from "@/components/admin/PurchaseManagement";
-import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
-import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
 import WorkScheduleManagement from "@/components/admin/WorkScheduleManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
-import { 
-  FileText, 
-  Users, 
-  CreditCard, 
-  Palette, 
-  MailOpen, 
-  Shield,
+import {
   AlertTriangle,
-  ArrowLeft,
-  Loader2,
   Archive,
-  Calendar
+  ArrowLeft,
+  Calendar,
+  CreditCard,
+  FileText,
+  Loader2,
+  MailOpen,
+  Palette,
+  Shield,
+  Users,
 } from "lucide-react";
-type TabType = "templates" | "users" | "access" | "emailPreview" | "purchases" | "customOrders" | "legacyOrders" | "workSchedule";
+import { useEffect, useState } from "react";
+type TabType =
+  | "templates"
+  | "users"
+  | "access"
+  | "emailPreview"
+  | "purchases"
+  | "customOrders"
+  | "legacyOrders"
+  | "workSchedule";
 
 function AdminContent() {
   const { user } = useAuth();
@@ -63,7 +71,9 @@ function AdminContent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="mt-4 text-secondary font-medium">관리자 권한 확인 중...</p>
+          <p className="mt-4 text-secondary font-medium">
+            관리자 권한 확인 중...
+          </p>
         </div>
       </div>
     );
@@ -121,7 +131,8 @@ function AdminContent() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-[#F4FDFF] bg-quaternary px-3 py-2 rounded-md shadow-sm">
-                <span className="font-medium">관리자:</span> {user?.name} ({user?.email})
+                <span className="font-medium">관리자:</span> {user?.name} (
+                {user?.email})
               </div>
             </div>
           </div>

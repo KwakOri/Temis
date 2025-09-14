@@ -1,55 +1,24 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { Tables } from "@/types/supabase";
+import {
+  useDeletePurchaseRequest,
+  usePurchaseHistory,
+  useUpdatePurchaseRequest,
+} from "@/hooks/query/usePurchaseHistory";
+import { PurchaseRequestWithTemplate } from "@/types/purchaseHistory";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-
-type PurchaseRequest = Tables<"purchase_requests">;
-type Template = Tables<"templates">;
-
-interface PurchaseRequestWithTemplate extends PurchaseRequest {
-  template?: Template;
-}
-
-interface PurchaseHistoryData {
-  purchaseRequests: PurchaseRequestWithTemplate[];
-}
+import { useState } from "react";
 
 export default function PurchaseHistory() {
   const { user } = useAuth();
-  const [data, setData] = useState<PurchaseHistoryData>({
-    purchaseRequests: [],
-  });
-  const [loading, setLoading] = useState(true);
   const [editingRequest, setEditingRequest] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ depositorName: "", message: "" });
 
-  useEffect(() => {
-    if (user) {
-      fetchPurchaseHistory();
-    }
-  }, [user]);
-
-  const fetchPurchaseHistory = async () => {
-    try {
-      const response = await fetch("/api/user/purchase-history", {
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setData(result);
-      } else {
-        console.error("Failed to fetch purchase history");
-      }
-    } catch (error) {
-      console.error("Error fetching purchase history:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, isLoading: loading, error } = usePurchaseHistory();
+  const updateMutation = useUpdatePurchaseRequest();
+  const deleteMutation = useDeletePurchaseRequest();
 
   const startEdit = (request: PurchaseRequestWithTemplate) => {
     setEditingRequest(request.id);
@@ -66,29 +35,21 @@ export default function PurchaseHistory() {
 
   const saveEdit = async (requestId: string) => {
     try {
-      const response = await fetch(`/api/user/purchase-requests/${requestId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
+      await updateMutation.mutateAsync({
+        requestId,
+        data: {
           depositor_name: editForm.depositorName,
           message: editForm.message,
-        }),
+        },
       });
 
-      if (response.ok) {
-        alert("구매 요청이 수정되었습니다.");
-        setEditingRequest(null);
-        fetchPurchaseHistory();
-      } else {
-        const result = await response.json();
-        alert(result.error || "수정에 실패했습니다.");
-      }
+      alert("구매 요청이 수정되었습니다.");
+      setEditingRequest(null);
     } catch (error) {
       console.error("Error updating purchase request:", error);
-      alert("수정 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error ? error.message : "수정 중 오류가 발생했습니다."
+      );
     }
   };
 
@@ -96,21 +57,13 @@ export default function PurchaseHistory() {
     if (!confirm("이 구매 요청을 삭제하시겠습니까?")) return;
 
     try {
-      const response = await fetch(`/api/user/purchase-requests/${requestId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        alert("구매 요청이 삭제되었습니다.");
-        fetchPurchaseHistory();
-      } else {
-        const result = await response.json();
-        alert(result.error || "삭제에 실패했습니다.");
-      }
+      await deleteMutation.mutateAsync(requestId);
+      alert("구매 요청이 삭제되었습니다.");
     } catch (error) {
       console.error("Error deleting purchase request:", error);
-      alert("삭제 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error ? error.message : "삭제 중 오류가 발생했습니다."
+      );
     }
   };
 
@@ -132,6 +85,19 @@ export default function PurchaseHistory() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-4">구매 내역을 불러올 수 없습니다.</p>
+        <p className="text-gray-500">
+          {error instanceof Error
+            ? error.message
+            : "알 수 없는 오류가 발생했습니다."}
+        </p>
       </div>
     );
   }
@@ -164,7 +130,7 @@ export default function PurchaseHistory() {
           </p>
         </div>
 
-        {data.purchaseRequests.length === 0 ? (
+        {data?.purchaseRequests.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <p className="text-gray-500">구매 요청 내역이 없습니다.</p>
           </div>
@@ -194,7 +160,7 @@ export default function PurchaseHistory() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.purchaseRequests.map((request) => (
+                {data?.purchaseRequests.map((request) => (
                   <tr key={request.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(request.created_at!).toLocaleString("ko-KR")}

@@ -1,66 +1,19 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
-import { FilePreviewItem } from "@/components/FilePreview";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  CustomOrderFormData,
+  CustomOrderData,
+  CustomOrderWithStatus,
+  TabType,
+} from "@/types/customOrder";
+import { useSubmitCustomOrder, useCancelCustomOrder } from "@/hooks/query/useCustomOrder";
 import { Palette } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-
-interface CustomOrderFormData {
-  youtubeSnsAddress: string;
-  emailDiscord: string;
-  orderRequirements: string;
-  hasCharacterImages: boolean;
-  characterImageFiles: FilePreviewItem[];
-  characterImageFileIds: string[];
-  wantsOmakase: boolean;
-  designKeywords: string;
-  referenceFiles: FilePreviewItem[];
-  referenceFileIds: string[];
-  fastDelivery: boolean;
-  portfolioPrivate: boolean;
-  reviewEvent: boolean;
-  priceQuoted: number;
-  depositorName: string;
-  orderId?: string; // 수정 모드를 위한 필드
-}
-
-// 주문 생성/수정 시 사용하는 기본 데이터 (상태 정보 없음)
-interface CustomOrderData {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  price_quoted: number;
-  depositor_name: string;
-}
-
-// 주문 이력 조회 시 사용하는 완전한 데이터 (상태 정보 포함)
-interface CustomOrderWithStatus {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
-  price_quoted?: number;
-  depositor_name?: string;
-  admin_notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-type TabType = "order" | "history";
 
 export default function CustomOrderPage() {
   const { user } = useAuth();
@@ -70,56 +23,39 @@ export default function CustomOrderPage() {
   const [editingOrder, setEditingOrder] =
     useState<CustomOrderWithStatus | null>(null);
 
+  const submitOrderMutation = useSubmitCustomOrder();
+  const cancelOrderMutation = useCancelCustomOrder();
+
   const handleOrderSubmit = async (formData: CustomOrderFormData) => {
     try {
-      // 수정 모드인지 신규 생성인지 확인
       const isEditMode = !!formData.orderId;
-      const url = "/api/shop/custom-order";
-      const method = isEditMode ? "PUT" : "POST";
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
+      await submitOrderMutation.mutateAsync(formData);
 
-      const result = await response.json();
+      alert(
+        isEditMode
+          ? "주문이 성공적으로 수정되었습니다!"
+          : "맞춤형 시간표 제작 신청이 완료되었습니다!"
+      );
 
-      if (response.ok) {
-        alert(
-          isEditMode
-            ? "주문이 성공적으로 수정되었습니다!"
-            : "맞춤형 시간표 제작 신청이 완료되었습니다!"
-        );
-
-        // form 닫기
-        if (isEditMode) {
-          setShowEditForm(false);
-          setEditingOrder(null);
-        } else {
-          setShowOrderForm(false);
-        }
-
-        // 주문 내역 탭으로 전환
-        setActiveTab("history");
+      // form 닫기
+      if (isEditMode) {
+        setShowEditForm(false);
+        setEditingOrder(null);
       } else {
-        console.error("❌ [Order Submit] 주문 제출 실패:", result);
-        alert(
-          result.error ||
-            (isEditMode
-              ? "수정 중 오류가 발생했습니다."
-              : "신청 중 오류가 발생했습니다.")
-        );
+        setShowOrderForm(false);
       }
+
+      // 주문 내역 탭으로 전환
+      setActiveTab("history");
     } catch (error) {
       console.error("Order submission error:", error);
       alert(
-        formData.orderId
-          ? "수정 중 오류가 발생했습니다."
-          : "신청 중 오류가 발생했습니다."
+        error instanceof Error
+          ? error.message
+          : (formData.orderId
+              ? "수정 중 오류가 발생했습니다."
+              : "신청 중 오류가 발생했습니다.")
       );
     }
   };
@@ -137,25 +73,15 @@ export default function CustomOrderPage() {
     }
 
     try {
-      const response = await fetch(
-        `/api/shop/custom-order?orderId=${orderId}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        alert("주문이 성공적으로 취소되었습니다.");
-        // 이력 새로고침을 위해 탭을 다시 설정
-        setActiveTab("history");
-      } else {
-        const error = await response.json();
-        alert(error.error || "취소 중 오류가 발생했습니다.");
-      }
+      await cancelOrderMutation.mutateAsync(orderId);
+      alert("주문이 성공적으로 취소되었습니다.");
     } catch (error) {
       console.error("Cancel order error:", error);
-      alert("취소 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "취소 중 오류가 발생했습니다."
+      );
     }
   };
 

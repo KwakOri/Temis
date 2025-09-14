@@ -3,21 +3,27 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useValidateResetPasswordToken, useResetPassword } from "@/hooks/query/useAuth";
 
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token");
+  const token = searchParams.get("token") || "";
   const { user, loading } = useAuth();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [formLoading, setFormLoading] = useState(false);
-  const [validating, setValidating] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [tokenValid, setTokenValid] = useState(false);
-  const [email, setEmail] = useState("");
+
+  // React Query hooks
+  const {
+    data: tokenValidation,
+    isLoading: validating,
+    error: tokenError
+  } = useValidateResetPasswordToken(token);
+
+  const resetPasswordMutation = useResetPassword();
 
   // 이미 로그인된 사용자는 메인 페이지로 리다이렉트
   useEffect(() => {
@@ -26,48 +32,23 @@ function ResetPasswordForm() {
     }
   }, [user, loading, router]);
 
-  // 토큰 유효성 검증
+  // 토큰 검증 결과 처리
   useEffect(() => {
-    const validateToken = async () => {
-      if (!token) {
-        setError("유효하지 않은 링크입니다.");
-        setValidating(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/auth/reset-password?token=${token}`, {
-          method: "GET",
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.valid) {
-          setTokenValid(true);
-          setEmail(data.email || "");
-        } else {
-          setError(data.error || "유효하지 않거나 만료된 링크입니다.");
-        }
-      } catch (error) {
-        setError("서버 오류가 발생했습니다.");
-      } finally {
-        setValidating(false);
-      }
-    };
-
-    validateToken();
-  }, [token]);
+    if (tokenError) {
+      setError(tokenError instanceof Error ? tokenError.message : "유효하지 않은 링크입니다.");
+    }
+  }, [tokenError]);
 
   // 유효하지 않은 토큰인 경우 3초 후 메인페이지로 리다이렉션
   useEffect(() => {
-    if (!validating && !tokenValid) {
+    if (!validating && !tokenValidation?.valid) {
       const timer = setTimeout(() => {
         router.push("/");
       }, 3000);
 
       return () => clearTimeout(timer);
     }
-  }, [validating, tokenValid, router]);
+  }, [validating, tokenValidation, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,35 +68,20 @@ function ResetPasswordForm() {
       return;
     }
 
-    setFormLoading(true);
     setError("");
 
     try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          token,
-          password,
-        }),
+      await resetPasswordMutation.mutateAsync({
+        token,
+        password,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setSuccess("비밀번호가 성공적으로 변경되었습니다. 로그인 페이지로 이동합니다.");
-        setTimeout(() => {
-          router.push("/auth");
-        }, 2000);
-      } else {
-        setError(data.error || "비밀번호 변경에 실패했습니다.");
-      }
+      setSuccess("비밀번호가 성공적으로 변경되었습니다. 로그인 페이지로 이동합니다.");
+      setTimeout(() => {
+        router.push("/auth");
+      }, 2000);
     } catch (error) {
-      setError("서버 오류가 발생했습니다.");
-    } finally {
-      setFormLoading(false);
+      setError(error instanceof Error ? error.message : "비밀번호 변경에 실패했습니다.");
     }
   };
 
@@ -135,7 +101,7 @@ function ResetPasswordForm() {
     );
   }
 
-  if (!tokenValid) {
+  if (!validating && !tokenValidation?.valid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full space-y-8">
@@ -166,7 +132,7 @@ function ResetPasswordForm() {
             새 비밀번호 설정
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            {email}의 새 비밀번호를 설정해주세요.
+            {tokenValidation?.email}의 새 비밀번호를 설정해주세요.
           </p>
         </div>
 
@@ -244,9 +210,9 @@ function ResetPasswordForm() {
             <button
               type="submit"
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={formLoading || !!success}
+              disabled={resetPasswordMutation.isPending || !!success}
             >
-              {formLoading ? "변경 중..." : "비밀번호 변경"}
+              {resetPasswordMutation.isPending ? "변경 중..." : "비밀번호 변경"}
             </button>
           </div>
 

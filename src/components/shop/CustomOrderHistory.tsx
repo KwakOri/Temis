@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useCustomOrderHistory } from "@/hooks/query/useCustomOrder";
+import { CustomOrderWithStatus } from "@/types/customOrder";
 import {
   AlertCircle,
   CheckCircle,
@@ -9,25 +11,6 @@ import {
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-
-// 주문 이력 조회 시 사용하는 완전한 데이터 (상태 정보 포함)
-interface CustomOrderWithStatus {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
-  price_quoted?: number;
-  depositor_name?: string;
-  admin_notes?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 interface CustomOrderHistoryProps {
   onEditOrder: (order: CustomOrderWithStatus) => void;
@@ -39,33 +22,9 @@ export default function CustomOrderHistory({
   onCancelOrder,
 }: CustomOrderHistoryProps) {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<CustomOrderWithStatus[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading, error } = useCustomOrderHistory();
 
-  useEffect(() => {
-    if (user) {
-      fetchOrders();
-    }
-  }, [user]);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch("/api/shop/custom-order", {
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setOrders(result.orders || []);
-      } else {
-        console.error("Failed to fetch custom orders");
-      }
-    } catch (error) {
-      console.error("Error fetching custom orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const orders = data?.orders || [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -134,6 +93,17 @@ export default function CustomOrderHistory({
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1e3a8a]"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-4">커스텀 주문 내역을 불러올 수 없습니다.</p>
+        <p className="text-slate-500">
+          {error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다."}
+        </p>
       </div>
     );
   }

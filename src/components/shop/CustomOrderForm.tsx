@@ -3,6 +3,14 @@
 import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  useDeleteFiles,
+  useFilesByOrderId,
+  useUploadFiles,
+} from "@/hooks/query/useFiles";
+import { usePricingSettings } from "@/hooks/query/usePricing";
+import { CustomOrderData, CustomOrderFormData } from "@/types/customOrder";
+import { FileApiResponse } from "@/types/file";
+import {
   AlertTriangle,
   Calculator,
   CreditCard,
@@ -11,18 +19,6 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-
-// API 응답에서 받는 파일 데이터 타입 (DB + 동적 URL 포함)
-interface FileApiResponse {
-  id: string;
-  file_key: string;
-  original_name: string;
-  file_size: number;
-  mime_type: string;
-  file_category: string;
-  created_at: string;
-  url: string; // API에서 동적으로 추가된 필드
-}
 
 interface Step1Data {
   youtubeSnsAddress: string;
@@ -48,45 +44,9 @@ interface Step3Data {
   depositorName: string;
 }
 
-// admin_settings 테이블의 setting_value에 저장되는 가격 설정 타입
-interface PricingSettings {
-  base_price: number;
-  fast_delivery: {
-    price: number;
-    enabled: boolean;
-    description: string;
-  };
-  portfolio_private: {
-    price: number;
-    enabled: boolean;
-    description: string;
-  };
-  review_event: {
-    discount: number;
-    enabled: boolean;
-    description: string;
-  };
-}
-
-type CustomFormData = Step1Data & Step2Data & Step3Data & { orderId?: string };
-
-// 주문 생성/수정 시 사용하는 기본 데이터 (상태 정보 없음)
-interface CustomOrderData {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  price_quoted: number;
-  depositor_name: string;
-}
-
 interface CustomOrderFormProps {
   onClose: () => void;
-  onSubmit: (formData: CustomFormData) => Promise<void>;
+  onSubmit: (formData: CustomOrderFormData) => Promise<void>;
   existingOrder?: CustomOrderData; // 수정 모드일 때 기존 주문 데이터
   isEditMode?: boolean; // 수정 모드 여부
 }
@@ -100,10 +60,16 @@ export default function CustomOrderForm({
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const [pricingSettings, setPricingSettings] =
-    useState<PricingSettings | null>(null);
-  const [loadingPricing, setLoadingPricing] = useState(true);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  // React Query hooks
+  const { data: pricingSettings, isLoading: loadingPricing } =
+    usePricingSettings();
+  const { data: existingFilesData } = useFilesByOrderId(
+    isEditMode ? existingOrder?.id : undefined
+  );
+  const uploadFilesMutation = useUploadFiles();
+  const deleteFilesMutation = useDeleteFiles();
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
     youtubeSnsAddress: existingOrder?.youtube_sns_address || "",
@@ -134,117 +100,53 @@ export default function CustomOrderForm({
 
   // 수정 모드일 때 기존 파일들 로드
   useEffect(() => {
-    const loadExistingFiles = async () => {
-      if (!isEditMode || !existingOrder) return;
+    if (!isEditMode || !existingOrder || !existingFilesData) return;
 
-      try {
-        // 주문에 연결된 모든 파일들 로드
-        const response = await fetch(
-          `/api/files/by-order/${existingOrder.id}`,
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
+    // 파일 카테고리별로 분류
+    const characterImageFiles = existingFilesData.files
+      .filter(
+        (file: FileApiResponse) => file.file_category === "character_image"
+      )
+      .map((file: FileApiResponse) => ({
+        id: file.id,
+        file: null, // 수정 모드에서는 실제 File 객체가 없음
+        url: file.url,
+        mime_type: file.mime_type,
+        original_name: file.original_name,
+        file_size: file.file_size,
+      }));
 
-        if (response.ok) {
-          const result = await response.json();
+    const referenceFiles = existingFilesData.files
+      .filter((file: FileApiResponse) => file.file_category === "reference")
+      .map((file: FileApiResponse) => ({
+        id: file.id,
+        file: null, // 수정 모드에서는 실제 File 객체가 없음
+        url: file.url,
+        mime_type: file.mime_type,
+        original_name: file.original_name,
+        file_size: file.file_size,
+      }));
 
-          // 파일 카테고리별로 분류
-          const characterImageFiles = result.files
-            .filter(
-              (file: FileApiResponse) =>
-                file.file_category === "character_image"
-            )
-            .map((file: FileApiResponse) => ({
-              id: file.id,
-              file: null, // 수정 모드에서는 실제 File 객체가 없음
-              url: file.url,
-              mime_type: file.mime_type,
-              original_name: file.original_name,
-              file_size: file.file_size,
-            }));
+    setStep2Data((prev) => ({
+      ...prev,
+      characterImageFiles,
+      referenceFiles,
+      characterImageFileIds: characterImageFiles.map(
+        (f: FilePreviewItem) => f.id
+      ),
+      referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
+    }));
+  }, [isEditMode, existingOrder, existingFilesData]);
 
-          const referenceFiles = result.files
-            .filter(
-              (file: FileApiResponse) => file.file_category === "reference"
-            )
-            .map((file: FileApiResponse) => ({
-              id: file.id,
-              file: null, // 수정 모드에서는 실제 File 객체가 없음
-              url: file.url,
-              mime_type: file.mime_type,
-              original_name: file.original_name,
-              file_size: file.file_size,
-            }));
-
-          setStep2Data((prev) => ({
-            ...prev,
-            characterImageFiles,
-            referenceFiles,
-            characterImageFileIds: characterImageFiles.map(
-              (f: FilePreviewItem) => f.id
-            ),
-            referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
-          }));
-        } else {
-          console.error("❌ [Form] Failed to load files:", response.statusText);
-        }
-      } catch (error) {
-        console.error("❌ [Form] Failed to load existing files:", error);
-      }
-    };
-
-    loadExistingFiles();
-  }, [isEditMode, existingOrder]);
-
-  // 가격 설정 로드
+  // 가격 설정이 로드되면 기본 가격 설정
   useEffect(() => {
-    const fetchPricingSettings = async () => {
-      try {
-        const response = await fetch(
-          "/api/admin/settings?key=custom_order_pricing",
-          {
-            credentials: "include",
-          }
-        );
-        if (response.ok) {
-          const result = await response.json();
-          setPricingSettings(result.setting.setting_value);
-          setStep3Data((prev) => ({
-            ...prev,
-            priceQuoted: result.setting.setting_value.base_price,
-          }));
-        }
-      } catch (error) {
-        console.error("Failed to fetch pricing settings:", error);
-        // 기본값으로 폴백
-        const defaultSettings: PricingSettings = {
-          base_price: 80000,
-          fast_delivery: {
-            price: 30000,
-            enabled: true,
-            description: "빠른 마감",
-          },
-          portfolio_private: {
-            price: 10000,
-            enabled: true,
-            description: "포트폴리오 비공개",
-          },
-          review_event: {
-            discount: 10000,
-            enabled: true,
-            description: "후기 이벤트 참여",
-          },
-        };
-        setPricingSettings(defaultSettings);
-      } finally {
-        setLoadingPricing(false);
-      }
-    };
-
-    fetchPricingSettings();
-  }, []);
+    if (pricingSettings && !existingOrder) {
+      setStep3Data((prev) => ({
+        ...prev,
+        priceQuoted: pricingSettings.base_price,
+      }));
+    }
+  }, [pricingSettings, existingOrder]);
 
   // 가격 계산
   useEffect(() => {
@@ -307,7 +209,7 @@ export default function CustomOrderForm({
 
     setSubmitting(true);
     try {
-      const formData: CustomFormData = {
+      const formData: CustomOrderFormData = {
         ...step1Data,
         ...step2Data,
         ...step3Data,
@@ -344,23 +246,10 @@ export default function CustomOrderForm({
 
     setUploadingFiles(true);
     try {
-      const formData = new FormData();
-      Array.from(files).forEach((file) => {
-        formData.append("files", file);
+      const result = await uploadFilesMutation.mutateAsync({
+        files: Array.from(files),
+        type: "character-images",
       });
-      formData.append("type", "character-images");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "업로드에 실패했습니다.");
-      }
-
-      const result = await response.json();
 
       // FilePreviewItem 형식으로 변환
       const newFileItems: FilePreviewItem[] = Array.from(files).map(
@@ -376,7 +265,7 @@ export default function CustomOrderForm({
         characterImageFiles: [...prev.characterImageFiles, ...newFileItems],
         characterImageFileIds: [
           ...prev.characterImageFileIds,
-          ...result.files.map((file: { id: string; url: string }) => file.id),
+          ...result.files.map((file) => file.id),
         ],
       }));
     } catch (error) {
@@ -407,23 +296,10 @@ export default function CustomOrderForm({
 
     setUploadingFiles(true);
     try {
-      const formData = new FormData();
-      Array.from(files).forEach((file) => {
-        formData.append("files", file);
+      const result = await uploadFilesMutation.mutateAsync({
+        files: Array.from(files),
+        type: "reference-files",
       });
-      formData.append("type", "reference-files");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "업로드에 실패했습니다.");
-      }
-
-      const result = await response.json();
 
       // FilePreviewItem 형식으로 변환
       const newFileItems: FilePreviewItem[] = Array.from(files).map(
@@ -439,7 +315,7 @@ export default function CustomOrderForm({
         referenceFiles: [...prev.referenceFiles, ...newFileItems],
         referenceFileIds: [
           ...prev.referenceFileIds,
-          ...result.files.map((file: { id: string; url: string }) => file.id),
+          ...result.files.map((file) => file.id),
         ],
       }));
     } catch (error) {
@@ -455,21 +331,9 @@ export default function CustomOrderForm({
   // 캐릭터 이미지 파일 삭제
   const handleRemoveCharacterImage = async (fileId: string) => {
     try {
-      // API 호출하여 서버에서 파일 삭제
-      const response = await fetch("/api/upload", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileIds: [fileId] }),
-      });
+      await deleteFilesMutation.mutateAsync([fileId]);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "파일 삭제에 실패했습니다.");
-      }
-
-      // 로컬 상태에서 파일 제
+      // 로컬 상태에서 파일 제거
       setStep2Data((prev) => ({
         ...prev,
         characterImageFiles: prev.characterImageFiles.filter(
@@ -490,19 +354,7 @@ export default function CustomOrderForm({
   // 참고 파일 삭제
   const handleRemoveReferenceFile = async (fileId: string) => {
     try {
-      // API 호출하여 서버에서 파일 삭제
-      const response = await fetch("/api/upload", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileIds: [fileId] }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "파일 삭제에 실패했습니다.");
-      }
+      await deleteFilesMutation.mutateAsync([fileId]);
 
       // 로컬 상태에서 파일 제거
       setStep2Data((prev) => ({

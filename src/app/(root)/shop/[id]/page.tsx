@@ -2,84 +2,42 @@
 
 import BackButton from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
-import { Tables } from "@/types/supabase";
+import { useTemplateDetail, useSubmitPurchaseRequest } from "@/hooks/query/useTemplateDetail";
+import { TemplateWithProducts } from "@/types/templateDetail";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-
-type Template = Tables<"templates"> & {
-  template_products: Tables<"template_products">[];
-};
+import { useState } from "react";
 
 export default function TemplateDetailPage() {
   const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
-  const [template, setTemplate] = useState<Template | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
 
-  useEffect(() => {
-    if (params?.id) {
-      fetchTemplateDetail(params.id as string);
-    }
-  }, [params?.id]);
-
-  const fetchTemplateDetail = async (templateId: string) => {
-    try {
-      // 템플릿 기본 정보 조회
-      const { data: templateData, error: templateError } = await supabase
-        .from("templates")
-        .select(`*,template_products (*)`)
-        .eq("id", templateId)
-        .eq("is_public", true)
-        .eq("is_shop_visible", true)
-        .single();
-
-      if (templateError) throw templateError;
-
-      // 템플릿 상품 정보 조회 (template_products 테이블이 존재하지 않으므로 임시로 기본 정보만 사용)
-      // TODO: template_products 테이블 생성 후 조인 쿼리 사용
-      setTemplate(templateData);
-    } catch (error) {
-      console.error("Error fetching template detail:", error);
-      router.push("/shop");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const templateId = params?.id as string;
+  const { data: template, isLoading: loading, error } = useTemplateDetail(templateId);
+  const submitPurchaseRequest = useSubmitPurchaseRequest();
 
   const handlePurchaseRequest = async (formData: {
     depositorName: string;
     message: string;
   }) => {
+    if (!template) return;
+
     try {
-      const response = await fetch("/api/shop/purchase-request", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          template_id: template?.id,
-          depositor_name: formData.depositorName,
-          message: formData.message,
-        }),
+      await submitPurchaseRequest.mutateAsync({
+        template_id: template.id,
+        depositor_name: formData.depositorName,
+        message: formData.message,
       });
 
-      const result = await response.json();
-
-      if (response.ok) {
-        alert("구매 신청이 접수되었습니다. 곧 연락드리겠습니다.");
-        setShowPurchaseForm(false);
-      } else {
-        alert(result.error || "구매 신청 중 오류가 발생했습니다.");
-      }
+      alert("구매 신청이 접수되었습니다. 곧 연락드리겠습니다.");
+      setShowPurchaseForm(false);
     } catch (error) {
       console.error("Purchase request error:", error);
-      alert("구매 신청 중 오류가 발생했습니다.");
+      alert(error instanceof Error ? error.message : "구매 신청 중 오류가 발생했습니다.");
     }
   };
 
@@ -94,19 +52,32 @@ export default function TemplateDetailPage() {
     );
   }
 
-  if (!template) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <BackButton className="mb-6" />
           <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-white/20">
             <div className="text-center">
-              <p className="text-slate-500 mb-4">템플릿을 찾을 수 없습니다.</p>
+              <p className="text-red-500 mb-4">템플릿을 불러올 수 없습니다.</p>
+              <p className="text-slate-500 mb-4">
+                {error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다."}
+              </p>
+              <button
+                onClick={() => router.push("/shop")}
+                className="bg-[#1e3a8a] text-white px-4 py-2 rounded hover:bg-blue-800 transition-colors"
+              >
+                상점으로 돌아가기
+              </button>
             </div>
           </div>
         </div>
       </div>
     );
+  }
+
+  if (!template) {
+    return null;
   }
 
   return (
@@ -255,7 +226,7 @@ export default function TemplateDetailPage() {
 }
 
 interface PurchaseModalProps {
-  template: Template;
+  template: TemplateWithProducts;
   onClose: () => void;
   onSubmit: (formData: {
     depositorName: string;

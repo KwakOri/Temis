@@ -3,107 +3,59 @@
 import BackButton from "@/components/BackButton";
 import PurchaseHistory from "@/components/shop/PurchaseHistory";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/lib/supabase";
-import { Tables } from "@/types/supabase";
+import { Template, SortOrder, TabType } from "@/types/shop";
+import { usePublicTemplates, useUserTemplateAccess } from "@/hooks/query/useShop";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-
-type Template = Tables<"templates"> & {
-  template_products: Tables<"template_products">[];
-};
-
-type SortOrder = "newest" | "oldest";
-type TabType = "shop" | "history";
+import { useState, useMemo } from "react";
 
 export default function ShopPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("shop");
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [showOnlyUnpurchased, setShowOnlyUnpurchased] = useState(false);
-  const [unpurchasedTemplateIds, setUnpurchasedTemplateIds] = useState<
-    string[]
-  >([]);
 
+  // React Query hooks
+  const { data: templates = [], isLoading: templatesLoading, error: templatesError } = usePublicTemplates(sortOrder);
+  const { data: accessibleTemplateIds = [], isLoading: accessLoading } = useUserTemplateAccess(user?.id);
 
-  useEffect(() => {
-    fetchPublicTemplates();
-  }, []);
+  const loading = templatesLoading || (showOnlyUnpurchased && user && accessLoading);
 
-  useEffect(() => {
-    fetchPublicTemplates();
-  }, [sortOrder]);
-
-  useEffect(() => {
-    if (showOnlyUnpurchased && user) {
-      fetchUnpurchasedTemplates();
-    }
-  }, [showOnlyUnpurchased, user]);
-
-  const fetchUnpurchasedTemplates = async () => {
-    if (!user) return;
-
-    try {
-      // 사용자가 접근 권한이 있는 템플릿 ID들을 가져옴
-      const { data: accessData, error: accessError } = await supabase
-        .from("template_access")
-        .select("template_id")
-        .eq("user_id", Number(user.id));
-
-      if (accessError) throw accessError;
-
-      const accessibleTemplateIds =
-        accessData?.map((item) => item.template_id) || [];
-
-      // 모든 공개 템플릿 중에서 접근 권한이 없는 템플릿만 필터링
-      const unpurchasedIds = templates
-        .filter((template) => !accessibleTemplateIds.includes(template.id))
-        .map((template) => template.id);
-
-      setUnpurchasedTemplateIds(unpurchasedIds);
-    } catch (error) {
-      console.error("Error fetching template access:", error);
-    }
-  };
-
-  const fetchPublicTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("templates")
-        .select(`*,template_products (*)`)
-        .eq("is_public", true)
-        .eq("is_shop_visible", true)
-        .order("created_at", { ascending: sortOrder === "oldest" });
-
-      if (error) throw error;
-      setTemplates(data || []);
-
-      // 정렬 후 비구매 템플릿 필터링도 업데이트
-      if (showOnlyUnpurchased && user) {
-        fetchUnpurchasedTemplates();
-      }
-    } catch (error) {
-      console.error("Error fetching templates:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getFilteredTemplates = () => {
+  const filteredTemplates = useMemo(() => {
     if (showOnlyUnpurchased && user) {
       return templates.filter((template) =>
-        unpurchasedTemplateIds.includes(template.id)
+        !accessibleTemplateIds.includes(template.id)
       );
     }
     return templates;
-  };
+  }, [templates, showOnlyUnpurchased, user, accessibleTemplateIds]);
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">로딩 중...</div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="ml-4 text-gray-600">로딩 중...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (templatesError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-12">
+            <h3 className="text-xl font-medium text-gray-900 mb-2">
+              데이터를 불러올 수 없습니다
+            </h3>
+            <p className="text-gray-500">
+              {templatesError instanceof Error ? templatesError.message : "알 수 없는 오류가 발생했습니다."}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -215,7 +167,7 @@ export default function ShopPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {getFilteredTemplates().map((template) => (
+                {filteredTemplates.map((template) => (
                   <Link
                     key={template.id}
                     href={`/shop/${template.id}`}
@@ -268,7 +220,7 @@ export default function ShopPage() {
                 ))}
               </div>
 
-              {getFilteredTemplates().length === 0 && (
+              {filteredTemplates.length === 0 && (
                 <div className="text-center py-12">
                   <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-slate-100">
                     <svg

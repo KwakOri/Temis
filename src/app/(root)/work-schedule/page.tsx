@@ -1,70 +1,17 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
-import {
-  AlertCircle,
-  BarChart3,
-  Calendar,
-  CheckCircle,
-  Clock,
-  Flame,
-  Play,
-  Zap,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface WorkScheduleOrder {
-  id: string;
-  email_prefix: string;
-  deadline: string | null;
-  status: "accepted" | "in_progress";
-  selected_options?: string; // 내부 주문의 경우에만 존재
-  created_at: string;
-  source: "internal" | "legacy";
-}
+import { useWorkSchedule } from "@/hooks/query/useWorkSchedule";
+import { DeadlineStatus, TabType } from "@/types/workSchedule";
+import { AlertCircle, BarChart3, Calendar, Flame, Zap } from "lucide-react";
+import { useState } from "react";
 
 export default function WorkSchedulePage() {
-  const [orders, setOrders] = useState<WorkScheduleOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"fast" | "normal">("normal");
+  const [activeTab, setActiveTab] = useState<TabType>("normal");
 
-  // 주문 목록 조회
-  const fetchWorkSchedule = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/work-schedule", {
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders);
-      } else {
-        console.error("Failed to fetch work schedule");
-      }
-    } catch (error) {
-      console.error("Error fetching work schedule:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchWorkSchedule();
-  }, []);
-
-  // 상태별 아이콘
-  const getStatusIcon = (status: string) => {
-    const iconClass = "w-4 h-4";
-    switch (status) {
-      case "accepted":
-        return <CheckCircle className={`${iconClass} text-blue-600`} />;
-      case "in_progress":
-        return <Play className={`${iconClass} text-indigo-600`} />;
-      default:
-        return <Clock className={`${iconClass} text-gray-600`} />;
-    }
-  };
+  // React Query hook
+  const { data, isLoading: loading, error } = useWorkSchedule();
+  const orders = data?.orders || [];
 
   // 상태별 라벨
   const getStatusLabel = (status: string) => {
@@ -93,7 +40,7 @@ export default function WorkSchedulePage() {
   };
 
   // 마감일 상태 확인
-  const getDeadlineStatus = (deadline: string | null) => {
+  const getDeadlineStatus = (deadline: string | null): DeadlineStatus => {
     if (!deadline) return "none";
 
     const deadlineDate = new Date(deadline);
@@ -259,6 +206,18 @@ export default function WorkSchedulePage() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="ml-4 text-gray-600">작업 예정표를 불러오는 중...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <AlertCircle className="w-24 h-24 mx-auto text-red-300 mb-4" />
+            <h3 className="text-xl font-medium text-gray-900 mb-2">
+              데이터를 불러올 수 없습니다
+            </h3>
+            <p className="text-gray-500">
+              {error instanceof Error
+                ? error.message
+                : "알 수 없는 오류가 발생했습니다."}
+            </p>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-12">
