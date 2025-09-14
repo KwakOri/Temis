@@ -11,19 +11,26 @@ interface PortfolioGalleryProps {
 
 // 브라우저 크기별 카드 크기 설정 (기본 크기 유지, 대형 화면에서 점진적 확대)
 const getCardSizeByViewport = (windowWidth: number) => {
-  if (windowWidth >= 3840) { // 4K+ 디스플레이 (2.5배 확대)
+  if (windowWidth >= 3840) {
+    // 4K+ 디스플레이 (2.5배 확대)
     return { cardWidth: 750, gap: 40, cardHeight: 500 };
-  } else if (windowWidth >= 2560) { // QHD+ 디스플레이 (2.0배 확대)
+  } else if (windowWidth >= 2560) {
+    // QHD+ 디스플레이 (2.0배 확대)
     return { cardWidth: 600, gap: 32, cardHeight: 400 };
-  } else if (windowWidth >= 1920) { // FHD+ 디스플레이 (1.6배 확대)
+  } else if (windowWidth >= 1920) {
+    // FHD+ 디스플레이 (1.6배 확대)
     return { cardWidth: 480, gap: 26, cardHeight: 320 };
-  } else if (windowWidth >= 1440) { // HD+ 디스플레이 (1.3배 확대)
+  } else if (windowWidth >= 1440) {
+    // HD+ 디스플레이 (1.3배 확대)
     return { cardWidth: 390, gap: 21, cardHeight: 260 };
-  } else if (windowWidth >= 1024) { // 태블릿 가로 (1.1배 확대)
+  } else if (windowWidth >= 1024) {
+    // 태블릿 가로 (1.1배 확대)
     return { cardWidth: 330, gap: 18, cardHeight: 220 };
-  } else if (windowWidth >= 768) { // 태블릿 세로 (기본 크기)
+  } else if (windowWidth >= 768) {
+    // 태블릿 세로 (기본 크기)
     return { cardWidth: 300, gap: 16, cardHeight: 200 };
-  } else { // 모바일 (축소)
+  } else {
+    // 모바일 (축소)
     return { cardWidth: 250, gap: 12, cardHeight: 167 };
   }
 };
@@ -50,8 +57,8 @@ const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
       setCardSize(newCardSize);
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // 카드 폭 + 간격을 기준으로 애니메이션 duration 계산
@@ -72,7 +79,9 @@ const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
             style={{
               height: `${cardSize.cardHeight + 20}px`, // 카드 높이 + 여백
               gap: `${cardSize.gap}px`,
-              animation: isClient ? `slideLoop ${oddDuration}s linear infinite` : 'none',
+              animation: isClient
+                ? `slideLoop ${oddDuration}s linear infinite`
+                : "none",
             }}
           >
             {Array(2) // 고정된 2배 복제로 부드러운 루프 구현
@@ -83,8 +92,8 @@ const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
                     key={`odd-${groupIdx}-${id}`}
                     className="pointer-events-auto"
                   >
-                    <ThumbnailCard 
-                      id={id} 
+                    <ThumbnailCard
+                      id={id}
                       cardWidth={cardSize.cardWidth}
                       cardHeight={cardSize.cardHeight}
                     />
@@ -101,8 +110,10 @@ const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
             style={{
               height: `${cardSize.cardHeight + 20}px`, // 카드 높이 + 여백
               gap: `${cardSize.gap}px`,
-              animation: isClient ? `slideLoop ${evenDuration}s linear infinite` : 'none',
-              animationDelay: isClient ? `-${evenDuration / 2}s` : '0s', // 절반만큼 시간 오프셋
+              animation: isClient
+                ? `slideLoop ${evenDuration}s linear infinite`
+                : "none",
+              animationDelay: isClient ? `-${evenDuration / 2}s` : "0s", // 절반만큼 시간 오프셋
             }}
           >
             {Array(2) // 고정된 2배 복제로 부드러운 루프 구현
@@ -113,8 +124,8 @@ const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
                     key={`even-${groupIdx}-${id}`}
                     className="pointer-events-auto"
                   >
-                    <ThumbnailCard 
-                      id={id} 
+                    <ThumbnailCard
+                      id={id}
                       cardWidth={cardSize.cardWidth}
                       cardHeight={cardSize.cardHeight}
                     />
