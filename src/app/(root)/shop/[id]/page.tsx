@@ -6,6 +6,8 @@ import {
   useSubmitPurchaseRequest,
   useTemplateDetail,
 } from "@/hooks/query/useTemplateDetail";
+import { useUserTemplateAccess } from "@/hooks/query/useShop";
+import { usePurchaseHistory } from "@/hooks/query/usePurchaseHistory";
 import { TemplateWithProducts } from "@/types/templateDetail";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Image from "next/image";
@@ -25,7 +27,21 @@ export default function TemplateDetailPage() {
     isLoading: loading,
     error,
   } = useTemplateDetail(templateId);
+  const { data: accessibleTemplateIds = [], isLoading: accessLoading } =
+    useUserTemplateAccess(user?.id);
+  const { data: purchaseHistoryData, isLoading: purchaseHistoryLoading } =
+    usePurchaseHistory();
   const submitPurchaseRequest = useSubmitPurchaseRequest();
+
+  // 현재 템플릿을 이미 구매했는지 확인
+  const isPurchased = user && accessibleTemplateIds.includes(templateId);
+
+  // 현재 템플릿에 대해 pending 상태의 구매 신청이 있는지 확인
+  const pendingPurchaseRequest = user && purchaseHistoryData?.purchaseRequests.find(
+    (request) =>
+      request.template_id === templateId &&
+      request.status === "pending"
+  );
 
   const handlePurchaseRequest = async (formData: {
     depositorName: string;
@@ -52,7 +68,7 @@ export default function TemplateDetailPage() {
     }
   };
 
-  if (loading) {
+  if (loading || (user && (accessLoading || purchaseHistoryLoading))) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
         <div className="text-center">
@@ -192,12 +208,81 @@ export default function TemplateDetailPage() {
               {/* 구매 버튼 */}
               <div className="border-t border-slate-200 pt-6">
                 {user ? (
-                  <button
-                    onClick={() => setShowPurchaseForm(true)}
-                    className="w-full bg-[#1e3a8a] text-white py-3 rounded-lg hover:bg-blue-800 transition-colors font-semibold"
-                  >
-                    구매 신청하기
-                  </button>
+                  isPurchased ? (
+                    <div className="text-center">
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-center mb-2">
+                          <svg
+                            className="h-6 w-6 text-green-600 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 13l4 4L19 7"
+                            />
+                          </svg>
+                          <span className="text-green-800 font-semibold">
+                            구매 완료
+                          </span>
+                        </div>
+                        <p className="text-green-700 text-sm">
+                          이미 구매하신 템플릿입니다. 시간표 편집기에서 사용하실 수 있습니다.
+                        </p>
+                      </div>
+                      <Link
+                        href="/test"
+                        className="w-full inline-block bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold text-center"
+                      >
+                        시간표 편집기로 이동
+                      </Link>
+                    </div>
+                  ) : pendingPurchaseRequest ? (
+                    <div className="text-center">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-center mb-2">
+                          <svg
+                            className="h-6 w-6 text-yellow-600 mr-2"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          <span className="text-yellow-800 font-semibold">
+                            구매 신청 대기중
+                          </span>
+                        </div>
+                        <p className="text-yellow-700 text-sm mb-2">
+                          이미 구매 신청을 하셨습니다. 입금 확인 후 처리됩니다.
+                        </p>
+                        <p className="text-yellow-600 text-xs">
+                          신청일: {new Date(pendingPurchaseRequest.created_at!).toLocaleDateString("ko-KR")}
+                        </p>
+                      </div>
+                      <Link
+                        href="/shop"
+                        className="w-full inline-block bg-yellow-600 text-white py-3 rounded-lg hover:bg-yellow-700 transition-colors font-semibold text-center"
+                      >
+                        구매 내역 확인하기
+                      </Link>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowPurchaseForm(true)}
+                      className="w-full bg-[#1e3a8a] text-white py-3 rounded-lg hover:bg-blue-800 transition-colors font-semibold"
+                    >
+                      구매 신청하기
+                    </button>
+                  )
                 ) : (
                   <div className="text-center">
                     <p className="text-slate-600 mb-3">
@@ -216,9 +301,11 @@ export default function TemplateDetailPage() {
                     구매하신 템플릿은 본인만 사용 가능하며 타인과 공유하거나
                     타인에게 양도할 수 없습니다.
                   </p>
-                  <p className="text-sm text-slate-500 mt-2">
-                    계좌 송금으로 결제가 진행됩니다
-                  </p>
+                  {!isPurchased && !pendingPurchaseRequest && (
+                    <p className="text-sm text-slate-500 mt-2">
+                      계좌 송금으로 결제가 진행됩니다
+                    </p>
+                  )}
                 </div>
               </div>
             </div>

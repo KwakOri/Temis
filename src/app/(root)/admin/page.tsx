@@ -8,7 +8,6 @@ import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
-import WorkScheduleManagement from "@/components/admin/WorkScheduleManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -33,7 +32,6 @@ type TabType =
   | "purchases"
   | "customOrders"
   | "legacyOrders"
-  | "workSchedule"
   | "workCalendar";
 
 function AdminContent() {
@@ -96,7 +94,6 @@ function AdminContent() {
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
     { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
     { id: "users" as TabType, name: "사용자 관리", icon: Users },
-    { id: "workSchedule" as TabType, name: "작업 일정 관리", icon: Calendar },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
     { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
   ];
@@ -159,7 +156,6 @@ function AdminContent() {
         {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "access" && <AccessManagement />}
         {activeTab === "users" && <UserManagement />}
-        {activeTab === "workSchedule" && <WorkScheduleManagement />}
         {activeTab === "emailPreview" && <EmailTemplatePreview />}
       </div>
     </div>

@@ -1,4 +1,5 @@
 import {
+  useAdminCustomOrders,
   useAdminCustomOrdersCalendar,
   useAdminLegacyOrdersCalendar,
 } from "@/hooks/query/useAdminOrders";
@@ -38,14 +39,28 @@ export const DeadlineCalendarView = () => {
       currentDate.getMonth()
     );
 
+  // 미등록 일정을 가져오기 위해 전체 주문 목록 호출
+  const { data: allCustomOrdersResponse, isLoading: loadingAllCustomOrders } =
+    useAdminCustomOrders({ status: "all" });
+
+  // 전체 주문에서 미등록 일정 필터링
+  const allCustomOrders = allCustomOrdersResponse?.orders || [];
+  const unscheduledCustomOrders = allCustomOrders.filter(
+    (order) =>
+      !order.deadline &&
+      order.status !== "completed" &&
+      order.status !== "cancelled"
+  );
+
   // Extract orders from response objects
   const orders = customOrdersResponse?.orders || [];
   const legacyOrders = legacyOrdersResponse?.orders || [];
 
   console.log("customOrdersResponse => ", customOrdersResponse);
   console.log("orders => ", orders);
+  console.log("unscheduledCustomOrders => ", unscheduledCustomOrders);
 
-  const loading = loadingCustomCalendar || loadingLegacyCalendar;
+  const loading = loadingCustomCalendar || loadingLegacyCalendar || loadingAllCustomOrders;
 
   // 긴급 작업 계산 (3일 이내) - 완료된 작업과 취소된 작업 제외
   const urgentOrders = orders.filter((order: CustomOrderWithUser) => {
@@ -68,7 +83,7 @@ export const DeadlineCalendarView = () => {
     return diffDays <= 3 && diffDays >= 0;
   });
 
-  const allOrders = orders; // 전체 주문 데이터
+  const allOrders = orders; // 캘린더에 표시될 주문 데이터
 
   const onOrderClick = (order: CustomOrderWithUser | LegacyOrderType) => {
     setSelectedOrderForDeadline(order);
@@ -79,15 +94,7 @@ export const DeadlineCalendarView = () => {
     setCurrentDate(date);
   };
 
-  // 마감기한이 없는 주문들 (전체 주문 데이터에서 조회)
-  const unscheduledOrders = allOrders.filter(
-    (order) =>
-      !order.deadline &&
-      order.status !== "completed" &&
-      order.status !== "cancelled"
-  );
-
-  // 레거시 주문은 별도 상태에서 관리되지 않으므로 빈 배열로 처리 (필요시 추가 구현)
+  // 레거시 주문의 미등록 일정은 아직 API가 없으므로 빈 배열로 처리 (향후 구현 필요)
   const unscheduledLegacyOrders: LegacyOrderLocal[] = [];
 
   // 마감기한별로 주문 그룹핑 (맞춤 제작 + 레거시) - 취소된 주문 제외
@@ -151,6 +158,25 @@ export const DeadlineCalendarView = () => {
     onDateChange(newDate);
   };
 
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-primary flex items-center">
+              <Calendar className="w-5 h-5 mr-2" />
+              주문 마감일 관리
+            </h3>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <p className="ml-3 text-slate-600">데이터를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       {/* 헤더 */}
@@ -171,10 +197,10 @@ export const DeadlineCalendarView = () => {
             <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
               <Clock className="w-4 h-4 mr-2" />
               미등록 작업 (
-              {unscheduledOrders.length + unscheduledLegacyOrders.length})
+              {unscheduledCustomOrders.length + unscheduledLegacyOrders.length})
             </h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {unscheduledOrders.length === 0 &&
+              {unscheduledCustomOrders.length === 0 &&
               unscheduledLegacyOrders.length === 0 ? (
                 <p className="text-xs text-gray-500 py-2">
                   모든 작업에 마감일이 설정되었습니다
@@ -182,7 +208,7 @@ export const DeadlineCalendarView = () => {
               ) : (
                 <>
                   {/* 맞춤 제작 주문 */}
-                  {unscheduledOrders.map((order) => (
+                  {unscheduledCustomOrders.map((order) => (
                     <div
                       key={`custom-${order.id}`}
                       onClick={() => onOrderClick(order)}
