@@ -3,6 +3,7 @@
 import BackButton from "@/components/BackButton";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
+import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   useCancelCustomOrder,
@@ -24,6 +25,9 @@ export default function CustomOrderPage() {
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingOrder, setEditingOrder] =
+    useState<CustomOrderWithStatus | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] =
     useState<CustomOrderWithStatus | null>(null);
 
   const submitOrderMutation = useSubmitCustomOrder();
@@ -84,6 +88,12 @@ export default function CustomOrderPage() {
         error instanceof Error ? error.message : "취소 중 오류가 발생했습니다."
       );
     }
+  };
+
+  // 상세보기 핸들러
+  const handleViewDetails = (order: CustomOrderWithStatus) => {
+    setSelectedOrder(order);
+    setShowDetailsModal(true);
   };
 
   // CustomOrderWithStatus를 CustomOrderData로 변환
@@ -227,6 +237,7 @@ export default function CustomOrderPage() {
                 <CustomOrderHistory
                   onEditOrder={handleEditOrder}
                   onCancelOrder={handleCancelOrder}
+                  onViewDetails={handleViewDetails}
                 />
               )}
             </div>
@@ -251,6 +262,18 @@ export default function CustomOrderPage() {
           onSubmit={handleOrderSubmit}
           existingOrder={convertToOrderData(editingOrder)}
           isEditMode={true}
+        />
+      )}
+
+      {/* 주문 상세보기 모달 */}
+      {showDetailsModal && selectedOrder && (
+        <OrderDetailsModal
+          order={selectedOrder}
+          isOpen={showDetailsModal}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedOrder(null);
+          }}
         />
       )}
     </>

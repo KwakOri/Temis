@@ -8,6 +8,7 @@ import {
   CheckCircle,
   Clock,
   Edit,
+  Eye,
   Trash2,
   XCircle,
 } from "lucide-react";
@@ -15,11 +16,13 @@ import {
 interface CustomOrderHistoryProps {
   onEditOrder: (order: CustomOrderWithStatus) => void;
   onCancelOrder: (orderId: string) => void;
+  onViewDetails: (order: CustomOrderWithStatus) => void;
 }
 
 export default function CustomOrderHistory({
   onEditOrder,
   onCancelOrder,
+  onViewDetails,
 }: CustomOrderHistoryProps) {
   const { user } = useAuth();
   const { data, isLoading: loading, error } = useCustomOrderHistory();
@@ -244,25 +247,37 @@ export default function CustomOrderHistory({
                     </div>
                   )}
 
-                  {/* 수정/취소 버튼 (pending, accepted 상태에서만 표시) */}
-                  {(order.status === "pending" || order.status === "accepted") && (
-                    <div className="flex gap-2 pt-3 border-t border-slate-100">
-                      <button
-                        onClick={() => onEditOrder(order)}
-                        className="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                      >
-                        <Edit className="h-3 w-3 mr-1" />
-                        수정
-                      </button>
-                      <button
-                        onClick={() => onCancelOrder(order.id)}
-                        className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1" />
-                        취소
-                      </button>
-                    </div>
-                  )}
+                  {/* 액션 버튼들 */}
+                  <div className="flex gap-2 pt-3 border-t border-slate-100">
+                    {/* 상세보기 버튼 (모든 상태에서 표시) */}
+                    <button
+                      onClick={() => onViewDetails(order)}
+                      className="flex items-center px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      상세보기
+                    </button>
+
+                    {/* 수정/취소 버튼 (pending, accepted 상태에서만 표시) */}
+                    {(order.status === "pending" || order.status === "accepted") && (
+                      <>
+                        <button
+                          onClick={() => onEditOrder(order)}
+                          className="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          수정
+                        </button>
+                        <button
+                          onClick={() => onCancelOrder(order.id)}
+                          className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          취소
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

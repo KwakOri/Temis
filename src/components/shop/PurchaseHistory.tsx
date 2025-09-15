@@ -206,27 +206,6 @@ export default function PurchaseHistory() {
                         </span>
                       )}
                     </td>
-                    {/* <td className="px-6 py-4 text-sm">
-                      {editingRequest === request.id ? (
-                        <textarea
-                          value={editForm.message}
-                          onChange={(e) =>
-                            setEditForm((prev) => ({
-                              ...prev,
-                              message: e.target.value,
-                            }))
-                          }
-                          className="w-full border border-gray-300 rounded px-2 py-1 text-sm h-16 resize-none"
-                        />
-                      ) : (
-                        <div
-                          className="text-gray-500 max-w-xs truncate"
-                          title={request.message || ""}
-                        >
-                          {request.message || "-"}
-                        </div>
-                      )}
-                    </td> */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(request.status || "pending")}
                     </td>
