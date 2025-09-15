@@ -1,67 +1,67 @@
 import {
-  CustomOrderFormData,
-  SubmitCustomOrderResponse,
   CancelCustomOrderResponse,
+  CustomOrderFormData,
   CustomOrderHistoryResponse,
-} from '@/types/customOrder'
+  SubmitCustomOrderResponse,
+} from "@/types/customOrder";
 
 export class CustomOrderService {
-  private static baseUrl = '/api/shop/custom-order'
+  private static baseUrl = "/api/shop/custom-order";
 
   static async getCustomOrderHistory(): Promise<CustomOrderHistoryResponse> {
     const response = await fetch(this.baseUrl, {
-      credentials: 'include',
-    })
+      credentials: "include",
+    });
 
     if (!response.ok) {
-      throw new Error('커스텀 주문 내역을 가져오는데 실패했습니다.')
+      throw new Error("커스텀 주문 내역을 가져오는데 실패했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 
   static async submitCustomOrder(
     formData: CustomOrderFormData
   ): Promise<SubmitCustomOrderResponse> {
-    const isEditMode = !!formData.orderId
-    const method = isEditMode ? 'PUT' : 'POST'
+    const isEditMode = !!formData.orderId;
+    const method = isEditMode ? "PUT" : "POST";
 
     const response = await fetch(this.baseUrl, {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify(formData),
-    })
+    });
 
-    const result = await response.json()
+    const result = await response.json();
 
     if (!response.ok) {
       throw new Error(
         result.error ||
           (isEditMode
-            ? '수정 중 오류가 발생했습니다.'
-            : '신청 중 오류가 발생했습니다.')
-      )
+            ? "수정 중 오류가 발생했습니다."
+            : "신청 중 오류가 발생했습니다.")
+      );
     }
 
-    return result
+    return result;
   }
 
   static async cancelCustomOrder(
     orderId: string
   ): Promise<CancelCustomOrderResponse> {
     const response = await fetch(`${this.baseUrl}?orderId=${orderId}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    })
+      method: "DELETE",
+      credentials: "include",
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || '취소 중 오류가 발생했습니다.')
+      const error = await response.json();
+      throw new Error(error.error || "취소 중 오류가 발생했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 }

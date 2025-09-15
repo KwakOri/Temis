@@ -10,6 +10,7 @@ import UserManagement from "@/components/admin/UserManagement";
 import WorkScheduleManagement from "@/components/admin/WorkScheduleManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminPermission } from "@/hooks/query/useAdminPermission";
 import {
   AlertTriangle,
   Archive,
@@ -23,7 +24,7 @@ import {
   Shield,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 type TabType =
   | "templates"
   | "users"
@@ -37,34 +38,15 @@ type TabType =
 function AdminContent() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("templates");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  // 관리자 권한 확인
-  useEffect(() => {
-    const checkAdminPermission = async () => {
-      if (!user) return;
+  // React Query로 관리자 권한 확인
+  const {
+    data: permissionData,
+    isLoading: loading,
+    error,
+  } = useAdminPermission(!!user);
 
-      try {
-        const response = await fetch("/api/admin/users", {
-          credentials: "include",
-        });
-
-        if (response.status === 403) {
-          setIsAdmin(false);
-        } else if (response.ok) {
-          setIsAdmin(true);
-        }
-      } catch (error) {
-        console.error("Admin permission check failed:", error);
-        setIsAdmin(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAdminPermission();
-  }, [user]);
+  const isAdmin = permissionData?.isAdmin || false;
 
   if (loading) {
     return (
@@ -79,7 +61,7 @@ function AdminContent() {
     );
   }
 
-  if (!isAdmin) {
+  if (error || !isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg border border-gray-200 p-8 text-center">

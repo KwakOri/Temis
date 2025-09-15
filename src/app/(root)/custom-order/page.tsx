@@ -5,12 +5,15 @@ import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  CustomOrderFormData,
+  useCancelCustomOrder,
+  useSubmitCustomOrder,
+} from "@/hooks/query/useCustomOrder";
+import {
   CustomOrderData,
+  CustomOrderFormData,
   CustomOrderWithStatus,
   TabType,
 } from "@/types/customOrder";
-import { useSubmitCustomOrder, useCancelCustomOrder } from "@/hooks/query/useCustomOrder";
 import { Palette } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -53,9 +56,9 @@ export default function CustomOrderPage() {
       alert(
         error instanceof Error
           ? error.message
-          : (formData.orderId
-              ? "수정 중 오류가 발생했습니다."
-              : "신청 중 오류가 발생했습니다.")
+          : formData.orderId
+          ? "수정 중 오류가 발생했습니다."
+          : "신청 중 오류가 발생했습니다."
       );
     }
   };
@@ -78,9 +81,7 @@ export default function CustomOrderPage() {
     } catch (error) {
       console.error("Cancel order error:", error);
       alert(
-        error instanceof Error
-          ? error.message
-          : "취소 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "취소 중 오류가 발생했습니다."
       );
     }
   };

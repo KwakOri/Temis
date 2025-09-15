@@ -1,17 +1,17 @@
-import { WorkScheduleResponse } from '@/types/workSchedule'
+import { WorkScheduleResponse } from "@/types/workSchedule";
 
 export class WorkScheduleService {
-  private static baseUrl = '/api/work-schedule'
+  private static baseUrl = "/api/work-schedule";
 
   static async getWorkSchedule(): Promise<WorkScheduleResponse> {
     const response = await fetch(this.baseUrl, {
-      credentials: 'include',
-    })
+      credentials: "include",
+    });
 
     if (!response.ok) {
-      throw new Error('작업 일정표를 가져오는데 실패했습니다.')
+      throw new Error("작업 일정표를 가져오는데 실패했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 }

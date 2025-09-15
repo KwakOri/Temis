@@ -1,5 +1,6 @@
 "use client";
 
+import { useAdminWorkSchedule } from "@/hooks/query/useAdminWorkSchedule";
 import {
   AlertCircle,
   AlertTriangle,
@@ -12,7 +13,7 @@ import {
   Play,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 interface AdminWorkScheduleOrder {
   id: string;
@@ -34,40 +35,17 @@ type StatusFilter =
 type TabType = "pending_incomplete" | "fast_deadline" | "normal_deadline";
 
 export default function WorkScheduleManagement() {
-  const [orders, setOrders] = useState<AdminWorkScheduleOrder[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("pending_incomplete");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  // 주문 목록 조회 (관리자용 - 모든 상태 포함)
-  const fetchAllOrders = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/work-schedule", {
-        credentials: "include",
-      });
+  // React Query로 데이터 관리
+  const {
+    data: workScheduleData,
+    isLoading: loading,
+    error,
+  } = useAdminWorkSchedule();
 
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders);
-      } else {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Failed to fetch admin work schedule:", {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorData,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching admin work schedule:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchAllOrders();
-  }, []);
+  const orders = workScheduleData?.orders || [];
 
   // 상태별 아이콘
   const getStatusIcon = (status: string) => {
@@ -381,6 +359,21 @@ export default function WorkScheduleManagement() {
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="ml-4 text-gray-600">작업 일정을 불러오는 중...</p>
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 mx-auto text-red-500 mb-4" />
+            <p className="text-red-600 mb-4">
+              데이터를 불러오는 중 오류가 발생했습니다.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-primary text-white px-4 py-2 rounded hover:bg-secondary"
+            >
+              새로고침
+            </button>
+          </div>
         </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-12">

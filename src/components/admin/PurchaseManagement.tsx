@@ -1,50 +1,26 @@
 "use client";
 
-import { supabase } from "@/lib/supabase";
-import { Tables } from "@/types/supabase";
-import { useEffect, useState } from "react";
-
-type PurchaseRequest = Tables<"purchase_requests">;
-type Template = Tables<"templates">;
-
-interface PurchaseRequestWithTemplate extends PurchaseRequest {
-  templates?: Template;
-}
+import {
+  useAdminPurchaseRequests,
+  useApprovePurchaseRequest,
+  useRejectPurchaseRequest,
+} from "@/hooks/query/useAdminPurchases";
+import { useState } from "react";
 
 export default function PurchaseManagement() {
-  const [purchaseRequests, setPurchaseRequests] = useState<
-    PurchaseRequestWithTemplate[]
-  >([]);
-  const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPurchaseRequests();
-  }, []);
+  // React Query로 데이터 관리
+  const {
+    data: purchaseRequests = [],
+    isLoading: loading,
+    error,
+  } = useAdminPurchaseRequests();
 
-  const fetchPurchaseRequests = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("purchase_requests")
-        .select(
-          `
-          *,
-          template:templates(*)
-        `
-        )
-        .order("created_at", { ascending: false });
+  const approveMutation = useApprovePurchaseRequest();
+  const rejectMutation = useRejectPurchaseRequest();
 
-
-      if (error) throw error;
-      setPurchaseRequests(data || []);
-    } catch (error) {
-      console.error("Error fetching purchase requests:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const approvePurchaseRequest = async (
+  const handleApprove = async (
     requestId: string,
     templateId: string,
     customerEmail: string
@@ -52,134 +28,37 @@ export default function PurchaseManagement() {
     setProcessingId(requestId);
 
     try {
-      // 1. 사용자 찾기 (이메일로)
-      const { data: userData, error: userError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", customerEmail)
-        .single();
-
-      if (userError || !userData) {
-        alert(
-          "해당 이메일의 사용자를 찾을 수 없습니다. 사용자가 먼저 회원가입을 해야 합니다."
-        );
-        return;
-      }
-
-      // 1.5. 관리자 ID 찾기
-      const { data: adminData, error: adminError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", "timetable@admin.com")
-        .single();
-
-      if (adminError || !adminData) {
-        alert("관리자 계정을 찾을 수 없습니다.");
-        return;
-      }
-
-      // 2. 템플릿 접근 권한 부여
-      const { error: accessError } = await supabase
-        .from("template_access")
-        .insert({
-          template_id: templateId,
-          user_id: userData.id,
-          access_level: "write",
-          granted_by: adminData.id,
-        });
-
-      if (accessError) {
-        console.error("Access grant error:", accessError);
-        alert("권한 부여에 실패했습니다.");
-        return;
-      }
-
-      // 3. 구매 신청 상태 업데이트
-      const { error: updateError } = await supabase
-        .from("purchase_requests")
-        .update({ status: "completed" })
-        .eq("id", requestId);
-
-      if (updateError) {
-        console.error("Status update error:", updateError);
-        alert("상태 업데이트에 실패했습니다.");
-        return;
-      }
-
-      // 4. 메일 발송
-      try {
-        // 사용자 정보 조회 (권한 부여된 사용자)
-        const { data: userDetails, error: userDetailsError } = await supabase
-          .from("users")
-          .select("name, email")
-          .eq("id", userData.id)
-          .single();
-
-        // 템플릿 정보 조회
-        const { data: templateData, error: templateError } = await supabase
-          .from("templates")
-          .select("name")
-          .eq("id", templateId)
-          .single();
-
-        if (!userDetailsError && userDetails && !templateError && templateData) {
-          // API를 통해 메일 발송
-          const response = await fetch("/api/email/template-access-granted", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            credentials: "include",
-            body: JSON.stringify({
-              email: userDetails.email,
-              userName: userDetails.name || '고객',
-              templateName: templateData.name
-            }),
-          });
-
-          if (!response.ok) {
-            console.error('권한 부여 알림 메일 발송 실패');
-          }
-        } else {
-          console.error('메일 발송을 위한 정보 조회 실패:', {
-            userDetailsError,
-            templateError
-          });
-        }
-      } catch (emailError) {
-        console.error('메일 발송 중 오류:', emailError);
-        // 메일 발송 실패는 전체 프로세스를 중단하지 않음
-      }
-
-      // 성공 시 목록 새로고침
+      await approveMutation.mutateAsync({
+        requestId,
+        templateId,
+        customerEmail,
+      });
       alert("결제가 확인되고 권한이 부여되었습니다.");
-      fetchPurchaseRequests();
     } catch (error) {
       console.error("Approval process error:", error);
-      alert("처리 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error ? error.message : "처리 중 오류가 발생했습니다."
+      );
     } finally {
       setProcessingId(null);
     }
   };
 
-  const rejectPurchaseRequest = async (requestId: string) => {
+  const handleReject = async (requestId: string) => {
     if (!confirm("이 구매 신청을 거절하시겠습니까?")) return;
 
     setProcessingId(requestId);
 
     try {
-      const { error } = await supabase
-        .from("purchase_requests")
-        .update({ status: "rejected" })
-        .eq("id", requestId);
-
-      if (error) throw error;
-
+      await rejectMutation.mutateAsync(requestId);
       alert("구매 신청이 거절되었습니다.");
-      fetchPurchaseRequests();
     } catch (error) {
       console.error("Rejection error:", error);
-      alert("거절 처리 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "거절 처리 중 오류가 발생했습니다."
+      );
     } finally {
       setProcessingId(null);
     }
@@ -189,6 +68,24 @@ export default function PurchaseManagement() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">
+            데이터를 불러오는 중 오류가 발생했습니다.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-primary text-white px-4 py-2 rounded hover:bg-secondary"
+          >
+            새로고침
+          </button>
+        </div>
       </div>
     );
   }
@@ -247,7 +144,7 @@ export default function PurchaseManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {request.templates?.name}
+                        {request.template?.name}
                       </div>
                       <div className="text-sm text-gray-500">
                         ID: {request.template_id}
@@ -289,7 +186,7 @@ export default function PurchaseManagement() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                       <button
                         onClick={() =>
-                          approvePurchaseRequest(
+                          handleApprove(
                             request.id,
                             request.template_id!,
                             request.customer_email
@@ -303,7 +200,7 @@ export default function PurchaseManagement() {
                           : "결제확인 및 권한부여"}
                       </button>
                       <button
-                        onClick={() => rejectPurchaseRequest(request.id)}
+                        onClick={() => handleReject(request.id)}
                         disabled={processingId === request.id}
                         className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 disabled:opacity-50"
                       >
@@ -357,7 +254,7 @@ export default function PurchaseManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {request.templates?.name}
+                        {request.template?.name}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

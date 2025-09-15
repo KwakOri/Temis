@@ -1,21 +1,21 @@
-import { Tables } from './supabase'
+import { Tables } from "./supabase";
 
-export type PurchaseRequest = Tables<'purchase_requests'>
-export type Template = Tables<'templates'>
+export type PurchaseRequest = Tables<"purchase_requests">;
+export type Template = Tables<"templates">;
 
 export interface PurchaseRequestWithTemplate extends PurchaseRequest {
-  template?: Template
+  template?: Template;
 }
 
 export interface PurchaseHistoryData {
-  purchaseRequests: PurchaseRequestWithTemplate[]
+  purchaseRequests: PurchaseRequestWithTemplate[];
 }
 
 export interface UpdatePurchaseRequestData {
-  depositor_name: string
-  message: string
+  depositor_name: string;
+  message: string;
 }
 
 export interface PurchaseHistoryResponse {
-  purchaseRequests: PurchaseRequestWithTemplate[]
+  purchaseRequests: PurchaseRequestWithTemplate[];
 }

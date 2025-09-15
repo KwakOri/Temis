@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { TemplateDetailService } from '@/services/templateDetailService'
-import { queryKeys } from '@/lib/queryKeys'
-import { PurchaseRequestData } from '@/types/templateDetail'
+import { queryKeys } from "@/lib/queryKeys";
+import { TemplateDetailService } from "@/services/templateDetailService";
+import { PurchaseRequestData } from "@/types/templateDetail";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const useTemplateDetail = (templateId: string) => {
   return useQuery({
@@ -12,16 +12,19 @@ export const useTemplateDetail = (templateId: string) => {
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error) => {
       // 템플릿을 찾을 수 없는 경우에는 재시도하지 않음
-      if (error instanceof Error && error.message.includes('템플릿을 찾을 수 없습니다')) {
-        return false
+      if (
+        error instanceof Error &&
+        error.message.includes("템플릿을 찾을 수 없습니다")
+      ) {
+        return false;
       }
-      return failureCount < 1
+      return failureCount < 1;
     },
-  })
-}
+  });
+};
 
 export const useSubmitPurchaseRequest = () => {
-  const queryClient = useQueryClient()
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (requestData: PurchaseRequestData) =>
@@ -30,7 +33,7 @@ export const useSubmitPurchaseRequest = () => {
       // 구매 내역 캐시 무효화
       queryClient.invalidateQueries({
         queryKey: queryKeys.purchaseHistory.list(),
-      })
+      });
     },
-  })
-}
+  });
+};

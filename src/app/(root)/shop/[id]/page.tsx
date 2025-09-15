@@ -2,7 +2,10 @@
 
 import BackButton from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTemplateDetail, useSubmitPurchaseRequest } from "@/hooks/query/useTemplateDetail";
+import {
+  useSubmitPurchaseRequest,
+  useTemplateDetail,
+} from "@/hooks/query/useTemplateDetail";
 import { TemplateWithProducts } from "@/types/templateDetail";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Image from "next/image";
@@ -17,7 +20,11 @@ export default function TemplateDetailPage() {
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
 
   const templateId = params?.id as string;
-  const { data: template, isLoading: loading, error } = useTemplateDetail(templateId);
+  const {
+    data: template,
+    isLoading: loading,
+    error,
+  } = useTemplateDetail(templateId);
   const submitPurchaseRequest = useSubmitPurchaseRequest();
 
   const handlePurchaseRequest = async (formData: {
@@ -37,7 +44,11 @@ export default function TemplateDetailPage() {
       setShowPurchaseForm(false);
     } catch (error) {
       console.error("Purchase request error:", error);
-      alert(error instanceof Error ? error.message : "구매 신청 중 오류가 발생했습니다.");
+      alert(
+        error instanceof Error
+          ? error.message
+          : "구매 신청 중 오류가 발생했습니다."
+      );
     }
   };
 
@@ -61,7 +72,9 @@ export default function TemplateDetailPage() {
             <div className="text-center">
               <p className="text-red-500 mb-4">템플릿을 불러올 수 없습니다.</p>
               <p className="text-slate-500 mb-4">
-                {error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다."}
+                {error instanceof Error
+                  ? error.message
+                  : "알 수 없는 오류가 발생했습니다."}
               </p>
               <button
                 onClick={() => router.push("/shop")}
@@ -244,14 +257,15 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // 구매 신청 전 확인
-    const confirmMessage = "구매 신청을 진행하기 전에 확인해주세요:\n\n1. 입금이 완료되었는지 확인해주세요.\n2. 입금자명이 일치하는지 확인해주세요.\n\n구매 신청을 계속 진행하시겠습니까?";
-    
+    const confirmMessage =
+      "구매 신청을 진행하기 전에 확인해주세요:\n\n1. 입금이 완료되었는지 확인해주세요.\n2. 입금자명이 일치하는지 확인해주세요.\n\n구매 신청을 계속 진행하시겠습니까?";
+
     if (!confirm(confirmMessage)) {
       return;
     }
-    
+
     setSubmitting(true);
 
     try {

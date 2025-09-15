@@ -3,11 +3,14 @@
 import BackButton from "@/components/BackButton";
 import PurchaseHistory from "@/components/shop/PurchaseHistory";
 import { useAuth } from "@/contexts/AuthContext";
-import { Template, SortOrder, TabType } from "@/types/shop";
-import { usePublicTemplates, useUserTemplateAccess } from "@/hooks/query/useShop";
+import {
+  usePublicTemplates,
+  useUserTemplateAccess,
+} from "@/hooks/query/useShop";
+import { SortOrder, TabType } from "@/types/shop";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 
 export default function ShopPage() {
   const { user } = useAuth();
@@ -16,15 +19,21 @@ export default function ShopPage() {
   const [showOnlyUnpurchased, setShowOnlyUnpurchased] = useState(false);
 
   // React Query hooks
-  const { data: templates = [], isLoading: templatesLoading, error: templatesError } = usePublicTemplates(sortOrder);
-  const { data: accessibleTemplateIds = [], isLoading: accessLoading } = useUserTemplateAccess(user?.id);
+  const {
+    data: templates = [],
+    isLoading: templatesLoading,
+    error: templatesError,
+  } = usePublicTemplates(sortOrder);
+  const { data: accessibleTemplateIds = [], isLoading: accessLoading } =
+    useUserTemplateAccess(user?.id);
 
-  const loading = templatesLoading || (showOnlyUnpurchased && user && accessLoading);
+  const loading =
+    templatesLoading || (showOnlyUnpurchased && user && accessLoading);
 
   const filteredTemplates = useMemo(() => {
     if (showOnlyUnpurchased && user) {
-      return templates.filter((template) =>
-        !accessibleTemplateIds.includes(template.id)
+      return templates.filter(
+        (template) => !accessibleTemplateIds.includes(template.id)
       );
     }
     return templates;
@@ -52,7 +61,9 @@ export default function ShopPage() {
               데이터를 불러올 수 없습니다
             </h3>
             <p className="text-gray-500">
-              {templatesError instanceof Error ? templatesError.message : "알 수 없는 오류가 발생했습니다."}
+              {templatesError instanceof Error
+                ? templatesError.message
+                : "알 수 없는 오류가 발생했습니다."}
             </p>
           </div>
         </div>

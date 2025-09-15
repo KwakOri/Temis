@@ -1,11 +1,18 @@
 "use client";
 
-import { Tables } from "@/types/supabase";
-import { useEffect, useState } from "react";
-
-type Template = Tables<"templates"> & {
-  template_products: Tables<"template_products">[];
-};
+import {
+  useAdminTemplates,
+  useCreateAdminTemplate,
+  useCreateTemplateProduct,
+  useUpdateAdminTemplate,
+  useUpdateTemplateProduct,
+} from "@/hooks/query/useAdminTemplates";
+import type {
+  CreateTemplateData,
+  CreateTemplateProductData,
+  TemplateWithProducts,
+} from "@/types/admin";
+import { useMemo, useState } from "react";
 
 interface CreateTemplateForm {
   name: string;
@@ -25,18 +32,11 @@ interface ProductForm {
   sample_images: string[];
 }
 
-// ThumbnailFile 인터페이스 제거 (더 이상 사용하지 않음)
-
 type TemplateTab = "all" | "public" | "private";
 
 export default function TemplateManagement() {
-  const [templates, setTemplates] = useState<Template[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<TemplateTab>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createLoading, setCreateLoading] = useState(false);
-  const [createError, setCreateError] = useState("");
   const [formData, setFormData] = useState<CreateTemplateForm>({
     name: "",
     description: "",
@@ -45,32 +45,49 @@ export default function TemplateManagement() {
     is_public: false,
   });
 
+  // React Query hooks
+  const {
+    data: templatesData,
+    isLoading: loading,
+    error: templatesError,
+  } = useAdminTemplates();
+
+  const templates = templatesData?.templates || [];
+
+  const createTemplateMutation = useCreateAdminTemplate();
+  const updateTemplateMutation = useUpdateAdminTemplate();
+  const createProductMutation = useCreateTemplateProduct();
+  const updateProductMutation = useUpdateTemplateProduct();
+
+  const error = templatesError ? (templatesError as Error).message : "";
+  const createLoading = createTemplateMutation.isPending;
+  const createError = createTemplateMutation.error
+    ? (createTemplateMutation.error as Error).message
+    : "";
+
   // template_products 배열에서 첫 번째 상품 정보를 가져오는 함수 (1대1 관계)
-  const getTemplateProduct = (
-    template: Template
-  ): Tables<"template_products"> | null => {
+  const getTemplateProduct = (template: TemplateWithProducts) => {
     return template.template_products && template.template_products.length > 0
       ? template.template_products[0]
       : null;
   };
 
   // 템플릿에 상품이 등록되어 있는지 확인하는 함수
-  const hasProduct = (template: Template): boolean => {
+  const hasProduct = (template: TemplateWithProducts): boolean => {
     return template.template_products && template.template_products.length > 0;
   };
 
   // 템플릿 ID 모달 및 검색 관련 상태
   const [showIdModal, setShowIdModal] = useState(false);
   const [selectedTemplateForId, setSelectedTemplateForId] =
-    useState<Template | null>(null);
+    useState<TemplateWithProducts | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
 
   // 상품 관리 관련 상태
   const [showProductModal, setShowProductModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
-    null
-  );
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<TemplateWithProducts | null>(null);
   const [productFormData, setProductFormData] = useState<ProductForm>({
     title: "",
     price: 15000,
@@ -84,51 +101,18 @@ export default function TemplateManagement() {
     purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
     sample_images: [],
   });
-  const [productLoading, setProductLoading] = useState(false);
-
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
-
-  const fetchTemplates = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/admin/templates", {
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        throw new Error("템플릿 목록을 가져올 수 없습니다.");
-      }
-
-      const data = await response.json();
-      setTemplates(data.templates || []);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const productLoading =
+    createProductMutation.isPending || updateProductMutation.isPending;
 
   const togglePublicStatus = async (
     templateId: string,
     currentStatus: boolean
   ) => {
     try {
-      const response = await fetch(`/api/admin/templates/${templateId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          is_public: !currentStatus,
-        }),
+      await updateTemplateMutation.mutateAsync({
+        templateId,
+        data: { is_public: !currentStatus },
       });
-
-      if (response.ok) {
-        await fetchTemplates(); // 새로고침
-      }
     } catch (error) {
       console.error("Template update error:", error);
     }
@@ -136,65 +120,34 @@ export default function TemplateManagement() {
 
   const handleCreateTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCreateLoading(true);
-    setCreateError("");
 
     try {
       // 먼저 템플릿을 생성 (thumbnail_url은 임시로 빈 값)
-      const templateData = {
+      const templateData: CreateTemplateData = {
         ...formData,
         thumbnail_url: "", // 임시로 빈 값으로 설정
       };
 
-      const response = await fetch("/api/admin/templates", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(templateData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "템플릿 생성에 실패했습니다.");
-      }
-
-      // 생성된 템플릿의 ID를 사용하여 thumbnail_url 업데이트
-      const createdTemplate = data.template;
-      const thumbnailUrl = `/thumbnail/${createdTemplate.id}.png`;
-
-      // thumbnail_url 업데이트
-      const updateResponse = await fetch(
-        `/api/admin/templates/${createdTemplate.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include",
-          body: JSON.stringify({
-            thumbnail_url: thumbnailUrl,
-          }),
-        }
+      const createdTemplate = await createTemplateMutation.mutateAsync(
+        templateData
       );
 
-      if (!updateResponse.ok) {
+      // 생성된 템플릿의 ID를 사용하여 thumbnail_url 업데이트
+      const thumbnailUrl = `/thumbnail/${createdTemplate.id}.png`;
+
+      try {
+        await updateTemplateMutation.mutateAsync({
+          templateId: createdTemplate.id,
+          data: { thumbnail_url: thumbnailUrl },
+        });
+      } catch (updateError) {
         console.warn("썸네일 URL 업데이트 실패, 하지만 템플릿은 생성됨");
       }
 
       // 성공 시 모달 닫기 및 폼 초기화
       resetModal();
-
-      // 템플릿 목록 새로고침
-      await fetchTemplates();
     } catch (error) {
-      setCreateError(
-        error instanceof Error ? error.message : "오류가 발생했습니다."
-      );
-    } finally {
-      setCreateLoading(false);
+      // Error is handled by React Query mutation
     }
   };
 
@@ -211,7 +164,7 @@ export default function TemplateManagement() {
 
   const resetModal = () => {
     setShowCreateModal(false);
-    setCreateError("");
+    createTemplateMutation.reset();
     setFormData({
       name: "",
       description: "",
@@ -221,7 +174,7 @@ export default function TemplateManagement() {
     });
   };
 
-  const handleShowTemplateId = (template: Template) => {
+  const handleShowTemplateId = (template: TemplateWithProducts) => {
     setSelectedTemplateForId(template);
     setShowIdModal(true);
   };
@@ -250,7 +203,7 @@ export default function TemplateManagement() {
   };
 
   // 탭별 템플릿 필터링
-  const getFilteredTemplates = () => {
+  const filteredTemplates = useMemo(() => {
     let filtered = templates;
 
     // 탭에 따른 필터링
@@ -280,19 +233,19 @@ export default function TemplateManagement() {
     }
 
     return filtered;
-  };
+  }, [templates, activeTab, searchTerm]);
 
   // 탭별 통계
-  const getTabCounts = () => {
+  const tabCounts = useMemo(() => {
     return {
       all: templates.length,
       public: templates.filter((template) => template.is_public).length,
       private: templates.filter((template) => !template.is_public).length,
     };
-  };
+  }, [templates]);
 
   // 상품 등록 모달 열기
-  const handleCreateProduct = (template: Template) => {
+  const handleCreateProduct = (template: TemplateWithProducts) => {
     setSelectedTemplate(template);
     setProductFormData({
       title: template.name,
@@ -311,7 +264,7 @@ export default function TemplateManagement() {
   };
 
   // 상품 수정 모달 열기
-  const handleEditProduct = (template: Template) => {
+  const handleEditProduct = (template: TemplateWithProducts) => {
     const templateProduct = getTemplateProduct(template);
     if (!templateProduct) return;
 
@@ -329,24 +282,14 @@ export default function TemplateManagement() {
   };
 
   // 상점 노출 여부 토글
-  const toggleShopVisibility = async (template: Template) => {
+  const toggleShopVisibility = async (template: TemplateWithProducts) => {
     if (!hasProduct(template)) return;
 
     try {
-      const response = await fetch(`/api/admin/templates/${template.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          is_shop_visible: !template.is_shop_visible,
-        }),
+      await updateTemplateMutation.mutateAsync({
+        templateId: template.id,
+        data: { is_shop_visible: !template.is_shop_visible },
       });
-
-      if (response.ok) {
-        await fetchTemplates();
-      }
     } catch (error) {
       console.error("Shop visibility toggle error:", error);
     }
@@ -357,43 +300,28 @@ export default function TemplateManagement() {
     e.preventDefault();
     if (!selectedTemplate) return;
 
-    setProductLoading(true);
-
     try {
       const templateProduct = getTemplateProduct(selectedTemplate);
       const isEditing = !!templateProduct;
-      const url = isEditing
-        ? `/api/admin/template-products/${templateProduct!.id}`
-        : `/api/admin/template-products`;
 
-      const method = isEditing ? "PATCH" : "POST";
-
-      const requestData = isEditing
-        ? productFormData
-        : { ...productFormData, template_id: selectedTemplate.id };
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(requestData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "상품 처리에 실패했습니다.");
+      if (isEditing) {
+        await updateProductMutation.mutateAsync({
+          productId: templateProduct!.id,
+          data: productFormData,
+        });
+      } else {
+        const createData: CreateTemplateProductData = {
+          ...productFormData,
+          template_id: selectedTemplate.id,
+        };
+        await createProductMutation.mutateAsync(createData);
       }
 
       setShowProductModal(false);
       setSelectedTemplate(null);
-      await fetchTemplates();
     } catch (error) {
       console.error("Product submit error:", error);
       alert(error instanceof Error ? error.message : "오류가 발생했습니다.");
-    } finally {
-      setProductLoading(false);
     }
   };
 
@@ -412,9 +340,6 @@ export default function TemplateManagement() {
       </div>
     );
   }
-
-  const tabCounts = getTabCounts();
-  const filteredTemplates = getFilteredTemplates();
 
   return (
     <div className="space-y-6">

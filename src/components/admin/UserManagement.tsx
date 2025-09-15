@@ -1,93 +1,61 @@
 "use client";
 
-import { Tables } from "@/types/supabase";
-import { useEffect, useState } from "react";
-
-type User = Tables<"users">;
-type TemplateAccess = Tables<"template_access">;
-type Template = Tables<"templates">;
-
-interface TemplateAccessWithUser extends TemplateAccess {
-  templates?: Template;
-}
+import {
+  useAdminUsers,
+  useAdminUserTemplates,
+} from "@/hooks/query/useAdminUsers";
+import type { User } from "@/types/admin";
+import { useMemo, useState } from "react";
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalUsers, setTotalUsers] = useState(0);
   const pageSize = 10;
 
   // Modal states
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
-  const [userTemplates, setUserTemplates] = useState<TemplateAccessWithUser[]>(
-    []
+
+  // React Query hooks
+  const {
+    data: usersData,
+    isLoading: loading,
+    error: usersError,
+  } = useAdminUsers({
+    limit: pageSize,
+    offset: currentPage * pageSize,
+  });
+
+  const { data: userTemplatesData, isLoading: templatesLoading } =
+    useAdminUserTemplates(selectedUser?.id || 0, {
+      enabled: !!selectedUser && showPermissionModal,
+    });
+
+  const userTemplates = userTemplatesData?.templates || [];
+
+  const users = usersData?.users || [];
+  const totalUsers =
+    usersData?.pagination?.total || usersData?.users?.length || 0;
+  const error = usersError ? (usersError as Error).message : "";
+
+  const filteredUsers = useMemo(
+    () =>
+      users.filter(
+        (user) =>
+          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.name?.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [users, searchTerm]
   );
 
-  useEffect(() => {
-    fetchUsers();
-  }, [currentPage]);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const offset = currentPage * pageSize;
-      const response = await fetch(
-        `/api/admin/users?limit=${pageSize}&offset=${offset}`,
-        {
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("사용자 목록을 가져올 수 없습니다.");
-      }
-
-      const data = await response.json();
-      setUsers(data.users || []);
-      setTotalUsers(data.pagination?.total || data.users?.length || 0);
-    } catch (error) {
-      setError(error instanceof Error ? error.message : "오류가 발생했습니다.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredUsers = users.filter(
-    (user) =>
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const fetchUserTemplates = async (userId: number) => {
-    try {
-      const response = await fetch(
-        `/api/admin/user-templates?userId=${userId}`,
-        {
-          credentials: "include",
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setUserTemplates(data.templates || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch user templates:", error);
-    }
-  };
-
-  const openUserModal = async (user: User) => {
+  const openUserModal = (user: User) => {
     setSelectedUser(user);
     setShowUserModal(true);
   };
 
-  const openPermissionModal = async (user: User) => {
+  const openPermissionModal = (user: User) => {
     setSelectedUser(user);
-    await fetchUserTemplates(user.id);
     setShowPermissionModal(true);
   };
 
@@ -95,7 +63,6 @@ export default function UserManagement() {
     setSelectedUser(null);
     setShowUserModal(false);
     setShowPermissionModal(false);
-    setUserTemplates([]);
   };
 
   const totalPages = Math.ceil(totalUsers / pageSize);
@@ -538,10 +505,10 @@ export default function UserManagement() {
                       >
                         <div className="flex-1">
                           <h5 className="font-medium text-gray-900">
-                            {template.templates?.name || "알 수 없는 템플릿"}
+                            {template.template?.name || "알 수 없는 템플릿"}
                           </h5>
                           <p className="text-sm text-gray-500">
-                            {template.templates?.description || "설명 없음"}
+                            {template.template?.description || "설명 없음"}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             권한 부여일:{" "}
