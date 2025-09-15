@@ -42,6 +42,7 @@ export async function POST(request: Request) {
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
+      externalContract,
       depositorName,
     } = body;
 
@@ -66,6 +67,7 @@ export async function POST(request: Request) {
     if (fastDelivery) selectedOptions.push("빠른 마감");
     if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
     if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
+    if (externalContract) selectedOptions.push("외부 계약");
 
     // 데이터베이스에 주문 정보 저장
     const { data: order, error } = await supabase
@@ -259,6 +261,7 @@ export async function PUT(request: Request) {
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
+      externalContract,
       depositorName,
     } = body;
 
@@ -290,6 +293,7 @@ export async function PUT(request: Request) {
     if (fastDelivery) selectedOptions.push("빠른 마감");
     if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
     if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
+    if (externalContract) selectedOptions.push("외부 계약");
 
     // 주문 업데이트
     const { data: updatedOrder, error: updateError } = await supabase

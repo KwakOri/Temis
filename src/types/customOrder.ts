@@ -14,6 +14,7 @@ export interface CustomOrderFormData {
   fastDelivery: boolean;
   portfolioPrivate: boolean;
   reviewEvent: boolean;
+  externalContract: boolean;
   priceQuoted: number;
   depositorName: string;
   orderId?: string; // 수정 모드를 위한 필드

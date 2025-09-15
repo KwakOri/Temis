@@ -40,6 +40,7 @@ interface Step3Data {
   fastDelivery: boolean;
   portfolioPrivate: boolean;
   reviewEvent: boolean;
+  externalContract: boolean;
   priceQuoted: number;
   depositorName: string;
 }
@@ -94,6 +95,8 @@ export default function CustomOrderForm({
       existingOrder?.selected_options?.includes("포트폴리오 비공개") || false,
     reviewEvent:
       existingOrder?.selected_options?.includes("후기 이벤트 참여") || false,
+    externalContract:
+      existingOrder?.selected_options?.includes("외부 계약") || false,
     priceQuoted: existingOrder?.price_quoted || 80000,
     depositorName: existingOrder?.depositor_name || "",
   });
@@ -152,6 +155,12 @@ export default function CustomOrderForm({
   useEffect(() => {
     if (!pricingSettings) return;
 
+    // 외부 계약일 경우 가격은 0원
+    if (step3Data.externalContract) {
+      setStep3Data((prev) => ({ ...prev, priceQuoted: 0 }));
+      return;
+    }
+
     let total = pricingSettings.base_price;
 
     if (step3Data.fastDelivery) {
@@ -171,6 +180,7 @@ export default function CustomOrderForm({
     step3Data.fastDelivery,
     step3Data.portfolioPrivate,
     step3Data.reviewEvent,
+    step3Data.externalContract,
     pricingSettings,
   ]);
 
@@ -783,30 +793,41 @@ export default function CustomOrderForm({
                   <div className="space-y-3">
                     {/* 빠른 마감 옵션 */}
                     {pricingSettings?.fast_delivery.enabled && (
-                      <label className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                      <label className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                        step3Data.externalContract
+                          ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                          : "border-slate-200 hover:bg-slate-50"
+                      }`}>
                         <div className="flex items-center">
                           <input
                             type="checkbox"
                             checked={step3Data.fastDelivery}
+                            disabled={step3Data.externalContract}
                             onChange={(e) =>
                               setStep3Data((prev) => ({
                                 ...prev,
                                 fastDelivery: e.target.checked,
                               }))
                             }
-                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded"
+                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className="font-medium text-slate-900">
+                            <div className={`font-medium ${
+                              step3Data.externalContract ? "text-slate-400" : "text-slate-900"
+                            }`}>
                               {pricingSettings.fast_delivery.description}
                             </div>
-                            <div className="text-sm text-slate-600">
+                            <div className={`text-sm ${
+                              step3Data.externalContract ? "text-slate-300" : "text-slate-600"
+                            }`}>
                               <p>맨 앞 순서로 작업을 진행합니다</p>
                               <p>일주일 안에 완성됩니다</p>
                             </div>
                           </div>
                         </div>
-                        <span className="font-bold text-[#1e3a8a]">
+                        <span className={`font-bold ${
+                          step3Data.externalContract ? "text-slate-400" : "text-[#1e3a8a]"
+                        }`}>
                           +₩
                           {pricingSettings.fast_delivery.price.toLocaleString()}
                         </span>
@@ -815,29 +836,40 @@ export default function CustomOrderForm({
 
                     {/* 포트폴리오 비공개 옵션 */}
                     {pricingSettings?.portfolio_private.enabled && (
-                      <label className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                      <label className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                        step3Data.externalContract
+                          ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                          : "border-slate-200 hover:bg-slate-50"
+                      }`}>
                         <div className="flex items-center">
                           <input
                             type="checkbox"
                             checked={step3Data.portfolioPrivate}
+                            disabled={step3Data.externalContract}
                             onChange={(e) =>
                               setStep3Data((prev) => ({
                                 ...prev,
                                 portfolioPrivate: e.target.checked,
                               }))
                             }
-                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded"
+                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className="font-medium text-slate-900">
+                            <div className={`font-medium ${
+                              step3Data.externalContract ? "text-slate-400" : "text-slate-900"
+                            }`}>
                               {pricingSettings.portfolio_private.description}
                             </div>
-                            <div className="text-sm text-slate-600">
+                            <div className={`text-sm ${
+                              step3Data.externalContract ? "text-slate-300" : "text-slate-600"
+                            }`}>
                               포트폴리오에 공개하지 않습니다
                             </div>
                           </div>
                         </div>
-                        <span className="font-bold text-[#1e3a8a]">
+                        <span className={`font-bold ${
+                          step3Data.externalContract ? "text-slate-400" : "text-[#1e3a8a]"
+                        }`}>
                           +₩
                           {pricingSettings.portfolio_private.price.toLocaleString()}
                         </span>
@@ -846,34 +878,80 @@ export default function CustomOrderForm({
 
                     {/* 후기 이벤트 참여 옵션 */}
                     {pricingSettings?.review_event.enabled && (
-                      <label className="flex items-center justify-between p-4 border border-green-200 rounded-lg hover:bg-green-50 cursor-pointer bg-green-25">
+                      <label className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                        step3Data.externalContract
+                          ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                          : "border-green-200 hover:bg-green-50 bg-green-25"
+                      }`}>
                         <div className="flex items-center">
                           <input
                             type="checkbox"
                             checked={step3Data.reviewEvent}
+                            disabled={step3Data.externalContract}
                             onChange={(e) =>
                               setStep3Data((prev) => ({
                                 ...prev,
                                 reviewEvent: e.target.checked,
                               }))
                             }
-                            className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-slate-300 rounded"
+                            className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className="font-medium text-green-800">
+                            <div className={`font-medium ${
+                              step3Data.externalContract ? "text-slate-400" : "text-green-800"
+                            }`}>
                               {pricingSettings.review_event.description}
                             </div>
-                            <div className="text-sm text-green-600">
+                            <div className={`text-sm ${
+                              step3Data.externalContract ? "text-slate-300" : "text-green-600"
+                            }`}>
                               SNS에 후기를 작성해주시면 할인됩니다
                             </div>
                           </div>
                         </div>
-                        <span className="font-bold text-green-600">
+                        <span className={`font-bold ${
+                          step3Data.externalContract ? "text-slate-400" : "text-green-600"
+                        }`}>
                           -₩
                           {pricingSettings.review_event.discount.toLocaleString()}
                         </span>
                       </label>
                     )}
+
+                    {/* 외부 계약 옵션 */}
+                    <label className="flex items-center justify-between p-4 border border-purple-200 rounded-lg hover:bg-purple-50 cursor-pointer bg-purple-25">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={step3Data.externalContract}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              externalContract: isChecked,
+                              // 외부 계약 선택 시 다른 옵션들 해제
+                              ...(isChecked && {
+                                fastDelivery: false,
+                                portfolioPrivate: false,
+                                reviewEvent: false,
+                              }),
+                            }))
+                          }}
+                          className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300 rounded"
+                        />
+                        <div>
+                          <div className="font-medium text-purple-800">
+                            외부 계약
+                          </div>
+                          <div className="text-sm text-purple-600">
+                            외부에서 별도로 계약한 경우 선택해주세요
+                          </div>
+                        </div>
+                      </div>
+                      <span className="font-bold text-purple-600">
+                        별도 협의
+                      </span>
+                    </label>
                   </div>
 
                   {/* 총 금액 표시 */}
@@ -881,7 +959,9 @@ export default function CustomOrderForm({
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-medium">총 결제 금액</span>
                       <span className="text-2xl font-bold">
-                        ₩{step3Data.priceQuoted.toLocaleString()}
+                        {step3Data.externalContract
+                          ? "별도 협의"
+                          : `₩${step3Data.priceQuoted.toLocaleString()}`}
                       </span>
                     </div>
                   </div>
@@ -921,7 +1001,10 @@ export default function CustomOrderForm({
                   <p>• 계좌번호: 1000-7564-4995</p>
                   <p>• 예금주: 이세영</p>
                   <p>
-                    • 총 결제 금액: ₩{step3Data.priceQuoted.toLocaleString()}
+                    • 총 결제 금액:{" "}
+                    {step3Data.externalContract
+                      ? "별도 협의"
+                      : `₩${step3Data.priceQuoted.toLocaleString()}`}
                   </p>
                 </div>
               </div>
