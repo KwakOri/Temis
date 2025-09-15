@@ -2,6 +2,7 @@
 
 import AccessManagement from "@/components/admin/AccessManagement";
 import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
+import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
@@ -32,11 +33,12 @@ type TabType =
   | "purchases"
   | "customOrders"
   | "legacyOrders"
-  | "workSchedule";
+  | "workSchedule"
+  | "workCalendar";
 
 function AdminContent() {
   const { user, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("templates");
+  const [activeTab, setActiveTab] = useState<TabType>("workCalendar");
 
   console.log(user);
 
@@ -88,11 +90,12 @@ function AdminContent() {
   }
 
   const tabs = [
-    { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
-    { id: "users" as TabType, name: "사용자 관리", icon: Users },
-    { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
+    { id: "workCalendar" as TabType, name: "작업 캘린더", icon: Calendar },
     { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
     { id: "legacyOrders" as TabType, name: "레거시 주문 관리", icon: Archive },
+    { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
+    { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
+    { id: "users" as TabType, name: "사용자 관리", icon: Users },
     { id: "workSchedule" as TabType, name: "작업 일정 관리", icon: Calendar },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
     { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
@@ -149,14 +152,15 @@ function AdminContent() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "templates" && <TemplateManagement />}
-        {activeTab === "users" && <UserManagement />}
-        {activeTab === "purchases" && <PurchaseManagement />}
+        {activeTab === "workCalendar" && <DeadlineCalendarView />}
         {activeTab === "customOrders" && <CustomOrderManagement />}
         {activeTab === "legacyOrders" && <LegacyOrderManagement />}
+        {activeTab === "purchases" && <PurchaseManagement />}
+        {activeTab === "templates" && <TemplateManagement />}
+        {activeTab === "access" && <AccessManagement />}
+        {activeTab === "users" && <UserManagement />}
         {activeTab === "workSchedule" && <WorkScheduleManagement />}
         {activeTab === "emailPreview" && <EmailTemplatePreview />}
-        {activeTab === "access" && <AccessManagement />}
       </div>
     </div>
   );

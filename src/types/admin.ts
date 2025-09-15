@@ -160,7 +160,11 @@ export interface CalendarOrder {
 }
 
 export interface GetCalendarResponse {
-  orders: CalendarOrder[];
+  orders: CustomOrderWithUser[];
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
 }
 
 // Purchase Management

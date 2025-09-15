@@ -68,3 +68,13 @@ export interface CancelCustomOrderResponse {
 export interface CustomOrderHistoryResponse {
   orders: CustomOrderWithStatus[];
 }
+
+export interface LegacyOrderLocal {
+  id: string;
+  email: string;
+  nickname: string;
+  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
+  deadline: string | null;
+  created_at: string;
+  updated_at: string;
+}

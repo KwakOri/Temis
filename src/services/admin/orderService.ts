@@ -68,13 +68,16 @@ export class AdminOrderService {
       throw new Error("캘린더 데이터를 가져오는데 실패했습니다.");
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log("response => ", data);
+
+    return data;
   }
 
   static async getLegacyOrdersCalendar(
     startDate: string,
     endDate: string
-  ): Promise<GetCalendarResponse> {
+  ): Promise<{ orders: LegacyOrder[]; dateRange: { startDate: string; endDate: string; } }> {
     const response = await fetch(
       `${this.baseUrl}/legacy-orders/calendar?startDate=${startDate}&endDate=${endDate}`
     );
@@ -83,7 +86,10 @@ export class AdminOrderService {
       throw new Error("레거시 캘린더 데이터를 가져오는데 실패했습니다.");
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log("legacy response => ", data);
+
+    return data;
   }
 
   // Legacy Orders
