@@ -32,7 +32,7 @@ import {
 import { useState } from "react";
 
 export default function CustomOrderManagement() {
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("default");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -220,6 +220,7 @@ export default function CustomOrderManagement() {
             </label>
             <div className="flex flex-wrap gap-2">
               {[
+                { value: "default", label: "기본", color: "gray" },
                 { value: "all", label: "전체", color: "gray" },
                 { value: "pending", label: "대기 중", color: "yellow" },
                 { value: "accepted", label: "접수됨", color: "blue" },

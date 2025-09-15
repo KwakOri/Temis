@@ -47,9 +47,10 @@ export const DeadlineCalendarView = () => {
 
   const loading = loadingCustomCalendar || loadingLegacyCalendar;
 
-  // 긴급 작업 계산 (3일 이내)
+  // 긴급 작업 계산 (3일 이내) - 완료된 작업과 취소된 작업 제외
   const urgentOrders = orders.filter((order: CustomOrderWithUser) => {
     if (!order.deadline) return false;
+    if (order.status === "completed" || order.status === "cancelled") return false;
     const deadline = new Date(order.deadline);
     const now = new Date();
     const diffTime = deadline.getTime() - now.getTime();
@@ -59,6 +60,7 @@ export const DeadlineCalendarView = () => {
 
   const urgentLegacyOrders = legacyOrders.filter((order: LegacyOrderType) => {
     if (!order.deadline) return false;
+    if (order.status === "completed" || order.status === "cancelled") return false;
     const deadline = new Date(order.deadline);
     const now = new Date();
     const diffTime = deadline.getTime() - now.getTime();
@@ -88,9 +90,9 @@ export const DeadlineCalendarView = () => {
   // 레거시 주문은 별도 상태에서 관리되지 않으므로 빈 배열로 처리 (필요시 추가 구현)
   const unscheduledLegacyOrders: LegacyOrderLocal[] = [];
 
-  // 마감기한별로 주문 그룹핑 (맞춤 제작 + 레거시)
+  // 마감기한별로 주문 그룹핑 (맞춤 제작 + 레거시) - 취소된 주문 제외
   const ordersByDate = orders
-    .filter((order) => order.deadline)
+    .filter((order) => order.deadline && order.status !== "cancelled")
     .reduce((acc, order) => {
       const dateKey = order.deadline!;
       if (!acc[dateKey]) {
@@ -100,9 +102,9 @@ export const DeadlineCalendarView = () => {
       return acc;
     }, {} as Record<string, { custom: CustomOrderWithUser[]; legacy: LegacyOrderType[] }>);
 
-  // 레거시 주문도 날짜별 그룹핑에 추가
+  // 레거시 주문도 날짜별 그룹핑에 추가 - 취소된 주문 제외
   legacyOrders
-    .filter((order) => order.deadline)
+    .filter((order) => order.deadline && order.status !== "cancelled")
     .forEach((order) => {
       const dateKey = order.deadline!;
       if (!ordersByDate[dateKey]) {
@@ -431,10 +433,10 @@ export const DeadlineCalendarView = () => {
                           key={order.id}
                           onClick={() => onOrderClick(order)}
                           className={`text-xs p-1 rounded cursor-pointer truncate relative ${
-                            new Date(order.deadline!) < new Date()
-                              ? "bg-red-100 text-red-800 hover:bg-red-200"
-                              : order.status === "completed"
+                            order.status === "completed"
                               ? "bg-green-100 text-green-800 hover:bg-green-200"
+                              : new Date(order.deadline!) < new Date()
+                              ? "bg-red-100 text-red-800 hover:bg-red-200"
                               : isLegacy
                               ? "bg-gray-100 text-gray-800 hover:bg-gray-200 border-l-2 border-gray-400"
                               : "bg-blue-100 text-blue-800 hover:bg-blue-200"
