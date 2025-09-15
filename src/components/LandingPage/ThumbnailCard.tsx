@@ -6,7 +6,7 @@ interface ThumbnailCardProps {
   cardHeight?: number;
 }
 
-const ThumbnailCard = ({ id, cardWidth = 300, cardHeight = 200 }: ThumbnailCardProps) => (
+const ThumbnailCard = ({ id, cardWidth = 300, cardHeight = Math.round(300 / 16 * 9) }: ThumbnailCardProps) => (
   <div className="relative group">
     {/* 썸네일 카드 */}
     <div 
