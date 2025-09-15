@@ -10,7 +10,6 @@ import UserManagement from "@/components/admin/UserManagement";
 import WorkScheduleManagement from "@/components/admin/WorkScheduleManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAdminPermission } from "@/hooks/query/useAdminPermission";
 import {
   AlertTriangle,
   Archive,
@@ -36,17 +35,19 @@ type TabType =
   | "workSchedule";
 
 function AdminContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("templates");
 
-  // React Query로 관리자 권한 확인
-  const {
-    data: permissionData,
-    isLoading: loading,
-    error,
-  } = useAdminPermission(!!user);
+  console.log(user);
 
-  const isAdmin = permissionData?.isAdmin || false;
+  // React Query로 관리자 권한 확인
+  // const {
+  //   data: permissionData,
+  //   isLoading: loading,
+  //   error,
+  // } = useAdminPermission(!!user);
+
+  const isAdmin = user?.isAdmin || false;
 
   if (loading) {
     return (
@@ -61,7 +62,7 @@ function AdminContent() {
     );
   }
 
-  if (error || !isAdmin) {
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg border border-gray-200 p-8 text-center">

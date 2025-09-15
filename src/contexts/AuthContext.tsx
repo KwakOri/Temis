@@ -87,6 +87,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const data = await response.json();
 
+      console.log("data.user => ", data.user);
+
       if (response.ok) {
         setUser(data.user);
         return { success: true };
@@ -181,7 +183,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   // 공개 회원가입 (이메일 인증 방식)
-  const registerPublic = async (email: string, password: string, name: string) => {
+  const registerPublic = async (
+    email: string,
+    password: string,
+    name: string
+  ) => {
     try {
       const response = await fetch("/api/auth/register-public", {
         method: "POST",

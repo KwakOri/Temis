@@ -1,41 +1,44 @@
 import {
-  TemplateWithProducts,
-  TemplateProduct,
   CreateTemplateData,
-  UpdateTemplateData,
   CreateTemplateProductData,
+  TemplateProduct,
+  TemplateWithProducts,
+  UpdateTemplateData,
   UpdateTemplateProductData,
-} from '@/types/admin'
+} from "@/types/admin";
 
 export class AdminTemplateService {
-  private static baseUrl = '/api/admin'
+  private static baseUrl = "/api/admin";
 
   // Templates
   static async getTemplates(): Promise<{ templates: TemplateWithProducts[] }> {
-    const response = await fetch(`${this.baseUrl}/templates`)
+    console.log("this.baseUrl => ", this.baseUrl);
+    const response = await fetch(`${this.baseUrl}/templates`);
 
     if (!response.ok) {
-      throw new Error('템플릿 목록을 가져오는데 실패했습니다.')
+      throw new Error("템플릿 목록을 가져오는데 실패했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 
-  static async createTemplate(data: CreateTemplateData): Promise<TemplateWithProducts> {
+  static async createTemplate(
+    data: CreateTemplateData
+  ): Promise<TemplateWithProducts> {
     const response = await fetch(`${this.baseUrl}/templates`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    })
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || '템플릿 생성에 실패했습니다.')
+      const error = await response.json();
+      throw new Error(error.error || "템플릿 생성에 실패했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 
   static async updateTemplate(
@@ -43,56 +46,61 @@ export class AdminTemplateService {
     data: UpdateTemplateData
   ): Promise<TemplateWithProducts> {
     const response = await fetch(`${this.baseUrl}/templates/${templateId}`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    })
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || '템플릿 업데이트에 실패했습니다.')
+      const error = await response.json();
+      throw new Error(error.error || "템플릿 업데이트에 실패했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 
   // Template Products
-  static async createTemplateProduct(data: CreateTemplateProductData): Promise<TemplateProduct> {
+  static async createTemplateProduct(
+    data: CreateTemplateProductData
+  ): Promise<TemplateProduct> {
     const response = await fetch(`${this.baseUrl}/template-products`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(data),
-    })
+    });
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || '템플릿 상품 생성에 실패했습니다.')
+      const error = await response.json();
+      throw new Error(error.error || "템플릿 상품 생성에 실패했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 
   static async updateTemplateProduct(
     productId: string,
     data: UpdateTemplateProductData
   ): Promise<TemplateProduct> {
-    const response = await fetch(`${this.baseUrl}/template-products/${productId}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    })
+    const response = await fetch(
+      `${this.baseUrl}/template-products/${productId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      }
+    );
 
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || '템플릿 상품 업데이트에 실패했습니다.')
+      const error = await response.json();
+      throw new Error(error.error || "템플릿 상품 업데이트에 실패했습니다.");
     }
 
-    return response.json()
+    return response.json();
   }
 }

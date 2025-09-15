@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 export const useAdminPermission = (enabled: boolean = true) => {
   return useQuery({
     queryKey: queryKeys.admin.permission(),
-    queryFn: AdminService.checkAdminPermission,
+    queryFn: () => AdminService.checkAdminPermission(),
     enabled,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes

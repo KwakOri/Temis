@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export const useAdminPurchaseRequests = () => {
   return useQuery({
     queryKey: queryKeys.admin.purchaseRequests(),
-    queryFn: AdminPurchaseService.getPurchaseRequests,
+    queryFn: () => AdminPurchaseService.getPurchaseRequests(),
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
   });

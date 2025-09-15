@@ -106,7 +106,7 @@ export const useAdminLegacyOrdersCalendar = (year: number, month: number) => {
 export const useAdminMigrationStatus = () => {
   return useQuery({
     queryKey: queryKeys.admin.migrationStatus(),
-    queryFn: AdminOrderService.getMigrationStatus,
+    queryFn: () => AdminOrderService.getMigrationStatus(),
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 2 * 60 * 1000, // 2 minutes
   });

@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export const usePurchaseHistory = () => {
   return useQuery({
     queryKey: queryKeys.purchaseHistory.list(),
-    queryFn: PurchaseHistoryService.getPurchaseHistory,
+    queryFn: () => PurchaseHistoryService.getPurchaseHistory(),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

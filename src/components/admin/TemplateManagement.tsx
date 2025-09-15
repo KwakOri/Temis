@@ -52,6 +52,9 @@ export default function TemplateManagement() {
     error: templatesError,
   } = useAdminTemplates();
 
+  console.log("templatesData => ", templatesData);
+  console.log("templatesError => ", templatesError);
+
   const templates = templatesData?.templates || [];
 
   const createTemplateMutation = useCreateAdminTemplate();
