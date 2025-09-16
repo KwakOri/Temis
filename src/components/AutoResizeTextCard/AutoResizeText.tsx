@@ -8,11 +8,8 @@ interface Props {
   minFontSize?: number;
   style?: React.CSSProperties;
   className?: string;
-  padding?:
-    | number
-    | { top?: number; right?: number; bottom?: number; left?: number };
+
   multiline?: boolean;
-  maxHeight?: number;
 }
 
 const AutoResizeText: React.FC<Props> = ({
@@ -21,11 +18,27 @@ const AutoResizeText: React.FC<Props> = ({
   minFontSize = 12,
   style,
   className,
-  padding = 0,
+
   multiline = false,
 }) => {
   const textRef = useRef<HTMLParagraphElement>(null);
   const [fontSize, setFontSize] = useState(maxFontSize);
+
+  const rmPx = (pixel: string) => Number(pixel.slice(0, -2));
+
+  const getAvailableLength = (parent: HTMLElement) => {
+    const availableWidth =
+      parent.clientWidth -
+      rmPx(parent.style.paddingLeft) -
+      rmPx(parent.style.paddingRight);
+
+    const availableHeight =
+      parent.clientHeight -
+      rmPx(parent.style.paddingTop) -
+      rmPx(parent.style.paddingBottom);
+
+    return { availableWidth, availableHeight };
+  };
 
   useEffect(() => {
     const el = textRef.current;
@@ -36,18 +49,11 @@ const AutoResizeText: React.FC<Props> = ({
 
     const calculateFontSize = () => {
       // padding 값을 객체로 변환
-      const paddingValues =
-        typeof padding === "number"
-          ? { top: padding, right: padding, bottom: padding, left: padding }
-          : { top: 0, right: 0, bottom: 0, left: 0, ...padding };
 
       // 사용 가능한 공간 계산 (padding 고려)
-      const availableWidth =
-        parent.clientWidth - paddingValues.left - paddingValues.right;
+      const { availableHeight, availableWidth } = getAvailableLength(parent);
 
-      const availableHeight =
-        parent.clientHeight - paddingValues.top - paddingValues.bottom;
-
+      console.log(availableHeight, availableWidth);
       // 최소 크기 확인
       if (availableWidth <= 0 || availableHeight <= 0) {
         setFontSize(minFontSize);
@@ -107,7 +113,7 @@ const AutoResizeText: React.FC<Props> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [children, maxFontSize, minFontSize, padding, multiline]);
+  }, [children, maxFontSize, minFontSize, multiline]);
 
   return (
     <p
