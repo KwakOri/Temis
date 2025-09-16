@@ -3,6 +3,7 @@ import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
+import TeamSaveModal from "@/components/TimeTable/TeamSaveModal";
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { CroppedAreaPixels } from "@/types/image-edit";
 import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
@@ -16,6 +17,7 @@ interface TimeTableFormProps {
   onReset: () => void;
   cropWidth?: number;
   cropHeight?: number;
+  isTeam?: boolean;
 }
 
 interface ProfileOptionButtonProps {
@@ -52,6 +54,7 @@ const TimeTableForm = ({
   isArtist = true,
   isMemo = false,
   saveable = true,
+  isTeam = false,
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
 
@@ -80,6 +83,7 @@ const TimeTableForm = ({
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showTeamSaveModal, setShowTeamSaveModal] = useState(false);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -164,6 +168,14 @@ const TimeTableForm = ({
 
   const handleImageSave = (width: number, height: number) => {
     downloadImage(width, height);
+  };
+
+  const handleTeamSaveClick = () => {
+    setShowTeamSaveModal(true);
+  };
+
+  const handleTeamSaveModalClose = () => {
+    setShowTeamSaveModal(false);
   };
 
   const ProfileOptionButtons = [
@@ -326,21 +338,39 @@ const TimeTableForm = ({
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-300 bg-gray-50 flex gap-2">
-            <button
-              onClick={
-                saveable
-                  ? handleSaveClick
-                  : () => {
-                      alert("체험 모드에서는 제공되지 않는 기능입니다.");
-                    }
-              }
-              className="w-full bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
-            >
-              이미지로 저장
-            </button>
+          <div className="p-4 border-t border-gray-300 bg-gray-50 space-y-2">
+            {/* 첫 번째 줄: 이미지 저장과 리셋 */}
+            <div className="flex gap-2">
+              <button
+                onClick={
+                  saveable
+                    ? handleSaveClick
+                    : () => {
+                        alert("체험 모드에서는 제공되지 않는 기능입니다.");
+                      }
+                }
+                className="flex-1 bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
+              >
+                이미지로 저장
+              </button>
+              <ResetButton onReset={onReset} />
+            </div>
 
-            <ResetButton onReset={onReset} />
+            {/* 두 번째 줄: 팀 시간표 저장 (isTeam이 true일 때만) */}
+            {isTeam && (
+              <button
+                onClick={
+                  saveable
+                    ? handleTeamSaveClick
+                    : () => {
+                        alert("체험 모드에서는 제공되지 않는 기능입니다.");
+                      }
+                }
+                className="w-full bg-[#3E4A82] text-white py-3 rounded-md text-base font-bold hover:bg-[#2b2f4d] transition"
+              >
+                팀 시간표에 저장
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -370,6 +400,16 @@ const TimeTableForm = ({
         onClose={handleSaveModalClose}
         onSave={handleImageSave}
         templateSize={captureSize}
+      />
+
+      {/* 팀 시간표 저장 모달 */}
+      <TeamSaveModal
+        isOpen={showTeamSaveModal}
+        onClose={handleTeamSaveModalClose}
+        onSuccess={(teamId) => {
+          console.log("팀에 저장 완료:", teamId);
+          // 모달이 자동으로 닫히므로 별도 처리 불요
+        }}
       />
     </>
   );
