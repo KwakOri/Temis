@@ -41,7 +41,7 @@ const AutoResizeText: React.FC<Props> = ({
       const tempEl = document.createElement("div");
       tempEl.style.position = "absolute";
       tempEl.style.visibility = "hidden";
-      tempEl.style.whiteSpace = "nowrap";
+      tempEl.style.whiteSpace = "pre";
       tempEl.style.fontSize = `${fontSize}px`;
       tempEl.style.fontFamily = el.style.fontFamily || "inherit";
       tempEl.style.fontWeight = el.style.fontWeight || "inherit";
@@ -90,9 +90,7 @@ const AutoResizeText: React.FC<Props> = ({
         el.style.overflowWrap = "normal";
       }
 
-      // 이진 탐색으로 최적의 폰트 크기 찾기
-      let low = minFontSize;
-      let high = maxFontSize;
+      // maxFontSize부터 시작해서 줄여가면서 맞는 폰트 크기 찾기
       let optimalFont = minFontSize;
 
       const testFontSize = (testFont: number): boolean => {
@@ -104,9 +102,11 @@ const AutoResizeText: React.FC<Props> = ({
         if (multiline) {
           // multiline 모드에서는 실제 렌더링된 크기와 정확한 텍스트 너비를 모두 확인
           const singleLineWidth = measureTextWidth(testFont);
-          exceedsWidth =
-            singleLineWidth > availableWidth && el.scrollWidth > availableWidth;
+          exceedsWidth = singleLineWidth > availableWidth;
           exceedsHeight = el.scrollHeight > availableHeight;
+
+          console.log("singleLineWidth => ", singleLineWidth);
+          console.log("availableWidth => ", availableWidth);
         } else {
           // single line 모드에서는 scrollWidth 사용
           exceedsWidth = el.scrollWidth > availableWidth;
@@ -116,17 +116,19 @@ const AutoResizeText: React.FC<Props> = ({
         return !exceedsWidth && !exceedsHeight;
       };
 
-      // 이진 탐색으로 최대 가능한 폰트 크기 찾기
-      while (low <= high) {
-        const mid = Math.floor(((low + high) / 2) * 2) / 2; // 0.5 단위로 반올림
-
-        if (testFontSize(mid)) {
-          optimalFont = mid;
-          low = mid + 0.5;
-        } else {
-          high = mid - 0.5;
+      // maxFontSize부터 시작해서 0.5씩 줄여가면서 맞는 크기 찾기
+      for (
+        let currentFont = maxFontSize;
+        currentFont >= minFontSize;
+        currentFont -= 0.5
+      ) {
+        if (testFontSize(currentFont)) {
+          optimalFont = currentFont;
+          break;
         }
       }
+
+      console.log(fontSize);
 
       setFontSize(optimalFont);
     };
@@ -136,8 +138,7 @@ const AutoResizeText: React.FC<Props> = ({
 
     // ResizeObserver로 부모 크기 변경 감지
     const resizeObserver = new ResizeObserver(() => {
-      // debounce를 위한 작은 지연
-      setTimeout(calculateFontSize, 10);
+      calculateFontSize();
     });
 
     resizeObserver.observe(parent);
@@ -152,7 +153,7 @@ const AutoResizeText: React.FC<Props> = ({
       ref={textRef}
       className={className}
       style={{
-        fontSize: `${fontSize}px`,
+        fontSize: `${Math.floor(fontSize * 0.95)}px`,
         whiteSpace: multiline ? "pre-wrap" : "nowrap",
         wordBreak: multiline ? "break-word" : "normal",
         overflowWrap: multiline ? "break-word" : "normal",

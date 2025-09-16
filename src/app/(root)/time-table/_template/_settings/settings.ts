@@ -87,14 +87,14 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       defaultValue: "10:00",
     },
     {
-      key: "description",
+      key: "mainTitle",
       type: "textarea",
       placeholder: "메인 타이틀\n적는 곳",
       defaultValue: "",
       maxLength: 200,
     },
     {
-      key: "topic",
+      key: "subTitle",
       type: "text",
       placeholder: "소제목 적는 곳",
       defaultValue: "",
@@ -149,11 +149,11 @@ export const Settings = {
         fontSize: 80,
         fontColor: colors.first.tertiary,
       },
-      description: {
+      mainTitle: {
         fontSize: 88,
         fontColor: colors.first.primary,
       },
-      topic: {
+      subTitle: {
         fontSize: 40,
         fontColor: colors.first.secondary,
       },

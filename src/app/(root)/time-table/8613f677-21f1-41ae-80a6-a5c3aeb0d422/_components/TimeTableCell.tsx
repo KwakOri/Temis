@@ -30,13 +30,13 @@ interface DateTextProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   isMultiple?: boolean;
   currentTheme?: TTheme;
-  description: string;
+  mainTitle: string;
 }
 
-interface CellTextTopicProps {
+interface CellTextSubTitleProps {
   text: string | null;
 }
 
@@ -125,11 +125,11 @@ const StreamingTime = ({
   );
 };
 
-const CellTextDescription = ({
+const CellTextMainTitle = ({
   isMultiple,
   currentTheme,
-  description,
-}: CellTextDescriptionProps) => {
+  mainTitle,
+}: CellTextMainTitleProps) => {
   return isMultiple ? (
     <div
       style={{
@@ -141,13 +141,13 @@ const CellTextDescription = ({
     >
       <AutoResizeText
         style={{
-          color: Settings.card.online.description.fontColor,
+          color: Settings.card.online.mainTitle.fontColor,
           lineHeight: 1.2,
         }}
         className="leading-none text-center w-full"
         maxFontSize={56}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   ) : (
@@ -160,29 +160,29 @@ const CellTextDescription = ({
     >
       <AutoResizeText
         style={{
-          color: Settings.card.online.description.fontColor,
+          color: Settings.card.online.mainTitle.fontColor,
           lineHeight: 1.2,
         }}
         className="leading-none text-center w-full"
         multiline={true}
-        maxFontSize={Settings.card.online.description.fontSize}
+        maxFontSize={Settings.card.online.mainTitle.fontSize}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextTitle = ({ text }: CellTextTopicProps) => {
+const CellTextTitle = ({ text }: CellTextSubTitleProps) => {
   return (
     <p
       style={{
-        color: Settings.card.online.topic.fontColor,
-        fontSize: Settings.card.online.topic.fontSize,
+        color: Settings.card.online.subTitle.fontColor,
+        fontSize: Settings.card.online.subTitle.fontSize,
       }}
       className=" flex justify-center items-center"
     >
-      {text ? (text as string) : placeholders.topic}
+      {text ? (text as string) : placeholders.subTitle}
     </p>
   );
 };
@@ -241,7 +241,7 @@ const OfflineCard = ({ day, currentTheme, offlineMemo }: OfflineCardProps) => {
             multiline
             maxFontSize={80}
           >
-            {offlineMemo ? (offlineMemo as string) : placeholders.description}
+            {offlineMemo ? (offlineMemo as string) : placeholders.mainTitle}
           </AutoResizeText>
         </div>
       )}
@@ -325,9 +325,9 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
     return (
       <>
         <div className="w-full h-full pt-34">
-          <CellTextDescription
+          <CellTextMainTitle
             isMultiple={isMultiple}
-            description={entries[0].description as string}
+            mainTitle={entries[0].mainTitle as string}
           />
         </div>
         <StreamingTime time={entries[0].time as string} />
@@ -338,15 +338,15 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
       {entries.map((entry: TEntry, i) => {
         return (
           <div className={"w-full h-full relative"} key={day + "-" + i}>
-            <CellTextDescription
+            <CellTextMainTitle
               isMultiple={isMultiple}
-              description={entry.description as string}
+              mainTitle={entry.mainTitle as string}
             />
             <StreamingTime
               isMultiple={isMultiple}
               time={entry.time as string}
             />
-            {/* <CellTextTitle text={entry.topic as string} /> */}
+            {/* <CellTextTitle text={entry.subTitle as string} /> */}
           </div>
         );
       })}

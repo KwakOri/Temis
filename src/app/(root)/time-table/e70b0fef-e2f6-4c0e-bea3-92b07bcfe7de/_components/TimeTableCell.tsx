@@ -30,12 +30,12 @@ interface StreamingTimeProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   currentTheme?: TTheme;
-  description: string;
+  mainTitle: string;
 }
 
-interface CellTextTopicProps {
+interface CellTextSubTitleProps {
   cellTextTitle: string | null;
 }
 
@@ -103,10 +103,10 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
   );
 };
 
-const CellTextDescription = ({
+const CellTextMainTitle = ({
   currentTheme,
-  description,
-}: CellTextDescriptionProps) => {
+  mainTitle,
+}: CellTextMainTitleProps) => {
   return (
     <div
       style={{
@@ -123,13 +123,13 @@ const CellTextDescription = ({
         multiline={true}
         maxFontSize={68}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
   return (
     <p
       style={{
@@ -137,7 +137,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
       }}
       className=" flex justify-center items-center h-[28px] text-[36px]"
     >
-      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+      {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
     </p>
   );
 };
@@ -222,9 +222,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = primaryEntry.time as string || "09:00";
-  const entryDescription = primaryEntry.description as string || "";
-  const entryTopic = primaryEntry.topic as string || "";
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
 
   if (time.isOffline) {
     return <OfflineCard day={time.day} />;
@@ -240,8 +240,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       className="relative flex justify-center"
     >
       <CellContentArea>
-        <CellTextTitle cellTextTitle={entryTopic} />
-        <CellTextDescription description={entryDescription} />
+        <CellTextTitle cellTextTitle={entrySubTitle} />
+        <CellTextMainTitle mainTitle={entryMainTitle} />
         <StreamingTime time={entryTime} />
       </CellContentArea>
       <OnlineCardBG day={time.day} />

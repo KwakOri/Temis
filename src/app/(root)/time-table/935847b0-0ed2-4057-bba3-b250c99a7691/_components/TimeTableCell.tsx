@@ -33,12 +33,12 @@ interface DateTextProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   currentTheme?: TTheme;
-  description: string;
+  mainTitle: string;
 }
 
-interface CellTextTopicProps {
+interface CellTextSubTitleProps {
   cellTextTitle: string | null;
 }
 
@@ -113,15 +113,15 @@ const StreamingTime = ({
   );
 };
 
-const CellTextDescription = ({
+const CellTextMainTitle = ({
   currentTheme,
-  description,
-}: CellTextDescriptionProps) => {
+  mainTitle,
+}: CellTextMainTitleProps) => {
   return (
     <div
       style={{
         height: 360,
-        width: "90%",
+        width: 390,
         marginTop: 10,
       }}
       className="flex justify-center items-start font-black"
@@ -134,13 +134,13 @@ const CellTextDescription = ({
         multiline={true}
         maxFontSize={100}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
   return (
     // <p
     //   style={{
@@ -148,12 +148,12 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
     //   }}
     //   className=" flex justify-center items-center text-[48px] mt-32"
     // >
-    //   {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+    //   {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
     // </p>
     <div
       style={{
         height: 72,
-        width: "90%",
+        width: 390,
         marginTop: 36,
       }}
       className="  font-bold flex items-center"
@@ -162,7 +162,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
         className="leading-none text-start w-full"
         maxFontSize={56}
       >
-        {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+        {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
       </AutoResizeText>
     </div>
   );
@@ -219,14 +219,14 @@ const OfflineCard = ({ cellStyle, day, currentTheme }: OfflineCardProps) => {
 
 interface CellSideTabProps {
   cellStyle: CSSProperties;
-  subTitle: string;
-  subDescription: string;
+  entrySideTabMainTitle: string;
+  entrySideTabSubTitle: string;
 }
 
 const CellSideTab = ({
   cellStyle,
-  subTitle,
-  subDescription,
+  entrySideTabMainTitle,
+  entrySideTabSubTitle,
 }: CellSideTabProps) => {
   const subTitleFontSizeByLength = {
     1: 63,
@@ -255,11 +255,11 @@ const CellSideTab = ({
           lineHeight: 1,
           fontSize:
             subTitleFontSizeByLength[
-              subTitle.length as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
+              entrySideTabMainTitle.length as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8
             ],
         }}
       >
-        {subTitle.split("").map((char, i) => (
+        {entrySideTabMainTitle.split("").map((char, i) => (
           <span key={i}>{char}</span>
         ))}
       </div>
@@ -270,7 +270,7 @@ const CellSideTab = ({
           lineHeight: 1,
         }}
       >
-        {subDescription.split("").map((char, i) => (
+        {entrySideTabSubTitle.split("").map((char, i) => (
           <span key={i}>{char}</span>
         ))}
       </div>
@@ -313,10 +313,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
   const entryTime = (primaryEntry.time as string) || "09:00";
-  const entryDescription = (primaryEntry.description as string) || "";
-  const entryTopic = (primaryEntry.topic as string) || "";
-  const entrySubTitle = (primaryEntry.subTopic as string) || "";
-  const entrySubDescription = (primaryEntry.subDescription as string) || "";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
+  const entrySideTabMainTitle = (primaryEntry.sideTabMainTitle as string) || "";
+  const entrySideTabSubTitle = (primaryEntry.sideTabSubTitle as string) || "";
 
   // console.log("entrySubTitle => ", entrySubTitle);
   // console.log("entrySubDescription => ", entrySubDescription);
@@ -336,14 +336,14 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       ) : (
         <>
           <CellContentArea cellStyle={cellStyle.contentArea}>
-            <CellTextTitle cellTextTitle={entryTopic} />
-            <CellTextDescription description={entryDescription} />
+            <CellTextTitle cellTextTitle={entrySubTitle} />
+            <CellTextMainTitle mainTitle={entryMainTitle} />
             {/* <StreamingDate date={weekDate.getDate()} /> */}
           </CellContentArea>
           <StreamingTime cellStyle={cellStyle.timestamp} time={entryTime} />
           <CellSideTab
-            subTitle={entrySubTitle}
-            subDescription={entrySubDescription}
+            entrySideTabMainTitle={entrySideTabMainTitle}
+            entrySideTabSubTitle={entrySideTabSubTitle}
             cellStyle={cellStyle.sideTab}
           />
         </>

@@ -35,9 +35,9 @@ interface CellTextTitleProps {
   title: string;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   isBig: boolean;
-  description: string | null;
+  mainTitle: string | null;
 }
 
 interface TimeTableCellProps {
@@ -121,16 +121,13 @@ const CellTextTitle = ({ currentTheme, title }: CellTextTitleProps) => {
         className="leading-none text-left w-full"
         maxFontSize={Settings.card.online.title.fontSize}
       >
-        {title ? (title as string) : placeholders.topic}
+        {title ? (title as string) : placeholders.subTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextDescription = ({
-  isBig,
-  description,
-}: CellTextDescriptionProps) => {
+const CellTextMainTitle = ({ isBig, mainTitle }: CellTextMainTitleProps) => {
   return (
     <div
       style={{
@@ -143,14 +140,14 @@ const CellTextDescription = ({
     >
       <AutoResizeText
         style={{
-          color: Settings.card.online.description.fontColor,
+          color: Settings.card.online.mainTitle.fontColor,
           lineHeight: 1.2,
         }}
         className="leading-none text-left w-full"
-        maxFontSize={Settings.card.online.description.fontSize}
+        maxFontSize={Settings.card.online.mainTitle.fontSize}
         multiline={isBig ? true : false}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
@@ -253,8 +250,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
   const entryTime = (primaryEntry.time as string) || "09:00";
-  const entryDescription = (primaryEntry.description as string) || "";
-  const entryTopic = (primaryEntry.topic as string) || "";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
 
   return (
     <div
@@ -298,8 +295,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           {" "}
           <StreamingTime isBig={isBig} time={entryTime} />
           <CellContentArea isBig={isBig}>
-            <CellTextTitle title={entryTopic} />
-            <CellTextDescription isBig={isBig} description={entryDescription} />
+            <CellTextTitle title={entrySubTitle} />
+            <CellTextMainTitle isBig={isBig} mainTitle={entryMainTitle} />
           </CellContentArea>
           <OnlineCardBG day={time.day} isBig={isBig} />
         </>

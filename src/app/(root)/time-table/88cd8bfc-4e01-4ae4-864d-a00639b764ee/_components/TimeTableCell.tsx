@@ -28,12 +28,12 @@ interface DateTextProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   currentTheme?: TTheme;
-  description: string;
+  mainTitle: string;
 }
 
-interface CellTextTopicProps {
+interface CellTextSubTitleProps {
   cellTextTitle: string | null;
 }
 
@@ -103,10 +103,10 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
   );
 };
 
-const CellTextDescription = ({
+const CellTextMainTitle = ({
   currentTheme,
-  description,
-}: CellTextDescriptionProps) => {
+  mainTitle,
+}: CellTextMainTitleProps) => {
   return (
     <div
       style={{
@@ -117,29 +117,29 @@ const CellTextDescription = ({
     >
       <AutoResizeText
         style={{
-          color: Settings.card.online.description.fontColor,
+          color: Settings.card.online.mainTitle.fontColor,
           lineHeight: 1.2,
         }}
         className="leading-none text-center w-full"
         multiline={true}
-        maxFontSize={Settings.card.online.description.fontSize}
+        maxFontSize={Settings.card.online.mainTitle.fontSize}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
   return (
     <p
       style={{
-        color: Settings.card.online.topic.fontColor,
-        fontSize: Settings.card.online.topic.fontSize,
+        color: Settings.card.online.subTitle.fontColor,
+        fontSize: Settings.card.online.subTitle.fontSize,
       }}
       className=" flex justify-center items-center"
     >
-      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+      {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
     </p>
   );
 };
@@ -210,9 +210,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = primaryEntry.time as string || "09:00";
-  const entryDescription = primaryEntry.description as string || "";
-  const entryTopic = primaryEntry.topic as string || "";
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
 
   if (time.isOffline) {
     return <OfflineCard day={time.day} />;
@@ -228,8 +228,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       className="relative flex justify-center pt-47"
     >
       <CellContentArea>
-        <CellTextDescription description={entryDescription} />
-        <CellTextTitle cellTextTitle={entryTopic} />
+        <CellTextMainTitle mainTitle={entryMainTitle} />
+        <CellTextTitle cellTextTitle={entrySubTitle} />
 
         <StreamingDay day={time.day} />
         <StreamingTime time={entryTime} />

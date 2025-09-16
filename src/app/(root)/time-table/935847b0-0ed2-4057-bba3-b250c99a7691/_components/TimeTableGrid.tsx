@@ -96,7 +96,6 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
-  console.log("data => ", data);
   return (
     <div
       className="absolute z-20"

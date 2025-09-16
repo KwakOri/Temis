@@ -91,14 +91,14 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       defaultValue: "10:00",
     },
     {
-      key: "topic",
+      key: "subTitle",
       type: "text",
       placeholder: "소제목 적는 곳",
       defaultValue: "",
       maxLength: 50,
     },
     {
-      key: "description",
+      key: "mainTitle",
       type: "textarea",
       placeholder: "메인 타이틀\n적는 곳",
       defaultValue: "",

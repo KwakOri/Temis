@@ -3,7 +3,6 @@ import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
-import TeamSaveModal from "@/components/TimeTable/TeamSaveModal";
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { CroppedAreaPixels } from "@/types/image-edit";
 import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
@@ -400,16 +399,6 @@ const TimeTableForm = ({
         onClose={handleSaveModalClose}
         onSave={handleImageSave}
         templateSize={captureSize}
-      />
-
-      {/* 팀 시간표 저장 모달 */}
-      <TeamSaveModal
-        isOpen={showTeamSaveModal}
-        onClose={handleTeamSaveModalClose}
-        onSuccess={(teamId) => {
-          console.log("팀에 저장 완료:", teamId);
-          // 모달이 자동으로 닫히므로 별도 처리 불요
-        }}
       />
     </>
   );
