@@ -23,9 +23,8 @@ const AutoResizeText: React.FC<Props> = ({
   className,
   padding = 0,
   multiline = false,
-  maxHeight,
 }) => {
-  const textRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
   const [fontSize, setFontSize] = useState(maxFontSize);
 
   useEffect(() => {
@@ -34,26 +33,6 @@ const AutoResizeText: React.FC<Props> = ({
 
     const parent = el.parentElement;
     if (!parent) return;
-
-    // 정확한 텍스트 너비 측정을 위한 헬퍼 함수
-    const measureTextWidth = (fontSize: number): number => {
-      // 임시 측정 요소 생성
-      const tempEl = document.createElement("div");
-      tempEl.style.position = "absolute";
-      tempEl.style.visibility = "hidden";
-      tempEl.style.whiteSpace = "pre";
-      tempEl.style.fontSize = `${fontSize}px`;
-      tempEl.style.fontFamily = el.style.fontFamily || "inherit";
-      tempEl.style.fontWeight = el.style.fontWeight || "inherit";
-      tempEl.style.letterSpacing = el.style.letterSpacing || "inherit";
-      tempEl.textContent = children;
-
-      document.body.appendChild(tempEl);
-      const width = tempEl.scrollWidth;
-      document.body.removeChild(tempEl);
-
-      return width;
-    };
 
     const calculateFontSize = () => {
       // padding 값을 객체로 변환
@@ -65,13 +44,9 @@ const AutoResizeText: React.FC<Props> = ({
       // 사용 가능한 공간 계산 (padding 고려)
       const availableWidth =
         parent.clientWidth - paddingValues.left - paddingValues.right;
-      let availableHeight =
-        parent.clientHeight - paddingValues.top - paddingValues.bottom;
 
-      // maxHeight가 지정된 경우, 더 작은 값을 사용
-      if (maxHeight !== undefined) {
-        availableHeight = Math.min(availableHeight, maxHeight);
-      }
+      const availableHeight =
+        parent.clientHeight - paddingValues.top - paddingValues.bottom;
 
       // 최소 크기 확인
       if (availableWidth <= 0 || availableHeight <= 0) {
@@ -81,7 +56,7 @@ const AutoResizeText: React.FC<Props> = ({
 
       // multiline 지원을 위한 스타일 설정
       if (multiline) {
-        el.style.whiteSpace = "pre-wrap";
+        el.style.whiteSpace = "pre";
         el.style.wordBreak = "break-word";
         el.style.overflowWrap = "break-word";
       } else {
@@ -90,47 +65,33 @@ const AutoResizeText: React.FC<Props> = ({
         el.style.overflowWrap = "normal";
       }
 
-      // maxFontSize부터 시작해서 줄여가면서 맞는 폰트 크기 찾기
-      let optimalFont = minFontSize;
+      // 새로운 접근: textRef와 부모 크기를 직접 비교하여 fontSize 조정
+      let currentFontSize = maxFontSize;
+      el.style.fontSize = `${currentFontSize}px`;
 
-      const testFontSize = (testFont: number): boolean => {
-        el.style.fontSize = `${testFont}px`;
+      // 작은 단위로 줄여가면서 맞는 크기 찾기
+      while (currentFontSize >= minFontSize) {
+        el.style.fontSize = `${currentFontSize}px`;
 
-        let exceedsWidth = false;
-        let exceedsHeight = false;
+        // textRef의 실제 크기 측정
+        const textWidth = el.scrollWidth;
+        const textHeight = el.scrollHeight;
 
-        if (multiline) {
-          // multiline 모드에서는 실제 렌더링된 크기와 정확한 텍스트 너비를 모두 확인
-          const singleLineWidth = measureTextWidth(testFont);
-          exceedsWidth = singleLineWidth > availableWidth;
-          exceedsHeight = el.scrollHeight > availableHeight;
+        // 부모 크기와 비교하여 오버플로우 확인
+        const exceedsWidth = textWidth > availableWidth;
+        const exceedsHeight = textHeight > availableHeight;
 
-          console.log("singleLineWidth => ", singleLineWidth);
-          console.log("availableWidth => ", availableWidth);
-        } else {
-          // single line 모드에서는 scrollWidth 사용
-          exceedsWidth = el.scrollWidth > availableWidth;
-          exceedsHeight = el.scrollHeight > availableHeight;
+        // 가로나 세로 중 하나라도 오버플로우하면 폰트 크기를 줄임
+        if (!exceedsWidth && !exceedsHeight) {
+          break; // 적절한 크기 찾음
         }
 
-        return !exceedsWidth && !exceedsHeight;
-      };
-
-      // maxFontSize부터 시작해서 0.5씩 줄여가면서 맞는 크기 찾기
-      for (
-        let currentFont = maxFontSize;
-        currentFont >= minFontSize;
-        currentFont -= 0.5
-      ) {
-        if (testFontSize(currentFont)) {
-          optimalFont = currentFont;
-          break;
-        }
+        currentFontSize -= 0.5;
       }
 
-      console.log(fontSize);
-
-      setFontSize(optimalFont);
+      // 최소 폰트 크기보다 작아지지 않도록 보장
+      const finalFontSize = Math.max(currentFontSize, minFontSize);
+      setFontSize(finalFontSize);
     };
 
     // 초기 계산
@@ -146,24 +107,23 @@ const AutoResizeText: React.FC<Props> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [children, maxFontSize, minFontSize, padding, multiline, maxHeight]);
+  }, [children, maxFontSize, minFontSize, padding, multiline]);
 
   return (
-    <div
+    <p
       ref={textRef}
       className={className}
       style={{
-        fontSize: `${Math.floor(fontSize * 0.95)}px`,
-        whiteSpace: multiline ? "pre-wrap" : "nowrap",
+        fontSize: `${Math.floor(fontSize)}px`,
+        whiteSpace: multiline ? "pre" : "nowrap",
         wordBreak: multiline ? "break-word" : "normal",
         overflowWrap: multiline ? "break-word" : "normal",
-        maxHeight: maxHeight ? `${maxHeight}px` : undefined,
-        overflow: maxHeight ? "hidden" : "visible",
+        overflow: "visible",
         ...style,
       }}
     >
       {children}
-    </div>
+    </p>
   );
 };
 

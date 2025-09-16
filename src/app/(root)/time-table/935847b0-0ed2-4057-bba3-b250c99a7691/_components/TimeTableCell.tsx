@@ -158,10 +158,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
       }}
       className="  font-bold flex items-center"
     >
-      <AutoResizeText
-        className="leading-none text-start w-full"
-        maxFontSize={56}
-      >
+      <AutoResizeText className="leading-none text-start" maxFontSize={56}>
         {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
       </AutoResizeText>
     </div>

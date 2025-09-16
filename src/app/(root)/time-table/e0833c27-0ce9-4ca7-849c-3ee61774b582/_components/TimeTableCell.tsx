@@ -121,7 +121,7 @@ const CellTextMainTitle = ({
     <div
       style={{
         height: 240,
-        width: "84%",
+        width: 500,
       }}
       className="flex justify-center items-center shrink-0 mt-2"
     >
@@ -130,7 +130,7 @@ const CellTextMainTitle = ({
           color: colors[currentTheme || "first"]["tertiary"],
           lineHeight: 1.2,
         }}
-        className="leading-none text-center w-full"
+        className="leading-none text-center"
         multiline={true}
         maxFontSize={90}
       >
@@ -153,7 +153,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
     <div
       style={{
         height: 80,
-        width: "80%",
+        width: 500,
       }}
       className="flex justify-center items-center shrink-0 mt-28"
     >
