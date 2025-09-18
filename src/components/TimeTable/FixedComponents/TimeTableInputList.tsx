@@ -4,13 +4,13 @@ import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
 import {
   CardInputConfig,
   SimpleFieldConfig,
+  TDefaultCard,
   TEntry,
   TLanOpt,
   TPlaceholders,
 } from "@/types/time-table/data";
 import {
   createInitialEntryFromConfig,
-  TDefaultCard,
   weekdays,
 } from "@/utils/time-table/data";
 import React from "react";

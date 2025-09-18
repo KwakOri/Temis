@@ -48,6 +48,14 @@ export const queryKeys = {
     resetPasswordTokenValidate: (token: string) =>
       [...queryKeys.auth.all, "resetPasswordTokenValidate", token] as const,
   },
+  team: {
+    all: ["team"] as const,
+    userTeams: () => [...queryKeys.team.all, "userTeams"] as const,
+    schedules: (teamId: string, weekStartDate: string) =>
+      [...queryKeys.team.all, "schedules", teamId, weekStartDate] as const,
+    userSchedule: (teamId: string, weekStartDate: string) =>
+      [...queryKeys.team.all, "userSchedule", teamId, weekStartDate] as const,
+  },
   admin: {
     all: ["admin"] as const,
     permission: () => [...queryKeys.admin.all, "permission"] as const,

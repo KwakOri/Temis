@@ -4,7 +4,7 @@ import {
   createPageAwareStorage,
   getPageId,
 } from "@/utils/pageAwareLocalStorage";
-import { TDefaultCard } from "@/utils/time-table/data";
+import { TDefaultCard } from "@/types/time-table/data";
 
 // localStorage 키 상수 (페이지별로 고유하게 관리됨)
 export const STORAGE_KEYS = {

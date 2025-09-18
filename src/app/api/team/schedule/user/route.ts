@@ -1,4 +1,4 @@
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId } from "@/lib/auth/jwt";
 import { teamScheduleService } from "@/services/server/teamScheduleService";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const schedule = await teamScheduleService.getUserTeamSchedule(teamId, weekStartDate, userId);
+    const schedule = await teamScheduleService.getUserTeamSchedule(userId, teamId, weekStartDate);
 
     if (!schedule) {
       return NextResponse.json({ error: "시간표를 찾을 수 없습니다." }, { status: 404 });

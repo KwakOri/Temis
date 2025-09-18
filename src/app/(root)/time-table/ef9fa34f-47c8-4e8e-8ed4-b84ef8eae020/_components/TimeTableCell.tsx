@@ -5,9 +5,9 @@ import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
 import {
   getFormattedTime,
-  TDefaultCard,
   weekdays,
 } from "@/utils/time-table/data";
+import { TDefaultCard } from "@/types/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {

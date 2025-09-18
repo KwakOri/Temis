@@ -1,12 +1,21 @@
+import { CardInputConfig, TDefaultCard } from "@/types/time-table/data";
+import {
+  createInitialCardFromConfig,
+  createInitialEntryFromConfig,
+  getDefaultCards,
+  week,
+} from "@/utils/time-table/data";
 import { useCallback, useState } from "react";
-import { CardInputConfig } from "@/types/time-table/data";
-import { TDefaultCard, getDefaultCards, createInitialCardFromConfig, createInitialEntryFromConfig, week } from "@/utils/time-table/data";
 
 /**
  * 타임테이블 데이터 상태 관리 훅
  * CardInputConfig를 받아서 동적으로 초기 카드를 생성
  */
-export const useTimeTableData = ({ cardInputConfig }: { cardInputConfig: CardInputConfig }) => {
+export const useTimeTableData = ({
+  cardInputConfig,
+}: {
+  cardInputConfig: CardInputConfig;
+}) => {
   // CardInputConfig를 기반으로 초기 데이터 생성
   const [data, setData] = useState<TDefaultCard[]>(() => {
     return getDefaultCards({ cardInputConfig });
@@ -66,7 +75,10 @@ export const useTimeTableData = ({ cardInputConfig }: { cardInputConfig: CardInp
         if (dayIndex >= 0 && dayIndex < newData.length) {
           const newEntries = [...newData[dayIndex].entries];
           if (entryIndex >= 0 && entryIndex < newEntries.length) {
-            newEntries[entryIndex] = { ...newEntries[entryIndex], [fieldKey]: value };
+            newEntries[entryIndex] = {
+              ...newEntries[entryIndex],
+              [fieldKey]: value,
+            };
             newData[dayIndex] = { ...newData[dayIndex], entries: newEntries };
           }
         }
@@ -100,7 +112,9 @@ export const useTimeTableData = ({ cardInputConfig }: { cardInputConfig: CardInp
       setData((prevData) => {
         const newData = [...prevData];
         if (dayIndex >= 0 && dayIndex < newData.length) {
-          const newEntries = newData[dayIndex].entries.filter((_, index) => index !== entryIndex);
+          const newEntries = newData[dayIndex].entries.filter(
+            (_, index) => index !== entryIndex
+          );
           // 최소 하나의 엔트리는 유지
           if (newEntries.length === 0) {
             newEntries.push(createInitialEntryFromConfig({ cardInputConfig }));
@@ -133,12 +147,12 @@ export const useTimeTableData = ({ cardInputConfig }: { cardInputConfig: CardInp
       day,
       ...createInitialCardFromConfig({ cardInputConfig }),
     })) as TDefaultCard[];
-    
+
     // isOffline 강제로 false로 설정
-    freshDefaultCards.forEach(card => {
+    freshDefaultCards.forEach((card) => {
       card.isOffline = false;
     });
-    
+
     setData(freshDefaultCards);
   }, [cardInputConfig]);
 

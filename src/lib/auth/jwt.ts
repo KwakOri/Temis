@@ -107,12 +107,12 @@ export function extractTokenFromRequest(request: Request): string | null {
 /**
  * 쿠키에서 JWT 토큰 추출
  * @param cookieHeader - Cookie 헤더 문자열
- * @param cookieName - 토큰이 저장된 쿠키 이름 (기본값: 'auth-token')
+ * @param cookieName - 토큰이 저장된 쿠키 이름 (기본값: 'token')
  * @returns JWT 토큰 문자열 또는 null
  */
 export function extractTokenFromCookie(
   cookieHeader: string | null,
-  cookieName: string = "auth-token"
+  cookieName: string = "token"
 ): string | null {
   if (!cookieHeader) {
     return null;
@@ -128,4 +128,39 @@ export function extractTokenFromCookie(
   }
 
   return targetCookie.split("=")[1];
+}
+
+/**
+ * 요청에서 토큰을 추출하고 사용자 ID 반환 (Next.js 15 호환)
+ * @param request - NextRequest 객체 (선택적)
+ * @returns 사용자 ID 또는 null
+ */
+export async function getCurrentUserId(request?: any): Promise<number | null> {
+  try {
+    let token: string | null = null;
+
+    if (request) {
+      // request가 있는 경우 (API 라우트에서 호출)
+      token = extractTokenFromRequest(request);
+      if (!token) {
+        const cookieHeader = request.headers.get('cookie');
+        token = extractTokenFromCookie(cookieHeader);
+      }
+    } else {
+      // request가 없는 경우 (서버 컴포넌트에서 호출)
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      token = cookieStore.get('token')?.value || null;
+    }
+
+    if (!token) {
+      return null;
+    }
+
+    const payload = await verifyJWT(token);
+    return payload ? Number(payload.userId) : null;
+  } catch (error) {
+    console.error('Error getting current user ID:', error);
+    return null;
+  }
 }

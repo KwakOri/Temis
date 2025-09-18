@@ -78,7 +78,7 @@ export default function RootLayout({
   return (
     <html lang="kr">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} $antialiased`}
       >
         <QueryProvider>
           <MaintenanceMode>

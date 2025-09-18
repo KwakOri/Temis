@@ -53,7 +53,6 @@ const AutoResizeText: React.FC<Props> = ({
       // 사용 가능한 공간 계산 (padding 고려)
       const { availableHeight, availableWidth } = getAvailableLength(parent);
 
-      console.log(availableHeight, availableWidth);
       // 최소 크기 확인
       if (availableWidth <= 0 || availableHeight <= 0) {
         setFontSize(minFontSize);

@@ -6,7 +6,8 @@ import { Imgs } from "../../_img/imgs";
 
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard, months } from "@/utils/time-table/data";
+import { TDefaultCard } from "@/types/time-table/data";
+import { months } from "@/utils/time-table/data";
 import {
   colors,
   fontOption,

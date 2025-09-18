@@ -2,12 +2,13 @@ import ImageCropModal from "@/components/ImageCropModal";
 import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
+import TeamSaveModal from "@/components/TimeTable/TeamSaveModal";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { CroppedAreaPixels } from "@/types/image-edit";
+import { TDefaultCard } from "@/types/time-table/data";
 import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
 import { Point } from "react-easy-crop";
-
 interface TimeTableFormProps {
   isArtist?: boolean;
   isMemo?: boolean;
@@ -17,6 +18,7 @@ interface TimeTableFormProps {
   cropWidth?: number;
   cropHeight?: number;
   isTeam?: boolean;
+  teamData?: TDefaultCard[]; // 팀 시간표 저장을 위한 데이터
 }
 
 interface ProfileOptionButtonProps {
@@ -54,7 +56,11 @@ const TimeTableForm = ({
   isMemo = false,
   saveable = true,
   isTeam = false,
+  teamData,
 }: PropsWithChildren<TimeTableFormProps>) => {
+  console.log("isTeam => ", isTeam);
+  console.log("teamData => ", teamData);
+
   const { state, actions } = useTimeTable();
 
   const {
@@ -400,6 +406,16 @@ const TimeTableForm = ({
         onSave={handleImageSave}
         templateSize={captureSize}
       />
+
+      {/* 팀 시간표 저장 모달 */}
+      {isTeam && teamData && (
+        <TeamSaveModal
+          isOpen={showTeamSaveModal}
+          onClose={handleTeamSaveModalClose}
+          mondayDateStr={mondayDateStr}
+          scheduleData={teamData}
+        />
+      )}
     </>
   );
 };

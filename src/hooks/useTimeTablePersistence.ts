@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { CardInputConfig } from "@/types/time-table/data";
-import { TDefaultCard } from "@/utils/time-table/data";
+import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { 
   useFormPersistence, 

@@ -3,10 +3,11 @@ import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 
 import WaterMark from "@/components/WaterMark";
+import { TDefaultCard } from "@/types/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {
   colors,

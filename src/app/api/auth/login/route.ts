@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { signJWT, verifyPassword } from '@/lib/auth';
+import { signJWT } from '@/lib/auth/jwt';
+import bcrypt from 'bcryptjs';
 import { UserService } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isPasswordValid = await verifyPassword(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return NextResponse.json(
         { error: '비밀번호가 올바르지 않습니다.' },
@@ -82,7 +83,7 @@ export async function POST(request: NextRequest) {
     });
 
     // HTTP-Only 쿠키로 토큰 설정
-    response.cookies.set('auth-token', token, {
+    response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

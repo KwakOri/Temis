@@ -1,4 +1,4 @@
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId } from "@/lib/auth/jwt";
 import { teamScheduleService } from "@/services/server/teamScheduleService";
 import { NextRequest, NextResponse } from "next/server";
 

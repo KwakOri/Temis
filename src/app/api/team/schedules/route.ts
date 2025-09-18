@@ -1,4 +1,4 @@
-import { getCurrentUserId } from "@/lib/auth";
+import { getCurrentUserId } from "@/lib/auth/jwt";
 import { teamScheduleService } from "@/services/server/teamScheduleService";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const schedules = await teamScheduleService.getTeamSchedules(teamId, weekStartDate, userId);
+    const schedules = await teamScheduleService.getTeamSchedules(teamId, weekStartDate);
     return NextResponse.json(schedules);
   } catch (error) {
     console.error("Error fetching team schedules:", error);

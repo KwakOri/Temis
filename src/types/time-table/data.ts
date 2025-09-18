@@ -24,14 +24,20 @@ export interface CardInputConfig {
   };
 }
 
-// 개별 엔트리 타입 정의
+// 개별 엔트리 타입 정의 - 기본 필수 속성과 확장 가능한 속성
 export interface TEntry {
-  [key: string]:
-    | string
+  time: string; // 필수: 시간 정보
+  mainTitle: string; // 필수: 메인 타이틀
+  [key: string]: // 확장 가능한 추가 속성들
+  | string
     | number
     | boolean
     | Array<{ text: string; checked: boolean }>
     | undefined;
+}
+
+export interface TDefaultCard extends TDynamicCard {
+  day: number;
 }
 
 // CARD_INPUT_CONFIG 기반 동적 카드 타입 정의 (다중 엔트리 지원)

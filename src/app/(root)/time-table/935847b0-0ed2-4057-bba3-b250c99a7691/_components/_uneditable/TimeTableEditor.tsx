@@ -54,6 +54,9 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
+          isTeam
+          teamData={data}
+          isMemo
           isArtist={true}
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
@@ -61,6 +64,7 @@ const TimeTableEditorContent: React.FC = () => {
           cropHeight={profileImageHeight}
         >
           <TimeTableInputList
+            isOfflineMemo
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}
             data={data}

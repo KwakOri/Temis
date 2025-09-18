@@ -2,10 +2,10 @@ import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import React, { Fragment } from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
-import { TPlaceholders } from "@/types/time-table/data";
+import { TDefaultCard, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { padZero } from "@/utils/date-formatter";
-import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
+import { isGuideEnabled } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 import { fontOption, Settings, templateSize } from "../../_settings/settings";
 import ProfileImageSection from "../ProfileImageContainer";

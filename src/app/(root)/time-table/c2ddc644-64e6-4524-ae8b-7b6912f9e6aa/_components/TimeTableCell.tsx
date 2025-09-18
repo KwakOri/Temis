@@ -3,7 +3,7 @@ import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
-import { fillZero, TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { fillZero, TDefaultCard, weekdays } from "@/types/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {

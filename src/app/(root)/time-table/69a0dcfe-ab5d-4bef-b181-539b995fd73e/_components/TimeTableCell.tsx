@@ -1,10 +1,11 @@
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
@@ -104,7 +105,7 @@ const StreamingTime = ({ isBig, time, currentTheme }: StreamingTimeProps) => {
   );
 };
 
-const CellTextTitle = ({ currentTheme, title }: CellTextTitleProps) => {
+const CellTextSubTitle = ({ currentTheme, title }: CellTextTitleProps) => {
   return (
     <div
       style={{
@@ -115,11 +116,11 @@ const CellTextTitle = ({ currentTheme, title }: CellTextTitleProps) => {
     >
       <AutoResizeText
         style={{
-          color: Settings.card.online.title.fontColor,
+          color: Settings.card.online.subTitle.fontColor,
           lineHeight: 1.2,
         }}
         className="leading-none text-left w-full"
-        maxFontSize={Settings.card.online.title.fontSize}
+        maxFontSize={Settings.card.online.subTitle.fontSize}
       >
         {title ? (title as string) : placeholders.subTitle}
       </AutoResizeText>
@@ -295,7 +296,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           {" "}
           <StreamingTime isBig={isBig} time={entryTime} />
           <CellContentArea isBig={isBig}>
-            <CellTextTitle title={entrySubTitle} />
+            <CellTextSubTitle title={entrySubTitle} />
             <CellTextMainTitle isBig={isBig} mainTitle={entryMainTitle} />
           </CellContentArea>
           <OnlineCardBG day={time.day} isBig={isBig} />

@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Pretendard';
+  src: url('./fonts/PretendardVariable.woff2') format('woff2-variations');
+  font-display: swap;
+  font-weight: 45 920;
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
 @theme {
   --color-primary: #4e4d71;
   --color-primary-dark: #3d3d59;
