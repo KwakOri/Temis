@@ -1,11 +1,9 @@
 @font-face {
   font-family: "Pretendard";
-  src: url("https://cdn.jsdelivr.net/gh/Project-Noonnu/noonfonts_2107@1.1/Pretendard-Thin.woff")
-    format("woff");
-  font-weight: 100;
+  src: url("../_fonts/PretendardVariable.woff2") format("woff2-variations");
   font-display: swap;
+  font-weight: 45 920;
 
-  font-display: swap;
   ascent-override: 84%;
   descent-override: 16%;
   line-gap-override: 0%;
