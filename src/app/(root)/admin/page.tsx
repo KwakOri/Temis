@@ -6,6 +6,7 @@ import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
+import TeamManagement from "@/components/admin/TeamManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -21,12 +22,14 @@ import {
   MailOpen,
   Palette,
   Shield,
+  UserCheck,
   Users,
 } from "lucide-react";
 import { useState } from "react";
 type TabType =
   | "templates"
   | "users"
+  | "teams"
   | "access"
   | "emailPreview"
   | "purchases"
@@ -94,6 +97,7 @@ function AdminContent() {
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
     { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
     { id: "users" as TabType, name: "사용자 관리", icon: Users },
+    { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
     { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
   ];
@@ -156,6 +160,7 @@ function AdminContent() {
         {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "access" && <AccessManagement />}
         {activeTab === "users" && <UserManagement />}
+        {activeTab === "teams" && <TeamManagement />}
         {activeTab === "emailPreview" && <EmailTemplatePreview />}
       </div>
     </div>

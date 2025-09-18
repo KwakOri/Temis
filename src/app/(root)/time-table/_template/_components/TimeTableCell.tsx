@@ -1,10 +1,9 @@
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TEntry } from "@/types/time-table/data";
+import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard } from "@/types/time-table/data";
 import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
@@ -31,14 +30,14 @@ interface DateTextProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextMainTitleProps {
+interface StreamingMainTitleProps {
   isMultiple?: boolean;
   currentTheme?: TTheme;
   mainTitle: string;
 }
 
-interface CellTextSubTitleProps {
-  text: string | null;
+interface StreamingSubTitleProps {
+  subTitle: string | null;
 }
 
 interface TimeTableCellProps {
@@ -107,11 +106,11 @@ const StreamingTime = ({
   );
 };
 
-const CellTextMainTitle = ({
+const StreamingMainTitle = ({
   isMultiple,
   currentTheme,
   mainTitle,
-}: CellTextMainTitleProps) => {
+}: StreamingMainTitleProps) => {
   return isMultiple ? (
     <div
       style={{}}
@@ -143,7 +142,7 @@ const CellTextMainTitle = ({
   );
 };
 
-const CellTextTitle = ({ text }: CellTextSubTitleProps) => {
+const StreamingSubTitle = ({ subTitle }: StreamingSubTitleProps) => {
   return (
     <p
       style={{
@@ -152,7 +151,7 @@ const CellTextTitle = ({ text }: CellTextSubTitleProps) => {
       }}
       className=" flex justify-center items-center"
     >
-      {text ? (text as string) : placeholders.subTitle}
+      {subTitle ? (subTitle as string) : placeholders.subTitle}
     </p>
   );
 };
@@ -263,7 +262,11 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       className="relative flex justify-center py-8"
     >
       <CellContentArea>
-        <MultipleCards isMultiple={isMultiple} time={time} />
+        {/* <StreamingDay/>
+        <StreamingDate/>
+        <StreamingSubTitle/>
+        <StreamingMainTitle/>
+        <StreamingTime/> */}
       </CellContentArea>
       <OnlineCardBG entriesLength={entriesLength} />
     </div>
@@ -272,45 +275,45 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
 export default TimeTableCell;
 
-interface MultipleCardsProps {
-  time: TDefaultCard;
-  isMultiple: boolean;
-}
+// interface MultipleCardsProps {
+//   time: TDefaultCard;
+//   isMultiple: boolean;
+// }
 
-const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
-  const entries = time.entries;
-  const entriesLength = entries.length;
-  const day = time.day;
-  if (!entries) return null;
-  if (entriesLength === 1)
-    return (
-      <>
-        <div className="w-full h-full pt-34">
-          <CellTextMainTitle
-            isMultiple={isMultiple}
-            mainTitle={entries[0].mainTitle as string}
-          />
-        </div>
-        <StreamingTime time={entries[0].time as string} />
-      </>
-    );
-  return (
-    <div className="w-full h-full flex flex-col gap-8 pt-1">
-      {entries.map((entry: TEntry, i) => {
-        return (
-          <div className={"w-full h-full relative"} key={day + "-" + i}>
-            <CellTextMainTitle
-              isMultiple={isMultiple}
-              mainTitle={entry.mainTitle as string}
-            />
-            <StreamingTime
-              isMultiple={isMultiple}
-              time={entry.time as string}
-            />
-            {/* <CellTextTitle text={entry.subTitle as string} /> */}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
+// const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
+//   const entries = time.entries;
+//   const entriesLength = entries.length;
+//   const day = time.day;
+//   if (!entries) return null;
+//   if (entriesLength === 1)
+//     return (
+//       <>
+//         <div className="w-full h-full pt-34">
+//           <CellTextMainTitle
+//             isMultiple={isMultiple}
+//             mainTitle={entries[0].mainTitle as string}
+//           />
+//         </div>
+//         <StreamingTime time={entries[0].time as string} />
+//       </>
+//     );
+//   return (
+//     <div className="w-full h-full flex flex-col gap-8 pt-1">
+//       {entries.map((entry: TEntry, i) => {
+//         return (
+//           <div className={"w-full h-full relative"} key={day + "-" + i}>
+//             <CellTextMainTitle
+//               isMultiple={isMultiple}
+//               mainTitle={entry.mainTitle as string}
+//             />
+//             <StreamingTime
+//               isMultiple={isMultiple}
+//               time={entry.time as string}
+//             />
+//             {/* <CellTextTitle text={entry.subTitle as string} /> */}
+//           </div>
+//         );
+//       })}
+//     </div>
+//   );
+// };

@@ -39,6 +39,15 @@ export type TeamTimeTableWeekData = TeamTimeTableDay[];
 export type Team = Tables<"teams">;
 export type TeamMember = Tables<"team_members">;
 
+// Team member with user information
+export interface TeamMemberWithUser extends TeamMember {
+  users?: {
+    id: number;
+    name: string | null;
+    email: string | null;
+  } | null;
+}
+
 // TeamSchedule extends the database type but with proper typing for schedule_data
 export interface TeamSchedule
   extends Omit<Tables<"team_schedules">, "schedule_data"> {
@@ -47,7 +56,7 @@ export interface TeamSchedule
 
 // Team with members info for display
 export interface TeamWithMembers extends Team {
-  members?: TeamMember[];
+  members?: TeamMemberWithUser[];
   memberCount?: number;
 }
 
