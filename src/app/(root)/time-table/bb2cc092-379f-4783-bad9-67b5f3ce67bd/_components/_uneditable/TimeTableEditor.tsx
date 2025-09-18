@@ -8,10 +8,11 @@ import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
 import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableEditor } from "@/hooks";
-import { useTeamTimeTableEditor } from "@/hooks/useTeamTimeTableEditor";
+
 import { TeamService } from "@/services/teamService";
 
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
+import { useTeamTimeTableEditor } from "@/hooks/query/useTeamTimeTableEditor";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {

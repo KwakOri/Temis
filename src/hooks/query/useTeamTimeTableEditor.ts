@@ -1,4 +1,4 @@
-import { useTeamSchedulesByWeek } from "@/hooks/useTeam";
+import { useTeamSchedulesByWeek } from "./useTeam";
 
 interface UseTeamTimeTableEditorProps {
   teamId: string;

@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     const team = await teamService.createTeam({
       name: name.trim(),
       description: description?.trim(),
-      created_by: user.userId,
+      created_by: Number(user.userId),
     });
 
     return NextResponse.json(team, { status: 201 });

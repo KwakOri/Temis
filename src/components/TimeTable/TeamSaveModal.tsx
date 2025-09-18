@@ -2,10 +2,10 @@ import {
   useSaveTeamScheduleFromDynamicCards,
   useUserTeams,
   useUserTeamSchedule,
-} from "@/hooks/useTeam";
+} from "@/hooks/query/useTeam";
 import { TeamService } from "@/services/teamService";
 import { TDefaultCard } from "@/types/time-table/data";
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
 
 interface TeamSaveModalProps {
   isOpen: boolean;
@@ -32,7 +32,8 @@ const TeamSaveModal: React.FC<TeamSaveModalProps> = ({
 
   // 현재 주차와 다음 주차 날짜 계산
   const weekDates = useMemo(() => {
-    const currentWeekStart = TeamService.getWeekStartDateFromString(mondayDateStr);
+    const currentWeekStart =
+      TeamService.getWeekStartDateFromString(mondayDateStr);
     const nextWeekDate = new Date(currentWeekStart);
     nextWeekDate.setDate(nextWeekDate.getDate() + 7);
     const nextWeekStart = nextWeekDate.toISOString().split("T")[0];
@@ -152,7 +153,11 @@ const TeamSaveModal: React.FC<TeamSaveModalProps> = ({
                       selectedTeamId === team.id
                         ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
                         : "border-gray-300 hover:border-gray-400 hover:bg-gray-50"
-                    } ${isLoading || saveTeamScheduleMutation.isPending ? "opacity-50 cursor-not-allowed" : ""}`}
+                    } ${
+                      isLoading || saveTeamScheduleMutation.isPending
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
                     onClick={() => {
                       if (!isLoading && !saveTeamScheduleMutation.isPending) {
                         setSelectedTeamId(team.id);
@@ -173,15 +178,23 @@ const TeamSaveModal: React.FC<TeamSaveModalProps> = ({
                           )}
                         </div>
                         <div>
-                          <h3 className="font-medium text-gray-900">{team.name}</h3>
+                          <h3 className="font-medium text-gray-900">
+                            {team.name}
+                          </h3>
                           {team.description && (
-                            <p className="text-sm text-gray-500 mt-1">{team.description}</p>
+                            <p className="text-sm text-gray-500 mt-1">
+                              {team.description}
+                            </p>
                           )}
                         </div>
                       </div>
                       {selectedTeamId === team.id && (
                         <div className="text-blue-500">
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <svg
+                            className="w-5 h-5"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
                             <path
                               fillRule="evenodd"
                               d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -218,7 +231,9 @@ const TeamSaveModal: React.FC<TeamSaveModalProps> = ({
                     {currentWeekSchedule ? (
                       <>
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm text-green-600 font-medium">저장됨</span>
+                        <span className="text-sm text-green-600 font-medium">
+                          저장됨
+                        </span>
                       </>
                     ) : (
                       <>
@@ -241,7 +256,9 @@ const TeamSaveModal: React.FC<TeamSaveModalProps> = ({
                     {nextWeekSchedule ? (
                       <>
                         <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span className="text-sm text-green-600 font-medium">저장됨</span>
+                        <span className="text-sm text-green-600 font-medium">
+                          저장됨
+                        </span>
                       </>
                     ) : (
                       <>
@@ -257,7 +274,10 @@ const TeamSaveModal: React.FC<TeamSaveModalProps> = ({
               <div className="text-xs text-gray-600 bg-blue-50 p-2 rounded-md">
                 💾 현재 저장하려는 주차: {weekDates.currentWeek}
                 {currentWeekSchedule && (
-                  <span className="text-amber-600"> (기존 데이터를 덮어씁니다)</span>
+                  <span className="text-amber-600">
+                    {" "}
+                    (기존 데이터를 덮어씁니다)
+                  </span>
                 )}
               </div>
             </div>

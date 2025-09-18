@@ -14,9 +14,12 @@ export class TeamService {
           *,
           team_members (
             id,
+            team_id,
             user_id,
             role,
             joined_at,
+            created_at,
+            updated_at,
             users (
               id,
               name,
@@ -156,9 +159,12 @@ export class TeamService {
           *,
           team_members (
             id,
+            team_id,
             user_id,
             role,
             joined_at,
+            created_at,
+            updated_at,
             users (
               id,
               name,
@@ -178,7 +184,7 @@ export class TeamService {
 
       return {
         ...data,
-        members: data.team_members || [],
+        members: (data.team_members || []) as TeamMemberWithUser[],
         memberCount: data.team_members?.length || 0,
       };
     } catch (error) {
@@ -284,7 +290,7 @@ export class TeamService {
   /**
    * 사용자 검색 (팀 멤버 추가 시 사용)
    */
-  static async searchUsers(query: string): Promise<Tables<"users">[]> {
+  static async searchUsers(query: string): Promise<Pick<Tables<"users">, "id" | "name" | "email">[]> {
     try {
       const { data, error } = await supabase
         .from("users")
