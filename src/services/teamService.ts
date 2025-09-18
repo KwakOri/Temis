@@ -165,4 +165,28 @@ export class TeamService {
     const date = new Date(dateStr);
     return this.getWeekStartDate(date);
   }
+
+  /**
+   * 특정 팀의 특정 주차 시간표 조회 (모든 멤버)
+   */
+  static async getTeamSchedulesByWeek(
+    teamId: string,
+    weekStartDate: string
+  ): Promise<TeamSchedule[]> {
+    const response = await fetch(
+      `${this.baseUrl}/schedules/${teamId}/week/${weekStartDate}`,
+      {
+        credentials: "include",
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "팀 시간표를 가져올 수 없습니다.");
+    }
+
+    const data = await response.json();
+    console.log("response => ", data);
+    return data;
+  }
 }

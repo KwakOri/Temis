@@ -1,23 +1,19 @@
-import { getCurrentUserId } from "@/lib/auth/jwt";
+import { requireAdmin } from "@/lib/auth/middleware";
 import { teamService } from "@/services/server/teamService";
 import { NextRequest, NextResponse } from "next/server";
 
 // Update team member role
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { teamId: string; memberId: string } }
+  { params }: { params: Promise<{ teamId: string; memberId: string }> }
 ) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
-    // TODO: Add admin permission check
-
+    const { teamId, memberId } = await params;
     const body = await request.json();
     const { role } = body;
 
@@ -28,7 +24,7 @@ export async function PUT(
       );
     }
 
-    const member = await teamService.updateTeamMemberRole(params.memberId, role);
+    const member = await teamService.updateTeamMemberRole(memberId, role);
     return NextResponse.json(member);
   } catch (error) {
     console.error("Error updating team member role:", error);
@@ -46,20 +42,16 @@ export async function PUT(
 // Remove team member
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { teamId: string; memberId: string } }
+  { params }: { params: Promise<{ teamId: string; memberId: string }> }
 ) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
-    // TODO: Add admin permission check
-
-    const success = await teamService.removeTeamMember(params.memberId);
+    const { teamId, memberId } = await params;
+    const success = await teamService.removeTeamMember(memberId);
     if (success) {
       return NextResponse.json({ message: "팀 멤버가 성공적으로 제거되었습니다." });
     } else {

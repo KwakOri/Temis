@@ -1,24 +1,20 @@
-import { getCurrentUserId } from "@/lib/auth/jwt";
+import { requireAdmin } from "@/lib/auth/middleware";
 import { teamService } from "@/services/server/teamService";
 import { NextRequest, NextResponse } from "next/server";
 
 // Get specific team
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
-    // TODO: Add admin permission check
-
-    const team = await teamService.getTeamById(params.teamId);
+    const { teamId } = await params;
+    const team = await teamService.getTeamById(teamId);
     if (!team) {
       return NextResponse.json(
         { error: "팀을 찾을 수 없습니다." },
@@ -43,19 +39,15 @@ export async function GET(
 // Update team
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
-    // TODO: Add admin permission check
-
+    const { teamId } = await params;
     const body = await request.json();
     const { name, description } = body;
 
@@ -70,7 +62,7 @@ export async function PUT(
     if (name) updateData.name = name.trim();
     if (description !== undefined) updateData.description = description?.trim();
 
-    const team = await teamService.updateTeam(params.teamId, updateData);
+    const team = await teamService.updateTeam(teamId, updateData);
     return NextResponse.json(team);
   } catch (error) {
     console.error("Error updating team:", error);
@@ -88,20 +80,16 @@ export async function PUT(
 // Delete team
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
-    // TODO: Add admin permission check
-
-    const success = await teamService.deleteTeam(params.teamId);
+    const { teamId } = await params;
+    const success = await teamService.deleteTeam(teamId);
     if (success) {
       return NextResponse.json({ message: "팀이 성공적으로 삭제되었습니다." });
     } else {

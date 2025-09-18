@@ -145,6 +145,21 @@ export function useDeleteTeamSchedule() {
 }
 
 /**
+ * 특정 팀의 특정 주차 시간표 조회 훅 (모든 멤버)
+ */
+export function useTeamSchedulesByWeek(teamId: string, weekStartDate: string) {
+  return useQuery({
+    queryKey: queryKeys.team.schedulesByWeek(teamId, weekStartDate),
+    queryFn: async () => {
+      return await TeamService.getTeamSchedulesByWeek(teamId, weekStartDate);
+    },
+    enabled: !!teamId && !!weekStartDate, // teamId와 weekStartDate가 있을 때만 실행
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
+    gcTime: 5 * 60 * 1000, // 5분간 메모리 보관
+  });
+}
+
+/**
  * 팀 관련 캐시 무효화 유틸리티 훅
  */
 export function useInvalidateTeamQueries() {

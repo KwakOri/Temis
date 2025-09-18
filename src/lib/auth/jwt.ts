@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
+import { NextRequest } from "next/server";
 
 const secretKey = process.env.JWT_SECRET;
 const key = new TextEncoder().encode(secretKey);
@@ -135,7 +136,7 @@ export function extractTokenFromCookie(
  * @param request - NextRequest 객체 (선택적)
  * @returns 사용자 ID 또는 null
  */
-export async function getCurrentUserId(request?: any): Promise<number | null> {
+export async function getCurrentUserId(request?: NextRequest): Promise<number | null> {
   try {
     let token: string | null = null;
 

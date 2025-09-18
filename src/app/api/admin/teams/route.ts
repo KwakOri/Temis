@@ -1,20 +1,14 @@
-import { getCurrentUserId } from "@/lib/auth/jwt";
+import { requireAdmin } from "@/lib/auth/middleware";
 import { teamService } from "@/services/server/teamService";
 import { NextRequest, NextResponse } from "next/server";
 
 // Get all teams (Admin only)
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const adminCheck = await requireAdmin(request);
+    if (adminCheck instanceof NextResponse) {
+      return adminCheck;
     }
-
-    // TODO: Add admin permission check
-    // For now, any authenticated user can access
 
     const teams = await teamService.getAllTeams();
     return NextResponse.json(teams);
@@ -34,15 +28,10 @@ export async function GET() {
 // Create new team
 export async function POST(request: NextRequest) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const adminCheck = await requireAdmin(request);
+    if (adminCheck instanceof NextResponse) {
+      return adminCheck;
     }
-
-    // TODO: Add admin permission check
 
     const body = await request.json();
     const { name, description } = body;
@@ -54,10 +43,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const { user } = adminCheck;
+
     const team = await teamService.createTeam({
       name: name.trim(),
       description: description?.trim(),
-      created_by: userId,
+      created_by: user.userId,
     });
 
     return NextResponse.json(team, { status: 201 });

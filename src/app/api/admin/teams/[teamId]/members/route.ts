@@ -1,24 +1,20 @@
-import { getCurrentUserId } from "@/lib/auth/jwt";
+import { requireAdmin } from "@/lib/auth/middleware";
 import { teamService } from "@/services/server/teamService";
 import { NextRequest, NextResponse } from "next/server";
 
 // Get team members
 export async function GET(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
-    // TODO: Add admin permission check
-
-    const members = await teamService.getTeamMembers(params.teamId);
+    const { teamId } = await params;
+    const members = await teamService.getTeamMembers(teamId);
     return NextResponse.json(members);
   } catch (error) {
     console.error("Error fetching team members:", error);
@@ -36,19 +32,15 @@ export async function GET(
 // Add team member
 export async function POST(
   request: NextRequest,
-  { params }: { params: { teamId: string } }
+  { params }: { params: Promise<{ teamId: string }> }
 ) {
   try {
-    const userId = await getCurrentUserId();
-    if (!userId) {
-      return NextResponse.json(
-        { error: "인증이 필요합니다." },
-        { status: 401 }
-      );
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
     }
 
-    // TODO: Add admin permission check
-
+    const { teamId } = await params;
     const body = await request.json();
     const { user_id, role } = body;
 
@@ -67,7 +59,7 @@ export async function POST(
     }
 
     const member = await teamService.addTeamMember({
-      team_id: params.teamId,
+      team_id: teamId,
       user_id,
       role,
     });

@@ -55,6 +55,8 @@ export const queryKeys = {
       [...queryKeys.team.all, "schedules", teamId, weekStartDate] as const,
     userSchedule: (teamId: string, weekStartDate: string) =>
       [...queryKeys.team.all, "userSchedule", teamId, weekStartDate] as const,
+    schedulesByWeek: (teamId: string, weekStartDate: string) =>
+      [...queryKeys.team.all, "schedulesByWeek", teamId, weekStartDate] as const,
   },
   admin: {
     all: ["admin"] as const,
