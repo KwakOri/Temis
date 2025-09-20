@@ -1,4 +1,6 @@
-const DUMMY_TEAM = [
+import { TeamSchedule } from "@/types/team-timetable";
+
+const DUMMY_TEAM: TeamSchedule[] = [
   {
     id: "0eb0009a-c612-48db-bc0a-b6a7ca258566",
     team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
@@ -880,3 +882,7 @@ const DUMMY_TEAM = [
     updated_at: "2025-09-18T11:55:08.859462+00:00",
   },
 ];
+
+export const getTeamDummyData = (n: number): TeamSchedule[] => {
+  return DUMMY_TEAM.slice(0, n);
+};

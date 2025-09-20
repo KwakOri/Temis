@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 import Loading from "@/components/Loading";
 import MobileHeader from "@/components/TimeTable/MobileHeader";
@@ -13,6 +13,7 @@ import { TeamService } from "@/services/teamService";
 
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { useTeamTimeTableEditor } from "@/hooks/query/useTeamTimeTableEditor";
+import { getTeamDummyData } from "@/lib/dummy";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {
@@ -32,6 +33,8 @@ const TimeTableEditorContent: React.FC = () => {
   const currentWeekStart = React.useMemo(() => {
     return TeamService.getWeekStartDate(new Date());
   }, []);
+
+  const dummyTeamData = useMemo(() => getTeamDummyData(4), []);
 
   // 팀 시간표 데이터 로드
   const {
@@ -93,7 +96,7 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTablePreview>
           <TeamTimeTableContent
             currentTheme={currentTheme}
-            data={teamData}
+            data={dummyTeamData}
             placeholders={placeholders}
           />
         </TimeTablePreview>

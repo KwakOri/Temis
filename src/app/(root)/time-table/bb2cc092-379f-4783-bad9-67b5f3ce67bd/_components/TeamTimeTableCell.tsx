@@ -162,60 +162,61 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
     : { time: "", mainTitle: "" };
 
   return (
-    <div className="relative" style={{}}>
-      {/* 배경 이미지 */}
-      <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          zIndex: 30,
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        {" "}
-        {hasContent && (
-          <img
-            src={Imgs[currentTheme]["online"].src}
-            alt={"card"}
-            draggable={false}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "contain",
-            }}
-          />
-        )}
-      </div>
+    <></>
+    // <div className="relative" style={{}}>
+    //   {/* 배경 이미지 */}
+    //   <div
+    //     style={{
+    //       position: "absolute",
+    //       top: 0,
+    //       left: 0,
+    //       zIndex: 30,
+    //       width: "100%",
+    //       height: "100%",
+    //     }}
+    //   >
+    //     {" "}
+    //     {hasContent && (
+    //       <img
+    //         src={Imgs[currentTheme]["online"].src}
+    //         alt={"card"}
+    //         draggable={false}
+    //         style={{
+    //           width: "100%",
+    //           height: "100%",
+    //           objectFit: "contain",
+    //         }}
+    //       />
+    //     )}
+    //   </div>
 
-      {/* 요일 */}
-      <DayText day={data.day} />
+    //   {/* 요일 */}
+    //   <DayText day={data.day} />
 
-      {/* 날짜 */}
-      <DateText date={weekDate.getDate()} />
+    //   {/* 날짜 */}
+    //   <DateText date={weekDate.getDate()} />
 
-      {/* 오프라인 표시 */}
-      {data.isOffline && <OfflineCard currentTheme={currentTheme} />}
+    //   {/* 오프라인 표시 */}
+    //   {data.isOffline && <OfflineCard currentTheme={currentTheme} />}
 
-      {/* 시간 */}
-      {hasContent && (
-        <StreamingTime
-          time={primaryEntry.time}
-          isMultiple={isMultiple}
-          currentTheme={currentTheme}
-        />
-      )}
+    //   {/* 시간 */}
+    //   {hasContent && (
+    //     <StreamingTime
+    //       time={primaryEntry.time}
+    //       isMultiple={isMultiple}
+    //       currentTheme={currentTheme}
+    //     />
+    //   )}
 
-      {/* 메인 타이틀 */}
-      {hasContent && (
-        <StreamingMainTitle
-          isMultiple={isMultiple}
-          mainTitle={primaryEntry.mainTitle}
-          currentTheme={currentTheme}
-        />
-      )}
-    </div>
+    //   {/* 메인 타이틀 */}
+    //   {hasContent && (
+    //     <StreamingMainTitle
+    //       isMultiple={isMultiple}
+    //       mainTitle={primaryEntry.mainTitle}
+    //       currentTheme={currentTheme}
+    //     />
+    //   )}
+    // </div>
   );
 };
 

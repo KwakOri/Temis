@@ -151,9 +151,18 @@ export class TeamService {
    */
   static getWeekStartDate(date: Date): string {
     const monday = new Date(date);
-    const dayOfWeek = monday.getDay();
-    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // 일요일(0)이면 -6, 다른 날은 1에서 dayOfWeek를 뺀 값
-    monday.setDate(monday.getDate() + diffToMonday);
+    const dayOfWeek = monday.getUTCDay(); // UTC 기준 요일: 0=일요일, 1=월요일, ..., 6=토요일
+
+    // 가장 가까운 이전 월요일을 찾기
+    // 일요일(0)이면 6일 전 월요일, 월요일(1)이면 0일, 화요일(2)이면 1일 전, ..., 토요일(6)이면 5일 전
+    let daysToSubtract;
+    if (dayOfWeek === 0) {
+      daysToSubtract = 6; // 일요일이면 6일 전 월요일
+    } else {
+      daysToSubtract = dayOfWeek - 1; // 다른 요일은 (요일번호 - 1)일 전 월요일
+    }
+
+    monday.setUTCDate(monday.getUTCDate() - daysToSubtract);
 
     return monday.toISOString().split("T")[0]; // YYYY-MM-DD 형식
   }

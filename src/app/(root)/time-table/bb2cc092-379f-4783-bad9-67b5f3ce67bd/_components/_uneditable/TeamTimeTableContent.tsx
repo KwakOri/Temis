@@ -28,8 +28,6 @@ const TeamTimeTableContent: React.FC<TeamTimeTableContentProps> = ({
 
   if (weekDates.length === 0) return null;
 
-  console.log("inner_data", data);
-
   return (
     <div
       id="timetable"
