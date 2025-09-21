@@ -75,6 +75,8 @@ export const colors = {
 
 /** ---------------------------------------------- */
 
+export const TEAM_MEMBER_IDS = [1, 2, 3, 4];
+
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
 export const CARD_INPUT_CONFIG: CardInputConfig = {
