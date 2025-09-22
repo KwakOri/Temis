@@ -137,6 +137,7 @@ const ProfileText = ({
         className="absolute inset-0 z-50"
         src={Imgs["first"]["artist"].src}
         alt="artist"
+        draggable={false}
       />
     </div>
   );

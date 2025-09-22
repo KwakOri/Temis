@@ -87,6 +87,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
             className="absolute inset-0 z-50"
             src={Imgs["first"]["artist"].src}
             alt="artist"
+            draggable={false}
           />
         </div>
       )}
