@@ -232,9 +232,41 @@ export const useTimeTableState = (captureSize?: {
       const file = e.target.files?.[0];
       if (!file) return;
 
+      // PNG 파일인지 확인
+      const isPNG = file.type === 'image/png';
+
       const reader = new FileReader();
       reader.onloadend = () => {
-        setImageSrc(reader.result as string);
+        const result = reader.result as string;
+
+        if (isPNG) {
+          // PNG 파일인 경우 그대로 저장 (투명도 보존)
+          setImageSrc(result);
+        } else {
+          // PNG가 아닌 경우에만 canvas를 사용해서 변환
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            if (!ctx) {
+              setImageSrc(result);
+              return;
+            }
+
+            canvas.width = img.width;
+            canvas.height = img.height;
+
+            // 투명 배경 설정
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+
+            // PNG 형식으로 변환 (투명도 보존)
+            const pngDataUrl = canvas.toDataURL('image/png');
+            setImageSrc(pngDataUrl);
+          };
+          img.src = result;
+        }
       };
       reader.readAsDataURL(file);
     },

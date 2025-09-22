@@ -47,7 +47,13 @@ export const useTimeTableEditor = ({
 
   // 데이터 지속성 관리 (CardInputConfig 포함)
   const { saveData, loadPersistedData, clearAllData, autoSave } =
-    useTimeTablePersistence(data, currentTheme, cardInputConfig, defaultTheme, autoSaveDelay);
+    useTimeTablePersistence(
+      data,
+      currentTheme,
+      cardInputConfig,
+      defaultTheme,
+      autoSaveDelay
+    );
 
   // 초기 데이터 로드 (localStorage에서 복원)
   const [isInitialized, setIsInitialized] = useState(false);
