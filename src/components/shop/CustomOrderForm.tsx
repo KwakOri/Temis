@@ -383,7 +383,7 @@ export default function CustomOrderForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden sm:bg-black sm:bg-opacity-50 sm:flex sm:items-center sm:justify-center sm:p-4 sm:overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-hidden sm:bg-black/50 sm:backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:p-4 sm:overflow-y-auto">
       <div className="bg-white h-full w-full overflow-y-auto sm:rounded-2xl sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto">
         {/* 헤더 */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:rounded-t-2xl z-10">
