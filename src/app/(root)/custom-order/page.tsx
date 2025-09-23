@@ -2,115 +2,34 @@
 
 import BackButton from "@/components/BackButton";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
-import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
-import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  useCancelCustomOrder,
-  useSubmitCustomOrder,
-} from "@/hooks/query/useCustomOrder";
-import {
-  CustomOrderData,
-  CustomOrderFormData,
-  CustomOrderWithStatus,
-  TabType,
-} from "@/types/customOrder";
+import { useSubmitCustomOrder } from "@/hooks/query/useCustomOrder";
+import { CustomOrderFormData } from "@/types/customOrder";
 import { Palette } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 export default function CustomOrderPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("order");
   const [showOrderForm, setShowOrderForm] = useState(false);
-  const [showEditForm, setShowEditForm] = useState(false);
-  const [editingOrder, setEditingOrder] =
-    useState<CustomOrderWithStatus | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedOrder, setSelectedOrder] =
-    useState<CustomOrderWithStatus | null>(null);
 
   const submitOrderMutation = useSubmitCustomOrder();
-  const cancelOrderMutation = useCancelCustomOrder();
 
   const handleOrderSubmit = async (formData: CustomOrderFormData) => {
     try {
-      const isEditMode = !!formData.orderId;
-
       await submitOrderMutation.mutateAsync(formData);
 
-      alert(
-        isEditMode
-          ? "주문이 성공적으로 수정되었습니다!"
-          : "맞춤형 시간표 제작 신청이 완료되었습니다!"
-      );
+      alert("맞춤형 시간표 제작 신청이 완료되었습니다!");
 
       // form 닫기
-      if (isEditMode) {
-        setShowEditForm(false);
-        setEditingOrder(null);
-      } else {
-        setShowOrderForm(false);
-      }
-
-      // 주문 내역 탭으로 전환
-      setActiveTab("history");
+      setShowOrderForm(false);
     } catch (error) {
       console.error("Order submission error:", error);
       alert(
-        error instanceof Error
-          ? error.message
-          : formData.orderId
-          ? "수정 중 오류가 발생했습니다."
-          : "신청 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "신청 중 오류가 발생했습니다."
       );
     }
   };
-
-  // 수정 핸들러
-  const handleEditOrder = (order: CustomOrderWithStatus) => {
-    setEditingOrder(order);
-    setShowEditForm(true);
-  };
-
-  // 취소 핸들러
-  const handleCancelOrder = async (orderId: string) => {
-    if (!confirm("정말로 이 주문을 취소하시겠습니까?")) {
-      return;
-    }
-
-    try {
-      await cancelOrderMutation.mutateAsync(orderId);
-      alert("주문이 성공적으로 취소되었습니다.");
-    } catch (error) {
-      console.error("Cancel order error:", error);
-      alert(
-        error instanceof Error ? error.message : "취소 중 오류가 발생했습니다."
-      );
-    }
-  };
-
-  // 상세보기 핸들러
-  const handleViewDetails = (order: CustomOrderWithStatus) => {
-    setSelectedOrder(order);
-    setShowDetailsModal(true);
-  };
-
-  // CustomOrderWithStatus를 CustomOrderData로 변환
-  const convertToOrderData = (
-    order: CustomOrderWithStatus
-  ): CustomOrderData => ({
-    id: order.id,
-    youtube_sns_address: order.youtube_sns_address,
-    email_discord: order.email_discord,
-    order_requirements: order.order_requirements,
-    has_character_images: order.has_character_images,
-    wants_omakase: order.wants_omakase,
-    design_keywords: order.design_keywords,
-    selected_options: order.selected_options,
-    price_quoted: order.price_quoted || 0,
-    depositor_name: order.depositor_name || "",
-  });
 
   if (!user) {
     return (
@@ -160,37 +79,9 @@ export default function CustomOrderPage() {
                 </p>
               </div>
 
-              {/* 탭 네비게이션 */}
-              <div className="mb-6">
-                <div className="border-b border-slate-200">
-                  <nav className="-mb-px flex space-x-8 justify-center">
-                    <button
-                      onClick={() => setActiveTab("order")}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === "order"
-                          ? "border-[#1e3a8a] text-[#1e3a8a]"
-                          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                      }`}
-                    >
-                      새 제작 신청
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("history")}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === "history"
-                          ? "border-[#1e3a8a] text-[#1e3a8a]"
-                          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                      }`}
-                    >
-                      신청 내역
-                    </button>
-                  </nav>
-                </div>
-              </div>
 
               {/* 컨텐츠 영역 */}
-              {activeTab === "order" ? (
-                <div className="text-center">
+              <div className="text-center">
                   <div className="mb-8">
                     <h2 className="text-xl font-semibold text-slate-900 mb-2">
                       맞춤형 시간표 제작 서비스
@@ -233,13 +124,6 @@ export default function CustomOrderPage() {
                     제작 신청하기
                   </button>
                 </div>
-              ) : (
-                <CustomOrderHistory
-                  onEditOrder={handleEditOrder}
-                  onCancelOrder={handleCancelOrder}
-                  onViewDetails={handleViewDetails}
-                />
-              )}
             </div>
           </div>
         </div>
@@ -249,31 +133,6 @@ export default function CustomOrderPage() {
         <CustomOrderForm
           onClose={() => setShowOrderForm(false)}
           onSubmit={handleOrderSubmit}
-        />
-      )}
-
-      {/* 수정 주문 폼 모달 */}
-      {showEditForm && editingOrder && (
-        <CustomOrderForm
-          onClose={() => {
-            setShowEditForm(false);
-            setEditingOrder(null);
-          }}
-          onSubmit={handleOrderSubmit}
-          existingOrder={convertToOrderData(editingOrder)}
-          isEditMode={true}
-        />
-      )}
-
-      {/* 주문 상세보기 모달 */}
-      {showDetailsModal && selectedOrder && (
-        <OrderDetailsModal
-          order={selectedOrder}
-          isOpen={showDetailsModal}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedOrder(null);
-          }}
         />
       )}
     </>

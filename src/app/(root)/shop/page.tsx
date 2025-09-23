@@ -1,20 +1,18 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
-import PurchaseHistory from "@/components/shop/PurchaseHistory";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   usePublicTemplates,
   useUserTemplateAccess,
 } from "@/hooks/query/useShop";
-import { SortOrder, TabType } from "@/types/shop";
+import { SortOrder } from "@/types/shop";
 import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export default function ShopPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("shop");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [showOnlyUnpurchased, setShowOnlyUnpurchased] = useState(false);
 
@@ -103,39 +101,9 @@ export default function ShopPage() {
             </p>
           </div>
 
-          {/* 탭 네비게이션 */}
-          <div className="mb-6">
-            <div className="border-b border-slate-200">
-              <nav className="-mb-px flex space-x-8 justify-center">
-                <button
-                  onClick={() => setActiveTab("shop")}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === "shop"
-                      ? "border-[#1e3a8a] text-[#1e3a8a]"
-                      : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                  }`}
-                >
-                  템플릿 둘러보기
-                </button>
-                {user && (
-                  <button
-                    onClick={() => setActiveTab("history")}
-                    className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                      activeTab === "history"
-                        ? "border-[#1e3a8a] text-[#1e3a8a]"
-                        : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                    }`}
-                  >
-                    주문내역
-                  </button>
-                )}
-              </nav>
-            </div>
-          </div>
 
           {/* 컨텐츠 영역 */}
-          {activeTab === "shop" ? (
-            <>
+          <>
               {/* 정렬 및 필터 컨트롤 */}
               <div className="mb-6 flex flex-wrap gap-4 items-center justify-center">
                 <div className="flex items-center space-x-2">
@@ -263,11 +231,6 @@ export default function ShopPage() {
                 </div>
               )}
             </>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-white/20">
-              <PurchaseHistory />
-            </div>
-          )}
         </div>
       </div>
     </div>

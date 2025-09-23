@@ -258,24 +258,26 @@ export default function CustomOrderHistory({
                       상세보기
                     </button>
 
-                    {/* 수정/취소 버튼 (pending, accepted 상태에서만 표시) */}
-                    {(order.status === "pending" || order.status === "accepted") && (
-                      <>
-                        <button
-                          onClick={() => onEditOrder(order)}
-                          className="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          수정
-                        </button>
-                        <button
-                          onClick={() => onCancelOrder(order.id)}
-                          className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          취소
-                        </button>
-                      </>
+                    {/* 수정 버튼 (pending, accepted, in_progress 상태에서 표시) */}
+                    {(order.status === "pending" || order.status === "accepted" || order.status === "in_progress") && (
+                      <button
+                        onClick={() => onEditOrder(order)}
+                        className="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <Edit className="h-3 w-3 mr-1" />
+                        수정
+                      </button>
+                    )}
+
+                    {/* 취소 버튼 (pending 상태에서만 표시) */}
+                    {order.status === "pending" && (
+                      <button
+                        onClick={() => onCancelOrder(order.id)}
+                        className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1" />
+                        취소
+                      </button>
                     )}
                   </div>
                 </div>

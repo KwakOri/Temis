@@ -3,24 +3,40 @@
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import BackButton from "@/components/BackButton";
 import Loading from "@/components/Loading";
+import PurchaseHistory from "@/components/shop/PurchaseHistory";
+import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
+import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
+import CustomOrderForm from "@/components/shop/CustomOrderForm";
 
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserTemplates } from "@/hooks/query/useUserTemplates";
+import { useCancelCustomOrder, useSubmitCustomOrder } from "@/hooks/query/useCustomOrder";
 import { Tables } from "@/types/supabase";
+import { CustomOrderWithStatus, CustomOrderData, CustomOrderFormData } from "@/types/customOrder";
 import { Suspense, useState } from "react";
 
 type Template = Tables<"templates">;
+type TabType = "templates" | "purchases" | "custom-orders";
 
 const MyPageContent = () => {
   const router = useRouter();
   const { logout: authLogout } = useAuth();
   const { data, isLoading, error: queryError } = useUserTemplates();
+  const cancelOrderMutation = useCancelCustomOrder();
+  const submitOrderMutation = useSubmitCustomOrder();
 
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>("templates");
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] =
+    useState<CustomOrderWithStatus | null>(null);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [editingOrder, setEditingOrder] =
+    useState<CustomOrderWithStatus | null>(null);
 
   const templates = data?.templates || [];
   const loading = isLoading;
@@ -94,6 +110,69 @@ const MyPageContent = () => {
     router.push(`/time-table/${template.id}`);
   };
 
+  // 수정 핸들러
+  const handleEditOrder = (order: CustomOrderWithStatus) => {
+    setEditingOrder(order);
+    setShowEditForm(true);
+  };
+
+  // 주문 수정 제출 핸들러
+  const handleOrderSubmit = async (formData: CustomOrderFormData) => {
+    try {
+      await submitOrderMutation.mutateAsync(formData);
+
+      alert("주문이 성공적으로 수정되었습니다!");
+
+      // form 닫기
+      setShowEditForm(false);
+      setEditingOrder(null);
+    } catch (error) {
+      console.error("Order submission error:", error);
+      alert(
+        error instanceof Error ? error.message : "수정 중 오류가 발생했습니다."
+      );
+    }
+  };
+
+  // CustomOrderWithStatus를 CustomOrderData로 변환
+  const convertToOrderData = (
+    order: CustomOrderWithStatus
+  ): CustomOrderData => ({
+    id: order.id,
+    youtube_sns_address: order.youtube_sns_address,
+    email_discord: order.email_discord,
+    order_requirements: order.order_requirements,
+    has_character_images: order.has_character_images,
+    wants_omakase: order.wants_omakase,
+    design_keywords: order.design_keywords,
+    selected_options: order.selected_options,
+    price_quoted: order.price_quoted || 0,
+    depositor_name: order.depositor_name || "",
+  });
+
+  // 취소 핸들러
+  const handleCancelOrder = async (orderId: string) => {
+    if (!confirm("정말로 이 주문을 취소하시겠습니까?")) {
+      return;
+    }
+
+    try {
+      await cancelOrderMutation.mutateAsync(orderId);
+      alert("주문이 성공적으로 취소되었습니다.");
+    } catch (error) {
+      console.error("Cancel order error:", error);
+      alert(
+        error instanceof Error ? error.message : "취소 중 오류가 발생했습니다."
+      );
+    }
+  };
+
+  // 상세보기 핸들러
+  const handleViewDetails = (order: CustomOrderWithStatus) => {
+    setSelectedOrder(order);
+    setShowDetailsModal(true);
+  };
+
   return (
     <ProtectedRoute>
       <div className="min-h-screen bg-gray-50">
@@ -106,7 +185,7 @@ const MyPageContent = () => {
                   마이페이지
                 </h1>
                 <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
-                  접근 권한이 있는 템플릿 목록을 확인하고 관리하세요.
+                  템플릿, 구매 내역, 주문 내역을 한 곳에서 관리하세요.
                 </p>
               </div>
               <div className="flex justify-center md:justify-start gap-2">
@@ -177,148 +256,247 @@ const MyPageContent = () => {
             </div>
           )}
 
-          {/* Loading State */}
-          {loading ? (
-            <Loading />
-          ) : (
-            <>
-              {/* Stats */}
-              <div className="mb-6 md:mb-8">
-                <div className="bg-white rounded-lg shadow p-4 md:p-6">
-                  <div className="flex items-center justify-center md:justify-start">
-                    <div className="flex-shrink-0">
-                      <svg
-                        className="h-6 w-6 md:h-8 md:w-8 text-[#1e3a8a]"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                        />
-                      </svg>
-                    </div>
-                    <div className="ml-3 md:ml-4 text-center md:text-left">
-                      <p className="text-xs md:text-sm font-medium text-gray-500">
-                        접근 가능한 템플릿
-                      </p>
-                      <p className="text-xl md:text-2xl font-semibold text-gray-900">
-                        {templates.length}개
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Templates Grid */}
-              {templates.length === 0 ? (
-                <div className="text-center py-12 md:py-20">
-                  <svg
-                    className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                    />
-                  </svg>
-                  <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-gray-900">
-                    템플릿이 없습니다
-                  </h3>
-                  <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-500 px-4">
-                    아직 접근 권한이 부여된 템플릿이 없습니다.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                  {templates.map((template) => (
-                    <div
-                      key={`${template.templates.id}-${template.id}`}
-                      onClick={() => handleTemplateClick(template.templates)}
-                      className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
+          {/* Main Content */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            {/* Tab Navigation */}
+            <div className="border-b border-gray-200">
+              <nav className="flex space-x-8 px-6" aria-label="Tabs">
+                <button
+                  onClick={() => setActiveTab("templates")}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === "templates"
+                      ? "border-[#1e3a8a] text-[#1e3a8a]"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      {/* Template Thumbnail */}
-                      <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
-                        {template.templates.id ? (
-                          <img
-                            src={`/thumbnail/${template.templates.id}.png`}
-                            alt={template.templates.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <svg
-                              className="h-8 w-8 md:h-12 md:w-12 text-gray-400"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                              />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      />
+                    </svg>
+                    <span>내 템플릿</span>
+                    {!loading && (
+                      <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
+                        {templates.length}
+                      </span>
+                    )}
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab("purchases")}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === "purchases"
+                      ? "border-[#1e3a8a] text-[#1e3a8a]"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5H21"
+                      />
+                    </svg>
+                    <span>구매 내역</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setActiveTab("custom-orders")}
+                  className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeTab === "custom-orders"
+                      ? "border-[#1e3a8a] text-[#1e3a8a]"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2">
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4"
+                      />
+                    </svg>
+                    <span>맞춤 주문</span>
+                  </div>
+                </button>
+              </nav>
+            </div>
 
-                      {/* Template Info */}
-                      <div className="p-3 md:p-4">
-                        <div className="flex items-start justify-between mb-1 md:mb-2">
-                          <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
-                            {template.templates.name}
-                          </h3>
-                          <span
-                            className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getAccessLevelColor(
-                              template.access_level
-                            )}`}
+            {/* Tab Content */}
+            <div className="p-6">
+              {loading && activeTab === "templates" ? (
+                <Loading />
+              ) : (
+                <>
+                  {activeTab === "templates" && (
+                    <>
+                      {/* Templates Grid */}
+                      {templates.length === 0 ? (
+                        <div className="text-center py-12 md:py-20">
+                          <svg
+                            className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
                           >
-                            {getAccessLevelText(template.access_level)}
-                          </span>
-                        </div>
-
-                        {template.templates.description && (
-                          <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-2">
-                            {template.templates.description}
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                            />
+                          </svg>
+                          <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-gray-900">
+                            템플릿이 없습니다
+                          </h3>
+                          <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-500 px-4">
+                            아직 접근 권한이 부여된 템플릿이 없습니다.
                           </p>
-                        )}
-
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <span
-                              className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
-                                template.templates.is_public
-                                  ? "bg-green-100 text-green-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {template.templates.is_public ? "공개" : "비공개"}
-                            </span>
-                          </div>
-                          {template.granted_at && (
-                            <span className="text-xs">
-                              권한 부여:{" "}
-                              {new Date(template.granted_at).toLocaleDateString(
-                                "ko-KR"
-                              )}
-                            </span>
-                          )}
                         </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                          {templates.map((template) => (
+                            <div
+                              key={`${template.templates.id}-${template.id}`}
+                              onClick={() => handleTemplateClick(template.templates)}
+                              className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
+                            >
+                              {/* Template Thumbnail */}
+                              <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
+                                {template.templates.id ? (
+                                  <img
+                                    src={`/thumbnail/${template.templates.id}.png`}
+                                    alt={template.templates.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center">
+                                    <svg
+                                      className="h-8 w-8 md:h-12 md:w-12 text-gray-400"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                      />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Template Info */}
+                              <div className="p-3 md:p-4">
+                                <div className="flex items-start justify-between mb-1 md:mb-2">
+                                  <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
+                                    {template.templates.name}
+                                  </h3>
+                                  <span
+                                    className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getAccessLevelColor(
+                                      template.access_level
+                                    )}`}
+                                  >
+                                    {getAccessLevelText(template.access_level)}
+                                  </span>
+                                </div>
+
+                                {template.templates.description && (
+                                  <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-2">
+                                    {template.templates.description}
+                                  </p>
+                                )}
+
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-gray-500">
+                                  <div className="flex items-center space-x-1">
+                                    <span
+                                      className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
+                                        template.templates.is_public
+                                          ? "bg-green-100 text-green-800"
+                                          : "bg-gray-100 text-gray-800"
+                                      }`}
+                                    >
+                                      {template.templates.is_public ? "공개" : "비공개"}
+                                    </span>
+                                  </div>
+                                  {template.granted_at && (
+                                    <span className="text-xs">
+                                      권한 부여:{" "}
+                                      {new Date(template.granted_at).toLocaleDateString(
+                                        "ko-KR"
+                                      )}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {activeTab === "purchases" && <PurchaseHistory />}
+
+                  {activeTab === "custom-orders" && (
+                    <CustomOrderHistory
+                      onEditOrder={handleEditOrder}
+                      onCancelOrder={handleCancelOrder}
+                      onViewDetails={handleViewDetails}
+                    />
+                  )}
+                </>
               )}
-            </>
+            </div>
+          </div>
+
+          {/* 주문 상세보기 모달 */}
+          {showDetailsModal && selectedOrder && (
+            <OrderDetailsModal
+              order={selectedOrder}
+              isOpen={showDetailsModal}
+              onClose={() => {
+                setShowDetailsModal(false);
+                setSelectedOrder(null);
+              }}
+            />
+          )}
+
+          {/* 수정 주문 폼 모달 */}
+          {showEditForm && editingOrder && (
+            <CustomOrderForm
+              onClose={() => {
+                setShowEditForm(false);
+                setEditingOrder(null);
+              }}
+              onSubmit={handleOrderSubmit}
+              existingOrder={convertToOrderData(editingOrder)}
+              isEditMode={true}
+            />
           )}
         </div>
       </div>
