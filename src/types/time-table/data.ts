@@ -28,6 +28,7 @@ export interface CardInputConfig {
 export interface TEntry {
   time: string; // 필수: 시간 정보
   mainTitle: string; // 필수: 메인 타이틀
+  isGuerrilla: boolean; // 필수: 게릴라방송 여부 (시간이 정확히 정해지지 않은 경우), 기본값 false
   [key: string]: // 확장 가능한 추가 속성들
   | string
     | number

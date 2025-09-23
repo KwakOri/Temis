@@ -114,6 +114,7 @@ export const createInitialEntryFromConfig = ({
   const entry: TEntry = {
     time: "09:00",
     mainTitle: "",
+    isGuerrilla: false, // 게릴라방송 기본값 false
   };
 
   // CARD_INPUT_CONFIG의 모든 필드를 기반으로 기본값 설정

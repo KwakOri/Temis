@@ -6,6 +6,7 @@ import type { TDefaultCard } from "./time-table/data";
 export interface TimeTableEntry {
   time: string;
   mainTitle: string;
+  isGuerrilla: boolean; // 게릴라방송 여부 (필수, 기본값 false)
   [key: string]: string | number | boolean | undefined; // Allow additional dynamic properties per template
 }
 
@@ -23,6 +24,7 @@ export type TimeTableWeekData = TimeTableDay[];
 export interface TeamTimeTableEntry {
   time: string;
   mainTitle: string;
+  isGuerrilla: boolean; // 게릴라방송 여부 (필수, 기본값 false)
 }
 
 // Simplified day structure for team timetable storage
@@ -70,6 +72,7 @@ export function convertToTeamTimeTableData(
     entries: day.entries.map((entry) => ({
       time: entry.time,
       mainTitle: entry.mainTitle,
+      isGuerrilla: entry.isGuerrilla,
     })),
   })) as TeamTimeTableWeekData;
 }
@@ -99,6 +102,7 @@ export function convertDynamicCardsToTeamTimeTableData(
         return {
           time,
           mainTitle,
+          isGuerrilla: entry.isGuerrilla || false, // isGuerrilla 속성 포함
         };
       })
       .filter((entry) => entry.time && entry.mainTitle), // Filter out empty entries
@@ -126,7 +130,8 @@ export function validateTeamTimeTableData(
           typeof entry === "object" &&
           entry !== null &&
           typeof entry.time === "string" &&
-          typeof entry.mainTitle === "string"
+          typeof entry.mainTitle === "string" &&
+          typeof entry.isGuerrilla === "boolean"
       )
     );
   });
