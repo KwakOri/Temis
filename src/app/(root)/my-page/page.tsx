@@ -3,18 +3,25 @@
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import BackButton from "@/components/BackButton";
 import Loading from "@/components/Loading";
-import PurchaseHistory from "@/components/shop/PurchaseHistory";
+import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
-import CustomOrderForm from "@/components/shop/CustomOrderForm";
+import PurchaseHistory from "@/components/shop/PurchaseHistory";
 
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
+import {
+  useCancelCustomOrder,
+  useSubmitCustomOrder,
+} from "@/hooks/query/useCustomOrder";
 import { useUserTemplates } from "@/hooks/query/useUserTemplates";
-import { useCancelCustomOrder, useSubmitCustomOrder } from "@/hooks/query/useCustomOrder";
+import {
+  CustomOrderData,
+  CustomOrderFormData,
+  CustomOrderWithStatus,
+} from "@/types/customOrder";
 import { Tables } from "@/types/supabase";
-import { CustomOrderWithStatus, CustomOrderData, CustomOrderFormData } from "@/types/customOrder";
 import { Suspense, useState } from "react";
 
 type Template = Tables<"templates">;
@@ -179,16 +186,8 @@ const MyPageContent = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
           {/* Header */}
           <div className="mb-6 md:mb-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="text-center md:text-left">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-                  마이페이지
-                </h1>
-                <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
-                  템플릿, 구매 내역, 주문 내역을 한 곳에서 관리하세요.
-                </p>
-              </div>
-              <div className="flex justify-center md:justify-start gap-2">
+            <div className="w-full flex flex-col md:items-center md:justify-between gap-4">
+              <div className="w-full flex justify-between gap-2">
                 <BackButton />
                 <button
                   onClick={handleLogout}
@@ -219,6 +218,14 @@ const MyPageContent = () => {
                     </>
                   )}
                 </button>
+              </div>
+              <div className="w-full text-center md:text-left">
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                  마이페이지
+                </h1>
+                <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
+                  템플릿, 구매 내역, 주문 내역을 한 곳에서 관리하세요.
+                </p>
               </div>
             </div>
           </div>
@@ -380,7 +387,9 @@ const MyPageContent = () => {
                           {templates.map((template) => (
                             <div
                               key={`${template.templates.id}-${template.id}`}
-                              onClick={() => handleTemplateClick(template.templates)}
+                              onClick={() =>
+                                handleTemplateClick(template.templates)
+                              }
                               className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
                             >
                               {/* Template Thumbnail */}
@@ -440,15 +449,17 @@ const MyPageContent = () => {
                                           : "bg-gray-100 text-gray-800"
                                       }`}
                                     >
-                                      {template.templates.is_public ? "공개" : "비공개"}
+                                      {template.templates.is_public
+                                        ? "공개"
+                                        : "비공개"}
                                     </span>
                                   </div>
                                   {template.granted_at && (
                                     <span className="text-xs">
                                       권한 부여:{" "}
-                                      {new Date(template.granted_at).toLocaleDateString(
-                                        "ko-KR"
-                                      )}
+                                      {new Date(
+                                        template.granted_at
+                                      ).toLocaleDateString("ko-KR")}
                                     </span>
                                   )}
                                 </div>
