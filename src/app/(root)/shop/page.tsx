@@ -204,9 +204,16 @@ export default function ShopPage() {
                     </div>
 
                     <div className="p-6">
-                      <h3 className="font-semibold text-lg mb-2 group-hover:text-[#1e3a8a] transition-colors">
-                        {template.name}
-                      </h3>
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold text-lg group-hover:text-[#1e3a8a] transition-colors flex-1">
+                          {template.name}
+                        </h3>
+                        {template.template_products && template.template_products.length > 0 && (
+                          <div className="text-lg font-bold text-[#1e3a8a] ml-3">
+                            ₩{template.template_products[0].price.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
                       <p className="text-slate-600 text-sm line-clamp-2 mb-4">
                         {template.description}
                       </p>

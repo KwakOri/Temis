@@ -2,12 +2,12 @@
 
 import BackButton from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePurchaseHistory } from "@/hooks/query/usePurchaseHistory";
+import { useUserTemplateAccess } from "@/hooks/query/useShop";
 import {
   useSubmitPurchaseRequest,
   useTemplateDetail,
 } from "@/hooks/query/useTemplateDetail";
-import { useUserTemplateAccess } from "@/hooks/query/useShop";
-import { usePurchaseHistory } from "@/hooks/query/usePurchaseHistory";
 import { TemplateWithProducts } from "@/types/templateDetail";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Image from "next/image";
@@ -37,11 +37,12 @@ export default function TemplateDetailPage() {
   const isPurchased = user && accessibleTemplateIds.includes(templateId);
 
   // 현재 템플릿에 대해 pending 상태의 구매 신청이 있는지 확인
-  const pendingPurchaseRequest = user && purchaseHistoryData?.purchaseRequests.find(
-    (request) =>
-      request.template_id === templateId &&
-      request.status === "pending"
-  );
+  const pendingPurchaseRequest =
+    user &&
+    purchaseHistoryData?.purchaseRequests.find(
+      (request) =>
+        request.template_id === templateId && request.status === "pending"
+    );
 
   const handlePurchaseRequest = async (formData: {
     depositorName: string;
@@ -169,25 +170,6 @@ export default function TemplateDetailPage() {
                       )}
                     </ul>
                   </div>
-
-                  <div>
-                    <h3 className="font-semibold mb-2 text-slate-900">
-                      요구사항
-                    </h3>
-                    <p className="text-slate-600">
-                      {template.template_products[0].requirements}
-                    </p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold mb-2 text-slate-900">
-                      배송 시간
-                    </h3>
-                    <p className="text-slate-600">
-                      결제 후 {template.template_products[0].delivery_time}일
-                      이내
-                    </p>
-                  </div>
                 </div>
               </div>
 
@@ -204,6 +186,17 @@ export default function TemplateDetailPage() {
                   </div>
                 </div>
               )}
+              <div className="border-t border-slate-200 pt-4">
+                <p className="text-sm text-slate-500 mt-2">
+                  구매하신 템플릿은 본인만 사용 가능하며 타인과 공유하거나
+                  타인에게 양도할 수 없습니다.
+                </p>
+                {!isPurchased && !pendingPurchaseRequest && (
+                  <p className="text-sm text-slate-500 mt-2">
+                    계좌 송금으로 결제가 진행됩니다
+                  </p>
+                )}
+              </div>
 
               {/* 구매 버튼 */}
               <div className="border-t border-slate-200 pt-6">
@@ -230,7 +223,8 @@ export default function TemplateDetailPage() {
                           </span>
                         </div>
                         <p className="text-green-700 text-sm">
-                          이미 구매하신 템플릿입니다. 시간표 편집기에서 사용하실 수 있습니다.
+                          이미 구매하신 템플릿입니다. 시간표 편집기에서 사용하실
+                          수 있습니다.
                         </p>
                       </div>
                       <Link
@@ -265,7 +259,10 @@ export default function TemplateDetailPage() {
                           이미 구매 신청을 하셨습니다. 입금 확인 후 처리됩니다.
                         </p>
                         <p className="text-yellow-600 text-xs">
-                          신청일: {new Date(pendingPurchaseRequest.created_at!).toLocaleDateString("ko-KR")}
+                          신청일:{" "}
+                          {new Date(
+                            pendingPurchaseRequest.created_at!
+                          ).toLocaleDateString("ko-KR")}
                         </p>
                       </div>
                       <Link
@@ -296,17 +293,6 @@ export default function TemplateDetailPage() {
                     </Link>
                   </div>
                 )}
-                <div className="pl-2">
-                  <p className="text-sm text-slate-500 mt-2">
-                    구매하신 템플릿은 본인만 사용 가능하며 타인과 공유하거나
-                    타인에게 양도할 수 없습니다.
-                  </p>
-                  {!isPurchased && !pendingPurchaseRequest && (
-                    <p className="text-sm text-slate-500 mt-2">
-                      계좌 송금으로 결제가 진행됩니다
-                    </p>
-                  )}
-                </div>
               </div>
             </div>
           </div>
@@ -398,7 +384,10 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                 <p>• 은행: 토스뱅크</p>
                 <p>• 계좌번호: 1000-7564-4995</p>
                 <p>• 예금주: 이세영</p>
-                <p>• 입금 확인 후 1-2일 이내에 템플릿 권한이 부여됩니다</p>
+                <p>
+                  • <strong>입금 확인 후 1-2일 이내</strong>에 템플릿 권한이
+                  부여됩니다
+                </p>
               </div>
             </div>
           </div>
@@ -416,7 +405,8 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                 어렵습니다.
               </p>
               <p className="text-sm text-yellow-700 mt-1">
-                계좌로 구매 금액을 이체한 후에 구매 신청 버튼을 눌러주세요
+                <strong>계좌로 구매 금액을 이체한 후</strong>에 구매 신청 버튼을
+                눌러주세요
               </p>
               <p className="text-sm text-yellow-700 mt-1">
                 문의사항은 @TEMISforyou 테미스 공식 트위터로 부탁드립니다

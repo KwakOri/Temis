@@ -462,16 +462,16 @@ export default function CustomOrderForm({
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-medium text-[#1e3a8a] mb-2 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
-                  TEMIS 샘플 커미션 예약 안내
+                  TEMIS 시간표 커미션 예약 안내
                 </h3>
                 <div className="text-sm text-slate-700 space-y-1">
                   <p>
-                    시간표 제작의 기본 단가는 <strong>8만원</strong>입니다.
+                    기본적인 진행 방법은 레퍼런스 확인 → 디자인 → 디자인
+                    수정(기본 3회) → 웹 제작 → 완성 입니다!
                   </p>
-                  <p>
-                    후기 작성 이벤트 참여시 <strong>1만원 할인</strong> 됩니다.
-                  </p>
-                  <p>업글이 완료 되어야 작업이 착수 됩니다.</p>
+                  <p>작업 시작 후 약 2주 뒤, 정상 기준 3~4주가 소요됩니다.</p>
+                  <p>{`자세한 작업 일정은 "작업 일정표"에서 확인하실 수 있습니다.`}</p>
+                  <p>입금 완료 확인 후에 작업이 접수됩니다.</p>
                   <p>
                     커뮤 연락 디스코드의 경우 <strong>사악이 evilsnake_</strong>
                     로 친추 드리고 있습니다.
@@ -540,17 +540,10 @@ export default function CustomOrderForm({
                 </h3>
                 <div className="text-sm space-y-1">
                   <p>
-                    기본적인 진행 방법은 레퍼런스 확인 → 디자인 → 디자인
-                    수정(기본 3회) → 웹 제작 → 완성 입니다!
-                  </p>
-                  <p>
-                    작업 시간 약 2주 뒤 배달될 것, 정상 기준 3~4주가 소요됩니다.
-                  </p>
-                  <p>
                     원하는 디자인이 명확하지 않으신 분은 오마카세 요청을
                     추천드립니다!
                   </p>
-                  <p>(디자인이 대부분 1주 사이로 나갑니다.)</p>
+                  <p>(디자인은 대부분 작업 시작 이후 1주 사이로 나갑니다.)</p>
                   <p>
                     단, 오마카세 요청시 <strong>1회만 수정</strong>의 기준
                     합니다 (다 다시 만들어 달라는 수정은 불가능)
@@ -793,11 +786,13 @@ export default function CustomOrderForm({
                   <div className="space-y-3">
                     {/* 빠른 마감 옵션 */}
                     {pricingSettings?.fast_delivery.enabled && (
-                      <label className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
-                        step3Data.externalContract
-                          ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
-                          : "border-slate-200 hover:bg-slate-50"
-                      }`}>
+                      <label
+                        className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                          step3Data.externalContract
+                            ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                            : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
                         <div className="flex items-center">
                           <input
                             type="checkbox"
@@ -812,22 +807,34 @@ export default function CustomOrderForm({
                             className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className={`font-medium ${
-                              step3Data.externalContract ? "text-slate-400" : "text-slate-900"
-                            }`}>
+                            <div
+                              className={`font-medium ${
+                                step3Data.externalContract
+                                  ? "text-slate-400"
+                                  : "text-slate-900"
+                              }`}
+                            >
                               {pricingSettings.fast_delivery.description}
                             </div>
-                            <div className={`text-sm ${
-                              step3Data.externalContract ? "text-slate-300" : "text-slate-600"
-                            }`}>
+                            <div
+                              className={`text-sm ${
+                                step3Data.externalContract
+                                  ? "text-slate-300"
+                                  : "text-slate-600"
+                              }`}
+                            >
                               <p>맨 앞 순서로 작업을 진행합니다</p>
                               <p>일주일 안에 완성됩니다</p>
                             </div>
                           </div>
                         </div>
-                        <span className={`font-bold ${
-                          step3Data.externalContract ? "text-slate-400" : "text-[#1e3a8a]"
-                        }`}>
+                        <span
+                          className={`font-bold ${
+                            step3Data.externalContract
+                              ? "text-slate-400"
+                              : "text-[#1e3a8a]"
+                          }`}
+                        >
                           +₩
                           {pricingSettings.fast_delivery.price.toLocaleString()}
                         </span>
@@ -836,11 +843,13 @@ export default function CustomOrderForm({
 
                     {/* 포트폴리오 비공개 옵션 */}
                     {pricingSettings?.portfolio_private.enabled && (
-                      <label className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
-                        step3Data.externalContract
-                          ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
-                          : "border-slate-200 hover:bg-slate-50"
-                      }`}>
+                      <label
+                        className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                          step3Data.externalContract
+                            ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                            : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
                         <div className="flex items-center">
                           <input
                             type="checkbox"
@@ -855,21 +864,33 @@ export default function CustomOrderForm({
                             className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className={`font-medium ${
-                              step3Data.externalContract ? "text-slate-400" : "text-slate-900"
-                            }`}>
+                            <div
+                              className={`font-medium ${
+                                step3Data.externalContract
+                                  ? "text-slate-400"
+                                  : "text-slate-900"
+                              }`}
+                            >
                               {pricingSettings.portfolio_private.description}
                             </div>
-                            <div className={`text-sm ${
-                              step3Data.externalContract ? "text-slate-300" : "text-slate-600"
-                            }`}>
+                            <div
+                              className={`text-sm ${
+                                step3Data.externalContract
+                                  ? "text-slate-300"
+                                  : "text-slate-600"
+                              }`}
+                            >
                               포트폴리오에 공개하지 않습니다
                             </div>
                           </div>
                         </div>
-                        <span className={`font-bold ${
-                          step3Data.externalContract ? "text-slate-400" : "text-[#1e3a8a]"
-                        }`}>
+                        <span
+                          className={`font-bold ${
+                            step3Data.externalContract
+                              ? "text-slate-400"
+                              : "text-[#1e3a8a]"
+                          }`}
+                        >
                           +₩
                           {pricingSettings.portfolio_private.price.toLocaleString()}
                         </span>
@@ -878,11 +899,13 @@ export default function CustomOrderForm({
 
                     {/* 후기 이벤트 참여 옵션 */}
                     {pricingSettings?.review_event.enabled && (
-                      <label className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
-                        step3Data.externalContract
-                          ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
-                          : "border-green-200 hover:bg-green-50 bg-green-25"
-                      }`}>
+                      <label
+                        className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                          step3Data.externalContract
+                            ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                            : "border-green-200 hover:bg-green-50 bg-green-25"
+                        }`}
+                      >
                         <div className="flex items-center">
                           <input
                             type="checkbox"
@@ -897,21 +920,33 @@ export default function CustomOrderForm({
                             className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className={`font-medium ${
-                              step3Data.externalContract ? "text-slate-400" : "text-green-800"
-                            }`}>
+                            <div
+                              className={`font-medium ${
+                                step3Data.externalContract
+                                  ? "text-slate-400"
+                                  : "text-green-800"
+                              }`}
+                            >
                               {pricingSettings.review_event.description}
                             </div>
-                            <div className={`text-sm ${
-                              step3Data.externalContract ? "text-slate-300" : "text-green-600"
-                            }`}>
+                            <div
+                              className={`text-sm ${
+                                step3Data.externalContract
+                                  ? "text-slate-300"
+                                  : "text-green-600"
+                              }`}
+                            >
                               SNS에 후기를 작성해주시면 할인됩니다
                             </div>
                           </div>
                         </div>
-                        <span className={`font-bold ${
-                          step3Data.externalContract ? "text-slate-400" : "text-green-600"
-                        }`}>
+                        <span
+                          className={`font-bold ${
+                            step3Data.externalContract
+                              ? "text-slate-400"
+                              : "text-green-600"
+                          }`}
+                        >
                           -₩
                           {pricingSettings.review_event.discount.toLocaleString()}
                         </span>
@@ -935,7 +970,7 @@ export default function CustomOrderForm({
                                 portfolioPrivate: false,
                                 reviewEvent: false,
                               }),
-                            }))
+                            }));
                           }}
                           className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300 rounded"
                         />
