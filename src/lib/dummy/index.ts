@@ -13,6 +13,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -23,6 +24,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -33,6 +35,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -43,6 +46,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -53,6 +57,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -63,6 +68,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -73,6 +79,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -93,6 +100,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -103,6 +111,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -113,6 +122,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -123,6 +133,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -133,6 +144,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -143,6 +155,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -153,6 +166,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -173,6 +187,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -183,6 +198,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -193,6 +209,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -203,6 +220,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -213,6 +231,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -223,6 +242,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -233,6 +253,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -253,6 +274,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -263,6 +285,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -273,6 +296,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -283,6 +307,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -293,6 +318,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -303,6 +329,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -313,6 +340,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -333,6 +361,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -343,6 +372,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -353,6 +383,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -363,6 +394,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -373,6 +405,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -383,6 +416,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -393,6 +427,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -413,6 +448,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -423,6 +459,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -433,6 +470,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -443,6 +481,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -453,6 +492,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -463,6 +503,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -473,6 +514,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -493,6 +535,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -503,6 +546,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -513,6 +557,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -523,6 +568,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -533,6 +579,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -543,6 +590,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -553,6 +601,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -573,6 +622,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -583,6 +633,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -593,6 +644,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -603,6 +655,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -613,6 +666,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -623,6 +677,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -633,6 +688,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -653,6 +709,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -663,6 +720,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -673,6 +731,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -683,6 +742,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -693,6 +753,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -703,6 +764,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -713,6 +775,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -733,6 +796,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -743,6 +807,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -753,6 +818,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -763,6 +829,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -773,6 +840,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -783,6 +851,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -793,6 +862,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -813,6 +883,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -823,6 +894,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -833,6 +905,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -843,6 +916,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -853,6 +927,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -863,6 +938,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,
@@ -873,6 +949,7 @@ const DUMMY_TEAM: TeamSchedule[] = [
           {
             time: "21:00",
             mainTitle: "방송입니다",
+            isGuerrilla: false,
           },
         ],
         isOffline: false,

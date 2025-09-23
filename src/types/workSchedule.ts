@@ -12,5 +12,4 @@ export interface WorkScheduleResponse {
   orders: WorkScheduleOrder[];
 }
 
-export type TabType = "fast" | "normal";
 export type DeadlineStatus = "none" | "overdue" | "urgent" | "normal";
