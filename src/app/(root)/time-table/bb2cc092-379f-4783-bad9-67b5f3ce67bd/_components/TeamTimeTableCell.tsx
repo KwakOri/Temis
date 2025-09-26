@@ -1,6 +1,7 @@
 import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TeamSchedule } from "@/types/team-timetable";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { Imgs } from "../_img/imgs";
@@ -28,16 +29,8 @@ interface StreamingMainTitleProps {
 }
 
 interface TeamTimeTableCellProps {
-  data: {
-    day: number;
-    isOffline: boolean;
-    entries: Array<{
-      time: string;
-      mainTitle: string;
-      userNames: number[];
-    }>;
-  };
-  weekDate: Date;
+  data: TeamSchedule;
+  weekDate: Date[];
   currentTheme: TTheme;
 }
 
@@ -151,15 +144,7 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
   weekDate,
   currentTheme,
 }) => {
-  const isMultiple = data.entries.length > 1;
-  const hasContent =
-    data.entries.length > 0 &&
-    data.entries.some((entry) => entry.time && entry.mainTitle);
-
   // 첫 번째 엔트리 또는 빈 엔트리
-  const primaryEntry = hasContent
-    ? data.entries[0]
-    : { time: "", mainTitle: "" };
 
   return (
     <></>
