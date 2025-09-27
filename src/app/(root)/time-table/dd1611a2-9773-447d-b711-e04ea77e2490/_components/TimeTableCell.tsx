@@ -58,8 +58,8 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
       style={{
         fontFamily: fontOption.primary,
         color: colors[currentTheme || "first"]["secondary"],
-        top: 44,
-        left: 64,
+        top: 48,
+        left: 66,
         width: 120,
         fontSize: 76,
         rotate: "-6deg",
