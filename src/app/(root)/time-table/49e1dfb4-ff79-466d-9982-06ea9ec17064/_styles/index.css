@@ -1,0 +1,27 @@
+@font-face {
+  font-family: "OngleebDaisy";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2508-2@1.0/Ownglyph_daisy-Rg.woff2")
+    format("woff2");
+  font-weight: normal;
+  font-style: normal;
+
+  font-display: swap;
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "OnglippDaelong";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2507-2@1.0/Ownglyph_daelong-Rg.woff2")
+    format("woff2");
+  font-weight: normal;
+  font-display: swap;
+
+  font-display: swap;
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
