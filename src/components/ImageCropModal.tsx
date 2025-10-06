@@ -283,8 +283,8 @@ const getCroppedImg = (
           pixelCrop.height
         );
 
-        // 최종 이미지 데이터 URL 반환
-        const croppedImageUrl = croppedCanvas.toDataURL("image/jpeg", 0.9);
+        // PNG 형식으로 반환하여 투명도 보존
+        const croppedImageUrl = croppedCanvas.toDataURL("image/png");
         resolve(croppedImageUrl);
       } catch (error) {
         reject(error);

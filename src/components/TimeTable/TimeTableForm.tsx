@@ -113,15 +113,47 @@ const TimeTableForm = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // PNG 파일인지 확인
+    const isPNG = file.type === 'image/png';
+
     const reader = new FileReader();
     reader.onloadend = () => {
-      const imageDataUrl = reader.result as string;
-      setSelectedImage(imageDataUrl);
+      const result = reader.result as string;
 
-      // 새 이미지이므로 원본으로 설정
-      actions.setOriginalImage(imageDataUrl, cropWidth, cropHeight);
+      if (isPNG) {
+        // PNG 파일인 경우 그대로 사용 (투명도 보존)
+        setSelectedImage(result);
+        actions.setOriginalImage(result, cropWidth, cropHeight);
+        setShowCropModal(true);
+      } else {
+        // PNG가 아닌 경우에만 canvas를 사용해서 PNG로 변환
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
 
-      setShowCropModal(true);
+          if (!ctx) {
+            setSelectedImage(result);
+            actions.setOriginalImage(result, cropWidth, cropHeight);
+            setShowCropModal(true);
+            return;
+          }
+
+          canvas.width = img.width;
+          canvas.height = img.height;
+
+          // 투명 배경 설정
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+
+          // PNG 형식으로 변환 (투명도 보존)
+          const pngDataUrl = canvas.toDataURL('image/png');
+          setSelectedImage(pngDataUrl);
+          actions.setOriginalImage(pngDataUrl, cropWidth, cropHeight);
+          setShowCropModal(true);
+        };
+        img.src = result;
+      }
     };
     reader.readAsDataURL(file);
 
