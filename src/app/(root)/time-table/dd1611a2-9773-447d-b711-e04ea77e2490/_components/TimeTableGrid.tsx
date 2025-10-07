@@ -1,7 +1,7 @@
 import React, { Fragment } from "react";
 
+import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard } from "@/utils/time-table/data";
 import TimeTableCell from "./TimeTableCell";
 
 interface TimeTableGridProps {
