@@ -40,17 +40,18 @@ export async function PATCH(
     if (body.features !== undefined) updateData.features = body.features;
     if (body.requirements !== undefined)
       updateData.requirements = body.requirements?.trim() || null;
-    // DEPRECATED: delivery_time field is no longer used
-    // if (body.delivery_time !== undefined)
-    //   updateData.delivery_time = body.delivery_time
-    //     ? parseInt(body.delivery_time)
-    //     : null;
     if (body.purchase_instructions !== undefined)
       updateData.purchase_instructions =
         body.purchase_instructions?.trim() || null;
-    // DEPRECATED: sample_images field is no longer used
-    // if (body.sample_images !== undefined)
-    //   updateData.sample_images = body.sample_images || [];
+    if (body.plan !== undefined) updateData.plan = body.plan;
+    if (body.is_artist !== undefined) updateData.is_artist = body.is_artist;
+    if (body.is_memo !== undefined) updateData.is_memo = body.is_memo;
+    if (body.is_multi_schedule !== undefined)
+      updateData.is_multi_schedule = body.is_multi_schedule;
+    if (body.is_guerrilla !== undefined)
+      updateData.is_guerrilla = body.is_guerrilla;
+    if (body.is_offline_memo !== undefined)
+      updateData.is_offline_memo = body.is_offline_memo;
 
     // 가격 검증
     if (updateData.price !== undefined && updateData.price < 0) {

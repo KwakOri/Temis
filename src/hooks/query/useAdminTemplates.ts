@@ -2,8 +2,10 @@ import { queryKeys } from "@/lib/queryKeys";
 import { AdminTemplateService } from "@/services/admin/templateService";
 import {
   CreateTemplateData,
+  CreateTemplatePlanData,
   CreateTemplateProductData,
   UpdateTemplateData,
+  UpdateTemplatePlanData,
   UpdateTemplateProductData,
 } from "@/types/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -81,6 +83,48 @@ export const useUpdateTemplateProduct = () => {
       productId: string;
       data: UpdateTemplateProductData;
     }) => AdminTemplateService.updateTemplateProduct(productId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templates(),
+      });
+    },
+  });
+};
+
+export const useTemplatePlans = (templateId?: string) => {
+  return useQuery({
+    queryKey: queryKeys.admin.templatePlans(templateId),
+    queryFn: () => AdminTemplateService.getTemplatePlans(templateId),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useCreateTemplatePlan = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateTemplatePlanData) =>
+      AdminTemplateService.createTemplatePlan(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templates(),
+      });
+    },
+  });
+};
+
+export const useUpdateTemplatePlan = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      planId,
+      data,
+    }: {
+      planId: string;
+      data: UpdateTemplatePlanData;
+    }) => AdminTemplateService.updateTemplatePlan(planId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templates(),

@@ -233,12 +233,20 @@ export class TemplateAccessService {
   static async updateAccess(
     templateId: string,
     userId: number,
-    accessLevel: AccessLevel
+    accessLevel: AccessLevel,
+    templatePlanId?: string | null
   ): Promise<TemplateAccess> {
     try {
+      const updateData: any = { access_level: accessLevel };
+
+      // template_plan_id가 제공되면 업데이트에 포함
+      if (templatePlanId !== undefined) {
+        updateData.template_plan_id = templatePlanId;
+      }
+
       const { data, error } = await supabase
         .from("template_access")
-        .update({ access_level: accessLevel })
+        .update(updateData)
         .eq("template_id", templateId)
         .eq("user_id", userId)
         .select()

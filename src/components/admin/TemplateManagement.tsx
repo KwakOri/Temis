@@ -3,10 +3,14 @@
 import {
   useAdminTemplates,
   useCreateAdminTemplate,
+  useCreateTemplatePlan,
   useCreateTemplateProduct,
+  useTemplatePlans,
   useUpdateAdminTemplate,
+  useUpdateTemplatePlan,
   useUpdateTemplateProduct,
 } from "@/hooks/query/useAdminTemplates";
+import { AdminTemplateService } from "@/services/admin/templateService";
 import type {
   CreateTemplateData,
   CreateTemplateProductData,
@@ -22,14 +26,23 @@ interface CreateTemplateForm {
   is_public: boolean;
 }
 
+interface PlanOptions {
+  is_artist: boolean;
+  is_memo: boolean;
+  is_multi_schedule: boolean;
+  is_guerrilla: boolean;
+  is_offline_memo: boolean;
+}
+
 interface ProductForm {
   title: string;
-  price: number;
+  litePrice: number;
+  proPrice: number;
   features: string[];
   requirements: string;
-  // delivery_time: number; // DEPRECATED: No longer used
   purchase_instructions: string;
-  // sample_images: string[]; // DEPRECATED: No longer used
+  liteOptions: PlanOptions;
+  proOptions: PlanOptions;
 }
 
 type TemplateTab = "all" | "public" | "private";
@@ -61,6 +74,8 @@ export default function TemplateManagement() {
   const updateTemplateMutation = useUpdateAdminTemplate();
   const createProductMutation = useCreateTemplateProduct();
   const updateProductMutation = useUpdateTemplateProduct();
+  const createPlanMutation = useCreateTemplatePlan();
+  const updatePlanMutation = useUpdateTemplatePlan();
 
   const error = templatesError ? (templatesError as Error).message : "";
   const createLoading = createTemplateMutation.isPending;
@@ -68,16 +83,29 @@ export default function TemplateManagement() {
     ? (createTemplateMutation.error as Error).message
     : "";
 
-  // template_products 배열에서 첫 번째 상품 정보를 가져오는 함수 (1대1 관계)
-  const getTemplateProduct = (template: TemplateWithProducts) => {
-    return template.template_products && template.template_products.length > 0
-      ? template.template_products[0]
-      : null;
+  // template_products 배열에서 플랜별 상품 정보를 가져오는 함수
+  const getTemplateProductByPlan = (
+    template: TemplateWithProducts,
+    plan: "lite" | "pro"
+  ) => {
+    return (
+      template.template_products?.find((product) => product.plan === plan) ||
+      null
+    );
   };
 
   // 템플릿에 상품이 등록되어 있는지 확인하는 함수
   const hasProduct = (template: TemplateWithProducts): boolean => {
     return template.template_products && template.template_products.length > 0;
+  };
+
+  // 옵션 레이블 매핑
+  const optionLabels: Record<keyof PlanOptions, string> = {
+    is_artist: "아티스트",
+    is_memo: "메모",
+    is_multi_schedule: "다중 스케줄",
+    is_guerrilla: "게릴라",
+    is_offline_memo: "오프라인 메모",
   };
 
   // 템플릿 ID 모달 및 검색 관련 상태
@@ -93,16 +121,29 @@ export default function TemplateManagement() {
     useState<TemplateWithProducts | null>(null);
   const [productFormData, setProductFormData] = useState<ProductForm>({
     title: "",
-    price: 15000,
+    litePrice: 15000,
+    proPrice: 25000,
     features: [
       "고화질 시간표 템플릿",
       "커스터마이징 가능한 소스 파일",
       "사용 가이드",
     ],
     requirements: "웹 브라우저만 있으면 사용 가능",
-    // delivery_time: 2, // DEPRECATED: No longer used
     purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
-    // sample_images: [], // DEPRECATED: No longer used
+    liteOptions: {
+      is_artist: false,
+      is_memo: false,
+      is_multi_schedule: false,
+      is_guerrilla: false,
+      is_offline_memo: false,
+    },
+    proOptions: {
+      is_artist: false,
+      is_memo: false,
+      is_multi_schedule: false,
+      is_guerrilla: false,
+      is_offline_memo: false,
+    },
   });
   const productLoading =
     createProductMutation.isPending || updateProductMutation.isPending;
@@ -247,39 +288,110 @@ export default function TemplateManagement() {
     };
   }, [templates]);
 
+  // 옵션 토글 핸들러 (cascade 규칙 적용)
+  const handleOptionToggle = (
+    plan: "lite" | "pro",
+    optionKey: keyof PlanOptions
+  ) => {
+    setProductFormData((prev) => {
+      const newLiteOptions = { ...prev.liteOptions };
+      const newProOptions = { ...prev.proOptions };
+
+      if (plan === "lite") {
+        // LITE 옵션 토글
+        newLiteOptions[optionKey] = !newLiteOptions[optionKey];
+
+        // LITE에서 활성화하면 PRO도 자동 활성화
+        if (newLiteOptions[optionKey]) {
+          newProOptions[optionKey] = true;
+        }
+      } else {
+        // PRO 옵션 토글
+        newProOptions[optionKey] = !newProOptions[optionKey];
+
+        // PRO에서 비활성화하면 LITE도 자동 비활성화
+        if (!newProOptions[optionKey]) {
+          newLiteOptions[optionKey] = false;
+        }
+      }
+
+      return {
+        ...prev,
+        liteOptions: newLiteOptions,
+        proOptions: newProOptions,
+      };
+    });
+  };
+
   // 상품 등록 모달 열기
   const handleCreateProduct = (template: TemplateWithProducts) => {
     setSelectedTemplate(template);
     setProductFormData({
       title: template.name,
-      price: 15000,
+      litePrice: 15000,
+      proPrice: 25000,
       features: [
         "고화질 시간표 템플릿",
         "커스터마이징 가능한 소스 파일",
         "사용 가이드",
       ],
       requirements: "웹 브라우저만 있으면 사용 가능",
-      // delivery_time: 2, // DEPRECATED: No longer used
       purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
-      // sample_images: [], // DEPRECATED: No longer used
+      liteOptions: {
+        is_artist: false,
+        is_memo: false,
+        is_multi_schedule: false,
+        is_guerrilla: false,
+        is_offline_memo: false,
+      },
+      proOptions: {
+        is_artist: false,
+        is_memo: false,
+        is_multi_schedule: false,
+        is_guerrilla: false,
+        is_offline_memo: false,
+      },
     });
     setShowProductModal(true);
   };
 
   // 상품 수정 모달 열기
-  const handleEditProduct = (template: TemplateWithProducts) => {
-    const templateProduct = getTemplateProduct(template);
-    if (!templateProduct) return;
+  const handleEditProduct = async (template: TemplateWithProducts) => {
+    const liteProduct = getTemplateProductByPlan(template, "lite");
+    const proProduct = getTemplateProductByPlan(template, "pro");
+
+    if (!liteProduct && !proProduct) return;
+
+    // template_plans 테이블에서 플랜 옵션 정보 가져오기
+    const { plans } = await AdminTemplateService.getTemplatePlans(template.id);
+    const litePlan = plans.find((p) => p.plan === "lite");
+    const proPlan = plans.find((p) => p.plan === "pro");
 
     setSelectedTemplate(template);
     setProductFormData({
-      title: templateProduct.title || template.name,
-      price: templateProduct.price,
-      features: templateProduct.features || [],
-      requirements: templateProduct.requirements || "",
-      // delivery_time: templateProduct.delivery_time || 2, // DEPRECATED: No longer used
-      purchase_instructions: templateProduct.purchase_instructions || "",
-      // sample_images: templateProduct.sample_images || [], // DEPRECATED: No longer used
+      title: liteProduct?.title || proProduct?.title || template.name,
+      litePrice: liteProduct?.price || 15000,
+      proPrice: proProduct?.price || 25000,
+      features: liteProduct?.features || proProduct?.features || [],
+      requirements: liteProduct?.requirements || proProduct?.requirements || "",
+      purchase_instructions:
+        liteProduct?.purchase_instructions ||
+        proProduct?.purchase_instructions ||
+        "",
+      liteOptions: {
+        is_artist: litePlan?.is_artist || false,
+        is_memo: litePlan?.is_memo || false,
+        is_multi_schedule: litePlan?.is_multi_schedule || false,
+        is_guerrilla: litePlan?.is_guerrilla || false,
+        is_offline_memo: litePlan?.is_offline_memo || false,
+      },
+      proOptions: {
+        is_artist: proPlan?.is_artist || false,
+        is_memo: proPlan?.is_memo || false,
+        is_multi_schedule: proPlan?.is_multi_schedule || false,
+        is_guerrilla: proPlan?.is_guerrilla || false,
+        is_offline_memo: proPlan?.is_offline_memo || false,
+      },
     });
     setShowProductModal(true);
   };
@@ -304,20 +416,147 @@ export default function TemplateManagement() {
     if (!selectedTemplate) return;
 
     try {
-      const templateProduct = getTemplateProduct(selectedTemplate);
-      const isEditing = !!templateProduct;
+      const liteProduct = getTemplateProductByPlan(selectedTemplate, "lite");
+      const proProduct = getTemplateProductByPlan(selectedTemplate, "pro");
+      const isEditing = !!liteProduct || !!proProduct;
+
+      // 공통 데이터
+      const commonData = {
+        title: productFormData.title,
+        features: productFormData.features,
+        requirements: productFormData.requirements,
+        purchase_instructions: productFormData.purchase_instructions,
+      };
+
+      // 템플릿 기본 옵션 (LITE 또는 PRO 중 하나라도 활성화되어 있으면 템플릿이 해당 기능을 가지고 있음)
+      const templateOptions = {
+        is_artist:
+          productFormData.liteOptions.is_artist ||
+          productFormData.proOptions.is_artist,
+        is_memo:
+          productFormData.liteOptions.is_memo ||
+          productFormData.proOptions.is_memo,
+        is_multi_schedule:
+          productFormData.liteOptions.is_multi_schedule ||
+          productFormData.proOptions.is_multi_schedule,
+        is_guerrilla:
+          productFormData.liteOptions.is_guerrilla ||
+          productFormData.proOptions.is_guerrilla,
+        is_offline_memo:
+          productFormData.liteOptions.is_offline_memo ||
+          productFormData.proOptions.is_offline_memo,
+      };
 
       if (isEditing) {
-        await updateProductMutation.mutateAsync({
-          productId: templateProduct!.id,
-          data: productFormData,
-        });
+        // 수정: LITE 플랜 (상품 정보 + 템플릿 기본 옵션)
+        if (liteProduct) {
+          await updateProductMutation.mutateAsync({
+            productId: liteProduct.id,
+            data: {
+              ...commonData,
+              price: productFormData.litePrice,
+              plan: "lite",
+              ...templateOptions,
+            },
+          });
+        } else {
+          // LITE 플랜이 없으면 생성
+          await createProductMutation.mutateAsync({
+            ...commonData,
+            template_id: selectedTemplate.id,
+            price: productFormData.litePrice,
+            plan: "lite",
+            ...templateOptions,
+          });
+        }
+
+        // 수정: PRO 플랜 (상품 정보 + 템플릿 기본 옵션)
+        if (proProduct) {
+          await updateProductMutation.mutateAsync({
+            productId: proProduct.id,
+            data: {
+              ...commonData,
+              price: productFormData.proPrice,
+              plan: "pro",
+              ...templateOptions,
+            },
+          });
+        } else {
+          // PRO 플랜이 없으면 생성
+          await createProductMutation.mutateAsync({
+            ...commonData,
+            template_id: selectedTemplate.id,
+            price: productFormData.proPrice,
+            plan: "pro",
+            ...templateOptions,
+          });
+        }
+
+        // 플랜 옵션 저장/업데이트 (template_plans 테이블)
+        // LITE 플랜 옵션
+        const { data: plansData } = await AdminTemplateService.getTemplatePlans(
+          selectedTemplate.id
+        );
+        const litePlan = plansData?.plans?.find((p) => p.plan === "lite");
+        const proPlan = plansData?.plans?.find((p) => p.plan === "pro");
+
+        if (litePlan) {
+          await updatePlanMutation.mutateAsync({
+            planId: litePlan.id,
+            data: productFormData.liteOptions,
+          });
+        } else {
+          await createPlanMutation.mutateAsync({
+            template_id: selectedTemplate.id,
+            plan: "lite",
+            ...productFormData.liteOptions,
+          });
+        }
+
+        // PRO 플랜 옵션
+        if (proPlan) {
+          await updatePlanMutation.mutateAsync({
+            planId: proPlan.id,
+            data: productFormData.proOptions,
+          });
+        } else {
+          await createPlanMutation.mutateAsync({
+            template_id: selectedTemplate.id,
+            plan: "pro",
+            ...productFormData.proOptions,
+          });
+        }
       } else {
-        const createData: CreateTemplateProductData = {
-          ...productFormData,
+        // 생성: LITE 플랜 (상품 정보 + 템플릿 기본 옵션)
+        await createProductMutation.mutateAsync({
+          ...commonData,
           template_id: selectedTemplate.id,
-        };
-        await createProductMutation.mutateAsync(createData);
+          price: productFormData.litePrice,
+          plan: "lite",
+          ...templateOptions,
+        });
+
+        // 생성: PRO 플랜 (상품 정보 + 템플릿 기본 옵션)
+        await createProductMutation.mutateAsync({
+          ...commonData,
+          template_id: selectedTemplate.id,
+          price: productFormData.proPrice,
+          plan: "pro",
+          ...templateOptions,
+        });
+
+        // 플랜 옵션 생성 (template_plans 테이블)
+        await createPlanMutation.mutateAsync({
+          template_id: selectedTemplate.id,
+          plan: "lite",
+          ...productFormData.liteOptions,
+        });
+
+        await createPlanMutation.mutateAsync({
+          template_id: selectedTemplate.id,
+          plan: "pro",
+          ...productFormData.proOptions,
+        });
       }
 
       setShowProductModal(false);
@@ -572,12 +811,32 @@ export default function TemplateManagement() {
                                 ? "상점 노출됨"
                                 : "상점 비노출"}
                             </span>
-                            <span className="text-xs text-gray-500">
-                              ₩
-                              {getTemplateProduct(
-                                template
-                              )!.price.toLocaleString()}
-                            </span>
+                            {(() => {
+                              const liteProduct = getTemplateProductByPlan(
+                                template,
+                                "lite"
+                              );
+                              const proProduct = getTemplateProductByPlan(
+                                template,
+                                "pro"
+                              );
+                              return (
+                                <div className="text-xs text-gray-500 space-y-0.5">
+                                  {liteProduct && (
+                                    <div>
+                                      LITE: ₩
+                                      {liteProduct.price.toLocaleString()}
+                                    </div>
+                                  )}
+                                  {proProduct && (
+                                    <div>
+                                      PRO: ₩
+                                      {proProduct.price.toLocaleString()}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         ) : (
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
@@ -1054,23 +1313,44 @@ export default function TemplateManagement() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  가격 (원) *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  value={productFormData.price}
-                  onChange={(e) =>
-                    setProductFormData((prev) => ({
-                      ...prev,
-                      price: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
+              {/* 가격 입력 - LITE & PRO */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    LITE 가격 (원) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={productFormData.litePrice}
+                    onChange={(e) =>
+                      setProductFormData((prev) => ({
+                        ...prev,
+                        litePrice: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    PRO 가격 (원) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={productFormData.proPrice}
+                    onChange={(e) =>
+                      setProductFormData((prev) => ({
+                        ...prev,
+                        proPrice: parseInt(e.target.value) || 0,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
               </div>
 
               <div>
@@ -1149,30 +1429,71 @@ export default function TemplateManagement() {
                 />
               </div>
 
-              {/* DEPRECATED: sample_images field is no longer used
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  샘플 이미지 URL (한 줄에 하나씩)
-                </label>
-                <textarea
-                  value={productFormData.sample_images.join("\n")}
-                  onChange={(e) =>
-                    setProductFormData((prev) => ({
-                      ...prev,
-                      sample_images: e.target.value
-                        .split("\n")
-                        .filter((url) => url.trim()),
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  rows={3}
-                  placeholder="https://example.com/image1.png&#10;https://example.com/image2.png"
-                />
-                <div className="mt-1 text-xs text-gray-500">
-                  샘플 이미지 URL을 한 줄에 하나씩 입력하세요
+              {/* 플랜 옵션 섹션 */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-4">
+                  플랜별 옵션 설정
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* LITE PLAN */}
+                  <div className="border rounded-lg p-4 bg-slate-50">
+                    <h5 className="text-sm font-semibold text-slate-700 mb-3">
+                      LITE PLAN
+                    </h5>
+                    <div className="space-y-2">
+                      {(
+                        Object.keys(optionLabels) as Array<
+                          keyof PlanOptions
+                        >
+                      ).map((optionKey) => (
+                        <button
+                          key={optionKey}
+                          type="button"
+                          onClick={() => handleOptionToggle("lite", optionKey)}
+                          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            productFormData.liteOptions[optionKey]
+                              ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          }`}
+                        >
+                          {optionLabels[optionKey]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* PRO PLAN */}
+                  <div className="border rounded-lg p-4 bg-purple-50">
+                    <h5 className="text-sm font-semibold text-purple-700 mb-3">
+                      PRO PLAN
+                    </h5>
+                    <div className="space-y-2">
+                      {(
+                        Object.keys(optionLabels) as Array<
+                          keyof PlanOptions
+                        >
+                      ).map((optionKey) => (
+                        <button
+                          key={optionKey}
+                          type="button"
+                          onClick={() => handleOptionToggle("pro", optionKey)}
+                          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                            productFormData.proOptions[optionKey]
+                              ? "bg-purple-600 text-white hover:bg-purple-700"
+                              : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                          }`}
+                        >
+                          {optionLabels[optionKey]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-gray-500">
+                  💡 LITE에서 옵션 활성화 시 PRO도 자동 활성화됩니다. PRO에서
+                  비활성화 시 LITE도 자동 비활성화됩니다.
                 </div>
               </div>
-              */}
 
               <div className="flex justify-end gap-3 mt-6">
                 <button

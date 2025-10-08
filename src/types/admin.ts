@@ -62,9 +62,13 @@ export interface CreateTemplateProductData {
   price: number;
   features: string[];
   requirements?: string;
-  // delivery_time: number; // DEPRECATED: No longer used
   purchase_instructions?: string;
-  // sample_images?: string[]; // DEPRECATED: No longer used
+  plan?: "lite" | "pro";
+  is_artist?: boolean;
+  is_memo?: boolean;
+  is_multi_schedule?: boolean;
+  is_guerrilla?: boolean;
+  is_offline_memo?: boolean;
 }
 
 export interface UpdateTemplateProductData {
@@ -72,9 +76,45 @@ export interface UpdateTemplateProductData {
   price?: number;
   features?: string[];
   requirements?: string;
-  // delivery_time?: number; // DEPRECATED: No longer used
   purchase_instructions?: string;
-  // sample_images?: string[]; // DEPRECATED: No longer used
+  plan?: "lite" | "pro";
+  is_artist?: boolean;
+  is_memo?: boolean;
+  is_multi_schedule?: boolean;
+  is_guerrilla?: boolean;
+  is_offline_memo?: boolean;
+}
+
+// Template Plan Management
+export interface TemplatePlan {
+  id: string;
+  template_id: string;
+  plan: "lite" | "pro";
+  is_artist: boolean;
+  is_memo: boolean;
+  is_multi_schedule: boolean;
+  is_guerrilla: boolean;
+  is_offline_memo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateTemplatePlanData {
+  template_id: string;
+  plan: "lite" | "pro";
+  is_artist: boolean;
+  is_memo: boolean;
+  is_multi_schedule: boolean;
+  is_guerrilla: boolean;
+  is_offline_memo: boolean;
+}
+
+export interface UpdateTemplatePlanData {
+  is_artist?: boolean;
+  is_memo?: boolean;
+  is_multi_schedule?: boolean;
+  is_guerrilla?: boolean;
+  is_offline_memo?: boolean;
 }
 
 // Custom Order Management
@@ -172,6 +212,7 @@ export interface GrantTemplateAccessData {
   template_id: string;
   user_id: number;
   access_level: "read" | "write" | "admin";
+  template_plan_id?: string; // Reference to specific plan (lite/pro) user has access to
 }
 
 export interface SendAccessGrantedEmailData {

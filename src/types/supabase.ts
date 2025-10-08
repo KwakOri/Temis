@@ -366,6 +366,7 @@ export type Database = {
           granted_by: number
           id: string
           template_id: string
+          template_plan_id: string | null
           user_id: number
         }
         Insert: {
@@ -374,6 +375,7 @@ export type Database = {
           granted_by: number
           id?: string
           template_id: string
+          template_plan_id?: string | null
           user_id: number
         }
         Update: {
@@ -382,6 +384,7 @@ export type Database = {
           granted_by?: number
           id?: string
           template_id?: string
+          template_plan_id?: string | null
           user_id?: number
         }
         Relationships: [
@@ -400,10 +403,64 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "template_access_template_plan_id_fkey"
+            columns: ["template_plan_id"]
+            isOneToOne: false
+            referencedRelation: "template_plans"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "template_access_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_plans: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_artist: boolean | null
+          is_guerrilla: boolean | null
+          is_memo: boolean | null
+          is_multi_schedule: boolean | null
+          is_offline_memo: boolean | null
+          plan: string
+          template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          plan?: string
+          template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          plan?: string
+          template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_plans_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
             referencedColumns: ["id"]
           },
         ]

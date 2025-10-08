@@ -66,6 +66,8 @@ export const queryKeys = {
     userTemplates: (userId: string) =>
       [...queryKeys.admin.all, "userTemplates", userId] as const,
     templates: () => [...queryKeys.admin.all, "templates"] as const,
+    templatePlans: (templateId?: string) =>
+      [...queryKeys.admin.all, "templatePlans", templateId] as const,
     customOrders: (params?: GetCustomOrdersParams) =>
       [...queryKeys.admin.all, "customOrders", params] as const,
     calendar: (type: "custom" | "legacy", startDate: string, endDate: string) =>
