@@ -413,6 +413,12 @@ export type Database = {
           created_at: string | null
           features: string[] | null
           id: string
+          is_artist: boolean | null
+          is_guerrilla: boolean | null
+          is_memo: boolean | null
+          is_multi_schedule: boolean | null
+          is_offline_memo: boolean | null
+          plan: string | null
           price: number
           purchase_instructions: string | null
           requirements: string | null
@@ -424,6 +430,12 @@ export type Database = {
           created_at?: string | null
           features?: string[] | null
           id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          plan?: string | null
           price: number
           purchase_instructions?: string | null
           requirements?: string | null
@@ -435,6 +447,12 @@ export type Database = {
           created_at?: string | null
           features?: string[] | null
           id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          plan?: string | null
           price?: number
           purchase_instructions?: string | null
           requirements?: string | null
