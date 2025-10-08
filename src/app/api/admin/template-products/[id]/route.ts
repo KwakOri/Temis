@@ -40,15 +40,17 @@ export async function PATCH(
     if (body.features !== undefined) updateData.features = body.features;
     if (body.requirements !== undefined)
       updateData.requirements = body.requirements?.trim() || null;
-    if (body.delivery_time !== undefined)
-      updateData.delivery_time = body.delivery_time
-        ? parseInt(body.delivery_time)
-        : null;
+    // DEPRECATED: delivery_time field is no longer used
+    // if (body.delivery_time !== undefined)
+    //   updateData.delivery_time = body.delivery_time
+    //     ? parseInt(body.delivery_time)
+    //     : null;
     if (body.purchase_instructions !== undefined)
       updateData.purchase_instructions =
         body.purchase_instructions?.trim() || null;
-    if (body.sample_images !== undefined)
-      updateData.sample_images = body.sample_images || [];
+    // DEPRECATED: sample_images field is no longer used
+    // if (body.sample_images !== undefined)
+    //   updateData.sample_images = body.sample_images || [];
 
     // 가격 검증
     if (updateData.price !== undefined && updateData.price < 0) {

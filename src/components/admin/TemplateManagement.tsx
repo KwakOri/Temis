@@ -27,9 +27,9 @@ interface ProductForm {
   price: number;
   features: string[];
   requirements: string;
-  delivery_time: number;
+  // delivery_time: number; // DEPRECATED: No longer used
   purchase_instructions: string;
-  sample_images: string[];
+  // sample_images: string[]; // DEPRECATED: No longer used
 }
 
 type TemplateTab = "all" | "public" | "private";
@@ -100,9 +100,9 @@ export default function TemplateManagement() {
       "사용 가이드",
     ],
     requirements: "웹 브라우저만 있으면 사용 가능",
-    delivery_time: 2,
+    // delivery_time: 2, // DEPRECATED: No longer used
     purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
-    sample_images: [],
+    // sample_images: [], // DEPRECATED: No longer used
   });
   const productLoading =
     createProductMutation.isPending || updateProductMutation.isPending;
@@ -259,9 +259,9 @@ export default function TemplateManagement() {
         "사용 가이드",
       ],
       requirements: "웹 브라우저만 있으면 사용 가능",
-      delivery_time: 2,
+      // delivery_time: 2, // DEPRECATED: No longer used
       purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
-      sample_images: [],
+      // sample_images: [], // DEPRECATED: No longer used
     });
     setShowProductModal(true);
   };
@@ -277,9 +277,9 @@ export default function TemplateManagement() {
       price: templateProduct.price,
       features: templateProduct.features || [],
       requirements: templateProduct.requirements || "",
-      delivery_time: templateProduct.delivery_time || 2,
+      // delivery_time: templateProduct.delivery_time || 2, // DEPRECATED: No longer used
       purchase_instructions: templateProduct.purchase_instructions || "",
-      sample_images: templateProduct.sample_images || [],
+      // sample_images: templateProduct.sample_images || [], // DEPRECATED: No longer used
     });
     setShowProductModal(true);
   };
@@ -1111,6 +1111,7 @@ export default function TemplateManagement() {
                 />
               </div>
 
+              {/* DEPRECATED: delivery_time field is no longer used
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   배송 시간 (일)
@@ -1128,6 +1129,7 @@ export default function TemplateManagement() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
+              */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1147,6 +1149,7 @@ export default function TemplateManagement() {
                 />
               </div>
 
+              {/* DEPRECATED: sample_images field is no longer used
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   샘플 이미지 URL (한 줄에 하나씩)
@@ -1169,6 +1172,7 @@ export default function TemplateManagement() {
                   샘플 이미지 URL을 한 줄에 하나씩 입력하세요
                 </div>
               </div>
+              */}
 
               <div className="flex justify-end gap-3 mt-6">
                 <button

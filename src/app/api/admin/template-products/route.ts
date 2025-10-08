@@ -17,9 +17,9 @@ export async function POST(request: NextRequest) {
       price,
       features,
       requirements,
-      delivery_time,
+      // delivery_time, // DEPRECATED: No longer used
       purchase_instructions,
-      sample_images,
+      // sample_images, // DEPRECATED: No longer used
     } = body;
 
     // 입력 검증
@@ -86,9 +86,9 @@ export async function POST(request: NextRequest) {
         price: parseInt(price),
         features: features || [],
         requirements: requirements?.trim() || null,
-        delivery_time: delivery_time ? parseInt(delivery_time) : null,
+        // delivery_time: delivery_time ? parseInt(delivery_time) : null, // DEPRECATED: No longer used
         purchase_instructions: purchase_instructions?.trim() || null,
-        sample_images: sample_images || [],
+        // sample_images: sample_images || [], // DEPRECATED: No longer used
       })
       .select()
       .single();

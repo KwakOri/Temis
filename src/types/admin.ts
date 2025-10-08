@@ -62,9 +62,9 @@ export interface CreateTemplateProductData {
   price: number;
   features: string[];
   requirements?: string;
-  delivery_time: number;
+  // delivery_time: number; // DEPRECATED: No longer used
   purchase_instructions?: string;
-  sample_images?: string[];
+  // sample_images?: string[]; // DEPRECATED: No longer used
 }
 
 export interface UpdateTemplateProductData {
@@ -72,9 +72,9 @@ export interface UpdateTemplateProductData {
   price?: number;
   features?: string[];
   requirements?: string;
-  delivery_time?: number;
+  // delivery_time?: number; // DEPRECATED: No longer used
   purchase_instructions?: string;
-  sample_images?: string[];
+  // sample_images?: string[]; // DEPRECATED: No longer used
 }
 
 // Custom Order Management
