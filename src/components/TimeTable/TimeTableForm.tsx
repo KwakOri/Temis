@@ -7,7 +7,13 @@ import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { CroppedAreaPixels } from "@/types/image-edit";
 import { TDefaultCard } from "@/types/time-table/data";
-import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
+import React, {
+  Fragment,
+  PropsWithChildren,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Point } from "react-easy-crop";
 interface TimeTableFormProps {
   isArtist?: boolean;
@@ -19,6 +25,7 @@ interface TimeTableFormProps {
   cropHeight?: number;
   isTeam?: boolean;
   teamData?: TDefaultCard[]; // 팀 시간표 저장을 위한 데이터
+  multiSelect?: boolean; // true: 여러 버튼 동시 활성화 가능, false: 최대 1개만 활성화 가능
 }
 
 interface ProfileOptionButtonProps {
@@ -57,11 +64,18 @@ const TimeTableForm = ({
   saveable = true,
   isTeam = false,
   teamData,
+  multiSelect = false,
 }: PropsWithChildren<TimeTableFormProps>) => {
   console.log("isTeam => ", isTeam);
   console.log("teamData => ", teamData);
 
   const { state, actions } = useTimeTable();
+
+  // 선택된 버튼들을 배열로 관리 (예: ["profile", "memo", "none"])
+  type OptionType = "profile" | "memo" | "none";
+  const [selectedOptions, setSelectedOptions] = useState<OptionType[]>([
+    "none",
+  ]);
 
   const {
     profileText,
@@ -114,7 +128,7 @@ const TimeTableForm = ({
     if (!file) return;
 
     // PNG 파일인지 확인
-    const isPNG = file.type === 'image/png';
+    const isPNG = file.type === "image/png";
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -129,8 +143,8 @@ const TimeTableForm = ({
         // PNG가 아닌 경우에만 canvas를 사용해서 PNG로 변환
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
 
           if (!ctx) {
             setSelectedImage(result);
@@ -147,7 +161,7 @@ const TimeTableForm = ({
           ctx.drawImage(img, 0, 0);
 
           // PNG 형식으로 변환 (투명도 보존)
-          const pngDataUrl = canvas.toDataURL('image/png');
+          const pngDataUrl = canvas.toDataURL("image/png");
           setSelectedImage(pngDataUrl);
           actions.setOriginalImage(pngDataUrl, cropWidth, cropHeight);
           setShowCropModal(true);
@@ -215,34 +229,79 @@ const TimeTableForm = ({
     setShowTeamSaveModal(false);
   };
 
+  // 버튼 클릭 핸들러 - multiSelect 모드에 따라 다르게 동작
+  const handleOptionClick = (option: OptionType) => {
+    setSelectedOptions((prev) => {
+      if (multiSelect) {
+        // "없음" 버튼을 클릭한 경우: 다른 모든 버튼을 비활성화
+        if (option === "none") {
+          return ["none"];
+        }
+
+        // 다중 선택 모드: 토글 방식
+        if (prev.includes(option)) {
+          // 이미 선택된 옵션이면 제거
+          const filtered = prev.filter((opt) => opt !== option);
+          // 빈 배열이 되면 "없음"을 추가
+          return filtered.length === 0 ? ["none"] : filtered;
+        } else {
+          // 선택되지 않은 옵션이면 추가
+          // "없음"이 있으면 제거하고 새 옵션 추가
+          const withoutNone = prev.filter((opt) => opt !== "none");
+          return [...withoutNone, option];
+        }
+      } else {
+        // 단일 선택 모드: 배열 길이가 1개만 유지
+        return [option];
+      }
+    });
+  };
+
+  // selectedOptions 배열에 따라 context actions 호출
+  useEffect(() => {
+    const hasProfile = selectedOptions.includes("profile");
+    const hasMemo = selectedOptions.includes("memo");
+
+    if (hasProfile) {
+      turnOnProfileTextVisible();
+    } else {
+      turnOffProfileTextVisible();
+    }
+
+    if (hasMemo) {
+      turnOnMemoTextVisible();
+    } else {
+      turnOffMemoTextVisible();
+    }
+  }, [
+    selectedOptions,
+    turnOnProfileTextVisible,
+    turnOffProfileTextVisible,
+    turnOnMemoTextVisible,
+    turnOffMemoTextVisible,
+  ]);
+
   const ProfileOptionButtons = [
     {
-      handler: () => {
-        turnOnProfileTextVisible();
-        turnOffMemoTextVisible();
-      },
+      handler: () => handleOptionClick("profile"),
       isEnabled: isArtist,
-      isChecked: isProfileTextVisible,
+      isChecked: selectedOptions.includes("profile"),
       label: "이름",
+      optionType: "profile" as OptionType,
     },
     {
-      handler: () => {
-        turnOnMemoTextVisible();
-        turnOffProfileTextVisible();
-      },
+      handler: () => handleOptionClick("memo"),
       isEnabled: isMemo,
-      isChecked: isMemoTextVisible,
+      isChecked: selectedOptions.includes("memo"),
       label: "메모",
+      optionType: "memo" as OptionType,
     },
     {
-      handler: () => {
-        turnOffProfileTextVisible();
-        turnOffMemoTextVisible();
-      },
+      handler: () => handleOptionClick("none"),
       isEnabled: true,
-      isChecked:
-        (!isArtist || !isProfileTextVisible) && (!isMemo || !isMemoTextVisible),
+      isChecked: selectedOptions.includes("none"),
       label: "없음",
+      optionType: "none" as OptionType,
     },
   ];
 
@@ -305,12 +364,12 @@ const TimeTableForm = ({
 
             {imageSrc && (
               <Fragment>
-                {/* <button
+                <button
                   onClick={handleEditClick}
                   className="w-full bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
                 >
                   이미지 편집
-                </button> */}
+                </button>
                 <button
                   onClick={handleImageDelete}
                   className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
