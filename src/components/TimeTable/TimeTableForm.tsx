@@ -5,12 +5,12 @@ import ResetButton from "@/components/TimeTable/ResetButton";
 import TeamSaveModal from "@/components/TimeTable/TeamSaveModal";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
+import { OptionType } from "@/hooks/useTimeTableState";
 import { CroppedAreaPixels } from "@/types/image-edit";
 import { TDefaultCard } from "@/types/time-table/data";
 import React, {
   Fragment,
   PropsWithChildren,
-  useEffect,
   useRef,
   useState,
 } from "react";
@@ -71,12 +71,6 @@ const TimeTableForm = ({
 
   const { state, actions } = useTimeTable();
 
-  // 선택된 버튼들을 배열로 관리 (예: ["profile", "memo", "none"])
-  type OptionType = "profile" | "memo" | "none";
-  const [selectedOptions, setSelectedOptions] = useState<OptionType[]>([
-    "none",
-  ]);
-
   const {
     profileText,
     memoText,
@@ -84,6 +78,7 @@ const TimeTableForm = ({
     imageSrc,
     isProfileTextVisible,
     isMemoTextVisible,
+    selectedOptions,
     captureSize,
   } = state;
   const {
@@ -91,10 +86,7 @@ const TimeTableForm = ({
     handleMemoTextChange,
     handleDateChange,
     updateImageSrc,
-    turnOnProfileTextVisible,
-    turnOffProfileTextVisible,
-    turnOnMemoTextVisible,
-    turnOffMemoTextVisible,
+    handleOptionClick,
     downloadImage,
   } = actions;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -229,75 +221,23 @@ const TimeTableForm = ({
     setShowTeamSaveModal(false);
   };
 
-  // 버튼 클릭 핸들러 - multiSelect 모드에 따라 다르게 동작
-  const handleOptionClick = (option: OptionType) => {
-    setSelectedOptions((prev) => {
-      if (multiSelect) {
-        // "없음" 버튼을 클릭한 경우: 다른 모든 버튼을 비활성화
-        if (option === "none") {
-          return ["none"];
-        }
-
-        // 다중 선택 모드: 토글 방식
-        if (prev.includes(option)) {
-          // 이미 선택된 옵션이면 제거
-          const filtered = prev.filter((opt) => opt !== option);
-          // 빈 배열이 되면 "없음"을 추가
-          return filtered.length === 0 ? ["none"] : filtered;
-        } else {
-          // 선택되지 않은 옵션이면 추가
-          // "없음"이 있으면 제거하고 새 옵션 추가
-          const withoutNone = prev.filter((opt) => opt !== "none");
-          return [...withoutNone, option];
-        }
-      } else {
-        // 단일 선택 모드: 배열 길이가 1개만 유지
-        return [option];
-      }
-    });
-  };
-
-  // selectedOptions 배열에 따라 context actions 호출
-  useEffect(() => {
-    const hasProfile = selectedOptions.includes("profile");
-    const hasMemo = selectedOptions.includes("memo");
-
-    if (hasProfile) {
-      turnOnProfileTextVisible();
-    } else {
-      turnOffProfileTextVisible();
-    }
-
-    if (hasMemo) {
-      turnOnMemoTextVisible();
-    } else {
-      turnOffMemoTextVisible();
-    }
-  }, [
-    selectedOptions,
-    turnOnProfileTextVisible,
-    turnOffProfileTextVisible,
-    turnOnMemoTextVisible,
-    turnOffMemoTextVisible,
-  ]);
-
   const ProfileOptionButtons = [
     {
-      handler: () => handleOptionClick("profile"),
+      handler: () => handleOptionClick("profile", multiSelect),
       isEnabled: isArtist,
       isChecked: selectedOptions.includes("profile"),
       label: "이름",
       optionType: "profile" as OptionType,
     },
     {
-      handler: () => handleOptionClick("memo"),
+      handler: () => handleOptionClick("memo", multiSelect),
       isEnabled: isMemo,
       isChecked: selectedOptions.includes("memo"),
       label: "메모",
       optionType: "memo" as OptionType,
     },
     {
-      handler: () => handleOptionClick("none"),
+      handler: () => handleOptionClick("none", multiSelect),
       isEnabled: true,
       isChecked: selectedOptions.includes("none"),
       label: "없음",

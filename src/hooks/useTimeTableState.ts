@@ -5,6 +5,9 @@ import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
 
+// 옵션 타입 정의
+export type OptionType = "profile" | "memo" | "none";
+
 // 기본 월요일 날짜 계산 함수
 const getDefaultMondayString = (): string => {
   const today = new Date();
@@ -95,7 +98,15 @@ export const useTimeTableState = (captureSize?: {
     }
     return true;
   });
-  
+
+  // 옵션 버튼 선택 상태 (배열 기반 관리)
+  const [selectedOptions, setSelectedOptions] = useState<OptionType[]>(() => {
+    if (typeof window !== "undefined") {
+      return pageAwareStorage.getItem("selectedOptions", ["none"]);
+    }
+    return ["none"];
+  });
+
   // 이미지 편집 데이터 상태
   const [imageEditData, setImageEditData] = useState<ImageEditData | null>(() => {
     if (typeof window !== "undefined") {
@@ -157,6 +168,22 @@ export const useTimeTableState = (captureSize?: {
       pageAwareStorage.setItem("isMemoTextVisible", isMemoTextVisible);
     }
   }, [isMemoTextVisible]);
+
+  // selectedOptions 변경 시 localStorage에 저장
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      pageAwareStorage.setItem("selectedOptions", selectedOptions);
+    }
+  }, [selectedOptions]);
+
+  // selectedOptions에 따라 visibility 자동 업데이트
+  useEffect(() => {
+    const hasProfile = selectedOptions.includes("profile");
+    const hasMemo = selectedOptions.includes("memo");
+
+    setIsProfileTextVisible(hasProfile);
+    setIsMemoTextVisible(hasMemo);
+  }, [selectedOptions]);
 
   // imageEditData 변경 시 localStorage에 저장
   useEffect(() => {
@@ -284,24 +311,32 @@ export const useTimeTableState = (captureSize?: {
       setMondayDateStr(dateStr);
     },
 
-    toggleProfileTextVisible: () => {
-      setIsProfileTextVisible((prev) => !prev);
-    },
-    turnOnProfileTextVisible: () => {
-      setIsProfileTextVisible(true);
-    },
-    turnOffProfileTextVisible: () => {
-      setIsProfileTextVisible(false);
-    },
+    // 옵션 버튼 관리 함수
+    handleOptionClick: (option: OptionType, multiSelect: boolean = false) => {
+      setSelectedOptions((prev) => {
+        if (multiSelect) {
+          // "없음" 버튼을 클릭한 경우: 다른 모든 버튼을 비활성화
+          if (option === "none") {
+            return ["none"];
+          }
 
-    toggleMemoTextVisible: () => {
-      setIsMemoTextVisible((prev) => !prev);
-    },
-    turnOnMemoTextVisible: () => {
-      setIsMemoTextVisible(true);
-    },
-    turnOffMemoTextVisible: () => {
-      setIsMemoTextVisible(false);
+          // 다중 선택 모드: 토글 방식
+          if (prev.includes(option)) {
+            // 이미 선택된 옵션이면 제거
+            const filtered = prev.filter((opt) => opt !== option);
+            // 빈 배열이 되면 "없음"을 추가
+            return filtered.length === 0 ? ["none"] : filtered;
+          } else {
+            // 선택되지 않은 옵션이면 추가
+            // "없음"이 있으면 제거하고 새 옵션 추가
+            const withoutNone = prev.filter((opt) => opt !== "none");
+            return [...withoutNone, option];
+          }
+        } else {
+          // 단일 선택 모드: 배열 길이가 1개만 유지
+          return [option];
+        }
+      });
     },
 
     // 이미지 편집 액션 함수들
@@ -470,6 +505,7 @@ export const useTimeTableState = (captureSize?: {
     isMobile,
     isProfileTextVisible,
     isMemoTextVisible,
+    selectedOptions,
     captureSize,
   };
 

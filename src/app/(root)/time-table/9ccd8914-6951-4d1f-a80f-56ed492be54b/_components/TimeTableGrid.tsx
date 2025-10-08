@@ -1,6 +1,7 @@
 import React, { Fragment } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { useTimeTableUI } from "@/contexts/TimeTableContext";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { Imgs } from "../_img/imgs";
@@ -18,6 +19,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
+  const { isMemoTextVisible } = useTimeTableUI();
   return (
     <div
       className="absolute grid grid-cols-3 z-20"
@@ -37,11 +39,12 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
             index={i}
           />
           {i === 1 && <div></div>}
-          {i === 3 && (
-            <div
-              style={{ width: 720, height: Settings.card.online.height }}
-              className="flex justify-center items-center relative"
-            >
+          {i === 3 &&
+            (isMemoTextVisible ? (
+              <div
+                style={{ width: 720, height: Settings.card.online.height }}
+                className="flex justify-center items-center relative"
+              >
               <div
                 style={{
                   position: "absolute",
@@ -89,7 +92,9 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
                 />
               </div>
             </div>
-          )}
+            ) : (
+              <div></div>
+            ))}
         </Fragment>
       ))}
     </div>
