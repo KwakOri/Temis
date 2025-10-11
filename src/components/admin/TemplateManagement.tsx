@@ -51,9 +51,12 @@ interface ProductForm {
 
 type TemplateTab = "all" | "public" | "private";
 
+const ITEMS_PER_PAGE = 20;
+
 export default function TemplateManagement() {
   const [activeTab, setActiveTab] = useState<TemplateTab>("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState<CreateTemplateForm>({
     name: "",
     description: "",
@@ -66,12 +69,16 @@ export default function TemplateManagement() {
     data: templatesData,
     isLoading: loading,
     error: templatesError,
-  } = useAdminTemplates();
+  } = useAdminTemplates({
+    limit: ITEMS_PER_PAGE,
+    offset: (currentPage - 1) * ITEMS_PER_PAGE,
+  });
 
   console.log("templatesData => ", templatesData);
   console.log("templatesError => ", templatesError);
 
   const templates = templatesData?.templates || [];
+  const pagination = templatesData?.pagination;
 
   const createTemplateMutation = useCreateAdminTemplate();
   const updateTemplateMutation = useUpdateAdminTemplate();
@@ -280,14 +287,30 @@ export default function TemplateManagement() {
     return filtered;
   }, [templates, activeTab, searchTerm]);
 
-  // 탭별 통계
+  // 탭별 통계 (전체 개수 기준)
   const tabCounts = useMemo(() => {
+    // 서버사이드 페이지네이션이므로 전체 개수는 pagination.total 사용
     return {
-      all: templates.length,
+      all: pagination?.total || 0,
       public: templates.filter((template) => template.is_public).length,
       private: templates.filter((template) => !template.is_public).length,
     };
-  }, [templates]);
+  }, [templates, pagination]);
+
+  // 총 페이지 수 계산
+  const totalPages = pagination ? Math.ceil(pagination.total / ITEMS_PER_PAGE) : 0;
+
+  // 페이지 변경 핸들러
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // 탭 변경 시 페이지 초기화
+  const handleTabChange = (tab: TemplateTab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
 
   // 템플릿 옵션 토글 핸들러
   const handleTemplateOptionToggle = (optionKey: keyof PlanOptions) => {
@@ -588,7 +611,7 @@ export default function TemplateManagement() {
           <div className="border-b border-slate-200">
             <nav className="-mb-px flex space-x-8 justify-center">
               <button
-                onClick={() => setActiveTab("all")}
+                onClick={() => handleTabChange("all")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === "all"
                     ? "border-[#1e3a8a] text-[#1e3a8a]"
@@ -601,7 +624,7 @@ export default function TemplateManagement() {
                 </span>
               </button>
               <button
-                onClick={() => setActiveTab("public")}
+                onClick={() => handleTabChange("public")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === "public"
                     ? "border-[#1e3a8a] text-[#1e3a8a]"
@@ -614,7 +637,7 @@ export default function TemplateManagement() {
                 </span>
               </button>
               <button
-                onClick={() => setActiveTab("private")}
+                onClick={() => handleTabChange("private")}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === "private"
                     ? "border-[#1e3a8a] text-[#1e3a8a]"
@@ -894,6 +917,115 @@ export default function TemplateManagement() {
         {templates.length === 0 && !searchTerm && activeTab === "all" && (
           <div className="text-center py-12">
             <div className="text-gray-500">등록된 템플릿이 없습니다.</div>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="px-6 py-4 border-t border-gray-200">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 flex justify-between sm:hidden">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이전
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  다음
+                </button>
+              </div>
+              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700">
+                    전체 <span className="font-medium">{pagination?.total || 0}</span>개 중{" "}
+                    <span className="font-medium">
+                      {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, pagination?.total || 0)}
+                    </span>{" "}
+                    -{" "}
+                    <span className="font-medium">
+                      {Math.min(currentPage * ITEMS_PER_PAGE, pagination?.total || 0)}
+                    </span>{" "}
+                    표시
+                  </p>
+                </div>
+                <div>
+                  <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">이전</span>
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+
+                    {/* 페이지 번호 버튼들 */}
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        // 첫 페이지, 마지막 페이지, 현재 페이지 주변만 표시
+                        return (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 2 && page <= currentPage + 2)
+                        );
+                      })
+                      .map((page, index, array) => {
+                        // 생략 부호(...) 표시
+                        if (index > 0 && page - array[index - 1] > 1) {
+                          return (
+                            <span key={`ellipsis-${page}`} className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                              ...
+                            </span>
+                          );
+                        }
+                        return null;
+                      })
+                      .filter(Boolean)}
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(page => {
+                        return (
+                          page === 1 ||
+                          page === totalPages ||
+                          (page >= currentPage - 2 && page <= currentPage + 2)
+                        );
+                      })
+                      .map(page => (
+                        <button
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                            currentPage === page
+                              ? "z-10 bg-indigo-50 border-indigo-500 text-indigo-600"
+                              : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="sr-only">다음</span>
+                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

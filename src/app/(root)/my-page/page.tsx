@@ -7,6 +7,7 @@ import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
 import PurchaseHistory from "@/components/shop/PurchaseHistory";
+import MaintenanceNotice from "@/components/shop/MaintenanceNotice";
 
 import { useRouter } from "next/navigation";
 
@@ -471,7 +472,12 @@ const MyPageContent = () => {
                     </>
                   )}
 
-                  {activeTab === "purchases" && <PurchaseHistory />}
+                  {activeTab === "purchases" && (
+                    <>
+                      <MaintenanceNotice />
+                      {/* <PurchaseHistory /> */}
+                    </>
+                  )}
 
                   {activeTab === "custom-orders" && (
                     <CustomOrderHistory

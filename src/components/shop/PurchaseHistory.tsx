@@ -6,7 +6,7 @@ import {
   usePurchaseHistory,
   useUpdatePurchaseRequest,
 } from "@/hooks/query/usePurchaseHistory";
-import { PurchaseRequestWithTemplate } from "@/types/purchaseHistory";
+import { TemplatePurchaseRequestWithRelations } from "@/types/purchaseHistory";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -20,10 +20,10 @@ export default function PurchaseHistory() {
   const updateMutation = useUpdatePurchaseRequest();
   const deleteMutation = useDeletePurchaseRequest();
 
-  const startEdit = (request: PurchaseRequestWithTemplate) => {
+  const startEdit = (request: TemplatePurchaseRequestWithRelations) => {
     setEditingRequest(request.id);
     setEditForm({
-      depositorName: request.customer_name,
+      depositorName: request.depositor_name || "",
       message: request.message || "",
     });
   };
@@ -202,7 +202,7 @@ export default function PurchaseHistory() {
                         />
                       ) : (
                         <span className="text-gray-900">
-                          {request.customer_name}
+                          {request.depositor_name}
                         </span>
                       )}
                     </td>

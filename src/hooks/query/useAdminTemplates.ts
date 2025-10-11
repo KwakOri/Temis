@@ -10,10 +10,10 @@ import {
 } from "@/types/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const useAdminTemplates = () => {
+export const useAdminTemplates = (params?: { limit?: number; offset?: number }) => {
   return useQuery({
-    queryKey: queryKeys.admin.templates(),
-    queryFn: () => AdminTemplateService.getTemplates(),
+    queryKey: [...queryKeys.admin.templates(), params],
+    queryFn: () => AdminTemplateService.getTemplates(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

@@ -15,14 +15,15 @@ export async function GET(request: NextRequest) {
     }
     const { user } = authResult;
 
-    // 1. 구매 요청 내역 조회 (이메일 기준)
+    // 1. 구매 요청 내역 조회 (user_id 기준으로 변경)
     const { data: purchaseRequests, error: requestError } = await supabase
-      .from('purchase_requests')
+      .from('template_purchase_requests')
       .select(`
         *,
-        template:templates(*)
+        template:templates(*),
+        template_plan:template_plans(*)
       `)
-      .eq('customer_email', user.email || '')
+      .eq('user_id', Number(user.userId))
       .order('created_at', { ascending: false });
 
     if (requestError) {

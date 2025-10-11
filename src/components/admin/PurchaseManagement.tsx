@@ -23,7 +23,8 @@ export default function PurchaseManagement() {
   const handleApprove = async (
     requestId: string,
     templateId: string,
-    customerEmail: string
+    userId: number,
+    planId: string
   ) => {
     setProcessingId(requestId);
 
@@ -31,7 +32,8 @@ export default function PurchaseManagement() {
       await approveMutation.mutateAsync({
         requestId,
         templateId,
-        customerEmail,
+        userId,
+        planId,
       });
       alert("결제가 확인되고 권한이 부여되었습니다.");
     } catch (error) {
@@ -152,13 +154,13 @@ export default function PurchaseManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        입금자: {request.customer_name}
+                        입금자: {request.depositor_name}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {request.customer_email}
+                        {request.user?.name || "이름 없음"}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {request.customer_phone || "연락처 미등록"}
+                        {request.user?.email || "이메일 없음"}
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-500 max-w-xs">
@@ -189,7 +191,8 @@ export default function PurchaseManagement() {
                           handleApprove(
                             request.id,
                             request.template_id!,
-                            request.customer_email
+                            request.user_id!,
+                            request.plan_id!
                           )
                         }
                         disabled={processingId === request.id}
@@ -259,10 +262,13 @@ export default function PurchaseManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
-                        {request.customer_name}
+                        입금자: {request.depositor_name}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {request.customer_email}
+                        {request.user?.name || "이름 없음"}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {request.user?.email || "이메일 없음"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -76,8 +76,9 @@ export type CreateTemplatePurchaseRequestData = TablesInsert<"template_purchase_
 export type UpdateTemplatePurchaseRequestData = TablesUpdate<"template_purchase_requests">;
 
 export interface TemplatePurchaseRequestWithRelations extends TemplatePurchaseRequest {
-  template?: Template;
-  user?: User;
+  template?: Template | null;
+  template_plan?: TemplatePlan | null;
+  user?: Pick<User, 'id' | 'name' | 'email'> | null;
 }
 
 // Custom Order Management

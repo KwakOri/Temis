@@ -18,16 +18,19 @@ export const useApprovePurchaseRequest = () => {
     mutationFn: ({
       requestId,
       templateId,
-      customerEmail,
+      userId,
+      planId,
     }: {
       requestId: string;
       templateId: string;
-      customerEmail: string;
+      userId: number;
+      planId: string;
     }) =>
       AdminPurchaseService.approvePurchaseRequest(
         requestId,
         templateId,
-        customerEmail
+        userId,
+        planId
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({

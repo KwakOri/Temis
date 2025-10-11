@@ -1,16 +1,21 @@
 import { supabase } from "@/lib/supabase";
 import {
   GrantTemplateAccessData,
-  PurchaseRequestWithTemplate,
   SendAccessGrantedEmailData,
+  TemplatePurchaseRequestWithRelations,
 } from "@/types/admin";
 
 export class AdminPurchaseService {
-  // Purchase Requests (Supabase)
-  static async getPurchaseRequests(): Promise<PurchaseRequestWithTemplate[]> {
+  // Template Purchase Requests (Supabase)
+  static async getPurchaseRequests(): Promise<TemplatePurchaseRequestWithRelations[]> {
     const { data, error } = await supabase
-      .from("purchase_requests")
-      .select("*, template:templates(*)")
+      .from("template_purchase_requests")
+      .select(`
+        *,
+        template:templates(*),
+        template_plan:template_plans(*),
+        user:users(id, name, email)
+      `)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -75,7 +80,7 @@ export class AdminPurchaseService {
     status: string
   ): Promise<void> {
     const { error } = await supabase
-      .from("purchase_requests")
+      .from("template_purchase_requests")
       .update({ status })
       .eq("id", requestId);
 
@@ -109,14 +114,18 @@ export class AdminPurchaseService {
   static async approvePurchaseRequest(
     requestId: string,
     templateId: string,
-    customerEmail: string
+    userId: number,
+    planId?: string
   ): Promise<void> {
-    // 1. 사용자 찾기
-    const user = await this.findUserByEmail(customerEmail);
-    if (!user) {
-      throw new Error(
-        "해당 이메일의 사용자를 찾을 수 없습니다. 사용자가 먼저 회원가입을 해야 합니다."
-      );
+    // 1. 사용자 정보 가져오기
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select("id, name, email")
+      .eq("id", userId)
+      .single();
+
+    if (userError || !user) {
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     // 2. 관리자 ID 찾기
@@ -139,6 +148,7 @@ export class AdminPurchaseService {
         user_id: user.id,
         access_level: "write",
         granted_by: admin.id,
+        template_plan_id: planId, // 플랜 ID 저장
       });
 
     if (accessError) {

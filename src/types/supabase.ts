@@ -578,9 +578,10 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_phone: string | null
+          depositor_name: string | null
           id: string
           message: string | null
-          plan: string
+          plan_id: string | null
           status: string
           template_id: string
           updated_at: string | null
@@ -589,9 +590,10 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_phone?: string | null
+          depositor_name?: string | null
           id?: string
           message?: string | null
-          plan: string
+          plan_id?: string | null
           status?: string
           template_id: string
           updated_at?: string | null
@@ -600,15 +602,23 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_phone?: string | null
+          depositor_name?: string | null
           id?: string
           message?: string | null
-          plan?: string
+          plan_id?: string | null
           status?: string
           template_id?: string
           updated_at?: string | null
           user_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "template_purchase_requests_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "template_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "template_purchase_requests_template_id_fkey"
             columns: ["template_id"]

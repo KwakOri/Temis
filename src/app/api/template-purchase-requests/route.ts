@@ -12,19 +12,19 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = authCheck;
     const body = await request.json();
-    const { template_id, plan, customer_phone, message } = body;
+    const { template_id, plan_id, depositor_name } = body;
 
     // 입력 검증
-    if (!template_id || !plan) {
+    if (!template_id || !plan_id) {
       return NextResponse.json(
         { error: "템플릿 ID와 플랜 선택은 필수입니다." },
         { status: 400 }
       );
     }
 
-    if (!["lite", "pro"].includes(plan)) {
+    if (!depositor_name || depositor_name.trim().length === 0) {
       return NextResponse.json(
-        { error: "유효하지 않은 플랜입니다." },
+        { error: "입금자명은 필수입니다." },
         { status: 400 }
       );
     }
@@ -43,15 +43,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 플랜 존재 확인
+    const { data: plan, error: planError } = await supabase
+      .from("template_plans")
+      .select("id, plan, price")
+      .eq("id", plan_id)
+      .single();
+
+    if (planError || !plan) {
+      return NextResponse.json(
+        { error: "플랜을 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
     // 구매 요청 생성
     const { data: purchaseRequest, error: insertError } = await supabase
       .from("template_purchase_requests")
       .insert({
         template_id,
         user_id: Number(user.userId),
-        plan,
-        customer_phone: customer_phone?.trim() || null,
-        message: message?.trim() || null,
+        plan_id,
+        depositor_name: depositor_name.trim(),
         status: "pending",
       })
       .select()
@@ -95,7 +108,8 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        template:templates(id, name, description, thumbnail_url)
+        template:templates(id, name, description, thumbnail_url),
+        template_plan:template_plans(id, plan, price)
       `
       )
       .eq("user_id", Number(user.userId))

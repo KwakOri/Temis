@@ -14,9 +14,22 @@ export class AdminTemplateService {
   private static baseUrl = "/api/admin";
 
   // Templates
-  static async getTemplates(): Promise<{ templates: TemplateWithShopTemplateAndPlans[] }> {
-    console.log("this.baseUrl => ", this.baseUrl);
-    const response = await fetch(`${this.baseUrl}/templates`);
+  static async getTemplates(params?: { limit?: number; offset?: number }): Promise<{
+    templates: TemplateWithShopTemplateAndPlans[];
+    pagination: {
+      limit: number;
+      offset: number;
+      total: number;
+    };
+  }> {
+    const queryParams = new URLSearchParams();
+    if (params?.limit) queryParams.append("limit", params.limit.toString());
+    if (params?.offset) queryParams.append("offset", params.offset.toString());
+
+    const url = `${this.baseUrl}/templates${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+    console.log("Fetching templates from:", url);
+
+    const response = await fetch(url);
 
     if (!response.ok) {
       throw new Error("템플릿 목록을 가져오는데 실패했습니다.");
