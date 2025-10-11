@@ -2,9 +2,10 @@ import Image from "next/image";
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
@@ -29,12 +30,12 @@ interface StreamingTimeProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   currentTheme?: TTheme;
-  description: string;
+  mainTitle: string;
 }
 
-interface CellTextTopicProps {
+interface CellTextSubTitleProps {
   cellTextTitle: string | null;
 }
 
@@ -87,10 +88,10 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
   );
 };
 
-const CellTextDescription = ({
+const CellTextMainTitle = ({
   currentTheme,
-  description,
-}: CellTextDescriptionProps) => {
+  mainTitle,
+}: CellTextMainTitleProps) => {
   return (
     <div
       style={{
@@ -109,13 +110,13 @@ const CellTextDescription = ({
         maxFontSize={92}
         minFontSize={20}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
   return (
     <p
       style={{
@@ -124,7 +125,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
       }}
       className=" flex justify-center items-center h-[28px] text-[36px] mt-5"
     >
-      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+      {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
     </p>
   );
 };
@@ -223,10 +224,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = primaryEntry.time as string || "09:00";
-  const entryDescription = primaryEntry.description as string || "";
-  const entryTopic = primaryEntry.topic as string || "";
-  const isTogether = !!(primaryEntry.with);
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
+  const isTogether = !!primaryEntry.with;
 
   return (
     <div
@@ -249,8 +250,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         >
           <WeekDay day={time.day} />
           <CellContentArea>
-            <CellTextDescription description={entryDescription} />
-            <CellTextTitle cellTextTitle={entryTopic} />
+            <CellTextMainTitle mainTitle={entryMainTitle} />
+            <CellTextTitle cellTextTitle={entrySubTitle} />
             <StreamingTime time={entryTime} />
           </CellContentArea>
           <OnlineCardBG isTogether={isTogether} />

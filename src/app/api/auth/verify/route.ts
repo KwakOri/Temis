@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyJWT, extractTokenFromRequest, extractTokenFromCookie } from '@/lib/auth';
+import { verifyJWT, extractTokenFromRequest, extractTokenFromCookie } from '@/lib/auth/jwt';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     // Authorization 헤더에 토큰이 없으면 쿠키에서 추출 시도
     if (!token) {
       const cookieHeader = request.headers.get('cookie');
-      token = extractTokenFromCookie(cookieHeader);
+      token = extractTokenFromCookie(cookieHeader, 'token');
     }
 
     if (!token) {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       
       if (!token) {
         const cookieHeader = request.headers.get('cookie');
-        token = extractTokenFromCookie(cookieHeader);
+        token = extractTokenFromCookie(cookieHeader, 'token');
       }
     }
 

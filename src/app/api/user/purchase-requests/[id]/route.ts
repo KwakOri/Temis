@@ -26,10 +26,10 @@ export async function PUT(
 
     // 1. 기존 요청 확인 (사용자 본인의 요청인지, 수정 가능한 상태인지)
     const { data: existingRequest, error: fetchError } = await supabase
-      .from('purchase_requests')
+      .from('template_purchase_requests')
       .select('*')
       .eq('id', id)
-      .eq('customer_email', user.email || '')
+      .eq('user_id', Number(user.userId))
       .single();
 
     if (fetchError || !existingRequest) {
@@ -49,10 +49,9 @@ export async function PUT(
 
     // 3. 요청 수정
     const { data: updatedRequest, error: updateError } = await supabase
-      .from('purchase_requests')
+      .from('template_purchase_requests')
       .update({
-        customer_name: depositor_name,
-        message,
+        depositor_name,
       })
       .eq('id', id)
       .select()
@@ -96,10 +95,10 @@ export async function DELETE(
 
     // 1. 기존 요청 확인 (사용자 본인의 요청인지, 삭제 가능한 상태인지)
     const { data: existingRequest, error: fetchError } = await supabase
-      .from('purchase_requests')
+      .from('template_purchase_requests')
       .select('*')
       .eq('id', id)
-      .eq('customer_email', user.email || '')
+      .eq('user_id', Number(user.userId))
       .single();
 
     if (fetchError || !existingRequest) {
@@ -119,7 +118,7 @@ export async function DELETE(
 
     // 3. 요청 삭제
     const { error: deleteError } = await supabase
-      .from('purchase_requests')
+      .from('template_purchase_requests')
       .delete()
       .eq('id', id);
 

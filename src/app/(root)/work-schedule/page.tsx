@@ -1,70 +1,14 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
-import {
-  AlertCircle,
-  BarChart3,
-  Calendar,
-  CheckCircle,
-  Clock,
-  Flame,
-  Play,
-  Zap,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-
-interface WorkScheduleOrder {
-  id: string;
-  email_prefix: string;
-  deadline: string | null;
-  status: "accepted" | "in_progress";
-  selected_options?: string; // 내부 주문의 경우에만 존재
-  created_at: string;
-  source: "internal" | "legacy";
-}
+import { useWorkSchedule } from "@/hooks/query/useWorkSchedule";
+import { DeadlineStatus, WorkScheduleOrder } from "@/types/workSchedule";
+import { AlertCircle, Calendar, Flame } from "lucide-react";
 
 export default function WorkSchedulePage() {
-  const [orders, setOrders] = useState<WorkScheduleOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"fast" | "normal">("normal");
-
-  // 주문 목록 조회
-  const fetchWorkSchedule = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/work-schedule", {
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders);
-      } else {
-        console.error("Failed to fetch work schedule");
-      }
-    } catch (error) {
-      console.error("Error fetching work schedule:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchWorkSchedule();
-  }, []);
-
-  // 상태별 아이콘
-  const getStatusIcon = (status: string) => {
-    const iconClass = "w-4 h-4";
-    switch (status) {
-      case "accepted":
-        return <CheckCircle className={`${iconClass} text-blue-600`} />;
-      case "in_progress":
-        return <Play className={`${iconClass} text-indigo-600`} />;
-      default:
-        return <Clock className={`${iconClass} text-gray-600`} />;
-    }
-  };
+  // React Query hook
+  const { data, isLoading: loading, error } = useWorkSchedule();
+  const orders = data?.orders || [];
 
   // 상태별 라벨
   const getStatusLabel = (status: string) => {
@@ -93,7 +37,7 @@ export default function WorkSchedulePage() {
   };
 
   // 마감일 상태 확인
-  const getDeadlineStatus = (deadline: string | null) => {
+  const getDeadlineStatus = (deadline: string | null): DeadlineStatus => {
     if (!deadline) return "none";
 
     const deadlineDate = new Date(deadline);
@@ -140,41 +84,21 @@ export default function WorkSchedulePage() {
     }
   };
 
-  // 빠른 마감과 일반 마감으로 분류
-  const fastDeadlineOrders = orders
-    .filter((order) => {
-      // 레거시 주문은 일반 마감에만 표시
-      if (order.source === "legacy") return false;
+  // 모든 주문을 마감일 기준으로 정렬
+  const allOrders = orders.sort((a, b) => {
+    // 마감일이 없는 경우 마지막으로
+    if (!a.deadline && !b.deadline) return 0;
+    if (!a.deadline) return 1;
+    if (!b.deadline) return -1;
 
-      // selected_options에서 "빠른 마감"이 포함된 주문들만 빠른 마감에 표시
-      return order.selected_options?.includes("빠른 마감") || false;
-    })
-    .sort((a, b) => {
-      if (!a.deadline || !b.deadline) return 0;
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-    });
+    // 마감일 기준 오름차순 정렬
+    return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+  });
 
-  const normalDeadlineOrders = orders
-    .filter((order) => {
-      // 레거시 주문은 모두 일반 마감에 표시
-      if (order.source === "legacy") return true;
-
-      // 내부 주문 중에서 "빠른 마감"이 포함되지 않은 주문들
-      return !order.selected_options?.includes("빠른 마감");
-    })
-    .sort((a, b) => {
-      // 마감일이 없는 경우 마지막으로
-      if (!a.deadline && !b.deadline) return 0;
-      if (!a.deadline) return 1;
-      if (!b.deadline) return -1;
-
-      // 마감일 기준 오름차순 정렬
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-    });
-
-  // 현재 활성 탭에 따른 주문 목록
-  const currentOrders =
-    activeTab === "fast" ? fastDeadlineOrders : normalDeadlineOrders;
+  // 빠른 마감 여부 확인 함수
+  const isFastDeadline = (order: WorkScheduleOrder) => {
+    return order.selected_options?.includes("빠른 마감") || false;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -201,55 +125,19 @@ export default function WorkSchedulePage() {
         </div>
       </div>
 
-      {/* 탭 네비게이션 */}
+      {/* 통계 정보 */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab("fast")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === "fast"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-2">
-                <Zap className="w-4 h-4" />
-                <span>빠른 마감 일정</span>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    activeTab === "fast"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {fastDeadlineOrders.length}개
+                <Calendar className="w-5 h-5 text-gray-400" />
+                <span className="text-sm text-gray-600">
+                  전체 {allOrders.length}개 주문
                 </span>
               </div>
-            </button>
-            <button
-              onClick={() => setActiveTab("normal")}
-              className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === "normal"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <div className="flex items-center space-x-2">
-                <BarChart3 className="w-4 h-4" />
-                <span>마감 일정</span>
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    activeTab === "normal"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}
-                >
-                  {normalDeadlineOrders.length}개
-                </span>
-              </div>
-            </button>
-          </nav>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -259,6 +147,18 @@ export default function WorkSchedulePage() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             <p className="ml-4 text-gray-600">작업 예정표를 불러오는 중...</p>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <AlertCircle className="w-24 h-24 mx-auto text-red-300 mb-4" />
+            <h3 className="text-xl font-medium text-gray-900 mb-2">
+              데이터를 불러올 수 없습니다
+            </h3>
+            <p className="text-gray-500">
+              {error instanceof Error
+                ? error.message
+                : "알 수 없는 오류가 발생했습니다."}
+            </p>
           </div>
         ) : orders.length === 0 ? (
           <div className="text-center py-12">
@@ -276,12 +176,10 @@ export default function WorkSchedulePage() {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-200">
                 <h3 className="text-lg font-medium text-gray-900">
-                  {activeTab === "fast" ? "빠른 마감 일정" : "마감 일정"}
+                  전체 작업 일정
                 </h3>
                 <p className="text-sm text-gray-500">
-                  {activeTab === "fast"
-                    ? "'빠른 마감' 옵션이 선택된 주문의 마감 일정입니다"
-                    : "현재 진행중인 마감 일정입니다"}
+                  모든 주문의 마감 일정을 마감 예정일 순으로 정렬하여 표시합니다
                 </p>
               </div>
 
@@ -304,7 +202,7 @@ export default function WorkSchedulePage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentOrders.map((order, index) => (
+                    {allOrders.map((order, index) => (
                       <tr
                         key={order.id}
                         className={`hover:bg-gray-50 transition-colors ${
@@ -318,7 +216,13 @@ export default function WorkSchedulePage() {
                         }`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-medium text-sm">
+                          <span
+                            className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-medium text-sm ${
+                              isFastDeadline(order)
+                                ? "bg-red-100 text-red-600"
+                                : "bg-blue-100 text-blue-600"
+                            }`}
+                          >
                             {index + 1}
                           </span>
                         </td>
@@ -329,7 +233,6 @@ export default function WorkSchedulePage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center space-x-2">
-                            {/* {getStatusIcon(order.status)} */}
                             <span className={getStatusBadge(order.status)}>
                               {getStatusLabel(order.status)}
                             </span>

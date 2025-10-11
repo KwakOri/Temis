@@ -1,7 +1,7 @@
-import { CardInputConfig } from "@/types/time-table/data";
+import { CardInputConfig, TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard, getDefaultCards } from "@/utils/time-table/data";
 import { useCallback, useEffect, useMemo } from "react";
+import { getDefaultCards } from "./data";
 import {
   clearAllTimeTableStorage,
   createAutoSave,
@@ -27,13 +27,13 @@ export const useFormPersistence = (
       theme: defaultTheme,
       cardInputConfig: cardInputConfig,
     });
-    
+
     // 데이터 안전 로드 적용
     const validatedData = timeTableStorage.loadDataSafely(loadedData.data);
-    
+
     return {
       ...loadedData,
-      data: validatedData
+      data: validatedData,
     };
   }, [cardInputConfig, defaultTheme]);
 
@@ -139,7 +139,7 @@ export const useAutoSavePersistence = (
  * CardInputConfig와 defaultTheme을 받아서 useFormPersistence를 사용합니다.
  */
 export const useBeforeUnloadSave = (
-  data: TDefaultCard[], 
+  data: TDefaultCard[],
   theme: TTheme,
   cardInputConfig: CardInputConfig,
   defaultTheme: TTheme

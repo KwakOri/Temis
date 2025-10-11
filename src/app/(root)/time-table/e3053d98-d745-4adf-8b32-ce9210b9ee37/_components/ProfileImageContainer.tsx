@@ -70,7 +70,6 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
             <AutoResizeText
               style={{}}
               className="text-center"
-              padding={{}}
               maxFontSize={profileTextInfo.font.maxSize}
               minFontSize={profileTextInfo.font.minSize}
             >

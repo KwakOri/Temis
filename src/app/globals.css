@@ -121,12 +121,13 @@ body {
 
 /* 모바일 최적화 */
 @media (max-width: 768px) {
-  html, body {
+  html,
+  body {
     overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
-  
+
   /* 터치 스크롤 개선 */
   * {
     -webkit-overflow-scrolling: touch;

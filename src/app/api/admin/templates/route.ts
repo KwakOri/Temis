@@ -15,13 +15,23 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
 
+    // 전체 템플릿 개수 조회
+    const { count: totalCount, error: countError } = await supabase
+      .from("templates")
+      .select("*", { count: "exact", head: true });
+
+    if (countError) {
+      console.error("Supabase count error:", countError);
+      throw countError;
+    }
+
     // 모든 템플릿 조회 (관리자는 모든 템플릿 볼 수 있음)
     const { data: templates, error } = await supabase
       .from("templates")
       .select(
         `
         *,
-        template_products (*)
+        shop_templates (*)
       `
       )
       .range(offset, offset + limit - 1)
@@ -38,7 +48,7 @@ export async function GET(request: NextRequest) {
       pagination: {
         limit,
         offset,
-        total: templates?.length || 0,
+        total: totalCount || 0,
       },
     });
   } catch (error) {

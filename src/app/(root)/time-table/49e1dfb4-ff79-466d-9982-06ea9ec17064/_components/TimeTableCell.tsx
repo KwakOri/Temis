@@ -1,10 +1,10 @@
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TEntry } from "@/types/time-table/data";
+import { TDefaultCard, TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
@@ -30,13 +30,13 @@ interface DateTextProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   isMultiple?: boolean;
   currentTheme?: TTheme;
-  description: string;
+  mainTitle: string;
 }
 
-interface CellTextTopicProps {
+interface CellTextSubTitleProps {
   text: string | null;
 }
 
@@ -128,11 +128,11 @@ const StreamingTime = ({
   );
 };
 
-const CellTextDescription = ({
+const CellTextMainTitle = ({
   isMultiple,
   currentTheme,
-  description,
-}: CellTextDescriptionProps) => {
+  mainTitle,
+}: CellTextMainTitleProps) => {
   return isMultiple ? (
     <div
       style={{
@@ -144,14 +144,14 @@ const CellTextDescription = ({
       <AutoResizeText
         style={{
           fontFamily: fontOption.secondary,
-          color: Settings.card.online.description.fontColor,
+          color: Settings.card.online.mainTitle.fontColor,
           lineHeight: 0.9,
         }}
         className="leading-none text-left w-full"
         multiline={true}
         maxFontSize={64}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   ) : (
@@ -165,31 +165,31 @@ const CellTextDescription = ({
       <AutoResizeText
         style={{
           fontFamily: fontOption.secondary,
-          color: Settings.card.online.description.fontColor,
+          color: Settings.card.online.mainTitle.fontColor,
           lineHeight: 0.9,
         }}
         className="leading-none text-left w-full"
         multiline={true}
         maxFontSize={76}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextTitle = ({ text }: CellTextTopicProps) => {
+const CellTextSubTitle = ({ text }: CellTextSubTitleProps) => {
   return (
     <p
       style={{
-        color: Settings.card.online.topic.fontColor,
-        fontSize: Settings.card.online.topic.fontSize,
+        color: Settings.card.online.subTitle.fontColor,
+        fontSize: Settings.card.online.subTitle.fontSize,
         lineHeight: 1.1,
         fontWeight: 700,
       }}
       className=" flex justify-start items-center pt-1"
     >
-      {text ? (text as string) : placeholders.topic}
+      {text ? (text as string) : placeholders.subTitle}
     </p>
   );
 };
@@ -248,7 +248,7 @@ const OfflineCard = ({ day, currentTheme, offlineMemo }: OfflineCardProps) => {
             multiline
             maxFontSize={80}
           >
-            {offlineMemo ? (offlineMemo as string) : placeholders.description}
+            {offlineMemo ? (offlineMemo as string) : placeholders.mainTitle}
           </AutoResizeText>
         </div>
       )}
@@ -346,10 +346,10 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
           className="w-full h-full mt-44 px-14 pt-4"
           style={{ width: 568, height: 240 }}
         >
-          <CellTextTitle text={entries[0].topic as string} />
-          <CellTextDescription
+          <CellTextSubTitle text={entries[0].subTitle as string} />
+          <CellTextMainTitle
             isMultiple={isMultiple}
-            description={entries[0].description as string}
+            mainTitle={entries[0].mainTitle as string}
           />
         </div>
         <StreamingTime time={entries[0].time as string} />
@@ -367,15 +367,15 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
             key={day + "-" + i}
             style={{ height: 188, width: "100%" }}
           >
-            <CellTextDescription
+            <CellTextMainTitle
               isMultiple={isMultiple}
-              description={entry.description as string}
+              mainTitle={entry.mainTitle as string}
             />
             <StreamingTime
               isMultiple={isMultiple}
               time={entry.time as string}
             />
-            {/* <CellTextTitle text={entry.topic as string} /> */}
+            {/* <CellTextSubTitle text={entry.subTitle as string} /> */}
           </div>
         );
       })}

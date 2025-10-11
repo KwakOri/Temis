@@ -1,15 +1,18 @@
-'use client';
+"use client";
 
-import { useAuth } from '@/contexts/AuthContext';
-import { useRouter, usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useAuth } from "@/contexts/AuthContext";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }
 
-export default function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
+export default function ProtectedRoute({
+  children,
+  fallback,
+}: ProtectedRouteProps) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();

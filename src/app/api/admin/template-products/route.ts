@@ -17,9 +17,12 @@ export async function POST(request: NextRequest) {
       price,
       features,
       requirements,
-      delivery_time,
       purchase_instructions,
-      sample_images,
+      is_artist,
+      is_memo,
+      is_multi_schedule,
+      is_guerrilla,
+      is_offline_memo,
     } = body;
 
     // 입력 검증
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 이미 상품이 등록되어 있는지 확인
+    // 동일한 템플릿에 대한 상품이 이미 등록되어 있는지 확인
     const { data: existingProduct, error: checkError } = await supabase
       .from("template_products")
       .select("id")
@@ -72,7 +75,9 @@ export async function POST(request: NextRequest) {
 
     if (existingProduct) {
       return NextResponse.json(
-        { error: "이미 상품이 등록된 템플릿입니다." },
+        {
+          error: "이미 이 템플릿에 대한 상품이 등록되어 있습니다.",
+        },
         { status: 409 }
       );
     }
@@ -86,9 +91,12 @@ export async function POST(request: NextRequest) {
         price: parseInt(price),
         features: features || [],
         requirements: requirements?.trim() || null,
-        delivery_time: delivery_time ? parseInt(delivery_time) : null,
         purchase_instructions: purchase_instructions?.trim() || null,
-        sample_images: sample_images || [],
+        is_artist: is_artist || false,
+        is_memo: is_memo || false,
+        is_multi_schedule: is_multi_schedule || false,
+        is_guerrilla: is_guerrilla || false,
+        is_offline_memo: is_offline_memo || false,
       })
       .select()
       .single();

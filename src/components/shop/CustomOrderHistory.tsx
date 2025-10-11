@@ -1,71 +1,33 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useCustomOrderHistory } from "@/hooks/query/useCustomOrder";
+import { CustomOrderWithStatus } from "@/types/customOrder";
 import {
   AlertCircle,
   CheckCircle,
   Clock,
   Edit,
+  Eye,
   Trash2,
   XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-
-// 주문 이력 조회 시 사용하는 완전한 데이터 (상태 정보 포함)
-interface CustomOrderWithStatus {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
-  price_quoted?: number;
-  depositor_name?: string;
-  admin_notes?: string;
-  created_at: string;
-  updated_at: string;
-}
 
 interface CustomOrderHistoryProps {
   onEditOrder: (order: CustomOrderWithStatus) => void;
   onCancelOrder: (orderId: string) => void;
+  onViewDetails: (order: CustomOrderWithStatus) => void;
 }
 
 export default function CustomOrderHistory({
   onEditOrder,
   onCancelOrder,
+  onViewDetails,
 }: CustomOrderHistoryProps) {
   const { user } = useAuth();
-  const [orders, setOrders] = useState<CustomOrderWithStatus[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading: loading, error } = useCustomOrderHistory();
 
-  useEffect(() => {
-    if (user) {
-      fetchOrders();
-    }
-  }, [user]);
-
-  const fetchOrders = async () => {
-    try {
-      const response = await fetch("/api/shop/custom-order", {
-        credentials: "include",
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setOrders(result.orders || []);
-      } else {
-        console.error("Failed to fetch custom orders");
-      }
-    } catch (error) {
-      console.error("Error fetching custom orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const orders = data?.orders || [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -134,6 +96,17 @@ export default function CustomOrderHistory({
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1e3a8a]"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-4">커스텀 주문 내역을 불러올 수 없습니다.</p>
+        <p className="text-slate-500">
+          {error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다."}
+        </p>
       </div>
     );
   }
@@ -274,9 +247,19 @@ export default function CustomOrderHistory({
                     </div>
                   )}
 
-                  {/* 수정/취소 버튼 (pending, accepted 상태에서만 표시) */}
-                  {(order.status === "pending" || order.status === "accepted") && (
-                    <div className="flex gap-2 pt-3 border-t border-slate-100">
+                  {/* 액션 버튼들 */}
+                  <div className="flex gap-2 pt-3 border-t border-slate-100">
+                    {/* 상세보기 버튼 (모든 상태에서 표시) */}
+                    <button
+                      onClick={() => onViewDetails(order)}
+                      className="flex items-center px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
+                      <Eye className="h-3 w-3 mr-1" />
+                      상세보기
+                    </button>
+
+                    {/* 수정 버튼 (pending, accepted, in_progress 상태에서 표시) */}
+                    {(order.status === "pending" || order.status === "accepted" || order.status === "in_progress") && (
                       <button
                         onClick={() => onEditOrder(order)}
                         className="flex items-center px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
@@ -284,6 +267,10 @@ export default function CustomOrderHistory({
                         <Edit className="h-3 w-3 mr-1" />
                         수정
                       </button>
+                    )}
+
+                    {/* 취소 버튼 (pending 상태에서만 표시) */}
+                    {order.status === "pending" && (
                       <button
                         onClick={() => onCancelOrder(order.id)}
                         className="flex items-center px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
@@ -291,8 +278,8 @@ export default function CustomOrderHistory({
                         <Trash2 className="h-3 w-3 mr-1" />
                         취소
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -1,31 +1,18 @@
 import { supabase } from "@/lib/supabase";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { getCurrentUserId } from "@/lib/auth/jwt";
+import { NextRequest, NextResponse } from "next/server";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JWTPayload {
-  userId: string;
-  email: string;
-  name: string;
-}
-
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     // JWT 토큰에서 사용자 정보 추출
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
+    const userId = await getCurrentUserId(request);
 
-    if (!token) {
+    if (!userId) {
       return NextResponse.json(
         { error: "로그인이 필요합니다." },
         { status: 401 }
       );
     }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    const userId = parseInt(decoded.userId, 10);
 
     // 요청 본문 파싱
     const body = await request.json();
@@ -42,6 +29,7 @@ export async function POST(request: Request) {
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
+      externalContract,
       depositorName,
     } = body;
 
@@ -66,6 +54,7 @@ export async function POST(request: Request) {
     if (fastDelivery) selectedOptions.push("빠른 마감");
     if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
     if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
+    if (externalContract) selectedOptions.push("외부 계약");
 
     // 데이터베이스에 주문 정보 저장
     const { data: order, error } = await supabase
@@ -191,20 +180,16 @@ export async function POST(request: Request) {
 }
 
 // 사용자의 커스텀 주문 내역 조회
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
+    const userId = await getCurrentUserId(request);
 
-    if (!token) {
+    if (!userId) {
       return NextResponse.json(
         { error: "로그인이 필요합니다." },
         { status: 401 }
       );
     }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    const userId = parseInt(decoded.userId, 10);
 
     const { data: orders, error } = await supabase
       .from("custom_timetable_orders")
@@ -231,20 +216,16 @@ export async function GET(request: Request) {
 }
 
 // 주문 수정 (pending 상태에서만 가능)
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
+    const userId = await getCurrentUserId(request);
 
-    if (!token) {
+    if (!userId) {
       return NextResponse.json(
         { error: "로그인이 필요합니다." },
         { status: 401 }
       );
     }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    const userId = parseInt(decoded.userId, 10);
 
     const body = await request.json();
     const {
@@ -259,6 +240,7 @@ export async function PUT(request: Request) {
       fastDelivery,
       portfolioPrivate,
       reviewEvent,
+      externalContract,
       depositorName,
     } = body;
 
@@ -290,6 +272,7 @@ export async function PUT(request: Request) {
     if (fastDelivery) selectedOptions.push("빠른 마감");
     if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
     if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
+    if (externalContract) selectedOptions.push("외부 계약");
 
     // 주문 업데이트
     const { data: updatedOrder, error: updateError } = await supabase
@@ -335,20 +318,16 @@ export async function PUT(request: Request) {
 }
 
 // 주문 취소 (pending 상태에서만 가능)
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
+    const userId = await getCurrentUserId(request);
 
-    if (!token) {
+    if (!userId) {
       return NextResponse.json(
         { error: "로그인이 필요합니다." },
         { status: 401 }
       );
     }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
-    const userId = parseInt(decoded.userId, 10);
 
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("orderId");

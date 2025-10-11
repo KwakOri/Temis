@@ -3,6 +3,14 @@
 import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
 import { useAuth } from "@/contexts/AuthContext";
 import {
+  useDeleteFiles,
+  useFilesByOrderId,
+  useUploadFiles,
+} from "@/hooks/query/useFiles";
+import { usePricingSettings } from "@/hooks/query/usePricing";
+import { CustomOrderData, CustomOrderFormData } from "@/types/customOrder";
+import { FileApiResponse } from "@/types/file";
+import {
   AlertTriangle,
   Calculator,
   CreditCard,
@@ -11,18 +19,6 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-
-// API 응답에서 받는 파일 데이터 타입 (DB + 동적 URL 포함)
-interface FileApiResponse {
-  id: string;
-  file_key: string;
-  original_name: string;
-  file_size: number;
-  mime_type: string;
-  file_category: string;
-  created_at: string;
-  url: string; // API에서 동적으로 추가된 필드
-}
 
 interface Step1Data {
   youtubeSnsAddress: string;
@@ -44,49 +40,14 @@ interface Step3Data {
   fastDelivery: boolean;
   portfolioPrivate: boolean;
   reviewEvent: boolean;
+  externalContract: boolean;
   priceQuoted: number;
   depositorName: string;
 }
 
-// admin_settings 테이블의 setting_value에 저장되는 가격 설정 타입
-interface PricingSettings {
-  base_price: number;
-  fast_delivery: {
-    price: number;
-    enabled: boolean;
-    description: string;
-  };
-  portfolio_private: {
-    price: number;
-    enabled: boolean;
-    description: string;
-  };
-  review_event: {
-    discount: number;
-    enabled: boolean;
-    description: string;
-  };
-}
-
-type CustomFormData = Step1Data & Step2Data & Step3Data & { orderId?: string };
-
-// 주문 생성/수정 시 사용하는 기본 데이터 (상태 정보 없음)
-interface CustomOrderData {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  price_quoted: number;
-  depositor_name: string;
-}
-
 interface CustomOrderFormProps {
   onClose: () => void;
-  onSubmit: (formData: CustomFormData) => Promise<void>;
+  onSubmit: (formData: CustomOrderFormData) => Promise<void>;
   existingOrder?: CustomOrderData; // 수정 모드일 때 기존 주문 데이터
   isEditMode?: boolean; // 수정 모드 여부
 }
@@ -100,10 +61,16 @@ export default function CustomOrderForm({
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const [pricingSettings, setPricingSettings] =
-    useState<PricingSettings | null>(null);
-  const [loadingPricing, setLoadingPricing] = useState(true);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  // React Query hooks
+  const { data: pricingSettings, isLoading: loadingPricing } =
+    usePricingSettings();
+  const { data: existingFilesData } = useFilesByOrderId(
+    isEditMode ? existingOrder?.id : undefined
+  );
+  const uploadFilesMutation = useUploadFiles();
+  const deleteFilesMutation = useDeleteFiles();
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
     youtubeSnsAddress: existingOrder?.youtube_sns_address || "",
@@ -128,127 +95,71 @@ export default function CustomOrderForm({
       existingOrder?.selected_options?.includes("포트폴리오 비공개") || false,
     reviewEvent:
       existingOrder?.selected_options?.includes("후기 이벤트 참여") || false,
+    externalContract:
+      existingOrder?.selected_options?.includes("외부 계약") || false,
     priceQuoted: existingOrder?.price_quoted || 80000,
     depositorName: existingOrder?.depositor_name || "",
   });
 
   // 수정 모드일 때 기존 파일들 로드
   useEffect(() => {
-    const loadExistingFiles = async () => {
-      if (!isEditMode || !existingOrder) return;
+    if (!isEditMode || !existingOrder || !existingFilesData) return;
 
-      try {
-        // 주문에 연결된 모든 파일들 로드
-        const response = await fetch(
-          `/api/files/by-order/${existingOrder.id}`,
-          {
-            method: "GET",
-            credentials: "include",
-          }
-        );
+    // 파일 카테고리별로 분류
+    const characterImageFiles = existingFilesData.files
+      .filter(
+        (file: FileApiResponse) => file.file_category === "character_image"
+      )
+      .map((file: FileApiResponse) => ({
+        id: file.id,
+        file: null, // 수정 모드에서는 실제 File 객체가 없음
+        url: file.url,
+        mime_type: file.mime_type,
+        original_name: file.original_name,
+        file_size: file.file_size,
+      }));
 
-        if (response.ok) {
-          const result = await response.json();
+    const referenceFiles = existingFilesData.files
+      .filter((file: FileApiResponse) => file.file_category === "reference")
+      .map((file: FileApiResponse) => ({
+        id: file.id,
+        file: null, // 수정 모드에서는 실제 File 객체가 없음
+        url: file.url,
+        mime_type: file.mime_type,
+        original_name: file.original_name,
+        file_size: file.file_size,
+      }));
 
-          // 파일 카테고리별로 분류
-          const characterImageFiles = result.files
-            .filter(
-              (file: FileApiResponse) =>
-                file.file_category === "character_image"
-            )
-            .map((file: FileApiResponse) => ({
-              id: file.id,
-              file: null, // 수정 모드에서는 실제 File 객체가 없음
-              url: file.url,
-              mime_type: file.mime_type,
-              original_name: file.original_name,
-              file_size: file.file_size,
-            }));
+    setStep2Data((prev) => ({
+      ...prev,
+      characterImageFiles,
+      referenceFiles,
+      characterImageFileIds: characterImageFiles.map(
+        (f: FilePreviewItem) => f.id
+      ),
+      referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
+    }));
+  }, [isEditMode, existingOrder, existingFilesData]);
 
-          const referenceFiles = result.files
-            .filter(
-              (file: FileApiResponse) => file.file_category === "reference"
-            )
-            .map((file: FileApiResponse) => ({
-              id: file.id,
-              file: null, // 수정 모드에서는 실제 File 객체가 없음
-              url: file.url,
-              mime_type: file.mime_type,
-              original_name: file.original_name,
-              file_size: file.file_size,
-            }));
-
-          setStep2Data((prev) => ({
-            ...prev,
-            characterImageFiles,
-            referenceFiles,
-            characterImageFileIds: characterImageFiles.map(
-              (f: FilePreviewItem) => f.id
-            ),
-            referenceFileIds: referenceFiles.map((f: FilePreviewItem) => f.id),
-          }));
-        } else {
-          console.error("❌ [Form] Failed to load files:", response.statusText);
-        }
-      } catch (error) {
-        console.error("❌ [Form] Failed to load existing files:", error);
-      }
-    };
-
-    loadExistingFiles();
-  }, [isEditMode, existingOrder]);
-
-  // 가격 설정 로드
+  // 가격 설정이 로드되면 기본 가격 설정
   useEffect(() => {
-    const fetchPricingSettings = async () => {
-      try {
-        const response = await fetch(
-          "/api/admin/settings?key=custom_order_pricing",
-          {
-            credentials: "include",
-          }
-        );
-        if (response.ok) {
-          const result = await response.json();
-          setPricingSettings(result.setting.setting_value);
-          setStep3Data((prev) => ({
-            ...prev,
-            priceQuoted: result.setting.setting_value.base_price,
-          }));
-        }
-      } catch (error) {
-        console.error("Failed to fetch pricing settings:", error);
-        // 기본값으로 폴백
-        const defaultSettings: PricingSettings = {
-          base_price: 80000,
-          fast_delivery: {
-            price: 30000,
-            enabled: true,
-            description: "빠른 마감",
-          },
-          portfolio_private: {
-            price: 10000,
-            enabled: true,
-            description: "포트폴리오 비공개",
-          },
-          review_event: {
-            discount: 10000,
-            enabled: true,
-            description: "후기 이벤트 참여",
-          },
-        };
-        setPricingSettings(defaultSettings);
-      } finally {
-        setLoadingPricing(false);
-      }
-    };
-
-    fetchPricingSettings();
-  }, []);
+    if (pricingSettings && !existingOrder) {
+      setStep3Data((prev) => ({
+        ...prev,
+        priceQuoted: pricingSettings.base_price,
+      }));
+    }
+  }, [pricingSettings, existingOrder]);
 
   // 가격 계산
   useEffect(() => {
     if (!pricingSettings) return;
+
+    // 외부 계약일 경우 가격은 0원
+    if (step3Data.externalContract) {
+      setStep3Data((prev) => ({ ...prev, priceQuoted: 0 }));
+      return;
+    }
 
     let total = pricingSettings.base_price;
 
@@ -269,6 +180,7 @@ export default function CustomOrderForm({
     step3Data.fastDelivery,
     step3Data.portfolioPrivate,
     step3Data.reviewEvent,
+    step3Data.externalContract,
     pricingSettings,
   ]);
 
@@ -307,7 +219,7 @@ export default function CustomOrderForm({
 
     setSubmitting(true);
     try {
-      const formData: CustomFormData = {
+      const formData: CustomOrderFormData = {
         ...step1Data,
         ...step2Data,
         ...step3Data,
@@ -344,23 +256,10 @@ export default function CustomOrderForm({
 
     setUploadingFiles(true);
     try {
-      const formData = new FormData();
-      Array.from(files).forEach((file) => {
-        formData.append("files", file);
+      const result = await uploadFilesMutation.mutateAsync({
+        files: Array.from(files),
+        type: "character-images",
       });
-      formData.append("type", "character-images");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "업로드에 실패했습니다.");
-      }
-
-      const result = await response.json();
 
       // FilePreviewItem 형식으로 변환
       const newFileItems: FilePreviewItem[] = Array.from(files).map(
@@ -376,7 +275,7 @@ export default function CustomOrderForm({
         characterImageFiles: [...prev.characterImageFiles, ...newFileItems],
         characterImageFileIds: [
           ...prev.characterImageFileIds,
-          ...result.files.map((file: { id: string; url: string }) => file.id),
+          ...result.files.map((file) => file.id),
         ],
       }));
     } catch (error) {
@@ -407,23 +306,10 @@ export default function CustomOrderForm({
 
     setUploadingFiles(true);
     try {
-      const formData = new FormData();
-      Array.from(files).forEach((file) => {
-        formData.append("files", file);
+      const result = await uploadFilesMutation.mutateAsync({
+        files: Array.from(files),
+        type: "reference-files",
       });
-      formData.append("type", "reference-files");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "업로드에 실패했습니다.");
-      }
-
-      const result = await response.json();
 
       // FilePreviewItem 형식으로 변환
       const newFileItems: FilePreviewItem[] = Array.from(files).map(
@@ -439,7 +325,7 @@ export default function CustomOrderForm({
         referenceFiles: [...prev.referenceFiles, ...newFileItems],
         referenceFileIds: [
           ...prev.referenceFileIds,
-          ...result.files.map((file: { id: string; url: string }) => file.id),
+          ...result.files.map((file) => file.id),
         ],
       }));
     } catch (error) {
@@ -455,21 +341,9 @@ export default function CustomOrderForm({
   // 캐릭터 이미지 파일 삭제
   const handleRemoveCharacterImage = async (fileId: string) => {
     try {
-      // API 호출하여 서버에서 파일 삭제
-      const response = await fetch("/api/upload", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileIds: [fileId] }),
-      });
+      await deleteFilesMutation.mutateAsync([fileId]);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "파일 삭제에 실패했습니다.");
-      }
-
-      // 로컬 상태에서 파일 제
+      // 로컬 상태에서 파일 제거
       setStep2Data((prev) => ({
         ...prev,
         characterImageFiles: prev.characterImageFiles.filter(
@@ -490,19 +364,7 @@ export default function CustomOrderForm({
   // 참고 파일 삭제
   const handleRemoveReferenceFile = async (fileId: string) => {
     try {
-      // API 호출하여 서버에서 파일 삭제
-      const response = await fetch("/api/upload", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fileIds: [fileId] }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "파일 삭제에 실패했습니다.");
-      }
+      await deleteFilesMutation.mutateAsync([fileId]);
 
       // 로컬 상태에서 파일 제거
       setStep2Data((prev) => ({
@@ -521,7 +383,7 @@ export default function CustomOrderForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden sm:bg-black sm:bg-opacity-50 sm:flex sm:items-center sm:justify-center sm:p-4 sm:overflow-y-auto">
+    <div className="fixed inset-0 z-50 overflow-hidden sm:bg-black/50 sm:backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:p-4 sm:overflow-y-auto">
       <div className="bg-white h-full w-full overflow-y-auto sm:rounded-2xl sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto">
         {/* 헤더 */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:rounded-t-2xl z-10">
@@ -600,16 +462,16 @@ export default function CustomOrderForm({
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h3 className="font-medium text-[#1e3a8a] mb-2 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
-                  TEMIS 샘플 커미션 예약 안내
+                  TEMIS 시간표 커미션 예약 안내
                 </h3>
                 <div className="text-sm text-slate-700 space-y-1">
                   <p>
-                    시간표 제작의 기본 단가는 <strong>8만원</strong>입니다.
+                    기본적인 진행 방법은 레퍼런스 확인 → 디자인 → 디자인
+                    수정(기본 3회) → 웹 제작 → 완성 입니다!
                   </p>
-                  <p>
-                    후기 작성 이벤트 참여시 <strong>1만원 할인</strong> 됩니다.
-                  </p>
-                  <p>업글이 완료 되어야 작업이 착수 됩니다.</p>
+                  <p>작업 시작 후 약 2주 뒤, 정상 기준 3~4주가 소요됩니다.</p>
+                  <p>{`자세한 작업 일정은 "작업 일정표"에서 확인하실 수 있습니다.`}</p>
+                  <p>입금 완료 확인 후에 작업이 접수됩니다.</p>
                   <p>
                     커뮤 연락 디스코드의 경우 <strong>사악이 evilsnake_</strong>
                     로 친추 드리고 있습니다.
@@ -678,17 +540,10 @@ export default function CustomOrderForm({
                 </h3>
                 <div className="text-sm space-y-1">
                   <p>
-                    기본적인 진행 방법은 레퍼런스 확인 → 디자인 → 디자인
-                    수정(기본 3회) → 웹 제작 → 완성 입니다!
-                  </p>
-                  <p>
-                    작업 시간 약 2주 뒤 배달될 것, 정상 기준 3~4주가 소요됩니다.
-                  </p>
-                  <p>
                     원하는 디자인이 명확하지 않으신 분은 오마카세 요청을
                     추천드립니다!
                   </p>
-                  <p>(디자인이 대부분 1주 사이로 나갑니다.)</p>
+                  <p>(디자인은 대부분 작업 시작 이후 1주 사이로 나갑니다.)</p>
                   <p>
                     단, 오마카세 요청시 <strong>1회만 수정</strong>의 기준
                     합니다 (다 다시 만들어 달라는 수정은 불가능)
@@ -931,30 +786,55 @@ export default function CustomOrderForm({
                   <div className="space-y-3">
                     {/* 빠른 마감 옵션 */}
                     {pricingSettings?.fast_delivery.enabled && (
-                      <label className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                      <label
+                        className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                          step3Data.externalContract
+                            ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                            : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
                         <div className="flex items-center">
                           <input
                             type="checkbox"
                             checked={step3Data.fastDelivery}
+                            disabled={step3Data.externalContract}
                             onChange={(e) =>
                               setStep3Data((prev) => ({
                                 ...prev,
                                 fastDelivery: e.target.checked,
                               }))
                             }
-                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded"
+                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className="font-medium text-slate-900">
+                            <div
+                              className={`font-medium ${
+                                step3Data.externalContract
+                                  ? "text-slate-400"
+                                  : "text-slate-900"
+                              }`}
+                            >
                               {pricingSettings.fast_delivery.description}
                             </div>
-                            <div className="text-sm text-slate-600">
+                            <div
+                              className={`text-sm ${
+                                step3Data.externalContract
+                                  ? "text-slate-300"
+                                  : "text-slate-600"
+                              }`}
+                            >
                               <p>맨 앞 순서로 작업을 진행합니다</p>
                               <p>일주일 안에 완성됩니다</p>
                             </div>
                           </div>
                         </div>
-                        <span className="font-bold text-[#1e3a8a]">
+                        <span
+                          className={`font-bold ${
+                            step3Data.externalContract
+                              ? "text-slate-400"
+                              : "text-[#1e3a8a]"
+                          }`}
+                        >
                           +₩
                           {pricingSettings.fast_delivery.price.toLocaleString()}
                         </span>
@@ -963,29 +843,54 @@ export default function CustomOrderForm({
 
                     {/* 포트폴리오 비공개 옵션 */}
                     {pricingSettings?.portfolio_private.enabled && (
-                      <label className="flex items-center justify-between p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                      <label
+                        className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                          step3Data.externalContract
+                            ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                            : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
                         <div className="flex items-center">
                           <input
                             type="checkbox"
                             checked={step3Data.portfolioPrivate}
+                            disabled={step3Data.externalContract}
                             onChange={(e) =>
                               setStep3Data((prev) => ({
                                 ...prev,
                                 portfolioPrivate: e.target.checked,
                               }))
                             }
-                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded"
+                            className="mr-3 h-4 w-4 text-[#1e3a8a] focus:ring-[#1e3a8a] border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className="font-medium text-slate-900">
+                            <div
+                              className={`font-medium ${
+                                step3Data.externalContract
+                                  ? "text-slate-400"
+                                  : "text-slate-900"
+                              }`}
+                            >
                               {pricingSettings.portfolio_private.description}
                             </div>
-                            <div className="text-sm text-slate-600">
+                            <div
+                              className={`text-sm ${
+                                step3Data.externalContract
+                                  ? "text-slate-300"
+                                  : "text-slate-600"
+                              }`}
+                            >
                               포트폴리오에 공개하지 않습니다
                             </div>
                           </div>
                         </div>
-                        <span className="font-bold text-[#1e3a8a]">
+                        <span
+                          className={`font-bold ${
+                            step3Data.externalContract
+                              ? "text-slate-400"
+                              : "text-[#1e3a8a]"
+                          }`}
+                        >
                           +₩
                           {pricingSettings.portfolio_private.price.toLocaleString()}
                         </span>
@@ -994,34 +899,94 @@ export default function CustomOrderForm({
 
                     {/* 후기 이벤트 참여 옵션 */}
                     {pricingSettings?.review_event.enabled && (
-                      <label className="flex items-center justify-between p-4 border border-green-200 rounded-lg hover:bg-green-50 cursor-pointer bg-green-25">
+                      <label
+                        className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                          step3Data.externalContract
+                            ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                            : "border-green-200 hover:bg-green-50 bg-green-25"
+                        }`}
+                      >
                         <div className="flex items-center">
                           <input
                             type="checkbox"
                             checked={step3Data.reviewEvent}
+                            disabled={step3Data.externalContract}
                             onChange={(e) =>
                               setStep3Data((prev) => ({
                                 ...prev,
                                 reviewEvent: e.target.checked,
                               }))
                             }
-                            className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-slate-300 rounded"
+                            className="mr-3 h-4 w-4 text-green-600 focus:ring-green-500 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           <div>
-                            <div className="font-medium text-green-800">
+                            <div
+                              className={`font-medium ${
+                                step3Data.externalContract
+                                  ? "text-slate-400"
+                                  : "text-green-800"
+                              }`}
+                            >
                               {pricingSettings.review_event.description}
                             </div>
-                            <div className="text-sm text-green-600">
+                            <div
+                              className={`text-sm ${
+                                step3Data.externalContract
+                                  ? "text-slate-300"
+                                  : "text-green-600"
+                              }`}
+                            >
                               SNS에 후기를 작성해주시면 할인됩니다
                             </div>
                           </div>
                         </div>
-                        <span className="font-bold text-green-600">
+                        <span
+                          className={`font-bold ${
+                            step3Data.externalContract
+                              ? "text-slate-400"
+                              : "text-green-600"
+                          }`}
+                        >
                           -₩
                           {pricingSettings.review_event.discount.toLocaleString()}
                         </span>
                       </label>
                     )}
+
+                    {/* 외부 계약 옵션 */}
+                    <label className="flex items-center justify-between p-4 border border-purple-200 rounded-lg hover:bg-purple-50 cursor-pointer bg-purple-25">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={step3Data.externalContract}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              externalContract: isChecked,
+                              // 외부 계약 선택 시 다른 옵션들 해제
+                              ...(isChecked && {
+                                fastDelivery: false,
+                                portfolioPrivate: false,
+                                reviewEvent: false,
+                              }),
+                            }));
+                          }}
+                          className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300 rounded"
+                        />
+                        <div>
+                          <div className="font-medium text-purple-800">
+                            외부 계약
+                          </div>
+                          <div className="text-sm text-purple-600">
+                            외부에서 별도로 계약한 경우 선택해주세요
+                          </div>
+                        </div>
+                      </div>
+                      <span className="font-bold text-purple-600">
+                        별도 협의
+                      </span>
+                    </label>
                   </div>
 
                   {/* 총 금액 표시 */}
@@ -1029,7 +994,9 @@ export default function CustomOrderForm({
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-medium">총 결제 금액</span>
                       <span className="text-2xl font-bold">
-                        ₩{step3Data.priceQuoted.toLocaleString()}
+                        {step3Data.externalContract
+                          ? "별도 협의"
+                          : `₩${step3Data.priceQuoted.toLocaleString()}`}
                       </span>
                     </div>
                   </div>
@@ -1069,7 +1036,10 @@ export default function CustomOrderForm({
                   <p>• 계좌번호: 1000-7564-4995</p>
                   <p>• 예금주: 이세영</p>
                   <p>
-                    • 총 결제 금액: ₩{step3Data.priceQuoted.toLocaleString()}
+                    • 총 결제 금액:{" "}
+                    {step3Data.externalContract
+                      ? "별도 협의"
+                      : `₩${step3Data.priceQuoted.toLocaleString()}`}
                   </p>
                 </div>
               </div>

@@ -1,0 +1,2 @@
+# Exclude incomplete team template from builds
+src/app/(root)/time-table/_team_template/

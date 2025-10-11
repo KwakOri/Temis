@@ -47,53 +47,6 @@ export type Database = {
         }
         Relationships: []
       }
-      broadcast_schedules: {
-        Row: {
-          created_at: string | null
-          day_of_week: number
-          description: string | null
-          id: string
-          is_active: boolean | null
-          schedule_date: string
-          start_time: string
-          title: string | null
-          updated_at: string | null
-          user_id: number
-        }
-        Insert: {
-          created_at?: string | null
-          day_of_week: number
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          schedule_date: string
-          start_time: string
-          title?: string | null
-          updated_at?: string | null
-          user_id: number
-        }
-        Update: {
-          created_at?: string | null
-          day_of_week?: number
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          schedule_date?: string
-          start_time?: string
-          title?: string | null
-          updated_at?: string | null
-          user_id?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "broadcast_schedules_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       custom_timetable_orders: {
         Row: {
           admin_notes: string | null
@@ -281,6 +234,193 @@ export type Database = {
           },
         ]
       }
+      shop_templates: {
+        Row: {
+          created_at: string | null
+          detailed_description: string | null
+          features: string[] | null
+          id: string
+          is_artist: boolean | null
+          is_guerrilla: boolean | null
+          is_memo: boolean | null
+          is_multi_schedule: boolean | null
+          is_offline_memo: boolean | null
+          is_shop_visible: boolean | null
+          purchase_instructions: string | null
+          requirements: string | null
+          template_id: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          detailed_description?: string | null
+          features?: string[] | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          is_shop_visible?: boolean | null
+          purchase_instructions?: string | null
+          requirements?: string | null
+          template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          detailed_description?: string | null
+          features?: string[] | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          is_shop_visible?: boolean | null
+          purchase_instructions?: string | null
+          requirements?: string | null
+          template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_templates_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          joined_at: string | null
+          role: string | null
+          team_id: string
+          updated_at: string | null
+          user_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          team_id: string
+          updated_at?: string | null
+          user_id: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          team_id?: string
+          updated_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_schedules: {
+        Row: {
+          created_at: string | null
+          id: string
+          schedule_data: Json
+          team_id: string
+          updated_at: string | null
+          user_id: number
+          week_start_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          schedule_data?: Json
+          team_id: string
+          updated_at?: string | null
+          user_id: number
+          week_start_date: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          schedule_data?: Json
+          team_id?: string
+          updated_at?: string | null
+          user_id?: number
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_schedules_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_schedules_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string | null
+          created_by: number
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: number
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: number
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_access: {
         Row: {
           access_level: string
@@ -288,6 +428,7 @@ export type Database = {
           granted_by: number
           id: string
           template_id: string
+          template_plan_id: string | null
           user_id: number
         }
         Insert: {
@@ -296,6 +437,7 @@ export type Database = {
           granted_by: number
           id?: string
           template_id: string
+          template_plan_id?: string | null
           user_id: number
         }
         Update: {
@@ -304,6 +446,7 @@ export type Database = {
           granted_by?: number
           id?: string
           template_id?: string
+          template_plan_id?: string | null
           user_id?: number
         }
         Relationships: [
@@ -322,6 +465,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "template_access_template_plan_id_fkey"
+            columns: ["template_plan_id"]
+            isOneToOne: false
+            referencedRelation: "template_plans"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "template_access_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -330,45 +480,86 @@ export type Database = {
           },
         ]
       }
+      template_plans: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_artist: boolean | null
+          is_guerrilla: boolean | null
+          is_memo: boolean | null
+          is_multi_schedule: boolean | null
+          is_offline_memo: boolean | null
+          plan: string
+          price: number | null
+          shop_template_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          plan?: string
+          price?: number | null
+          shop_template_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          plan?: string
+          price?: number | null
+          shop_template_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_template_plans_shop_template"
+            columns: ["shop_template_id"]
+            isOneToOne: false
+            referencedRelation: "shop_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_products: {
         Row: {
-          bank_account_info: string | null
           created_at: string | null
-          delivery_time: number | null
           features: string[] | null
           id: string
           price: number
           purchase_instructions: string | null
           requirements: string | null
-          sample_images: string[] | null
           template_id: string | null
           title: string | null
           updated_at: string | null
         }
         Insert: {
-          bank_account_info?: string | null
           created_at?: string | null
-          delivery_time?: number | null
           features?: string[] | null
           id?: string
           price: number
           purchase_instructions?: string | null
           requirements?: string | null
-          sample_images?: string[] | null
           template_id?: string | null
           title?: string | null
           updated_at?: string | null
         }
         Update: {
-          bank_account_info?: string | null
           created_at?: string | null
-          delivery_time?: number | null
           features?: string[] | null
           id?: string
           price?: number
           purchase_instructions?: string | null
           requirements?: string | null
-          sample_images?: string[] | null
           template_id?: string | null
           title?: string | null
           updated_at?: string | null
@@ -379,6 +570,67 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_purchase_requests: {
+        Row: {
+          created_at: string | null
+          customer_phone: string | null
+          depositor_name: string | null
+          id: string
+          message: string | null
+          plan_id: string | null
+          status: string
+          template_id: string
+          updated_at: string | null
+          user_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          customer_phone?: string | null
+          depositor_name?: string | null
+          id?: string
+          message?: string | null
+          plan_id?: string | null
+          status?: string
+          template_id: string
+          updated_at?: string | null
+          user_id: number
+        }
+        Update: {
+          created_at?: string | null
+          customer_phone?: string | null
+          depositor_name?: string | null
+          id?: string
+          message?: string | null
+          plan_id?: string | null
+          status?: string
+          template_id?: string
+          updated_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_purchase_requests_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "template_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_purchase_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_purchase_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

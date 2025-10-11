@@ -4,13 +4,13 @@ import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
 import {
   CardInputConfig,
   SimpleFieldConfig,
+  TDefaultCard,
   TEntry,
   TLanOpt,
   TPlaceholders,
 } from "@/types/time-table/data";
 import {
   createInitialEntryFromConfig,
-  TDefaultCard,
   weekdays,
 } from "@/utils/time-table/data";
 import React from "react";
@@ -100,13 +100,45 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     }: Parameters<FieldRenderer>[0]) => {
       const fieldId = `time-${dayIndex}-${entryIndex}`;
       return (
-        <AdaptiveTimeRenderer
-          id={fieldId}
-          value={entry.time as string}
-          onChange={(newValue) =>
-            onChange(dayIndex, entryIndex, "time", newValue)
-          }
-        />
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <AdaptiveTimeRenderer
+              id={fieldId}
+              value={entry.time as string}
+              onChange={(newValue) =>
+                onChange(dayIndex, entryIndex, "time", newValue)
+              }
+              disabled={entry.isGuerrilla}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 whitespace-nowrap">
+              게릴라
+            </span>
+            <button
+              type="button"
+              className={`w-8 h-4 flex items-center rounded-full p-0.5 duration-200 ease-in-out ${
+                entry.isGuerrilla ? "bg-orange-500" : "bg-gray-300"
+              }`}
+              onClick={() =>
+                onChange(
+                  dayIndex,
+                  entryIndex,
+                  "isGuerrilla",
+                  !entry.isGuerrilla
+                )
+              }
+              aria-label="게릴라방송 토글"
+              title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
+            >
+              <div
+                className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-200 ease-in-out ${
+                  entry.isGuerrilla ? "translate-x-3.5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
       );
     },
 
@@ -217,18 +249,50 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       case "time":
         const fieldId = `${fieldConfig.key}-${dayIndex}-${entryIndex}`;
         return (
-          <AdaptiveTimeRenderer
-            id={fieldId}
-            value={value}
-            onChange={(newValue) =>
-              handleEntryFieldChange(
-                dayIndex,
-                entryIndex,
-                fieldConfig.key,
-                newValue
-              )
-            }
-          />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <AdaptiveTimeRenderer
+                id={fieldId}
+                value={value}
+                onChange={(newValue) =>
+                  handleEntryFieldChange(
+                    dayIndex,
+                    entryIndex,
+                    fieldConfig.key,
+                    newValue
+                  )
+                }
+                disabled={entry.isGuerrilla}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 whitespace-nowrap">
+                게릴라
+              </span>
+              <button
+                type="button"
+                className={`w-8 h-4 flex items-center rounded-full p-0.5 duration-200 ease-in-out ${
+                  entry.isGuerrilla ? "bg-orange-500" : "bg-gray-300"
+                }`}
+                onClick={() =>
+                  handleEntryFieldChange(
+                    dayIndex,
+                    entryIndex,
+                    "isGuerrilla",
+                    !entry.isGuerrilla
+                  )
+                }
+                aria-label="게릴라방송 토글"
+                title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
+              >
+                <div
+                  className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-200 ease-in-out ${
+                    entry.isGuerrilla ? "translate-x-3.5" : "translate-x-0"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
         );
 
       case "select":

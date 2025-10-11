@@ -1,179 +1,35 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
-import { FilePreviewItem } from "@/components/FilePreview";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
-import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSubmitCustomOrder } from "@/hooks/query/useCustomOrder";
+import { CustomOrderFormData } from "@/types/customOrder";
 import { Palette } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-interface CustomOrderFormData {
-  youtubeSnsAddress: string;
-  emailDiscord: string;
-  orderRequirements: string;
-  hasCharacterImages: boolean;
-  characterImageFiles: FilePreviewItem[];
-  characterImageFileIds: string[];
-  wantsOmakase: boolean;
-  designKeywords: string;
-  referenceFiles: FilePreviewItem[];
-  referenceFileIds: string[];
-  fastDelivery: boolean;
-  portfolioPrivate: boolean;
-  reviewEvent: boolean;
-  priceQuoted: number;
-  depositorName: string;
-  orderId?: string; // 수정 모드를 위한 필드
-}
-
-// 주문 생성/수정 시 사용하는 기본 데이터 (상태 정보 없음)
-interface CustomOrderData {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  price_quoted: number;
-  depositor_name: string;
-}
-
-// 주문 이력 조회 시 사용하는 완전한 데이터 (상태 정보 포함)
-interface CustomOrderWithStatus {
-  id: string;
-  youtube_sns_address: string;
-  email_discord: string;
-  order_requirements: string;
-  has_character_images: boolean;
-  wants_omakase: boolean;
-  design_keywords: string;
-  selected_options: string[];
-  status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
-  price_quoted?: number;
-  depositor_name?: string;
-  admin_notes?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-type TabType = "order" | "history";
-
 export default function CustomOrderPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("order");
   const [showOrderForm, setShowOrderForm] = useState(false);
-  const [showEditForm, setShowEditForm] = useState(false);
-  const [editingOrder, setEditingOrder] =
-    useState<CustomOrderWithStatus | null>(null);
+
+  const submitOrderMutation = useSubmitCustomOrder();
 
   const handleOrderSubmit = async (formData: CustomOrderFormData) => {
     try {
-      // 수정 모드인지 신규 생성인지 확인
-      const isEditMode = !!formData.orderId;
-      const url = "/api/shop/custom-order";
-      const method = isEditMode ? "PUT" : "POST";
+      await submitOrderMutation.mutateAsync(formData);
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(formData),
-      });
+      alert("맞춤형 시간표 제작 신청이 완료되었습니다!");
 
-      const result = await response.json();
-
-      if (response.ok) {
-        alert(
-          isEditMode
-            ? "주문이 성공적으로 수정되었습니다!"
-            : "맞춤형 시간표 제작 신청이 완료되었습니다!"
-        );
-
-        // form 닫기
-        if (isEditMode) {
-          setShowEditForm(false);
-          setEditingOrder(null);
-        } else {
-          setShowOrderForm(false);
-        }
-
-        // 주문 내역 탭으로 전환
-        setActiveTab("history");
-      } else {
-        console.error("❌ [Order Submit] 주문 제출 실패:", result);
-        alert(
-          result.error ||
-            (isEditMode
-              ? "수정 중 오류가 발생했습니다."
-              : "신청 중 오류가 발생했습니다.")
-        );
-      }
+      // form 닫기
+      setShowOrderForm(false);
     } catch (error) {
       console.error("Order submission error:", error);
       alert(
-        formData.orderId
-          ? "수정 중 오류가 발생했습니다."
-          : "신청 중 오류가 발생했습니다."
+        error instanceof Error ? error.message : "신청 중 오류가 발생했습니다."
       );
     }
   };
-
-  // 수정 핸들러
-  const handleEditOrder = (order: CustomOrderWithStatus) => {
-    setEditingOrder(order);
-    setShowEditForm(true);
-  };
-
-  // 취소 핸들러
-  const handleCancelOrder = async (orderId: string) => {
-    if (!confirm("정말로 이 주문을 취소하시겠습니까?")) {
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `/api/shop/custom-order?orderId=${orderId}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        alert("주문이 성공적으로 취소되었습니다.");
-        // 이력 새로고침을 위해 탭을 다시 설정
-        setActiveTab("history");
-      } else {
-        const error = await response.json();
-        alert(error.error || "취소 중 오류가 발생했습니다.");
-      }
-    } catch (error) {
-      console.error("Cancel order error:", error);
-      alert("취소 중 오류가 발생했습니다.");
-    }
-  };
-
-  // CustomOrderWithStatus를 CustomOrderData로 변환
-  const convertToOrderData = (
-    order: CustomOrderWithStatus
-  ): CustomOrderData => ({
-    id: order.id,
-    youtube_sns_address: order.youtube_sns_address,
-    email_discord: order.email_discord,
-    order_requirements: order.order_requirements,
-    has_character_images: order.has_character_images,
-    wants_omakase: order.wants_omakase,
-    design_keywords: order.design_keywords,
-    selected_options: order.selected_options,
-    price_quoted: order.price_quoted || 0,
-    depositor_name: order.depositor_name || "",
-  });
 
   if (!user) {
     return (
@@ -223,37 +79,9 @@ export default function CustomOrderPage() {
                 </p>
               </div>
 
-              {/* 탭 네비게이션 */}
-              <div className="mb-6">
-                <div className="border-b border-slate-200">
-                  <nav className="-mb-px flex space-x-8 justify-center">
-                    <button
-                      onClick={() => setActiveTab("order")}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === "order"
-                          ? "border-[#1e3a8a] text-[#1e3a8a]"
-                          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                      }`}
-                    >
-                      새 제작 신청
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("history")}
-                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === "history"
-                          ? "border-[#1e3a8a] text-[#1e3a8a]"
-                          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-                      }`}
-                    >
-                      신청 내역
-                    </button>
-                  </nav>
-                </div>
-              </div>
 
               {/* 컨텐츠 영역 */}
-              {activeTab === "order" ? (
-                <div className="text-center">
+              <div className="text-center">
                   <div className="mb-8">
                     <h2 className="text-xl font-semibold text-slate-900 mb-2">
                       맞춤형 시간표 제작 서비스
@@ -296,12 +124,6 @@ export default function CustomOrderPage() {
                     제작 신청하기
                   </button>
                 </div>
-              ) : (
-                <CustomOrderHistory
-                  onEditOrder={handleEditOrder}
-                  onCancelOrder={handleCancelOrder}
-                />
-              )}
             </div>
           </div>
         </div>
@@ -311,19 +133,6 @@ export default function CustomOrderPage() {
         <CustomOrderForm
           onClose={() => setShowOrderForm(false)}
           onSubmit={handleOrderSubmit}
-        />
-      )}
-
-      {/* 수정 주문 폼 모달 */}
-      {showEditForm && editingOrder && (
-        <CustomOrderForm
-          onClose={() => {
-            setShowEditForm(false);
-            setEditingOrder(null);
-          }}
-          onSubmit={handleOrderSubmit}
-          existingOrder={convertToOrderData(editingOrder)}
-          isEditMode={true}
         />
       )}
     </>

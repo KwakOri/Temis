@@ -5,12 +5,14 @@ interface AdaptiveTimeRendererProps {
   value: string;
   onChange: (value: string) => void;
   id?: string;
+  disabled?: boolean;
 }
 
 const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
   value,
   onChange,
   id,
+  disabled = false,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -53,7 +55,7 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
 
   // 데스크톱에서 input 클릭 시 커스텀 피커 표시
   const handleInputClick = (e: React.MouseEvent) => {
-    if (!isMobile) {
+    if (!isMobile && !disabled) {
       e.preventDefault();
       setShowPicker(!showPicker);
     }
@@ -89,7 +91,12 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
           type="time"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          disabled={disabled}
+          className={`w-full rounded-xl p-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+            disabled
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-gray-100 text-gray-700'
+          }`}
         />
       ) : (
         // 데스크톱: 항상 표시되는 스크롤러블 피커
@@ -99,6 +106,7 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
             onChange(formatTime(newValue));
           }}
           onClose={() => {}} // 닫기 기능 제거
+          disabled={disabled}
         />
       )}
     </div>

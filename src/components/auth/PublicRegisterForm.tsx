@@ -129,7 +129,7 @@ export function PublicRegisterForm({
             value={formData.name}
             onChange={handleInputChange}
             className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all duration-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-400"
-            placeholder="홍길동"
+            placeholder="테미스"
             disabled={isLoading}
           />
         </div>
@@ -172,10 +172,10 @@ export function PublicRegisterForm({
             placeholder="비밀번호를 입력하세요"
             disabled={isLoading}
           />
-          <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <p className="text-xs text-blue-700 flex items-center">
+          <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-3">
+            <p className="text-xs text-red-700 flex items-center">
               <svg
-                className="w-3 h-3 mr-1 text-blue-600"
+                className="w-3 h-3 mr-1 text-red-600"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >

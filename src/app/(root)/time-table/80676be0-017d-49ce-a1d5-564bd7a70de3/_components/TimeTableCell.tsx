@@ -3,7 +3,8 @@ import React, { PropsWithChildren } from "react";
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { TDefaultCard } from "@/types/time-table/data";
+import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
@@ -31,12 +32,12 @@ interface DateTextProps {
   currentTheme?: TTheme;
 }
 
-interface CellTextDescriptionProps {
+interface CellTextMainTitleProps {
   currentTheme?: TTheme;
-  description: string;
+  mainTitle: string;
 }
 
-interface CellTextTopicProps {
+interface CellTextSubTitleProps {
   cellTextTitle: string | null;
 }
 
@@ -119,10 +120,10 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
   );
 };
 
-const CellTextDescription = ({
+const CellTextMainTitle = ({
   currentTheme,
-  description,
-}: CellTextDescriptionProps) => {
+  mainTitle,
+}: CellTextMainTitleProps) => {
   return (
     <div
       style={{
@@ -140,13 +141,13 @@ const CellTextDescription = ({
         multiline={true}
         maxFontSize={77}
       >
-        {description ? (description as string) : placeholders.description}
+        {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
     </div>
   );
 };
 
-const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
+const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
   return (
     <p
       style={{
@@ -154,7 +155,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextTopicProps) => {
       }}
       className=" flex justify-center items-center text-[40px] "
     >
-      {cellTextTitle ? (cellTextTitle as string) : placeholders.topic}
+      {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
     </p>
   );
 };
@@ -200,7 +201,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
         alt="offline"
         style={{
           width: offlineCardWidth,
-          height: offlineCardHeight
+          height: offlineCardHeight,
         }}
       />
     </div>
@@ -232,9 +233,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = primaryEntry.time as string || "09:00";
-  const entryDescription = primaryEntry.description as string || "";
-  const entryTopic = primaryEntry.topic as string || "";
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
 
   if (time.isOffline) {
     return <OfflineCard day={time.day} />;
@@ -250,8 +251,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       className="relative flex justify-center pl-4"
     >
       <CellContentArea>
-        <CellTextTitle cellTextTitle={entryTopic} />
-        <CellTextDescription description={entryDescription} />
+        <CellTextTitle cellTextTitle={entrySubTitle} />
+        <CellTextMainTitle mainTitle={entryMainTitle} />
         <StreamingDate date={weekDate.getDate()} />
         <StreamingTime time={entryTime} />
       </CellContentArea>
