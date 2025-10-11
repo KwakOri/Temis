@@ -14,11 +14,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function TemplateDetailPage() {
   const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [showPurchaseForm, setShowPurchaseForm] = useState(false);
 
   const templateId = params?.id as string;
@@ -51,13 +53,24 @@ export default function TemplateDetailPage() {
   }) => {
     if (!template) return;
 
+    // 선택된 플랜의 ID 찾기
+    const selectedPlan = template.template_plans?.find(
+      (p) => p.plan === formData.plan
+    );
+
+    if (!selectedPlan) {
+      alert("선택된 플랜을 찾을 수 없습니다.");
+      return;
+    }
+
     try {
       const response = await fetch("/api/template-purchase-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          template_id: template.id,
-          plan: formData.plan,
+          template_id: template.template_id,
+          plan_id: selectedPlan.id,
+          depositor_name: formData.depositorName,
           customer_phone: formData.depositorName,
           message: formData.message,
         }),
@@ -67,6 +80,11 @@ export default function TemplateDetailPage() {
         const errorData = await response.json();
         throw new Error(errorData.error || "구매 요청 실패");
       }
+
+      // 구매 내역 쿼리 무효화
+      await queryClient.invalidateQueries({
+        queryKey: ["purchaseHistory"],
+      });
 
       alert("구매 신청이 접수되었습니다. 곧 연락드리겠습니다.");
       setShowPurchaseForm(false);
@@ -332,7 +350,7 @@ export default function TemplateDetailPage() {
                         </p>
                       </div>
                       <Link
-                        href="/shop"
+                        href="/my-page?tab=purchases"
                         className="w-full inline-block bg-yellow-600 text-white py-3 rounded-lg hover:bg-yellow-700 transition-colors font-semibold text-center"
                       >
                         구매 내역 확인하기

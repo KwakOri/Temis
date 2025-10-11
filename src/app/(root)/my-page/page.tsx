@@ -7,9 +7,8 @@ import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
 import PurchaseHistory from "@/components/shop/PurchaseHistory";
-import MaintenanceNotice from "@/components/shop/MaintenanceNotice";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -23,13 +22,14 @@ import {
   CustomOrderWithStatus,
 } from "@/types/customOrder";
 import { Tables } from "@/types/supabase";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 type Template = Tables<"templates">;
 type TabType = "templates" | "purchases" | "custom-orders";
 
 const MyPageContent = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { logout: authLogout } = useAuth();
   const { data, isLoading, error: queryError } = useUserTemplates();
   const cancelOrderMutation = useCancelCustomOrder();
@@ -45,6 +45,14 @@ const MyPageContent = () => {
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingOrder, setEditingOrder] =
     useState<CustomOrderWithStatus | null>(null);
+
+  // URL 파라미터에서 탭 읽기
+  useEffect(() => {
+    const tab = searchParams.get("tab") as TabType | null;
+    if (tab && ["templates", "purchases", "custom-orders"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   const templates = data?.templates || [];
   const loading = isLoading;
@@ -88,27 +96,17 @@ const MyPageContent = () => {
     }
   };
 
-  const getAccessLevelText = (level: string) => {
-    switch (level) {
-      case "admin":
-        return "관리자";
-      case "write":
-        return "편집";
-      case "read":
-        return "읽기";
-      default:
-        return level;
-    }
+  const getPlanText = (plan: string | undefined | null) => {
+    if (!plan) return "일반";
+    return plan.toUpperCase();
   };
 
-  const getAccessLevelColor = (level: string) => {
-    switch (level) {
-      case "admin":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "write":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "read":
-        return "bg-green-100 text-green-800 border-green-200";
+  const getPlanColor = (plan: string | undefined | null) => {
+    switch (plan) {
+      case "pro":
+        return "bg-indigo-100 text-indigo-800 border-indigo-200";
+      case "lite":
+        return "bg-slate-100 text-slate-800 border-slate-200";
       default:
         return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -427,11 +425,11 @@ const MyPageContent = () => {
                                     {template.templates.name}
                                   </h3>
                                   <span
-                                    className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getAccessLevelColor(
-                                      template.access_level
+                                    className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getPlanColor(
+                                      template.template_plan?.plan
                                     )}`}
                                   >
-                                    {getAccessLevelText(template.access_level)}
+                                    {getPlanText(template.template_plan?.plan)}
                                   </span>
                                 </div>
 
@@ -447,22 +445,14 @@ const MyPageContent = () => {
                                       className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
                                         template.templates.is_public
                                           ? "bg-green-100 text-green-800"
-                                          : "bg-gray-100 text-gray-800"
+                                          : "bg-blue-100 text-blue-800"
                                       }`}
                                     >
                                       {template.templates.is_public
-                                        ? "공개"
-                                        : "비공개"}
+                                        ? "일반"
+                                        : "개인"}
                                     </span>
                                   </div>
-                                  {template.granted_at && (
-                                    <span className="text-xs">
-                                      권한 부여:{" "}
-                                      {new Date(
-                                        template.granted_at
-                                      ).toLocaleDateString("ko-KR")}
-                                    </span>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -472,12 +462,7 @@ const MyPageContent = () => {
                     </>
                   )}
 
-                  {activeTab === "purchases" && (
-                    <>
-                      <MaintenanceNotice />
-                      {/* <PurchaseHistory /> */}
-                    </>
-                  )}
+                  {activeTab === "purchases" && <PurchaseHistory />}
 
                   {activeTab === "custom-orders" && (
                     <CustomOrderHistory

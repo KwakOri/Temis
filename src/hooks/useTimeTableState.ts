@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageEditData, CroppedAreaPixels } from "@/types/image-edit";
+import { CroppedAreaPixels, ImageEditData } from "@/types/image-edit";
 import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
@@ -108,12 +108,14 @@ export const useTimeTableState = (captureSize?: {
   });
 
   // 이미지 편집 데이터 상태
-  const [imageEditData, setImageEditData] = useState<ImageEditData | null>(() => {
-    if (typeof window !== "undefined") {
-      return pageAwareStorage.getItem("imageEditData", null);
+  const [imageEditData, setImageEditData] = useState<ImageEditData | null>(
+    () => {
+      if (typeof window !== "undefined") {
+        return pageAwareStorage.getItem("imageEditData", null);
+      }
+      return null;
     }
-    return null;
-  });
+  );
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
     getDefaultMondayString()
@@ -260,7 +262,7 @@ export const useTimeTableState = (captureSize?: {
       if (!file) return;
 
       // PNG 파일인지 확인
-      const isPNG = file.type === 'image/png';
+      const isPNG = file.type === "image/png";
 
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -273,8 +275,8 @@ export const useTimeTableState = (captureSize?: {
           // PNG가 아닌 경우에만 canvas를 사용해서 변환
           const img = new Image();
           img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
 
             if (!ctx) {
               setImageSrc(result);
@@ -289,7 +291,7 @@ export const useTimeTableState = (captureSize?: {
             ctx.drawImage(img, 0, 0);
 
             // PNG 형식으로 변환 (투명도 보존)
-            const pngDataUrl = canvas.toDataURL('image/png');
+            const pngDataUrl = canvas.toDataURL("image/png");
             setImageSrc(pngDataUrl);
           };
           img.src = result;
@@ -302,7 +304,7 @@ export const useTimeTableState = (captureSize?: {
       const newText = e.target.value;
       setProfileText(newText);
     },
-    handleMemoTextChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleMemoTextChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const newText = e.target.value;
       setMemoText(newText);
     },
@@ -341,7 +343,7 @@ export const useTimeTableState = (captureSize?: {
 
     // 이미지 편집 액션 함수들
     updateImageEditData: (data: Partial<ImageEditData>) => {
-      setImageEditData(prev => prev ? { ...prev, ...data } : null);
+      setImageEditData((prev) => (prev ? { ...prev, ...data } : null));
     },
 
     setOriginalImage: (imageSrc: string, cropWidth = 400, cropHeight = 400) => {
@@ -358,24 +360,35 @@ export const useTimeTableState = (captureSize?: {
       setImageEditData(newImageEditData);
     },
 
-    saveCroppedImage: (croppedImageSrc: string, croppedAreaPixels: CroppedAreaPixels) => {
-      setImageEditData(prev => 
-        prev ? { 
-          ...prev, 
-          croppedImageSrc, 
-          croppedAreaPixels
-        } : null
+    saveCroppedImage: (
+      croppedImageSrc: string,
+      croppedAreaPixels: CroppedAreaPixels
+    ) => {
+      setImageEditData((prev) =>
+        prev
+          ? {
+              ...prev,
+              croppedImageSrc,
+              croppedAreaPixels,
+            }
+          : null
       );
     },
 
-    updateEditProgress: (crop: { x: number; y: number }, zoom: number, rotation: number) => {
-      setImageEditData(prev => 
-        prev ? { 
-          ...prev, 
-          crop,
-          zoom,
-          rotation
-        } : null
+    updateEditProgress: (
+      crop: { x: number; y: number },
+      zoom: number,
+      rotation: number
+    ) => {
+      setImageEditData((prev) =>
+        prev
+          ? {
+              ...prev,
+              crop,
+              zoom,
+              rotation,
+            }
+          : null
       );
     },
 
