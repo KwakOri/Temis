@@ -2,8 +2,8 @@ import Image from "next/image";
 import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TTheme } from "@/types/time-table/theme";
 import { TDefaultCard } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
 import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 
@@ -135,7 +135,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center  h-[27px] text-[16px]"
         >
-          {entryTime}
+          {primaryEntry.isGuerrilla ? "게릴라" : entryTime}
         </AutoResizeText>
       </div>
       <Image

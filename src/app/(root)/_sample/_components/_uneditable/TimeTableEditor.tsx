@@ -9,15 +9,15 @@ import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableEditor } from "@/hooks";
 
-import ThemeTabs from "@/components/TimeTable/FixedComponents/ThemeTabs";
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
+import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
+import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {
-  buttonThemes,
   CARD_INPUT_CONFIG,
   defaultTheme,
-  profileImageHeight,
-  profileImageWidth,
+  Settings,
+  templateSize,
   weekdayOption,
 } from "../../_settings/settings";
 import TimeTableContent from "./TimeTableContent";
@@ -25,18 +25,13 @@ import TimeTableContent from "./TimeTableContent";
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
   // 통합 상태 관리 훅 사용 - CardInputConfig 주입
-  const {
-    state,
-    data,
-    updateData,
-    currentTheme,
-    handleThemeChange,
-    resetData,
-    isInitialized,
-  } = useTimeTableEditor({
-    cardInputConfig: CARD_INPUT_CONFIG,
-    defaultTheme: defaultTheme,
-  });
+
+  const { state, data, updateData, currentTheme, resetData, isInitialized } =
+    useTimeTableEditor({
+      cardInputConfig: CARD_INPUT_CONFIG,
+      defaultTheme: defaultTheme,
+      captureSize: templateSize,
+    });
 
   // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
   if (!isInitialized || state.weekDates.length === 0) return <Loading />;
@@ -58,19 +53,18 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
+          multiSelect
+          isMemo
+          isArtist
           saveable={false}
           onReset={resetData}
-          addons={
-            <ThemeTabs
-              buttonThemes={buttonThemes}
-              currentTheme={currentTheme}
-              handleThemeChange={handleThemeChange}
-            />
-          }
-          cropWidth={profileImageWidth}
-          cropHeight={profileImageHeight}
+          addons={isGuideEnabled && <TimeTableDesignGuideController />}
+          cropWidth={Settings.profile.image.width}
+          cropHeight={Settings.profile.image.height}
         >
           <TimeTableInputList
+            isMultiple
+            maxStreamingTimeByDay={2}
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}
             data={data}
@@ -90,6 +84,7 @@ const TimeTableEditor: React.FC = () => {
   const { state, actions } = useTimeTableEditor({
     cardInputConfig: CARD_INPUT_CONFIG,
     defaultTheme: defaultTheme,
+    captureSize: templateSize,
   });
 
   const timeTableState = { state, actions };
