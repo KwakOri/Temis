@@ -1,5 +1,6 @@
 import {
   CardInputConfig,
+  TDefaultCard,
   TDynamicCard,
   TEntry,
   TPlaceholders,
@@ -101,10 +102,6 @@ export const getPlaceholders = ({
 
 export const week = [0, 1, 2, 3, 4, 5, 6];
 
-export interface TDefaultCard extends TDynamicCard {
-  day: number;
-}
-
 export interface CreateInitialCardFromConfigProps {
   cardInputConfig: CardInputConfig;
 }
@@ -113,7 +110,12 @@ export interface CreateInitialCardFromConfigProps {
 export const createInitialEntryFromConfig = ({
   cardInputConfig,
 }: CreateInitialCardFromConfigProps): TEntry => {
-  const entry: TEntry = {};
+  // 필수 속성부터 초기화 (TEntry 타입의 필수 속성)
+  const entry: TEntry = {
+    time: "09:00",
+    mainTitle: "",
+    isGuerrilla: false, // 게릴라방송 기본값 false
+  };
 
   // CARD_INPUT_CONFIG의 모든 필드를 기반으로 기본값 설정
   cardInputConfig.fields.forEach((field) => {
@@ -147,7 +149,7 @@ export const createInitialCardFromConfig = ({
 }: CreateInitialCardFromConfigProps): TDynamicCard => {
   // 기본 엔트리 하나를 가진 카드 생성
   const initialEntry = createInitialEntryFromConfig({ cardInputConfig });
-  
+
   const card: TDynamicCard = {
     isOffline: false,
     entries: [initialEntry],
@@ -192,3 +194,30 @@ export const fillZero = (num: number) => num.toString().padStart(2, "0");
 
 export const isGuideEnabled =
   process.env.NEXT_PUBLIC_ENVIRONMENT === "development";
+
+// 기본 카드 입력 설정 (time과 mainTitle 필수 포함)
+export const CARD_INPUT_CONFIG: CardInputConfig = {
+  fields: [
+    {
+      key: "time",
+      type: "time",
+      placeholder: "21:00",
+      required: true,
+      defaultValue: "21:00",
+    },
+    {
+      key: "mainTitle",
+      type: "textarea",
+      placeholder: "메인 제목\n적는곳",
+      defaultValue: "",
+      maxLength: 200,
+    },
+  ],
+  showLabels: false, // 라벨 표시 여부
+  // 오프라인 토글 설정
+  offlineToggle: {
+    label: "휴방",
+    activeColor: "bg-[#3E4A82]",
+    inactiveColor: "bg-gray-300",
+  },
+};

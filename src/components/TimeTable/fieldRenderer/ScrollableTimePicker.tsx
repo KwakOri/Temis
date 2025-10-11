@@ -4,12 +4,14 @@ interface ScrollableTimePickerProps {
   value: string;
   onChange: (value: string) => void;
   onClose: () => void;
+  disabled?: boolean;
 }
 
 const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
   value,
   onChange,
   onClose,
+  disabled = false,
 }) => {
   const [selectedHour, setSelectedHour] = useState(0);
   const [selectedMinute, setSelectedMinute] = useState(0);
@@ -60,10 +62,15 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
       {/* 시간 표시 버튼 */}
       <button
         type="button"
-        onClick={() => setShowDropdown(!showDropdown)}
-        className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none flex items-center justify-between hover:bg-gray-200 transition-colors"
+        onClick={() => !disabled && setShowDropdown(!showDropdown)}
+        disabled={disabled}
+        className={`w-full rounded-xl p-3 placeholder-gray-400 focus:outline-none flex items-center justify-between transition-colors ${
+          disabled
+            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+        }`}
       >
-        <span className="text-gray-700 font-normal">
+        <span className={`font-normal ${disabled ? 'text-gray-400' : 'text-gray-700'}`}>
           {`${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`}
         </span>
         <svg
@@ -77,7 +84,7 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
       </button>
 
       {/* 드롭다운 메뉴 */}
-      {showDropdown && (
+      {showDropdown && !disabled && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
           <div className="flex">
             {/* 시간 리스트 */}

@@ -5,7 +5,7 @@ import { verifyJWT } from "@/lib/auth";
 export async function POST(request: NextRequest) {
   try {
     // JWT 토큰 검증
-    const token = request.cookies.get("auth-token")?.value;
+    const token = request.cookies.get("token")?.value;
     if (!token) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }

@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     
     // JWT 토큰 확인
     const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
+    const token = cookieStore.get('token')?.value;
 
     if (!token) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
@@ -92,9 +92,13 @@ export async function GET(request: NextRequest) {
       .order(sortBy, { ascending });
 
     // 상태 필터링
-    if (status && status !== 'all') {
+    if (status && status !== 'all' && status !== 'default') {
       currentQuery = currentQuery.eq('status', status);
       legacyQuery = legacyQuery.eq('status', status);
+    } else if (status === 'default') {
+      // 기본 필터: completed와 cancelled 제외
+      currentQuery = currentQuery.not('status', 'in', '("completed","cancelled")');
+      legacyQuery = legacyQuery.not('status', 'in', '("completed","cancelled")');
     }
 
     // 두 테이블에서 데이터 가져오기
@@ -181,9 +185,13 @@ export async function GET(request: NextRequest) {
       .from('legacy_custom_orders')
       .select('id', { count: 'exact', head: true });
 
-    if (status && status !== 'all') {
+    if (status && status !== 'all' && status !== 'default') {
       currentCountQuery = currentCountQuery.eq('status', status);
       legacyCountQuery = legacyCountQuery.eq('status', status);
+    } else if (status === 'default') {
+      // 기본 필터: completed와 cancelled 제외
+      currentCountQuery = currentCountQuery.not('status', 'in', '("completed","cancelled")');
+      legacyCountQuery = legacyCountQuery.not('status', 'in', '("completed","cancelled")');
     }
 
     const [currentCountResult, legacyCountResult] = await Promise.all([

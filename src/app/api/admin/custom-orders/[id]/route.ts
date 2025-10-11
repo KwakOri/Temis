@@ -40,7 +40,7 @@ export async function PUT(
   try {
     // JWT 토큰 확인
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
+    const token = cookieStore.get("token")?.value;
 
     if (!token) {
       return NextResponse.json(
@@ -139,7 +139,7 @@ export async function GET(
   try {
     // JWT 토큰 확인
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth-token")?.value;
+    const token = cookieStore.get("token")?.value;
 
     if (!token) {
       return NextResponse.json(

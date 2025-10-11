@@ -1,4 +1,5 @@
 import MaintenanceMode from "@/components/MaintenanceMode";
+import QueryProvider from "@/components/providers/QueryProvider";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -77,12 +78,14 @@ export default function RootLayout({
   return (
     <html lang="kr">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} $antialiased`}
       >
-        <MaintenanceMode>
-          {children}
-          {/* <PWAInstallPrompt /> */}
-        </MaintenanceMode>
+        <QueryProvider>
+          <MaintenanceMode>
+            {children}
+            {/* <PWAInstallPrompt /> */}
+          </MaintenanceMode>
+        </QueryProvider>
       </body>
     </html>
   );

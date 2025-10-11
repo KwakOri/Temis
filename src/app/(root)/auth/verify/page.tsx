@@ -2,15 +2,18 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { useVerifyEmail } from "@/hooks/query/useAuth";
 import Link from "next/link";
 
 function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
-  
+
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+
+  const verifyEmailMutation = useVerifyEmail();
 
   useEffect(() => {
     if (!token) {
@@ -21,37 +24,24 @@ function VerifyContent() {
 
     const verifyEmail = async () => {
       try {
-        const response = await fetch("/api/auth/verify-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ token }),
-        });
+        await verifyEmailMutation.mutateAsync({ token });
 
-        const data = await response.json();
+        setStatus("success");
+        setMessage("이메일 인증이 완료되었습니다. 회원가입이 성공적으로 처리되었습니다.");
 
-        if (response.ok) {
-          setStatus("success");
-          setMessage("이메일 인증이 완료되었습니다. 회원가입이 성공적으로 처리되었습니다.");
-          
-          // 3초 후 메인 페이지로 리다이렉트
-          setTimeout(() => {
-            router.push("/");
-          }, 3000);
-        } else {
-          setStatus("error");
-          setMessage(data.error || "인증에 실패했습니다.");
-        }
+        // 3초 후 메인 페이지로 리다이렉트
+        setTimeout(() => {
+          router.push("/");
+        }, 3000);
       } catch (error) {
         console.error("Email verification error:", error);
         setStatus("error");
-        setMessage("인증 중 오류가 발생했습니다.");
+        setMessage(error instanceof Error ? error.message : "인증 중 오류가 발생했습니다.");
       }
     };
 
     verifyEmail();
-  }, [token, router]);
+  }, [token, router, verifyEmailMutation]);
 
   if (status === "loading") {
     return (

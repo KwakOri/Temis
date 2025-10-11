@@ -57,10 +57,10 @@ export async function PATCH(
         );
       }
 
-      // 상점에 노출하려면 template_products가 있어야 함
+      // 상점에 노출하려면 shop_templates가 있어야 함
       if (body.is_shop_visible) {
         const { data: product, error: productError } = await supabase
-          .from("template_products")
+          .from("shop_templates")
           .select("id")
           .eq("template_id", id)
           .single();

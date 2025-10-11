@@ -40,15 +40,11 @@ export async function PATCH(
     if (body.features !== undefined) updateData.features = body.features;
     if (body.requirements !== undefined)
       updateData.requirements = body.requirements?.trim() || null;
-    if (body.delivery_time !== undefined)
-      updateData.delivery_time = body.delivery_time
-        ? parseInt(body.delivery_time)
-        : null;
     if (body.purchase_instructions !== undefined)
       updateData.purchase_instructions =
         body.purchase_instructions?.trim() || null;
-    if (body.sample_images !== undefined)
-      updateData.sample_images = body.sample_images || [];
+    // Note: Feature flags (is_artist, is_memo, etc.) are now in shop_templates table
+    // This template_products table is legacy and doesn't have these fields
 
     // 가격 검증
     if (updateData.price !== undefined && updateData.price < 0) {

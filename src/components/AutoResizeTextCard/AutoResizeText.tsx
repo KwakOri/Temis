@@ -8,9 +8,7 @@ interface Props {
   minFontSize?: number;
   style?: React.CSSProperties;
   className?: string;
-  padding?:
-    | number
-    | { top?: number; right?: number; bottom?: number; left?: number };
+
   multiline?: boolean;
 }
 
@@ -20,7 +18,7 @@ const AutoResizeText: React.FC<Props> = ({
   minFontSize = 12,
   style,
   className,
-  padding = 0,
+
   multiline = false,
 }) => {
   const textRef = useRef<HTMLParagraphElement>(null);

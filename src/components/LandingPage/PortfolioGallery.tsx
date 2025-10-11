@@ -9,34 +9,34 @@ interface PortfolioGalleryProps {
   speedPxPerSecond?: number;
 }
 
-// 브라우저 크기별 카드 크기 설정 (기본 크기 유지, 대형 화면에서 점진적 확대)
+// 브라우저 크기별 카드 크기 설정 (16:9 비율 유지, 대형 화면에서 점진적 확대)
 const getCardSizeByViewport = (windowWidth: number) => {
   if (windowWidth >= 3840) {
-    // 4K+ 디스플레이 (2.5배 확대)
-    return { cardWidth: 750, gap: 40, cardHeight: 500 };
+    // 4K+ 디스플레이 (2.5배 확대) - 16:9 비율
+    return { cardWidth: 750, gap: 40, cardHeight: Math.round(750 / 16 * 9) }; // 422
   } else if (windowWidth >= 2560) {
-    // QHD+ 디스플레이 (2.0배 확대)
-    return { cardWidth: 600, gap: 32, cardHeight: 400 };
+    // QHD+ 디스플레이 (2.0배 확대) - 16:9 비율
+    return { cardWidth: 600, gap: 32, cardHeight: Math.round(600 / 16 * 9) }; // 338
   } else if (windowWidth >= 1920) {
-    // FHD+ 디스플레이 (1.6배 확대)
-    return { cardWidth: 480, gap: 26, cardHeight: 320 };
+    // FHD+ 디스플레이 (1.6배 확대) - 16:9 비율
+    return { cardWidth: 480, gap: 26, cardHeight: Math.round(480 / 16 * 9) }; // 270
   } else if (windowWidth >= 1440) {
-    // HD+ 디스플레이 (1.3배 확대)
-    return { cardWidth: 390, gap: 21, cardHeight: 260 };
+    // HD+ 디스플레이 (1.3배 확대) - 16:9 비율
+    return { cardWidth: 390, gap: 21, cardHeight: Math.round(390 / 16 * 9) }; // 219
   } else if (windowWidth >= 1024) {
-    // 태블릿 가로 (1.1배 확대)
-    return { cardWidth: 330, gap: 18, cardHeight: 220 };
+    // 태블릿 가로 (1.1배 확대) - 16:9 비율
+    return { cardWidth: 330, gap: 18, cardHeight: Math.round(330 / 16 * 9) }; // 186
   } else if (windowWidth >= 768) {
-    // 태블릿 세로 (기본 크기)
-    return { cardWidth: 300, gap: 16, cardHeight: 200 };
+    // 태블릿 세로 (기본 크기) - 16:9 비율
+    return { cardWidth: 300, gap: 16, cardHeight: Math.round(300 / 16 * 9) }; // 169
   } else {
-    // 모바일 (축소)
-    return { cardWidth: 250, gap: 12, cardHeight: 167 };
+    // 모바일 (축소) - 16:9 비율
+    return { cardWidth: 250, gap: 12, cardHeight: Math.round(250 / 16 * 9) }; // 141
   }
 };
 
-// 기본 카드 크기 (SSR에서 사용)
-const defaultCardSize = { cardWidth: 300, gap: 16, cardHeight: 200 };
+// 기본 카드 크기 (SSR에서 사용) - 16:9 비율
+const defaultCardSize = { cardWidth: 300, gap: 16, cardHeight: Math.round(300 / 16 * 9) }; // 169
 
 const PortfolioGallery: React.FC<PortfolioGalleryProps> = ({
   totalItems,

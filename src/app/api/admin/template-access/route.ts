@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = adminCheck;
     const body = await request.json();
-    const { templateId, userId, accessLevel } = body;
+    const { templateId, userId, accessLevel, templatePlanId } = body;
 
     if (!templateId || !userId || !accessLevel) {
       return NextResponse.json(
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       user_id: Number(userId),
       access_level: accessLevel,
       granted_by: Number(user.userId),
+      template_plan_id: templatePlanId || null,
     });
 
     // 사용자 정보와 템플릿 정보를 가져와서 메일 발송
@@ -137,7 +138,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { templateId, userId, accessLevel } = body;
+    const { templateId, userId, accessLevel, templatePlanId } = body;
 
     if (!templateId || !userId || !accessLevel) {
       return NextResponse.json(
@@ -149,7 +150,8 @@ export async function PUT(request: NextRequest) {
     const access = await TemplateAccessService.updateAccess(
       templateId,
       Number(userId),
-      accessLevel
+      accessLevel,
+      templatePlanId
     );
 
     return NextResponse.json({

@@ -67,13 +67,11 @@ export async function uploadFile(
       insertData.file_category = fileCategory;
     }
 
-
     const { data, error } = await supabase
       .from("files")
       .insert(insertData)
       .select()
       .single();
-
 
     if (error) {
       // R2에서 업로드된 파일 삭제 (롤백)

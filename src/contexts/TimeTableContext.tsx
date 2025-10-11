@@ -2,6 +2,7 @@
 
 import React, { createContext, ReactNode, useContext } from "react";
 import { ImageEditData, CroppedAreaPixels } from "@/types/image-edit";
+import { OptionType } from "@/hooks/useTimeTableState";
 
 // Context 타입 정의
 export interface TimeTableState {
@@ -21,6 +22,9 @@ export interface TimeTableState {
   isMobile: boolean;
   isProfileTextVisible: boolean;
   isMemoTextVisible: boolean;
+
+  // 옵션 버튼 상태
+  selectedOptions: OptionType[];
 
   // 템플릿 설정
   captureSize: { width: number; height: number } | undefined;
@@ -53,12 +57,9 @@ export interface TimeTableActions {
   handleMemoTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 
   handleDateChange: (dateStr: string) => void;
-  toggleProfileTextVisible: () => void;
-  turnOnProfileTextVisible: () => void;
-  turnOffProfileTextVisible: () => void;
-  toggleMemoTextVisible: () => void;
-  turnOnMemoTextVisible: () => void;
-  turnOffMemoTextVisible: () => void;
+
+  // 옵션 버튼 관리 액션
+  handleOptionClick: (option: OptionType, multiSelect?: boolean) => void;
 
   downloadImage: (targetWidth: number, targetHeight: number) => Promise<void>;
 }
@@ -108,6 +109,8 @@ export const useTimeTableData = () => {
     memoText: state.memoText,
     imageSrc: state.imageSrc,
     isProfileTextVisible: state.isProfileTextVisible,
+    isMemoTextVisible: state.isMemoTextVisible,
+    selectedOptions: state.selectedOptions,
 
     mondayDateStr: state.mondayDateStr,
     weekDates: state.weekDates,
@@ -121,13 +124,7 @@ export const useTimeTableData = () => {
     handleProfileTextChange: actions.handleProfileTextChange,
 
     handleDateChange: actions.handleDateChange,
-    toggleProfileTextVisible: actions.toggleProfileTextVisible,
-    turnOnProfileTextVisible: actions.turnOnProfileTextVisible,
-    turnOffProfileTextVisible: actions.turnOffProfileTextVisible,
-
-    toggleMemoTextVisible: actions.toggleMemoTextVisible,
-    turnOnMemoTextVisible: actions.turnOnMemoTextVisible,
-    turnOffMemoTextVisible: actions.turnOffMemoTextVisible,
+    handleOptionClick: actions.handleOptionClick,
   };
 };
 
@@ -137,11 +134,12 @@ export const useTimeTableUI = () => {
     scale: state.scale,
     isMobile: state.isMobile,
     isProfileTextVisible: state.isProfileTextVisible,
+    isMemoTextVisible: state.isMemoTextVisible,
+    selectedOptions: state.selectedOptions,
     updateScale: actions.updateScale,
     updateIsMobile: actions.updateIsMobile,
     updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
-    toggleProfileTextVisible: actions.toggleProfileTextVisible,
-    toggleMemoTextVisible: actions.toggleMemoTextVisible,
+    handleOptionClick: actions.handleOptionClick,
   };
 };
 

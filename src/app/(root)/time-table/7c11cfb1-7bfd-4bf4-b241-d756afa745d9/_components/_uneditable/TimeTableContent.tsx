@@ -3,9 +3,9 @@ import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
-import { TPlaceholders } from "@/types/time-table/data";
+import { TDefaultCard, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { isGuideEnabled, TDefaultCard } from "@/utils/time-table/data";
+import { isGuideEnabled } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 import { colors, fontOption, templateSize } from "../../_settings/settings";
 import ProfileImageSection from "../ProfileImageContainer";

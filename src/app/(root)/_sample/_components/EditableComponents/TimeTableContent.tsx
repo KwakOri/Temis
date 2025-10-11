@@ -5,9 +5,9 @@ import React from "react";
 import { Imgs } from "../../_img/imgs";
 
 import WaterMark from "@/components/WaterMark";
-import { TPlaceholders } from "@/types/time-table/data";
+import { TDefaultCard, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard, months } from "@/utils/time-table/data";
+import { months } from "@/utils/time-table/data";
 import { colors, fontOption, monthOption } from "../../_settings/settings";
 import ProfileImage from "./ProfileImage";
 import TimeTableGrid from "./TimeTableGrid";

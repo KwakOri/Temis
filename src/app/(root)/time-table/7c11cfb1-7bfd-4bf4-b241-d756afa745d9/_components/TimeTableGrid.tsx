@@ -1,7 +1,8 @@
 import React from "react";
 
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard } from "@/utils/time-table/data";
+
+import { TDefaultCard } from "@/types/time-table/data";
 import { Imgs } from "../_img/imgs";
 import TimeTableCell from "./TimeTableCell";
 

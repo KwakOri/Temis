@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { 
-  generateEmailVerificationTemplate, 
-  generateWelcomeEmailTemplate, 
+import {
+  generateEmailVerificationTemplate,
   generatePasswordResetTemplate,
-  type EmailTemplateData 
+  generateWelcomeEmailTemplate,
+  type EmailTemplateData,
 } from "@/lib/email-templates";
+import { useState } from "react";
 
 interface EmailTemplate {
   id: string;
@@ -16,10 +16,11 @@ interface EmailTemplate {
 }
 
 const EmailTemplatePreview = () => {
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("verification");
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<string>("verification");
   const [previewData, setPreviewData] = useState({
     name: "홍길동",
-    email: "user@example.com"
+    email: "user@example.com",
   });
   const [previewHtml, setPreviewHtml] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -29,37 +30,38 @@ const EmailTemplatePreview = () => {
       id: "verification",
       name: "이메일 인증",
       subject: "[Temis] 이메일 인증을 완료해 주세요 ✨",
-      description: "회원가입 시 발송되는 이메일 인증 템플릿"
+      description: "회원가입 시 발송되는 이메일 인증 템플릿",
     },
     {
       id: "welcome",
       name: "환영 메시지",
       subject: "[Temis] 환영합니다! 회원가입이 완료되었습니다.",
-      description: "이메일 인증 완료 후 발송되는 환영 메시지"
+      description: "이메일 인증 완료 후 발송되는 환영 메시지",
     },
     {
       id: "password_reset",
       name: "비밀번호 재설정",
       subject: "[Temis] 비밀번호 재설정 요청",
-      description: "비밀번호 재설정 요청 시 발송되는 템플릿"
-    }
+      description: "비밀번호 재설정 요청 시 발송되는 템플릿",
+    },
   ];
 
   const generatePreview = async () => {
     setIsLoading(true);
     try {
       // 임시 토큰 생성 (미리보기용)
-      const dummyToken = "preview-token-" + Math.random().toString(36).substr(2, 9);
-      
+      const dummyToken =
+        "preview-token-" + Math.random().toString(36).substr(2, 9);
+
       const templateData: EmailTemplateData = {
         name: previewData.name,
         email: previewData.email,
         baseUrl: window.location.origin,
-        token: dummyToken
+        token: dummyToken,
       };
-      
+
       let htmlContent = "";
-      
+
       // 동일한 템플릿 함수를 사용하여 일관성 보장
       switch (selectedTemplate) {
         case "verification":
@@ -72,7 +74,7 @@ const EmailTemplatePreview = () => {
           htmlContent = generatePasswordResetTemplate(templateData);
           break;
       }
-      
+
       setPreviewHtml(htmlContent);
     } catch (error) {
       console.error("Preview generation failed:", error);
@@ -119,8 +121,10 @@ const EmailTemplatePreview = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">📧 이메일 템플릿 미리보기</h2>
-        
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          📧 이메일 템플릿 미리보기
+        </h2>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 설정 패널 */}
           <div className="lg:col-span-1">
@@ -142,7 +146,10 @@ const EmailTemplatePreview = () => {
                   ))}
                 </select>
                 <p className="text-sm text-gray-500 mt-1">
-                  {emailTemplates.find(t => t.id === selectedTemplate)?.description}
+                  {
+                    emailTemplates.find((t) => t.id === selectedTemplate)
+                      ?.description
+                  }
                 </p>
               </div>
 
@@ -156,14 +163,18 @@ const EmailTemplatePreview = () => {
                     type="text"
                     placeholder="이름"
                     value={previewData.name}
-                    onChange={(e) => setPreviewData({ ...previewData, name: e.target.value })}
+                    onChange={(e) =>
+                      setPreviewData({ ...previewData, name: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <input
                     type="email"
                     placeholder="이메일 주소"
                     value={previewData.email}
-                    onChange={(e) => setPreviewData({ ...previewData, email: e.target.value })}
+                    onChange={(e) =>
+                      setPreviewData({ ...previewData, email: e.target.value })
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
@@ -178,7 +189,7 @@ const EmailTemplatePreview = () => {
                 >
                   {isLoading ? "로딩 중..." : "미리보기 생성"}
                 </button>
-                
+
                 <button
                   onClick={sendTestEmail}
                   disabled={isLoading || !previewHtml}
@@ -192,8 +203,20 @@ const EmailTemplatePreview = () => {
               <div className="bg-gray-50 p-4 rounded-md">
                 <h4 className="font-medium text-gray-900 mb-2">템플릿 정보</h4>
                 <div className="text-sm text-gray-600 space-y-1">
-                  <p><strong>제목:</strong> {emailTemplates.find(t => t.id === selectedTemplate)?.subject}</p>
-                  <p><strong>설명:</strong> {emailTemplates.find(t => t.id === selectedTemplate)?.description}</p>
+                  <p>
+                    <strong>제목:</strong>{" "}
+                    {
+                      emailTemplates.find((t) => t.id === selectedTemplate)
+                        ?.subject
+                    }
+                  </p>
+                  <p>
+                    <strong>설명:</strong>{" "}
+                    {
+                      emailTemplates.find((t) => t.id === selectedTemplate)
+                        ?.description
+                    }
+                  </p>
                 </div>
               </div>
             </div>
@@ -203,7 +226,9 @@ const EmailTemplatePreview = () => {
           <div className="lg:col-span-2">
             <div className="border border-gray-300 rounded-lg overflow-hidden">
               <div className="bg-gray-100 px-4 py-2 border-b border-gray-300">
-                <h3 className="text-sm font-medium text-gray-700">이메일 미리보기</h3>
+                <h3 className="text-sm font-medium text-gray-700">
+                  이메일 미리보기
+                </h3>
               </div>
               <div className="h-96 lg:h-[600px] overflow-auto bg-white">
                 {previewHtml ? (

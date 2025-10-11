@@ -95,7 +95,6 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
                   color: colors[currentTheme]["primary"],
                 }}
                 className="text-center absolute"
-                padding={{ right: 8, left: 8 }}
                 maxFontSize={profileTextInfo.font.maxSize}
                 minFontSize={profileTextInfo.font.minSize}
               >

@@ -5,14 +5,14 @@ import { PublicRegisterForm } from "@/components/auth/PublicRegisterForm";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 function AuthContent() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/";
-  
+
   const [isSignupMode, setIsSignupMode] = useState(false);
 
   // 이미 로그인된 사용자는 메인 페이지로 리다이렉트
@@ -48,7 +48,6 @@ function AuthContent() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
-
         <Link
           href="/"
           className="inline-flex items-center text-sm md:text-base text-slate-600 hover:text-[#1e3a8a] mb-4 md:mb-6 transition-colors"
@@ -107,21 +106,22 @@ function AuthContent() {
               {isSignupMode ? "새 계정 만들기" : "계정 로그인"}
             </h2>
             <p className="text-slate-600">
-              {isSignupMode ? "Temis와 함께 시간표를 관리해보세요" : "다시 만나서 반갑습니다"}
+              {isSignupMode
+                ? "Temis와 함께 시간표를 관리해보세요"
+                : "다시 만나서 반갑습니다"}
             </p>
           </div>
 
           {/* 폼 */}
           {isSignupMode ? (
-            <PublicRegisterForm 
-              onSuccess={() => {
-              }}
+            <PublicRegisterForm
+              onSuccess={() => {}}
               onBack={toggleSignupMode}
             />
           ) : (
             <>
               <LoginForm onSuccess={handleAuthSuccess} />
-              
+
               {/* 회원가입 버튼 */}
               <div className="mt-8 text-center relative">
                 <div className="absolute inset-0 flex items-center">
@@ -131,7 +131,7 @@ function AuthContent() {
                   <span className="px-4 bg-white text-slate-500">또는</span>
                 </div>
               </div>
-              
+
               <div className="mt-6 text-center">
                 <p className="text-sm text-slate-600 mb-4">
                   아직 계정이 없으신가요?

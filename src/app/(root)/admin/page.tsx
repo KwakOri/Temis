@@ -1,69 +1,65 @@
 "use client";
 
 import AccessManagement from "@/components/admin/AccessManagement";
+import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
+import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
+import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
+import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
+import PurchaseManagement from "@/components/admin/PurchaseManagement";
+import TeamManagement from "@/components/admin/TeamManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import UserManagement from "@/components/admin/UserManagement";
-import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
-import PurchaseManagement from "@/components/admin/PurchaseManagement";
-import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
-import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
-import WorkScheduleManagement from "@/components/admin/WorkScheduleManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect, useState } from "react";
-import { 
-  FileText, 
-  Users, 
-  CreditCard, 
-  Palette, 
-  MailOpen, 
-  Shield,
+import {
   AlertTriangle,
-  ArrowLeft,
-  Loader2,
   Archive,
-  Calendar
+  ArrowLeft,
+  Calendar,
+  CreditCard,
+  FileText,
+  Loader2,
+  MailOpen,
+  Palette,
+  Shield,
+  UserCheck,
+  Users,
 } from "lucide-react";
-type TabType = "templates" | "users" | "access" | "emailPreview" | "purchases" | "customOrders" | "legacyOrders" | "workSchedule";
+import { useState } from "react";
+type TabType =
+  | "templates"
+  | "users"
+  | "teams"
+  | "access"
+  | "emailPreview"
+  | "purchases"
+  | "customOrders"
+  | "legacyOrders"
+  | "workCalendar";
 
 function AdminContent() {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("templates");
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { user, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>("workCalendar");
 
-  // 관리자 권한 확인
-  useEffect(() => {
-    const checkAdminPermission = async () => {
-      if (!user) return;
+  console.log(user);
 
-      try {
-        const response = await fetch("/api/admin/users", {
-          credentials: "include",
-        });
+  // React Query로 관리자 권한 확인
+  // const {
+  //   data: permissionData,
+  //   isLoading: loading,
+  //   error,
+  // } = useAdminPermission(!!user);
 
-        if (response.status === 403) {
-          setIsAdmin(false);
-        } else if (response.ok) {
-          setIsAdmin(true);
-        }
-      } catch (error) {
-        console.error("Admin permission check failed:", error);
-        setIsAdmin(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAdminPermission();
-  }, [user]);
+  const isAdmin = user?.isAdmin || false;
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="mt-4 text-secondary font-medium">관리자 권한 확인 중...</p>
+          <p className="mt-4 text-secondary font-medium">
+            관리자 권한 확인 중...
+          </p>
         </div>
       </div>
     );
@@ -95,12 +91,13 @@ function AdminContent() {
   }
 
   const tabs = [
-    { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
-    { id: "users" as TabType, name: "사용자 관리", icon: Users },
-    { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
+    { id: "workCalendar" as TabType, name: "작업 캘린더", icon: Calendar },
     { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
     { id: "legacyOrders" as TabType, name: "레거시 주문 관리", icon: Archive },
-    { id: "workSchedule" as TabType, name: "작업 일정 관리", icon: Calendar },
+    { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
+    { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
+    { id: "users" as TabType, name: "사용자 관리", icon: Users },
+    { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
     { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
   ];
@@ -121,7 +118,8 @@ function AdminContent() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-[#F4FDFF] bg-quaternary px-3 py-2 rounded-md shadow-sm">
-                <span className="font-medium">관리자:</span> {user?.name} ({user?.email})
+                <span className="font-medium">관리자:</span> {user?.name} (
+                {user?.email})
               </div>
             </div>
           </div>
@@ -155,14 +153,15 @@ function AdminContent() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "templates" && <TemplateManagement />}
-        {activeTab === "users" && <UserManagement />}
-        {activeTab === "purchases" && <PurchaseManagement />}
+        {activeTab === "workCalendar" && <DeadlineCalendarView />}
         {activeTab === "customOrders" && <CustomOrderManagement />}
         {activeTab === "legacyOrders" && <LegacyOrderManagement />}
-        {activeTab === "workSchedule" && <WorkScheduleManagement />}
-        {activeTab === "emailPreview" && <EmailTemplatePreview />}
+        {activeTab === "purchases" && <PurchaseManagement />}
+        {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "access" && <AccessManagement />}
+        {activeTab === "users" && <UserManagement />}
+        {activeTab === "teams" && <TeamManagement />}
+        {activeTab === "emailPreview" && <EmailTemplatePreview />}
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       token,
       "email_verification"
     );
-    
+
     if (!tokenValidation.isValid || !tokenValidation.tokenData) {
       return NextResponse.json(
         { error: tokenValidation.error || "유효하지 않은 인증 토큰입니다." },
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 이미 인증된 사용자인지 확인
-    if (user.role === 'user') {
+    if (user.role === "user") {
       return NextResponse.json(
         { error: "이미 인증 완료된 계정입니다." },
         { status: 400 }
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     // unauthorized에서 user로 role 변경
-    const updatedUser = await UserService.updateRole(userId, 'user');
+    const updatedUser = await UserService.updateRole(userId, "user");
     if (!updatedUser) {
       return NextResponse.json(
         { error: "계정 인증 처리에 실패했습니다." },
@@ -86,7 +86,8 @@ export async function POST(request: NextRequest) {
     // 응답 생성
     const response = NextResponse.json(
       {
-        message: "이메일 인증이 완료되었습니다. 회원가입이 성공적으로 처리되었습니다.",
+        message:
+          "이메일 인증이 완료되었습니다. 회원가입이 성공적으로 처리되었습니다.",
         user: {
           id: updatedUser.id,
           email: updatedUser.email,

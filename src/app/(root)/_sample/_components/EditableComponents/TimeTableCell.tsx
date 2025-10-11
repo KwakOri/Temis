@@ -3,10 +3,11 @@ import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard, weekdays } from "@/utils/time-table/data";
+import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 
 import WaterMark from "@/components/WaterMark";
+import { TDefaultCard } from "@/types/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {
   colors,
@@ -35,8 +36,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
   const entryTime = (primaryEntry.time as string) || "09:00";
-  const entryDescription = (primaryEntry.description as string) || "";
-  const entryTopic = (primaryEntry.topic as string) || "";
+  const entryMainTitle = (primaryEntry.description as string) || "";
+  const entrySubTitle = (primaryEntry.topic as string) || "";
 
   if (time.isOffline) {
     return (
@@ -90,12 +91,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           }}
           className=" flex justify-center items-center h-[30px] text-[16px] pt-2"
         >
-          {entryTopic ? entryTopic : placeholders.topic}
+          {entrySubTitle ? entrySubTitle : placeholders.topic}
         </p>
 
         <div className="flex flex-col justify-center items-center  h-[77px] pb-2">
-          {entryDescription ? (
-            entryDescription
+          {entryMainTitle ? (
+            entryMainTitle
               .split("\n")
               .filter((line) => line.trim() !== "") // 공백 줄 제거
               .map((line, idx) => (

@@ -2,12 +2,19 @@ import ImageCropModal from "@/components/ImageCropModal";
 import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
+import TeamSaveModal from "@/components/TimeTable/TeamSaveModal";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
+import { OptionType } from "@/hooks/useTimeTableState";
 import { CroppedAreaPixels } from "@/types/image-edit";
-import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
+import { TDefaultCard } from "@/types/time-table/data";
+import React, {
+  Fragment,
+  PropsWithChildren,
+  useRef,
+  useState,
+} from "react";
 import { Point } from "react-easy-crop";
-
 interface TimeTableFormProps {
   isArtist?: boolean;
   isMemo?: boolean;
@@ -16,6 +23,9 @@ interface TimeTableFormProps {
   onReset: () => void;
   cropWidth?: number;
   cropHeight?: number;
+  isTeam?: boolean;
+  teamData?: TDefaultCard[]; // 팀 시간표 저장을 위한 데이터
+  multiSelect?: boolean; // true: 여러 버튼 동시 활성화 가능, false: 최대 1개만 활성화 가능
 }
 
 interface ProfileOptionButtonProps {
@@ -52,7 +62,13 @@ const TimeTableForm = ({
   isArtist = true,
   isMemo = false,
   saveable = true,
+  isTeam = false,
+  teamData,
+  multiSelect = false,
 }: PropsWithChildren<TimeTableFormProps>) => {
+  console.log("isTeam => ", isTeam);
+  console.log("teamData => ", teamData);
+
   const { state, actions } = useTimeTable();
 
   const {
@@ -62,6 +78,7 @@ const TimeTableForm = ({
     imageSrc,
     isProfileTextVisible,
     isMemoTextVisible,
+    selectedOptions,
     captureSize,
   } = state;
   const {
@@ -69,10 +86,7 @@ const TimeTableForm = ({
     handleMemoTextChange,
     handleDateChange,
     updateImageSrc,
-    turnOnProfileTextVisible,
-    turnOffProfileTextVisible,
-    turnOnMemoTextVisible,
-    turnOffMemoTextVisible,
+    handleOptionClick,
     downloadImage,
   } = actions;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -80,6 +94,7 @@ const TimeTableForm = ({
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showTeamSaveModal, setShowTeamSaveModal] = useState(false);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -105,7 +120,7 @@ const TimeTableForm = ({
     if (!file) return;
 
     // PNG 파일인지 확인
-    const isPNG = file.type === 'image/png';
+    const isPNG = file.type === "image/png";
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -120,8 +135,8 @@ const TimeTableForm = ({
         // PNG가 아닌 경우에만 canvas를 사용해서 PNG로 변환
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
 
           if (!ctx) {
             setSelectedImage(result);
@@ -138,7 +153,7 @@ const TimeTableForm = ({
           ctx.drawImage(img, 0, 0);
 
           // PNG 형식으로 변환 (투명도 보존)
-          const pngDataUrl = canvas.toDataURL('image/png');
+          const pngDataUrl = canvas.toDataURL("image/png");
           setSelectedImage(pngDataUrl);
           actions.setOriginalImage(pngDataUrl, cropWidth, cropHeight);
           setShowCropModal(true);
@@ -198,34 +213,35 @@ const TimeTableForm = ({
     downloadImage(width, height);
   };
 
+  const handleTeamSaveClick = () => {
+    setShowTeamSaveModal(true);
+  };
+
+  const handleTeamSaveModalClose = () => {
+    setShowTeamSaveModal(false);
+  };
+
   const ProfileOptionButtons = [
     {
-      handler: () => {
-        turnOnProfileTextVisible();
-        turnOffMemoTextVisible();
-      },
+      handler: () => handleOptionClick("profile", multiSelect),
       isEnabled: isArtist,
-      isChecked: isProfileTextVisible,
+      isChecked: selectedOptions.includes("profile"),
       label: "이름",
+      optionType: "profile" as OptionType,
     },
     {
-      handler: () => {
-        turnOnMemoTextVisible();
-        turnOffProfileTextVisible();
-      },
+      handler: () => handleOptionClick("memo", multiSelect),
       isEnabled: isMemo,
-      isChecked: isMemoTextVisible,
+      isChecked: selectedOptions.includes("memo"),
       label: "메모",
+      optionType: "memo" as OptionType,
     },
     {
-      handler: () => {
-        turnOffProfileTextVisible();
-        turnOffMemoTextVisible();
-      },
+      handler: () => handleOptionClick("none", multiSelect),
       isEnabled: true,
-      isChecked:
-        (!isArtist || !isProfileTextVisible) && (!isMemo || !isMemoTextVisible),
+      isChecked: selectedOptions.includes("none"),
       label: "없음",
+      optionType: "none" as OptionType,
     },
   ];
 
@@ -288,12 +304,12 @@ const TimeTableForm = ({
 
             {imageSrc && (
               <Fragment>
-                {/* <button
+                <button
                   onClick={handleEditClick}
                   className="w-full bg-[#3E4A82] text-white py-2 rounded-md text-sm font-medium hover:bg-[#2b2f4d] transition"
                 >
                   이미지 편집
-                </button> */}
+                </button>
                 <button
                   onClick={handleImageDelete}
                   className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
@@ -358,21 +374,39 @@ const TimeTableForm = ({
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-300 bg-gray-50 flex gap-2">
-            <button
-              onClick={
-                saveable
-                  ? handleSaveClick
-                  : () => {
-                      alert("체험 모드에서는 제공되지 않는 기능입니다.");
-                    }
-              }
-              className="w-full bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
-            >
-              이미지로 저장
-            </button>
+          <div className="p-4 border-t border-gray-300 bg-gray-50 space-y-2">
+            {/* 첫 번째 줄: 이미지 저장과 리셋 */}
+            <div className="flex gap-2">
+              <button
+                onClick={
+                  saveable
+                    ? handleSaveClick
+                    : () => {
+                        alert("체험 모드에서는 제공되지 않는 기능입니다.");
+                      }
+                }
+                className="flex-1 bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
+              >
+                이미지로 저장
+              </button>
+              <ResetButton onReset={onReset} />
+            </div>
 
-            <ResetButton onReset={onReset} />
+            {/* 두 번째 줄: 팀 시간표 저장 (isTeam이 true일 때만) */}
+            {isTeam && (
+              <button
+                onClick={
+                  saveable
+                    ? handleTeamSaveClick
+                    : () => {
+                        alert("체험 모드에서는 제공되지 않는 기능입니다.");
+                      }
+                }
+                className="w-full bg-[#3E4A82] text-white py-3 rounded-md text-base font-bold hover:bg-[#2b2f4d] transition"
+              >
+                팀 시간표에 저장
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -403,6 +437,16 @@ const TimeTableForm = ({
         onSave={handleImageSave}
         templateSize={captureSize}
       />
+
+      {/* 팀 시간표 저장 모달 */}
+      {isTeam && teamData && (
+        <TeamSaveModal
+          isOpen={showTeamSaveModal}
+          onClose={handleTeamSaveModalClose}
+          mondayDateStr={mondayDateStr}
+          scheduleData={teamData}
+        />
+      )}
     </>
   );
 };
