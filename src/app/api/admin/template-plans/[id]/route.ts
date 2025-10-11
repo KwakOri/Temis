@@ -20,7 +20,7 @@ export async function PATCH(
     // 플랜이 존재하는지 확인
     const { data: existingPlan, error: checkError } = await supabase
       .from("template_plans")
-      .select("id, template_id")
+      .select("id, shop_template_id")
       .eq("id", planId)
       .single();
 
@@ -34,6 +34,7 @@ export async function PATCH(
     // 업데이트할 필드들 준비
     const updateData: Partial<Tables<"template_plans">> = {};
 
+    if (body.price !== undefined) updateData.price = body.price;
     if (body.is_artist !== undefined) updateData.is_artist = body.is_artist;
     if (body.is_memo !== undefined) updateData.is_memo = body.is_memo;
     if (body.is_multi_schedule !== undefined)

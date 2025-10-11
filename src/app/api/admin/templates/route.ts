@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        template_products (*)
+        shop_templates (*)
       `
       )
       .range(offset, offset + limit - 1)

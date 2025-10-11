@@ -55,7 +55,7 @@ export const buttonThemes: TButtonTheme[] = [
 export const colors = {
   first: {
     primary: "#FFF6E5",
-    secondary: "#EAB460",
+    secondary: "#CA822A",
     tertiary: "",
     quaternary: "",
   },

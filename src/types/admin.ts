@@ -1,15 +1,22 @@
-import { Tables } from "./supabase";
+import { Tables, TablesInsert, TablesUpdate } from "./supabase";
 
 // Base types from Supabase
 export type User = Tables<"users">;
 export type Template = Tables<"templates">;
-export type TemplateProduct = Tables<"template_products">;
+export type ShopTemplate = Tables<"shop_templates">;
+export type TemplatePlan = Tables<"template_plans">;
 export type PurchaseRequest = Tables<"purchase_requests">;
+export type TemplatePurchaseRequest = Tables<"template_purchase_requests">;
 export type TemplateAccess = Tables<"template_access">;
 
 // Extended types
-export interface TemplateWithProducts extends Template {
-  template_products: TemplateProduct[];
+export interface TemplateWithShopTemplate extends Template {
+  shop_templates: ShopTemplate[];
+}
+
+export interface TemplateWithShopTemplateAndPlans extends Template {
+  shop_templates: ShopTemplate[];
+  template_plans: TemplatePlan[];
 }
 
 export interface PurchaseRequestWithTemplate extends PurchaseRequest {
@@ -56,65 +63,21 @@ export interface UpdateTemplateData {
   thumbnail_url?: string;
 }
 
-export interface CreateTemplateProductData {
-  template_id: string;
-  title: string;
-  price: number;
-  features: string[];
-  requirements?: string;
-  purchase_instructions?: string;
-  plan?: "lite" | "pro";
-  is_artist?: boolean;
-  is_memo?: boolean;
-  is_multi_schedule?: boolean;
-  is_guerrilla?: boolean;
-  is_offline_memo?: boolean;
-}
+export type CreateShopTemplateData = TablesInsert<"shop_templates">;
 
-export interface UpdateTemplateProductData {
-  title?: string;
-  price?: number;
-  features?: string[];
-  requirements?: string;
-  purchase_instructions?: string;
-  plan?: "lite" | "pro";
-  is_artist?: boolean;
-  is_memo?: boolean;
-  is_multi_schedule?: boolean;
-  is_guerrilla?: boolean;
-  is_offline_memo?: boolean;
-}
+export type UpdateShopTemplateData = TablesUpdate<"shop_templates">;
 
-// Template Plan Management
-export interface TemplatePlan {
-  id: string;
-  template_id: string;
-  plan: "lite" | "pro";
-  is_artist: boolean;
-  is_memo: boolean;
-  is_multi_schedule: boolean;
-  is_guerrilla: boolean;
-  is_offline_memo: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// Template Plan Management (types already defined at top from Supabase)
+export type CreateTemplatePlanData = TablesInsert<"template_plans">;
+export type UpdateTemplatePlanData = TablesUpdate<"template_plans">;
 
-export interface CreateTemplatePlanData {
-  template_id: string;
-  plan: "lite" | "pro";
-  is_artist: boolean;
-  is_memo: boolean;
-  is_multi_schedule: boolean;
-  is_guerrilla: boolean;
-  is_offline_memo: boolean;
-}
+// Template Purchase Request Management (types already defined at top from Supabase)
+export type CreateTemplatePurchaseRequestData = TablesInsert<"template_purchase_requests">;
+export type UpdateTemplatePurchaseRequestData = TablesUpdate<"template_purchase_requests">;
 
-export interface UpdateTemplatePlanData {
-  is_artist?: boolean;
-  is_memo?: boolean;
-  is_multi_schedule?: boolean;
-  is_guerrilla?: boolean;
-  is_offline_memo?: boolean;
+export interface TemplatePurchaseRequestWithRelations extends TemplatePurchaseRequest {
+  template?: Template;
+  user?: User;
 }
 
 // Custom Order Management

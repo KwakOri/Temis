@@ -12,8 +12,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const {
-      template_id,
+      shop_template_id,
       plan,
+      price,
       is_artist,
       is_memo,
       is_multi_schedule,
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // 입력 검증
-    if (!template_id || !plan) {
+    if (!shop_template_id || !plan) {
       return NextResponse.json(
         { error: "필수 필드가 누락되었습니다." },
         { status: 400 }
@@ -36,25 +37,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 템플릿이 존재하는지 확인
-    const { data: template, error: templateError } = await supabase
-      .from("templates")
+    // shop_template이 존재하는지 확인
+    const { data: shopTemplate, error: shopTemplateError } = await supabase
+      .from("shop_templates")
       .select("id")
-      .eq("id", template_id)
+      .eq("id", shop_template_id)
       .single();
 
-    if (templateError || !template) {
+    if (shopTemplateError || !shopTemplate) {
       return NextResponse.json(
-        { error: "템플릿을 찾을 수 없습니다." },
+        { error: "상점 템플릿을 찾을 수 없습니다." },
         { status: 404 }
       );
     }
 
-    // 동일한 템플릿의 동일한 플랜이 이미 등록되어 있는지 확인
+    // 동일한 shop_template의 동일한 플랜이 이미 등록되어 있는지 확인
     const { data: existingPlan, error: checkError } = await supabase
       .from("template_plans")
       .select("id")
-      .eq("template_id", template_id)
+      .eq("shop_template_id", shop_template_id)
       .eq("plan", plan)
       .single();
 
@@ -76,8 +77,9 @@ export async function POST(request: NextRequest) {
     const { data: newPlan, error: insertError } = await supabase
       .from("template_plans")
       .insert({
-        template_id,
+        shop_template_id,
         plan,
+        price: price || null,
         is_artist: is_artist || false,
         is_memo: is_memo || false,
         is_multi_schedule: is_multi_schedule || false,
@@ -118,12 +120,12 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const template_id = searchParams.get("template_id");
+    const shop_template_id = searchParams.get("shop_template_id");
 
     let query = supabase.from("template_plans").select("*");
 
-    if (template_id) {
-      query = query.eq("template_id", template_id);
+    if (shop_template_id) {
+      query = query.eq("shop_template_id", shop_template_id);
     }
 
     const { data: plans, error } = await query.order("created_at", {

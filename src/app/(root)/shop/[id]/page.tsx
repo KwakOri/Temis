@@ -8,12 +8,12 @@ import {
   useSubmitPurchaseRequest,
   useTemplateDetail,
 } from "@/hooks/query/useTemplateDetail";
-import { TemplateWithProducts } from "@/types/templateDetail";
+import { ShopTemplateWithPlans } from "@/types/templateDetail";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import React, { useState } from "react";
 
 export default function TemplateDetailPage() {
   const { user } = useAuth();
@@ -45,17 +45,28 @@ export default function TemplateDetailPage() {
     );
 
   const handlePurchaseRequest = async (formData: {
+    plan: "lite" | "pro";
     depositorName: string;
     message: string;
   }) => {
     if (!template) return;
 
     try {
-      await submitPurchaseRequest.mutateAsync({
-        template_id: template.id,
-        depositor_name: formData.depositorName,
-        message: formData.message,
+      const response = await fetch("/api/template-purchase-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template_id: template.id,
+          plan: formData.plan,
+          customer_phone: formData.depositorName,
+          message: formData.message,
+        }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "구매 요청 실패");
+      }
 
       alert("구매 신청이 접수되었습니다. 곧 연락드리겠습니다.");
       setShowPurchaseForm(false);
@@ -122,8 +133,8 @@ export default function TemplateDetailPage() {
             <div className="space-y-4">
               <div className="aspect-video bg-slate-100 rounded-lg overflow-hidden">
                 <Image
-                  src={`/thumbnail/${template.id}.png`}
-                  alt={template.name}
+                  src={template.templates.thumbnail_url || `/thumbnail/${template.template_id}.png`}
+                  alt={template.templates.name || "템플릿"}
                   width={600}
                   height={338}
                   className="w-full h-full object-cover"
@@ -144,44 +155,99 @@ export default function TemplateDetailPage() {
             <div className="space-y-6">
               <div>
                 <h1 className="text-3xl font-bold mb-2 text-slate-900">
-                  {template.name}
+                  {template.templates.name}
                 </h1>
-                <p className="text-slate-600">{template.description}</p>
+                <p className="text-slate-600">{template.templates.description}</p>
               </div>
 
-              {/* 임시 상품 정보 (template_products 테이블 생성 후 실제 데이터로 교체) */}
+              {/* 플랜별 가격 정보 */}
               <div className="border-t border-slate-200 pt-6">
-                <div className="mb-4">
-                  <span className="text-2xl font-bold text-[#1e3a8a]">
-                    ₩{template.template_products[0].price.toLocaleString()}
-                  </span>
+                <h3 className="font-semibold mb-3 text-slate-900">
+                  플랜 선택
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {template.template_plans?.find((p) => p.plan === "lite") && (
+                    <div className="p-4 rounded-lg border-2 border-slate-200 bg-slate-50">
+                      <div className="text-xs text-slate-500 mb-1">LITE</div>
+                      <div className="text-2xl font-bold text-slate-700">
+                        ₩{template.template_plans?.find((p) => p.plan === "lite")?.price?.toLocaleString()}
+                      </div>
+                    </div>
+                  )}
+                  {template.template_plans?.find((p) => p.plan === "pro") && (
+                    <div className="p-4 rounded-lg border-2 border-indigo-200 bg-indigo-50">
+                      <div className="text-xs text-indigo-600 mb-1">PRO</div>
+                      <div className="text-2xl font-bold text-indigo-700">
+                        ₩{template.template_plans?.find((p) => p.plan === "pro")?.price?.toLocaleString()}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              </div>
 
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold mb-2 text-slate-900">
-                      포함 사항
-                    </h3>
-                    <ul className="list-disc list-inside text-slate-600 space-y-1">
-                      {template.template_products[0].features?.map(
-                        (feature: string) => (
-                          <li key={feature}>{feature}</li>
-                        )
-                      )}
-                    </ul>
+              {/* 플랜별 지원 기능 */}
+              {template.template_plans && template.template_plans.length > 0 && (
+                <div className="border-t border-slate-200 pt-6">
+                  <h3 className="font-semibold mb-3 text-slate-900">
+                    플랜별 지원 기능
+                  </h3>
+                  <div className="space-y-4">
+                    {template.template_plans
+                      .sort((a, b) => (a.plan === "lite" ? -1 : 1))
+                      .map((plan) => {
+                        const features = [];
+                        if (plan.is_artist) features.push("아티스트 이미지 지원");
+                        if (plan.is_memo) features.push("메모 기능");
+                        if (plan.is_multi_schedule) features.push("다중 일정 지원");
+                        if (plan.is_guerrilla) features.push("게릴라 일정 지원");
+                        if (plan.is_offline_memo) features.push("오프라인 메모");
+
+                        return (
+                          <div
+                            key={plan.id}
+                            className={`p-4 rounded-lg border ${
+                              plan.plan === "pro"
+                                ? "border-indigo-200 bg-indigo-50"
+                                : "border-slate-200 bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span
+                                className={`text-xs font-medium px-2 py-1 rounded ${
+                                  plan.plan === "pro"
+                                    ? "bg-indigo-600 text-white"
+                                    : "bg-slate-600 text-white"
+                                }`}
+                              >
+                                {plan.plan.toUpperCase()}
+                              </span>
+                              <span className="text-sm font-bold text-slate-700">
+                                ₩{plan.price?.toLocaleString()}
+                              </span>
+                            </div>
+                            {features.length > 0 && (
+                              <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
+                                {features.map((feature, index) => (
+                                  <li key={index}>{feature}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* 상품 상세 설명 */}
-              {template.template_products[0].purchase_instructions && (
+              {template.purchase_instructions && (
                 <div className="border-t border-slate-200 pt-6">
                   <h3 className="font-semibold mb-3 text-slate-900">
                     상품 상세 설명
                   </h3>
                   <div className="prose prose-sm max-w-none">
                     <div className="text-slate-600 whitespace-pre-wrap leading-relaxed">
-                      {template.template_products[0].purchase_instructions}
+                      {template.purchase_instructions}
                     </div>
                   </div>
                 </div>
@@ -312,9 +378,10 @@ export default function TemplateDetailPage() {
 }
 
 interface PurchaseModalProps {
-  template: TemplateWithProducts;
+  template: ShopTemplateWithPlans;
   onClose: () => void;
   onSubmit: (formData: {
+    plan: "lite" | "pro";
     depositorName: string;
     message: string;
   }) => Promise<void>;
@@ -323,10 +390,25 @@ interface PurchaseModalProps {
 function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
+    plan: "lite" as "lite" | "pro",
     depositorName: "",
     message: "",
   });
   const [submitting, setSubmitting] = useState(false);
+
+  // 모달이 열릴 때 배경 스크롤 방지
+  React.useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, []);
+
+  // 선택된 플랜의 가격 계산
+  const selectedPlan = template.template_plans?.find(
+    (p) => p.plan === formData.plan
+  );
+  const selectedPrice = selectedPlan?.price || 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -352,9 +434,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6 flex flex-col gap-4">
-        <div className="flex justify-between items-center mb-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-md w-full my-8 max-h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center p-6 pb-4 border-b border-slate-200 flex-shrink-0">
           <h2 className="text-xl font-bold text-slate-900">구매 신청</h2>
           <button
             onClick={onClose}
@@ -364,11 +446,71 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
           </button>
         </div>
 
+        <div className="overflow-y-auto p-6 pt-4 flex-1">
+          <div className="flex flex-col gap-4">
+
+        {/* 플랜 선택 */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium mb-2 text-slate-700">
+            플랜 선택 *
+          </label>
+          <div className="flex gap-3">
+            {template.template_plans?.find((p) => p.plan === "lite") && (
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, plan: "lite" }))}
+                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                  formData.plan === "lite"
+                    ? "border-slate-600 bg-slate-50"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="text-xs text-slate-500 mb-1">LITE</div>
+                <div className="text-lg font-bold text-slate-700">
+                  ₩{template.template_plans?.find((p) => p.plan === "lite")?.price?.toLocaleString()}
+                </div>
+              </button>
+            )}
+            {template.template_plans?.find((p) => p.plan === "pro") && (
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, plan: "pro" }))}
+                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                  formData.plan === "pro"
+                    ? "border-indigo-600 bg-indigo-50"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
+              >
+                <div className="text-xs text-indigo-600 mb-1">PRO</div>
+                <div className="text-lg font-bold text-indigo-700">
+                  ₩{template.template_plans?.find((p) => p.plan === "pro")?.price?.toLocaleString()}
+                </div>
+              </button>
+            )}
+          </div>
+
+          {/* 선택된 플랜의 기능 표시 */}
+          {selectedPlan && (
+            <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+              <h4 className="text-sm font-semibold text-slate-900 mb-2">
+                {formData.plan.toUpperCase()} 플랜 기능
+              </h4>
+              <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
+                {selectedPlan.is_artist && <li>아티스트 이미지 지원</li>}
+                {selectedPlan.is_memo && <li>메모 기능</li>}
+                {selectedPlan.is_multi_schedule && <li>다중 일정 지원</li>}
+                {selectedPlan.is_guerrilla && <li>게릴라 일정 지원</li>}
+                {selectedPlan.is_offline_memo && <li>오프라인 메모</li>}
+              </ul>
+            </div>
+          )}
+        </div>
+
         <div className=" p-3 bg-slate-50 rounded">
-          <p className="font-medium text-slate-900">{template.name}</p>
-          <p className="text-sm text-slate-600">{template.description}</p>
+          <p className="font-medium text-slate-900">{template.templates.name}</p>
+          <p className="text-sm text-slate-600">{template.templates.description}</p>
           <p className="text-lg font-bold text-[#1e3a8a] mt-2">
-            ₩{template.template_products[0].price.toLocaleString()}
+            ₩{selectedPrice.toLocaleString()}
           </p>
         </div>
         <div className="bg-blue-50 p-3 rounded">
@@ -477,6 +619,8 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
             </button>
           </div>
         </form>
+          </div>
+        </div>
       </div>
     </div>
   );

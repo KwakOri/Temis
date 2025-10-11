@@ -1,14 +1,17 @@
 import { supabase } from "@/lib/supabase";
-import { SortOrder, Template } from "@/types/shop";
+import { SortOrder, ShopTemplate } from "@/types/shop";
 
 export class ShopService {
   static async getPublicTemplates(
     sortOrder: SortOrder = "newest"
-  ): Promise<Template[]> {
+  ): Promise<ShopTemplate[]> {
     const { data, error } = await supabase
-      .from("templates")
-      .select(`*, template_products (*)`)
-      .eq("is_public", true)
+      .from("shop_templates")
+      .select(`
+        *,
+        templates!inner (*),
+        template_plans:template_plans!shop_template_id (*)
+      `)
       .eq("is_shop_visible", true)
       .order("created_at", { ascending: sortOrder === "oldest" });
 

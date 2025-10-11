@@ -20,7 +20,7 @@ export async function PATCH(
 
     // 상품이 존재하는지 확인
     const { data: existingProduct, error: checkError } = await supabase
-      .from("template_products")
+      .from("shop_templates")
       .select("id, template_id")
       .eq("id", productId)
       .single();
@@ -33,37 +33,36 @@ export async function PATCH(
     }
 
     // 업데이트할 필드들 준비
-    const updateData: Partial<Tables<"template_products">> = {};
+    const updateData: Partial<Tables<"shop_templates">> = {};
 
     if (body.title !== undefined) updateData.title = body.title?.trim() || null;
-    if (body.price !== undefined) updateData.price = parseInt(body.price);
     if (body.features !== undefined) updateData.features = body.features;
     if (body.requirements !== undefined)
       updateData.requirements = body.requirements?.trim() || null;
     if (body.purchase_instructions !== undefined)
       updateData.purchase_instructions =
         body.purchase_instructions?.trim() || null;
-    // Note: Feature flags (is_artist, is_memo, etc.) are now in shop_templates table
-    // This template_products table is legacy and doesn't have these fields
-
-    // 가격 검증
-    if (updateData.price !== undefined && updateData.price < 0) {
-      return NextResponse.json(
-        { error: "가격은 0원 이상이어야 합니다." },
-        { status: 400 }
-      );
-    }
+    if (body.is_artist !== undefined) updateData.is_artist = body.is_artist;
+    if (body.is_memo !== undefined) updateData.is_memo = body.is_memo;
+    if (body.is_multi_schedule !== undefined)
+      updateData.is_multi_schedule = body.is_multi_schedule;
+    if (body.is_guerrilla !== undefined)
+      updateData.is_guerrilla = body.is_guerrilla;
+    if (body.is_offline_memo !== undefined)
+      updateData.is_offline_memo = body.is_offline_memo;
+    if (body.is_shop_visible !== undefined)
+      updateData.is_shop_visible = body.is_shop_visible;
 
     // 상품 정보 업데이트
     const { data: updatedProduct, error: updateError } = await supabase
-      .from("template_products")
+      .from("shop_templates")
       .update(updateData)
       .eq("id", productId)
       .select()
       .single();
 
     if (updateError) {
-      console.error("Product update error:", updateError);
+      console.error("Shop template update error:", updateError);
       throw updateError;
     }
 
@@ -73,7 +72,7 @@ export async function PATCH(
       product: updatedProduct,
     });
   } catch (error) {
-    console.error("Product update error:", error);
+    console.error("Shop template update error:", error);
     return NextResponse.json(
       { error: "상품 업데이트 중 오류가 발생했습니다." },
       { status: 500 }

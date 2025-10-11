@@ -3,10 +3,10 @@ import { AdminTemplateService } from "@/services/admin/templateService";
 import {
   CreateTemplateData,
   CreateTemplatePlanData,
-  CreateTemplateProductData,
+  CreateShopTemplateData,
   UpdateTemplateData,
   UpdateTemplatePlanData,
-  UpdateTemplateProductData,
+  UpdateShopTemplateData,
 } from "@/types/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -58,12 +58,12 @@ export const useUpdateTemplate = () => {
 // Alias for component compatibility
 export const useUpdateAdminTemplate = useUpdateTemplate;
 
-export const useCreateTemplateProduct = () => {
+export const useCreateShopTemplate = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: CreateTemplateProductData) =>
-      AdminTemplateService.createTemplateProduct(data),
+    mutationFn: (data: CreateShopTemplateData) =>
+      AdminTemplateService.createShopTemplate(data),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templates(),
@@ -72,7 +72,7 @@ export const useCreateTemplateProduct = () => {
   });
 };
 
-export const useUpdateTemplateProduct = () => {
+export const useUpdateShopTemplate = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -81,8 +81,8 @@ export const useUpdateTemplateProduct = () => {
       data,
     }: {
       productId: string;
-      data: UpdateTemplateProductData;
-    }) => AdminTemplateService.updateTemplateProduct(productId, data),
+      data: UpdateShopTemplateData;
+    }) => AdminTemplateService.updateShopTemplate(productId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templates(),

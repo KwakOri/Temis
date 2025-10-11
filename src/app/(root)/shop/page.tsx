@@ -31,7 +31,7 @@ export default function ShopPage() {
   const filteredTemplates = useMemo(() => {
     if (showOnlyUnpurchased && user) {
       return templates.filter(
-        (template) => !accessibleTemplateIds.includes(template.id)
+        (template) => !accessibleTemplateIds.includes(template.template_id!)
       );
     }
     return templates;
@@ -149,13 +149,13 @@ export default function ShopPage() {
                 {filteredTemplates.map((template) => (
                   <Link
                     key={template.id}
-                    href={`/shop/${template.id}`}
+                    href={`/shop/${template.template_id}`}
                     className="group block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20 hover:border-[#1e3a8a]/20"
                   >
                     <div className="aspect-video bg-slate-100 rounded-t-2xl overflow-hidden">
                       <Image
-                        src={`/thumbnail/${template.id}.png`}
-                        alt={template.name}
+                        src={template.templates.thumbnail_url || `/thumbnail/${template.template_id}.png`}
+                        alt={template.templates.name || "템플릿"}
                         width={400}
                         height={225}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -172,19 +172,32 @@ export default function ShopPage() {
                     </div>
 
                     <div className="p-6">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-lg group-hover:text-[#1e3a8a] transition-colors flex-1">
-                          {template.name}
-                        </h3>
-                        {template.template_products && template.template_products.length > 0 && (
-                          <div className="text-lg font-bold text-[#1e3a8a] ml-3">
-                            ₩{template.template_products[0].price.toLocaleString()}
-                          </div>
-                        )}
-                      </div>
+                      <h3 className="font-semibold text-lg group-hover:text-[#1e3a8a] transition-colors mb-2">
+                        {template.templates.name}
+                      </h3>
                       <p className="text-slate-600 text-sm line-clamp-2 mb-4">
-                        {template.description}
+                        {template.templates.description}
                       </p>
+                      {template.template_plans && template.template_plans.length > 0 && (
+                        <div className="flex items-center gap-3 mb-4">
+                          {template.template_plans.find((p) => p.plan === "lite") && (
+                            <div className="flex-1 bg-slate-50 rounded-lg px-3 py-2">
+                              <div className="text-xs text-slate-500 mb-1">LITE</div>
+                              <div className="text-sm font-bold text-slate-700">
+                                ₩{template.template_plans.find((p) => p.plan === "lite")!.price!.toLocaleString()}
+                              </div>
+                            </div>
+                          )}
+                          {template.template_plans.find((p) => p.plan === "pro") && (
+                            <div className="flex-1 bg-indigo-50 rounded-lg px-3 py-2">
+                              <div className="text-xs text-indigo-600 mb-1">PRO</div>
+                              <div className="text-sm font-bold text-indigo-700">
+                                ₩{template.template_plans.find((p) => p.plan === "pro")!.price!.toLocaleString()}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center text-[#1e3a8a] text-sm font-medium">
                         <span>자세히 보기</span>
                         <svg

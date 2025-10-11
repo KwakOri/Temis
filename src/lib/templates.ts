@@ -7,6 +7,7 @@ type User = Tables<"users">;
 type TemplateInsert = TablesInsert<"templates">;
 type TemplateUpdate = TablesUpdate<"templates">;
 type TemplateAccessInsert = TablesInsert<"template_access">;
+type TemplateAccessUpdate = TablesUpdate<"template_access">;
 type AccessLevel = TemplateAccess["access_level"];
 
 interface TemplateAccessWithUser extends TemplateAccess {
@@ -237,7 +238,7 @@ export class TemplateAccessService {
     templatePlanId?: string | null
   ): Promise<TemplateAccess> {
     try {
-      const updateData: any = { access_level: accessLevel };
+      const updateData: TemplateAccessUpdate = { access_level: accessLevel };
 
       // template_plan_id가 제공되면 업데이트에 포함
       if (templatePlanId !== undefined) {

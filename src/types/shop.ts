@@ -1,7 +1,9 @@
 import { Tables } from "@/types/supabase";
 
-export type Template = Tables<"templates"> & {
-  template_products: Tables<"template_products">[];
+// Shop template with joined template data and plans
+export type ShopTemplate = Tables<"shop_templates"> & {
+  templates: Tables<"templates">;
+  template_plans: Tables<"template_plans">[];
 };
 
 export type SortOrder = "newest" | "oldest";
@@ -12,7 +14,7 @@ export interface TemplateAccess {
 }
 
 export interface ShopTemplatesResponse {
-  templates: Template[];
+  shopTemplates: ShopTemplate[];
 }
 
 export interface UserTemplateAccessResponse {

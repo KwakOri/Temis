@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
     const {
       template_id,
       title,
-      price,
       features,
       requirements,
       purchase_instructions,
@@ -26,16 +25,9 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // 입력 검증
-    if (!template_id || !title || price === undefined) {
+    if (!template_id || !title) {
       return NextResponse.json(
         { error: "필수 필드가 누락되었습니다." },
-        { status: 400 }
-      );
-    }
-
-    if (price < 0) {
-      return NextResponse.json(
-        { error: "가격은 0원 이상이어야 합니다." },
         { status: 400 }
       );
     }
@@ -63,13 +55,13 @@ export async function POST(request: NextRequest) {
 
     // 동일한 템플릿에 대한 상품이 이미 등록되어 있는지 확인
     const { data: existingProduct, error: checkError } = await supabase
-      .from("template_products")
+      .from("shop_templates")
       .select("id")
       .eq("template_id", template_id)
       .single();
 
     if (checkError && checkError.code !== "PGRST116") {
-      console.error("Product check error:", checkError);
+      console.error("Shop template check error:", checkError);
       throw checkError;
     }
 
@@ -84,11 +76,10 @@ export async function POST(request: NextRequest) {
 
     // 새 상품 생성
     const { data: newProduct, error: insertError } = await supabase
-      .from("template_products")
+      .from("shop_templates")
       .insert({
         template_id,
         title: title?.trim() || null,
-        price: parseInt(price),
         features: features || [],
         requirements: requirements?.trim() || null,
         purchase_instructions: purchase_instructions?.trim() || null,
@@ -102,7 +93,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
-      console.error("Product creation error:", insertError);
+      console.error("Shop template creation error:", insertError);
       throw insertError;
     }
 
@@ -115,7 +106,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("Product creation error:", error);
+    console.error("Shop template creation error:", error);
     return NextResponse.json(
       { error: "상품 등록 중 오류가 발생했습니다." },
       { status: 500 }

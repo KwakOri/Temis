@@ -4,24 +4,24 @@ import {
   useAdminTemplates,
   useCreateAdminTemplate,
   useCreateTemplatePlan,
-  useCreateTemplateProduct,
+  useCreateShopTemplate,
   useTemplatePlans,
   useUpdateAdminTemplate,
   useUpdateTemplatePlan,
-  useUpdateTemplateProduct,
+  useUpdateShopTemplate,
 } from "@/hooks/query/useAdminTemplates";
 import { AdminTemplateService } from "@/services/admin/templateService";
 import type {
   CreateTemplateData,
-  CreateTemplateProductData,
-  TemplateWithProducts,
+  CreateShopTemplateData,
+  TemplatePlan,
+  TemplateWithShopTemplateAndPlans,
 } from "@/types/admin";
 import { useMemo, useState } from "react";
 
 interface CreateTemplateForm {
   name: string;
   description: string;
-  detailed_description: string;
   thumbnail_url: string;
   is_public: boolean;
 }
@@ -36,13 +36,17 @@ interface PlanOptions {
 
 interface ProductForm {
   title: string;
+  detailed_description: string; // 상점 전용 상세 설명
+  enableLite: boolean; // LITE 플랜 등록 여부
   litePrice: number;
+  enablePro: boolean; // PRO 플랜 등록 여부
   proPrice: number;
   features: string[];
   requirements: string;
   purchase_instructions: string;
-  liteOptions: PlanOptions;
-  proOptions: PlanOptions;
+  templateOptions: PlanOptions; // 템플릿 기본 기능
+  liteOptions: PlanOptions; // LITE 플랜 사용 가능 기능
+  proOptions: PlanOptions; // PRO 플랜 사용 가능 기능
 }
 
 type TemplateTab = "all" | "public" | "private";
@@ -53,7 +57,6 @@ export default function TemplateManagement() {
   const [formData, setFormData] = useState<CreateTemplateForm>({
     name: "",
     description: "",
-    detailed_description: "",
     thumbnail_url: "",
     is_public: false,
   });
@@ -72,8 +75,8 @@ export default function TemplateManagement() {
 
   const createTemplateMutation = useCreateAdminTemplate();
   const updateTemplateMutation = useUpdateAdminTemplate();
-  const createProductMutation = useCreateTemplateProduct();
-  const updateProductMutation = useUpdateTemplateProduct();
+  const createProductMutation = useCreateShopTemplate();
+  const updateProductMutation = useUpdateShopTemplate();
   const createPlanMutation = useCreateTemplatePlan();
   const updatePlanMutation = useUpdateTemplatePlan();
 
@@ -83,20 +86,9 @@ export default function TemplateManagement() {
     ? (createTemplateMutation.error as Error).message
     : "";
 
-  // template_products 배열에서 플랜별 상품 정보를 가져오는 함수
-  const getTemplateProductByPlan = (
-    template: TemplateWithProducts,
-    plan: "lite" | "pro"
-  ) => {
-    return (
-      template.template_products?.find((product) => product.plan === plan) ||
-      null
-    );
-  };
-
   // 템플릿에 상품이 등록되어 있는지 확인하는 함수
-  const hasProduct = (template: TemplateWithProducts): boolean => {
-    return template.template_products && template.template_products.length > 0;
+  const hasProduct = (template: TemplateWithShopTemplateAndPlans): boolean => {
+    return template.shop_templates && template.shop_templates.length > 0;
   };
 
   // 옵션 레이블 매핑
@@ -111,17 +103,20 @@ export default function TemplateManagement() {
   // 템플릿 ID 모달 및 검색 관련 상태
   const [showIdModal, setShowIdModal] = useState(false);
   const [selectedTemplateForId, setSelectedTemplateForId] =
-    useState<TemplateWithProducts | null>(null);
+    useState<TemplateWithShopTemplateAndPlans | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
 
   // 상품 관리 관련 상태
   const [showProductModal, setShowProductModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] =
-    useState<TemplateWithProducts | null>(null);
+    useState<TemplateWithShopTemplateAndPlans | null>(null);
   const [productFormData, setProductFormData] = useState<ProductForm>({
     title: "",
+    detailed_description: "",
+    enableLite: true,
     litePrice: 15000,
+    enablePro: true,
     proPrice: 25000,
     features: [
       "고화질 시간표 템플릿",
@@ -130,6 +125,13 @@ export default function TemplateManagement() {
     ],
     requirements: "웹 브라우저만 있으면 사용 가능",
     purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
+    templateOptions: {
+      is_artist: false,
+      is_memo: false,
+      is_multi_schedule: false,
+      is_guerrilla: false,
+      is_offline_memo: false,
+    },
     liteOptions: {
       is_artist: false,
       is_memo: false,
@@ -212,13 +214,12 @@ export default function TemplateManagement() {
     setFormData({
       name: "",
       description: "",
-      detailed_description: "",
       thumbnail_url: "",
       is_public: false,
     });
   };
 
-  const handleShowTemplateId = (template: TemplateWithProducts) => {
+  const handleShowTemplateId = (template: TemplateWithShopTemplateAndPlans) => {
     setSelectedTemplateForId(template);
     setShowIdModal(true);
   };
@@ -288,12 +289,28 @@ export default function TemplateManagement() {
     };
   }, [templates]);
 
-  // 옵션 토글 핸들러 (cascade 규칙 적용)
+  // 템플릿 옵션 토글 핸들러
+  const handleTemplateOptionToggle = (optionKey: keyof PlanOptions) => {
+    setProductFormData((prev) => ({
+      ...prev,
+      templateOptions: {
+        ...prev.templateOptions,
+        [optionKey]: !prev.templateOptions[optionKey],
+      },
+    }));
+  };
+
+  // 플랜 옵션 토글 핸들러 (cascade 규칙 적용)
   const handleOptionToggle = (
     plan: "lite" | "pro",
     optionKey: keyof PlanOptions
   ) => {
     setProductFormData((prev) => {
+      // 템플릿 기본 옵션에 포함되지 않은 기능은 토글 불가
+      if (!prev.templateOptions[optionKey]) {
+        return prev;
+      }
+
       const newLiteOptions = { ...prev.liteOptions };
       const newProOptions = { ...prev.proOptions };
 
@@ -324,11 +341,14 @@ export default function TemplateManagement() {
   };
 
   // 상품 등록 모달 열기
-  const handleCreateProduct = (template: TemplateWithProducts) => {
+  const handleCreateProduct = (template: TemplateWithShopTemplateAndPlans) => {
     setSelectedTemplate(template);
     setProductFormData({
       title: template.name,
+      detailed_description: "",
+      enableLite: true,
       litePrice: 15000,
+      enablePro: true,
       proPrice: 25000,
       features: [
         "고화질 시간표 템플릿",
@@ -337,6 +357,13 @@ export default function TemplateManagement() {
       ],
       requirements: "웹 브라우저만 있으면 사용 가능",
       purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
+      templateOptions: {
+        is_artist: false,
+        is_memo: false,
+        is_multi_schedule: false,
+        is_guerrilla: false,
+        is_offline_memo: false,
+      },
       liteOptions: {
         is_artist: false,
         is_memo: false,
@@ -356,28 +383,34 @@ export default function TemplateManagement() {
   };
 
   // 상품 수정 모달 열기
-  const handleEditProduct = async (template: TemplateWithProducts) => {
-    const liteProduct = getTemplateProductByPlan(template, "lite");
-    const proProduct = getTemplateProductByPlan(template, "pro");
+  const handleEditProduct = async (template: TemplateWithShopTemplateAndPlans) => {
+    const product = template.shop_templates?.[0];
 
-    if (!liteProduct && !proProduct) return;
+    if (!product) return;
 
-    // template_plans 테이블에서 플랜 옵션 정보 가져오기
-    const { plans } = await AdminTemplateService.getTemplatePlans(template.id);
+    // template_plans 테이블에서 플랜 옵션 및 가격 정보 가져오기
+    const { plans } = await AdminTemplateService.getTemplatePlans(product.id);
     const litePlan = plans.find((p) => p.plan === "lite");
     const proPlan = plans.find((p) => p.plan === "pro");
 
     setSelectedTemplate(template);
     setProductFormData({
-      title: liteProduct?.title || proProduct?.title || template.name,
-      litePrice: liteProduct?.price || 15000,
-      proPrice: proProduct?.price || 25000,
-      features: liteProduct?.features || proProduct?.features || [],
-      requirements: liteProduct?.requirements || proProduct?.requirements || "",
-      purchase_instructions:
-        liteProduct?.purchase_instructions ||
-        proProduct?.purchase_instructions ||
-        "",
+      title: product.title || template.name,
+      detailed_description: product.detailed_description || "",
+      enableLite: !!litePlan,
+      litePrice: litePlan?.price || 15000,
+      enablePro: !!proPlan,
+      proPrice: proPlan?.price || 25000,
+      features: product.features || [],
+      requirements: product.requirements || "",
+      purchase_instructions: product.purchase_instructions || "",
+      templateOptions: {
+        is_artist: product.is_artist || false,
+        is_memo: product.is_memo || false,
+        is_multi_schedule: product.is_multi_schedule || false,
+        is_guerrilla: product.is_guerrilla || false,
+        is_offline_memo: product.is_offline_memo || false,
+      },
       liteOptions: {
         is_artist: litePlan?.is_artist || false,
         is_memo: litePlan?.is_memo || false,
@@ -397,13 +430,15 @@ export default function TemplateManagement() {
   };
 
   // 상점 노출 여부 토글
-  const toggleShopVisibility = async (template: TemplateWithProducts) => {
+  const toggleShopVisibility = async (template: TemplateWithShopTemplateAndPlans) => {
     if (!hasProduct(template)) return;
 
+    const shopTemplate = template.shop_templates[0];
+
     try {
-      await updateTemplateMutation.mutateAsync({
-        templateId: template.id,
-        data: { is_shop_visible: !template.is_shop_visible },
+      await updateProductMutation.mutateAsync({
+        productId: shopTemplate.id,
+        data: { is_shop_visible: !shopTemplate.is_shop_visible },
       });
     } catch (error) {
       console.error("Shop visibility toggle error:", error);
@@ -415,148 +450,89 @@ export default function TemplateManagement() {
     e.preventDefault();
     if (!selectedTemplate) return;
 
-    try {
-      const liteProduct = getTemplateProductByPlan(selectedTemplate, "lite");
-      const proProduct = getTemplateProductByPlan(selectedTemplate, "pro");
-      const isEditing = !!liteProduct || !!proProduct;
+    // 최소 하나의 플랜은 활성화되어야 함
+    if (!productFormData.enableLite && !productFormData.enablePro) {
+      alert("최소 하나의 플랜을 활성화해야 합니다.");
+      return;
+    }
 
-      // 공통 데이터
-      const commonData = {
+    try {
+      const product = selectedTemplate.shop_templates?.[0];
+      const isEditing = !!product;
+
+      // shop_templates 데이터 (템플릿당 하나)
+      const productData = {
         title: productFormData.title,
+        detailed_description: productFormData.detailed_description,
         features: productFormData.features,
         requirements: productFormData.requirements,
         purchase_instructions: productFormData.purchase_instructions,
+        is_shop_visible: isEditing ? product.is_shop_visible : false,
+        ...productFormData.templateOptions,
       };
 
-      // 템플릿 기본 옵션 (LITE 또는 PRO 중 하나라도 활성화되어 있으면 템플릿이 해당 기능을 가지고 있음)
-      const templateOptions = {
-        is_artist:
-          productFormData.liteOptions.is_artist ||
-          productFormData.proOptions.is_artist,
-        is_memo:
-          productFormData.liteOptions.is_memo ||
-          productFormData.proOptions.is_memo,
-        is_multi_schedule:
-          productFormData.liteOptions.is_multi_schedule ||
-          productFormData.proOptions.is_multi_schedule,
-        is_guerrilla:
-          productFormData.liteOptions.is_guerrilla ||
-          productFormData.proOptions.is_guerrilla,
-        is_offline_memo:
-          productFormData.liteOptions.is_offline_memo ||
-          productFormData.proOptions.is_offline_memo,
-      };
+      // shop_templates 저장/업데이트
+      let shopTemplateId: string;
 
       if (isEditing) {
-        // 수정: LITE 플랜 (상품 정보 + 템플릿 기본 옵션)
-        if (liteProduct) {
-          await updateProductMutation.mutateAsync({
-            productId: liteProduct.id,
-            data: {
-              ...commonData,
-              price: productFormData.litePrice,
-              plan: "lite",
-              ...templateOptions,
-            },
-          });
-        } else {
-          // LITE 플랜이 없으면 생성
-          await createProductMutation.mutateAsync({
-            ...commonData,
-            template_id: selectedTemplate.id,
-            price: productFormData.litePrice,
-            plan: "lite",
-            ...templateOptions,
-          });
-        }
+        await updateProductMutation.mutateAsync({
+          productId: product.id,
+          data: productData,
+        });
+        shopTemplateId = product.id;
+      } else {
+        const createdShopTemplate = await createProductMutation.mutateAsync({
+          ...productData,
+          template_id: selectedTemplate.id,
+        });
+        shopTemplateId = createdShopTemplate.id;
+      }
 
-        // 수정: PRO 플랜 (상품 정보 + 템플릿 기본 옵션)
-        if (proProduct) {
-          await updateProductMutation.mutateAsync({
-            productId: proProduct.id,
-            data: {
-              ...commonData,
-              price: productFormData.proPrice,
-              plan: "pro",
-              ...templateOptions,
-            },
-          });
-        } else {
-          // PRO 플랜이 없으면 생성
-          await createProductMutation.mutateAsync({
-            ...commonData,
-            template_id: selectedTemplate.id,
-            price: productFormData.proPrice,
-            plan: "pro",
-            ...templateOptions,
-          });
-        }
+      // template_plans 저장/업데이트 (가격 포함)
+      const { plans } = await AdminTemplateService.getTemplatePlans(
+        shopTemplateId
+      );
+      const litePlan = plans?.find((p: TemplatePlan) => p.plan === "lite");
+      const proPlan = plans?.find((p: TemplatePlan) => p.plan === "pro");
 
-        // 플랜 옵션 저장/업데이트 (template_plans 테이블)
-        // LITE 플랜 옵션
-        const { data: plansData } = await AdminTemplateService.getTemplatePlans(
-          selectedTemplate.id
-        );
-        const litePlan = plansData?.plans?.find((p) => p.plan === "lite");
-        const proPlan = plansData?.plans?.find((p) => p.plan === "pro");
-
+      // LITE 플랜 - enableLite가 true일 때만 처리
+      if (productFormData.enableLite) {
         if (litePlan) {
           await updatePlanMutation.mutateAsync({
             planId: litePlan.id,
-            data: productFormData.liteOptions,
+            data: {
+              price: productFormData.litePrice,
+              ...productFormData.liteOptions,
+            },
           });
         } else {
           await createPlanMutation.mutateAsync({
-            template_id: selectedTemplate.id,
+            shop_template_id: shopTemplateId,
             plan: "lite",
+            price: productFormData.litePrice,
             ...productFormData.liteOptions,
           });
         }
+      }
 
-        // PRO 플랜 옵션
+      // PRO 플랜 - enablePro가 true일 때만 처리
+      if (productFormData.enablePro) {
         if (proPlan) {
           await updatePlanMutation.mutateAsync({
             planId: proPlan.id,
-            data: productFormData.proOptions,
+            data: {
+              price: productFormData.proPrice,
+              ...productFormData.proOptions,
+            },
           });
         } else {
           await createPlanMutation.mutateAsync({
-            template_id: selectedTemplate.id,
+            shop_template_id: shopTemplateId,
             plan: "pro",
+            price: productFormData.proPrice,
             ...productFormData.proOptions,
           });
         }
-      } else {
-        // 생성: LITE 플랜 (상품 정보 + 템플릿 기본 옵션)
-        await createProductMutation.mutateAsync({
-          ...commonData,
-          template_id: selectedTemplate.id,
-          price: productFormData.litePrice,
-          plan: "lite",
-          ...templateOptions,
-        });
-
-        // 생성: PRO 플랜 (상품 정보 + 템플릿 기본 옵션)
-        await createProductMutation.mutateAsync({
-          ...commonData,
-          template_id: selectedTemplate.id,
-          price: productFormData.proPrice,
-          plan: "pro",
-          ...templateOptions,
-        });
-
-        // 플랜 옵션 생성 (template_plans 테이블)
-        await createPlanMutation.mutateAsync({
-          template_id: selectedTemplate.id,
-          plan: "lite",
-          ...productFormData.liteOptions,
-        });
-
-        await createPlanMutation.mutateAsync({
-          template_id: selectedTemplate.id,
-          plan: "pro",
-          ...productFormData.proOptions,
-        });
       }
 
       setShowProductModal(false);
@@ -802,41 +778,20 @@ export default function TemplateManagement() {
                           <div className="flex flex-col items-start gap-1">
                             <span
                               className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                template.is_shop_visible
+                                template.shop_templates[0]?.is_shop_visible
                                   ? "bg-blue-100 text-blue-800"
                                   : "bg-orange-100 text-orange-800"
                               }`}
                             >
-                              {template.is_shop_visible
+                              {template.shop_templates[0]?.is_shop_visible
                                 ? "상점 노출됨"
                                 : "상점 비노출"}
                             </span>
-                            {(() => {
-                              const liteProduct = getTemplateProductByPlan(
-                                template,
-                                "lite"
-                              );
-                              const proProduct = getTemplateProductByPlan(
-                                template,
-                                "pro"
-                              );
-                              return (
-                                <div className="text-xs text-gray-500 space-y-0.5">
-                                  {liteProduct && (
-                                    <div>
-                                      LITE: ₩
-                                      {liteProduct.price.toLocaleString()}
-                                    </div>
-                                  )}
-                                  {proProduct && (
-                                    <div>
-                                      PRO: ₩
-                                      {proProduct.price.toLocaleString()}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })()}
+                            {hasProduct(template) && (
+                              <div className="text-xs text-green-600 mt-1">
+                                상품 등록됨
+                              </div>
+                            )}
                           </div>
                         ) : (
                           <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
@@ -914,12 +869,12 @@ export default function TemplateManagement() {
                                 <button
                                   onClick={() => toggleShopVisibility(template)}
                                   className={`px-3 py-1 rounded text-xs font-medium ${
-                                    template.is_shop_visible
+                                    template.shop_templates[0]?.is_shop_visible
                                       ? "bg-red-100 text-red-700 hover:bg-red-200"
                                       : "bg-green-100 text-green-700 hover:bg-green-200"
                                   } transition-colors`}
                                 >
-                                  {template.is_shop_visible
+                                  {template.shop_templates[0]?.is_shop_visible
                                     ? "상점에서 내리기"
                                     : "상점에 노출하기"}
                                 </button>
@@ -993,24 +948,6 @@ export default function TemplateManagement() {
                   placeholder="템플릿 간단 설명을 입력하세요 (목록에 표시됨)"
                   maxLength={200}
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  상세 설명
-                </label>
-                <textarea
-                  name="detailed_description"
-                  value={formData.detailed_description}
-                  onChange={handleInputChange}
-                  rows={6}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  placeholder="템플릿에 대한 자세한 설명을 입력하세요 (상세 페이지에 표시됨)"
-                  maxLength={2000}
-                />
-                <div className="mt-1 text-xs text-gray-500">
-                  줄바꿈은 자동으로 반영됩니다. 최대 2000자
-                </div>
               </div>
 
               {/* 썸네일 정보 섹션 */}
@@ -1313,43 +1250,25 @@ export default function TemplateManagement() {
                 />
               </div>
 
-              {/* 가격 입력 - LITE & PRO */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    LITE 가격 (원) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={productFormData.litePrice}
-                    onChange={(e) =>
-                      setProductFormData((prev) => ({
-                        ...prev,
-                        litePrice: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    PRO 가격 (원) *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    value={productFormData.proPrice}
-                    onChange={(e) =>
-                      setProductFormData((prev) => ({
-                        ...prev,
-                        proPrice: parseInt(e.target.value) || 0,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  상점 전용 상세 설명
+                </label>
+                <textarea
+                  value={productFormData.detailed_description}
+                  onChange={(e) =>
+                    setProductFormData((prev) => ({
+                      ...prev,
+                      detailed_description: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  rows={6}
+                  placeholder="상점에 표시될 자세한 설명을 입력하세요"
+                  maxLength={2000}
+                />
+                <div className="mt-1 text-xs text-gray-500">
+                  줄바꿈은 자동으로 반영됩니다. 최대 2000자
                 </div>
               </div>
 
@@ -1429,17 +1348,89 @@ export default function TemplateManagement() {
                 />
               </div>
 
-              {/* 플랜 옵션 섹션 */}
+              {/* 템플릿 기본 기능 섹션 */}
               <div className="border-t pt-4 mt-4">
-                <h4 className="text-sm font-semibold text-gray-900 mb-4">
-                  플랜별 옵션 설정
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                  템플릿 기본 기능
                 </h4>
+                <p className="text-xs text-gray-500 mb-3">
+                  이 템플릿에 포함된 기능들을 선택하세요
+                </p>
+                <div className="border rounded-lg p-4 bg-indigo-50">
+                  <div className="space-y-2">
+                    {(
+                      Object.keys(optionLabels) as Array<keyof PlanOptions>
+                    ).map((optionKey) => (
+                      <button
+                        key={optionKey}
+                        type="button"
+                        onClick={() => handleTemplateOptionToggle(optionKey)}
+                        className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          productFormData.templateOptions[optionKey]
+                            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                            : "bg-gray-200 text-gray-600 hover:bg-gray-300"
+                        }`}
+                      >
+                        {optionLabels[optionKey]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 플랜별 옵션 섹션 */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                  플랜별 사용 가능 기능
+                </h4>
+                <p className="text-xs text-gray-500 mb-3">
+                  각 플랜에서 사용할 수 있는 기능을 설정하세요
+                </p>
                 <div className="grid grid-cols-2 gap-4">
                   {/* LITE PLAN */}
                   <div className="border rounded-lg p-4 bg-slate-50">
-                    <h5 className="text-sm font-semibold text-slate-700 mb-3">
-                      LITE PLAN
-                    </h5>
+                    <div className="flex items-center mb-3">
+                      <input
+                        type="checkbox"
+                        id="enableLite"
+                        checked={productFormData.enableLite}
+                        onChange={(e) =>
+                          setProductFormData((prev) => ({
+                            ...prev,
+                            enableLite: e.target.checked,
+                          }))
+                        }
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                      />
+                      <label
+                        htmlFor="enableLite"
+                        className="ml-2 text-sm font-semibold text-slate-700 cursor-pointer"
+                      >
+                        LITE PLAN
+                      </label>
+                    </div>
+
+                    {/* LITE 가격 */}
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        가격 (원) {productFormData.enableLite && "*"}
+                      </label>
+                      <input
+                        type="number"
+                        required={productFormData.enableLite}
+                        disabled={!productFormData.enableLite}
+                        min="0"
+                        value={productFormData.litePrice}
+                        onChange={(e) =>
+                          setProductFormData((prev) => ({
+                            ...prev,
+                            litePrice: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
                     <div className="space-y-2">
                       {(
                         Object.keys(optionLabels) as Array<
@@ -1450,7 +1441,8 @@ export default function TemplateManagement() {
                           key={optionKey}
                           type="button"
                           onClick={() => handleOptionToggle("lite", optionKey)}
-                          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          disabled={!productFormData.templateOptions[optionKey] || !productFormData.enableLite}
+                          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                             productFormData.liteOptions[optionKey]
                               ? "bg-indigo-600 text-white hover:bg-indigo-700"
                               : "bg-gray-200 text-gray-600 hover:bg-gray-300"
@@ -1464,9 +1456,48 @@ export default function TemplateManagement() {
 
                   {/* PRO PLAN */}
                   <div className="border rounded-lg p-4 bg-purple-50">
-                    <h5 className="text-sm font-semibold text-purple-700 mb-3">
-                      PRO PLAN
-                    </h5>
+                    <div className="flex items-center mb-3">
+                      <input
+                        type="checkbox"
+                        id="enablePro"
+                        checked={productFormData.enablePro}
+                        onChange={(e) =>
+                          setProductFormData((prev) => ({
+                            ...prev,
+                            enablePro: e.target.checked,
+                          }))
+                        }
+                        className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                      />
+                      <label
+                        htmlFor="enablePro"
+                        className="ml-2 text-sm font-semibold text-purple-700 cursor-pointer"
+                      >
+                        PRO PLAN
+                      </label>
+                    </div>
+
+                    {/* PRO 가격 */}
+                    <div className="mb-3">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        가격 (원) {productFormData.enablePro && "*"}
+                      </label>
+                      <input
+                        type="number"
+                        required={productFormData.enablePro}
+                        disabled={!productFormData.enablePro}
+                        min="0"
+                        value={productFormData.proPrice}
+                        onChange={(e) =>
+                          setProductFormData((prev) => ({
+                            ...prev,
+                            proPrice: parseInt(e.target.value) || 0,
+                          }))
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      />
+                    </div>
+
                     <div className="space-y-2">
                       {(
                         Object.keys(optionLabels) as Array<
@@ -1477,7 +1508,8 @@ export default function TemplateManagement() {
                           key={optionKey}
                           type="button"
                           onClick={() => handleOptionToggle("pro", optionKey)}
-                          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          disabled={!productFormData.templateOptions[optionKey] || !productFormData.enablePro}
+                          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                             productFormData.proOptions[optionKey]
                               ? "bg-purple-600 text-white hover:bg-purple-700"
                               : "bg-gray-200 text-gray-600 hover:bg-gray-300"

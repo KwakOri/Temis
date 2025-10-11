@@ -1,20 +1,20 @@
 import {
   CreateTemplateData,
   CreateTemplatePlanData,
-  CreateTemplateProductData,
+  CreateShopTemplateData,
   TemplatePlan,
-  TemplateProduct,
-  TemplateWithProducts,
+  ShopTemplate,
+  TemplateWithShopTemplateAndPlans,
   UpdateTemplateData,
   UpdateTemplatePlanData,
-  UpdateTemplateProductData,
+  UpdateShopTemplateData,
 } from "@/types/admin";
 
 export class AdminTemplateService {
   private static baseUrl = "/api/admin";
 
   // Templates
-  static async getTemplates(): Promise<{ templates: TemplateWithProducts[] }> {
+  static async getTemplates(): Promise<{ templates: TemplateWithShopTemplateAndPlans[] }> {
     console.log("this.baseUrl => ", this.baseUrl);
     const response = await fetch(`${this.baseUrl}/templates`);
 
@@ -27,7 +27,7 @@ export class AdminTemplateService {
 
   static async createTemplate(
     data: CreateTemplateData
-  ): Promise<TemplateWithProducts> {
+  ): Promise<TemplateWithShopTemplateAndPlans> {
     const response = await fetch(`${this.baseUrl}/templates`, {
       method: "POST",
       headers: {
@@ -47,7 +47,7 @@ export class AdminTemplateService {
   static async updateTemplate(
     templateId: string,
     data: UpdateTemplateData
-  ): Promise<TemplateWithProducts> {
+  ): Promise<TemplateWithShopTemplateAndPlans> {
     const response = await fetch(`${this.baseUrl}/templates/${templateId}`, {
       method: "PATCH",
       headers: {
@@ -64,11 +64,11 @@ export class AdminTemplateService {
     return response.json();
   }
 
-  // Template Products
-  static async createTemplateProduct(
-    data: CreateTemplateProductData
-  ): Promise<TemplateProduct> {
-    const response = await fetch(`${this.baseUrl}/template-products`, {
+  // Shop Templates
+  static async createShopTemplate(
+    data: CreateShopTemplateData
+  ): Promise<ShopTemplate> {
+    const response = await fetch(`${this.baseUrl}/shop-templates`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -84,12 +84,12 @@ export class AdminTemplateService {
     return response.json();
   }
 
-  static async updateTemplateProduct(
+  static async updateShopTemplate(
     productId: string,
-    data: UpdateTemplateProductData
-  ): Promise<TemplateProduct> {
+    data: UpdateShopTemplateData
+  ): Promise<ShopTemplate> {
     const response = await fetch(
-      `${this.baseUrl}/template-products/${productId}`,
+      `${this.baseUrl}/shop-templates/${productId}`,
       {
         method: "PATCH",
         headers: {
@@ -109,10 +109,10 @@ export class AdminTemplateService {
 
   // Template Plans
   static async getTemplatePlans(
-    templateId?: string
+    shopTemplateId?: string
   ): Promise<{ plans: TemplatePlan[] }> {
-    const url = templateId
-      ? `${this.baseUrl}/template-plans?template_id=${templateId}`
+    const url = shopTemplateId
+      ? `${this.baseUrl}/template-plans?shop_template_id=${shopTemplateId}`
       : `${this.baseUrl}/template-plans`;
 
     const response = await fetch(url);

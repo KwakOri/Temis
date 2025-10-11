@@ -234,6 +234,68 @@ export type Database = {
           },
         ]
       }
+      shop_templates: {
+        Row: {
+          created_at: string | null
+          detailed_description: string | null
+          features: string[] | null
+          id: string
+          is_artist: boolean | null
+          is_guerrilla: boolean | null
+          is_memo: boolean | null
+          is_multi_schedule: boolean | null
+          is_offline_memo: boolean | null
+          is_shop_visible: boolean | null
+          purchase_instructions: string | null
+          requirements: string | null
+          template_id: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          detailed_description?: string | null
+          features?: string[] | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          is_shop_visible?: boolean | null
+          purchase_instructions?: string | null
+          requirements?: string | null
+          template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          detailed_description?: string | null
+          features?: string[] | null
+          id?: string
+          is_artist?: boolean | null
+          is_guerrilla?: boolean | null
+          is_memo?: boolean | null
+          is_multi_schedule?: boolean | null
+          is_offline_memo?: boolean | null
+          is_shop_visible?: boolean | null
+          purchase_instructions?: string | null
+          requirements?: string | null
+          template_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shop_templates_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           created_at: string | null
@@ -428,7 +490,8 @@ export type Database = {
           is_multi_schedule: boolean | null
           is_offline_memo: boolean | null
           plan: string
-          template_id: string
+          price: number | null
+          shop_template_id: string
           updated_at: string | null
         }
         Insert: {
@@ -440,7 +503,8 @@ export type Database = {
           is_multi_schedule?: boolean | null
           is_offline_memo?: boolean | null
           plan?: string
-          template_id: string
+          price?: number | null
+          shop_template_id: string
           updated_at?: string | null
         }
         Update: {
@@ -452,15 +516,16 @@ export type Database = {
           is_multi_schedule?: boolean | null
           is_offline_memo?: boolean | null
           plan?: string
-          template_id?: string
+          price?: number | null
+          shop_template_id?: string
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "template_plans_template_id_fkey"
-            columns: ["template_id"]
+            foreignKeyName: "fk_template_plans_shop_template"
+            columns: ["shop_template_id"]
             isOneToOne: false
-            referencedRelation: "templates"
+            referencedRelation: "shop_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -470,12 +535,6 @@ export type Database = {
           created_at: string | null
           features: string[] | null
           id: string
-          is_artist: boolean | null
-          is_guerrilla: boolean | null
-          is_memo: boolean | null
-          is_multi_schedule: boolean | null
-          is_offline_memo: boolean | null
-          plan: string | null
           price: number
           purchase_instructions: string | null
           requirements: string | null
@@ -487,12 +546,6 @@ export type Database = {
           created_at?: string | null
           features?: string[] | null
           id?: string
-          is_artist?: boolean | null
-          is_guerrilla?: boolean | null
-          is_memo?: boolean | null
-          is_multi_schedule?: boolean | null
-          is_offline_memo?: boolean | null
-          plan?: string | null
           price: number
           purchase_instructions?: string | null
           requirements?: string | null
@@ -504,12 +557,6 @@ export type Database = {
           created_at?: string | null
           features?: string[] | null
           id?: string
-          is_artist?: boolean | null
-          is_guerrilla?: boolean | null
-          is_memo?: boolean | null
-          is_multi_schedule?: boolean | null
-          is_offline_memo?: boolean | null
-          plan?: string | null
           price?: number
           purchase_instructions?: string | null
           requirements?: string | null
@@ -523,6 +570,57 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_purchase_requests: {
+        Row: {
+          created_at: string | null
+          customer_phone: string | null
+          id: string
+          message: string | null
+          plan: string
+          status: string
+          template_id: string
+          updated_at: string | null
+          user_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          customer_phone?: string | null
+          id?: string
+          message?: string | null
+          plan: string
+          status?: string
+          template_id: string
+          updated_at?: string | null
+          user_id: number
+        }
+        Update: {
+          created_at?: string | null
+          customer_phone?: string | null
+          id?: string
+          message?: string | null
+          plan?: string
+          status?: string
+          template_id?: string
+          updated_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_purchase_requests_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_purchase_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

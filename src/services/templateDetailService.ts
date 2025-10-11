@@ -2,18 +2,21 @@ import { supabase } from "@/lib/supabase";
 import {
   PurchaseRequestData,
   PurchaseRequestResponse,
-  TemplateWithProducts,
+  ShopTemplateWithPlans,
 } from "@/types/templateDetail";
 
 export class TemplateDetailService {
   static async getTemplateDetail(
     templateId: string
-  ): Promise<TemplateWithProducts> {
+  ): Promise<ShopTemplateWithPlans> {
     const { data, error } = await supabase
-      .from("templates")
-      .select(`*, template_products (*)`)
-      .eq("id", templateId)
-      .eq("is_public", true)
+      .from("shop_templates")
+      .select(`
+        *,
+        templates!inner (*),
+        template_plans:template_plans!shop_template_id (*)
+      `)
+      .eq("template_id", templateId)
       .eq("is_shop_visible", true)
       .single();
 
