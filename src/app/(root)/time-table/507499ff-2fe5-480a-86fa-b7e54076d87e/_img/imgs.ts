@@ -2,7 +2,7 @@ import { ImgsType } from "@/types/time-table/image";
 
 // Background and main images
 import Artist from "./main/artist_Y2Kblue.png";
-import MainBG from "./main/bg_Y2Kblue.png";
+import MainBG from "./main/background_Y2Kblue.png";
 
 // Online/Offline images
 import MemoImg from "./main/memo_Y2Kblue.png";
