@@ -26,6 +26,11 @@ export async function GET(request: NextRequest) {
           thumbnail_url,
           is_public,
           created_at
+        ),
+        template_plan:template_plan_id (
+          id,
+          plan,
+          price
         )
       `)
       .eq("user_id", Number(user.userId))

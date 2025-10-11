@@ -1,7 +1,7 @@
 import React, { Fragment } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { useTimeTableUI } from "@/contexts/TimeTableContext";
+import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { Imgs } from "../_img/imgs";
@@ -20,6 +20,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   currentTheme,
 }) => {
   const { isMemoTextVisible } = useTimeTableUI();
+  const { memoText } = useTimeTableData();
   return (
     <div
       className="absolute grid grid-cols-3 z-20"
@@ -72,7 +73,10 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
                       }}
                       maxFontSize={72}
                       multiline
-                    >{`간단한 주간\n메모는 여기에\n4줄 정도까지\n적을 수 있습니다`}</AutoResizeText>
+                    >
+                      {memoText ||
+                        `간단한 주간\n메모는 여기에\n4줄 정도까지\n적을 수 있습니다`}
+                    </AutoResizeText>
                   </div>
                 </div>
                 <div

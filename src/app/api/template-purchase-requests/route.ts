@@ -12,12 +12,19 @@ export async function POST(request: NextRequest) {
   try {
     const { user } = authCheck;
     const body = await request.json();
-    const { template_id, plan_id, depositor_name } = body;
+    const { template_id, plan_id, depositor_name, customer_phone, message } = body;
 
     // 입력 검증
-    if (!template_id || !plan_id) {
+    if (!template_id) {
       return NextResponse.json(
-        { error: "템플릿 ID와 플랜 선택은 필수입니다." },
+        { error: "템플릿 ID는 필수입니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!plan_id) {
+      return NextResponse.json(
+        { error: "플랜 선택은 필수입니다." },
         { status: 400 }
       );
     }
@@ -65,6 +72,8 @@ export async function POST(request: NextRequest) {
         user_id: Number(user.userId),
         plan_id,
         depositor_name: depositor_name.trim(),
+        customer_phone: customer_phone || null,
+        message: message || null,
         status: "pending",
       })
       .select()

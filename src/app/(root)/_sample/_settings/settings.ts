@@ -1,16 +1,23 @@
+import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
+import { TButtonTheme } from "@/types/time-table/theme";
+
 /** ---------------------------------------------- */
 
-import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
-import { TTheme } from "@/types/time-table/theme";
+export const templateSize = {
+  width: 4000,
+  height: 2250,
+};
 
 /** Fonts 설정 */
 /** Fonts 설정 */
 
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
+export type options = "primary" | "secondary" | "tertiary" | "quaternary";
+
 export const fontOption = {
-  primary: "Ownglyph_ParkDaHyun",
-  secondary: "LOTTERIACHAB",
+  primary: "SchoolSafetyNotification",
+  secondary: "BagelFat",
   tertiary: "",
   quaternary: "",
 };
@@ -30,44 +37,38 @@ export const monthOption: TLanOpt = "en";
 /** Theme 설정 */
 /** Theme 설정 */
 
-/** 단일 테마의 경우 normal로 통일하세요. */
-/** _styles/colors.ts에 먼저 컬러 팔레트를 등록하세요. */
+export const Themes = ["first", "second", "third"] as const;
 
-export const defaultTheme: TTheme = "first";
-export interface TButtonTheme {
-  value: TTheme;
-  label: string;
-}
+export const defaultTheme = "first" as const;
 
 export const buttonThemes: TButtonTheme[] = [
-  { value: "first", label: "BLUE" },
-  {
-    value: "second",
-    label: "YELLOW",
-  },
-  {
-    value: "third",
-    label: "PINK",
-  },
+  { value: "first", label: "first" },
 ];
+
+/**
+ * 날자: #FFFFFF , #FEFDAB
+ * 메인 제목: #1A1A1A
+ * 소 제목: #B0B0B0
+ * 시간: #FEFDAB
+ */
 
 export const colors = {
   first: {
-    primary: "#0A5B7A",
-    secondary: "#4F8DC2",
-    tertiary: "#63A0D2",
+    primary: "#FFF6E5",
+    secondary: "#EC7363",
+    tertiary: "",
     quaternary: "",
   },
   second: {
-    primary: "#7A330A",
-    secondary: "#C28E4F",
-    tertiary: "#D2A063",
+    primary: "",
+    secondary: "",
+    tertiary: "",
     quaternary: "",
   },
   third: {
-    primary: "#7A0A43",
-    secondary: "#C24F75",
-    tertiary: "#D26388",
+    primary: "",
+    secondary: "",
+    tertiary: "",
     quaternary: "",
   },
 };
@@ -77,11 +78,8 @@ export const colors = {
 /** Online 카드 구성 */
 /** Online 카드 구성 */
 
-export const onlineCardWidth: number = 188;
-export const onlineCardHeight: number = 228;
-
-// CARD_INPUT_CONFIG와 연동되는 초기 카드 (추천)
-// 레거시 initialCard와는 달리 CARD_INPUT_CONFIG에 정의된 모든 필드를 포함
+export const onlineCardWidth: number = 800;
+export const onlineCardHeight: number = 617;
 
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
@@ -90,21 +88,23 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     {
       key: "time",
       type: "time",
-      placeholder: "00:00",
+      placeholder: "10:00",
       required: true,
-      defaultValue: "09:00",
+      defaultValue: "10:00",
     },
     {
-      key: "topic",
-      type: "text",
-      placeholder: "소제목 적는 곳",
-      maxLength: 50,
-    },
-    {
-      key: "description",
+      key: "mainTitle",
       type: "textarea",
-      placeholder: "내용 적는 곳",
-      maxLength: 200,
+      placeholder: "메인 타이틀\n적는곳",
+      defaultValue: "",
+      maxLength: 30,
+    },
+    {
+      key: "subTitle",
+      type: "text",
+      placeholder: "서브 타이틀 적는곳",
+      defaultValue: "",
+      maxLength: 20,
     },
   ],
   showLabels: false, // 라벨 표시 여부
@@ -116,23 +116,23 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
   },
 };
 
-// 개발자용 필드 구성 조회 함수
+// CARD_INPUT_CONFIG에서 동적으로 생성된 placeholders와 추가 필드들을 병합
 
 /** ---------------------------------------------- */
 
 /** Offline 카드 구성 */
 /** Offline 카드 구성 */
 
-export const offlineCardWidth: number = 188;
-export const offlineCardHeight: number = 228;
+export const offlineCardWidth: number = 800;
+export const offlineCardHeight: number = 617;
 
 /** ---------------------------------------------- */
 
 /** Week Flag 카드 구성 */
 /** Week Flag 카드 구성 */
 
-export const weekFlagCardWidth: number = 188;
-export const weekFlagCardHeight: number = 228;
+export const weekFlagCardWidth: number = 1240;
+export const weekFlagCardHeight: number = 100;
 
 /** ---------------------------------------------- */
 
@@ -141,14 +141,95 @@ export const weekFlagCardHeight: number = 228;
 
 /** Profile Frame 크기 */
 
-export const profileFrameHeight = 720;
-export const profileFrameWidth = 515;
+export interface ProfileImageInfoInterface {
+  arrange: "onBottom" | "onTop";
+  rotation: number;
+  position: {
+    top: number;
+    right: number;
+  };
+}
 
-/** Profile Image 크기 */
+export const profileImageInfo: ProfileImageInfoInterface = {
+  arrange: "onBottom",
+  rotation: 4,
+  position: {
+    top: -1,
+    right: -10,
+  },
+};
 
-export const profileImageWidth = 440;
-export const profileImageHeight = 480;
+export const profileTextInfo = {
+  size: {
+    width: 220,
+    height: 60,
+  },
+  position: {
+    bottom: 70,
+    right: 44,
+  },
+  font: {
+    maxSize: 32,
+    minSize: 16,
+  },
+};
 
-export const profileTextPlaceholder = "작가님 이름";
+export const profileFrameWidth = 4000;
+export const profileFrameHeight = 2250;
+
+export const profileTextPlaceholder = "아티스트 명";
 
 /** ---------------------------------------------- */
+
+export const Settings = {
+  profile: {
+    frame: {
+      width: 4000,
+      height: 2250,
+    },
+    image: {
+      width: 1540,
+      height: 1540,
+    },
+    artist: {
+      width: 4000,
+      height: 2250,
+      fontSize: 84,
+      fontColor: colors.first.primary,
+    },
+  },
+  card: {
+    online: {
+      width: 800,
+      height: 617,
+      time: {
+        fontSize: 34,
+        fontColor: colors.first.primary,
+      },
+      day: {
+        fontSize: 56,
+        fontColor: colors.first.primary,
+      },
+      mainTitle: {
+        fontSize: 88,
+        fontColor: colors.first.secondary,
+      },
+      subTitle: {
+        fontSize: 57,
+        fontColor: colors.first.primary,
+      },
+    },
+    offline: {
+      width: 800,
+      height: 617,
+    },
+  },
+  week: {
+    flag: {
+      width: 580,
+      height: 120,
+    },
+    fontSize: 76,
+    fontColor: colors.first.primary,
+  },
+};

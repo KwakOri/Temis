@@ -1,12 +1,14 @@
 import { Tables } from "@/types/supabase";
 
 type Template = Tables<"templates">;
+type TemplatePlan = Tables<"template_plans">;
 
 export interface UserTemplate {
   id: string | number;
   access_level: "read" | "write" | "admin";
   granted_at: string | null;
   templates: Template;
+  template_plan: TemplatePlan | null;
 }
 
 export interface GetUserTemplatesResponse {
