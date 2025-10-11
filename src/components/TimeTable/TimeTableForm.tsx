@@ -8,12 +8,7 @@ import { useTimeTable } from "@/contexts/TimeTableContext";
 import { OptionType } from "@/hooks/useTimeTableState";
 import { CroppedAreaPixels } from "@/types/image-edit";
 import { TDefaultCard } from "@/types/time-table/data";
-import React, {
-  Fragment,
-  PropsWithChildren,
-  useRef,
-  useState,
-} from "react";
+import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
 import { Point } from "react-easy-crop";
 interface TimeTableFormProps {
   isArtist?: boolean;
@@ -383,7 +378,7 @@ const TimeTableForm = ({
                   saveable
                     ? handleSaveClick
                     : () => {
-                        alert("체험 모드에서는 제공되지 않는 기능입니다.");
+                        alert("PLAYGROUND에서는 제공되지 않는 기능입니다.");
                       }
                 }
                 className="flex-1 bg-[#2b2f4d] text-white py-3 rounded-md text-base font-bold hover:bg-gray-800 transition"
@@ -400,7 +395,7 @@ const TimeTableForm = ({
                   saveable
                     ? handleTeamSaveClick
                     : () => {
-                        alert("체험 모드에서는 제공되지 않는 기능입니다.");
+                        alert("PLAYGROUND에서는 제공되지 않는 기능입니다.");
                       }
                 }
                 className="w-full bg-[#3E4A82] text-white py-3 rounded-md text-base font-bold hover:bg-[#2b2f4d] transition"

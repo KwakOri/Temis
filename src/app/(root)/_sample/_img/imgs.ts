@@ -1,40 +1,28 @@
 import { ImgsType } from "@/types/time-table/image";
-import BlueBG from "./blue/bg.png";
-import BlueOffline from "./blue/offline.png";
-import BlueOnline from "./blue/online.png";
-import BlueProfile from "./blue/profile.png";
-import BlueWeek from "./blue/week.png";
-import PinkBG from "./pink/bg.png";
-import PinkOffline from "./pink/offline.png";
-import PinkOnline from "./pink/online.png";
-import PinkProfile from "./pink/profile.png";
-import PinkWeek from "./pink/week.png";
-import YellowBG from "./yellow/bg.png";
-import YellowOffline from "./yellow/offline.png";
-import YellowOnline from "./yellow/online.png";
-import YellowProfile from "./yellow/profile.png";
-import YellowWeek from "./yellow/week.png";
+
+// Background and main images
+import Artist from "./main/artist_Y2Kred.png";
+import MainBG from "./main/background_Y2Kred.png";
+
+// Online/Offline images
+import MemoImg from "./main/memo_Y2Kred.png";
+import OfflineImg from "./main/offline_Y2Kred.png";
+import OnlineImg from "./main/online1_Y2Kred.png";
+import Online2Img from "./main/online2_Y2Kred.png";
+
+// Profile images
+import MainProfileFrame from "./main/profile_Y2Kred.png";
+import TopObject from "./main/topobject_Y2Kred.png";
 
 export const Imgs: ImgsType = {
   first: {
-    bg: BlueBG,
-    offline: BlueOffline,
-    online: BlueOnline,
-    week: BlueWeek,
-    profile: BlueProfile,
-  },
-  second: {
-    bg: YellowBG,
-    offline: YellowOffline,
-    online: YellowOnline,
-    week: YellowWeek,
-    profile: YellowProfile,
-  },
-  third: {
-    bg: PinkBG,
-    offline: PinkOffline,
-    online: PinkOnline,
-    week: PinkWeek,
-    profile: PinkProfile,
+    bg: MainBG,
+    artist: Artist,
+    offline: OfflineImg,
+    online: OnlineImg,
+    bigOnline: Online2Img,
+    memo: MemoImg,
+    profileFrame: MainProfileFrame,
+    topObject: TopObject,
   },
 };

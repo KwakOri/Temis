@@ -9,12 +9,12 @@ import {
   useTemplateDetail,
 } from "@/hooks/query/useTemplateDetail";
 import { ShopTemplateWithPlans } from "@/types/templateDetail";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 
 export default function TemplateDetailPage() {
   const { user } = useAuth();
@@ -151,7 +151,10 @@ export default function TemplateDetailPage() {
             <div className="space-y-4">
               <div className="aspect-video bg-slate-100 rounded-lg overflow-hidden">
                 <Image
-                  src={template.templates.thumbnail_url || `/thumbnail/${template.template_id}.png`}
+                  src={
+                    template.templates.thumbnail_url ||
+                    `/thumbnail/${template.template_id}.png`
+                  }
                   alt={template.templates.name || "템플릿"}
                   width={600}
                   height={338}
@@ -175,20 +178,23 @@ export default function TemplateDetailPage() {
                 <h1 className="text-3xl font-bold mb-2 text-slate-900">
                   {template.templates.name}
                 </h1>
-                <p className="text-slate-600">{template.templates.description}</p>
+                <p className="text-slate-600">
+                  {template.templates.description}
+                </p>
               </div>
 
               {/* 플랜별 가격 정보 */}
               <div className="border-t border-slate-200 pt-6">
-                <h3 className="font-semibold mb-3 text-slate-900">
-                  플랜 선택
-                </h3>
+                <h3 className="font-semibold mb-3 text-slate-900">플랜 선택</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {template.template_plans?.find((p) => p.plan === "lite") && (
                     <div className="p-4 rounded-lg border-2 border-slate-200 bg-slate-50">
                       <div className="text-xs text-slate-500 mb-1">LITE</div>
                       <div className="text-2xl font-bold text-slate-700">
-                        ₩{template.template_plans?.find((p) => p.plan === "lite")?.price?.toLocaleString()}
+                        ₩
+                        {template.template_plans
+                          ?.find((p) => p.plan === "lite")
+                          ?.price?.toLocaleString()}
                       </div>
                     </div>
                   )}
@@ -196,7 +202,10 @@ export default function TemplateDetailPage() {
                     <div className="p-4 rounded-lg border-2 border-indigo-200 bg-indigo-50">
                       <div className="text-xs text-indigo-600 mb-1">PRO</div>
                       <div className="text-2xl font-bold text-indigo-700">
-                        ₩{template.template_plans?.find((p) => p.plan === "pro")?.price?.toLocaleString()}
+                        ₩
+                        {template.template_plans
+                          ?.find((p) => p.plan === "pro")
+                          ?.price?.toLocaleString()}
                       </div>
                     </div>
                   )}
@@ -204,58 +213,63 @@ export default function TemplateDetailPage() {
               </div>
 
               {/* 플랜별 지원 기능 */}
-              {template.template_plans && template.template_plans.length > 0 && (
-                <div className="border-t border-slate-200 pt-6">
-                  <h3 className="font-semibold mb-3 text-slate-900">
-                    플랜별 지원 기능
-                  </h3>
-                  <div className="space-y-4">
-                    {template.template_plans
-                      .sort((a, b) => (a.plan === "lite" ? -1 : 1))
-                      .map((plan) => {
-                        const features = [];
-                        if (plan.is_artist) features.push("아티스트 이미지 지원");
-                        if (plan.is_memo) features.push("메모 기능");
-                        if (plan.is_multi_schedule) features.push("다중 일정 지원");
-                        if (plan.is_guerrilla) features.push("게릴라 일정 지원");
-                        if (plan.is_offline_memo) features.push("오프라인 메모");
+              {template.template_plans &&
+                template.template_plans.length > 0 && (
+                  <div className="border-t border-slate-200 pt-6">
+                    <h3 className="font-semibold mb-3 text-slate-900">
+                      플랜별 지원 기능
+                    </h3>
+                    <div className="space-y-4">
+                      {template.template_plans
+                        .sort((a, b) => (a.plan === "lite" ? -1 : 1))
+                        .map((plan) => {
+                          const features = [];
+                          if (plan.is_artist)
+                            features.push("팬아트 아티스트명 작성 기능");
+                          if (plan.is_memo) features.push("주간 메모 기능");
+                          if (plan.is_multi_schedule)
+                            features.push("단일 요일 다중 시간표 기능");
+                          if (plan.is_guerrilla)
+                            features.push("게릴라 방송 설정 기능");
+                          if (plan.is_offline_memo)
+                            features.push("오프라인 메모 기능");
 
-                        return (
-                          <div
-                            key={plan.id}
-                            className={`p-4 rounded-lg border ${
-                              plan.plan === "pro"
-                                ? "border-indigo-200 bg-indigo-50"
-                                : "border-slate-200 bg-slate-50"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 mb-2">
-                              <span
-                                className={`text-xs font-medium px-2 py-1 rounded ${
-                                  plan.plan === "pro"
-                                    ? "bg-indigo-600 text-white"
-                                    : "bg-slate-600 text-white"
-                                }`}
-                              >
-                                {plan.plan.toUpperCase()}
-                              </span>
-                              <span className="text-sm font-bold text-slate-700">
-                                ₩{plan.price?.toLocaleString()}
-                              </span>
+                          return (
+                            <div
+                              key={plan.id}
+                              className={`p-4 rounded-lg border ${
+                                plan.plan === "pro"
+                                  ? "border-indigo-200 bg-indigo-50"
+                                  : "border-slate-200 bg-slate-50"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <span
+                                  className={`text-xs font-medium px-2 py-1 rounded ${
+                                    plan.plan === "pro"
+                                      ? "bg-indigo-600 text-white"
+                                      : "bg-slate-600 text-white"
+                                  }`}
+                                >
+                                  {plan.plan.toUpperCase()}
+                                </span>
+                                <span className="text-sm font-bold text-slate-700">
+                                  ₩{plan.price?.toLocaleString()}
+                                </span>
+                              </div>
+                              {features.length > 0 && (
+                                <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
+                                  {features.map((feature, index) => (
+                                    <li key={index}>{feature}</li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
-                            {features.length > 0 && (
-                              <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
-                                {features.map((feature, index) => (
-                                  <li key={index}>{feature}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* 상품 상세 설명 */}
               {template.purchase_instructions && (
@@ -307,15 +321,15 @@ export default function TemplateDetailPage() {
                           </span>
                         </div>
                         <p className="text-green-700 text-sm">
-                          이미 구매하신 템플릿입니다. 시간표 편집기에서 사용하실
-                          수 있습니다.
+                          이미 구매하신 템플릿입니다. 마이페이지에서 사용하실 수
+                          있습니다.
                         </p>
                       </div>
                       <Link
-                        href="/test"
+                        href="/my-page"
                         className="w-full inline-block bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold text-center"
                       >
-                        시간표 편집기로 이동
+                        마이페이지로 이동
                       </Link>
                     </div>
                   ) : pendingPurchaseRequest ? (
@@ -408,7 +422,7 @@ interface PurchaseModalProps {
 function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
-    plan: "lite" as "lite" | "pro",
+    plan: "pro" as "lite" | "pro",
     depositorName: "",
     message: "",
   });
@@ -466,149 +480,164 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
         <div className="overflow-y-auto p-6 pt-4 flex-1">
           <div className="flex flex-col gap-4">
+            {/* 플랜 선택 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2 text-slate-700">
+                플랜 선택 *
+              </label>
+              <div className="flex gap-3">
+                {template.template_plans?.find((p) => p.plan === "lite") && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, plan: "lite" }))
+                    }
+                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                      formData.plan === "lite"
+                        ? "border-slate-600 bg-slate-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="text-xs text-slate-500 mb-1">LITE</div>
+                    <div className="text-lg font-bold text-slate-700">
+                      ₩
+                      {template.template_plans
+                        ?.find((p) => p.plan === "lite")
+                        ?.price?.toLocaleString()}
+                    </div>
+                  </button>
+                )}
+                {template.template_plans?.find((p) => p.plan === "pro") && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({ ...prev, plan: "pro" }))
+                    }
+                    className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                      formData.plan === "pro"
+                        ? "border-indigo-600 bg-indigo-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <div className="text-xs text-indigo-600 mb-1">PRO</div>
+                    <div className="text-lg font-bold text-indigo-700">
+                      ₩
+                      {template.template_plans
+                        ?.find((p) => p.plan === "pro")
+                        ?.price?.toLocaleString()}
+                    </div>
+                  </button>
+                )}
+              </div>
 
-        {/* 플랜 선택 */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium mb-2 text-slate-700">
-            플랜 선택 *
-          </label>
-          <div className="flex gap-3">
-            {template.template_plans?.find((p) => p.plan === "lite") && (
-              <button
-                type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, plan: "lite" }))}
-                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                  formData.plan === "lite"
-                    ? "border-slate-600 bg-slate-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <div className="text-xs text-slate-500 mb-1">LITE</div>
-                <div className="text-lg font-bold text-slate-700">
-                  ₩{template.template_plans?.find((p) => p.plan === "lite")?.price?.toLocaleString()}
+              {/* 선택된 플랜의 기능 표시 */}
+              {selectedPlan && (
+                <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                  <h4 className="text-sm font-semibold text-slate-900 mb-2">
+                    {formData.plan.toUpperCase()} 플랜 기능
+                  </h4>
+                  <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
+                    {selectedPlan.is_artist && <li>아티스트 이미지 지원</li>}
+                    {selectedPlan.is_memo && <li>메모 기능</li>}
+                    {selectedPlan.is_multi_schedule && <li>다중 일정 지원</li>}
+                    {selectedPlan.is_guerrilla && <li>게릴라 일정 지원</li>}
+                    {selectedPlan.is_offline_memo && <li>오프라인 메모</li>}
+                  </ul>
                 </div>
-              </button>
-            )}
-            {template.template_plans?.find((p) => p.plan === "pro") && (
-              <button
-                type="button"
-                onClick={() => setFormData((prev) => ({ ...prev, plan: "pro" }))}
-                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                  formData.plan === "pro"
-                    ? "border-indigo-600 bg-indigo-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <div className="text-xs text-indigo-600 mb-1">PRO</div>
-                <div className="text-lg font-bold text-indigo-700">
-                  ₩{template.template_plans?.find((p) => p.plan === "pro")?.price?.toLocaleString()}
+              )}
+            </div>
+
+            <div className=" p-3 bg-slate-50 rounded">
+              <p className="font-medium text-slate-900">
+                {template.templates.name}
+              </p>
+              <p className="text-sm text-slate-600">
+                {template.templates.description}
+              </p>
+              <p className="text-lg font-bold text-[#1e3a8a] mt-2">
+                ₩{selectedPrice.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-blue-50 p-3 rounded">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <CreditCard className="h-5 w-5 text-[#1e3a8a]" />
                 </div>
-              </button>
-            )}
-          </div>
-
-          {/* 선택된 플랜의 기능 표시 */}
-          {selectedPlan && (
-            <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-              <h4 className="text-sm font-semibold text-slate-900 mb-2">
-                {formData.plan.toUpperCase()} 플랜 기능
-              </h4>
-              <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
-                {selectedPlan.is_artist && <li>아티스트 이미지 지원</li>}
-                {selectedPlan.is_memo && <li>메모 기능</li>}
-                {selectedPlan.is_multi_schedule && <li>다중 일정 지원</li>}
-                {selectedPlan.is_guerrilla && <li>게릴라 일정 지원</li>}
-                {selectedPlan.is_offline_memo && <li>오프라인 메모</li>}
-              </ul>
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-[#1e3a8a]">
+                    송금 계좌 정보
+                  </h4>
+                  <div className="text-sm text-slate-700 mt-1 space-y-1">
+                    <p>• 은행: 토스뱅크</p>
+                    <p>• 계좌번호: 1000-7564-4995</p>
+                    <p>• 예금주: 이세영</p>
+                    <p>
+                      • <strong>입금 확인 후 1-2일 이내</strong>에 템플릿 권한이
+                      부여됩니다
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
 
-        <div className=" p-3 bg-slate-50 rounded">
-          <p className="font-medium text-slate-900">{template.templates.name}</p>
-          <p className="text-sm text-slate-600">{template.templates.description}</p>
-          <p className="text-lg font-bold text-[#1e3a8a] mt-2">
-            ₩{selectedPrice.toLocaleString()}
-          </p>
-        </div>
-        <div className="bg-blue-50 p-3 rounded">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <CreditCard className="h-5 w-5 text-[#1e3a8a]" />
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                </div>
+                <div className="ml-3">
+                  <h4 className="text-sm font-medium text-yellow-800">
+                    중요 안내
+                  </h4>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    입금자명과 위에 입력한 정보가 일치하지 않으면 결제 확인이
+                    어렵습니다.
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    <strong>계좌로 구매 금액을 이체한 후</strong>에 구매 신청
+                    버튼을 눌러주세요
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    문의사항은 @TEMISforyou 테미스 공식 트위터로 부탁드립니다
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="ml-3">
-              <h4 className="text-sm font-medium text-[#1e3a8a]">
-                송금 계좌 정보
-              </h4>
-              <div className="text-sm text-slate-700 mt-1 space-y-1">
-                <p>• 은행: 토스뱅크</p>
-                <p>• 계좌번호: 1000-7564-4995</p>
-                <p>• 예금주: 이세영</p>
+
+            {/* 사용자 정보 표시 */}
+            <div className="mb-4 p-3 bg-slate-50 rounded">
+              <h4 className="font-medium mb-2 text-slate-900">구매자 정보</h4>
+              <div className="text-sm text-slate-600 space-y-1">
                 <p>
-                  • <strong>입금 확인 후 1-2일 이내</strong>에 템플릿 권한이
-                  부여됩니다
+                  <span className="font-medium">이름:</span> {user?.name}
+                </p>
+                <p>
+                  <span className="font-medium">이메일:</span> {user?.email}
                 </p>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <AlertTriangle className="h-5 w-5 text-yellow-400" />
-            </div>
-            <div className="ml-3">
-              <h4 className="text-sm font-medium text-yellow-800">중요 안내</h4>
-              <p className="text-sm text-yellow-700 mt-1">
-                입금자명과 위에 입력한 정보가 일치하지 않으면 결제 확인이
-                어렵습니다.
-              </p>
-              <p className="text-sm text-yellow-700 mt-1">
-                <strong>계좌로 구매 금액을 이체한 후</strong>에 구매 신청 버튼을
-                눌러주세요
-              </p>
-              <p className="text-sm text-yellow-700 mt-1">
-                문의사항은 @TEMISforyou 테미스 공식 트위터로 부탁드립니다
-              </p>
-            </div>
-          </div>
-        </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">
+                  입금자명 *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.depositorName}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      depositorName: e.target.value,
+                    }))
+                  }
+                  placeholder="계좌 이체 시 사용할 입금자명을 입력하세요"
+                  className="w-full border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                />
+              </div>
 
-        {/* 사용자 정보 표시 */}
-        <div className="mb-4 p-3 bg-slate-50 rounded">
-          <h4 className="font-medium mb-2 text-slate-900">구매자 정보</h4>
-          <div className="text-sm text-slate-600 space-y-1">
-            <p>
-              <span className="font-medium">이름:</span> {user?.name}
-            </p>
-            <p>
-              <span className="font-medium">이메일:</span> {user?.email}
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1 text-slate-700">
-              입금자명 *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.depositorName}
-              onChange={(e) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  depositorName: e.target.value,
-                }))
-              }
-              placeholder="계좌 이체 시 사용할 입금자명을 입력하세요"
-              className="w-full border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
-            />
-          </div>
-
-          {/* <div>
+              {/* <div>
             <label className="block text-sm font-medium mb-1 text-slate-700">요청사항</label>
             <textarea
               value={formData.message}
@@ -620,23 +649,23 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
             />
           </div> */}
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 border border-slate-300 py-2 rounded hover:bg-slate-50 text-slate-700"
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 bg-[#1e3a8a] text-white py-2 rounded hover:bg-blue-800 disabled:opacity-50"
-            >
-              {submitting ? "신청 중..." : "구매 신청"}
-            </button>
-          </div>
-        </form>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 border border-slate-300 py-2 rounded hover:bg-slate-50 text-slate-700"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 bg-[#1e3a8a] text-white py-2 rounded hover:bg-blue-800 disabled:opacity-50"
+                >
+                  {submitting ? "신청 중..." : "구매 신청"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
