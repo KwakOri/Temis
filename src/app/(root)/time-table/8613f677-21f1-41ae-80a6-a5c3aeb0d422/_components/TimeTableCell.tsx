@@ -1,10 +1,9 @@
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TEntry } from "@/types/time-table/data";
+import { TDefaultCard, TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard } from "@/types/time-table/data";
 import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
@@ -22,6 +21,7 @@ interface DayTextProps {
 
 interface StreamingTimeProps {
   time: string;
+  isGuerrilla: boolean;
   currentTheme?: TTheme;
   isMultiple?: boolean;
 }
@@ -93,6 +93,7 @@ const StreamingTime = ({
   time,
   currentTheme,
   isMultiple,
+  isGuerrilla,
 }: StreamingTimeProps) => {
   const isMorning = Number(time.split(":")[0]) <= 12 ? true : false;
   return isMultiple ? (
@@ -107,7 +108,8 @@ const StreamingTime = ({
       }}
       className="absolute flex justify-center items-center"
     >
-      {isMorning ? "AM" : "PM"} {formatTime(time, "full")}
+      {isGuerrilla ? "게릴라" : isMorning ? "AM" : "PM"}{" "}
+      {isGuerrilla || formatTime(time, "full")}
     </p>
   ) : (
     <p
@@ -121,7 +123,8 @@ const StreamingTime = ({
       }}
       className="absolute flex justify-center items-center"
     >
-      {isMorning ? "AM" : "PM"} {formatTime(time, "full")}
+      {isGuerrilla ? "게릴라" : isMorning ? "AM" : "PM"}{" "}
+      {isGuerrilla || formatTime(time, "full")}
     </p>
   );
 };
@@ -331,7 +334,10 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
             mainTitle={entries[0].mainTitle as string}
           />
         </div>
-        <StreamingTime time={entries[0].time as string} />
+        <StreamingTime
+          isGuerrilla={entries[0].isGuerrilla}
+          time={entries[0].time as string}
+        />
       </>
     );
   return (
@@ -344,6 +350,7 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
               mainTitle={entry.mainTitle as string}
             />
             <StreamingTime
+              isGuerrilla={entry.isGuerrilla}
               isMultiple={isMultiple}
               time={entry.time as string}
             />

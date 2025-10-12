@@ -24,6 +24,7 @@ interface DayTextProps {
 
 interface StreamingTimeProps {
   isEven: boolean;
+  isGuerrilla: boolean;
   time: string;
   currentTheme?: TTheme;
 }
@@ -98,7 +99,7 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme, isEven }: StreamingTimeProps) => {
+const StreamingTime = ({ time, currentTheme, isEven, isGuerrilla }: StreamingTimeProps) => {
   return (
     <p
       style={{
@@ -114,7 +115,7 @@ const StreamingTime = ({ time, currentTheme, isEven }: StreamingTimeProps) => {
       }}
       className="absolute flex flex-col justify-center items-center"
     >
-      {formatTime(time, "half")}
+      {isGuerrilla ? "게릴라" : formatTime(time, "half")}
     </p>
   );
 };
@@ -266,7 +267,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         <OfflineCard day={time.day} currentTheme={currentTheme} />
       ) : (
         <>
-          <StreamingTime isEven={isEven} time={entryTime} />
+          <StreamingTime isEven={isEven} time={entryTime} isGuerrilla={primaryEntry.isGuerrilla} />
           <CellContentArea isEven={isEven}>
             <CellTextMainTitle mainTitle={entryMainTitle} />
             <CellTextSubTitle subTitle={entrySubTitle} />

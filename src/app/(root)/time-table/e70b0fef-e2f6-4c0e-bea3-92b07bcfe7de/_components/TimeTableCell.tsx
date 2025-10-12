@@ -2,12 +2,9 @@ import Image from "next/image";
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TTheme } from "@/types/time-table/theme";
-import {
-  getFormattedTime,
-  weekdays,
-} from "@/utils/time-table/data";
 import { TDefaultCard } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import { getFormattedTime, weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
@@ -26,6 +23,7 @@ interface DayTextProps {
 }
 
 interface StreamingTimeProps {
+  isGuerrilla: boolean;
   time: string;
   currentTheme?: TTheme;
 }
@@ -67,7 +65,11 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+const StreamingTime = ({
+  time,
+  currentTheme,
+  isGuerrilla,
+}: StreamingTimeProps) => {
   const getFormattedTimeByAki = (time: string): string => {
     const tempArr = time.split(":");
     const hour = Number(tempArr[0]);
@@ -98,7 +100,7 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
       }}
       className="absolute flex justify-center items-center h-10 text-[36px]"
     >
-      {getFormattedTimeByAki(time)}
+      {isGuerrilla ? "게릴라" : getFormattedTimeByAki(time)}
     </p>
   );
 };
@@ -242,7 +244,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       <CellContentArea>
         <CellTextTitle cellTextTitle={entrySubTitle} />
         <CellTextMainTitle mainTitle={entryMainTitle} />
-        <StreamingTime time={entryTime} />
+        <StreamingTime
+          isGuerrilla={primaryEntry.isGuerrilla}
+          time={entryTime}
+        />
       </CellContentArea>
       <OnlineCardBG day={time.day} />
     </div>

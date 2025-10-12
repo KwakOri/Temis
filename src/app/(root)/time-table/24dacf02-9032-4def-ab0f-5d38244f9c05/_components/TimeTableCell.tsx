@@ -27,6 +27,7 @@ interface DayTextProps {
 
 interface StreamingTimeProps {
   time: string;
+  isGuerrilla: boolean;
   currentTheme?: TTheme;
 }
 
@@ -67,7 +68,7 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+const StreamingTime = ({ time, currentTheme, isGuerrilla }: StreamingTimeProps) => {
   return (
     <div
       style={{
@@ -81,7 +82,7 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
       }}
       className="absolute flex flex-col justify-center items-center shrink-0 text-[44px] "
     >
-      {formatTime(time, "full", false)
+      {isGuerrilla ? "게릴라".split("").map((t, i) => <p key={i}>{t}</p>) : formatTime(time, "full", false)
         .split("")
         .map((t, i) => (t === ":" ? <p key={i}>{"*"}</p> : <p key={i}>{t}</p>))}
     </div>
@@ -252,7 +253,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           <CellContentArea>
             <CellTextMainTitle mainTitle={entryMainTitle} />
             <CellTextTitle cellTextTitle={entrySubTitle} />
-            <StreamingTime time={entryTime} />
+            <StreamingTime time={entryTime} isGuerrilla={primaryEntry.isGuerrilla} />
           </CellContentArea>
           <OnlineCardBG isTogether={isTogether} />
         </div>

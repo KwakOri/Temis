@@ -21,6 +21,7 @@ interface DayTextProps {
 
 interface StreamingTimeProps {
   time: string;
+  isGuerrilla: boolean;
   currentTheme?: TTheme;
   isMultiple?: boolean;
 }
