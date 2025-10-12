@@ -24,6 +24,7 @@ interface DayTextProps {
 
 interface StreamingTimeProps {
   time: string;
+  isGuerrilla: boolean;
   currentTheme?: TTheme;
 }
 
@@ -86,7 +87,11 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+const StreamingTime = ({
+  time,
+  currentTheme,
+  isGuerrilla,
+}: StreamingTimeProps) => {
   const [hour, minute] = formatTime(time, "full").split(":");
 
   return (
@@ -101,9 +106,21 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
       }}
       className="absolute grid grid-rows-3 justify-center items-center text-center "
     >
-      <p className="text-[44px]  font-bold">{hour}</p>
-      <div></div>
-      <p className="text-[44px]  font-bold">{minute}</p>
+      {isGuerrilla ? (
+        <>
+          <p className="text-[44px]  font-bold">{"게"}</p>
+          <p className="bg-[#AE3336] p-1 rounded-xl text-[44px]  font-bold">
+            {"릴"}
+          </p>
+          <p className="text-[44px]  font-bold">{"라"}</p>
+        </>
+      ) : (
+        <>
+          <p className="text-[44px]  font-bold">{hour}</p>
+          <div></div>
+          <p className="text-[44px]  font-bold">{minute}</p>
+        </>
+      )}
     </div>
   );
 };
@@ -239,7 +256,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         <CellTextTitle cellTextTitle={entrySubTitle} />
 
         <StreamingDay day={time.day} />
-        <StreamingTime time={entryTime} />
+        <StreamingTime
+          time={entryTime}
+          isGuerrilla={primaryEntry.isGuerrilla}
+        />
       </CellContentArea>
       <OnlineCardBG day={time.day} />
     </div>

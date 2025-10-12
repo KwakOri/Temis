@@ -34,7 +34,18 @@
       "Bash(grep:*)",
       "Bash(npx supabase:*)",
       "Bash(curl:*)",
-      "Bash(npm start)"
+      "Bash(npm start)",
+      "Bash(while read file)",
+      "Bash(do if ! grep -q \"isGuerrilla: boolean\" \"$file\")",
+      "Bash(then echo \"$file\" fi done)",
+      "Bash(for file in src/app/(root)/time-table/*/_components/TimeTableCell.tsx)",
+      "Bash(do)",
+      "Bash(if grep -q \"interface StreamingTimeProps\" \"$file\")",
+      "Bash(! grep -q \"isGuerrilla: boolean\" \"$file\")",
+      "Bash(then)",
+      "Bash(echo \"$file\")",
+      "Bash(fi)",
+      "Bash(done)"
     ],
     "deny": []
   },

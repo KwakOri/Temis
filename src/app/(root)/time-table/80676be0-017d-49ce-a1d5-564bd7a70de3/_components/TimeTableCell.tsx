@@ -1,9 +1,9 @@
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard } from "@/types/time-table/data";
 import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
@@ -23,6 +23,7 @@ interface DayTextProps {
 }
 
 interface StreamingTimeProps {
+  isGuerrilla: boolean;
   time: string;
   currentTheme?: TTheme;
 }
@@ -86,12 +87,16 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+const StreamingTime = ({
+  time,
+  currentTheme,
+  isGuerrilla,
+}: StreamingTimeProps) => {
   const [zone, formattedTime] = formatTime(time, "half").split(" ");
   return (
     <div
       style={{
-        bottom: 46,
+        bottom: isGuerrilla ? 56 : 46,
         right: -6,
 
         width: 220,
@@ -100,22 +105,35 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
       }}
       className="absolute flex flex-col justify-center items-center "
     >
-      <p
-        style={{
-          color: colors[currentTheme || "first"]["quaternary"],
-        }}
-        className="text-[25px] "
-      >
-        {zone}
-      </p>
-      <p
-        style={{
-          color: colors[currentTheme || "first"]["tertiary"],
-        }}
-        className="text-[35px] mt-1.5 font-bold"
-      >
-        {formattedTime}
-      </p>
+      {isGuerrilla ? (
+        <p
+          style={{
+            color: colors[currentTheme || "first"]["tertiary"],
+          }}
+          className="text-[40px] mt-1.5 font-bold"
+        >
+          게릴라
+        </p>
+      ) : (
+        <>
+          <p
+            style={{
+              color: colors[currentTheme || "first"]["quaternary"],
+            }}
+            className="text-[25px] "
+          >
+            {zone}
+          </p>
+          <p
+            style={{
+              color: colors[currentTheme || "first"]["tertiary"],
+            }}
+            className="text-[35px] mt-1.5 font-bold"
+          >
+            {formattedTime}
+          </p>
+        </>
+      )}
     </div>
   );
 };
@@ -254,7 +272,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         <CellTextTitle cellTextTitle={entrySubTitle} />
         <CellTextMainTitle mainTitle={entryMainTitle} />
         <StreamingDate date={weekDate.getDate()} />
-        <StreamingTime time={entryTime} />
+        <StreamingTime
+          isGuerrilla={primaryEntry.isGuerrilla}
+          time={entryTime}
+        />
       </CellContentArea>
       <OnlineCardBG day={time.day} />
     </div>

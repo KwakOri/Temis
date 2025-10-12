@@ -24,6 +24,7 @@ interface DayTextProps {
 }
 
 interface StreamingTimeProps {
+  isGuerrilla: boolean;
   cellStyle: CSSProperties;
   time: string;
   currentTheme?: TTheme;
@@ -94,6 +95,7 @@ const StreamingTime = ({
   cellStyle,
   time,
   currentTheme,
+  isGuerrilla,
 }: StreamingTimeProps) => {
   return (
     <p
@@ -109,7 +111,7 @@ const StreamingTime = ({
       }}
       className="absolute flex justify-center items-center font-black"
     >
-      {formatTime(time, "half")}
+      {isGuerrilla ? "게릴라" : formatTime(time, "half")}
     </p>
   );
 };
@@ -338,7 +340,11 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             <CellTextMainTitle mainTitle={entryMainTitle} />
             {/* <StreamingDate date={weekDate.getDate()} /> */}
           </CellContentArea>
-          <StreamingTime cellStyle={cellStyle.timestamp} time={entryTime} />
+          <StreamingTime
+            isGuerrilla={primaryEntry.isGuerrilla}
+            cellStyle={cellStyle.timestamp}
+            time={entryTime}
+          />
           <CellSideTab
             entrySideTabMainTitle={entrySideTabMainTitle}
             entrySideTabSubTitle={entrySideTabSubTitle}

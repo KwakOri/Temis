@@ -23,6 +23,7 @@ interface DayTextProps {
 interface StreamingTimeProps {
   isBig: boolean;
   time: string;
+  isGuerrilla: boolean;
   currentTheme?: TTheme;
 }
 
@@ -85,7 +86,12 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({ isBig, time, currentTheme }: StreamingTimeProps) => {
+const StreamingTime = ({
+  isBig,
+  time,
+  currentTheme,
+  isGuerrilla,
+}: StreamingTimeProps) => {
   return (
     <p
       style={{
@@ -100,7 +106,7 @@ const StreamingTime = ({ isBig, time, currentTheme }: StreamingTimeProps) => {
       }}
       className="absolute flex justify-center items-center"
     >
-      {formatTime(time, "full")}
+      {isGuerrilla ? "게릴라" : formatTime(time, "full")}
     </p>
   );
 };
@@ -298,7 +304,11 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       ) : (
         <>
           {" "}
-          <StreamingTime isBig={isBig} time={entryTime} />
+          <StreamingTime
+            isGuerrilla={primaryEntry.isGuerrilla}
+            isBig={isBig}
+            time={entryTime}
+          />
           <CellContentArea isBig={isBig}>
             <CellTextMainTitle mainTitle={entryMainTitle} />
             <CellTextSubTitle isBig={isBig} title={entrySubTitle} />

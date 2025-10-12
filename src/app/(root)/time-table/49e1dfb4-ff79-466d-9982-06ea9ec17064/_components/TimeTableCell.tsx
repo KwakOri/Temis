@@ -20,6 +20,7 @@ interface DayTextProps {
 }
 
 interface StreamingTimeProps {
+  isGuerrilla: boolean;
   time: string;
   currentTheme?: TTheme;
   isMultiple?: boolean;
@@ -90,24 +91,25 @@ const StreamingTime = ({
   time,
   currentTheme,
   isMultiple,
+  isGuerrilla,
 }: StreamingTimeProps) => {
   const [zone, formattedTime] = formatTime(time, "half").split(" ");
 
   return isMultiple ? (
     <p
       style={{
-        bottom: 14,
+        bottom: isGuerrilla ? 17 : 14,
         right: -26,
         width: 252,
         height: 76,
         lineHeight: 1,
         color: Settings.card.online.time.fontColor,
-        fontSize: 48,
+        fontSize: isGuerrilla ? 56 : 48,
         fontWeight: 700,
       }}
       className="absolute flex justify-center items-center"
     >
-      {formattedTime} {zone}
+      {isGuerrilla ? "게릴라" : `${formattedTime} ${zone}`}
     </p>
   ) : (
     <p
@@ -123,7 +125,7 @@ const StreamingTime = ({
       }}
       className="absolute flex justify-center items-center"
     >
-      {formattedTime} {zone}
+      {isGuerrilla ? "게릴라" : `${formattedTime} ${zone}`}
     </p>
   );
 };
@@ -352,7 +354,10 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
             mainTitle={entries[0].mainTitle as string}
           />
         </div>
-        <StreamingTime time={entries[0].time as string} />
+        <StreamingTime
+          isGuerrilla={entries[0].isGuerrilla}
+          time={entries[0].time as string}
+        />
       </>
     );
   return (
@@ -372,6 +377,7 @@ const MultipleCards = ({ time, isMultiple }: MultipleCardsProps) => {
               mainTitle={entry.mainTitle as string}
             />
             <StreamingTime
+              isGuerrilla={entry.isGuerrilla}
               isMultiple={isMultiple}
               time={entry.time as string}
             />
