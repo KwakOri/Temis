@@ -23,6 +23,7 @@ interface DayTextProps {
 }
 
 interface DayAndTimeProps {
+  isGuerrilla: boolean;
   isPink: boolean;
   currentTheme?: TTheme;
   day: number;
@@ -31,6 +32,7 @@ interface DayAndTimeProps {
 
 interface StreamingTimeProps {
   time: string;
+  isGuerrilla: boolean;
   currentTheme?: TTheme;
 }
 
@@ -106,8 +108,14 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
-  const [hour, minute] = formatTime(time, "full").split(":");
+const StreamingTime = ({
+  time,
+  currentTheme,
+  isGuerrilla,
+}: StreamingTimeProps) => {
+  const [hour, minute] = isGuerrilla
+    ? ["게", "릴라"]
+    : formatTime(time, "full").split(":");
 
   return (
     <div
@@ -133,6 +141,7 @@ const StreamingDayAndTime = ({
   currentTheme,
   day,
   time,
+  isGuerrilla,
 }: DayAndTimeProps) => {
   return (
     <p
@@ -145,7 +154,8 @@ const StreamingDayAndTime = ({
       }}
       className="absolute flex justify-center items-center text-[56px]"
     >
-      {weekdays[weekdayOption][day].toUpperCase()} {formatTime(time, "full")}
+      {weekdays[weekdayOption][day].toUpperCase()}{" "}
+      {isGuerrilla ? "게릴라" : formatTime(time, "full")}
     </p>
   );
 };
@@ -292,6 +302,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         day={time.day}
         time={entryTime}
         isPink={isPink(time.day)}
+        isGuerrilla={primaryEntry.isGuerrilla}
       />
       <CellContentArea day={time.day}>
         <CellTextMainTitle mainTitle={entryMainTitle} />

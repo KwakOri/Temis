@@ -2,12 +2,9 @@ import Image from "next/image";
 import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TTheme } from "@/types/time-table/theme";
-import {
-  getFormattedTime,
-  weekdays,
-} from "@/utils/time-table/data";
 import { TDefaultCard } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import { getFormattedTime, weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
 import {
@@ -86,7 +83,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           className="absolute flex justify-center items-center h-10 text-[19px]"
         >
           {weekdays[weekdayOption][time.day].toUpperCase()}{" "}
-          {getFormattedTime(entryTime)}
+          {primaryEntry.isGuerrilla ? "게릴라" : getFormattedTime(entryTime)}
         </p>
 
         <div

@@ -1,9 +1,9 @@
 import React, { PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
-import { TDefaultCard } from "@/types/time-table/data";
 import { weekdays } from "@/utils/time-table/data";
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
@@ -23,6 +23,7 @@ interface DayTextProps {
 }
 
 interface StreamingTimeProps {
+  isGuerrilla: boolean;
   time: string;
   currentTheme?: TTheme;
 }
@@ -86,7 +87,11 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
+const StreamingTime = ({
+  time,
+  currentTheme,
+  isGuerrilla,
+}: StreamingTimeProps) => {
   return (
     <div
       style={{
@@ -99,7 +104,7 @@ const StreamingTime = ({ time, currentTheme }: StreamingTimeProps) => {
       }}
       className="absolute flex flex-col justify-center items-center"
     >
-      {formatTime(time, "half")}
+      {isGuerrilla ? "게릴라" : formatTime(time, "half")}
     </div>
   );
 };
@@ -237,7 +242,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         <CellTextTitle cellTextTitle={entrySubTitle} />
         <CellTextMainTitle mainTitle={entryMainTitle} />
         {/* <StreamingDate date={weekDate.getDate()} /> */}
-        <StreamingTime time={entryTime} />
+        <StreamingTime
+          isGuerrilla={primaryEntry.isGuerrilla}
+          time={entryTime}
+        />
       </CellContentArea>
       <OnlineCardBG day={time.day} />
     </div>
