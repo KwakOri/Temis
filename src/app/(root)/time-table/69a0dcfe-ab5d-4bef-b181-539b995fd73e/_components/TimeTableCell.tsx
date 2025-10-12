@@ -32,12 +32,12 @@ interface DateTextProps {
 }
 
 interface CellTextTitleProps {
+  isBig: boolean;
   currentTheme?: TTheme;
   title: string;
 }
 
 interface CellTextMainTitleProps {
-  isBig: boolean;
   mainTitle: string | null;
 }
 
@@ -105,30 +105,11 @@ const StreamingTime = ({ isBig, time, currentTheme }: StreamingTimeProps) => {
   );
 };
 
-const CellTextSubTitle = ({ currentTheme, title }: CellTextTitleProps) => {
-  return (
-    <div
-      style={{
-        height: 160,
-        width: "100%",
-      }}
-      className="flex justify-start items-center shrink-0"
-    >
-      <AutoResizeText
-        style={{
-          color: Settings.card.online.subTitle.fontColor,
-          lineHeight: 1.2,
-        }}
-        className="leading-none text-left w-full"
-        maxFontSize={Settings.card.online.subTitle.fontSize}
-      >
-        {title ? (title as string) : placeholders.subTitle}
-      </AutoResizeText>
-    </div>
-  );
-};
-
-const CellTextMainTitle = ({ isBig, mainTitle }: CellTextMainTitleProps) => {
+const CellTextSubTitle = ({
+  isBig,
+  currentTheme,
+  title,
+}: CellTextTitleProps) => {
   return (
     <div
       style={{
@@ -141,12 +122,35 @@ const CellTextMainTitle = ({ isBig, mainTitle }: CellTextMainTitleProps) => {
     >
       <AutoResizeText
         style={{
+          color: Settings.card.online.subTitle.fontColor,
+          lineHeight: 1.2,
+        }}
+        className="leading-none text-left w-full"
+        maxFontSize={Settings.card.online.subTitle.fontSize}
+        multiline={isBig ? true : false}
+      >
+        {title ? (title as string) : placeholders.subTitle}
+      </AutoResizeText>
+    </div>
+  );
+};
+
+const CellTextMainTitle = ({ mainTitle }: CellTextMainTitleProps) => {
+  return (
+    <div
+      style={{
+        height: 160,
+        width: "100%",
+      }}
+      className={"flex justify-start items-center shrink-0"}
+    >
+      <AutoResizeText
+        style={{
           color: Settings.card.online.mainTitle.fontColor,
           lineHeight: 1.2,
         }}
         className="leading-none text-left w-full"
         maxFontSize={Settings.card.online.mainTitle.fontSize}
-        multiline={isBig ? true : false}
       >
         {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
@@ -296,8 +300,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           {" "}
           <StreamingTime isBig={isBig} time={entryTime} />
           <CellContentArea isBig={isBig}>
-            <CellTextSubTitle title={entrySubTitle} />
-            <CellTextMainTitle isBig={isBig} mainTitle={entryMainTitle} />
+            <CellTextMainTitle mainTitle={entryMainTitle} />
+            <CellTextSubTitle isBig={isBig} title={entrySubTitle} />
           </CellContentArea>
           <OnlineCardBG day={time.day} isBig={isBig} />
         </>
