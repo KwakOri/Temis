@@ -8,6 +8,7 @@ import {
   VerifyEmailData,
   VerifyEmailResponse,
 } from "@/types/auth";
+import { authRateLimiter } from "@/lib/rateLimiter";
 
 export class AuthService {
   // 회원가입 토큰 유효성 검증
@@ -29,6 +30,16 @@ export class AuthService {
 
   // 회원가입
   static async register(registerData: RegisterData): Promise<RegisterResponse> {
+    // Rate limiting 체크 (이메일 기반)
+    const rateLimitKey = `register:${registerData.email}`;
+    const rateLimitResult = authRateLimiter.attempt(rateLimitKey);
+
+    if (!rateLimitResult.allowed) {
+      throw new Error(
+        `요청이 너무 많습니다. ${rateLimitResult.retryAfter}초 후에 다시 시도해주세요.`
+      );
+    }
+
     const response = await fetch("/api/auth/register", {
       method: "POST",
       headers: {
@@ -50,6 +61,16 @@ export class AuthService {
   static async verifyEmail(
     verifyData: VerifyEmailData
   ): Promise<VerifyEmailResponse> {
+    // Rate limiting 체크
+    const rateLimitKey = `verify-email:${verifyData.token}`;
+    const rateLimitResult = authRateLimiter.attempt(rateLimitKey);
+
+    if (!rateLimitResult.allowed) {
+      throw new Error(
+        `요청이 너무 많습니다. ${rateLimitResult.retryAfter}초 후에 다시 시도해주세요.`
+      );
+    }
+
     const response = await fetch("/api/auth/verify-email", {
       method: "POST",
       headers: {
@@ -88,6 +109,16 @@ export class AuthService {
   static async resetPassword(
     resetData: ResetPasswordData
   ): Promise<ResetPasswordResponse> {
+    // Rate limiting 체크
+    const rateLimitKey = `reset-password:${resetData.token}`;
+    const rateLimitResult = authRateLimiter.attempt(rateLimitKey);
+
+    if (!rateLimitResult.allowed) {
+      throw new Error(
+        `요청이 너무 많습니다. ${rateLimitResult.retryAfter}초 후에 다시 시도해주세요.`
+      );
+    }
+
     const response = await fetch("/api/auth/reset-password", {
       method: "POST",
       headers: {

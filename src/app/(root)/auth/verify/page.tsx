@@ -12,18 +12,26 @@ function VerifyContent() {
 
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
+  const [hasAttempted, setHasAttempted] = useState(false);
 
   const verifyEmailMutation = useVerifyEmail();
 
   useEffect(() => {
+    // Prevent multiple verification attempts
+    if (hasAttempted) {
+      return;
+    }
+
     if (!token) {
       setStatus("error");
       setMessage("인증 토큰이 없습니다.");
+      setHasAttempted(true);
       return;
     }
 
     const verifyEmail = async () => {
       try {
+        setHasAttempted(true);
         await verifyEmailMutation.mutateAsync({ token });
 
         setStatus("success");
@@ -41,7 +49,7 @@ function VerifyContent() {
     };
 
     verifyEmail();
-  }, [token, router, verifyEmailMutation]);
+  }, [token, router]); // Remove verifyEmailMutation from dependencies
 
   if (status === "loading") {
     return (
