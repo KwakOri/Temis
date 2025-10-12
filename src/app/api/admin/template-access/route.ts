@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth/middleware";
 import { TemplateAccessService } from "@/lib/templates";
 import { supabase } from "@/lib/supabase";
+import { EmailService } from "@/lib/email";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -87,22 +88,15 @@ export async function POST(request: NextRequest) {
         if (templateError || !templateData) {
           console.error('템플릿 정보 조회 실패:', templateError);
         } else {
-          // 메일 발송
+          // 메일 발송 (EmailService 직접 호출)
           try {
-            const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-            const response = await fetch(`${baseUrl}/api/email/template-access-granted`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                email: userData.email,
-                userName: userData.name || '고객',
-                templateName: templateData.name
-              }),
-            });
+            const emailSent = await EmailService.sendTemplateAccessGrantedEmail(
+              userData.email,
+              userData.name || '고객',
+              templateData.name
+            );
 
-            if (!response.ok) {
+            if (!emailSent) {
               console.error('권한 부여 알림 메일 발송 실패');
             }
           } catch (emailError) {
