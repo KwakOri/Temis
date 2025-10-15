@@ -1,0 +1,55 @@
+@font-face {
+  font-family: "Cafe24ClassicType";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2210-2@1.0/Cafe24ClassicType-Regular.woff2")
+    format("woff2");
+  font-weight: normal;
+  font-display: swap;
+
+  font-display: swap;
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "DnfTemperedBlade";
+  src: url("//cdn.df.nexon.com/img/common/font/DNFForgedBlade-Light.otf")
+    format("opentype");
+  font-weight: 300;
+  font-display: swap;
+
+  font-display: swap;
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "DnfTemperedBlade";
+  src: url("//cdn.df.nexon.com/img/common/font/DNFForgedBlade-Medium.otf")
+    format("opentype");
+  font-weight: 500;
+  font-display: swap;
+
+  font-display: swap;
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "DnfTemperedBlade";
+  src: url("//cdn.df.nexon.com/img/common/font/DNFForgedBlade-Bold.otf")
+    format("opentype");
+  font-weight: 700;
+  font-display: swap;
+
+  font-display: swap;
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
