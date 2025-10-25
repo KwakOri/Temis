@@ -4,7 +4,7 @@ import AccessManagement from "@/components/admin/AccessManagement";
 import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
 import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
-import LegacyOrderManagement from "@/components/admin/LegacyOrderManagement";
+
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
@@ -13,7 +13,6 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertTriangle,
-  Archive,
   ArrowLeft,
   Calendar,
   CreditCard,
@@ -34,7 +33,6 @@ type TabType =
   | "emailPreview"
   | "purchases"
   | "customOrders"
-  | "legacyOrders"
   | "workCalendar";
 
 function AdminContent() {
@@ -93,7 +91,7 @@ function AdminContent() {
   const tabs = [
     { id: "workCalendar" as TabType, name: "작업 캘린더", icon: Calendar },
     { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
-    { id: "legacyOrders" as TabType, name: "레거시 주문 관리", icon: Archive },
+
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
     { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
     { id: "users" as TabType, name: "사용자 관리", icon: Users },
@@ -155,7 +153,7 @@ function AdminContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "workCalendar" && <DeadlineCalendarView />}
         {activeTab === "customOrders" && <CustomOrderManagement />}
-        {activeTab === "legacyOrders" && <LegacyOrderManagement />}
+
         {activeTab === "purchases" && <PurchaseManagement />}
         {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "access" && <AccessManagement />}
