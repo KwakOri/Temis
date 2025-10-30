@@ -3,6 +3,7 @@ import { Tables, TablesInsert, TablesUpdate } from "./supabase";
 // Base types from Supabase
 export type User = Tables<"users">;
 export type Template = Tables<"templates">;
+export type Thumbnail = Tables<"thumbnails">;
 export type ShopTemplate = Tables<"shop_templates">;
 export type TemplatePlan = Tables<"template_plans">;
 export type PurchaseRequest = Tables<"purchase_requests">;
@@ -58,6 +59,21 @@ export interface CreateTemplateData {
 }
 
 export interface UpdateTemplateData {
+  is_public?: boolean;
+  is_shop_visible?: boolean;
+  thumbnail_url?: string;
+}
+
+// Thumbnail Management (same structure as Template)
+export interface CreateThumbnailData {
+  name: string;
+  description: string;
+  detailed_description?: string;
+  thumbnail_url?: string;
+  is_public: boolean;
+}
+
+export interface UpdateThumbnailData {
   is_public?: boolean;
   is_shop_visible?: boolean;
   thumbnail_url?: string;
