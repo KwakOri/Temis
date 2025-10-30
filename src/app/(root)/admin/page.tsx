@@ -8,6 +8,7 @@ import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
+import ThumbnailManagement from "@/components/admin/ThumbnailManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,6 +18,7 @@ import {
   Calendar,
   CreditCard,
   FileText,
+  Image,
   Loader2,
   MailOpen,
   Palette,
@@ -27,6 +29,7 @@ import {
 import { useState } from "react";
 type TabType =
   | "templates"
+  | "thumbnails"
   | "users"
   | "teams"
   | "access"
@@ -94,6 +97,7 @@ function AdminContent() {
 
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
     { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
+    { id: "thumbnails" as TabType, name: "썸네일 관리", icon: Image },
     { id: "users" as TabType, name: "사용자 관리", icon: Users },
     { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
@@ -156,6 +160,7 @@ function AdminContent() {
 
         {activeTab === "purchases" && <PurchaseManagement />}
         {activeTab === "templates" && <TemplateManagement />}
+        {activeTab === "thumbnails" && <ThumbnailManagement />}
         {activeTab === "access" && <AccessManagement />}
         {activeTab === "users" && <UserManagement />}
         {activeTab === "teams" && <TeamManagement />}

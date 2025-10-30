@@ -1,0 +1,38 @@
+@font-face {
+  font-family: "SchoolSafetyNotification";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-5@1.0/HakgyoansimAllimjangTTF-R.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "SchoolSafetyNotification";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-5@1.0/HakgyoansimAllimjangTTF-B.woff2")
+    format("woff2");
+  font-weight: 700;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "Cafe24ShiningStar";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_twelve@1.1/Cafe24Shiningstar.woff")
+    format("woff");
+  font-weight: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
