@@ -671,6 +671,42 @@ export type Database = {
         }
         Relationships: []
       }
+      thumbnails: {
+        Row: {
+          created_at: string
+          description: string
+          detailed_description: string | null
+          id: string
+          is_public: boolean
+          is_shop_visible: boolean
+          name: string
+          thumbnail_url: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          detailed_description?: string | null
+          id?: string
+          is_public?: boolean
+          is_shop_visible?: boolean
+          name: string
+          thumbnail_url?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          detailed_description?: string | null
+          id?: string
+          is_public?: boolean
+          is_shop_visible?: boolean
+          name?: string
+          thumbnail_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tokens: {
         Row: {
           created_at: string | null

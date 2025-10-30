@@ -5,7 +5,7 @@ export type TLanOpt = "kr" | "en" | "jp";
 
 export interface SimpleFieldConfig {
   key: string;
-  type: "text" | "textarea" | "time" | "select" | "number";
+  type: "text" | "textarea" | "time" | "date" | "select" | "number";
   label?: string;
   placeholder: string;
   required?: boolean;
