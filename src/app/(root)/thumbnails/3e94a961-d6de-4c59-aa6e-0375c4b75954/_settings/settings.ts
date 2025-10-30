@@ -111,7 +111,20 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
         { value: "YETI", label: "YETI" },
       ],
     },
-
+    {
+      key: "mainTitleX",
+      type: "number",
+      label: "가로 위치",
+      placeholder: "가로 위치 조정",
+      defaultValue: "0",
+    },
+    {
+      key: "mainTitleY",
+      label: "세로 위치",
+      type: "number",
+      placeholder: "세로 위치 조정",
+      defaultValue: "0",
+    },
     {
       key: "mainTitle",
       type: "textarea",

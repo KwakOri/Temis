@@ -22,12 +22,8 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
 }) => {
   const { imageSrc, weekDates, profileText } = useTimeTableData();
   const { scale, isProfileTextVisible } = useTimeTableUI();
-  const firstEntry = data.entries?.[0];
-  const [year, month, date] = firstEntry?.date?.toString().split("-") || [
-    "",
-    "",
-    "",
-  ];
+  const info = data.entries?.[0];
+  const [year, month, date] = info?.date?.toString().split("-") || ["", "", ""];
   const asmrType = data.entries[0].category as "3DIO" | "YETI";
   console.log(asmrType);
 
@@ -74,8 +70,8 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
           style={{
             width: 540,
             height: 400,
-            top: 228,
-            right: 0,
+            top: 228 - (info.mainTitleY as number),
+            right: 0 - (info.mainTitleX as number),
             rotate: "8deg",
           }}
           className="absolute flex justify-center items-center"
@@ -97,7 +93,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
             multiline={true}
             maxFontSize={100}
           >
-            {firstEntry?.mainTitle}
+            {info?.mainTitle}
           </AutoResizeText>
         </div>
         <div
@@ -126,7 +122,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
             multiline={true}
             maxFontSize={48}
           >
-            {firstEntry?.tags as string}
+            {info?.tags as string}
           </AutoResizeText>
         </div>
       </div>
