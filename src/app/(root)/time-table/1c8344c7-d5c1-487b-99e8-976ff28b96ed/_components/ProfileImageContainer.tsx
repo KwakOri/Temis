@@ -119,21 +119,21 @@ const ProfileText = ({
       <div
         style={{
           position: "absolute",
-          bottom: 140,
-          right: 160,
-          width: 1000,
+          bottom: 164,
+          right: 264,
+          width: 800,
           height: 160,
           zIndex: 20,
           rotate: "2.2deg",
           color: colors["first"]["tertiary"],
           fontFamily: fontOption.primary,
         }}
-        className="flex justify-center items-center"
+        className="flex justify-center items-center "
       >
         <AutoResizeText
           style={{ lineHeight: 0 }}
           className="text-center"
-          maxFontSize={116}
+          maxFontSize={100}
         >
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
