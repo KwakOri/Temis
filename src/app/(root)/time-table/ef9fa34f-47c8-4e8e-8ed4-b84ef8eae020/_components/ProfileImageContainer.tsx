@@ -1,6 +1,5 @@
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import ProfileImage from "@/components/TimeTable/ProfileImage";
-import Image from "next/image";
 import React from "react";
 import { Imgs } from "../_img/imgs";
 
@@ -46,18 +45,17 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
           zIndex: profileImageInfo.arrange === "onTop" ? "10" : "20",
         }}
       >
-        <Image
+        <img
           src={Imgs[currentTheme]["profile"].src.replace("./", "/")}
           alt="preview"
-          className="w-full h-full object-cover"
-          fill
+          className="absolute inset-0"
           draggable={false}
         />
       </div>
       <div
         style={{
-          width: profileImageWidth + "px",
-          height: profileImageHeight + "px",
+          width: profileImageWidth,
+          height: profileImageHeight,
           zIndex: profileImageInfo.arrange === "onTop" ? "20" : "10",
         }}
         className="absolute right-0"
@@ -101,12 +99,14 @@ const ProfileImageContainer: React.FC<ProfileImageProps> = ({
                 {profileText ? profileText : profileTextPlaceholder}
               </AutoResizeText>
             </div>
-            <Image
+            <img
+              style={{
+                width: 250,
+                height: 85,
+              }}
               className={"absolute right-3 bottom-5 z-40"}
-              src={Imgs[currentTheme]["artist"]}
+              src={Imgs[currentTheme]["artist"].src}
               alt={`artist`}
-              width={250}
-              height={85}
             />
           </>
         )}

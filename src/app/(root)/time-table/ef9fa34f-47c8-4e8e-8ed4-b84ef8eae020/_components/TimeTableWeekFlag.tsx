@@ -1,5 +1,4 @@
 import { TTheme } from "@/types/time-table/theme";
-import Image from "next/image";
 import { Imgs } from "../_img/imgs";
 import {
   colors,
@@ -30,11 +29,12 @@ const TimeTableWeekFlag = ({
   return (
     <div
       style={{
-        gridColumn: 3,
-        gridRow: "span 2",
         position: "absolute",
         width: onlineCardWidth,
         height: onlineCardHeight,
+        top: 134,
+        left: 516,
+        zIndex: 40,
       }}
     >
       <div
@@ -119,11 +119,10 @@ const TimeTableWeekFlag = ({
             </div>
           </div>
         </div>
-        <Image
-          width={weekFlagCardWidth}
-          height={weekFlagCardHeight}
+        <img
+          className="object-cover absolute inset-0 -z-10"
           alt={`week`}
-          src={Imgs[currentTheme]["week"]}
+          src={Imgs[currentTheme]["week"].src}
         />
       </div>
     </div>
