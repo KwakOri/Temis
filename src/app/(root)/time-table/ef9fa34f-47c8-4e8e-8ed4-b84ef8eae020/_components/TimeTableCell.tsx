@@ -1,4 +1,3 @@
-import Image from "next/image";
 import React from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
@@ -42,16 +41,18 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       <div
         className="pointer-events-none flex justify-end items-end"
         style={{
-          width: offlineCardWidth + "px",
-          height: offlineCardHeight + "px",
+          width: offlineCardWidth,
+          height: offlineCardHeight,
         }}
         key={time.day}
       >
-        <Image
+        <img
           src={Imgs[currentTheme]["offline"].src.replace("./", "/")}
           alt="offline"
-          width={228}
-          height={171}
+          style={{
+            width: 228,
+            height: 171,
+          }}
         />
       </div>
     );
@@ -60,8 +61,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   return (
     <div
       style={{
-        width: onlineCardWidth + "px",
-        height: onlineCardHeight + "px",
+        width: onlineCardWidth,
+        height: onlineCardHeight,
         fontFamily: fontOption.primary,
         fontSize: "24px",
       }}
@@ -97,7 +98,11 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             {primaryEntry.isGuerrilla ? "게릴라" : getFormattedTime(entryTime)}
           </p>
         </div>
-        <Image fill src={Imgs[currentTheme].onlineTime} alt={"onlineTime"} />
+        <img
+          className="absolute inset-0"
+          src={Imgs[currentTheme].onlineTime.src}
+          alt={"onlineTime"}
+        />
       </div>
       <div
         style={{
@@ -142,11 +147,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             {entrySubTitle ? entrySubTitle : placeholders.subTitle}
           </AutoResizeText>
         </div>
-        <Image
-          className="-z-10"
+        <img
+          className="absolute inset-0 -z-10"
           src={Imgs[currentTheme]["online"].src.replace("./", "/")}
           alt="online"
-          fill
         />
       </div>
     </div>
