@@ -3,9 +3,10 @@ import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideC
 import React from "react";
 import { Imgs } from "../_img/imgs";
 
-import { TPlaceholders } from "@/types/time-table/data";
+import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
+import { TDefaultCard, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import { TDefaultCard } from "@/types/time-table/data";
+import { isGuideEnabled } from "@/utils/time-table/data";
 import ProfileImageContainer from "./ProfileImageContainer";
 import TimeTableGrid from "./TimeTableGrid";
 import TimeTableWeekFlag from "./TimeTableWeekFlag";
@@ -39,6 +40,8 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         backgroundRepeat: "no-repeat",
       }}
     >
+      {isGuideEnabled && <TimeTableDesignGuide />}
+
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}

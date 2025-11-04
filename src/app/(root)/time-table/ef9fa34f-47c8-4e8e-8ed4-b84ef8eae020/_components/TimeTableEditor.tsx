@@ -10,6 +10,8 @@ import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideCon
 import { useTimeTableEditor } from "@/hooks";
 
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
+import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
+import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../_settings/general";
 import {
   CARD_INPUT_CONFIG,
@@ -52,7 +54,7 @@ const TimeTableEditorContent: React.FC = () => {
         </TimeTablePreview>
         <TimeTableForm
           onReset={resetData}
-          addons={null}
+          addons={isGuideEnabled && <TimeTableDesignGuideController />}
           cropWidth={profileImageWidth}
           cropHeight={profileImageHeight}
         >
