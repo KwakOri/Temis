@@ -1,0 +1,52 @@
+/* Y유니버스 B 랑 학교안심출석부OTF L */
+@font-face {
+  font-family: "YUniverse";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_yuniverse@1.0/YUniverse-L.woff2")
+    format("woff2");
+  font-weight: 300;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "YUniverse";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_yuniverse@1.0/YUniverse-B.woff2")
+    format("woff2");
+  font-weight: 700;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "SchoolSafetyAttendanceBook";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-5@1.0/HakgyoansimChulseokbuTTF-L.woff2")
+    format("woff2");
+  font-weight: 400;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: "SchoolSafetyAttendanceBook";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-5@1.0/HakgyoansimChulseokbuTTF-B.woff2")
+    format("woff2");
+  font-weight: 700;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
