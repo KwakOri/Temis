@@ -257,16 +257,16 @@ const TeamManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">팀 관리</h2>
-          <p className="text-gray-600 mt-1">팀을 생성하고 팀원을 관리하세요</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">팀 관리</h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">팀을 생성하고 팀원을 관리하세요</p>
         </div>
         <button
           onClick={handleCreateTeam}
-          className="inline-flex items-center px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+          className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm sm:text-base whitespace-nowrap self-start sm:self-auto"
         >
           <Plus className="h-4 w-4 mr-2" />팀 생성
         </button>

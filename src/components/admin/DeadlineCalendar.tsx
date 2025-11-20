@@ -25,6 +25,7 @@ export const DeadlineCalendarView = () => {
     CustomOrderWithUser | LegacyOrderType | null
   >(null);
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+  const [mobileTab, setMobileTab] = useState<'incomplete' | 'complete'>('incomplete');
 
   // React Query hooks
   const { data: customOrdersResponse, isLoading: loadingCustomCalendar } =
@@ -177,19 +178,45 @@ export const DeadlineCalendarView = () => {
     );
   }
 
+  // 완료/미완료 작업 분류
+  const completeOrders = [...orders.filter(order => order.status === 'completed'), ...legacyOrders.filter(order => order.status === 'completed')];
+  const incompleteOrders = [
+    ...orders.filter(order => order.status !== 'completed' && order.status !== 'cancelled'),
+    ...legacyOrders.filter(order => order.status !== 'completed' && order.status !== 'cancelled')
+  ];
+
+  // 날짜순 정렬 (현재 날짜와 가까운 순)
+  const sortByDate = (a: CustomOrderWithUser | LegacyOrderType, b: CustomOrderWithUser | LegacyOrderType) => {
+    const aDeadline = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+    const bDeadline = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+    const now = new Date().getTime();
+
+    // 마감일이 없는 것은 맨 뒤로
+    if (aDeadline === Infinity && bDeadline === Infinity) return 0;
+    if (aDeadline === Infinity) return 1;
+    if (bDeadline === Infinity) return -1;
+
+    // 현재 날짜와의 차이 절대값으로 정렬
+    return Math.abs(aDeadline - now) - Math.abs(bDeadline - now);
+  };
+
+  const sortedCompleteOrders = [...completeOrders].sort(sortByDate);
+  const sortedIncompleteOrders = [...incompleteOrders].sort(sortByDate);
+
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       {/* 헤더 */}
-      <div className="px-6 py-4 border-b border-gray-200">
+      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-primary flex items-center">
-            <Calendar className="w-5 h-5 mr-2" />
+          <h3 className="text-base sm:text-lg font-semibold text-primary flex items-center">
+            <Calendar className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
             주문 마감일 관리
           </h3>
         </div>
       </div>
 
-      <div className="flex">
+      {/* 데스크톱 캘린더 뷰 */}
+      <div className="hidden lg:flex">
         {/* 왼쪽 패널 - 1/4 너비 */}
         <div className="w-1/4 border-r border-gray-200">
           {/* 미등록 작업 목록 */}
@@ -496,6 +523,258 @@ export const DeadlineCalendarView = () => {
               );
             })}
           </div>
+        </div>
+      </div>
+
+      {/* 모바일 리스트 뷰 */}
+      <div className="lg:hidden">
+        {/* 월 선택 컨트롤 */}
+        <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={prevMonth}
+              className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
+              aria-label="이전 달"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+
+            <div className="text-center">
+              <span className="text-lg font-semibold text-gray-900">
+                {currentDate.getFullYear()}년 {currentDate.getMonth() + 1}월
+              </span>
+            </div>
+
+            <button
+              onClick={nextMonth}
+              className="p-2 rounded-lg hover:bg-gray-200 transition-colors"
+              aria-label="다음 달"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* 탭 네비게이션 */}
+        <div className="border-b border-gray-200">
+          <nav className="flex">
+            <button
+              onClick={() => setMobileTab('incomplete')}
+              className={`flex-1 py-3 px-4 text-center text-sm font-medium border-b-2 transition-colors ${
+                mobileTab === 'incomplete'
+                  ? 'border-primary text-primary bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              미완료 작업
+              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-primary text-white">
+                {sortedIncompleteOrders.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setMobileTab('complete')}
+              className={`flex-1 py-3 px-4 text-center text-sm font-medium border-b-2 transition-colors ${
+                mobileTab === 'complete'
+                  ? 'border-primary text-primary bg-blue-50'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              완료 작업
+              <span className="ml-2 px-2 py-0.5 rounded-full text-xs bg-green-600 text-white">
+                {sortedCompleteOrders.length}
+              </span>
+            </button>
+          </nav>
+        </div>
+
+        {/* 리스트 컨텐츠 */}
+        <div className="divide-y divide-gray-200">
+          {mobileTab === 'incomplete' ? (
+            sortedIncompleteOrders.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">
+                미완료 작업이 없습니다
+              </div>
+            ) : (
+              sortedIncompleteOrders.map((order) => {
+                const isCustomOrder = 'users' in order;
+                const isLegacy = !isCustomOrder;
+                const daysUntilDeadline = order.deadline
+                  ? Math.ceil((new Date(order.deadline).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+                  : null;
+                const isOverdue = daysUntilDeadline !== null && daysUntilDeadline < 0;
+                const isUrgent = daysUntilDeadline !== null && daysUntilDeadline >= 0 && daysUntilDeadline <= 3;
+
+                return (
+                  <div
+                    key={`mobile-incomplete-${order.id}`}
+                    onClick={() => onOrderClick(order)}
+                    className="p-4 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <div className="space-y-2">
+                      {/* 헤더: 이름과 타입 */}
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 text-sm">
+                            {isCustomOrder
+                              ? (order as CustomOrderWithUser).users.name
+                              : (order as LegacyOrderType).nickname}
+                          </span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              isLegacy
+                                ? 'bg-gray-200 text-gray-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}
+                          >
+                            {isLegacy ? '레거시' : '맞춤'}
+                          </span>
+                        </div>
+                        {getStatusIconHelper(order.status)}
+                      </div>
+
+                      {/* 마감일 정보 */}
+                      {order.deadline ? (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              isOverdue
+                                ? 'bg-red-100 text-red-800'
+                                : isUrgent
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}
+                          >
+                            {new Date(order.deadline).toLocaleDateString('ko-KR')}
+                            {daysUntilDeadline !== null && (
+                              <span className="ml-1">
+                                ({isOverdue ? `${Math.abs(daysUntilDeadline)}일 초과` : `D-${daysUntilDeadline}`})
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs text-gray-500">마감일 미설정</span>
+                        </div>
+                      )}
+
+                      {/* 상태 */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            order.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : order.status === 'accepted'
+                              ? 'bg-blue-100 text-blue-800'
+                              : order.status === 'in_progress'
+                              ? 'bg-indigo-100 text-indigo-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
+                          {order.status === 'pending'
+                            ? '대기중'
+                            : order.status === 'accepted'
+                            ? '접수됨'
+                            : order.status === 'in_progress'
+                            ? '진행중'
+                            : order.status}
+                        </span>
+                      </div>
+
+                      {/* 요구사항 (맞춤 제작만) */}
+                      {isCustomOrder && (
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {(order as CustomOrderWithUser).order_requirements}
+                        </p>
+                      )}
+
+                      {/* 이메일 (레거시만) */}
+                      {isLegacy && (
+                        <p className="text-xs text-gray-500">
+                          {(order as LegacyOrderType).email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )
+          ) : (
+            sortedCompleteOrders.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">
+                완료된 작업이 없습니다
+              </div>
+            ) : (
+              sortedCompleteOrders.map((order) => {
+                const isCustomOrder = 'users' in order;
+                const isLegacy = !isCustomOrder;
+
+                return (
+                  <div
+                    key={`mobile-complete-${order.id}`}
+                    onClick={() => onOrderClick(order)}
+                    className="p-4 hover:bg-gray-50 cursor-pointer bg-green-50/30"
+                  >
+                    <div className="space-y-2">
+                      {/* 헤더: 이름과 타입 */}
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 text-sm">
+                            {isCustomOrder
+                              ? (order as CustomOrderWithUser).users.name
+                              : (order as LegacyOrderType).nickname}
+                          </span>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded ${
+                              isLegacy
+                                ? 'bg-gray-200 text-gray-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}
+                          >
+                            {isLegacy ? '레거시' : '맞춤'}
+                          </span>
+                        </div>
+                        {getStatusIconHelper(order.status)}
+                      </div>
+
+                      {/* 마감일 정보 */}
+                      {order.deadline && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          <span className="text-xs text-gray-600">
+                            완료일: {new Date(order.deadline).toLocaleDateString('ko-KR')}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 완료 상태 */}
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          완료
+                        </span>
+                      </div>
+
+                      {/* 요구사항 (맞춤 제작만) */}
+                      {isCustomOrder && (
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {(order as CustomOrderWithUser).order_requirements}
+                        </p>
+                      )}
+
+                      {/* 이메일 (레거시만) */}
+                      {isLegacy && (
+                        <p className="text-xs text-gray-500">
+                          {(order as LegacyOrderType).email}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )
+          )}
         </div>
       </div>
     </div>

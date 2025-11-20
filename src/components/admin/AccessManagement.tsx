@@ -425,16 +425,16 @@ export default function AccessManagement() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">접근 권한 관리</h2>
-        <p className="text-gray-600">템플릿별 사용자 접근 권한을 관리하세요</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">접근 권한 관리</h2>
+        <p className="text-xs sm:text-sm text-gray-600">템플릿별 사용자 접근 권한을 관리하세요</p>
       </div>
 
       {/* Template Selection */}
-      <div className="bg-white p-6 rounded-lg shadow-sm">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">템플릿 선택</h3>
+      <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">템플릿 선택</h3>
 
         {templates.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
