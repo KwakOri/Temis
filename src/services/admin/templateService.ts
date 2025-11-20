@@ -20,6 +20,8 @@ export class AdminTemplateService {
       limit: number;
       offset: number;
       total: number;
+      publicCount: number;
+      privateCount: number;
     };
   }> {
     const queryParams = new URLSearchParams();
