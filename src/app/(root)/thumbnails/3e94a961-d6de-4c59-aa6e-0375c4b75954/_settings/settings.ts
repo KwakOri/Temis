@@ -104,9 +104,10 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       key: "category",
       type: "select",
       placeholder: "카테고리 선택",
-      defaultValue: "3DIO",
+      defaultValue: "없음",
       required: true,
       options: [
+        { value: "none", label: "없음" },
         { value: "3DIO", label: "3DIO" },
         { value: "YETI", label: "YETI" },
       ],
