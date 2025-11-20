@@ -82,7 +82,7 @@ export default function Home() {
               </p>
             </Link>
 
-            <button
+            {/* <button
               onClick={() =>
                 alert(
                   "더 나은 서비스를 위해서, 맞춤형 시간표 제작 접수를 잠시 멈추고 재정비중입니다. 11월 중순 이후로 다시 오픈 예정입니다"
@@ -92,8 +92,12 @@ export default function Home() {
               <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
                 맞춤형 시간표 제작
               </p>
-            </button>
-
+            </button> */}
+            <Link href="/custom-order">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                맞춤형 시간표 제작
+              </p>
+            </Link>
             <Link href="/my-page">
               <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
                 마이페이지
