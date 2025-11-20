@@ -939,7 +939,7 @@ export default function TemplateManagement() {
                   </svg>
                   <p className="text-gray-500 text-sm">
                     {searchTerm ? (
-                      <>'{searchTerm}'에 대한 검색 결과가 없습니다.</>
+                      <>&apos;{searchTerm}&apos;에 대한 검색 결과가 없습니다.</>
                     ) : activeTab === "public" ? (
                       "공개 템플릿이 없습니다."
                     ) : activeTab === "private" ? (
