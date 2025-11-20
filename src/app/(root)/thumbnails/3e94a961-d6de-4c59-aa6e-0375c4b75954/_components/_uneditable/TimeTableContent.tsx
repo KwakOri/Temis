@@ -24,7 +24,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   const { scale, isProfileTextVisible } = useTimeTableUI();
   const info = data.entries?.[0];
   const [year, month, date] = info?.date?.toString().split("-") || ["", "", ""];
-  const asmrType = data.entries[0].category as "3DIO" | "YETI";
+  const asmrType = data.entries[0].category as "3DIO" | "YETI" | "none";
   console.log(asmrType);
 
   if (weekDates.length === 0) return null;
@@ -41,16 +41,18 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
       <div className="absolute inset-0 z-40">
-        <div
-          className="absolute "
-          style={{ width: 270, height: 148, top: 16, right: 44 }}
-        >
-          <img
-            className="object-cover w-full h-full pointer-events-none"
-            src={Imgs["first"][asmrType === "3DIO" ? "threeDio" : "yeti"].src}
-            alt=""
-          />
-        </div>
+        {asmrType !== "none" && (
+          <div
+            className="absolute "
+            style={{ width: 270, height: 148, top: 16, right: 44 }}
+          >
+            <img
+              className="object-cover w-full h-full pointer-events-none"
+              src={Imgs["first"][asmrType === "3DIO" ? "threeDio" : "yeti"].src}
+              alt=""
+            />
+          </div>
+        )}
         <p
           className="absolute flex justify-center items-center"
           style={{
