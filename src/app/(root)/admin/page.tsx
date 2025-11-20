@@ -21,10 +21,12 @@ import {
   Image,
   Loader2,
   MailOpen,
+  Menu,
   Palette,
   Shield,
   UserCheck,
   Users,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 type TabType =
@@ -41,6 +43,7 @@ type TabType =
 function AdminContent() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("workCalendar");
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   console.log(user);
 
@@ -107,29 +110,91 @@ function AdminContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-quaternary">
-                관리자 대시보드
-              </h1>
-              <p className="text-secondary mt-1">
-                템플릿, 사용자 및 권한을 관리하세요
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-[#F4FDFF] bg-quaternary px-3 py-2 rounded-md shadow-sm">
-                <span className="font-medium">관리자:</span> {user?.name} (
-                {user?.email})
-              </div>
-            </div>
+          <div className="flex items-center justify-between py-4">
+            {/* 뒤로가기 버튼 (모바일) */}
+            <button
+              onClick={() => window.location.href = '/'}
+              className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
+              aria-label="홈으로"
+            >
+              <ArrowLeft className="w-6 h-6 text-gray-700" />
+            </button>
+
+            {/* 타이틀 - 모바일에서 가운데 정렬 */}
+            <h1 className="flex-1 text-center lg:text-left text-xl sm:text-2xl font-bold text-quaternary lg:flex-initial">
+              대시보드
+            </h1>
+
+            {/* 햄버거 버튼 (모바일) */}
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
+              aria-label="메뉴"
+            >
+              {isMenuOpen ? (
+                <X className="w-6 h-6 text-gray-700" />
+              ) : (
+                <Menu className="w-6 h-6 text-gray-700" />
+              )}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* 모바일 오버레이 메뉴 */}
+      {isMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          {/* 반투명 배경 */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setIsMenuOpen(false)}
+          />
+
+          {/* 메뉴 컨텐츠 */}
+          <div className="absolute top-0 left-0 right-0 bg-white shadow-lg">
+            {/* 헤더 */}
+            <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-quaternary">대시보드</h2>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 rounded-md hover:bg-gray-100 transition-colors"
+                aria-label="닫기"
+              >
+                <X className="w-6 h-6 text-gray-700" />
+              </button>
+            </div>
+
+            {/* 메뉴 아이템 */}
+            <nav className="px-4 sm:px-6 py-4 max-h-[calc(100vh-80px)] overflow-y-auto">
+              {tabs.map((tab) => {
+                const IconComponent = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setIsMenuOpen(false);
+                    }}
+                    className={`w-full flex items-center space-x-3 px-5 py-4 rounded-lg transition-colors mb-2 ${
+                      activeTab === tab.id
+                        ? "bg-blue-50 text-primary font-medium"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <IconComponent className="w-6 h-6" />
+                    <span className="text-base">{tab.name}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Tabs (데스크톱) */}
+      <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 overflow-x-auto">
             {tabs.map((tab) => {
