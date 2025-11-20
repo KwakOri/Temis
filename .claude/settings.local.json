@@ -46,7 +46,9 @@
       "Bash(echo \"$file\")",
       "Bash(fi)",
       "Bash(done)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(/dev/null)"
     ],
     "deny": []
   },
