@@ -289,13 +289,13 @@ export default function TemplateManagement() {
 
   // 탭별 통계 (전체 개수 기준)
   const tabCounts = useMemo(() => {
-    // 서버사이드 페이지네이션이므로 전체 개수는 pagination.total 사용
+    // 서버사이드 페이지네이션이므로 전체 개수는 pagination에서 가져옴
     return {
       all: pagination?.total || 0,
-      public: templates.filter((template) => template.is_public).length,
-      private: templates.filter((template) => !template.is_public).length,
+      public: pagination?.publicCount || 0,
+      private: pagination?.privateCount || 0,
     };
-  }, [templates, pagination]);
+  }, [pagination]);
 
   // 총 페이지 수 계산
   const totalPages = pagination ? Math.ceil(pagination.total / ITEMS_PER_PAGE) : 0;
@@ -583,22 +583,22 @@ export default function TemplateManagement() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-primary">템플릿 관리</h2>
-          <p className="text-secondary">전체 템플릿을 조회하고 관리하세요</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-primary">템플릿 관리</h2>
+          <p className="text-xs sm:text-sm text-secondary">전체 템플릿을 조회하고 관리하세요</p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="bg-quaternary px-4 py-2 rounded-lg border">
-            <span className="text-[#F4FDFF] font-semibold">
-              총 {templates.length}개
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
+            <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
+              총 {pagination?.total || 0}개
             </span>
           </div>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium hover:bg-secondary transition-colors"
+            className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
           >
             + 템플릿 추가
           </button>
@@ -606,46 +606,46 @@ export default function TemplateManagement() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white p-4 rounded-lg shadow-sm">
-        <div className="mb-6">
+      <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
+        <div className="mb-4 sm:mb-6">
           <div className="border-b border-slate-200">
-            <nav className="-mb-px flex space-x-8 justify-center">
+            <nav className="-mb-px flex space-x-4 sm:space-x-8 sm:justify-center overflow-x-auto">
               <button
                 onClick={() => handleTabChange("all")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
                   activeTab === "all"
                     ? "border-[#1e3a8a] text-[#1e3a8a]"
                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
                 }`}
               >
                 전체 템플릿
-                <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-slate-100 text-slate-600">
+                <span className="ml-1 sm:ml-2 py-0.5 px-1.5 sm:px-2 rounded-full text-xs bg-slate-100 text-slate-600">
                   {tabCounts.all}
                 </span>
               </button>
               <button
                 onClick={() => handleTabChange("public")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
                   activeTab === "public"
                     ? "border-[#1e3a8a] text-[#1e3a8a]"
                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
                 }`}
               >
                 공개 템플릿
-                <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-green-100 text-green-600">
+                <span className="ml-1 sm:ml-2 py-0.5 px-1.5 sm:px-2 rounded-full text-xs bg-green-100 text-green-600">
                   {tabCounts.public}
                 </span>
               </button>
               <button
                 onClick={() => handleTabChange("private")}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
                   activeTab === "private"
                     ? "border-[#1e3a8a] text-[#1e3a8a]"
                     : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
                 }`}
               >
                 비공개 템플릿
-                <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-slate-100 text-slate-600">
+                <span className="ml-1 sm:ml-2 py-0.5 px-1.5 sm:px-2 rounded-full text-xs bg-slate-100 text-slate-600">
                   {tabCounts.private}
                 </span>
               </button>
@@ -706,7 +706,8 @@ export default function TemplateManagement() {
 
       {/* Templates List */}
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* 데스크톱 테이블 뷰 */}
+        <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -912,6 +913,169 @@ export default function TemplateManagement() {
               })()}
             </tbody>
           </table>
+        </div>
+
+        {/* 모바일 카드 뷰 */}
+        <div className="lg:hidden divide-y divide-gray-200">
+          {(() => {
+            if (
+              filteredTemplates.length === 0 &&
+              (searchTerm || activeTab !== "all")
+            ) {
+              return (
+                <div className="px-4 py-12 text-center">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <p className="text-gray-500 text-sm">
+                    {searchTerm ? (
+                      <>'{searchTerm}'에 대한 검색 결과가 없습니다.</>
+                    ) : activeTab === "public" ? (
+                      "공개 템플릿이 없습니다."
+                    ) : activeTab === "private" ? (
+                      "비공개 템플릿이 없습니다."
+                    ) : (
+                      "템플릿이 없습니다."
+                    )}
+                  </p>
+                </div>
+              );
+            }
+
+            return filteredTemplates.map((template) => (
+              <div key={template.id} className="p-4">
+                <div className="space-y-3">
+                  {/* 템플릿 이름과 상태 */}
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium text-gray-900">
+                        {template.name}
+                      </div>
+                      {template.description && (
+                        <div className="text-xs text-gray-500 mt-1 line-clamp-2">
+                          {template.description}
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${
+                        template.is_public
+                          ? "bg-green-100 text-green-800"
+                          : "bg-gray-100 text-gray-800"
+                      }`}
+                    >
+                      {template.is_public ? "공개" : "비공개"}
+                    </span>
+                  </div>
+
+                  {/* 상품 상태 및 생성일 */}
+                  <div className="flex justify-between items-center text-xs">
+                    <div>
+                      {template.is_public ? (
+                        hasProduct(template) ? (
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                template.shop_templates[0]?.is_shop_visible
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-orange-100 text-orange-800"
+                              }`}
+                            >
+                              {template.shop_templates[0]?.is_shop_visible
+                                ? "상점 노출됨"
+                                : "상점 비노출"}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                            상품 미등록
+                          </span>
+                        )
+                      ) : (
+                        <span className="text-xs text-gray-400">-</span>
+                      )}
+                    </div>
+                    <div className="text-gray-500">
+                      {new Date(template.created_at).toLocaleDateString("ko-KR")}
+                    </div>
+                  </div>
+
+                  {/* 버튼들 */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleGoToTemplate(template.id)}
+                      className="px-3 py-1.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700 hover:bg-indigo-200 transition-colors"
+                    >
+                      템플릿 열기
+                    </button>
+                    <button
+                      onClick={() => handleShowTemplateId(template)}
+                      className="px-3 py-1.5 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                    >
+                      ID 보기
+                    </button>
+                    <button
+                      onClick={() =>
+                        togglePublicStatus(template.id, template.is_public)
+                      }
+                      className={`px-3 py-1.5 rounded text-xs font-medium ${
+                        template.is_public
+                          ? "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          : "bg-green-100 text-green-700 hover:bg-green-200"
+                      } transition-colors`}
+                    >
+                      {template.is_public ? "비공개로" : "공개로"}
+                    </button>
+
+                    {/* 상품 관리 버튼들 */}
+                    {template.is_public && (
+                      <>
+                        {!hasProduct(template) ? (
+                          <button
+                            onClick={() => handleCreateProduct(template)}
+                            className="px-3 py-1.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors"
+                          >
+                            상품 등록
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEditProduct(template)}
+                              className="px-3 py-1.5 rounded text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors"
+                            >
+                              상품 수정
+                            </button>
+                            <button
+                              onClick={() => toggleShopVisibility(template)}
+                              className={`px-3 py-1.5 rounded text-xs font-medium ${
+                                template.shop_templates[0]?.is_shop_visible
+                                  ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                  : "bg-green-100 text-green-700 hover:bg-green-200"
+                              } transition-colors`}
+                            >
+                              {template.shop_templates[0]?.is_shop_visible
+                                ? "상점 내리기"
+                                : "상점 노출"}
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ));
+          })()}
         </div>
 
         {templates.length === 0 && !searchTerm && activeTab === "all" && (

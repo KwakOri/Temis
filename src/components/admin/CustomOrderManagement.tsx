@@ -180,39 +180,37 @@ export default function CustomOrderManagement() {
   return (
     <div className="space-y-6">
       {/* 헤더 */}
-      <div className="sm:flex sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-primary">맞춤형 주문 관리</h2>
-          <p className="mt-1 text-sm text-secondary">
+          <h2 className="text-xl sm:text-2xl font-bold text-primary">맞춤형 주문 관리</h2>
+          <p className="mt-1 text-xs sm:text-sm text-secondary">
             고객의 맞춤형 시간표 제작 주문을 관리합니다.
           </p>
         </div>
 
         {/* 마이그레이션 상태 및 버튼 */}
         {migrationStatus && migrationStatus.needsMigration > 0 && (
-          <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <div className="text-sm text-yellow-800 mb-2">
-                <strong>파일 참조 마이그레이션 필요</strong>
-                <br />
-                {migrationStatus.needsMigration}개 주문이 마이그레이션이
-                필요합니다.
-              </div>
-              <button
-                onClick={handleMigration}
-                disabled={migrating}
-                className="bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white px-3 py-1 rounded text-sm font-medium"
-              >
-                {migrating ? "마이그레이션 중..." : "마이그레이션 실행"}
-              </button>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <div className="text-xs sm:text-sm text-yellow-800 mb-2">
+              <strong>파일 참조 마이그레이션 필요</strong>
+              <br />
+              {migrationStatus.needsMigration}개 주문이 마이그레이션이
+              필요합니다.
             </div>
+            <button
+              onClick={handleMigration}
+              disabled={migrating}
+              className="w-full sm:w-auto bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 text-white px-3 py-2 rounded text-xs sm:text-sm font-medium"
+            >
+              {migrating ? "마이그레이션 중..." : "마이그레이션 실행"}
+            </button>
           </div>
         )}
       </div>
 
       {/* 필터링 */}
       <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-        <div className="flex flex-wrap items-start gap-6">
+        <div className="flex flex-col gap-4">
           {/* 주문 상태 필터 */}
           <div>
             <label className="block text-sm font-medium text-primary mb-3">
@@ -234,7 +232,7 @@ export default function CustomOrderManagement() {
                     setSelectedStatus(status.value);
                     setCurrentPage(1);
                   }}
-                  className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors ${
+                  className={`px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium rounded-md border transition-colors ${
                     selectedStatus === status.value
                       ? status.color === "gray"
                         ? "bg-primary text-[#F4FDFF] border-primary"
@@ -261,14 +259,14 @@ export default function CustomOrderManagement() {
             <label className="block text-sm font-medium text-primary mb-3">
               정렬 기준
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <select
                 value={sortBy}
                 onChange={(e) => {
                   setSortBy(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="created_at">접수 날짜</option>
                 <option value="deadline">마감 날짜</option>
@@ -279,7 +277,7 @@ export default function CustomOrderManagement() {
                   setSortOrder(e.target.value as "asc" | "desc");
                   setCurrentPage(1);
                 }}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                className="w-full sm:w-auto px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               >
                 <option value="desc">최신순</option>
                 <option value="asc">오래된순</option>
@@ -301,124 +299,233 @@ export default function CustomOrderManagement() {
             주문 내역이 없습니다.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    주문 정보
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    고객 정보
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    상태
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    견적가격
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    마감일
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    생성일
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    작업
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {orders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900 truncate max-w-48">
-                          ID: {order.id.slice(0, 8)}...
+          <>
+            {/* 데스크톱 테이블 뷰 */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      주문 정보
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      고객 정보
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      상태
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      견적가격
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      마감일
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      생성일
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      작업
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {orders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm">
+                          <div className="font-medium text-gray-900 truncate max-w-48">
+                            ID: {order.id.slice(0, 8)}...
+                          </div>
+                          <div className="text-gray-500 truncate max-w-48">
+                            {order.order_requirements.slice(0, 50)}...
+                          </div>
+                          <div className="flex items-center mt-1 space-x-2">
+                            {order.has_character_images && (
+                              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                캐릭터 이미지
+                              </span>
+                            )}
+                            {order.wants_omakase && (
+                              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                                오마카세
+                              </span>
+                            )}
+                            {order.files && order.files.length > 0 && (
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                첨부파일 {order.files.length}개
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-gray-500 truncate max-w-48">
-                          {order.order_requirements.slice(0, 50)}...
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm">
+                          <div className="font-medium text-gray-900">
+                            {order.users.name}
+                          </div>
+                          <div className="text-gray-500">{order.users.email}</div>
                         </div>
-                        <div className="flex items-center mt-1 space-x-2">
-                          {order.has_character_images && (
-                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                              캐릭터 이미지
-                            </span>
-                          )}
-                          {order.wants_omakase && (
-                            <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                              오마카세
-                            </span>
-                          )}
-                          {order.files && order.files.length > 0 && (
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                              첨부파일 {order.files.length}개
-                            </span>
-                          )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          {getStatusIcon(order.status)}
+                          {getStatusBadge(order.status)}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.price_quoted
+                          ? `₩${order.price_quoted.toLocaleString()}`
+                          : "-"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {order.deadline ? (
+                          <div className="flex items-center space-x-1">
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                new Date(order.deadline) < new Date()
+                                  ? "bg-red-100 text-red-800"
+                                  : new Date(order.deadline) <=
+                                    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
+                              {new Date(order.deadline).toLocaleDateString(
+                                "ko-KR"
+                              )}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">미설정</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(order.created_at).toLocaleDateString("ko-KR")}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setShowOrderModal(true);
+                          }}
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-[#F4FDFF] bg-quaternary hover:bg-tertiary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          상세보기
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* 모바일 카드 뷰 */}
+            <div className="lg:hidden divide-y divide-gray-200">
+              {orders.map((order) => (
+                <div key={order.id} className="p-4 hover:bg-gray-50">
+                  <div className="space-y-3">
+                    {/* 주문 ID와 상태 */}
+                    <div className="flex justify-between items-start">
+                      <div className="text-xs text-gray-500">
+                        ID: {order.id.slice(0, 8)}...
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900">
-                          {order.users.name}
-                        </div>
-                        <div className="text-gray-500">{order.users.email}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-1">
                         {getStatusIcon(order.status)}
                         {getStatusBadge(order.status)}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {order.price_quoted
-                        ? `₩${order.price_quoted.toLocaleString()}`
-                        : "-"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {order.deadline ? (
-                        <div className="flex items-center space-x-1">
-                          <span
-                            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              new Date(order.deadline) < new Date()
-                                ? "bg-red-100 text-red-800"
-                                : new Date(order.deadline) <=
-                                  new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
-                          >
-                            {new Date(order.deadline).toLocaleDateString(
-                              "ko-KR"
-                            )}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">미설정</span>
+                    </div>
+
+                    {/* 고객 정보 */}
+                    <div>
+                      <div className="font-medium text-gray-900 text-sm">
+                        {order.users.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {order.users.email}
+                      </div>
+                    </div>
+
+                    {/* 주문 요구사항 */}
+                    <div className="text-sm text-gray-700">
+                      {order.order_requirements.slice(0, 80)}...
+                    </div>
+
+                    {/* 태그들 */}
+                    <div className="flex flex-wrap gap-2">
+                      {order.has_character_images && (
+                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                          캐릭터 이미지
+                        </span>
                       )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(order.created_at).toLocaleDateString("ko-KR")}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setShowOrderModal(true);
-                        }}
-                        className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-[#F4FDFF] bg-quaternary hover:bg-tertiary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        상세보기
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      {order.wants_omakase && (
+                        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                          오마카세
+                        </span>
+                      )}
+                      {order.files && order.files.length > 0 && (
+                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                          첨부파일 {order.files.length}개
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 추가 정보 */}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <div className="text-gray-500">견적가격</div>
+                        <div className="font-medium text-gray-900">
+                          {order.price_quoted
+                            ? `₩${order.price_quoted.toLocaleString()}`
+                            : "-"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500">마감일</div>
+                        <div>
+                          {order.deadline ? (
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                new Date(order.deadline) < new Date()
+                                  ? "bg-red-100 text-red-800"
+                                  : new Date(order.deadline) <=
+                                    new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
+                              {new Date(order.deadline).toLocaleDateString(
+                                "ko-KR"
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">미설정</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 생성일 */}
+                    <div className="text-xs text-gray-500">
+                      생성일: {new Date(order.created_at).toLocaleDateString("ko-KR")}
+                    </div>
+
+                    {/* 버튼 */}
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setShowOrderModal(true);
+                      }}
+                      className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-[#F4FDFF] bg-quaternary hover:bg-tertiary focus:outline-none focus:ring-2 focus:ring-primary transition-colors"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      상세보기
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* 페이지네이션 */}
@@ -657,23 +764,23 @@ function OrderDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-2xl z-20">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg sm:rounded-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto my-2 sm:my-0">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 rounded-t-lg sm:rounded-t-2xl z-20">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-primary">
+            <h3 className="text-base sm:text-lg font-semibold text-primary">
               주문 상세 정보
             </h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl"
             >
               ✕
             </button>
           </div>
         </div>
 
-        <div className="px-6 py-6 space-y-6">
+        <div className="px-4 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
           {/* 주문 기본 정보 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -838,12 +945,12 @@ function OrderDetailModal({
               관리자 작업
             </h4>
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-primary mb-3">
                     주문 상태
                   </label>
-                  <div className="flex gap-2 justify-between">
+                  <div className="grid grid-cols-2 sm:flex gap-2 sm:justify-between">
                     {[
                       { value: "pending", label: "대기 중", color: "yellow" },
                       { value: "accepted", label: "접수됨", color: "blue" },
@@ -868,7 +975,7 @@ function OrderDetailModal({
                               | "cancelled"
                           )
                         }
-                        className={`px-3 py-2 text-sm font-medium rounded-md border transition-colors grow w-full ${
+                        className={`px-2 sm:px-3 py-2 text-xs sm:text-sm font-medium rounded-md border transition-colors grow w-full ${
                           status === statusOption.value
                             ? statusOption.color === "yellow"
                               ? "bg-yellow-100 text-yellow-800 border-yellow-200"
@@ -1096,7 +1203,7 @@ function NewFileManager({ files, title = "첨부파일" }: NewFileManagerProps) 
                 <h5 className="text-sm font-medium text-gray-700 mb-3">
                   캐릭터 이미지 ({characterImages.length}개)
                 </h5>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {characterImages.map((file) => (
                     <FileCard
                       key={file.id}
@@ -1118,7 +1225,7 @@ function NewFileManager({ files, title = "첨부파일" }: NewFileManagerProps) 
                 <h5 className="text-sm font-medium text-gray-700 mb-3">
                   레퍼런스 파일 ({referenceFiles.length}개)
                 </h5>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {referenceFiles.map((file) => (
                     <FileCard
                       key={file.id}
@@ -1266,21 +1373,21 @@ function DeadlineModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-md w-full">
-        <div className="px-6 py-4 border-b border-gray-200 rounded-t-2xl">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-white rounded-lg sm:rounded-2xl max-w-md w-full">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 rounded-t-lg sm:rounded-t-2xl">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-primary">마감일 설정</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-primary">마감일 설정</h3>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl"
             >
               ✕
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-6 py-6">
+        <form onSubmit={handleSubmit} className="px-4 sm:px-6 py-4 sm:py-6">
           {/* 주문 정보 */}
           <div className="mb-4 p-3 bg-gray-50 rounded-md">
             <div className="flex items-center justify-between">

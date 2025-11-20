@@ -25,6 +25,28 @@ export async function GET(request: NextRequest) {
       throw countError;
     }
 
+    // 공개 템플릿 개수 조회
+    const { count: publicCount, error: publicCountError } = await supabase
+      .from("templates")
+      .select("*", { count: "exact", head: true })
+      .eq("is_public", true);
+
+    if (publicCountError) {
+      console.error("Supabase public count error:", publicCountError);
+      throw publicCountError;
+    }
+
+    // 비공개 템플릿 개수 조회
+    const { count: privateCount, error: privateCountError } = await supabase
+      .from("templates")
+      .select("*", { count: "exact", head: true })
+      .eq("is_public", false);
+
+    if (privateCountError) {
+      console.error("Supabase private count error:", privateCountError);
+      throw privateCountError;
+    }
+
     // 모든 템플릿 조회 (관리자는 모든 템플릿 볼 수 있음)
     const { data: templates, error } = await supabase
       .from("templates")
@@ -49,6 +71,8 @@ export async function GET(request: NextRequest) {
         limit,
         offset,
         total: totalCount || 0,
+        publicCount: publicCount || 0,
+        privateCount: privateCount || 0,
       },
     });
   } catch (error) {
