@@ -26,9 +26,7 @@ export async function POST(request: NextRequest) {
       designKeywords,
       characterImageFileIds, // file IDs from uploaded files
       referenceFileIds, // file IDs from uploaded files
-      fastDelivery,
-      portfolioPrivate,
-      reviewEvent,
+      selectedOptions: selectedOptionsInput, // Record<string, boolean>
       externalContract,
       depositorName,
     } = body;
@@ -47,16 +45,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 주문을 먼저 생성합니다 (파일은 별도 처리)
+    // 선택된 옵션 값들 추출 (영어 value로 저장)
+    const selectedOptionValues = Object.entries(selectedOptionsInput || {})
+      .filter(([, isSelected]) => isSelected)
+      .map(([optionValue]) => optionValue);
 
-    // 선택된 옵션들을 배열로 변환
-    const selectedOptions: string[] = [];
-    if (fastDelivery) selectedOptions.push("빠른 마감");
-    if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
-    if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
-    if (externalContract) selectedOptions.push("외부 계약");
+    // 외부 계약 옵션 추가 (영어 value로)
+    if (externalContract) {
+      selectedOptionValues.push("external_contract");
+    }
 
-    // 데이터베이스에 주문 정보 저장
+    // 데이터베이스에 주문 정보 저장 (옵션은 영어 value로 저장)
     const { data: order, error } = await supabase
       .from("custom_timetable_orders")
       .insert({
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
         wants_omakase: wantsOmakase,
         design_keywords: designKeywords,
         price_quoted: priceQuoted,
-        selected_options: selectedOptions,
+        selected_options: selectedOptionValues,
         depositor_name: depositorName,
         status: "pending",
       })
@@ -237,9 +236,7 @@ export async function PUT(request: NextRequest) {
       hasCharacterImages,
       wantsOmakase,
       designKeywords,
-      fastDelivery,
-      portfolioPrivate,
-      reviewEvent,
+      selectedOptions: selectedOptionsInput, // Record<string, boolean>
       externalContract,
       depositorName,
     } = body;
@@ -267,14 +264,17 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // 선택된 옵션들을 배열로 변환
-    const selectedOptions: string[] = [];
-    if (fastDelivery) selectedOptions.push("빠른 마감");
-    if (portfolioPrivate) selectedOptions.push("포트폴리오 비공개");
-    if (reviewEvent) selectedOptions.push("후기 이벤트 참여");
-    if (externalContract) selectedOptions.push("외부 계약");
+    // 선택된 옵션 값들 추출 (영어 value로 저장)
+    const selectedOptionValues = Object.entries(selectedOptionsInput || {})
+      .filter(([, isSelected]) => isSelected)
+      .map(([optionValue]) => optionValue);
 
-    // 주문 업데이트
+    // 외부 계약 옵션 추가 (영어 value로)
+    if (externalContract) {
+      selectedOptionValues.push("external_contract");
+    }
+
+    // 주문 업데이트 (옵션은 영어 value로 저장)
     const { data: updatedOrder, error: updateError } = await supabase
       .from("custom_timetable_orders")
       .update({
@@ -285,7 +285,7 @@ export async function PUT(request: NextRequest) {
         wants_omakase: wantsOmakase,
         design_keywords: designKeywords,
         price_quoted: priceQuoted,
-        selected_options: selectedOptions,
+        selected_options: selectedOptionValues,
         depositor_name: depositorName,
         updated_at: new Date().toISOString(),
       })

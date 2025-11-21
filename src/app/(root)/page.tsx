@@ -1,8 +1,10 @@
 "use client";
 import TestComponent from "@/app/(root)/_sample/TestComponent";
 import { useAuth } from "@/contexts/AuthContext"; // useAuth 임포트
+import { useAdminOptions } from "@/hooks/query/useAdminOptions";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import PortfolioGallery from "../../components/LandingPage/PortfolioGallery";
 import StepSection from "../../components/LandingPage/StepSection";
@@ -12,6 +14,28 @@ export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const { user, loading, logout } = useAuth(); // user, loading, logout 상태 가져오기
+  const router = useRouter();
+
+  // 관리자 옵션 조회 (맞춤 시간표 접수 설정)
+  const { data: adminOptions, isLoading: isLoadingAdminOptions } =
+    useAdminOptions("general");
+
+  // 맞춤 시간표 접수 활성화 여부
+  const isCustomOrderEnabled = adminOptions?.some(
+    (opt) => opt.value === "custom_timetable_orders" && opt.is_enabled
+  );
+
+  // 맞춤 시간표 버튼 클릭 핸들러
+  const handleCustomOrderClick = () => {
+    if (isLoadingAdminOptions) return; // 로딩 중이면 무시
+
+    if (isCustomOrderEnabled) {
+      router.push("/custom-order");
+    } else {
+      alert("현재 접수가 마감되었습니다.");
+    }
+    setIsMenuOpen(false);
+  };
 
   useEffect(() => {
     const onScroll = () => {
@@ -83,21 +107,12 @@ export default function Home() {
             </Link>
 
             <button
-              onClick={() =>
-                alert(
-                  "더 나은 서비스를 위해서, 맞춤형 시간표 제작 접수를 잠시 멈추고 재정비중입니다. 11월 중순 이후로 다시 오픈 예정입니다"
-                )
-              }
+              onClick={handleCustomOrderClick}
+              disabled={isLoadingAdminOptions}
+              className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition min-w-[140px] disabled:opacity-70"
             >
-              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                맞춤형 시간표 제작
-              </p>
+              {isLoadingAdminOptions ? "..." : "맞춤형 시간표 제작"}
             </button>
-            {/* <Link href="/custom-order">
-              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
-                맞춤형 시간표 제작
-              </p>
-            </Link> */}
             <Link href="/my-page">
               <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
                 마이페이지
@@ -182,10 +197,9 @@ export default function Home() {
                   </div>
                 </Link>
 
-                <Link
-                  href="/custom-order"
-                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
-                  onClick={() => setIsMenuOpen(false)}
+                <button
+                  onClick={handleCustomOrderClick}
+                  className="w-full text-left px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
                 >
                   <div className="flex items-center">
                     <svg
@@ -201,9 +215,11 @@ export default function Home() {
                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                       />
                     </svg>
-                    <span className="font-medium">맞춤형 시간표 제작</span>
+                    <span className="font-medium">
+                      {isLoadingAdminOptions ? "..." : "맞춤형 시간표 제작"}
+                    </span>
                   </div>
-                </Link>
+                </button>
                 <Link
                   href="/my-page"
                   className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
