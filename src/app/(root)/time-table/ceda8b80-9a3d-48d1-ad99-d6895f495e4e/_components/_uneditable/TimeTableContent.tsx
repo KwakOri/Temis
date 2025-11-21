@@ -35,30 +35,32 @@ const ProfileText = ({
       }}
       className="absolute z-40 flex justify-end items-center "
     >
-      <div
-        style={{
-          position: "absolute",
-          bottom: 30,
-          right: 56,
-          width: 400,
-          height: 120,
-          zIndex: 20,
-          rotate: "-3.5deg",
+      {isProfileTextVisible && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 30,
+            right: 56,
+            width: 400,
+            height: 120,
+            zIndex: 20,
+            rotate: "-3.5deg",
 
-          color: colors["first"]["quaternary"],
-          fontFamily: fontOption.primary,
-          fontWeight: 500,
-        }}
-        className="flex justify-end items-center"
-      >
-        <AutoResizeText
-          style={{ lineHeight: 0 }}
-          className="text-right"
-          maxFontSize={70}
+            color: colors["first"]["quaternary"],
+            fontFamily: fontOption.primary,
+            fontWeight: 500,
+          }}
+          className="flex justify-end items-center"
         >
-          {profileText ? profileText : profileTextPlaceholder}
-        </AutoResizeText>
-      </div>
+          <AutoResizeText
+            style={{ lineHeight: 0 }}
+            className="text-right"
+            maxFontSize={70}
+          >
+            {profileText ? profileText : profileTextPlaceholder}
+          </AutoResizeText>
+        </div>
+      )}
       <img
         src={Imgs["first"][isProfileTextVisible ? "artist" : "noArtist"].src}
         className="object-cover pointer-events-none"
