@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_options: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_discount: boolean
+          is_enabled: boolean
+          label: string
+          price: number
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_discount?: boolean
+          is_enabled?: boolean
+          label: string
+          price?: number
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_discount?: boolean
+          is_enabled?: boolean
+          label?: string
+          price?: number
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       admin_settings: {
         Row: {
           category: string | null
@@ -190,6 +229,45 @@ export type Database = {
           nickname?: string
           status?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      price_options: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          is_discount: boolean
+          is_enabled: boolean
+          label: string
+          price: number
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_discount?: boolean
+          is_enabled?: boolean
+          label: string
+          price?: number
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_discount?: boolean
+          is_enabled?: boolean
+          label?: string
+          price?: number
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }
@@ -801,22 +879,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cleanup_expired_tokens: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      get_current_user_id: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      cleanup_expired_tokens: { Args: never; Returns: undefined }
+      get_current_user_id: { Args: never; Returns: number }
       has_template_access: {
         Args: { p_template_id: string; p_user_id?: string }
         Returns: boolean
       }
-      is_admin_user: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      is_admin_user: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

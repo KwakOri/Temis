@@ -11,9 +11,7 @@ export interface CustomOrderFormData {
   designKeywords: string;
   referenceFiles: FilePreviewItem[];
   referenceFileIds: string[];
-  fastDelivery: boolean;
-  portfolioPrivate: boolean;
-  reviewEvent: boolean;
+  selectedOptions: Record<string, boolean>; // option.value -> selected 상태
   externalContract: boolean;
   priceQuoted: number;
   depositorName: string;
