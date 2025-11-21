@@ -25,6 +25,8 @@ export const queryKeys = {
   pricing: {
     all: ["pricing"] as const,
     settings: () => [...queryKeys.pricing.all, "settings"] as const,
+    options: (category?: string) =>
+      [...queryKeys.pricing.all, "options", category] as const,
   },
   workSchedule: {
     all: ["workSchedule"] as const,
@@ -81,5 +83,14 @@ export const queryKeys = {
     templateAccess: (templateId: string) =>
       [...queryKeys.admin.all, "templateAccess", templateId] as const,
     migrationStatus: () => [...queryKeys.admin.all, "migrationStatus"] as const,
+    priceOptions: (category?: string) =>
+      [...queryKeys.admin.all, "priceOptions", category] as const,
+    adminOptions: (category?: string) =>
+      [...queryKeys.admin.all, "adminOptions", category] as const,
+  },
+  adminOptions: {
+    all: ["adminOptions"] as const,
+    options: (category?: string) =>
+      ["adminOptions", "options", category] as const,
   },
 } as const;

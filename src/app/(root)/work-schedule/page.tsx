@@ -95,9 +95,13 @@ export default function WorkSchedulePage() {
     return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
   });
 
-  // 빠른 마감 여부 확인 함수
+  // 빠른 마감 여부 확인 함수 (한글/영어 value 모두 지원)
   const isFastDeadline = (order: WorkScheduleOrder) => {
-    return order.selected_options?.includes("빠른 마감") || false;
+    return (
+      order.selected_options?.includes("빠른 마감") ||
+      order.selected_options?.includes("fast_delivery") ||
+      false
+    );
   };
 
   return (

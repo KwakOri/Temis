@@ -1,7 +1,9 @@
 "use client";
 
 import { useOrderFiles } from "@/hooks/query/useOrderFiles";
+import { usePriceOptions } from "@/hooks/query/usePricing";
 import { CustomOrderWithStatus } from "@/types/customOrder";
+import { getOptionDisplayLabel } from "@/utils/optionLabelHelper";
 import {
   AlertCircle,
   Calendar,
@@ -36,6 +38,7 @@ export default function OrderDetailsModal({
 }: OrderDetailsModalProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const { data: filesData, isLoading: filesLoading } = useOrderFiles(order.id);
+  const { data: priceOptions } = usePriceOptions("timetable");
 
   if (!isOpen) return null;
 
@@ -265,7 +268,7 @@ export default function OrderDetailsModal({
                         key={index}
                         className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800"
                       >
-                        {option}
+                        {getOptionDisplayLabel(option, priceOptions)}
                       </span>
                     ))}
                   </div>

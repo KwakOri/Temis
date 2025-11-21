@@ -6,6 +6,7 @@ import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
+import SettingsManagement from "@/components/admin/SettingsManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import ThumbnailManagement from "@/components/admin/ThumbnailManagement";
@@ -23,6 +24,7 @@ import {
   MailOpen,
   Menu,
   Palette,
+  Settings,
   Shield,
   UserCheck,
   Users,
@@ -38,7 +40,8 @@ type TabType =
   | "emailPreview"
   | "purchases"
   | "customOrders"
-  | "workCalendar";
+  | "workCalendar"
+  | "settings";
 
 function AdminContent() {
   const { user, loading } = useAuth();
@@ -105,6 +108,7 @@ function AdminContent() {
     { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
     { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
+    { id: "settings" as TabType, name: "설정", icon: Settings },
   ];
 
   return (
@@ -230,6 +234,7 @@ function AdminContent() {
         {activeTab === "users" && <UserManagement />}
         {activeTab === "teams" && <TeamManagement />}
         {activeTab === "emailPreview" && <EmailTemplatePreview />}
+        {activeTab === "settings" && <SettingsManagement />}
       </div>
     </div>
   );

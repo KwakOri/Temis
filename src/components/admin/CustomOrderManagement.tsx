@@ -9,6 +9,7 @@ import {
   useUpdateCustomOrderDeadline,
   useUpdateCustomOrderStatus,
 } from "@/hooks/query/useAdminOrders";
+import { usePriceOptions } from "@/hooks/query/usePricing";
 import { getFileUrl } from "@/lib/r2";
 import type {
   CustomOrderWithUser,
@@ -16,6 +17,7 @@ import type {
   LegacyOrder as LegacyOrderType,
 } from "@/types/admin";
 import { getStatusIconHelper } from "@/utils/custom-order";
+import { getOptionDisplayLabel } from "@/utils/optionLabelHelper";
 import {
   AlertTriangle,
   CheckCircle,
@@ -752,6 +754,9 @@ function OrderDetailModal({
   const [price, setPrice] = useState(order.price_quoted || "");
   const [deadline, setDeadline] = useState(order.deadline || "");
 
+  // 가격 옵션 조회 (옵션 라벨 표시용)
+  const { data: priceOptions } = usePriceOptions("timetable");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await onUpdate(
@@ -882,7 +887,7 @@ function OrderDetailModal({
                           key={index}
                           className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
                         >
-                          {option}
+                          {getOptionDisplayLabel(option, priceOptions)}
                         </span>
                       ))}
                     </div>
