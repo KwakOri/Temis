@@ -240,157 +240,224 @@ export default function SettingsManagement() {
         </div>
 
         {/* 옵션 추가 버튼 */}
-        {!isAddingOption && !editingOptionId && (
-          <button
-            onClick={handleAddOption}
-            className="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-primary text-white text-sm rounded-lg hover:bg-secondary transition-colors"
-          >
-            <Plus className="h-4 w-4 mr-1.5 sm:mr-2" />
-            옵션 추가
-          </button>
-        )}
+        <button
+          onClick={handleAddOption}
+          className="inline-flex items-center px-3 py-2 sm:px-4 sm:py-2 bg-primary text-white text-sm rounded-lg hover:bg-secondary transition-colors"
+        >
+          <Plus className="h-4 w-4 mr-1.5 sm:mr-2" />
+          옵션 추가
+        </button>
 
-        {/* 옵션 추가/수정 폼 */}
+        {/* 옵션 추가/수정 모달 */}
         {(isAddingOption || editingOptionId) && (
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6 space-y-4"
-          >
-            <h4 className="font-medium text-gray-900 text-sm sm:text-base">
-              {editingOptionId ? "옵션 수정" : "새 옵션 추가"}
-            </h4>
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* 오버레이 */}
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={handleCancelEdit}
+            />
+            {/* 모달 내용 */}
+            <div className="relative w-full max-w-lg bg-white rounded-xl shadow-xl">
+              <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-gray-900 text-base sm:text-lg">
+                    {editingOptionId ? "옵션 수정" : "새 옵션 추가"}
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  옵션 이름 *
-                </label>
-                <input
-                  type="text"
-                  value={formData.label}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, label: e.target.value }))
-                  }
-                  placeholder="예: 빠른 마감"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  required
-                />
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      옵션 이름 *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.label}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          label: e.target.value,
+                        }))
+                      }
+                      placeholder="예: 빠른 마감"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  옵션 값 (영문) *
-                </label>
-                <input
-                  type="text"
-                  value={formData.value}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, value: e.target.value }))
-                  }
-                  placeholder="예: fast_delivery"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                  required
-                />
-              </div>
-            </div>
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                      옵션 값 (영문) *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.value}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          value: e.target.value,
+                        }))
+                      }
+                      placeholder="예: fast_delivery"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                      required
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                설명
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                placeholder="옵션에 대한 설명을 입력하세요"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary h-20 resize-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                  가격 (원)
-                </label>
-                <input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      price: parseInt(e.target.value) || 0,
-                    }))
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
-                />
-              </div>
-
-              <div className="flex items-center">
-                <label className="flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={formData.is_discount}
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    설명
+                  </label>
+                  <textarea
+                    value={formData.description}
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
-                        is_discount: e.target.checked,
+                        description: e.target.value,
                       }))
                     }
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded mr-2"
+                    placeholder="옵션에 대한 설명을 입력하세요"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary h-20 resize-none"
                   />
-                  <span className="text-xs sm:text-sm text-gray-700">
-                    할인 옵션
-                  </span>
-                </label>
-              </div>
+                </div>
 
-              <div className="flex items-center">
-                <label className="flex items-center cursor-pointer">
+                <div>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                    가격 (원)
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={formData.is_enabled}
-                    onChange={(e) =>
+                    type="text"
+                    value={formData.price.toLocaleString()}
+                    onChange={(e) => {
+                      const numericValue = e.target.value.replace(/[^0-9]/g, "");
                       setFormData((prev) => ({
                         ...prev,
-                        is_enabled: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded mr-2"
+                        price: numericValue ? parseInt(numericValue, 10) : 0,
+                      }));
+                    }}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                   />
-                  <span className="text-xs sm:text-sm text-gray-700">
-                    활성화
-                  </span>
-                </label>
-              </div>
-            </div>
+                </div>
 
-            <div className="flex justify-end space-x-2 sm:space-x-3 pt-2">
-              <button
-                type="button"
-                onClick={handleCancelEdit}
-                className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg text-gray-700 text-sm hover:bg-gray-50 transition-colors"
-              >
-                취소
-              </button>
-              <button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                className="px-3 py-2 sm:px-4 sm:py-2 bg-primary text-white text-sm rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
-              >
-                {createMutation.isPending || updateMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : editingOptionId ? (
-                  "수정"
-                ) : (
-                  "추가"
-                )}
-              </button>
+                <div className="grid grid-cols-2 gap-4">
+                  {/* 할인 옵션 버튼 그룹 */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      가격 타입
+                    </label>
+                    <div className="flex w-full rounded-lg border border-gray-300 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            is_discount: false,
+                          }))
+                        }
+                        className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                          !formData.is_discount
+                            ? "bg-primary text-white"
+                            : "bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        추가
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            is_discount: true,
+                          }))
+                        }
+                        className={`flex-1 px-4 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${
+                          formData.is_discount
+                            ? "bg-primary text-white"
+                            : "bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        할인
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 활성화 버튼 그룹 */}
+                  <div>
+                    <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+                      활성화
+                    </label>
+                    <div className="flex w-full rounded-lg border border-gray-300 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            is_enabled: true,
+                          }))
+                        }
+                        className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                          formData.is_enabled
+                            ? "bg-primary text-white"
+                            : "bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        ON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            is_enabled: false,
+                          }))
+                        }
+                        className={`flex-1 px-4 py-2 text-sm font-medium transition-colors border-l border-gray-300 ${
+                          !formData.is_enabled
+                            ? "bg-gray-500 text-white"
+                            : "bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        OFF
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-2 sm:space-x-3 pt-4 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg text-gray-700 text-sm hover:bg-gray-50 transition-colors"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={
+                      createMutation.isPending || updateMutation.isPending
+                    }
+                    className="px-3 py-2 sm:px-4 sm:py-2 bg-primary text-white text-sm rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
+                  >
+                    {createMutation.isPending || updateMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : editingOptionId ? (
+                      "수정"
+                    ) : (
+                      "추가"
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
-          </form>
+          </div>
         )}
 
         {/* 옵션 목록 */}
