@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminAccessService } from "@/services/admin/accessService";
 import { Tables } from "@/types/supabase";
 import { useEffect, useState } from "react";
 
@@ -20,6 +21,7 @@ export default function AccessManagement() {
   >([]);
   const [loading, setLoading] = useState(false);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [grantingAccess, setGrantingAccess] = useState(false);
   const [error, setError] = useState("");
 
   // 새 권한 추가를 위한 상태
@@ -34,7 +36,7 @@ export default function AccessManagement() {
   // 페이지네이션 상태
   const [currentPage, setCurrentPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [usersPerPage] = useState(12);
+  const [usersPerPage] = useState(9);
   const [searchDebounceTimer, setSearchDebounceTimer] =
     useState<NodeJS.Timeout | null>(null);
 
@@ -134,19 +136,10 @@ export default function AccessManagement() {
 
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/admin/template-access?templateId=${selectedTemplate}`,
-        {
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setTemplateAccess(data.accessList || []);
-      } else {
-        throw new Error("접근 권한 목록을 가져올 수 없습니다.");
-      }
+      const data = await AdminAccessService.getTemplateAccess({
+        templateId: selectedTemplate,
+      });
+      setTemplateAccess(data.accessList || []);
     } catch (error) {
       setError(error instanceof Error ? error.message : "오류가 발생했습니다.");
     } finally {
@@ -160,31 +153,29 @@ export default function AccessManagement() {
       return;
     }
 
-    try {
-      const response = await fetch("/api/admin/template-access", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          templateId: selectedTemplate,
-          userId: selectedUser,
-          accessLevel: selectedAccessLevel,
-        }),
-      });
+    if (grantingAccess) {
+      return;
+    }
 
-      if (response.ok) {
-        setShowAddForm(false);
-        setSelectedUser("");
-        setSelectedAccessLevel("read");
-        fetchTemplateAccess();
-      } else {
-        const data = await response.json();
-        setError(data.error || "권한 부여 중 오류가 발생했습니다.");
-      }
+    try {
+      setGrantingAccess(true);
+      await AdminAccessService.grantAccess({
+        templateId: selectedTemplate,
+        userId: selectedUser,
+        accessLevel: selectedAccessLevel,
+      });
+      setShowAddForm(false);
+      setSelectedUser("");
+      setSelectedAccessLevel("read");
+      fetchTemplateAccess();
     } catch (error) {
-      setError("권한 부여 중 오류가 발생했습니다.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "권한 부여 중 오류가 발생했습니다."
+      );
+    } finally {
+      setGrantingAccess(false);
     }
   };
 
@@ -193,27 +184,18 @@ export default function AccessManagement() {
     newAccessLevel: "read" | "write" | "admin"
   ) => {
     try {
-      const response = await fetch("/api/admin/template-access", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          templateId: selectedTemplate,
-          userId,
-          accessLevel: newAccessLevel,
-        }),
+      await AdminAccessService.updateAccess({
+        templateId: selectedTemplate,
+        userId,
+        accessLevel: newAccessLevel,
       });
-
-      if (response.ok) {
-        fetchTemplateAccess();
-      } else {
-        const data = await response.json();
-        setError(data.error || "권한 수정 중 오류가 발생했습니다.");
-      }
+      fetchTemplateAccess();
     } catch (error) {
-      setError("권한 수정 중 오류가 발생했습니다.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "권한 수정 중 오류가 발생했습니다."
+      );
     }
   };
 
@@ -221,22 +203,17 @@ export default function AccessManagement() {
     if (!confirm("정말로 이 사용자의 접근 권한을 제거하시겠습니까?")) return;
 
     try {
-      const response = await fetch(
-        `/api/admin/template-access?templateId=${selectedTemplate}&userId=${userId}`,
-        {
-          method: "DELETE",
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        fetchTemplateAccess();
-      } else {
-        const data = await response.json();
-        setError(data.error || "권한 제거 중 오류가 발생했습니다.");
-      }
+      await AdminAccessService.revokeAccess({
+        templateId: selectedTemplate,
+        userId,
+      });
+      fetchTemplateAccess();
     } catch (error) {
-      setError("권한 제거 중 오류가 발생했습니다.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "권한 제거 중 오류가 발생했습니다."
+      );
     }
   };
 
@@ -297,7 +274,7 @@ export default function AccessManagement() {
     }
 
     return (
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+      <div className="flex items-center justify-between px-4 py-3 bg-white sm:px-6">
         <div className="flex justify-between flex-1 sm:hidden">
           <button
             onClick={() => onPageChange(Math.max(1, currentPage - 1))}
@@ -428,13 +405,19 @@ export default function AccessManagement() {
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">접근 권한 관리</h2>
-        <p className="text-xs sm:text-sm text-gray-600">템플릿별 사용자 접근 권한을 관리하세요</p>
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+          접근 권한 관리
+        </h2>
+        <p className="text-xs sm:text-sm text-gray-600">
+          템플릿별 사용자 접근 권한을 관리하세요
+        </p>
       </div>
 
       {/* Template Selection */}
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
-        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">템플릿 선택</h3>
+        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">
+          템플릿 선택
+        </h3>
 
         {templates.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
@@ -642,10 +625,18 @@ export default function AccessManagement() {
             {showAddForm && (
               <div className="space-y-6">
                 {/* User Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    사용자 선택
-                  </label>
+                <div className="h-120 flex flex-col ">
+                  <div className="w-full flex justify-between">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      사용자 선택
+                    </label>
+                    {/* Search Results Info */}
+                    {userSearchTerm && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        {`'${userSearchTerm}' 검색 결과: ${totalUsers}명`}
+                      </div>
+                    )}
+                  </div>
 
                   {(() => {
                     const availableUsers = users.filter(
@@ -655,30 +646,9 @@ export default function AccessManagement() {
                         )
                     );
 
-                    if (totalUsers === 0 && !usersLoading) {
-                      return (
-                        <div className="text-center py-8 text-gray-500">
-                          <svg
-                            className="mx-auto h-12 w-12 text-gray-400 mb-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
-                            />
-                          </svg>
-                          <p>권한을 부여할 수 있는 사용자가 없습니다.</p>
-                        </div>
-                      );
-                    }
-
                     return (
                       <>
-                        {/* Search Bar for Users */}
+                        {/* Search Bar for Users - 항상 표시 */}
                         <div className="mb-4">
                           <div className="relative">
                             <input
@@ -724,117 +694,119 @@ export default function AccessManagement() {
                               </button>
                             )}
                           </div>
+                        </div>
+                        <div className="grow w-full flex justify-center items-center">
+                          {usersLoading ? (
+                            <div className="flex justify-center items-center py-12">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                              <span className="ml-3 text-gray-600">
+                                사용자 검색 중...
+                              </span>
+                            </div>
+                          ) : availableUsers.length === 0 ? (
+                            <div className="text-center py-8 text-gray-500">
+                              <svg
+                                className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                              </svg>
+                              <p>
+                                {userSearchTerm
+                                  ? `'${userSearchTerm}'에 대한 검색 결과가 없습니다.`
+                                  : "권한을 부여할 수 있는 사용자가 없습니다."}
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="w-full h-full">
+                              <div className="overflow-y-auto border border-gray-200 rounded-lg p-3">
+                                <div className="grid grid-cols-3 gap-3">
+                                  {availableUsers.map((user) => (
+                                    <div
+                                      key={user.id}
+                                      onClick={() => setSelectedUser(user.id)}
+                                      className={`relative h-[100px] flex items-center p-3 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
+                                        selectedUser === user.id
+                                          ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
+                                          : "border-gray-200 hover:border-gray-300"
+                                      }`}
+                                    >
+                                      <div className="flex w-full justify-between items-center space-x-2">
+                                        {/* User Avatar */}
+                                        <div className="flex gap-2 items-center">
+                                          <div className="flex-shrink-0">
+                                            <div className="h-8 w-8 rounded-full bg-indigo-500 flex items-center justify-center">
+                                              <span className="text-xs font-medium text-white">
+                                                {user.name
+                                                  ?.charAt(0)
+                                                  .toUpperCase()}
+                                              </span>
+                                            </div>
+                                          </div>
 
-                          {/* Search Results Info */}
-                          {userSearchTerm && (
-                            <div className="mt-2 text-sm text-gray-600">
-                              {`'${userSearchTerm}' 검색 결과: ${totalUsers}명`}
+                                          {/* User Info */}
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-medium text-gray-900 truncate">
+                                              {user.name}
+                                            </p>
+                                            <p className="text-xs text-gray-500 truncate">
+                                              {user.email}
+                                            </p>
+                                            <div className="mt-1">
+                                              <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-800">
+                                                {user.created_at
+                                                  ? `가입일: ${new Date(
+                                                      user.created_at
+                                                    ).toLocaleDateString(
+                                                      "ko-KR"
+                                                    )}`
+                                                  : "정보 없음"}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </div>
+
+                                        {/* Selection Indicator */}
+                                        {selectedUser === user.id && (
+                                          <div className="flex-shrink-0">
+                                            <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
+                                              <svg
+                                                className="w-3 h-3 text-white"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
+                                              >
+                                                <path
+                                                  fillRule="evenodd"
+                                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                  clipRule="evenodd"
+                                                />
+                                              </svg>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* 페이지네이션 */}
+                              <PaginationComponent
+                                currentPage={currentPage}
+                                totalItems={totalUsers}
+                                itemsPerPage={usersPerPage}
+                                onPageChange={setCurrentPage}
+                              />
                             </div>
                           )}
                         </div>
-
-                        {usersLoading ? (
-                          <div className="flex justify-center items-center py-12">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                            <span className="ml-3 text-gray-600">
-                              사용자 검색 중...
-                            </span>
-                          </div>
-                        ) : availableUsers.length === 0 ? (
-                          <div className="text-center py-8 text-gray-500">
-                            <svg
-                              className="mx-auto h-12 w-12 text-gray-400 mb-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                              />
-                            </svg>
-                            <p>
-                              {userSearchTerm
-                                ? `'${userSearchTerm}'에 대한 검색 결과가 없습니다.`
-                                : "권한을 부여할 수 있는 사용자가 없습니다."}
-                            </p>
-                          </div>
-                        ) : (
-                          <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              {availableUsers.map((user) => (
-                                <div
-                                  key={user.id}
-                                  onClick={() => setSelectedUser(user.id)}
-                                  className={`relative p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
-                                    selectedUser === user.id
-                                      ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
-                                      : "border-gray-200 hover:border-gray-300"
-                                  }`}
-                                >
-                                  <div className="flex items-center space-x-3">
-                                    {/* User Avatar */}
-                                    <div className="flex-shrink-0">
-                                      <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center">
-                                        <span className="text-sm font-medium text-white">
-                                          {user.name?.charAt(0).toUpperCase()}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* User Info */}
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-gray-900 truncate">
-                                        {user.name}
-                                      </p>
-                                      <p className="text-sm text-gray-500 truncate">
-                                        {user.email}
-                                      </p>
-                                      <div className="mt-1">
-                                        <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                                          {user.created_at
-                                            ? `가입일: ${new Date(
-                                                user.created_at
-                                              ).toLocaleDateString("ko-KR")}`
-                                            : "정보 없음"}
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Selection Indicator */}
-                                    {selectedUser === user.id && (
-                                      <div className="flex-shrink-0">
-                                        <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center">
-                                          <svg
-                                            className="w-3 h-3 text-white"
-                                            fill="currentColor"
-                                            viewBox="0 0 20 20"
-                                          >
-                                            <path
-                                              fillRule="evenodd"
-                                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                              clipRule="evenodd"
-                                            />
-                                          </svg>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-
-                            {/* 페이지네이션 */}
-                            <PaginationComponent
-                              currentPage={currentPage}
-                              totalItems={totalUsers}
-                              itemsPerPage={usersPerPage}
-                              onPageChange={setCurrentPage}
-                            />
-                          </>
-                        )}
                       </>
                     );
                   })()}
@@ -889,10 +861,10 @@ export default function AccessManagement() {
                   <div className="flex items-end">
                     <button
                       onClick={grantAccess}
-                      disabled={!selectedUser}
+                      disabled={!selectedUser || grantingAccess}
                       className="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                     >
-                      권한 부여
+                      {grantingAccess ? "권한 부여 중..." : "권한 부여"}
                     </button>
                   </div>
                 </div>
