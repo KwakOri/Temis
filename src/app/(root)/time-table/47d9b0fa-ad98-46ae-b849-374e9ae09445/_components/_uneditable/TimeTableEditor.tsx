@@ -54,8 +54,6 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
-          multiSelect
-          isMemo
           isArtist
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
