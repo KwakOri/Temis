@@ -54,8 +54,8 @@ export const colors = {
   first: {
     primary: "#240A48",
     secondary: "#492381",
-    tertiary: "",
-    quaternary: "",
+    tertiary: "#FFFFFF",
+    quaternary: "#C3C2CC",
   },
   second: {
     primary: "",
@@ -183,6 +183,6 @@ export const profileImageHeight = 1550;
 export const profileBackPlateWidth = 1327;
 export const profileBackPlateHeight = 1484;
 
-export const profileTextPlaceholder = "아티스트 명";
+export const profileTextPlaceholder = "작가님 아이디";
 
 /** ---------------------------------------------- */

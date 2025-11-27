@@ -1,4 +1,4 @@
-import { VerticalResizeText } from "@/components/AutoResizeTextCard";
+import { AutoResizeText } from "@/components/AutoResizeTextCard";
 import { TTheme } from "@/types/time-table/theme";
 import { PropsWithChildren } from "react";
 import { Imgs } from "../_img/imgs";
@@ -112,40 +112,37 @@ const ProfileText = ({
       style={{
         color: colors["first"]["secondary"],
         fontFamily: fontOption.primary,
-
-        width: 293,
-        height: 998,
-
-        right: -54,
-        bottom: 380,
+        width: 664,
+        height: 248,
+        left: 148,
+        top: 500,
       }}
-      className="absolute z-50 flex justify-end items-center "
+      className="absolute z-50 flex justify-center items-center"
     >
       <div
         style={{
-          position: "absolute",
-          top: 156,
-          left: 30,
-          width: 240,
-          height: 780,
           zIndex: 20,
-          rotate: "2.5deg",
-          color: colors["first"]["primary"],
+          color: colors["first"]["tertiary"],
           fontFamily: fontOption.primary,
+          rotate: "-6.8deg",
+          height: 100,
+          width: 332,
+          fontWeight: 400,
+          opacity: 0.9,
         }}
-        className="flex justify-center items-center"
+        className="flex justify-center items-center mt-1"
       >
-        <VerticalResizeText
+        <AutoResizeText
           style={{ lineHeight: 0 }}
           className="text-center"
-          maxFontSize={124}
+          maxFontSize={48}
         >
           {profileText ? profileText : profileTextPlaceholder}
-        </VerticalResizeText>
+        </AutoResizeText>
       </div>
       <img
         src={Imgs["first"]["artist"].src}
-        className="object-cover"
+        className="absolute w-full h-full object-cover"
         alt="artist"
       />
     </div>
@@ -176,6 +173,11 @@ const ProfileImageSection = ({
 }: ProfileImageSectionProps) => {
   return (
     <ProfileImageContainer>
+      <ProfileText
+        isProfileTextVisible={isProfileTextVisible}
+        profileText={profileText}
+        profileTextPlaceholder={profileTextPlaceholder}
+      />
       <ProfileFrame />
       <ProfileImage imageSrc={imageSrc} />
     </ProfileImageContainer>
