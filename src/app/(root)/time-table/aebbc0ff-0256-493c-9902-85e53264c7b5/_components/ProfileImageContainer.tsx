@@ -110,12 +110,8 @@ const ProfileText = ({
   return (
     <div
       style={{
-        color: colors["first"]["secondary"],
-        fontFamily: fontOption.primary,
-        width: 664,
-        height: 248,
-        left: 148,
-        top: 500,
+        width: 4000,
+        height: 2250,
       }}
       className="absolute z-50 flex justify-center items-center"
     >
@@ -129,8 +125,10 @@ const ProfileText = ({
           width: 332,
           fontWeight: 400,
           opacity: 0.9,
+          left: 316,
+          top: 570,
         }}
-        className="flex justify-center items-center mt-1"
+        className="absolute flex justify-center items-center mt-1"
       >
         <AutoResizeText
           style={{ lineHeight: 0 }}
