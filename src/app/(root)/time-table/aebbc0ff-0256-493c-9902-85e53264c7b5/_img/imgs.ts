@@ -16,6 +16,8 @@ import WedOffline from "./main/wed_Leviyan.png";
 // Profile images
 import MainProfileFrame from "./main/profile_Leviyan.png";
 
+import Artist from "./main/artist_Leviyan.png";
+
 export const Imgs: ImgsType = {
   first: {
     bg: MainBG,
@@ -28,5 +30,6 @@ export const Imgs: ImgsType = {
     sat: SatOffline,
     sun: SunOffline,
     profileFrame: MainProfileFrame,
+    artist: Artist,
   },
 };
