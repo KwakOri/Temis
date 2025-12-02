@@ -167,14 +167,21 @@ const CellTextMainTitle = ({
 
 const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
   return (
-    <p
-      style={{
-        color: colors["first"]["secondary"],
-      }}
-      className=" flex justify-center items-center text-[40px] "
+    <div
+      style={{ height: 50 }}
+      className=" flex justify-center items-center w-full "
     >
-      {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
-    </p>
+      <AutoResizeText
+        style={{
+          color: colors["first"]["secondary"],
+          lineHeight: 1.2,
+        }}
+        className="leading-none text-center"
+        maxFontSize={40}
+      >
+        {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
+      </AutoResizeText>
+    </div>
   );
 };
 
