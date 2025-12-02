@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     const teams = await teamService.getAllTeams();
-    return NextResponse.json(teams);
+    return NextResponse.json({ success: true, teams });
   } catch (error) {
     console.error("Error fetching teams:", error);
     return NextResponse.json(

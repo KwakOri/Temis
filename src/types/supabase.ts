@@ -312,6 +312,42 @@ export type Database = {
           },
         ]
       }
+      relations_team_template_and_team: {
+        Row: {
+          created_at: string
+          id: string
+          team_id: string
+          team_template_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          team_id: string
+          team_template_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          team_id?: string
+          team_template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relations_team_template_and_team_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "relations_team_template_and_team_team_template_id_fkey"
+            columns: ["team_template_id"]
+            isOneToOne: false
+            referencedRelation: "team_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shop_templates: {
         Row: {
           created_at: string | null
@@ -463,6 +499,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      team_templates: {
+        Row: {
+          created_at: string
+          descriptions: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descriptions?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descriptions?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       teams: {
         Row: {

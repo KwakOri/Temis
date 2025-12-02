@@ -8,6 +8,7 @@ import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
 import SettingsManagement from "@/components/admin/SettingsManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
+import TeamTemplateManagement from "@/components/admin/TeamTemplateManagement";
 import TemplateManagement from "@/components/admin/TemplateManagement";
 import ThumbnailManagement from "@/components/admin/ThumbnailManagement";
 import UserManagement from "@/components/admin/UserManagement";
@@ -36,6 +37,7 @@ type TabType =
   | "thumbnails"
   | "users"
   | "teams"
+  | "teamTemplates"
   | "access"
   | "emailPreview"
   | "purchases"
@@ -106,6 +108,7 @@ function AdminContent() {
     { id: "thumbnails" as TabType, name: "썸네일 관리", icon: Image },
     { id: "users" as TabType, name: "사용자 관리", icon: Users },
     { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
+    { id: "teamTemplates" as TabType, name: "팀 템플릿", icon: FileText },
     { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
     { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
     { id: "settings" as TabType, name: "설정", icon: Settings },
@@ -119,7 +122,7 @@ function AdminContent() {
           <div className="flex items-center justify-between py-4">
             {/* 뒤로가기 버튼 (모바일) */}
             <button
-              onClick={() => window.location.href = '/'}
+              onClick={() => (window.location.href = "/")}
               className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
               aria-label="홈으로"
             >
@@ -226,13 +229,13 @@ function AdminContent() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "workCalendar" && <DeadlineCalendarView />}
         {activeTab === "customOrders" && <CustomOrderManagement />}
-
         {activeTab === "purchases" && <PurchaseManagement />}
         {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "thumbnails" && <ThumbnailManagement />}
         {activeTab === "access" && <AccessManagement />}
         {activeTab === "users" && <UserManagement />}
         {activeTab === "teams" && <TeamManagement />}
+        {activeTab === "teamTemplates" && <TeamTemplateManagement />}
         {activeTab === "emailPreview" && <EmailTemplatePreview />}
         {activeTab === "settings" && <SettingsManagement />}
       </div>
