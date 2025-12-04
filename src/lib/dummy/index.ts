@@ -3,7 +3,6 @@ import { TeamSchedule } from "@/types/team-timetable";
 const DUMMY_TEAM: TeamSchedule[] = [
   {
     id: "0eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 1,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -90,7 +89,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "1eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 2,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -177,7 +175,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "2eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 3,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -264,7 +261,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "3eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 4,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -351,7 +347,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "4eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 5,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -438,7 +433,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "5eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 6,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -525,7 +519,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "6eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 7,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -612,7 +605,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "7eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 8,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -699,7 +691,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "8eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 9,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -786,7 +777,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "9eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 10,
     week_start_date: "2025-09-15",
     schedule_data: [
@@ -873,7 +863,6 @@ const DUMMY_TEAM: TeamSchedule[] = [
   },
   {
     id: "10eb0009a-c612-48db-bc0a-b6a7ca258566",
-    team_id: "c88abf05-e892-4765-b731-e5a7d28996ce",
     user_id: 11,
     week_start_date: "2025-09-15",
     schedule_data: [

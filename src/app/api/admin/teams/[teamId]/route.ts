@@ -110,3 +110,40 @@ export async function DELETE(
     );
   }
 }
+
+// Toggle team active status
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ teamId: string }> }
+) {
+  try {
+    const authResult = await requireAdmin(request);
+    if (authResult instanceof NextResponse) {
+      return authResult;
+    }
+
+    const { teamId } = await params;
+    const body = await request.json();
+    const { is_active } = body;
+
+    if (typeof is_active !== "boolean") {
+      return NextResponse.json(
+        { error: "is_active 값이 유효하지 않습니다." },
+        { status: 400 }
+      );
+    }
+
+    const team = await teamService.toggleTeamActive(teamId, is_active);
+    return NextResponse.json(team);
+  } catch (error) {
+    console.error("Error toggling team active status:", error);
+    return NextResponse.json(
+      {
+        error: error instanceof Error
+          ? error.message
+          : "팀 활성화 상태 변경에 실패했습니다."
+      },
+      { status: 500 }
+    );
+  }
+}

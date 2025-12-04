@@ -16,6 +16,7 @@ import {
   useSubmitCustomOrder,
 } from "@/hooks/query/useCustomOrder";
 import { useUserTemplates } from "@/hooks/query/useUserTemplates";
+import { useUserTeams } from "@/hooks/query/useTeam";
 import {
   CustomOrderData,
   CustomOrderFormData,
@@ -32,6 +33,7 @@ const MyPageContent = () => {
   const searchParams = useSearchParams();
   const { logout: authLogout } = useAuth();
   const { data, isLoading, error: queryError } = useUserTemplates();
+  const { data: teams, isLoading: teamsLoading } = useUserTeams();
   const cancelOrderMutation = useCancelCustomOrder();
   const submitOrderMutation = useSubmitCustomOrder();
 
@@ -115,6 +117,15 @@ const MyPageContent = () => {
   const handleTemplateClick = (template: Template) => {
     router.push(`/time-table/${template.id}`);
   };
+
+  const handleTeamTemplateClick = (templateId: string) => {
+    router.push(`/team-time-table/${templateId}`);
+  };
+
+  // 활성화된 팀 중 템플릿이 연결된 팀 필터링
+  const activeTeamsWithTemplate = teams?.filter(
+    (team) => team.is_active && team.team_template
+  ) || [];
 
   // 수정 핸들러
   const handleEditOrder = (order: CustomOrderWithStatus) => {
@@ -358,105 +369,169 @@ const MyPageContent = () => {
                 <>
                   {activeTab === "templates" && (
                     <>
-                      {/* Templates Grid */}
-                      {templates.length === 0 ? (
-                        <div className="text-center py-12 md:py-20">
-                          <svg
-                            className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                            />
-                          </svg>
-                          <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-gray-900">
-                            템플릿이 없습니다
-                          </h3>
-                          <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-500 px-4">
-                            아직 접근 권한이 부여된 템플릿이 없습니다.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                          {templates.map((template) => (
-                            <div
-                              key={`${template.templates.id}-${template.id}`}
-                              onClick={() =>
-                                handleTemplateClick(template.templates)
-                              }
-                              className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
+                      {/* Personal Templates Section */}
+                      <div className="mb-8">
+                        <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
+                          개인 템플릿
+                        </h2>
+                        {templates.length === 0 ? (
+                          <div className="text-center py-12 md:py-20">
+                            <svg
+                              className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
                             >
-                              {/* Template Thumbnail */}
-                              <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
-                                {template.templates.id ? (
-                                  <img
-                                    src={`/thumbnail/${template.templates.id}.png`}
-                                    alt={template.templates.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <svg
-                                      className="h-8 w-8 md:h-12 md:w-12 text-gray-400"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                      />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Template Info */}
-                              <div className="p-3 md:p-4">
-                                <div className="flex items-start justify-between mb-1 md:mb-2">
-                                  <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
-                                    {template.templates.name}
-                                  </h3>
-                                  <span
-                                    className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getPlanColor(
-                                      template.template_plan?.plan
-                                    )}`}
-                                  >
-                                    {getPlanText(template.template_plan?.plan)}
-                                  </span>
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                              />
+                            </svg>
+                            <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-gray-900">
+                              템플릿이 없습니다
+                            </h3>
+                            <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-500 px-4">
+                              아직 접근 권한이 부여된 템플릿이 없습니다.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                            {templates.map((template) => (
+                              <div
+                                key={`${template.templates.id}-${template.id}`}
+                                onClick={() =>
+                                  handleTemplateClick(template.templates)
+                                }
+                                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
+                              >
+                                {/* Template Thumbnail */}
+                                <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
+                                  {template.templates.id ? (
+                                    <img
+                                      src={`/thumbnail/${template.templates.id}.png`}
+                                      alt={template.templates.name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center">
+                                      <svg
+                                        className="h-8 w-8 md:h-12 md:w-12 text-gray-400"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                      >
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                        />
+                                      </svg>
+                                    </div>
+                                  )}
                                 </div>
 
-                                {template.templates.description && (
-                                  <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-2">
-                                    {template.templates.description}
-                                  </p>
-                                )}
-
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-gray-500">
-                                  <div className="flex items-center space-x-1">
+                                {/* Template Info */}
+                                <div className="p-3 md:p-4">
+                                  <div className="flex items-start justify-between mb-1 md:mb-2">
+                                    <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
+                                      {template.templates.name}
+                                    </h3>
                                     <span
-                                      className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
-                                        template.templates.is_public
-                                          ? "bg-green-100 text-green-800"
-                                          : "bg-blue-100 text-blue-800"
-                                      }`}
+                                      className={`ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border ${getPlanColor(
+                                        template.template_plan?.plan
+                                      )}`}
                                     >
-                                      {template.templates.is_public
-                                        ? "일반"
-                                        : "개인"}
+                                      {getPlanText(template.template_plan?.plan)}
                                     </span>
                                   </div>
+
+                                  {template.templates.description && (
+                                    <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-2">
+                                      {template.templates.description}
+                                    </p>
+                                  )}
+
+                                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-gray-500">
+                                    <div className="flex items-center space-x-1">
+                                      <span
+                                        className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
+                                          template.templates.is_public
+                                            ? "bg-green-100 text-green-800"
+                                            : "bg-blue-100 text-blue-800"
+                                        }`}
+                                      >
+                                        {template.templates.is_public
+                                          ? "일반"
+                                          : "개인"}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Team Templates Section */}
+                      {!teamsLoading && activeTeamsWithTemplate.length > 0 && (
+                        <div className="border-t pt-8">
+                          <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
+                            팀 템플릿
+                          </h2>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+                            {activeTeamsWithTemplate.map((team) => (
+                              <div
+                                key={team.id}
+                                onClick={() =>
+                                  handleTeamTemplateClick(team.team_template!.id)
+                                }
+                                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
+                              >
+                                {/* Team Template Thumbnail */}
+                                <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 rounded-t-lg overflow-hidden flex items-center justify-center">
+                                  <svg
+                                    className="h-16 w-16 text-purple-400"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={1.5}
+                                      d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                                    />
+                                  </svg>
+                                </div>
+
+                                {/* Team Template Info */}
+                                <div className="p-3 md:p-4">
+                                  <div className="flex items-start justify-between mb-1 md:mb-2">
+                                    <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
+                                      {team.team_template!.name}
+                                    </h3>
+                                    <span className="ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border bg-purple-100 text-purple-800 border-purple-200">
+                                      팀
+                                    </span>
+                                  </div>
+
+                                  <p className="text-xs md:text-sm text-gray-600 mb-2">
+                                    {team.name}
+                                  </p>
+
+                                  {team.team_template!.descriptions && (
+                                    <p className="text-xs md:text-sm text-gray-500 line-clamp-2">
+                                      {team.team_template!.descriptions}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </>

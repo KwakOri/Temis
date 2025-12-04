@@ -38,7 +38,13 @@ export interface TeamTimeTableDay {
 export type TeamTimeTableWeekData = TeamTimeTableDay[];
 
 // Team-related types - using Supabase database schema
-export type Team = Tables<"teams">;
+export type Team = Tables<"teams"> & {
+  team_template?: {
+    id: string;
+    name: string;
+    descriptions: string | null;
+  } | null;
+};
 export type TeamMember = Tables<"team_members">;
 
 // Team member with user information
@@ -52,8 +58,31 @@ export interface TeamMemberWithUser extends TeamMember {
 
 // TeamSchedule extends the database type but with proper typing for schedule_data
 export interface TeamSchedule
-  extends Omit<Tables<"team_schedules">, "schedule_data"> {
+  extends Omit<Tables<"team_schedules">, "schedule_data" | "team_id"> {
   schedule_data: TeamTimeTableWeekData;
+}
+
+// TeamSchedule with user information
+export interface TeamScheduleWithUser extends TeamSchedule {
+  user?: {
+    id: number;
+    name: string | null;
+    email: string | null;
+  } | null;
+}
+
+// Wrapped schedule data for each user
+export interface UserScheduleData {
+  user_id: number;
+  success: boolean;
+  schedule: TeamScheduleWithUser | null;
+}
+
+// Multiple team schedules response
+export interface TeamSchedulesResponse {
+  schedules: UserScheduleData[];
+  userIds: number[];
+  weekStartDate: string;
 }
 
 // Team with members info for display

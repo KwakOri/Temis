@@ -10,17 +10,21 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const teamId = searchParams.get('team_id');
+    const teamId = searchParams.get('team_id'); // Optional for permission check
     const weekStartDate = searchParams.get('week_start_date');
 
-    if (!teamId || !weekStartDate) {
+    if (!weekStartDate) {
       return NextResponse.json(
-        { error: "team_id와 week_start_date는 필수 파라미터입니다." },
+        { error: "week_start_date는 필수 파라미터입니다." },
         { status: 400 }
       );
     }
 
-    const schedule = await teamScheduleService.getUserTeamSchedule(userId, teamId, weekStartDate);
+    const schedule = await teamScheduleService.getUserTeamSchedule(
+      userId,
+      weekStartDate,
+      teamId || undefined
+    );
 
     if (!schedule) {
       return NextResponse.json({ error: "시간표를 찾을 수 없습니다." }, { status: 404 });

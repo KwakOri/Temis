@@ -108,6 +108,8 @@ export class TeamService {
 
   /**
    * 팀 삭제
+   * team_schedules는 더 이상 team_id를 참조하지 않으므로 삭제하지 않음
+   * 유저의 시간표는 다른 팀에서도 사용될 수 있으므로 유지
    */
   static async deleteTeam(teamId: string): Promise<boolean> {
     try {
@@ -121,17 +123,7 @@ export class TeamService {
         throw membersError;
       }
 
-      // Then delete all team schedules
-      const { error: schedulesError } = await supabase
-        .from("team_schedules")
-        .delete()
-        .eq("team_id", teamId);
-
-      if (schedulesError) {
-        throw schedulesError;
-      }
-
-      // Finally delete the team
+      // Delete the team
       const { error: teamError } = await supabase
         .from("teams")
         .delete()
@@ -351,6 +343,7 @@ export class TeamService {
             name,
             description,
             created_by,
+            is_active,
             created_at,
             updated_at
           )
@@ -369,6 +362,7 @@ export class TeamService {
           name: team.name,
           description: team.description,
           created_by: team.created_by,
+          is_active: team.is_active,
           created_at: team.created_at,
           updated_at: team.updated_at,
         }));
@@ -377,6 +371,35 @@ export class TeamService {
     } catch (error) {
       console.error("Error fetching user teams:", error);
       throw new Error("팀 목록을 가져오는데 실패했습니다.");
+    }
+  }
+
+  /**
+   * 팀 활성화 상태 토글
+   */
+  static async toggleTeamActive(
+    teamId: string,
+    isActive: boolean
+  ): Promise<Team> {
+    try {
+      const { data: team, error } = await supabase
+        .from("teams")
+        .update({
+          is_active: isActive,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", teamId)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return team;
+    } catch (error) {
+      console.error("Error toggling team active status:", error);
+      throw new Error("팀 활성화 상태 변경에 실패했습니다.");
     }
   }
 }

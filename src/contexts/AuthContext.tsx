@@ -19,6 +19,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isLoggingOut: boolean;
   login: (
     email: string,
     password: string
@@ -46,6 +47,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // 인증 상태 확인
   const checkAuth = async () => {
@@ -104,16 +106,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // 로그아웃
   const logout = async () => {
     try {
-      // 서버에 로그아웃 요청 (쿠키 제거)
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include", // 쿠키 포함
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
+      // 로그아웃 시작
+      setIsLoggingOut(true);
 
-      // 클라이언트 상태 초기화
+      // 먼저 클라이언트 상태 초기화 (즉시 UI 업데이트)
       setUser(null);
 
       // 로컬스토리지 및 세션스토리지에서 인증 관련 데이터 제거
@@ -130,6 +126,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
           sessionStorage.removeItem(key);
         });
       }
+
+      // 서버에 로그아웃 요청 (쿠키 제거)
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include", // 쿠키 포함
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      // 인증 상태 재확인 (쿠키가 제대로 제거되었는지 확인)
+      await checkAuth();
     } catch (error) {
       console.error("Logout failed:", error);
 
@@ -150,6 +158,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           sessionStorage.removeItem(key);
         });
       }
+    } finally {
+      // 로그아웃 완료 (모달은 리다이렉트 후 자동으로 사라짐)
+      setIsLoggingOut(false);
     }
   };
 
@@ -221,6 +232,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const value: AuthContextType = {
     user,
     loading,
+    isLoggingOut,
     login,
     logout,
     register,
@@ -228,7 +240,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {/* 로그아웃 모달 */}
+      {isLoggingOut && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm mx-4">
+            <div className="flex flex-col items-center">
+              {/* 로딩 애니메이션 */}
+              <div className="relative w-16 h-16 mb-4">
+                <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+              </div>
+
+              {/* 텍스트 */}
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                로그아웃 중...
+              </h3>
+              <p className="text-sm text-gray-600 text-center">
+                잠시만 기다려주세요
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </AuthContext.Provider>
+  );
 }
 
 // 커스텀 훅
