@@ -9,6 +9,7 @@ import {
 } from "@/hooks/query/useAdminTeamTemplates";
 import { TeamTemplateWithRelations } from "@/services/admin/teamTemplateService";
 import { Database } from "@/types/supabase";
+import { Paperclip } from "lucide-react";
 import { useState } from "react";
 
 type Team = Database["public"]["Tables"]["teams"]["Row"];
@@ -251,31 +252,18 @@ export default function TeamTemplateManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {template.isConnected ? (
-                        <div className="space-y-1">
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                            연결됨
-                          </span>
+                        <div className="flex flex-wrap gap-2">
                           {template.relations_team_template_and_team?.map(
                             (relation) =>
                               relation.teams && (
                                 <div
                                   key={relation.id}
-                                  className="flex items-center gap-2"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 border border-green-200"
                                 >
-                                  <span className="text-xs text-gray-600">
+                                  <Paperclip className="w-3 h-3 text-green-600" />
+                                  <span className="text-xs font-medium text-green-700">
                                     {relation.teams.name}
                                   </span>
-                                  <button
-                                    onClick={() =>
-                                      handleDisconnectTeam(
-                                        template,
-                                        relation.team_id
-                                      )
-                                    }
-                                    className="text-xs text-red-600 hover:text-red-800"
-                                  >
-                                    해제
-                                  </button>
                                 </div>
                               )
                           )}
@@ -319,13 +307,31 @@ export default function TeamTemplateManagement() {
                         >
                           ID 복사
                         </button>
-                        {!template.isConnected && (
+                        {!template.isConnected ? (
                           <button
                             onClick={() => handleOpenConnectModal(template)}
                             className="px-3 py-1 rounded text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                           >
                             팀 연결
                           </button>
+                        ) : (
+                          template.relations_team_template_and_team?.map(
+                            (relation) =>
+                              relation.teams && (
+                                <button
+                                  key={relation.id}
+                                  onClick={() =>
+                                    handleDisconnectTeam(
+                                      template,
+                                      relation.team_id
+                                    )
+                                  }
+                                  className="px-3 py-1 rounded text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                                >
+                                  연결 해제
+                                </button>
+                              )
+                          )
                         )}
                       </div>
                     </td>
@@ -364,9 +370,22 @@ export default function TeamTemplateManagement() {
                   <div className="flex justify-between items-center text-xs">
                     <div>
                       {template.isConnected ? (
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                          연결됨
-                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {template.relations_team_template_and_team?.map(
+                            (relation) =>
+                              relation.teams && (
+                                <div
+                                  key={relation.id}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 border border-green-200"
+                                >
+                                  <Paperclip className="w-2.5 h-2.5 text-green-600" />
+                                  <span className="text-xs font-medium text-green-700">
+                                    {relation.teams.name}
+                                  </span>
+                                </div>
+                              )
+                          )}
+                        </div>
                       ) : (
                         <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
                           연결되지 않음
@@ -394,13 +413,31 @@ export default function TeamTemplateManagement() {
                     >
                       ID 복사
                     </button>
-                    {!template.isConnected && (
+                    {!template.isConnected ? (
                       <button
                         onClick={() => handleOpenConnectModal(template)}
                         className="px-3 py-1.5 rounded text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                       >
                         팀 연결
                       </button>
+                    ) : (
+                      template.relations_team_template_and_team?.map(
+                        (relation) =>
+                          relation.teams && (
+                            <button
+                              key={relation.id}
+                              onClick={() =>
+                                handleDisconnectTeam(
+                                  template,
+                                  relation.team_id
+                                )
+                              }
+                              className="px-3 py-1.5 rounded text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 transition-colors"
+                            >
+                              연결 해제
+                            </button>
+                          )
+                      )
                     )}
                   </div>
                 </div>

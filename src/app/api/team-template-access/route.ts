@@ -1,10 +1,10 @@
-import { getUserFromRequest } from "@/lib/auth/serverAuth";
+import { optionalAuth } from "@/lib/auth/middleware";
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
-    const user = await getUserFromRequest(request);
+    const { user } = await optionalAuth(request);
 
     if (!user) {
       return NextResponse.json(
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 관리자 체크
-    if (user.isAdmin) {
+    if (user.role === "admin") {
       return NextResponse.json({
         hasAccess: true,
         isAdmin: true,

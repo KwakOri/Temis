@@ -1,10 +1,20 @@
-import React from "react";
+import React, { CSSProperties } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TeamSchedule } from "@/types/team-timetable";
+import {
+  TeamTimeTableDay,
+  TeamTimeTableWeekData,
+  UserScheduleData,
+} from "@/types/team-timetable";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { Imgs } from "../_img/imgs";
+import {
+  fontOption,
+  member_colors,
+  Palette,
+  Settings,
+} from "../_settings/settings";
 
 interface DayTextProps {
   currentTheme?: TTheme;
@@ -29,9 +39,10 @@ interface StreamingMainTitleProps {
 }
 
 interface TeamTimeTableCellProps {
-  data: TeamSchedule;
+  data: UserScheduleData;
   weekDate: Date[];
   currentTheme: TTheme;
+  order: number;
 }
 
 interface OfflineCardProps {
@@ -139,15 +150,200 @@ const OfflineCard: React.FC<OfflineCardProps> = ({ currentTheme }) => {
   );
 };
 
+const ProfileCard = () => {};
+
+export interface ProfileImageProps {
+  order: number;
+}
+
+const ProfileImage = ({ order }: ProfileImageProps) => {
+  return (
+    <img
+      style={Settings.profile_image}
+      src={Imgs["first"]["profile" + order].src}
+    />
+  );
+};
+
+export interface MemberScheduleProps {
+  memberSchedule: TeamTimeTableWeekData;
+  memberId: number;
+}
+
+const MemberSchedule = ({ memberSchedule, memberId }: MemberScheduleProps) => {
+  const themeColor = member_colors[memberId];
+  return (
+    <div className="flex gap-0">
+      {memberSchedule.map((schedule) => {
+        return (
+          <ScheduleCard
+            themeColor={themeColor}
+            key={memberId + "-day-" + schedule.day}
+            schedule={schedule}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+export interface ScheduleCardProps {
+  schedule: TeamTimeTableDay;
+  themeColor: Palette;
+}
+
+const ScheduleCard = ({ schedule, themeColor }: ScheduleCardProps) => {
+  const { isOffline, day } = schedule;
+  const primarySchedule = schedule.entries[0];
+  const titleTextStyle: CSSProperties = {
+    fontFamily: fontOption.primary,
+    fontWeight: 700,
+  };
+
+  const titleDivStyle: CSSProperties = {
+    width: 300,
+    height: 160,
+    top: 80,
+  };
+  const timeTextStyle: CSSProperties = {
+    fontSize: 40,
+    fontFamily: fontOption.primary,
+    fontWeight: 700,
+  };
+
+  const timeDivStyle: CSSProperties = {
+    width: 300,
+    height: 60,
+    top: 294,
+  };
+
+  return (
+    <div
+      className="relative flex flex-col items-center"
+      style={Settings.card_online}
+    >
+      {isOffline ? (
+        <>
+          <div
+            style={{ ...titleDivStyle }}
+            className="absolute flex justify-center items-center"
+          >
+            <AutoResizeText
+              maxFontSize={48}
+              multiline
+              style={{
+                ...titleTextStyle,
+
+                color: themeColor.secondary,
+              }}
+            >
+              재정비의 날
+            </AutoResizeText>
+          </div>
+          <div
+            className="absolute flex justify-center items-center"
+            style={{ ...timeDivStyle }}
+          >
+            <AutoResizeText
+              style={{
+                ...timeTextStyle,
+
+                color: themeColor.primary,
+              }}
+            >
+              OFFLINE
+            </AutoResizeText>
+          </div>
+          <img
+            className="absolute inset-0 -z-10"
+            src={Imgs["first"]["offline"].src}
+            alt=""
+          />
+        </>
+      ) : (
+        <>
+          <div
+            style={{
+              ...titleDivStyle,
+            }}
+            className="absolute flex justify-center items-center"
+          >
+            <AutoResizeText
+              maxFontSize={48}
+              multiline
+              style={{
+                color: themeColor.primary,
+                ...titleTextStyle,
+              }}
+            >
+              {primarySchedule.mainTitle}
+            </AutoResizeText>
+          </div>
+          <div
+            className=" absolute flex justify-center items-center"
+            style={{ ...timeDivStyle }}
+          ></div>
+          <AutoResizeText
+            style={{
+              ...timeTextStyle,
+
+              color: themeColor.secondary,
+            }}
+          >
+            {primarySchedule.isGuerrilla ? "게릴라" : primarySchedule.time}
+          </AutoResizeText>
+          <img
+            className="absolute inset-0 -z-10"
+            src={Imgs["first"]["online"].src}
+            alt=""
+          />
+        </>
+      )}
+    </div>
+  );
+};
+
 const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
   data,
   weekDate,
   currentTheme,
+  order,
 }) => {
   // 첫 번째 엔트리 또는 빈 엔트리
 
+  const memberSchedule = data.schedule?.schedule_data;
+  const isSuccess = data.success;
+
+  const themeColor = member_colors[data.user_id];
+
   return (
-    <></>
+    <div style={{ height: 405 }} className="flex items-center">
+      <ProfileImage order={order} />
+      {!isSuccess && (
+        <div
+          className="flex justify-center items-center"
+          style={{ width: 2554, height: "100%" }}
+        >
+          <AutoResizeText
+            maxFontSize={100}
+            style={{
+              fontFamily: fontOption.primary,
+              fontWeight: 700,
+              fontSize: 100,
+              color: themeColor.primary,
+            }}
+          >
+            아직 일정이 입력되지 않았습니다.
+          </AutoResizeText>
+        </div>
+      )}
+      {isSuccess && memberSchedule && (
+        <MemberSchedule
+          memberId={data.user_id}
+          memberSchedule={memberSchedule}
+        />
+      )}
+    </div>
     // <div className="relative" style={{}}>
     //   {/* 배경 이미지 */}
     //   <div

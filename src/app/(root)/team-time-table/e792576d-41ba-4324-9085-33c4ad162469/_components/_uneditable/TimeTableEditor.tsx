@@ -1,84 +1,81 @@
-import React, { useMemo } from "react";
+import React from "react";
 
 import Loading from "@/components/Loading";
 import MobileHeader from "@/components/TimeTable/MobileHeader";
 import TimeTableControls from "@/components/TimeTable/TimeTableControls";
 import TimeTableForm from "@/components/TimeTable/TimeTableForm";
 import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
-import { TimeTableProvider } from "@/contexts/TimeTableContext";
+import { TimeTableProvider, useTimeTable } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableEditor } from "@/hooks";
 
-import { TeamService } from "@/services/teamService";
-
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
-import { useTeamTimeTableEditor } from "@/hooks/query/useTeamTimeTableEditor";
-import { getTeamDummyData } from "@/lib/dummy";
+import { useTeamBatchSchedules } from "@/hooks/query/useTeamSchedules";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
   Settings,
+  team_ids,
   templateSize,
 } from "../../_settings/settings";
 import TeamTimeTableContent from "./TeamTimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
-  // TODO: 실제 팀 ID는 props나 URL 파라미터에서 받아올 예정
-  const TEAM_ID = "c88abf05-e892-4765-b731-e5a7d28996ce"; // 임시 팀 ID
-
-  // 현재 주의 시작일 계산 (월요일)
-  const currentWeekStart = React.useMemo(() => {
-    return TeamService.getWeekStartDate(new Date());
-  }, []);
-
-  const dummyTeamData = useMemo(() => getTeamDummyData(4), []);
-
-  // 팀 시간표 데이터 로드
-  const {
-    data: teamData,
-    isLoading: teamDataLoading,
-    isInitialized: teamDataInitialized,
-    error: teamDataError,
-    refetch,
-  } = useTeamTimeTableEditor({
-    teamId: TEAM_ID,
-    weekStartDate: currentWeekStart,
-  });
-
-  // 팀 데이터 리셋 함수 (팀 시간표는 DB에서 가져오므로 refetch 사용)
-  const resetData = () => {
-    refetch();
-  };
+  // Context에서 상태 가져오기
+  const { state } = useTimeTable();
 
   // 기존 로컬 에디터 상태 (UI 상태만 사용)
-  const { state, currentTheme, isInitialized } = useTimeTableEditor({
+  const { currentTheme, isInitialized } = useTimeTableEditor({
     cardInputConfig: CARD_INPUT_CONFIG,
     defaultTheme: defaultTheme,
     captureSize: templateSize,
   });
 
+  // 팀 멤버들의 스케줄 데이터 로드
+  const {
+    data: teamSchedulesData,
+    isLoading: teamSchedulesLoading,
+    error: teamSchedulesError,
+    refetch,
+  } = useTeamBatchSchedules(team_ids, state.mondayDateStr);
+
+  // 래핑된 데이터를 TeamSchedule[] 형식으로 변환
+  // Hook은 조건부 반환 이전에 호출되어야 함
+  const scheduleData = React.useMemo(() => {
+    if (!teamSchedulesData?.schedules) return [];
+
+    return teamSchedulesData.schedules
+      .filter((item) => item.success && item.schedule !== null)
+      .map((item) => item.schedule!);
+  }, [teamSchedulesData]);
+
+  // 팀 데이터 리셋 함수
+  const resetData = () => {
+    refetch();
+  };
+
   // 로딩 상태 체크
   if (
     !isInitialized ||
-    !teamDataInitialized ||
-    teamDataLoading ||
+    !teamSchedulesData?.schedules ||
+    teamSchedulesLoading ||
     state.weekDates.length === 0
   ) {
     return <Loading />;
   }
 
   // 에러 상태 표시
-  if (teamDataError) {
+  if (teamSchedulesError) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <p className="text-red-600 mb-2">
             팀 시간표를 불러오는데 실패했습니다.
           </p>
-          <p className="text-gray-500 text-sm">{teamDataError}</p>
+          <p className="text-gray-500 text-sm">{teamSchedulesError.message}</p>
         </div>
       </div>
     );
@@ -96,15 +93,16 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTablePreview>
           <TeamTimeTableContent
             currentTheme={currentTheme}
-            data={dummyTeamData}
+            data={teamSchedulesData?.schedules}
             placeholders={placeholders}
           />
         </TimeTablePreview>
         <TimeTableForm
+          isArtist={false}
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
-          cropWidth={Settings.profile.image.width}
-          cropHeight={Settings.profile.image.height}
+          cropWidth={Settings.profile_image.width as number}
+          cropHeight={Settings.profile_image.height as number}
         ></TimeTableForm>
       </div>
     </div>

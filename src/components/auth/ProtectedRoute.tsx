@@ -19,9 +19,9 @@ export default function ProtectedRoute({
 
   useEffect(() => {
     if (!loading && !user) {
-      // 현재 경로를 returnUrl로 설정하여 로그인 페이지로 리다이렉트
+      // 현재 경로를 returnUrl로 설정하여 로그인 페이지로 리다이렉트 (히스토리 대체)
       const returnUrl = encodeURIComponent(pathname);
-      router.push(`/auth?returnUrl=${returnUrl}`);
+      router.replace(`/auth?returnUrl=${returnUrl}`);
     }
   }, [user, loading, router, pathname]);
 

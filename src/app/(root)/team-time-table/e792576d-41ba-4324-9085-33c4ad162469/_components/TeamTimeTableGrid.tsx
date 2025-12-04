@@ -1,11 +1,11 @@
 import React, { Fragment } from "react";
 
-import { TeamSchedule } from "@/types/team-timetable";
+import { UserScheduleData } from "@/types/team-timetable";
 import { TTheme } from "@/types/time-table/theme";
 import TeamTimeTableCell from "./TeamTimeTableCell";
 
 interface TeamTimeTableGridProps {
-  data: TeamSchedule[];
+  data: UserScheduleData[];
   weekDates: Date[];
   currentTheme: TTheme;
 }
@@ -15,21 +15,23 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
-  console.log("data => ", data);
+  console.log("team_data => ", data);
   console.log("weekDates => ", weekDates);
   return (
     <div
-      className="absolute grid grid-cols-3 z-20"
+      className="absolute flex flex-col z-20"
       style={{
-        top: 136,
-        left: 100,
-        columnGap: 32,
-        rowGap: 60,
+        top: 310,
+        left: 230,
+        gap: 64,
+
+        rotate: "-3.5deg",
       }}
     >
       {data.map((member, i) => (
-        <Fragment key={member.id}>
+        <Fragment key={member.user_id}>
           <TeamTimeTableCell
+            order={i + 1}
             data={member}
             weekDate={weekDates}
             currentTheme={currentTheme}

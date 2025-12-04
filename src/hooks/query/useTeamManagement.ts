@@ -183,3 +183,57 @@ export const useRemoveTeamMember = () => {
     },
   });
 };
+
+// 팀 활성화 상태 토글
+export const useToggleTeamActive = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ teamId, isActive }: { teamId: string; isActive: boolean }) =>
+      teamManagementService.toggleTeamActive(teamId, isActive),
+    // Optimistic update
+    onMutate: async ({ teamId, isActive }) => {
+      // 진행 중인 쿼리 취소
+      await queryClient.cancelQueries({
+        queryKey: TEAM_MANAGEMENT_QUERY_KEYS.lists()
+      });
+
+      // 이전 데이터 스냅샷 저장
+      const previousTeams = queryClient.getQueryData(
+        TEAM_MANAGEMENT_QUERY_KEYS.lists()
+      );
+
+      // Optimistic update 적용
+      queryClient.setQueryData(
+        TEAM_MANAGEMENT_QUERY_KEYS.lists(),
+        (old: any) => {
+          if (!old) return old;
+          return old.map((team: any) =>
+            team.id === teamId ? { ...team, is_active: isActive } : team
+          );
+        }
+      );
+
+      // 롤백을 위한 이전 데이터 반환
+      return { previousTeams };
+    },
+    // 에러 발생 시 롤백
+    onError: (err, variables, context) => {
+      if (context?.previousTeams) {
+        queryClient.setQueryData(
+          TEAM_MANAGEMENT_QUERY_KEYS.lists(),
+          context.previousTeams
+        );
+      }
+    },
+    // 성공 시 쿼리 무효화로 최신 데이터 가져오기
+    onSettled: (data, error, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: TEAM_MANAGEMENT_QUERY_KEYS.lists()
+      });
+      queryClient.invalidateQueries({
+        queryKey: TEAM_MANAGEMENT_QUERY_KEYS.detail(variables.teamId)
+      });
+    },
+  });
+};

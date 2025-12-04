@@ -20,9 +20,9 @@ export const Imgs: ImgsType = {
     offline: OfflineImg,
     online: OnlineImg,
     topObject: TopObject,
-    profile01: UserProfile01,
-    profile02: UserProfile02,
-    profile03: UserProfile03,
-    profile04: UserProfile04,
+    profile1: UserProfile01,
+    profile2: UserProfile02,
+    profile3: UserProfile03,
+    profile4: UserProfile04,
   },
 };

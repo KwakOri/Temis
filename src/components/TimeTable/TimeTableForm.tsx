@@ -2,12 +2,18 @@ import ImageCropModal from "@/components/ImageCropModal";
 import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
 import MondaySelector from "@/components/TimeTable/MondaySelector";
 import ResetButton from "@/components/TimeTable/ResetButton";
-import TeamSaveModal from "@/components/TimeTable/TeamSaveModal";
 import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
+import {
+  useHasActiveTeam,
+  useSaveTeamScheduleFromDynamicCards,
+} from "@/hooks/query/useTeam";
 import { OptionType } from "@/hooks/useTimeTableState";
+import { TeamService } from "@/services/teamService";
 import { CroppedAreaPixels } from "@/types/image-edit";
 import { TDefaultCard } from "@/types/time-table/data";
+import { useQuery } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
 import { Point } from "react-easy-crop";
 interface TimeTableFormProps {
@@ -18,7 +24,6 @@ interface TimeTableFormProps {
   onReset: () => void;
   cropWidth?: number;
   cropHeight?: number;
-  isTeam?: boolean;
   teamData?: TDefaultCard[]; // 팀 시간표 저장을 위한 데이터
   multiSelect?: boolean; // true: 여러 버튼 동시 활성화 가능, false: 최대 1개만 활성화 가능
 }
@@ -52,19 +57,43 @@ const TimeTableForm = ({
   addons,
   children,
   onReset,
+  teamData,
   cropWidth = 400,
   cropHeight = 400,
   isArtist = true,
   isMemo = false,
   saveable = true,
-  isTeam = false,
-  teamData,
   multiSelect = false,
 }: PropsWithChildren<TimeTableFormProps>) => {
-  console.log("isTeam => ", isTeam);
-  console.log("teamData => ", teamData);
-
   const { state, actions } = useTimeTable();
+  const pathname = usePathname();
+
+  // 사용자가 활성화된 팀에 속해있는지 확인
+  const { data: isTeam = false } = useHasActiveTeam();
+  console.log("isTeam => ", isTeam);
+  const saveTeamScheduleMutation = useSaveTeamScheduleFromDynamicCards();
+
+  // 현재 경로에서 template ID 추출하고 팀 템플릿인지 확인
+  const templateId = pathname?.split("/").pop();
+  const { data: isTeamCalendar = false } = useQuery({
+    queryKey: ["isTeamCalendar", templateId],
+    queryFn: async () => {
+      if (!templateId) return false;
+
+      try {
+        const response = await fetch(`/api/team-template/check/${templateId}`);
+        if (!response.ok) return false;
+
+        const data = await response.json();
+        return data.isTeamTemplate || false;
+      } catch (error) {
+        console.error("Error checking team calendar:", error);
+        return false;
+      }
+    },
+    enabled: !!templateId,
+    staleTime: 5 * 60 * 1000, // 5분간 캐시
+  });
 
   const {
     profileText,
@@ -89,7 +118,6 @@ const TimeTableForm = ({
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showTeamSaveModal, setShowTeamSaveModal] = useState(false);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -204,16 +232,27 @@ const TimeTableForm = ({
     setShowSaveModal(false);
   };
 
-  const handleImageSave = (width: number, height: number) => {
+  const handleImageSave = async (width: number, height: number) => {
+    // 이미지 다운로드
     downloadImage(width, height);
-  };
 
-  const handleTeamSaveClick = () => {
-    setShowTeamSaveModal(true);
-  };
+    // 활성화된 팀이 있고 팀 캘린더가 아닐 때만 자동으로 팀 시간표에도 저장
+    if (isTeam && !isTeamCalendar && saveable && teamData) {
+      try {
+        const weekStartDate =
+          TeamService.getWeekStartDateFromString(mondayDateStr);
 
-  const handleTeamSaveModalClose = () => {
-    setShowTeamSaveModal(false);
+        await saveTeamScheduleMutation.mutateAsync({
+          weekStartDate,
+          dynamicCards: teamData,
+        });
+
+        console.log("팀 시간표 자동 저장 완료");
+      } catch (error) {
+        console.error("팀 시간표 자동 저장 실패:", error);
+        // 이미지는 저장되었으므로 에러를 사용자에게 알리지만 중단하지 않음
+      }
+    }
   };
 
   const ProfileOptionButtons = [
@@ -370,8 +409,7 @@ const TimeTableForm = ({
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-300 bg-gray-50 space-y-2">
-            {/* 첫 번째 줄: 이미지 저장과 리셋 */}
+          <div className="p-4 border-t border-gray-300 bg-gray-50">
             <div className="flex gap-2">
               <button
                 onClick={
@@ -387,22 +425,6 @@ const TimeTableForm = ({
               </button>
               <ResetButton onReset={onReset} />
             </div>
-
-            {/* 두 번째 줄: 팀 시간표 저장 (isTeam이 true일 때만) */}
-            {isTeam && (
-              <button
-                onClick={
-                  saveable
-                    ? handleTeamSaveClick
-                    : () => {
-                        alert("PLAYGROUND에서는 제공되지 않는 기능입니다.");
-                      }
-                }
-                className="w-full bg-[#3E4A82] text-white py-3 rounded-md text-base font-bold hover:bg-[#2b2f4d] transition"
-              >
-                팀 시간표에 저장
-              </button>
-            )}
           </div>
         </div>
       </div>
@@ -428,21 +450,14 @@ const TimeTableForm = ({
 
       {/* 이미지 저장 배율 선택 모달 */}
       <ImageSaveModal
+        isTeamCalendar={isTeamCalendar}
         isOpen={showSaveModal}
         onClose={handleSaveModalClose}
         onSave={handleImageSave}
         templateSize={captureSize}
+        isTeam={isTeam}
+        mondayDateStr={mondayDateStr}
       />
-
-      {/* 팀 시간표 저장 모달 */}
-      {isTeam && teamData && (
-        <TeamSaveModal
-          isOpen={showTeamSaveModal}
-          onClose={handleTeamSaveModalClose}
-          mondayDateStr={mondayDateStr}
-          scheduleData={teamData}
-        />
-      )}
     </>
   );
 };

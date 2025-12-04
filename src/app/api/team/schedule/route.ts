@@ -11,10 +11,14 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json();
 
-    // 사용자 ID 설정
-    data.user_id = userId;
+    const scheduleData = {
+      user_id: userId,
+      week_start_date: data.week_start_date,
+      schedule_data: data.schedule_data,
+      team_id: data.team_id, // Optional for permission check
+    };
 
-    const schedule = await teamScheduleService.createTeamSchedule(data);
+    const schedule = await teamScheduleService.createTeamSchedule(scheduleData);
     return NextResponse.json(schedule);
   } catch (error) {
     console.error("Error creating team schedule:", error);

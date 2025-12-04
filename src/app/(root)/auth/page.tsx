@@ -15,16 +15,16 @@ function AuthContent() {
 
   const [isSignupMode, setIsSignupMode] = useState(false);
 
-  // 이미 로그인된 사용자는 메인 페이지로 리다이렉트
+  // 이미 로그인된 사용자는 returnUrl로 리다이렉트 (히스토리 대체)
   useEffect(() => {
     if (!loading && user) {
-      router.push("/");
+      router.replace(returnUrl);
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, returnUrl]);
 
-  // 로그인 성공 후 리다이렉트 처리
+  // 로그인 성공 후 리다이렉트 처리 (히스토리 대체)
   const handleAuthSuccess = () => {
-    router.push(returnUrl);
+    router.replace(returnUrl);
   };
 
   // 회원가입 모드 전환

@@ -1,5 +1,6 @@
 import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
+import { CSSProperties } from "react";
 
 /** ---------------------------------------------- */
 
@@ -16,7 +17,7 @@ export const templateSize = {
 export type options = "primary" | "secondary" | "tertiary" | "quaternary";
 
 export const fontOption = {
-  primary: "Cafe24ClassicType",
+  primary: "SchoolSafetyNotification",
   secondary: "",
   tertiary: "",
   quaternary: "",
@@ -121,56 +122,80 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 export const profileTextPlaceholder = "아티스트 명";
 
 /** ---------------------------------------------- */
+type SettingsType = {
+  canvas_size: CSSProperties;
+  profile_frame: CSSProperties;
+  profile_image: CSSProperties;
+  card_online: CSSProperties;
+  card_offline: CSSProperties;
+  week_flag: CSSProperties;
+};
 
-export const Settings = {
-  profile: {
-    frame: {
-      width: 4000,
-      height: 2250,
-    },
-    image: {
-      width: 1440,
-      height: 2250,
-    },
-    artist: {
-      width: 725,
-      height: 390,
-      fontSize: 84,
-      fontColor: colors.first.primary,
-    },
+export const Settings: SettingsType = {
+  canvas_size: {
+    width: 4000,
+    height: 2250,
   },
-  card: {
-    online: {
-      width: 786,
-      height: 622,
-      time: {
-        fontSize: 34,
-        fontColor: colors.first.primary,
-      },
-      day: {
-        fontSize: 80,
-        fontColor: colors.first.tertiary,
-      },
-      mainTitle: {
-        fontSize: 88,
-        fontColor: colors.first.primary,
-      },
-      subTitle: {
-        fontSize: 40,
-        fontColor: colors.first.secondary,
-      },
-    },
-    offline: {
-      width: 786,
-      height: 622,
-    },
+
+  profile_frame: {
+    width: 400,
+    height: 300,
   },
-  week: {
-    flag: {
-      width: 440,
-      height: 1220,
-    },
+  profile_image: {
+    width: 982,
+    height: 405,
+  },
+  card_online: {
+    width: 370,
+    height: 370,
+  },
+  card_offline: {
+    width: 370,
+    height: 370,
+  },
+  week_flag: {
+    width: 440,
+    height: 1220,
     fontSize: 80,
-    fontColor: colors.first.secondary,
+    color: colors.first.secondary,
+    fontFamily: fontOption.primary,
+  },
+};
+
+export const team_ids = [75, 74, 77, 62];
+
+export interface Palette {
+  primary: string;
+  secondary: string;
+  tertiary: string;
+  quaternary: string;
+}
+
+export type MemberColorPallettes = Record<number, Palette>;
+
+export const member_colors: MemberColorPallettes = {
+  75: {
+    primary: "#E38431",
+    secondary: "#E38431",
+    tertiary: "",
+    quaternary: "",
+  },
+  74: {
+    primary: "#3D94B5",
+    secondary: "#3D94B5",
+    tertiary: "",
+    quaternary: "",
+  },
+  77: {
+    primary: "#1E2629",
+    secondary: "#EDF8F7",
+    tertiary: "",
+    quaternary: "",
+  },
+  62: {
+    primary: "#F4B224",
+    secondary: "#F4B224",
+    tertiary: "",
+    quaternary: "",
   },
 };

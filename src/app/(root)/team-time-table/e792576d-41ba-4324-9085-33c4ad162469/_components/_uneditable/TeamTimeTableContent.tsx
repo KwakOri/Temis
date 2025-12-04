@@ -2,18 +2,19 @@ import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import React from "react";
 
 import TeamTimeTableDesignGuide from "@/components/tools/TeamTimeTableDesignGuide";
-import { TeamSchedule } from "@/types/team-timetable";
+import { UserScheduleData } from "@/types/team-timetable";
 import { TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 import { templateSize } from "../../_settings/settings";
 import TeamTimeTableGrid from "../TeamTimeTableGrid";
-import TimeTableWeekFlag from "../TimeTableWeekFlag";
+
+import TeamTimeTableTopObject from "../TeamTimeTableTopObject";
 
 export interface TeamTimeTableContentProps {
   currentTheme: TTheme;
-  data: TeamSchedule[];
+  data: UserScheduleData[];
   placeholders: TPlaceholders;
 }
 
@@ -42,21 +43,7 @@ const TeamTimeTableContent: React.FC<TeamTimeTableContentProps> = ({
       }}
     >
       {isGuideEnabled && <TeamTimeTableDesignGuide />}
-      <div
-        style={{
-          width: 4000,
-          height: 2250,
-          position: "absolute",
-          zIndex: 30,
-        }}
-      >
-        <img
-          src={Imgs["first"]["topObject"].src}
-          alt={"top-object"}
-          draggable={false}
-        />
-      </div>
-      <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
+      <TeamTimeTableTopObject />
       <TeamTimeTableGrid
         data={data}
         weekDates={weekDates}

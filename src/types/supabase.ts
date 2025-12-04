@@ -460,7 +460,6 @@ export type Database = {
           created_at: string | null
           id: string
           schedule_data: Json
-          team_id: string
           updated_at: string | null
           user_id: number
           week_start_date: string
@@ -469,7 +468,6 @@ export type Database = {
           created_at?: string | null
           id?: string
           schedule_data?: Json
-          team_id: string
           updated_at?: string | null
           user_id: number
           week_start_date: string
@@ -478,19 +476,11 @@ export type Database = {
           created_at?: string | null
           id?: string
           schedule_data?: Json
-          team_id?: string
           updated_at?: string | null
           user_id?: number
           week_start_date?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "team_schedules_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "team_schedules_user_id_fkey"
             columns: ["user_id"]
@@ -530,6 +520,7 @@ export type Database = {
           created_by: number
           description: string | null
           id: string
+          is_active: boolean
           name: string
           updated_at: string | null
         }
@@ -538,6 +529,7 @@ export type Database = {
           created_by: number
           description?: string | null
           id?: string
+          is_active?: boolean
           name: string
           updated_at?: string | null
         }
@@ -546,6 +538,7 @@ export type Database = {
           created_by?: number
           description?: string | null
           id?: string
+          is_active?: boolean
           name?: string
           updated_at?: string | null
         }

@@ -11,7 +11,6 @@ import { useTimeTableEditor } from "@/hooks";
 
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
-import { useUserTeams } from "@/hooks/query/useTeam";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {
@@ -34,17 +33,8 @@ const TimeTableEditorContent: React.FC = () => {
       captureSize: templateSize,
     });
 
-  const {
-    data: teams,
-    isLoading: teamsLoading,
-    error: teamsError,
-  } = useUserTeams();
-
-  const hasTeam = (teams?.length || 0) > 0;
-  console.log("hasTeam => ", hasTeam);
-
   // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
-  if (teamsLoading || !isInitialized || state.weekDates.length === 0)
+  if (!isInitialized || state.weekDates.length === 0)
     return <Loading />;
 
   return (
@@ -64,7 +54,6 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
-          isTeam={hasTeam}
           multiSelect
           isMemo
           isArtist
