@@ -7,9 +7,9 @@ import {
 import { TDefaultCard } from "@/types/time-table/data";
 
 export interface SaveTeamScheduleRequest {
-  team_id: string;
   week_start_date: string;
   schedule_data: TeamTimeTableWeekData;
+  team_id?: string; // Optional for permission check
 }
 
 export interface GetTeamSchedulesResponse {
@@ -44,18 +44,18 @@ export class TeamService {
    * 팀 시간표 저장 (동적 카드 형식) - 통합된 메서드
    */
   static async saveTeamScheduleFromDynamicCards(
-    teamId: string,
     weekStartDate: string,
-    dynamicCards: TDefaultCard[]
+    dynamicCards: TDefaultCard[],
+    teamId?: string
   ): Promise<TeamSchedule> {
     // Convert dynamic cards to team schedule data (only time and mainTitle)
     const teamScheduleData =
       convertDynamicCardsToTeamTimeTableData(dynamicCards);
 
     const requestData: SaveTeamScheduleRequest = {
-      team_id: teamId,
       week_start_date: weekStartDate,
       schedule_data: teamScheduleData,
+      team_id: teamId, // Optional for permission check
     };
 
     const response = await fetch(`${this.baseUrl}/schedule`, {
@@ -76,41 +76,31 @@ export class TeamService {
   }
 
   /**
-   * 팀의 특정 주 시간표 조회
+   * 팀의 특정 주 시간표 조회 (deprecated - use getTeamSchedulesByWeek)
    */
   static async getTeamSchedules(
     teamId: string,
     weekStartDate: string
   ): Promise<GetTeamSchedulesResponse> {
-    const params = new URLSearchParams({
-      team_id: teamId,
-      week_start_date: weekStartDate,
-    });
-
-    const response = await fetch(`${this.baseUrl}/schedules?${params}`, {
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || "팀 시간표를 가져올 수 없습니다.");
-    }
-
-    const schedules = await response.json();
-    return { schedules };
+    return this.getTeamSchedulesByWeek(teamId, weekStartDate).then(
+      (schedules) => ({ schedules })
+    );
   }
 
   /**
-   * 사용자의 특정 팀 시간표 조회
+   * 사용자의 특정 주 시간표 조회
    */
   static async getUserTeamSchedule(
-    teamId: string,
-    weekStartDate: string
+    weekStartDate: string,
+    teamId?: string
   ): Promise<TeamSchedule | null> {
     const params = new URLSearchParams({
-      team_id: teamId,
       week_start_date: weekStartDate,
     });
+
+    if (teamId) {
+      params.append("team_id", teamId);
+    }
 
     const response = await fetch(`${this.baseUrl}/schedule/user?${params}`, {
       credentials: "include",
@@ -197,5 +187,24 @@ export class TeamService {
     const data = await response.json();
     console.log("response => ", data);
     return data;
+  }
+
+  /**
+   * 사용자의 모든 시간표 주차 목록 조회
+   */
+  static async getUserScheduleWeeks(): Promise<string[]> {
+    const response = await fetch(`${this.baseUrl}/schedule/user/weeks`, {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(
+        errorData.error || "사용자 시간표 주차 목록을 가져올 수 없습니다."
+      );
+    }
+
+    const data = await response.json();
+    return data.weeks;
   }
 }

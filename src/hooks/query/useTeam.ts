@@ -40,12 +40,13 @@ export function useTeamSchedules(teamId: string, weekStartDate: string) {
 
 /**
  * 사용자의 특정 팀 시간표 조회 훅
+ * teamId는 캐시 키와 권한 검증용으로 사용
  */
 export function useUserTeamSchedule(teamId: string, weekStartDate: string) {
   return useQuery({
     queryKey: queryKeys.team.userSchedule(teamId, weekStartDate),
     queryFn: async () => {
-      return await TeamService.getUserTeamSchedule(teamId, weekStartDate);
+      return await TeamService.getUserTeamSchedule(weekStartDate, teamId);
     },
     enabled: !!teamId && !!weekStartDate, // teamId와 weekStartDate가 있을 때만 실행
     staleTime: 1 * 60 * 1000, // 1분간 캐시 유지
@@ -65,33 +66,47 @@ export function useSaveTeamScheduleFromDynamicCards() {
       weekStartDate,
       dynamicCards,
     }: {
-      teamId: string;
+      teamId?: string;
       weekStartDate: string;
       dynamicCards: TDefaultCard[];
     }) => {
       return await TeamService.saveTeamScheduleFromDynamicCards(
-        teamId,
         weekStartDate,
-        dynamicCards
+        dynamicCards,
+        teamId
       );
     },
-    onSuccess: (data: TeamSchedule) => {
+    onSuccess: (data: TeamSchedule, variables) => {
       // 캐시 무효화 및 업데이트
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.team.schedules(data.team_id, data.week_start_date),
-      });
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.team.userSchedule(
-          data.team_id,
-          data.week_start_date
-        ),
-      });
+      // teamId가 있는 경우에만 캐시 무효화
+      if (variables.teamId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.team.schedules(
+            variables.teamId,
+            data.week_start_date
+          ),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.team.userSchedule(
+            variables.teamId,
+            data.week_start_date
+          ),
+        });
 
-      // 새로운 데이터로 캐시 업데이트
-      queryClient.setQueryData(
-        queryKeys.team.userSchedule(data.team_id, data.week_start_date),
-        data
-      );
+        // 새로운 데이터로 캐시 업데이트
+        queryClient.setQueryData(
+          queryKeys.team.userSchedule(
+            variables.teamId,
+            data.week_start_date
+          ),
+          data
+        );
+      }
+
+      // 모든 팀 관련 쿼리 무효화 (teamId가 없는 경우를 대비)
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.team.all,
+      });
     },
     onError: (error: Error) => {
       console.error("팀 시간표 저장 실패:", error);
@@ -187,4 +202,35 @@ export function useInvalidateTeamQueries() {
       });
     },
   };
+}
+
+/**
+ * 사용자가 활성화된 팀에 속해있는지 확인하는 훅
+ * 하나 이상의 활성화된 팀(is_active = true)이 있으면 true 반환
+ */
+export function useHasActiveTeam() {
+  return useQuery({
+    queryKey: [...queryKeys.team.userTeams(), "hasActive"],
+    queryFn: async () => {
+      const response = await TeamService.getUserTeams();
+      const hasActiveTeam = response.teams.some((team) => team.is_active);
+      return hasActiveTeam;
+    },
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
+    gcTime: 10 * 60 * 1000, // 10분간 메모리 보관
+  });
+}
+
+/**
+ * 사용자의 모든 시간표 주차 목록 조회 훅
+ */
+export function useUserScheduleWeeks() {
+  return useQuery({
+    queryKey: [...queryKeys.team.all, "scheduleWeeks"],
+    queryFn: async () => {
+      return await TeamService.getUserScheduleWeeks();
+    },
+    staleTime: 2 * 60 * 1000, // 2분간 캐시 유지
+    gcTime: 5 * 60 * 1000, // 5분간 메모리 보관
+  });
 }

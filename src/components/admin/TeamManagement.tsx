@@ -6,13 +6,16 @@ import {
   useCreateTeam,
   useDeleteTeam,
   useRemoveTeamMember,
+  useToggleTeamActive,
   useUpdateMemberRole,
   useUpdateTeam,
   useUserSearch,
 } from "@/hooks/query/useTeamManagement";
+import { teamManagementService } from "@/services/admin/teamManagementService";
 import { Tables } from "@/types/supabase";
 import { TeamWithMembers } from "@/types/team-timetable";
 import {
+  Copy,
   Edit,
   Loader2,
   Plus,
@@ -87,6 +90,7 @@ const TeamManagement = () => {
   const addMemberMutation = useAddTeamMember();
   const updateMemberRoleMutation = useUpdateMemberRole();
   const removeMemberMutation = useRemoveTeamMember();
+  const toggleTeamActiveMutation = useToggleTeamActive();
 
   // Handlers
   const handleCreateTeam = () => {
@@ -159,6 +163,14 @@ const TeamManagement = () => {
           role: memberFormData.role,
         },
       });
+
+      // 팀 정보를 다시 조회하여 selectedTeam 업데이트
+      const updatedTeams = await teamManagementService.getAllTeams();
+      const updatedTeam = updatedTeams.find(t => t.id === selectedTeam.id);
+      if (updatedTeam) {
+        setSelectedTeam(updatedTeam);
+      }
+
       setMemberFormData({ email: "", role: MemberRole.MEMBER });
       setUserSearchQuery("");
     } catch (error) {
@@ -217,7 +229,30 @@ const TeamManagement = () => {
     setUserSearchQuery("");
   };
 
+  const handleCopyUserId = async (userId: number) => {
+    try {
+      await navigator.clipboard.writeText(userId.toString());
+      // TODO: Show success toast
+    } catch (error) {
+      console.error("Failed to copy user ID:", error);
+      // TODO: Show error toast
+    }
+  };
+
+  const handleToggleTeamActive = async (teamId: string, currentStatus: boolean) => {
+    try {
+      await toggleTeamActiveMutation.mutateAsync({
+        teamId,
+        isActive: !currentStatus,
+      });
+    } catch (error) {
+      console.error("Toggle team active failed:", error);
+      // TODO: Show error toast
+    }
+  };
+
   // Filtered teams with loading and error handling
+  console.log("teams => ", teams);
   const filteredTeams = useMemo(() => {
     if (!teams) return [];
     return teams.filter(
@@ -261,8 +296,12 @@ const TeamManagement = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">팀 관리</h2>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">팀을 생성하고 팀원을 관리하세요</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+            팀 관리
+          </h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
+            팀을 생성하고 팀원을 관리하세요
+          </p>
         </div>
         <button
           onClick={handleCreateTeam}
@@ -303,28 +342,50 @@ const TeamManagement = () => {
                   </p>
                 </div>
               </div>
-              <div className="flex space-x-1">
-                <button
-                  onClick={() => handleEditTeam(team)}
-                  className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                  title="팀 정보 수정"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleManageMembers(team)}
-                  className="p-1 text-gray-400 hover:text-primary transition-colors"
-                  title="팀원 관리"
-                >
-                  <Settings className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleDeleteTeamClick(team)}
-                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                  title="팀 삭제"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+              <div className="flex items-center space-x-2">
+                {/* Toggle Switch */}
+                <div className="flex items-center space-x-2">
+                  <span className={`text-xs font-medium ${team.is_active ? 'text-green-600' : 'text-gray-400'}`}>
+                    {team.is_active ? '활성' : '비활성'}
+                  </span>
+                  <button
+                    onClick={() => handleToggleTeamActive(team.id, team.is_active ?? true)}
+                    disabled={toggleTeamActiveMutation.isPending}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      team.is_active ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
+                    title={team.is_active ? "팀 비활성화" : "팀 활성화"}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        team.is_active ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                <div className="flex space-x-1 border-l pl-2">
+                  <button
+                    onClick={() => handleEditTeam(team)}
+                    className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="팀 정보 수정"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleManageMembers(team)}
+                    className="p-1 text-gray-400 hover:text-primary transition-colors"
+                    title="팀원 관리"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTeamClick(team)}
+                    className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                    title="팀 삭제"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -481,13 +542,37 @@ const TeamManagement = () => {
 
             {/* Manage Members Modal */}
             {activeModal === ModalType.MANAGE_MEMBERS && selectedTeam && (
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  팀원 관리 - {selectedTeam.name}
-                </h3>
+              <>
+                {/* Modal Header - Fixed */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    팀원 관리 - {selectedTeam.name}
+                  </h3>
+                  <button
+                    onClick={closeModal}
+                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors rounded-lg hover:bg-gray-100"
+                    title="닫기"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
 
-                {/* Add Member Form */}
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                {/* Modal Content - Scrollable */}
+                <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 80px)' }}>
+                  {/* Add Member Form */}
+                  <div className="bg-gray-50 rounded-lg p-4 mb-6">
                   <h4 className="text-sm font-medium text-gray-700 mb-3">
                     새 팀원 추가
                   </h4>
@@ -606,18 +691,30 @@ const TeamManagement = () => {
                           key={member.id}
                           className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg"
                         >
-                          <div className="flex items-center space-x-3">
-                            <UserCheck className="h-4 w-4 text-gray-400" />
-                            <div>
+                          <div className="flex items-center space-x-3 flex-1">
+                            <UserCheck className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900">
                                 {member.users?.name || "이름 없음"}
                               </p>
                               <p className="text-xs text-gray-500">
                                 {member.users?.email || "이메일 없음"}
                               </p>
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-xs text-gray-400">
+                                  ID: {member.users?.id || member.user_id}
+                                </span>
+                                <button
+                                  onClick={() => handleCopyUserId(member.users?.id || member.user_id)}
+                                  className="p-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+                                  title="User ID 복사"
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </button>
+                              </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 flex-shrink-0">
                             <select
                               value={member.role as string}
                               onChange={(e) =>
@@ -648,16 +745,8 @@ const TeamManagement = () => {
                     </p>
                   )}
                 </div>
-
-                <div className="flex justify-end mt-6">
-                  <button
-                    onClick={closeModal}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    닫기
-                  </button>
                 </div>
-              </div>
+              </>
             )}
 
             {/* Delete Team Modal */}

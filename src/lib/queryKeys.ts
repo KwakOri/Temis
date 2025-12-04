@@ -87,6 +87,8 @@ export const queryKeys = {
       [...queryKeys.admin.all, "priceOptions", category] as const,
     adminOptions: (category?: string) =>
       [...queryKeys.admin.all, "adminOptions", category] as const,
+    teamTemplates: () => [...queryKeys.admin.all, "teamTemplates"] as const,
+    teams: () => [...queryKeys.admin.all, "teams"] as const,
   },
   adminOptions: {
     all: ["adminOptions"] as const,

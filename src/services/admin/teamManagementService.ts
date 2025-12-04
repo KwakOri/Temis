@@ -1,6 +1,12 @@
 import { Team, TeamMember, TeamMemberWithUser, TeamWithMembers } from "@/types/team-timetable";
 import { Tables } from "@/types/supabase";
 
+// API 응답 타입 정의
+interface GetAllTeamsResponse {
+  success: boolean;
+  teams: TeamWithMembers[];
+}
+
 export interface CreateTeamRequest {
   name: string;
   description?: string;
@@ -36,7 +42,8 @@ export class TeamManagementService {
       throw new Error(errorData.error || "팀 목록을 가져올 수 없습니다.");
     }
 
-    return response.json();
+    const data: GetAllTeamsResponse = await response.json();
+    return data.teams || [];
   }
 
   /**
@@ -224,6 +231,30 @@ export class TeamManagementService {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       throw new Error(errorData.error || "사용자 검색에 실패했습니다.");
+    }
+
+    return response.json();
+  }
+
+  /**
+   * 팀 활성화 상태 토글
+   */
+  static async toggleTeamActive(
+    teamId: string,
+    isActive: boolean
+  ): Promise<Team> {
+    const response = await fetch(`${this.baseUrl}/teams/${teamId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ is_active: isActive }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "팀 활성화 상태 변경에 실패했습니다.");
     }
 
     return response.json();
