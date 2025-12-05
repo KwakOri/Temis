@@ -110,6 +110,12 @@ export default function Home() {
               </p>
             </Link>
 
+            <Link href="/portfolio">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                포트폴리오
+              </p>
+            </Link>
+
             <button
               onClick={handleCustomOrderClick}
               disabled={isLoadingAdminOptions}
@@ -198,6 +204,29 @@ export default function Home() {
                       />
                     </svg>
                     <span className="font-medium">템플릿 상점</span>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/portfolio"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      />
+                    </svg>
+                    <span className="font-medium">포트폴리오</span>
                   </div>
                 </Link>
 

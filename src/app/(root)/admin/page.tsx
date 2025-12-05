@@ -4,7 +4,7 @@ import AccessManagement from "@/components/admin/AccessManagement";
 import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
 import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
-
+import PortfolioManagement from "@/components/admin/PortfolioManagement";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
 import SettingsManagement from "@/components/admin/SettingsManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
@@ -17,6 +17,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertTriangle,
   ArrowLeft,
+  Briefcase,
   Calendar,
   CreditCard,
   FileText,
@@ -43,6 +44,7 @@ type TabType =
   | "purchases"
   | "customOrders"
   | "workCalendar"
+  | "portfolios"
   | "settings";
 
 function AdminContent() {
@@ -104,6 +106,7 @@ function AdminContent() {
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
     { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
     { id: "thumbnails" as TabType, name: "썸네일 관리", icon: Image },
+    { id: "portfolios" as TabType, name: "포트폴리오 관리", icon: Briefcase },
     { id: "users" as TabType, name: "사용자 관리", icon: Users },
     { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
     { id: "teamTemplates" as TabType, name: "팀 템플릿", icon: FileText },
@@ -230,6 +233,7 @@ function AdminContent() {
         {activeTab === "purchases" && <PurchaseManagement />}
         {activeTab === "templates" && <TemplateManagement />}
         {activeTab === "thumbnails" && <ThumbnailManagement />}
+        {activeTab === "portfolios" && <PortfolioManagement />}
         {activeTab === "access" && <AccessManagement />}
         {activeTab === "users" && <UserManagement />}
         {activeTab === "teams" && <TeamManagement />}
