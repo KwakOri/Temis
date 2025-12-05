@@ -492,9 +492,25 @@ const MyPageContent = () => {
                                 className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
                               >
                                 {/* Team Template Thumbnail */}
-                                <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 rounded-t-lg overflow-hidden flex items-center justify-center">
+                                <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 rounded-t-lg overflow-hidden flex items-center justify-center relative">
+                                  <img
+                                    src={`/team-thumbnails/${team.team_template!.id}.png`}
+                                    alt={team.team_template!.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      // 이미지 로드 실패 시 기본 SVG 표시
+                                      e.currentTarget.style.display = "none";
+                                      const svg =
+                                        e.currentTarget.nextElementSibling;
+                                      if (svg) {
+                                        (svg as HTMLElement).style.display =
+                                          "block";
+                                      }
+                                    }}
+                                  />
                                   <svg
-                                    className="h-16 w-16 text-purple-400"
+                                    className="h-16 w-16 text-purple-400 absolute"
+                                    style={{ display: "none" }}
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"

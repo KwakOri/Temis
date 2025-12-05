@@ -103,9 +103,19 @@ export function useSaveTeamScheduleFromDynamicCards() {
         );
       }
 
+      // ImageSaveModal에서 사용하는 쿼리 무효화 (["userSchedule", weekStartDate] 형식)
+      queryClient.invalidateQueries({
+        queryKey: ["userSchedule", data.week_start_date],
+      });
+
       // 모든 팀 관련 쿼리 무효화 (teamId가 없는 경우를 대비)
       queryClient.invalidateQueries({
         queryKey: queryKeys.team.all,
+      });
+
+      // 일반적인 userSchedule 쿼리도 무효화
+      queryClient.invalidateQueries({
+        queryKey: ["userSchedule"],
       });
     },
     onError: (error: Error) => {
