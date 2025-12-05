@@ -70,7 +70,7 @@ const TimeTableForm = ({
 
   // 사용자가 활성화된 팀에 속해있는지 확인
   const { data: isTeam = false } = useHasActiveTeam();
-  console.log("isTeam => ", isTeam);
+
   const saveTeamScheduleMutation = useSaveTeamScheduleFromDynamicCards();
 
   // 현재 경로에서 template ID 추출하고 팀 템플릿인지 확인
@@ -246,8 +246,6 @@ const TimeTableForm = ({
           weekStartDate,
           dynamicCards: teamData,
         });
-
-        console.log("팀 시간표 자동 저장 완료");
       } catch (error) {
         console.error("팀 시간표 자동 저장 실패:", error);
         // 이미지는 저장되었으므로 에러를 사용자에게 알리지만 중단하지 않음

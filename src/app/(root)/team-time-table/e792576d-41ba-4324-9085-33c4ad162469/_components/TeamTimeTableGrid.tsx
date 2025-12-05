@@ -15,8 +15,6 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
   weekDates,
   currentTheme,
 }) => {
-  console.log("team_data => ", data);
-  console.log("weekDates => ", weekDates);
   return (
     <div
       className="absolute flex flex-col z-20"

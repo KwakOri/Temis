@@ -32,11 +32,6 @@ export default function PWAInstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handler);
 
-    // 이미 설치된 경우 체크
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      console.log("PWA가 이미 설치되어 있습니다.");
-    }
-
     return () => {
       window.removeEventListener("beforeinstallprompt", handler);
     };
@@ -48,12 +43,6 @@ export default function PWAInstallPrompt() {
     try {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
-
-      if (outcome === "accepted") {
-        console.log("PWA 설치됨");
-      } else {
-        console.log("PWA 설치 거부됨");
-      }
 
       setDeferredPrompt(null);
       setShowInstallPrompt(false);

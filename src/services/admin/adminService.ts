@@ -7,8 +7,6 @@ export class AdminService {
       credentials: "include",
     });
 
-    console.log("response => ", response);
-
     if (response.status === 403) {
       return { isAdmin: false };
     } else if (response.ok) {

@@ -252,7 +252,6 @@ const TeamManagement = () => {
   };
 
   // Filtered teams with loading and error handling
-  console.log("teams => ", teams);
   const filteredTeams = useMemo(() => {
     if (!teams) return [];
     return teams.filter(

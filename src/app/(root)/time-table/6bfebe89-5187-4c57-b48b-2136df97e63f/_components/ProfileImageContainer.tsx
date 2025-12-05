@@ -146,7 +146,6 @@ const ProfileText = ({
 
 const ProfileMemo = () => {
   const { isMemoTextVisible, memoText } = useTimeTableData();
-  console.log("isMemoTextVisible =>", isMemoTextVisible);
   return (
     <>
       {isMemoTextVisible && (

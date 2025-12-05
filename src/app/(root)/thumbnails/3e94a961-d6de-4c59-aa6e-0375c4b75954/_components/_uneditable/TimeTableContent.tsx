@@ -25,7 +25,6 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   const info = data.entries?.[0];
   const [year, month, date] = info?.date?.toString().split("-") || ["", "", ""];
   const asmrType = data.entries[0].category as "3DIO" | "YETI" | "none";
-  console.log(asmrType);
 
   if (weekDates.length === 0) return null;
 

@@ -43,7 +43,6 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
     setIsLoading(true);
     setError("");
 
-    console.log("formData => ", formData);
     try {
       const result = await login(formData.email, formData.password);
 
