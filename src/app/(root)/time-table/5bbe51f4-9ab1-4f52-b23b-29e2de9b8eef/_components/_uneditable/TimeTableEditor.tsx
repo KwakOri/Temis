@@ -54,6 +54,7 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
+          teamData={data}
           isArtist={true}
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
