@@ -21,7 +21,6 @@ export class AdminThumbnailService {
     if (params?.offset) queryParams.append("offset", params.offset.toString());
 
     const url = `${this.baseUrl}/thumbnails${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    console.log("Fetching thumbnails from:", url);
 
     const response = await fetch(url);
 

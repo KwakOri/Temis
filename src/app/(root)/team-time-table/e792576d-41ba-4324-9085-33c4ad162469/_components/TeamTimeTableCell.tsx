@@ -282,16 +282,18 @@ const ScheduleCard = ({ schedule, themeColor }: ScheduleCardProps) => {
           <div
             className=" absolute flex justify-center items-center"
             style={{ ...timeDivStyle }}
-          ></div>
-          <AutoResizeText
-            style={{
-              ...timeTextStyle,
-
-              color: themeColor.secondary,
-            }}
           >
-            {primarySchedule.isGuerrilla ? "게릴라" : primarySchedule.time}
-          </AutoResizeText>
+            <AutoResizeText
+              style={{
+                ...timeTextStyle,
+
+                color: themeColor.secondary,
+              }}
+            >
+              {primarySchedule.isGuerrilla ? "게릴라" : primarySchedule.time}
+            </AutoResizeText>
+          </div>
+
           <img
             className="absolute inset-0 -z-10"
             src={Imgs["first"]["online"].src}

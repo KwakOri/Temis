@@ -50,8 +50,6 @@ function AdminContent() {
   const [activeTab, setActiveTab] = useState<TabType>("workCalendar");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  console.log(user);
-
   // React Query로 관리자 권한 확인
   // const {
   //   data: permissionData,

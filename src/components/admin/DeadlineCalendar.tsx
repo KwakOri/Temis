@@ -57,10 +57,6 @@ export const DeadlineCalendarView = () => {
   const orders = customOrdersResponse?.orders || [];
   const legacyOrders = legacyOrdersResponse?.orders || [];
 
-  console.log("customOrdersResponse => ", customOrdersResponse);
-  console.log("orders => ", orders);
-  console.log("unscheduledCustomOrders => ", unscheduledCustomOrders);
-
   const loading = loadingCustomCalendar || loadingLegacyCalendar || loadingAllCustomOrders;
 
   // 긴급 작업 계산 (3일 이내) - 완료된 작업과 취소된 작업 제외
@@ -477,7 +473,6 @@ export const DeadlineCalendarView = () => {
                   </div>
                   <div className="mt-1 space-y-1">
                     {allDayOrders.slice(0, 3).map((order) => {
-                      console.log("current_order => ", order);
                       const isLegacy = !("users" in order);
                       const isCustomOrder = "users" in order;
 

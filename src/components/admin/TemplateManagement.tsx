@@ -74,9 +74,6 @@ export default function TemplateManagement() {
     offset: (currentPage - 1) * ITEMS_PER_PAGE,
   });
 
-  console.log("templatesData => ", templatesData);
-  console.log("templatesError => ", templatesError);
-
   const templates = templatesData?.templates || [];
   const pagination = templatesData?.pagination;
 

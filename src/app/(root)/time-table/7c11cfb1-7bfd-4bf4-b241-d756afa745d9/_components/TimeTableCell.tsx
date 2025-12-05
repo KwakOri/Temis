@@ -230,8 +230,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const entryMainTitle = (primaryEntry.mainTitle as string) || "";
   const entrySubTitle = (primaryEntry.subTitle as string) || "";
 
-  console.log("primaryEntry", primaryEntry);
-
   return (
     <div
       style={{

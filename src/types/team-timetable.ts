@@ -117,24 +117,22 @@ export function convertDynamicCardsToTeamTimeTableData(
   return dynamicCards.map((card) => ({
     day: card.day,
     isOffline: card.isOffline,
-    entries: card.entries
-      .map((entry) => {
-        // time과 mainTitle은 이제 필수 속성이므로 직접 접근 가능
-        const time = entry.time || "";
-        const mainTitle =
-          entry.mainTitle ||
-          (entry.title as string) ||
-          (entry.subject as string) ||
-          (entry.content as string) ||
-          "";
+    entries: card.entries.map((entry) => {
+      // time과 mainTitle은 이제 필수 속성이므로 직접 접근 가능
+      const time = entry.time || "";
+      const mainTitle =
+        entry.mainTitle ||
+        (entry.title as string) ||
+        (entry.subject as string) ||
+        (entry.content as string) ||
+        "";
 
-        return {
-          time,
-          mainTitle,
-          isGuerrilla: entry.isGuerrilla || false, // isGuerrilla 속성 포함
-        };
-      })
-      .filter((entry) => entry.time && entry.mainTitle), // Filter out empty entries
+      return {
+        time,
+        mainTitle,
+        isGuerrilla: entry.isGuerrilla || false, // isGuerrilla 속성 포함
+      };
+    }),
   })) as TeamTimeTableWeekData;
 }
 
