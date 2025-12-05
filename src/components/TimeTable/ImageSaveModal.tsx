@@ -41,6 +41,11 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
   const originalWidth = templateSize?.width || 1280;
   const originalHeight = templateSize?.height || 720;
 
+  // 저장 완료 상태 추가
+  const [saveCompleted, setSaveCompleted] = useState(false);
+  // 저장 중 상태 추가
+  const [isSaving, setIsSaving] = useState(false);
+
   // 주차 계산
   const weekDates = useMemo(() => {
     if (!mondayDateStr) return null;
@@ -275,13 +280,34 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
     sizeOptions[0]
   );
 
-  const handleSave = () => {
-    onSave(selectedOption.width, selectedOption.height);
-    onClose();
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // 저장 콜백 실행
+      await onSave(selectedOption.width, selectedOption.height);
+
+      // 팀 시간표 저장이 포함된 경우 저장 완료 상태로 전환
+      if (isTeam && !isTeamCalendar) {
+        setSaveCompleted(true);
+      } else {
+        // 팀 시간표가 아닌 경우 바로 모달 닫기
+        onClose();
+      }
+    } catch (error) {
+      console.error("저장 중 오류 발생:", error);
+      alert("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleClose = () => {
+    // 저장 중일 때는 모달을 닫을 수 없음
+    if (isSaving) return;
+
     setSelectedOption(sizeOptions[0]); // 첫 번째 옵션으로 리셋
+    setSaveCompleted(false); // 저장 완료 상태 초기화
+    setIsSaving(false); // 저장 중 상태 초기화
     onClose();
   };
 
@@ -303,10 +329,17 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
       <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
         {/* 모달 헤더 */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">시간표 저장</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            {isSaving
+              ? "저장 중..."
+              : saveCompleted
+                ? "저장 완료"
+                : "시간표 저장"}
+          </h2>
           <button
             onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            disabled={isSaving}
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg
               className="w-6 h-6"
@@ -324,25 +357,82 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
           </button>
         </div>
 
-        {isTeam && !isTeamCalendar && (
-          <div className="px-8 pt-4 flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <CalendarDays color={"#3E4A82"} strokeWidth={2.5} />
-              <p className="text-sm font-medium text-[#3E4A82]">
-                팀 시간표 저장
+        {isSaving ? (
+          // 저장 중 상태 - 로딩 스피너 표시
+          <div className="px-8 pt-6 pb-4 flex flex-col gap-4 items-center">
+            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3E4A82]"></div>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                저장 중입니다...
+              </h3>
+              <p className="text-sm text-gray-600">
+                {isTeam && !isTeamCalendar
+                  ? "이미지와 팀 시간표를 저장하고 있습니다."
+                  : "이미지를 저장하고 있습니다."}
               </p>
             </div>
-
-            <p className="text-xs text-[#3E4A82]">
-              이미지 저장과 함께 현재 주차의 팀 시간표도 함께 저장됩니다. 주차
-              정보를 확인하세요.
-            </p>
           </div>
+        ) : saveCompleted ? (
+          // 저장 완료 상태 - 성공 메시지 표시
+          <div className="px-8 pt-6 flex flex-col gap-4 items-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+              <svg
+                className="w-8 h-8 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                저장이 완료되었습니다!
+              </h3>
+              <p className="text-sm text-gray-600">
+                이미지와 팀 시간표가 성공적으로 저장되었습니다.
+              </p>
+            </div>
+          </div>
+        ) : (
+          isTeam &&
+          !isTeamCalendar && (
+            <div className="px-8 pt-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <CalendarDays color={"#3E4A82"} strokeWidth={2.5} />
+                <p className="text-sm font-medium text-[#3E4A82]">
+                  팀 시간표 저장
+                </p>
+              </div>
+
+              <p className="text-xs text-[#3E4A82]">
+                이미지 저장과 함께 현재 주차의 팀 시간표도 함께 저장됩니다.
+                주차 정보를 확인하세요.
+              </p>
+            </div>
+          )
         )}
 
         {/* 주차별 저장 상태 칩 (isTeam이 true이고 isTeamCalendar가 false일 때만 표시) */}
-        {isTeam && !isTeamCalendar && weekChips.length > 0 && (
+        {isTeam && !isTeamCalendar && weekChips.length > 0 && !isSaving && (
           <div className="px-6 pt-4 pb-2">
+            {saveCompleted && (
+              <div className="mb-3">
+                <p className="text-sm font-semibold text-gray-800">
+                  주차별 저장 상태
+                </p>
+                <p className="text-xs text-gray-600 mt-1">
+                  업데이트된 저장 상태를 확인하세요.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-2">
               {weekChips.map((chip, index) => (
                 <div
@@ -427,27 +517,31 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
           </div>
         )}
 
-        {/* 모달 내용 */}
-        <div className="px-8 pt-4 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <ImageDown color={"#3E4A82"} strokeWidth={2.5} />
-            <p className="text-sm font-medium text-[#3E4A82]">이미지 저장</p>
-          </div>
+        {/* 모달 내용 - 저장 완료 상태나 저장 중 상태가 아닐 때만 표시 */}
+        {!saveCompleted && !isSaving && (
+          <>
+            <div className="px-8 pt-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <ImageDown color={"#3E4A82"} strokeWidth={2.5} />
+                <p className="text-sm font-medium text-[#3E4A82]">
+                  이미지 저장
+                </p>
+              </div>
 
-          <p className="text-xs text-[#3E4A82]">
-            저장할 이미지의 해상도를 선택하세요. 모든 크기는 16:9 비율로
-            표준화됩니다.
-          </p>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6">
-          {/* 크기 선택 옵션 */}
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              {sizeOptions.map((option) => (
-                <button
-                  key={option.key}
-                  onClick={() => setSelectedOption(option)}
-                  className={`
+              <p className="text-xs text-[#3E4A82]">
+                저장할 이미지의 해상도를 선택하세요. 모든 크기는 16:9 비율로
+                표준화됩니다.
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              {/* 크기 선택 옵션 */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {sizeOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => setSelectedOption(option)}
+                      className={`
                   w-full p-4 rounded-lg border-2 transition-all duration-200 text-left font-medium
                   ${
                     selectedOption.key === option.key
@@ -455,47 +549,77 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
                       : "border-gray-200 hover:border-gray-300 text-gray-700"
                   }
                 `}
-                >
-                  <div className="text-lg font-bold">{option.label}</div>
-                  <div className="text-sm text-gray-500">
-                    {option.width}×{option.height}px
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
+                    >
+                      <div className="text-lg font-bold">{option.label}</div>
+                      <div className="text-sm text-gray-500">
+                        {option.width}×{option.height}px
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* 선택된 크기 정보 */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">선택된 크기:</span>
-              <span className="font-semibold text-gray-900">
-                {selectedOption.label}
-              </span>
+              {/* 선택된 크기 정보 */}
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">선택된 크기:</span>
+                  <span className="font-semibold text-gray-900">
+                    {selectedOption.label}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-sm text-gray-600">해상도:</span>
+                  <span className="font-semibold text-gray-900">
+                    {selectedOption.width}×{selectedOption.height}px
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-sm text-gray-600">해상도:</span>
-              <span className="font-semibold text-gray-900">
-                {selectedOption.width}×{selectedOption.height}px
-              </span>
-            </div>
-          </div>
-        </div>
+          </>
+        )}
 
         {/* 모달 푸터 */}
         <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            취소
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-6 py-2 bg-[#3E4A82] text-white rounded-lg brightness-100 hover:brightness-90 transition-all font-medium"
-          >
-            저장하기
-          </button>
+          {isSaving ? (
+            // 저장 중 상태 - 버튼 비활성화
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3E4A82]"></div>
+              <span className="text-sm text-gray-600">저장 중...</span>
+            </div>
+          ) : saveCompleted ? (
+            // 저장 완료 상태 - 확인 버튼만 표시
+            <button
+              onClick={handleClose}
+              className="px-6 py-2 bg-[#3E4A82] text-white rounded-lg brightness-100 hover:brightness-90 transition-all font-medium"
+            >
+              확인
+            </button>
+          ) : (
+            // 일반 상태 - 취소/저장 버튼 표시
+            <>
+              <button
+                onClick={handleClose}
+                disabled={isSaving}
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="px-6 py-2 bg-[#3E4A82] text-white rounded-lg brightness-100 hover:brightness-90 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    저장 중...
+                  </>
+                ) : (
+                  "저장하기"
+                )}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

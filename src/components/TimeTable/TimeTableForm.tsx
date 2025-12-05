@@ -233,23 +233,28 @@ const TimeTableForm = ({
   };
 
   const handleImageSave = async (width: number, height: number) => {
-    // 이미지 다운로드
-    downloadImage(width, height);
+    try {
+      // 이미지 다운로드
+      downloadImage(width, height);
 
-    // 활성화된 팀이 있고 팀 캘린더가 아닐 때만 자동으로 팀 시간표에도 저장
-    if (isTeam && !isTeamCalendar && saveable && teamData) {
-      try {
+      // 활성화된 팀이 있고 팀 캘린더가 아닐 때만 자동으로 팀 시간표에도 저장
+      if (isTeam && !isTeamCalendar && saveable && teamData) {
         const weekStartDate =
           TeamService.getWeekStartDateFromString(mondayDateStr);
 
+        // 팀 시간표 저장 - mutation 완료까지 대기
         await saveTeamScheduleMutation.mutateAsync({
           weekStartDate,
           dynamicCards: teamData,
         });
-      } catch (error) {
-        console.error("팀 시간표 자동 저장 실패:", error);
-        // 이미지는 저장되었으므로 에러를 사용자에게 알리지만 중단하지 않음
+
+        // 저장 완료 후 잠시 대기하여 캐시 무효화가 완료되도록 함
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
+    } catch (error) {
+      console.error("팀 시간표 자동 저장 실패:", error);
+      // 에러를 다시 던져서 ImageSaveModal에서 처리할 수 있도록 함
+      throw error;
     }
   };
 
