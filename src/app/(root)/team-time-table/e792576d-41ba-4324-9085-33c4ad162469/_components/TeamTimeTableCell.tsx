@@ -245,6 +245,7 @@ const ScheduleCard = ({ schedule, themeColor }: ScheduleCardProps) => {
             style={{ ...timeDivStyle }}
           >
             <AutoResizeText
+              maxFontSize={40}
               style={{
                 ...timeTextStyle,
 
@@ -284,6 +285,7 @@ const ScheduleCard = ({ schedule, themeColor }: ScheduleCardProps) => {
             style={{ ...timeDivStyle }}
           >
             <AutoResizeText
+              maxFontSize={40}
               style={{
                 ...timeTextStyle,
 
