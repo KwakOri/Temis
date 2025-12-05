@@ -333,8 +333,8 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
             {isSaving
               ? "저장 중..."
               : saveCompleted
-                ? "저장 완료"
-                : "시간표 저장"}
+              ? "저장 완료"
+              : "시간표 저장"}
           </h2>
           <button
             onClick={handleClose}
@@ -413,8 +413,8 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
               </div>
 
               <p className="text-xs text-[#3E4A82]">
-                이미지 저장과 함께 현재 주차의 팀 시간표도 함께 저장됩니다.
-                주차 정보를 확인하세요.
+                이미지 저장과 함께 현재 주차의 팀 시간표도 함께 저장됩니다. 주차
+                정보를 확인하세요.
               </p>
             </div>
           )
