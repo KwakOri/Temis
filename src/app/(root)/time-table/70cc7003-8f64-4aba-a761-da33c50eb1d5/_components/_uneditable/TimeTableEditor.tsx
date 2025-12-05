@@ -34,9 +34,6 @@ const TimeTableEditorContent: React.FC = () => {
       captureSize: templateSize,
     });
 
-  // console.log("CARD_INPUT_CONFIG => ", CARD_INPUT_CONFIG);
-  // console.log("data => ", data);
-
   // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
   if (!isInitialized || state.weekDates.length === 0) return <Loading />;
 

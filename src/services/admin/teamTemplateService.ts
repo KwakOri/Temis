@@ -41,7 +41,6 @@ export class AdminTeamTemplateService {
     if (params?.offset) queryParams.append("offset", params.offset.toString());
 
     const url = `${this.baseUrl}/team-templates${queryParams.toString() ? `?${queryParams.toString()}` : ""}`;
-    console.log("Fetching team templates from:", url);
 
     const response = await fetch(url);
 

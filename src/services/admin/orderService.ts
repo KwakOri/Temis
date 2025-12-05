@@ -69,7 +69,6 @@ export class AdminOrderService {
     }
 
     const data = await response.json();
-    console.log("response => ", data);
 
     return data;
   }
@@ -87,7 +86,6 @@ export class AdminOrderService {
     }
 
     const data = await response.json();
-    console.log("legacy response => ", data);
 
     return data;
   }

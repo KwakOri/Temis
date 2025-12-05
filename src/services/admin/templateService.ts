@@ -29,7 +29,6 @@ export class AdminTemplateService {
     if (params?.offset) queryParams.append("offset", params.offset.toString());
 
     const url = `${this.baseUrl}/templates${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-    console.log("Fetching templates from:", url);
 
     const response = await fetch(url);
 
