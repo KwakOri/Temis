@@ -27,11 +27,11 @@
     "jszip": "^3.10.1",
     "lucide-react": "^0.541.0",
     "modern-screenshot": "^4.6.5",
-    "next": "^15.4.5",
+    "next": "^15.4.8",
     "next-pwa": "^5.6.0",
     "nodemailer": "^7.0.5",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
+    "react": "^19.1.2",
+    "react-dom": "^19.1.2",
     "react-easy-crop": "^5.5.0",
     "react-time-picker": "^7.0.0",
     "uuid": "^11.1.0"
@@ -45,7 +45,7 @@
     "@types/react": "^19.1.9",
     "@types/react-dom": "^19.1.7",
     "eslint": "^9.32.0",
-    "eslint-config-next": "^15.4.5",
+    "eslint-config-next": "^15.4.8",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
