@@ -240,26 +240,28 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       key={time.day}
       className="flex flex-col items-center justify-center"
     >
-      <CellContentArea>
-        <div
-          style={{
-            color: colors[currentTheme || "first"]["primary"],
-            fontSize: 40,
-          }}
-          className="flex gap-2 items-center justify-center w-full mt-34"
-        >
-          <StreamingDate date={weekDate.getDate()} />
-          <StreamingDay day={time.day} />
-        </div>
+      {time.isOffline || (
+        <CellContentArea>
+          <div
+            style={{
+              color: colors[currentTheme || "first"]["primary"],
+              fontSize: 40,
+            }}
+            className="flex gap-2 items-center justify-center w-full mt-34"
+          >
+            <StreamingDate date={weekDate.getDate()} />
+            <StreamingDay day={time.day} />
+          </div>
 
-        <CellTextTitle cellTextTitle={entrySubTitle} />
-        <CellTextMainTitle mainTitle={entryMainTitle} />
+          <CellTextTitle cellTextTitle={entrySubTitle} />
+          <CellTextMainTitle mainTitle={entryMainTitle} />
 
-        <StreamingTime
-          isGuerrilla={primaryEntry.isGuerrilla}
-          time={entryTime}
-        />
-      </CellContentArea>
+          <StreamingTime
+            isGuerrilla={primaryEntry.isGuerrilla}
+            time={entryTime}
+          />
+        </CellContentArea>
+      )}
       <CardBG isOffline={time.isOffline} day={time.day} />
     </div>
   );
