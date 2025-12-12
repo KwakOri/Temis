@@ -45,8 +45,8 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
             <TimeTableCell
               time={time}
               currentTheme={currentTheme}
-              weekDate={weekDates[i]}
-              index={i}
+              weekDate={weekDates[i + 3]}
+              index={i + 3}
             />
           </Fragment>
         ))}
