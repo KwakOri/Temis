@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") || "all";
     const page = parseInt(searchParams.get("page") || "1");
-    const limit = 9; // 한 페이지당 9개
+    const limit = parseInt(searchParams.get("limit") || "9"); // 기본 9개, 파라미터로 변경 가능
 
     // 모든 포트폴리오 조회
     let portfolios = await getAllPortfolios();

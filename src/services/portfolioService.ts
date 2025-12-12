@@ -3,6 +3,7 @@ import { Portfolio } from "@/types/portfolio";
 export interface GetPortfoliosParams {
   category?: string;
   page?: number;
+  limit?: number;
 }
 
 export interface GetPortfoliosResponse {
@@ -31,12 +32,16 @@ export class PortfolioService {
   static async getPortfolios(
     params: GetPortfoliosParams = {}
   ): Promise<GetPortfoliosResponse> {
-    const { category = "all", page = 1 } = params;
+    const { category = "all", page = 1, limit } = params;
 
     const searchParams = new URLSearchParams({
       category,
       page: page.toString(),
     });
+
+    if (limit) {
+      searchParams.set("limit", limit.toString());
+    }
 
     const response = await fetch(`/api/portfolios?${searchParams.toString()}`);
 

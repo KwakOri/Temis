@@ -21,6 +21,8 @@
     "@use-gesture/react": "^10.3.1",
     "@vercel/analytics": "^1.5.0",
     "bcryptjs": "^3.0.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "html-to-image": "^1.11.13",
     "jose": "^6.0.12",
     "jsonwebtoken": "^9.0.2",
@@ -34,6 +36,7 @@
     "react-dom": "^19.1.2",
     "react-easy-crop": "^5.5.0",
     "react-time-picker": "^7.0.0",
+    "tailwind-merge": "^3.4.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
