@@ -95,7 +95,8 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
       }}
       className=" absolute flex justify-start items-center "
     >
-      {date.getFullYear()}/{padZero(date.getMonth())}/{padZero(date.getDate())}
+      {date.getFullYear()}/{padZero(date.getMonth() + 1)}/
+      {padZero(date.getDate())}
     </p>
   );
 };
