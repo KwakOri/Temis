@@ -1,0 +1,58 @@
+import React, { Fragment } from "react";
+
+import { TDefaultCard } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import TimeTableCell from "./TimeTableCell";
+
+interface TimeTableGridProps {
+  data: TDefaultCard[];
+  weekDates: Date[];
+  currentTheme: TTheme;
+}
+
+const TimeTableGrid: React.FC<TimeTableGridProps> = ({
+  data,
+  weekDates,
+  currentTheme,
+}) => {
+  const top = data.slice(0, 3);
+  const bottom = data.slice(3);
+
+  return (
+    <div
+      className="absolute flex flex-col items-center z-20"
+      style={{
+        gap: 52,
+        left: 222,
+        top: 680,
+      }}
+    >
+      <div className="flex gap-9">
+        {top.map((time, i) => (
+          <Fragment key={time.day}>
+            <TimeTableCell
+              time={time}
+              currentTheme={currentTheme}
+              weekDate={weekDates[i]}
+              index={i}
+            />
+          </Fragment>
+        ))}
+      </div>
+      <div className="flex gap-9">
+        {bottom.map((time, i) => (
+          <Fragment key={time.day}>
+            <TimeTableCell
+              time={time}
+              currentTheme={currentTheme}
+              weekDate={weekDates[i]}
+              index={i}
+            />
+          </Fragment>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default TimeTableGrid;
