@@ -135,7 +135,7 @@ const ProfileText = ({
           className="text-center"
           maxFontSize={40}
         >
-          {profileText ? profileText : profileTextPlaceholder}
+          {profileText ? "@" + profileText : profileTextPlaceholder}
         </AutoResizeText>
       </div>
     </div>
