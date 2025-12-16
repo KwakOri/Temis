@@ -31,7 +31,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
         rowGap: 8,
       }}
     >
-      {data.slice(0, 4).map((time, i) => (
+      {data.map((time, i) => (
         <Fragment key={time.day}>
           <TimeTableCell
             time={time}
@@ -101,21 +101,6 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
             ))}
         </Fragment>
       ))}
-      <div
-        style={{ height: Settings.card.online.height }}
-        className="col-start-1 row-start-3 col-span-3 flex justify-center items-center bg-black/20 rounded-xl"
-      >
-        <p
-          style={{
-            fontFamily: fontOption.primary,
-            color: colors.first.primary,
-            fontWeight: 700,
-            fontSize: 100,
-          }}
-        >
-          PLAYGROUND에서는 일부 요일만 표시됩니다
-        </p>
-      </div>
     </div>
   );
 };

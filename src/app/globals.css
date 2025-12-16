@@ -8,6 +8,15 @@
   --color-quaternary: #3a466e;
   --color-holiday: #8a3747;
   --color-dark-gray: #2d2d2d;
+
+  /* TimeTable 전용 색상 */
+  --color-timetable-primary: #FD9319;
+  --color-timetable-primary-hover: #E58615;
+  --color-timetable-card-bg: #F8F3F0;
+  --color-timetable-card-border: #EFE8E3;
+  --color-timetable-input-bg: #EDE5DD;
+  --color-timetable-input-hover: #E0D8D0;
+  --color-timetable-form-bg: #F5F0ED;
 }
 
 .scrollbar-hidden::-webkit-scrollbar {

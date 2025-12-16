@@ -1,8 +1,5 @@
 import ImageCropModal from "@/components/ImageCropModal";
 import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
-import MondaySelector from "@/components/TimeTable/MondaySelector";
-import ResetButton from "@/components/TimeTable/ResetButton";
-import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import {
   useHasActiveTeam,
@@ -16,10 +13,13 @@ import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
 import { Point } from "react-easy-crop";
-import { FormCard } from "./FixedComponents/FormCard";
-import { cardVariants } from "./FixedComponents/styles";
-import TextRenderer from "./fieldRenderer/TextRenderer";
-import TextareaRenderer from "./fieldRenderer/TextareaRenderer";
+
+import TextRenderer from "../../../../components/TimeTable/fieldRenderer/TextRenderer";
+import TextareaRenderer from "../../../../components/TimeTable/fieldRenderer/TextareaRenderer";
+import { SampleFormCard } from "./SampleFormCard";
+import SampleMondaySelector from "./SampleMondaySelector";
+import SampleTimeTableControls from "./SampleTimeTableControls";
+import { cardVariants } from "./styles";
 interface TimeTableFormProps {
   isArtist?: boolean;
   isMemo?: boolean;
@@ -57,7 +57,7 @@ const ProfileOptionButton = ({
   );
 };
 
-const TimeTableForm = ({
+const TimeTableSampleForm = ({
   addons,
   children,
   onReset,
@@ -291,21 +291,27 @@ const TimeTableForm = ({
   const handleToggleMemo = () => handleOptionClick("memo", multiSelect);
 
   const renderMainSettings = () => (
-    <div className="space-y-6">
+    <div className="">
       {/* 프로필 섹션 */}
-      <div className="space-y-2">
+
+      <div className="grid grid-cols-3 gap-2 mt-2 items-start">
+        <SampleTimeTableControls />
+        <SampleMondaySelector
+          mondayDateStr={mondayDateStr}
+          onDateChange={handleDateChange}
+        />
         <div
           className={cn(
-            cardVariants({ variant: "elevated", size: "md" }),
-            "w-full flex items-center justify-between gap-4 rounded-[40px]"
+            cardVariants({ variant: "elevated", type: "button" }),
+            "w-full flex items-center justify-between gap-4"
           )}
         >
           <div className="font-bold text-lg text-gray-900">{"이미지"}</div>
-          <div className="flex-1 flex justify-between items-center">
-            <div className="w-full flex gap-2">
+          <div className="flex-1 h-full flex justify-between items-center ">
+            <div className="w-full h-full flex gap-2">
               <button
                 onClick={handleUploadClick}
-                className="w-full bg-timetable-primary text-white py-2 rounded-md text-sm font-medium hover:bg-timetable-primary-hover transition"
+                className="w-full h-12 rounded-full bg-timetable-primary text-white text-sm font-medium hover:bg-timetable-primary-hover transition"
               >
                 {imageSrc ? "이미지 변경" : "새 이미지 업로드"}
               </button>
@@ -314,13 +320,13 @@ const TimeTableForm = ({
                 <Fragment>
                   <button
                     onClick={handleEditClick}
-                    className="w-full bg-timetable-primary text-white py-2 rounded-md text-sm font-medium hover:bg-timetable-primary-hover transition"
+                    className="w-full bg-timetable-primary text-white py-2 rounded-full text-sm font-medium hover:bg-timetable-primary-hover transition"
                   >
                     이미지 편집
                   </button>
                   <button
                     onClick={handleImageDelete}
-                    className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
+                    className="h-12 w-12 shrink-0 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
                     title="이미지 삭제"
                   >
                     <svg
@@ -341,12 +347,11 @@ const TimeTableForm = ({
               )}
             </div>
           </div>
+
+          {/* 텍스트 표시 옵션 선택 */}
         </div>
-
-        {/* 텍스트 표시 옵션 선택 */}
-
         {isArtist && (
-          <FormCard
+          <SampleFormCard
             isActive={isProfileTextVisible}
             toggleIsActive={handleToggleProfileImage}
             label="아티스트"
@@ -358,10 +363,11 @@ const TimeTableForm = ({
               maxLength={20}
               required={true}
             />
-          </FormCard>
+          </SampleFormCard>
         )}
         {isMemo && (
-          <FormCard
+          <SampleFormCard
+            className="flex flex-col justify-center items-center"
             isActive={isMemoTextVisible}
             toggleIsActive={handleToggleMemo}
             label="메모"
@@ -373,16 +379,12 @@ const TimeTableForm = ({
               maxLength={20}
               required={true}
             />
-          </FormCard>
+          </SampleFormCard>
         )}
+        {children}
 
         {/* 텍스트 입력 필드 */}
 
-        <div className="space-y-2">
-          {/* 이미지 업로드/교체 버튼 */}
-
-          {/* 이미지가 있을 때 편집/삭제 버튼 */}
-        </div>
         <input
           ref={fileInputRef}
           id="file-upload"
@@ -392,16 +394,6 @@ const TimeTableForm = ({
           onChange={handleFileSelect}
         />
       </div>
-
-      {/* 시간표 섹션 */}
-
-      <h3 className="font-bold text-lg text-gray-800">시간표</h3>
-      <MondaySelector
-        mondayDateStr={mondayDateStr}
-        onDateChange={handleDateChange}
-      />
-
-      {children}
     </div>
   );
 
@@ -409,21 +401,16 @@ const TimeTableForm = ({
 
   return (
     <>
-      <div className="md:h-full min-h-0 md:max-w-[400px] md:min-w-[300px] md:w-1/4 h-full">
-        <div className="h-full shrink-0 flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full ">
+      <div className="w-full  h-full min-h-0">
+        <div className="h-full w-full  shrink-0 flex flex-col ">
           <div className="flex-1 flex flex-col min-h-0">
-            <TimeTableFormTabs
-              activeTab={activeTab}
-              onChangeActiveTab={onChangeActiveTab}
-              isAddons={!!addons}
-            />
-            <div className="flex-1 overflow-y-auto p-4 h-full bg-timetable-form-bg">
+            <div className="flex-1 overflow-y-auto p-4 h-full ">
               {activeTab === "main" && renderMainSettings()}
               {activeTab === "addons" && renderAddonsContent()}
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-300 bg-timetable-form-bg">
+          {/* <div className="p-4 border-t border-gray-300 bg-timetable-card-bg">
             <div className="flex gap-2">
               <button
                 onClick={
@@ -439,7 +426,7 @@ const TimeTableForm = ({
               </button>
               <ResetButton onReset={onReset} />
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 
@@ -476,4 +463,4 @@ const TimeTableForm = ({
   );
 };
 
-export default TimeTableForm;
+export default TimeTableSampleForm;

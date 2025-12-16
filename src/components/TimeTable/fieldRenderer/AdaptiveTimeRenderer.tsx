@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import ScrollableTimePicker from './ScrollableTimePicker';
+import React, { useEffect, useRef, useState } from "react";
+import ScrollableTimePicker from "./ScrollableTimePicker";
 
 interface AdaptiveTimeRendererProps {
   value: string;
@@ -22,34 +22,40 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
   useEffect(() => {
     const checkIsMobile = () => {
       const userAgent = navigator.userAgent.toLowerCase();
-      const isMobileDevice = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
-      const isTouchDevice = 'ontouchstart' in window;
+      const isMobileDevice =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(
+          userAgent
+        );
+      const isTouchDevice = "ontouchstart" in window;
       const isSmallScreen = window.innerWidth <= 768;
-      
+
       // 모바일 디바이스이거나 터치 기능이 있으면서 화면이 작은 경우
       setIsMobile(isMobileDevice || (isTouchDevice && isSmallScreen));
     };
 
     checkIsMobile();
-    window.addEventListener('resize', checkIsMobile);
-    
-    return () => window.removeEventListener('resize', checkIsMobile);
+    window.addEventListener("resize", checkIsMobile);
+
+    return () => window.removeEventListener("resize", checkIsMobile);
   }, []);
 
   // 외부 클릭 감지로 피커 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
         setShowPicker(false);
       }
     };
 
     if (showPicker) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showPicker]);
 
@@ -64,21 +70,21 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
   // 시간 형식 검증 및 포맷팅
   const formatTime = (timeString: string): string => {
     if (!timeString) return "";
-    
+
     // HH:MM 형식인지 확인
     const timeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/;
     if (timeRegex.test(timeString)) {
       return timeString;
     }
-    
+
     // 숫자만 있는 경우 형식 맞추기 (예: "930" -> "09:30")
-    const numbersOnly = timeString.replace(/[^0-9]/g, '');
+    const numbersOnly = timeString.replace(/[^0-9]/g, "");
     if (numbersOnly.length >= 3) {
-      const hours = numbersOnly.slice(0, 2).padStart(2, '0');
-      const minutes = numbersOnly.slice(2, 4).padStart(2, '0');
+      const hours = numbersOnly.slice(0, 2).padStart(2, "0");
+      const minutes = numbersOnly.slice(2, 4).padStart(2, "0");
       return `${hours}:${minutes}`;
     }
-    
+
     return timeString;
   };
 
@@ -92,10 +98,8 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className={`w-full rounded-xl p-3 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
-            disabled
-              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-              : 'bg-gray-100 text-gray-700'
+          className={`w-full rounded-xl p-3 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-timetable-primary/50 bg-timetable-input-bg text-gray-800${
+            disabled ? "brightness-75 cursor-not-allowed" : `brightness-100`
           }`}
         />
       ) : (

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 
 interface ScrollableTimePickerProps {
   value: string;
@@ -21,7 +21,7 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
   // 시간 문자열을 시간과 분으로 파싱
   useEffect(() => {
     if (value) {
-      const [hours, minutes] = value.split(':').map(Number);
+      const [hours, minutes] = value.split(":").map(Number);
       setSelectedHour(hours || 0);
       setSelectedMinute(minutes || 0);
     }
@@ -30,17 +30,20 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
   // 외부 클릭으로 드롭다운 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         setShowDropdown(false);
       }
     };
 
     if (showDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDropdown]);
 
@@ -48,7 +51,9 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
   const handleTimeSelect = (hour: number, minute: number) => {
     setSelectedHour(hour);
     setSelectedMinute(minute);
-    const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    const timeString = `${hour.toString().padStart(2, "0")}:${minute
+      .toString()
+      .padStart(2, "0")}`;
     onChange(timeString);
     setShowDropdown(false);
   };
@@ -64,22 +69,35 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
         type="button"
         onClick={() => !disabled && setShowDropdown(!showDropdown)}
         disabled={disabled}
-        className={`w-full rounded-xl p-3 placeholder-gray-400 focus:outline-none flex items-center justify-between transition-colors ${
+        className={`w-full rounded-xl p-3 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-timetable-primary/50 flex items-center justify-between transition-colors bg-timetable-input-bg text-gray-800 ${
           disabled
-            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            ? "brightness-90 cursor-not-allowed"
+            : "brightness-100 hover:bg-timetable-input-hover"
         }`}
       >
-        <span className={`font-normal ${disabled ? 'text-gray-400' : 'text-gray-700'}`}>
-          {`${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')}`}
+        <span
+          className={`font-normal ${
+            disabled ? "text-gray-400" : "text-gray-800"
+          }`}
+        >
+          {`${selectedHour.toString().padStart(2, "0")}:${selectedMinute
+            .toString()
+            .padStart(2, "0")}`}
         </span>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showDropdown ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+            showDropdown ? "rotate-180" : ""
+          }`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
 
@@ -100,11 +118,11 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
                     onClick={() => handleTimeSelect(hour, selectedMinute)}
                     className={`w-full p-2 text-sm hover:bg-blue-50 transition-colors ${
                       hour === selectedHour
-                        ? 'bg-blue-100 text-blue-600 font-medium'
-                        : 'text-gray-700'
+                        ? "bg-blue-100 text-blue-600 font-medium"
+                        : "text-gray-700"
                     }`}
                   >
-                    {hour.toString().padStart(2, '0')}
+                    {hour.toString().padStart(2, "0")}
                   </button>
                 ))}
               </div>
@@ -123,11 +141,11 @@ const ScrollableTimePicker: React.FC<ScrollableTimePickerProps> = ({
                     onClick={() => handleTimeSelect(selectedHour, minute)}
                     className={`w-full p-2 text-sm hover:bg-blue-50 transition-colors ${
                       minute === selectedMinute
-                        ? 'bg-blue-100 text-blue-600 font-medium'
-                        : 'text-gray-700'
+                        ? "bg-blue-100 text-blue-600 font-medium"
+                        : "text-gray-700"
                     }`}
                   >
-                    {minute.toString().padStart(2, '0')}
+                    {minute.toString().padStart(2, "0")}
                   </button>
                 ))}
               </div>

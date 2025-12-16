@@ -1,17 +1,19 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import React from "react";
-import { cardVariants } from "./FixedComponents/styles";
+import React, { CSSProperties } from "react";
+import { cardVariants } from "./styles";
 
 interface MondaySelectorProps {
+  style?: CSSProperties;
   mondayDateStr: string;
   onDateChange: (dateStr: string) => void;
 }
 
-const MondaySelector: React.FC<MondaySelectorProps> = ({
+const SampleMondaySelector: React.FC<MondaySelectorProps> = ({
   mondayDateStr,
   onDateChange,
+  style,
 }) => {
   // 현재 월요일 날짜를 Date 객체로 변환
   const currentMonday = new Date(mondayDateStr);
@@ -40,14 +42,15 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
   };
 
   return (
-    <div className={cn(cardVariants({ variant: "elevated", size: "md" }))}>
-      {/* 헤더 */}
-      {/* <div className="flex justify-between items-center mb-4">
-        <div className="font-bold text-lg text-gray-900">시간표</div>
-      </div> */}
-
+    <div
+      className={cn(
+        cardVariants({ variant: "elevated", type: "button" }),
+        "w-full flex justify-center items-center"
+      )}
+      style={{}}
+    >
       {/* 날짜 선택 영역 */}
-      <div className="flex items-center justify-between bg-timetable-input-bg rounded-xl px-4 py-3">
+      <div className="flex w-full h-12 items-center justify-center bg-timetable-input-bg rounded-full px-4">
         {/* 이전 월요일 버튼 */}
         <button
           type="button"
@@ -107,4 +110,4 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
   );
 };
 
-export default MondaySelector;
+export default SampleMondaySelector;

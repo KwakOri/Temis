@@ -15,10 +15,14 @@ import {
   weekdays,
 } from "@/utils/time-table/data";
 import React from "react";
-import { DayCard } from "./DayCard";
-import { EntryCard } from "./EntryCard";
-import { buttonVariants, inputVariants, labelVariants } from "./styles";
-import { Toggle } from "./Toggle";
+import { EntryCard } from "../../../../components/TimeTable/FixedComponents/EntryCard";
+import {
+  buttonVariants,
+  inputVariants,
+  labelVariants,
+} from "../../../../components/TimeTable/FixedComponents/styles";
+import { Toggle } from "../../../../components/TimeTable/FixedComponents/Toggle";
+import { SampleDayCard } from "./SampleDayCard";
 
 // 개별 필드 렌더러 타입 정의 (다중 엔트리 지원)
 export interface FieldRenderer {
@@ -77,7 +81,7 @@ export interface TimeTableInputListProps {
   maxStreamingTimeByDay?: number;
 }
 
-const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
+const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
   data,
   onDataChange,
   containerClassName = "flex flex-col gap-4 w-full select-none",
@@ -423,9 +427,10 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   };
 
   return (
-    <div className={containerClassName}>
-      {data.map((day, dayIndex) => (
-        <DayCard
+    <>
+      {data.slice(0, 3).map((day, dayIndex) => (
+        <SampleDayCard
+          className="min-h-20 rounded-[40px] p-5"
           key={day.day}
           weekdayLabel={
             weekdayRenderer ? weekdayRenderer(day) : defaultWeekdayRenderer(day)
@@ -519,10 +524,10 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
               </span>
             </button>
           )}
-        </DayCard>
+        </SampleDayCard>
       ))}
-    </div>
+    </>
   );
 };
 
-export default TimeTableInputList;
+export default TimeTableSampleInputList;

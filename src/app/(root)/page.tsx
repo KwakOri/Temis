@@ -8,6 +8,7 @@ import { useAdminOptions } from "@/hooks/query/useAdminOptions";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { keyFeatureList, reviews } from "./_constants";
+import TestComponent from "./_sample/TestComponent";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -384,6 +385,7 @@ export default function Home() {
         </div>
       </header> */}
       <MainHeader />
+      <TestComponent />
       <KeyFeaturesSection items={keyFeatureList} />
       <ReviewSection items={reviews} />
       <GallerySection />

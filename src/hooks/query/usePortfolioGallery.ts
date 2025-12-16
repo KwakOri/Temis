@@ -1,10 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 import { PortfolioService } from "@/services/portfolioService";
 import { Portfolio } from "@/types/portfolio";
-import {
-  GalleryRowData,
-  GalleryItemData,
-} from "@/components/LandingPage/GallerySection/GallerySection";
+
+// 타입 정의
+export interface GalleryItemData {
+  id: string;
+  imageUrl: string;
+  title: string;
+  href: string;
+}
+
+export interface GalleryRowData {
+  id: string;
+  title: string;
+  price: string;
+  description: string;
+  items: GalleryItemData[];
+  slideInterval: number;
+  reverse: boolean;
+}
 
 /**
  * Portfolio를 GalleryItemData로 변환

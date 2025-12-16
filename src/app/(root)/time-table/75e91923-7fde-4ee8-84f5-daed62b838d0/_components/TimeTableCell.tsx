@@ -62,12 +62,12 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
       style={{
         width: 120,
         height: 40,
-        bottom: 56,
+        bottom: 52,
         left: 68,
         fontFamily: fontOption.primary,
         color: colors["first"]["secondary"],
-        fontSize: 26,
-        fontWeight: 300,
+        fontSize: 32,
+        fontWeight: 700,
         zIndex: 3,
         lineHeight: 1,
       }}
@@ -84,12 +84,12 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
       style={{
         width: 200,
         height: 40,
-        bottom: 56,
+        bottom: 52,
         right: 72,
         fontFamily: fontOption.primary,
         color: colors["first"]["secondary"],
-        fontSize: 26,
-        fontWeight: 300,
+        fontSize: 32,
+        fontWeight: 700,
         zIndex: 3,
         lineHeight: 1,
       }}
