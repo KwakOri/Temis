@@ -311,7 +311,7 @@ const TimeTableSampleForm = ({
             <div className="w-full h-full flex gap-2">
               <button
                 onClick={handleUploadClick}
-                className="w-full h-12 rounded-full bg-timetable-primary text-white text-sm font-medium hover:bg-timetable-primary-hover transition"
+                className="w-full h-12 rounded-full bg-timetable-primary text-white text-md font-semibold hover:bg-timetable-primary-hover transition"
               >
                 {imageSrc ? "이미지 변경" : "새 이미지 업로드"}
               </button>
@@ -320,7 +320,7 @@ const TimeTableSampleForm = ({
                 <Fragment>
                   <button
                     onClick={handleEditClick}
-                    className="w-full bg-timetable-primary text-white py-2 rounded-full text-sm font-medium hover:bg-timetable-primary-hover transition"
+                    className="w-full bg-timetable-primary text-white py-2 rounded-full text-md font-semibold hover:bg-timetable-primary-hover transition"
                   >
                     이미지 편집
                   </button>
