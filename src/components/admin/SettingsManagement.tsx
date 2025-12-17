@@ -65,6 +65,11 @@ export default function SettingsManagement() {
     (opt) => opt.value === "custom_timetable_orders"
   );
 
+  // 빠른 마감 옵션 찾기
+  const workFastOption = generalOptions?.find(
+    (opt) => opt.value === "work_fast"
+  );
+
   const handleAddOption = () => {
     setIsAddingOption(true);
     setFormData(initialFormData);
@@ -177,45 +182,87 @@ export default function SettingsManagement() {
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
-        ) : customTimetableOrdersOption ? (
+        ) : customTimetableOrdersOption || workFastOption ? (
           <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
             {/* 맞춤 시간표 접수 옵션 */}
-            <div className="flex items-center gap-3 p-4">
-              <button
-                onClick={() =>
-                  toggleAdminOptionMutation.mutate({
-                    id: customTimetableOrdersOption.id,
-                    isEnabled: !customTimetableOrdersOption.is_enabled,
-                  })
-                }
-                disabled={toggleAdminOptionMutation.isPending}
-                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
-                  customTimetableOrdersOption.is_enabled
-                    ? "bg-primary"
-                    : "bg-gray-200"
-                }`}
-                role="switch"
-                aria-checked={customTimetableOrdersOption.is_enabled}
-              >
-                <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+            {customTimetableOrdersOption && (
+              <div className="flex items-center gap-3 p-4">
+                <button
+                  onClick={() =>
+                    toggleAdminOptionMutation.mutate({
+                      id: customTimetableOrdersOption.id,
+                      isEnabled: !customTimetableOrdersOption.is_enabled,
+                    })
+                  }
+                  disabled={toggleAdminOptionMutation.isPending}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
                     customTimetableOrdersOption.is_enabled
-                      ? "translate-x-5"
-                      : "translate-x-0"
+                      ? "bg-primary"
+                      : "bg-gray-200"
                   }`}
-                />
-              </button>
-              <div className="flex-1 min-w-0">
-                <div className="font-medium text-gray-900 text-sm sm:text-base">
-                  {customTimetableOrdersOption.label}
-                </div>
-                {customTimetableOrdersOption.description && (
-                  <div className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                    {customTimetableOrdersOption.description}
+                  role="switch"
+                  aria-checked={customTimetableOrdersOption.is_enabled}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      customTimetableOrdersOption.is_enabled
+                        ? "translate-x-5"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 text-sm sm:text-base">
+                    {customTimetableOrdersOption.label}
                   </div>
-                )}
+                  {customTimetableOrdersOption.description && (
+                    <div className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                      {customTimetableOrdersOption.description}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* 빠른 마감 옵션 */}
+            {workFastOption && (
+              <div className="flex items-center gap-3 p-4">
+                <button
+                  onClick={() =>
+                    toggleAdminOptionMutation.mutate({
+                      id: workFastOption.id,
+                      isEnabled: !workFastOption.is_enabled,
+                    })
+                  }
+                  disabled={toggleAdminOptionMutation.isPending}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                    workFastOption.is_enabled
+                      ? "bg-primary"
+                      : "bg-gray-200"
+                  }`}
+                  role="switch"
+                  aria-checked={workFastOption.is_enabled}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      workFastOption.is_enabled
+                        ? "translate-x-5"
+                        : "translate-x-0"
+                    }`}
+                  />
+                </button>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 text-sm sm:text-base">
+                    {workFastOption.label}
+                  </div>
+                  {workFastOption.description && (
+                    <div className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                      {workFastOption.description}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">

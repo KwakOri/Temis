@@ -232,6 +232,50 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolios: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: number | null
+          description: string
+          id: string
+          image_urls: string[]
+          thumbnail_url: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: number | null
+          description: string
+          id?: string
+          image_urls?: string[]
+          thumbnail_url: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: number | null
+          description?: string
+          id?: string
+          image_urls?: string[]
+          thumbnail_url?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolios_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_options: {
         Row: {
           category: string
@@ -241,6 +285,7 @@ export type Database = {
           is_discount: boolean
           is_enabled: boolean
           label: string
+          order: number
           price: number
           updated_at: string
           value: string
@@ -253,6 +298,7 @@ export type Database = {
           is_discount?: boolean
           is_enabled?: boolean
           label: string
+          order?: number
           price?: number
           updated_at?: string
           value: string
@@ -265,6 +311,7 @@ export type Database = {
           is_discount?: boolean
           is_enabled?: boolean
           label?: string
+          order?: number
           price?: number
           updated_at?: string
           value?: string
