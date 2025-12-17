@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
       characterImageFileIds, // file IDs from uploaded files
       referenceFileIds, // file IDs from uploaded files
       selectedOptions: selectedOptionsInput, // Record<string, boolean>
+      requiredArea, // 필수 영역 선택
+      fastDelivery, // 빠른 마감 선택
       externalContract,
       depositorName,
     } = body;
@@ -49,6 +51,16 @@ export async function POST(request: NextRequest) {
     const selectedOptionValues = Object.entries(selectedOptionsInput || {})
       .filter(([, isSelected]) => isSelected)
       .map(([optionValue]) => optionValue);
+
+    // 필수 영역 옵션 추가 (영어 value로)
+    if (requiredArea) {
+      selectedOptionValues.push(requiredArea);
+    }
+
+    // 빠른 마감 옵션 추가 (영어 value로)
+    if (fastDelivery) {
+      selectedOptionValues.push("fast_delivery_custom");
+    }
 
     // 외부 계약 옵션 추가 (영어 value로)
     if (externalContract) {
@@ -214,6 +226,8 @@ export async function PUT(request: NextRequest) {
       wantsOmakase,
       designKeywords,
       selectedOptions: selectedOptionsInput, // Record<string, boolean>
+      requiredArea, // 필수 영역 선택
+      fastDelivery, // 빠른 마감 선택
       externalContract,
       depositorName,
     } = body;
@@ -245,6 +259,16 @@ export async function PUT(request: NextRequest) {
     const selectedOptionValues = Object.entries(selectedOptionsInput || {})
       .filter(([, isSelected]) => isSelected)
       .map(([optionValue]) => optionValue);
+
+    // 필수 영역 옵션 추가 (영어 value로)
+    if (requiredArea) {
+      selectedOptionValues.push(requiredArea);
+    }
+
+    // 빠른 마감 옵션 추가 (영어 value로)
+    if (fastDelivery) {
+      selectedOptionValues.push("fast_delivery_custom");
+    }
 
     // 외부 계약 옵션 추가 (영어 value로)
     if (externalContract) {
