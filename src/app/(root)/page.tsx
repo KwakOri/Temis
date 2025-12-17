@@ -87,7 +87,7 @@ export default function Home() {
   );
 
   return (
-    <div className="w-full min-h-screen text-gray-900 bg-[#F3E9E7]">
+    <div className="w-full min-h-screen text-gray-900 bg-[#F3E9E7] overflow-x-hidden">
       {/* 상단 고정 바 */}
       {/* <header
         className={`fixed top-0 left-0 w-full z-50 transition-colors duration-100 ${
@@ -385,25 +385,43 @@ export default function Home() {
         </div>
       </header> */}
       <MainHeader />
-      <TestComponent />
-      <KeyFeaturesSection items={keyFeatureList} />
-      <ReviewSection items={reviews} />
-      <GallerySection />
 
-      {/* Footer CTA Section */}
-      <section className="bg-gradient-to-br from-orange-400 to-orange-500 py-20 px-6 text-center">
+      {/* 메인 콘텐츠 - 반응형 패딩 적용 */}
+      <div className="w-full max-w-7xl mx-auto mb-10">
+        <TestComponent />
+      </div>
+
+      {/* 주요 기능 섹션 */}
+      <div className="w-full">
+        <KeyFeaturesSection items={keyFeatureList} />
+      </div>
+
+      {/* 리뷰 섹션 */}
+      <div className="w-full px-4 md:px-6 lg:px-8">
+        <ReviewSection items={reviews} />
+      </div>
+
+      {/* 갤러리 섹션 */}
+      <div className="w-full">
+        <GallerySection />
+      </div>
+
+      {/* Footer CTA Section - 반응형 개선 */}
+      <section className="bg-gradient-to-br from-orange-400 to-orange-500 py-12 md:py-16 lg:py-20 px-4 md:px-6 lg:px-8 text-center">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 md:mb-6 leading-tight px-2">
             일정에 묶이지 말고,
-            <br />
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>
             창작에 집중하세요.
           </h2>
-          <p className="text-lg md:text-xl text-white/90 mb-8">
+          <p className="text-base sm:text-lg md:text-xl text-white/90 mb-6 md:mb-8 px-2">
             버튜버의 시간을 바꾸는 시간표, 테미스.
-            <br />
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>
             지금 바로 시작하세요.
           </p>
-          <button className="bg-gray-900 hover:bg-gray-800 text-white font-bold py-4 px-12 rounded-full text-lg transition-colors shadow-lg hover:shadow-xl">
+          <button className="bg-gray-900 hover:bg-gray-800 text-white font-bold py-3 px-8 sm:py-4 sm:px-12 rounded-full text-base sm:text-lg transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95">
             지금 바로 신청하기
           </button>
         </div>
