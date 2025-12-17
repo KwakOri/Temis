@@ -100,7 +100,6 @@ function AdminContent() {
   const tabs = [
     { id: "workCalendar" as TabType, name: "작업 캘린더", icon: Calendar },
     { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
-
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
     { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
     { id: "thumbnails" as TabType, name: "썸네일 관리", icon: Image },

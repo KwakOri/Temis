@@ -64,8 +64,9 @@ export async function POST(request: Request) {
     try {
       // JSZip을 사용한 ZIP 파일 생성
       const zipBuffer = await createZipFromFiles(files);
-      
-      return new NextResponse(zipBuffer, {
+
+      // Buffer를 Uint8Array로 변환 (Next.js 15 호환)
+      return new NextResponse(new Uint8Array(zipBuffer), {
         status: 200,
         headers: {
           'Content-Type': 'application/zip',

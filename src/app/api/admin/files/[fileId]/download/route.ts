@@ -57,8 +57,9 @@ export async function GET(
     // Cloudflare R2에서 파일 다운로드
     try {
       const { buffer, contentType, contentLength } = await downloadFileFromR2(file.file_key);
-      
-      return new NextResponse(buffer, {
+
+      // Buffer를 Uint8Array로 변환 (Next.js 15 호환)
+      return new NextResponse(new Uint8Array(buffer), {
         status: 200,
         headers: {
           'Content-Type': contentType,
