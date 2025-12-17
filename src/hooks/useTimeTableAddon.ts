@@ -54,7 +54,7 @@ export const useTimeTableAddon = ({
       setData((prevData) => ({
         ...prevData,
         ...updates,
-      }));
+      } as TAddonData));
     },
     []
   );
