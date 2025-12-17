@@ -8,6 +8,7 @@ import {
   useUploadFiles,
 } from "@/hooks/query/useFiles";
 import { usePriceOptions } from "@/hooks/query/usePricing";
+import { useAdminOptions } from "@/hooks/query/useAdminOptions";
 import { PriceOption } from "@/types/priceOption";
 import { CustomOrderData, CustomOrderFormData } from "@/types/customOrder";
 import { FileApiResponse } from "@/types/file";
@@ -20,6 +21,11 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import {
+  REQUIRED_AREA_OPTIONS,
+  FAST_DELIVERY_OPTION,
+  OTHER_OPTIONS,
+} from "@/constants/constants";
 
 interface Step1Data {
   youtubeSnsAddress: string;
@@ -39,6 +45,8 @@ interface Step2Data {
 
 interface Step3Data {
   selectedOptions: Record<string, boolean>; // option.value -> selected 상태
+  requiredArea: string; // 필수 영역 선택 (라디오 버튼)
+  fastDelivery: boolean; // 빠른 마감 선택 (체크박스)
   externalContract: boolean;
   priceQuoted: number;
   depositorName: string;
@@ -65,11 +73,17 @@ export default function CustomOrderForm({
   // React Query hooks
   const { data: priceOptions, isLoading: loadingPricing } =
     usePriceOptions("timetable");
+  const { data: adminOptions } = useAdminOptions("general");
   const { data: existingFilesData } = useFilesByOrderId(
     isEditMode ? existingOrder?.id : undefined
   );
   const uploadFilesMutation = useUploadFiles();
   const deleteFilesMutation = useDeleteFiles();
+
+  // 빠른 마감 옵션 활성화 여부 확인
+  const isWorkFastEnabled = adminOptions?.some(
+    (opt) => opt.value === "work_fast" && opt.is_enabled
+  ) ?? false;
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
     youtubeSnsAddress: existingOrder?.youtube_sns_address || "",
@@ -87,33 +101,25 @@ export default function CustomOrderForm({
     referenceFileIds: [], // 파일은 useEffect에서 로드
   });
 
-  // 기존 주문의 선택된 옵션들을 value 기반으로 복원
-  const getInitialSelectedOptions = (): Record<string, boolean> => {
-    if (!existingOrder?.selected_options) return {};
-    const selectedOptions: Record<string, boolean> = {};
-    // 레이블 -> value 매핑 (기존 한글 데이터 호환성)
-    const labelToValue: Record<string, string> = {
-      "빠른 마감": "fast_delivery",
-      "포트폴리오 비공개": "portfolio_private",
-      "후기 이벤트 참여": "review_event",
-    };
-    // 이미 영어 value로 저장된 데이터
-    const validValues = new Set([
-      "fast_delivery",
-      "portfolio_private",
-      "review_event",
-    ]);
-    existingOrder.selected_options.forEach((optionKey: string) => {
-      // 1. 이미 영어 value인 경우 (새로운 포맷)
-      if (validValues.has(optionKey)) {
-        selectedOptions[optionKey] = true;
-      }
-      // 2. 한글 라벨인 경우 (기존 포맷) -> value로 변환
-      else if (labelToValue[optionKey]) {
-        selectedOptions[labelToValue[optionKey]] = true;
-      }
-    });
-    return selectedOptions;
+  // 필수 영역 옵션 값들
+  const REQUIRED_AREA_VALUES = new Set(
+    REQUIRED_AREA_OPTIONS.map((opt) => opt.value)
+  );
+
+  // 필수 영역 선택 복원
+  const getInitialRequiredArea = (): string => {
+    if (!existingOrder?.selected_options) return REQUIRED_AREA_OPTIONS[0].value;
+    // selected_options 배열에서 필수 영역 옵션 찾기
+    const requiredAreaValue = existingOrder.selected_options.find((opt) =>
+      REQUIRED_AREA_VALUES.has(opt)
+    );
+    return requiredAreaValue || REQUIRED_AREA_OPTIONS[0].value;
+  };
+
+  // 빠른 마감 선택 복원
+  const getInitialFastDelivery = (): boolean => {
+    if (!existingOrder?.selected_options) return false;
+    return existingOrder.selected_options.includes("fast_delivery_custom");
   };
 
   // 외부 계약 체크 (한글 라벨 또는 영어 value)
@@ -125,8 +131,43 @@ export default function CustomOrderForm({
     );
   };
 
+  // 기존 주문의 선택된 옵션들을 value 기반으로 복원
+  // REQUIRED_AREA, FAST_DELIVERY, EXTERNAL_CONTRACT는 제외하고 DB 옵션과 OTHER_OPTIONS만 복원
+  const getInitialSelectedOptions = (): Record<string, boolean> => {
+    if (!existingOrder?.selected_options) return {};
+    const selectedOptions: Record<string, boolean> = {};
+
+    // 제외할 옵션 값들
+    const excludedValues = new Set([
+      ...REQUIRED_AREA_VALUES,
+      "fast_delivery_custom",
+      "external_contract",
+      "외부 계약",
+    ]);
+
+    // OTHER_OPTIONS 값들
+    const otherOptionValues = new Set(OTHER_OPTIONS.map((opt) => opt.value));
+
+    existingOrder.selected_options.forEach((optionKey: string) => {
+      // 제외할 옵션들은 건너뛰기
+      if (excludedValues.has(optionKey)) return;
+
+      // OTHER_OPTIONS 값이거나 DB 옵션이면 추가
+      if (otherOptionValues.has(optionKey)) {
+        selectedOptions[optionKey] = true;
+      } else {
+        // DB 옵션일 가능성이 있으므로 추가 (priceOptions에서 검증됨)
+        selectedOptions[optionKey] = true;
+      }
+    });
+
+    return selectedOptions;
+  };
+
   const [step3Data, setStep3Data] = useState<Step3Data>({
     selectedOptions: getInitialSelectedOptions(),
+    requiredArea: getInitialRequiredArea(),
+    fastDelivery: getInitialFastDelivery(),
     externalContract: getInitialExternalContract(),
     priceQuoted: existingOrder?.price_quoted || 80000,
     depositorName: existingOrder?.depositor_name || "",
@@ -173,59 +214,89 @@ export default function CustomOrderForm({
   }, [isEditMode, existingOrder, existingFilesData]);
 
   // 옵션 헬퍼 함수들
-  const getBasePrice = (): number => {
-    const basePriceOption = priceOptions?.find((opt) => opt.value === "base_price");
-    return basePriceOption?.price || 80000;
-  };
-
   const getOptionByValue = (value: string): PriceOption | undefined => {
     return priceOptions?.find((opt) => opt.value === value);
   };
 
   // 기본 가격이 아닌 옵션들만 필터링 (선택 가능한 옵션들)
+  // 기타 옵션으로 이동한 항목들은 제외
   const selectableOptions = priceOptions?.filter(
-    (opt) => opt.value !== "base_price"
+    (opt) =>
+      opt.value !== "base_price" &&
+      opt.value !== "portfolio_private" &&
+      opt.value !== "review_event"
   ) || [];
 
-  // 가격 설정이 로드되면 기본 가격 설정
+  // 필수 영역 선택 시 외부 계약 여부 자동 업데이트
   useEffect(() => {
-    if (priceOptions && priceOptions.length > 0 && !existingOrder) {
+    const isExternalContract = step3Data.requiredArea === "external_contract";
+    if (step3Data.externalContract !== isExternalContract) {
       setStep3Data((prev) => ({
         ...prev,
-        priceQuoted: getBasePrice(),
+        externalContract: isExternalContract,
+        // 외부 계약 선택 시 다른 옵션들 해제
+        ...(isExternalContract && {
+          selectedOptions: {},
+          fastDelivery: false,
+        }),
       }));
     }
-  }, [priceOptions, existingOrder]);
+  }, [step3Data.requiredArea]);
 
   // 가격 계산
   useEffect(() => {
-    if (!priceOptions || priceOptions.length === 0) return;
-
     // 외부 계약일 경우 가격은 0원
     if (step3Data.externalContract) {
       setStep3Data((prev) => ({ ...prev, priceQuoted: 0 }));
       return;
     }
 
-    let total = getBasePrice();
+    let total = 0;
 
-    // 선택된 옵션들의 가격을 계산
+    // 필수 영역 가격
+    const selectedRequiredArea = REQUIRED_AREA_OPTIONS.find(
+      (opt) => opt.value === step3Data.requiredArea
+    );
+    if (selectedRequiredArea) {
+      total = selectedRequiredArea.price;
+    }
+
+    // 선택된 옵션들의 가격을 계산 (DB 옵션 + 기타 옵션)
     Object.entries(step3Data.selectedOptions).forEach(([optionValue, isSelected]) => {
       if (isSelected) {
-        const option = getOptionByValue(optionValue);
-        if (option) {
-          if (option.is_discount) {
-            total -= option.price;
+        // DB 옵션 확인
+        const dbOption = getOptionByValue(optionValue);
+        if (dbOption) {
+          if (dbOption.is_discount) {
+            total -= dbOption.price;
           } else {
-            total += option.price;
+            total += dbOption.price;
+          }
+          return;
+        }
+
+        // 기타 옵션 확인
+        const otherOption = OTHER_OPTIONS.find((opt) => opt.value === optionValue);
+        if (otherOption) {
+          if (otherOption.is_discount) {
+            total -= otherOption.price;
+          } else {
+            total += otherOption.price;
           }
         }
       }
     });
 
+    // 빠른 마감 선택 시 전체 가격 2배
+    if (step3Data.fastDelivery) {
+      total *= FAST_DELIVERY_OPTION.multiplier;
+    }
+
     setStep3Data((prev) => ({ ...prev, priceQuoted: total }));
   }, [
     step3Data.selectedOptions,
+    step3Data.requiredArea,
+    step3Data.fastDelivery,
     step3Data.externalContract,
     priceOptions,
   ]);
@@ -815,39 +886,97 @@ export default function CustomOrderForm({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {/* 기본 가격 표시 */}
-                  <div className="bg-slate-50 p-4 rounded-lg">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-slate-900">
-                        {getOptionByValue("base_price")?.label || "기본 제작비"}
-                      </span>
-                      <span className="text-lg font-bold text-[#1e3a8a]">
-                        ₩{getBasePrice().toLocaleString()}
-                      </span>
+                <div className="space-y-6">
+                  {/* 필수 영역 부분 */}
+                  <div>
+                    <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                      필수 영역 부분
+                    </h4>
+                    <div className="space-y-3">
+                      {REQUIRED_AREA_OPTIONS.map((option) => {
+                        const isExternalContract = option.value === "external_contract";
+                        const isSelected = step3Data.requiredArea === option.value;
+
+                        return (
+                          <label
+                            key={option.value}
+                            className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                              isExternalContract
+                                ? isSelected
+                                  ? "border-purple-200 bg-purple-50"
+                                  : "border-purple-200 hover:bg-purple-50"
+                                : isSelected
+                                ? "border-[#1e3a8a] bg-blue-50"
+                                : "border-slate-200 hover:bg-slate-50"
+                            }`}
+                          >
+                            <div className="flex items-center">
+                              <input
+                                type="radio"
+                                name="requiredArea"
+                                checked={isSelected}
+                                onChange={() =>
+                                  setStep3Data((prev) => ({
+                                    ...prev,
+                                    requiredArea: option.value,
+                                  }))
+                                }
+                                className={`mr-3 h-4 w-4 border-slate-300 ${
+                                  isExternalContract
+                                    ? "text-purple-600 focus:ring-purple-500"
+                                    : "text-[#1e3a8a] focus:ring-[#1e3a8a]"
+                                }`}
+                              />
+                              <div>
+                                <div
+                                  className={`font-medium ${
+                                    isExternalContract
+                                      ? "text-purple-800"
+                                      : "text-slate-900"
+                                  }`}
+                                >
+                                  {option.label}
+                                </div>
+                                {option.description && (
+                                  <div
+                                    className={`text-sm ${
+                                      isExternalContract
+                                        ? "text-purple-600"
+                                        : "text-slate-600"
+                                    }`}
+                                  >
+                                    {option.description}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <span
+                              className={`font-bold ${
+                                isExternalContract
+                                  ? "text-purple-600"
+                                  : "text-[#1e3a8a]"
+                              }`}
+                            >
+                              {option.price === 0
+                                ? isExternalContract
+                                  ? "별도 협의"
+                                  : "포함"
+                                : `₩${option.price.toLocaleString()}`}
+                            </span>
+                          </label>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* 빠른 마감 비활성화 안내 배너 */}
-                  {!selectableOptions.some(
-                    (opt) => opt.value === "fast_delivery"
-                  ) && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
-                      <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-amber-800 font-medium">
-                          빠른 마감 접수 마감
-                        </p>
-                        <p className="text-amber-700 text-sm mt-1">
-                          현재 빠른 마감은 접수가 마감되었습니다.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 추가 옵션들 - 동적 렌더링 */}
-                  <div className="space-y-3">
-                    {selectableOptions.map((option) => (
+                  {/* 선택 영역 부분 */}
+                  {selectableOptions.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                        선택 영역 부분
+                      </h4>
+                      <div className="space-y-3">
+                        {selectableOptions.map((option) => (
                       <label
                         key={option.id}
                         className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
@@ -918,41 +1047,143 @@ export default function CustomOrderForm({
                           {option.price.toLocaleString()}
                         </span>
                       </label>
-                    ))}
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                    {/* 외부 계약 옵션 */}
-                    <label className="flex items-center justify-between p-4 border border-purple-200 rounded-lg hover:bg-purple-50 cursor-pointer bg-purple-25">
-                      <div className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={step3Data.externalContract}
-                          onChange={(e) => {
-                            const isChecked = e.target.checked;
-                            setStep3Data((prev) => ({
-                              ...prev,
-                              externalContract: isChecked,
-                              // 외부 계약 선택 시 다른 옵션들 해제
-                              ...(isChecked && {
-                                selectedOptions: {},
-                              }),
-                            }));
-                          }}
-                          className="mr-3 h-4 w-4 text-purple-600 focus:ring-purple-500 border-slate-300 rounded"
-                        />
-                        <div>
-                          <div className="font-medium text-purple-800">
-                            외부 계약
+                  {/* 기타 옵션 */}
+                  <div>
+                    <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                      기타 옵션
+                    </h4>
+                    <div className="space-y-3">
+                      {OTHER_OPTIONS.map((option) => (
+                        <label
+                          key={option.value}
+                          className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                            step3Data.externalContract
+                              ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                              : option.is_discount
+                              ? "border-green-200 hover:bg-green-50 bg-green-25"
+                              : "border-slate-200 hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={step3Data.selectedOptions[option.value] || false}
+                              disabled={step3Data.externalContract}
+                              onChange={(e) =>
+                                setStep3Data((prev) => ({
+                                  ...prev,
+                                  selectedOptions: {
+                                    ...prev.selectedOptions,
+                                    [option.value]: e.target.checked,
+                                  },
+                                }))
+                              }
+                              className={`mr-3 h-4 w-4 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
+                                option.is_discount
+                                  ? "text-green-600 focus:ring-green-500"
+                                  : "text-[#1e3a8a] focus:ring-[#1e3a8a]"
+                              }`}
+                            />
+                            <div>
+                              <div
+                                className={`font-medium ${
+                                  step3Data.externalContract
+                                    ? "text-slate-400"
+                                    : option.is_discount
+                                    ? "text-green-800"
+                                    : "text-slate-900"
+                                }`}
+                              >
+                                {option.label}
+                              </div>
+                              <div
+                                className={`text-sm ${
+                                  step3Data.externalContract
+                                    ? "text-slate-300"
+                                    : option.is_discount
+                                    ? "text-green-600"
+                                    : "text-slate-600"
+                                }`}
+                              >
+                                {option.description}
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-sm text-purple-600">
-                            외부에서 별도로 계약한 경우 선택해주세요
+                          <span
+                            className={`font-bold ${
+                              step3Data.externalContract
+                                ? "text-slate-400"
+                                : option.is_discount
+                                ? "text-green-600"
+                                : "text-[#1e3a8a]"
+                            }`}
+                          >
+                            {option.is_discount ? "-" : "+"}₩
+                            {option.price.toLocaleString()}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 빠른 마감 부분 */}
+                  {isWorkFastEnabled && (
+                    <div>
+                      <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                        빠른 마감 부분
+                      </h4>
+                      <label className="flex items-center justify-between p-4 border border-orange-200 rounded-lg hover:bg-orange-50 cursor-pointer bg-orange-25">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={step3Data.fastDelivery}
+                            disabled={step3Data.externalContract}
+                            onChange={(e) =>
+                              setStep3Data((prev) => ({
+                                ...prev,
+                                fastDelivery: e.target.checked,
+                              }))
+                            }
+                            className="mr-3 h-4 w-4 text-orange-600 focus:ring-orange-500 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                          <div>
+                            <div
+                              className={`font-medium ${
+                                step3Data.externalContract
+                                  ? "text-slate-400"
+                                  : "text-orange-800"
+                              }`}
+                            >
+                              {FAST_DELIVERY_OPTION.label}
+                            </div>
+                            <div
+                              className={`text-sm ${
+                                step3Data.externalContract
+                                  ? "text-slate-300"
+                                  : "text-orange-600"
+                              }`}
+                            >
+                              {FAST_DELIVERY_OPTION.description}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <span className="font-bold text-purple-600">
-                        별도 협의
-                      </span>
-                    </label>
-                  </div>
+                        <span
+                          className={`font-bold ${
+                            step3Data.externalContract
+                              ? "text-slate-400"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          ×{FAST_DELIVERY_OPTION.multiplier}
+                        </span>
+                      </label>
+                    </div>
+                  )}
 
                   {/* 총 금액 표시 */}
                   <div className="bg-[#1e3a8a] text-white p-6 rounded-lg">

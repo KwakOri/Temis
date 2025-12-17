@@ -163,6 +163,8 @@ const MyPageContent = () => {
     wants_omakase: order.wants_omakase,
     design_keywords: order.design_keywords,
     selected_options: order.selected_options,
+    required_area: order.required_area,
+    fast_delivery: order.fast_delivery,
     price_quoted: order.price_quoted || 0,
     depositor_name: order.depositor_name || "",
   });
