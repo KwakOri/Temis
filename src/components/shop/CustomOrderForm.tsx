@@ -1,17 +1,22 @@
 "use client";
 
 import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
+import {
+  FAST_DELIVERY_OPTION,
+  OTHER_OPTIONS,
+  REQUIRED_AREA_OPTIONS,
+} from "@/constants/constants";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminOptions } from "@/hooks/query/useAdminOptions";
 import {
   useDeleteFiles,
   useFilesByOrderId,
   useUploadFiles,
 } from "@/hooks/query/useFiles";
 import { usePriceOptions } from "@/hooks/query/usePricing";
-import { useAdminOptions } from "@/hooks/query/useAdminOptions";
-import { PriceOption } from "@/types/priceOption";
 import { CustomOrderData, CustomOrderFormData } from "@/types/customOrder";
 import { FileApiResponse } from "@/types/file";
+import { PriceOption } from "@/types/priceOption";
 import {
   AlertTriangle,
   Calculator,
@@ -21,11 +26,6 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  REQUIRED_AREA_OPTIONS,
-  FAST_DELIVERY_OPTION,
-  OTHER_OPTIONS,
-} from "@/constants/constants";
 
 interface Step1Data {
   youtubeSnsAddress: string;
@@ -81,9 +81,9 @@ export default function CustomOrderForm({
   const deleteFilesMutation = useDeleteFiles();
 
   // 빠른 마감 옵션 활성화 여부 확인
-  const isWorkFastEnabled = adminOptions?.some(
-    (opt) => opt.value === "work_fast" && opt.is_enabled
-  ) ?? false;
+  const isWorkFastEnabled =
+    adminOptions?.some((opt) => opt.value === "work_fast" && opt.is_enabled) ??
+    false;
 
   const [step1Data, setStep1Data] = useState<Step1Data>({
     youtubeSnsAddress: existingOrder?.youtube_sns_address || "",
@@ -220,12 +220,13 @@ export default function CustomOrderForm({
 
   // 기본 가격이 아닌 옵션들만 필터링 (선택 가능한 옵션들)
   // 기타 옵션으로 이동한 항목들은 제외
-  const selectableOptions = priceOptions?.filter(
-    (opt) =>
-      opt.value !== "base_price" &&
-      opt.value !== "portfolio_private" &&
-      opt.value !== "review_event"
-  ) || [];
+  const selectableOptions =
+    priceOptions?.filter(
+      (opt) =>
+        opt.value !== "base_price" &&
+        opt.value !== "portfolio_private" &&
+        opt.value !== "review_event"
+    ) || [];
 
   // 필수 영역 선택 시 외부 계약 여부 자동 업데이트
   useEffect(() => {
@@ -262,30 +263,34 @@ export default function CustomOrderForm({
     }
 
     // 선택된 옵션들의 가격을 계산 (DB 옵션 + 기타 옵션)
-    Object.entries(step3Data.selectedOptions).forEach(([optionValue, isSelected]) => {
-      if (isSelected) {
-        // DB 옵션 확인
-        const dbOption = getOptionByValue(optionValue);
-        if (dbOption) {
-          if (dbOption.is_discount) {
-            total -= dbOption.price;
-          } else {
-            total += dbOption.price;
+    Object.entries(step3Data.selectedOptions).forEach(
+      ([optionValue, isSelected]) => {
+        if (isSelected) {
+          // DB 옵션 확인
+          const dbOption = getOptionByValue(optionValue);
+          if (dbOption) {
+            if (dbOption.is_discount) {
+              total -= dbOption.price;
+            } else {
+              total += dbOption.price;
+            }
+            return;
           }
-          return;
-        }
 
-        // 기타 옵션 확인
-        const otherOption = OTHER_OPTIONS.find((opt) => opt.value === optionValue);
-        if (otherOption) {
-          if (otherOption.is_discount) {
-            total -= otherOption.price;
-          } else {
-            total += otherOption.price;
+          // 기타 옵션 확인
+          const otherOption = OTHER_OPTIONS.find(
+            (opt) => opt.value === optionValue
+          );
+          if (otherOption) {
+            if (otherOption.is_discount) {
+              total -= otherOption.price;
+            } else {
+              total += otherOption.price;
+            }
           }
         }
       }
-    });
+    );
 
     // 빠른 마감 선택 시 전체 가격 2배
     if (step3Data.fastDelivery) {
@@ -662,8 +667,8 @@ export default function CustomOrderForm({
                   </p>
                   <p>(디자인은 대부분 작업 시작 이후 1주 사이로 나갑니다.)</p>
                   <p>
-                    단, 오마카세 요청시 <strong>1회만 수정</strong>의 기준
-                    합니다 (다 다시 만들어 달라는 수정은 불가능)
+                    단, 오마카세 요청시 <strong>1회만 수정</strong>가능합니다
+                    (다 다시 만들어 달라는 수정은 불가능)
                   </p>
                 </div>
               </div>
@@ -876,6 +881,13 @@ export default function CustomOrderForm({
                 <p className="text-sm text-green-700">
                   추가 옵션을 선택하고 최종 금액을 확인해주세요.
                 </p>
+                <p className="text-sm text-green-700">
+                  별도의 문의사항이 있으시면 공식 트위터{" "}
+                  <a className="text-blue-600" href="https://x.com/TEMISforyou">
+                    @TEMISforyou
+                  </a>
+                  로 문의주세요
+                </p>
               </div>
 
               {loadingPricing ? (
@@ -894,8 +906,10 @@ export default function CustomOrderForm({
                     </h4>
                     <div className="space-y-3">
                       {REQUIRED_AREA_OPTIONS.map((option) => {
-                        const isExternalContract = option.value === "external_contract";
-                        const isSelected = step3Data.requiredArea === option.value;
+                        const isExternalContract =
+                          option.value === "external_contract";
+                        const isSelected =
+                          step3Data.requiredArea === option.value;
 
                         return (
                           <label
@@ -977,76 +991,79 @@ export default function CustomOrderForm({
                       </h4>
                       <div className="space-y-3">
                         {selectableOptions.map((option) => (
-                      <label
-                        key={option.id}
-                        className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
-                          step3Data.externalContract
-                            ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
-                            : option.is_discount
-                            ? "border-green-200 hover:bg-green-50 bg-green-25"
-                            : "border-slate-200 hover:bg-slate-50"
-                        }`}
-                      >
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={step3Data.selectedOptions[option.value] || false}
-                            disabled={step3Data.externalContract}
-                            onChange={(e) =>
-                              setStep3Data((prev) => ({
-                                ...prev,
-                                selectedOptions: {
-                                  ...prev.selectedOptions,
-                                  [option.value]: e.target.checked,
-                                },
-                              }))
-                            }
-                            className={`mr-3 h-4 w-4 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
-                              option.is_discount
-                                ? "text-green-600 focus:ring-green-500"
-                                : "text-[#1e3a8a] focus:ring-[#1e3a8a]"
+                          <label
+                            key={option.id}
+                            className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
+                              step3Data.externalContract
+                                ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
+                                : option.is_discount
+                                ? "border-green-200 hover:bg-green-50 bg-green-25"
+                                : "border-slate-200 hover:bg-slate-50"
                             }`}
-                          />
-                          <div>
-                            <div
-                              className={`font-medium ${
+                          >
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={
+                                  step3Data.selectedOptions[option.value] ||
+                                  false
+                                }
+                                disabled={step3Data.externalContract}
+                                onChange={(e) =>
+                                  setStep3Data((prev) => ({
+                                    ...prev,
+                                    selectedOptions: {
+                                      ...prev.selectedOptions,
+                                      [option.value]: e.target.checked,
+                                    },
+                                  }))
+                                }
+                                className={`mr-3 h-4 w-4 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
+                                  option.is_discount
+                                    ? "text-green-600 focus:ring-green-500"
+                                    : "text-[#1e3a8a] focus:ring-[#1e3a8a]"
+                                }`}
+                              />
+                              <div>
+                                <div
+                                  className={`font-medium ${
+                                    step3Data.externalContract
+                                      ? "text-slate-400"
+                                      : option.is_discount
+                                      ? "text-green-800"
+                                      : "text-slate-900"
+                                  }`}
+                                >
+                                  {option.label}
+                                </div>
+                                {option.description && (
+                                  <div
+                                    className={`text-sm ${
+                                      step3Data.externalContract
+                                        ? "text-slate-300"
+                                        : option.is_discount
+                                        ? "text-green-600"
+                                        : "text-slate-600"
+                                    }`}
+                                  >
+                                    {option.description}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <span
+                              className={`font-bold ${
                                 step3Data.externalContract
                                   ? "text-slate-400"
                                   : option.is_discount
-                                  ? "text-green-800"
-                                  : "text-slate-900"
+                                  ? "text-green-600"
+                                  : "text-[#1e3a8a]"
                               }`}
                             >
-                              {option.label}
-                            </div>
-                            {option.description && (
-                              <div
-                                className={`text-sm ${
-                                  step3Data.externalContract
-                                    ? "text-slate-300"
-                                    : option.is_discount
-                                    ? "text-green-600"
-                                    : "text-slate-600"
-                                }`}
-                              >
-                                {option.description}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <span
-                          className={`font-bold ${
-                            step3Data.externalContract
-                              ? "text-slate-400"
-                              : option.is_discount
-                              ? "text-green-600"
-                              : "text-[#1e3a8a]"
-                          }`}
-                        >
-                          {option.is_discount ? "-" : "+"}₩
-                          {option.price.toLocaleString()}
-                        </span>
-                      </label>
+                              {option.is_discount ? "-" : "+"}₩
+                              {option.price.toLocaleString()}
+                            </span>
+                          </label>
                         ))}
                       </div>
                     </div>
@@ -1072,7 +1089,9 @@ export default function CustomOrderForm({
                           <div className="flex items-center">
                             <input
                               type="checkbox"
-                              checked={step3Data.selectedOptions[option.value] || false}
+                              checked={
+                                step3Data.selectedOptions[option.value] || false
+                              }
                               disabled={step3Data.externalContract}
                               onChange={(e) =>
                                 setStep3Data((prev) => ({
