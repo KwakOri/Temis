@@ -11,13 +11,13 @@ export const REQUIRED_AREA_OPTIONS: RequiredAreaOption[] = [
     value: "structured",
     label: "정형 시간표",
     price: 80000,
-    description: "카드의 형태가 동일하고 정갈하게 배치된 시간표 디자인입니다",
+    description: "카드의 형태가 동일하고 정갈하게 배치된 시간표 디자인입니다.",
   },
   {
     value: "extended_area",
     label: "비정형 시간표",
     price: 100000,
-    description: "카드의 형태가 자유롭고 개성있게 배치된 시간표 디자인입니다",
+    description: "카드의 형태가 자유롭고 개성있게 배치된 시간표 디자인입니다. ",
   },
   {
     value: "team",

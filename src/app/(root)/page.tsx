@@ -73,7 +73,7 @@ export default function Home() {
       // 로그아웃 후 메뉴 닫기
       setIsMenuOpen(false);
       // 로그인 페이지로 리다이렉트
-      router.push('/auth');
+      router.push("/auth");
     }
     // 로그인이 필요한 경우는 링크로 처리
   };
