@@ -285,6 +285,7 @@ export type Database = {
           is_discount: boolean
           is_enabled: boolean
           label: string
+          order: number
           price: number
           updated_at: string
           value: string
@@ -297,6 +298,7 @@ export type Database = {
           is_discount?: boolean
           is_enabled?: boolean
           label: string
+          order?: number
           price?: number
           updated_at?: string
           value: string
@@ -309,6 +311,7 @@ export type Database = {
           is_discount?: boolean
           is_enabled?: boolean
           label?: string
+          order?: number
           price?: number
           updated_at?: string
           value?: string

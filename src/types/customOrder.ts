@@ -12,6 +12,8 @@ export interface CustomOrderFormData {
   referenceFiles: FilePreviewItem[];
   referenceFileIds: string[];
   selectedOptions: Record<string, boolean>; // option.value -> selected 상태
+  requiredArea: string; // 필수 영역 선택
+  fastDelivery: boolean; // 빠른 마감 선택
   externalContract: boolean;
   priceQuoted: number;
   depositorName: string;
@@ -28,6 +30,8 @@ export interface CustomOrderData {
   wants_omakase: boolean;
   design_keywords: string;
   selected_options: string[];
+  required_area: string;
+  fast_delivery: boolean;
   price_quoted: number;
   depositor_name: string;
 }
@@ -42,6 +46,8 @@ export interface CustomOrderWithStatus {
   wants_omakase: boolean;
   design_keywords: string;
   selected_options: string[];
+  required_area: string;
+  fast_delivery: boolean;
   status: "pending" | "accepted" | "in_progress" | "completed" | "cancelled";
   price_quoted?: number;
   depositor_name?: string;
