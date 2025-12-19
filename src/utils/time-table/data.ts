@@ -6,6 +6,7 @@ import {
   TPlaceholders,
 } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
+import { AddonFieldConfig } from "@/components/TimeTable/FixedComponents/TimeTableAddonList";
 
 export const weekdays = {
   en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
@@ -78,6 +79,32 @@ export const createPlaceholdersFromConfig = ({
 
   cardInputConfig.fields.forEach((field) => {
     placeholders[field.key] = field.placeholder;
+  });
+
+  return placeholders;
+};
+
+/**
+ * AddonFieldConfig 배열로부터 placeholder 객체를 생성합니다.
+ * @param fields - AddonFieldConfig 배열
+ * @returns key를 키로, placeholder를 값으로 하는 객체
+ * @example
+ * const fields = [
+ *   { key: "addon01", placeholder: "급훈 작성" },
+ *   { key: "addon02", placeholder: "공지사항 작성" }
+ * ];
+ * const placeholders = createPlaceholdersFromAddonFields(fields);
+ * // { addon01: "급훈 작성", addon02: "공지사항 작성" }
+ */
+export const createPlaceholdersFromAddonFields = (
+  fields: AddonFieldConfig[]
+): Record<string, string> => {
+  const placeholders: Record<string, string> = {};
+
+  fields.forEach((field) => {
+    if (field.placeholder) {
+      placeholders[field.key] = field.placeholder;
+    }
   });
 
   return placeholders;

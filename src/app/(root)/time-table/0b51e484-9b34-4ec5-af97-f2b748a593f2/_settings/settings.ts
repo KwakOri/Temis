@@ -1,4 +1,3 @@
-import { AddonFieldConfig } from "@/components/TimeTable/FixedComponents/TimeTableAddonList";
 import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
 
@@ -114,30 +113,6 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     inactiveColor: "bg-gray-300",
   },
 };
-
-export const addonFields: AddonFieldConfig[] = [
-  {
-    key: "time",
-    type: "time",
-    placeholder: "10:00",
-    required: true,
-    defaultValue: "10:00",
-  },
-  {
-    key: "mainTitle",
-    type: "textarea",
-    placeholder: "메인 타이틀\n적는 곳",
-    defaultValue: "",
-    maxLength: 200,
-  },
-  {
-    key: "subTitle",
-    type: "text",
-    placeholder: "서브 타이틀 적는곳",
-    defaultValue: "",
-    maxLength: 50,
-  },
-];
 
 // CARD_INPUT_CONFIG에서 동적으로 생성된 placeholders와 추가 필드들을 병합
 
