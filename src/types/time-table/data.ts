@@ -49,3 +49,5 @@ export interface TDynamicCard {
 }
 
 export type TPlaceholders = Record<string, string> & { profileText: string };
+
+export type TAddonPlaceholders = Record<string, string>;
