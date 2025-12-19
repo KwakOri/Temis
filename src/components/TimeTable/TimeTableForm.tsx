@@ -388,7 +388,6 @@ const TimeTableForm = ({
           mondayDateStr={mondayDateStr}
           onDateChange={handleDateChange}
         />
-
         {children}
       </div>
     </div>

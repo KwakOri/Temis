@@ -9,11 +9,14 @@ import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableEditor } from "@/hooks";
 
+import TimeTableAddonList from "@/components/TimeTable/FixedComponents/TimeTableAddonList";
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
+import { useTimeTableAddon } from "@/hooks/useTimeTableAddon";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
 import {
+  addonFields,
   CARD_INPUT_CONFIG,
   defaultTheme,
   profileImageHeight,
@@ -34,6 +37,14 @@ const TimeTableEditorContent: React.FC = () => {
       captureSize: templateSize,
     });
 
+  const {
+    data: addonData,
+    updateData: updateAddonData,
+    updateField: updateAddonField,
+  } = useTimeTableAddon({
+    fields: addonFields,
+  });
+
   // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
   if (!isInitialized || state.weekDates.length === 0) return <Loading />;
 
@@ -51,16 +62,30 @@ const TimeTableEditorContent: React.FC = () => {
             currentTheme={currentTheme}
             data={data}
             placeholders={placeholders}
+            addonData={addonData}
           />
         </TimeTablePreview>
         <TimeTableForm
           isArtist
+          teamData={data}
           onReset={resetData}
-          addons={<>{isGuideEnabled && <TimeTableDesignGuideController />}</>}
+          addons={
+            <>
+              {isGuideEnabled && <TimeTableDesignGuideController />}
+              <TimeTableAddonList
+                data={addonData}
+                onDataChange={updateAddonData}
+                fields={addonFields}
+                showLabels={true}
+              />
+            </>
+          }
           cropWidth={profileImageWidth}
           cropHeight={profileImageHeight}
         >
           <TimeTableInputList
+            isMultiple
+            maxStreamingTimeByDay={2}
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}
             data={data}
