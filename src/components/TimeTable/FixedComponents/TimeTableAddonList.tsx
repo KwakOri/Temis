@@ -1,7 +1,6 @@
 import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
 import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
 import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
-import { SimpleFieldConfig } from "@/types/time-table/data";
 import React from "react";
 
 // Addon 데이터 타입 정의
@@ -54,7 +53,9 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
 
   // 필드 렌더링 함수
   const renderInputField = (fieldConfig: AddonFieldConfig) => {
-    const value = String(data[fieldConfig.key] || fieldConfig.defaultValue || "");
+    const value = String(
+      data[fieldConfig.key] || fieldConfig.defaultValue || ""
+    );
 
     const commonClassName =
       "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none";
@@ -93,7 +94,9 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
           <AdaptiveTimeRenderer
             id={fieldId}
             value={value}
-            onChange={(newValue) => handleFieldChange(fieldConfig.key, newValue)}
+            onChange={(newValue) =>
+              handleFieldChange(fieldConfig.key, newValue)
+            }
           />
         );
 
@@ -103,9 +106,7 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
             value={value}
             required={fieldConfig.required}
             className={commonClassName}
-            onChange={(e) =>
-              handleFieldChange(fieldConfig.key, e.target.value)
-            }
+            onChange={(e) => handleFieldChange(fieldConfig.key, e.target.value)}
           >
             <option value="" disabled>
               {fieldConfig.placeholder}

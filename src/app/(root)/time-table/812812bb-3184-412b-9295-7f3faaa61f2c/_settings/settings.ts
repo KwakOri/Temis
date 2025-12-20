@@ -1,3 +1,4 @@
+import { AddonFieldConfig } from "@/components/TimeTable/FixedComponents/TimeTableAddonList";
 import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
 
@@ -14,9 +15,9 @@ export const templateSize = {
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const fontOption = {
-  primary: "SchoolSafetyNotification",
-  secondary: "DnfTemperedBlade",
-  tertiary: "JejuStoneWall",
+  primary: "OngleipParkDahyeon",
+  secondary: "SchoolSafetyRoundedSmile",
+  tertiary: "",
   quaternary: "",
 };
 
@@ -52,10 +53,10 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const colors = {
   first: {
-    primary: "#0948A5",
-    secondary: "#D7E8FC",
-    tertiary: "#EE7C89",
-    quaternary: "#FFFFFF",
+    primary: "#FFFFFF",
+    secondary: "#FFFFC6",
+    tertiary: "#2B604E",
+    quaternary: "#404040",
   },
   second: {
     primary: "",
@@ -76,8 +77,8 @@ export const colors = {
 /** Online 카드 구성 */
 /** Online 카드 구성 */
 
-export const onlineCardWidth: number = 842;
-export const onlineCardHeight: number = 647;
+export const onlineCardWidth: number = 610;
+export const onlineCardHeight: number = 676;
 
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
@@ -91,18 +92,18 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       defaultValue: "10:00",
     },
     {
-      key: "mainTitle",
-      type: "textarea",
-      placeholder: "메인 타이틀\n적는 곳",
-      defaultValue: "",
-      maxLength: 200,
-    },
-    {
       key: "subTitle",
       type: "text",
       placeholder: "서브 타이틀 적는 곳",
       defaultValue: "",
       maxLength: 50,
+    },
+    {
+      key: "mainTitle",
+      type: "textarea",
+      placeholder: "메인 타이틀\n적는 곳",
+      defaultValue: "",
+      maxLength: 200,
     },
   ],
   showLabels: false, // 라벨 표시 여부
@@ -114,6 +115,37 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
   },
 };
 
+export const addonFields: AddonFieldConfig[] = [
+  {
+    label: "이번주 급훈",
+    key: "addon_01_label",
+    type: "select",
+
+    options: [
+      { value: "option_01", label: "이번주 급훈" },
+      { value: "option_02", label: "D-DAY" },
+    ],
+    placeholder: "메모 타입",
+    defaultValue: "option_01",
+  },
+  {
+    label: "이번주 급훈",
+    key: "addon_01",
+    type: "textarea",
+    placeholder: "급훈 or D-DAY\n작성하는 곳",
+    defaultValue: "",
+    maxLength: 200,
+  },
+  {
+    label: "이번주 공지사항",
+    key: "addon_02",
+    type: "textarea",
+    placeholder: "이번주 공지사항\n상세내용\n작성하는 곳",
+    defaultValue: "",
+    maxLength: 200,
+  },
+];
+
 // CARD_INPUT_CONFIG에서 동적으로 생성된 placeholders와 추가 필드들을 병합
 
 /** ---------------------------------------------- */
@@ -121,8 +153,8 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 /** Offline 카드 구성 */
 /** Offline 카드 구성 */
 
-export const offlineCardWidth: number = 842;
-export const offlineCardHeight: number = 647;
+export const offlineCardWidth: number = 331;
+export const offlineCardHeight: number = 319;
 
 /** ---------------------------------------------- */
 
@@ -177,8 +209,8 @@ export const profileFrameHeight = 2250;
 
 /** Profile Image 크기 */
 
-export const profileImageWidth = 1120;
-export const profileImageHeight = 1700;
+export const profileImageWidth = 620;
+export const profileImageHeight = 640;
 
 export const profileBackPlateWidth = 1327;
 export const profileBackPlateHeight = 1484;
