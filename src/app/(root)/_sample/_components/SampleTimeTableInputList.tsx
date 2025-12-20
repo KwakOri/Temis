@@ -430,7 +430,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
     <>
       {data.slice(0, 3).map((day, dayIndex) => (
         <SampleDayCard
-          className="min-h-20 rounded-[40px] p-5"
+          className="min-h-[64px] rounded-[26px]"
           key={day.day}
           weekdayLabel={
             weekdayRenderer ? weekdayRenderer(day) : defaultWeekdayRenderer(day)
@@ -457,73 +457,75 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
             ) : undefined
           }
         >
-          <div className="flex flex-col gap-6">
-            {day.entries.map((entry, entryIndex) => (
-              <EntryCard
-                key={`${day.day}-${entryIndex}`}
-                entry={entry}
-                entryIndex={entryIndex}
-                showHeader={isMultiple}
-                showDeleteButton={isMultiple && day.entries.length > 1}
-                onDelete={() => handleRemoveEntry(dayIndex, entryIndex)}
-                variant="default"
+          <div className="pb-6 flex flex-col gap-4">
+            <div className="flex flex-col gap-6">
+              {day.entries.map((entry, entryIndex) => (
+                <EntryCard
+                  key={`${day.day}-${entryIndex}`}
+                  entry={entry}
+                  entryIndex={entryIndex}
+                  showHeader={isMultiple}
+                  showDeleteButton={isMultiple && day.entries.length > 1}
+                  onDelete={() => handleRemoveEntry(dayIndex, entryIndex)}
+                  variant="default"
+                >
+                  {cardInputConfig.fields.map((fieldConfig) => {
+                    const isDefaultField =
+                      fieldConfig.key in defaultFieldRenderers;
+
+                    return (
+                      <div key={fieldConfig.key}>
+                        {fieldConfig.label && cardInputConfig.showLabels && (
+                          <label
+                            className={cn(
+                              labelVariants({ size: "xs" }),
+                              "block mb-1"
+                            )}
+                          >
+                            {fieldConfig.label}
+                          </label>
+                        )}
+                        {isDefaultField
+                          ? renderDefaultField(
+                              fieldConfig.key,
+                              entry,
+                              dayIndex,
+                              entryIndex
+                            )
+                          : renderInputField(
+                              fieldConfig,
+                              entry,
+                              dayIndex,
+                              entryIndex
+                            )}
+                      </div>
+                    );
+                  })}
+                </EntryCard>
+              ))}
+            </div>
+
+            {/* 엔트리 추가 버튼 */}
+            {isMultiple && day.entries.length < maxStreamingTimeByDay && (
+              <button
+                type="button"
+                className={cn(
+                  buttonVariants({
+                    variant: "light",
+                    size: "md",
+                    fullWidth: true,
+                  }),
+                  "flex items-center justify-center gap-2"
+                )}
+                onClick={() => handleAddEntry(dayIndex)}
               >
-                {cardInputConfig.fields.map((fieldConfig) => {
-                  const isDefaultField =
-                    fieldConfig.key in defaultFieldRenderers;
-
-                  return (
-                    <div key={fieldConfig.key}>
-                      {fieldConfig.label && cardInputConfig.showLabels && (
-                        <label
-                          className={cn(
-                            labelVariants({ size: "xs" }),
-                            "block mb-1"
-                          )}
-                        >
-                          {fieldConfig.label}
-                        </label>
-                      )}
-                      {isDefaultField
-                        ? renderDefaultField(
-                            fieldConfig.key,
-                            entry,
-                            dayIndex,
-                            entryIndex
-                          )
-                        : renderInputField(
-                            fieldConfig,
-                            entry,
-                            dayIndex,
-                            entryIndex
-                          )}
-                    </div>
-                  );
-                })}
-              </EntryCard>
-            ))}
+                <span className="text-lg">+</span>
+                <span className="text-sm font-medium">
+                  방송 추가 ({day.entries.length}/{maxStreamingTimeByDay})
+                </span>
+              </button>
+            )}
           </div>
-
-          {/* 엔트리 추가 버튼 */}
-          {isMultiple && day.entries.length < maxStreamingTimeByDay && (
-            <button
-              type="button"
-              className={cn(
-                buttonVariants({
-                  variant: "light",
-                  size: "md",
-                  fullWidth: true,
-                }),
-                "flex items-center justify-center gap-2"
-              )}
-              onClick={() => handleAddEntry(dayIndex)}
-            >
-              <span className="text-lg">+</span>
-              <span className="text-sm font-medium">
-                방송 추가 ({day.entries.length}/{maxStreamingTimeByDay})
-              </span>
-            </button>
-          )}
         </SampleDayCard>
       ))}
     </>

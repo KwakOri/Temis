@@ -12,9 +12,9 @@
   /* TimeTable 전용 색상 */
   --color-timetable-primary: #fd9319;
   --color-timetable-primary-hover: #e58615;
-  --color-timetable-card-bg: #f8f3f0;
-  --color-timetable-card-border: #efe8e3;
-  --color-timetable-input-bg: #ede5dd;
+  --color-timetable-card-bg: #ece3e1;
+  --color-timetable-card-border: #e2d4c4;
+  --color-timetable-input-bg: #dcd0c6;
   --color-timetable-input-hover: #e0d8d0;
   --color-timetable-form-bg: #f5f0ed;
 }

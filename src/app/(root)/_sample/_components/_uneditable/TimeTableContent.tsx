@@ -28,19 +28,16 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   return (
     <div
       id="timetable"
-      className=" box-border select-none font-sans origin-top-left relative shadow-[0_6px_20px_rgba(0,0,0,0.15)] "
+      className=" box-border select-none font-sans relative rounded-[120px] overflow-hidden"
       style={{
-        transform: `scale(${scale})`,
-        backgroundImage: `url(${Imgs[currentTheme].bg.src})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
+        transform: `scale(${0.275})`,
         width: templateSize.width,
         height: templateSize.height,
+        transformOrigin: "left top",
       }}
     >
       <div
-        className="rounded-[120px] overflow-hidden"
+        className=""
         style={{
           width: 4000,
           height: 2250,
@@ -76,23 +73,8 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
           currentTheme={currentTheme}
           isProfileTextVisible={isProfileTextVisible}
         />
+        <img className="absolute inset-0" src={Imgs["first"].bg.src} alt="" />
       </div>
-
-      <img
-        style={{ rotate: "-12deg" }}
-        width={"10%"}
-        className="absolute top-120 -left-80 z-50"
-        src="/images/calendar.svg"
-        alt=""
-      />
-      <div
-        className="absolute rounded-[200px] pointer-events-none"
-        style={{
-          inset: -160,
-          background:
-            "linear-gradient(to bottom,rgba(252,113,43,1) 0%,rgba(253,147,25,1) 70%,rgba(253,130,34,0) 100%",
-        }}
-      ></div>
     </div>
   );
 };

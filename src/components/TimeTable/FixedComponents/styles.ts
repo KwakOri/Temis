@@ -55,8 +55,8 @@ export const toggleVariants = cva(
   {
     variants: {
       size: {
-        sm: "w-8 h-4",
-        md: "w-10 h-5",
+        sm: "w-[68px] h-[30px]",
+        md: "w-[82px] h-[36px]",
         lg: "w-12 h-6",
       },
       variant: {
@@ -92,13 +92,13 @@ export const toggleVariants = cva(
 
 // 토글 핸들 스타일 (카드 배경색과 동일)
 export const toggleHandleVariants = cva(
-  "bg-timetable-card-bg rounded-full shadow-md transform transition-transform duration-200 ease-in-out",
+  "bg-timetable-card-bg rounded-full shadow-md transform transition-transform duration-200 ease-in-out shadow-[0_4px_4px_rgba(0,0,0,0.25)] ",
   {
     variants: {
       size: {
-        sm: "w-3 h-3",
-        md: "w-4 h-4",
-        lg: "w-5 h-5",
+        sm: "w-5 h-5",
+        md: "w-6 h-6",
+        lg: "w-7 h-7",
       },
     },
     defaultVariants: {
@@ -133,7 +133,7 @@ export const inputVariants = cva(
 
 // 버튼 스타일
 export const buttonVariants = cva(
-  "rounded-xl transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2",
+  "rounded-xl transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ",
   {
     variants: {
       variant: {

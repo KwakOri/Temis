@@ -23,8 +23,8 @@ export const Toggle: React.FC<ToggleProps> = ({
   title,
 }) => {
   const translateClass = {
-    sm: active ? "translate-x-4" : "translate-x-0",
-    md: active ? "translate-x-5" : "translate-x-0",
+    sm: active ? "translate-x-10" : "translate-x-1",
+    md: active ? "translate-x-12.5" : "translate-x-1",
     lg: active ? "translate-x-6" : "translate-x-0",
   }[size];
 

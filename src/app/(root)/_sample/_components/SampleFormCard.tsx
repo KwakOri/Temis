@@ -1,14 +1,13 @@
 import { Toggle } from "@/components/TimeTable/FixedComponents/Toggle";
 import { cn } from "@/lib/utils";
+import SampleCardTitle from "./SampleCardTitle";
 import { cardVariants } from "./styles";
 
 interface FormCardProps {
   label: React.ReactNode;
   isActive: boolean;
   toggleIsActive: () => void;
-
   children: React.ReactNode;
-
   className?: string;
   expandAnimation?: {
     duration?: number;
@@ -30,13 +29,13 @@ export const SampleFormCard: React.FC<FormCardProps> = ({
   return (
     <div
       className={cn(
-        cardVariants({ variant: "elevated", type: "input" }),
+        cardVariants({ variant: "elevated", type: "button" }),
         className
       )}
     >
       {/* 헤더 */}
-      <div className="h-10 flex w-full justify-between items-center">
-        <div className="font-bold text-lg text-gray-900">{label}</div>
+      <div className="min-h-[64px] flex w-full justify-between items-center">
+        <SampleCardTitle label={label as string} />
         <Toggle
           active={isActive}
           onToggle={toggleIsActive}

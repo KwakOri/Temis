@@ -1,7 +1,6 @@
 "use client";
 import GallerySection from "@/components/LandingPage/GallerySection/GallerySection";
 import KeyFeaturesSection from "@/components/LandingPage/KeyFeatures/KeyFeatures";
-import MainHeader from "@/components/LandingPage/MainHeader/MainHeader";
 import ReviewSection from "@/components/LandingPage/ReviewSection/ReviewSection";
 import { useAuth } from "@/contexts/AuthContext"; // useAuth 임포트
 import { useAdminOptions } from "@/hooks/query/useAdminOptions";
@@ -9,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { keyFeatureList, reviews } from "./_constants";
 import TestComponent from "./_sample/TestComponent";
+import NavBar from "./_sample/_components/NavBar";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -384,10 +384,10 @@ export default function Home() {
           </div>
         </div>
       </header> */}
-      <MainHeader />
+      <NavBar />
 
       {/* 메인 콘텐츠 - 반응형 패딩 적용 */}
-      <div className="w-full max-w-7xl mx-auto mb-10">
+      <div className="w-full mx-auto mb-10">
         <TestComponent />
       </div>
 

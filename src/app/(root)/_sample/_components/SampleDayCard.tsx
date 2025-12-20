@@ -1,5 +1,6 @@
 import { Toggle } from "@/components/TimeTable/FixedComponents/Toggle";
 import { cn } from "@/lib/utils";
+import SampleCardTitle from "./SampleCardTitle";
 import { cardVariants } from "./styles";
 
 interface DayCardProps {
@@ -32,10 +33,15 @@ export const SampleDayCard: React.FC<DayCardProps> = ({
   },
 }) => {
   return (
-    <div className={cn(cardVariants({ variant: "elevated" }), className)}>
+    <div
+      className={cn(
+        cardVariants({ variant: "elevated", type: "button" }),
+        className
+      )}
+    >
       {/* 헤더 */}
-      <div className="h-10 flex w-full justify-between items-center">
-        <div className="font-bold text-lg text-gray-900">{weekdayLabel}</div>
+      <div className="min-h-[64px] flex w-full justify-between items-center">
+        <SampleCardTitle label={weekdayLabel as string} />
         <Toggle
           active={!isOffline}
           onToggle={onOfflineToggle}

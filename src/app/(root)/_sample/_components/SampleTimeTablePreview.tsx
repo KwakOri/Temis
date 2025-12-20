@@ -1,153 +1,70 @@
 import { useTimeTable } from "@/contexts/TimeTableContext";
-import { useGesture } from "@use-gesture/react";
-import { PropsWithChildren, useEffect, useState } from "react";
+import { PropsWithChildren } from "react";
 
 const TimeTableSamplePreview = ({ children }: PropsWithChildren) => {
   const { state, actions } = useTimeTable();
   const { scale, weekDates, isMobile, captureSize } = state;
-  const { updateScale } = actions;
-  const [position, setPosition] = useState({ x: 0, y: 0 });
 
   // 동적으로 템플릿 크기 사용 (기본값으로 1280x720 사용)
-  const templateWidth = captureSize?.width || 1280;
-  const templateHeight = captureSize?.height || 720;
-
-  const containerWidth = templateWidth * scale;
-  const containerHeight = templateHeight * scale;
-
-  const bind = useGesture(
-    {
-      onDrag: ({ movement: [mx, my], first, memo, touches }) => {
-        if (touches > 1) return memo;
-
-        if (first) {
-          memo = [position.x, position.y];
-        }
-
-        if (!memo) {
-          memo = [position.x, position.y];
-        }
-
-        const newX = memo[0] + mx;
-        const newY = memo[1] + my;
-
-        setPosition({ x: newX, y: newY });
-
-        return memo;
-      },
-      onPinch: ({ offset: [scale_offset], first, memo, touches }) => {
-        if (!isMobile || touches < 2) return memo;
-
-        if (first) {
-          memo = {
-            scale: scale,
-            position: { x: position.x, y: position.y },
-          };
-        }
-
-        if (!memo) {
-          memo = {
-            scale: scale,
-            position: { x: position.x, y: position.y },
-          };
-        }
-
-        if (updateScale && Math.abs(scale_offset) > 0.001) {
-          const newScale = Math.min(
-            Math.max(memo.scale + scale_offset * 0.01, 0.1),
-            1.0
-          );
-          updateScale(newScale);
-        }
-
-        return memo;
-      },
-    },
-    {
-      drag: {
-        filterTaps: true,
-        threshold: 1,
-        pointer: { touch: true },
-      },
-      pinch: {
-        scaleBounds: { min: 0.1, max: 1.0 },
-        rubberband: true,
-        threshold: 0.1,
-        pointer: { touch: true },
-      },
-    }
-  );
-
-  useEffect(() => {
-    if (!isMobile) {
-      setPosition({ x: 0, y: 200 });
-    }
-  }, [scale, isMobile]);
-
-  const isDraggable = true;
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (isMobile) {
-        setPosition({ x: 0, y: 0 });
-      }
-    };
-
-    if (isMobile) {
-      window.addEventListener("resize", handleResize);
-      return () => window.removeEventListener("resize", handleResize);
-    }
-  }, [isMobile]);
-
-  const getViewportStyle = () => ({
-    height: isMobile ? "30vh" : undefined,
-    flex: isMobile ? "none" : "1 1 0%",
-    minHeight: isMobile ? undefined : 900,
-    backgroundImage: `url("/images/landing_bg.png")`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-  });
-
-  const getDraggableStyle = () => ({
-    width: containerWidth,
-    height: containerHeight,
-    transform: `translate(${position.x}px, ${position.y}px)`,
-    cursor: isDraggable ? "grab" : "default",
-    transition: "width 0.1s ease, height 0.1s ease",
-    touchAction: "none",
-  });
 
   if (weekDates.length === 0) return null;
 
   return (
     <div
-      className="flex justify-center items-center w-full h-full rounded-3xl border-2 border-[#E2D4C4] overflow-hidden relative"
-      style={getViewportStyle()}
+      className="flex flex-col justify-start items-center w-full h-full rounded-3xl border-2 border-[#E2D4C4] overflow-hidden relative"
+      style={{
+        width: 1360,
+        height: 925,
+        backgroundImage: `url("/images/landing_bg.png")`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
     >
-      <div className="absolute top-10 z-10 flex flex-col items-center">
-        <p style={{ color: "#F56015" }} className="font-bold text-3xl mb-4">
+      <div className="z-10 flex flex-col items-center gap-6 py-8">
+        <p style={{ color: "#F56015" }} className="font-bold text-3xl">
           비싼 포토샵을 대체! 편의성을 극대화!
         </p>
-        <p
-          style={{ fontSize: 64, color: "#1B1612", lineHeight: 1.2 }}
-          className="font-extrabold"
-        >
-          버튜버가 만든, 버튜버를 위한
-        </p>
-        <p
-          style={{ fontSize: 64, color: "#1B1612", lineHeight: 1.2 }}
-          className="font-extrabold"
-        >
-          디자인 플랫폼
-        </p>
+        <div className="flex flex-col items-center">
+          <p
+            style={{ fontSize: 64, color: "#1B1612", lineHeight: 1.2 }}
+            className="font-extrabold"
+          >
+            버튜버가 만든, 버튜버를 위한
+          </p>
+          <p
+            style={{ fontSize: 64, color: "#1B1612", lineHeight: 1.2 }}
+            className="font-extrabold"
+          >
+            디자인 플랫폼
+          </p>
+        </div>
       </div>
       <div
-        className="relative shadow-lg rounded-sm z-20"
-        style={getDraggableStyle()}
-        {...bind()}
+        style={{
+          width: 4000 * 0.275 + 104,
+          height: 2250 * 0.275 + 104,
+          background:
+            "linear-gradient(to bottom,rgba(252,113,43,1) 0%,rgba(253,147,25,1) 70%,rgba(253,130,34,0) 100%",
+        }}
+        className="relative z-30 flex justify-center items-center rounded-[72px] shrink-0"
       >
-        {children}
+        <img
+          style={{ rotate: "-12deg" }}
+          width={"10%"}
+          className="absolute top-44 -left-12 z-50"
+          src="/images/calendar.svg"
+          alt=""
+        />
+        <div
+          className="relative shadow-lg rounded-sm z-20 "
+          style={{
+            width: 4000 * 0.275,
+            height: 2250 * 0.275,
+          }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

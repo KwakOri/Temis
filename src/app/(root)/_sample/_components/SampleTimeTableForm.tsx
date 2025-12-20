@@ -16,9 +16,8 @@ import { Point } from "react-easy-crop";
 
 import TextRenderer from "../../../../components/TimeTable/fieldRenderer/TextRenderer";
 import TextareaRenderer from "../../../../components/TimeTable/fieldRenderer/TextareaRenderer";
+import SampleCardTitle from "./SampleCardTitle";
 import { SampleFormCard } from "./SampleFormCard";
-import SampleMondaySelector from "./SampleMondaySelector";
-import SampleTimeTableControls from "./SampleTimeTableControls";
 import { cardVariants } from "./styles";
 interface TimeTableFormProps {
   isArtist?: boolean;
@@ -295,23 +294,18 @@ const TimeTableSampleForm = ({
       {/* 프로필 섹션 */}
 
       <div className="grid grid-cols-3 gap-2 mt-2 items-start">
-        <SampleTimeTableControls />
-        <SampleMondaySelector
-          mondayDateStr={mondayDateStr}
-          onDateChange={handleDateChange}
-        />
         <div
           className={cn(
             cardVariants({ variant: "elevated", type: "button" }),
             "w-full flex items-center justify-between gap-4"
           )}
         >
-          <div className="font-bold text-lg text-gray-900">{"이미지"}</div>
+          <SampleCardTitle label="이미지" />
           <div className="flex-1 h-full flex justify-between items-center ">
             <div className="w-full h-full flex gap-2">
               <button
                 onClick={handleUploadClick}
-                className="w-full h-12 rounded-full bg-timetable-primary text-white text-md font-semibold hover:bg-timetable-primary-hover transition"
+                className="w-full h-11 rounded-full bg-timetable-primary text-white text-md font-semibold hover:bg-timetable-primary-hover transition"
               >
                 {imageSrc ? "이미지 변경" : "새 이미지 업로드"}
               </button>
@@ -326,7 +320,7 @@ const TimeTableSampleForm = ({
                   </button>
                   <button
                     onClick={handleImageDelete}
-                    className="h-12 w-12 shrink-0 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
+                    className="h-11 w-11 shrink-0 bg-red-500 text-white rounded-full text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
                     title="이미지 삭제"
                   >
                     <svg
@@ -404,7 +398,7 @@ const TimeTableSampleForm = ({
       <div className="w-full  h-full min-h-0">
         <div className="h-full w-full  shrink-0 flex flex-col ">
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto p-4 h-full ">
+            <div className="flex-1 overflow-y-auto h-full ">
               {activeTab === "main" && renderMainSettings()}
               {activeTab === "addons" && renderAddonsContent()}
             </div>

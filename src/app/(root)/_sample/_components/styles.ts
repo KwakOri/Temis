@@ -1,7 +1,7 @@
 import { cva } from "class-variance-authority";
 
 export const cardVariants = cva(
-  " min-h-20 rounded-[40px] transition-all duration-200 grow-0",
+  " min-h-[64px] rounded-[28px] transition-all duration-200 grow-0",
   {
     variants: {
       variant: {
@@ -12,7 +12,7 @@ export const cardVariants = cva(
       },
       type: {
         input: "p-5",
-        button: "px-4",
+        button: "px-3",
         full: "p-3",
       },
     },
