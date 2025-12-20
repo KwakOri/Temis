@@ -51,7 +51,7 @@ export const entryCardVariants = cva("transition-all duration-200", {
 
 // 토글 버튼 스타일 (배경 = 핀컬러)
 export const toggleVariants = cva(
-  "flex items-center rounded-full p-0.5 transition-all duration-200 ease-in-out cursor-pointer",
+  "flex items-center rounded-full p-0.5 transition-all duration-200 ease-in-out cursor-pointer shadow-[inset_0_1px_3px_rgba(0,0,0,0.3)]",
   {
     variants: {
       size: {
@@ -70,17 +70,17 @@ export const toggleVariants = cva(
       {
         variant: "primary",
         className:
-          "data-[active=true]:bg-timetable-primary data-[active=false]:bg-gray-300",
+          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-gray-300",
       },
       {
         variant: "offline",
         className:
-          "data-[active=true]:bg-timetable-primary data-[active=false]:bg-gray-300",
+          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-gray-300",
       },
       {
         variant: "guerrilla",
         className:
-          "data-[active=true]:bg-timetable-primary data-[active=false]:bg-gray-300",
+          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-gray-300",
       },
     ],
     defaultVariants: {

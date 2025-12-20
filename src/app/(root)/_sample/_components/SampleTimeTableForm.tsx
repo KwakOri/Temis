@@ -350,13 +350,15 @@ const TimeTableSampleForm = ({
             toggleIsActive={handleToggleProfileImage}
             label="아티스트"
           >
-            <TextRenderer
-              value={profileText}
-              placeholder={"이름을 입력해 주세요"}
-              handleTextChange={handleProfileTextChange}
-              maxLength={20}
-              required={true}
-            />
+            <div className="pb-3.5">
+              <TextRenderer
+                value={profileText}
+                placeholder={"이름을 입력해 주세요"}
+                handleTextChange={handleProfileTextChange}
+                maxLength={20}
+                required={true}
+              />
+            </div>
           </SampleFormCard>
         )}
         {isMemo && (
@@ -366,13 +368,15 @@ const TimeTableSampleForm = ({
             toggleIsActive={handleToggleMemo}
             label="메모"
           >
-            <TextareaRenderer
-              value={memoText}
-              placeholder={"메모를 입력해 주세요"}
-              handleTextareaChange={handleMemoTextChange}
-              maxLength={20}
-              required={true}
-            />
+            <div className="pb-3.5">
+              <TextareaRenderer
+                value={memoText}
+                placeholder={"메모를 입력해 주세요"}
+                handleTextareaChange={handleMemoTextChange}
+                maxLength={20}
+                required={true}
+              />
+            </div>
           </SampleFormCard>
         )}
         {children}

@@ -18,7 +18,7 @@ const TextareaRenderer = ({
   ...props
 }: TextareaRendererProps) => {
   const baseClassName =
-    "w-full bg-timetable-input-bg rounded-xl p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-timetable-primary/50 resize-none";
+    "block w-full bg-timetable-input-bg rounded-xl p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-timetable-primary/50 resize-none";
   const finalClassName = className
     ? `${baseClassName} ${className}`
     : baseClassName;

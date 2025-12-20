@@ -457,7 +457,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
             ) : undefined
           }
         >
-          <div className="pb-6 flex flex-col gap-4">
+          <div className="pb-3.5 flex flex-col gap-4">
             <div className="flex flex-col gap-6">
               {day.entries.map((entry, entryIndex) => (
                 <EntryCard
@@ -519,8 +519,8 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
                 )}
                 onClick={() => handleAddEntry(dayIndex)}
               >
-                <span className="text-lg">+</span>
-                <span className="text-sm font-medium">
+                <span className="text-[20px]">+</span>
+                <span className="text-[20px] font-medium">
                   방송 추가 ({day.entries.length}/{maxStreamingTimeByDay})
                 </span>
               </button>
