@@ -39,11 +39,11 @@ export default function ShopPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen py-6 md:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="ml-4 text-gray-600">로딩 중...</p>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="ml-4 text-dark-gray/70">로딩 중...</p>
           </div>
         </div>
       </div>
@@ -52,13 +52,13 @@ export default function ShopPage() {
 
   if (templatesError) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen py-6 md:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-12">
-            <h3 className="text-xl font-medium text-gray-900 mb-2">
+            <h3 className="text-xl font-medium text-dark-gray mb-2">
               데이터를 불러올 수 없습니다
             </h3>
-            <p className="text-gray-500">
+            <p className="text-dark-gray/60">
               {templatesError instanceof Error
                 ? templatesError.message
                 : "알 수 없는 오류가 발생했습니다."}
@@ -70,15 +70,64 @@ export default function ShopPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen py-6 md:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6">
           <BackButton className="mb-4" />
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-white/20 mb-8">
+        {/* Custom Order 링크 배너 */}
+        <Link
+          href="/custom-order"
+          className="block mb-6 bg-gradient-to-r from-primary to-secondary rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
+        >
+          <div className="p-6 md:p-8 flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="flex-shrink-0 w-12 h-12 md:w-16 md:h-16 bg-white/20 rounded-full flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 md:w-8 md:h-8 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-xl md:text-2xl font-bold text-white mb-1">
+                  맞춤형 시간표 제작
+                </h3>
+                <p className="text-white/90 text-sm md:text-base">
+                  나만의 독특한 디자인으로 시간표를 만들어보세요
+                </p>
+              </div>
+            </div>
+            <div className="flex-shrink-0 hidden md:block">
+              <svg
+                className="w-6 h-6 md:w-8 md:h-8 text-white transform group-hover:translate-x-1 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </div>
+          </div>
+        </Link>
+
+        <div className="bg-timetable-form-bg rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-tertiary mb-8">
           <div className="text-center mb-6 md:mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 bg-[#1e3a8a]">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 bg-primary">
               <svg
                 className="w-8 h-8 text-white"
                 fill="none"
@@ -93,10 +142,10 @@ export default function ShopPage() {
                 />
               </svg>
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 mb-2">
+            <h1 className="text-2xl md:text-3xl font-bold text-dark-gray mb-2">
               템플릿 상점
             </h1>
-            <p className="text-slate-600">
+            <p className="text-dark-gray/70">
               다양한 시간표 템플릿을 둘러보고 구매하세요
             </p>
           </div>
@@ -106,13 +155,13 @@ export default function ShopPage() {
             {/* 정렬 및 필터 컨트롤 */}
             <div className="mb-6 flex flex-wrap gap-4 items-center justify-center">
               <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-dark-gray">
                   정렬:
                 </span>
                 <select
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as SortOrder)}
-                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                  className="px-3 py-2 border border-tertiary rounded-lg text-sm bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 >
                   <option value="newest">최신 순</option>
                   <option value="oldest">오래된 순</option>
@@ -121,13 +170,13 @@ export default function ShopPage() {
 
               {user && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm font-medium text-slate-700">
+                  <span className="text-sm font-medium text-dark-gray">
                     구매하지 않은 템플릿만:
                   </span>
                   <button
                     onClick={() => setShowOnlyUnpurchased(!showOnlyUnpurchased)}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 ${
-                      showOnlyUnpurchased ? "bg-[#1e3a8a]" : "bg-slate-200"
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                      showOnlyUnpurchased ? "bg-primary" : "bg-tertiary"
                     }`}
                   >
                     <span
@@ -145,9 +194,9 @@ export default function ShopPage() {
                 <Link
                   key={template.id}
                   href={`/shop/${template.template_id}`}
-                  className="group block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-white/20 hover:border-[#1e3a8a]/20"
+                  className="group block bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border border-tertiary hover:border-primary/50"
                 >
-                  <div className="aspect-video bg-slate-100 rounded-t-2xl overflow-hidden">
+                  <div className="aspect-video bg-timetable-input-bg rounded-t-2xl overflow-hidden">
                     <Image
                       src={
                         template.templates.thumbnail_url ||
@@ -163,17 +212,17 @@ export default function ShopPage() {
                         const parent = target.parentElement;
                         if (parent) {
                           parent.innerHTML =
-                            '<div class="w-full h-full flex items-center justify-center text-slate-400">썸네일 이미지 없음</div>';
+                            '<div class="w-full h-full flex items-center justify-center text-dark-gray/40">썸네일 이미지 없음</div>';
                         }
                       }}
                     />
                   </div>
 
                   <div className="p-6">
-                    <h3 className="font-semibold text-lg group-hover:text-[#1e3a8a] transition-colors mb-2">
+                    <h3 className="font-semibold text-lg text-dark-gray group-hover:text-primary transition-colors mb-2">
                       {template.templates.name}
                     </h3>
-                    <p className="text-slate-600 text-sm line-clamp-2 mb-4">
+                    <p className="text-dark-gray/70 text-sm line-clamp-2 mb-4">
                       {template.templates.description}
                     </p>
                     {template.template_plans &&
@@ -182,11 +231,11 @@ export default function ShopPage() {
                           {template.template_plans.find(
                             (p) => p.plan === "lite"
                           ) && (
-                            <div className="flex-1 bg-slate-50 rounded-lg px-3 py-2">
-                              <div className="text-xs text-slate-500 mb-1">
+                            <div className="flex-1 bg-tertiary rounded-lg px-3 py-2">
+                              <div className="text-xs text-dark-gray/70 mb-1">
                                 LITE
                               </div>
-                              <div className="text-sm font-bold text-slate-700">
+                              <div className="text-sm font-bold text-dark-gray">
                                 ₩
                                 {template.template_plans
                                   .find((p) => p.plan === "lite")!
@@ -197,11 +246,11 @@ export default function ShopPage() {
                           {template.template_plans.find(
                             (p) => p.plan === "pro"
                           ) && (
-                            <div className="flex-1 bg-indigo-50 rounded-lg px-3 py-2">
-                              <div className="text-xs text-indigo-600 mb-1">
+                            <div className="flex-1 bg-secondary/20 rounded-lg px-3 py-2">
+                              <div className="text-xs text-dark-gray mb-1">
                                 PRO
                               </div>
-                              <div className="text-sm font-bold text-indigo-700">
+                              <div className="text-sm font-bold text-dark-gray">
                                 ₩
                                 {template.template_plans
                                   .find((p) => p.plan === "pro")!
@@ -211,7 +260,7 @@ export default function ShopPage() {
                           )}
                         </div>
                       )}
-                    <div className="flex items-center text-[#1e3a8a] text-sm font-medium">
+                    <div className="flex items-center text-primary text-sm font-medium">
                       <span>자세히 보기</span>
                       <svg
                         className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
@@ -234,9 +283,9 @@ export default function ShopPage() {
 
             {filteredTemplates.length === 0 && (
               <div className="text-center py-12">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-slate-100">
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-tertiary">
                   <svg
-                    className="w-8 h-8 text-slate-400"
+                    className="w-8 h-8 text-dark-gray/40"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -249,7 +298,7 @@ export default function ShopPage() {
                     />
                   </svg>
                 </div>
-                <p className="text-slate-500 text-lg">
+                <p className="text-dark-gray/60 text-lg">
                   {showOnlyUnpurchased
                     ? "구매하지 않은 템플릿이 없습니다."
                     : "현재 판매 중인 템플릿이 없습니다."}

@@ -1,8 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import React from "react";
-import { cardVariants } from "./FixedComponents/styles";
+import CardTitle from "./FixedComponents/CardTitle";
 
 interface MondaySelectorProps {
   mondayDateStr: string;
@@ -40,14 +39,10 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
   };
 
   return (
-    <div className={cn(cardVariants({ variant: "elevated", size: "md" }))}>
-      {/* 헤더 */}
-      {/* <div className="flex justify-between items-center mb-4">
-        <div className="font-bold text-lg text-gray-900">시간표</div>
-      </div> */}
-
+    <div className="h-12 gap-4 flex justify-between items-center bg-timetable-card-bg shadow-[0_2px_3.4px_rgba(0,0,0,0.08)] border-2 border-timetable-card-border transition-all duration-200 grow-0 rounded-2xl px-3">
       {/* 날짜 선택 영역 */}
-      <div className="flex items-center justify-between bg-timetable-input-bg rounded-xl px-4 py-3">
+      <CardTitle size="sm" label="주간 선택" />
+      <div className="flex-1 flex items-center justify-between  rounded-xl ">
         {/* 이전 월요일 버튼 */}
         <button
           type="button"

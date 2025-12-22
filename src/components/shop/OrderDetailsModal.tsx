@@ -116,17 +116,17 @@ export default function OrderDetailsModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-timetable-form-bg rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* 헤더 */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl z-10">
+        <div className="sticky top-0 bg-timetable-form-bg border-b border-tertiary px-6 py-4 rounded-t-xl z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Package className="h-6 w-6 text-blue-600" />
               <div>
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold text-dark-gray">
                   주문 상세 정보
                 </h2>
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-dark-gray/70">
                   주문 ID: {order.id.slice(0, 8)}...
                 </p>
               </div>
@@ -149,48 +149,48 @@ export default function OrderDetailsModal({
         {/* 내용 */}
         <div className="p-6 space-y-6">
           {/* 기본 정보 섹션 */}
-          <div className="bg-slate-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+          <div className="bg-tertiary rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-dark-gray mb-4 flex items-center">
               <User className="h-5 w-5 mr-2" />
               기본 정보
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     <Youtube className="h-4 w-4 inline mr-2" />
                     YouTube/SNS 주소
                   </label>
-                  <p className="text-sm text-slate-900 bg-white p-3 rounded-md border">
+                  <p className="text-sm text-dark-gray bg-timetable-input-bg p-3 rounded-md border border-tertiary">
                     {order.youtube_sns_address}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     <Mail className="h-4 w-4 inline mr-2" />
                     이메일/디스코드
                   </label>
-                  <p className="text-sm text-slate-900 bg-white p-3 rounded-md border">
+                  <p className="text-sm text-dark-gray bg-timetable-input-bg p-3 rounded-md border border-tertiary">
                     {order.email_discord}
                   </p>
                 </div>
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     <Calendar className="h-4 w-4 inline mr-2" />
                     신청일시
                   </label>
-                  <p className="text-sm text-slate-900 bg-white p-3 rounded-md border">
+                  <p className="text-sm text-dark-gray bg-timetable-input-bg p-3 rounded-md border border-tertiary">
                     {formatDate(order.created_at)}
                   </p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     <Calendar className="h-4 w-4 inline mr-2" />
                     최종 수정일
                   </label>
-                  <p className="text-sm text-slate-900 bg-white p-3 rounded-md border">
+                  <p className="text-sm text-dark-gray bg-timetable-input-bg p-3 rounded-md border border-tertiary">
                     {formatDate(order.updated_at)}
                   </p>
                 </div>
@@ -200,28 +200,28 @@ export default function OrderDetailsModal({
 
           {/* 제작 요구사항 섹션 */}
           <div className="bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <h3 className="text-lg font-semibold text-dark-gray mb-4 flex items-center">
               <FileText className="h-5 w-5 mr-2" />
               제작 요구사항
             </h3>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-dark-gray mb-2">
               <Palette className="h-4 w-4 inline mr-2" />
               요청사항
             </label>
             <div className="bg-white p-4 rounded-md border">
-              <p className="text-sm text-slate-900 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-dark-gray whitespace-pre-wrap leading-relaxed">
                 {order.order_requirements}
               </p>
             </div>
             {/* 디자인 키워드 */}
             {order.design_keywords && (
               <div className="mt-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-dark-gray mb-2">
                   <Palette className="h-4 w-4 inline mr-2" />
                   디자인 키워드
                 </label>
                 <div className="bg-white p-4 rounded-md border">
-                  <p className="text-sm text-slate-900">
+                  <p className="text-sm text-dark-gray">
                     {order.design_keywords}
                   </p>
                 </div>
@@ -231,14 +231,14 @@ export default function OrderDetailsModal({
 
           {/* 옵션 정보 섹션 */}
           <div className="bg-purple-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+            <h3 className="text-lg font-semibold text-dark-gray mb-4 flex items-center">
               <Sparkles className="h-5 w-5 mr-2" />
               선택 옵션
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
               <div className="bg-white p-4 rounded-md border">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-700 flex items-center">
+                  <span className="text-sm font-medium text-dark-gray flex items-center">
                     <Sparkles className="h-4 w-4 mr-2" />
                     오마카세 요청
                   </span>
@@ -258,7 +258,7 @@ export default function OrderDetailsModal({
             {/* 선택된 옵션들 */}
             {order.selected_options && order.selected_options.length > 0 && (
               <div className="mt-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-dark-gray mb-2">
                   선택된 추가 옵션
                 </label>
                 <div className="bg-white p-4 rounded-md border">
@@ -280,7 +280,7 @@ export default function OrderDetailsModal({
           {/* 첨부 파일 섹션 */}
           {(characterImages.length > 0 || referenceFiles.length > 0) && (
             <div className="bg-indigo-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+              <h3 className="text-lg font-semibold text-dark-gray mb-4 flex items-center">
                 <Image className="h-5 w-5 mr-2" />
                 첨부 파일
               </h3>
@@ -288,7 +288,7 @@ export default function OrderDetailsModal({
               {/* 캐릭터 이미지 */}
               {characterImages.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="text-md font-medium text-slate-700 mb-3 flex items-center">
+                  <h4 className="text-md font-medium text-dark-gray mb-3 flex items-center">
                     <User className="h-4 w-4 mr-2" />
                     캐릭터 이미지 ({characterImages.length}개)
                   </h4>
@@ -335,7 +335,7 @@ export default function OrderDetailsModal({
               {/* 레퍼런스 파일 */}
               {referenceFiles.length > 0 && (
                 <div>
-                  <h4 className="text-md font-medium text-slate-700 mb-3 flex items-center">
+                  <h4 className="text-md font-medium text-dark-gray mb-3 flex items-center">
                     <Palette className="h-4 w-4 mr-2" />
                     레퍼런스 파일 ({referenceFiles.length}개)
                   </h4>
@@ -394,14 +394,14 @@ export default function OrderDetailsModal({
           {/* 결제 정보 섹션 */}
           {(order.price_quoted || order.depositor_name) && (
             <div className="bg-green-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+              <h3 className="text-lg font-semibold text-dark-gray mb-4 flex items-center">
                 <CreditCard className="h-5 w-5 mr-2" />
                 결제 정보
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {order.price_quoted && (
                   <div className="bg-white p-4 rounded-md border">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label className="block text-sm font-medium text-dark-gray mb-1">
                       견적 금액
                     </label>
                     <p className="text-2xl font-bold text-green-600">
@@ -411,10 +411,10 @@ export default function OrderDetailsModal({
                 )}
                 {order.depositor_name && (
                   <div className="bg-white p-4 rounded-md border">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                    <label className="block text-sm font-medium text-dark-gray mb-1">
                       입금자명
                     </label>
-                    <p className="text-lg font-semibold text-slate-900">
+                    <p className="text-lg font-semibold text-dark-gray">
                       {order.depositor_name}
                     </p>
                   </div>
@@ -426,12 +426,12 @@ export default function OrderDetailsModal({
           {/* 관리자 메모 섹션 */}
           {order.admin_notes && (
             <div className="bg-yellow-50 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+              <h3 className="text-lg font-semibold text-dark-gray mb-4 flex items-center">
                 <MessageSquare className="h-5 w-5 mr-2" />
                 관리자 메모
               </h3>
               <div className="bg-white p-4 rounded-md border border-yellow-200">
-                <p className="text-sm text-slate-900 whitespace-pre-wrap leading-relaxed">
+                <p className="text-sm text-dark-gray whitespace-pre-wrap leading-relaxed">
                   {order.admin_notes}
                 </p>
               </div>

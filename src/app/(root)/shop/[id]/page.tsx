@@ -100,10 +100,10 @@ export default function TemplateDetailPage() {
 
   if (loading || (user && (accessLoading || purchaseHistoryLoading))) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1e3a8a] mx-auto mb-4"></div>
-          <p className="text-slate-600">로딩 중...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-dark-gray/70">로딩 중...</p>
         </div>
       </div>
     );
@@ -111,20 +111,20 @@ export default function TemplateDetailPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary py-6 md:py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <BackButton className="mb-6" />
-          <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-white/20">
+          <div className="bg-timetable-form-bg rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-tertiary">
             <div className="text-center">
-              <p className="text-red-500 mb-4">템플릿을 불러올 수 없습니다.</p>
-              <p className="text-slate-500 mb-4">
+              <p className="text-holiday mb-4">템플릿을 불러올 수 없습니다.</p>
+              <p className="text-dark-gray/60 mb-4">
                 {error instanceof Error
                   ? error.message
                   : "알 수 없는 오류가 발생했습니다."}
               </p>
               <button
                 onClick={() => router.push("/shop")}
-                className="bg-[#1e3a8a] text-white px-4 py-2 rounded hover:bg-blue-800 transition-colors"
+                className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90 transition-colors"
               >
                 상점으로 돌아가기
               </button>
@@ -140,16 +140,16 @@ export default function TemplateDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary py-6 md:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* 뒤로가기 버튼 */}
         <BackButton className="mb-6" />
 
-        <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-white/20">
+        <div className="bg-timetable-form-bg rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-tertiary">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* 이미지 섹션 */}
             <div className="space-y-4">
-              <div className="aspect-video bg-slate-100 rounded-lg overflow-hidden">
+              <div className="aspect-video bg-timetable-input-bg rounded-lg overflow-hidden">
                 <Image
                   src={
                     template.templates.thumbnail_url ||
@@ -165,7 +165,7 @@ export default function TemplateDetailPage() {
                     const parent = target.parentElement;
                     if (parent) {
                       parent.innerHTML =
-                        '<div class="w-full h-full flex items-center justify-center text-slate-400">썸네일 이미지 없음</div>';
+                        '<div class="w-full h-full flex items-center justify-center text-dark-gray/40">썸네일 이미지 없음</div>';
                     }
                   }}
                 />
@@ -175,22 +175,22 @@ export default function TemplateDetailPage() {
             {/* 상품 정보 섹션 */}
             <div className="space-y-6">
               <div>
-                <h1 className="text-3xl font-bold mb-2 text-slate-900">
+                <h1 className="text-3xl font-bold mb-2 text-dark-gray">
                   {template.templates.name}
                 </h1>
-                <p className="text-slate-600">
+                <p className="text-dark-gray/70">
                   {template.templates.description}
                 </p>
               </div>
 
               {/* 플랜별 가격 정보 */}
-              <div className="border-t border-slate-200 pt-6">
-                <h3 className="font-semibold mb-3 text-slate-900">플랜 선택</h3>
+              <div className="border-t border-tertiary pt-6">
+                <h3 className="font-semibold mb-3 text-dark-gray">플랜 선택</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {template.template_plans?.find((p) => p.plan === "lite") && (
-                    <div className="p-4 rounded-lg border-2 border-slate-200 bg-slate-50">
-                      <div className="text-xs text-slate-500 mb-1">LITE</div>
-                      <div className="text-2xl font-bold text-slate-700">
+                    <div className="p-4 rounded-lg border-2 border-tertiary bg-tertiary">
+                      <div className="text-xs text-dark-gray/70 mb-1">LITE</div>
+                      <div className="text-2xl font-bold text-dark-gray">
                         ₩
                         {template.template_plans
                           ?.find((p) => p.plan === "lite")
@@ -199,9 +199,9 @@ export default function TemplateDetailPage() {
                     </div>
                   )}
                   {template.template_plans?.find((p) => p.plan === "pro") && (
-                    <div className="p-4 rounded-lg border-2 border-indigo-200 bg-indigo-50">
-                      <div className="text-xs text-indigo-600 mb-1">PRO</div>
-                      <div className="text-2xl font-bold text-indigo-700">
+                    <div className="p-4 rounded-lg border-2 border-secondary bg-secondary/20">
+                      <div className="text-xs text-secondary mb-1">PRO</div>
+                      <div className="text-2xl font-bold text-primary">
                         ₩
                         {template.template_plans
                           ?.find((p) => p.plan === "pro")
@@ -215,8 +215,8 @@ export default function TemplateDetailPage() {
               {/* 플랜별 지원 기능 */}
               {template.template_plans &&
                 template.template_plans.length > 0 && (
-                  <div className="border-t border-slate-200 pt-6">
-                    <h3 className="font-semibold mb-3 text-slate-900">
+                  <div className="border-t border-tertiary pt-6">
+                    <h3 className="font-semibold mb-3 text-dark-gray">
                       플랜별 지원 기능
                     </h3>
                     <div className="space-y-4">
@@ -239,26 +239,26 @@ export default function TemplateDetailPage() {
                               key={plan.id}
                               className={`p-4 rounded-lg border ${
                                 plan.plan === "pro"
-                                  ? "border-indigo-200 bg-indigo-50"
-                                  : "border-slate-200 bg-slate-50"
+                                  ? "border-secondary bg-secondary/20"
+                                  : "border-tertiary bg-tertiary"
                               }`}
                             >
                               <div className="flex items-center gap-2 mb-2">
                                 <span
                                   className={`text-xs font-medium px-2 py-1 rounded ${
                                     plan.plan === "pro"
-                                      ? "bg-indigo-600 text-white"
-                                      : "bg-slate-600 text-white"
+                                      ? "bg-secondary text-white"
+                                      : "bg-dark-gray text-white"
                                   }`}
                                 >
                                   {plan.plan.toUpperCase()}
                                 </span>
-                                <span className="text-sm font-bold text-slate-700">
+                                <span className="text-sm font-bold text-dark-gray">
                                   ₩{plan.price?.toLocaleString()}
                                 </span>
                               </div>
                               {features.length > 0 && (
-                                <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
+                                <ul className="list-disc list-inside text-dark-gray/70 space-y-1 text-sm">
                                   {features.map((feature, index) => (
                                     <li key={index}>{feature}</li>
                                   ))}
@@ -273,38 +273,38 @@ export default function TemplateDetailPage() {
 
               {/* 상품 상세 설명 */}
               {template.purchase_instructions && (
-                <div className="border-t border-slate-200 pt-6">
-                  <h3 className="font-semibold mb-3 text-slate-900">
+                <div className="border-t border-tertiary pt-6">
+                  <h3 className="font-semibold mb-3 text-dark-gray">
                     상품 상세 설명
                   </h3>
                   <div className="prose prose-sm max-w-none">
-                    <div className="text-slate-600 whitespace-pre-wrap leading-relaxed">
+                    <div className="text-dark-gray/70 whitespace-pre-wrap leading-relaxed">
                       {template.purchase_instructions}
                     </div>
                   </div>
                 </div>
               )}
-              <div className="border-t border-slate-200 pt-4">
-                <p className="text-sm text-slate-500 mt-2">
+              <div className="border-t border-tertiary pt-4">
+                <p className="text-sm text-dark-gray/60 mt-2">
                   구매하신 템플릿은 본인만 사용 가능하며 타인과 공유하거나
                   타인에게 양도할 수 없습니다.
                 </p>
                 {!isPurchased && !pendingPurchaseRequest && (
-                  <p className="text-sm text-slate-500 mt-2">
+                  <p className="text-sm text-dark-gray/60 mt-2">
                     계좌 송금으로 결제가 진행됩니다
                   </p>
                 )}
               </div>
 
               {/* 구매 버튼 */}
-              <div className="border-t border-slate-200 pt-6">
+              <div className="border-t border-tertiary pt-6">
                 {user ? (
                   isPurchased ? (
                     <div className="text-center">
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                      <div className="bg-secondary/10 border border-secondary/30 rounded-lg p-4 mb-4">
                         <div className="flex items-center justify-center mb-2">
                           <svg
-                            className="h-6 w-6 text-green-600 mr-2"
+                            className="h-6 w-6 text-secondary mr-2"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -316,28 +316,28 @@ export default function TemplateDetailPage() {
                               d="M5 13l4 4L19 7"
                             />
                           </svg>
-                          <span className="text-green-800 font-semibold">
+                          <span className="text-secondary font-semibold">
                             구매 완료
                           </span>
                         </div>
-                        <p className="text-green-700 text-sm">
+                        <p className="text-dark-gray/70 text-sm">
                           이미 구매하신 템플릿입니다. 마이페이지에서 사용하실 수
                           있습니다.
                         </p>
                       </div>
                       <Link
                         href="/my-page"
-                        className="w-full inline-block bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition-colors font-semibold text-center"
+                        className="w-full inline-block bg-secondary text-white py-3 rounded-lg hover:bg-secondary/90 transition-colors font-semibold text-center"
                       >
                         마이페이지로 이동
                       </Link>
                     </div>
                   ) : pendingPurchaseRequest ? (
                     <div className="text-center">
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                      <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-4">
                         <div className="flex items-center justify-center mb-2">
                           <svg
-                            className="h-6 w-6 text-yellow-600 mr-2"
+                            className="h-6 w-6 text-primary mr-2"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -349,14 +349,14 @@ export default function TemplateDetailPage() {
                               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                             />
                           </svg>
-                          <span className="text-yellow-800 font-semibold">
+                          <span className="text-primary font-semibold">
                             구매 신청 대기중
                           </span>
                         </div>
-                        <p className="text-yellow-700 text-sm mb-2">
+                        <p className="text-dark-gray/70 text-sm mb-2">
                           이미 구매 신청을 하셨습니다. 입금 확인 후 처리됩니다.
                         </p>
-                        <p className="text-yellow-600 text-xs">
+                        <p className="text-dark-gray/60 text-xs">
                           신청일:{" "}
                           {new Date(
                             pendingPurchaseRequest.created_at!
@@ -365,7 +365,7 @@ export default function TemplateDetailPage() {
                       </div>
                       <Link
                         href="/my-page?tab=purchases"
-                        className="w-full inline-block bg-yellow-600 text-white py-3 rounded-lg hover:bg-yellow-700 transition-colors font-semibold text-center"
+                        className="w-full inline-block bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold text-center"
                       >
                         구매 내역 확인하기
                       </Link>
@@ -373,19 +373,19 @@ export default function TemplateDetailPage() {
                   ) : (
                     <button
                       onClick={() => setShowPurchaseForm(true)}
-                      className="w-full bg-[#1e3a8a] text-white py-3 rounded-lg hover:bg-blue-800 transition-colors font-semibold"
+                      className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
                     >
                       구매 신청하기
                     </button>
                   )
                 ) : (
                   <div className="text-center">
-                    <p className="text-slate-600 mb-3">
+                    <p className="text-dark-gray/70 mb-3">
                       구매하려면 로그인이 필요합니다
                     </p>
                     <Link
                       href="/auth"
-                      className="inline-block bg-[#1e3a8a] text-white px-6 py-3 rounded-lg hover:bg-blue-800 transition-colors font-semibold"
+                      className="inline-block bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
                     >
                       로그인하기
                     </Link>
@@ -467,12 +467,12 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg max-w-md w-full my-8 max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-6 pb-4 border-b border-slate-200 flex-shrink-0">
-          <h2 className="text-xl font-bold text-slate-900">구매 신청</h2>
+      <div className="bg-timetable-form-bg rounded-lg max-w-md w-full my-8 max-h-[90vh] flex flex-col">
+        <div className="flex justify-between items-center p-6 pb-4 border-b border-tertiary flex-shrink-0">
+          <h2 className="text-xl font-bold text-dark-gray">구매 신청</h2>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-700"
+            className="text-dark-gray/70 hover:text-dark-gray"
           >
             ✕
           </button>
@@ -482,7 +482,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
           <div className="flex flex-col gap-4">
             {/* 플랜 선택 */}
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-2 text-slate-700">
+              <label className="block text-sm font-medium mb-2 text-dark-gray">
                 플랜 선택 *
               </label>
               <div className="flex gap-3">
@@ -494,12 +494,12 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                     }
                     className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                       formData.plan === "lite"
-                        ? "border-slate-600 bg-slate-50"
-                        : "border-slate-200 hover:border-slate-300"
+                        ? "border-dark-gray bg-tertiary"
+                        : "border-tertiary hover:border-dark-gray/30"
                     }`}
                   >
-                    <div className="text-xs text-slate-500 mb-1">LITE</div>
-                    <div className="text-lg font-bold text-slate-700">
+                    <div className="text-xs text-dark-gray/70 mb-1">LITE</div>
+                    <div className="text-lg font-bold text-dark-gray">
                       ₩
                       {template.template_plans
                         ?.find((p) => p.plan === "lite")
@@ -515,12 +515,12 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                     }
                     className={`flex-1 p-4 rounded-lg border-2 transition-all ${
                       formData.plan === "pro"
-                        ? "border-indigo-600 bg-indigo-50"
-                        : "border-slate-200 hover:border-slate-300"
+                        ? "border-secondary bg-secondary/20"
+                        : "border-tertiary hover:border-secondary/30"
                     }`}
                   >
-                    <div className="text-xs text-indigo-600 mb-1">PRO</div>
-                    <div className="text-lg font-bold text-indigo-700">
+                    <div className="text-xs text-secondary mb-1">PRO</div>
+                    <div className="text-lg font-bold text-primary">
                       ₩
                       {template.template_plans
                         ?.find((p) => p.plan === "pro")
@@ -532,11 +532,11 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
               {/* 선택된 플랜의 기능 표시 */}
               {selectedPlan && (
-                <div className="mt-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                  <h4 className="text-sm font-semibold text-slate-900 mb-2">
+                <div className="mt-3 p-3 rounded-lg bg-tertiary border border-tertiary">
+                  <h4 className="text-sm font-semibold text-dark-gray mb-2">
                     {formData.plan.toUpperCase()} 플랜 기능
                   </h4>
-                  <ul className="list-disc list-inside text-slate-600 space-y-1 text-sm">
+                  <ul className="list-disc list-inside text-dark-gray/70 space-y-1 text-sm">
                     {selectedPlan.is_artist && <li>아티스트 이미지 지원</li>}
                     {selectedPlan.is_memo && <li>메모 기능</li>}
                     {selectedPlan.is_multi_schedule && <li>다중 일정 지원</li>}
@@ -547,27 +547,27 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               )}
             </div>
 
-            <div className=" p-3 bg-slate-50 rounded">
-              <p className="font-medium text-slate-900">
+            <div className=" p-3 bg-tertiary rounded">
+              <p className="font-medium text-dark-gray">
                 {template.templates.name}
               </p>
-              <p className="text-sm text-slate-600">
+              <p className="text-sm text-dark-gray/70">
                 {template.templates.description}
               </p>
-              <p className="text-lg font-bold text-[#1e3a8a] mt-2">
+              <p className="text-lg font-bold text-primary mt-2">
                 ₩{selectedPrice.toLocaleString()}
               </p>
             </div>
-            <div className="bg-blue-50 p-3 rounded">
+            <div className="bg-primary/10 border border-primary/30 p-3 rounded">
               <div className="flex items-start">
                 <div className="flex-shrink-0">
-                  <CreditCard className="h-5 w-5 text-[#1e3a8a]" />
+                  <CreditCard className="h-5 w-5 text-primary" />
                 </div>
                 <div className="ml-3">
-                  <h4 className="text-sm font-medium text-[#1e3a8a]">
+                  <h4 className="text-sm font-medium text-primary">
                     송금 계좌 정보
                   </h4>
-                  <div className="text-sm text-slate-700 mt-1 space-y-1">
+                  <div className="text-sm text-dark-gray mt-1 space-y-1">
                     <p>• 은행: 토스뱅크</p>
                     <p>• 계좌번호: 1000-7564-4995</p>
                     <p>• 예금주: 이세영</p>
@@ -605,9 +605,9 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
             </div>
 
             {/* 사용자 정보 표시 */}
-            <div className="mb-4 p-3 bg-slate-50 rounded">
-              <h4 className="font-medium mb-2 text-slate-900">구매자 정보</h4>
-              <div className="text-sm text-slate-600 space-y-1">
+            <div className="mb-4 p-3 bg-tertiary rounded">
+              <h4 className="font-medium mb-2 text-dark-gray">구매자 정보</h4>
+              <div className="text-sm text-dark-gray/70 space-y-1">
                 <p>
                   <span className="font-medium">이름:</span> {user?.name}
                 </p>
@@ -619,7 +619,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1 text-slate-700">
+                <label className="block text-sm font-medium mb-1 text-dark-gray">
                   입금자명 *
                 </label>
                 <input
@@ -633,18 +633,18 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                     }))
                   }
                   placeholder="계좌 이체 시 사용할 입금자명을 입력하세요"
-                  className="w-full border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                  className="w-full border border-tertiary bg-timetable-input-bg rounded px-3 py-2 text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                 />
               </div>
 
               {/* <div>
-            <label className="block text-sm font-medium mb-1 text-slate-700">요청사항</label>
+            <label className="block text-sm font-medium mb-1 text-dark-gray">요청사항</label>
             <textarea
               value={formData.message}
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, message: e.target.value }))
               }
-              className="w-full border border-slate-300 rounded px-3 py-2 h-20 resize-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+              className="w-full border border-tertiary bg-timetable-input-bg rounded px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
               placeholder="추가 요청사항이 있으시면 적어주세요"
             />
           </div> */}
@@ -653,14 +653,14 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 border border-slate-300 py-2 rounded hover:bg-slate-50 text-slate-700"
+                  className="flex-1 border border-tertiary py-2 rounded hover:bg-tertiary text-dark-gray"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex-1 bg-[#1e3a8a] text-white py-2 rounded hover:bg-blue-800 disabled:opacity-50"
+                  className="flex-1 bg-primary text-white py-2 rounded hover:bg-primary/90 disabled:opacity-50"
                 >
                   {submitting ? "신청 중..." : "구매 신청"}
                 </button>

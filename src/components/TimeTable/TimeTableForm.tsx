@@ -11,13 +11,14 @@ import {
 import { TeamService } from "@/services/teamService";
 import { CroppedAreaPixels } from "@/types/image-edit";
 import { TDefaultCard } from "@/types/time-table/data";
-import { cn } from "@/utils/utils";
+import { SizeProps } from "@/utils/utils";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
+import React, { PropsWithChildren, useRef, useState } from "react";
 import { Point } from "react-easy-crop";
+
 import { FormCard } from "./FixedComponents/FormCard";
-import { cardVariants } from "./FixedComponents/styles";
+import TimeTableProfileImageSelector from "./TimeTableProfileImageSelector";
 import TextRenderer from "./fieldRenderer/TextRenderer";
 import TextareaRenderer from "./fieldRenderer/TextareaRenderer";
 interface TimeTableFormProps {
@@ -30,6 +31,7 @@ interface TimeTableFormProps {
   cropHeight?: number;
   teamData?: TDefaultCard[]; // 팀 시간표 저장을 위한 데이터
   multiSelect?: boolean; // true: 여러 버튼 동시 활성화 가능, false: 최대 1개만 활성화 가능
+  size?: SizeProps;
 }
 
 interface ProfileOptionButtonProps {
@@ -68,6 +70,7 @@ const TimeTableForm = ({
   isMemo = false,
   saveable = true,
   multiSelect = false,
+  size = "sm",
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
   const pathname = usePathname();
@@ -291,116 +294,72 @@ const TimeTableForm = ({
   const handleToggleMemo = () => handleOptionClick("memo", multiSelect);
 
   const renderMainSettings = () => (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 프로필 섹션 */}
-      <div className="space-y-2">
-        <div
-          className={cn(
-            cardVariants({ variant: "elevated", size: "md" }),
-            "w-full flex items-center justify-between gap-4 rounded-[40px]"
-          )}
-        >
-          <div className="font-bold text-lg text-gray-900">{"이미지"}</div>
-          <div className="flex-1 flex justify-between items-center">
-            <div className="w-full flex gap-2">
-              <button
-                onClick={handleUploadClick}
-                className="w-full bg-timetable-primary text-white py-2 rounded-md text-sm font-medium hover:bg-timetable-primary-hover transition"
-              >
-                {imageSrc ? "이미지 변경" : "새 이미지 업로드"}
-              </button>
 
-              {imageSrc && (
-                <Fragment>
-                  <button
-                    onClick={handleEditClick}
-                    className="w-full bg-timetable-primary text-white py-2 rounded-md text-sm font-medium hover:bg-timetable-primary-hover transition"
-                  >
-                    이미지 편집
-                  </button>
-                  <button
-                    onClick={handleImageDelete}
-                    className="px-3 py-2 bg-red-500 text-white rounded-md text-sm font-medium hover:bg-red-600 transition flex items-center justify-center"
-                    title="이미지 삭제"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </Fragment>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* 텍스트 표시 옵션 선택 */}
-
-        {isArtist && (
-          <FormCard
-            isActive={isProfileTextVisible}
-            toggleIsActive={handleToggleProfileImage}
-            label="아티스트"
-          >
-            <TextRenderer
-              value={profileText}
-              placeholder={"이름을 입력해 주세요"}
-              handleTextChange={handleProfileTextChange}
-              maxLength={20}
-              required={true}
-            />
-          </FormCard>
-        )}
-        {isMemo && (
-          <FormCard
-            isActive={isMemoTextVisible}
-            toggleIsActive={handleToggleMemo}
-            label="메모"
-          >
-            <TextareaRenderer
-              value={memoText}
-              placeholder={"메모를 입력해 주세요"}
-              handleTextareaChange={handleMemoTextChange}
-              maxLength={20}
-              required={true}
-            />
-          </FormCard>
-        )}
-
-        {/* 텍스트 입력 필드 */}
-
-        <div className="space-y-2">
-          {/* 이미지 업로드/교체 버튼 */}
-
-          {/* 이미지가 있을 때 편집/삭제 버튼 */}
-        </div>
-        <input
-          ref={fileInputRef}
-          id="file-upload"
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFileSelect}
-        />
-      </div>
-
-      {/* 시간표 섹션 */}
-
-      <h3 className="font-bold text-lg text-gray-800">시간표</h3>
+      <h3 className="pl-1 font-bold text-lg text-gray-800">시간표</h3>
       <MondaySelector
         mondayDateStr={mondayDateStr}
         onDateChange={handleDateChange}
       />
 
+      <TimeTableProfileImageSelector
+        handleEditClick={handleEditClick}
+        handleImageDelete={handleImageDelete}
+        handleUploadClick={handleUploadClick}
+        imageSrc={imageSrc}
+        size={size}
+      />
+
+      {/* 텍스트 표시 옵션 선택 */}
+
+      {isArtist && (
+        <FormCard
+          size={size}
+          isActive={isProfileTextVisible}
+          toggleIsActive={handleToggleProfileImage}
+          label="아티스트"
+        >
+          <TextRenderer
+            height={size}
+            value={profileText}
+            placeholder={"이름을 입력해 주세요"}
+            handleTextChange={handleProfileTextChange}
+            maxLength={20}
+            required={true}
+          />
+        </FormCard>
+      )}
+      {isMemo && (
+        <FormCard
+          size={size}
+          isActive={isMemoTextVisible}
+          toggleIsActive={handleToggleMemo}
+          label="메모"
+        >
+          <TextareaRenderer
+            value={memoText}
+            placeholder={"메모를 입력해 주세요"}
+            handleTextareaChange={handleMemoTextChange}
+            maxLength={20}
+            required={true}
+          />
+        </FormCard>
+      )}
+
+      {/* 텍스트 입력 필드 */}
+
+      <input
+        ref={fileInputRef}
+        id="file-upload"
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
+
+      {/* 시간표 섹션 */}
+      <h3 className="pl-1 font-bold text-lg text-gray-800">주간 시간표</h3>
       {children}
     </div>
   );

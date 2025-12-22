@@ -15,22 +15,28 @@ import { cva } from "class-variance-authority";
  */
 
 // 카드 스타일
-export const cardVariants = cva("rounded-2xl transition-all duration-200", {
+export const cardVariants = cva("  transition-all duration-200 grow-0", {
   variants: {
     variant: {
       default: "bg-white shadow-sm border border-gray-100",
       elevated:
-        "bg-timetable-card-bg shadow-[0_2px_3.4px_rgba(0,0,0,0.08)] border border-2 border-timetable-card-border",
+        "bg-timetable-card-bg shadow-[0_2px_3.4px_rgba(0,0,0,0.08)] border border-2 border-timetable-card-border ",
       flat: "bg-gray-50",
     },
+    type: {
+      input: "p-5",
+      button: "px-3",
+      full: "p-3",
+    },
     size: {
-      sm: "p-3",
-      md: "p-5",
-      lg: "p-6",
+      sm: "min-h-[48px] rounded-[16px]",
+      md: "min-h-[64px] rounded-[28px]",
+      lg: "",
     },
   },
   defaultVariants: {
     variant: "elevated",
+    type: "input",
     size: "md",
   },
 });
@@ -55,7 +61,7 @@ export const toggleVariants = cva(
   {
     variants: {
       size: {
-        sm: "w-[68px] h-[30px]",
+        sm: "w-[64px] h-[28px]",
         md: "w-[82px] h-[36px]",
         lg: "w-12 h-6",
       },
@@ -70,17 +76,17 @@ export const toggleVariants = cva(
       {
         variant: "primary",
         className:
-          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-gray-300",
+          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-[#1B1612]",
       },
       {
         variant: "offline",
         className:
-          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-gray-300",
+          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-[#1B1612]",
       },
       {
         variant: "guerrilla",
         className:
-          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-gray-300",
+          "data-[active=true]:bg-[#FC712B] data-[active=false]:bg-[#1B1612]",
       },
     ],
     defaultVariants: {
@@ -92,7 +98,7 @@ export const toggleVariants = cva(
 
 // 토글 핸들 스타일 (카드 배경색과 동일)
 export const toggleHandleVariants = cva(
-  "bg-timetable-card-bg rounded-full shadow-md transform transition-transform duration-200 ease-in-out shadow-[0_4px_4px_rgba(0,0,0,0.25)] ",
+  "bg-[#FFE0BD] rounded-full shadow-md transform transition-transform duration-200 ease-in-out shadow-[0_4px_4px_rgba(0,0,0,0.25)] ",
   {
     variants: {
       size: {
@@ -133,7 +139,7 @@ export const inputVariants = cva(
 
 // 버튼 스타일
 export const buttonVariants = cva(
-  "rounded-xl transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ",
+  " transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-offset-2 ",
   {
     variants: {
       variant: {
@@ -148,8 +154,8 @@ export const buttonVariants = cva(
           "bg-timetable-primary hover:bg-timetable-primary-hover text-white focus:ring-timetable-primary/50",
       },
       size: {
-        sm: "px-3 py-1.5 text-sm",
-        md: "px-4 py-3 text-base",
+        sm: "h-9 text-sm rounded-lg",
+        md: "h-[50px] text-base rounded-xl",
         lg: "px-6 py-3 text-lg",
       },
       fullWidth: {

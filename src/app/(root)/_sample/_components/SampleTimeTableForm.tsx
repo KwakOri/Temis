@@ -14,10 +14,10 @@ import { usePathname } from "next/navigation";
 import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
 import { Point } from "react-easy-crop";
 
+import CardTitle from "@/components/TimeTable/FixedComponents/CardTitle";
+import { FormCard } from "@/components/TimeTable/FixedComponents/FormCard";
 import TextRenderer from "../../../../components/TimeTable/fieldRenderer/TextRenderer";
 import TextareaRenderer from "../../../../components/TimeTable/fieldRenderer/TextareaRenderer";
-import SampleCardTitle from "./SampleCardTitle";
-import { SampleFormCard } from "./SampleFormCard";
 import { cardVariants } from "./styles";
 interface TimeTableFormProps {
   isArtist?: boolean;
@@ -293,14 +293,14 @@ const TimeTableSampleForm = ({
     <div className="">
       {/* 프로필 섹션 */}
 
-      <div className="grid grid-cols-3 gap-2 mt-2 items-start">
+      <div className="grid grid-cols-3 gap-4 mt-2 items-start">
         <div
           className={cn(
             cardVariants({ variant: "elevated", type: "button" }),
             "w-full flex items-center justify-between gap-4"
           )}
         >
-          <SampleCardTitle label="이미지" />
+          <CardTitle size={"md"} label="이미지" />
           <div className="flex-1 h-full flex justify-between items-center ">
             <div className="w-full h-full flex gap-2">
               <button
@@ -345,39 +345,36 @@ const TimeTableSampleForm = ({
           {/* 텍스트 표시 옵션 선택 */}
         </div>
         {isArtist && (
-          <SampleFormCard
+          <FormCard
             isActive={isProfileTextVisible}
             toggleIsActive={handleToggleProfileImage}
             label="아티스트"
           >
-            <div className="pb-3.5">
-              <TextRenderer
-                value={profileText}
-                placeholder={"이름을 입력해 주세요"}
-                handleTextChange={handleProfileTextChange}
-                maxLength={20}
-                required={true}
-              />
-            </div>
-          </SampleFormCard>
+            <TextRenderer
+              height={"md"}
+              value={profileText}
+              placeholder={"이름을 입력해 주세요"}
+              handleTextChange={handleProfileTextChange}
+              maxLength={20}
+              required={true}
+            />
+          </FormCard>
         )}
         {isMemo && (
-          <SampleFormCard
+          <FormCard
             className="flex flex-col justify-center items-center"
             isActive={isMemoTextVisible}
             toggleIsActive={handleToggleMemo}
             label="메모"
           >
-            <div className="pb-3.5">
-              <TextareaRenderer
-                value={memoText}
-                placeholder={"메모를 입력해 주세요"}
-                handleTextareaChange={handleMemoTextChange}
-                maxLength={20}
-                required={true}
-              />
-            </div>
-          </SampleFormCard>
+            <TextareaRenderer
+              value={memoText}
+              placeholder={"메모를 입력해 주세요"}
+              handleTextareaChange={handleMemoTextChange}
+              maxLength={20}
+              required={true}
+            />
+          </FormCard>
         )}
         {children}
 

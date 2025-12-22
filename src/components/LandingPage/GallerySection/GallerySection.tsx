@@ -3,6 +3,7 @@
 import { usePortfolios } from "@/hooks/query/usePortfolios";
 import { Portfolio } from "@/types/portfolio";
 import { useEffect, useState } from "react";
+import SectionTitle from "../SectionTitle";
 import GalleryItem from "./GalleryItem";
 
 // 브라우저 크기별 카드 크기 설정 (16:9 비율 유지)
@@ -25,7 +26,7 @@ const getCardSizeByViewport = (windowWidth: number) => {
 };
 
 const defaultCardSize = {
-  cardWidth: 300,
+  cardWidth: 536,
   gap: 16,
   cardHeight: Math.round((300 / 16) * 9),
 };
@@ -39,19 +40,19 @@ const categoryInfo: Record<
     title: "타입 A",
     price: "정형 템플릿 (₩80,000)",
     description:
-      '깔끔한 구조와 높은 가시성이 특징이며, <span style="color: #FF0000;">빠른 제작</span>이 가능한 실용적인 기본형 템플릿입니다.',
+      '깔끔한 구조와 높은 가시성이 특징이며, <span style="color: #F56015;">빠른 제작</span>이 가능한 실용적인 기본형 템플릿입니다.',
   },
   unstructured: {
     title: "타입 B",
     price: "비정형 템플릿 (₩100,000)",
     description:
-      '독특한 형태와 <span style="color: #FF0000;">화려한 연출</span>이 강점인 개성 있는 커스텀 템플릿입니다.',
+      '독특한 형태와 <span style="color: #F56015;">화려한 연출</span>이 강점인 개성 있는 커스텀 템플릿입니다.',
   },
   team: {
     title: "타입 C",
-    price: "팀 전용 템플릿 (₩120,000)",
+    price: "팀 전용 템플릿 (₩100,000)",
     description:
-      '팀 일정을 통일된 디자인으로 관리할 수 있는 <span style="color: #FF0000;">팀용 템플릿</span>입니다.<br/>해당 템플릿 주문 시 <span style="color: #FF0000;">팀원 전원의 테미스 템플릿을 10% 할인된 가격</span>으로 제공합니다.',
+      '팀 일정을 통일된 디자인으로 관리할 수 있는 <span style="color: #F56015;">팀용 템플릿</span>입니다.<br/>해당 템플릿 주문 시 <span style="color: #F56015;">팀원 전원의 테미스 템플릿을 10% 할인된 가격</span>으로 제공합니다.',
   },
 };
 
@@ -61,6 +62,7 @@ interface CategorySectionProps {
   cardSize: typeof defaultCardSize;
   isClient: boolean;
   speedPxPerSecond?: number;
+  isOddRow?: boolean;
 }
 
 const CategorySection = ({
@@ -69,6 +71,7 @@ const CategorySection = ({
   cardSize,
   isClient,
   speedPxPerSecond = 50,
+  isOddRow = false,
 }: CategorySectionProps) => {
   const info = categoryInfo[category] || {
     title: category,
@@ -77,6 +80,9 @@ const CategorySection = ({
   };
 
   const CARD_WITH_GAP = cardSize.cardWidth + cardSize.gap;
+
+  // 벽돌식 레이아웃을 위한 오프셋 (카드 너비의 절반)
+  const brickOffset = isOddRow ? CARD_WITH_GAP / 2 : 0;
 
   // 화면 너비를 고려하여 충분한 복제 횟수 계산
   // 최소한 화면 너비의 3배는 채우도록 설정
@@ -91,17 +97,23 @@ const CategorySection = ({
     <div className="mb-16">
       {/* 타이틀 및 설명 */}
       <div className="text-center mb-8">
-        <h3 className="text-3xl font-bold mb-3">
+        <h3 className="text-[#1B1612] text-[40px] font-bold mb-3">
           {info.title} — {info.price}
         </h3>
         <p
-          className="text-gray-700 leading-relaxed"
+          className="text-[#1B1612] leading-relaxed text-2xl font-semibold"
           dangerouslySetInnerHTML={{ __html: info.description }}
         />
       </div>
 
       {/* 갤러리 슬라이드 - 한 줄 */}
-      <div className="overflow-x-hidden scrollbar-hidden">
+      <div
+        className="overflow-x-hidden scrollbar-hidden"
+        style={{
+          width: `calc(100% + ${brickOffset}px)`,
+          transform: `translateX(-${brickOffset}px)`,
+        }}
+      >
         <div
           className="flex w-max pointer-events-none transform-gpu transition-all duration-300 ease-out"
           style={{
@@ -206,13 +218,13 @@ const GallerySection = () => {
   ];
 
   return (
-    <section className="py-20 bg-[#F3E9E7]">
-      <div className="mb-12 text-center">
-        <p className="text-sm font-semibold text-gray-600 mb-2">PRICE</p>
+    <section className="pb-20 pt-10 bg-[#F3E9E7]">
+      <div className="mb-6 text-center">
+        <SectionTitle label="PRICES" />
       </div>
 
       <div className="mx-auto">
-        {sortedCategories.map((category) => {
+        {sortedCategories.map((category, index) => {
           const portfolios = portfoliosByCategory[category];
           if (!portfolios || portfolios.length === 0) return null;
 
@@ -223,14 +235,15 @@ const GallerySection = () => {
               portfolios={portfolios}
               cardSize={cardSize}
               isClient={isClient}
+              isOddRow={index % 2 === 1}
             />
           );
         })}
       </div>
 
       {/* 포트폴리오 더보기 버튼 */}
-      <div className="text-center mt-12">
-        <button className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-12 rounded-full text-lg transition-colors">
+      <div className="flex justify-center mt-12">
+        <button className="flex justify-center items-center w-100 h-12 rounded-2xl bg-[#FD9319] brightness-100 hover:brightness-75 text-white text-lg transition-all">
           포트폴리오 더보기
         </button>
       </div>

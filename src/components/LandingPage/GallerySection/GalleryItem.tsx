@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Portfolio } from "@/types/portfolio";
+import Link from "next/link";
 
 interface GalleryItemProps {
   portfolio: Portfolio;

@@ -1,6 +1,14 @@
 import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
 import TextareaRenderer from "@/components/TimeTable/fieldRenderer/TextareaRenderer";
 import TextRenderer from "@/components/TimeTable/fieldRenderer/TextRenderer";
+import { DayCard } from "@/components/TimeTable/FixedComponents/DayCard";
+import { EntryCard } from "@/components/TimeTable/FixedComponents/EntryCard";
+import OfflineMemoCard from "@/components/TimeTable/FixedComponents/OfflineMemoCard";
+import {
+  buttonVariants,
+  labelVariants,
+} from "@/components/TimeTable/FixedComponents/styles";
+import { SubToggle } from "@/components/TimeTable/FixedComponents/SubToggle";
 import { cn } from "@/lib/utils";
 import {
   CardInputConfig,
@@ -14,15 +22,8 @@ import {
   createInitialEntryFromConfig,
   weekdays,
 } from "@/utils/time-table/data";
-import React from "react";
-import { EntryCard } from "../../../../components/TimeTable/FixedComponents/EntryCard";
-import {
-  buttonVariants,
-  inputVariants,
-  labelVariants,
-} from "../../../../components/TimeTable/FixedComponents/styles";
-import { Toggle } from "../../../../components/TimeTable/FixedComponents/Toggle";
-import { SampleDayCard } from "./SampleDayCard";
+import { SizeProps } from "@/utils/utils";
+import React, { ChangeEvent, Fragment } from "react";
 
 // 개별 필드 렌더러 타입 정의 (다중 엔트리 지원)
 export interface FieldRenderer {
@@ -79,12 +80,13 @@ export interface TimeTableInputListProps {
   // 다중 엔트리 설정
   isMultiple?: boolean;
   maxStreamingTimeByDay?: number;
+  size?: SizeProps;
 }
 
-const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
+const SampleTimeTableInputList: React.FC<TimeTableInputListProps> = ({
   data,
   onDataChange,
-  containerClassName = "flex flex-col gap-4 w-full select-none",
+  containerClassName = "flex flex gap-4 w-full select-none",
   itemClassName = "bg-white backdrop-blur-md rounded-xl p-4 shadow-[0_4px_5px_rgba(0,0,0,0.15)]",
   headerClassName = "flex justify-between items-center",
   fieldsContainerClassName = "pt-2 flex flex-col gap-4",
@@ -99,6 +101,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
   isOfflineMemo = false,
   isMultiple = false,
   maxStreamingTimeByDay = 1,
+  size = "sm",
 }) => {
   const defaultFieldRenderers = {
     time: ({
@@ -112,6 +115,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <AdaptiveTimeRenderer
+              height={size}
               id={fieldId}
               value={entry.time as string}
               onChange={(newValue) =>
@@ -120,7 +124,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
               disabled={entry.isGuerrilla}
             />
           </div>
-          <Toggle
+          <SubToggle
             active={entry.isGuerrilla || false}
             onToggle={() =>
               onChange(dayIndex, entryIndex, "isGuerrilla", !entry.isGuerrilla)
@@ -146,6 +150,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
       };
       return (
         <TextRenderer
+          height={size}
           value={entry.topic as string}
           placeholder={placeholders.topic}
           handleTextChange={handleTopicChange}
@@ -205,6 +210,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
       case "text":
         return (
           <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
             handleTextChange={(newValue) =>
@@ -245,6 +251,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <AdaptiveTimeRenderer
+                height={size}
                 id={fieldId}
                 value={value}
                 onChange={(newValue) =>
@@ -258,7 +265,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
                 disabled={entry.isGuerrilla}
               />
             </div>
-            <Toggle
+            <SubToggle
               active={entry.isGuerrilla || false}
               onToggle={() =>
                 handleEntryFieldChange(
@@ -270,7 +277,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
               }
               label="게릴라"
               variant="guerrilla"
-              size="sm"
+              size="md"
               ariaLabel="게릴라방송 토글"
               title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
             />
@@ -306,6 +313,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
       case "number":
         return (
           <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
             handleTextChange={(newValue) =>
@@ -324,6 +332,7 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
       default:
         return (
           <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
             handleTextChange={(newValue) =>
@@ -427,10 +436,10 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
   };
 
   return (
-    <>
+    <Fragment>
       {data.slice(0, 3).map((day, dayIndex) => (
-        <SampleDayCard
-          className="min-h-[64px] rounded-[26px]"
+        <DayCard
+          size={size}
           key={day.day}
           weekdayLabel={
             weekdayRenderer ? weekdayRenderer(day) : defaultWeekdayRenderer(day)
@@ -441,95 +450,86 @@ const TimeTableSampleInputList: React.FC<TimeTableInputListProps> = ({
           expandAnimation={expandAnimation}
           offlineMemoContent={
             isOfflineMemo && day.isOffline ? (
-              <textarea
-                value={day.offlineMemo || ""}
-                onChange={(e) =>
+              <OfflineMemoCard
+                content={day.offlineMemo || ""}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                   handleOfflineMemoChange(dayIndex, e.target.value)
                 }
-                placeholder="휴방 메모를 입력하세요..."
-                className={cn(
-                  inputVariants({ variant: "default" }),
-                  "resize-none"
-                )}
-                rows={3}
-                maxLength={200}
               />
             ) : undefined
           }
         >
-          <div className="pb-3.5 flex flex-col gap-4">
-            <div className="flex flex-col gap-6">
-              {day.entries.map((entry, entryIndex) => (
-                <EntryCard
-                  key={`${day.day}-${entryIndex}`}
-                  entry={entry}
-                  entryIndex={entryIndex}
-                  showHeader={isMultiple}
-                  showDeleteButton={isMultiple && day.entries.length > 1}
-                  onDelete={() => handleRemoveEntry(dayIndex, entryIndex)}
-                  variant="default"
-                >
-                  {cardInputConfig.fields.map((fieldConfig) => {
-                    const isDefaultField =
-                      fieldConfig.key in defaultFieldRenderers;
-
-                    return (
-                      <div key={fieldConfig.key}>
-                        {fieldConfig.label && cardInputConfig.showLabels && (
-                          <label
-                            className={cn(
-                              labelVariants({ size: "xs" }),
-                              "block mb-1"
-                            )}
-                          >
-                            {fieldConfig.label}
-                          </label>
-                        )}
-                        {isDefaultField
-                          ? renderDefaultField(
-                              fieldConfig.key,
-                              entry,
-                              dayIndex,
-                              entryIndex
-                            )
-                          : renderInputField(
-                              fieldConfig,
-                              entry,
-                              dayIndex,
-                              entryIndex
-                            )}
-                      </div>
-                    );
-                  })}
-                </EntryCard>
-              ))}
-            </div>
-
-            {/* 엔트리 추가 버튼 */}
-            {isMultiple && day.entries.length < maxStreamingTimeByDay && (
-              <button
-                type="button"
-                className={cn(
-                  buttonVariants({
-                    variant: "light",
-                    size: "md",
-                    fullWidth: true,
-                  }),
-                  "flex items-center justify-center gap-2"
-                )}
-                onClick={() => handleAddEntry(dayIndex)}
+          <div className="flex flex-col gap-6">
+            {day.entries.map((entry, entryIndex) => (
+              <EntryCard
+                key={`${day.day}-${entryIndex}`}
+                entry={entry}
+                entryIndex={entryIndex}
+                showHeader={isMultiple}
+                showDeleteButton={isMultiple && day.entries.length > 1}
+                onDelete={() => handleRemoveEntry(dayIndex, entryIndex)}
+                variant="default"
               >
-                <span className="text-[20px]">+</span>
-                <span className="text-[20px] font-medium">
-                  방송 추가 ({day.entries.length}/{maxStreamingTimeByDay})
-                </span>
-              </button>
-            )}
+                {cardInputConfig.fields.map((fieldConfig) => {
+                  const isDefaultField =
+                    fieldConfig.key in defaultFieldRenderers;
+
+                  return (
+                    <div key={fieldConfig.key}>
+                      {fieldConfig.label && cardInputConfig.showLabels && (
+                        <label
+                          className={cn(
+                            labelVariants({ size: "xs" }),
+                            "block mb-1"
+                          )}
+                        >
+                          {fieldConfig.label}
+                        </label>
+                      )}
+                      {isDefaultField
+                        ? renderDefaultField(
+                            fieldConfig.key,
+                            entry,
+                            dayIndex,
+                            entryIndex
+                          )
+                        : renderInputField(
+                            fieldConfig,
+                            entry,
+                            dayIndex,
+                            entryIndex
+                          )}
+                    </div>
+                  );
+                })}
+              </EntryCard>
+            ))}
           </div>
-        </SampleDayCard>
+
+          {/* 엔트리 추가 버튼 */}
+          {isMultiple && day.entries.length < maxStreamingTimeByDay && (
+            <button
+              type="button"
+              className={cn(
+                buttonVariants({
+                  variant: "light",
+                  size,
+                  fullWidth: true,
+                }),
+                "flex items-center justify-center gap-2"
+              )}
+              onClick={() => handleAddEntry(dayIndex)}
+            >
+              <span className="text-lg">+</span>
+              <span className="text-sm font-medium">
+                방송 추가 ({day.entries.length}/{maxStreamingTimeByDay})
+              </span>
+            </button>
+          )}
+        </DayCard>
       ))}
-    </>
+    </Fragment>
   );
 };
 
-export default TimeTableSampleInputList;
+export default SampleTimeTableInputList;

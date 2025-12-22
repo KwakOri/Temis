@@ -14,12 +14,13 @@ import {
   createInitialEntryFromConfig,
   weekdays,
 } from "@/utils/time-table/data";
-import React from "react";
+import { SizeProps } from "@/utils/utils";
+import React, { ChangeEvent } from "react";
 import { DayCard } from "./DayCard";
 import { EntryCard } from "./EntryCard";
-import { buttonVariants, inputVariants, labelVariants } from "./styles";
-import { Toggle } from "./Toggle";
-
+import OfflineMemoCard from "./OfflineMemoCard";
+import { buttonVariants, labelVariants } from "./styles";
+import { SubToggle } from "./SubToggle";
 // 개별 필드 렌더러 타입 정의 (다중 엔트리 지원)
 export interface FieldRenderer {
   (props: {
@@ -75,6 +76,7 @@ export interface TimeTableInputListProps {
   // 다중 엔트리 설정
   isMultiple?: boolean;
   maxStreamingTimeByDay?: number;
+  size?: SizeProps;
 }
 
 const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
@@ -95,6 +97,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   isOfflineMemo = false,
   isMultiple = false,
   maxStreamingTimeByDay = 1,
+  size = "sm",
 }) => {
   const defaultFieldRenderers = {
     time: ({
@@ -108,6 +111,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <AdaptiveTimeRenderer
+              height={size}
               id={fieldId}
               value={entry.time as string}
               onChange={(newValue) =>
@@ -116,7 +120,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
               disabled={entry.isGuerrilla}
             />
           </div>
-          <Toggle
+          <SubToggle
             active={entry.isGuerrilla || false}
             onToggle={() =>
               onChange(dayIndex, entryIndex, "isGuerrilla", !entry.isGuerrilla)
@@ -142,6 +146,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       };
       return (
         <TextRenderer
+          height={size}
           value={entry.topic as string}
           placeholder={placeholders.topic}
           handleTextChange={handleTopicChange}
@@ -201,6 +206,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       case "text":
         return (
           <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
             handleTextChange={(newValue) =>
@@ -241,6 +247,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <AdaptiveTimeRenderer
+                height={size}
                 id={fieldId}
                 value={value}
                 onChange={(newValue) =>
@@ -254,7 +261,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 disabled={entry.isGuerrilla}
               />
             </div>
-            <Toggle
+            <SubToggle
               active={entry.isGuerrilla || false}
               onToggle={() =>
                 handleEntryFieldChange(
@@ -266,7 +273,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
               }
               label="게릴라"
               variant="guerrilla"
-              size="sm"
+              size="md"
               ariaLabel="게릴라방송 토글"
               title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
             />
@@ -302,6 +309,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       case "number":
         return (
           <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
             handleTextChange={(newValue) =>
@@ -320,6 +328,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       default:
         return (
           <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
             handleTextChange={(newValue) =>
@@ -426,6 +435,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     <div className={containerClassName}>
       {data.map((day, dayIndex) => (
         <DayCard
+          size={size}
           key={day.day}
           weekdayLabel={
             weekdayRenderer ? weekdayRenderer(day) : defaultWeekdayRenderer(day)
@@ -436,18 +446,11 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           expandAnimation={expandAnimation}
           offlineMemoContent={
             isOfflineMemo && day.isOffline ? (
-              <textarea
-                value={day.offlineMemo || ""}
-                onChange={(e) =>
+              <OfflineMemoCard
+                content={day.offlineMemo || ""}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
                   handleOfflineMemoChange(dayIndex, e.target.value)
                 }
-                placeholder="휴방 메모를 입력하세요..."
-                className={cn(
-                  inputVariants({ variant: "default" }),
-                  "resize-none"
-                )}
-                rows={3}
-                maxLength={200}
               />
             ) : undefined
           }
@@ -506,7 +509,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
               className={cn(
                 buttonVariants({
                   variant: "light",
-                  size: "md",
+                  size,
                   fullWidth: true,
                 }),
                 "flex items-center justify-center gap-2"

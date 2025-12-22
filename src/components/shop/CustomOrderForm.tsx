@@ -506,62 +506,62 @@ export default function CustomOrderForm({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden sm:bg-black/50 sm:backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:p-4 sm:overflow-y-auto">
-      <div className="bg-white h-full w-full overflow-y-auto sm:rounded-2xl sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto">
+      <div className="bg-timetable-form-bg h-full w-full overflow-y-auto sm:rounded-2xl sm:max-w-2xl sm:w-full sm:max-h-[90vh] sm:h-auto">
         {/* 헤더 */}
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-4 sm:px-6 py-4 sm:rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-timetable-form-bg border-b border-tertiary px-4 sm:px-6 py-4 sm:rounded-t-2xl z-10">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-dark-gray">
                 {isEditMode ? "주문 수정" : "TEMIS 맞춤형 시간표 제작 신청폼"}
               </h2>
               <div className="flex items-center mt-2">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                     currentStep >= 1
-                      ? "bg-[#1e3a8a] text-white"
-                      : "bg-slate-200 text-slate-600"
+                      ? "bg-primary text-white"
+                      : "bg-tertiary text-dark-gray/70"
                   }`}
                 >
                   1
                 </div>
                 <div
                   className={`w-8 h-1 ${
-                    currentStep >= 2 ? "bg-[#1e3a8a]" : "bg-slate-200"
+                    currentStep >= 2 ? "bg-primary" : "bg-tertiary"
                   }`}
                 ></div>
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                     currentStep >= 2
-                      ? "bg-[#1e3a8a] text-white"
-                      : "bg-slate-200 text-slate-600"
+                      ? "bg-primary text-white"
+                      : "bg-tertiary text-dark-gray/70"
                   }`}
                 >
                   2
                 </div>
                 <div
                   className={`w-8 h-1 ${
-                    currentStep >= 3 ? "bg-[#1e3a8a]" : "bg-slate-200"
+                    currentStep >= 3 ? "bg-primary" : "bg-tertiary"
                   }`}
                 ></div>
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                     currentStep >= 3
-                      ? "bg-[#1e3a8a] text-white"
-                      : "bg-slate-200 text-slate-600"
+                      ? "bg-primary text-white"
+                      : "bg-tertiary text-dark-gray/70"
                   }`}
                 >
                   3
                 </div>
                 <div
                   className={`w-8 h-1 ${
-                    currentStep >= 4 ? "bg-[#1e3a8a]" : "bg-slate-200"
+                    currentStep >= 4 ? "bg-primary" : "bg-tertiary"
                   }`}
                 ></div>
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                     currentStep >= 4
-                      ? "bg-[#1e3a8a] text-white"
-                      : "bg-slate-200 text-slate-600"
+                      ? "bg-primary text-white"
+                      : "bg-tertiary text-dark-gray/70"
                   }`}
                 >
                   4
@@ -570,7 +570,7 @@ export default function CustomOrderForm({
             </div>
             <button
               onClick={onClose}
-              className="text-slate-500 hover:text-slate-700 text-xl"
+              className="text-dark-gray/70 hover:text-dark-gray text-xl"
             >
               ✕
             </button>
@@ -581,12 +581,12 @@ export default function CustomOrderForm({
           {currentStep === 1 ? (
             <form onSubmit={handleStep1Submit} className="space-y-6">
               {/* 가격 안내 */}
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-medium text-[#1e3a8a] mb-2 flex items-center">
+              <div className="bg-primary/10 border border-primary/30 p-4 rounded-lg">
+                <h3 className="font-medium text-primary mb-2 flex items-center">
                   <FileText className="h-5 w-5 mr-2" />
                   TEMIS 시간표 커미션 예약 안내
                 </h3>
-                <div className="text-sm text-slate-700 space-y-1">
+                <div className="text-sm text-dark-gray space-y-1">
                   <p>
                     기본적인 진행 방법은 레퍼런스 확인 → 디자인 → 디자인
                     수정(기본 3회) → 웹 제작 → 완성 입니다!
@@ -608,7 +608,7 @@ export default function CustomOrderForm({
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     버튜버 활동명과 SNS 주소 *
                   </label>
                   <textarea
@@ -620,13 +620,13 @@ export default function CustomOrderForm({
                         youtubeSnsAddress: e.target.value,
                       }))
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 h-20 resize-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="활동명과 SNS 주소를 입력해주세요"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     컨펌 & 연락가능한 메일이나 디스코드 *
                   </label>
                   <textarea
@@ -638,7 +638,7 @@ export default function CustomOrderForm({
                         emailDiscord: e.target.value,
                       }))
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 h-20 resize-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="연락 가능한 이메일 또는 디스코드를 입력해주세요"
                   />
                 </div>
@@ -647,7 +647,7 @@ export default function CustomOrderForm({
               <div className="flex justify-end">
                 <button
                   type="submit"
-                  className="bg-[#1e3a8a] text-white px-6 py-2 rounded-lg hover:bg-blue-800 font-medium"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 font-medium"
                 >
                   다음
                 </button>
@@ -675,7 +675,7 @@ export default function CustomOrderForm({
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     시간표 제작에 필요한 요소들 *
                   </label>
                   <textarea
@@ -687,22 +687,22 @@ export default function CustomOrderForm({
                         orderRequirements: e.target.value,
                       }))
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 h-32 resize-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-32 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="필요한 시간표 내용, 스케줄 등을 자세히 작성해주세요"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-dark-gray mb-2">
                     버튜버 캐릭터 사진을 첨부해주세요 *
                   </label>
-                  <p className="text-xs text-slate-600 mb-3">
+                  <p className="text-xs text-dark-gray/70 mb-3">
                     지원되는 파일을 최대 5개까지 업로드하세요. 파일당 최대
                     크기는 1 GB입니다.
                   </p>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-[#1e3a8a] transition-colors">
-                    <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-600 mb-2">
+                  <div className="border-2 border-dashed border-tertiary rounded-lg p-6 text-center hover:border-primary transition-colors">
+                    <Upload className="h-8 w-8 text-dark-gray/40 mx-auto mb-2" />
+                    <p className="text-sm text-dark-gray/70 mb-2">
                       파일을 드래그하거나 클릭하여 업로드
                     </p>
                     <input
@@ -715,7 +715,7 @@ export default function CustomOrderForm({
                     />
                     <label
                       htmlFor="character-images"
-                      className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer"
+                      className="inline-flex items-center px-4 py-2 border border-tertiary rounded-lg text-sm font-medium text-dark-gray bg-white hover:bg-tertiary cursor-pointer"
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       파일 선택
@@ -737,7 +737,7 @@ export default function CustomOrderForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-dark-gray mb-2">
                     오마카세 요청 (오마카세 시 제작 속도가 빨라집니다.) *
                   </label>
                   <div className="space-y-2">
@@ -774,20 +774,20 @@ export default function CustomOrderForm({
                   </div>
 
                   {!step2Data.wantsOmakase && (
-                    <div className="mt-4 p-3 bg-slate-50 rounded-lg">
-                      <h4 className="font-medium text-slate-900 mb-2">
+                    <div className="mt-4 p-3 bg-tertiary rounded-lg">
+                      <h4 className="font-medium text-dark-gray mb-2">
                         오마카세 아니요에 체크 제크하신 분 공지
                       </h4>
-                      <ul className="text-sm text-slate-600 space-y-1 list-disc list-inside">
+                      <ul className="text-sm text-dark-gray/70 space-y-1 list-disc list-inside">
                         <li>이미지 위치 (첨독, 우측)</li>
                         <li>내용 입력 칸의 형태 (정사각형, 가로형 등)</li>
                         <li>휴일의 표기 방식</li>
                         <li>시간표 상단에 들어갈 제목 문구</li>
                       </ul>
-                      <p className="text-xs text-slate-500 mt-2">
+                      <p className="text-xs text-dark-gray/60 mt-2">
                         (예: 이번 주 스케줄, 시간표, Schedule 등)
                       </p>
-                      <p className="text-sm text-slate-600 mt-2">
+                      <p className="text-sm text-dark-gray/70 mt-2">
                         원하시는 디자인요소가 있다면 모든 작성 부탁 드립니다!
                       </p>
                     </div>
@@ -795,7 +795,7 @@ export default function CustomOrderForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label className="block text-sm font-medium text-dark-gray mb-1">
                     시간표에 원하는 디자인이나 간단 키워드 *
                   </label>
                   <textarea
@@ -807,23 +807,23 @@ export default function CustomOrderForm({
                         designKeywords: e.target.value,
                       }))
                     }
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 h-24 resize-none focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-24 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="원하는 디자인 스타일, 색상, 키워드 등을 입력해주세요"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block text-sm font-medium text-dark-gray mb-2">
                     원하시는 디자인 시안이나 레퍼런스를 준비해주신 분에
                     올려주세요
                   </label>
-                  <p className="text-xs text-slate-600 mb-3">
+                  <p className="text-xs text-dark-gray/70 mb-3">
                     지원되는 파일을 최대 10개까지 업로드하세요. 파일당 최대
                     크기는 100 MB입니다.
                   </p>
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-[#1e3a8a] transition-colors">
-                    <Palette className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm text-slate-600 mb-2">
+                  <div className="border-2 border-dashed border-tertiary rounded-lg p-6 text-center hover:border-primary transition-colors">
+                    <Palette className="h-8 w-8 text-dark-gray/40 mx-auto mb-2" />
+                    <p className="text-sm text-dark-gray/70 mb-2">
                       레퍼런스 파일 업로드
                     </p>
                     <input
@@ -836,7 +836,7 @@ export default function CustomOrderForm({
                     />
                     <label
                       htmlFor="reference-files"
-                      className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 cursor-pointer"
+                      className="inline-flex items-center px-4 py-2 border border-tertiary rounded-lg text-sm font-medium text-dark-gray bg-white hover:bg-tertiary cursor-pointer"
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       파일 선택
@@ -858,13 +858,13 @@ export default function CustomOrderForm({
                     e.preventDefault();
                     setCurrentStep(1);
                   }}
-                  className="border border-slate-300 px-6 py-2 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
+                  className="border border-tertiary px-6 py-2 rounded-lg hover:bg-tertiary font-medium text-dark-gray"
                 >
                   이전
                 </button>
                 <button
                   type="submit"
-                  className="bg-[#1e3a8a] text-white px-6 py-2 rounded-lg hover:bg-blue-800 font-medium"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 font-medium"
                 >
                   다음
                 </button>
@@ -893,7 +893,7 @@ export default function CustomOrderForm({
               {loadingPricing ? (
                 <div className="text-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3a8a] mx-auto"></div>
-                  <p className="text-slate-600 mt-2">
+                  <p className="text-dark-gray/70 mt-2">
                     가격 정보를 불러오는 중...
                   </p>
                 </div>
@@ -901,7 +901,7 @@ export default function CustomOrderForm({
                 <div className="space-y-6">
                   {/* 필수 영역 부분 */}
                   <div>
-                    <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                    <h4 className="font-medium text-dark-gray mb-3 text-lg">
                       필수 영역 부분
                     </h4>
                     <div className="space-y-3">
@@ -921,7 +921,7 @@ export default function CustomOrderForm({
                                   : "border-purple-200 hover:bg-purple-50"
                                 : isSelected
                                 ? "border-[#1e3a8a] bg-blue-50"
-                                : "border-slate-200 hover:bg-slate-50"
+                                : "border-slate-200 hover:bg-tertiary"
                             }`}
                           >
                             <div className="flex items-center">
@@ -938,7 +938,7 @@ export default function CustomOrderForm({
                                 className={`mr-3 h-4 w-4 border-slate-300 ${
                                   isExternalContract
                                     ? "text-purple-600 focus:ring-purple-500"
-                                    : "text-[#1e3a8a] focus:ring-[#1e3a8a]"
+                                    : "text-primary focus:ring-primary"
                                 }`}
                               />
                               <div>
@@ -946,7 +946,7 @@ export default function CustomOrderForm({
                                   className={`font-medium ${
                                     isExternalContract
                                       ? "text-purple-800"
-                                      : "text-slate-900"
+                                      : "text-dark-gray"
                                   }`}
                                 >
                                   {option.label}
@@ -956,7 +956,7 @@ export default function CustomOrderForm({
                                     className={`text-sm ${
                                       isExternalContract
                                         ? "text-purple-600"
-                                        : "text-slate-600"
+                                        : "text-dark-gray/70"
                                     }`}
                                   >
                                     {option.description}
@@ -968,7 +968,7 @@ export default function CustomOrderForm({
                               className={`font-bold ${
                                 isExternalContract
                                   ? "text-purple-600"
-                                  : "text-[#1e3a8a]"
+                                  : "text-primary"
                               }`}
                             >
                               {option.price === 0
@@ -986,7 +986,7 @@ export default function CustomOrderForm({
                   {/* 선택 영역 부분 */}
                   {selectableOptions.length > 0 && (
                     <div>
-                      <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                      <h4 className="font-medium text-dark-gray mb-3 text-lg">
                         선택 영역 부분
                       </h4>
                       <div className="space-y-3">
@@ -998,7 +998,7 @@ export default function CustomOrderForm({
                                 ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
                                 : option.is_discount
                                 ? "border-green-200 hover:bg-green-50 bg-green-25"
-                                : "border-slate-200 hover:bg-slate-50"
+                                : "border-slate-200 hover:bg-tertiary"
                             }`}
                           >
                             <div className="flex items-center">
@@ -1021,17 +1021,17 @@ export default function CustomOrderForm({
                                 className={`mr-3 h-4 w-4 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
                                   option.is_discount
                                     ? "text-green-600 focus:ring-green-500"
-                                    : "text-[#1e3a8a] focus:ring-[#1e3a8a]"
+                                    : "text-primary focus:ring-primary"
                                 }`}
                               />
                               <div>
                                 <div
                                   className={`font-medium ${
                                     step3Data.externalContract
-                                      ? "text-slate-400"
+                                      ? "text-dark-gray/40"
                                       : option.is_discount
                                       ? "text-green-800"
-                                      : "text-slate-900"
+                                      : "text-dark-gray"
                                   }`}
                                 >
                                   {option.label}
@@ -1043,7 +1043,7 @@ export default function CustomOrderForm({
                                         ? "text-slate-300"
                                         : option.is_discount
                                         ? "text-green-600"
-                                        : "text-slate-600"
+                                        : "text-dark-gray/70"
                                     }`}
                                   >
                                     {option.description}
@@ -1054,10 +1054,10 @@ export default function CustomOrderForm({
                             <span
                               className={`font-bold ${
                                 step3Data.externalContract
-                                  ? "text-slate-400"
+                                  ? "text-dark-gray/40"
                                   : option.is_discount
                                   ? "text-green-600"
-                                  : "text-[#1e3a8a]"
+                                  : "text-primary"
                               }`}
                             >
                               {option.is_discount ? "-" : "+"}₩
@@ -1071,7 +1071,7 @@ export default function CustomOrderForm({
 
                   {/* 기타 옵션 */}
                   <div>
-                    <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                    <h4 className="font-medium text-dark-gray mb-3 text-lg">
                       기타 옵션
                     </h4>
                     <div className="space-y-3">
@@ -1083,7 +1083,7 @@ export default function CustomOrderForm({
                               ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
                               : option.is_discount
                               ? "border-green-200 hover:bg-green-50 bg-green-25"
-                              : "border-slate-200 hover:bg-slate-50"
+                              : "border-slate-200 hover:bg-tertiary"
                           }`}
                         >
                           <div className="flex items-center">
@@ -1105,17 +1105,17 @@ export default function CustomOrderForm({
                               className={`mr-3 h-4 w-4 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
                                 option.is_discount
                                   ? "text-green-600 focus:ring-green-500"
-                                  : "text-[#1e3a8a] focus:ring-[#1e3a8a]"
+                                  : "text-primary focus:ring-primary"
                               }`}
                             />
                             <div>
                               <div
                                 className={`font-medium ${
                                   step3Data.externalContract
-                                    ? "text-slate-400"
+                                    ? "text-dark-gray/40"
                                     : option.is_discount
                                     ? "text-green-800"
-                                    : "text-slate-900"
+                                    : "text-dark-gray"
                                 }`}
                               >
                                 {option.label}
@@ -1126,7 +1126,7 @@ export default function CustomOrderForm({
                                     ? "text-slate-300"
                                     : option.is_discount
                                     ? "text-green-600"
-                                    : "text-slate-600"
+                                    : "text-dark-gray/70"
                                 }`}
                               >
                                 {option.description}
@@ -1136,10 +1136,10 @@ export default function CustomOrderForm({
                           <span
                             className={`font-bold ${
                               step3Data.externalContract
-                                ? "text-slate-400"
+                                ? "text-dark-gray/40"
                                 : option.is_discount
                                 ? "text-green-600"
-                                : "text-[#1e3a8a]"
+                                : "text-primary"
                             }`}
                           >
                             {option.is_discount ? "-" : "+"}₩
@@ -1153,7 +1153,7 @@ export default function CustomOrderForm({
                   {/* 빠른 마감 부분 */}
                   {isWorkFastEnabled && (
                     <div>
-                      <h4 className="font-medium text-slate-900 mb-3 text-lg">
+                      <h4 className="font-medium text-dark-gray mb-3 text-lg">
                         빠른 마감 부분
                       </h4>
                       <label className="flex items-center justify-between p-4 border border-orange-200 rounded-lg hover:bg-orange-50 cursor-pointer bg-orange-25">
@@ -1174,7 +1174,7 @@ export default function CustomOrderForm({
                             <div
                               className={`font-medium ${
                                 step3Data.externalContract
-                                  ? "text-slate-400"
+                                  ? "text-dark-gray/40"
                                   : "text-orange-800"
                               }`}
                             >
@@ -1194,7 +1194,7 @@ export default function CustomOrderForm({
                         <span
                           className={`font-bold ${
                             step3Data.externalContract
-                              ? "text-slate-400"
+                              ? "text-dark-gray/40"
                               : "text-orange-600"
                           }`}
                         >
@@ -1205,7 +1205,7 @@ export default function CustomOrderForm({
                   )}
 
                   {/* 총 금액 표시 */}
-                  <div className="bg-[#1e3a8a] text-white p-6 rounded-lg">
+                  <div className="bg-primary text-white p-6 rounded-lg">
                     <div className="flex justify-between items-center">
                       <span className="text-lg font-medium">총 결제 금액</span>
                       <span className="text-2xl font-bold">
@@ -1225,14 +1225,14 @@ export default function CustomOrderForm({
                     e.preventDefault();
                     setCurrentStep(2);
                   }}
-                  className="border border-slate-300 px-6 py-2 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
+                  className="border border-tertiary px-6 py-2 rounded-lg hover:bg-tertiary font-medium text-dark-gray"
                 >
                   이전
                 </button>
                 <button
                   type="submit"
                   disabled={loadingPricing}
-                  className="bg-[#1e3a8a] text-white px-6 py-2 rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium"
                 >
                   다음
                 </button>
@@ -1242,11 +1242,11 @@ export default function CustomOrderForm({
             <form onSubmit={handleStep4Submit} className="space-y-6">
               {/* 송금 안내 */}
               <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-medium text-[#1e3a8a] mb-2 flex items-center">
+                <h3 className="font-medium text-primary mb-2 flex items-center">
                   <CreditCard className="h-5 w-5 mr-2" />
                   송금 계좌 정보
                 </h3>
-                <div className="text-sm text-slate-700 space-y-1">
+                <div className="text-sm text-dark-gray space-y-1">
                   <p>• 은행: 토스뱅크</p>
                   <p>• 계좌번호: 1000-7564-4995</p>
                   <p>• 예금주: 이세영</p>
@@ -1285,9 +1285,9 @@ export default function CustomOrderForm({
               </div>
 
               {/* 사용자 정보 표시 */}
-              <div className="p-3 bg-slate-50 rounded-lg">
-                <h4 className="font-medium mb-2 text-slate-900">신청자 정보</h4>
-                <div className="text-sm text-slate-600 space-y-1">
+              <div className="p-3 bg-tertiary rounded-lg">
+                <h4 className="font-medium mb-2 text-dark-gray">신청자 정보</h4>
+                <div className="text-sm text-dark-gray/70 space-y-1">
                   <p>
                     <span className="font-medium">이름:</span> {user?.name}
                   </p>
@@ -1299,7 +1299,7 @@ export default function CustomOrderForm({
 
               {/* 입금자명 입력 */}
               <div>
-                <label className="block text-sm font-medium mb-1 text-slate-700">
+                <label className="block text-sm font-medium mb-1 text-dark-gray">
                   입금자명 *
                 </label>
                 <input
@@ -1313,7 +1313,7 @@ export default function CustomOrderForm({
                     }))
                   }
                   placeholder="계좌 이체 시 사용할 입금자명을 입력하세요"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
+                  className="w-full border border-tertiary rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-[#1e3a8a]"
                 />
               </div>
 
@@ -1324,14 +1324,14 @@ export default function CustomOrderForm({
                     e.preventDefault();
                     setCurrentStep(3);
                   }}
-                  className="border border-slate-300 px-6 py-2 rounded-lg hover:bg-slate-50 font-medium text-slate-700"
+                  className="border border-tertiary px-6 py-2 rounded-lg hover:bg-tertiary font-medium text-dark-gray"
                 >
                   이전
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="bg-[#1e3a8a] text-white px-6 py-2 rounded-lg hover:bg-blue-800 disabled:opacity-50 font-medium"
+                  className="bg-primary text-white px-6 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-50 font-medium"
                 >
                   {submitting
                     ? isEditMode

@@ -12,7 +12,7 @@ interface ToggleProps {
   title?: string;
 }
 
-export const Toggle: React.FC<ToggleProps> = ({
+export const SubToggle: React.FC<ToggleProps> = ({
   active,
   onToggle,
   label,
@@ -24,7 +24,7 @@ export const Toggle: React.FC<ToggleProps> = ({
 }) => {
   const translateClass = {
     sm: active ? "translate-x-9" : "translate-x-1",
-    md: active ? "translate-x-12.5" : "translate-x-1",
+    md: active ? "translate-x-10" : "translate-x-1",
     lg: active ? "translate-x-6" : "translate-x-0",
   }[size];
 

@@ -1,3 +1,4 @@
+import { SizeProps } from "@/utils/utils";
 import React, { useEffect, useRef, useState } from "react";
 import ScrollableTimePicker from "./ScrollableTimePicker";
 
@@ -6,6 +7,7 @@ interface AdaptiveTimeRendererProps {
   onChange: (value: string) => void;
   id?: string;
   disabled?: boolean;
+  height: SizeProps;
 }
 
 const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
@@ -13,6 +15,7 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
   onChange,
   id,
   disabled = false,
+  height,
 }) => {
   const [showPicker, setShowPicker] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -98,13 +101,14 @@ const AdaptiveTimeRenderer: React.FC<AdaptiveTimeRendererProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          className={`w-full rounded-xl p-3 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-timetable-primary/50 bg-timetable-input-bg text-gray-800${
+          className={`w-full rounded-xl p-3 placeholder-gray-500 focus:outline-none focus:ring-0 focus:shadow-[inset_0_0_0_2px_#FF9F45] bg-timetable-input-bg text-gray-800${
             disabled ? "brightness-75 cursor-not-allowed" : `brightness-100`
           }`}
         />
       ) : (
         // 데스크톱: 항상 표시되는 스크롤러블 피커
         <ScrollableTimePicker
+          height={height}
           value={value}
           onChange={(newValue) => {
             onChange(formatTime(newValue));

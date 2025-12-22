@@ -70,10 +70,10 @@ export default function PurchaseHistory() {
   if (!user) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500 mb-4">로그인이 필요합니다.</p>
+        <p className="text-dark-gray/60 mb-4">로그인이 필요합니다.</p>
         <Link
           href="/auth"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          className="bg-primary text-white px-4 py-2 rounded hover:bg-primary/90"
         >
           로그인하기
         </Link>
@@ -84,7 +84,7 @@ export default function PurchaseHistory() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -93,7 +93,7 @@ export default function PurchaseHistory() {
     return (
       <div className="text-center py-12">
         <p className="text-red-500 mb-4">구매 내역을 불러올 수 없습니다.</p>
-        <p className="text-gray-500">
+        <p className="text-dark-gray/60">
           {error instanceof Error
             ? error.message
             : "알 수 없는 오류가 발생했습니다."}
@@ -122,47 +122,47 @@ export default function PurchaseHistory() {
   return (
     <div>
       {/* 구매 요청 내역 */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-medium text-gray-900">구매 요청 내역</h2>
-          <p className="text-sm text-gray-600">
+      <div className="bg-timetable-form-bg shadow rounded-lg border border-tertiary">
+        <div className="px-6 py-4 border-b border-tertiary">
+          <h2 className="text-lg font-medium text-dark-gray">구매 요청 내역</h2>
+          <p className="text-sm text-dark-gray/70">
             템플릿 구매 신청 현황을 확인하고 관리할 수 있습니다
           </p>
         </div>
 
         {data?.purchaseRequests.length === 0 ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-gray-500">구매 요청 내역이 없습니다.</p>
+            <p className="text-dark-gray/60">구매 요청 내역이 없습니다.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-tertiary">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/60 uppercase tracking-wider">
                     신청일시
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/60 uppercase tracking-wider">
                     템플릿
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/60 uppercase tracking-wider">
                     입금자명
                   </th>
-                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/60 uppercase tracking-wider">
                     메시지
                   </th> */}
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/60 uppercase tracking-wider">
                     상태
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-dark-gray/60 uppercase tracking-wider">
                     관리
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {data?.purchaseRequests.map((request) => (
-                  <tr key={request.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={request.id} className="hover:bg-tertiary">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-dark-gray">
                       {new Date(request.created_at!).toLocaleString("ko-KR")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -181,7 +181,7 @@ export default function PurchaseHistory() {
                           />
                         </div>
                         <div className="ml-3">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-dark-gray">
                             {request.template?.name}
                           </div>
                         </div>
@@ -201,7 +201,7 @@ export default function PurchaseHistory() {
                           className="w-full border border-gray-300 rounded px-2 py-1 text-sm"
                         />
                       ) : (
-                        <span className="text-gray-900">
+                        <span className="text-dark-gray">
                           {request.depositor_name}
                         </span>
                       )}
@@ -221,7 +221,7 @@ export default function PurchaseHistory() {
                             </button>
                             <button
                               onClick={cancelEdit}
-                              className="bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600"
+                              className="bg-tertiary0 text-white px-2 py-1 rounded text-xs hover:bg-gray-600"
                             >
                               취소
                             </button>

@@ -3,6 +3,7 @@
 import { AutoResizeText } from "@/components/AutoResizeTextCard";
 import { cn } from "@/utils/utils";
 import { cva, VariantProps } from "class-variance-authority";
+import SectionTitle from "../SectionTitle";
 
 const CardVariant = cva(
   "rounded-[36px] p-8 transition-all duration-300 cursor-pointer border-1",
@@ -99,12 +100,12 @@ const ReviewSection = ({ items }: ReviewSectionProps) => {
   }
 
   return (
-    <section className="py-20">
+    <section className="pt-20 pb-8">
       <div className="mx-auto">
-        <h2 className="text-4xl font-bold text-center mb-12">Reviews</h2>
+        <SectionTitle label="REVIEWS" />
 
         {/* Vertical Column Layout */}
-        <div className="flex flex-wrap gap-6 justify-center">
+        <div className="flex flex-wrap gap-6 justify-center mt-12">
           {columns.map((column, colIndex) => (
             <div key={colIndex} className="flex flex-col gap-6">
               {column.map((item, itemIndex) => (

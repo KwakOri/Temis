@@ -1,4 +1,5 @@
 import { PropsWithChildren } from "react";
+import SectionTitle from "../SectionTitle";
 
 export interface KeyFeaturesItem {
   question: string[];
@@ -13,7 +14,8 @@ interface KeyFeaturesProps {
 const KeyFeaturesSection = ({ items }: PropsWithChildren<KeyFeaturesProps>) => {
   return (
     <section className="w-full flex flex-col items-center gap-6 lg:py-12 md:py-8 sm:py-4 bg-[#221D19]">
-      <h2 className="text-xl font-bold text-white">Key Features</h2>
+      <SectionTitle label="KEY FEATURES" intent={"white"} />
+
       <div className="flex flex-col items-center">
         <p
           style={{ lineHeight: 1.2 }}

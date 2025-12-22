@@ -7,7 +7,7 @@ import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideCon
 import { useTimeTableEditor } from "@/hooks";
 
 import TimeTableSampleForm from "@/app/(root)/_sample/_components/SampleTimeTableForm";
-import TimeTableSampleInputList from "@/app/(root)/_sample/_components/SampleTimeTableInputList";
+
 import TimeTableSamplePreview from "@/app/(root)/_sample/_components/SampleTimeTablePreview";
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { isGuideEnabled } from "@/utils/time-table/data";
@@ -19,6 +19,7 @@ import {
   templateSize,
   weekdayOption,
 } from "../../_settings/settings";
+import SampleTimeTableInputList from "../SampleTimeTableInputList";
 import TimeTableContent from "./TimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
@@ -36,7 +37,7 @@ const TimeTableEditorContent: React.FC = () => {
   if (!isInitialized || state.weekDates.length === 0) return <Loading />;
 
   return (
-    <div className="w-full h-full flex flex-col px-9">
+    <div className="max-w-[1440px] w-full h-full flex flex-col px-9 mb-10">
       {/* 데스크탑 버전 - TimeTableControls (뒤로가기 + 배율 조절 통합) */}
       {/* 모바일 버전 - 상단 헤더에 뒤로가기 + 배율 조절 */}
       {state.isMobile && <MobileHeader />}
@@ -47,6 +48,12 @@ const TimeTableEditorContent: React.FC = () => {
           placeholders={placeholders}
         />
       </TimeTableSamplePreview>
+      <p
+        style={{ fontFamily: "Paperlogy" }}
+        className="text-2xl font-semibold mt-2 text-center py-2"
+      >
+        모든 버튼을 눌러 볼 수 있어요, 자유롭게 체험 해보세요!
+      </p>
       <TimeTableSampleForm
         multiSelect
         isMemo
@@ -57,7 +64,8 @@ const TimeTableEditorContent: React.FC = () => {
         cropWidth={Settings.profile.image.width}
         cropHeight={Settings.profile.image.height}
       >
-        <TimeTableSampleInputList
+        <SampleTimeTableInputList
+          size="md"
           isMultiple
           maxStreamingTimeByDay={2}
           cardInputConfig={CARD_INPUT_CONFIG}

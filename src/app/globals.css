@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #4e4d71;
-  --color-primary-dark: #3d3d59;
-  --color-secondary: #5868a2;
-  --color-tertiary: #4a5889;
+  --color-primary: #fc712b;
+  --color-secondary: #fd9319;
+  --color-tertiary: #e2d4c4;
   --color-quaternary: #3a466e;
   --color-holiday: #8a3747;
-  --color-dark-gray: #2d2d2d;
+  --color-dark-gray: #1b1612;
+  --color-light: #f3e9e7;
 
   /* TimeTable 전용 색상 */
   --color-timetable-primary: #fd9319;
@@ -73,7 +73,7 @@
   /* 단일 transform으로 통합하여 성능 최적화 */
   transform: translateZ(0) scale(1.05);
   /* 그림자 강도만 조절 (새로운 계산 없음) */
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15),
+  box-shadow: 0 10px 10px -5px rgba(0, 0, 0, 0.15),
     0 10px 10px -5px rgba(0, 0, 0, 0.04);
   z-index: 50;
 }
@@ -105,6 +105,7 @@
 }
 body {
   font-family: "Pretendard", sans-serif;
+  background-color: #f5f0ed;
 }
 .mask-fade-bottom {
   mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
