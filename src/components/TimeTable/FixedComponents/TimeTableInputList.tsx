@@ -83,7 +83,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   weekdayOption,
   expandAnimation = {
     duration: 300,
-    maxHeight: "500px",
+    maxHeight: "1000px",
   },
   cardInputConfig,
   placeholders,
