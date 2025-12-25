@@ -141,11 +141,6 @@ const ProfileText = ({
           {"ARTIST :: " + (profileText ? profileText : profileTextPlaceholder)}
         </AutoResizeText>
       </div>
-      <img
-        src={Imgs["first"]["artist"].src}
-        className="object-cover"
-        alt="artist"
-      />
     </div>
   );
 };
