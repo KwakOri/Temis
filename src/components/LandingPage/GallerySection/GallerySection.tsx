@@ -6,22 +6,22 @@ import { useEffect, useState } from "react";
 import SectionTitle from "../SectionTitle";
 import GalleryItem from "./GalleryItem";
 
-// 브라우저 크기별 카드 크기 설정 (16:9 비율 유지)
+// 브라우저 크기별 카드 크기 설정 (16:9 비율 유지) - 두 단계 업그레이드
 const getCardSizeByViewport = (windowWidth: number) => {
   if (windowWidth >= 3840) {
     return { cardWidth: 750, gap: 40, cardHeight: Math.round((750 / 16) * 9) };
   } else if (windowWidth >= 2560) {
-    return { cardWidth: 600, gap: 32, cardHeight: Math.round((600 / 16) * 9) };
+    return { cardWidth: 750, gap: 40, cardHeight: Math.round((750 / 16) * 9) };
   } else if (windowWidth >= 1920) {
-    return { cardWidth: 480, gap: 26, cardHeight: Math.round((480 / 16) * 9) };
+    return { cardWidth: 600, gap: 32, cardHeight: Math.round((600 / 16) * 9) };
   } else if (windowWidth >= 1440) {
-    return { cardWidth: 390, gap: 21, cardHeight: Math.round((390 / 16) * 9) };
+    return { cardWidth: 480, gap: 26, cardHeight: Math.round((480 / 16) * 9) };
   } else if (windowWidth >= 1024) {
-    return { cardWidth: 330, gap: 18, cardHeight: Math.round((330 / 16) * 9) };
+    return { cardWidth: 390, gap: 21, cardHeight: Math.round((390 / 16) * 9) };
   } else if (windowWidth >= 768) {
-    return { cardWidth: 300, gap: 16, cardHeight: Math.round((300 / 16) * 9) };
+    return { cardWidth: 330, gap: 18, cardHeight: Math.round((330 / 16) * 9) };
   } else {
-    return { cardWidth: 250, gap: 12, cardHeight: Math.round((250 / 16) * 9) };
+    return { cardWidth: 300, gap: 16, cardHeight: Math.round((300 / 16) * 9) };
   }
 };
 
@@ -88,7 +88,10 @@ const CategorySection = ({
   // 최소한 화면 너비의 3배는 채우도록 설정
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
   const totalWidth = portfolios.length * CARD_WITH_GAP;
-  const minRepeats = Math.max(2, Math.ceil((screenWidth * 3) / totalWidth));
+
+  // 홀수 행일 경우 오프셋만큼 추가 공간이 필요하므로 보정
+  const effectiveScreenWidth = screenWidth * 3 + (isOddRow ? brickOffset : 0);
+  const minRepeats = Math.max(2, Math.ceil(effectiveScreenWidth / totalWidth));
 
   const duration =
     (portfolios.length * minRepeats * CARD_WITH_GAP) / speedPxPerSecond;
