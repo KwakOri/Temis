@@ -66,7 +66,7 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
-          isArtist
+          isArtist={false}
           teamData={data}
           onReset={resetData}
           addons={
