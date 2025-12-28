@@ -66,6 +66,7 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
             handleTextChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
+            height="sm"
             maxLength={fieldConfig.maxLength}
             required={fieldConfig.required}
           />
@@ -94,6 +95,7 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
             onChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
+            height="sm"
           />
         );
 
@@ -147,6 +149,7 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
                 isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
               )
             }
+            height="sm"
             type="number"
             required={fieldConfig.required}
           />
@@ -160,6 +163,7 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
             handleTextChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
+            height="sm"
             required={fieldConfig.required}
           />
         );

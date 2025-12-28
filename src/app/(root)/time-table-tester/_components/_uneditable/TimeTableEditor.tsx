@@ -1,13 +1,15 @@
 import React from "react";
 
 import Loading from "@/components/Loading";
+import MobileHeader from "@/components/TimeTable/MobileHeader";
+import TimeTableControls from "@/components/TimeTable/TimeTableControls";
+import TimeTableForm from "@/components/TimeTable/TimeTableForm";
+import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
 import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableEditor } from "@/hooks";
 
-import TimeTableSampleForm from "@/app/(root)/_sample/_components/SampleTimeTableForm";
-
-import TimeTableSamplePreview from "@/app/(root)/_sample/_components/SampleTimeTablePreview";
+import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
@@ -18,8 +20,6 @@ import {
   templateSize,
   weekdayOption,
 } from "../../_settings/settings";
-import MobileTimeTableView from "../MobileTimeTableView";
-import SampleTimeTableInputList from "../SampleTimeTableInputList";
 import TimeTableContent from "./TimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
@@ -37,53 +37,42 @@ const TimeTableEditorContent: React.FC = () => {
   if (!isInitialized || state.weekDates.length === 0) return <Loading />;
 
   return (
-    <>
-      {state.isMobile ? (
-        <MobileTimeTableView
-          currentTheme={currentTheme}
-          data={data}
-          placeholders={placeholders}
-        />
-      ) : (
-        /* 데스크탑 버전 - 기존 미리보기 */
-        <div className="max-w-[1440px] w-full h-full flex flex-col px-9 mb-10">
-          <TimeTableSamplePreview>
-            <TimeTableContent
-              currentTheme={currentTheme}
-              data={data}
-              placeholders={placeholders}
-            />
-          </TimeTableSamplePreview>
-          <p
-            style={{ fontFamily: "Paperlogy" }}
-            className="text-2xl font-semibold mt-2 text-center py-2"
-          >
-            모든 버튼을 눌러 볼 수 있어요, 자유롭게 체험 해보세요!
-          </p>
-          <TimeTableSampleForm
-            multiSelect
-            isMemo
-            isArtist
-            saveable={false}
-            onReset={resetData}
-            addons={isGuideEnabled && <TimeTableDesignGuideController />}
-            cropWidth={Settings.profile.image.width}
-            cropHeight={Settings.profile.image.height}
-          >
-            <SampleTimeTableInputList
-              size="md"
-              isMultiple
-              maxStreamingTimeByDay={2}
-              cardInputConfig={CARD_INPUT_CONFIG}
-              placeholders={placeholders}
-              data={data}
-              onDataChange={updateData}
-              weekdayOption={weekdayOption}
-            />
-          </TimeTableSampleForm>
-        </div>
-      )}
-    </>
+    <div className="w-full h-full flex flex-col">
+      {/* 데스크탑 버전 - TimeTableControls (뒤로가기 + 배율 조절 통합) */}
+      {!state.isMobile && <TimeTableControls />}
+
+      {/* 모바일 버전 - 상단 헤더에 뒤로가기 + 배율 조절 */}
+      {state.isMobile && <MobileHeader />}
+
+      <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0 h-full">
+        <TimeTablePreview>
+          <TimeTableContent
+            currentTheme={currentTheme}
+            data={data}
+            placeholders={placeholders}
+          />
+        </TimeTablePreview>
+        <TimeTableForm
+          multiSelect
+          isMemo
+          isArtist
+          onReset={resetData}
+          addons={isGuideEnabled && <TimeTableDesignGuideController />}
+          cropWidth={Settings.profile.image.width}
+          cropHeight={Settings.profile.image.height}
+        >
+          <TimeTableInputList
+            isMultiple
+            maxStreamingTimeByDay={2}
+            cardInputConfig={CARD_INPUT_CONFIG}
+            placeholders={placeholders}
+            data={data}
+            onDataChange={updateData}
+            weekdayOption={weekdayOption}
+          />
+        </TimeTableForm>
+      </div>
+    </div>
   );
 };
 

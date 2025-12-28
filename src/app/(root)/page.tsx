@@ -87,7 +87,7 @@ export default function Home() {
   );
 
   return (
-    <div className="w-full min-h-screen text-gray-900 overflow-x-hidden">
+    <div className="w-full min-h-screen bg-[#F3E9E7] text-gray-900 overflow-x-hidden">
       {/* 상단 고정 바 */}
       {/* <header
         className={`fixed top-0 left-0 w-full z-50 transition-colors duration-100 ${
@@ -395,22 +395,26 @@ export default function Home() {
       </div>
 
       {/* Footer CTA Section - 반응형 개선 */}
-      <section className="bg-linear-to-br from-orange-400 to-orange-500 py-12 md:py-16 lg:py-20 px-4 md:px-6 lg:px-8 text-center">
+      <section className="bg-gradient-to-br from-orange-400 to-orange-500 py-12 md:py-16 lg:py-20 px-4 md:px-6 lg:px-8 text-center">
         <div className="max-w-4xl mx-auto flex flex-col items-center">
-          <h2 className="text-[40px] font-bold text-white mb-4 md:mb-6 leading-tight px-2">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-bold text-white mb-4 md:mb-6 leading-tight px-2">
             일정에 묶이지 말고,
             <br className="hidden sm:block" />
             <span className="sm:hidden"> </span>
             창작에 집중하세요.
           </h2>
-          <p className="text-[24px] font-semibold text-white/90 mb-6 md:mb-8 px-2">
+          <p className="text-lg sm:text-xl md:text-2xl lg:text-[24px] font-semibold text-white/90 mb-6 md:mb-8 px-2">
             버튜버의 시간을 바꾸는 시간표, 테미스.
             <br className="hidden sm:block" />
             <span className="sm:hidden"> </span>
             지금 바로 시작하세요.
           </p>
-          <button className="flex justify-center items-center w-100 h-12 rounded-2xl bg-gray-900 hover:bg-gray-800 text-white text-base sm:text-lg transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95">
-            지금 바로 신청하기
+          <button
+            onClick={handleCustomOrderClick}
+            disabled={isLoadingAdminOptions}
+            className="flex justify-center items-center w-full max-w-[400px] h-12 rounded-2xl bg-gray-900 hover:bg-gray-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-lg transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
+          >
+            {isLoadingAdminOptions ? "로딩 중..." : "지금 바로 신청하기"}
           </button>
         </div>
       </section>

@@ -6,7 +6,7 @@ import { cva, VariantProps } from "class-variance-authority";
 import SectionTitle from "../SectionTitle";
 
 const CardVariant = cva(
-  "rounded-[36px] p-8 transition-all duration-300 cursor-pointer border-1",
+  "rounded-2xl md:rounded-[36px] p-6 md:p-8 transition-all duration-300 cursor-pointer border-1",
   {
     variants: {
       intent: {
@@ -14,8 +14,8 @@ const CardVariant = cva(
         secondary: "",
       },
       size: {
-        lg: "h-[600px]",
-        sm: "h-[300px]",
+        lg: "h-auto md:h-[600px]",
+        sm: "h-auto md:h-[300px]",
       },
     },
     defaultVariants: {
@@ -25,11 +25,11 @@ const CardVariant = cva(
   }
 );
 
-const CardTitleVariant = cva("mb-4 text-gray-800", {
+const CardTitleVariant = cva("mb-3 md:mb-4 text-gray-800", {
   variants: {
     size: {
-      lg: " text-[30px] text-[#FB712B] font-extrabold ",
-      sm: " text-[22px] text-black font-bold ",
+      lg: "text-2xl md:text-[30px] text-[#FB712B] font-extrabold",
+      sm: "text-lg md:text-[22px] text-black font-bold",
     },
   },
   defaultVariants: {
@@ -40,8 +40,8 @@ const CardTitleVariant = cva("mb-4 text-gray-800", {
 const CardDescriptionVariant = cva("w-full text-[#554C44] leading-relaxed", {
   variants: {
     size: {
-      lg: "h-[390px]",
-      sm: "h-32",
+      lg: "h-auto md:h-[390px] min-h-[200px]",
+      sm: "h-auto md:h-32 min-h-[80px]",
     },
   },
   defaultVariants: {
@@ -65,7 +65,7 @@ const ReviewCard = ({ title, description, intent, size }: Review) => {
     <div
       className={cn(
         CardVariant({ intent, size }),
-        "w-[440px] hover:scale-105 flex flex-col justify-between"
+        "w-full max-w-md mx-auto hover:scale-105 flex flex-col justify-between"
       )}
       style={{
         backgroundColor: "#ECE3E1",
@@ -89,7 +89,7 @@ const ReviewCard = ({ title, description, intent, size }: Review) => {
 };
 
 const ReviewSection = ({ items }: ReviewSectionProps) => {
-  // 2개씩 묶어서 3열로 표시
+  // 2개씩 묶어서 3열로 표시 (데스크탑)
   const columnCount = 3;
   const itemsPerColumn = 2;
 
@@ -100,17 +100,35 @@ const ReviewSection = ({ items }: ReviewSectionProps) => {
   }
 
   return (
-    <section className="pt-20 pb-8">
-      <div className="mx-auto">
+    <section className="pt-12 md:pt-20 pb-8 px-4">
+      <div className="mx-auto max-w-7xl">
         <SectionTitle label="REVIEWS" />
 
-        {/* Vertical Column Layout */}
-        <div className="flex flex-wrap gap-6 justify-center mt-12">
+        {/* Vertical Column Layout - 모바일: 1열, 태블릿: 2열, 데스크탑: 3열 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mt-8 md:mt-12">
+          {/* 모바일/태블릿: 단순 그리드 */}
+          <div className="md:hidden lg:hidden flex flex-col gap-4">
+            {items.map((item, index) => (
+              <ReviewCard key={index} {...item} />
+            ))}
+          </div>
+
+          {/* 데스크탑: 열 단위 그룹 (기존 로직) */}
           {columns.map((column, colIndex) => (
-            <div key={colIndex} className="flex flex-col gap-6">
+            <div
+              key={colIndex}
+              className="hidden lg:flex flex-col gap-6"
+            >
               {column.map((item, itemIndex) => (
                 <ReviewCard key={`${colIndex}-${itemIndex}`} {...item} />
               ))}
+            </div>
+          ))}
+
+          {/* 태블릿: 2열 그리드 */}
+          {items.map((item, index) => (
+            <div key={`tablet-${index}`} className="hidden md:block lg:hidden">
+              <ReviewCard {...item} />
             </div>
           ))}
         </div>

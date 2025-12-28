@@ -6,29 +6,29 @@ import { useEffect, useState } from "react";
 import SectionTitle from "../SectionTitle";
 import GalleryItem from "./GalleryItem";
 
-// 브라우저 크기별 카드 크기 설정 (16:9 비율 유지) - 두 단계 업그레이드
+// 브라우저 크기별 카드 크기 설정 (16:9 비율 유지) - 1.5배 증가
 const getCardSizeByViewport = (windowWidth: number) => {
   if (windowWidth >= 3840) {
-    return { cardWidth: 750, gap: 40, cardHeight: Math.round((750 / 16) * 9) };
+    return { cardWidth: 1125, gap: 60, cardHeight: Math.round((1125 / 16) * 9) };
   } else if (windowWidth >= 2560) {
-    return { cardWidth: 750, gap: 40, cardHeight: Math.round((750 / 16) * 9) };
+    return { cardWidth: 1125, gap: 60, cardHeight: Math.round((1125 / 16) * 9) };
   } else if (windowWidth >= 1920) {
-    return { cardWidth: 600, gap: 32, cardHeight: Math.round((600 / 16) * 9) };
+    return { cardWidth: 900, gap: 48, cardHeight: Math.round((900 / 16) * 9) };
   } else if (windowWidth >= 1440) {
-    return { cardWidth: 480, gap: 26, cardHeight: Math.round((480 / 16) * 9) };
+    return { cardWidth: 720, gap: 39, cardHeight: Math.round((720 / 16) * 9) };
   } else if (windowWidth >= 1024) {
-    return { cardWidth: 390, gap: 21, cardHeight: Math.round((390 / 16) * 9) };
+    return { cardWidth: 585, gap: 32, cardHeight: Math.round((585 / 16) * 9) };
   } else if (windowWidth >= 768) {
-    return { cardWidth: 330, gap: 18, cardHeight: Math.round((330 / 16) * 9) };
+    return { cardWidth: 495, gap: 27, cardHeight: Math.round((495 / 16) * 9) };
   } else {
-    return { cardWidth: 300, gap: 16, cardHeight: Math.round((300 / 16) * 9) };
+    return { cardWidth: 450, gap: 24, cardHeight: Math.round((450 / 16) * 9) };
   }
 };
 
 const defaultCardSize = {
-  cardWidth: 536,
-  gap: 16,
-  cardHeight: Math.round((300 / 16) * 9),
+  cardWidth: 804,
+  gap: 24,
+  cardHeight: Math.round((450 / 16) * 9),
 };
 
 // 카테고리별 정보
@@ -67,7 +67,7 @@ interface CategorySectionProps {
 
 const FIXED_ITEMS_COUNT = 10;
 
-// 더미 포트폴리오 생성 함수
+// 더미 포트폴리오 생성 함수 (포트폴리오가 하나도 없을 때만 사용)
 const createDummyPortfolio = (index: number): Portfolio => ({
   id: `dummy-${index}`,
   title: "COMING SOON",
@@ -94,21 +94,26 @@ const CategorySection = ({
     description: "",
   };
 
-  // 포트폴리오를 10개로 고정
+  // 포트폴리오를 10개로 고정 - 순차 출력 + 로테이션으로 채움
   let fixedPortfolios: Portfolio[];
-  if (portfolios.length > FIXED_ITEMS_COUNT) {
-    // 10개보다 많으면 랜덤으로 10개 추출
-    const shuffled = [...portfolios].sort(() => Math.random() - 0.5);
-    fixedPortfolios = shuffled.slice(0, FIXED_ITEMS_COUNT);
-  } else if (portfolios.length < FIXED_ITEMS_COUNT) {
-    // 10개보다 적으면 더미로 채움
-    const dummyCount = FIXED_ITEMS_COUNT - portfolios.length;
-    const dummies = Array.from({ length: dummyCount }, (_, i) =>
+  if (portfolios.length >= FIXED_ITEMS_COUNT) {
+    // 10개 이상이면 순차적으로 10개만 사용
+    fixedPortfolios = portfolios.slice(0, FIXED_ITEMS_COUNT);
+  } else if (portfolios.length > 0) {
+    // 10개보다 적으면 반복해서 채움
+    // 예: 26개 → 1-10, 11-20, 21-26, 1-4
+    fixedPortfolios = [];
+    let currentIndex = 0;
+
+    while (fixedPortfolios.length < FIXED_ITEMS_COUNT) {
+      fixedPortfolios.push(portfolios[currentIndex % portfolios.length]);
+      currentIndex++;
+    }
+  } else {
+    // 포트폴리오가 없으면 더미 10개
+    fixedPortfolios = Array.from({ length: FIXED_ITEMS_COUNT }, (_, i) =>
       createDummyPortfolio(i)
     );
-    fixedPortfolios = [...portfolios, ...dummies];
-  } else {
-    fixedPortfolios = portfolios;
   }
 
   const CARD_WITH_GAP = cardSize.cardWidth + cardSize.gap;
@@ -127,16 +132,28 @@ const CategorySection = ({
     (FIXED_ITEMS_COUNT * minRepeats * CARD_WITH_GAP) / speedPxPerSecond;
 
   return (
-    <div className="mb-16">
+    <div className="mb-8 max-w-screen overflow-hidden">
       {/* 타이틀 및 설명 */}
-      <div className="text-center mb-8">
-        <h3 className="text-[#1B1612] text-[40px] font-bold mb-3">
-          {info.title} — {info.price}
-        </h3>
-        <p
-          className="text-[#1B1612] leading-relaxed text-2xl font-semibold"
-          dangerouslySetInnerHTML={{ __html: info.description }}
-        />
+      <div className="text-center mb-6 md:mb-8 px-4">
+        {/* 타이틀 - 모바일: 세로, 데스크탑: 가로 */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-center gap-1 md:gap-3 mb-2 md:mb-3">
+          <h3 className="text-[#1B1612] text-2xl md:text-3xl lg:text-[40px] font-bold">
+            {info.title}
+          </h3>
+          <span className="hidden md:inline text-[#1B1612] text-2xl md:text-3xl lg:text-[40px] font-bold">
+            —
+          </span>
+          <p className="text-[#1B1612] text-2xl md:text-3xl lg:text-[40px] font-bold">
+            {info.price}
+          </p>
+        </div>
+        {/* 설명 */}
+        <div className="max-w-4xl mx-auto">
+          <p
+            className="text-[#1B1612] leading-relaxed text-sm md:text-lg lg:text-xl font-semibold break-keep"
+            dangerouslySetInnerHTML={{ __html: info.description }}
+          />
+        </div>
       </div>
 
       {/* 갤러리 슬라이드 - 한 줄 */}
@@ -160,11 +177,14 @@ const CategorySection = ({
           {Array(minRepeats)
             .fill(0)
             .flatMap((_, groupIdx) =>
-              fixedPortfolios.map((portfolio) => {
+              fixedPortfolios.map((portfolio, portfolioIdx) => {
                 const isDummy = portfolio.id.startsWith("dummy-");
+                // 고유한 key 생성: groupIdx와 portfolioIdx 조합
+                const uniqueKey = `${groupIdx}-${portfolioIdx}-${portfolio.id}`;
+
                 return (
                   <div
-                    key={`${groupIdx}-${portfolio.id}`}
+                    key={uniqueKey}
                     className={isDummy ? "" : "pointer-events-auto"}
                   >
                     {isDummy ? (
@@ -294,8 +314,8 @@ const GallerySection = () => {
       </div>
 
       {/* 포트폴리오 더보기 버튼 */}
-      <div className="flex justify-center mt-12">
-        <button className="flex justify-center items-center w-100 h-12 rounded-2xl bg-[#FD9319] brightness-100 hover:brightness-75 text-white text-lg transition-all">
+      <div className="flex justify-center mt-12 px-4">
+        <button className="flex justify-center items-center w-full max-w-[400px] h-12 rounded-2xl bg-[#FD9319] brightness-100 hover:brightness-75 text-white text-lg transition-all shadow-lg hover:shadow-xl active:scale-95">
           포트폴리오 더보기
         </button>
       </div>
