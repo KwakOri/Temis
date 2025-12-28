@@ -15,7 +15,7 @@ const TimeTableWeekFlag = ({
 
   return (
     <div
-      className="flex flex-col justify-start items-center absolute z-40 gap-16"
+      className="flex flex-col justify-start items-center absolute z-40 gap-50"
       style={{
         fontFamily: fontOption.primary,
 
@@ -23,8 +23,8 @@ const TimeTableWeekFlag = ({
 
         width: 240,
         height: 600,
-        top: 340,
-        left: 1498,
+        top: 450,
+        left: 1470,
         rotate: "-3.4deg",
       }}
     >
@@ -55,7 +55,7 @@ const TimeTableWeekFlag = ({
           {start.monthEn.upper}
         </p>
       </div>
-      <div style={{ width: 240, height: 240 }} className=" relative">
+      <div style={{ width: 240, height: 240, left: 4 }} className=" relative">
         <p
           className="absolute"
           style={{

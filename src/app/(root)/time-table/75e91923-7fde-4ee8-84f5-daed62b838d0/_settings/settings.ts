@@ -76,8 +76,8 @@ export const colors = {
 /** Online 카드 구성 */
 /** Online 카드 구성 */
 
-export const onlineCardWidth: number = 704;
-export const onlineCardHeight: number = 617;
+export const onlineCardWidth: number = 700;
+export const onlineCardHeight: number = 552;
 
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
@@ -93,14 +93,14 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     {
       key: "subTitle",
       type: "text",
-      placeholder: "소제목 쓰는 공간입니다",
+      placeholder: "소제목 적는곳",
       defaultValue: "",
       maxLength: 50,
     },
     {
       key: "mainTitle",
       type: "textarea",
-      placeholder: "메인 제목 쓰는\n공간입니다",
+      placeholder: "메인 제목 적는\n공간입니다",
       defaultValue: "",
       maxLength: 200,
     },
@@ -121,8 +121,8 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 /** Offline 카드 구성 */
 /** Offline 카드 구성 */
 
-export const offlineCardWidth: number = 704;
-export const offlineCardHeight: number = 555;
+export const offlineCardWidth: number = 710;
+export const offlineCardHeight: number = 517;
 
 /** ---------------------------------------------- */
 
