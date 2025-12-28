@@ -62,12 +62,12 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
       style={{
         width: 120,
         height: 40,
-        bottom: 56,
         left: 68,
+        bottom: 34,
         fontFamily: fontOption.primary,
         color: colors["first"]["secondary"],
-        fontSize: 26,
-        fontWeight: 300,
+        fontSize: 58,
+        fontWeight: 600,
         zIndex: 3,
         lineHeight: 1,
       }}
@@ -84,12 +84,12 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
       style={{
         width: 200,
         height: 40,
-        bottom: 56,
-        right: 72,
+        right: 68,
+        bottom: 34,
         fontFamily: fontOption.primary,
         color: colors["first"]["secondary"],
-        fontSize: 26,
-        fontWeight: 300,
+        fontSize: 58,
+        fontWeight: 600,
         zIndex: 3,
         lineHeight: 1,
       }}
@@ -109,17 +109,17 @@ const StreamingTime = ({
   return (
     <p
       style={{
-        width: 300,
-        height: 40,
+        width: 400,
+        height: 80,
         lineHeight: 1,
         fontFamily: fontOption.primary,
-        fontWeight: 500,
-        fontSize: 34,
-        top: 129,
+        fontWeight: 600,
+        fontSize: 64,
+        top: 62,
         left: 0,
         color: colors["first"]["primary"],
       }}
-      className=" absolute flex justify-start items-center "
+      className=" absolute flex justify-start items-center"
     >
       {isGuerrilla ? "게릴라" : formatTime(time, "half")}
     </p>
@@ -133,9 +133,9 @@ const CellTextMainTitle = ({
   return (
     <div
       style={{
-        height: 224,
+        height: 200,
         left: 0,
-        top: 236,
+        top: 228,
       }}
       className="absolute w-full flex justify-start items-center"
     >
@@ -144,11 +144,11 @@ const CellTextMainTitle = ({
           color: colors[currentTheme || "first"]["primary"],
           fontFamily: fontOption.primary,
           fontWeight: 700,
-          lineHeight: 1.2,
+          lineHeight: 1.1,
         }}
         className="leading-none text-left"
         multiline={true}
-        maxFontSize={84}
+        maxFontSize={86}
       >
         {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
       </AutoResizeText>
@@ -159,7 +159,7 @@ const CellTextMainTitle = ({
 const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
   return (
     <div
-      style={{ height: 44, left: 0, top: 184 }}
+      style={{ height: 80, left: 0, top: 148 }}
       className="absolute flex justify-start items-center w-full"
     >
       <AutoResizeText
@@ -169,7 +169,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
           color: colors["first"]["primary"],
         }}
         className="leading-none text-left w-full"
-        maxFontSize={34}
+        maxFontSize={64}
       >
         {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
       </AutoResizeText>
@@ -260,7 +260,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           style={{
             width: offlineCardWidth,
             height: offlineCardHeight,
-            top: 30,
+            top: 0,
           }}
           key={time.day}
           className="absolute flex justify-center z-30"
