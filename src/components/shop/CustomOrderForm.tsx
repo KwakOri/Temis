@@ -1,6 +1,7 @@
 "use client";
 
 import FilePreview, { FilePreviewItem } from "@/components/FilePreview";
+import OptionCard from "@/components/shop/OptionCard";
 import {
   FAST_DELIVERY_OPTION,
   OTHER_OPTIONS,
@@ -17,6 +18,7 @@ import { usePriceOptions } from "@/hooks/query/usePricing";
 import { CustomOrderData, CustomOrderFormData } from "@/types/customOrder";
 import { FileApiResponse } from "@/types/file";
 import { PriceOption } from "@/types/priceOption";
+import { cva } from "class-variance-authority";
 import {
   AlertTriangle,
   Calculator,
@@ -26,6 +28,43 @@ import {
   Upload,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+
+// 옵션 텍스트 스타일 variants
+const optionLabelVariants = cva("font-medium", {
+  variants: {
+    disabled: {
+      true: "text-dark-gray/40",
+      false: "",
+    },
+  },
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
+const optionDescriptionVariants = cva("text-sm", {
+  variants: {
+    disabled: {
+      true: "text-slate-300",
+      false: "",
+    },
+  },
+  defaultVariants: {
+    disabled: false,
+  },
+});
+
+const optionPriceVariants = cva("font-bold", {
+  variants: {
+    disabled: {
+      true: "text-dark-gray/40",
+      false: "",
+    },
+  },
+  defaultVariants: {
+    disabled: false,
+  },
+});
 
 interface Step1Data {
   youtubeSnsAddress: string;
@@ -620,7 +659,7 @@ export default function CustomOrderForm({
                         youtubeSnsAddress: e.target.value,
                       }))
                     }
-                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full border border-tertiary rounded-lg px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="활동명과 SNS 주소를 입력해주세요"
                   />
                 </div>
@@ -638,7 +677,7 @@ export default function CustomOrderForm({
                         emailDiscord: e.target.value,
                       }))
                     }
-                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full border border-tertiary rounded-lg px-3 py-2 h-20 resize-none text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="연락 가능한 이메일 또는 디스코드를 입력해주세요"
                   />
                 </div>
@@ -656,7 +695,7 @@ export default function CustomOrderForm({
           ) : currentStep === 2 ? (
             <form onSubmit={handleStep2Submit} className="space-y-6">
               {/* 요구사항 안내 */}
-              <div className="bg-[#4c6ef5] text-white p-4 rounded-lg">
+              <div className="bg-tertiary text-dark-gray p-4 rounded-lg">
                 <h3 className="font-medium mb-2">
                   시간표 제작에 필요한 요소들을 첨부해주세요
                 </h3>
@@ -687,7 +726,7 @@ export default function CustomOrderForm({
                         orderRequirements: e.target.value,
                       }))
                     }
-                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-32 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full border border-tertiary rounded-lg px-3 py-2 h-32 resize-none text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="필요한 시간표 내용, 스케줄 등을 자세히 작성해주세요"
                   />
                 </div>
@@ -807,7 +846,7 @@ export default function CustomOrderForm({
                         designKeywords: e.target.value,
                       }))
                     }
-                    className="w-full border border-tertiary bg-timetable-input-bg rounded-lg px-3 py-2 h-24 resize-none text-dark-gray focus:outline-none bg-timetable-input-bg text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                    className="w-full border border-tertiary rounded-lg px-3 py-2 h-24 resize-none text-dark-gray focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
                     placeholder="원하는 디자인 스타일, 색상, 키워드 등을 입력해주세요"
                   />
                 </div>
@@ -873,15 +912,15 @@ export default function CustomOrderForm({
           ) : currentStep === 3 ? (
             <form onSubmit={handleStep3Submit} className="space-y-6">
               {/* 가격 계산 단계 */}
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-medium text-green-800 mb-2 flex items-center">
+              <div className="p-4 bg-tertiary rounded-lg text-dark-gray">
+                <h3 className="font-medium mb-2 flex items-center">
                   <Calculator className="h-5 w-5 mr-2" />
                   가격 계산 및 옵션 선택
                 </h3>
-                <p className="text-sm text-green-700">
+                <p className="text-sm">
                   추가 옵션을 선택하고 최종 금액을 확인해주세요.
                 </p>
-                <p className="text-sm text-green-700">
+                <p className="text-sm">
                   별도의 문의사항이 있으시면 공식 트위터{" "}
                   <a className="text-blue-600" href="https://x.com/TEMISforyou">
                     @TEMISforyou
@@ -912,52 +951,37 @@ export default function CustomOrderForm({
                           step3Data.requiredArea === option.value;
 
                         return (
-                          <label
+                          <OptionCard
                             key={option.value}
-                            className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
-                              isExternalContract
-                                ? isSelected
-                                  ? "border-purple-200 bg-purple-50"
-                                  : "border-purple-200 hover:bg-purple-50"
-                                : isSelected
-                                ? "border-[#1e3a8a] bg-blue-50"
-                                : "border-slate-200 hover:bg-tertiary"
-                            }`}
+                            isSelected={isSelected}
+                            onClick={() =>
+                              setStep3Data((prev) => ({
+                                ...prev,
+                                requiredArea: option.value,
+                              }))
+                            }
                           >
+                            <input
+                              type="radio"
+                              name="requiredArea"
+                              checked={isSelected}
+                              onChange={() => {}}
+                              className="sr-only"
+                            />
                             <div className="flex items-center">
-                              <input
-                                type="radio"
-                                name="requiredArea"
-                                checked={isSelected}
-                                onChange={() =>
-                                  setStep3Data((prev) => ({
-                                    ...prev,
-                                    requiredArea: option.value,
-                                  }))
-                                }
-                                className={`mr-3 h-4 w-4 border-slate-300 ${
-                                  isExternalContract
-                                    ? "text-purple-600 focus:ring-purple-500"
-                                    : "text-primary focus:ring-primary"
-                                }`}
-                              />
                               <div>
                                 <div
-                                  className={`font-medium ${
-                                    isExternalContract
-                                      ? "text-purple-800"
-                                      : "text-dark-gray"
-                                  }`}
+                                  className={optionLabelVariants({
+                                    disabled: false,
+                                  })}
                                 >
                                   {option.label}
                                 </div>
                                 {option.description && (
                                   <div
-                                    className={`text-sm ${
-                                      isExternalContract
-                                        ? "text-purple-600"
-                                        : "text-dark-gray/70"
-                                    }`}
+                                    className={optionDescriptionVariants({
+                                      disabled: false,
+                                    })}
                                   >
                                     {option.description}
                                   </div>
@@ -965,11 +989,9 @@ export default function CustomOrderForm({
                               </div>
                             </div>
                             <span
-                              className={`font-bold ${
-                                isExternalContract
-                                  ? "text-purple-600"
-                                  : "text-primary"
-                              }`}
+                              className={optionPriceVariants({
+                                disabled: false,
+                              })}
                             >
                               {option.price === 0
                                 ? isExternalContract
@@ -977,7 +999,7 @@ export default function CustomOrderForm({
                                   : "포함"
                                 : `₩${option.price.toLocaleString()}`}
                             </span>
-                          </label>
+                          </OptionCard>
                         );
                       })}
                     </div>
@@ -990,81 +1012,68 @@ export default function CustomOrderForm({
                         선택 영역 부분
                       </h4>
                       <div className="space-y-3">
-                        {selectableOptions.map((option) => (
-                          <label
-                            key={option.id}
-                            className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
-                              step3Data.externalContract
-                                ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
-                                : option.is_discount
-                                ? "border-green-200 hover:bg-green-50 bg-green-25"
-                                : "border-slate-200 hover:bg-tertiary"
-                            }`}
-                          >
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={
-                                  step3Data.selectedOptions[option.value] ||
-                                  false
-                                }
-                                disabled={step3Data.externalContract}
-                                onChange={(e) =>
+                        {selectableOptions.map((option) => {
+                          const isSelected =
+                            step3Data.selectedOptions[option.value] || false;
+
+                          return (
+                            <OptionCard
+                              key={option.id}
+                              isSelected={isSelected}
+                              isDisabled={step3Data.externalContract}
+                              onClick={() => {
+                                if (!step3Data.externalContract) {
                                   setStep3Data((prev) => ({
                                     ...prev,
                                     selectedOptions: {
                                       ...prev.selectedOptions,
-                                      [option.value]: e.target.checked,
+                                      [option.value]: !(
+                                        prev.selectedOptions[option.value] ||
+                                        false
+                                      ),
                                     },
-                                  }))
+                                  }));
                                 }
-                                className={`mr-3 h-4 w-4 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
-                                  option.is_discount
-                                    ? "text-green-600 focus:ring-green-500"
-                                    : "text-primary focus:ring-primary"
-                                }`}
-                              />
-                              <div>
-                                <div
-                                  className={`font-medium ${
-                                    step3Data.externalContract
-                                      ? "text-dark-gray/40"
-                                      : option.is_discount
-                                      ? "text-green-800"
-                                      : "text-dark-gray"
-                                  }`}
-                                >
-                                  {option.label}
-                                </div>
-                                {option.description && (
-                                  <div
-                                    className={`text-sm ${
-                                      step3Data.externalContract
-                                        ? "text-slate-300"
-                                        : option.is_discount
-                                        ? "text-green-600"
-                                        : "text-dark-gray/70"
-                                    }`}
-                                  >
-                                    {option.description}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                            <span
-                              className={`font-bold ${
-                                step3Data.externalContract
-                                  ? "text-dark-gray/40"
-                                  : option.is_discount
-                                  ? "text-green-600"
-                                  : "text-primary"
-                              }`}
+                              }}
                             >
-                              {option.is_discount ? "-" : "+"}₩
-                              {option.price.toLocaleString()}
-                            </span>
-                          </label>
-                        ))}
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                disabled={step3Data.externalContract}
+                                onChange={() => {}}
+                                className="sr-only"
+                              />
+                              <div className="flex items-center">
+                                <div>
+                                  <div
+                                    className={optionLabelVariants({
+                                      disabled: step3Data.externalContract,
+                                    })}
+                                  >
+                                    {option.label}
+                                  </div>
+                                  {option.description && (
+                                    <div
+                                      className={optionDescriptionVariants({
+                                        disabled: step3Data.externalContract,
+                                      })}
+                                    >
+                                      {option.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <span
+                                className={optionPriceVariants({
+                                  disabled: step3Data.externalContract,
+                                })}
+                              >
+                                {option.is_discount ? "-" : "+"}₩
+                                {option.price.toLocaleString()}
+                              </span>
+                            </OptionCard>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -1075,78 +1084,66 @@ export default function CustomOrderForm({
                       기타 옵션
                     </h4>
                     <div className="space-y-3">
-                      {OTHER_OPTIONS.map((option) => (
-                        <label
-                          key={option.value}
-                          className={`flex items-center justify-between p-4 border rounded-lg cursor-pointer transition-all ${
-                            step3Data.externalContract
-                              ? "border-slate-100 bg-slate-25 opacity-50 cursor-not-allowed"
-                              : option.is_discount
-                              ? "border-green-200 hover:bg-green-50 bg-green-25"
-                              : "border-slate-200 hover:bg-tertiary"
-                          }`}
-                        >
-                          <div className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={
-                                step3Data.selectedOptions[option.value] || false
-                              }
-                              disabled={step3Data.externalContract}
-                              onChange={(e) =>
+                      {OTHER_OPTIONS.map((option) => {
+                        const isSelected =
+                          step3Data.selectedOptions[option.value] || false;
+
+                        return (
+                          <OptionCard
+                            key={option.value}
+                            isSelected={isSelected}
+                            isDisabled={step3Data.externalContract}
+                            onClick={() => {
+                              if (!step3Data.externalContract) {
                                 setStep3Data((prev) => ({
                                   ...prev,
                                   selectedOptions: {
                                     ...prev.selectedOptions,
-                                    [option.value]: e.target.checked,
+                                    [option.value]: !(
+                                      prev.selectedOptions[option.value] ||
+                                      false
+                                    ),
                                   },
-                                }))
+                                }));
                               }
-                              className={`mr-3 h-4 w-4 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed ${
-                                option.is_discount
-                                  ? "text-green-600 focus:ring-green-500"
-                                  : "text-primary focus:ring-primary"
-                              }`}
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              disabled={step3Data.externalContract}
+                              onChange={() => {}}
+                              className="sr-only"
                             />
-                            <div>
-                              <div
-                                className={`font-medium ${
-                                  step3Data.externalContract
-                                    ? "text-dark-gray/40"
-                                    : option.is_discount
-                                    ? "text-green-800"
-                                    : "text-dark-gray"
-                                }`}
-                              >
-                                {option.label}
-                              </div>
-                              <div
-                                className={`text-sm ${
-                                  step3Data.externalContract
-                                    ? "text-slate-300"
-                                    : option.is_discount
-                                    ? "text-green-600"
-                                    : "text-dark-gray/70"
-                                }`}
-                              >
-                                {option.description}
+                            <div className="flex items-center">
+                              <div>
+                                <div
+                                  className={optionLabelVariants({
+                                    disabled: step3Data.externalContract,
+                                  })}
+                                >
+                                  {option.label}
+                                </div>
+                                <div
+                                  className={optionDescriptionVariants({
+                                    disabled: step3Data.externalContract,
+                                  })}
+                                >
+                                  {option.description}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <span
-                            className={`font-bold ${
-                              step3Data.externalContract
-                                ? "text-dark-gray/40"
-                                : option.is_discount
-                                ? "text-green-600"
-                                : "text-primary"
-                            }`}
-                          >
-                            {option.is_discount ? "-" : "+"}₩
-                            {option.price.toLocaleString()}
-                          </span>
-                        </label>
-                      ))}
+                            <span
+                              className={optionPriceVariants({
+                                disabled: step3Data.externalContract,
+                              })}
+                            >
+                              {option.is_discount ? "-" : "+"}₩
+                              {option.price.toLocaleString()}
+                            </span>
+                          </OptionCard>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -1156,51 +1153,51 @@ export default function CustomOrderForm({
                       <h4 className="font-medium text-dark-gray mb-3 text-lg">
                         빠른 마감 부분
                       </h4>
-                      <label className="flex items-center justify-between p-4 border border-orange-200 rounded-lg hover:bg-orange-50 cursor-pointer bg-orange-25">
+                      <OptionCard
+                        isSelected={step3Data.fastDelivery}
+                        isDisabled={step3Data.externalContract}
+                        onClick={() => {
+                          if (!step3Data.externalContract) {
+                            setStep3Data((prev) => ({
+                              ...prev,
+                              fastDelivery: !prev.fastDelivery,
+                            }));
+                          }
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={step3Data.fastDelivery}
+                          disabled={step3Data.externalContract}
+                          onChange={() => {}}
+                          className="sr-only"
+                        />
                         <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={step3Data.fastDelivery}
-                            disabled={step3Data.externalContract}
-                            onChange={(e) =>
-                              setStep3Data((prev) => ({
-                                ...prev,
-                                fastDelivery: e.target.checked,
-                              }))
-                            }
-                            className="mr-3 h-4 w-4 text-orange-600 focus:ring-orange-500 border-slate-300 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                          />
                           <div>
                             <div
-                              className={`font-medium ${
-                                step3Data.externalContract
-                                  ? "text-dark-gray/40"
-                                  : "text-orange-800"
-                              }`}
+                              className={optionLabelVariants({
+                                disabled: step3Data.externalContract,
+                              })}
                             >
                               {FAST_DELIVERY_OPTION.label}
                             </div>
                             <div
-                              className={`text-sm ${
-                                step3Data.externalContract
-                                  ? "text-slate-300"
-                                  : "text-orange-600"
-                              }`}
+                              className={optionDescriptionVariants({
+                                disabled: step3Data.externalContract,
+                              })}
                             >
                               {FAST_DELIVERY_OPTION.description}
                             </div>
                           </div>
                         </div>
                         <span
-                          className={`font-bold ${
-                            step3Data.externalContract
-                              ? "text-dark-gray/40"
-                              : "text-orange-600"
-                          }`}
+                          className={optionPriceVariants({
+                            disabled: step3Data.externalContract,
+                          })}
                         >
                           ×{FAST_DELIVERY_OPTION.multiplier}
                         </span>
-                      </label>
+                      </OptionCard>
                     </div>
                   )}
 
@@ -1241,7 +1238,7 @@ export default function CustomOrderForm({
           ) : currentStep === 4 ? (
             <form onSubmit={handleStep4Submit} className="space-y-6">
               {/* 송금 안내 */}
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="p-4 rounded-lg border border-primary">
                 <h3 className="font-medium text-primary mb-2 flex items-center">
                   <CreditCard className="h-5 w-5 mr-2" />
                   송금 계좌 정보
@@ -1285,7 +1282,7 @@ export default function CustomOrderForm({
               </div>
 
               {/* 사용자 정보 표시 */}
-              <div className="p-3 bg-tertiary rounded-lg">
+              <div className="p-3 border border-tertiary rounded-lg">
                 <h4 className="font-medium mb-2 text-dark-gray">신청자 정보</h4>
                 <div className="text-sm text-dark-gray/70 space-y-1">
                   <p>

@@ -14,6 +14,7 @@ import ThumbnailManagement from "@/components/admin/ThumbnailManagement";
 import UserManagement from "@/components/admin/UserManagement";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTabOrders } from "@/hooks/query/useTabOrder";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -32,7 +33,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 type TabType =
   | "templates"
   | "thumbnails"
@@ -47,6 +48,22 @@ type TabType =
   | "portfolios"
   | "settings";
 
+// Default tab configuration - 컴포넌트 외부로 이동
+const defaultTabs = [
+  { id: "workCalendar" as TabType, name: "작업 캘린더", icon: Calendar },
+  { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
+  { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
+  { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
+  { id: "thumbnails" as TabType, name: "썸네일 관리", icon: Image },
+  { id: "portfolios" as TabType, name: "포트폴리오 관리", icon: Briefcase },
+  { id: "users" as TabType, name: "사용자 관리", icon: Users },
+  { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
+  { id: "teamTemplates" as TabType, name: "팀 템플릿", icon: FileText },
+  { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
+  { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
+  { id: "settings" as TabType, name: "설정", icon: Settings },
+];
+
 function AdminContent() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>("workCalendar");
@@ -60,6 +77,27 @@ function AdminContent() {
   // } = useAdminPermission(!!user);
 
   const isAdmin = user?.isAdmin || false;
+
+  // Fetch tab orders from database
+  const { data: tabOrders, isLoading: isLoadingTabOrders } = useTabOrders();
+
+  // Sort and filter tabs based on database order
+  const tabs = useMemo(() => {
+    if (!tabOrders || tabOrders.length === 0) {
+      // If no tab orders from DB, use default order
+      return defaultTabs;
+    }
+
+    // Create a map of tab configurations for quick lookup
+    const tabMap = new Map(defaultTabs.map((tab) => [tab.id, tab]));
+
+    // Sort by order_index and filter by is_visible
+    return tabOrders
+      .filter((order) => order.is_visible)
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((order) => tabMap.get(order.tab_id as TabType))
+      .filter((tab) => tab !== undefined) as typeof defaultTabs;
+  }, [tabOrders]);
 
   if (loading) {
     return (
@@ -99,45 +137,30 @@ function AdminContent() {
     );
   }
 
-  const tabs = [
-    { id: "workCalendar" as TabType, name: "작업 캘린더", icon: Calendar },
-    { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
-    { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
-    { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
-    { id: "thumbnails" as TabType, name: "썸네일 관리", icon: Image },
-    { id: "portfolios" as TabType, name: "포트폴리오 관리", icon: Briefcase },
-    { id: "users" as TabType, name: "사용자 관리", icon: Users },
-    { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
-    { id: "teamTemplates" as TabType, name: "팀 템플릿", icon: FileText },
-    { id: "emailPreview" as TabType, name: "이메일 미리보기", icon: MailOpen },
-    { id: "access" as TabType, name: "접근 권한 관리", icon: Shield },
-    { id: "settings" as TabType, name: "설정", icon: Settings },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-timetable-form-bg">
+      {/* Header - 모바일만 표시 */}
+      <div className="lg:hidden bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between py-4">
             {/* 뒤로가기 버튼 (모바일) */}
             <button
               onClick={() => (window.location.href = "/")}
-              className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors"
               aria-label="홈으로"
             >
               <ArrowLeft className="w-6 h-6 text-gray-700" />
             </button>
 
-            {/* 타이틀 - 모바일에서 가운데 정렬 */}
-            <h1 className="flex-1 text-center lg:text-left text-xl sm:text-2xl font-bold text-quaternary lg:flex-initial">
+            {/* 타이틀 */}
+            <h1 className="flex-1 text-center text-xl sm:text-2xl font-bold text-quaternary">
               대시보드
             </h1>
 
             {/* 햄버거 버튼 (모바일) */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="lg:hidden p-2 rounded-md hover:bg-gray-100 transition-colors"
+              className="p-2 rounded-md hover:bg-gray-100 transition-colors"
               aria-label="메뉴"
             >
               {isMenuOpen ? (
@@ -163,7 +186,7 @@ function AdminContent() {
           <div className="absolute top-0 left-0 right-0 bg-white shadow-lg">
             {/* 헤더 */}
             <div className="flex justify-between items-center px-4 sm:px-6 py-4 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-quaternary">대시보드</h2>
+              <h2 className="text-xl font-bold text-dark-gray">대시보드</h2>
               <button
                 onClick={() => setIsMenuOpen(false)}
                 className="p-2 rounded-md hover:bg-gray-100 transition-colors"
@@ -200,33 +223,54 @@ function AdminContent() {
         </div>
       )}
 
-      {/* Navigation Tabs (데스크톱) */}
-      <div className="hidden lg:block max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8 overflow-x-auto">
-            {tabs.map((tab) => {
-              const IconComponent = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-2 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition-colors ${
-                    activeTab === tab.id
-                      ? "border-primary text-primary"
-                      : "border-transparent text-secondary hover:text-primary hover:border-gray-300"
-                  }`}
-                >
-                  <IconComponent className="h-4 w-4" />
-                  <span>{tab.name}</span>
-                </button>
-              );
-            })}
-          </nav>
+      {/* Floating Sidebar (데스크톱) */}
+      <div className="hidden lg:block">
+        <div className="fixed left-6 top-6 bottom-6 z-40 flex flex-col gap-4 group">
+          {/* 홈 버튼 */}
+          <button
+            onClick={() => (window.location.href = "/")}
+            className="w-14 h-14 rounded-2xl bg-white/80 backdrop-blur-sm shadow-lg flex items-center justify-start px-4 text-gray-600 hover:text-primary hover:bg-white transition-all duration-300 shrink-0 group-hover:w-48"
+            aria-label="홈으로"
+          >
+            <ArrowLeft className="w-6 h-6 shrink-0" />
+            <span className="ml-0 group-hover:ml-3 font-medium text-sm whitespace-nowrap overflow-hidden opacity-0 w-0 group-hover:opacity-100 group-hover:w-auto transition-all duration-300">
+              홈으로
+            </span>
+          </button>
+
+          {/* 탭 네비게이션 - 확장 가능 */}
+          <div className="flex-1 min-h-0 w-20 group-hover:w-48 transition-all duration-300">
+            <div className="h-full bg-white/80 backdrop-blur-sm rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden">
+              <div className="h-full overflow-y-auto scrollbar-hide p-3 space-y-2">
+                {tabs.map((tab) => {
+                  const IconComponent = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`relative w-full h-14 rounded-2xl flex items-center px-4 transition-all duration-300 ${
+                        isActive
+                          ? "bg-primary text-white shadow-[0_4px_14px_0_rgba(59,130,246,0.4)]"
+                          : "text-gray-400 hover:text-gray-700 hover:bg-gray-100/80"
+                      }`}
+                      aria-label={tab.name}
+                    >
+                      <IconComponent className="w-6 h-6 shrink-0" />
+                      <span className="ml-3 font-medium text-sm whitespace-nowrap overflow-hidden opacity-0 w-0 group-hover:opacity-100 group-hover:w-auto transition-all duration-300">
+                        {tab.name}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="lg:pl-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === "workCalendar" && <DeadlineCalendarView />}
         {activeTab === "customOrders" && <CustomOrderManagement />}
         {activeTab === "purchases" && <PurchaseManagement />}

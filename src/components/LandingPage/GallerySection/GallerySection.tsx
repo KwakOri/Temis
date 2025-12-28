@@ -65,6 +65,21 @@ interface CategorySectionProps {
   isOddRow?: boolean;
 }
 
+const FIXED_ITEMS_COUNT = 10;
+
+// 더미 포트폴리오 생성 함수
+const createDummyPortfolio = (index: number): Portfolio => ({
+  id: `dummy-${index}`,
+  title: "COMING SOON",
+  description: "",
+  category: "dummy",
+  thumbnail_url: "",
+  image_urls: [],
+  created_at: "",
+  updated_at: "",
+  created_by: null,
+});
+
 const CategorySection = ({
   category,
   portfolios,
@@ -79,22 +94,37 @@ const CategorySection = ({
     description: "",
   };
 
+  // 포트폴리오를 10개로 고정
+  let fixedPortfolios: Portfolio[];
+  if (portfolios.length > FIXED_ITEMS_COUNT) {
+    // 10개보다 많으면 랜덤으로 10개 추출
+    const shuffled = [...portfolios].sort(() => Math.random() - 0.5);
+    fixedPortfolios = shuffled.slice(0, FIXED_ITEMS_COUNT);
+  } else if (portfolios.length < FIXED_ITEMS_COUNT) {
+    // 10개보다 적으면 더미로 채움
+    const dummyCount = FIXED_ITEMS_COUNT - portfolios.length;
+    const dummies = Array.from({ length: dummyCount }, (_, i) =>
+      createDummyPortfolio(i)
+    );
+    fixedPortfolios = [...portfolios, ...dummies];
+  } else {
+    fixedPortfolios = portfolios;
+  }
+
   const CARD_WITH_GAP = cardSize.cardWidth + cardSize.gap;
 
   // 벽돌식 레이아웃을 위한 오프셋 (카드 너비의 절반)
   const brickOffset = isOddRow ? CARD_WITH_GAP / 2 : 0;
 
-  // 화면 너비를 고려하여 충분한 복제 횟수 계산
-  // 최소한 화면 너비의 3배는 채우도록 설정
+  // 고정된 10개 아이템 기준으로 계산
+  const totalWidth = FIXED_ITEMS_COUNT * CARD_WITH_GAP;
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
-  const totalWidth = portfolios.length * CARD_WITH_GAP;
-
-  // 홀수 행일 경우 오프셋만큼 추가 공간이 필요하므로 보정
-  const effectiveScreenWidth = screenWidth * 3 + (isOddRow ? brickOffset : 0);
-  const minRepeats = Math.max(2, Math.ceil(effectiveScreenWidth / totalWidth));
+  // 화면 너비의 6배로 증가하여 충분한 복사본 확보
+  const effectiveScreenWidth = screenWidth * 6 + (isOddRow ? brickOffset : 0);
+  const minRepeats = Math.max(4, Math.ceil(effectiveScreenWidth / totalWidth));
 
   const duration =
-    (portfolios.length * minRepeats * CARD_WITH_GAP) / speedPxPerSecond;
+    (FIXED_ITEMS_COUNT * minRepeats * CARD_WITH_GAP) / speedPxPerSecond;
 
   return (
     <div className="mb-16">
@@ -130,18 +160,37 @@ const CategorySection = ({
           {Array(minRepeats)
             .fill(0)
             .flatMap((_, groupIdx) =>
-              portfolios.map((portfolio) => (
-                <div
-                  key={`${groupIdx}-${portfolio.id}`}
-                  className="pointer-events-auto"
-                >
-                  <GalleryItem
-                    portfolio={portfolio}
-                    cardWidth={cardSize.cardWidth}
-                    cardHeight={cardSize.cardHeight}
-                  />
-                </div>
-              ))
+              fixedPortfolios.map((portfolio) => {
+                const isDummy = portfolio.id.startsWith("dummy-");
+                return (
+                  <div
+                    key={`${groupIdx}-${portfolio.id}`}
+                    className={isDummy ? "" : "pointer-events-auto"}
+                  >
+                    {isDummy ? (
+                      // 더미 카드 (클릭 불가능)
+                      <div
+                        className="flex items-center justify-center rounded-lg overflow-hidden bg-gray-200 border-2 border-dashed border-gray-400"
+                        style={{
+                          width: `${cardSize.cardWidth}px`,
+                          height: `${cardSize.cardHeight}px`,
+                        }}
+                      >
+                        <span className="text-gray-500 text-xl font-semibold">
+                          COMING SOON
+                        </span>
+                      </div>
+                    ) : (
+                      // 실제 포트폴리오 카드
+                      <GalleryItem
+                        portfolio={portfolio}
+                        cardWidth={cardSize.cardWidth}
+                        cardHeight={cardSize.cardHeight}
+                      />
+                    )}
+                  </div>
+                );
+              })
             )}
         </div>
       </div>

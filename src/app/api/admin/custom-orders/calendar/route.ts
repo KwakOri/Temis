@@ -68,15 +68,17 @@ export async function GET(request: NextRequest) {
     const { data: orders, error } = await supabase
       .from('custom_timetable_orders')
       .select(`
-        id,
-        status,
-        deadline,
-        created_at,
-        updated_at,
-        order_requirements,
-        price_quoted,
-        admin_notes,
-        users!user_id(id, name, email)
+        *,
+        users!user_id(id, name, email),
+        files!order_id(
+          id,
+          file_key,
+          original_name,
+          file_size,
+          mime_type,
+          file_category,
+          created_at
+        )
       `)
       .not('deadline', 'is', null)
       .gte('deadline', startDate)

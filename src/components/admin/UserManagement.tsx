@@ -1,10 +1,12 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAdminUsers,
   useAdminUserTemplates,
 } from "@/hooks/query/useAdminUsers";
 import type { User } from "@/types/admin";
+import { Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
 export default function UserManagement() {
@@ -85,16 +87,15 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-primary">사용자 관리</h2>
-          <p className="text-xs sm:text-sm text-secondary">등록된 사용자를 조회하고 관리하세요</p>
-        </div>
-        <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border self-start sm:self-auto">
+      <AdminTabHeader
+        title="사용자 관리"
+        description="등록된 사용자를 조회하고 관리하세요"
+        icon={Users}
+      >
+        <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
           <span className="text-white font-semibold text-sm sm:text-base">총 {totalUsers}명</span>
         </div>
-      </div>
+      </AdminTabHeader>
 
       {/* Search Bar */}
       <div className="bg-white p-4 rounded-lg shadow-sm">

@@ -1,7 +1,9 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import { AdminAccessService } from "@/services/admin/accessService";
 import { Tables } from "@/types/supabase";
+import { Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Template = Tables<"templates">;
@@ -403,15 +405,11 @@ export default function AccessManagement() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-          접근 권한 관리
-        </h2>
-        <p className="text-xs sm:text-sm text-gray-600">
-          템플릿별 사용자 접근 권한을 관리하세요
-        </p>
-      </div>
+      <AdminTabHeader
+        title="접근 권한 관리"
+        description="템플릿별 사용자 접근 권한을 관리하세요"
+        icon={Shield}
+      />
 
       {/* Template Selection */}
       <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">

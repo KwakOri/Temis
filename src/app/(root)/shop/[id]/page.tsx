@@ -188,7 +188,7 @@ export default function TemplateDetailPage() {
                 <h3 className="font-semibold mb-3 text-dark-gray">플랜 선택</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {template.template_plans?.find((p) => p.plan === "lite") && (
-                    <div className="p-4 rounded-lg border-2 border-tertiary bg-tertiary">
+                    <div className="p-4 rounded-lg border-2 border-tertiary">
                       <div className="text-xs text-dark-gray/70 mb-1">LITE</div>
                       <div className="text-2xl font-bold text-dark-gray">
                         ₩
@@ -532,7 +532,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
 
               {/* 선택된 플랜의 기능 표시 */}
               {selectedPlan && (
-                <div className="mt-3 p-3 rounded-lg bg-tertiary border border-tertiary">
+                <div className="mt-3 p-3 rounded-lg border border-tertiary">
                   <h4 className="text-sm font-semibold text-dark-gray mb-2">
                     {formData.plan.toUpperCase()} 플랜 기능
                   </h4>
@@ -547,7 +547,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
               )}
             </div>
 
-            <div className=" p-3 bg-tertiary rounded">
+            <div className=" p-3 border border-tertiary rounded">
               <p className="font-medium text-dark-gray">
                 {template.templates.name}
               </p>
@@ -605,7 +605,7 @@ function PurchaseModal({ template, onClose, onSubmit }: PurchaseModalProps) {
             </div>
 
             {/* 사용자 정보 표시 */}
-            <div className="mb-4 p-3 bg-tertiary rounded">
+            <div className="mb-4 p-3 border border-tertiary rounded">
               <h4 className="font-medium mb-2 text-dark-gray">구매자 정보</h4>
               <div className="text-sm text-dark-gray/70 space-y-1">
                 <p>

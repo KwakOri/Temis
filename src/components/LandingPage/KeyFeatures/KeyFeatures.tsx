@@ -11,6 +11,8 @@ interface KeyFeaturesProps {
   items: KeyFeaturesItem[];
 }
 
+const ImageNames = ["money", "phone", "calendar"];
+
 const KeyFeaturesSection = ({ items }: PropsWithChildren<KeyFeaturesProps>) => {
   return (
     <section className="w-full flex flex-col items-center gap-6 lg:py-12 md:py-8 sm:py-4 bg-[#221D19]">
@@ -84,7 +86,10 @@ const KeyFeaturesSection = ({ items }: PropsWithChildren<KeyFeaturesProps>) => {
                 }}
               >
                 {/* Icon placeholder */}
-                <div className="w-50 h-50 bg-white/20 rounded-2xl mb-6" />
+                <img
+                  src={`/landing/${ImageNames[i]}.png`}
+                  className="w-60 h-60 rounded-2xl mb-6"
+                ></img>
 
                 <h4 className="text-2xl font-bold mb-4">{item.title}</h4>
                 <>

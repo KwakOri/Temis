@@ -1,7 +1,9 @@
+import OrderDetailModal from "@/components/admin/OrderDetailModal";
 import {
   useAdminCustomOrders,
   useAdminCustomOrdersCalendar,
   useAdminLegacyOrdersCalendar,
+  useUpdateCustomOrderStatus,
 } from "@/hooks/query/useAdminOrders";
 import {
   CustomOrderWithUser,
@@ -27,6 +29,12 @@ export const DeadlineCalendarView = () => {
   const [showDeadlineModal, setShowDeadlineModal] = useState(false);
   const [mobileTab, setMobileTab] = useState<'incomplete' | 'complete'>('incomplete');
 
+  // 상세보기 모달 state 추가 (CustomOrder만 지원)
+  const [selectedOrder, setSelectedOrder] = useState<CustomOrderWithUser | null>(
+    null
+  );
+  const [showOrderModal, setShowOrderModal] = useState(false);
+
   // React Query hooks
   const { data: customOrdersResponse, isLoading: loadingCustomCalendar } =
     useAdminCustomOrdersCalendar(
@@ -44,6 +52,9 @@ export const DeadlineCalendarView = () => {
   const { data: allCustomOrdersResponse, isLoading: loadingAllCustomOrders } =
     useAdminCustomOrders({ status: "all" });
 
+  // 주문 업데이트 mutation
+  const updateOrderMutation = useUpdateCustomOrderStatus();
+
   // 전체 주문에서 미등록 일정 필터링
   const allCustomOrders = allCustomOrdersResponse?.orders || [];
   const unscheduledCustomOrders = allCustomOrders.filter(
@@ -56,6 +67,17 @@ export const DeadlineCalendarView = () => {
   // Extract orders from response objects
   const orders = customOrdersResponse?.orders || [];
   const legacyOrders = legacyOrdersResponse?.orders || [];
+
+  // 데이터 로깅
+  if (orders.length > 0) {
+    console.log("=== DeadlineCalendar: 캘린더 주문 데이터 ===");
+    console.log("Total orders:", orders.length);
+    console.log("First order sample:", orders[0]);
+    if (orders[0]) {
+      console.log("First order - files:", orders[0].files);
+      console.log("First order - selected_options:", orders[0].selected_options);
+    }
+  }
 
   const loading = loadingCustomCalendar || loadingLegacyCalendar || loadingAllCustomOrders;
 
@@ -83,12 +105,59 @@ export const DeadlineCalendarView = () => {
   const allOrders = orders; // 캘린더에 표시될 주문 데이터
 
   const onOrderClick = (order: CustomOrderWithUser | LegacyOrderType) => {
-    setSelectedOrderForDeadline(order);
-    setShowDeadlineModal(true);
+    // CustomOrder만 상세보기 모달 열기 (LegacyOrder는 더 이상 지원하지 않음)
+    if ("users" in order) {
+      console.log("=== DeadlineCalendar: 선택된 주문 데이터 ===");
+      console.log("Order ID:", order.id);
+      console.log("Order Type: CustomOrder");
+      console.log("Full Order Data:", order);
+      console.log("--- CustomOrder 상세 정보 ---");
+      console.log("User Info:", order.users);
+      console.log("Selected Options:", order.selected_options);
+      console.log("Files:", order.files);
+      console.log("Files Length:", order.files?.length || 0);
+      console.log("Design Keywords:", order.design_keywords);
+      console.log("Has Character Images:", order.has_character_images);
+      console.log("Wants Omakase:", order.wants_omakase);
+
+      setSelectedOrder(order);
+      setShowOrderModal(true);
+    } else {
+      console.log("=== DeadlineCalendar: 레거시 주문은 상세보기 미지원 ===");
+      console.log("Order ID:", order.id);
+      alert("레거시 주문은 상세보기를 지원하지 않습니다.");
+    }
   };
 
   const onDateChange = (date: Date) => {
     setCurrentDate(date);
+  };
+
+  // 주문 업데이트 핸들러 (CustomOrder만 지원)
+  const handleUpdateOrder = async (
+    orderId: string,
+    status: string,
+    notes?: string,
+    price?: number,
+    deadline?: string
+  ) => {
+    try {
+      await updateOrderMutation.mutateAsync({
+        orderId,
+        data: {
+          status,
+          admin_notes: notes,
+          price_quoted: price,
+          deadline,
+        },
+      });
+
+      setShowOrderModal(false);
+      setSelectedOrder(null);
+    } catch (error) {
+      console.error("Error updating order:", error);
+      throw error;
+    }
   };
 
   // 레거시 주문의 미등록 일정은 아직 API가 없으므로 빈 배열로 처리 (향후 구현 필요)
@@ -772,6 +841,19 @@ export const DeadlineCalendarView = () => {
           )}
         </div>
       </div>
+
+      {/* 주문 상세 모달 */}
+      {showOrderModal && selectedOrder && (
+        <OrderDetailModal
+          order={selectedOrder}
+          onClose={() => {
+            setShowOrderModal(false);
+            setSelectedOrder(null);
+          }}
+          onUpdate={handleUpdateOrder}
+          updating={updateOrderMutation.isPending}
+        />
+      )}
     </div>
   );
 };

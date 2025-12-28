@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAdminPortfolios,
   useCreatePortfolio,
@@ -18,6 +19,7 @@ import {
   Upload,
   Grid,
   List,
+  Briefcase,
 } from "lucide-react";
 
 type Category = "structured" | "unstructured" | "team";
@@ -198,9 +200,11 @@ export default function PortfolioManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">포트폴리오 관리</h2>
+      <AdminTabHeader
+        title="포트폴리오 관리"
+        description="포트폴리오를 조회하고 관리하세요"
+        icon={Briefcase}
+      >
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
@@ -208,7 +212,7 @@ export default function PortfolioManagement() {
           <Plus className="h-4 w-4" />
           새 포트폴리오
         </button>
-      </div>
+      </AdminTabHeader>
 
       {/* Filters and View Toggle */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-lg border border-gray-200">

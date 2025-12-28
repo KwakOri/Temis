@@ -1,10 +1,12 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAdminPurchaseRequests,
   useApprovePurchaseRequest,
   useRejectPurchaseRequest,
 } from "@/hooks/query/useAdminPurchases";
+import { CreditCard } from "lucide-react";
 import { useState } from "react";
 
 export default function PurchaseManagement() {
@@ -101,13 +103,13 @@ export default function PurchaseManagement() {
 
   return (
     <div className="space-y-6">
+      <AdminTabHeader
+        title="결제 대기 목록"
+        description="고객의 템플릿 구매 신청을 관리합니다"
+        icon={CreditCard}
+      />
+
       <div className="bg-white shadow rounded-lg">
-        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
-          <h2 className="text-base sm:text-lg font-medium text-primary">결제 대기 목록</h2>
-          <p className="text-xs sm:text-sm text-secondary">
-            고객의 템플릿 구매 신청을 관리합니다
-          </p>
-        </div>
 
         {pendingRequests.length === 0 ? (
           <div className="px-6 py-12 text-center">

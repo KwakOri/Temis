@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAdminTemplates,
   useCreateAdminTemplate,
@@ -17,6 +18,7 @@ import type {
   TemplatePlan,
   TemplateWithShopTemplateAndPlans,
 } from "@/types/admin";
+import { FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 
 interface CreateTemplateForm {
@@ -581,26 +583,23 @@ export default function TemplateManagement() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-primary">템플릿 관리</h2>
-          <p className="text-xs sm:text-sm text-secondary">전체 템플릿을 조회하고 관리하세요</p>
+      <AdminTabHeader
+        title="템플릿 관리"
+        description="전체 템플릿을 조회하고 관리하세요"
+        icon={FileText}
+      >
+        <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
+          <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
+            총 {pagination?.total || 0}개
+          </span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
-            <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
-              총 {pagination?.total || 0}개
-            </span>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
-          >
-            + 템플릿 추가
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
+        >
+          + 템플릿 추가
+        </button>
+      </AdminTabHeader>
 
       {/* Tab Navigation */}
       <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">

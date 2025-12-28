@@ -91,22 +91,22 @@ export default function CustomOrderPage() {
                   </p>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-tertiary rounded-lg p-6">
-                      <div className="text-2xl font-bold text-primary mb-2">
+                    <div className="bg-timetable-card-bg rounded-lg p-6">
+                      <div className="text-2xl font-bold text-dark-gray mb-2">
                         8만원
                       </div>
                       <div className="text-sm text-dark-gray/70">
                         기본 제작 비용
                       </div>
                     </div>
-                    <div className="bg-tertiary rounded-lg p-6">
-                      <div className="text-2xl font-bold text-primary mb-2">
+                    <div className="bg-timetable-card-bg rounded-lg p-6">
+                      <div className="text-2xl font-bold text-dark-gray mb-2">
                         2-4주
                       </div>
                       <div className="text-sm text-dark-gray/70">제작 기간</div>
                     </div>
-                    <div className="bg-tertiary rounded-lg p-6">
-                      <div className="text-2xl font-bold text-primary mb-2">
+                    <div className="bg-timetable-card-bg rounded-lg p-6">
+                      <div className="text-2xl font-bold text-dark-gray mb-2">
                         1만원 할인
                       </div>
                       <div className="text-sm text-dark-gray/70">
@@ -115,8 +115,8 @@ export default function CustomOrderPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <div className="bg-tertiary rounded-lg p-6">
-                      <div className="text-2xl font-bold text-primary mb-2">
+                    <div className="bg-timetable-card-bg rounded-lg p-6">
+                      <div className="text-2xl font-bold text-dark-gray mb-2">
                         기본 구성
                       </div>
                       <div className="text-sm text-dark-gray/70">
@@ -126,8 +126,8 @@ export default function CustomOrderPage() {
                         <p>PC와 모바일에서 편집, 저장하실 수 있습니다</p>
                       </div>
                     </div>
-                    <div className="bg-tertiary rounded-lg p-6">
-                      <div className="text-2xl font-bold text-primary mb-2">
+                    <div className="bg-timetable-card-bg rounded-lg p-6">
+                      <div className="text-2xl font-bold text-dark-gray mb-2">
                         추가 구성
                       </div>
                       <div className="text-sm text-dark-gray/70">
@@ -140,8 +140,8 @@ export default function CustomOrderPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-6 mb-8">
-                  <div className="bg-tertiary rounded-lg p-6">
-                    <div className="text-2xl font-bold text-primary mb-2">
+                  <div className="bg-timetable-card-bg rounded-lg p-6">
+                    <div className="text-2xl font-bold text-dark-gray mb-2">
                       별도 문의
                     </div>
                     <div className="text-sm text-dark-gray/70">
