@@ -19,15 +19,13 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
     <div
       className="absolute grid grid-cols-3 justify-center items-center z-20"
       style={{
-        top: 214,
-        left: 1664,
-        rowGap: 8,
-        columnGap: 72,
+        top: 288,
+        left: 1796,
+        rowGap: 40,
+        columnGap: 32,
         rotate: "-3.8deg",
       }}
     >
-      <div></div>
-      <div></div>
       {data.map((time, i) => (
         <Fragment key={time.day}>
           <TimeTableCell
@@ -36,6 +34,12 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
             weekDate={weekDates[i]}
             index={i}
           />
+          {i === 0 && (
+            <>
+              <div></div>
+              <div></div>
+            </>
+          )}
         </Fragment>
       ))}
     </div>
