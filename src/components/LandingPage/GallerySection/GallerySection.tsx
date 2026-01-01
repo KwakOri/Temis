@@ -6,29 +6,29 @@ import { useEffect, useState } from "react";
 import SectionTitle from "../SectionTitle";
 import GalleryItem from "./GalleryItem";
 
-// 브라우저 크기별 카드 크기 설정 (16:9 비율 유지) - 1.5배 증가
+// 브라우저 크기별 카드 크기 설정 (16:9 비율 유지) - 3분의 2로 축소
 const getCardSizeByViewport = (windowWidth: number) => {
   if (windowWidth >= 3840) {
-    return { cardWidth: 1125, gap: 60, cardHeight: Math.round((1125 / 16) * 9) };
+    return { cardWidth: 750, gap: 40, cardHeight: Math.round((750 / 16) * 9) };
   } else if (windowWidth >= 2560) {
-    return { cardWidth: 1125, gap: 60, cardHeight: Math.round((1125 / 16) * 9) };
+    return { cardWidth: 750, gap: 40, cardHeight: Math.round((750 / 16) * 9) };
   } else if (windowWidth >= 1920) {
-    return { cardWidth: 900, gap: 48, cardHeight: Math.round((900 / 16) * 9) };
+    return { cardWidth: 600, gap: 32, cardHeight: Math.round((600 / 16) * 9) };
   } else if (windowWidth >= 1440) {
-    return { cardWidth: 720, gap: 39, cardHeight: Math.round((720 / 16) * 9) };
+    return { cardWidth: 480, gap: 26, cardHeight: Math.round((480 / 16) * 9) };
   } else if (windowWidth >= 1024) {
-    return { cardWidth: 585, gap: 32, cardHeight: Math.round((585 / 16) * 9) };
+    return { cardWidth: 390, gap: 21, cardHeight: Math.round((390 / 16) * 9) };
   } else if (windowWidth >= 768) {
-    return { cardWidth: 495, gap: 27, cardHeight: Math.round((495 / 16) * 9) };
+    return { cardWidth: 330, gap: 18, cardHeight: Math.round((330 / 16) * 9) };
   } else {
-    return { cardWidth: 450, gap: 24, cardHeight: Math.round((450 / 16) * 9) };
+    return { cardWidth: 300, gap: 16, cardHeight: Math.round((300 / 16) * 9) };
   }
 };
 
 const defaultCardSize = {
-  cardWidth: 804,
-  gap: 24,
-  cardHeight: Math.round((450 / 16) * 9),
+  cardWidth: 536,
+  gap: 16,
+  cardHeight: Math.round((300 / 16) * 9),
 };
 
 // 카테고리별 정보

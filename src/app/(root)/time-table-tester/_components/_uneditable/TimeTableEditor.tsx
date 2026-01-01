@@ -9,7 +9,6 @@ import { TimeTableProvider } from "@/contexts/TimeTableContext";
 import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
 import { useTimeTableEditor } from "@/hooks";
 
-import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
 import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { placeholders } from "../../_settings/general";
@@ -20,6 +19,7 @@ import {
   templateSize,
   weekdayOption,
 } from "../../_settings/settings";
+import TimeTableInputList from "../TimeTableInputList";
 import TimeTableContent from "./TimeTableContent";
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
