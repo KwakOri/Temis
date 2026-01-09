@@ -115,7 +115,6 @@ const ProfileText = ({
   profileTextPlaceholder,
   isProfileTextVisible,
 }: ProfileTextProps) => {
-  if (!isProfileTextVisible) return null;
   return (
     <div
       style={{
@@ -145,7 +144,11 @@ const ProfileText = ({
           className="text-center"
           maxFontSize={96}
         >
-          {profileText ? profileText : profileTextPlaceholder}
+          {!isProfileTextVisible
+            ? "A"
+            : profileText
+            ? profileText
+            : profileTextPlaceholder}
         </VerticalResizeText>
         <ArtistIcon />
       </div>
