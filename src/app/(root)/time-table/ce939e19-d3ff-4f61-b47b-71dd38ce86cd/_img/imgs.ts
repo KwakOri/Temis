@@ -11,6 +11,7 @@ import OnlineImg from "./main/online.png";
 // Offline images
 
 // Profile images
+import ArtistIcon from "./main/artist_icon.png";
 import MainProfileFrame from "./main/frame.png";
 
 export const Imgs: ImgsType = {
@@ -19,5 +20,6 @@ export const Imgs: ImgsType = {
     topObject: TopObject,
     online: OnlineImg,
     profileFrame: MainProfileFrame,
+    artistIcon: ArtistIcon,
   },
 };
