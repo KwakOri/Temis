@@ -1,8 +1,9 @@
-import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { VerticalResizeText } from "@/components/AutoResizeTextCard";
 import { TTheme } from "@/types/time-table/theme";
 import { PropsWithChildren } from "react";
 import { Imgs } from "../_img/imgs";
 import {
+  colors,
   fontOption,
   profileFrameHeight,
   profileFrameWidth,
@@ -99,6 +100,16 @@ const ProfileTextTitle = () => {
   return <p style={{ fontSize: 38, width: 172 }}>ART BY ::</p>;
 };
 
+const ArtistIcon = () => {
+  return (
+    <img
+      src={Imgs["first"]["artistIcon"].src}
+      className="object-cover"
+      alt="artist"
+    />
+  );
+};
+
 const ProfileText = ({
   profileText,
   profileTextPlaceholder,
@@ -116,31 +127,28 @@ const ProfileText = ({
       <div
         style={{
           position: "absolute",
-          height: 100,
-          width: 340,
+          height: 1200,
+          width: 200,
           zIndex: 20,
-          left: 2714,
-          bottom: 124,
-          rotate: "-3.1deg",
+          left: 2844,
+          top: 568,
+          rotate: "3.7deg",
         }}
-        className="flex justify-center items-center"
+        className="flex flex-col justify-start items-center gap-5"
       >
-        <AutoResizeText
+        <VerticalResizeText
+          verticalGap={20}
           style={{
-            color: "#FFFFFF",
+            color: colors["first"]["primary"],
             fontFamily: fontOption.primary,
           }}
           className="text-center"
-          maxFontSize={64}
+          maxFontSize={96}
         >
           {profileText ? profileText : profileTextPlaceholder}
-        </AutoResizeText>
+        </VerticalResizeText>
+        <ArtistIcon />
       </div>
-      <img
-        src={Imgs["first"]["artist"].src}
-        className="object-cover"
-        alt="artist"
-      />
     </div>
   );
 };
@@ -176,6 +184,11 @@ const ProfileImageSection = ({
       />
       <ProfileFrame />
       <ProfileImage imageSrc={imageSrc} />
+      <ProfileText
+        isProfileTextVisible={isProfileTextVisible}
+        profileText={profileText}
+        profileTextPlaceholder={profileTextPlaceholder}
+      />
     </ProfileImageContainer>
   );
 };
