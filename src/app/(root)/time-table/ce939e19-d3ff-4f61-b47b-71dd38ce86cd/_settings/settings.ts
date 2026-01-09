@@ -183,6 +183,6 @@ export const profileImageHeight = 1650;
 export const profileBackPlateWidth = 1327;
 export const profileBackPlateHeight = 1484;
 
-export const profileTextPlaceholder = "아티스트 적는 곳";
+export const profileTextPlaceholder = "아티스트명";
 
 /** ---------------------------------------------- */
