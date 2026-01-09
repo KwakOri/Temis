@@ -132,7 +132,7 @@ const StreamingTime = ({
         color: colors[currentTheme || "first"]["secondary"],
         fontWeight: 500,
         fontSize: 48,
-        top: 708,
+        top: 710,
       }}
       className=" absolute flex justify-center items-center "
     >
