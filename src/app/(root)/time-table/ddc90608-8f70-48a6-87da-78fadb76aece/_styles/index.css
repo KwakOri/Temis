@@ -1,0 +1,12 @@
+@font-face {
+  font-family: "BagelFatOne-Regular";
+  src: url("https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_JAMO@1.0/BagelFatOne-Regular.woff2")
+    format("woff2");
+  font-weight: normal;
+  font-style: normal;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
