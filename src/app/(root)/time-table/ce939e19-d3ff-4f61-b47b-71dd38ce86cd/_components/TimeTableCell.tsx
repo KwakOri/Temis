@@ -65,7 +65,7 @@ const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
         color: colors[currentTheme || "first"]["primary"],
         width: 300,
         height: 120,
-        top: 592,
+        top: 584,
         left: 168,
       }}
       className="absolute flex justify-center items-center text-[96px]"
@@ -87,7 +87,7 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
           fontFamily: fontOption.primary,
           fontSize: 26,
           rotate: "90deg",
-          top: 680,
+          top: 672,
           right: -24,
         }}
         className=" absolute flex justify-center items-center "
@@ -104,8 +104,8 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
           fontFamily: fontOption.primary,
           fontSize: 26,
           rotate: "-90deg",
-          top: 680,
-          left: -24,
+          top: 672,
+          left: -22,
         }}
         className=" absolute flex justify-center items-center "
       >
@@ -132,7 +132,7 @@ const StreamingTime = ({
         color: colors[currentTheme || "first"]["secondary"],
         fontWeight: 500,
         fontSize: 48,
-        top: 710,
+        top: 702,
       }}
       className=" absolute flex justify-center items-center "
     >
@@ -193,7 +193,7 @@ const CellTextTitle = ({ cellTextTitle }: CellTextSubTitleProps) => {
           color: colors["first"]["primary"],
         }}
         className="leading-none text-center w-full"
-        maxFontSize={48}
+        maxFontSize={45}
       >
         {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
       </AutoResizeText>
