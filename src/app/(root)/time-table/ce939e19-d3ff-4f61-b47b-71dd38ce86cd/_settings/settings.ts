@@ -76,8 +76,8 @@ export const colors = {
 /** Online 카드 구성 */
 /** Online 카드 구성 */
 
-export const onlineCardWidth: number = 636;
-export const onlineCardHeight: number = 885;
+export const onlineCardWidth: number = 627;
+export const onlineCardHeight: number = 872;
 
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다

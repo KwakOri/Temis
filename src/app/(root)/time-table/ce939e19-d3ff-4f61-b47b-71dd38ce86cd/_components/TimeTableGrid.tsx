@@ -22,8 +22,8 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
     <div
       className="absolute flex flex-col items-center z-20"
       style={{
-        top: 296,
-        left: 32,
+        top: 292,
+        left: 48,
         gap: 68,
         rotate: "-2deg",
       }}
