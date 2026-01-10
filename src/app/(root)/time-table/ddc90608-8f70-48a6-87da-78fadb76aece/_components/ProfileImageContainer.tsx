@@ -62,7 +62,7 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
         bottom: -28,
         left: 2048,
         rotate: "2.3deg",
-        zIndex: profileImageInfo.arrange === "onTop" ? 20 : 50,
+        zIndex: profileImageInfo.arrange === "onTop" ? 20 : 10,
       }}
     >
       {imageSrc && (
