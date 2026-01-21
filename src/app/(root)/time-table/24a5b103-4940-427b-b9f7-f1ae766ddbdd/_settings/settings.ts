@@ -1,6 +1,25 @@
 import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
 
+
+export interface CardSizesProps {
+  ONLINE: {
+    width: number;
+    height: number;
+  },
+  OFFLINE: {
+    width: number;
+    height: number;
+  },
+  PROFILE: {
+    width: number;
+    height: number;
+  },
+  FRAME: {
+    width: number;
+    height: number;
+  }
+}
 /** ---------------------------------------------- */
 
 export const templateSize = {
@@ -13,11 +32,11 @@ export const templateSize = {
 
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
-export const fontOption = {
-  primary: "KerisKedyuche",
-  secondary: "",
-  tertiary: "",
-  quaternary: "",
+export const BASE_FONTS = {
+  PRIMARY: "OngleipParkDahyeon",
+  SECONDARY: "KerisKedyuche",
+  TERTIARY: "",
+  QUATERNARY: "",
 };
 
 /** ---------------------------------------------- */
@@ -27,7 +46,7 @@ export const fontOption = {
 
 /** kr | en | jp */
 
-export const weekdayOption: TLanOpt = "en";
+export const weekdayOption: TLanOpt = "kr";
 export const monthOption: TLanOpt = "en";
 
 /** ---------------------------------------------- */
@@ -50,12 +69,12 @@ export const buttonThemes: TButtonTheme[] = [
  * 시간: #FEFDAB
  */
 
-export const colors = {
+export const BASE_COLORS = {
   first: {
     primary: "#282840",
     secondary: "#FFFFFF",
     tertiary: "#349EEB",
-    quaternary: "#6DB4EB",
+    quaternary: "#7FC8FF",
   },
   second: {
     primary: "",
@@ -71,13 +90,54 @@ export const colors = {
   },
 };
 
+export const COMP_COLORS = {
+  MAIN_TITLE : BASE_COLORS["first"]["primary"],
+  SUB_TITLE : BASE_COLORS["first"]["secondary"],
+  STREAMING_TIME : BASE_COLORS["first"]["secondary"],
+  STREAMING_DATE : BASE_COLORS["first"]["primary"],
+  STREAMING_DAY : BASE_COLORS["first"]["secondary"],
+  ARTIST: BASE_COLORS["first"]["tertiary"],
+}
+
+export const COMP_FONTS = {
+  MAIN_TITLE : BASE_FONTS.PRIMARY,
+  SUB_TITLE : BASE_FONTS.PRIMARY,
+  STREAMING_TIME : BASE_FONTS.PRIMARY,
+  STREAMING_DATE : BASE_FONTS.PRIMARY,
+  STREAMING_DAY : BASE_FONTS.PRIMARY,
+  ARTIST: BASE_FONTS.PRIMARY,
+  WEEKLY_FLAG:BASE_FONTS.PRIMARY,
+}
+
+export const MAX_FONT_SIZES = {
+  MAIN_TITLE: 10,
+  SUB_TITLE: 10,
+  ARTIST: 10
+}
+
+
+
+export const CARD_SIZES:CardSizesProps = {
+  ONLINE: {
+    width: 10,
+    height: 10,
+  },
+  OFFLINE: {
+    width: 10,
+    height: 10,
+  },
+  PROFILE: {
+    width: 1310,
+    height: 980,
+  },
+  FRAME: {
+    width: 4000,
+    height: 2250
+  }
+}
+
+export const profileTextPlaceholder = "아티스트 명";
 /** ---------------------------------------------- */
-
-/** Online 카드 구성 */
-/** Online 카드 구성 */
-
-export const onlineCardWidth: number = 825;
-export const onlineCardHeight: number = 604;
 
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
@@ -113,76 +173,3 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     inactiveColor: "bg-gray-300",
   },
 };
-
-// CARD_INPUT_CONFIG에서 동적으로 생성된 placeholders와 추가 필드들을 병합
-
-/** ---------------------------------------------- */
-
-/** Offline 카드 구성 */
-/** Offline 카드 구성 */
-
-export const offlineCardWidth: number = 825;
-export const offlineCardHeight: number = 605;
-
-/** ---------------------------------------------- */
-
-/** Week Flag 카드 구성 */
-/** Week Flag 카드 구성 */
-
-export const weekFlagCardWidth: number = 766;
-export const weekFlagCardHeight: number = 778;
-
-/** ---------------------------------------------- */
-
-/** Profile Image 구성 */
-/** Profile Image 구성 */
-
-/** Profile Frame 크기 */
-
-export interface ProfileImageInfoInterface {
-  arrange: "onBottom" | "onTop";
-  rotation: number;
-  position: {
-    top: number;
-    right: number;
-  };
-}
-
-export const profileImageInfo: ProfileImageInfoInterface = {
-  arrange: "onBottom",
-  rotation: 4,
-  position: {
-    top: -1,
-    right: -10,
-  },
-};
-
-export const profileTextInfo = {
-  size: {
-    width: 220,
-    height: 60,
-  },
-  position: {
-    bottom: 70,
-    right: 44,
-  },
-  font: {
-    maxSize: 32,
-    minSize: 16,
-  },
-};
-
-export const profileFrameWidth = 4000;
-export const profileFrameHeight = 2250;
-
-/** Profile Image 크기 */
-
-export const profileImageWidth = 1400;
-export const profileImageHeight = 1120;
-
-export const profileBackPlateWidth = 1327;
-export const profileBackPlateHeight = 1484;
-
-export const profileTextPlaceholder = "아티스트 명";
-
-/** ---------------------------------------------- */
