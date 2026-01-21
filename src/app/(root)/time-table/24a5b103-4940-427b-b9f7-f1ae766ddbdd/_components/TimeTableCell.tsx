@@ -5,22 +5,28 @@ import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
+
 import { Imgs } from "../_img/imgs";
 import { placeholders } from "../_settings/general";
-import { colors, fontOption, weekdayOption } from "../_settings/settings";
+import { COMP_COLORS, COMP_FONTS, weekdayOption } from "../_settings/settings";
 
 type TCARD = "A" | "B" | "C" | "D";
 
-const CARD_ORDERS: TCARD[] = ["B", "C", "C", "A", "A", "D", "D"];
-const CARD_ANGLES: number[] = [-5.8, 2, -13.7, -0.7, -5.6, -2.7, -2.7];
+interface ICARD {
+  cardType: TCARD;
+}
+
+export type dayProps = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+const CARD_ANGLES: number[] = [0, 0, 0, 0, 0, 0, 0];
 const CARD_POSITIONS: CSSProperties[] = [
-  { top: 0, left: -8 },
-  { top: 0, left: 1100 },
-  { top: 860, left: -120 },
-  { top: 950, left: 1100 },
-  { top: 825, left: 1850 },
-  { top: 25, left: 2355 },
-  { top: 538, left: 2495 },
+  { top: 0, left: 0 },
+  { top: 0, left: 0 },
+  { top: 0, left: 0 },
+  { top: 0, left: 0 },
+  { top: 0, left: 0 },
+  { top: 0, left: 0 },
+  { top: 0, left: 0 },
 ];
 
 const cardSizes: {
@@ -30,49 +36,75 @@ const cardSizes: {
   D: CSSProperties;
 } = {
   A: {
-    width: 800,
-    height: 1080,
+    width: 1156,
+    height: 755,
   },
   B: {
-    width: 1320,
-    height: 900,
+    width: 914,
+    height: 648,
   },
   C: {
-    width: 1320,
-    height: 900,
+    width: 784,
+    height: 549,
   },
   D: {
-    width: 1080,
-    height: 600,
+    width: 849,
+    height: 449,
   },
 };
 
-interface DayTextProps {
+interface CardStreamingDayProps extends ICARD {
   currentTheme?: TTheme;
   day: number;
 }
 
-interface StreamingTimeProps {
+interface CardStreamingTimeProps extends ICARD {
   isGuerrilla: boolean;
   time: string;
   day: number;
   currentTheme?: TTheme;
 }
 
-interface DateTextProps {
+interface CardStreamingDateProps extends ICARD {
   date: number;
   currentTheme?: TTheme;
 }
 
-interface CellTextMainTitleProps {
+interface CardMainTitleProps extends ICARD {
   currentTheme?: TTheme;
-  mainTitle: string;
+  content: string;
   day: number;
 }
 
-interface CellTextSubTitleProps {
-  cellTextTitle: string | null;
+interface CardSubTitleProps extends ICARD {
+  content: string | null;
   day: number;
+}
+
+interface OnlineCardBGProps extends ICARD {
+  day: number;
+}
+
+interface OfflineCardProps extends ICARD {
+  day: number;
+  currentTheme?: TTheme;
+}
+
+interface CardStreamingDayAndTimeProps {
+  time: string;
+  currentTheme?: TTheme;
+  isGuerrilla: boolean;
+  day: number;
+}
+
+interface OnlineCardProps {
+
+  cardType: TCARD;
+  day: number;
+  isGuerrilla: boolean;
+  time: string;
+  mainTitle: string;
+  subTitle: string | null;
 }
 
 interface TimeTableCellProps {
@@ -82,144 +114,40 @@ interface TimeTableCellProps {
   currentTheme: TTheme;
 }
 
-interface OfflineCardProps {
-  day: number;
-  currentTheme?: TTheme;
-}
+const CardStreamingDay = ({ cardType, currentTheme, day }: CardStreamingDayProps) => {
 
-interface StreamingDayAndTimeProps {
-  time: string;
-  currentTheme?: TTheme;
-  isGuerrilla: boolean;
-  day: number;
-}
+  const CONTAINER_STYLES: { A: CSSProperties, B: CSSProperties, C: CSSProperties, D: CSSProperties, } = {
+    A: { fontSize: 96, top: 112, left: 488, width: 278, height: 100 },
+    B: { fontSize: 80, top: 100, left: 360, width: 238, height: 100 },
+    C: { fontSize: 70, top: 72, left: 294, width: 238, height: 100 },
+    D: { fontSize: 70, top: 40, left: 264, width: 238, height: 100 },
+  }
 
-const StreamingDayAndTime = ({
-  currentTheme,
-  day,
-  time,
-  isGuerrilla,
-}: StreamingDayAndTimeProps) => {
-  const cardType = CARD_ORDERS[day];
 
-  return (
-    <>
-      {cardType === "A" ? (
-        <div
-          style={{
-            fontFamily: fontOption.primary,
-            color: colors[currentTheme || "first"]["primary"],
-            fontSize: 75,
-            height: 80,
-            width: "100%",
-            top: 212,
-          }}
-          className="absolute flex flex-col justify-center items-center"
-        >
-          <p style={{ lineHeight: 1.3 }}>
-            {weekdays[weekdayOption][day].toUpperCase()}
-          </p>
-
-          <p style={{ lineHeight: 1.3 }}>
-            {isGuerrilla ? "게릴라" : formatTime(time, "half")}
-          </p>
-        </div>
-      ) : cardType === "B" ? (
-        <p
-          style={{
-            fontFamily: fontOption.primary,
-            color: colors[currentTheme || "first"]["secondary"],
-            fontSize: 75,
-            height: 80,
-            width: "100%",
-            top: 168,
-          }}
-          className="absolute flex justify-center items-center"
-        >
-          {weekdays[weekdayOption][day].toUpperCase()} ::{" "}
-          {isGuerrilla ? "게릴라" : formatTime(time, "half")}
-        </p>
-      ) : cardType === "C" ? (
-        <div
-          style={{
-            fontFamily: fontOption.primary,
-            color: colors[currentTheme || "first"]["primary"],
-            fontSize: 75,
-            height: 80,
-            width: "100%",
-            top: 176,
-            paddingLeft: 100,
-          }}
-          className="absolute flex flex-col justify-center items-center"
-        >
-          <p style={{ lineHeight: 1.3 }}>
-            {weekdays[weekdayOption][day].toUpperCase()}
-          </p>
-
-          <p style={{ lineHeight: 1.3 }}>
-            {isGuerrilla ? "게릴라" : formatTime(time, "half")}
-          </p>
-        </div>
-      ) : cardType === "D" ? (
-        <div
-          style={{
-            fontFamily: fontOption.primary,
-            color: colors[currentTheme || "first"]["tertiary"],
-
-            fontWeight: 900,
-            height: 126,
-            width: 840,
-            top: 364,
-            left: 132,
-            rotate: "-4.6deg",
-          }}
-          className="absolute flex justify-center items-center"
-        >
-          <p
-            className="w-full flex justify-center items-center "
-            style={{ fontSize: 96, lineHeight: 1.3 }}
-          >
-            {weekdays[weekdayOption][day].toUpperCase()}
-          </p>
-
-          <p
-            className="w-full flex justify-center items-center "
-            style={{ fontSize: 72, lineHeight: 1.3 }}
-          >
-            {isGuerrilla ? "게릴라" : formatTime(time, "half")}
-          </p>
-        </div>
-      ) : (
-        <></>
-      )}
-    </>
-  );
-};
-
-const StreamingDay = ({ currentTheme, day }: DayTextProps) => {
   return (
     <p
       style={{
-        fontFamily: fontOption.primary,
-        color: colors[currentTheme || "first"]["secondary"],
-        fontSize: 64,
-        height: 80,
-        width: 300,
-        top: 48,
+        fontFamily: COMP_FONTS.STREAMING_DAY,
+        color: COMP_COLORS.STREAMING_DAY,
+        filter: "drop-shadow(0px 0px 6px #335B88)",
+        ...CONTAINER_STYLES[cardType]
+
+
       }}
       className="absolute flex justify-center items-center"
     >
-      {weekdays[weekdayOption][day].toUpperCase()}
+      {weekdays[weekdayOption][day].toUpperCase()}요일
     </p>
   );
 };
 
-const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
+
+const CardStreamingDate = ({ date, currentTheme }: CardStreamingDateProps) => {
   return (
     <p
       style={{
-        color: colors[currentTheme || "first"]["primary"],
-
+        color: COMP_COLORS.STREAMING_DATE,
+        fontFamily: COMP_FONTS.STREAMING_DATE,
         width: "100%",
         height: 80,
         lineHeight: 1,
@@ -233,276 +161,271 @@ const StreamingDate = ({ date, currentTheme }: DateTextProps) => {
   );
 };
 
-const StreamingTime = ({
+const CardStreamingTime = ({
   time,
   currentTheme,
   isGuerrilla,
-}: StreamingTimeProps) => {
+  cardType
+}: CardStreamingTimeProps) => {
+  const CONTAINER_STYLES: { A: CSSProperties, B: CSSProperties, C: CSSProperties, D: CSSProperties, } = {
+    A: { fontSize: 70, top: 218, left: 488, width: 278, height: 100 },
+    B: { fontSize: 60, top: 190, left: 360, width: 238, height: 100 },
+    C: { fontSize: 60, top: 156, left: 296, width: 238, height: 100 },
+    D: { fontSize: 48, top: 118, left: 264, width: 238, height: 100 },
+  }
   return (
     <p
       style={{
-        width: 360,
-        height: 72,
+        fontFamily: COMP_FONTS.STREAMING_TIME,
+        color: COMP_COLORS.STREAMING_TIME,
         lineHeight: 1,
-        fontFamily: fontOption.primary,
-        fontSize: 64,
-        top: 460,
-        color: colors[currentTheme || "first"]["primary"],
+        ...CONTAINER_STYLES[cardType]
       }}
       className=" absolute flex justify-center items-center"
     >
-      {isGuerrilla ? "게릴라" : formatTime(time, "half")}
+      {isGuerrilla ? "게릴라" : formatTime(time, "full")}
     </p>
   );
 };
 
-const CellTextMainTitle = ({
+const CardMainTitle = ({
   currentTheme,
-  mainTitle,
+  content,
   day,
-}: CellTextMainTitleProps) => {
-  const cardType = CARD_ORDERS[day];
-  return (
-    <>
-      {cardType === "A" ? (
-        <div
-          style={{
-            height: 320,
-            width: 640,
-            top: 380,
-            marginRight: 20,
-          }}
-          className="absolute flex justify-center items-center shrink-0"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors[currentTheme || "first"]["primary"],
-              fontWeight: 900,
-              lineHeight: 1.25,
-            }}
-            className="leading-none text-center"
-            multiline={true}
-            maxFontSize={120}
-          >
-            {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
-          </AutoResizeText>
-        </div>
-      ) : cardType === "B" ? (
-        <div
-          style={{
-            height: 340,
-            width: 800,
-            top: 270,
-            marginRight: 20,
-          }}
-          className="absolute flex justify-center items-center shrink-0"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors[currentTheme || "first"]["primary"],
-              fontWeight: 900,
-              lineHeight: 1.3,
-            }}
-            className="leading-none text-center"
-            multiline={true}
-            maxFontSize={130}
-          >
-            {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
-          </AutoResizeText>
-        </div>
-      ) : cardType === "C" ? (
-        <div
-          style={{
-            height: 340,
-            width: 800,
-            top: 320,
-            marginLeft: 56,
-          }}
-          className="absolute flex justify-center items-center shrink-0"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors[currentTheme || "first"]["primary"],
-              fontWeight: 900,
-              lineHeight: 1.3,
-            }}
-            className="leading-none text-center"
-            multiline={true}
-            maxFontSize={130}
-          >
-            {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
-          </AutoResizeText>
-        </div>
-      ) : cardType === "D" ? (
-        <div
-          style={{
-            height: 160,
-            width: "80%",
-            top: 180,
-            marginLeft: 40,
-          }}
-          className="absolute flex justify-start items-center shrink-0"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors[currentTheme || "first"]["primary"],
-              fontWeight: 900,
-              lineHeight: 1,
-            }}
-            className="leading-none text-start"
-            maxFontSize={96}
-          >
-            {mainTitle ? (mainTitle as string) : placeholders.mainTitle}
-          </AutoResizeText>
-        </div>
-      ) : (
-        <></>
-      )}
-    </>
-  );
-};
+  cardType
+}: CardMainTitleProps) => {
+  const MAX_FONT_SIZES = {
+    A: 160,
+    B: 120,
+    C: 110,
+    D: 110
+  }
 
-const CellTextTitle = ({ cellTextTitle, day }: CellTextSubTitleProps) => {
-  const cardType = CARD_ORDERS[day];
-  return (
-    <>
-      {cardType === "A" ? (
-        <div
-          style={{
-            width: 600,
-            height: 200,
-            top: 744,
-          }}
-          className="absolute flex justify-center items-center"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors["first"]["secondary"],
-              fontWeight: 900,
-            }}
-            className="leading-none text-center w-full"
-            maxFontSize={72}
-            multiline
-          >
-            {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
-          </AutoResizeText>
-        </div>
-      ) : cardType === "B" ? (
-        <div
-          style={{
-            width: 800,
-            height: 120,
-            top: 628,
-          }}
-          className="absolute flex justify-center items-center"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors["first"]["primary"],
-              fontWeight: 900,
-            }}
-            className="leading-none text-center w-full"
-            maxFontSize={75}
-            multiline
-          >
-            {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
-          </AutoResizeText>
-        </div>
-      ) : cardType === "C" ? (
-        <div
-          style={{
-            width: 700,
-            height: 120,
-            top: 662,
-            marginLeft: 18,
-          }}
-          className="absolute flex justify-center items-center"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors["first"]["secondary"],
-              fontWeight: 900,
-            }}
-            className="leading-none text-center w-full"
-            maxFontSize={75}
-            multiline
-          >
-            {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
-          </AutoResizeText>
-        </div>
-      ) : cardType === "D" ? (
-        <div
-          style={{
-            height: 120,
-            top: 80,
-            width: "80%",
-            marginLeft: 40,
-          }}
-          className="absolute flex justify-start items-center"
-        >
-          <AutoResizeText
-            style={{
-              fontFamily: fontOption.primary,
-              color: colors["first"]["primary"],
-              fontWeight: 100,
-            }}
-            className="leading-none text-left w-full"
-            maxFontSize={75}
-            multiline
-          >
-            {cellTextTitle ? (cellTextTitle as string) : placeholders.subTitle}
-          </AutoResizeText>
-        </div>
-      ) : (
-        <></>
-      )}
-    </>
-  );
-};
+  const TOP_POSITIONS = {
+    A: 272,
+    B: 208,
+    C: 148,
+    D: 96
+  }
 
-interface OnlineCardBGProps {
-  day: number;
-}
-
-const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
   return (
     <div
       style={{
-        ...cardSizes[CARD_ORDERS[day]],
+        height: 320,
+        width: "90%",
+        top: TOP_POSITIONS[cardType],
+      }}
+      className="absolute flex justify-center items-center shrink-0"
+    >
+      <AutoResizeText
+        style={{
+          fontFamily: COMP_FONTS.MAIN_TITLE,
+          color: COMP_COLORS.MAIN_TITLE,
+          fontWeight: 900,
+          lineHeight: 1,
+        }}
+        className="leading-none text-center"
+        maxFontSize={MAX_FONT_SIZES[cardType]}
+      >
+        {content ? (content as string) : placeholders.mainTitle}
+      </AutoResizeText>
+    </div>
+  );
+};
+
+const CardSubTitle = ({ cardType, content, day }: CardSubTitleProps) => {
+  const MAX_FONT_SIZES = {
+    A: 96,
+    B: 80,
+    C: 70,
+    D: 70
+  }
+
+  const TOP_POSITIONS = {
+    A: 476,
+    B: 380,
+    C: 312,
+    D: 256
+  }
+  return (
+    <div
+      style={{
+        width: 600,
+        height: 200,
+        top: TOP_POSITIONS[cardType]
+      }}
+      className="absolute flex justify-center items-center"
+    >
+      <AutoResizeText
+        style={{
+          fontFamily: COMP_FONTS.SUB_TITLE,
+          color: COMP_COLORS.SUB_TITLE,
+          filter: "drop-shadow(0px 0px 6px #335B88)",
+
+        }}
+        className="leading-none text-center w-full"
+        maxFontSize={MAX_FONT_SIZES[cardType]}
+        multiline
+      >
+        {content ? (content as string) : placeholders.subTitle}
+      </AutoResizeText>
+    </div>
+  );
+};
+
+
+
+const OnlineCardBG = ({ cardType, day }: OnlineCardBGProps) => {
+  return (
+    <div
+      style={{
+        ...cardSizes[cardType],
       }}
       className="absolute -z-10"
     >
       <img
         className="object-cover w-full h-full"
-        src={Imgs["first"]["online" + CARD_ORDERS[day]].src.replace("./", "/")}
+        src={Imgs["first"]["online" + cardType].src.replace("./", "/")}
         alt="online"
       />
     </div>
   );
 };
 
-const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+const OnlineCard = ({ cardType, day, isGuerrilla, time, mainTitle, subTitle }: OnlineCardProps) => {
+  return (
+    <div
+      style={{ ...cardSizes[cardType] }}
+      className="relative flex justify-center "
+    >
+      <CardStreamingDay cardType={cardType} day={day} />
+      <CardStreamingTime cardType={cardType} day={day} isGuerrilla={isGuerrilla} time={time} />
+      <CardMainTitle cardType={cardType} content={mainTitle} day={day} />
+      <CardSubTitle cardType={cardType} content={subTitle} day={day} />
+      <OnlineCardBG cardType={cardType} day={day} />
+    </div>
+  );
+};
+
+interface MultipleCardProps {
+  time: TDefaultCard;
+}
+
+const singleTypeCards: TCARD[] = ["A", "A", "A", "B", "B", "B", "B"];
+const multipleTypeCards: TCARD[] = ["C", "C", "C", "D", "D", "D", "D"];
+const multipleWrapperTypes: TCARD[] = ["A", "A", "A", "B", "B", "B", "C"]
+
+const MultipleCard = ({ time }: MultipleCardProps) => {
+  const primaryEntry = time.entries?.[0] || {};
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
+  const isMultiple = time.entries.length > 1;
+
+  const singleType = singleTypeCards[time.day];
+  const multipleType = multipleTypeCards[time.day];
+  const multipleWrapperType = multipleWrapperTypes[time.day];
+
+
+
+
+  const singleCardWrapperStyles = {
+    0: { rotate: "4deg", left: 40, top: 130 },
+    1: { rotate: "-3.2deg", left: 1248, top: 200 },
+    2: { rotate: "-6deg", left: 2410, top: 0 },
+    3: { rotate: "-9deg", left: 50, top: 940 },
+    4: { rotate: "4.7deg", left: 1000, top: 1100 },
+    5: { rotate: "-8.6deg", left: 1890, top: 920 },
+    6: { rotate: "1.9deg", left: 2840, top: 720 },
+  }
+  const multipleCardWrapperStyles = {
+    0: { width: 1197, height: 928, rotate: "0deg", left: 65, top: 80 },
+    1: { width: 1197, height: 928, rotate: "-8deg", left: 1272, top: 92 },
+    2: { width: 1197, height: 928, rotate: "-7.5deg", left: 2500, top: -34 },
+    3: { width: 945, height: 768, rotate: "-9deg", left: 80, top: 952 },
+    4: { width: 945, height: 768, rotate: "4.7deg", left: 1010, top: 1040 },
+    5: { width: 945, height: 768, rotate: "-8.6deg", left: 1880, top: 904 },
+    6: { width: 1395, height: 704, rotate: "0deg", left: 2680, top: 710 },
+  }
+
+  interface multipleCardStyle { A: CSSProperties, B: CSSProperties, C: CSSProperties, D: CSSProperties, }
+
+  const multiplePrevCardStyles: multipleCardStyle = {
+    A: { zIndex: 2, rotate: "-5.5deg", top: 20, left: -4 },
+    B: { zIndex: 2, rotate: "-1.6deg", },
+    C: { rotate: "-8deg", top: 24 },
+    D: {}
+  }
+
+  const multipleAfterCardStyles: multipleCardStyle = {
+    A: { zIndex: 1, rotate: "11.2deg", top: 332, left: 400 },
+    B: { zIndex: 1, rotate: "1.6deg", top: 316, left: 96 },
+    C: { rotate: "5.5deg", top: 232, left: 554 },
+    D: {}
+  }
+
+  return isMultiple ? <div className="absolute " style={{
+    ...multipleCardWrapperStyles[time.day as dayProps]
+  }}>
+    <div className="absolute " style={{ ...multiplePrevCardStyles[multipleWrapperTypes[time.day as dayProps]] }}>
+      <OnlineCard
+        cardType={multipleType}
+        day={time.day}
+        isGuerrilla={primaryEntry.isGuerrilla}
+        time={entryTime}
+        mainTitle={entryMainTitle}
+        subTitle={entrySubTitle}
+      />
+    </div>
+    <div className="absolute " style={{ ...multipleAfterCardStyles[multipleWrapperTypes[time.day as dayProps]] }}>
+      <OnlineCard
+        cardType={multipleType}
+        day={time.day}
+        isGuerrilla={primaryEntry.isGuerrilla}
+        time={entryTime}
+        mainTitle={entryMainTitle}
+        subTitle={entrySubTitle}
+      />
+    </div>
+  </div> : <div className="absolute" style={{ ...singleCardWrapperStyles[time.day as dayProps] }}>
+    <OnlineCard
+      cardType={singleType}
+      day={time.day}
+      isGuerrilla={primaryEntry.isGuerrilla}
+      time={entryTime}
+      mainTitle={entryMainTitle}
+      subTitle={entrySubTitle}
+    />
+  </div>
+
+}
+
+const OfflineCard = ({ cardType, day, currentTheme }: OfflineCardProps) => {
+  const singleCardWrapperStyles = {
+    0: { rotate: "4deg", left: 40, top: 130 },
+    1: { rotate: "-3.2deg", left: 1248, top: 200 },
+    2: { rotate: "-6deg", left: 2410, top: 0 },
+    3: { rotate: "-9deg", left: 50, top: 940 },
+    4: { rotate: "4.7deg", left: 1000, top: 1100 },
+    5: { rotate: "-8.6deg", left: 1890, top: 920 },
+    6: { rotate: "1.9deg", left: 2840, top: 720 },
+  }
   return (
     <div
       style={{
-        ...cardSizes[CARD_ORDERS[day]],
+        ...cardSizes[cardType],
+        ...singleCardWrapperStyles[day as dayProps]
       }}
       key={day}
+      className="absolute"
     >
       <img
         src={Imgs[currentTheme || "first"][
-          "offline" + CARD_ORDERS[day]
+          "offline" + cardType
         ].src.replace("./", "/")}
         alt="offline"
         style={{
-          ...cardSizes[CARD_ORDERS[day]],
+          ...cardSizes[cardType],
         }}
       />
     </div>
@@ -513,7 +436,6 @@ const CellContentArea = ({ children }: PropsWithChildren) => {
   return (
     <div
       style={{
-        fontFamily: fontOption.primary,
         width: 612,
         height: 528,
         top: 30,
@@ -533,10 +455,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   if (!weekDate) return "Loading";
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
-  const primaryEntry = time.entries?.[0] || {};
-  const entryTime = (primaryEntry.time as string) || "09:00";
-  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
-  const entrySubTitle = (primaryEntry.subTitle as string) || "";
+
 
   return (
     <div
@@ -547,24 +466,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       }}
     >
       {time.isOffline ? (
-        <OfflineCard day={time.day} />
+        <OfflineCard cardType={singleTypeCards[time.day]} day={time.day} />
       ) : (
-        <div
-          style={{ ...cardSizes[CARD_ORDERS[time.day]] }}
-          key={time.day}
-          className="relative flex justify-center "
-        >
-          {/* <StreamingDay day={time.day} /> */}
-          <CellTextMainTitle mainTitle={entryMainTitle} day={time.day} />
-          <CellTextTitle cellTextTitle={entrySubTitle} day={time.day} />
-          <StreamingDayAndTime
-            isGuerrilla={primaryEntry.isGuerrilla}
-            time={entryTime}
-            day={time.day}
-          />
-
-          <OnlineCardBG day={time.day} />
-        </div>
+        <MultipleCard time={time} />
       )}
     </div>
   );
