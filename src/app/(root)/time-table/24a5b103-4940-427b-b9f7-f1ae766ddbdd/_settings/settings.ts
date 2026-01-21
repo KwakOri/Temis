@@ -33,8 +33,8 @@ export const templateSize = {
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const BASE_FONTS = {
-  PRIMARY: "KerisKedyuche",
-  SECONDARY: "",
+  PRIMARY: "OngleipParkDahyeon",
+  SECONDARY: "KerisKedyuche",
   TERTIARY: "",
   QUATERNARY: "",
 };
@@ -46,7 +46,7 @@ export const BASE_FONTS = {
 
 /** kr | en | jp */
 
-export const weekdayOption: TLanOpt = "en";
+export const weekdayOption: TLanOpt = "kr";
 export const monthOption: TLanOpt = "en";
 
 /** ---------------------------------------------- */
@@ -74,7 +74,7 @@ export const BASE_COLORS = {
     primary: "#282840",
     secondary: "#FFFFFF",
     tertiary: "#349EEB",
-    quaternary: "#6DB4EB",
+    quaternary: "#7FC8FF",
   },
   second: {
     primary: "",
@@ -92,11 +92,11 @@ export const BASE_COLORS = {
 
 export const COMP_COLORS = {
   MAIN_TITLE : BASE_COLORS["first"]["primary"],
-  SUB_TITLE : BASE_COLORS["first"]["primary"],
-  STREAMING_TIME : BASE_COLORS["first"]["primary"],
+  SUB_TITLE : BASE_COLORS["first"]["secondary"],
+  STREAMING_TIME : BASE_COLORS["first"]["secondary"],
   STREAMING_DATE : BASE_COLORS["first"]["primary"],
-  STREAMING_DAY : BASE_COLORS["first"]["primary"],
-  ARTIST: BASE_COLORS["first"]["primary"],
+  STREAMING_DAY : BASE_COLORS["first"]["secondary"],
+  ARTIST: BASE_COLORS["first"]["tertiary"],
 }
 
 export const COMP_FONTS = {
@@ -127,8 +127,8 @@ export const CARD_SIZES:CardSizesProps = {
     height: 10,
   },
   PROFILE: {
-    width: 10,
-    height: 10,
+    width: 1310,
+    height: 980,
   },
   FRAME: {
     width: 4000,

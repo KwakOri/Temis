@@ -5,9 +5,10 @@ import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { TDefaultCard, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled } from "@/utils/time-table/data";
+
 import { Imgs } from "../../_img/imgs";
 import { templateSize } from "../../_settings/settings";
-import ProfileImageSection from "../ProfileImageContainer";
+import ProfileImageSection, { ProfileText } from "../ProfileImageContainer";
 import TimeTableGrid from "../TimeTableGrid";
 import TimeTableTopObject from "../TimeTableTopObject";
 import TimeTableWeekFlag from "../TimeTableWeekFlag";
@@ -42,8 +43,13 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
         height: templateSize.height,
       }}
     >
+      <ProfileText
+        isProfileTextVisible={isProfileTextVisible}
+        profileText={profileText}
+        profileTextPlaceholder={placeholders.profileText}
+      />
       {isGuideEnabled && <TimeTableDesignGuide />}
-      <TimeTableTopObject/>
+      <TimeTableTopObject />
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}

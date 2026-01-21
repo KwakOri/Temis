@@ -49,15 +49,16 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
 };
 
 const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
-  
+
   return (
     <div
       style={{
         ...CARD_SIZES.PROFILE,
         position: "absolute",
-        bottom: 0,
-        right: 0,
+        bottom: -60,
+        right: -60,
         zIndex: 10,
+        rotate: "8.3deg"
       }}
     >
       {imageSrc && (
@@ -94,7 +95,7 @@ const ProfileTextTitle = () => {
   return <p style={{ fontSize: 38, width: 172 }}>ART BY ::</p>;
 };
 
-const ProfileText = ({
+export const ProfileText = ({
   profileText,
   profileTextPlaceholder,
   isProfileTextVisible,
@@ -112,23 +113,22 @@ const ProfileText = ({
         style={{
           position: "absolute",
           height: 160,
-          width: 400,
+          width: 500,
           zIndex: 20,
-          top: 1052,
-          right: 32,
-          rotate: "9.6deg",
+          top: 1740,
+          left: 2300,
+          rotate: "0.5deg",
         }}
-        className="flex justify-center items-center "
+        className="flex justify-center items-center"
       >
         <AutoResizeText
           style={{
             lineHeight: 1,
             color: COMP_COLORS.ARTIST,
             fontFamily: COMP_FONTS.ARTIST,
-            fontWeight: 900,
           }}
           className="text-center"
-          maxFontSize={75}
+          maxFontSize={128}
         >
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
@@ -137,6 +137,7 @@ const ProfileText = ({
         src={Imgs["first"]["artist"].src}
         className="object-cover"
         alt="artist"
+        draggable={false}
       />
     </div>
   );
@@ -166,11 +167,7 @@ const ProfileImageSection = ({
 }: ProfileImageSectionProps) => {
   return (
     <ProfileImageContainer>
-      <ProfileText
-        isProfileTextVisible={isProfileTextVisible}
-        profileText={profileText}
-        profileTextPlaceholder={profileTextPlaceholder}
-      />
+
       <ProfileFrame />
       <ProfileImage imageSrc={imageSrc} />
     </ProfileImageContainer>

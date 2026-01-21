@@ -16,7 +16,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   currentTheme,
 }) => {
   return (
-    <div className="absolute grid grid-cols-3 z-20">
+    <div className="absolute inset-0 z-20">
       {data.map((time, i) => (
         <Fragment key={time.day}>
           <TimeTableCell
@@ -25,7 +25,6 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
             weekDate={weekDates[i]}
             index={i}
           />
-          {i === 4 && <div></div>}
         </Fragment>
       ))}
     </div>

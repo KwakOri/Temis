@@ -61,6 +61,8 @@ const TimeTableEditorContent: React.FC = () => {
           cropHeight={CARD_SIZES.PROFILE.height}
         >
           <TimeTableInputList
+            isMultiple
+            maxStreamingTimeByDay={2}
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}
             data={data}
