@@ -33,7 +33,7 @@ export const templateSize = {
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const BASE_FONTS = {
-  PRIMARY: "KerisKedyuche",
+  PRIMARY: "Escoredream",
   SECONDARY: "",
   TERTIARY: "",
   QUATERNARY: "",
@@ -71,10 +71,10 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const BASE_COLORS = {
   first: {
-    primary: "#282840",
-    secondary: "#FFFFFF",
-    tertiary: "#349EEB",
-    quaternary: "#6DB4EB",
+    primary: "#86889B",
+    secondary: "#BBBBBB",
+    tertiary: "#FFFFFF",
+    quaternary: "#A7A7A7",
   },
   second: {
     primary: "",
@@ -92,11 +92,12 @@ export const BASE_COLORS = {
 
 export const COMP_COLORS = {
   MAIN_TITLE : BASE_COLORS["first"]["primary"],
-  SUB_TITLE : BASE_COLORS["first"]["primary"],
-  STREAMING_TIME : BASE_COLORS["first"]["primary"],
-  STREAMING_DATE : BASE_COLORS["first"]["primary"],
-  STREAMING_DAY : BASE_COLORS["first"]["primary"],
-  ARTIST: BASE_COLORS["first"]["primary"],
+  SUB_TITLE : BASE_COLORS["first"]["secondary"],
+  STREAMING_TIME : BASE_COLORS["first"]["tertiary"],
+  STREAMING_DATE : BASE_COLORS["first"]["tertiary"],
+  STREAMING_DAY : "",
+  ARTIST: "",
+  WEEKLY_FLAG:BASE_COLORS["first"]["quaternary"],
 }
 
 export const COMP_FONTS = {
@@ -110,25 +111,25 @@ export const COMP_FONTS = {
 }
 
 export const MAX_FONT_SIZES = {
-  MAIN_TITLE: 10,
-  SUB_TITLE: 10,
-  ARTIST: 10
+  MAIN_TITLE: 70,
+  SUB_TITLE: 42,
+  ARTIST: 0
 }
 
 
 
 export const CARD_SIZES:CardSizesProps = {
   ONLINE: {
-    width: 10,
-    height: 10,
+    width: 634,
+    height: 558,
   },
   OFFLINE: {
-    width: 10,
-    height: 10,
+    width: 634,
+    height: 558,
   },
   PROFILE: {
-    width: 10,
-    height: 10,
+    width: 1300,
+    height: 1770,
   },
   FRAME: {
     width: 4000,
@@ -136,7 +137,7 @@ export const CARD_SIZES:CardSizesProps = {
   }
 }
 
-export const profileTextPlaceholder = "아티스트 명";
+export const profileTextPlaceholder = "";
 /** ---------------------------------------------- */
 
 // 개발자 전용: 카드 입력 필드 구성

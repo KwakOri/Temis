@@ -1,11 +1,8 @@
-import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { TTheme } from "@/types/time-table/theme";
 import { PropsWithChildren } from "react";
 import { Imgs } from "../_img/imgs";
 import {
-  CARD_SIZES,
-  COMP_COLORS,
-  COMP_FONTS,
+  CARD_SIZES
 } from "../_settings/settings";
 
 interface ProfileBackPlateProps {
@@ -49,16 +46,18 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
 };
 
 const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
-  
+
   return (
     <div
       style={{
         ...CARD_SIZES.PROFILE,
+        rotate: "-6.7deg",
         position: "absolute",
-        bottom: 0,
-        right: 0,
+        top: 264,
+        left: 218,
         zIndex: 10,
       }}
+
     >
       {imageSrc && (
         <img
@@ -94,53 +93,53 @@ const ProfileTextTitle = () => {
   return <p style={{ fontSize: 38, width: 172 }}>ART BY ::</p>;
 };
 
-const ProfileText = ({
-  profileText,
-  profileTextPlaceholder,
-  isProfileTextVisible,
-}: ProfileTextProps) => {
-  if (!isProfileTextVisible) return null;
-  return (
-    <div
-      style={{
-        width: 4000,
-        height: 2250,
-      }}
-      className="absolute z-50 flex justify-end items-center "
-    >
-      <div
-        style={{
-          position: "absolute",
-          height: 160,
-          width: 400,
-          zIndex: 20,
-          top: 1052,
-          right: 32,
-          rotate: "9.6deg",
-        }}
-        className="flex justify-center items-center "
-      >
-        <AutoResizeText
-          style={{
-            lineHeight: 1,
-            color: COMP_COLORS.ARTIST,
-            fontFamily: COMP_FONTS.ARTIST,
-            fontWeight: 900,
-          }}
-          className="text-center"
-          maxFontSize={75}
-        >
-          {profileText ? profileText : profileTextPlaceholder}
-        </AutoResizeText>
-      </div>
-      <img
-        src={Imgs["first"]["artist"].src}
-        className="object-cover"
-        alt="artist"
-      />
-    </div>
-  );
-};
+// const ProfileText = ({
+//   profileText,
+//   profileTextPlaceholder,
+//   isProfileTextVisible,
+// }: ProfileTextProps) => {
+//   if (!isProfileTextVisible) return null;
+//   return (
+//     <div
+//       style={{
+//         width: 4000,
+//         height: 2250,
+//       }}
+//       className="absolute z-50 flex justify-end items-center "
+//     >
+//       <div
+//         style={{
+//           position: "absolute",
+//           height: 160,
+//           width: 400,
+//           zIndex: 20,
+//           top: 1052,
+//           right: 32,
+//           rotate: "9.6deg",
+//         }}
+//         className="flex justify-center items-center "
+//       >
+//         <AutoResizeText
+//           style={{
+//             lineHeight: 1,
+//             color: COMP_COLORS.ARTIST,
+//             fontFamily: COMP_FONTS.ARTIST,
+//             fontWeight: 900,
+//           }}
+//           className="text-center"
+//           maxFontSize={MAX_FONT_SIZES.ARTIST}
+//         >
+//           {profileText ? profileText : profileTextPlaceholder}
+//         </AutoResizeText>
+//       </div>
+//       <img
+//         src={Imgs["first"]["artist"].src}
+//         className="object-cover"
+//         alt="artist"
+//       />
+//     </div>
+//   );
+// };
 
 const ProfileImageContainer = ({ children }: PropsWithChildren) => {
   return (
@@ -166,11 +165,11 @@ const ProfileImageSection = ({
 }: ProfileImageSectionProps) => {
   return (
     <ProfileImageContainer>
-      <ProfileText
+      {/* <ProfileText
         isProfileTextVisible={isProfileTextVisible}
         profileText={profileText}
         profileTextPlaceholder={profileTextPlaceholder}
-      />
+      /> */}
       <ProfileFrame />
       <ProfileImage imageSrc={imageSrc} />
     </ProfileImageContainer>

@@ -43,7 +43,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       }}
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
-      <TimeTableTopObject/>
+      <TimeTableTopObject />
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}
