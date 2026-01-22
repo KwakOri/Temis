@@ -152,18 +152,18 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       defaultValue: "10:00",
     },
     {
-      key: "mainTitle",
-      type: "textarea",
-      placeholder: "메인 타이틀\n적는 곳",
-      defaultValue: "",
-      maxLength: 200,
-    },
-    {
       key: "subTitle",
       type: "text",
       placeholder: "서브 타이틀 적는 곳",
       defaultValue: "",
       maxLength: 50,
+    },
+    {
+      key: "mainTitle",
+      type: "textarea",
+      placeholder: "메인 타이틀\n적는 곳",
+      defaultValue: "",
+      maxLength: 200,
     },
   ],
   showLabels: false, // 라벨 표시 여부

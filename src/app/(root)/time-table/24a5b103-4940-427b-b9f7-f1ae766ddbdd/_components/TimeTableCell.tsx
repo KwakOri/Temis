@@ -1,7 +1,7 @@
 import React, { CSSProperties, PropsWithChildren } from "react";
 
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TDefaultCard } from "@/types/time-table/data";
+import { TDefaultCard, TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
@@ -101,10 +101,7 @@ interface OnlineCardProps {
 
   cardType: TCARD;
   day: number;
-  isGuerrilla: boolean;
-  time: string;
-  mainTitle: string;
-  subTitle: string | null;
+  entry: TEntry;
 }
 
 interface TimeTableCellProps {
@@ -292,7 +289,11 @@ const OnlineCardBG = ({ cardType, day }: OnlineCardBGProps) => {
   );
 };
 
-const OnlineCard = ({ cardType, day, isGuerrilla, time, mainTitle, subTitle }: OnlineCardProps) => {
+const OnlineCard = ({ cardType, day, entry }: OnlineCardProps) => {
+  const time = (entry.time as string) || "09:00";
+  const mainTitle = (entry.mainTitle as string) || "";
+  const subTitle = (entry.subTitle as string) || "";
+  const isGuerrilla = (entry.isGuerrilla as boolean) as boolean;
   return (
     <div
       style={{ ...cardSizes[cardType] }}
@@ -317,9 +318,8 @@ const multipleWrapperTypes: TCARD[] = ["A", "A", "A", "B", "B", "B", "C"]
 
 const MultipleCard = ({ time }: MultipleCardProps) => {
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = (primaryEntry.time as string) || "09:00";
-  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
-  const entrySubTitle = (primaryEntry.subTitle as string) || "";
+  const secondaryEntry = time.entries?.[1] || {};
+
   const isMultiple = time.entries.length > 1;
 
   const singleType = singleTypeCards[time.day];
@@ -353,14 +353,14 @@ const MultipleCard = ({ time }: MultipleCardProps) => {
   const multiplePrevCardStyles: multipleCardStyle = {
     A: { zIndex: 2, rotate: "-5.5deg", top: 20, left: -4 },
     B: { zIndex: 2, rotate: "-1.6deg", },
-    C: { rotate: "-8deg", top: 24 },
+    C: { zIndex: 2, rotate: "-8deg", top: 24 },
     D: {}
   }
 
   const multipleAfterCardStyles: multipleCardStyle = {
     A: { zIndex: 1, rotate: "11.2deg", top: 332, left: 400 },
     B: { zIndex: 1, rotate: "1.6deg", top: 316, left: 96 },
-    C: { rotate: "5.5deg", top: 232, left: 554 },
+    C: { zIndex: 1, rotate: "5.5deg", top: 232, left: 554 },
     D: {}
   }
 
@@ -371,30 +371,22 @@ const MultipleCard = ({ time }: MultipleCardProps) => {
       <OnlineCard
         cardType={multipleType}
         day={time.day}
-        isGuerrilla={primaryEntry.isGuerrilla}
-        time={entryTime}
-        mainTitle={entryMainTitle}
-        subTitle={entrySubTitle}
+
+        entry={primaryEntry}
       />
     </div>
     <div className="absolute " style={{ ...multipleAfterCardStyles[multipleWrapperTypes[time.day as dayProps]] }}>
       <OnlineCard
         cardType={multipleType}
         day={time.day}
-        isGuerrilla={primaryEntry.isGuerrilla}
-        time={entryTime}
-        mainTitle={entryMainTitle}
-        subTitle={entrySubTitle}
+        entry={secondaryEntry}
       />
     </div>
   </div> : <div className="absolute" style={{ ...singleCardWrapperStyles[time.day as dayProps] }}>
     <OnlineCard
       cardType={singleType}
       day={time.day}
-      isGuerrilla={primaryEntry.isGuerrilla}
-      time={entryTime}
-      mainTitle={entryMainTitle}
-      subTitle={entrySubTitle}
+      entry={primaryEntry}
     />
   </div>
 
