@@ -403,8 +403,7 @@ const OfflineCard = ({ cardType, day, currentTheme }: OfflineCardProps) => {
     6: { rotate: "1.9deg", left: 2840, top: 720 },
   }
   return (
-    <div
-      style={{
+    <div style={{
         ...cardSizes[cardType],
         ...singleCardWrapperStyles[day as dayProps]
       }}
