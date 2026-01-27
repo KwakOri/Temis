@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getFileUrl } from '@/lib/r2';
-import jwt from 'jsonwebtoken';
-import { cookies } from 'next/headers';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-
-interface JWTPayload {
-  userId: string;
-  email: string;
-  name: string;
-}
+import { getCurrentUserId } from '@/lib/auth/jwt';
 
 export async function GET(
   request: NextRequest,
@@ -18,23 +9,19 @@ export async function GET(
 ) {
   try {
     const { orderId } = await params;
-    
-    // JWT 토큰 확인
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    
-    if (!token) {
+
+    const userId = await getCurrentUserId(request);
+
+    if (!userId) {
       return NextResponse.json({ error: '로그인이 필요합니다.' }, { status: 401 });
     }
-
-    const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
 
     // 주문이 해당 사용자의 것인지 확인
     const { data: order, error: orderError } = await supabase
       .from('custom_timetable_orders')
       .select('id')
       .eq('id', orderId)
-      .eq('user_id', parseInt(decoded.userId, 10))
+      .eq('user_id', userId)
       .single();
 
     if (orderError || !order) {
@@ -58,7 +45,6 @@ export async function GET(
       ...file,
       url: getFileUrl(file.file_key)
     }));
-
 
     return NextResponse.json({
       files: filesWithUrls
