@@ -225,6 +225,8 @@ export async function PUT(request: NextRequest) {
       hasCharacterImages,
       wantsOmakase,
       designKeywords,
+      characterImageFileIds,
+      referenceFileIds,
       selectedOptions: selectedOptionsInput, // Record<string, boolean>
       requiredArea, // 필수 영역 선택
       fastDelivery, // 빠른 마감 선택
@@ -299,6 +301,56 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         { error: "주문 수정 중 오류가 발생했습니다." },
         { status: 500 }
+      );
+    }
+
+    // 업로드된 파일들을 주문과 연결
+    try {
+      if (characterImageFileIds && characterImageFileIds.length > 0) {
+        const { error: characterError } = await supabase
+          .from("files")
+          .update({
+            order_id: orderId,
+            file_category: "character_image",
+          })
+          .in("id", characterImageFileIds);
+
+        if (characterError) {
+          console.error(
+            "📁 [Shop API] Character files linking error:",
+            characterError
+          );
+          throw characterError;
+        }
+      }
+
+      if (referenceFileIds && referenceFileIds.length > 0) {
+        const { error: referenceError } = await supabase
+          .from("files")
+          .update({
+            order_id: orderId,
+            file_category: "reference",
+          })
+          .in("id", referenceFileIds);
+
+        if (referenceError) {
+          console.error(
+            "📁 [Shop API] Reference files linking error:",
+            referenceError
+          );
+          throw referenceError;
+        }
+      }
+    } catch (fileLinkError) {
+      console.error("File linking error:", fileLinkError);
+      return NextResponse.json(
+        {
+          message:
+            "주문이 수정되었으나 일부 파일 연결에 실패했습니다. 관리자에게 문의해주세요.",
+          order: updatedOrder,
+          warning: "파일 연결 실패",
+        },
+        { status: 200 }
       );
     }
 

@@ -26,6 +26,10 @@ export const useSubmitCustomOrder = () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.orders(),
       });
+      // 주문 파일 캐시도 무효화
+      queryClient.invalidateQueries({
+        queryKey: ["orderFiles"],
+      });
     },
   });
 };
