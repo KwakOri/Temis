@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 
-interface Props {
+interface Props extends React.HTMLAttributes<HTMLParagraphElement> {
   children: string;
   maxFontSize?: number;
   minFontSize?: number;
@@ -18,8 +18,8 @@ const AutoResizeText: React.FC<Props> = ({
   minFontSize = 12,
   style,
   className,
-
   multiline = false,
+  ...props
 }) => {
   const textRef = useRef<HTMLParagraphElement>(null);
   const [fontSize, setFontSize] = useState(maxFontSize);
@@ -61,13 +61,13 @@ const AutoResizeText: React.FC<Props> = ({
 
       // multiline 지원을 위한 스타일 설정
       if (multiline) {
-        el.style.whiteSpace = "pre";
-        el.style.wordBreak = "break-word";
-        el.style.overflowWrap = "break-word";
+        el.style.whiteSpace = 'pre';
+        el.style.wordBreak = 'break-word';
+        el.style.overflowWrap = 'break-word';
       } else {
-        el.style.whiteSpace = "nowrap";
-        el.style.wordBreak = "normal";
-        el.style.overflowWrap = "normal";
+        el.style.whiteSpace = 'nowrap';
+        el.style.wordBreak = 'normal';
+        el.style.overflowWrap = 'normal';
       }
 
       // 새로운 접근: textRef와 부모 크기를 직접 비교하여 fontSize 조정
@@ -120,12 +120,13 @@ const AutoResizeText: React.FC<Props> = ({
       className={className}
       style={{
         fontSize: `${Math.floor(fontSize)}px`,
-        whiteSpace: multiline ? "pre" : "nowrap",
-        wordBreak: multiline ? "break-word" : "normal",
-        overflowWrap: multiline ? "break-word" : "normal",
-        overflow: "visible",
+        whiteSpace: multiline ? 'pre' : 'nowrap',
+        wordBreak: multiline ? 'break-word' : 'normal',
+        overflowWrap: multiline ? 'break-word' : 'normal',
+        overflow: 'visible',
         ...style,
       }}
+      {...props}
     >
       {children}
     </p>
