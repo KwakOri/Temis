@@ -299,7 +299,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
           <CardMainTitle
             style={{ height: 140, width: '76%', top: 410 }}
-            content={firstEntry.mainTitle}
+            content={secondEntry.mainTitle}
             day={time.day}
           />
 
