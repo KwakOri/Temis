@@ -494,6 +494,44 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           />
         );
 
+      case "time": {
+        const fieldId = `${fieldConfig.key}-offline-${dayIndex}`;
+        return (
+          <AdaptiveTimeRenderer
+            id={fieldId}
+            value={value}
+            onChange={(newValue) =>
+              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
+            }
+          />
+        );
+      }
+
+      case "select":
+        return (
+          <select
+            value={value}
+            required={fieldConfig.required}
+            className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
+            onChange={(e) =>
+              handleOfflineFieldChange(
+                dayIndex,
+                fieldConfig.key,
+                e.target.value
+              )
+            }
+          >
+            <option value="" disabled>
+              {fieldConfig.placeholder}
+            </option>
+            {fieldConfig.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+
       case "number":
         return (
           <TopicRenderer
