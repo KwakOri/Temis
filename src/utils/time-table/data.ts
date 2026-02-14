@@ -144,8 +144,8 @@ export const createInitialEntryFromConfig = ({
     isGuerrilla: false, // 게릴라방송 기본값 false
   };
 
-  // CARD_INPUT_CONFIG의 모든 필드를 기반으로 기본값 설정
-  cardInputConfig.fields.forEach((field) => {
+  // entry 레벨 필드만 기본값 설정 (isOffline 필드는 card 레벨에서 초기화)
+  cardInputConfig.fields.filter((field) => !field.isOffline).forEach((field) => {
     if (field.defaultValue !== undefined) {
       entry[field.key] = field.defaultValue;
     } else {
@@ -181,6 +181,13 @@ export const createInitialCardFromConfig = ({
     isOffline: false,
     entries: [initialEntry],
   };
+
+  // isOffline 필드의 기본값을 card 레벨에 초기화
+  cardInputConfig.fields
+    .filter((field) => field.isOffline)
+    .forEach((field) => {
+      card[field.key] = field.defaultValue ?? "";
+    });
 
   return card;
 };
