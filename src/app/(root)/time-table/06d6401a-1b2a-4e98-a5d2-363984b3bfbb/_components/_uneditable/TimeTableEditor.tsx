@@ -1,27 +1,26 @@
-import React from "react";
+import React from 'react';
 
-import Loading from "@/components/Loading";
-import MobileHeader from "@/components/TimeTable/MobileHeader";
-import TimeTableControls from "@/components/TimeTable/TimeTableControls";
-import TimeTableForm from "@/components/TimeTable/TimeTableForm";
-import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
-import { TimeTableProvider } from "@/contexts/TimeTableContext";
-import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
-import { useTimeTableEditor } from "@/hooks";
+import Loading from '@/components/Loading';
+import MobileHeader from '@/components/TimeTable/MobileHeader';
+import TimeTableControls from '@/components/TimeTable/TimeTableControls';
+import TimeTableForm from '@/components/TimeTable/TimeTableForm';
+import TimeTablePreview from '@/components/TimeTable/TimeTablePreview';
+import { TimeTableProvider } from '@/contexts/TimeTableContext';
+import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
+import { useTimeTableEditor } from '@/hooks';
 
-import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
-import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
-import { isGuideEnabled } from "@/utils/time-table/data";
-import { placeholders } from "../../_settings/general";
+import TimeTableInputList from '@/components/TimeTable/FixedComponents/TimeTableInputList';
+import TimeTableDesignGuideController from '@/components/tools/TimeTableDesignGuideController';
+import { isGuideEnabled } from '@/utils/time-table/data';
+import { placeholders } from '../../_settings/general';
 import {
   CARD_INPUT_CONFIG,
   CARD_SIZES,
   defaultTheme,
-
   templateSize,
   weekdayOption,
-} from "../../_settings/settings";
-import TimeTableContent from "./TimeTableContent";
+} from '../../_settings/settings';
+import TimeTableContent from './TimeTableContent';
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {

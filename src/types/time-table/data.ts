@@ -47,6 +47,12 @@ export interface TDynamicCard {
   isOffline: boolean;
   offlineMemo?: string;
   entries: TEntry[];
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | TEntry[]
+    | undefined;
 }
 
 export type TPlaceholders = Record<string, string> & { profileText: string };

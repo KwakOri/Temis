@@ -16,6 +16,8 @@ import {
   weekdayOption,
 } from '../_settings/settings';
 
+type SelectProps = 'option_01' | 'option_02';
+
 export type dayProps = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 const ONLINE_CARD_KEYS = [
@@ -141,6 +143,7 @@ interface OfflineCardProps {
   day: number;
   currentTheme?: TTheme;
   offlineMemo: string | undefined;
+  offlineType: SelectProps;
 }
 
 interface CardStreamingDayAndTimeProps {
@@ -168,7 +171,7 @@ const CardStreamingDay = ({ currentTheme, day }: CardStreamingDayProps) => {
         letterSpacing: -10,
         filter: 'drop-shadow(0px 4px 4px rgba(0,0,0,0.8))',
       }}
-      className="absolute flex justify-center items-center"
+      className="absolute flex justify-center items-center z-20"
     >
       {weekdays[weekdayOption][day].toUpperCase()}
     </p>
@@ -229,7 +232,7 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
         height: 192,
         width: 720,
         top: 140,
-        left: 320,
+        left: 300,
       }}
       className="absolute flex justify-start items-center shrink-0"
     >
@@ -256,7 +259,7 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
         width: 720,
         height: 80,
         top: 280,
-        left: 320,
+        left: 300,
       }}
       className="absolute flex justify-start items-center"
     >
@@ -300,7 +303,12 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
   );
 };
 
-const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+const OfflineCard = ({
+  offlineMemo,
+  offlineType,
+  day,
+  currentTheme,
+}: OfflineCardProps) => {
   return (
     <div
       style={{
@@ -309,6 +317,43 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
       className="relative"
       key={day}
     >
+      <CardStreamingDay day={day} />
+      <div
+        style={{
+          left: 560,
+          top: 160,
+          width: day === 3 || day === 6 ? 840 : 540,
+          height: 200,
+        }}
+        className="absolute flex flex-col justify-center z-20"
+      >
+        <p
+          style={{
+            fontFamily: COMP_FONTS.SUB_TITLE,
+            color: COMP_COLORS.SUB_TITLE,
+            fontWeight: 500,
+            letterSpacing: -2,
+            fontSize: 80,
+          }}
+        >
+          {offlineType === 'option_01' ? '호랑이 쉬는 날' : '직관 가는 날'}
+        </p>
+        {offlineMemo && (
+          <div style={{ width: '90%', height: 80 }} className="pl-2">
+            <AutoResizeText
+              style={{
+                fontFamily: COMP_FONTS.SUB_TITLE,
+                color: COMP_COLORS.SUB_TITLE,
+                fontWeight: 500,
+                letterSpacing: -2,
+              }}
+              maxFontSize={48}
+            >
+              {offlineMemo as string}
+            </AutoResizeText>
+          </div>
+        )}
+      </div>
       <div
         className="absolute"
         style={{
@@ -357,10 +402,16 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const entrySubTitle = (primaryEntry.subTitle as string) || '';
   const offlineMemo = time.offlineMemo;
 
+  console.log('time', time);
+
   return (
     <>
       {time.isOffline ? (
-        <OfflineCard offlineMemo={offlineMemo} day={time.day} />
+        <OfflineCard
+          offlineType={time.offlineType as string as SelectProps}
+          offlineMemo={offlineMemo}
+          day={time.day}
+        />
       ) : (
         <div
           style={{ ...LOCAL_CARD_SIZES[time.day as dayProps] }}

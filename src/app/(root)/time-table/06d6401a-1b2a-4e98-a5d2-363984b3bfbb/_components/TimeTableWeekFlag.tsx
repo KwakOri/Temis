@@ -1,5 +1,6 @@
 import { TTheme } from '@/types/time-table/theme';
-import { getWeekDateRange } from '@/utils/date-formatter';
+import { getMonthEn, getWeekDateRange, padZero } from '@/utils/date-formatter';
+import { COMP_COLORS, COMP_FONTS } from '../_settings/settings';
 
 interface TimeTableWeekFlagProps {
   currentTheme: TTheme;
@@ -14,23 +15,56 @@ const TimeTableWeekFlag = ({
   const { start, end } = getWeekDateRange(weekDates);
 
   return (
-    <></>
-    // <p
-    //   className="absolute flex justify-center items-center z-40"
-    //   style={{
-    //     fontSize: 68,
-    //     fontWeight: 500,
-    //     width: 1000,
-    //     height: 100,
-    //     fontFamily: COMP_FONTS.WEEKLY_FLAG,
-    //     color: COMP_COLORS.WEEKLY_FLAG,
-    //     top: 664,
-    //     left: 1848,
-    //   }}
-    // >
-    //   {start.year}.{padZero(start.month)}.{padZero(start.date)} - {end.year}.
-    //   {padZero(end.month)}.{padZero(end.date)}
-    // </p>
+    <>
+      <p
+        className="absolute flex justify-center items-center z-40 "
+        style={{
+          fontSize: 56,
+          fontWeight: 500,
+          width: 400,
+          height: 120,
+          fontFamily: COMP_FONTS.WEEKLY_FLAG,
+          color: COMP_COLORS.WEEKLY_FLAG,
+          top: 1980,
+          left: 1996,
+          letterSpacing: 0,
+        }}
+      >
+        -{start.year}-
+      </p>
+      <p
+        className="absolute flex justify-center items-center z-40"
+        style={{
+          fontSize: 88,
+          fontWeight: 500,
+          width: 820,
+          height: 120,
+          fontFamily: COMP_FONTS.WEEKLY_FLAG,
+          color: COMP_COLORS.WEEKLY_FLAG,
+          bottom: 36,
+          left: 420,
+          letterSpacing: -14,
+        }}
+      >
+        {getMonthEn(start.month - 1, false).upper} {padZero(start.date)}
+      </p>
+      <p
+        className="absolute flex justify-center items-center z-40 "
+        style={{
+          fontSize: 88,
+          fontWeight: 500,
+          width: 820,
+          height: 120,
+          fontFamily: COMP_FONTS.WEEKLY_FLAG,
+          color: COMP_COLORS.WEEKLY_FLAG,
+          bottom: 36,
+          left: 1340,
+          letterSpacing: -14,
+        }}
+      >
+        {getMonthEn(end.month - 1, false).upper} {padZero(end.date)}
+      </p>
+    </>
   );
 };
 

@@ -112,7 +112,7 @@ export const COMP_FONTS = {
 export const MAX_FONT_SIZES = {
   MAIN_TITLE: 84,
   SUB_TITLE: 60,
-  ARTIST: 80,
+  ARTIST: 72,
 };
 
 export const CARD_SIZES: CardSizesProps = {
@@ -125,8 +125,8 @@ export const CARD_SIZES: CardSizesProps = {
     height: 558,
   },
   PROFILE: {
-    width: 1300,
-    height: 1770,
+    width: 1280,
+    height: 1940,
   },
   FRAME: {
     width: 4000,
@@ -134,7 +134,7 @@ export const CARD_SIZES: CardSizesProps = {
   },
 };
 
-export const profileTextPlaceholder = '';
+export const profileTextPlaceholder = '# 아티스트 이름';
 /** ---------------------------------------------- */
 
 // 개발자 전용: 카드 입력 필드 구성
@@ -150,7 +150,7 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     },
     {
       key: 'mainTitle',
-      type: 'textarea',
+      type: 'text',
       placeholder: '메인타이틀 적는곳',
       defaultValue: '',
       maxLength: 200,
@@ -161,6 +161,25 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
       placeholder: '서브타이틀 적는곳',
       defaultValue: '',
       maxLength: 50,
+    },
+    {
+      key: 'offlineType',
+      type: 'select',
+      options: [
+        { value: 'option_01', label: '호랑이 쉬는 날' },
+        { value: 'option_02', label: '직관 가는 날' },
+      ],
+      placeholder: '휴방 종류',
+      defaultValue: 'option_01',
+      isOffline: true,
+    },
+    {
+      key: 'offlineMemo',
+      type: 'text',
+      placeholder: '휴방 메모를 입력하세요...',
+      label: '휴방 메모',
+      maxLength: 20,
+      isOffline: true, // 이것만 추가하면 됨
     },
   ],
   showLabels: false, // 라벨 표시 여부
