@@ -41,7 +41,6 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
         left: 2770,
         zIndex: 10,
       }}
-      className="bg-black/50"
     >
       {imageSrc && (
         <img
