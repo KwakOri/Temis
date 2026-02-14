@@ -333,7 +333,7 @@ const OfflineCard = ({
             color: COMP_COLORS.SUB_TITLE,
             fontWeight: 500,
             letterSpacing: -2,
-            fontSize: 80,
+            fontSize: 78,
           }}
         >
           {offlineType === 'option_01' ? '호랑이 쉬는 날' : '직관 가는 날'}

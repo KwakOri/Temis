@@ -82,6 +82,8 @@ const ProfileText = ({
   isProfileTextVisible,
 }: ProfileTextProps) => {
   if (!isProfileTextVisible) return null;
+
+  console.log('profileText', profileText);
   return (
     <div
       style={{
@@ -112,7 +114,7 @@ const ProfileText = ({
           className="text-center"
           maxFontSize={MAX_FONT_SIZES.ARTIST}
         >
-          {profileText ? profileText : profileTextPlaceholder}
+          {profileText ? '# ' + profileText : '# ' + profileTextPlaceholder}
         </AutoResizeText>
       </div>
       <img
