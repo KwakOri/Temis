@@ -134,7 +134,7 @@ export const CARD_SIZES: CardSizesProps = {
   },
 };
 
-export const profileTextPlaceholder = '# 아티스트 이름';
+export const profileTextPlaceholder = '아티스트 이름';
 /** ---------------------------------------------- */
 
 // 개발자 전용: 카드 입력 필드 구성
