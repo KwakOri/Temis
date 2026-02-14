@@ -3,7 +3,7 @@
  * Provides comprehensive date formatting and week date range functionality
  */
 
-export type MonthCase = "initial" | "upper" | "lower";
+export type MonthCase = 'initial' | 'upper' | 'lower';
 
 export interface DateInfo {
   year: number;
@@ -26,36 +26,36 @@ export interface WeekDateRange {
  * Month names in English
  */
 const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
 /**
  * Short month names in English
  */
 const SHORT_MONTH_NAMES = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
 ];
 
 /**
@@ -73,10 +73,10 @@ export function padZero(num: number): string {
  * @param useShort - Use short month names (Jan, Feb, etc.)
  * @returns Object with different case variations
  */
-function getMonthEn(
+export function getMonthEn(
   monthIndex: number,
   useShort: boolean = true
-): DateInfo["monthEn"] {
+): DateInfo['monthEn'] {
   const monthName = useShort
     ? SHORT_MONTH_NAMES[monthIndex]
     : MONTH_NAMES[monthIndex];
@@ -119,7 +119,7 @@ export function getWeekDateRange(
   useShortMonth: boolean = true
 ): WeekDateRange {
   if (weekDates.length !== 7) {
-    throw new Error("weekDates must contain exactly 7 dates");
+    throw new Error('weekDates must contain exactly 7 dates');
   }
 
   return {
@@ -167,7 +167,7 @@ export function getFormattedWeekRange(
  */
 export function getFormattedWeekRangeEn(
   weekDates: Date[],
-  monthCase: MonthCase = "initial",
+  monthCase: MonthCase = 'initial',
   useShortMonth: boolean = true
 ): string {
   const weekRange = getWeekDateRange(weekDates, useShortMonth);
@@ -186,7 +186,7 @@ export function getFormattedWeekRangeEn(
  */
 export function formatDateStringEn(
   date: Date | DateInfo,
-  monthCase: MonthCase = "initial",
+  monthCase: MonthCase = 'initial',
   useShortMonth: boolean = true
 ): string {
   const dateInfo =
