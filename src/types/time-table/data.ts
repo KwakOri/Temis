@@ -12,6 +12,7 @@ export interface SimpleFieldConfig {
   maxLength?: number;
   options?: Array<{ value: string; label: string }>;
   defaultValue?: string | number;
+  isOffline?: boolean;
 }
 
 export interface CardInputConfig {

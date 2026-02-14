@@ -185,7 +185,13 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       );
     },
   };
-  // settings.ts에서 필드 구성 가져오기
+  // 필드를 온라인/오프라인으로 분리
+  const onlineFields = cardInputConfig.fields.filter(
+    (field) => !field.isOffline
+  );
+  const offlineFields = cardInputConfig.fields.filter(
+    (field) => field.isOffline
+  );
 
   // 오프라인 토글 설정 (기본값 지정)
   const offlineToggleConfig = cardInputConfig.offlineToggle || {
@@ -411,10 +417,14 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     onDataChange(newData);
   };
 
-  // 오프라인 메모 변경 핸들러
-  const handleOfflineMemoChange = (dayIndex: number, value: string) => {
+  // 오프라인 필드 변경 핸들러 (요일 단위)
+  const handleOfflineFieldChange = (
+    dayIndex: number,
+    field: string,
+    value: string | number | boolean
+  ) => {
     const newData = [...data];
-    newData[dayIndex] = { ...newData[dayIndex], offlineMemo: value };
+    newData[dayIndex] = { ...newData[dayIndex], [field]: value };
     onDataChange(newData);
   };
 
@@ -442,6 +452,77 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           onChange: handleEntryFieldChange,
         })
       : null;
+  };
+
+  // 오프라인 필드 렌더링 (요일 단위)
+  const renderOfflineField = (
+    fieldConfig: SimpleFieldConfig,
+    day: TDefaultCard,
+    dayIndex: number
+  ) => {
+    const value = String(
+      (day as unknown as Record<string, unknown>)[fieldConfig.key] ??
+        fieldConfig.defaultValue ??
+        ""
+    );
+
+    switch (fieldConfig.type) {
+      case "text":
+        return (
+          <TopicRenderer
+            value={value}
+            placeholder={fieldConfig.placeholder || ""}
+            handleTopicChange={(newValue) =>
+              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
+            }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
+          />
+        );
+
+      case "textarea":
+        return (
+          <DescriptionRenderer
+            value={value}
+            placeholder={fieldConfig.placeholder || ""}
+            handleDescriptionChange={(newValue) =>
+              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
+            }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
+            rows={3}
+          />
+        );
+
+      case "number":
+        return (
+          <TopicRenderer
+            value={value}
+            placeholder={fieldConfig.placeholder || ""}
+            handleTopicChange={(newValue) =>
+              handleOfflineFieldChange(
+                dayIndex,
+                fieldConfig.key,
+                isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
+              )
+            }
+            type="number"
+            required={fieldConfig.required}
+          />
+        );
+
+      default:
+        return (
+          <TopicRenderer
+            value={value}
+            placeholder={fieldConfig.placeholder || ""}
+            handleTopicChange={(newValue) =>
+              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
+            }
+            required={fieldConfig.required}
+          />
+        );
+    }
   };
 
   return (
@@ -515,9 +596,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                     )}
                   </div>
 
-                  {/* 각 엔트리의 필드들 */}
+                  {/* 각 엔트리의 필드들 (온라인 필드만) */}
                   <div className="space-y-3">
-                    {cardInputConfig.fields.map((fieldConfig) => {
+                    {onlineFields.map((fieldConfig) => {
                       const isDefaultField =
                         fieldConfig.key in defaultFieldRenderers;
 
@@ -564,13 +645,33 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             </div>
           </div>
 
-          {/* 오프라인 메모 필드 */}
-          {isOfflineMemo && day.isOffline && (
+          {/* 오프라인 필드 (config 기반, 요일 단위) */}
+          {day.isOffline && offlineFields.length > 0 && (
+            <div className="pt-2 flex flex-col gap-3">
+              {offlineFields.map((fieldConfig) => (
+                <div key={fieldConfig.key}>
+                  {fieldConfig.label && cardInputConfig.showLabels && (
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      {fieldConfig.label}
+                    </label>
+                  )}
+                  {renderOfflineField(fieldConfig, day, dayIndex)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 레거시 오프라인 메모 필드 (isOfflineMemo prop 사용 시) */}
+          {isOfflineMemo && day.isOffline && offlineFields.length === 0 && (
             <div className="pt-2">
               <textarea
                 value={day.offlineMemo || ""}
                 onChange={(e) =>
-                  handleOfflineMemoChange(dayIndex, e.target.value)
+                  handleOfflineFieldChange(
+                    dayIndex,
+                    "offlineMemo",
+                    e.target.value
+                  )
                 }
                 placeholder="휴방 메모를 입력하세요..."
                 className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
