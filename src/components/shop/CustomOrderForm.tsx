@@ -737,7 +737,7 @@ export default function CustomOrderForm({
                   </label>
                   <p className="text-xs text-dark-gray/70 mb-3">
                     지원되는 파일을 최대 5개까지 업로드하세요. 파일당 최대
-                    크기는 1 GB입니다.
+                    크기는 10 MB입니다.
                   </p>
                   <div className="border-2 border-dashed border-tertiary rounded-lg p-6 text-center hover:border-primary transition-colors">
                     <Upload className="h-8 w-8 text-dark-gray/40 mx-auto mb-2" />
