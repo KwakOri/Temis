@@ -1,16 +1,15 @@
-import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
-import React from "react";
+import { useTimeTableData, useTimeTableUI } from '@/contexts/TimeTableContext';
+import React from 'react';
 
-import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
-import { TDefaultCard, TPlaceholders } from "@/types/time-table/data";
-import { TTheme } from "@/types/time-table/theme";
-import { isGuideEnabled } from "@/utils/time-table/data";
-import { Imgs } from "../../_img/imgs";
-import { templateSize } from "../../_settings/settings";
-import ProfileImageSection from "../ProfileImageContainer";
-import TimeTableGrid from "../TimeTableGrid";
-import TimeTableTopObject from "../TimeTableTopObject";
-import TimeTableWeekFlag from "../TimeTableWeekFlag";
+import TimeTableDesignGuide from '@/components/tools/TimeTableDesignGuide';
+import { TDefaultCard, TPlaceholders } from '@/types/time-table/data';
+import { TTheme } from '@/types/time-table/theme';
+import { isGuideEnabled } from '@/utils/time-table/data';
+import { Imgs } from '../../_img/imgs';
+import { templateSize } from '../../_settings/settings';
+import ProfileImageSection from '../ProfileImageContainer';
+import TimeTableGrid from '../TimeTableGrid';
+import TimeTableTopObject from '../TimeTableTopObject';
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;
@@ -35,16 +34,15 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       style={{
         transform: `scale(${scale})`,
         backgroundImage: `url(${Imgs[currentTheme].bg.src})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
         width: templateSize.width,
         height: templateSize.height,
       }}
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
       <TimeTableTopObject />
-      <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}
         weekDates={weekDates}

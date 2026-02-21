@@ -16,31 +16,42 @@ const TimeTableWeekFlag = ({
   const { start, end } = getWeekDateRange(weekDates);
 
   return (
-    <div
-      style={{
-        width: 4000,
-        height: 2250,
-        position: 'absolute',
-        zIndex: 30,
-      }}
-    >
+    <div className="relative" style={{ width: 760, height: 840 }}>
       <div
         style={{
           rotate: '10.3deg',
           fontFamily: COMP_FONTS.WEEKLY_FLAG,
-          fontSize: 80,
+          color: BASE_COLORS.first.primary,
+          fontSize: 72,
           fontWeight: 700,
-          left: 40,
-          bottom: 580,
+          left: 96,
+          top: 208,
+          width: 300,
+          height: 200,
+          filter: 'drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.8))',
         }}
-        className="absolute flex flex-col justify-center items-center"
+        className="absolute flex flex-col justify-center items-center "
       >
-        <p style={{ color: BASE_COLORS.first.tertiary, lineHeight: 1 }}>
-          {start.monthEn.upper}
-        </p>
-        <p style={{ color: BASE_COLORS.first.primary, lineHeight: 1 }}>
-          {start.date}
-        </p>
+        <p style={{ lineHeight: 1 }}>{start.monthEn.upper}</p>
+        <p style={{ lineHeight: 1 }}>{start.date}</p>
+      </div>
+      <div
+        style={{
+          rotate: '-13.3deg',
+          fontFamily: COMP_FONTS.WEEKLY_FLAG,
+          color: BASE_COLORS.first.primary,
+          fontSize: 72,
+          fontWeight: 700,
+          left: 352,
+          top: 440,
+          width: 300,
+          height: 200,
+          filter: 'drop-shadow(0px 0px 5px rgba(0, 0, 0, 0.8))',
+        }}
+        className="absolute flex flex-col justify-center items-center "
+      >
+        <p style={{ lineHeight: 1 }}>{end.monthEn.upper}</p>
+        <p style={{ lineHeight: 1 }}>{end.date}</p>
       </div>
       <img src={Imgs['first']['week'].src} alt={'week'} draggable={false} />
     </div>

@@ -119,7 +119,7 @@ const CardStreamingDay = ({ currentTheme, day }: CardStreamingDayProps) => {
         color: BASE_COLORS.first.quaternary,
       }
     : {
-        fontSize: 80,
+        fontSize: 76,
         top: 68,
         color: COMP_COLORS.STREAMING_DAY,
       };
@@ -356,6 +356,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
     <div
       className="relative flex justify-center"
       style={{
+        rotate: day === 0 ? '-3deg' : day === 1 ? '3deg' : '0deg',
         ...containerStyle,
       }}
       key={day}
@@ -402,7 +403,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   const cardStyle: CSSProperties =
     time.day === 2 || time.day === 3
-      ? { width: 1200, height: 445, top: 34 }
+      ? { width: 1200, height: 445, top: 18 }
       : cardSizes.big;
 
   return (
@@ -411,7 +412,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         <OfflineCard day={time.day} />
       ) : (
         <div
-          style={{ ...cardStyle }}
+          style={{
+            rotate: time.day === 0 ? '-3deg' : time.day === 1 ? '3deg' : '0deg',
+            ...cardStyle,
+          }}
           key={time.day}
           className="relative flex justify-center"
         >
