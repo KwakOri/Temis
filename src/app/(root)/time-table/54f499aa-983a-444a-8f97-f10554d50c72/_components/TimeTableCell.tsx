@@ -343,12 +343,12 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
   const containerStyle: CSSProperties =
     day === 2 || day === 3
-      ? { width: 1200, height: 445, top: 34 }
+      ? { width: 1200, height: 445, top: 18 }
       : cardSizes.big;
 
   const cardStyle: CSSProperties =
     day === 2 || day === 3
-      ? { width: 1088, height: 445, top: 34 }
+      ? { width: 1088, height: 445, top: 18 }
       : cardSizes.big;
 
   const cardName = day === 2 || day === 3 ? 'offlineLong' : 'offlineBig';
