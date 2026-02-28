@@ -77,7 +77,7 @@ const ProfileFrame = () => {
     <div
       style={{
         ...CARD_SIZES.FRAME,
-        zIndex: 20,
+        zIndex: 30,
         position: 'absolute',
       }}
     >
@@ -107,7 +107,7 @@ const ProfileText = ({
         width: 4000,
         height: 2250,
       }}
-      className="absolute z-10 flex justify-end items-center "
+      className="absolute z-20 flex justify-end items-center "
     >
       <div
         style={{
