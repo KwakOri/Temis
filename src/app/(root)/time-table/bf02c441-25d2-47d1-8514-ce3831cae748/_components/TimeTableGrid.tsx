@@ -31,8 +31,11 @@ const ProfileMemo = () => {
               style={{
                 color: BASE_COLORS.first.tertiary,
                 fontFamily: COMP_FONTS.MAIN_TITLE,
+                lineHeight: 1,
               }}
+              className="text-center"
               maxFontSize={100}
+              multiline
             >
               {memoText || '메모를 작성해주세요'}
             </AutoResizeText>
