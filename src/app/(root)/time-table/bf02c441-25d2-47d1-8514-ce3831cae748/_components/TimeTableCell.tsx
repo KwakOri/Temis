@@ -239,6 +239,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
         ...CARD_SIZES.OFFLINE,
       }}
       key={day}
+      className="relative"
     >
       <CardStreamingDay day={day} />
       <img
