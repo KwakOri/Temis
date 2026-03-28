@@ -5,30 +5,41 @@ const path = require("node:path");
 const { spawn, spawnSync } = require("node:child_process");
 
 const rootDir = path.resolve(__dirname, "..");
+const defaultProjectRef = "ajlgjdwkjyayrnocdfpj";
 const tempDir = path.join(rootDir, "supabase", ".temp");
-const schemaDumpFilePath = path.join(tempDir, "remote-schema.sql");
 const dumpFilePath = path.join(tempDir, "remote-data.sql");
 const passthroughArgs = process.argv.slice(2);
 
 const envFromFiles = loadEnvFiles([
   path.join(rootDir, ".env"),
   path.join(rootDir, ".env.local"),
+  path.join(rootDir, ".envrc"),
 ]);
 
 const remoteDbUrl =
   process.env.SUPABASE_REMOTE_DB_URL ?? envFromFiles.SUPABASE_REMOTE_DB_URL;
+const projectRef =
+  process.env.SUPABASE_PROJECT_REF ??
+  envFromFiles.SUPABASE_PROJECT_REF ??
+  defaultProjectRef;
+const resolvedAccessToken =
+  process.env.SUPABASE_ACCESS_TOKEN ??
+  envFromFiles.SUPABASE_ACCESS_TOKEN ??
+  process.env.SB_TOKEN_TEMIS ??
+  envFromFiles.SB_TOKEN_TEMIS;
+const useLinkedRemote = !remoteDbUrl;
 const remoteDumpSchemas = (
   process.env.SUPABASE_REMOTE_DUMP_SCHEMAS ??
   envFromFiles.SUPABASE_REMOTE_DUMP_SCHEMAS ??
-  "public"
+  "public,auth,storage"
 )
   .split(",")
   .map((schema) => schema.trim())
   .filter(Boolean);
 
-if (!remoteDbUrl) {
+if (useLinkedRemote && !resolvedAccessToken) {
   console.error(
-    "[dev:local] SUPABASE_REMOTE_DB_URL is required. Add it to .env.local or export it in your shell."
+    "[dev:local] Missing remote auth. Set SB_TOKEN_TEMIS or SUPABASE_ACCESS_TOKEN (or provide SUPABASE_REMOTE_DB_URL)."
   );
   process.exit(1);
 }
@@ -38,15 +49,19 @@ if (remoteDumpSchemas.length === 0) {
   process.exit(1);
 }
 
+if (resolvedAccessToken) {
+  process.env.SUPABASE_ACCESS_TOKEN = resolvedAccessToken;
+}
+
 ensureCommandAvailable("supabase");
 ensureCommandAvailable("psql");
 
 fs.mkdirSync(tempDir, { recursive: true });
 
-console.log("[dev:local] 1/8 Starting local Supabase containers...");
+console.log("[dev:local] 1/7 Starting local Supabase containers...");
 runCommand("supabase", ["start", "--workdir", rootDir]);
 
-console.log("[dev:local] 2/8 Loading local Supabase connection info...");
+console.log("[dev:local] 2/7 Loading local Supabase connection info...");
 const statusEnv = parseStatusOutput(
   runCommand("supabase", ["status", "-o", "env", "--workdir", rootDir], {
     captureStdout: true,
@@ -66,7 +81,20 @@ if (!localDbUrl || !localApiUrl || !localAnonKey) {
   process.exit(1);
 }
 
-console.log("[dev:local] 3/8 Resetting local DB to clean baseline...");
+if (useLinkedRemote) {
+  console.log(`[dev:local] 3/7 Linking to remote project (${projectRef})...`);
+  runCommand("supabase", [
+    "link",
+    "--project-ref",
+    projectRef,
+    "--workdir",
+    rootDir,
+  ]);
+} else {
+  console.log("[dev:local] 3/7 Using SUPABASE_REMOTE_DB_URL as remote source...");
+}
+
+console.log("[dev:local] 4/7 Resetting local DB to clean baseline...");
 runCommand("supabase", [
   "db",
   "reset",
@@ -77,47 +105,31 @@ runCommand("supabase", [
   rootDir,
 ]);
 
-console.log("[dev:local] 4/8 Dumping remote schema...");
-const schemaDumpArgs = [
-  "db",
-  "dump",
-  "--db-url",
-  remoteDbUrl,
-  "--file",
-  schemaDumpFilePath,
-  "--workdir",
-  rootDir,
-];
-for (const schema of remoteDumpSchemas) {
-  schemaDumpArgs.push("--schema", schema);
-}
-runCommand("supabase", schemaDumpArgs);
-
-console.log("[dev:local] 5/8 Importing remote schema...");
-runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", schemaDumpFilePath]);
-
-console.log("[dev:local] 6/8 Dumping remote data...");
+console.log("[dev:local] 5/7 Dumping remote data...");
 const dataDumpArgs = [
   "db",
   "dump",
   "--data-only",
   "--use-copy",
-  "--db-url",
-  remoteDbUrl,
   "--file",
   dumpFilePath,
   "--workdir",
   rootDir,
 ];
+if (useLinkedRemote) {
+  dataDumpArgs.push("--linked");
+} else {
+  dataDumpArgs.push("--db-url", remoteDbUrl);
+}
 for (const schema of remoteDumpSchemas) {
   dataDumpArgs.push("--schema", schema);
 }
 runCommand("supabase", dataDumpArgs);
 
-console.log("[dev:local] 7/8 Importing remote data...");
+console.log("[dev:local] 6/7 Importing remote data...");
 runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", dumpFilePath]);
 
-console.log("[dev:local] 8/8 Starting Next.js with local Supabase keys...");
+console.log("[dev:local] 7/7 Starting Next.js with local Supabase keys...");
 const devEnv = {
   ...process.env,
   NEXT_PUBLIC_SUPABASE_URL: localApiUrl,

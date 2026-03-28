@@ -22,8 +22,10 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 Run the app against local Supabase while cloning data from remote DB every time:
 
-1. Add `SUPABASE_REMOTE_DB_URL` to `.env.local`.
-2. Make sure Docker Desktop and Supabase CLI are installed.
+1. Make sure Docker Desktop and Supabase CLI are installed.
+2. Prepare one of these remote auth options:
+   - Recommended: `SB_TOKEN_TEMIS` (or `SUPABASE_ACCESS_TOKEN`) + optional `SUPABASE_PROJECT_REF` (defaults to `ajlgjdwkjyayrnocdfpj`)
+   - Alternative: `SUPABASE_REMOTE_DB_URL` direct connection string
 3. Run:
 
 ```bash
@@ -33,9 +35,10 @@ npm run dev:local
 What `dev:local` does:
 
 - starts local Supabase containers
-- resets local DB to a clean baseline
-- dumps remote schema and data (`public` by default)
-- imports remote schema/data into local DB
+- links to remote project when using token mode
+- resets local DB to current local migrations
+- dumps remote data (`public,auth,storage` by default)
+- imports remote data into local DB
 - starts Next.js with local Supabase URL/keys injected
 
 Tip: pass Next.js args through the command, e.g. `npm run dev:local -- -p 3001`.
