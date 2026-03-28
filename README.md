@@ -18,6 +18,29 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Local Supabase (Remote Data Mirror)
+
+Run the app against local Supabase while cloning data from remote DB every time:
+
+1. Add `SUPABASE_REMOTE_DB_URL` to `.env.local`.
+2. Make sure Docker Desktop and Supabase CLI are installed.
+3. Run:
+
+```bash
+npm run dev:local
+```
+
+What `dev:local` does:
+
+- starts local Supabase containers
+- resets local DB to a clean baseline
+- dumps remote schema and data (`public` by default)
+- imports remote schema/data into local DB
+- starts Next.js with local Supabase URL/keys injected
+
+Tip: pass Next.js args through the command, e.g. `npm run dev:local -- -p 3001`.
+Tip: override copied schemas with `SUPABASE_REMOTE_DUMP_SCHEMAS` (comma-separated).
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
