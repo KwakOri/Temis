@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 /.mcp.json
+/backups/
+/supabase/.temp/
+/supabase/.branches/
+public/sw.js
