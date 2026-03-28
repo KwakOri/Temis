@@ -27,7 +27,7 @@ export class TemplateDetailService {
             artist:artists(*)
           )
         ),
-        template_plans:template_plans!shop_template_id (*),
+        template_plans:template_plans!shop_template_id (*)
       `)
       .eq("template_id", templateId)
       .eq("is_shop_visible", true)

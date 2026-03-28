@@ -2,6 +2,7 @@
 
 import BackButton from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminOptions } from "@/hooks/query/useAdminOptions";
 import {
   usePublicTemplates,
   useUserTemplateAccess,
@@ -9,12 +10,14 @@ import {
 import { SortOrder } from "@/types/shop";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { MouseEvent, useMemo, useState } from "react";
 
 export default function ShopPage() {
   const { user } = useAuth();
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [showOnlyUnpurchased, setShowOnlyUnpurchased] = useState(false);
+  const { data: generalOptions, isLoading: isLoadingGeneralOptions } =
+    useAdminOptions("general");
 
   // React Query hooks
   const {
@@ -24,6 +27,11 @@ export default function ShopPage() {
   } = usePublicTemplates(sortOrder);
   const { data: accessibleTemplateIds = [], isLoading: accessLoading } =
     useUserTemplateAccess(user?.id);
+  const isCustomOrderEnabled = generalOptions?.some(
+    (opt) => opt.value === "custom_timetable_orders" && opt.is_enabled
+  );
+  const isCustomOrderUnavailable =
+    isLoadingGeneralOptions || !isCustomOrderEnabled;
 
   const loading =
     templatesLoading || (showOnlyUnpurchased && user && accessLoading);
@@ -36,6 +44,18 @@ export default function ShopPage() {
     }
     return templates;
   }, [templates, showOnlyUnpurchased, user, accessibleTemplateIds]);
+
+  const handleCustomOrderBannerClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (isLoadingGeneralOptions) {
+      e.preventDefault();
+      return;
+    }
+
+    if (!isCustomOrderEnabled) {
+      e.preventDefault();
+      alert("현재는 주문이 마감된 상태입니다.");
+    }
+  };
 
   if (loading) {
     return (
@@ -79,7 +99,12 @@ export default function ShopPage() {
         {/* Custom Order 링크 배너 */}
         <Link
           href="/custom-order"
-          className="block mb-6 bg-gradient-to-r from-primary to-secondary rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
+          onClick={handleCustomOrderBannerClick}
+          className={`block mb-6 bg-gradient-to-r from-primary to-secondary rounded-2xl shadow-lg transition-all duration-300 overflow-hidden group ${
+            isCustomOrderUnavailable
+              ? "opacity-75 cursor-not-allowed"
+              : "hover:shadow-xl"
+          }`}
         >
           <div className="p-6 md:p-8 flex items-center justify-between">
             <div className="flex items-center space-x-4">

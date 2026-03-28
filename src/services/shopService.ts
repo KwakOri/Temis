@@ -22,7 +22,7 @@ export class ShopService {
             artist:artists(*)
           )
         ),
-        template_plans:template_plans!shop_template_id (*),
+        template_plans:template_plans!shop_template_id (*)
       `)
       .eq("is_shop_visible", true)
       .order("created_at", { ascending: sortOrder === "oldest" });
