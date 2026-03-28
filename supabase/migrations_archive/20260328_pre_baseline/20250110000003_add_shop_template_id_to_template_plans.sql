@@ -16,11 +16,20 @@ WHERE tp.template_id = st.template_id
   AND tp.shop_template_id IS NULL;
 
 -- Step 3: Add foreign key constraint to shop_templates
-ALTER TABLE template_plans
-ADD CONSTRAINT fk_template_plans_shop_template
-FOREIGN KEY (shop_template_id)
-REFERENCES shop_templates(id)
-ON DELETE CASCADE;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'fk_template_plans_shop_template'
+  ) THEN
+    ALTER TABLE template_plans
+    ADD CONSTRAINT fk_template_plans_shop_template
+    FOREIGN KEY (shop_template_id)
+    REFERENCES shop_templates(id)
+    ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- Step 4: Create index for better query performance
 CREATE INDEX IF NOT EXISTS idx_template_plans_shop_template_id
