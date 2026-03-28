@@ -5,7 +5,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePurchaseHistory } from "@/hooks/query/usePurchaseHistory";
 import { useUserTemplateAccess } from "@/hooks/query/useShop";
 import {
-  useSubmitPurchaseRequest,
   useTemplateDetail,
 } from "@/hooks/query/useTemplateDetail";
 import { ShopTemplateWithPlans } from "@/types/templateDetail";
@@ -33,7 +32,6 @@ export default function TemplateDetailPage() {
     useUserTemplateAccess(user?.id);
   const { data: purchaseHistoryData, isLoading: purchaseHistoryLoading } =
     usePurchaseHistory();
-  const submitPurchaseRequest = useSubmitPurchaseRequest();
 
   // 현재 템플릿을 이미 구매했는지 확인
   const isPurchased = user && accessibleTemplateIds.includes(templateId);
@@ -139,6 +137,13 @@ export default function TemplateDetailPage() {
     return null;
   }
 
+  const linkedArtists = (template.template_artists || [])
+    .map((relation) => relation.artist?.name)
+    .filter((name): name is string => Boolean(name));
+  const primaryArtistName =
+    template.template_artists?.find((relation) => relation.is_primary)?.artist
+      ?.name || linkedArtists[0] || null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-6 md:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -181,6 +186,16 @@ export default function TemplateDetailPage() {
                 <p className="text-slate-600">
                   {template.templates.description}
                 </p>
+                {primaryArtistName && (
+                  <p className="text-sm text-slate-500 mt-2">
+                    대표 작가: {primaryArtistName}
+                  </p>
+                )}
+                {linkedArtists.length > 1 && (
+                  <p className="text-sm text-slate-500 mt-1">
+                    참여 작가: {linkedArtists.join(", ")}
+                  </p>
+                )}
               </div>
 
               {/* 플랜별 가격 정보 */}

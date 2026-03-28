@@ -86,6 +86,51 @@ export type Database = {
         }
         Relationships: []
       }
+      artists: {
+        Row: {
+          bio: string | null
+          contact_email: string | null
+          created_at: string
+          id: string
+          instagram_url: string | null
+          is_active: boolean
+          name: string
+          profile_image_url: string | null
+          slug: string | null
+          updated_at: string
+          website_url: string | null
+          youtube_url: string | null
+        }
+        Insert: {
+          bio?: string | null
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          instagram_url?: string | null
+          is_active?: boolean
+          name: string
+          profile_image_url?: string | null
+          slug?: string | null
+          updated_at?: string
+          website_url?: string | null
+          youtube_url?: string | null
+        }
+        Update: {
+          bio?: string | null
+          contact_email?: string | null
+          created_at?: string
+          id?: string
+          instagram_url?: string | null
+          is_active?: boolean
+          name?: string
+          profile_image_url?: string | null
+          slug?: string | null
+          updated_at?: string
+          website_url?: string | null
+          youtube_url?: string | null
+        }
+        Relationships: []
+      }
       custom_timetable_orders: {
         Row: {
           admin_notes: string | null
@@ -658,6 +703,51 @@ export type Database = {
           },
         ]
       }
+      template_artists: {
+        Row: {
+          artist_id: string
+          created_at: string
+          display_order: number
+          id: string
+          is_primary: boolean
+          role: string
+          template_id: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_primary?: boolean
+          role?: string
+          template_id: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_primary?: boolean
+          role?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_artists_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_artists_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_plans: {
         Row: {
           created_at: string | null
@@ -806,6 +896,89 @@ export type Database = {
           },
           {
             foreignKeyName: "template_purchase_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_sales: {
+        Row: {
+          amount_paid: number
+          artist_names_snapshot: string[]
+          created_at: string
+          currency: string
+          depositor_name: string | null
+          id: string
+          paid_at: string
+          plan_id: string | null
+          purchase_request_id: string
+          refunded_at: string | null
+          status: string
+          template_id: string
+          template_name_snapshot: string
+          updated_at: string
+          user_id: number
+        }
+        Insert: {
+          amount_paid: number
+          artist_names_snapshot?: string[]
+          created_at?: string
+          currency?: string
+          depositor_name?: string | null
+          id?: string
+          paid_at?: string
+          plan_id?: string | null
+          purchase_request_id: string
+          refunded_at?: string | null
+          status?: string
+          template_id: string
+          template_name_snapshot: string
+          updated_at?: string
+          user_id: number
+        }
+        Update: {
+          amount_paid?: number
+          artist_names_snapshot?: string[]
+          created_at?: string
+          currency?: string
+          depositor_name?: string | null
+          id?: string
+          paid_at?: string
+          plan_id?: string | null
+          purchase_request_id?: string
+          refunded_at?: string | null
+          status?: string
+          template_id?: string
+          template_name_snapshot?: string
+          updated_at?: string
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_sales_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "template_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_purchase_request_id_fkey"
+            columns: ["purchase_request_id"]
+            isOneToOne: false
+            referencedRelation: "template_purchase_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"

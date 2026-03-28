@@ -1,11 +1,13 @@
 "use client";
 
 import AccessManagement from "@/components/admin/AccessManagement";
+import ArtistManagement from "@/components/admin/ArtistManagement";
 import CustomOrderManagement from "@/components/admin/CustomOrderManagement";
 import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
+import SalesStatsManagement from "@/components/admin/SalesStatsManagement";
 import SettingsManagement from "@/components/admin/SettingsManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
 import TeamTemplateManagement from "@/components/admin/TeamTemplateManagement";
@@ -17,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertTriangle,
   ArrowLeft,
+  BarChart3,
   Calendar,
   CreditCard,
   FileText,
@@ -28,6 +31,7 @@ import {
   Settings,
   Shield,
   UserCheck,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -38,9 +42,11 @@ type TabType =
   | "users"
   | "teams"
   | "teamTemplates"
+  | "artists"
   | "access"
   | "emailPreview"
   | "purchases"
+  | "salesStats"
   | "customOrders"
   | "workCalendar"
   | "settings";
@@ -101,7 +107,9 @@ function AdminContent() {
     { id: "workCalendar" as TabType, name: "작업 캘린더", icon: Calendar },
     { id: "customOrders" as TabType, name: "맞춤 제작 주문", icon: Palette },
     { id: "purchases" as TabType, name: "결제 대기", icon: CreditCard },
+    { id: "salesStats" as TabType, name: "매출 통계", icon: BarChart3 },
     { id: "templates" as TabType, name: "템플릿 관리", icon: FileText },
+    { id: "artists" as TabType, name: "작가 관리", icon: UserRound },
     { id: "thumbnails" as TabType, name: "썸네일 관리", icon: Image },
     { id: "users" as TabType, name: "사용자 관리", icon: Users },
     { id: "teams" as TabType, name: "팀 관리", icon: UserCheck },
@@ -227,7 +235,9 @@ function AdminContent() {
         {activeTab === "workCalendar" && <DeadlineCalendarView />}
         {activeTab === "customOrders" && <CustomOrderManagement />}
         {activeTab === "purchases" && <PurchaseManagement />}
+        {activeTab === "salesStats" && <SalesStatsManagement />}
         {activeTab === "templates" && <TemplateManagement />}
+        {activeTab === "artists" && <ArtistManagement />}
         {activeTab === "thumbnails" && <ThumbnailManagement />}
         {activeTab === "access" && <AccessManagement />}
         {activeTab === "users" && <UserManagement />}
