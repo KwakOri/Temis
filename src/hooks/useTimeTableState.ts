@@ -300,13 +300,11 @@ export const useTimeTableState = (captureSize?: {
       reader.readAsDataURL(file);
     },
 
-    handleProfileTextChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newText = e.target.value;
-      setProfileText(newText);
+    handleProfileTextChange: (text: string) => {
+      setProfileText(text);
     },
-    handleMemoTextChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newText = e.target.value;
-      setMemoText(newText);
+    handleMemoTextChange: (text: string) => {
+      setMemoText(text);
     },
 
     handleDateChange: (dateStr: string) => {
@@ -336,6 +334,10 @@ export const useTimeTableState = (captureSize?: {
           }
         } else {
           // 단일 선택 모드: 배열 길이가 1개만 유지
+          // 같은 옵션을 다시 클릭하면 "none"으로 변경 (토글)
+          if (prev.includes(option)) {
+            return ["none"];
+          }
           return [option];
         }
       });

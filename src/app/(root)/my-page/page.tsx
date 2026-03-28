@@ -106,11 +106,11 @@ const MyPageContent = () => {
   const getPlanColor = (plan: string | undefined | null) => {
     switch (plan) {
       case "pro":
-        return "bg-indigo-100 text-indigo-800 border-indigo-200";
+        return "bg-secondary/20 text-secondary border-secondary/30";
       case "lite":
-        return "bg-slate-100 text-slate-800 border-slate-200";
+        return "bg-tertiary text-dark-gray border-tertiary";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return "bg-tertiary text-dark-gray border-tertiary";
     }
   };
 
@@ -194,7 +194,7 @@ const MyPageContent = () => {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
           {/* Header */}
           <div className="mb-6 md:mb-8">
@@ -204,7 +204,7 @@ const MyPageContent = () => {
                 <button
                   onClick={handleLogout}
                   disabled={logoutLoading}
-                  className="w-full md:w-auto px-4 py-2 bg-[#1e3a8a] text-white rounded-md hover:bg-[#1e40af] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
+                  className="w-full md:w-auto px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm md:text-base"
                 >
                   {logoutLoading ? (
                     <>
@@ -232,10 +232,10 @@ const MyPageContent = () => {
                 </button>
               </div>
               <div className="w-full text-center md:text-left">
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                <h1 className="text-2xl md:text-3xl font-bold text-dark-gray">
                   마이페이지
                 </h1>
-                <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
+                <p className="mt-1 md:mt-2 text-sm md:text-base text-dark-gray/70">
                   템플릿, 구매 내역, 주문 내역을 한 곳에서 관리하세요.
                 </p>
               </div>
@@ -276,16 +276,16 @@ const MyPageContent = () => {
           )}
 
           {/* Main Content */}
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="bg-timetable-form-bg rounded-lg shadow overflow-hidden border border-tertiary">
             {/* Tab Navigation */}
-            <div className="border-b border-gray-200">
+            <div className="border-b border-tertiary">
               <nav className="flex space-x-8 px-6" aria-label="Tabs">
                 <button
                   onClick={() => setActiveTab("templates")}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     activeTab === "templates"
-                      ? "border-[#1e3a8a] text-[#1e3a8a]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-dark-gray/70 hover:text-dark-gray hover:border-dark-gray/30"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
@@ -304,7 +304,7 @@ const MyPageContent = () => {
                     </svg>
                     <span>내 템플릿</span>
                     {!loading && (
-                      <span className="bg-gray-100 text-gray-600 py-0.5 px-2 rounded-full text-xs">
+                      <span className="bg-tertiary text-dark-gray/70 py-0.5 px-2 rounded-full text-xs">
                         {templates.length}
                       </span>
                     )}
@@ -314,8 +314,8 @@ const MyPageContent = () => {
                   onClick={() => setActiveTab("purchases")}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     activeTab === "purchases"
-                      ? "border-[#1e3a8a] text-[#1e3a8a]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-dark-gray/70 hover:text-dark-gray hover:border-dark-gray/30"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
@@ -339,8 +339,8 @@ const MyPageContent = () => {
                   onClick={() => setActiveTab("custom-orders")}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                     activeTab === "custom-orders"
-                      ? "border-[#1e3a8a] text-[#1e3a8a]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-dark-gray/70 hover:text-dark-gray hover:border-dark-gray/30"
                   }`}
                 >
                   <div className="flex items-center space-x-2">
@@ -373,13 +373,13 @@ const MyPageContent = () => {
                     <>
                       {/* Personal Templates Section */}
                       <div className="mb-8">
-                        <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
+                        <h2 className="text-lg md:text-xl font-semibold text-dark-gray mb-4">
                           개인 템플릿
                         </h2>
                         {templates.length === 0 ? (
                           <div className="text-center py-12 md:py-20">
                             <svg
-                              className="mx-auto h-10 w-10 md:h-12 md:w-12 text-gray-400"
+                              className="mx-auto h-10 w-10 md:h-12 md:w-12 text-dark-gray/40"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -391,10 +391,10 @@ const MyPageContent = () => {
                                 d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
                               />
                             </svg>
-                            <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-gray-900">
+                            <h3 className="mt-3 md:mt-4 text-base md:text-lg font-medium text-dark-gray">
                               템플릿이 없습니다
                             </h3>
-                            <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-500 px-4">
+                            <p className="mt-1 md:mt-2 text-sm md:text-base text-dark-gray/60 px-4">
                               아직 접근 권한이 부여된 템플릿이 없습니다.
                             </p>
                           </div>
@@ -406,10 +406,10 @@ const MyPageContent = () => {
                                 onClick={() =>
                                   handleTemplateClick(template.templates)
                                 }
-                                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
+                                className="bg-timetable-card-bg rounded-lg shadow-sm border border-tertiary hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
                               >
                                 {/* Template Thumbnail */}
-                                <div className="aspect-video bg-gray-100 rounded-t-lg overflow-hidden">
+                                <div className="aspect-video bg-timetable-input-bg rounded-t-lg overflow-hidden">
                                   {template.templates.id ? (
                                     <img
                                       src={`/thumbnail/${template.templates.id}.png`}
@@ -438,7 +438,7 @@ const MyPageContent = () => {
                                 {/* Template Info */}
                                 <div className="p-3 md:p-4">
                                   <div className="flex items-start justify-between mb-1 md:mb-2">
-                                    <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
+                                    <h3 className="text-sm md:text-lg font-semibold text-dark-gray truncate">
                                       {template.templates.name}
                                     </h3>
                                     <span
@@ -451,18 +451,18 @@ const MyPageContent = () => {
                                   </div>
 
                                   {template.templates.description && (
-                                    <p className="text-xs md:text-sm text-gray-600 mb-2 md:mb-3 line-clamp-2">
+                                    <p className="text-xs md:text-sm text-dark-gray/70 mb-2 md:mb-3 line-clamp-2">
                                       {template.templates.description}
                                     </p>
                                   )}
 
-                                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-gray-500">
+                                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-1 md:gap-0 text-xs text-dark-gray/60">
                                     <div className="flex items-center space-x-1">
                                       <span
                                         className={`inline-flex px-1.5 md:px-2 py-0.5 md:py-1 rounded-full text-xs font-medium ${
                                           template.templates.is_public
-                                            ? "bg-green-100 text-green-800"
-                                            : "bg-blue-100 text-blue-800"
+                                            ? "bg-secondary/20 text-secondary"
+                                            : "bg-primary/20 text-primary"
                                         }`}
                                       >
                                         {template.templates.is_public
@@ -480,8 +480,8 @@ const MyPageContent = () => {
 
                       {/* Team Templates Section */}
                       {!teamsLoading && activeTeamsWithTemplate.length > 0 && (
-                        <div className="border-t pt-8">
-                          <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-4">
+                        <div className="border-t border-tertiary pt-8">
+                          <h2 className="text-lg md:text-xl font-semibold text-dark-gray mb-4">
                             팀 템플릿
                           </h2>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
@@ -491,10 +491,10 @@ const MyPageContent = () => {
                                 onClick={() =>
                                   handleTeamTemplateClick(team.team_template!.id)
                                 }
-                                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
+                                className="bg-timetable-card-bg rounded-lg shadow-sm border border-tertiary hover:shadow-md transition-shadow duration-200 cursor-pointer brightness-100 hover:brightness-75"
                               >
                                 {/* Team Template Thumbnail */}
-                                <div className="aspect-video bg-gradient-to-br from-purple-100 to-blue-100 rounded-t-lg overflow-hidden flex items-center justify-center relative">
+                                <div className="aspect-video bg-gradient-to-br from-secondary/20 to-primary/20 rounded-t-lg overflow-hidden flex items-center justify-center relative">
                                   <img
                                     src={`/team-thumbnails/${team.team_template!.id}.png`}
                                     alt={team.team_template!.name}
@@ -511,7 +511,7 @@ const MyPageContent = () => {
                                     }}
                                   />
                                   <svg
-                                    className="h-16 w-16 text-purple-400 absolute"
+                                    className="h-16 w-16 text-secondary absolute"
                                     style={{ display: "none" }}
                                     fill="none"
                                     viewBox="0 0 24 24"
@@ -529,20 +529,20 @@ const MyPageContent = () => {
                                 {/* Team Template Info */}
                                 <div className="p-3 md:p-4">
                                   <div className="flex items-start justify-between mb-1 md:mb-2">
-                                    <h3 className="text-sm md:text-lg font-semibold text-gray-900 truncate">
+                                    <h3 className="text-sm md:text-lg font-semibold text-dark-gray truncate">
                                       {team.team_template!.name}
                                     </h3>
-                                    <span className="ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border bg-purple-100 text-purple-800 border-purple-200">
+                                    <span className="ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 md:py-1 text-xs font-medium rounded-full border bg-secondary/20 text-secondary border-secondary/30">
                                       팀
                                     </span>
                                   </div>
 
-                                  <p className="text-xs md:text-sm text-gray-600 mb-2">
+                                  <p className="text-xs md:text-sm text-dark-gray/70 mb-2">
                                     {team.name}
                                   </p>
 
                                   {team.team_template!.descriptions && (
-                                    <p className="text-xs md:text-sm text-gray-500 line-clamp-2">
+                                    <p className="text-xs md:text-sm text-dark-gray/60 line-clamp-2">
                                       {team.team_template!.descriptions}
                                     </p>
                                   )}
@@ -603,8 +603,8 @@ const MyPage = () => {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gray-50 flex justify-center items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary flex justify-center items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       }
     >

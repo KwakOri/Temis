@@ -1,6 +1,7 @@
 import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
-import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
-import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
+import TextareaRenderer from "@/components/TimeTable/fieldRenderer/TextareaRenderer";
+import TextRenderer from "@/components/TimeTable/fieldRenderer/TextRenderer";
+import { SizeProps } from "@/utils/utils";
 import React from "react";
 
 // Addon 데이터 타입 정의
@@ -31,6 +32,9 @@ export interface TimeTableAddonListProps {
 
   // 레이블 표시 여부
   showLabels?: boolean;
+
+  // 필드 높이
+  height?: SizeProps;
 }
 
 const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
@@ -41,6 +45,7 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
   itemClassName = "bg-white backdrop-blur-md rounded-xl p-4 shadow-[0_4px_5px_rgba(0,0,0,0.15)]",
   fieldsContainerClassName = "flex flex-col gap-4",
   showLabels = false,
+  height = "md",
 }) => {
   // 필드 값 변경 핸들러
   const handleFieldChange = (
@@ -63,23 +68,24 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
     switch (fieldConfig.type) {
       case "text":
         return (
-          <TopicRenderer
+          <TextRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
             maxLength={fieldConfig.maxLength}
             required={fieldConfig.required}
+            height={height}
           />
         );
 
       case "textarea":
         return (
-          <DescriptionRenderer
+          <TextareaRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleDescriptionChange={(newValue) =>
+            handleTextareaChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
             maxLength={fieldConfig.maxLength}
@@ -97,6 +103,7 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
             onChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
+            height={height}
           />
         );
 
@@ -121,10 +128,10 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
 
       case "number":
         return (
-          <TopicRenderer
+          <TextRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleFieldChange(
                 fieldConfig.key,
                 isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
@@ -132,18 +139,20 @@ const TimeTableAddonList: React.FC<TimeTableAddonListProps> = ({
             }
             type="number"
             required={fieldConfig.required}
+            height={height}
           />
         );
 
       default:
         return (
-          <TopicRenderer
+          <TextRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
             required={fieldConfig.required}
+            height={height}
           />
         );
     }

@@ -9,15 +9,23 @@ export type TemplatePlan = Tables<"template_plans">;
 export type PurchaseRequest = Tables<"purchase_requests">;
 export type TemplatePurchaseRequest = Tables<"template_purchase_requests">;
 export type TemplateAccess = Tables<"template_access">;
+export type Artist = Tables<"artists">;
+export type TemplateArtist = Tables<"template_artists">;
+export type TemplateSale = Tables<"template_sales">;
 
 // Extended types
 export interface TemplateWithShopTemplate extends Template {
   shop_templates: ShopTemplate[];
 }
 
+export interface TemplateArtistWithArtist extends TemplateArtist {
+  artist?: Artist | null;
+}
+
 export interface TemplateWithShopTemplateAndPlans extends Template {
   shop_templates: ShopTemplate[];
   template_plans: TemplatePlan[];
+  template_artists?: TemplateArtistWithArtist[];
 }
 
 export interface PurchaseRequestWithTemplate extends PurchaseRequest {
@@ -199,6 +207,62 @@ export interface SendAccessGrantedEmailData {
   email: string;
   userName: string;
   templateName: string;
+}
+
+// Artist Management
+export type CreateArtistData = Omit<
+  TablesInsert<"artists">,
+  "id" | "created_at" | "updated_at"
+>;
+export type UpdateArtistData = TablesUpdate<"artists">;
+
+export interface TemplateArtistInput {
+  artist_id: string;
+  role?: string;
+  is_primary?: boolean;
+  display_order?: number;
+}
+
+// Sales Statistics
+export interface SalesSummary {
+  from: string;
+  to: string;
+  salesCount: number;
+  grossSales: number;
+  averageOrderValue: number;
+}
+
+export interface SalesByTemplate {
+  templateId: string;
+  templateName: string;
+  salesCount: number;
+  revenue: number;
+}
+
+export interface SalesByPlan {
+  plan: string;
+  salesCount: number;
+  revenue: number;
+}
+
+export interface SalesByArtist {
+  artistName: string;
+  salesCount: number;
+  revenue: number;
+}
+
+export interface DailySalesPoint {
+  date: string;
+  salesCount: number;
+  revenue: number;
+}
+
+export interface AdminSalesStatsResponse {
+  summary: SalesSummary;
+  byTemplate: SalesByTemplate[];
+  byPlan: SalesByPlan[];
+  byArtist: SalesByArtist[];
+  daily: DailySalesPoint[];
 }
 
 // Work Schedule Management

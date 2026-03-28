@@ -1,3 +1,12 @@
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export type SizeProps = "sm" | "md" | "lg";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
 export const splitOddEven = (n: number) => {
   const odd = [];
   const even = [];
