@@ -12,6 +12,7 @@ export interface SimpleFieldConfig {
   maxLength?: number;
   options?: Array<{ value: string; label: string }>;
   defaultValue?: string | number;
+  isOffline?: boolean;
 }
 
 export interface CardInputConfig {
@@ -46,6 +47,12 @@ export interface TDynamicCard {
   isOffline: boolean;
   offlineMemo?: string;
   entries: TEntry[];
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | TEntry[]
+    | undefined;
 }
 
 export type TPlaceholders = Record<string, string> & { profileText: string };
