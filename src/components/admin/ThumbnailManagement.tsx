@@ -1,8 +1,9 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import { AdminThumbnailService } from "@/services/admin/thumbnailService";
 import type { Thumbnail } from "@/types/admin";
-import { ExternalLink, Loader2, Plus, X } from "lucide-react";
+import { ExternalLink, Image, Loader2, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -234,26 +235,23 @@ export default function ThumbnailManagement() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-primary">썸네일 관리</h2>
-          <p className="text-xs sm:text-sm text-secondary">전체 썸네일을 조회하고 관리하세요</p>
+      <AdminTabHeader
+        title="썸네일 관리"
+        description="전체 썸네일을 조회하고 관리하세요"
+        icon={Image}
+      >
+        <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
+          <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
+            총 {thumbnails.length}개
+          </span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
-            <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
-              총 {thumbnails.length}개
-            </span>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
-          >
-            + 썸네일 추가
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
+        >
+          + 썸네일 추가
+        </button>
+      </AdminTabHeader>
 
       {/* Tab Navigation */}
       <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">

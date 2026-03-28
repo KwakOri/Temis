@@ -64,8 +64,8 @@ export interface TimeTableActions {
 
   // 복합 액션
   handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleProfileTextChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleMemoTextChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  handleProfileTextChange: (text: string) => void;
+  handleMemoTextChange: (text: string) => void;
 
   handleDateChange: (dateStr: string) => void;
 
