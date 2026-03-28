@@ -252,7 +252,7 @@ export default function ShopPage() {
 
                       return (
                         <div className="text-xs text-slate-500 mb-1">
-                          작가: {primaryArtist?.name || "미지정"}
+                          작가: {primaryArtist?.name || "테미스"}
                         </div>
                       );
                     })()}
