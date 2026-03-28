@@ -92,9 +92,9 @@ export default function TabOrderManagement() {
   const handleSave = async () => {
     try {
       await updateMutation.mutateAsync(
-        localOrders.map((order) => ({
+        localOrders.map((order, index) => ({
           tab_id: order.tab_id,
-          order_index: order.order_index,
+          order_index: index,
           is_visible: order.is_visible,
         }))
       );

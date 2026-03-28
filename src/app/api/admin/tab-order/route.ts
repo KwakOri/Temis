@@ -42,36 +42,21 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update each tab order
-    const updates = orders.map(async (order) => {
-      const updateData: {
-        order_index: number;
-        is_visible?: boolean;
-        updated_at: string;
-      } = {
-        order_index: order.order_index,
-        updated_at: new Date().toISOString(),
-      };
+    const normalizedOrders = orders.map((order, index) => ({
+      tab_id: order.tab_id,
+      order_index: index,
+      is_visible: order.is_visible ?? true,
+      updated_at: new Date().toISOString(),
+    }));
 
-      if (order.is_visible !== undefined) {
-        updateData.is_visible = order.is_visible;
-      }
+    const { error: upsertError } = await supabase
+      .from("admin_tab_order")
+      .upsert(normalizedOrders, { onConflict: "tab_id" });
 
-      return supabase
-        .from("admin_tab_order")
-        .update(updateData)
-        .eq("tab_id", order.tab_id)
-        .select();
-    });
-
-    const results = await Promise.all(updates);
-
-    // Check for errors
-    const errors = results.filter((result) => result.error);
-    if (errors.length > 0) {
-      console.error("Database errors:", errors);
+    if (upsertError) {
+      console.error("Database error:", upsertError);
       return NextResponse.json(
-        { error: "Failed to update some tab orders" },
+        { error: "Failed to update tab orders" },
         { status: 500 }
       );
     }

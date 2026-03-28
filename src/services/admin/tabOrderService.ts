@@ -6,6 +6,7 @@ export class TabOrderService {
   static async getTabOrders(): Promise<AdminTabOrder[]> {
     const response = await fetch(this.baseUrl, {
       credentials: "include",
+      cache: "no-store",
     });
 
     if (!response.ok) {

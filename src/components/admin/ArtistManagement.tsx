@@ -11,7 +11,6 @@ import { useMemo, useState } from "react";
 
 interface ArtistForm {
   name: string;
-  slug: string;
   bio: string;
   profile_image_url: string;
   instagram_url: string;
@@ -22,7 +21,6 @@ interface ArtistForm {
 
 const initialForm: ArtistForm = {
   name: "",
-  slug: "",
   bio: "",
   profile_image_url: "",
   instagram_url: "",
@@ -35,6 +33,7 @@ export default function ArtistManagement() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<ArtistForm>(initialForm);
   const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: artists = [], isLoading, error } = useAdminArtists({ search });
   const createMutation = useCreateAdminArtist();
@@ -53,36 +52,40 @@ export default function ArtistManagement() {
     setEditingArtist(null);
   };
 
+  const openCreateModal = () => {
+    resetForm();
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
+      const payload = {
+        name: form.name,
+        bio: form.bio || null,
+        profile_image_url: form.profile_image_url || null,
+        instagram_url: form.instagram_url || null,
+        youtube_url: form.youtube_url || null,
+        website_url: form.website_url || null,
+        is_active: form.is_active,
+      };
+
       if (editingArtist) {
         await updateMutation.mutateAsync({
           artistId: editingArtist.id,
-          data: {
-            ...form,
-            slug: form.slug || null,
-            bio: form.bio || null,
-            profile_image_url: form.profile_image_url || null,
-            instagram_url: form.instagram_url || null,
-            youtube_url: form.youtube_url || null,
-            website_url: form.website_url || null,
-          },
+          data: payload,
         });
       } else {
-        await createMutation.mutateAsync({
-          ...form,
-          slug: form.slug || null,
-          bio: form.bio || null,
-          profile_image_url: form.profile_image_url || null,
-          instagram_url: form.instagram_url || null,
-          youtube_url: form.youtube_url || null,
-          website_url: form.website_url || null,
-        });
+        await createMutation.mutateAsync(payload);
       }
 
-      resetForm();
+      closeModal();
     } catch (submitError) {
       console.error("Artist submit error:", submitError);
       alert(
@@ -97,7 +100,6 @@ export default function ArtistManagement() {
     setEditingArtist(artist);
     setForm({
       name: artist.name,
-      slug: artist.slug || "",
       bio: artist.bio || "",
       profile_image_url: artist.profile_image_url || "",
       instagram_url: artist.instagram_url || "",
@@ -105,6 +107,7 @@ export default function ArtistManagement() {
       website_url: artist.website_url || "",
       is_active: artist.is_active,
     });
+    setIsModalOpen(true);
   };
 
   const handleDelete = async (artistId: string) => {
@@ -147,113 +150,29 @@ export default function ArtistManagement() {
   return (
     <div className="space-y-6">
       <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">작가 관리</h2>
             <p className="text-sm text-gray-600">
               등록 {artists.length}명 / 활성 {activeCount}명
             </p>
           </div>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="작가 검색"
-            className="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-3 border-t pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <input
-              required
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="작가명 *"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="작가 검색"
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
-            <input
-              value={form.slug}
-              onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
-              placeholder="슬러그 (선택)"
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <input
-              value={form.profile_image_url}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, profile_image_url: e.target.value }))
-              }
-              placeholder="프로필 이미지 URL"
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <input
-              value={form.instagram_url}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, instagram_url: e.target.value }))
-              }
-              placeholder="인스타그램 URL"
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <input
-              value={form.youtube_url}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, youtube_url: e.target.value }))
-              }
-              placeholder="유튜브 URL"
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <input
-              value={form.website_url}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, website_url: e.target.value }))
-              }
-              placeholder="웹사이트 URL"
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <textarea
-            value={form.bio}
-            onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
-            placeholder="작가 소개"
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              checked={form.is_active}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, is_active: e.target.checked }))
-              }
-              className="w-4 h-4"
-            />
-            활성 작가
-          </label>
-
-          <div className="flex items-center gap-2">
             <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:opacity-50"
+              type="button"
+              onClick={openCreateModal}
+              className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary transition-colors whitespace-nowrap"
             >
-              {isSubmitting
-                ? "저장 중..."
-                : editingArtist
-                ? "작가 수정"
-                : "작가 추가"}
+              작가 등록
             </button>
-            {editingArtist && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-              >
-                취소
-              </button>
-            )}
           </div>
-        </form>
+        </div>
       </div>
 
       {error && (
@@ -289,7 +208,6 @@ export default function ArtistManagement() {
                   <tr key={artist.id}>
                     <td className="px-4 py-3">
                       <div className="font-medium text-gray-900">{artist.name}</div>
-                      <div className="text-xs text-gray-500">{artist.slug || "-"}</div>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 max-w-md">
                       <div className="line-clamp-2">{artist.bio || "-"}</div>
@@ -329,7 +247,116 @@ export default function ArtistManagement() {
           </div>
         )}
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={closeModal}
+          />
+          <div className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {editingArtist ? "작가 수정" : "작가 등록"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                >
+                  닫기
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="작가명 *"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  value={form.profile_image_url}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, profile_image_url: e.target.value }))
+                  }
+                  placeholder="프로필 이미지 URL"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  value={form.instagram_url}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, instagram_url: e.target.value }))
+                  }
+                  placeholder="인스타그램 URL"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  value={form.youtube_url}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, youtube_url: e.target.value }))
+                  }
+                  placeholder="유튜브 URL"
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <input
+                  value={form.website_url}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, website_url: e.target.value }))
+                  }
+                  placeholder="웹사이트 URL"
+                  className="sm:col-span-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <textarea
+                value={form.bio}
+                onChange={(e) => setForm((prev) => ({ ...prev, bio: e.target.value }))}
+                placeholder="작가 소개"
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, is_active: e.target.checked }))
+                  }
+                  className="w-4 h-4"
+                />
+                활성 작가
+              </label>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary disabled:opacity-50"
+                >
+                  {isSubmitting
+                    ? "저장 중..."
+                    : editingArtist
+                    ? "작가 수정"
+                    : "작가 등록"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
