@@ -160,6 +160,23 @@ for (const schema of remoteDumpSchemas) {
 runCommand("supabase", dataDumpArgs);
 
 console.log("[dev:local] 6/7 Importing remote data...");
+const dumpTables = extractCopyTablesFromDump(dumpFilePath);
+if (dumpTables.length > 0) {
+  const truncateSql = `TRUNCATE TABLE ${dumpTables.join(
+    ", "
+  )} RESTART IDENTITY CASCADE;`;
+  console.log(
+    `[dev:local]    Truncating ${dumpTables.length} table(s) before import to avoid duplicate key conflicts...`
+  );
+  runCommand("psql", [
+    localDbUrl,
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-q",
+    "-c",
+    truncateSql,
+  ]);
+}
 runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", dumpFilePath]);
 
 console.log("[dev:local] 7/7 Starting Next.js with local Supabase keys...");
@@ -288,6 +305,25 @@ function parseEnvFile(content) {
   }
 
   return parsed;
+}
+
+function extractCopyTablesFromDump(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+
+  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
+  const tables = new Set();
+
+  for (const line of lines) {
+    const match = line.match(/^COPY\s+([^\s(]+)\s+\(/);
+    if (!match) continue;
+
+    const tableName = match[1]?.trim();
+    if (tableName) {
+      tables.add(tableName);
+    }
+  }
+
+  return Array.from(tables);
 }
 
 function resolveEnvReference(rawValue, sourceEnv) {
