@@ -219,6 +219,18 @@ export default function ShopPage() {
                   </div>
 
                   <div className="p-6">
+                    {(() => {
+                      const primaryArtist =
+                        template.template_artists?.find((item) => item.is_primary)
+                          ?.artist ||
+                        template.template_artists?.[0]?.artist;
+
+                      return (
+                        <div className="text-xs text-slate-500 mb-1">
+                          작가: {primaryArtist?.name || "미지정"}
+                        </div>
+                      );
+                    })()}
                     <h3 className="font-semibold text-lg text-dark-gray group-hover:text-primary transition-colors mb-2">
                       {template.templates.name}
                     </h3>

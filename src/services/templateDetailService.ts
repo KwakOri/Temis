@@ -14,7 +14,11 @@ export class TemplateDetailService {
       .select(`
         *,
         templates!inner (*),
-        template_plans:template_plans!shop_template_id (*)
+        template_plans:template_plans!shop_template_id (*),
+        template_artists (
+          *,
+          artist:artists(*)
+        )
       `)
       .eq("template_id", templateId)
       .eq("is_shop_visible", true)
@@ -34,7 +38,7 @@ export class TemplateDetailService {
   static async submitPurchaseRequest(
     requestData: PurchaseRequestData
   ): Promise<PurchaseRequestResponse> {
-    const response = await fetch("/api/shop/purchase-request", {
+    const response = await fetch("/api/template-purchase-requests", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

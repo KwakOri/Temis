@@ -10,7 +10,11 @@ export class ShopService {
       .select(`
         *,
         templates!inner (*),
-        template_plans:template_plans!shop_template_id (*)
+        template_plans:template_plans!shop_template_id (*),
+        template_artists (
+          *,
+          artist:artists(*)
+        )
       `)
       .eq("is_shop_visible", true)
       .order("created_at", { ascending: sortOrder === "oldest" });
