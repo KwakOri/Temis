@@ -15,6 +15,10 @@ const envFromFiles = loadEnvFiles([
   path.join(rootDir, ".env.local"),
   path.join(rootDir, ".envrc"),
 ]);
+const envForResolution = {
+  ...envFromFiles,
+  ...process.env,
+};
 
 const remoteDbUrl =
   process.env.SUPABASE_REMOTE_DB_URL ?? envFromFiles.SUPABASE_REMOTE_DB_URL;
@@ -22,16 +26,38 @@ const projectRef =
   process.env.SUPABASE_PROJECT_REF ??
   envFromFiles.SUPABASE_PROJECT_REF ??
   defaultProjectRef;
-const resolvedAccessToken =
+const resolvedAccessToken = resolveEnvReference(
   process.env.SUPABASE_ACCESS_TOKEN ??
-  envFromFiles.SUPABASE_ACCESS_TOKEN ??
-  process.env.SB_TOKEN_TEMIS ??
-  envFromFiles.SB_TOKEN_TEMIS;
+    process.env.SB_TOKEN_TEMIS ??
+    envFromFiles.SUPABASE_ACCESS_TOKEN ??
+    envFromFiles.SB_TOKEN_TEMIS,
+  envForResolution
+);
 const useLinkedRemote = !remoteDbUrl;
+const defaultStartExcludes = [
+  "realtime",
+  "storage-api",
+  "imgproxy",
+  "mailpit",
+  "postgres-meta",
+  "studio",
+  "edge-runtime",
+  "logflare",
+  "vector",
+  "supavisor",
+];
+const startExcludes = (
+  process.env.SUPABASE_START_EXCLUDE ??
+  envFromFiles.SUPABASE_START_EXCLUDE ??
+  defaultStartExcludes.join(",")
+)
+  .split(",")
+  .map((service) => service.trim())
+  .filter(Boolean);
 const remoteDumpSchemas = (
   process.env.SUPABASE_REMOTE_DUMP_SCHEMAS ??
   envFromFiles.SUPABASE_REMOTE_DUMP_SCHEMAS ??
-  "public,auth,storage"
+  "public"
 )
   .split(",")
   .map((schema) => schema.trim())
@@ -59,7 +85,14 @@ ensureCommandAvailable("psql");
 fs.mkdirSync(tempDir, { recursive: true });
 
 console.log("[dev:local] 1/7 Starting local Supabase containers...");
-runCommand("supabase", ["start", "--workdir", rootDir]);
+const startArgs = ["start", "--workdir", rootDir];
+for (const excludedService of startExcludes) {
+  startArgs.push("--exclude", excludedService);
+}
+if (startExcludes.length > 0) {
+  console.log(`[dev:local]    Excluding services: ${startExcludes.join(", ")}`);
+}
+runCommand("supabase", startArgs);
 
 console.log("[dev:local] 2/7 Loading local Supabase connection info...");
 const statusEnv = parseStatusOutput(
@@ -255,4 +288,31 @@ function parseEnvFile(content) {
   }
 
   return parsed;
+}
+
+function resolveEnvReference(rawValue, sourceEnv) {
+  if (!rawValue) return rawValue;
+
+  let resolved = rawValue.trim();
+  const visited = new Set();
+
+  while (true) {
+    const referenceMatch = resolved.match(/^\$(\w+)$/) ?? resolved.match(/^\$\{(\w+)\}$/);
+    if (!referenceMatch) {
+      return resolved;
+    }
+
+    const key = referenceMatch[1];
+    if (visited.has(key)) {
+      return resolved;
+    }
+    visited.add(key);
+
+    const nextValue = sourceEnv[key];
+    if (!nextValue || typeof nextValue !== "string") {
+      return resolved;
+    }
+
+    resolved = nextValue.trim();
+  }
 }

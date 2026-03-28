@@ -34,15 +34,16 @@ npm run dev:local
 
 What `dev:local` does:
 
-- starts local Supabase containers
+- starts a minimal local Supabase stack (Postgres + PostgREST + Kong + Auth)
 - links to remote project when using token mode
 - resets local DB to current local migrations
-- dumps remote data (`public,auth,storage` by default)
+- dumps remote data (`public` by default)
 - imports remote data into local DB
 - starts Next.js with local Supabase URL/keys injected
 
 Tip: pass Next.js args through the command, e.g. `npm run dev:local -- -p 3001`.
 Tip: override copied schemas with `SUPABASE_REMOTE_DUMP_SCHEMAS` (comma-separated).
+Tip: override excluded services with `SUPABASE_START_EXCLUDE` (comma-separated, empty string to disable exclusions).
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
