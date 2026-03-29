@@ -1,7 +1,7 @@
 import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
 import DateRenderer from "@/components/TimeTable/fieldRenderer/DateRenderer";
-import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
-import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
+import TextareaRenderer from "@/components/TimeTable/fieldRenderer/TextareaRenderer";
+import TextRenderer from "@/components/TimeTable/fieldRenderer/TextRenderer";
 import {
   CardInputConfig,
   SimpleFieldConfig,
@@ -60,12 +60,13 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
     switch (fieldConfig.type) {
       case "text":
         return (
-          <TopicRenderer
+          <TextRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
+            height="sm"
             maxLength={fieldConfig.maxLength}
             required={fieldConfig.required}
           />
@@ -73,10 +74,10 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
 
       case "textarea":
         return (
-          <DescriptionRenderer
+          <TextareaRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleDescriptionChange={(newValue) =>
+            handleTextareaChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
             maxLength={fieldConfig.maxLength}
@@ -94,6 +95,7 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
             onChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
+            height="sm"
           />
         );
 
@@ -118,10 +120,10 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
             className={`${commonClassName} appearance-none cursor-pointer`}
             style={{
               backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`,
-              backgroundPosition: 'right 0.75rem center',
-              backgroundRepeat: 'no-repeat',
-              backgroundSize: '1.5em 1.5em',
-              paddingRight: '2.5rem',
+              backgroundPosition: "right 0.75rem center",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "1.5em 1.5em",
+              paddingRight: "2.5rem",
             }}
             onChange={(e) => handleFieldChange(fieldConfig.key, e.target.value)}
           >
@@ -138,15 +140,16 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
 
       case "number":
         return (
-          <TopicRenderer
+          <TextRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleFieldChange(
                 fieldConfig.key,
                 isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
               )
             }
+            height="sm"
             type="number"
             required={fieldConfig.required}
           />
@@ -154,12 +157,13 @@ const ThumbnailInputCard: React.FC<ThumbnailInputCardProps> = ({
 
       default:
         return (
-          <TopicRenderer
+          <TextRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleFieldChange(fieldConfig.key, newValue)
             }
+            height="sm"
             required={fieldConfig.required}
           />
         );

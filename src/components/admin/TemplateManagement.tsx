@@ -1,22 +1,27 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
+import {
+  useAdminArtists,
+  useUpdateTemplateArtists,
+} from "@/hooks/query/useAdminArtists";
 import {
   useAdminTemplates,
   useCreateAdminTemplate,
   useCreateTemplatePlan,
   useCreateShopTemplate,
-  useTemplatePlans,
   useUpdateAdminTemplate,
   useUpdateTemplatePlan,
   useUpdateShopTemplate,
 } from "@/hooks/query/useAdminTemplates";
 import { AdminTemplateService } from "@/services/admin/templateService";
 import type {
+  Artist,
   CreateTemplateData,
-  CreateShopTemplateData,
   TemplatePlan,
   TemplateWithShopTemplateAndPlans,
 } from "@/types/admin";
+import { FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 
 interface CreateTemplateForm {
@@ -83,6 +88,8 @@ export default function TemplateManagement() {
   const updateProductMutation = useUpdateShopTemplate();
   const createPlanMutation = useCreateTemplatePlan();
   const updatePlanMutation = useUpdateTemplatePlan();
+  const updateTemplateArtistsMutation = useUpdateTemplateArtists();
+  const { data: artists = [] } = useAdminArtists({ isActive: true });
 
   const error = templatesError ? (templatesError as Error).message : "";
   const createLoading = createTemplateMutation.isPending;
@@ -151,8 +158,12 @@ export default function TemplateManagement() {
       is_offline_memo: false,
     },
   });
+  const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>([]);
+  const [primaryArtistId, setPrimaryArtistId] = useState<string | null>(null);
   const productLoading =
-    createProductMutation.isPending || updateProductMutation.isPending;
+    createProductMutation.isPending ||
+    updateProductMutation.isPending ||
+    updateTemplateArtistsMutation.isPending;
 
   const togglePublicStatus = async (
     templateId: string,
@@ -360,9 +371,45 @@ export default function TemplateManagement() {
     });
   };
 
+  const applyArtistSelectionFromTemplate = (
+    template: TemplateWithShopTemplateAndPlans
+  ) => {
+    const relations = (template.template_artists || []).slice().sort((a, b) => {
+      if (a.is_primary === b.is_primary) {
+        return (a.display_order || 0) - (b.display_order || 0);
+      }
+      return a.is_primary ? -1 : 1;
+    });
+
+    const artistIds = relations.map((relation) => relation.artist_id);
+    const primary = relations.find((relation) => relation.is_primary)?.artist_id;
+
+    setSelectedArtistIds(artistIds);
+    setPrimaryArtistId(primary || artistIds[0] || null);
+  };
+
+  const handleArtistToggle = (artist: Artist, checked: boolean) => {
+    setSelectedArtistIds((prev) => {
+      if (checked) {
+        const next = prev.includes(artist.id) ? prev : [...prev, artist.id];
+        if (!primaryArtistId) {
+          setPrimaryArtistId(artist.id);
+        }
+        return next;
+      }
+
+      const next = prev.filter((id) => id !== artist.id);
+      if (primaryArtistId === artist.id) {
+        setPrimaryArtistId(next[0] || null);
+      }
+      return next;
+    });
+  };
+
   // 상품 등록 모달 열기
   const handleCreateProduct = (template: TemplateWithShopTemplateAndPlans) => {
     setSelectedTemplate(template);
+    applyArtistSelectionFromTemplate(template);
     setProductFormData({
       title: template.name,
       detailed_description: "",
@@ -414,6 +461,7 @@ export default function TemplateManagement() {
     const proPlan = plans.find((p) => p.plan === "pro");
 
     setSelectedTemplate(template);
+    applyArtistSelectionFromTemplate(template);
     setProductFormData({
       title: product.title || template.name,
       detailed_description: product.detailed_description || "",
@@ -555,8 +603,27 @@ export default function TemplateManagement() {
         }
       }
 
+      const normalizedPrimaryArtistId =
+        selectedArtistIds.length === 0
+          ? null
+          : selectedArtistIds.includes(primaryArtistId || "")
+          ? primaryArtistId
+          : selectedArtistIds[0];
+
+      await updateTemplateArtistsMutation.mutateAsync({
+        templateId: selectedTemplate.id,
+        relations: selectedArtistIds.map((artistId, index) => ({
+          artist_id: artistId,
+          role: "creator",
+          is_primary: normalizedPrimaryArtistId === artistId,
+          display_order: index,
+        })),
+      });
+
       setShowProductModal(false);
       setSelectedTemplate(null);
+      setSelectedArtistIds([]);
+      setPrimaryArtistId(null);
     } catch (error) {
       console.error("Product submit error:", error);
       alert(error instanceof Error ? error.message : "오류가 발생했습니다.");
@@ -581,26 +648,23 @@ export default function TemplateManagement() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-primary">템플릿 관리</h2>
-          <p className="text-xs sm:text-sm text-secondary">전체 템플릿을 조회하고 관리하세요</p>
+      <AdminTabHeader
+        title="템플릿 관리"
+        description="전체 템플릿을 조회하고 관리하세요"
+        icon={FileText}
+      >
+        <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
+          <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
+            총 {pagination?.total || 0}개
+          </span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
-            <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
-              총 {pagination?.total || 0}개
-            </span>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
-          >
-            + 템플릿 추가
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
+        >
+          + 템플릿 추가
+        </button>
+      </AdminTabHeader>
 
       {/* Tab Navigation */}
       <div className="bg-white p-3 sm:p-4 rounded-lg shadow-sm">
@@ -1507,6 +1571,8 @@ export default function TemplateManagement() {
                 onClick={() => {
                   setShowProductModal(false);
                   setSelectedTemplate(null);
+                  setSelectedArtistIds([]);
+                  setPrimaryArtistId(null);
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -1639,6 +1705,58 @@ export default function TemplateManagement() {
                   rows={3}
                   placeholder="결제 확인 후 1-2일 이내 권한 부여"
                 />
+              </div>
+
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                  작가 연결
+                </h4>
+                <p className="text-xs text-gray-500 mb-3">
+                  이 템플릿에 연결할 작가를 선택하고 대표 작가를 지정하세요.
+                </p>
+
+                {artists.length === 0 ? (
+                  <div className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-md p-3">
+                    등록된 작가가 없습니다. 먼저 작가 관리 탭에서 작가를 등록해 주세요.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {artists.map((artist) => {
+                      const checked = selectedArtistIds.includes(artist.id);
+                      return (
+                        <div
+                          key={artist.id}
+                          className="border border-gray-200 rounded-md p-3 flex items-center justify-between gap-3"
+                        >
+                          <label className="flex items-center gap-2 min-w-0">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) =>
+                                handleArtistToggle(artist, e.target.checked)
+                              }
+                              className="w-4 h-4 text-indigo-600 border-gray-300 rounded"
+                            />
+                            <span className="text-sm text-gray-800 truncate">
+                              {artist.name}
+                            </span>
+                          </label>
+                          <label className="flex items-center gap-1 text-xs text-gray-600">
+                            <input
+                              type="radio"
+                              name="primary-artist"
+                              disabled={!checked}
+                              checked={checked && primaryArtistId === artist.id}
+                              onChange={() => setPrimaryArtistId(artist.id)}
+                              className="w-4 h-4 text-indigo-600 border-gray-300"
+                            />
+                            대표
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* 템플릿 기본 기능 섹션 */}
@@ -1826,6 +1944,8 @@ export default function TemplateManagement() {
                   onClick={() => {
                     setShowProductModal(false);
                     setSelectedTemplate(null);
+                    setSelectedArtistIds([]);
+                    setPrimaryArtistId(null);
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
                   disabled={productLoading}

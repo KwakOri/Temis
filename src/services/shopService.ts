@@ -1,5 +1,11 @@
 import { supabase } from "@/lib/supabase";
-import { SortOrder, ShopTemplate } from "@/types/shop";
+import { SortOrder, ShopTemplate, TemplateArtist } from "@/types/shop";
+
+type ShopTemplateRow = Omit<ShopTemplate, "template_artists"> & {
+  templates: ShopTemplate["templates"] & {
+    template_artists?: TemplateArtist[];
+  };
+};
 
 export class ShopService {
   static async getPublicTemplates(
@@ -9,7 +15,13 @@ export class ShopService {
       .from("shop_templates")
       .select(`
         *,
-        templates!inner (*),
+        templates!inner (
+          *,
+          template_artists (
+            *,
+            artist:artists(*)
+          )
+        ),
         template_plans:template_plans!shop_template_id (*)
       `)
       .eq("is_shop_visible", true)
@@ -19,7 +31,12 @@ export class ShopService {
       throw new Error(`템플릿을 가져오는데 실패했습니다: ${error.message}`);
     }
 
-    return data || [];
+    const rows = (data || []) as ShopTemplateRow[];
+
+    return rows.map((row) => ({
+      ...row,
+      template_artists: row.templates.template_artists || [],
+    }));
   }
 
   static async getUserTemplateAccess(userId: string): Promise<string[]> {
