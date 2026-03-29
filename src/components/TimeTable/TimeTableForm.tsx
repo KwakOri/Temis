@@ -1,26 +1,26 @@
-import ImageCropModal from "@/components/ImageCropModal";
-import ImageSaveModal from "@/components/TimeTable/ImageSaveModal";
-import MondaySelector from "@/components/TimeTable/MondaySelector";
-import ResetButton from "@/components/TimeTable/ResetButton";
-import TimeTableFormTabs from "@/components/TimeTable/TimeTableFormTabs";
-import { useTimeTable } from "@/contexts/TimeTableContext";
+import ImageCropModal from '@/components/ImageCropModal';
+import ImageSaveModal from '@/components/TimeTable/ImageSaveModal';
+import MondaySelector from '@/components/TimeTable/MondaySelector';
+import ResetButton from '@/components/TimeTable/ResetButton';
+import TimeTableFormTabs from '@/components/TimeTable/TimeTableFormTabs';
+import { useTimeTable } from '@/contexts/TimeTableContext';
 import {
   useHasActiveTeam,
   useSaveTeamScheduleFromDynamicCards,
-} from "@/hooks/query/useTeam";
-import { TeamService } from "@/services/teamService";
-import { CroppedAreaPixels } from "@/types/image-edit";
-import { TDefaultCard } from "@/types/time-table/data";
-import { SizeProps } from "@/utils/utils";
-import { useQuery } from "@tanstack/react-query";
-import { usePathname } from "next/navigation";
-import React, { PropsWithChildren, useRef, useState } from "react";
-import { Point } from "react-easy-crop";
+} from '@/hooks/query/useTeam';
+import { TeamService } from '@/services/teamService';
+import { CroppedAreaPixels } from '@/types/image-edit';
+import { TDefaultCard } from '@/types/time-table/data';
+import { SizeProps } from '@/utils/utils';
+import { useQuery } from '@tanstack/react-query';
+import { usePathname } from 'next/navigation';
+import React, { PropsWithChildren, useRef, useState } from 'react';
+import { Point } from 'react-easy-crop';
 
-import { FormCard } from "./FixedComponents/FormCard";
-import TimeTableProfileImageSelector from "./TimeTableProfileImageSelector";
-import TextRenderer from "./fieldRenderer/TextRenderer";
-import TextareaRenderer from "./fieldRenderer/TextareaRenderer";
+import { FormCard } from './FixedComponents/FormCard';
+import TimeTableProfileImageSelector from './TimeTableProfileImageSelector';
+import TextRenderer from './fieldRenderer/TextRenderer';
+import TextareaRenderer from './fieldRenderer/TextareaRenderer';
 interface TimeTableFormProps {
   isArtist?: boolean;
   isMemo?: boolean;
@@ -50,8 +50,8 @@ const ProfileOptionButton = ({
       onClick={handler}
       className={`px-3 py-1 rounded-md text-[10px] font-bold transition-colors ${
         isChecked
-          ? "bg-timetable-primary text-white"
-          : "text-gray-500 hover:bg-gray-200"
+          ? 'bg-timetable-primary text-white'
+          : 'text-gray-500 hover:bg-gray-200'
       }`}
     >
       {label}
@@ -70,7 +70,7 @@ const TimeTableForm = ({
   isMemo = false,
   saveable = true,
   multiSelect = false,
-  size = "sm",
+  size = 'sm',
 }: PropsWithChildren<TimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
   const pathname = usePathname();
@@ -81,9 +81,9 @@ const TimeTableForm = ({
   const saveTeamScheduleMutation = useSaveTeamScheduleFromDynamicCards();
 
   // 현재 경로에서 template ID 추출하고 팀 템플릿인지 확인
-  const templateId = pathname?.split("/").pop();
+  const templateId = pathname?.split('/').pop();
   const { data: isTeamCalendar = false } = useQuery({
-    queryKey: ["isTeamCalendar", templateId],
+    queryKey: ['isTeamCalendar', templateId],
     queryFn: async () => {
       if (!templateId) return false;
 
@@ -94,7 +94,7 @@ const TimeTableForm = ({
         const data = await response.json();
         return data.isTeamTemplate || false;
       } catch (error) {
-        console.error("Error checking team calendar:", error);
+        console.error('Error checking team calendar:', error);
         return false;
       }
     },
@@ -121,7 +121,7 @@ const TimeTableForm = ({
     downloadImage,
   } = actions;
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState("main");
+  const [activeTab, setActiveTab] = useState('main');
   const [showCropModal, setShowCropModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -136,7 +136,7 @@ const TimeTableForm = ({
       setSelectedImage(editData.originalImageSrc);
       setShowCropModal(true);
     } else {
-      alert("편집할 이미지가 없습니다.");
+      alert('편집할 이미지가 없습니다.');
     }
   };
 
@@ -150,7 +150,7 @@ const TimeTableForm = ({
     if (!file) return;
 
     // PNG 파일인지 확인
-    const isPNG = file.type === "image/png";
+    const isPNG = file.type === 'image/png';
 
     const reader = new FileReader();
     reader.onloadend = () => {
@@ -165,8 +165,8 @@ const TimeTableForm = ({
         // PNG가 아닌 경우에만 canvas를 사용해서 PNG로 변환
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
 
           if (!ctx) {
             setSelectedImage(result);
@@ -183,7 +183,7 @@ const TimeTableForm = ({
           ctx.drawImage(img, 0, 0);
 
           // PNG 형식으로 변환 (투명도 보존)
-          const pngDataUrl = canvas.toDataURL("image/png");
+          const pngDataUrl = canvas.toDataURL('image/png');
           setSelectedImage(pngDataUrl);
           actions.setOriginalImage(pngDataUrl, cropWidth, cropHeight);
           setShowCropModal(true);
@@ -195,7 +195,7 @@ const TimeTableForm = ({
 
     // 파일 입력 초기화 (같은 파일을 다시 선택할 수 있도록)
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value = '';
     }
   };
 
@@ -259,7 +259,7 @@ const TimeTableForm = ({
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch (error) {
-      console.error("팀 시간표 자동 저장 실패:", error);
+      console.error('팀 시간표 자동 저장 실패:', error);
       // 에러를 다시 던져서 ImageSaveModal에서 처리할 수 있도록 함
       throw error;
     }
@@ -290,8 +290,8 @@ const TimeTableForm = ({
   // ];
 
   const handleToggleProfileImage = () =>
-    handleOptionClick("profile", multiSelect);
-  const handleToggleMemo = () => handleOptionClick("memo", multiSelect);
+    handleOptionClick('profile', multiSelect);
+  const handleToggleMemo = () => handleOptionClick('memo', multiSelect);
 
   const renderMainSettings = () => (
     <div className="space-y-4">
@@ -323,7 +323,7 @@ const TimeTableForm = ({
           <TextRenderer
             height={size}
             value={profileText}
-            placeholder={"이름을 입력해 주세요"}
+            placeholder={'이름을 입력해 주세요'}
             handleTextChange={handleProfileTextChange}
             maxLength={20}
             required={true}
@@ -339,9 +339,9 @@ const TimeTableForm = ({
         >
           <TextareaRenderer
             value={memoText}
-            placeholder={"메모를 입력해 주세요"}
+            placeholder={'메모를 입력해 주세요'}
             handleTextareaChange={handleMemoTextChange}
-            maxLength={20}
+            maxLength={200}
             required={true}
           />
         </FormCard>
@@ -377,8 +377,8 @@ const TimeTableForm = ({
               isAddons={!!addons}
             />
             <div className="flex-1 overflow-y-auto p-4 h-full bg-timetable-form-bg">
-              {activeTab === "main" && renderMainSettings()}
-              {activeTab === "addons" && renderAddonsContent()}
+              {activeTab === 'main' && renderMainSettings()}
+              {activeTab === 'addons' && renderAddonsContent()}
             </div>
           </div>
 
@@ -389,7 +389,7 @@ const TimeTableForm = ({
                   saveable
                     ? handleSaveClick
                     : () => {
-                        alert("PLAYGROUND에서는 제공되지 않는 기능입니다.");
+                        alert('PLAYGROUND에서는 제공되지 않는 기능입니다.');
                       }
                 }
                 className="flex-1 bg-timetable-primary text-white py-3 rounded-md text-base font-bold hover:bg-timetable-primary-hover transition"
