@@ -10,6 +10,7 @@ import { TTheme } from "@/types/time-table/theme";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
 import { createPlaceholdersFromConfig } from "@/utils/time-table/data";
+import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
 import { Imgs } from "../_img/imgs";
 
 // type TCARD = "A" | "B" | "C" | "D";
@@ -87,7 +88,7 @@ const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
     <p
       style={{
         color: renderConfig.componentColors.STREAMING_DATE,
-        fontFamily: renderConfig.componentFonts.STREAMING_DATE,
+        fontFamily: v2_getComponentFontFamily(renderConfig, "STREAMING_DATE"),
         width: streamingDateLayout.width,
         height: streamingDateLayout.height,
         lineHeight: streamingDateLayout.lineHeight,
@@ -113,7 +114,7 @@ const CardStreamingTime = ({
   return (
     <p
       style={{
-        fontFamily: renderConfig.componentFonts.STREAMING_TIME,
+        fontFamily: v2_getComponentFontFamily(renderConfig, "STREAMING_TIME"),
         color: renderConfig.componentColors.STREAMING_TIME,
         width: streamingTimeLayout.width,
         height: streamingTimeLayout.height,
@@ -147,7 +148,7 @@ const CardMainTitle = ({ content }: CardMainTitleProps) => {
     >
       <AutoResizeText
         style={{
-          fontFamily: renderConfig.componentFonts.MAIN_TITLE,
+          fontFamily: v2_getComponentFontFamily(renderConfig, "MAIN_TITLE"),
           color: renderConfig.componentColors.MAIN_TITLE,
           letterSpacing: -2,
           fontWeight: 600,
@@ -183,7 +184,7 @@ const CardSubTitle = ({ content }: CardSubTitleProps) => {
     >
       <AutoResizeText
         style={{
-          fontFamily: renderConfig.componentFonts.SUB_TITLE,
+          fontFamily: v2_getComponentFontFamily(renderConfig, "SUB_TITLE"),
           color: renderConfig.componentColors.SUB_TITLE,
           fontWeight: 500,
           letterSpacing: -2,

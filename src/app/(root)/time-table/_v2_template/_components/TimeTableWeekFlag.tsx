@@ -1,5 +1,6 @@
 import { getWeekDateRange, padZero } from "@/utils/date-formatter";
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
+import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
 
 interface TimeTableWeekFlagProps {
   weekDates: Date[];
@@ -21,7 +22,7 @@ const TimeTableWeekFlag = ({
         fontWeight: weekFlagLayout.fontWeight,
         width: weekFlagLayout.width,
         height: weekFlagLayout.height,
-        fontFamily: renderConfig.componentFonts.WEEKLY_FLAG,
+        fontFamily: v2_getComponentFontFamily(renderConfig, "WEEKLY_FLAG"),
         color: renderConfig.componentColors.WEEKLY_FLAG,
         top: weekFlagLayout.top,
         left: weekFlagLayout.left,

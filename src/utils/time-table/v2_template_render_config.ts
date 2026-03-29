@@ -3,6 +3,9 @@ import {
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
   V2TemplateColorPalette,
+  V2TemplateColorKey,
+  V2TemplateFontFaceMetrics,
+  V2TemplateFontRegistryItem,
   V2TemplateRenderConfig,
 } from "@/types/time-table/v2_template_render_config";
 
@@ -47,6 +50,70 @@ const v2_DEFAULT_COLOR_PALETTE: V2TemplateColorPalette = {
   quaternary: "",
 };
 
+const v2_DEFAULT_FONT_FACE_METRICS: Required<V2TemplateFontFaceMetrics> = {
+  ascentOverride: "84%",
+  descentOverride: "16%",
+  lineGapOverride: "0%",
+  sizeAdjust: "100%",
+};
+
+const v2_DEFAULT_ESCRODREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
+  {
+    weight: 100,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-1Thin.woff",
+    format: "woff",
+  },
+  {
+    weight: 200,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-2ExtraLight.woff",
+    format: "woff",
+  },
+  {
+    weight: 300,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-3Light.woff",
+    format: "woff",
+  },
+  {
+    weight: 400,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-4Regular.woff",
+    format: "woff",
+  },
+  {
+    weight: 500,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-5Medium.woff",
+    format: "woff",
+  },
+  {
+    weight: 600,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff",
+    format: "woff",
+  },
+  {
+    weight: 700,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-7ExtraBold.woff",
+    format: "woff",
+  },
+  {
+    weight: 800,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-8Heavy.woff",
+    format: "woff",
+  },
+  {
+    weight: 900,
+    style: "normal",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-9Black.woff",
+    format: "woff",
+  },
+];
+
 export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   version: v2_TEMPLATE_RENDER_CONFIG_VERSION,
   metadata: {
@@ -63,11 +130,21 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   themes: [v2_DEFAULT_THEME],
   defaultTheme: v2_DEFAULT_THEME,
   buttonThemes: [{ value: v2_DEFAULT_THEME, label: v2_DEFAULT_THEME }],
+  fonts: {
+    fontFaceDefaults: { ...v2_DEFAULT_FONT_FACE_METRICS },
+    registry: {
+      escoredream: {
+        family: "Escoredream",
+        display: "swap",
+        faces: v2_DEFAULT_ESCRODREAM_FACES,
+      },
+    },
+  },
   baseFonts: {
-    primary: "Escoredream",
-    secondary: "",
-    tertiary: "",
-    quaternary: "",
+    primary: "escoredream",
+    secondary: "escoredream",
+    tertiary: "escoredream",
+    quaternary: "escoredream",
   },
   baseColors: {
     first: {
@@ -89,13 +166,13 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     WEEKLY_FLAG: "#A7A7A7",
   },
   componentFonts: {
-    MAIN_TITLE: "Escoredream",
-    SUB_TITLE: "Escoredream",
-    STREAMING_TIME: "Escoredream",
-    STREAMING_DATE: "Escoredream",
-    STREAMING_DAY: "Escoredream",
-    ARTIST: "Escoredream",
-    WEEKLY_FLAG: "Escoredream",
+    MAIN_TITLE: "primary",
+    SUB_TITLE: "primary",
+    STREAMING_TIME: "primary",
+    STREAMING_DATE: "primary",
+    STREAMING_DAY: "primary",
+    ARTIST: "primary",
+    WEEKLY_FLAG: "primary",
   },
   maxFontSizes: {
     MAIN_TITLE: 70,
@@ -372,6 +449,98 @@ const v2_mergeKeyedStringMap = (
   return merged;
 };
 
+const v2_normalizeFontFaceMetrics = (
+  metrics: unknown,
+  fallback: Required<V2TemplateFontFaceMetrics>
+): Required<V2TemplateFontFaceMetrics> => {
+  if (!v2_isRecord(metrics)) return fallback;
+
+  return {
+    ascentOverride: v2_asString(metrics.ascentOverride, fallback.ascentOverride),
+    descentOverride: v2_asString(metrics.descentOverride, fallback.descentOverride),
+    lineGapOverride: v2_asString(metrics.lineGapOverride, fallback.lineGapOverride),
+    sizeAdjust: v2_asString(metrics.sizeAdjust, fallback.sizeAdjust),
+  };
+};
+
+const v2_normalizeFontRegistryItem = (
+  key: string,
+  candidate: unknown,
+  fallbackDefaults: Required<V2TemplateFontFaceMetrics>,
+  fallbackItem?: V2TemplateFontRegistryItem
+): V2TemplateFontRegistryItem | null => {
+  if (!v2_isRecord(candidate) || !Array.isArray(candidate.faces)) return null;
+
+  const family = v2_asString(candidate.family, fallbackItem?.family ?? key);
+  if (!family.trim()) return null;
+
+  const defaultDisplay = fallbackItem?.display ?? "swap";
+  const display =
+    candidate.display === "auto" ||
+    candidate.display === "block" ||
+    candidate.display === "swap" ||
+    candidate.display === "fallback" ||
+    candidate.display === "optional"
+      ? candidate.display
+      : defaultDisplay;
+
+  const faces: V2TemplateFontRegistryItem["faces"] = [];
+
+  candidate.faces.filter(v2_isRecord).forEach((face) => {
+    const weight =
+      typeof face.weight === "number" || typeof face.weight === "string"
+        ? face.weight
+        : "normal";
+
+    const style =
+      face.style === "normal" ||
+      face.style === "italic" ||
+      face.style === "oblique"
+        ? face.style
+        : "normal";
+
+    const src = v2_asString(face.src, "");
+    const format =
+      face.format === "woff2" ||
+      face.format === "woff" ||
+      face.format === "truetype" ||
+      face.format === "opentype"
+        ? face.format
+        : undefined;
+
+    const unicodeRange = v2_asString(face.unicodeRange, "");
+    const metrics = v2_normalizeFontFaceMetrics(face.metrics, fallbackDefaults);
+    const faceDisplay =
+      face.display === "auto" ||
+      face.display === "block" ||
+      face.display === "swap" ||
+      face.display === "fallback" ||
+      face.display === "optional"
+        ? face.display
+        : undefined;
+
+    if (!src) return;
+
+    faces.push({
+      weight,
+      style,
+      src,
+      format,
+      unicodeRange: unicodeRange || undefined,
+      display: faceDisplay,
+      metrics,
+    });
+  });
+
+  if (faces.length === 0) return null;
+
+  return {
+    family,
+    display,
+    faces,
+  };
+};
+
 export const v2_createDefaultTemplateRenderConfig = (): V2TemplateRenderConfig => {
   return v2_clone(v2_DEFAULT_TEMPLATE_RENDER_CONFIG);
 };
@@ -436,6 +605,36 @@ export const v2_normalizeTemplateRenderConfig = (
 
     if (parsed.length > 0) {
       normalized.buttonThemes = parsed;
+    }
+  }
+
+  if (v2_isRecord(raw.fonts)) {
+    if (v2_isRecord(raw.fonts.fontFaceDefaults)) {
+      normalized.fonts.fontFaceDefaults = v2_normalizeFontFaceMetrics(
+        raw.fonts.fontFaceDefaults,
+        normalized.fonts.fontFaceDefaults
+      );
+    }
+
+    if (v2_isRecord(raw.fonts.registry)) {
+      const mergedRegistry: Record<string, V2TemplateFontRegistryItem> = {
+        ...normalized.fonts.registry,
+      };
+
+      Object.entries(raw.fonts.registry).forEach(([key, value]) => {
+        const normalizedItem = v2_normalizeFontRegistryItem(
+          key,
+          value,
+          normalized.fonts.fontFaceDefaults,
+          mergedRegistry[key]
+        );
+
+        if (normalizedItem) {
+          mergedRegistry[key] = normalizedItem;
+        }
+      });
+
+      normalized.fonts.registry = mergedRegistry;
     }
   }
 
@@ -808,11 +1007,87 @@ export const v2_getThemedAssetUrl = (
   );
 };
 
+const v2_escapeCssString = (value: string): string => {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+};
+
+const v2_resolveBaseFontToken = (
+  renderConfig: V2TemplateRenderConfig,
+  token: string
+): string => {
+  if (
+    token === "primary" ||
+    token === "secondary" ||
+    token === "tertiary" ||
+    token === "quaternary"
+  ) {
+    return renderConfig.baseFonts[token];
+  }
+
+  return token;
+};
+
+export const v2_resolveFontFamily = (
+  renderConfig: V2TemplateRenderConfig,
+  fontTokenOrFamily: string
+): string => {
+  let resolved = fontTokenOrFamily;
+
+  for (let i = 0; i < 3; i += 1) {
+    const next = v2_resolveBaseFontToken(renderConfig, resolved);
+    if (next === resolved) break;
+    resolved = next;
+  }
+
+  const registryItem = renderConfig.fonts.registry[resolved];
+  return registryItem?.family ?? resolved;
+};
+
+export const v2_getComponentFontFamily = (
+  renderConfig: V2TemplateRenderConfig,
+  key: V2TemplateColorKey
+): string => {
+  return v2_resolveFontFamily(renderConfig, renderConfig.componentFonts[key]);
+};
+
+export const v2_buildFontFaceStyleText = (
+  renderConfig: V2TemplateRenderConfig
+): string => {
+  const defaults = renderConfig.fonts.fontFaceDefaults;
+  const blocks: string[] = [];
+
+  Object.values(renderConfig.fonts.registry).forEach((item) => {
+    item.faces.forEach((face) => {
+      const faceMetrics = v2_normalizeFontFaceMetrics(face.metrics, defaults);
+      const fontDisplay = face.display ?? item.display ?? "swap";
+      const src = face.format
+        ? `url('${v2_escapeCssString(face.src)}') format('${face.format}')`
+        : `url('${v2_escapeCssString(face.src)}')`;
+
+      blocks.push(`@font-face {
+  font-family: '${v2_escapeCssString(item.family)}';
+  src: ${src};
+  font-weight: ${face.weight};
+  font-style: ${face.style ?? "normal"};
+  font-display: ${fontDisplay};
+  ascent-override: ${faceMetrics.ascentOverride};
+  descent-override: ${faceMetrics.descentOverride};
+  line-gap-override: ${faceMetrics.lineGapOverride};
+  size-adjust: ${faceMetrics.sizeAdjust};
+${face.unicodeRange ? `  unicode-range: ${face.unicodeRange};` : ""}
+}`);
+    });
+  });
+
+  return blocks.join("\n\n");
+};
+
 export const v2_isTemplateRenderConfig = (
   candidate: unknown
 ): candidate is V2TemplateRenderConfig => {
   if (!v2_isRecord(candidate)) return false;
   if (candidate.version !== v2_TEMPLATE_RENDER_CONFIG_VERSION) return false;
+  if (!v2_isRecord(candidate.fonts)) return false;
   if (!v2_isRecord(candidate.templateSize)) return false;
   if (!v2_isRecord(candidate.layout)) return false;
   return true;

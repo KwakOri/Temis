@@ -41,6 +41,39 @@ export interface V2TemplateFonts {
   quaternary: string;
 }
 
+export interface V2TemplateFontFaceMetrics {
+  ascentOverride?: string;
+  descentOverride?: string;
+  lineGapOverride?: string;
+  sizeAdjust?: string;
+}
+
+export interface V2TemplateFontFaceSource {
+  weight: number | string;
+  style?: "normal" | "italic" | "oblique";
+  src: string;
+  format?: "woff2" | "woff" | "truetype" | "opentype";
+  unicodeRange?: string;
+  display?: "auto" | "block" | "swap" | "fallback" | "optional";
+  metrics?: V2TemplateFontFaceMetrics;
+}
+
+export interface V2TemplateFontRegistryItem {
+  family: string;
+  display?: "auto" | "block" | "swap" | "fallback" | "optional";
+  faces: V2TemplateFontFaceSource[];
+}
+
+export interface V2TemplateFontConfig {
+  fontFaceDefaults: {
+    ascentOverride: string;
+    descentOverride: string;
+    lineGapOverride: string;
+    sizeAdjust: string;
+  };
+  registry: Record<string, V2TemplateFontRegistryItem>;
+}
+
 export interface V2TemplateMaxFontSizes {
   MAIN_TITLE: number;
   SUB_TITLE: number;
@@ -141,6 +174,7 @@ export interface V2TemplateRenderConfig {
   themes: string[];
   defaultTheme: string;
   buttonThemes: Array<{ value: string; label: string }>;
+  fonts: V2TemplateFontConfig;
   baseFonts: V2TemplateFonts;
   baseColors: Record<string, V2TemplateColorPalette>;
   componentColors: Record<V2TemplateColorKey, string>;

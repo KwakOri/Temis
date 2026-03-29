@@ -6,6 +6,7 @@ import type { V2TemplateRenderConfigResponse } from '@/services/v2_template_rend
 import { v2_createDefaultTemplateRenderConfig } from '@/utils/time-table/v2_template_render_config';
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
+import V2TemplateFontFaceStyle from './_components/V2TemplateFontFaceStyle';
 import TimeTableEditor from './_components/_uneditable/TimeTableEditor';
 import './_styles/index.css';
 
@@ -48,11 +49,45 @@ const TimeTableTemplatePage = () => {
         { value: 'second', label: 'second' },
         { value: 'third', label: 'third' },
       ],
+      fonts: {
+        fontFaceDefaults: {
+          ascentOverride: '84%',
+          descentOverride: '16%',
+          lineGapOverride: '0%',
+          sizeAdjust: '100%',
+        },
+        registry: {
+          escoredream: {
+            family: 'Escoredream',
+            display: 'swap',
+            faces: [
+              {
+                weight: 100,
+                style: 'normal',
+                src: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-1Thin.woff',
+                format: 'woff',
+              },
+              {
+                weight: 400,
+                style: 'normal',
+                src: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-4Regular.woff',
+                format: 'woff',
+              },
+              {
+                weight: 700,
+                style: 'normal',
+                src: 'https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-7ExtraBold.woff',
+                format: 'woff',
+              },
+            ],
+          },
+        },
+      },
       baseFonts: {
-        primary: 'Escoredream',
-        secondary: 'Pretendard',
-        tertiary: 'Arial',
-        quaternary: 'sans-serif',
+        primary: 'escoredream',
+        secondary: 'escoredream',
+        tertiary: 'escoredream',
+        quaternary: 'escoredream',
       },
       baseColors: {
         first: {
@@ -84,13 +119,13 @@ const TimeTableTemplatePage = () => {
         WEEKLY_FLAG: '#A7A7A7',
       },
       componentFonts: {
-        MAIN_TITLE: 'Escoredream',
-        SUB_TITLE: 'Escoredream',
-        STREAMING_TIME: 'Escoredream',
-        STREAMING_DATE: 'Escoredream',
-        STREAMING_DAY: 'Escoredream',
-        ARTIST: 'Escoredream',
-        WEEKLY_FLAG: 'Escoredream',
+        MAIN_TITLE: 'primary',
+        SUB_TITLE: 'primary',
+        STREAMING_TIME: 'primary',
+        STREAMING_DATE: 'primary',
+        STREAMING_DAY: 'primary',
+        ARTIST: 'primary',
+        WEEKLY_FLAG: 'primary',
       },
       maxFontSizes: {
         MAIN_TITLE: 70,
@@ -274,6 +309,7 @@ const TimeTableTemplatePage = () => {
 
   return (
     <V2TemplateRenderConfigProvider value={providerValue}>
+      <V2TemplateFontFaceStyle />
       <div className="fixed inset-0 w-full h-full">
         <TimeTableEditor />
       </div>
