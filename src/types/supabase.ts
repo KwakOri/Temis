@@ -813,6 +813,41 @@ export type Database = {
           },
         ]
       }
+      template_render_configs: {
+        Row: {
+          config_version: number
+          created_at: string
+          id: string
+          render_config: Json
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config: Json
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_render_configs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       templates: {
         Row: {
           created_at: string

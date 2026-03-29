@@ -11,6 +11,8 @@ export const queryKeys = {
       [...queryKeys.template.all, "detail", id] as const,
     shopDetail: (id: string | number) =>
       [...queryKeys.template.all, "shopDetail", id] as const,
+    renderConfig: (id: string | number) =>
+      [...queryKeys.template.all, "renderConfig", id] as const,
   },
   customOrder: {
     all: ["customOrder"] as const,
@@ -70,6 +72,8 @@ export const queryKeys = {
     templates: () => [...queryKeys.admin.all, "templates"] as const,
     templatePlans: (templateId?: string) =>
       [...queryKeys.admin.all, "templatePlans", templateId] as const,
+    v2TemplateRenderConfig: (templateId: string) =>
+      [...queryKeys.admin.all, "v2TemplateRenderConfig", templateId] as const,
     customOrders: (params?: GetCustomOrdersParams) =>
       [...queryKeys.admin.all, "customOrders", params] as const,
     calendar: (type: "custom" | "legacy", startDate: string, endDate: string) =>
