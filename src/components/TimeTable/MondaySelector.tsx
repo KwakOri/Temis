@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import CardTitle from "./FixedComponents/CardTitle";
 
 interface MondaySelectorProps {
   mondayDateStr: string;
@@ -13,7 +14,7 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
 }) => {
   // 현재 월요일 날짜를 Date 객체로 변환
   const currentMonday = new Date(mondayDateStr);
-  
+
   // 월/일 형식으로 표시
   const formatDate = (date: Date) => {
     const month = date.getMonth() + 1;
@@ -38,16 +39,15 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
   };
 
   return (
-    <div>
-      <label className="block text-sm text-gray-700 font-semibold mb-2">
-        기준 월요일 선택
-      </label>
-      <div className="flex items-center justify-between bg-white border border-gray-300 rounded-md px-3 py-2">
+    <div className="h-12 gap-4 flex justify-between items-center bg-timetable-card-bg shadow-[0_2px_3.4px_rgba(0,0,0,0.08)] border-2 border-timetable-card-border transition-all duration-200 grow-0 rounded-2xl px-3">
+      {/* 날짜 선택 영역 */}
+      <CardTitle size="sm" label="주간 선택" />
+      <div className="flex-1 flex items-center justify-between  rounded-xl ">
         {/* 이전 월요일 버튼 */}
         <button
           type="button"
           onClick={goToPreviousMonday}
-          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-timetable-primary hover:bg-timetable-input-hover rounded-full transition-colors"
           aria-label="이전 월요일"
         >
           <svg
@@ -67,7 +67,11 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
 
         {/* 월/일 표시 */}
         <div className="flex-1 text-center">
-          <span className="text-sm font-medium text-gray-700" role="status" aria-live="polite">
+          <span
+            className="text-base font-semibold text-gray-800"
+            role="status"
+            aria-live="polite"
+          >
             {formatDate(currentMonday)}
           </span>
         </div>
@@ -76,7 +80,7 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
         <button
           type="button"
           onClick={goToNextMonday}
-          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-timetable-primary hover:bg-timetable-input-hover rounded-full transition-colors"
           aria-label="다음 월요일"
         >
           <svg

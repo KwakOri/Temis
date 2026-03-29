@@ -21,7 +21,7 @@ const BackButton = ({ href, className = "" }: BackButtonProps) => {
   return (
     <button
       onClick={handleBack}
-      className={`w-full md:w-auto px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center gap-2 text-sm md:text-base ${className}`}
+      className={`w-full md:w-auto px-4 py-2 bg-timetable-form-bg text-gray-800 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center gap-2 text-sm md:text-base ${className}`}
     >
       <svg
         className="h-4 w-4"

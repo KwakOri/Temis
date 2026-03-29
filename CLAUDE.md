@@ -79,3 +79,11 @@ Component → useQuery/useMutation → Client Service → API Route → Server S
 ```
 
 **절대 규칙**: 컴포넌트에서 직접 Supabase 클라이언트를 호출하지 말고, 반드시 위 아키텍처를 따라 구현하세요.
+
+## Git Workflow
+
+**필수 규칙**: 작업을 완료한 후에는 반드시 변경 사항을 commit해야 합니다.
+
+- 각 작업 단위(기능 추가, 버그 수정 등)가 완료되면 즉시 commit
+- Commit 메시지는 "Feat:", "Fix:", "Refactor:" 등의 prefix 사용
+- 변경 사항을 명확하게 설명하는 메시지 작성

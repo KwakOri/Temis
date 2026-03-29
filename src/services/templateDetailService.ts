@@ -2,8 +2,15 @@ import { supabase } from "@/lib/supabase";
 import {
   PurchaseRequestData,
   PurchaseRequestResponse,
+  TemplateArtist,
   ShopTemplateWithPlans,
 } from "@/types/templateDetail";
+
+type ShopTemplateDetailRow = Omit<ShopTemplateWithPlans, "template_artists"> & {
+  templates: ShopTemplateWithPlans["templates"] & {
+    template_artists?: TemplateArtist[];
+  };
+};
 
 export class TemplateDetailService {
   static async getTemplateDetail(
@@ -13,7 +20,13 @@ export class TemplateDetailService {
       .from("shop_templates")
       .select(`
         *,
-        templates!inner (*),
+        templates!inner (
+          *,
+          template_artists (
+            *,
+            artist:artists(*)
+          )
+        ),
         template_plans:template_plans!shop_template_id (*)
       `)
       .eq("template_id", templateId)
@@ -28,13 +41,18 @@ export class TemplateDetailService {
       throw new Error("템플릿을 찾을 수 없습니다.");
     }
 
-    return data;
+    const row = data as ShopTemplateDetailRow;
+
+    return {
+      ...row,
+      template_artists: row.templates.template_artists || [],
+    };
   }
 
   static async submitPurchaseRequest(
     requestData: PurchaseRequestData
   ): Promise<PurchaseRequestResponse> {
-    const response = await fetch("/api/shop/purchase-request", {
+    const response = await fetch("/api/template-purchase-requests", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

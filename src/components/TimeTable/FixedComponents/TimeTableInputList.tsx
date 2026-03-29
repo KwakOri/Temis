@@ -1,6 +1,7 @@
 import AdaptiveTimeRenderer from "@/components/TimeTable/fieldRenderer/AdaptiveTimeRenderer";
-import DescriptionRenderer from "@/components/TimeTable/fieldRenderer/DescriptionRenderer";
-import TopicRenderer from "@/components/TimeTable/fieldRenderer/TopicRenderer";
+import TextareaRenderer from "@/components/TimeTable/fieldRenderer/TextareaRenderer";
+import TextRenderer from "@/components/TimeTable/fieldRenderer/TextRenderer";
+import { cn } from "@/lib/utils";
 import {
   CardInputConfig,
   SimpleFieldConfig,
@@ -13,8 +14,13 @@ import {
   createInitialEntryFromConfig,
   weekdays,
 } from "@/utils/time-table/data";
-import React from "react";
-
+import { SizeProps } from "@/utils/utils";
+import React, { ChangeEvent } from "react";
+import { DayCard } from "./DayCard";
+import { EntryCard } from "./EntryCard";
+import OfflineMemoCard from "./OfflineMemoCard";
+import { buttonVariants, labelVariants } from "./styles";
+import { SubToggle } from "./SubToggle";
 // 개별 필드 렌더러 타입 정의 (다중 엔트리 지원)
 export interface FieldRenderer {
   (props: {
@@ -70,6 +76,7 @@ export interface TimeTableInputListProps {
   // 다중 엔트리 설정
   isMultiple?: boolean;
   maxStreamingTimeByDay?: number;
+  size?: SizeProps;
 }
 
 const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
@@ -90,6 +97,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   isOfflineMemo = false,
   isMultiple = false,
   maxStreamingTimeByDay = 1,
+  size = "sm",
 }) => {
   const defaultFieldRenderers = {
     time: ({
@@ -103,6 +111,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         <div className="flex items-center gap-3">
           <div className="flex-1">
             <AdaptiveTimeRenderer
+              height={size}
               id={fieldId}
               value={entry.time as string}
               onChange={(newValue) =>
@@ -111,33 +120,17 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
               disabled={entry.isGuerrilla}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 whitespace-nowrap">
-              게릴라
-            </span>
-            <button
-              type="button"
-              className={`w-8 h-4 flex items-center rounded-full p-0.5 duration-200 ease-in-out ${
-                entry.isGuerrilla ? "bg-orange-500" : "bg-gray-300"
-              }`}
-              onClick={() =>
-                onChange(
-                  dayIndex,
-                  entryIndex,
-                  "isGuerrilla",
-                  !entry.isGuerrilla
-                )
-              }
-              aria-label="게릴라방송 토글"
-              title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
-            >
-              <div
-                className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-200 ease-in-out ${
-                  entry.isGuerrilla ? "translate-x-3.5" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
+          <SubToggle
+            active={entry.isGuerrilla || false}
+            onToggle={() =>
+              onChange(dayIndex, entryIndex, "isGuerrilla", !entry.isGuerrilla)
+            }
+            label="게릴라"
+            variant="guerrilla"
+            size="sm"
+            ariaLabel="게릴라방송 토글"
+            title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
+          />
         </div>
       );
     },
@@ -152,10 +145,11 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         onChange(dayIndex, entryIndex, "topic", value);
       };
       return (
-        <TopicRenderer
+        <TextRenderer
+          height={size}
           value={entry.topic as string}
           placeholder={placeholders.topic}
-          handleTopicChange={handleTopicChange}
+          handleTextChange={handleTopicChange}
           maxLength={50}
           autoComplete="off"
           aria-label="주제 입력"
@@ -173,10 +167,10 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
         onChange(dayIndex, entryIndex, "description", value);
       };
       return (
-        <DescriptionRenderer
+        <TextareaRenderer
           value={entry.description as string}
           placeholder={placeholders.description}
-          handleDescriptionChange={handleDescriptionChange}
+          handleTextareaChange={handleDescriptionChange}
           maxLength={200}
           rows={3}
           spellCheck={true}
@@ -185,13 +179,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       );
     },
   };
-  // 필드를 온라인/오프라인으로 분리
-  const onlineFields = cardInputConfig.fields.filter(
-    (field) => !field.isOffline
-  );
-  const offlineFields = cardInputConfig.fields.filter(
-    (field) => field.isOffline
-  );
+  // settings.ts에서 필드 구성 가져오기
 
   // 오프라인 토글 설정 (기본값 지정)
   const offlineToggleConfig = cardInputConfig.offlineToggle || {
@@ -217,10 +205,11 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     switch (fieldConfig.type) {
       case "text":
         return (
-          <TopicRenderer
+          <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleEntryFieldChange(
                 dayIndex,
                 entryIndex,
@@ -235,10 +224,10 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
       case "textarea":
         return (
-          <DescriptionRenderer
+          <TextareaRenderer
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleDescriptionChange={(newValue) =>
+            handleTextareaChange={(newValue) =>
               handleEntryFieldChange(
                 dayIndex,
                 entryIndex,
@@ -258,6 +247,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <AdaptiveTimeRenderer
+                height={size}
                 id={fieldId}
                 value={value}
                 onChange={(newValue) =>
@@ -271,33 +261,22 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 disabled={entry.isGuerrilla}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 whitespace-nowrap">
-                게릴라
-              </span>
-              <button
-                type="button"
-                className={`w-8 h-4 flex items-center rounded-full p-0.5 duration-200 ease-in-out ${
-                  entry.isGuerrilla ? "bg-orange-500" : "bg-gray-300"
-                }`}
-                onClick={() =>
-                  handleEntryFieldChange(
-                    dayIndex,
-                    entryIndex,
-                    "isGuerrilla",
-                    !entry.isGuerrilla
-                  )
-                }
-                aria-label="게릴라방송 토글"
-                title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
-              >
-                <div
-                  className={`bg-white w-3 h-3 rounded-full shadow-md transform duration-200 ease-in-out ${
-                    entry.isGuerrilla ? "translate-x-3.5" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
+            <SubToggle
+              active={entry.isGuerrilla || false}
+              onToggle={() =>
+                handleEntryFieldChange(
+                  dayIndex,
+                  entryIndex,
+                  "isGuerrilla",
+                  !entry.isGuerrilla
+                )
+              }
+              label="게릴라"
+              variant="guerrilla"
+              size="md"
+              ariaLabel="게릴라방송 토글"
+              title={entry.isGuerrilla ? "게릴라방송 ON" : "게릴라방송 OFF"}
+            />
           </div>
         );
 
@@ -329,10 +308,11 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
       case "number":
         return (
-          <TopicRenderer
+          <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleEntryFieldChange(
                 dayIndex,
                 entryIndex,
@@ -347,10 +327,11 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
       default:
         return (
-          <TopicRenderer
+          <TextRenderer
+            height={size}
             value={value}
             placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
+            handleTextChange={(newValue) =>
               handleEntryFieldChange(
                 dayIndex,
                 entryIndex,
@@ -417,14 +398,10 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     onDataChange(newData);
   };
 
-  // 오프라인 필드 변경 핸들러 (요일 단위)
-  const handleOfflineFieldChange = (
-    dayIndex: number,
-    field: string,
-    value: string | number | boolean
-  ) => {
+  // 오프라인 메모 변경 핸들러
+  const handleOfflineMemoChange = (dayIndex: number, value: string) => {
     const newData = [...data];
-    newData[dayIndex] = { ...newData[dayIndex], [field]: value };
+    newData[dayIndex] = { ...newData[dayIndex], offlineMemo: value };
     onDataChange(newData);
   };
 
@@ -454,271 +431,98 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
       : null;
   };
 
-  // 오프라인 필드 렌더링 (요일 단위)
-  const renderOfflineField = (
-    fieldConfig: SimpleFieldConfig,
-    day: TDefaultCard,
-    dayIndex: number
-  ) => {
-    const value = String(
-      (day as unknown as Record<string, unknown>)[fieldConfig.key] ??
-        fieldConfig.defaultValue ??
-        ""
-    );
-
-    switch (fieldConfig.type) {
-      case "text":
-        return (
-          <TopicRenderer
-            value={value}
-            placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
-              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
-            }
-            maxLength={fieldConfig.maxLength}
-            required={fieldConfig.required}
-          />
-        );
-
-      case "textarea":
-        return (
-          <DescriptionRenderer
-            value={value}
-            placeholder={fieldConfig.placeholder || ""}
-            handleDescriptionChange={(newValue) =>
-              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
-            }
-            maxLength={fieldConfig.maxLength}
-            required={fieldConfig.required}
-            rows={3}
-          />
-        );
-
-      case "time": {
-        const fieldId = `${fieldConfig.key}-offline-${dayIndex}`;
-        return (
-          <AdaptiveTimeRenderer
-            id={fieldId}
-            value={value}
-            onChange={(newValue) =>
-              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
-            }
-          />
-        );
-      }
-
-      case "select":
-        return (
-          <select
-            value={value}
-            required={fieldConfig.required}
-            className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none"
-            onChange={(e) =>
-              handleOfflineFieldChange(
-                dayIndex,
-                fieldConfig.key,
-                e.target.value
-              )
-            }
-          >
-            <option value="" disabled>
-              {fieldConfig.placeholder}
-            </option>
-            {fieldConfig.options?.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        );
-
-      case "number":
-        return (
-          <TopicRenderer
-            value={value}
-            placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
-              handleOfflineFieldChange(
-                dayIndex,
-                fieldConfig.key,
-                isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
-              )
-            }
-            type="number"
-            required={fieldConfig.required}
-          />
-        );
-
-      default:
-        return (
-          <TopicRenderer
-            value={value}
-            placeholder={fieldConfig.placeholder || ""}
-            handleTopicChange={(newValue) =>
-              handleOfflineFieldChange(dayIndex, fieldConfig.key, newValue)
-            }
-            required={fieldConfig.required}
-          />
-        );
-    }
-  };
-
   return (
     <div className={containerClassName}>
       {data.map((day, dayIndex) => (
-        <div key={day.day} className={itemClassName}>
-          {/* 헤더 - 요일과 오프라인 토글 */}
-          <div className={headerClassName}>
-            {weekdayRenderer
-              ? weekdayRenderer(day)
-              : defaultWeekdayRenderer(day)}
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">
-                {offlineToggleConfig.label}
-              </span>
-              <button
-                type="button"
-                className={`w-10 h-5 flex items-center rounded-full p-1 duration-${
-                  expandAnimation.duration
-                } ease-in-out ${
-                  day.isOffline
-                    ? offlineToggleConfig.activeColor
-                    : offlineToggleConfig.inactiveColor
-                }`}
-                onClick={() => handleOfflineToggle(dayIndex)}
-              >
-                <div
-                  className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-${
-                    expandAnimation.duration
-                  } ease-in-out ${
-                    day.isOffline ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-
-          {/* 확장 가능한 입력 필드들 - 다중 엔트리 지원 */}
-          <div
-            className={`transition-all duration-${
-              expandAnimation.duration
-            } overflow-hidden ${
-              day.isOffline
-                ? "max-h-0 opacity-0"
-                : `max-h-[${expandAnimation.maxHeight}] opacity-100`
-            }`}
-          >
-            <div className={fieldsContainerClassName}>
-              {day.entries.map((entry, entryIndex) => (
-                <div
-                  key={`${day.day}-${entryIndex}`}
-                  className="bg-gray-50 rounded-lg p-3 border-l-4 border-blue-200"
-                >
-                  {/* 엔트리 헤더 - 방송 번호와 삭제 버튼 */}
-                  <div className="flex justify-between items-center mb-2">
-                    {isMultiple && (
-                      <span className="text-sm font-medium text-gray-600">
-                        방송 {entryIndex + 1}
-                      </span>
-                    )}
-                    {isMultiple && day.entries.length > 1 && (
-                      <button
-                        type="button"
-                        className="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded transition-colors"
-                        onClick={() => handleRemoveEntry(dayIndex, entryIndex)}
-                        aria-label="엔트리 삭제"
-                      >
-                        삭제
-                      </button>
-                    )}
-                  </div>
-
-                  {/* 각 엔트리의 필드들 (온라인 필드만) */}
-                  <div className="space-y-3">
-                    {onlineFields.map((fieldConfig) => {
-                      const isDefaultField =
-                        fieldConfig.key in defaultFieldRenderers;
-
-                      return (
-                        <div key={fieldConfig.key}>
-                          {fieldConfig.label && cardInputConfig.showLabels && (
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
-                              {fieldConfig.label}
-                            </label>
-                          )}
-                          {isDefaultField
-                            ? renderDefaultField(
-                                fieldConfig.key,
-                                entry,
-                                dayIndex,
-                                entryIndex
-                              )
-                            : renderInputField(
-                                fieldConfig,
-                                entry,
-                                dayIndex,
-                                entryIndex
-                              )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-
-              {/* 엔트리 추가 버튼 - isMultiple이 true이고 최대 개수에 미달인 경우에만 표시 */}
-              {isMultiple && day.entries.length < maxStreamingTimeByDay && (
-                <button
-                  type="button"
-                  className="w-full py-2 px-4 bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-lg transition-colors flex items-center justify-center gap-2"
-                  onClick={() => handleAddEntry(dayIndex)}
-                >
-                  <span className="text-lg">+</span>
-                  <span className="text-sm">
-                    방송 추가 ({day.entries.length}/{maxStreamingTimeByDay})
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 오프라인 필드 (config 기반, 요일 단위) */}
-          {day.isOffline && offlineFields.length > 0 && (
-            <div className="pt-2 flex flex-col gap-3">
-              {offlineFields.map((fieldConfig) => (
-                <div key={fieldConfig.key}>
-                  {fieldConfig.label && cardInputConfig.showLabels && (
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      {fieldConfig.label}
-                    </label>
-                  )}
-                  {renderOfflineField(fieldConfig, day, dayIndex)}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* 레거시 오프라인 메모 필드 (isOfflineMemo prop 사용 시) */}
-          {isOfflineMemo && day.isOffline && offlineFields.length === 0 && (
-            <div className="pt-2">
-              <textarea
-                value={day.offlineMemo || ""}
-                onChange={(e) =>
-                  handleOfflineFieldChange(
-                    dayIndex,
-                    "offlineMemo",
-                    e.target.value
-                  )
+        <DayCard
+          size={size}
+          key={day.day}
+          weekdayLabel={
+            weekdayRenderer ? weekdayRenderer(day) : defaultWeekdayRenderer(day)
+          }
+          isOffline={day.isOffline}
+          onOfflineToggle={() => handleOfflineToggle(dayIndex)}
+          offlineToggleLabel={offlineToggleConfig.label}
+          expandAnimation={expandAnimation}
+          offlineMemoContent={
+            isOfflineMemo && day.isOffline ? (
+              <OfflineMemoCard
+                content={day.offlineMemo || ""}
+                onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                  handleOfflineMemoChange(dayIndex, e.target.value)
                 }
-                placeholder="휴방 메모를 입력하세요..."
-                className="w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
-                rows={3}
-                maxLength={200}
               />
-            </div>
+            ) : undefined
+          }
+        >
+          <div className="flex flex-col gap-6">
+            {day.entries.map((entry, entryIndex) => (
+              <EntryCard
+                key={`${day.day}-${entryIndex}`}
+                entry={entry}
+                entryIndex={entryIndex}
+                showHeader={isMultiple}
+                showDeleteButton={isMultiple && day.entries.length > 1}
+                onDelete={() => handleRemoveEntry(dayIndex, entryIndex)}
+                variant="default"
+              >
+                {cardInputConfig.fields.map((fieldConfig) => {
+                  const isDefaultField =
+                    fieldConfig.key in defaultFieldRenderers;
+
+                  return (
+                    <div key={fieldConfig.key}>
+                      {fieldConfig.label && cardInputConfig.showLabels && (
+                        <label
+                          className={cn(
+                            labelVariants({ size: "xs" }),
+                            "block mb-1"
+                          )}
+                        >
+                          {fieldConfig.label}
+                        </label>
+                      )}
+                      {isDefaultField
+                        ? renderDefaultField(
+                            fieldConfig.key,
+                            entry,
+                            dayIndex,
+                            entryIndex
+                          )
+                        : renderInputField(
+                            fieldConfig,
+                            entry,
+                            dayIndex,
+                            entryIndex
+                          )}
+                    </div>
+                  );
+                })}
+              </EntryCard>
+            ))}
+          </div>
+
+          {/* 엔트리 추가 버튼 */}
+          {isMultiple && day.entries.length < maxStreamingTimeByDay && (
+            <button
+              type="button"
+              className={cn(
+                buttonVariants({
+                  variant: "light",
+                  size,
+                  fullWidth: true,
+                }),
+                "flex items-center justify-center gap-2"
+              )}
+              onClick={() => handleAddEntry(dayIndex)}
+            >
+              <span className="text-lg">+</span>
+              <span className="text-sm font-medium">
+                방송 추가 ({day.entries.length}/{maxStreamingTimeByDay})
+              </span>
+            </button>
           )}
-        </div>
+        </DayCard>
       ))}
     </div>
   );

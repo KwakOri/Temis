@@ -71,8 +71,8 @@ export function PublicRegisterForm({
   if (isSuccess) {
     return (
       <div className={`max-w-md mx-auto ${className}`}>
-        <div className="text-center p-8 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-200 shadow-lg">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-[#1e3a8a] rounded-full mb-6 shadow-lg">
+        <div className="text-center p-8 bg-gradient-to-br from-secondary/20 to-primary/20 rounded-2xl border border-secondary/30 shadow-lg">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary rounded-full mb-6 shadow-lg">
             <svg
               className="w-10 h-10 text-white"
               fill="none"
@@ -87,14 +87,14 @@ export function PublicRegisterForm({
               />
             </svg>
           </div>
-          <h3 className="text-xl font-bold text-slate-900 mb-3">
+          <h3 className="text-xl font-bold text-dark-gray mb-3">
             회원가입 신청 완료! 🎉
           </h3>
-          <p className="text-slate-700 mb-4 leading-relaxed">
+          <p className="text-dark-gray/70 mb-4 leading-relaxed">
             입력하신 이메일 주소로 <strong>인증 링크</strong>를 발송했습니다.
           </p>
           <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/50">
-            <p className="text-sm text-slate-600 leading-relaxed">
+            <p className="text-sm text-dark-gray/70 leading-relaxed">
               📧 이메일을 확인하고 인증 링크를 클릭하여
               <br />
               <strong>회원가입을 완료</strong>해 주세요.
@@ -102,7 +102,7 @@ export function PublicRegisterForm({
           </div>
           <button
             onClick={onBack}
-            className="text-sm text-[#1e3a8a] hover:text-[#1e40af] font-medium transition-colors underline decoration-2 underline-offset-4"
+            className="text-sm text-primary hover:text-primary/80 font-medium transition-colors underline decoration-2 underline-offset-4"
           >
             로그인 페이지로 돌아가기
           </button>
@@ -117,7 +117,7 @@ export function PublicRegisterForm({
         <div>
           <label
             htmlFor="name"
-            className="block text-sm font-semibold text-slate-700 mb-2"
+            className="block text-sm font-semibold text-dark-gray mb-2"
           >
             닉네임
           </label>
@@ -128,7 +128,7 @@ export function PublicRegisterForm({
             required
             value={formData.name}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all duration-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-400"
+            className="w-full px-4 py-3 border border-tertiary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 bg-timetable-input-bg hover:bg-white hover:border-primary/30 text-dark-gray placeholder-dark-gray/40"
             placeholder="테미스"
             disabled={isLoading}
           />
@@ -137,7 +137,7 @@ export function PublicRegisterForm({
         <div>
           <label
             htmlFor="email"
-            className="block text-sm font-semibold text-slate-700 mb-2"
+            className="block text-sm font-semibold text-dark-gray mb-2"
           >
             이메일
           </label>
@@ -148,7 +148,7 @@ export function PublicRegisterForm({
             required
             value={formData.email}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all duration-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-400"
+            className="w-full px-4 py-3 border border-tertiary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 bg-timetable-input-bg hover:bg-white hover:border-primary/30 text-dark-gray placeholder-dark-gray/40"
             placeholder="example@email.com"
             disabled={isLoading}
           />
@@ -157,7 +157,7 @@ export function PublicRegisterForm({
         <div>
           <label
             htmlFor="password"
-            className="block text-sm font-semibold text-slate-700 mb-2"
+            className="block text-sm font-semibold text-dark-gray mb-2"
           >
             비밀번호
           </label>
@@ -168,7 +168,7 @@ export function PublicRegisterForm({
             required
             value={formData.password}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all duration-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-400"
+            className="w-full px-4 py-3 border border-tertiary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 bg-timetable-input-bg hover:bg-white hover:border-primary/30 text-dark-gray placeholder-dark-gray/40"
             placeholder="비밀번호를 입력하세요"
             disabled={isLoading}
           />
@@ -193,7 +193,7 @@ export function PublicRegisterForm({
         <div>
           <label
             htmlFor="confirmPassword"
-            className="block text-sm font-semibold text-slate-700 mb-2"
+            className="block text-sm font-semibold text-dark-gray mb-2"
           >
             비밀번호 확인
           </label>
@@ -204,7 +204,7 @@ export function PublicRegisterForm({
             required
             value={formData.confirmPassword}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all duration-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-400"
+            className="w-full px-4 py-3 border border-tertiary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 bg-timetable-input-bg hover:bg-white hover:border-primary/30 text-dark-gray placeholder-dark-gray/40"
             placeholder="비밀번호를 다시 입력하세요"
             disabled={isLoading}
           />
@@ -230,7 +230,7 @@ export function PublicRegisterForm({
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-[#1e3a8a] text-white py-3.5 px-4 rounded-xl hover:bg-[#1e40af] focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] shadow-lg font-semibold"
+          className="w-full bg-primary text-white py-3.5 px-4 rounded-xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] shadow-lg font-semibold"
         >
           {isLoading ? (
             <span className="flex items-center justify-center">
@@ -265,7 +265,7 @@ export function PublicRegisterForm({
           <button
             type="button"
             onClick={onBack}
-            className="text-sm text-slate-600 hover:text-[#1e3a8a] underline decoration-2 underline-offset-4 transition-colors font-medium"
+            className="text-sm text-dark-gray/70 hover:text-primary underline decoration-2 underline-offset-4 transition-colors font-medium"
           >
             로그인 페이지로 돌아가기
           </button>

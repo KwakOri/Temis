@@ -1,6 +1,13 @@
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+// UUID 형식인지 확인하는 함수
+function isValidUUID(str: string): boolean {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,6 +20,11 @@ export async function GET(
         { error: "Template ID is required" },
         { status: 400 }
       );
+    }
+
+    // UUID 형식이 아니면 샘플 템플릿으로 간주
+    if (!isValidUUID(id)) {
+      return NextResponse.json({ isTeamTemplate: false });
     }
 
     // team_templates 테이블에서 해당 ID가 존재하는지 확인

@@ -6,6 +6,7 @@ import {
   AddTeamMemberRequest,
   UpdateMemberRoleRequest
 } from "@/services/admin/teamManagementService";
+import type { TeamWithMembers } from "@/types/team-timetable";
 
 // Query Keys
 export const TEAM_MANAGEMENT_QUERY_KEYS = {
@@ -199,16 +200,16 @@ export const useToggleTeamActive = () => {
       });
 
       // 이전 데이터 스냅샷 저장
-      const previousTeams = queryClient.getQueryData(
+      const previousTeams = queryClient.getQueryData<TeamWithMembers[]>(
         TEAM_MANAGEMENT_QUERY_KEYS.lists()
       );
 
       // Optimistic update 적용
-      queryClient.setQueryData(
+      queryClient.setQueryData<TeamWithMembers[] | undefined>(
         TEAM_MANAGEMENT_QUERY_KEYS.lists(),
-        (old: any) => {
+        (old) => {
           if (!old) return old;
-          return old.map((team: any) =>
+          return old.map((team) =>
             team.id === teamId ? { ...team, is_active: isActive } : team
           );
         }

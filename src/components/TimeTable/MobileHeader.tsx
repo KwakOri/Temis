@@ -5,10 +5,10 @@ import React from "react";
 const MobileHeader: React.FC = () => {
   const { state, actions } = useTimeTable();
   return (
-    <div className="sticky top-0 flex items-center justify-between p-4 bg-white/95 backdrop-blur-sm border-b border-gray-200 z-50">
+    <div className="sticky top-0 flex items-center justify-between p-4 bg-timetable-form-bg backdrop-blur-sm border-b border-gray-200 z-50">
       {/* 뒤로가기 버튼 */}
       <Link
-        href="/"
+        href="/my-page"
         className="flex items-center text-gray-600 active:text-gray-900 transition-colors touch-manipulation"
       >
         <svg
@@ -41,18 +41,18 @@ const MobileHeader: React.FC = () => {
             value={state.scale}
             onChange={(e) => actions.updateScale(parseFloat(e.target.value))}
             className="w-24 h-3 rounded-lg appearance-none bg-gray-300
-            accent-[#3E4A82]
+            accent-timetable-primary
             [&::-webkit-slider-thumb]:appearance-none
             [&::-webkit-slider-thumb]:h-5
             [&::-webkit-slider-thumb]:w-5
             [&::-webkit-slider-thumb]:rounded-full
-            [&::-webkit-slider-thumb]:bg-[#3E4A82]
+            [&::-webkit-slider-thumb]:bg-timetable-primary
             [&::-webkit-slider-thumb]:shadow-md
             [&::-webkit-slider-thumb]:cursor-pointer
             [&::-moz-range-thumb]:h-5
             [&::-moz-range-thumb]:w-5
             [&::-moz-range-thumb]:rounded-full
-            [&::-moz-range-thumb]:bg-[#3E4A82]
+            [&::-moz-range-thumb]:bg-timetable-primary
             [&::-moz-range-thumb]:shadow-md
             [&::-moz-range-thumb]:cursor-pointer
             [&::-moz-range-thumb]:border-none

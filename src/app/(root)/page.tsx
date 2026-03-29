@@ -1,13 +1,14 @@
 "use client";
-import TestComponent from "@/app/(root)/_sample/TestComponent";
+import GallerySection from "@/components/LandingPage/GallerySection/GallerySection";
+import KeyFeaturesSection from "@/components/LandingPage/KeyFeatures/KeyFeatures";
+import NavBar from "@/components/LandingPage/NavBar";
+import ReviewSection from "@/components/LandingPage/ReviewSection/ReviewSection";
 import { useAuth } from "@/contexts/AuthContext"; // useAuth 임포트
 import { useAdminOptions } from "@/hooks/query/useAdminOptions";
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import PortfolioGallery from "../../components/LandingPage/PortfolioGallery";
-import StepSection from "../../components/LandingPage/StepSection";
+import { keyFeatureList, reviews } from "./_constants";
+import TestComponent from "./_sample/TestComponent";
 
 export default function Home() {
   const [scrolled, setScrolled] = useState(false);
@@ -84,10 +85,11 @@ export default function Home() {
       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-600"></div>
     </div>
   );
+
   return (
-    <div className="w-full min-h-screen bg-gray-100 text-gray-900">
+    <div className="w-full min-h-screen bg-[#F3E9E7] text-gray-900 overflow-x-hidden">
       {/* 상단 고정 바 */}
-      <header
+      {/* <header
         className={`fixed top-0 left-0 w-full z-50 transition-colors duration-100 ${
           scrolled
             ? "bg-white/30 border-b-2 border-gray-200 backdrop-blur-sm "
@@ -102,11 +104,17 @@ export default function Home() {
           >
             TEMIS
           </div>
-          {/* 데스크탑 버전 - md 이상에서 표시 */}
+          
           <div className="hidden md:flex gap-2">
             <Link href="/shop">
               <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
                 템플릿 상점
+              </p>
+            </Link>
+
+            <Link href="/portfolio">
+              <p className="bg-white text-gray-800 font-medium px-4 py-2 rounded-lg hover:bg-gray-300 transition">
+                포트폴리오
               </p>
             </Link>
 
@@ -149,7 +157,7 @@ export default function Home() {
             )}
           </div>
 
-          {/* 모바일 버전 - md 미만에서 표시 */}
+          
           <div className="md:hidden mobile-menu-container relative">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -175,7 +183,7 @@ export default function Home() {
               </svg>
             </button>
 
-            {/* 드롭다운 메뉴 */}
+
             {isMenuOpen && (
               <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50">
                 <Link
@@ -198,6 +206,29 @@ export default function Home() {
                       />
                     </svg>
                     <span className="font-medium">템플릿 상점</span>
+                  </div>
+                </Link>
+
+                <Link
+                  href="/portfolio"
+                  className="block px-4 py-3 text-gray-800 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <div className="flex items-center">
+                    <svg
+                      className="w-5 h-5 mr-3 text-gray-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                      />
+                    </svg>
+                    <span className="font-medium">포트폴리오</span>
                   </div>
                 </Link>
 
@@ -352,96 +383,40 @@ export default function Home() {
             )}
           </div>
         </div>
-      </header>
-      <section className="relative h-screen w-full overflow-hidden">
-        <div className="relative z-10 flex flex-col justify-center items-center h-full text-white text-center px-4 bg-gradient-to-t from-[#1d2c52] to-[#0b0a13]">
-          <h2 className="mt-30 text-3xl sm:text-4xl font-bold text-white mb-4 leading-relaxed">
-            <span className="text-indigo-500 ml-2">버튜버</span> 가 만든,
-            버튜버를 위한 <span className="text-indigo-500 ml-2">시간표</span>{" "}
-            플랫폼
+      </header> */}
+
+      {/* 메인 콘텐츠 */}
+      <div className="flex flex-col items-center w-full">
+        <NavBar />
+        <TestComponent />
+        <KeyFeaturesSection items={keyFeatureList} />
+        <ReviewSection items={reviews} />
+        <GallerySection />
+      </div>
+
+      {/* Footer CTA Section - 반응형 개선 */}
+      <section className="bg-gradient-to-br from-orange-400 to-orange-500 py-12 md:py-16 lg:py-20 px-4 md:px-6 lg:px-8 text-center">
+        <div className="max-w-4xl mx-auto flex flex-col items-center">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-bold text-white mb-4 md:mb-6 leading-tight px-2">
+            일정에 묶이지 말고,
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>
+            창작에 집중하세요.
           </h2>
-          <p className="text-white text-sm sm:text-base">
-            복잡한 포토샵은 그만! 활동에 최적화된 직관적인 편집,
+          <p className="text-lg sm:text-xl md:text-2xl lg:text-[24px] font-semibold text-white/90 mb-6 md:mb-8 px-2">
+            버튜버의 시간을 바꾸는 시간표, 테미스.
+            <br className="hidden sm:block" />
+            <span className="sm:hidden"> </span>
+            지금 바로 시작하세요.
           </p>
-          <p className="text-white text-sm sm:text-base">
-            직접 활동하며 필요했던 기능만 쏙쏙 담았어요.
-          </p>
-          {/* <p className="mt-5  text-indigo-500 text-sm ">바로 체험 하기</p> */}
           <button
-            onClick={scrollToBottom}
-            className="mt-10 w-12 h-12 rounded-full bg-white flex items-center justify-center animate-bounce"
+            onClick={handleCustomOrderClick}
+            disabled={isLoadingAdminOptions}
+            className="flex justify-center items-center w-full max-w-[400px] h-12 rounded-2xl bg-gray-900 hover:bg-gray-800 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-lg transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95"
           >
-            <span className="text-2xl text-gray-800">↓</span>
+            {isLoadingAdminOptions ? "로딩 중..." : "지금 바로 신청하기"}
           </button>
         </div>
-      </section>
-      <TestComponent />
-
-      {/* Portfolio Gallery Section */}
-      <PortfolioGallery totalItems={10} speedPxPerSecond={50} />
-
-      <section className="py-20 bg-[#2b303d] text-white px-4 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-2">
-          방송을 하며 직접 느낀
-          <span className="text-indigo-400 ml-2">불편한 시간표</span>를 싹~
-          개선했습니다.
-        </h2>
-        <p className="text-sm mb-10 opacity-80">
-          진짜 버튜버가 버튜버를 위해 만든 TEMIS!
-        </p>
-
-        {/* 카드 래퍼 */}
-        <div className="flex justify-center flex-wrap gap-6 w-full max-w-6xl mx-auto">
-          {[
-            {
-              text: "폰트도 다운로드, \n 포토샵이 없다면 구매까지...",
-              emoji: "/img/landing_page/9.png",
-            },
-            {
-              text: "포토샵에 익숙하지 않아서 \n 디자인이 살짝 달라졌내...",
-              emoji: "./img/landing_page/12.png",
-            },
-            {
-              text: "컴퓨터 사양이 안 좋아서 \n 저장하다가 날라갔어...",
-              emoji: "./img/landing_page/11.png",
-            },
-            {
-              text: "지금 밖인데... 시간표 \n 수정해야해 어쩌지",
-              emoji: "./img/landing_page/10.png",
-            },
-          ].map((item, idx) => (
-            <div key={idx} className="flex-shrink-0 w-[250px] text-center">
-              <div className="rounded-[24px] px-4 py-3 mb-4 text-sm whitespace-pre-line bg-white/10 text-white backdrop-blur-md shadow-[inset_0_0_10px_rgba(255,255,255,0.1),_0_0_20px_rgba(0,0,0,0.3)] border border-white/10">
-                {item.text}
-              </div>
-              <Image
-                src={item.emoji.replace("./", "/")}
-                alt="emoji"
-                className="w-auto h-auto mx-auto mb-2 mask-fade-bottom"
-                width={300}
-                height={300}
-                draggable={false}
-                onDragStart={(e) => e.preventDefault()}
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 사용 방법 섹션 */}
-      <StepSection />
-
-      {/* CTA 섹션 */}
-      <section ref={bottomRef} className="py-20 bg-gray-50 text-center">
-        <h2 className="text-2xl font-bold mb-8">
-          TEMIS로 편리한 Vtuber 생활 시작해 볼까요?
-        </h2>
-        {/* <Link
-          href="/sample"
-          className="inline-block bg-[#3E4A82] text-white px-8 py-4 rounded-xl text-lg hover:bg-[#2a304b] transition"
-        >
-          30일 무료 체험 하러가기
-        </Link> */}
       </section>
     </div>
   );

@@ -83,7 +83,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
         <div>
           <label
             htmlFor="email"
-            className="block text-sm font-semibold text-slate-700 mb-2"
+            className="block text-sm font-semibold text-dark-gray mb-2"
           >
             이메일
           </label>
@@ -94,7 +94,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
             required
             value={formData.email}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all duration-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-400"
+            className="w-full px-4 py-3 border border-tertiary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 bg-timetable-input-bg hover:bg-white hover:border-primary/30 text-dark-gray placeholder-dark-gray/40"
             placeholder="example@email.com"
             disabled={isLoading}
           />
@@ -103,7 +103,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
         <div>
           <label
             htmlFor="password"
-            className="block text-sm font-semibold text-slate-700 mb-2"
+            className="block text-sm font-semibold text-dark-gray mb-2"
           >
             비밀번호
           </label>
@@ -114,7 +114,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
             required
             value={formData.password}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:border-transparent transition-all duration-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-slate-900 placeholder-slate-400"
+            className="w-full px-4 py-3 border border-tertiary rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 bg-timetable-input-bg hover:bg-white hover:border-primary/30 text-dark-gray placeholder-dark-gray/40"
             placeholder="비밀번호를 입력하세요"
             disabled={isLoading}
           />
@@ -127,12 +127,12 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
               type="checkbox"
               checked={rememberEmail}
               onChange={(e) => setRememberEmail(e.target.checked)}
-              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              className="h-4 w-4 text-primary focus:ring-primary border-tertiary rounded"
               disabled={isLoading}
             />
             <label
               htmlFor="remember-email"
-              className="ml-2 block text-sm text-gray-700"
+              className="ml-2 block text-sm text-dark-gray/70"
             >
               이메일 기억하기
             </label>
@@ -141,7 +141,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
           <button
             type="button"
             onClick={() => setShowForgotPassword(true)}
-            className="text-sm text-[#1e3a8a] hover:text-[#1e40af] font-medium transition-colors"
+            className="text-sm text-primary hover:text-primary/80 font-medium transition-colors"
             disabled={isLoading}
           >
             비밀번호를 잊으셨나요?
@@ -168,7 +168,7 @@ export function LoginForm({ onSuccess, className = "" }: LoginFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-[#1e3a8a] text-white py-3.5 px-4 rounded-xl hover:bg-[#1e40af] focus:outline-none focus:ring-2 focus:ring-[#1e3a8a] focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] shadow-lg font-semibold"
+          className="w-full bg-primary text-white py-3.5 px-4 rounded-xl hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] shadow-lg font-semibold"
         >
           {isLoading ? (
             <span className="flex items-center justify-center">

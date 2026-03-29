@@ -53,7 +53,11 @@ export async function GET(request: NextRequest) {
       .select(
         `
         *,
-        shop_templates (*)
+        shop_templates (*),
+        template_artists (
+          *,
+          artist:artists(*)
+        )
       `
       )
       .range(offset, offset + limit - 1)

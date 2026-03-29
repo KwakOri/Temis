@@ -42,7 +42,7 @@ export default function CustomOrderHistory({
       case "cancelled":
         return <XCircle className="h-5 w-5 text-red-500" />;
       default:
-        return <Clock className="h-5 w-5 text-gray-500" />;
+        return <Clock className="h-5 w-5 text-dark-gray/60" />;
     }
   };
 
@@ -140,7 +140,7 @@ export default function CustomOrderHistory({
             {orders.map((order) => (
               <div
                 key={order.id}
-                className="bg-white border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow"
+                className="bg-timetable-card-bg border border-slate-200 rounded-lg p-6 hover:shadow-md transition-shadow"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-3">

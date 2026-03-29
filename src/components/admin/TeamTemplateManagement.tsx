@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAdminTeamTemplates,
   useAdminTeams,
@@ -9,7 +10,7 @@ import {
 } from "@/hooks/query/useAdminTeamTemplates";
 import { TeamTemplateWithRelations } from "@/services/admin/teamTemplateService";
 import { Database } from "@/types/supabase";
-import { Paperclip } from "lucide-react";
+import { FileText, Paperclip } from "lucide-react";
 import { useState } from "react";
 
 type Team = Database["public"]["Tables"]["teams"]["Row"];
@@ -180,30 +181,23 @@ export default function TeamTemplateManagement() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-primary">
-            팀 템플릿 관리
-          </h2>
-          <p className="text-xs sm:text-sm text-secondary">
-            팀 시간표 템플릿을 조회하고 관리하세요
-          </p>
+      <AdminTabHeader
+        title="팀 템플릿 관리"
+        description="팀 시간표 템플릿을 조회하고 관리하세요"
+        icon={FileText}
+      >
+        <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
+          <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
+            총 {pagination?.total || 0}개
+          </span>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
-            <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
-              총 {pagination?.total || 0}개
-            </span>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
-          >
-            + 템플릿 추가
-          </button>
-        </div>
-      </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap"
+        >
+          + 템플릿 추가
+        </button>
+      </AdminTabHeader>
 
       {/* Templates List */}
       <div className="bg-white shadow-sm rounded-lg overflow-hidden">

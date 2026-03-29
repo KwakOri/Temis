@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useAddTeamMember,
   useAllTeams,
@@ -292,23 +293,18 @@ const TeamManagement = () => {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-            팀 관리
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            팀을 생성하고 팀원을 관리하세요
-          </p>
-        </div>
+      <AdminTabHeader
+        title="팀 관리"
+        description="팀을 생성하고 팀원을 관리하세요"
+        icon={UserCheck}
+      >
         <button
           onClick={handleCreateTeam}
-          className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm sm:text-base whitespace-nowrap self-start sm:self-auto"
+          className="inline-flex items-center justify-center px-3 sm:px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm sm:text-base whitespace-nowrap"
         >
           <Plus className="h-4 w-4 mr-2" />팀 생성
         </button>
-      </div>
+      </AdminTabHeader>
 
       {/* Search */}
       <div className="relative">
