@@ -1,22 +1,22 @@
-import React from "react";
+import React from 'react';
 
-import Loading from "@/components/Loading";
-import MobileHeader from "@/components/TimeTable/MobileHeader";
-import TimeTableControls from "@/components/TimeTable/TimeTableControls";
-import TimeTableForm from "@/components/TimeTable/TimeTableForm";
-import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { TimeTableProvider } from "@/contexts/TimeTableContext";
-import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
-import { useTimeTableEditor } from "@/hooks";
-import { TTheme } from "@/types/time-table/theme";
-import { getPlaceholders } from "@/utils/time-table/data";
-import { useMemo } from "react";
+import { TimeTableProvider } from '@/contexts/TimeTableContext';
+import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
+import { useV2TemplateRenderConfigContext } from '@/contexts/v2/v2_TemplateRenderConfigContext';
+import { useTimeTableEditor } from '@/hooks';
+import { TTheme } from '@/types/time-table/theme';
+import { getPlaceholders } from '@/utils/time-table/data';
+import { useMemo } from 'react';
 
-import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
-import TimeTableDesignGuideController from "@/components/tools/TimeTableDesignGuideController";
-import { isGuideEnabled } from "@/utils/time-table/data";
-import TimeTableContent from "./TimeTableContent";
+import { isGuideEnabled } from '@/utils/time-table/data';
+import V2TimeTableContent from '../content/V2TimeTableContent';
+import V2TimeTableForm from '../form/V2TimeTableForm';
+import V2TimeTableInputList from '../form/V2TimeTableInputList';
+import V2Loading from '../shared/V2Loading';
+import V2TimeTableDesignGuideController from '../tools/V2TimeTableDesignGuideController';
+import V2MobileHeader from './V2MobileHeader';
+import V2TimeTableControls from './V2TimeTableControls';
+import V2TimeTablePreview from './V2TimeTablePreview';
 
 const useV2TemplateEditorSettings = () => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
@@ -25,7 +25,7 @@ const useV2TemplateEditorSettings = () => {
   const weekdayOption = renderConfig.weekdayOption;
   const captureSize = renderConfig.templateSize;
   const profileSize = renderConfig.cardSizes.profile;
-  const defaultTheme = (renderConfig.defaultTheme || "first") as TTheme;
+  const defaultTheme = (renderConfig.defaultTheme || 'first') as TTheme;
 
   const placeholders = useMemo(
     () =>
@@ -67,38 +67,35 @@ const TimeTableEditorContent: React.FC = () => {
     });
 
   // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
-  if (!isInitialized || state.weekDates.length === 0) return <Loading />;
+  if (!isInitialized || state.weekDates.length === 0) return <V2Loading />;
 
   return (
     <div className="w-full h-full flex flex-col">
       {/* 데스크탑 버전 - TimeTableControls (뒤로가기 + 배율 조절 통합) */}
-      {!state.isMobile && <TimeTableControls />}
+      {!state.isMobile && <V2TimeTableControls />}
 
       {/* 모바일 버전 - 상단 헤더에 뒤로가기 + 배율 조절 */}
-      {state.isMobile && <MobileHeader />}
+      {state.isMobile && <V2MobileHeader />}
 
       <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0 h-full">
-        <TimeTablePreview>
-          <TimeTableContent
-            currentTheme={currentTheme}
-            data={data}
-          />
-        </TimeTablePreview>
-        <TimeTableForm
+        <V2TimeTablePreview>
+          <V2TimeTableContent currentTheme={currentTheme} data={data} />
+        </V2TimeTablePreview>
+        <V2TimeTableForm
           isArtist={true}
           onReset={resetData}
-          addons={isGuideEnabled && <TimeTableDesignGuideController />}
+          addons={isGuideEnabled && <V2TimeTableDesignGuideController />}
           cropWidth={profileSize.width}
           cropHeight={profileSize.height}
         >
-          <TimeTableInputList
+          <V2TimeTableInputList
             cardInputConfig={cardInputConfig}
             placeholders={placeholders}
             data={data}
             onDataChange={updateData}
             weekdayOption={weekdayOption}
           />
-        </TimeTableForm>
+        </V2TimeTableForm>
       </div>
     </div>
   );

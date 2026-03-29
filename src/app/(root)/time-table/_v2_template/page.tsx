@@ -6,8 +6,7 @@ import type { V2TemplateRenderConfigResponse } from '@/services/v2_template_rend
 import { v2_createDefaultTemplateRenderConfig } from '@/utils/time-table/v2_template_render_config';
 import { useSearchParams } from 'next/navigation';
 import { useMemo } from 'react';
-import V2TemplateFontFaceStyle from './_components/V2TemplateFontFaceStyle';
-import TimeTableEditor from './_components/_uneditable/TimeTableEditor';
+import { V2TemplateFontFaceStyle, V2TimeTableEditor } from './_components';
 import './_styles/index.css';
 
 const v2_TEMPLATE_ID_REGEX =
@@ -311,7 +310,7 @@ const TimeTableTemplatePage = () => {
     <V2TemplateRenderConfigProvider value={providerValue}>
       <V2TemplateFontFaceStyle />
       <div className="fixed inset-0 w-full h-full">
-        <TimeTableEditor />
+        <V2TimeTableEditor />
       </div>
     </V2TemplateRenderConfigProvider>
   );

@@ -11,7 +11,7 @@ import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
 import { createPlaceholdersFromConfig } from "@/utils/time-table/data";
 import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
-import { Imgs } from "../_img/imgs";
+import { Imgs } from "../../_img/imgs";
 
 // type TCARD = "A" | "B" | "C" | "D";
 

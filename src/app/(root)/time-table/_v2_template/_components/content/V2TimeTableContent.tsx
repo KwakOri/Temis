@@ -10,10 +10,10 @@ import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
-import ProfileImageSection from "../ProfileImageContainer";
-import TimeTableGrid from "../TimeTableGrid";
-import TimeTableTopObject from "../TimeTableTopObject";
-import TimeTableWeekFlag from "../TimeTableWeekFlag";
+import V2ProfileImageSection from "./V2ProfileImageContainer";
+import V2TimeTableGrid from "./V2TimeTableGrid";
+import V2TimeTableTopObject from "./V2TimeTableTopObject";
+import V2TimeTableWeekFlag from "./V2TimeTableWeekFlag";
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;
@@ -52,14 +52,14 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       }}
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
-      <TimeTableTopObject />
-      <TimeTableWeekFlag weekDates={weekDates} />
-      <TimeTableGrid
+      <V2TimeTableTopObject />
+      <V2TimeTableWeekFlag weekDates={weekDates} />
+      <V2TimeTableGrid
         data={data}
         weekDates={weekDates}
         currentTheme={currentTheme}
       />
-      <ProfileImageSection
+      <V2ProfileImageSection
         imageSrc={imageSrc}
         currentTheme={currentTheme}
       />

@@ -4,7 +4,7 @@ import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
 } from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { Imgs } from "../_img/imgs";
+import { Imgs } from "../../_img/imgs";
 
 interface ProfileImageProps {
   imageSrc: string | null;

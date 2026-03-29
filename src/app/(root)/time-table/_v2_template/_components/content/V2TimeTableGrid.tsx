@@ -3,7 +3,7 @@ import React, { Fragment } from "react";
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import TimeTableCell from "./TimeTableCell";
+import V2TimeTableCell from "./V2TimeTableCell";
 
 interface TimeTableGridProps {
   data: TDefaultCard[];
@@ -34,7 +34,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
       <div></div>
       {data.map((time, i) => (
         <Fragment key={time.day}>
-          <TimeTableCell
+          <V2TimeTableCell
             time={time}
             currentTheme={currentTheme}
             weekDate={weekDates[i]}
