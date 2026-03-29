@@ -4,6 +4,7 @@ import {
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
   V2TemplateColorPalette,
   V2TemplateColorKey,
+  V2TemplateEditorOptions,
   V2TemplateFontFaceMetrics,
   V2TemplateFontRegistryItem,
   V2TemplateRenderConfig,
@@ -55,6 +56,12 @@ const v2_DEFAULT_FONT_FACE_METRICS: Required<V2TemplateFontFaceMetrics> = {
   descentOverride: "16%",
   lineGapOverride: "0%",
   sizeAdjust: "100%",
+};
+
+const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
+  isArtist: true,
+  isMultiple: false,
+  maxStreamingTimeByDay: 1,
 };
 
 const v2_DEFAULT_ESCRODREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
@@ -197,6 +204,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       height: 2250,
     },
   },
+  editorOptions: { ...v2_DEFAULT_EDITOR_OPTIONS },
   profileTextPlaceholder: "",
   cardInputConfig: v2_DEFAULT_CARD_INPUT_CONFIG,
   assets: {
@@ -315,6 +323,10 @@ const v2_asString = (value: unknown, fallback: string): string => {
 
 const v2_asNumber = (value: unknown, fallback: number): number => {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+};
+
+const v2_asBoolean = (value: unknown, fallback: boolean): boolean => {
+  return typeof value === "boolean" ? value : fallback;
 };
 
 const v2_asStringArray = (value: unknown, fallback: string[]): string[] => {
@@ -723,6 +735,28 @@ export const v2_normalizeTemplateRenderConfig = (
         height: v2_asNumber(raw.cardSizes.frame.height, cardSizes.frame.height),
       };
     }
+  }
+
+  if (v2_isRecord(raw.editorOptions)) {
+    normalized.editorOptions = {
+      isArtist: v2_asBoolean(
+        raw.editorOptions.isArtist,
+        normalized.editorOptions.isArtist
+      ),
+      isMultiple: v2_asBoolean(
+        raw.editorOptions.isMultiple,
+        normalized.editorOptions.isMultiple
+      ),
+      maxStreamingTimeByDay: Math.max(
+        1,
+        Math.floor(
+          v2_asNumber(
+            raw.editorOptions.maxStreamingTimeByDay,
+            normalized.editorOptions.maxStreamingTimeByDay
+          )
+        )
+      ),
+    };
   }
 
   normalized.profileTextPlaceholder = v2_asString(

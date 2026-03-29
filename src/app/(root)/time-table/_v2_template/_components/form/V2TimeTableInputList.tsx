@@ -1,19 +1,19 @@
 import V2AdaptiveTimeRenderer from "./field-renderers/V2AdaptiveTimeRenderer";
 import V2DescriptionRenderer from "./field-renderers/V2DescriptionRenderer";
 import V2TopicRenderer from "./field-renderers/V2TopicRenderer";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
+import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import {
-  CardInputConfig,
   SimpleFieldConfig,
   TDefaultCard,
   TEntry,
-  TLanOpt,
-  TPlaceholders,
 } from "@/types/time-table/data";
 import {
   createInitialEntryFromConfig,
+  getPlaceholders,
   weekdays,
 } from "@/utils/time-table/data";
-import React from "react";
+import React, { useMemo } from "react";
 
 // 개별 필드 렌더러 타입 정의 (다중 엔트리 지원)
 export interface FieldRenderer {
@@ -43,10 +43,7 @@ export interface CustomFieldRenderer {
   renderer: FieldRenderer;
 }
 
-export interface TimeTableInputListProps {
-  data: TDefaultCard[];
-  onDataChange: (newData: TDefaultCard[]) => void;
-
+export interface V2TimeTableInputListProps {
   // UI 커스터마이징
   containerClassName?: string;
   itemClassName?: string;
@@ -62,35 +59,38 @@ export interface TimeTableInputListProps {
     maxHeight?: string;
   };
 
-  weekdayOption: TLanOpt;
-  cardInputConfig: CardInputConfig;
-  placeholders: TPlaceholders;
   isOfflineMemo?: boolean;
-
-  // 다중 엔트리 설정
-  isMultiple?: boolean;
-  maxStreamingTimeByDay?: number;
 }
 
-const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
-  data,
-  onDataChange,
+const V2TimeTableInputList: React.FC<V2TimeTableInputListProps> = ({
   containerClassName = "flex flex-col gap-4 w-full select-none",
   itemClassName = "bg-white backdrop-blur-md rounded-xl p-4 shadow-[0_4px_5px_rgba(0,0,0,0.15)]",
   headerClassName = "flex justify-between items-center",
   fieldsContainerClassName = "pt-2 flex flex-col gap-4",
   weekdayRenderer,
-  weekdayOption,
   expandAnimation = {
     duration: 300,
     maxHeight: "1000px",
   },
-  cardInputConfig,
-  placeholders,
   isOfflineMemo = false,
-  isMultiple = false,
-  maxStreamingTimeByDay = 1,
 }) => {
+  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { data, updateData } = useV2TimeTableEditorRuntimeContext();
+
+  const cardInputConfig = renderConfig.cardInputConfig;
+  const weekdayOption = renderConfig.weekdayOption;
+  const placeholders = useMemo(
+    () =>
+      getPlaceholders({
+        cardInputConfig,
+        profilePlaceholder: renderConfig.profileTextPlaceholder,
+      }),
+    [cardInputConfig, renderConfig.profileTextPlaceholder]
+  );
+  const isMultiple = renderConfig.editorOptions.isMultiple;
+  const maxStreamingTimeByDay = renderConfig.editorOptions.maxStreamingTimeByDay;
+  const onDataChange = updateData;
+
   const defaultFieldRenderers = {
     time: ({
       entry,
@@ -724,4 +724,4 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   );
 };
 
-export default TimeTableInputList;
+export default V2TimeTableInputList;

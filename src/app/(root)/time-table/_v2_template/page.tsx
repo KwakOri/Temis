@@ -149,6 +149,11 @@ const TimeTableTemplatePage = () => {
           height: 2250,
         },
       },
+      editorOptions: {
+        isArtist: true,
+        isMultiple: false,
+        maxStreamingTimeByDay: 1,
+      },
       profileTextPlaceholder: '',
       cardInputConfig: {
         fields: [

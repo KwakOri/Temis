@@ -1,8 +1,9 @@
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { useGesture } from "@use-gesture/react";
-import { PropsWithChildren, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import V2TimeTableContent from "../content/V2TimeTableContent";
 
-const TimeTablePreview = ({ children }: PropsWithChildren) => {
+const V2TimeTablePreview = () => {
   const { state, actions } = useTimeTable();
   const { scale, weekDates, isMobile, captureSize } = state;
   const { updateScale } = actions;
@@ -125,10 +126,10 @@ const TimeTablePreview = ({ children }: PropsWithChildren) => {
         style={getDraggableStyle()}
         {...bind()}
       >
-        {children}
+        <V2TimeTableContent />
       </div>
     </div>
   );
 };
 
-export default TimeTablePreview;
+export default V2TimeTablePreview;

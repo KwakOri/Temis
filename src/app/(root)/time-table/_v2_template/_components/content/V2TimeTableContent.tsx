@@ -1,4 +1,5 @@
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
@@ -6,8 +7,6 @@ import {
 import React from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
-import { TDefaultCard } from "@/types/time-table/data";
-import { TTheme } from "@/types/time-table/theme";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 import V2ProfileImageSection from "./V2ProfileImageContainer";
@@ -15,15 +14,8 @@ import V2TimeTableGrid from "./V2TimeTableGrid";
 import V2TimeTableTopObject from "./V2TimeTableTopObject";
 import V2TimeTableWeekFlag from "./V2TimeTableWeekFlag";
 
-export interface TimeTableContentProps {
-  currentTheme: TTheme;
-  data: TDefaultCard[];
-}
-
-const TimeTableContent: React.FC<TimeTableContentProps> = ({
-  currentTheme,
-  data,
-}) => {
+const V2TimeTableContent: React.FC = () => {
+  const { currentTheme, data } = useV2TimeTableEditorRuntimeContext();
   const { imageSrc, weekDates } = useTimeTableData();
   const { scale } = useTimeTableUI();
   const { renderConfig } = useV2TemplateRenderConfigContext();
@@ -67,4 +59,4 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
   );
 };
 
-export default TimeTableContent;
+export default V2TimeTableContent;

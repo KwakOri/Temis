@@ -3,7 +3,10 @@ import V2ImageSaveModal from "../modals/V2ImageSaveModal";
 import V2MondaySelector from "./V2MondaySelector";
 import V2ResetButton from "./V2ResetButton";
 import V2TimeTableFormTabs from "./V2TimeTableFormTabs";
+import V2TimeTableInputList from "./V2TimeTableInputList";
 import { useTimeTable } from "@/contexts/TimeTableContext";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
+import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import {
   useHasActiveTeam,
   useSaveTeamScheduleFromDynamicCards,
@@ -11,22 +14,12 @@ import {
 import { OptionType } from "@/hooks/useTimeTableState";
 import { TeamService } from "@/services/teamService";
 import { CroppedAreaPixels } from "@/types/image-edit";
-import { TDefaultCard } from "@/types/time-table/data";
+import { isGuideEnabled } from "@/utils/time-table/data";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import React, { Fragment, PropsWithChildren, useRef, useState } from "react";
+import React, { Fragment, useRef, useState } from "react";
 import { Point } from "react-easy-crop";
-interface TimeTableFormProps {
-  isArtist?: boolean;
-  isMemo?: boolean;
-  saveable?: boolean;
-  addons?: React.ReactNode;
-  onReset: () => void;
-  cropWidth?: number;
-  cropHeight?: number;
-  teamData?: TDefaultCard[]; // 팀 시간표 저장을 위한 데이터
-  multiSelect?: boolean; // true: 여러 버튼 동시 활성화 가능, false: 최대 1개만 활성화 가능
-}
+import V2TimeTableDesignGuideController from "../tools/V2TimeTableDesignGuideController";
 
 interface ProfileOptionButtonProps {
   handler: () => void;
@@ -53,18 +46,18 @@ const ProfileOptionButton = ({
   );
 };
 
-const TimeTableForm = ({
-  addons,
-  children,
-  onReset,
-  teamData,
-  cropWidth = 400,
-  cropHeight = 400,
-  isArtist = true,
-  isMemo = false,
-  saveable = true,
-  multiSelect = false,
-}: PropsWithChildren<TimeTableFormProps>) => {
+const V2TimeTableForm: React.FC = () => {
+  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { data, resetData } = useV2TimeTableEditorRuntimeContext();
+
+  const teamData = data;
+  const saveable = true;
+  const isArtist = renderConfig.editorOptions.isArtist;
+  const isMemo = false;
+  const multiSelect = false;
+  const cropWidth = renderConfig.cardSizes.profile.width;
+  const cropHeight = renderConfig.cardSizes.profile.height;
+
   const { state, actions } = useTimeTable();
   const pathname = usePathname();
 
@@ -388,12 +381,14 @@ const TimeTableForm = ({
           mondayDateStr={mondayDateStr}
           onDateChange={handleDateChange}
         />
-        {children}
+        <V2TimeTableInputList />
       </div>
     </div>
   );
 
-  const renderAddonsContent = () => (addons ? <>{addons}</> : null);
+  const showGuideController = isGuideEnabled;
+  const renderAddonsContent = () =>
+    showGuideController ? <V2TimeTableDesignGuideController /> : null;
 
   return (
     <>
@@ -403,11 +398,11 @@ const TimeTableForm = ({
             <V2TimeTableFormTabs
               activeTab={activeTab}
               onChangeActiveTab={onChangeActiveTab}
-              isAddons={!!addons}
+              isAddons={showGuideController}
             />
             <div className="flex-1 overflow-y-auto p-4 h-full">
               {activeTab === "main" && renderMainSettings()}
-              {activeTab === "addons" && renderAddonsContent()}
+              {showGuideController && activeTab === "addons" && renderAddonsContent()}
             </div>
           </div>
 
@@ -425,7 +420,7 @@ const TimeTableForm = ({
               >
                 이미지로 저장
               </button>
-              <V2ResetButton onReset={onReset} />
+              <V2ResetButton onReset={resetData} />
             </div>
           </div>
         </div>
@@ -464,4 +459,4 @@ const TimeTableForm = ({
   );
 };
 
-export default TimeTableForm;
+export default V2TimeTableForm;

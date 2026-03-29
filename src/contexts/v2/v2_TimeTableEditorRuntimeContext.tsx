@@ -1,0 +1,38 @@
+"use client";
+
+import { TDefaultCard } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import { createContext, PropsWithChildren, useContext } from "react";
+
+export interface V2TimeTableEditorRuntimeContextValue {
+  data: TDefaultCard[];
+  updateData: (newData: TDefaultCard[]) => void;
+  currentTheme: TTheme;
+  resetData: () => void;
+}
+
+const V2TimeTableEditorRuntimeContext =
+  createContext<V2TimeTableEditorRuntimeContextValue | null>(null);
+
+export const V2TimeTableEditorRuntimeProvider = ({
+  children,
+  value,
+}: PropsWithChildren<{ value: V2TimeTableEditorRuntimeContextValue }>) => {
+  return (
+    <V2TimeTableEditorRuntimeContext.Provider value={value}>
+      {children}
+    </V2TimeTableEditorRuntimeContext.Provider>
+  );
+};
+
+export const useV2TimeTableEditorRuntimeContext = () => {
+  const context = useContext(V2TimeTableEditorRuntimeContext);
+
+  if (!context) {
+    throw new Error(
+      "useV2TimeTableEditorRuntimeContext must be used within V2TimeTableEditorRuntimeProvider"
+    );
+  }
+
+  return context;
+};

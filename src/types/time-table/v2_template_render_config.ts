@@ -74,6 +74,12 @@ export interface V2TemplateFontConfig {
   registry: Record<string, V2TemplateFontRegistryItem>;
 }
 
+export interface V2TemplateEditorOptions {
+  isArtist: boolean;
+  isMultiple: boolean;
+  maxStreamingTimeByDay: number;
+}
+
 export interface V2TemplateMaxFontSizes {
   MAIN_TITLE: number;
   SUB_TITLE: number;
@@ -181,6 +187,7 @@ export interface V2TemplateRenderConfig {
   componentFonts: Record<V2TemplateFontKey, string>;
   maxFontSizes: V2TemplateMaxFontSizes;
   cardSizes: V2TemplateCardSizes;
+  editorOptions: V2TemplateEditorOptions;
   profileTextPlaceholder: string;
   cardInputConfig: CardInputConfig;
   assets: V2TemplateAssetMap;
