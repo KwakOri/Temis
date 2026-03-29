@@ -44,3 +44,4 @@ next-env.d.ts
 /backups/
 /supabase/.temp/
 /supabase/.branches/
+public/sw.js
