@@ -43,17 +43,17 @@ const TimeTableControls: React.FC = () => {
           value={scale}
           onChange={(e) => updateScale(parseFloat(e.target.value))}
           className="ml-2 w-60 h-2 rounded-lg appearance-none bg-gray-300
-          accent-[#3E4A82]
+          accent-timetable-primary
           [&::-webkit-slider-thumb]:appearance-none
           [&::-webkit-slider-thumb]:h-5
           [&::-webkit-slider-thumb]:w-5
           [&::-webkit-slider-thumb]:rounded-full
-          [&::-webkit-slider-thumb]:bg-[#3E4A82]
+          [&::-webkit-slider-thumb]:bg-timetable-primary
           [&::-webkit-slider-thumb]:shadow-md
           [&::-moz-range-thumb]:h-5
           [&::-moz-range-thumb]:w-5
           [&::-moz-range-thumb]:rounded-full
-          [&::-moz-range-thumb]:bg-[#3E4A82]
+          [&::-moz-range-thumb]:bg-timetable-primary
           [&::-moz-range-thumb]:shadow-md
           "
         />

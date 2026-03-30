@@ -1,5 +1,6 @@
 "use client";
 
+import CardTitle from "@/components/TimeTable/FixedComponents/CardTitle";
 import React from "react";
 
 interface MondaySelectorProps {
@@ -7,90 +8,80 @@ interface MondaySelectorProps {
   onDateChange: (dateStr: string) => void;
 }
 
-const MondaySelector: React.FC<MondaySelectorProps> = ({
-  mondayDateStr,
-  onDateChange,
-}) => {
-  // 현재 월요일 날짜를 Date 객체로 변환
+const V2MondaySelector = ({ mondayDateStr, onDateChange }: MondaySelectorProps) => {
   const currentMonday = new Date(mondayDateStr);
-  
-  // 월/일 형식으로 표시
+
   const formatDate = (date: Date) => {
     const month = date.getMonth() + 1;
     const day = date.getDate();
     return `${month}/${day}`;
   };
 
-  // 이전 월요일로 이동
   const goToPreviousMonday = () => {
-    const prevMonday = new Date(currentMonday);
-    prevMonday.setDate(currentMonday.getDate() - 7);
-    const newDateStr = prevMonday.toISOString().split("T")[0];
-    onDateChange(newDateStr);
+    const previousMonday = new Date(currentMonday);
+    previousMonday.setDate(previousMonday.getDate() - 7);
+    onDateChange(previousMonday.toISOString().split("T")[0]);
   };
 
-  // 다음 월요일로 이동
   const goToNextMonday = () => {
     const nextMonday = new Date(currentMonday);
-    nextMonday.setDate(currentMonday.getDate() + 7);
-    const newDateStr = nextMonday.toISOString().split("T")[0];
-    onDateChange(newDateStr);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    onDateChange(nextMonday.toISOString().split("T")[0]);
   };
 
   return (
-    <div>
-      <label className="block text-sm text-gray-700 font-semibold mb-2">
-        기준 월요일 선택
-      </label>
-      <div className="flex items-center justify-between bg-white border border-gray-300 rounded-md px-3 py-2">
-        {/* 이전 월요일 버튼 */}
+    <div className="h-12 gap-4 flex justify-between items-center bg-timetable-card-bg shadow-[0_2px_3.4px_rgba(0,0,0,0.08)] border-2 border-timetable-card-border transition-all duration-200 grow-0 rounded-2xl px-3">
+      <CardTitle size="sm" label="주간 선택" />
+      <div className="flex-1 flex items-center justify-between rounded-xl">
         <button
           type="button"
           onClick={goToPreviousMonday}
-          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-timetable-primary hover:bg-timetable-input-hover rounded-full transition-colors"
           aria-label="이전 월요일"
         >
           <svg
-            className="w-4 h-4"
-            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
+            fill="none"
             stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
+            <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
 
-        {/* 월/일 표시 */}
         <div className="flex-1 text-center">
-          <span className="text-sm font-medium text-gray-700" role="status" aria-live="polite">
+          <span
+            className="text-base font-semibold text-gray-800"
+            role="status"
+            aria-live="polite"
+          >
             {formatDate(currentMonday)}
           </span>
         </div>
 
-        {/* 다음 월요일 버튼 */}
         <button
           type="button"
           onClick={goToNextMonday}
-          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-full transition-colors"
+          className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-timetable-primary hover:bg-timetable-input-hover rounded-full transition-colors"
           aria-label="다음 월요일"
         >
           <svg
-            className="w-4 h-4"
-            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
+            fill="none"
             stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 5l7 7-7 7"
-            />
+            <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>
       </div>
@@ -98,4 +89,4 @@ const MondaySelector: React.FC<MondaySelectorProps> = ({
   );
 };
 
-export default MondaySelector;
+export default V2MondaySelector;

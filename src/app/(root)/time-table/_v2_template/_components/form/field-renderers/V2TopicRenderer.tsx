@@ -14,7 +14,8 @@ const TopicRenderer = ({
   className,
   ...props
 }: TopicRendererProps) => {
-  const baseClassName = "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none";
+  const baseClassName =
+    "w-full bg-timetable-input-bg rounded-xl p-3 text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-0 focus:shadow-[inset_0_0_0_2px_#FF9F45]";
   const finalClassName = className 
     ? `${baseClassName} ${className}`
     : baseClassName;
