@@ -1,6 +1,11 @@
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import Link from "next/link";
 import React from "react";
+import {
+  v2_PREVIEW_SCALE_MAX_MOBILE,
+  v2_PREVIEW_SCALE_MIN,
+  v2_clampPreviewScale,
+} from "./v2_preview_constants";
 
 const MobileHeader: React.FC = () => {
   const { state, actions } = useTimeTable();
@@ -35,11 +40,18 @@ const MobileHeader: React.FC = () => {
           </span>
           <input
             type="range"
-            min={0.1}
-            max={1.0}
+            min={v2_PREVIEW_SCALE_MIN}
+            max={v2_PREVIEW_SCALE_MAX_MOBILE}
             step={0.05}
             value={state.scale}
-            onChange={(e) => actions.updateScale(parseFloat(e.target.value))}
+            onChange={(e) =>
+              actions.updateScale(
+                v2_clampPreviewScale({
+                  value: parseFloat(e.target.value),
+                  isMobile: true,
+                })
+              )
+            }
             className="w-24 h-3 rounded-lg appearance-none bg-gray-300
             accent-timetable-primary
             [&::-webkit-slider-thumb]:appearance-none

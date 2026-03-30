@@ -1,6 +1,11 @@
 import { useTimeTableUI } from "@/contexts/TimeTableContext";
 import Link from "next/link";
 import React from "react";
+import {
+  v2_PREVIEW_SCALE_MAX_DESKTOP,
+  v2_PREVIEW_SCALE_MIN,
+  v2_clampPreviewScale,
+} from "./v2_preview_constants";
 
 const TimeTableControls: React.FC = () => {
   const { scale, updateScale } = useTimeTableUI();
@@ -37,11 +42,18 @@ const TimeTableControls: React.FC = () => {
         </label>
         <input
           type="range"
-          min={0.1}
-          max={2}
+          min={v2_PREVIEW_SCALE_MIN}
+          max={v2_PREVIEW_SCALE_MAX_DESKTOP}
           step={0.1}
           value={scale}
-          onChange={(e) => updateScale(parseFloat(e.target.value))}
+          onChange={(e) =>
+            updateScale(
+              v2_clampPreviewScale({
+                value: parseFloat(e.target.value),
+                isMobile: false,
+              })
+            )
+          }
           className="ml-2 w-60 h-2 rounded-lg appearance-none bg-gray-300
           accent-timetable-primary
           [&::-webkit-slider-thumb]:appearance-none

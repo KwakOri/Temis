@@ -1,3 +1,4 @@
+export * from "./builder";
 export * from "./content";
 export * from "./editor";
 export * from "./form";

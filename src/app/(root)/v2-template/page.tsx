@@ -3,9 +3,10 @@
 import { V2TemplateRenderConfigProvider } from '@/contexts/v2/v2_TemplateRenderConfigContext';
 import { useV2TemplateRenderConfig } from '@/hooks/query/useV2TemplateRenderConfig';
 import type { V2TemplateRenderConfigResponse } from '@/services/v2_template_render_config_service';
+import type { V2TemplateRenderConfig } from '@/types/time-table/v2_template_render_config';
 import { v2_createDefaultTemplateRenderConfig } from '@/utils/time-table/v2_template_render_config';
 import { useSearchParams } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { V2TemplateFontFaceStyle, V2TimeTableEditor } from './_components';
 import './_styles/index.css';
 
@@ -23,12 +24,13 @@ const TimeTableTemplatePage = () => {
 
   const { data, isLoading } = useV2TemplateRenderConfig(templateId);
 
-  const exampleData: V2TemplateRenderConfigResponse = {
-    success: true,
-    templateId: '00000000-0000-0000-0000-000000000000',
-    source: 'db',
-    configVersion: 1,
-    renderConfig: {
+  const exampleData = useMemo<V2TemplateRenderConfigResponse>(
+    () => ({
+      success: true,
+      templateId: '00000000-0000-0000-0000-000000000000',
+      source: 'db',
+      configVersion: 1,
+      renderConfig: {
       version: 1,
       metadata: {
         schema: 'v2_template_render_config',
@@ -290,16 +292,21 @@ const TimeTableTemplatePage = () => {
         },
       },
     },
-    createdAt: '2026-03-29T00:00:00.000Z',
-    updatedAt: '2026-03-29T00:00:00.000Z',
-  };
-
-  const fallbackConfig = useMemo(
-    () => v2_createDefaultTemplateRenderConfig(),
+      createdAt: '2026-03-29T00:00:00.000Z',
+      updatedAt: '2026-03-29T00:00:00.000Z',
+    }),
     []
   );
+
+  const fallbackConfig = useMemo(() => v2_createDefaultTemplateRenderConfig(), []);
   const resolvedData = data ?? exampleData;
-  const renderConfig = resolvedData.renderConfig ?? fallbackConfig;
+  const resolvedRenderConfig = resolvedData.renderConfig ?? fallbackConfig;
+  const [renderConfig, setRenderConfig] =
+    useState<V2TemplateRenderConfig>(resolvedRenderConfig);
+
+  useEffect(() => {
+    setRenderConfig(resolvedRenderConfig);
+  }, [resolvedRenderConfig]);
 
   const providerValue = useMemo(
     () => ({
@@ -307,6 +314,7 @@ const TimeTableTemplatePage = () => {
       source: resolvedData.source ?? 'default',
       isLoading,
       renderConfig,
+      setRenderConfig,
     }),
     [isLoading, renderConfig, resolvedData.source, templateId]
   );

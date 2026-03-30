@@ -5,13 +5,20 @@ import {
   V2TemplateRenderConfig,
 } from "@/types/time-table/v2_template_render_config";
 import { v2_getThemedAssetUrl } from "@/utils/time-table/v2_template_render_config";
-import { createContext, PropsWithChildren, useContext } from "react";
+import {
+  createContext,
+  Dispatch,
+  PropsWithChildren,
+  SetStateAction,
+  useContext,
+} from "react";
 
 export interface V2TemplateRenderConfigContextValue {
   templateId: string | null;
   source: "db" | "default";
   isLoading: boolean;
   renderConfig: V2TemplateRenderConfig;
+  setRenderConfig?: Dispatch<SetStateAction<V2TemplateRenderConfig>>;
 }
 
 const V2TemplateRenderConfigContext =

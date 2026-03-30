@@ -6,11 +6,11 @@ import { V2TimeTableEditorRuntimeProvider } from '@/contexts/v2/v2_TimeTableEdit
 import { useV2TemplateRenderConfigContext } from '@/contexts/v2/v2_TemplateRenderConfigContext';
 import { useTimeTableEditor } from '@/hooks';
 import { TTheme } from '@/types/time-table/theme';
+import V2TemplateBuilderForm from '../builder/V2TemplateBuilderForm';
 import V2Loading from '../shared/V2Loading';
 import V2MobileHeader from './V2MobileHeader';
 import V2TimeTableControls from './V2TimeTableControls';
 import V2TimeTablePreview from './V2TimeTablePreview';
-import V2TimeTableForm from '../form/V2TimeTableForm';
 
 const useV2TemplateEditorSettings = () => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
@@ -36,6 +36,7 @@ const V2TimeTableEditor: React.FC = () => {
     data,
     updateData,
     currentTheme,
+    updateTheme,
     resetData,
     isInitialized,
   } = useTimeTableEditor({
@@ -54,9 +55,10 @@ const V2TimeTableEditor: React.FC = () => {
       data,
       updateData,
       currentTheme,
+      updateTheme,
       resetData,
     }),
-    [currentTheme, data, resetData, updateData]
+    [currentTheme, data, resetData, updateData, updateTheme]
   );
 
   return (
@@ -72,7 +74,7 @@ const V2TimeTableEditor: React.FC = () => {
 
               <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0 h-full">
                 <V2TimeTablePreview />
-                <V2TimeTableForm />
+                <V2TemplateBuilderForm />
               </div>
             </div>
           )}

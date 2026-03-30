@@ -1,11 +1,16 @@
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { useGesture } from "@use-gesture/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import V2TimeTableContent from "../content/V2TimeTableContent";
+import {
+  v2_PREVIEW_SCALE_MAX_MOBILE,
+  v2_PREVIEW_SCALE_MIN,
+  v2_clampPreviewScale,
+} from "./v2_preview_constants";
 
 const V2TimeTablePreview = () => {
   const { state, actions } = useTimeTable();
-  const { scale, weekDates, isMobile, captureSize } = state;
+  const { scale, isMobile, captureSize } = state;
   const { updateScale } = actions;
   const [position, setPosition] = useState({ x: 0, y: 0 });
 
@@ -54,10 +59,10 @@ const V2TimeTablePreview = () => {
         }
 
         if (updateScale && Math.abs(scale_offset) > 0.001) {
-          const newScale = Math.min(
-            Math.max(memo.scale + scale_offset * 0.01, 0.1),
-            1.0
-          );
+          const newScale = v2_clampPreviewScale({
+            value: memo.scale + scale_offset * 0.01,
+            isMobile: true,
+          });
           updateScale(newScale);
         }
 
@@ -71,7 +76,10 @@ const V2TimeTablePreview = () => {
         pointer: { touch: true },
       },
       pinch: {
-        scaleBounds: { min: 0.1, max: 1.0 },
+        scaleBounds: {
+          min: v2_PREVIEW_SCALE_MIN,
+          max: v2_PREVIEW_SCALE_MAX_MOBILE,
+        },
         rubberband: true,
         threshold: 0.1,
         pointer: { touch: true },
@@ -83,7 +91,7 @@ const V2TimeTablePreview = () => {
     if (!isMobile) {
       setPosition({ x: 0, y: 0 });
     }
-  }, [scale, isMobile]);
+  }, [isMobile]);
 
   const isDraggable = true;
 
@@ -100,30 +108,34 @@ const V2TimeTablePreview = () => {
     }
   }, [isMobile]);
 
-  const getViewportStyle = () => ({
-    height: isMobile ? "30vh" : "100%",
-    flex: isMobile ? "none" : "1",
-  });
+  const viewportStyle = useMemo(
+    () => ({
+      height: isMobile ? "30vh" : "100%",
+      flex: isMobile ? "none" : "1",
+    }),
+    [isMobile]
+  );
 
-  const getDraggableStyle = () => ({
-    width: containerWidth,
-    height: containerHeight,
-    transform: `translate(${position.x}px, ${position.y}px)`,
-    cursor: isDraggable ? "grab" : "default",
-    transition: "width 0.1s ease, height 0.1s ease",
-    touchAction: "none",
-  });
-
-  if (weekDates.length === 0) return null;
+  const draggableStyle = useMemo(
+    () => ({
+      width: containerWidth,
+      height: containerHeight,
+      transform: `translate(${position.x}px, ${position.y}px)`,
+      cursor: isDraggable ? "grab" : "default",
+      transition: "width 0.1s ease, height 0.1s ease",
+      touchAction: "none" as const,
+    }),
+    [containerHeight, containerWidth, isDraggable, position.x, position.y]
+  );
 
   return (
     <div
       className="flex justify-center items-center h-full overflow-hidden pt-4 md:p-0 "
-      style={getViewportStyle()}
+      style={viewportStyle}
     >
       <div
         className="relative shadow-lg rounded-sm"
-        style={getDraggableStyle()}
+        style={draggableStyle}
         {...bind()}
       >
         <V2TimeTableContent />

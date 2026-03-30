@@ -8,6 +8,7 @@ export interface V2TimeTableEditorRuntimeContextValue {
   data: TDefaultCard[];
   updateData: (newData: TDefaultCard[]) => void;
   currentTheme: TTheme;
+  updateTheme: (theme: TTheme) => void;
   resetData: () => void;
 }
 
