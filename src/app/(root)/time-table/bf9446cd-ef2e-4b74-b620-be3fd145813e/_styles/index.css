@@ -1,0 +1,38 @@
+@font-face {
+  font-family: 'JoseonShinmyeongjo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@1.1/ChosunSm.woff')
+    format('woff');
+  font-weight: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'JoseonBoldMyongjo';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_20-04@1.0/ChosunKm.woff')
+    format('woff');
+  font-weight: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'NostalgicPoliceVibe';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-6@1.0/Griun_PolSensibility-Rg.woff2')
+    format('woff2');
+  font-weight: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}

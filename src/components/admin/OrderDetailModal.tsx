@@ -427,13 +427,15 @@ function NewFileManager({ files, title = "첨부파일" }: NewFileManagerProps) 
   // 전체 파일 ZIP 다운로드
   const downloadAllFiles = async () => {
     try {
-      const fileIds = files.map((f) => f.id).join(",");
-      const response = await fetch(
-        `/api/admin/files/download-zip?fileIds=${fileIds}`,
-        {
-          credentials: "include",
-        }
-      );
+      const fileIds = files.map((f) => f.id);
+      const response = await fetch("/api/admin/files/download-zip", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({ fileIds }),
+      });
 
       if (response.ok) {
         const blob = await response.blob();
