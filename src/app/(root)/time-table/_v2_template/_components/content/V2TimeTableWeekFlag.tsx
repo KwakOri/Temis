@@ -1,18 +1,16 @@
 import { getWeekDateRange, padZero } from "@/utils/date-formatter";
+import { useTimeTableData } from "@/contexts/TimeTableContext";
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
-
-interface TimeTableWeekFlagProps {
-  weekDates: Date[];
-}
 // left -11.3 right 7.5 180/230
 
-const TimeTableWeekFlag = ({
-  weekDates,
-}: TimeTableWeekFlagProps) => {
-  const { start, end } = getWeekDateRange(weekDates);
+const TimeTableWeekFlag = () => {
+  const { weekDates } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const weekFlagLayout = renderConfig.layout.weekFlag;
+  if (weekDates.length === 0) return null;
+
+  const { start, end } = getWeekDateRange(weekDates);
 
   return (
     <p

@@ -1,21 +1,14 @@
-import { TTheme } from "@/types/time-table/theme";
 import { PropsWithChildren } from "react";
+import { useTimeTableData } from "@/contexts/TimeTableContext";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
 } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import { Imgs } from "../../_img/imgs";
 
-interface ProfileImageProps {
-  imageSrc: string | null;
-}
-
-interface ProfileImageSectionProps {
-  currentTheme: TTheme;
-  imageSrc: string | null;
-}
-
-const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
+const ProfileImage = () => {
+  const { imageSrc } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const profileSize = renderConfig.cardSizes.profile;
   const profileLayout = renderConfig.layout.profileImage;
@@ -43,11 +36,8 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
   );
 };
 
-interface ProfileFrameProps {
-  currentTheme: TTheme;
-}
-
-const ProfileFrame = ({ currentTheme }: ProfileFrameProps) => {
+const ProfileFrame = () => {
+  const { currentTheme } = useV2TimeTableEditorRuntimeContext();
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const frameSize = renderConfig.cardSizes.frame;
   const frameUrl =
@@ -140,10 +130,7 @@ const ProfileImageContainer = ({ children }: PropsWithChildren) => {
   );
 };
 
-const ProfileImageSection = ({
-  currentTheme,
-  imageSrc,
-}: ProfileImageSectionProps) => {
+const ProfileImageSection = () => {
   return (
     <ProfileImageContainer>
       {/* <ProfileText
@@ -151,8 +138,8 @@ const ProfileImageSection = ({
         profileText={profileText}
         profileTextPlaceholder={profileTextPlaceholder}
       /> */}
-      <ProfileFrame currentTheme={currentTheme} />
-      <ProfileImage imageSrc={imageSrc} />
+      <ProfileFrame />
+      <ProfileImage />
     </ProfileImageContainer>
   );
 };

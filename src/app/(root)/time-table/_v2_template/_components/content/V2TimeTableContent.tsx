@@ -15,8 +15,8 @@ import V2TimeTableTopObject from "./V2TimeTableTopObject";
 import V2TimeTableWeekFlag from "./V2TimeTableWeekFlag";
 
 const V2TimeTableContent: React.FC = () => {
-  const { currentTheme, data } = useV2TimeTableEditorRuntimeContext();
-  const { imageSrc, weekDates } = useTimeTableData();
+  const { currentTheme } = useV2TimeTableEditorRuntimeContext();
+  const { weekDates } = useTimeTableData();
   const { scale } = useTimeTableUI();
   const { renderConfig } = useV2TemplateRenderConfigContext();
 
@@ -45,16 +45,9 @@ const V2TimeTableContent: React.FC = () => {
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
       <V2TimeTableTopObject />
-      <V2TimeTableWeekFlag weekDates={weekDates} />
-      <V2TimeTableGrid
-        data={data}
-        weekDates={weekDates}
-        currentTheme={currentTheme}
-      />
-      <V2ProfileImageSection
-        imageSrc={imageSrc}
-        currentTheme={currentTheme}
-      />
+      <V2TimeTableWeekFlag />
+      <V2TimeTableGrid />
+      <V2ProfileImageSection />
     </div>
   );
 };

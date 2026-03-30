@@ -1,21 +1,13 @@
 import React, { Fragment } from "react";
 
+import { useTimeTableData } from "@/contexts/TimeTableContext";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { TDefaultCard } from "@/types/time-table/data";
-import { TTheme } from "@/types/time-table/theme";
 import V2TimeTableCell from "./V2TimeTableCell";
 
-interface TimeTableGridProps {
-  data: TDefaultCard[];
-  weekDates: Date[];
-  currentTheme: TTheme;
-}
-
-const TimeTableGrid: React.FC<TimeTableGridProps> = ({
-  data,
-  weekDates,
-  currentTheme,
-}) => {
+const TimeTableGrid: React.FC = () => {
+  const { data, currentTheme } = useV2TimeTableEditorRuntimeContext();
+  const { weekDates } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const gridLayout = renderConfig.layout.grid;
 
