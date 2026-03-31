@@ -4,7 +4,7 @@ import { TablesUpdate } from "@/types/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
 const USER_LINKED_CONSTRAINT = "idx_artists_user_id_unique";
-const SYSTEM_ARTIST_SLUGS = new Set(["no-artist", "temis"]);
+const SYSTEM_ARTIST_SLUGS = new Set(["temis"]);
 
 function toSlug(value: string): string {
   return value
@@ -185,9 +185,9 @@ export async function DELETE(
       );
     }
 
-    if (existingArtist.slug === "no-artist") {
+    if (existingArtist.slug === "temis") {
       return NextResponse.json(
-        { error: "'작가 없음' 시스템 작가는 삭제할 수 없습니다." },
+        { error: "'테미스' 시스템 작가는 삭제할 수 없습니다." },
         { status: 400 }
       );
     }
