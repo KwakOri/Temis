@@ -4,14 +4,14 @@ import BackButton from "@/components/BackButton";
 import TemplateDetailContent from "@/components/shop/TemplateDetailContent";
 import type { ShopTemplateWithPlans } from "@/types/templateDetail";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 interface PreviewStorageData {
   template?: ShopTemplateWithPlans;
   createdAt?: number;
 }
 
-export default function ShopPreviewPage() {
+function ShopPreviewContent() {
   const searchParams = useSearchParams();
   const previewKey = searchParams.get("previewKey");
   const [template, setTemplate] = useState<ShopTemplateWithPlans | null>(null);
@@ -113,5 +113,28 @@ export default function ShopPreviewPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ShopPreviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary py-6 md:py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-timetable-form-bg rounded-2xl shadow-xl p-8 backdrop-blur-sm border border-tertiary">
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+                <p className="ml-4 text-dark-gray/70">
+                  미리보기를 준비하는 중...
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <ShopPreviewContent />
+    </Suspense>
   );
 }
