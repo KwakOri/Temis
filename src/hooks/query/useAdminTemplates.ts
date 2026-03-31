@@ -10,12 +10,27 @@ import {
 } from "@/types/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const useAdminTemplates = (params?: { limit?: number; offset?: number }) => {
+export const useAdminTemplates = (params?: {
+  limit?: number;
+  offset?: number;
+  visibility?: "public" | "private";
+  search?: string;
+}) => {
   return useQuery({
     queryKey: [...queryKeys.admin.templates(), params],
     queryFn: () => AdminTemplateService.getTemplates(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+};
+
+export const useAdminTemplate = (templateId?: string) => {
+  return useQuery({
+    queryKey: queryKeys.admin.template(templateId || ""),
+    queryFn: () => AdminTemplateService.getTemplate(templateId!),
+    enabled: Boolean(templateId),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 

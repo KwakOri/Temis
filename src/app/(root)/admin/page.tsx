@@ -37,6 +37,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 type TabType =
   | "templates"
@@ -74,7 +75,14 @@ const defaultTabs = [
 
 function AdminContent() {
   const { user, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabType>("workCalendar");
+  const searchParams = useSearchParams();
+  const initialTabParam = searchParams.get("tab");
+  const initialTab: TabType =
+    initialTabParam &&
+    defaultTabs.some((tab) => tab.id === initialTabParam)
+      ? (initialTabParam as TabType)
+      : "workCalendar";
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // React Query로 관리자 권한 확인
@@ -87,7 +95,7 @@ function AdminContent() {
   const isAdmin = user?.isAdmin || false;
 
   // Fetch tab orders from database
-  const { data: tabOrders, isLoading: isLoadingTabOrders } = useTabOrders();
+  const { data: tabOrders } = useTabOrders();
 
   // Sort and filter tabs based on database order
   const tabs = useMemo(() => {
