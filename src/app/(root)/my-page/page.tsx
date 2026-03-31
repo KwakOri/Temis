@@ -28,7 +28,12 @@ import { Tables } from "@/types/supabase";
 import { Suspense, useEffect, useState } from "react";
 
 type Template = Tables<"templates">;
-type TabType = "templates" | "purchases" | "custom-orders" | "artist-profile";
+type TabType =
+  | "templates"
+  | "artist-works"
+  | "purchases"
+  | "custom-orders"
+  | "artist-profile";
 
 const MyPageContent = () => {
   const router = useRouter();
@@ -52,26 +57,47 @@ const MyPageContent = () => {
   const [editingOrder, setEditingOrder] =
     useState<CustomOrderWithStatus | null>(null);
 
-  // URL 파라미터에서 탭 읽기
-  useEffect(() => {
-    const tab = searchParams.get("tab") as TabType | null;
-    if (
-      tab &&
-      ["templates", "purchases", "custom-orders", "artist-profile"].includes(tab)
-    ) {
-      setActiveTab(tab);
-    }
-  }, [searchParams]);
-
-  const templates = data?.templates || [];
+  const purchaseTemplates = data?.purchase_templates || [];
+  const artistWorkTemplates = data?.artist_templates || [];
   const artistProfile = artistProfileData?.artist || null;
+  const isArtistUser = Boolean(artistProfile);
   const loading = isLoading;
+  const currentTemplateList =
+    activeTab === "artist-works" ? artistWorkTemplates : purchaseTemplates;
+  const personalTemplateSectionLabel =
+    activeTab === "artist-works" ? "작업한 템플릿" : "구매한 템플릿";
+  const emptyTemplateMessage =
+    activeTab === "artist-works"
+      ? "아직 작업한 템플릿이 없습니다."
+      : "아직 구매한 템플릿이 없습니다.";
 
+  // URL 파라미터 및 계정 타입에 맞춰 기본 탭 동기화
   useEffect(() => {
-    if (activeTab === "artist-profile" && !artistProfileLoading && !artistProfile) {
-      setActiveTab("templates");
+    if (artistProfileLoading) {
+      return;
     }
-  }, [activeTab, artistProfile, artistProfileLoading]);
+
+    const tabParam = searchParams.get("tab") as TabType | null;
+    const allowedTabs: TabType[] = [
+      "templates",
+      "artist-works",
+      "purchases",
+      "custom-orders",
+      "artist-profile",
+    ];
+
+    if (!tabParam || !allowedTabs.includes(tabParam)) {
+      setActiveTab(isArtistUser ? "artist-works" : "templates");
+      return;
+    }
+
+    if (!isArtistUser && (tabParam === "artist-works" || tabParam === "artist-profile")) {
+      setActiveTab("templates");
+      return;
+    }
+
+    setActiveTab(tabParam);
+  }, [searchParams, isArtistUser, artistProfileLoading]);
 
   const handleLogout = async () => {
     if (!confirm("로그아웃 하시겠습니까?")) {
@@ -294,6 +320,38 @@ const MyPageContent = () => {
             {/* Tab Navigation */}
             <div className="border-b border-tertiary">
               <nav className="flex space-x-8 px-6" aria-label="Tabs">
+                {isArtistUser && (
+                  <button
+                    onClick={() => setActiveTab("artist-works")}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === "artist-works"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-dark-gray/70 hover:text-dark-gray hover:border-dark-gray/30"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 8h10M7 12h10m-7 4h7M5 4h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"
+                        />
+                      </svg>
+                      <span>내 작업물</span>
+                      {!loading && (
+                        <span className="bg-tertiary text-dark-gray/70 py-0.5 px-2 rounded-full text-xs">
+                          {artistWorkTemplates.length}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                )}
                 <button
                   onClick={() => setActiveTab("templates")}
                   className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
@@ -319,7 +377,7 @@ const MyPageContent = () => {
                     <span>내 템플릿</span>
                     {!loading && (
                       <span className="bg-tertiary text-dark-gray/70 py-0.5 px-2 rounded-full text-xs">
-                        {templates.length}
+                        {purchaseTemplates.length}
                       </span>
                     )}
                   </div>
@@ -406,19 +464,20 @@ const MyPageContent = () => {
 
             {/* Tab Content */}
             <div className="p-6">
-              {(loading && activeTab === "templates") ||
+              {(loading &&
+                (activeTab === "templates" || activeTab === "artist-works")) ||
               (artistProfileLoading && activeTab === "artist-profile") ? (
                 <Loading />
               ) : (
                 <>
-                  {activeTab === "templates" && (
+                  {(activeTab === "templates" || activeTab === "artist-works") && (
                     <>
                       {/* Personal Templates Section */}
                       <div className="mb-8">
                         <h2 className="text-lg md:text-xl font-semibold text-dark-gray mb-4">
-                          개인 템플릿
+                          {personalTemplateSectionLabel}
                         </h2>
-                        {templates.length === 0 ? (
+                        {currentTemplateList.length === 0 ? (
                           <div className="text-center py-12 md:py-20">
                             <svg
                               className="mx-auto h-10 w-10 md:h-12 md:w-12 text-dark-gray/40"
@@ -437,12 +496,12 @@ const MyPageContent = () => {
                               템플릿이 없습니다
                             </h3>
                             <p className="mt-1 md:mt-2 text-sm md:text-base text-dark-gray/60 px-4">
-                              아직 접근 권한이 부여된 템플릿이 없습니다.
+                              {emptyTemplateMessage}
                             </p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                            {templates.map((template) => (
+                            {currentTemplateList.map((template) => (
                               <div
                                 key={`${template.templates.id}-${template.id}`}
                                 onClick={() =>
@@ -521,7 +580,10 @@ const MyPageContent = () => {
                       </div>
 
                       {/* Team Templates Section */}
-                      {!teamsLoading && activeTeamsWithTemplate.length > 0 && (
+                      {activeTab === "templates" &&
+                        !isArtistUser &&
+                        !teamsLoading &&
+                        activeTeamsWithTemplate.length > 0 && (
                         <div className="border-t border-tertiary pt-8">
                           <h2 className="text-lg md:text-xl font-semibold text-dark-gray mb-4">
                             팀 템플릿

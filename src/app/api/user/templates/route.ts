@@ -72,37 +72,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 3) 직접 권한 + 작가 권한을 병합 (template_id 기준 중복 제거)
-    const mergedByTemplateId = new Map<string, Record<string, unknown>>();
-
-    for (const row of directAccessRows || []) {
-      if (!row.templates) {
-        continue;
-      }
-      mergedByTemplateId.set(row.templates.id, row as unknown as Record<string, unknown>);
-    }
-
-    for (const row of artistLinkedRows || []) {
-      const template = row.templates;
-      if (!template || mergedByTemplateId.has(template.id)) {
-        continue;
-      }
-
-      mergedByTemplateId.set(template.id, {
+    // 3) 구매 템플릿 / 작업 템플릿 분리
+    const artistTemplates = (artistLinkedRows || [])
+      .filter((row) => Boolean(row.templates))
+      .map((row) => ({
         id: `artist-${row.id}`,
-        access_level: "write",
+        access_level: "write" as const,
         granted_at: row.created_at,
-        templates: template,
+        templates: row.templates,
         template_plan: null,
-      });
-    }
+      }));
 
-    const allTemplates = Array.from(mergedByTemplateId.values());
+    // 같은 템플릿이 구매/작업에 모두 걸린 경우 작업 템플릿으로만 분류
+    const artistTemplateIds = new Set(
+      artistTemplates.map((row) => row.templates.id)
+    );
+
+    const purchaseTemplates = (directAccessRows || []).filter(
+      (row) =>
+        Boolean(row.templates) && !artistTemplateIds.has(row.templates!.id)
+    );
 
     return NextResponse.json({
       success: true,
-      templates: allTemplates,
-      total: allTemplates.length
+      purchase_templates: purchaseTemplates,
+      artist_templates: artistTemplates,
+      total_purchase: purchaseTemplates.length,
+      total_artist: artistTemplates.length,
+      total: purchaseTemplates.length + artistTemplates.length,
     });
   } catch (error) {
     console.error("User templates API error:", error);
