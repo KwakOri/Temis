@@ -3,6 +3,7 @@
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import BackButton from "@/components/BackButton";
 import Loading from "@/components/Loading";
+import ArtistProfileManagement from "@/components/my-page/ArtistProfileManagement";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import CustomOrderHistory from "@/components/shop/CustomOrderHistory";
 import OrderDetailsModal from "@/components/shop/OrderDetailsModal";
@@ -11,6 +12,7 @@ import PurchaseHistory from "@/components/shop/PurchaseHistory";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useArtistProfile } from "@/hooks/query/useArtistProfile";
 import {
   useCancelCustomOrder,
   useSubmitCustomOrder,
@@ -26,13 +28,15 @@ import { Tables } from "@/types/supabase";
 import { Suspense, useEffect, useState } from "react";
 
 type Template = Tables<"templates">;
-type TabType = "templates" | "purchases" | "custom-orders";
+type TabType = "templates" | "purchases" | "custom-orders" | "artist-profile";
 
 const MyPageContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { logout: authLogout } = useAuth();
   const { data, isLoading, error: queryError } = useUserTemplates();
+  const { data: artistProfileData, isLoading: artistProfileLoading } =
+    useArtistProfile();
   const { data: teams, isLoading: teamsLoading } = useUserTeams();
   const cancelOrderMutation = useCancelCustomOrder();
   const submitOrderMutation = useSubmitCustomOrder();
@@ -51,13 +55,23 @@ const MyPageContent = () => {
   // URL 파라미터에서 탭 읽기
   useEffect(() => {
     const tab = searchParams.get("tab") as TabType | null;
-    if (tab && ["templates", "purchases", "custom-orders"].includes(tab)) {
+    if (
+      tab &&
+      ["templates", "purchases", "custom-orders", "artist-profile"].includes(tab)
+    ) {
       setActiveTab(tab);
     }
   }, [searchParams]);
 
   const templates = data?.templates || [];
+  const artistProfile = artistProfileData?.artist || null;
   const loading = isLoading;
+
+  useEffect(() => {
+    if (activeTab === "artist-profile" && !artistProfileLoading && !artistProfile) {
+      setActiveTab("templates");
+    }
+  }, [activeTab, artistProfile, artistProfileLoading]);
 
   const handleLogout = async () => {
     if (!confirm("로그아웃 하시겠습니까?")) {
@@ -360,12 +374,40 @@ const MyPageContent = () => {
                     <span>맞춤 주문</span>
                   </div>
                 </button>
+                {artistProfile && (
+                  <button
+                    onClick={() => setActiveTab("artist-profile")}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                      activeTab === "artist-profile"
+                        ? "border-primary text-primary"
+                        : "border-transparent text-dark-gray/70 hover:text-dark-gray hover:border-dark-gray/30"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5.121 17.804A11.955 11.955 0 0112 16c2.55 0 4.914.796 6.879 2.148M15 10a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      <span>작가 계정 관리</span>
+                    </div>
+                  </button>
+                )}
               </nav>
             </div>
 
             {/* Tab Content */}
             <div className="p-6">
-              {loading && activeTab === "templates" ? (
+              {(loading && activeTab === "templates") ||
+              (artistProfileLoading && activeTab === "artist-profile") ? (
                 <Loading />
               ) : (
                 <>
@@ -563,6 +605,10 @@ const MyPageContent = () => {
                       onCancelOrder={handleCancelOrder}
                       onViewDetails={handleViewDetails}
                     />
+                  )}
+
+                  {activeTab === "artist-profile" && artistProfile && (
+                    <ArtistProfileManagement artist={artistProfile} />
                   )}
                 </>
               )}

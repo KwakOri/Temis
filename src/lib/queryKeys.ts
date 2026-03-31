@@ -4,6 +4,7 @@ export const queryKeys = {
   user: {
     all: ["user"] as const,
     templates: () => [...queryKeys.user.all, "templates"] as const,
+    artistProfile: () => [...queryKeys.user.all, "artistProfile"] as const,
   },
   template: {
     all: ["template"] as const,

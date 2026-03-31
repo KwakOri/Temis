@@ -6,8 +6,14 @@ import {
   useDeleteAdminArtist,
   useUpdateAdminArtist,
 } from "@/hooks/query/useAdminArtists";
-import { Artist } from "@/types/admin";
-import { useMemo, useState } from "react";
+import { ArtistWithLinkedUser } from "@/types/admin";
+import { useEffect, useMemo, useState } from "react";
+
+interface AdminUserLite {
+  id: number;
+  email: string;
+  name: string;
+}
 
 interface ArtistForm {
   name: string;
@@ -16,6 +22,7 @@ interface ArtistForm {
   instagram_url: string;
   youtube_url: string;
   website_url: string;
+  user_id: string;
   is_active: boolean;
 }
 
@@ -26,14 +33,17 @@ const initialForm: ArtistForm = {
   instagram_url: "",
   youtube_url: "",
   website_url: "",
+  user_id: "",
   is_active: true,
 };
 
 export default function ArtistManagement() {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<ArtistForm>(initialForm);
-  const [editingArtist, setEditingArtist] = useState<Artist | null>(null);
+  const [editingArtist, setEditingArtist] = useState<ArtistWithLinkedUser | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [users, setUsers] = useState<AdminUserLite[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
 
   const { data: artists = [], isLoading, error } = useAdminArtists({ search });
   const createMutation = useCreateAdminArtist();
@@ -46,6 +56,34 @@ export default function ArtistManagement() {
     () => artists.filter((artist) => artist.is_active).length,
     [artists]
   );
+
+  useEffect(() => {
+    if (!isModalOpen) {
+      return;
+    }
+
+    const fetchUsers = async () => {
+      try {
+        setUsersLoading(true);
+        const response = await fetch("/api/admin/users?limit=500&offset=0", {
+          credentials: "include",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const result = await response.json();
+        setUsers(result.users || []);
+      } catch (fetchError) {
+        console.error("Admin users fetch error:", fetchError);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [isModalOpen]);
 
   const resetForm = () => {
     setForm(initialForm);
@@ -73,6 +111,7 @@ export default function ArtistManagement() {
         instagram_url: form.instagram_url || null,
         youtube_url: form.youtube_url || null,
         website_url: form.website_url || null,
+        user_id: form.user_id ? Number(form.user_id) : null,
         is_active: form.is_active,
       };
 
@@ -96,7 +135,7 @@ export default function ArtistManagement() {
     }
   };
 
-  const handleEdit = (artist: Artist) => {
+  const handleEdit = (artist: ArtistWithLinkedUser) => {
     setEditingArtist(artist);
     setForm({
       name: artist.name,
@@ -105,6 +144,7 @@ export default function ArtistManagement() {
       instagram_url: artist.instagram_url || "",
       youtube_url: artist.youtube_url || "",
       website_url: artist.website_url || "",
+      user_id: artist.user_id ? String(artist.user_id) : "",
       is_active: artist.is_active,
     });
     setIsModalOpen(true);
@@ -127,7 +167,7 @@ export default function ArtistManagement() {
     }
   };
 
-  const toggleActive = async (artist: Artist) => {
+  const toggleActive = async (artist: ArtistWithLinkedUser) => {
     try {
       await updateMutation.mutateAsync({
         artistId: artist.id,
@@ -196,6 +236,9 @@ export default function ArtistManagement() {
                     소개
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
+                    연결 계정
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600">
                     상태
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600">
@@ -211,6 +254,20 @@ export default function ArtistManagement() {
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 max-w-md">
                       <div className="line-clamp-2">{artist.bio || "-"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
+                      {artist.linked_user ? (
+                        <div className="space-y-0.5">
+                          <div className="font-medium text-gray-800 truncate">
+                            {artist.linked_user.name || "-"}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {artist.linked_user.email}
+                          </div>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <button
@@ -279,6 +336,21 @@ export default function ArtistManagement() {
                   placeholder="작가명 *"
                   className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+                <select
+                  value={form.user_id}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, user_id: e.target.value }))
+                  }
+                  disabled={usersLoading}
+                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-100"
+                >
+                  <option value="">회원 계정 미연결</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={String(user.id)}>
+                      {user.name} ({user.email})
+                    </option>
+                  ))}
+                </select>
                 <input
                   value={form.profile_image_url}
                   onChange={(e) =>
@@ -312,6 +384,10 @@ export default function ArtistManagement() {
                   className="sm:col-span-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>
+
+              <p className="text-xs text-gray-500">
+                계정을 연결하면 해당 회원의 마이페이지에 작가 계정 관리 탭이 노출됩니다.
+              </p>
 
               <textarea
                 value={form.bio}
