@@ -3,6 +3,54 @@ import { supabase } from "@/lib/supabase";
 import { Tables } from "@/types/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const adminCheck = await requireAdmin(request);
+
+  if (adminCheck instanceof NextResponse) {
+    return adminCheck;
+  }
+
+  try {
+    const { id } = await params;
+
+    const { data: template, error } = await supabase
+      .from("templates")
+      .select(
+        `
+        *,
+        shop_templates (*),
+        template_artists (
+          *,
+          artist:artists(*)
+        )
+      `
+      )
+      .eq("id", id)
+      .single();
+
+    if (error || !template) {
+      return NextResponse.json(
+        { error: "템플릿을 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      template,
+    });
+  } catch (error) {
+    console.error("Admin template detail fetch error:", error);
+    return NextResponse.json(
+      { error: "템플릿 상세 조회 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

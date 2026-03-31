@@ -153,9 +153,20 @@ export default function TemplateDetailContent({
             </div>
           )}
 
-          {template.purchase_instructions && (
+          {template.detailed_description && (
             <div className="border-t border-tertiary pt-6">
               <h3 className="font-semibold mb-3 text-dark-gray">상품 상세 설명</h3>
+              <div className="prose prose-sm max-w-none">
+                <div className="text-dark-gray/70 whitespace-pre-wrap leading-relaxed">
+                  {template.detailed_description}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {template.purchase_instructions && (
+            <div className="border-t border-tertiary pt-6">
+              <h3 className="font-semibold mb-3 text-dark-gray">구매 안내</h3>
               <div className="prose prose-sm max-w-none">
                 <div className="text-dark-gray/70 whitespace-pre-wrap leading-relaxed">
                   {template.purchase_instructions}

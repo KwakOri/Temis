@@ -23,6 +23,7 @@ import type {
 } from "@/types/admin";
 import type { ShopTemplateWithPlans as ShopTemplateDetailData } from "@/types/templateDetail";
 import { FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 interface CreateTemplateForm {
@@ -43,16 +44,11 @@ interface PlanOptions {
 interface ProductForm {
   title: string;
   detailed_description: string; // 상점 전용 상세 설명
-  enableLite: boolean; // LITE 플랜 등록 여부
-  litePrice: number;
-  enablePro: boolean; // PRO 플랜 등록 여부
-  proPrice: number;
+  proPrice: number; // 단일 PRO 플랜 가격
   features: string[];
   requirements: string;
   purchase_instructions: string;
   templateOptions: PlanOptions; // 템플릿 기본 기능
-  liteOptions: PlanOptions; // LITE 플랜 사용 가능 기능
-  proOptions: PlanOptions; // PRO 플랜 사용 가능 기능
 }
 
 type TemplateTab = "public" | "private";
@@ -60,6 +56,7 @@ type TemplateTab = "public" | "private";
 const ITEMS_PER_PAGE = 20;
 
 export default function TemplateManagement() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TemplateTab>("public");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -177,9 +174,6 @@ export default function TemplateManagement() {
   const [productFormData, setProductFormData] = useState<ProductForm>({
     title: "",
     detailed_description: "",
-    enableLite: true,
-    litePrice: 15000,
-    enablePro: true,
     proPrice: 25000,
     features: [
       "고화질 시간표 템플릿",
@@ -189,20 +183,6 @@ export default function TemplateManagement() {
     requirements: "웹 브라우저만 있으면 사용 가능",
     purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
     templateOptions: {
-      is_artist: false,
-      is_memo: false,
-      is_multi_schedule: false,
-      is_guerrilla: false,
-      is_offline_memo: false,
-    },
-    liteOptions: {
-      is_artist: false,
-      is_memo: false,
-      is_multi_schedule: false,
-      is_guerrilla: false,
-      is_offline_memo: false,
-    },
-    proOptions: {
       is_artist: false,
       is_memo: false,
       is_multi_schedule: false,
@@ -262,31 +242,17 @@ export default function TemplateManagement() {
         artist: artistById.get(artistId) || null,
       }));
 
-    const previewPlans: ShopTemplateDetailData["template_plans"] = [];
-
-    if (productFormData.enableLite) {
-      previewPlans.push({
-        id: `preview-plan-lite-${selectedTemplate.id}`,
-        shop_template_id: previewShopTemplateId,
-        plan: "lite",
-        price: productFormData.litePrice,
-        created_at: now,
-        updated_at: now,
-        ...productFormData.liteOptions,
-      });
-    }
-
-    if (productFormData.enablePro) {
-      previewPlans.push({
+    const previewPlans: ShopTemplateDetailData["template_plans"] = [
+      {
         id: `preview-plan-pro-${selectedTemplate.id}`,
         shop_template_id: previewShopTemplateId,
         plan: "pro",
         price: productFormData.proPrice,
         created_at: now,
         updated_at: now,
-        ...productFormData.proOptions,
-      });
-    }
+        ...productFormData.templateOptions,
+      },
+    ];
 
     return {
       id: previewShopTemplateId,
@@ -480,63 +446,6 @@ export default function TemplateManagement() {
     }));
   };
 
-  // 플랜 옵션 토글 핸들러 (cascade 규칙 적용)
-  const handleOptionToggle = (
-    plan: "lite" | "pro",
-    optionKey: keyof PlanOptions
-  ) => {
-    setProductFormData((prev) => {
-      // 템플릿 기본 옵션에 포함되지 않은 기능은 토글 불가
-      if (!prev.templateOptions[optionKey]) {
-        return prev;
-      }
-
-      const newLiteOptions = { ...prev.liteOptions };
-      const newProOptions = { ...prev.proOptions };
-
-      if (plan === "lite") {
-        // LITE 옵션 토글
-        newLiteOptions[optionKey] = !newLiteOptions[optionKey];
-
-        // LITE에서 활성화하면 PRO도 자동 활성화
-        if (newLiteOptions[optionKey]) {
-          newProOptions[optionKey] = true;
-        }
-      } else {
-        // PRO 옵션 토글
-        newProOptions[optionKey] = !newProOptions[optionKey];
-
-        // PRO에서 비활성화하면 LITE도 자동 비활성화
-        if (!newProOptions[optionKey]) {
-          newLiteOptions[optionKey] = false;
-        }
-      }
-
-      return {
-        ...prev,
-        liteOptions: newLiteOptions,
-        proOptions: newProOptions,
-      };
-    });
-  };
-
-  const applyArtistSelectionFromTemplate = (
-    template: TemplateWithShopTemplateAndPlans
-  ) => {
-    const relations = (template.template_artists || []).slice().sort((a, b) => {
-      if (a.is_primary === b.is_primary) {
-        return (a.display_order || 0) - (b.display_order || 0);
-      }
-      return a.is_primary ? -1 : 1;
-    });
-
-    const artistIds = relations.map((relation) => relation.artist_id);
-    const primary = relations.find((relation) => relation.is_primary)?.artist_id;
-
-    setSelectedArtistIds(artistIds);
-    setPrimaryArtistId(primary || artistIds[0] || null);
-  };
-
   const handleArtistToggle = (artist: Artist, checked: boolean) => {
     setSelectedArtistIds((prev) => {
       if (checked) {
@@ -567,93 +476,12 @@ export default function TemplateManagement() {
 
   // 상품 등록 모달 열기
   const handleCreateProduct = (template: TemplateWithShopTemplateAndPlans) => {
-    setSelectedTemplate(template);
-    applyArtistSelectionFromTemplate(template);
-    setProductFormData({
-      title: template.name,
-      detailed_description: "",
-      enableLite: true,
-      litePrice: 15000,
-      enablePro: true,
-      proPrice: 25000,
-      features: [
-        "고화질 시간표 템플릿",
-        "커스터마이징 가능한 소스 파일",
-        "사용 가이드",
-      ],
-      requirements: "웹 브라우저만 있으면 사용 가능",
-      purchase_instructions: "결제 확인 후 1-2일 이내 권한 부여",
-      templateOptions: {
-        is_artist: false,
-        is_memo: false,
-        is_multi_schedule: false,
-        is_guerrilla: false,
-        is_offline_memo: false,
-      },
-      liteOptions: {
-        is_artist: false,
-        is_memo: false,
-        is_multi_schedule: false,
-        is_guerrilla: false,
-        is_offline_memo: false,
-      },
-      proOptions: {
-        is_artist: false,
-        is_memo: false,
-        is_multi_schedule: false,
-        is_guerrilla: false,
-        is_offline_memo: false,
-      },
-    });
-    setShowProductModal(true);
+    router.push(`/admin/template-products/${template.id}`);
   };
 
   // 상품 수정 모달 열기
-  const handleEditProduct = async (template: TemplateWithShopTemplateAndPlans) => {
-    const product = template.shop_templates?.[0];
-
-    if (!product) return;
-
-    // template_plans 테이블에서 플랜 옵션 및 가격 정보 가져오기
-    const { plans } = await AdminTemplateService.getTemplatePlans(product.id);
-    const litePlan = plans.find((p) => p.plan === "lite");
-    const proPlan = plans.find((p) => p.plan === "pro");
-
-    setSelectedTemplate(template);
-    applyArtistSelectionFromTemplate(template);
-    setProductFormData({
-      title: product.title || template.name,
-      detailed_description: product.detailed_description || "",
-      enableLite: !!litePlan,
-      litePrice: litePlan?.price || 15000,
-      enablePro: !!proPlan,
-      proPrice: proPlan?.price || 25000,
-      features: product.features || [],
-      requirements: product.requirements || "",
-      purchase_instructions: product.purchase_instructions || "",
-      templateOptions: {
-        is_artist: product.is_artist || false,
-        is_memo: product.is_memo || false,
-        is_multi_schedule: product.is_multi_schedule || false,
-        is_guerrilla: product.is_guerrilla || false,
-        is_offline_memo: product.is_offline_memo || false,
-      },
-      liteOptions: {
-        is_artist: litePlan?.is_artist || false,
-        is_memo: litePlan?.is_memo || false,
-        is_multi_schedule: litePlan?.is_multi_schedule || false,
-        is_guerrilla: litePlan?.is_guerrilla || false,
-        is_offline_memo: litePlan?.is_offline_memo || false,
-      },
-      proOptions: {
-        is_artist: proPlan?.is_artist || false,
-        is_memo: proPlan?.is_memo || false,
-        is_multi_schedule: proPlan?.is_multi_schedule || false,
-        is_guerrilla: proPlan?.is_guerrilla || false,
-        is_offline_memo: proPlan?.is_offline_memo || false,
-      },
-    });
-    setShowProductModal(true);
+  const handleEditProduct = (template: TemplateWithShopTemplateAndPlans) => {
+    router.push(`/admin/template-products/${template.id}`);
   };
 
   // 상점 노출 여부 토글
@@ -691,12 +519,6 @@ export default function TemplateManagement() {
     e.preventDefault();
     if (!selectedTemplate) return;
 
-    // 최소 하나의 플랜은 활성화되어야 함
-    if (!productFormData.enableLite && !productFormData.enablePro) {
-      alert("최소 하나의 플랜을 활성화해야 합니다.");
-      return;
-    }
-
     try {
       const product = selectedTemplate.shop_templates?.[0];
       const isEditing = !!product;
@@ -733,47 +555,24 @@ export default function TemplateManagement() {
       const { plans } = await AdminTemplateService.getTemplatePlans(
         shopTemplateId
       );
-      const litePlan = plans?.find((p: TemplatePlan) => p.plan === "lite");
       const proPlan = plans?.find((p: TemplatePlan) => p.plan === "pro");
 
-      // LITE 플랜 - enableLite가 true일 때만 처리
-      if (productFormData.enableLite) {
-        if (litePlan) {
-          await updatePlanMutation.mutateAsync({
-            planId: litePlan.id,
-            data: {
-              price: productFormData.litePrice,
-              ...productFormData.liteOptions,
-            },
-          });
-        } else {
-          await createPlanMutation.mutateAsync({
-            shop_template_id: shopTemplateId,
-            plan: "lite",
-            price: productFormData.litePrice,
-            ...productFormData.liteOptions,
-          });
-        }
-      }
-
-      // PRO 플랜 - enablePro가 true일 때만 처리
-      if (productFormData.enablePro) {
-        if (proPlan) {
-          await updatePlanMutation.mutateAsync({
-            planId: proPlan.id,
-            data: {
-              price: productFormData.proPrice,
-              ...productFormData.proOptions,
-            },
-          });
-        } else {
-          await createPlanMutation.mutateAsync({
-            shop_template_id: shopTemplateId,
-            plan: "pro",
+      // 단일 PRO 플랜만 사용하고, 플랜 옵션은 템플릿 기본 기능과 동일하게 유지
+      if (proPlan) {
+        await updatePlanMutation.mutateAsync({
+          planId: proPlan.id,
+          data: {
             price: productFormData.proPrice,
-            ...productFormData.proOptions,
-          });
-        }
+            ...productFormData.templateOptions,
+          },
+        });
+      } else {
+        await createPlanMutation.mutateAsync({
+          shop_template_id: shopTemplateId,
+          plan: "pro",
+          price: productFormData.proPrice,
+          ...productFormData.templateOptions,
+        });
       }
 
       const normalizedPrimaryArtistId =
@@ -1715,24 +1514,24 @@ export default function TemplateManagement() {
 
       {/* Product Management Modal */}
       {showProductModal && selectedTemplate && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-[#2f2721]/55 backdrop-blur-sm overflow-y-auto">
           <div className="min-h-screen p-3 sm:p-6 lg:p-8">
-            <div className="mx-auto w-full max-w-6xl rounded-2xl border border-slate-200 bg-white shadow-[0_24px_80px_-24px_rgba(15,23,42,0.45)]">
-              <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-r from-white via-slate-50 to-indigo-50/80 px-5 py-5 sm:px-8">
+            <div className="mx-auto w-full max-w-6xl rounded-2xl border border-[#E8D8CB] bg-[#FFFDFB] shadow-[0_24px_80px_-24px_rgba(92,65,44,0.35)]">
+              <div className="flex items-start justify-between gap-4 border-b border-[#E8D8CB] bg-gradient-to-r from-[#FFF9F3] via-[#FBF1E8] to-[#F7E6D6] px-5 py-5 sm:px-8">
                 <div>
                   <h3 className="text-lg sm:text-xl font-semibold text-dark-gray">
                     {hasProduct(selectedTemplate) ? "상품 정보 수정" : "상품 등록"}
                   </h3>
-                  <p className="text-sm text-slate-600 mt-1">
-                    상점 상세 노출 정보와 플랜 구성을 한 번에 관리합니다.
+                  <p className="text-sm text-[#6A5648] mt-1">
+                    상점 상세 노출 정보와 판매 설정을 한 번에 관리합니다.
                   </p>
                   <div className="mt-2">
                     {isSelling(selectedTemplate) ? (
-                      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-[#F5D9C2] text-[#8D4A20]">
                         판매 단계: 판매 중
                       </span>
                     ) : (
-                      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800">
+                      <span className="inline-flex px-2.5 py-1 text-xs font-semibold rounded-full bg-[#F2E4D5] text-[#935124]">
                         판매 단계: 상품 등록(판매 전)
                       </span>
                     )}
@@ -1741,7 +1540,7 @@ export default function TemplateManagement() {
                 <button
                   type="button"
                   onClick={closeProductModal}
-                  className="shrink-0 h-9 w-9 rounded-lg border border-slate-200 bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="shrink-0 h-9 w-9 rounded-lg border border-[#E1CEBF] bg-[#FFF8F2] text-[#7D6657] hover:text-[#5A493E] hover:bg-[#F6EBE2] transition-colors"
                   aria-label="모달 닫기"
                 >
                   ✕
@@ -1750,14 +1549,14 @@ export default function TemplateManagement() {
 
               <form onSubmit={handleProductSubmit} className="flex flex-col">
                 <div className="max-h-[calc(100vh-220px)] overflow-y-auto px-5 py-6 sm:px-8">
-                  <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50/90 px-4 py-3">
-                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  <div className="mb-6 rounded-xl border border-[#E7D7C9] bg-[#FAF2EA] px-4 py-3">
+                    <div className="text-xs font-medium text-[#8A725F] uppercase tracking-wide">
                       선택된 템플릿
                     </div>
-                    <h4 className="font-semibold text-slate-900 mt-1">
+                    <h4 className="font-semibold text-[#3B3028] mt-1">
                       {selectedTemplate.name}
                     </h4>
-                    <p className="text-sm text-slate-600 mt-1">
+                    <p className="text-sm text-[#6A5648] mt-1">
                       {selectedTemplate.description}
                     </p>
                     {selectedArtistIds.length === 0 && (
@@ -1767,16 +1566,16 @@ export default function TemplateManagement() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                    <div className="xl:col-span-5 space-y-6">
-                      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-                        <h4 className="text-sm font-semibold text-slate-900 mb-4">
+                  <div className="space-y-6">
+                    <div className="space-y-6">
+                      <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
+                        <h4 className="text-sm font-semibold text-[#3B3028] mb-4">
                           상점 기본 정보
                         </h4>
 
                         <div className="space-y-4">
                           <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                            <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
                               상품명 *
                             </label>
                             <input
@@ -1789,13 +1588,13 @@ export default function TemplateManagement() {
                                   title: e.target.value,
                                 }))
                               }
-                              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                              className="w-full px-3 py-2.5 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
                               placeholder="상품명을 입력하세요"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                            <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
                               상점 전용 상세 설명
                             </label>
                             <textarea
@@ -1806,18 +1605,18 @@ export default function TemplateManagement() {
                                   detailed_description: e.target.value,
                                 }))
                               }
-                              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                              className="w-full px-3 py-2.5 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
                               rows={5}
                               placeholder="상점에 표시될 자세한 설명을 입력하세요"
                               maxLength={2000}
                             />
-                            <div className="mt-1 text-xs text-slate-500">
+                            <div className="mt-1 text-xs text-[#7A685A]">
                               줄바꿈은 자동 반영됩니다. 최대 2000자
                             </div>
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                            <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
                               포함 사항 (한 줄에 하나씩)
                             </label>
                             <textarea
@@ -1830,14 +1629,14 @@ export default function TemplateManagement() {
                                     .filter((f) => f.trim()),
                                 }))
                               }
-                              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                              className="w-full px-3 py-2.5 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
                               rows={4}
                               placeholder="고화질 시간표 템플릿&#10;커스터마이징 가능한 소스 파일&#10;사용 가이드"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                            <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
                               요구사항
                             </label>
                             <input
@@ -1849,13 +1648,13 @@ export default function TemplateManagement() {
                                   requirements: e.target.value,
                                 }))
                               }
-                              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                              className="w-full px-3 py-2.5 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
                               placeholder="웹 브라우저만 있으면 사용 가능"
                             />
                           </div>
 
                           <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                            <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
                               구매 안내사항
                             </label>
                             <textarea
@@ -1866,7 +1665,7 @@ export default function TemplateManagement() {
                                   purchase_instructions: e.target.value,
                                 }))
                               }
-                              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                              className="w-full px-3 py-2.5 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
                               rows={3}
                               placeholder="결제 확인 후 1-2일 이내 권한 부여"
                             />
@@ -1874,16 +1673,16 @@ export default function TemplateManagement() {
                         </div>
                       </section>
 
-                      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-                        <h4 className="text-sm font-semibold text-slate-900 mb-1">
+                      <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
+                        <h4 className="text-sm font-semibold text-[#3B3028] mb-1">
                           작가 연결
                         </h4>
-                        <p className="text-xs text-slate-500 mb-4">
+                        <p className="text-xs text-[#7A685A] mb-4">
                           이 템플릿에 연결할 작가를 선택하고 대표 작가를 지정하세요.
                         </p>
 
                         {artists.length === 0 ? (
-                          <div className="text-sm text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+                          <div className="text-sm text-[#7A685A] bg-[#F9F1E8] border border-[#E7D7C9] rounded-lg p-3">
                             등록된 작가가 없습니다. 먼저 작가 관리 탭에서 작가를 등록해 주세요.
                           </div>
                         ) : (
@@ -1895,8 +1694,8 @@ export default function TemplateManagement() {
                                   key={artist.id}
                                   className={`rounded-lg border p-3 flex items-center justify-between gap-3 ${
                                     checked
-                                      ? "border-indigo-200 bg-indigo-50/40"
-                                      : "border-slate-200 bg-white"
+                                      ? "border-[#E3B58D] bg-[#FDF2E8]"
+                                      : "border-[#E8D8CB] bg-[#FFFDFB]"
                                   }`}
                                 >
                                   <label className="flex items-center gap-2 min-w-0">
@@ -1906,20 +1705,20 @@ export default function TemplateManagement() {
                                       onChange={(e) =>
                                         handleArtistToggle(artist, e.target.checked)
                                       }
-                                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded"
+                                      className="w-4 h-4 text-orange-600 border-[#CFB9A8] rounded focus:ring-[#E6AD82]"
                                     />
-                                    <span className="text-sm text-slate-800 truncate">
+                                    <span className="text-sm text-[#3F342D] truncate">
                                       {artist.name}
                                     </span>
                                   </label>
-                                  <label className="flex items-center gap-1 text-xs text-slate-600">
+                                  <label className="flex items-center gap-1 text-xs text-[#7A685A]">
                                     <input
                                       type="radio"
                                       name="primary-artist"
                                       disabled={!checked}
                                       checked={checked && primaryArtistId === artist.id}
                                       onChange={() => setPrimaryArtistId(artist.id)}
-                                      className="w-4 h-4 text-indigo-600 border-slate-300"
+                                      className="w-4 h-4 text-orange-600 border-[#CFB9A8] focus:ring-[#E6AD82]"
                                     />
                                     대표
                                   </label>
@@ -1951,14 +1750,33 @@ export default function TemplateManagement() {
                       </section>
                     </div>
 
-                    <div className="xl:col-span-7 space-y-6">
-                      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-                        <h4 className="text-sm font-semibold text-slate-900 mb-1">
+                    <div className="space-y-6">
+                      <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
+                        <h4 className="text-sm font-semibold text-[#3B3028] mb-1">
                           템플릿 기본 기능
                         </h4>
-                        <p className="text-xs text-slate-500 mb-4">
-                          템플릿에 포함되는 기준 기능입니다.
+                        <p className="text-xs text-[#7A685A] mb-4">
+                          템플릿에 포함되는 기준 기능입니다. PRO 플랜에도 동일하게 적용됩니다.
                         </p>
+
+                        <div className="mb-4">
+                          <label className="block text-xs font-medium text-[#6E5A4D] mb-1">
+                            판매 가격 (원) *
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            value={productFormData.proPrice}
+                            onChange={(e) =>
+                              setProductFormData((prev) => ({
+                                ...prev,
+                                proPrice: parseInt(e.target.value, 10) || 0,
+                              }))
+                            }
+                            className="w-full max-w-xs px-3 py-2 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
+                          />
+                        </div>
 
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                           {(
@@ -1970,8 +1788,8 @@ export default function TemplateManagement() {
                               onClick={() => handleTemplateOptionToggle(optionKey)}
                               className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                                 productFormData.templateOptions[optionKey]
-                                  ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                  ? "bg-[#D2905A] text-white hover:bg-[#C98147]"
+                                  : "bg-[#F5ECE5] text-[#6D594D] hover:bg-[#EEDFD3]"
                               }`}
                             >
                               {optionLabels[optionKey]}
@@ -1979,163 +1797,16 @@ export default function TemplateManagement() {
                           ))}
                         </div>
                       </section>
-
-                      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-                        <h4 className="text-sm font-semibold text-slate-900 mb-1">
-                          플랜별 사용 가능 기능
-                        </h4>
-                        <p className="text-xs text-slate-500 mb-4">
-                          각 플랜에서 허용할 기능과 가격을 설정하세요.
-                        </p>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/70">
-                            <div className="flex items-center mb-3">
-                              <input
-                                type="checkbox"
-                                id="enableLite"
-                                checked={productFormData.enableLite}
-                                onChange={(e) =>
-                                  setProductFormData((prev) => ({
-                                    ...prev,
-                                    enableLite: e.target.checked,
-                                  }))
-                                }
-                                className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                              />
-                              <label
-                                htmlFor="enableLite"
-                                className="ml-2 text-sm font-semibold text-slate-700 cursor-pointer"
-                              >
-                                LITE PLAN
-                              </label>
-                            </div>
-
-                            <div className="mb-3">
-                              <label className="block text-xs font-medium text-slate-600 mb-1">
-                                가격 (원) {productFormData.enableLite && "*"}
-                              </label>
-                              <input
-                                type="number"
-                                required={productFormData.enableLite}
-                                disabled={!productFormData.enableLite}
-                                min="0"
-                                value={productFormData.litePrice}
-                                onChange={(e) =>
-                                  setProductFormData((prev) => ({
-                                    ...prev,
-                                    litePrice: parseInt(e.target.value) || 0,
-                                  }))
-                                }
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              {(
-                                Object.keys(optionLabels) as Array<keyof PlanOptions>
-                              ).map((optionKey) => (
-                                <button
-                                  key={optionKey}
-                                  type="button"
-                                  onClick={() => handleOptionToggle("lite", optionKey)}
-                                  disabled={
-                                    !productFormData.templateOptions[optionKey] ||
-                                    !productFormData.enableLite
-                                  }
-                                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    productFormData.liteOptions[optionKey]
-                                      ? "bg-indigo-600 text-white hover:bg-indigo-700"
-                                      : "bg-slate-200 text-slate-600 hover:bg-slate-300"
-                                  }`}
-                                >
-                                  {optionLabels[optionKey]}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="border border-purple-200 rounded-xl p-4 bg-purple-50/60">
-                            <div className="flex items-center mb-3">
-                              <input
-                                type="checkbox"
-                                id="enablePro"
-                                checked={productFormData.enablePro}
-                                onChange={(e) =>
-                                  setProductFormData((prev) => ({
-                                    ...prev,
-                                    enablePro: e.target.checked,
-                                  }))
-                                }
-                                className="w-4 h-4 text-purple-600 border-slate-300 rounded focus:ring-purple-500"
-                              />
-                              <label
-                                htmlFor="enablePro"
-                                className="ml-2 text-sm font-semibold text-purple-700 cursor-pointer"
-                              >
-                                PRO PLAN
-                              </label>
-                            </div>
-
-                            <div className="mb-3">
-                              <label className="block text-xs font-medium text-slate-600 mb-1">
-                                가격 (원) {productFormData.enablePro && "*"}
-                              </label>
-                              <input
-                                type="number"
-                                required={productFormData.enablePro}
-                                disabled={!productFormData.enablePro}
-                                min="0"
-                                value={productFormData.proPrice}
-                                onChange={(e) =>
-                                  setProductFormData((prev) => ({
-                                    ...prev,
-                                    proPrice: parseInt(e.target.value) || 0,
-                                  }))
-                                }
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-slate-100 disabled:cursor-not-allowed"
-                              />
-                            </div>
-
-                            <div className="space-y-2">
-                              {(
-                                Object.keys(optionLabels) as Array<keyof PlanOptions>
-                              ).map((optionKey) => (
-                                <button
-                                  key={optionKey}
-                                  type="button"
-                                  onClick={() => handleOptionToggle("pro", optionKey)}
-                                  disabled={
-                                    !productFormData.templateOptions[optionKey] ||
-                                    !productFormData.enablePro
-                                  }
-                                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                                    productFormData.proOptions[optionKey]
-                                      ? "bg-purple-600 text-white hover:bg-purple-700"
-                                      : "bg-slate-200 text-slate-600 hover:bg-slate-300"
-                                  }`}
-                                >
-                                  {optionLabels[optionKey]}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                          LITE에서 옵션 활성화 시 PRO도 자동 활성화됩니다. PRO에서 비활성화 시 LITE도 자동 비활성화됩니다.
-                        </div>
-                      </section>
                     </div>
                   </div>
                 </div>
 
-                <div className="border-t border-slate-200 bg-slate-50/80 px-5 py-4 sm:px-8">
+                <div className="border-t border-[#E8D8CB] bg-[#F8EFE7] px-5 py-4 sm:px-8">
                   <div className="flex flex-wrap justify-end gap-3">
                     <button
                       type="button"
                       onClick={handleOpenShopPreview}
-                      className="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 rounded-lg border border-[#D79A67] bg-[#E8B185] text-[#2D2D2D] hover:bg-[#DFA173] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={!previewTemplate}
                     >
                       상점에서 미리보기
@@ -2143,14 +1814,14 @@ export default function TemplateManagement() {
                     <button
                       type="button"
                       onClick={closeProductModal}
-                      className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-100 transition-colors"
+                      className="px-4 py-2 rounded-lg border border-[#DFCEBF] bg-[#F5ECE5] text-[#5F4F44] hover:bg-[#EDE0D3] transition-colors"
                       disabled={productLoading}
                     >
                       취소
                     </button>
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-secondary transition-colors disabled:opacity-50"
+                      className="px-4 py-2 rounded-lg bg-[#D88A4A] text-white hover:bg-[#C97A3A] transition-colors disabled:opacity-50"
                       disabled={productLoading}
                     >
                       {productLoading

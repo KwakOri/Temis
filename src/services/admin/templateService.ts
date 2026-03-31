@@ -46,6 +46,20 @@ export class AdminTemplateService {
     return response.json();
   }
 
+  static async getTemplate(
+    templateId: string
+  ): Promise<TemplateWithShopTemplateAndPlans> {
+    const response = await fetch(`${this.baseUrl}/templates/${templateId}`);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || "템플릿 정보를 가져오는데 실패했습니다.");
+    }
+
+    const result = await response.json();
+    return (result.template ?? result) as TemplateWithShopTemplateAndPlans;
+  }
+
   static async createTemplate(
     data: CreateTemplateData
   ): Promise<TemplateWithShopTemplateAndPlans> {

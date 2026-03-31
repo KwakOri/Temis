@@ -24,6 +24,16 @@ export const useAdminTemplates = (params?: {
   });
 };
 
+export const useAdminTemplate = (templateId?: string) => {
+  return useQuery({
+    queryKey: queryKeys.admin.template(templateId || ""),
+    queryFn: () => AdminTemplateService.getTemplate(templateId!),
+    enabled: Boolean(templateId),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+};
+
 export const useCreateTemplate = () => {
   const queryClient = useQueryClient();
 
