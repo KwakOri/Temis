@@ -22,6 +22,10 @@ export interface TemplateArtistWithArtist extends TemplateArtist {
   artist?: Artist | null;
 }
 
+export interface ArtistWithLinkedUser extends Artist {
+  linked_user?: Pick<User, "id" | "name" | "email"> | null;
+}
+
 export interface TemplateWithShopTemplateAndPlans extends Template {
   shop_templates: ShopTemplate[];
   template_plans: TemplatePlan[];

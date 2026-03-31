@@ -3,6 +3,9 @@ import { supabase } from "@/lib/supabase";
 import { TablesUpdate } from "@/types/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+const USER_LINKED_CONSTRAINT = "idx_artists_user_id_unique";
+const SYSTEM_ARTIST_SLUGS = new Set(["no-artist", "temis"]);
+
 function toSlug(value: string): string {
   return value
     .toLowerCase()
@@ -10,6 +13,31 @@ function toSlug(value: string): string {
     .replace(/[^a-z0-9가-힣\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+function parseOptionalUserId(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function isUserLinkedConflict(error: {
+  code?: string;
+  message?: string;
+  details?: string | null;
+}): boolean {
+  if (error.code !== "23505") {
+    return false;
+  }
+
+  const messageAndDetails = `${error.message || ""} ${error.details || ""}`;
+  return (
+    messageAndDetails.includes(USER_LINKED_CONSTRAINT) ||
+    messageAndDetails.includes("artists_user_id") ||
+    messageAndDetails.includes("(user_id)")
+  );
 }
 
 export async function PATCH(
@@ -25,6 +53,19 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
+
+    const { data: existingArtist, error: existingArtistError } = await supabase
+      .from("artists")
+      .select("id, slug")
+      .eq("id", id)
+      .single();
+
+    if (existingArtistError || !existingArtist) {
+      return NextResponse.json(
+        { error: "작가를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
 
     const updateData: TablesUpdate<"artists"> = {};
 
@@ -43,15 +84,59 @@ export async function PATCH(
       updateData.website_url = body.website_url?.trim() || null;
     if (body.is_active !== undefined)
       updateData.is_active = Boolean(body.is_active);
+    if (body.user_id !== undefined) {
+      const parsedUserId = parseOptionalUserId(body.user_id);
+      if (Number.isNaN(parsedUserId)) {
+        return NextResponse.json(
+          { error: "연결할 사용자 ID 형식이 올바르지 않습니다." },
+          { status: 400 }
+        );
+      }
+
+      if (parsedUserId !== null && SYSTEM_ARTIST_SLUGS.has(existingArtist.slug || "")) {
+        return NextResponse.json(
+          { error: "시스템 작가에는 사용자 계정을 연결할 수 없습니다." },
+          { status: 400 }
+        );
+      }
+
+      if (parsedUserId !== null) {
+        const { data: userRow, error: userError } = await supabase
+          .from("users")
+          .select("id")
+          .eq("id", parsedUserId)
+          .single();
+
+        if (userError || !userRow) {
+          return NextResponse.json(
+            { error: "연결할 사용자를 찾을 수 없습니다." },
+            { status: 404 }
+          );
+        }
+      }
+
+      updateData.user_id = parsedUserId;
+    }
 
     const { data, error } = await supabase
       .from("artists")
       .update(updateData)
       .eq("id", id)
-      .select()
+      .select(
+        `
+        *,
+        linked_user:users!artists_user_id_fkey(id, name, email)
+      `
+      )
       .single();
 
     if (error) {
+      if (isUserLinkedConflict(error)) {
+        return NextResponse.json(
+          { error: "이미 다른 작가에 연결된 사용자입니다." },
+          { status: 409 }
+        );
+      }
       if (error.code === "23505") {
         return NextResponse.json(
           { error: "이미 사용 중인 슬러그입니다." },

@@ -192,6 +192,7 @@ export default function TemplateManagement() {
   });
   const [selectedArtistIds, setSelectedArtistIds] = useState<string[]>([]);
   const [primaryArtistId, setPrimaryArtistId] = useState<string | null>(null);
+  const [productArtistSearchTerm, setProductArtistSearchTerm] = useState("");
   const productLoading =
     createProductMutation.isPending ||
     updateProductMutation.isPending ||
@@ -202,7 +203,48 @@ export default function TemplateManagement() {
     setSelectedTemplate(null);
     setSelectedArtistIds([]);
     setPrimaryArtistId(null);
+    setProductArtistSearchTerm("");
   };
+
+  const productArtistById = useMemo(() => {
+    const map = new Map<string, Artist>();
+
+    for (const artist of artists) {
+      map.set(artist.id, artist);
+    }
+
+    for (const relation of selectedTemplate?.template_artists || []) {
+      if (relation.artist) {
+        map.set(relation.artist_id, relation.artist);
+      }
+    }
+
+    return map;
+  }, [artists, selectedTemplate?.template_artists]);
+
+  const searchedProductArtists = useMemo(() => {
+    const term = productArtistSearchTerm.trim().toLowerCase();
+
+    if (term.length < 2) {
+      return [];
+    }
+
+    return artists.filter((artist) => {
+      const name = artist.name?.toLowerCase() || "";
+      const bio = artist.bio?.toLowerCase() || "";
+      const slug = artist.slug?.toLowerCase() || "";
+      return name.includes(term) || bio.includes(term) || slug.includes(term);
+    });
+  }, [artists, productArtistSearchTerm]);
+
+  const selectedProductArtists = useMemo(
+    () =>
+      selectedArtistIds.map((artistId) => ({
+        artistId,
+        artist: productArtistById.get(artistId) || null,
+      })),
+    [productArtistById, selectedArtistIds]
+  );
 
   const previewTemplate = useMemo<ShopTemplateDetailData | null>(() => {
     if (!selectedTemplate) {
@@ -220,16 +262,6 @@ export default function TemplateManagement() {
         ? primaryArtistId
         : selectedArtistIds[0];
 
-    const artistById = new Map<string, Artist>();
-    for (const artist of artists) {
-      artistById.set(artist.id, artist);
-    }
-    for (const relation of selectedTemplate.template_artists || []) {
-      if (relation.artist) {
-        artistById.set(relation.artist_id, relation.artist);
-      }
-    }
-
     const previewTemplateArtists: ShopTemplateDetailData["template_artists"] =
       selectedArtistIds.map((artistId, index) => ({
         id: `preview-template-artist-${artistId}`,
@@ -239,7 +271,7 @@ export default function TemplateManagement() {
         is_primary: normalizedPrimaryArtistId === artistId,
         display_order: index,
         created_at: now,
-        artist: artistById.get(artistId) || null,
+        artist: productArtistById.get(artistId) || null,
       }));
 
     const previewPlans: ShopTemplateDetailData["template_plans"] = [
@@ -281,8 +313,8 @@ export default function TemplateManagement() {
       template_artists: previewTemplateArtists,
     };
   }, [
-    artists,
     primaryArtistId,
+    productArtistById,
     productFormData,
     selectedArtistIds,
     selectedTemplate,
@@ -446,18 +478,18 @@ export default function TemplateManagement() {
     }));
   };
 
-  const handleArtistToggle = (artist: Artist, checked: boolean) => {
+  const handleArtistToggle = (artistId: string, checked: boolean) => {
     setSelectedArtistIds((prev) => {
       if (checked) {
-        const next = prev.includes(artist.id) ? prev : [...prev, artist.id];
+        const next = prev.includes(artistId) ? prev : [...prev, artistId];
         if (!primaryArtistId) {
-          setPrimaryArtistId(artist.id);
+          setPrimaryArtistId(artistId);
         }
         return next;
       }
 
-      const next = prev.filter((id) => id !== artist.id);
-      if (primaryArtistId === artist.id) {
+      const next = prev.filter((id) => id !== artistId);
+      if (primaryArtistId === artistId) {
         setPrimaryArtistId(next[0] || null);
       }
       return next;
@@ -1637,24 +1669,6 @@ export default function TemplateManagement() {
 
                           <div>
                             <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
-                              요구사항
-                            </label>
-                            <input
-                              type="text"
-                              value={productFormData.requirements}
-                              onChange={(e) =>
-                                setProductFormData((prev) => ({
-                                  ...prev,
-                                  requirements: e.target.value,
-                                }))
-                              }
-                              className="w-full px-3 py-2.5 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
-                              placeholder="웹 브라우저만 있으면 사용 가능"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-[#5F4F44] mb-1.5">
                               구매 안내사항
                             </label>
                             <textarea
@@ -1686,45 +1700,116 @@ export default function TemplateManagement() {
                             등록된 작가가 없습니다. 먼저 작가 관리 탭에서 작가를 등록해 주세요.
                           </div>
                         ) : (
-                          <div className="space-y-2.5">
-                            {artists.map((artist) => {
-                              const checked = selectedArtistIds.includes(artist.id);
-                              return (
-                                <div
-                                  key={artist.id}
-                                  className={`rounded-lg border p-3 flex items-center justify-between gap-3 ${
-                                    checked
-                                      ? "border-[#E3B58D] bg-[#FDF2E8]"
-                                      : "border-[#E8D8CB] bg-[#FFFDFB]"
-                                  }`}
-                                >
-                                  <label className="flex items-center gap-2 min-w-0">
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={(e) =>
-                                        handleArtistToggle(artist, e.target.checked)
-                                      }
-                                      className="w-4 h-4 text-orange-600 border-[#CFB9A8] rounded focus:ring-[#E6AD82]"
-                                    />
-                                    <span className="text-sm text-[#3F342D] truncate">
-                                      {artist.name}
-                                    </span>
-                                  </label>
-                                  <label className="flex items-center gap-1 text-xs text-[#7A685A]">
-                                    <input
-                                      type="radio"
-                                      name="primary-artist"
-                                      disabled={!checked}
-                                      checked={checked && primaryArtistId === artist.id}
-                                      onChange={() => setPrimaryArtistId(artist.id)}
-                                      className="w-4 h-4 text-orange-600 border-[#CFB9A8] focus:ring-[#E6AD82]"
-                                    />
-                                    대표
-                                  </label>
+                          <div className="space-y-3">
+                            <input
+                              value={productArtistSearchTerm}
+                              onChange={(e) => setProductArtistSearchTerm(e.target.value)}
+                              placeholder="작가 검색 (이름/소개/슬러그, 2자 이상)"
+                              className="w-full px-3 py-2 border border-[#DCC7B7] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#E6AD82]/35 focus:border-[#D7925C]"
+                            />
+
+                            {productArtistSearchTerm.trim().length < 2 ? (
+                              <p className="text-xs text-[#7A685A]">
+                                검색어를 2자 이상 입력하면 작가 목록이 표시됩니다.
+                              </p>
+                            ) : searchedProductArtists.length === 0 ? (
+                              <div className="text-sm text-[#7A685A] bg-[#F9F1E8] border border-[#E7D7C9] rounded-lg p-3">
+                                검색 결과가 없습니다.
+                              </div>
+                            ) : (
+                              <div className="max-h-64 overflow-y-auto space-y-2.5 pr-1">
+                                {searchedProductArtists.map((artist) => {
+                                  const checked = selectedArtistIds.includes(artist.id);
+                                  return (
+                                    <div
+                                      key={artist.id}
+                                      className={`rounded-lg border p-3 flex items-center justify-between gap-3 ${
+                                        checked
+                                          ? "border-[#E3B58D] bg-[#FDF2E8]"
+                                          : "border-[#E8D8CB] bg-[#FFFDFB]"
+                                      }`}
+                                    >
+                                      <label className="flex items-center gap-2 min-w-0">
+                                        <input
+                                          type="checkbox"
+                                          checked={checked}
+                                          onChange={(e) =>
+                                            handleArtistToggle(artist.id, e.target.checked)
+                                          }
+                                          className="w-4 h-4 text-orange-600 border-[#CFB9A8] rounded focus:ring-[#E6AD82]"
+                                        />
+                                        <span className="text-sm text-[#3F342D] truncate">
+                                          {artist.name}
+                                        </span>
+                                      </label>
+                                      <label className="flex items-center gap-1 text-xs text-[#7A685A]">
+                                        <input
+                                          type="radio"
+                                          name="primary-artist"
+                                          disabled={!checked}
+                                          checked={
+                                            checked && primaryArtistId === artist.id
+                                          }
+                                          onChange={() => setPrimaryArtistId(artist.id)}
+                                          className="w-4 h-4 text-orange-600 border-[#CFB9A8] focus:ring-[#E6AD82]"
+                                        />
+                                        대표
+                                      </label>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            <div className="rounded-lg border border-[#E8D8CB] bg-[#FFFDFB] p-3">
+                              <p className="text-xs font-medium text-[#6E5A4D] mb-2">
+                                선택된 작가 {selectedProductArtists.length}명
+                              </p>
+                              {selectedProductArtists.length === 0 ? (
+                                <p className="text-xs text-[#7A685A]">
+                                  아직 연결된 작가가 없습니다.
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {selectedProductArtists.map(({ artistId, artist }) => (
+                                    <div
+                                      key={artistId}
+                                      className="rounded-md border border-[#E8D8CB] bg-white px-3 py-2 flex items-center justify-between gap-3"
+                                    >
+                                      <div className="min-w-0">
+                                        <p className="text-sm text-[#3F342D] truncate">
+                                          {artist?.name || `알 수 없는 작가 (${artistId})`}
+                                        </p>
+                                        {artist?.slug && (
+                                          <p className="text-xs text-[#7A685A] truncate">
+                                            @{artist.slug}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-3">
+                                        <label className="flex items-center gap-1 text-xs text-[#7A685A]">
+                                          <input
+                                            type="radio"
+                                            name="selected-primary-artist"
+                                            checked={primaryArtistId === artistId}
+                                            onChange={() => setPrimaryArtistId(artistId)}
+                                            className="w-4 h-4 text-orange-600 border-[#CFB9A8] focus:ring-[#E6AD82]"
+                                          />
+                                          대표
+                                        </label>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleArtistToggle(artistId, false)}
+                                          className="text-xs text-red-600 hover:text-red-700"
+                                        >
+                                          해제
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
-                              );
-                            })}
+                              )}
+                            </div>
                           </div>
                         )}
 
