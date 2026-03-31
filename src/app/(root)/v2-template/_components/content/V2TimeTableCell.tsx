@@ -10,6 +10,7 @@ import { TTheme } from '@/types/time-table/theme';
 import { padZero } from '@/utils/date-formatter';
 import { formatTime } from '@/utils/time-formatter';
 import { createPlaceholdersFromConfig } from '@/utils/time-table/data';
+import { weekdays } from '@/utils/time-table/data';
 import { v2_getComponentFontFamily } from '@/utils/time-table/v2_template_render_config';
 import { Imgs } from '../../_img/imgs';
 
@@ -20,6 +21,10 @@ interface CardStreamingTimeProps {
 
 interface CardStreamingDateProps {
   date: number;
+}
+
+interface CardStreamingDayProps {
+  dayLabel: string;
 }
 
 interface CardMainTitleProps {
@@ -50,6 +55,8 @@ const v2_toCssProperties = (value: unknown): CSSProperties => {
 const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const streamingDateLayout = renderConfig.layout.cell.streamingDate;
+  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
+  const streamingDateStyle = v2_toCssProperties(cellLayoutRecord.streamingDateStyle);
 
   return (
     <p
@@ -57,6 +64,7 @@ const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
         color: renderConfig.componentColors.STREAMING_DATE,
         fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_DATE'),
         ...v2_toCssProperties(streamingDateLayout),
+        ...streamingDateStyle,
       }}
       className=" flex justify-center items-center"
     >
@@ -65,9 +73,32 @@ const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
   );
 };
 
+const CardStreamingDay = ({ dayLabel }: CardStreamingDayProps) => {
+  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const streamingDayLayout = renderConfig.layout.cell.streamingDay;
+  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
+  const streamingDayStyle = v2_toCssProperties(cellLayoutRecord.streamingDayStyle);
+
+  return (
+    <p
+      style={{
+        color: renderConfig.componentColors.STREAMING_DAY,
+        fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_DAY'),
+        ...v2_toCssProperties(streamingDayLayout),
+        ...streamingDayStyle,
+      }}
+      className="absolute flex justify-center items-center"
+    >
+      {dayLabel}
+    </p>
+  );
+};
+
 const CardStreamingTime = ({ time, isGuerrilla }: CardStreamingTimeProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const streamingTimeLayout = renderConfig.layout.cell.streamingTime;
+  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
+  const streamingTimeStyle = v2_toCssProperties(cellLayoutRecord.streamingTimeStyle);
 
   return (
     <p
@@ -75,6 +106,7 @@ const CardStreamingTime = ({ time, isGuerrilla }: CardStreamingTimeProps) => {
         color: renderConfig.componentColors.STREAMING_TIME,
         fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_TIME'),
         ...v2_toCssProperties(streamingTimeLayout),
+        ...streamingTimeStyle,
       }}
       className=" absolute flex justify-center items-center"
     >
@@ -87,6 +119,9 @@ const CardMainTitle = ({ content }: CardMainTitleProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const mainTitleLayout = renderConfig.layout.cell.mainTitleContainer;
   const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
+  const mainTitleWrapperStyle = v2_toCssProperties(
+    cellLayoutRecord.mainTitleWrapperStyle
+  );
   const mainTitleTextStyle = v2_toCssProperties(
     cellLayoutRecord.mainTitleTextStyle
   );
@@ -110,6 +145,7 @@ const CardMainTitle = ({ content }: CardMainTitleProps) => {
       style={{
         width: `${widthPercent}%`,
         ...v2_toCssProperties(mainTitleWrapperLayout),
+        ...mainTitleWrapperStyle,
       }}
       className="absolute flex justify-center items-center shrink-0"
     >
@@ -244,6 +280,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 }) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.online;
+  const weekdayByOption = weekdays[renderConfig.weekdayOption] ?? weekdays.en;
+  const dayLabel = weekdayByOption[time.day] ?? '';
 
   if (!weekDate) return 'Loading';
 
@@ -263,6 +301,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           key={time.day}
           className="relative flex justify-center"
         >
+          <CardStreamingDay dayLabel={dayLabel} />
           <CardStreamingDate date={weekDate.getDate()} />
           <CardSubTitle content={entrySubTitle} />
           <CardMainTitle content={entryMainTitle} />

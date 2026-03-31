@@ -1,3 +1,4 @@
+import { CSSProperties } from "react";
 import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
 
 export const v2_TEMPLATE_RENDER_CONFIG_VERSION = 1 as const;
@@ -78,6 +79,11 @@ export interface V2TemplateEditorOptions {
   isArtist: boolean;
   isMultiple: boolean;
   maxStreamingTimeByDay: number;
+}
+
+export interface V2TemplateAutoResizeOptions {
+  maxFontSize?: number;
+  multiline?: boolean;
 }
 
 export interface V2TemplateMaxFontSizes {
@@ -164,6 +170,14 @@ export interface V2TemplateLayoutConfig {
       top: number;
       marginLeft: number;
     };
+    mainTitleTextStyle?: CSSProperties;
+    subTitleTextStyle?: CSSProperties;
+    mainTitleOptions?: V2TemplateAutoResizeOptions;
+    subTitleOptions?: V2TemplateAutoResizeOptions;
+    streamingDayStyle?: CSSProperties;
+    streamingDateStyle?: CSSProperties;
+    streamingTimeStyle?: CSSProperties;
+    mainTitleWrapperStyle?: CSSProperties;
   };
 }
 

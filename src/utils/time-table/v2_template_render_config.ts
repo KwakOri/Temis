@@ -296,6 +296,24 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
         top: 30,
         marginLeft: 16,
       },
+      mainTitleTextStyle: {
+        lineHeight: 1,
+        fontWeight: 800,
+      },
+      subTitleTextStyle: {
+        lineHeight: 1,
+        fontWeight: 700,
+      },
+      mainTitleOptions: {
+        multiline: true,
+      },
+      subTitleOptions: {
+        multiline: true,
+      },
+      streamingDayStyle: {},
+      streamingDateStyle: {},
+      streamingTimeStyle: {},
+      mainTitleWrapperStyle: {},
     },
   },
 };
@@ -327,6 +345,29 @@ const v2_asNumber = (value: unknown, fallback: number): number => {
 
 const v2_asBoolean = (value: unknown, fallback: boolean): boolean => {
   return typeof value === "boolean" ? value : fallback;
+};
+
+const v2_asOptionalBoolean = (value: unknown): boolean | undefined => {
+  return typeof value === "boolean" ? value : undefined;
+};
+
+const v2_asOptionalNumber = (value: unknown): number | undefined => {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+};
+
+const v2_mergeCssPropertiesRecord = (
+  base: Record<string, string | number>,
+  candidate: unknown
+): Record<string, string | number> => {
+  if (!v2_isRecord(candidate)) return base;
+
+  const merged: Record<string, string | number> = { ...base };
+  Object.entries(candidate).forEach(([key, value]) => {
+    if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) {
+      merged[key] = value;
+    }
+  });
+  return merged;
 };
 
 const v2_asStringArray = (value: unknown, fallback: string[]): string[] => {
@@ -1018,6 +1059,78 @@ export const v2_normalizeTemplateRenderConfig = (
             cell.contentArea.marginLeft,
             normalized.layout.cell.contentArea.marginLeft
           ),
+        };
+      }
+
+      normalized.layout.cell.mainTitleTextStyle = v2_mergeCssPropertiesRecord(
+        (normalized.layout.cell.mainTitleTextStyle ??
+          {}) as Record<string, string | number>,
+        cell.mainTitleTextStyle
+      );
+
+      normalized.layout.cell.subTitleTextStyle = v2_mergeCssPropertiesRecord(
+        (normalized.layout.cell.subTitleTextStyle ??
+          {}) as Record<string, string | number>,
+        cell.subTitleTextStyle
+      );
+
+      normalized.layout.cell.streamingDayStyle = v2_mergeCssPropertiesRecord(
+        (normalized.layout.cell.streamingDayStyle ??
+          {}) as Record<string, string | number>,
+        cell.streamingDayStyle
+      );
+
+      normalized.layout.cell.streamingDateStyle = v2_mergeCssPropertiesRecord(
+        (normalized.layout.cell.streamingDateStyle ??
+          {}) as Record<string, string | number>,
+        cell.streamingDateStyle
+      );
+
+      normalized.layout.cell.streamingTimeStyle = v2_mergeCssPropertiesRecord(
+        (normalized.layout.cell.streamingTimeStyle ??
+          {}) as Record<string, string | number>,
+        cell.streamingTimeStyle
+      );
+
+      normalized.layout.cell.mainTitleWrapperStyle = v2_mergeCssPropertiesRecord(
+        (normalized.layout.cell.mainTitleWrapperStyle ??
+          {}) as Record<string, string | number>,
+        cell.mainTitleWrapperStyle
+      );
+
+      if (v2_isRecord(cell.mainTitleOptions)) {
+        const prevOptions = normalized.layout.cell.mainTitleOptions ?? {};
+        const nextMaxFontSize = v2_asOptionalNumber(
+          cell.mainTitleOptions.maxFontSize
+        );
+        const nextMultiline = v2_asOptionalBoolean(
+          cell.mainTitleOptions.multiline
+        );
+
+        normalized.layout.cell.mainTitleOptions = {
+          ...prevOptions,
+          ...(nextMaxFontSize !== undefined
+            ? { maxFontSize: nextMaxFontSize }
+            : {}),
+          ...(nextMultiline !== undefined ? { multiline: nextMultiline } : {}),
+        };
+      }
+
+      if (v2_isRecord(cell.subTitleOptions)) {
+        const prevOptions = normalized.layout.cell.subTitleOptions ?? {};
+        const nextMaxFontSize = v2_asOptionalNumber(
+          cell.subTitleOptions.maxFontSize
+        );
+        const nextMultiline = v2_asOptionalBoolean(
+          cell.subTitleOptions.multiline
+        );
+
+        normalized.layout.cell.subTitleOptions = {
+          ...prevOptions,
+          ...(nextMaxFontSize !== undefined
+            ? { maxFontSize: nextMaxFontSize }
+            : {}),
+          ...(nextMultiline !== undefined ? { multiline: nextMultiline } : {}),
         };
       }
     }
