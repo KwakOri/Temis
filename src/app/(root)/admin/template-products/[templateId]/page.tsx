@@ -98,8 +98,8 @@ function TemplateProductEditorContent() {
   const [artistSearchTerm, setArtistSearchTerm] = useState("");
   const [formInitializing, setFormInitializing] = useState(true);
 
-  const noArtistOption = useMemo(
-    () => artists.find((artist) => artist.slug === "no-artist"),
+  const temisArtistOption = useMemo(
+    () => artists.find((artist) => artist.slug === "temis"),
     [artists]
   );
   const artistById = useMemo(() => {
@@ -275,14 +275,14 @@ function TemplateProductEditorContent() {
     });
   };
 
-  const handleAssignNoArtist = () => {
-    if (!noArtistOption) {
-      alert("'작가 없음' 시스템 작가를 찾을 수 없습니다.");
+  const handleAssignTemisArtist = () => {
+    if (!temisArtistOption) {
+      alert("'테미스' 시스템 작가를 찾을 수 없습니다.");
       return;
     }
 
-    setSelectedArtistIds([noArtistOption.id]);
-    setPrimaryArtistId(noArtistOption.id);
+    setSelectedArtistIds([temisArtistOption.id]);
+    setPrimaryArtistId(temisArtistOption.id);
   };
 
   const previewTemplate = useMemo<ShopTemplateDetailData | null>(() => {
@@ -820,19 +820,19 @@ function TemplateProductEditorContent() {
                 {selectedArtistIds.length === 0 && (
                   <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3">
                     <p className="text-xs text-red-700">
-                      미연결 상태는 판매 불가입니다. &apos;작가 없음&apos; 또는 실제 작가를
-                      연결해 주세요.
+                      미연결 상태는 판매 불가입니다. &apos;테미스&apos; 또는 실제 작가를 연결해
+                      주세요.
                     </p>
                     <div className="mt-2">
                       <button
                         type="button"
-                        onClick={handleAssignNoArtist}
-                        disabled={!noArtistOption}
+                        onClick={handleAssignTemisArtist}
+                        disabled={!temisArtistOption}
                         className="px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-red-200 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {noArtistOption
-                          ? "'작가 없음'으로 빠르게 연결"
-                          : "'작가 없음' 시스템 작가를 찾을 수 없음"}
+                        {temisArtistOption
+                          ? "'테미스'로 빠르게 연결"
+                          : "'테미스' 시스템 작가를 찾을 수 없음"}
                       </button>
                     </div>
                   </div>
