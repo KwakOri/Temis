@@ -71,6 +71,25 @@ export async function PATCH(
             { status: 400 }
           );
         }
+
+        const { count: artistCount, error: artistCountError } = await supabase
+          .from("template_artists")
+          .select("id", { count: "exact", head: true })
+          .eq("template_id", id);
+
+        if (artistCountError) {
+          throw artistCountError;
+        }
+
+        if (!artistCount || artistCount === 0) {
+          return NextResponse.json(
+            {
+              error:
+                "작가 미연결 상태에서는 판매를 시작할 수 없습니다. '작가 없음' 또는 실제 작가를 연결해 주세요.",
+            },
+            { status: 400 }
+          );
+        }
       }
     }
 

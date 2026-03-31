@@ -14,7 +14,12 @@ export class AdminTemplateService {
   private static baseUrl = "/api/admin";
 
   // Templates
-  static async getTemplates(params?: { limit?: number; offset?: number }): Promise<{
+  static async getTemplates(params?: {
+    limit?: number;
+    offset?: number;
+    visibility?: "public" | "private";
+    search?: string;
+  }): Promise<{
     templates: TemplateWithShopTemplateAndPlans[];
     pagination: {
       limit: number;
@@ -27,6 +32,8 @@ export class AdminTemplateService {
     const queryParams = new URLSearchParams();
     if (params?.limit) queryParams.append("limit", params.limit.toString());
     if (params?.offset) queryParams.append("offset", params.offset.toString());
+    if (params?.visibility) queryParams.append("visibility", params.visibility);
+    if (params?.search) queryParams.append("search", params.search);
 
     const url = `${this.baseUrl}/templates${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
@@ -55,7 +62,8 @@ export class AdminTemplateService {
       throw new Error(error.error || "템플릿 생성에 실패했습니다.");
     }
 
-    return response.json();
+    const result = await response.json();
+    return (result.template ?? result) as TemplateWithShopTemplateAndPlans;
   }
 
   static async updateTemplate(
@@ -75,7 +83,8 @@ export class AdminTemplateService {
       throw new Error(error.error || "템플릿 업데이트에 실패했습니다.");
     }
 
-    return response.json();
+    const result = await response.json();
+    return (result.template ?? result) as TemplateWithShopTemplateAndPlans;
   }
 
   // Shop Templates
@@ -95,7 +104,8 @@ export class AdminTemplateService {
       throw new Error(error.error || "템플릿 상품 생성에 실패했습니다.");
     }
 
-    return response.json();
+    const result = await response.json();
+    return (result.product ?? result) as ShopTemplate;
   }
 
   static async updateShopTemplate(
@@ -118,7 +128,8 @@ export class AdminTemplateService {
       throw new Error(error.error || "템플릿 상품 업데이트에 실패했습니다.");
     }
 
-    return response.json();
+    const result = await response.json();
+    return (result.product ?? result) as ShopTemplate;
   }
 
   // Template Plans
@@ -154,7 +165,8 @@ export class AdminTemplateService {
       throw new Error(error.error || "템플릿 플랜 생성에 실패했습니다.");
     }
 
-    return response.json();
+    const result = await response.json();
+    return (result.plan ?? result) as TemplatePlan;
   }
 
   static async updateTemplatePlan(
@@ -174,6 +186,7 @@ export class AdminTemplateService {
       throw new Error(error.error || "템플릿 플랜 업데이트에 실패했습니다.");
     }
 
-    return response.json();
+    const result = await response.json();
+    return (result.plan ?? result) as TemplatePlan;
   }
 }

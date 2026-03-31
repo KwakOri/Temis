@@ -14,11 +14,36 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "20");
     const offset = parseInt(searchParams.get("offset") || "0");
+    const visibility = searchParams.get("visibility");
+    const search = searchParams.get("search")?.trim() || "";
 
-    // 전체 템플릿 개수 조회
-    const { count: totalCount, error: countError } = await supabase
+    if (visibility && visibility !== "public" && visibility !== "private") {
+      return NextResponse.json(
+        { error: "visibility 파라미터는 public 또는 private 이어야 합니다." },
+        { status: 400 }
+      );
+    }
+
+    const visibilityFilter =
+      visibility === "public" ? true : visibility === "private" ? false : null;
+    const escapedSearch = search.replace(/[,%_]/g, "\\$&");
+    const searchFilter = escapedSearch ? `%${escapedSearch}%` : null;
+
+    // 현재 탭(visibility) 기준 템플릿 개수 조회
+    let totalCountQuery = supabase
       .from("templates")
       .select("*", { count: "exact", head: true });
+
+    if (visibilityFilter !== null) {
+      totalCountQuery = totalCountQuery.eq("is_public", visibilityFilter);
+    }
+    if (searchFilter) {
+      totalCountQuery = totalCountQuery.or(
+        `name.ilike.${searchFilter},description.ilike.${searchFilter}`
+      );
+    }
+
+    const { count: totalCount, error: countError } = await totalCountQuery;
 
     if (countError) {
       console.error("Supabase count error:", countError);
@@ -47,8 +72,8 @@ export async function GET(request: NextRequest) {
       throw privateCountError;
     }
 
-    // 모든 템플릿 조회 (관리자는 모든 템플릿 볼 수 있음)
-    const { data: templates, error } = await supabase
+    // 템플릿 조회 (탭별로 서버 필터 적용)
+    let templatesQuery = supabase
       .from("templates")
       .select(
         `
@@ -60,8 +85,20 @@ export async function GET(request: NextRequest) {
         )
       `
       )
-      .range(offset, offset + limit - 1)
-      .order("created_at", { ascending: false });
+      .range(offset, offset + limit - 1);
+
+    if (visibilityFilter !== null) {
+      templatesQuery = templatesQuery.eq("is_public", visibilityFilter);
+    }
+    if (searchFilter) {
+      templatesQuery = templatesQuery.or(
+        `name.ilike.${searchFilter},description.ilike.${searchFilter}`
+      );
+    }
+
+    const { data: templates, error } = await templatesQuery.order("created_at", {
+      ascending: false,
+    });
 
     if (error) {
       console.error("Supabase query error:", error);

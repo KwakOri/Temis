@@ -87,6 +87,26 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    const { data: existingArtist, error: existingArtistError } = await supabase
+      .from("artists")
+      .select("id, slug")
+      .eq("id", id)
+      .single();
+
+    if (existingArtistError || !existingArtist) {
+      return NextResponse.json(
+        { error: "작가를 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    if (existingArtist.slug === "no-artist") {
+      return NextResponse.json(
+        { error: "'작가 없음' 시스템 작가는 삭제할 수 없습니다." },
+        { status: 400 }
+      );
+    }
+
     const { error } = await supabase.from("artists").delete().eq("id", id);
 
     if (error) {
@@ -110,4 +130,3 @@ export async function DELETE(
     );
   }
 }
-
