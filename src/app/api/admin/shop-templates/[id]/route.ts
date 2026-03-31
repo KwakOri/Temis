@@ -32,6 +32,14 @@ export async function PATCH(
       );
     }
 
+    const templateId = existingProduct.template_id;
+    if (!templateId) {
+      return NextResponse.json(
+        { error: "템플릿 연결 정보가 없는 상품입니다." },
+        { status: 400 }
+      );
+    }
+
     // 업데이트할 필드들 준비
     const updateData: Partial<Tables<"shop_templates">> = {};
 
@@ -42,6 +50,8 @@ export async function PATCH(
     if (body.purchase_instructions !== undefined)
       updateData.purchase_instructions =
         body.purchase_instructions?.trim() || null;
+    if (body.detailed_description !== undefined)
+      updateData.detailed_description = body.detailed_description?.trim() || null;
     if (body.is_artist !== undefined) updateData.is_artist = body.is_artist;
     if (body.is_memo !== undefined) updateData.is_memo = body.is_memo;
     if (body.is_multi_schedule !== undefined)
@@ -50,6 +60,49 @@ export async function PATCH(
       updateData.is_guerrilla = body.is_guerrilla;
     if (body.is_offline_memo !== undefined)
       updateData.is_offline_memo = body.is_offline_memo;
+
+    // 판매 시작 시 필수 조건 검증
+    if (body.is_shop_visible === true) {
+      const { data: template, error: templateError } = await supabase
+        .from("templates")
+        .select("id, is_public")
+        .eq("id", templateId)
+        .single();
+
+      if (templateError || !template) {
+        return NextResponse.json(
+          { error: "연결된 템플릿을 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
+
+      if (!template.is_public) {
+        return NextResponse.json(
+          { error: "비공개 템플릿은 판매를 시작할 수 없습니다." },
+          { status: 400 }
+        );
+      }
+
+      const { count: artistCount, error: artistCountError } = await supabase
+        .from("template_artists")
+        .select("id", { count: "exact", head: true })
+        .eq("template_id", templateId);
+
+      if (artistCountError) {
+        throw artistCountError;
+      }
+
+      if (!artistCount || artistCount === 0) {
+        return NextResponse.json(
+          {
+            error:
+              "작가 미연결 상태에서는 판매를 시작할 수 없습니다. '작가 없음' 또는 실제 작가를 연결해 주세요.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     if (body.is_shop_visible !== undefined)
       updateData.is_shop_visible = body.is_shop_visible;
 

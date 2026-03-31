@@ -68,6 +68,8 @@ export const queryKeys = {
     userTemplates: (userId: string) =>
       [...queryKeys.admin.all, "userTemplates", userId] as const,
     templates: () => [...queryKeys.admin.all, "templates"] as const,
+    template: (templateId: string) =>
+      [...queryKeys.admin.all, "template", templateId] as const,
     templatePlans: (templateId?: string) =>
       [...queryKeys.admin.all, "templatePlans", templateId] as const,
     customOrders: (params?: GetCustomOrdersParams) =>

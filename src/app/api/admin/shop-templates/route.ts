@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     const {
       template_id,
       title,
+      detailed_description,
       features,
       requirements,
       purchase_instructions,
@@ -80,9 +81,11 @@ export async function POST(request: NextRequest) {
       .insert({
         template_id,
         title: title?.trim() || null,
+        detailed_description: detailed_description?.trim() || null,
         features: features || [],
         requirements: requirements?.trim() || null,
         purchase_instructions: purchase_instructions?.trim() || null,
+        is_shop_visible: false, // 상품 등록 단계(임시 저장)로 시작
         is_artist: is_artist || false,
         is_memo: is_memo || false,
         is_multi_schedule: is_multi_schedule || false,

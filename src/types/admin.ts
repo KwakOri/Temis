@@ -67,6 +67,9 @@ export interface CreateTemplateData {
 }
 
 export interface UpdateTemplateData {
+  name?: string;
+  description?: string;
+  detailed_description?: string;
   is_public?: boolean;
   is_shop_visible?: boolean;
   thumbnail_url?: string;

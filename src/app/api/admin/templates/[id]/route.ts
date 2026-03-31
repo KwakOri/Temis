@@ -3,6 +3,54 @@ import { supabase } from "@/lib/supabase";
 import { Tables } from "@/types/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const adminCheck = await requireAdmin(request);
+
+  if (adminCheck instanceof NextResponse) {
+    return adminCheck;
+  }
+
+  try {
+    const { id } = await params;
+
+    const { data: template, error } = await supabase
+      .from("templates")
+      .select(
+        `
+        *,
+        shop_templates (*),
+        template_artists (
+          *,
+          artist:artists(*)
+        )
+      `
+      )
+      .eq("id", id)
+      .single();
+
+    if (error || !template) {
+      return NextResponse.json(
+        { error: "템플릿을 찾을 수 없습니다." },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      template,
+    });
+  } catch (error) {
+    console.error("Admin template detail fetch error:", error);
+    return NextResponse.json(
+      { error: "템플릿 상세 조회 중 오류가 발생했습니다." },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -68,6 +116,25 @@ export async function PATCH(
         if (productError || !product) {
           return NextResponse.json(
             { error: "상점에 노출하려면 먼저 상품을 등록해야 합니다." },
+            { status: 400 }
+          );
+        }
+
+        const { count: artistCount, error: artistCountError } = await supabase
+          .from("template_artists")
+          .select("id", { count: "exact", head: true })
+          .eq("template_id", id);
+
+        if (artistCountError) {
+          throw artistCountError;
+        }
+
+        if (!artistCount || artistCount === 0) {
+          return NextResponse.json(
+            {
+              error:
+                "작가 미연결 상태에서는 판매를 시작할 수 없습니다. '작가 없음' 또는 실제 작가를 연결해 주세요.",
+            },
             { status: 400 }
           );
         }

@@ -1,4 +1,6 @@
 "use client";
+export const dynamic = "force-dynamic";
+
 import GallerySection from "@/components/LandingPage/GallerySection/GallerySection";
 import KeyFeaturesSection from "@/components/LandingPage/KeyFeatures/KeyFeatures";
 import NavBar from "@/components/LandingPage/NavBar";

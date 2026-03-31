@@ -1,6 +1,7 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
+import TemplateDetailContent from "@/components/shop/TemplateDetailContent";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePurchaseHistory } from "@/hooks/query/usePurchaseHistory";
 import { useUserTemplateAccess } from "@/hooks/query/useShop";
@@ -10,7 +11,6 @@ import {
 import { ShopTemplateWithPlans } from "@/types/templateDetail";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CreditCard } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -137,279 +137,111 @@ export default function TemplateDetailPage() {
     return null;
   }
 
-  const linkedArtists = (template.template_artists || [])
-    .map((relation) => relation.artist?.name)
-    .filter((name): name is string => Boolean(name));
-  const primaryArtistName =
-    template.template_artists?.find((relation) => relation.is_primary)?.artist
-      ?.name || linkedArtists[0] || null;
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-light via-timetable-card-bg to-tertiary py-6 md:py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* 뒤로가기 버튼 */}
         <BackButton className="mb-6" />
 
-        <div className="bg-timetable-form-bg rounded-2xl shadow-xl p-6 md:p-8 backdrop-blur-sm border border-tertiary">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* 이미지 섹션 */}
-            <div className="space-y-4">
-              <div className="aspect-video bg-timetable-input-bg rounded-lg overflow-hidden">
-                <Image
-                  src={
-                    template.templates.thumbnail_url ||
-                    `/thumbnail/${template.template_id}.png`
-                  }
-                  alt={template.templates.name || "템플릿"}
-                  width={600}
-                  height={338}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = "none";
-                    const parent = target.parentElement;
-                    if (parent) {
-                      parent.innerHTML =
-                        '<div class="w-full h-full flex items-center justify-center text-dark-gray/40">썸네일 이미지 없음</div>';
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* 상품 정보 섹션 */}
-            <div className="space-y-6">
-              <div>
-                <h1 className="text-3xl font-bold mb-2 text-dark-gray">
-                  {template.templates.name}
-                </h1>
-                <p className="text-dark-gray/70">
-                  {template.templates.description}
-                </p>
-                {primaryArtistName && (
-                  <p className="text-sm text-slate-500 mt-2">
-                    대표 작가: {primaryArtistName}
-                  </p>
-                )}
-                {linkedArtists.length > 1 && (
-                  <p className="text-sm text-slate-500 mt-1">
-                    참여 작가: {linkedArtists.join(", ")}
-                  </p>
-                )}
-              </div>
-
-              {/* 플랜별 가격 정보 */}
-              <div className="border-t border-tertiary pt-6">
-                <h3 className="font-semibold mb-3 text-dark-gray">플랜 선택</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {template.template_plans?.find((p) => p.plan === "lite") && (
-                    <div className="p-4 rounded-lg border-2 border-tertiary">
-                      <div className="text-xs text-dark-gray/70 mb-1">LITE</div>
-                      <div className="text-2xl font-bold text-dark-gray">
-                        ₩
-                        {template.template_plans
-                          ?.find((p) => p.plan === "lite")
-                          ?.price?.toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-                  {template.template_plans?.find((p) => p.plan === "pro") && (
-                    <div className="p-4 rounded-lg border-2 border-secondary bg-secondary/20">
-                      <div className="text-xs text-secondary mb-1">PRO</div>
-                      <div className="text-2xl font-bold text-primary">
-                        ₩
-                        {template.template_plans
-                          ?.find((p) => p.plan === "pro")
-                          ?.price?.toLocaleString()}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 플랜별 지원 기능 */}
-              {template.template_plans &&
-                template.template_plans.length > 0 && (
-                  <div className="border-t border-tertiary pt-6">
-                    <h3 className="font-semibold mb-3 text-dark-gray">
-                      플랜별 지원 기능
-                    </h3>
-                    <div className="space-y-4">
-                      {template.template_plans
-                        .sort((a, b) => (a.plan === "lite" ? -1 : 1))
-                        .map((plan) => {
-                          const features = [];
-                          if (plan.is_artist)
-                            features.push("팬아트 아티스트명 작성 기능");
-                          if (plan.is_memo) features.push("주간 메모 기능");
-                          if (plan.is_multi_schedule)
-                            features.push("단일 요일 다중 시간표 기능");
-                          if (plan.is_guerrilla)
-                            features.push("게릴라 방송 설정 기능");
-                          if (plan.is_offline_memo)
-                            features.push("오프라인 메모 기능");
-
-                          return (
-                            <div
-                              key={plan.id}
-                              className={`p-4 rounded-lg border ${
-                                plan.plan === "pro"
-                                  ? "border-secondary bg-secondary/20"
-                                  : "border-tertiary bg-tertiary"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 mb-2">
-                                <span
-                                  className={`text-xs font-medium px-2 py-1 rounded ${
-                                    plan.plan === "pro"
-                                      ? "bg-secondary text-white"
-                                      : "bg-dark-gray text-white"
-                                  }`}
-                                >
-                                  {plan.plan.toUpperCase()}
-                                </span>
-                                <span className="text-sm font-bold text-dark-gray">
-                                  ₩{plan.price?.toLocaleString()}
-                                </span>
-                              </div>
-                              {features.length > 0 && (
-                                <ul className="list-disc list-inside text-dark-gray/70 space-y-1 text-sm">
-                                  {features.map((feature, index) => (
-                                    <li key={index}>{feature}</li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-
-              {/* 상품 상세 설명 */}
-              {template.purchase_instructions && (
-                <div className="border-t border-tertiary pt-6">
-                  <h3 className="font-semibold mb-3 text-dark-gray">
-                    상품 상세 설명
-                  </h3>
-                  <div className="prose prose-sm max-w-none">
-                    <div className="text-dark-gray/70 whitespace-pre-wrap leading-relaxed">
-                      {template.purchase_instructions}
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div className="border-t border-tertiary pt-4">
-                <p className="text-sm text-dark-gray/60 mt-2">
-                  구매하신 템플릿은 본인만 사용 가능하며 타인과 공유하거나
-                  타인에게 양도할 수 없습니다.
-                </p>
-                {!isPurchased && !pendingPurchaseRequest && (
-                  <p className="text-sm text-dark-gray/60 mt-2">
-                    계좌 송금으로 결제가 진행됩니다
-                  </p>
-                )}
-              </div>
-
-              {/* 구매 버튼 */}
-              <div className="border-t border-tertiary pt-6">
-                {user ? (
-                  isPurchased ? (
-                    <div className="text-center">
-                      <div className="bg-secondary/10 border border-secondary/30 rounded-lg p-4 mb-4">
-                        <div className="flex items-center justify-center mb-2">
-                          <svg
-                            className="h-6 w-6 text-secondary mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          <span className="text-secondary font-semibold">
-                            구매 완료
-                          </span>
-                        </div>
-                        <p className="text-dark-gray/70 text-sm">
-                          이미 구매하신 템플릿입니다. 마이페이지에서 사용하실 수
-                          있습니다.
-                        </p>
-                      </div>
-                      <Link
-                        href="/my-page"
-                        className="w-full inline-block bg-secondary text-white py-3 rounded-lg hover:bg-secondary/90 transition-colors font-semibold text-center"
+        <TemplateDetailContent
+          template={template}
+          showTransferNotice={!isPurchased && !pendingPurchaseRequest}
+          purchaseSection={
+            user ? (
+              isPurchased ? (
+                <div className="text-center">
+                  <div className="bg-secondary/10 border border-secondary/30 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-center mb-2">
+                      <svg
+                        className="h-6 w-6 text-secondary mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        마이페이지로 이동
-                      </Link>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <span className="text-secondary font-semibold">
+                        구매 완료
+                      </span>
                     </div>
-                  ) : pendingPurchaseRequest ? (
-                    <div className="text-center">
-                      <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-4">
-                        <div className="flex items-center justify-center mb-2">
-                          <svg
-                            className="h-6 w-6 text-primary mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          <span className="text-primary font-semibold">
-                            구매 신청 대기중
-                          </span>
-                        </div>
-                        <p className="text-dark-gray/70 text-sm mb-2">
-                          이미 구매 신청을 하셨습니다. 입금 확인 후 처리됩니다.
-                        </p>
-                        <p className="text-dark-gray/60 text-xs">
-                          신청일:{" "}
-                          {new Date(
-                            pendingPurchaseRequest.created_at!
-                          ).toLocaleDateString("ko-KR")}
-                        </p>
-                      </div>
-                      <Link
-                        href="/my-page?tab=purchases"
-                        className="w-full inline-block bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold text-center"
-                      >
-                        구매 내역 확인하기
-                      </Link>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowPurchaseForm(true)}
-                      className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
-                    >
-                      구매 신청하기
-                    </button>
-                  )
-                ) : (
-                  <div className="text-center">
-                    <p className="text-dark-gray/70 mb-3">
-                      구매하려면 로그인이 필요합니다
+                    <p className="text-dark-gray/70 text-sm">
+                      이미 구매하신 템플릿입니다. 마이페이지에서 사용하실 수
+                      있습니다.
                     </p>
-                    <Link
-                      href="/auth"
-                      className="inline-block bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
-                    >
-                      로그인하기
-                    </Link>
                   </div>
-                )}
+                  <Link
+                    href="/my-page"
+                    className="w-full inline-block bg-secondary text-white py-3 rounded-lg hover:bg-secondary/90 transition-colors font-semibold text-center"
+                  >
+                    마이페이지로 이동
+                  </Link>
+                </div>
+              ) : pendingPurchaseRequest ? (
+                <div className="text-center">
+                  <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-center mb-2">
+                      <svg
+                        className="h-6 w-6 text-primary mr-2"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span className="text-primary font-semibold">
+                        구매 신청 대기중
+                      </span>
+                    </div>
+                    <p className="text-dark-gray/70 text-sm mb-2">
+                      이미 구매 신청을 하셨습니다. 입금 확인 후 처리됩니다.
+                    </p>
+                    <p className="text-dark-gray/60 text-xs">
+                      신청일:{" "}
+                      {new Date(
+                        pendingPurchaseRequest.created_at!
+                      ).toLocaleDateString("ko-KR")}
+                    </p>
+                  </div>
+                  <Link
+                    href="/my-page?tab=purchases"
+                    className="w-full inline-block bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold text-center"
+                  >
+                    구매 내역 확인하기
+                  </Link>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowPurchaseForm(true)}
+                  className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
+                >
+                  구매 신청하기
+                </button>
+              )
+            ) : (
+              <div className="text-center">
+                <p className="text-dark-gray/70 mb-3">
+                  구매하려면 로그인이 필요합니다
+                </p>
+                <Link
+                  href="/auth"
+                  className="inline-block bg-primary text-white px-6 py-3 rounded-lg hover:bg-primary/90 transition-colors font-semibold"
+                >
+                  로그인하기
+                </Link>
               </div>
-            </div>
-          </div>
-        </div>
+            )
+          }
+        />
       </div>
 
       {/* 구매 신청 모달 */}
