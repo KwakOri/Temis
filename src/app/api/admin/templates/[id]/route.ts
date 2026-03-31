@@ -133,7 +133,7 @@ export async function PATCH(
           return NextResponse.json(
             {
               error:
-                "작가 미연결 상태에서는 판매를 시작할 수 없습니다. '작가 없음' 또는 실제 작가를 연결해 주세요.",
+                "작가 미연결 상태에서는 판매를 시작할 수 없습니다. '테미스' 또는 실제 작가를 연결해 주세요.",
             },
             { status: 400 }
           );
