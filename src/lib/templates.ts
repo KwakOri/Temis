@@ -106,6 +106,11 @@ export class TemplateService {
         return false;
       }
 
+      const numericUserId = Number(userId);
+      if (Number.isNaN(numericUserId)) {
+        return false;
+      }
+
       // Validate templateId is a UUID format
       const uuidRegex =
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -134,15 +139,35 @@ export class TemplateService {
         .from("template_access")
         .select("id")
         .eq("template_id", templateId)
-        .eq("user_id", parseInt(userId))
+        .eq("user_id", numericUserId)
         .limit(1);
 
       if (accessError) {
         return false;
       }
 
-      // 레코드가 존재하면 접근 권한이 있음
-      return accessData && accessData.length > 0;
+      if (accessData && accessData.length > 0) {
+        return true;
+      }
+
+      // 3. 템플릿에 연결된 작가 계정인지 확인
+      const { data: linkedArtistData, error: linkedArtistError } = await supabase
+        .from("template_artists")
+        .select(
+          `
+          id,
+          artists!inner(user_id)
+        `
+        )
+        .eq("template_id", templateId)
+        .eq("artists.user_id", numericUserId)
+        .limit(1);
+
+      if (linkedArtistError) {
+        return false;
+      }
+
+      return Boolean(linkedArtistData && linkedArtistData.length > 0);
     } catch (error) {
       console.error("Error checking template access:", error);
       return false;

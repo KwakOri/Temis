@@ -10,6 +10,23 @@ import {
 } from "@/types/admin";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+const invalidateAdminTemplateRelatedQueries = (
+  queryClient: ReturnType<typeof useQueryClient>
+) => {
+  queryClient.invalidateQueries({
+    queryKey: queryKeys.admin.templates(),
+  });
+  queryClient.invalidateQueries({
+    queryKey: [...queryKeys.admin.all, "template"],
+  });
+  queryClient.invalidateQueries({
+    queryKey: [...queryKeys.admin.all, "templatePlans"],
+  });
+  queryClient.invalidateQueries({
+    queryKey: [...queryKeys.admin.all, "templateArtists"],
+  });
+};
+
 export const useAdminTemplates = (params?: {
   limit?: number;
   offset?: number;
@@ -41,9 +58,7 @@ export const useCreateTemplate = () => {
     mutationFn: (data: CreateTemplateData) =>
       AdminTemplateService.createTemplate(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.templates(),
-      });
+      invalidateAdminTemplateRelatedQueries(queryClient);
     },
   });
 };
@@ -63,9 +78,7 @@ export const useUpdateTemplate = () => {
       data: UpdateTemplateData;
     }) => AdminTemplateService.updateTemplate(templateId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.templates(),
-      });
+      invalidateAdminTemplateRelatedQueries(queryClient);
     },
   });
 };
@@ -80,9 +93,7 @@ export const useCreateShopTemplate = () => {
     mutationFn: (data: CreateShopTemplateData) =>
       AdminTemplateService.createShopTemplate(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.templates(),
-      });
+      invalidateAdminTemplateRelatedQueries(queryClient);
     },
   });
 };
@@ -99,9 +110,7 @@ export const useUpdateShopTemplate = () => {
       data: UpdateShopTemplateData;
     }) => AdminTemplateService.updateShopTemplate(productId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.templates(),
-      });
+      invalidateAdminTemplateRelatedQueries(queryClient);
     },
   });
 };
@@ -122,9 +131,7 @@ export const useCreateTemplatePlan = () => {
     mutationFn: (data: CreateTemplatePlanData) =>
       AdminTemplateService.createTemplatePlan(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.templates(),
-      });
+      invalidateAdminTemplateRelatedQueries(queryClient);
     },
   });
 };
@@ -141,9 +148,7 @@ export const useUpdateTemplatePlan = () => {
       data: UpdateTemplatePlanData;
     }) => AdminTemplateService.updateTemplatePlan(planId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.templates(),
-      });
+      invalidateAdminTemplateRelatedQueries(queryClient);
     },
   });
 };

@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabase";
 import { TablesInsert } from "@/types/supabase";
 import { NextRequest, NextResponse } from "next/server";
 
+const USER_LINKED_CONSTRAINT = "idx_artists_user_id_unique";
+
 function toSlug(value: string): string {
   return value
     .toLowerCase()
@@ -10,6 +12,31 @@ function toSlug(value: string): string {
     .replace(/[^a-z0-9가-힣\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+function parseOptionalUserId(value: unknown): number | null {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+function isUserLinkedConflict(error: {
+  code?: string;
+  message?: string;
+  details?: string | null;
+}): boolean {
+  if (error.code !== "23505") {
+    return false;
+  }
+
+  const messageAndDetails = `${error.message || ""} ${error.details || ""}`;
+  return (
+    messageAndDetails.includes(USER_LINKED_CONSTRAINT) ||
+    messageAndDetails.includes("artists_user_id") ||
+    messageAndDetails.includes("(user_id)")
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -26,7 +53,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("artists")
-      .select("*")
+      .select(
+        `
+        *,
+        linked_user:users!artists_user_id_fkey(id, name, email)
+      `
+      )
       .order("created_at", { ascending: false });
 
     if (isActive === "true") {
@@ -80,6 +112,7 @@ export async function POST(request: NextRequest) {
       youtube_url,
       website_url,
       is_active,
+      user_id,
     } = body;
 
     if (!name || name.trim().length === 0) {
@@ -87,6 +120,29 @@ export async function POST(request: NextRequest) {
         { error: "작가 이름은 필수입니다." },
         { status: 400 }
       );
+    }
+
+    const parsedUserId = parseOptionalUserId(user_id);
+    if (Number.isNaN(parsedUserId)) {
+      return NextResponse.json(
+        { error: "연결할 사용자 ID 형식이 올바르지 않습니다." },
+        { status: 400 }
+      );
+    }
+
+    if (parsedUserId !== null) {
+      const { data: userRow, error: userError } = await supabase
+        .from("users")
+        .select("id")
+        .eq("id", parsedUserId)
+        .single();
+
+      if (userError || !userRow) {
+        return NextResponse.json(
+          { error: "연결할 사용자를 찾을 수 없습니다." },
+          { status: 404 }
+        );
+      }
     }
 
     const artistData: TablesInsert<"artists"> = {
@@ -99,15 +155,27 @@ export async function POST(request: NextRequest) {
       youtube_url: youtube_url?.trim() || null,
       website_url: website_url?.trim() || null,
       is_active: is_active !== undefined ? Boolean(is_active) : true,
+      user_id: parsedUserId,
     };
 
     const { data, error } = await supabase
       .from("artists")
       .insert(artistData)
-      .select()
+      .select(
+        `
+        *,
+        linked_user:users!artists_user_id_fkey(id, name, email)
+      `
+      )
       .single();
 
     if (error) {
+      if (isUserLinkedConflict(error)) {
+        return NextResponse.json(
+          { error: "이미 다른 작가에 연결된 사용자입니다." },
+          { status: 409 }
+        );
+      }
       if (error.code === "23505") {
         return NextResponse.json(
           { error: "이미 사용 중인 슬러그입니다." },
@@ -132,4 +200,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
