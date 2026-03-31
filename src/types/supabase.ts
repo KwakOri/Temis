@@ -125,6 +125,7 @@ export type Database = {
           profile_image_url: string | null
           slug: string | null
           updated_at: string
+          user_id: number | null
           website_url: string | null
           youtube_url: string | null
         }
@@ -139,6 +140,7 @@ export type Database = {
           profile_image_url?: string | null
           slug?: string | null
           updated_at?: string
+          user_id?: number | null
           website_url?: string | null
           youtube_url?: string | null
         }
@@ -153,10 +155,19 @@ export type Database = {
           profile_image_url?: string | null
           slug?: string | null
           updated_at?: string
+          user_id?: number | null
           website_url?: string | null
           youtube_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "artists_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_timetable_orders: {
         Row: {

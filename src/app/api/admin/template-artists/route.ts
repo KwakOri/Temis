@@ -125,6 +125,32 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // 작가 연결이 모두 해제되면 판매 중 상태를 자동으로 중지
+    let saleStoppedByUnlink = false;
+    if (normalizedRelations.length === 0) {
+      const { error: stopShopSaleError } = await supabase
+        .from("shop_templates")
+        .update({ is_shop_visible: false })
+        .eq("template_id", template_id)
+        .eq("is_shop_visible", true);
+
+      if (stopShopSaleError) {
+        throw stopShopSaleError;
+      }
+
+      const { error: stopTemplateSaleError } = await supabase
+        .from("templates")
+        .update({ is_shop_visible: false })
+        .eq("id", template_id)
+        .eq("is_shop_visible", true);
+
+      if (stopTemplateSaleError) {
+        throw stopTemplateSaleError;
+      }
+
+      saleStoppedByUnlink = true;
+    }
+
     const { data: refreshed, error: fetchError } = await supabase
       .from("template_artists")
       .select(
@@ -144,6 +170,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       success: true,
       templateArtists: refreshed || [],
+      saleStoppedByUnlink,
     });
   } catch (error) {
     console.error("Template artists update error:", error);
@@ -153,4 +180,3 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
-

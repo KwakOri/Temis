@@ -1,5 +1,5 @@
 import {
-  Artist,
+  ArtistWithLinkedUser,
   CreateArtistData,
   TemplateArtistInput,
   TemplateArtistWithArtist,
@@ -12,7 +12,7 @@ export class AdminArtistService {
   static async getArtists(params?: {
     search?: string;
     isActive?: boolean;
-  }): Promise<Artist[]> {
+  }): Promise<ArtistWithLinkedUser[]> {
     const searchParams = new URLSearchParams();
 
     if (params?.search) searchParams.set("search", params.search);
@@ -33,7 +33,7 @@ export class AdminArtistService {
     return result.artists || [];
   }
 
-  static async createArtist(data: CreateArtistData): Promise<Artist> {
+  static async createArtist(data: CreateArtistData): Promise<ArtistWithLinkedUser> {
     const response = await fetch(`${this.baseUrl}/artists`, {
       method: "POST",
       headers: {
@@ -51,7 +51,10 @@ export class AdminArtistService {
     return result.artist;
   }
 
-  static async updateArtist(artistId: string, data: UpdateArtistData): Promise<Artist> {
+  static async updateArtist(
+    artistId: string,
+    data: UpdateArtistData
+  ): Promise<ArtistWithLinkedUser> {
     const response = await fetch(`${this.baseUrl}/artists/${artistId}`, {
       method: "PATCH",
       headers: {
@@ -119,4 +122,3 @@ export class AdminArtistService {
     return result.templateArtists || [];
   }
 }
-

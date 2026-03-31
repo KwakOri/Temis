@@ -79,9 +79,11 @@ export const useUpdateTemplateArtists = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.templates() });
       queryClient.invalidateQueries({
+        queryKey: [...queryKeys.admin.all, "template"],
+      });
+      queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templateArtists(variables.templateId),
       });
     },
   });
 };
-
