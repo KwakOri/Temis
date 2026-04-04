@@ -1,16 +1,76 @@
 import { useTimeTableData, useTimeTableUI } from '@/contexts/TimeTableContext';
 import React from 'react';
 
+import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import TimeTableDesignGuide from '@/components/tools/TimeTableDesignGuide';
 import { TDefaultCard, TPlaceholders } from '@/types/time-table/data';
 import { TTheme } from '@/types/time-table/theme';
 import { isGuideEnabled } from '@/utils/time-table/data';
 import { Imgs } from '../../_img/imgs';
-import { templateSize } from '../../_settings/settings';
+import {
+  COMP_COLORS,
+  COMP_FONTS,
+  templateSize,
+} from '../../_settings/settings';
 import ProfileImageSection from '../ProfileImageContainer';
+import TimeTableFrameTop from '../TimeTableFrameTop';
 import TimeTableGrid from '../TimeTableGrid';
 import TimeTableTopObject from '../TimeTableTopObject';
 import TimeTableWeekFlag from '../TimeTableWeekFlag';
+
+interface ProfileTextProps {
+  profileText: string;
+  profileTextPlaceholder: string;
+  isProfileTextVisible: boolean;
+}
+
+const ProfileText = ({
+  profileText,
+  profileTextPlaceholder,
+  isProfileTextVisible,
+}: ProfileTextProps) => {
+  if (!isProfileTextVisible) return null;
+  return (
+    <div
+      style={{
+        width: 4000,
+        height: 2250,
+      }}
+      className="absolute z-50 flex justify-end items-center "
+    >
+      <div
+        style={{
+          position: 'absolute',
+          height: 160,
+          width: 800,
+          zIndex: 20,
+          top: 2060,
+          left: 2752,
+          rotate: '8.1deg',
+        }}
+        className="flex justify-start items-center "
+      >
+        <AutoResizeText
+          style={{
+            lineHeight: 1,
+            color: COMP_COLORS.ARTIST,
+            fontFamily: COMP_FONTS.ARTIST,
+            fontWeight: 700,
+          }}
+          className="text-left"
+          maxFontSize={96}
+        >
+          {profileText ? profileText : profileTextPlaceholder}
+        </AutoResizeText>
+      </div>
+      <img
+        src={Imgs['first']['artist'].src}
+        className="object-cover"
+        alt="artist"
+      />
+    </div>
+  );
+};
 
 export interface TimeTableContentProps {
   currentTheme: TTheme;
@@ -43,7 +103,13 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       }}
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
+      <ProfileText
+        isProfileTextVisible={isProfileTextVisible}
+        profileText={profileText}
+        profileTextPlaceholder={placeholders.profileText}
+      />
       <TimeTableTopObject />
+      <TimeTableFrameTop />
       <TimeTableWeekFlag currentTheme={currentTheme} weekDates={weekDates} />
       <TimeTableGrid
         data={data}
