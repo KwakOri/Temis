@@ -1,22 +1,23 @@
 import { Imgs } from '../_img/imgs';
 
-const TimeTableTopObject = () => {
+const TimeTableFrameTop = () => {
   return (
     <div
       style={{
         width: 4000,
         height: 2250,
         position: 'absolute',
-        zIndex: 40,
+        zIndex: 30,
       }}
     >
       <img
-        src={Imgs['first']['topObject'].src}
-        alt={'top-object'}
+        src={Imgs['first']['frameTop'].src}
+        alt={'frame-top'}
         draggable={false}
+        className="w-full h-full object-cover"
       />
     </div>
   );
 };
 
-export default TimeTableTopObject;
+export default TimeTableFrameTop;
