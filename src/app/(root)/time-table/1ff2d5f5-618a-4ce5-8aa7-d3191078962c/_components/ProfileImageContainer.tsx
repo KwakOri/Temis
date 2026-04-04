@@ -1,8 +1,7 @@
-import { AutoResizeText } from '@/components/AutoResizeTextCard';
 import { TTheme } from '@/types/time-table/theme';
 import { PropsWithChildren } from 'react';
 import { Imgs } from '../_img/imgs';
-import { CARD_SIZES, COMP_COLORS, COMP_FONTS } from '../_settings/settings';
+import { CARD_SIZES } from '../_settings/settings';
 
 interface ProfileBackPlateProps {
   currentTheme?: TTheme;
@@ -10,12 +9,6 @@ interface ProfileBackPlateProps {
 
 interface ProfileImageProps {
   imageSrc: string | null;
-}
-
-interface ProfileTextProps {
-  profileText: string;
-  profileTextPlaceholder: string;
-  isProfileTextVisible: boolean;
 }
 
 interface ProfileImageSectionProps {
@@ -90,54 +83,6 @@ const ProfileTextTitle = () => {
   return <p style={{ fontSize: 38, width: 172 }}>ART BY ::</p>;
 };
 
-const ProfileText = ({
-  profileText,
-  profileTextPlaceholder,
-  isProfileTextVisible,
-}: ProfileTextProps) => {
-  if (!isProfileTextVisible) return null;
-  return (
-    <div
-      style={{
-        width: 4000,
-        height: 2250,
-      }}
-      className="absolute z-50 flex justify-end items-center "
-    >
-      <div
-        style={{
-          position: 'absolute',
-          height: 160,
-          width: 800,
-          zIndex: 20,
-          top: 2060,
-          left: 2752,
-          rotate: '8.1deg',
-        }}
-        className="flex justify-start items-center "
-      >
-        <AutoResizeText
-          style={{
-            lineHeight: 1,
-            color: COMP_COLORS.ARTIST,
-            fontFamily: COMP_FONTS.ARTIST,
-            fontWeight: 700,
-          }}
-          className="text-left"
-          maxFontSize={96}
-        >
-          {profileText ? profileText : profileTextPlaceholder}
-        </AutoResizeText>
-      </div>
-      <img
-        src={Imgs['first']['artist'].src}
-        className="object-cover"
-        alt="artist"
-      />
-    </div>
-  );
-};
-
 const ProfileImageContainer = ({ children }: PropsWithChildren) => {
   return (
     <div
@@ -162,11 +107,6 @@ const ProfileImageSection = ({
 }: ProfileImageSectionProps) => {
   return (
     <ProfileImageContainer>
-      <ProfileText
-        isProfileTextVisible={isProfileTextVisible}
-        profileText={profileText}
-        profileTextPlaceholder={profileTextPlaceholder}
-      />
       <ProfileFrame />
       <ProfileImage imageSrc={imageSrc} />
     </ProfileImageContainer>
