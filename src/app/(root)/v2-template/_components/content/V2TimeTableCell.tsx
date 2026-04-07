@@ -20,7 +20,7 @@ import {
 } from "@/utils/time-table/v2_template_render_config";
 import { Imgs } from "../../_img/imgs";
 import {
-  V2AutoResizeNodeRenderer,
+  V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
 } from "./V2CardNodeRenderers";
 import { v2_getHighlightStyle } from "./v2_highlight";
@@ -260,7 +260,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         typeof nodeOptions.multiline === "boolean" ? nodeOptions.multiline : true;
 
       return (
-        <V2AutoResizeNodeRenderer
+        <V2FlexibleTextNodeRenderer
           key={node.id}
           nodeId={node.id}
           text={nodeText}
@@ -279,7 +279,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       );
     };
 
-    if (node.kind === "autoResizeText") {
+    if (node.kind === "flexibleText") {
       return renderAutoResizeNode();
     }
 

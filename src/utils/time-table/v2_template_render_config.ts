@@ -276,7 +276,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
     "main-title": {
       id: "main-title",
       label: "MainTitle",
-      kind: "autoResizeText",
+      kind: "flexibleText",
       layerId: "main-title",
       highlightTarget: "cardMainTitleContainer",
       binding: "mainTitle",
@@ -293,7 +293,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
     "sub-title": {
       id: "sub-title",
       label: "SubTitle",
-      kind: "autoResizeText",
+      kind: "flexibleText",
       layerId: "sub-title",
       highlightTarget: "cardSubTitleContainer",
       binding: "subTitle",
@@ -742,7 +742,11 @@ const v2_getDefaultTemplateComponentFlagById = (id: string): boolean => {
   return id === "card";
 };
 
-const v2_CARD_NODE_KIND_SET = new Set(["text", "autoResizeText"]);
+const v2_CARD_NODE_KIND_SET = new Set([
+  "text",
+  "flexibleText",
+  "autoResizeText",
+]);
 
 const v2_CARD_NODE_BINDING_SET = new Set([
   "streamingDay",
@@ -848,7 +852,9 @@ const v2_normalizeCardNode = (
 
   const kind: V2TemplateCardNode["kind"] =
     typeof candidate.kind === "string" && v2_CARD_NODE_KIND_SET.has(candidate.kind)
-      ? (candidate.kind as V2TemplateCardNode["kind"])
+      ? candidate.kind === "autoResizeText"
+        ? "flexibleText"
+        : (candidate.kind as V2TemplateCardNode["kind"])
       : fallback.kind;
   const binding: V2TemplateCardNode["binding"] =
     typeof candidate.binding === "string" &&

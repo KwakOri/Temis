@@ -167,7 +167,7 @@ export type V2TemplateCardStyleKey =
 
 export type V2TemplateCardOptionsKey = "mainTitleOptions" | "subTitleOptions";
 
-export type V2TemplateCardNodeKind = "text" | "autoResizeText";
+export type V2TemplateCardNodeKind = "text" | "flexibleText";
 
 export type V2TemplateCardNodeBinding =
   | "streamingDay"

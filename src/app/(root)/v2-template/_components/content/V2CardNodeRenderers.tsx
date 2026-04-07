@@ -17,7 +17,7 @@ interface V2CardRendererBaseProps {
 
 type V2PlainTextNodeRendererProps = V2CardRendererBaseProps;
 
-interface V2AutoResizeNodeRendererProps extends V2CardRendererBaseProps {
+interface V2FlexibleTextNodeRendererProps extends V2CardRendererBaseProps {
   multiline: boolean;
   maxFontSize: number;
   wrapperStyle?: React.CSSProperties;
@@ -52,7 +52,9 @@ export const V2PlainTextNodeRenderer: React.FC<V2PlainTextNodeRendererProps> = (
   );
 };
 
-export const V2AutoResizeNodeRenderer: React.FC<V2AutoResizeNodeRendererProps> = ({
+export const V2FlexibleTextNodeRenderer: React.FC<
+  V2FlexibleTextNodeRendererProps
+> = ({
   nodeId,
   text,
   containerStyle,

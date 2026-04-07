@@ -3313,7 +3313,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       : null;
     const alignmentWrapperSection = wrapperSection ?? containerSection;
     const hasAutoResizeAlignment =
-      node.kind === "autoResizeText" && textSection !== null;
+      node.kind === "flexibleText" && textSection !== null;
 
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
@@ -3369,7 +3369,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             })
           : null}
 
-        {node.kind === "autoResizeText"
+        {node.kind === "flexibleText"
           ? renderCardNodeAutoResizeOptions({
               node,
               containerSection,
