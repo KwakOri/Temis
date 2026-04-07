@@ -1358,6 +1358,19 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       v2_HIGHLIGHT_TARGET_TO_STYLE_SECTION_FALLBACK[selectedPropertiesTarget]
     );
   }, [selectedPropertiesTarget, structurePropertiesMaps.targetToSection]);
+  const selectedPropertiesLabel = useMemo(() => {
+    if (!selectedPropertiesSection) {
+      return v2_HIGHLIGHT_TARGET_LABELS[selectedPropertiesTarget];
+    }
+    return (
+      structurePropertiesMaps.sectionToLabel[selectedPropertiesSection] ??
+      v2_STYLE_SECTION_LABELS[selectedPropertiesSection]
+    );
+  }, [
+    selectedPropertiesSection,
+    selectedPropertiesTarget,
+    structurePropertiesMaps.sectionToLabel,
+  ]);
   const cardNodeByPropertiesSection = useMemo(() => {
     const map = new Map<V2StyleSectionKey, V2TemplateCardNode>();
     Object.values(renderConfig.structure.card.nodes).forEach((node) => {
@@ -3423,7 +3436,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       <div className="flex items-center justify-between gap-2">
         <h3 className="font-bold text-base text-gray-100">속성</h3>
         <span className="rounded border border-[#3a3d44] bg-[#1a1c20] px-2 py-1 text-[11px] text-gray-300">
-          {v2_HIGHLIGHT_TARGET_LABELS[selectedPropertiesTarget]}
+          {selectedPropertiesLabel}
         </span>
       </div>
       <p className="text-xs text-gray-400">
