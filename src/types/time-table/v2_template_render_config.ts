@@ -123,9 +123,19 @@ export type V2TemplateLayerIconKey =
   | "layers"
   | "text";
 
+export type V2TemplateLayerNodeKind = "group" | "component";
+
+export type V2TemplateLayerComponentKey =
+  | "grid"
+  | "weekFlag"
+  | "topObject"
+  | "profile";
+
 export interface V2TemplateLayerNode {
   id: string;
   label: string;
+  kind: V2TemplateLayerNodeKind;
+  componentKey?: V2TemplateLayerComponentKey;
   icon?: V2TemplateLayerIconKey;
   target?: V2TemplateHighlightTarget;
   sectionKey?: string;

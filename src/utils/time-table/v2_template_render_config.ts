@@ -11,7 +11,9 @@ import {
   V2TemplateEditorOptions,
   V2TemplateFontFaceMetrics,
   V2TemplateFontRegistryItem,
+  V2TemplateLayerComponentKey,
   V2TemplateLayerIconKey,
+  V2TemplateLayerNodeKind,
   V2TemplateLayerNode,
   V2TemplateStructureConfig,
   V2TemplateRenderConfig,
@@ -96,6 +98,8 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
     id: "grid",
     label: "Grid",
+    kind: "component",
+    componentKey: "grid",
     icon: "grid",
     target: "grid",
     sectionKey: "grid",
@@ -103,6 +107,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
       {
         id: "card",
         label: "Card",
+        kind: "group",
         icon: "group",
         target: "cardContainer",
         sectionKey: "cardContainer",
@@ -110,6 +115,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
           {
             id: "streaming-day",
             label: "StreamingDay",
+            kind: "component",
             icon: "text",
             target: "cardStreamingDay",
             sectionKey: "cardStreamingDay",
@@ -117,6 +123,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
           {
             id: "streaming-date",
             label: "StreamingDate",
+            kind: "component",
             icon: "text",
             target: "cardStreamingDate",
             sectionKey: "cardStreamingDate",
@@ -124,6 +131,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
           {
             id: "streaming-time",
             label: "StreamingTime",
+            kind: "component",
             icon: "text",
             target: "cardStreamingTime",
             sectionKey: "cardStreamingTime",
@@ -131,6 +139,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
           {
             id: "main-title",
             label: "MainTitle",
+            kind: "component",
             icon: "text",
             target: "cardMainTitleContainer",
             sectionKey: "cardMainTitleContainer",
@@ -138,6 +147,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
           {
             id: "sub-title",
             label: "SubTitle",
+            kind: "component",
             icon: "text",
             target: "cardSubTitleContainer",
             sectionKey: "cardSubTitleContainer",
@@ -149,6 +159,8 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
     id: "week-flag",
     label: "WeekFlag",
+    kind: "component",
+    componentKey: "weekFlag",
     icon: "calendar",
     target: "weekFlag",
     sectionKey: "weekFlag",
@@ -156,6 +168,8 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
     id: "top-object",
     label: "TopObject",
+    kind: "component",
+    componentKey: "topObject",
     icon: "image",
     target: "topObjectContainer",
     sectionKey: "topObjectContainer",
@@ -163,11 +177,14 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
     id: "profile",
     label: "Profile",
+    kind: "component",
+    componentKey: "profile",
     icon: "group",
     children: [
       {
         id: "profile-image",
         label: "Image",
+        kind: "component",
         icon: "image",
         target: "profileImage",
         sectionKey: "profileImage",
@@ -175,6 +192,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
       {
         id: "profile-frame",
         label: "Frame",
+        kind: "component",
         icon: "layers",
         target: "profileFrame",
         sectionKey: "profileFrame",
@@ -670,6 +688,25 @@ const v2_LAYER_ICON_KEY_SET = new Set([
   "text",
 ]);
 
+const v2_LAYER_NODE_KIND_SET = new Set(["group", "component"]);
+
+const v2_LAYER_COMPONENT_KEY_SET = new Set([
+  "grid",
+  "weekFlag",
+  "topObject",
+  "profile",
+]);
+
+const v2_getDefaultLayerComponentKeyById = (
+  id: string
+): V2TemplateLayerComponentKey | undefined => {
+  if (id === "grid") return "grid";
+  if (id === "week-flag") return "weekFlag";
+  if (id === "top-object") return "topObject";
+  if (id === "profile") return "profile";
+  return undefined;
+};
+
 const v2_CARD_NODE_KIND_SET = new Set(["text", "autoResizeText"]);
 
 const v2_CARD_NODE_BINDING_SET = new Set([
@@ -725,14 +762,28 @@ const v2_normalizeLayerTree = (
           .map((childNode) => parseNode(childNode))
           .filter((childNode): childNode is V2TemplateLayerNode => childNode !== null)
       : undefined;
+    const hasChildren = Boolean(children && children.length > 0);
+    const kind: V2TemplateLayerNodeKind =
+      typeof rawNode.kind === "string" && v2_LAYER_NODE_KIND_SET.has(rawNode.kind)
+        ? (rawNode.kind as V2TemplateLayerNodeKind)
+        : hasChildren
+          ? "group"
+          : "component";
+    const componentKey: V2TemplateLayerComponentKey | undefined =
+      typeof rawNode.componentKey === "string" &&
+      v2_LAYER_COMPONENT_KEY_SET.has(rawNode.componentKey)
+        ? (rawNode.componentKey as V2TemplateLayerComponentKey)
+        : v2_getDefaultLayerComponentKeyById(id);
 
     return {
       id,
       label,
+      kind,
+      ...(kind === "component" && componentKey ? { componentKey } : {}),
       ...(icon ? { icon } : {}),
       ...(target ? { target } : {}),
       ...(sectionKey ? { sectionKey } : {}),
-      ...(children && children.length > 0 ? { children } : {}),
+      ...(hasChildren ? { children } : {}),
     };
   };
 
