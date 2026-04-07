@@ -261,6 +261,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
       return (
         <V2AutoResizeNodeRenderer
+          key={node.id}
           nodeId={node.id}
           text={nodeText}
           containerStyle={renderableContainerStyle}
@@ -284,6 +285,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
     return (
       <V2PlainTextNodeRenderer
+        key={node.id}
         nodeId={node.id}
         text={nodeText}
         containerStyle={renderableContainerStyle}
