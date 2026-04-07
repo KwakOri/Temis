@@ -1,6 +1,5 @@
 import React from "react";
 
-import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import {
   useV2TemplateRenderConfigContext,
@@ -17,6 +16,10 @@ import { formatTime } from "@/utils/time-formatter";
 import { createPlaceholdersFromConfig, weekdays } from "@/utils/time-table/data";
 import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
 import { Imgs } from "../../_img/imgs";
+import {
+  V2AutoResizeNodeRenderer,
+  V2PlainTextNodeRenderer,
+} from "./V2CardNodeRenderers";
 import { v2_getHighlightStyle } from "./v2_highlight";
 import { v2_toRenderableStyle } from "./v2_style";
 
@@ -232,22 +235,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       activeTarget: activeHighlightTarget,
     });
 
-    const renderPlainTextNode = () => (
-      <p
-        key={node.id}
-        style={{
-          color: renderConfig.componentColors[node.colorKey],
-          fontFamily: v2_getComponentFontFamily(renderConfig, node.fontKey),
-          ...renderableContainerStyle,
-          ...(width !== undefined ? { width } : {}),
-          ...textStyle,
-          ...highlightStyle,
-        }}
-        className={node.containerClassName ?? "absolute flex items-center justify-center"}
-      >
-        {nodeText}
-      </p>
-    );
+    const fontFamily = v2_getComponentFontFamily(renderConfig, node.fontKey);
+    const color = renderConfig.componentColors[node.colorKey];
 
     const renderAutoResizeNode = () => {
       const nodeOptions = node.optionsKey
@@ -265,32 +254,21 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         typeof nodeOptions.multiline === "boolean" ? nodeOptions.multiline : true;
 
       return (
-        <div
-          key={node.id}
-          style={{
-            ...renderableContainerStyle,
-            ...(width !== undefined ? { width } : {}),
-            ...wrapperStyle,
-            ...highlightStyle,
-          }}
-          className={
-            node.containerClassName ?? "absolute flex items-center justify-center"
-          }
-        >
-          {/* AutoResizeText always depends on parent box size, so wrapper div is mandatory. */}
-          <AutoResizeText
-            style={{
-              fontFamily: v2_getComponentFontFamily(renderConfig, node.fontKey),
-              color: renderConfig.componentColors[node.colorKey],
-              ...textStyle,
-            }}
-            className={node.textClassName ?? "leading-none text-center"}
-            multiline={multiline}
-            maxFontSize={maxFontSize}
-          >
-            {nodeText}
-          </AutoResizeText>
-        </div>
+        <V2AutoResizeNodeRenderer
+          nodeId={node.id}
+          text={nodeText}
+          containerStyle={renderableContainerStyle}
+          width={width}
+          textStyle={textStyle}
+          highlightStyle={highlightStyle}
+          wrapperStyle={wrapperStyle}
+          containerClassName={node.containerClassName}
+          textClassName={node.textClassName}
+          fontFamily={fontFamily}
+          color={color}
+          multiline={multiline}
+          maxFontSize={maxFontSize}
+        />
       );
     };
 
@@ -298,7 +276,19 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       return renderAutoResizeNode();
     }
 
-    return renderPlainTextNode();
+    return (
+      <V2PlainTextNodeRenderer
+        nodeId={node.id}
+        text={nodeText}
+        containerStyle={renderableContainerStyle}
+        width={width}
+        textStyle={textStyle}
+        highlightStyle={highlightStyle}
+        containerClassName={node.containerClassName}
+        fontFamily={fontFamily}
+        color={color}
+      />
+    );
   };
 
   return (
