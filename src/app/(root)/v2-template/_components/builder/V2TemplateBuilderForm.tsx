@@ -35,6 +35,7 @@ import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
   V2TemplateCardInstanceTransform,
+  V2TemplateCardNodeKind,
   V2TemplateCardNode,
   V2TemplateCardOptionsKey,
   V2TemplateLayerNode,
@@ -140,6 +141,14 @@ const v2_CARD_NODE_VISIBILITY_OPTIONS: Array<{
   { value: "onlineOnly", label: "온라인만" },
   { value: "offlineOnly", label: "오프라인만" },
 ];
+
+const v2_FIXED_CARD_NODE_IDS = new Set([
+  "streaming-day",
+  "streaming-date",
+  "streaming-time",
+  "main-title",
+  "sub-title",
+]);
 
 type V2StyleSectionKey =
   | "grid"
@@ -2143,6 +2152,184 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
+  const appendCardNode = (kind: V2TemplateCardNodeKind) => {
+    safeUpdateConfig((prev) => {
+      const existingIds = new Set(Object.keys(prev.structure.card.nodes));
+      let nextIndex = 1;
+      let nodeId = `card-node-${nextIndex}`;
+      while (existingIds.has(nodeId)) {
+        nextIndex += 1;
+        nodeId = `card-node-${nextIndex}`;
+      }
+
+      const label = `Object${nextIndex}`;
+      const layerId = nodeId;
+      const target = `cardNode:${nodeId}`;
+      const containerStyleKey = `cardNode:${nodeId}:container`;
+      const textStyleKey = `cardNode:${nodeId}:text`;
+      const wrapperStyleKey = `cardNode:${nodeId}:wrapper`;
+      const optionsKey = `cardNode:${nodeId}:options`;
+
+      const nextNode: V2TemplateCardNode = {
+        id: nodeId,
+        label,
+        kind,
+        layerId,
+        highlightTarget: target,
+        binding: nodeId,
+        visibilityMode: "always",
+        containerStyleKey,
+        textStyleKey,
+        ...(kind === "flexibleText" ? { wrapperStyleKey, optionsKey } : {}),
+        colorKey: "SUB_TITLE",
+        fontKey: "SUB_TITLE",
+        containerClassName: "absolute flex justify-center items-center",
+        ...(kind === "flexibleText"
+          ? { textClassName: "leading-none text-center" }
+          : {}),
+      };
+
+      const nextCardLayout = {
+        ...prev.layout.card,
+        [containerStyleKey]: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: 240,
+          height: 64,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        [textStyleKey]: {
+          fontSize: 32,
+          lineHeight: 1.2,
+          textAlign: "center",
+          fontWeight: 500,
+        },
+        ...(kind === "flexibleText"
+          ? {
+              [wrapperStyleKey]: {
+                justifyContent: "center",
+                alignItems: "center",
+              },
+              [optionsKey]: {
+                maxFontSize: 56,
+                multiline: true,
+              },
+            }
+          : {}),
+      };
+
+      const appendLayerNode = (
+        nodes: V2TemplateLayerNode[]
+      ): V2TemplateLayerNode[] => {
+        return nodes.map((node) => {
+          if (node.id === prev.structure.card.containerLayerId) {
+            return {
+              ...node,
+              children: [
+                ...(node.children ?? []),
+                {
+                  id: layerId,
+                  label,
+                  kind: "component",
+                  icon: "text",
+                  target,
+                  sectionKey: containerStyleKey,
+                  visibilityMode: "always",
+                },
+              ],
+            };
+          }
+          if (!node.children?.length) return node;
+          return {
+            ...node,
+            children: appendLayerNode(node.children),
+          };
+        });
+      };
+
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout,
+          card: nextCardLayout,
+        },
+        structure: {
+          ...prev.structure,
+          layers: appendLayerNode(prev.structure.layers),
+          card: {
+            ...prev.structure.card,
+            nodeOrder: [...prev.structure.card.nodeOrder, nodeId],
+            nodes: {
+              ...prev.structure.card.nodes,
+              [nodeId]: nextNode,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const removeCardNode = (nodeId: string) => {
+    if (v2_FIXED_CARD_NODE_IDS.has(nodeId)) return;
+
+    safeUpdateConfig((prev) => {
+      const targetNode = prev.structure.card.nodes[nodeId];
+      if (!targetNode) return prev;
+
+      const nextNodes = {
+        ...prev.structure.card.nodes,
+      };
+      delete nextNodes[nodeId];
+
+      const nextNodeOrder = prev.structure.card.nodeOrder.filter(
+        (id) => id !== nodeId
+      );
+
+      const nextCardLayout = {
+        ...prev.layout.card,
+      };
+      delete nextCardLayout[targetNode.containerStyleKey];
+      if (targetNode.textStyleKey) delete nextCardLayout[targetNode.textStyleKey];
+      if (targetNode.wrapperStyleKey)
+        delete nextCardLayout[targetNode.wrapperStyleKey];
+      if (targetNode.optionsKey) delete nextCardLayout[targetNode.optionsKey];
+
+      const removeLayerNode = (
+        nodes: V2TemplateLayerNode[]
+      ): V2TemplateLayerNode[] => {
+        return nodes
+          .filter((node) => node.id !== targetNode.layerId)
+          .map((node) => {
+            if (!node.children?.length) return node;
+            return {
+              ...node,
+              children: removeLayerNode(node.children),
+            };
+          });
+      };
+
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout,
+          card: nextCardLayout,
+        },
+        structure: {
+          ...prev.structure,
+          layers: removeLayerNode(prev.structure.layers),
+          card: {
+            ...prev.structure.card,
+            nodeOrder: nextNodeOrder,
+            nodes: nextNodes,
+          },
+        },
+      };
+    });
+  };
+
   const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
     safeUpdateConfig((prev) => ({
       ...prev,
@@ -3356,10 +3543,22 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const alignmentWrapperSection = wrapperSection ?? containerSection;
     const hasAutoResizeAlignment =
       node.kind === "flexibleText" && textSection !== null;
+    const isRemovable = !v2_FIXED_CARD_NODE_IDS.has(node.id);
 
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">Card / {node.label}</h4>
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-semibold text-sm text-gray-200">Card / {node.label}</h4>
+          {isRemovable ? (
+            <button
+              type="button"
+              onClick={() => removeCardNode(node.id)}
+              className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
+            >
+              오브젝트 삭제
+            </button>
+          ) : null}
+        </div>
         <div
           className="grid grid-cols-2 gap-2 items-center"
           onMouseEnter={() => setSectionHoverHighlight(containerSection)}
@@ -3450,6 +3649,23 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             <option value="component">공통 컴포넌트</option>
             <option value="detached">개별 인스턴스</option>
           </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => appendCardNode("text")}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
+          >
+            + 텍스트 오브젝트
+          </button>
+          <button
+            type="button"
+            onClick={() => appendCardNode("flexibleText")}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
+          >
+            + FlexibleText
+          </button>
         </div>
 
         {instanceMode === "detached" ? (
