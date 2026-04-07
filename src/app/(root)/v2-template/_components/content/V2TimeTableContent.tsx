@@ -4,6 +4,7 @@ import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
 } from "@/contexts/v2/v2_TemplateRenderConfigContext";
+import { V2TemplateLayerNode } from "@/types/time-table/v2_template_render_config";
 import React from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
@@ -13,6 +14,26 @@ import V2ProfileImageSection from "./V2ProfileImageContainer";
 import V2TimeTableGrid from "./V2TimeTableGrid";
 import V2TimeTableTopObject from "./V2TimeTableTopObject";
 import V2TimeTableWeekFlag from "./V2TimeTableWeekFlag";
+
+const v2_renderLayerNode = (node: V2TemplateLayerNode): React.ReactNode => {
+  switch (node.id) {
+    case "top-object":
+      return <V2TimeTableTopObject key={node.id} />;
+    case "week-flag":
+      return <V2TimeTableWeekFlag key={node.id} />;
+    case "grid":
+      return <V2TimeTableGrid key={node.id} />;
+    case "profile":
+      return <V2ProfileImageSection key={node.id} />;
+    default:
+      if (!node.children?.length) return null;
+      return (
+        <React.Fragment key={node.id}>
+          {node.children.map((childNode) => v2_renderLayerNode(childNode))}
+        </React.Fragment>
+      );
+  }
+};
 
 const V2TimeTableContent: React.FC = () => {
   const { currentTheme } = useV2TimeTableEditorRuntimeContext();
@@ -44,10 +65,9 @@ const V2TimeTableContent: React.FC = () => {
       }}
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
-      <V2TimeTableTopObject />
-      <V2TimeTableWeekFlag />
-      <V2TimeTableGrid />
-      <V2ProfileImageSection />
+      {renderConfig.structure.layers.map((layerNode) =>
+        v2_renderLayerNode(layerNode)
+      )}
     </div>
   );
 };
