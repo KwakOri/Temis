@@ -118,7 +118,6 @@ const v2_STYLE_PROPERTY_CATALOG = [
   "filter",
   "backdropFilter",
   "opacity",
-  "zIndex",
   "display",
   "justifyContent",
   "alignItems",
@@ -128,6 +127,8 @@ const v2_STYLE_PROPERTY_CATALOG = [
   "whiteSpace",
   "wordBreak",
 ] as const;
+
+const v2_LOCKED_STYLE_PROPERTY_KEYS = new Set<string>(["zIndex"]);
 
 type V2StyleSectionKey =
   | "grid"
@@ -1040,7 +1041,7 @@ const v2_FIELD_CATEGORY_ORDER = {
     "minHeight",
     "maxHeight",
   ],
-  layer: ["zIndex", "opacity"],
+  layer: ["opacity"],
   motion: ["rotate", "transformOrigin", "transform"],
   layout: [
     "display",
@@ -1668,7 +1669,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const addStyleProperty = (section: V2StyleSectionKey) => {
     const currentMap = getStyleSectionMap(section);
     const nextKey =
-      v2_STYLE_PROPERTY_CATALOG.find((property) => currentMap[property] === undefined) ??
+      v2_STYLE_PROPERTY_CATALOG.find(
+        (property) =>
+          !v2_LOCKED_STYLE_PROPERTY_KEYS.has(property) &&
+          currentMap[property] === undefined
+      ) ??
       `custom_${Object.keys(currentMap).length + 1}`;
 
     updateStyleSection(section, {
@@ -1678,6 +1683,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const removeStyleProperty = (section: V2StyleSectionKey, key: string) => {
+    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(key)) return;
     const currentMap = getStyleSectionMap(section);
     const nextMap = { ...currentMap };
     delete nextMap[key];
@@ -1689,6 +1695,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     key: string,
     rawValue: string
   ) => {
+    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(key)) return;
     const currentMap = getStyleSectionMap(section);
     const nextValue = parseStyleValue(rawValue);
     updateStyleSection(
@@ -1947,6 +1954,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   ) => {
     const nextKey = nextKeyRaw.trim();
     if (!nextKey) return;
+    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(nextKey)) return;
 
     const currentMap = getBoilerplateSectionMap(section);
     const value = currentMap[currentKey];
@@ -1961,6 +1969,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     key: string,
     rawValue: string
   ) => {
+    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(key)) return;
     const currentMap = getBoilerplateSectionMap(section);
     const nextValue = parseStyleValue(rawValue);
     updateBoilerplateSection(
@@ -2279,7 +2288,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       ...gridPresetKeys,
     ]);
     const customEntries = Object.entries(sectionMap).filter(
-      ([property]) => !presetKeys.has(property)
+      ([property]) =>
+        !presetKeys.has(property) && !v2_LOCKED_STYLE_PROPERTY_KEYS.has(property)
     );
     const gridLayoutMode = isGridSection
       ? v2_parseGridLayoutMode(sectionMap.layoutMode)
@@ -2408,6 +2418,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         )}
 
         {groups.map((group) => {
+          const visibleFields = group.fields.filter(
+            (field) => !v2_LOCKED_STYLE_PROPERTY_KEYS.has(field.key)
+          );
+          if (visibleFields.length === 0) return null;
+
           const GroupIcon =
             v2_BOILERPLATE_GROUP_ICON_MAP[group.id] ?? SlidersHorizontal;
           const groupLabel = v2_STYLE_GROUP_DISPLAY_LABEL[group.id] ?? group.label;
@@ -2419,7 +2434,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           });
           const ChevronIcon = isGroupOpen ? ChevronDown : ChevronRight;
           const isExtensionGroup = v2_STYLE_EXTENSION_GROUP_IDS.has(group.id);
-          const filledCount = group.fields.filter((field) => {
+          const filledCount = visibleFields.filter((field) => {
             const value = sectionMap[field.key];
             if (value === undefined) return false;
             if (typeof value === "string") return value.trim() !== "";
@@ -2458,7 +2473,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               </div>
               {isGroupOpen && (
                 <div className="grid grid-cols-2 gap-2">
-                  {group.fields.map((field) => {
+                  {visibleFields.map((field) => {
                     const fieldType = getBoilerplateFieldType(field);
                     const value = sectionMap[field.key];
                     const valueString = value === undefined ? "" : String(value);
@@ -2735,7 +2750,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       groups.flatMap((group) => group.fields.map((field) => field.key))
     );
     const customEntries = Object.entries(sectionMap).filter(
-      ([property]) => !presetKeys.has(property)
+      ([property]) =>
+        !presetKeys.has(property) && !v2_LOCKED_STYLE_PROPERTY_KEYS.has(property)
     );
     const autoResizePair = getBoilerplateAutoResizePair(section);
     const horizontalAlign = autoResizePair
@@ -2854,6 +2870,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         )}
 
         {groups.map((group) => {
+          const visibleFields = group.fields.filter(
+            (field) => !v2_LOCKED_STYLE_PROPERTY_KEYS.has(field.key)
+          );
+          if (visibleFields.length === 0) return null;
+
           const GroupIcon =
             v2_BOILERPLATE_GROUP_ICON_MAP[group.id] ?? SlidersHorizontal;
 
@@ -2867,7 +2888,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
                 {group.label}
               </h6>
               <div className="grid grid-cols-1 gap-2">
-                {group.fields.map((field) => {
+                {visibleFields.map((field) => {
                   const fieldType = getBoilerplateFieldType(field);
                   const value = sectionMap[field.key];
                   const valueString = value === undefined ? "" : String(value);

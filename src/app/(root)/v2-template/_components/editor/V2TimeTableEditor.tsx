@@ -16,6 +16,23 @@ import V2TimeTableLayersPanel from './V2TimeTableLayersPanel';
 import V2TimeTableControls from './V2TimeTableControls';
 import V2TimeTablePreview from './V2TimeTablePreview';
 
+const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
+const v2_ROOT_LAYER_IDS = [
+  'grid',
+  'week-flag',
+  'top-object',
+  'profile',
+  'card',
+] as const;
+const v2_PROFILE_LAYER_IDS = ['profile-image', 'profile-frame'] as const;
+const v2_CARD_LAYER_IDS = [
+  'streaming-day',
+  'streaming-date',
+  'streaming-time',
+  'main-title',
+  'sub-title',
+] as const;
+
 const useV2TemplateEditorSettings = () => {
   const { renderConfig, setRenderConfig } = useV2TemplateRenderConfigContext();
 
@@ -24,6 +41,7 @@ const useV2TemplateEditorSettings = () => {
   const defaultTheme = (renderConfig.defaultTheme || 'first') as TTheme;
 
   return {
+    renderConfig,
     cardInputConfig,
     captureSize,
     defaultTheme,
@@ -32,7 +50,7 @@ const useV2TemplateEditorSettings = () => {
 };
 
 const V2TimeTableEditor: React.FC = () => {
-  const { cardInputConfig, captureSize, defaultTheme, setRenderConfig } =
+  const { renderConfig, cardInputConfig, captureSize, defaultTheme, setRenderConfig } =
     useV2TemplateEditorSettings();
 
   const {
@@ -59,7 +77,29 @@ const V2TimeTableEditor: React.FC = () => {
     section: string;
     nonce: number;
   } | null>(null);
-  const v2_ROOT_LAYER_PARENT_ID = '__root__';
+
+  const parseZIndex = (value: unknown): number | undefined => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return undefined;
+  };
+
+  const sortLayerIdsByZIndex = (
+    ids: readonly string[],
+    zIndexMap: Partial<Record<string, number>>
+  ): string[] => {
+    return [...ids].sort((a, b) => {
+      const aZ = zIndexMap[a] ?? 0;
+      const bZ = zIndexMap[b] ?? 0;
+      if (aZ === bZ) {
+        return ids.indexOf(a) - ids.indexOf(b);
+      }
+      return bZ - aZ;
+    });
+  };
 
   const v2_TARGET_TO_STYLE_SECTION: Partial<
     Record<V2TemplateHighlightTarget, string>
@@ -76,6 +116,46 @@ const V2TimeTableEditor: React.FC = () => {
     cardSubTitleContainer: 'cardSubTitleContainer',
     cardContainer: 'cardContainer',
   };
+
+  const orderedIdsByParent = useMemo(() => {
+    const profileTextRootStyle = renderConfig.layout.profileTextRootStyle as
+      | V2TemplateStyleRecord
+      | undefined;
+
+    const profileImageZ = parseZIndex(renderConfig.layout.profileImage?.zIndex) ?? 0;
+    const profileFrameZ = parseZIndex(renderConfig.layout.profileFrame?.zIndex) ?? 0;
+    const profileTextZ = parseZIndex(profileTextRootStyle?.zIndex) ?? 0;
+
+    const rootZMap: Partial<Record<string, number>> = {
+      grid: parseZIndex(renderConfig.layout.grid?.zIndex) ?? 0,
+      'week-flag': parseZIndex(renderConfig.layout.weekFlag?.zIndex) ?? 0,
+      'top-object': parseZIndex(renderConfig.layout.topObjectContainer?.zIndex) ?? 0,
+      profile: Math.max(profileImageZ, profileFrameZ, profileTextZ),
+      card: parseZIndex(renderConfig.layout.card.container?.zIndex) ?? 0,
+    };
+
+    const profileZMap: Partial<Record<string, number>> = {
+      'profile-image': profileImageZ,
+      'profile-frame': profileFrameZ,
+    };
+
+    const cardZMap: Partial<Record<string, number>> = {
+      'streaming-day': parseZIndex(renderConfig.layout.card.streamingDay?.zIndex) ?? 0,
+      'streaming-date':
+        parseZIndex(renderConfig.layout.card.streamingDate?.zIndex) ?? 0,
+      'streaming-time':
+        parseZIndex(renderConfig.layout.card.streamingTime?.zIndex) ?? 0,
+      'main-title':
+        parseZIndex(renderConfig.layout.card.mainTitleContainer?.zIndex) ?? 0,
+      'sub-title': parseZIndex(renderConfig.layout.card.subTitleContainer?.zIndex) ?? 0,
+    };
+
+    return {
+      [v2_ROOT_LAYER_PARENT_ID]: sortLayerIdsByZIndex(v2_ROOT_LAYER_IDS, rootZMap),
+      profile: sortLayerIdsByZIndex(v2_PROFILE_LAYER_IDS, profileZMap),
+      card: sortLayerIdsByZIndex(v2_CARD_LAYER_IDS, cardZMap),
+    };
+  }, [renderConfig]);
 
   const applyLayerZIndex = ({
     parentId,
@@ -312,6 +392,7 @@ const V2TimeTableEditor: React.FC = () => {
                     }`}
                   >
                     <V2TimeTableLayersPanel
+                      orderedIdsByParent={orderedIdsByParent}
                       onReorderLayers={({ parentId, orderedIds }) => {
                         applyLayerZIndex({
                           parentId,

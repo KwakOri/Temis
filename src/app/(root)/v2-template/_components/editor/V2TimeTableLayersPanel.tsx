@@ -9,7 +9,7 @@ import {
   Layers,
   Type,
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
@@ -24,6 +24,7 @@ type V2LayerNode = {
 
 interface V2TimeTableLayersPanelProps {
   onSelectLayer?: (target: V2TemplateHighlightTarget) => void;
+  orderedIdsByParent?: Record<string, string[]>;
   onReorderLayers?: (payload: {
     parentId: string;
     orderedIds: string[];
@@ -176,6 +177,7 @@ const v2_LAYER_TREE: V2LayerNode[] = [
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   onSelectLayer,
+  orderedIdsByParent,
   onReorderLayers,
 }) => {
   const {
@@ -188,7 +190,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     card: true,
   });
   const [orderedNodeIdsByParent, setOrderedNodeIdsByParent] =
-    useState<Record<string, string[]>>(() => v2_createInitialOrderMap());
+    useState<Record<string, string[]>>(() =>
+      orderedIdsByParent ? { ...orderedIdsByParent } : v2_createInitialOrderMap()
+    );
   const [dragState, setDragState] = useState<{
     parentId: V2LayerParentId;
     nodeId: string;
@@ -198,6 +202,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     nodeId: string;
     position: "before" | "after";
   } | null>(null);
+
+  useEffect(() => {
+    if (!orderedIdsByParent) return;
+    setOrderedNodeIdsByParent(orderedIdsByParent);
+  }, [orderedIdsByParent]);
 
   const activeTarget = activeHighlightTarget;
   const selectedNodeIds = useMemo(() => {
