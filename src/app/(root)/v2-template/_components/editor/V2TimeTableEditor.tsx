@@ -10,6 +10,7 @@ import { V2TemplateHighlightTarget } from '@/types/time-table/v2_template_editor
 import {
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
+  V2TemplateStructureConfig,
   V2TemplateStyleRecord,
 } from '@/types/time-table/v2_template_render_config';
 import { TTheme } from '@/types/time-table/theme';
@@ -24,6 +25,16 @@ const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
 type V2LayoutShape = V2TemplateRenderConfig['layout'];
 type V2RootLayoutStyleKey = keyof Omit<V2LayoutShape, 'card'>;
 type V2CardLayoutStyleKey = keyof V2LayoutShape['card'];
+type V2SectionStyleResolver =
+  | {
+      scope: 'root';
+      key: V2RootLayoutStyleKey;
+    }
+  | {
+      scope: 'card';
+      key: V2CardLayoutStyleKey;
+    };
+type V2SectionStyleResolverMap = Record<string, V2SectionStyleResolver>;
 
 const v2_ROOT_LAYOUT_STYLE_SECTION_MAP: Partial<
   Record<string, V2RootLayoutStyleKey>
@@ -33,17 +44,6 @@ const v2_ROOT_LAYOUT_STYLE_SECTION_MAP: Partial<
   topObjectContainer: 'topObjectContainer',
   profileImage: 'profileImage',
   profileFrame: 'profileFrame',
-};
-
-const v2_CARD_LAYOUT_STYLE_SECTION_MAP: Partial<
-  Record<string, V2CardLayoutStyleKey>
-> = {
-  cardStreamingDay: 'streamingDay',
-  cardStreamingDate: 'streamingDate',
-  cardStreamingTime: 'streamingTime',
-  cardMainTitleContainer: 'mainTitleContainer',
-  cardSubTitleContainer: 'subTitleContainer',
-  cardContainer: 'container',
 };
 
 const v2_collectLayerNodeMap = (
@@ -79,48 +79,82 @@ const v2_collectTargetSectionMap = (
   return map;
 };
 
+const v2_collectSectionStyleResolverMap = (
+  structure: V2TemplateStructureConfig
+): V2SectionStyleResolverMap => {
+  const map: V2SectionStyleResolverMap = {};
+
+  Object.entries(v2_ROOT_LAYOUT_STYLE_SECTION_MAP).forEach(
+    ([sectionKey, styleKey]) => {
+      if (!styleKey) return;
+      map[sectionKey] = {
+        scope: 'root',
+        key: styleKey,
+      };
+    }
+  );
+
+  const layerNodeMap = v2_collectLayerNodeMap(structure.layers);
+  const cardStructure = structure.card;
+
+  const cardContainerLayer = layerNodeMap.get(cardStructure.containerLayerId);
+  if (cardContainerLayer?.sectionKey) {
+    map[cardContainerLayer.sectionKey] = {
+      scope: 'card',
+      key: cardStructure.containerStyleKey as V2CardLayoutStyleKey,
+    };
+  }
+
+  Object.values(cardStructure.nodes).forEach((cardNode) => {
+    const layerNode = layerNodeMap.get(cardNode.layerId);
+    if (!layerNode?.sectionKey) return;
+    map[layerNode.sectionKey] = {
+      scope: 'card',
+      key: cardNode.containerStyleKey as V2CardLayoutStyleKey,
+    };
+  });
+
+  return map;
+};
+
 const v2_getStyleRecordBySectionKey = (
   layout: V2LayoutShape,
-  sectionKey: string
+  sectionKey: string,
+  resolverMap: V2SectionStyleResolverMap
 ): V2TemplateStyleRecord | undefined => {
-  const rootKey = v2_ROOT_LAYOUT_STYLE_SECTION_MAP[sectionKey];
-  if (rootKey) {
-    return layout[rootKey] as V2TemplateStyleRecord;
+  const resolver = resolverMap[sectionKey];
+  if (!resolver) return undefined;
+
+  if (resolver.scope === 'root') {
+    return layout[resolver.key] as V2TemplateStyleRecord;
   }
 
-  const cardKey = v2_CARD_LAYOUT_STYLE_SECTION_MAP[sectionKey];
-  if (cardKey) {
-    return layout.card[cardKey] as V2TemplateStyleRecord;
-  }
-
-  return undefined;
+  return layout.card[resolver.key] as V2TemplateStyleRecord;
 };
 
 const v2_setStyleRecordBySectionKey = (
   layout: V2LayoutShape,
   sectionKey: string,
-  style: V2TemplateStyleRecord
+  style: V2TemplateStyleRecord,
+  resolverMap: V2SectionStyleResolverMap
 ): V2LayoutShape => {
-  const rootKey = v2_ROOT_LAYOUT_STYLE_SECTION_MAP[sectionKey];
-  if (rootKey) {
+  const resolver = resolverMap[sectionKey];
+  if (!resolver) return layout;
+
+  if (resolver.scope === 'root') {
     return {
       ...layout,
-      [rootKey]: style,
+      [resolver.key]: style,
     };
   }
 
-  const cardKey = v2_CARD_LAYOUT_STYLE_SECTION_MAP[sectionKey];
-  if (cardKey) {
-    return {
-      ...layout,
-      card: {
-        ...layout.card,
-        [cardKey]: style,
-      },
-    };
-  }
-
-  return layout;
+  return {
+    ...layout,
+    card: {
+      ...layout.card,
+      [resolver.key]: style,
+    },
+  };
 };
 
 const useV2TemplateEditorSettings = () => {
@@ -174,6 +208,10 @@ const V2TimeTableEditor: React.FC = () => {
     () => v2_collectTargetSectionMap(renderConfig.structure.layers),
     [renderConfig.structure.layers]
   );
+  const sectionStyleResolverMap = useMemo(
+    () => v2_collectSectionStyleResolverMap(renderConfig.structure),
+    [renderConfig.structure]
+  );
 
   const parseZIndex = (value: unknown): number | undefined => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -187,7 +225,11 @@ const V2TimeTableEditor: React.FC = () => {
   const orderedIdsByParent = useMemo(() => {
     const getSectionZIndex = (sectionKey?: string): number | undefined => {
       if (!sectionKey) return undefined;
-      const style = v2_getStyleRecordBySectionKey(renderConfig.layout, sectionKey);
+      const style = v2_getStyleRecordBySectionKey(
+        renderConfig.layout,
+        sectionKey,
+        sectionStyleResolverMap
+      );
       return parseZIndex(style?.zIndex);
     };
 
@@ -238,7 +280,7 @@ const V2TimeTableEditor: React.FC = () => {
 
     buildOrder(renderConfig.structure.layers, v2_ROOT_LAYER_PARENT_ID);
     return orderedMap;
-  }, [renderConfig]);
+  }, [renderConfig, sectionStyleResolverMap]);
 
   const applyLayerZIndex = ({
     parentId,
@@ -255,6 +297,9 @@ const V2TimeTableEditor: React.FC = () => {
     });
 
     setRenderConfig((prev) => {
+      const nextSectionStyleResolverMap = v2_collectSectionStyleResolverMap(
+        prev.structure
+      );
       let nextLayout = {
         ...prev.layout,
         card: {
@@ -283,11 +328,16 @@ const V2TimeTableEditor: React.FC = () => {
       };
 
       const setSectionZIndex = (sectionKey: string, zIndex: number) => {
-        const currentStyle = v2_getStyleRecordBySectionKey(nextLayout, sectionKey);
+        const currentStyle = v2_getStyleRecordBySectionKey(
+          nextLayout,
+          sectionKey,
+          nextSectionStyleResolverMap
+        );
         nextLayout = v2_setStyleRecordBySectionKey(
           nextLayout,
           sectionKey,
-          setStyleZIndex(currentStyle, zIndex)
+          setStyleZIndex(currentStyle, zIndex),
+          nextSectionStyleResolverMap
         );
       };
 
