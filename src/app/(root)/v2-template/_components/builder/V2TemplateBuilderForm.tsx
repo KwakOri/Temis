@@ -159,6 +159,7 @@ type V2StyleSectionKey =
   | "mainTitleWrapperStyle"
   | "mainTitleTextStyle"
   | "subTitleTextStyle";
+type V2StyleSectionId = V2StyleSectionKey | string;
 
 type V2HorizontalAlign = "left" | "center" | "right";
 type V2VerticalAlign = "top" | "center" | "bottom";
@@ -431,26 +432,18 @@ const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
 const v2_collectStructureTargetSectionMaps = (
   nodes: V2TemplateLayerNode[]
 ): {
-  targetToSection: Partial<Record<V2TemplateHighlightTarget, V2StyleSectionKey>>;
-  sectionToTarget: Partial<Record<V2StyleSectionKey, V2TemplateHighlightTarget>>;
-  sectionToLabel: Partial<Record<V2StyleSectionKey, string>>;
+  targetToSection: Record<string, V2StyleSectionId>;
+  sectionToTarget: Record<V2StyleSectionId, V2TemplateHighlightTarget>;
+  sectionToLabel: Record<V2StyleSectionId, string>;
 } => {
-  const targetToSection: Partial<
-    Record<V2TemplateHighlightTarget, V2StyleSectionKey>
-  > = {};
-  const sectionToTarget: Partial<
-    Record<V2StyleSectionKey, V2TemplateHighlightTarget>
-  > = {};
-  const sectionToLabel: Partial<Record<V2StyleSectionKey, string>> = {};
+  const targetToSection: Record<string, V2StyleSectionId> = {};
+  const sectionToTarget: Record<V2StyleSectionId, V2TemplateHighlightTarget> = {};
+  const sectionToLabel: Record<V2StyleSectionId, string> = {};
 
   const visit = (nodeList: V2TemplateLayerNode[]) => {
     nodeList.forEach((node) => {
-      if (
-        node.target &&
-        node.sectionKey &&
-        node.sectionKey in v2_STYLE_SECTION_LABELS
-      ) {
-        const section = node.sectionKey as V2StyleSectionKey;
+      if (node.target && node.sectionKey) {
+        const section = node.sectionKey;
         targetToSection[node.target] = section;
         if (!sectionToTarget[section]) {
           sectionToTarget[section] = node.target;
@@ -1161,9 +1154,16 @@ const v2_parseFlex42ThreeRow = (value: unknown): V2Flex42ThreeRow => {
   return value === "top" ? "top" : "bottom";
 };
 
-const v2_parseStyleSectionKey = (value: unknown): V2StyleSectionKey | null => {
+const v2_parseStyleSectionKey = (value: unknown): V2StyleSectionId | null => {
   if (typeof value !== "string") return null;
-  return value in v2_STYLE_SECTION_LABELS ? (value as V2StyleSectionKey) : null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const v2_isKnownStyleSectionKey = (
+  value: string
+): value is V2StyleSectionKey => {
+  return value in v2_STYLE_SECTION_LABELS;
 };
 
 const v2_parseGridEmptySlot = (value: unknown): number | null => {
@@ -1369,9 +1369,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     if (!selectedPropertiesSection) {
       return v2_HIGHLIGHT_TARGET_LABELS[selectedPropertiesTarget];
     }
+    const knownSection = v2_isKnownStyleSectionKey(selectedPropertiesSection)
+      ? selectedPropertiesSection
+      : null;
     return (
       structurePropertiesMaps.sectionToLabel[selectedPropertiesSection] ??
-      v2_STYLE_SECTION_LABELS[selectedPropertiesSection]
+      (knownSection
+        ? v2_STYLE_SECTION_LABELS[knownSection]
+        : selectedPropertiesSection)
     );
   }, [
     selectedPropertiesSection,
@@ -1379,7 +1384,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     structurePropertiesMaps.sectionToLabel,
   ]);
   const cardNodeByPropertiesSection = useMemo(() => {
-    const map = new Map<V2StyleSectionKey, V2TemplateCardNode>();
+    const map = new Map<string, V2TemplateCardNode>();
     Object.values(renderConfig.structure.card.nodes).forEach((node) => {
       const containerSection = v2_parseStyleSectionKey(node.containerStyleKey);
       if (containerSection && !map.has(containerSection)) {
@@ -1443,6 +1448,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       Object.entries(parsed).forEach(([rawSection, value]) => {
         const section = v2_parseStyleSectionKey(rawSection);
         if (!section) return;
+        if (!v2_isKnownStyleSectionKey(section)) return;
         if (!value || typeof value !== "object" || Array.isArray(value)) return;
 
         const sanitized: Record<string, string | number> = {};
@@ -1494,9 +1500,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   useEffect(() => {
     const nextSection = v2_parseStyleSectionKey(focusStyleSection);
     if (!nextSection) return;
+    const knownSection = v2_isKnownStyleSectionKey(nextSection)
+      ? nextSection
+      : null;
     const nextTarget =
       structurePropertiesMaps.sectionToTarget[nextSection] ??
-      v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[nextSection];
+      (knownSection
+        ? v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[knownSection]
+        : "cardContainer");
     setSelectedPropertiesTarget(nextTarget);
     setActiveHighlightTarget(nextTarget);
     setActiveTab("properties");
@@ -1559,16 +1570,21 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const getStyleSectionMap = (
-    section: V2StyleSectionKey
+    section: V2StyleSectionId
   ): Record<string, string | number> => {
-    const rootLayoutKey = v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+    const knownSection = v2_isKnownStyleSectionKey(section) ? section : null;
+    const rootLayoutKey = knownSection
+      ? v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
+      : undefined;
     if (rootLayoutKey) {
       return (
         (renderConfig.layout[rootLayoutKey] as Record<string, string | number>) ?? {}
       );
     }
 
-    const cardLayoutKey = v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+    const cardLayoutKey = knownSection
+      ? v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
+      : undefined;
     if (cardLayoutKey) {
       return (
         (renderConfig.layout.card[cardLayoutKey] as Record<
@@ -1576,6 +1592,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           string | number
         >) ?? {}
       );
+    }
+
+    const dynamicCardSection = renderConfig.layout.card[section];
+    if (dynamicCardSection && typeof dynamicCardSection === "object") {
+      return dynamicCardSection as Record<string, string | number>;
     }
 
     return {};
@@ -1609,11 +1630,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const updateStyleSection = (
-    section: V2StyleSectionKey,
+    section: V2StyleSectionId,
     nextMap: Record<string, string | number>
   ) => {
     safeUpdateConfig((prev) => {
-      const rootLayoutKey = v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+      const knownSection = v2_isKnownStyleSectionKey(section) ? section : null;
+      const rootLayoutKey = knownSection
+        ? v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
+        : undefined;
       if (rootLayoutKey) {
         return {
           ...prev,
@@ -1624,7 +1648,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         };
       }
 
-      const cardLayoutKey = v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+      const cardLayoutKey = knownSection
+        ? v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
+        : undefined;
       if (cardLayoutKey) {
         return {
           ...prev,
@@ -1638,11 +1664,20 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         };
       }
 
-      return prev;
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout,
+          card: {
+            ...prev.layout.card,
+            [section]: nextMap,
+          },
+        },
+      };
     });
   };
 
-  const addStyleProperty = (section: V2StyleSectionKey) => {
+  const addStyleProperty = (section: V2StyleSectionId) => {
     const currentMap = getStyleSectionMap(section);
     const nextKey =
       v2_STYLE_PROPERTY_CATALOG.find(
@@ -1658,7 +1693,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
-  const removeStyleProperty = (section: V2StyleSectionKey, key: string) => {
+  const removeStyleProperty = (section: V2StyleSectionId, key: string) => {
     if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(key)) return;
     const currentMap = getStyleSectionMap(section);
     const nextMap = { ...currentMap };
@@ -1667,7 +1702,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const updateStylePropertyValue = (
-    section: V2StyleSectionKey,
+    section: V2StyleSectionId,
     key: string,
     rawValue: string
   ) => {
@@ -1736,15 +1771,18 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const getHighlightTargetFromStyleSection = (
-    section: V2StyleSectionKey
+    section: V2StyleSectionId
   ): V2TemplateHighlightTarget => {
+    const knownSection = v2_isKnownStyleSectionKey(section) ? section : null;
     return (
       structurePropertiesMaps.sectionToTarget[section] ??
-      v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[section]
+      (knownSection
+        ? v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[knownSection]
+        : "cardContainer")
     );
   };
 
-  const setSectionHoverHighlight = (section: V2StyleSectionKey) => {
+  const setSectionHoverHighlight = (section: V2StyleSectionId) => {
     setHoverHighlightTarget(getHighlightTargetFromStyleSection(section));
   };
 
@@ -1752,7 +1790,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     setHoverHighlightTarget(null);
   };
 
-  const setSectionActiveHighlight = (section: V2StyleSectionKey) => {
+  const setSectionActiveHighlight = (section: V2StyleSectionId) => {
     setActiveHighlightTarget(getHighlightTargetFromStyleSection(section));
   };
 
@@ -1761,7 +1799,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     group,
     sectionMap,
   }: {
-    section: V2StyleSectionKey;
+    section: V2StyleSectionId;
     group: V2BoilerplateGroupConfig;
     sectionMap: Record<string, string | number>;
   }) => {
@@ -1784,7 +1822,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const toggleStyleGroupOpen = (
-    section: V2StyleSectionKey,
+    section: V2StyleSectionId,
     groupId: string
   ) => {
     const stateKey = `${section}:${groupId}`;
@@ -1795,7 +1833,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const applyStyleExtensionGroupDefaults = (
-    section: V2StyleSectionKey,
+    section: V2StyleSectionId,
     groupId: string
   ) => {
     const defaults = v2_STYLE_EXTENSION_DEFAULT_VALUES[groupId];
@@ -1858,8 +1896,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     textSection,
     align,
   }: {
-    wrapperSection: V2StyleSectionKey;
-    textSection: V2StyleSectionKey;
+    wrapperSection: V2StyleSectionId;
+    textSection: V2StyleSectionId;
     align: V2HorizontalAlign;
   }) => {
     const wrapperMap = getStyleSectionMap(wrapperSection);
@@ -1880,7 +1918,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     wrapperSection,
     align,
   }: {
-    wrapperSection: V2StyleSectionKey;
+    wrapperSection: V2StyleSectionId;
     align: V2VerticalAlign;
   }) => {
     const wrapperMap = getStyleSectionMap(wrapperSection);
@@ -2360,12 +2398,15 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     section,
   }: {
     title: string;
-    section: V2StyleSectionKey;
+    section: V2StyleSectionId;
   }) => {
+    const knownSection = v2_isKnownStyleSectionKey(section) ? section : null;
     const sectionMap = getStyleSectionMap(section);
-    const isGridSection = section === "grid";
+    const isGridSection = knownSection === "grid";
     const groups = [
-      ...v2_expandDisplayGroups(v2_BOILERPLATE_SECTION_GROUPS[section] ?? []),
+      ...v2_expandDisplayGroups(
+        knownSection ? v2_BOILERPLATE_SECTION_GROUPS[knownSection] ?? [] : []
+      ),
       ...v2_STYLE_EXTENSION_GROUPS,
     ];
     const gridPresetKeys = isGridSection
@@ -2717,8 +2758,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     textSection,
   }: {
     title: string;
-    wrapperSection: V2StyleSectionKey;
-    textSection: V2StyleSectionKey;
+    wrapperSection: V2StyleSectionId;
+    textSection: V2StyleSectionId;
   }) => {
     const wrapperMap = getStyleSectionMap(wrapperSection);
     const textMap = getStyleSectionMap(textSection);
@@ -3241,7 +3282,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     containerSection,
   }: {
     node: V2TemplateCardNode;
-    containerSection: V2StyleSectionKey;
+    containerSection: V2StyleSectionId;
   }) => {
     if (!node.optionsKey) return null;
 
@@ -3301,7 +3342,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const renderCardNodeProperties = (
-    section: V2StyleSectionKey,
+    section: V2StyleSectionId,
     node: V2TemplateCardNode
   ) => {
     const containerSection =
@@ -3380,7 +3421,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
-  const renderCardComponentProperties = (section: V2StyleSectionKey) => {
+  const renderCardComponentProperties = (section: V2StyleSectionId) => {
     if (section !== "cardContainer") return null;
 
     const instanceMode = renderConfig.structure.card.instanceMode ?? "component";
@@ -3524,10 +3565,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
-  const renderSimplePropertiesSection = (section: V2StyleSectionKey) => {
+  const renderSimplePropertiesSection = (section: V2StyleSectionId) => {
+    const knownSection = v2_isKnownStyleSectionKey(section) ? section : null;
     const heading =
       structurePropertiesMaps.sectionToLabel[section] ??
-      v2_STYLE_SECTION_LABELS[section];
+      (knownSection ? v2_STYLE_SECTION_LABELS[knownSection] : section);
 
     const styleTitle =
       section === "topObjectContainer"
