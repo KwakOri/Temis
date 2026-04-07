@@ -34,6 +34,7 @@ import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRende
 import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
+  V2TemplateCardNode,
   V2TemplateLayerNode,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/v2_template_render_config";
@@ -409,6 +410,7 @@ const v2_collectStructureTargetSectionMaps = (
 ): {
   targetToSection: Partial<Record<V2TemplateHighlightTarget, V2StyleSectionKey>>;
   sectionToTarget: Partial<Record<V2StyleSectionKey, V2TemplateHighlightTarget>>;
+  sectionToLabel: Partial<Record<V2StyleSectionKey, string>>;
 } => {
   const targetToSection: Partial<
     Record<V2TemplateHighlightTarget, V2StyleSectionKey>
@@ -416,6 +418,7 @@ const v2_collectStructureTargetSectionMaps = (
   const sectionToTarget: Partial<
     Record<V2StyleSectionKey, V2TemplateHighlightTarget>
   > = {};
+  const sectionToLabel: Partial<Record<V2StyleSectionKey, string>> = {};
 
   const visit = (nodeList: V2TemplateLayerNode[]) => {
     nodeList.forEach((node) => {
@@ -429,6 +432,9 @@ const v2_collectStructureTargetSectionMaps = (
         if (!sectionToTarget[section]) {
           sectionToTarget[section] = node.target;
         }
+        if (!sectionToLabel[section]) {
+          sectionToLabel[section] = node.label;
+        }
       }
       if (node.children?.length) {
         visit(node.children);
@@ -440,6 +446,7 @@ const v2_collectStructureTargetSectionMaps = (
   return {
     targetToSection,
     sectionToTarget,
+    sectionToLabel,
   };
 };
 
@@ -1351,6 +1358,28 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       v2_HIGHLIGHT_TARGET_TO_STYLE_SECTION_FALLBACK[selectedPropertiesTarget]
     );
   }, [selectedPropertiesTarget, structurePropertiesMaps.targetToSection]);
+  const cardNodeByPropertiesSection = useMemo(() => {
+    const map = new Map<V2StyleSectionKey, V2TemplateCardNode>();
+    Object.values(renderConfig.structure.card.nodes).forEach((node) => {
+      const containerSection = v2_parseStyleSectionKey(node.containerStyleKey);
+      if (containerSection && !map.has(containerSection)) {
+        map.set(containerSection, node);
+      }
+      if (node.textStyleKey) {
+        const textSection = v2_parseStyleSectionKey(node.textStyleKey);
+        if (textSection && !map.has(textSection)) {
+          map.set(textSection, node);
+        }
+      }
+      if (node.wrapperStyleKey) {
+        const wrapperSection = v2_parseStyleSectionKey(node.wrapperStyleKey);
+        if (wrapperSection && !map.has(wrapperSection)) {
+          map.set(wrapperSection, node);
+        }
+      }
+    });
+    return map;
+  }, [renderConfig.structure.card.nodes]);
 
   useEffect(() => {
     if (activeTab !== "style" && activeTab !== "properties") {
@@ -3221,231 +3250,158 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     </div>
   );
 
-  const renderMainTitleProperties = () => (
-    <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-      <h4 className="font-semibold text-sm text-gray-200">MainTitle</h4>
-      {renderStyleSectionEditor({
-        title: "container style",
-        section: "cardMainTitleContainer",
-      })}
+  const renderCardNodeAutoResizeOptions = ({
+    node,
+    containerSection,
+  }: {
+    node: V2TemplateCardNode;
+    containerSection: V2StyleSectionKey;
+  }) => {
+    if (!node.optionsKey) return null;
 
-      <div className="space-y-2">
-        {renderStyleSectionEditor({
-          title: "wrapper > style",
-          section: "mainTitleWrapperStyle",
-        })}
-      </div>
+    const options = renderConfig.layout.card[node.optionsKey];
+    const maxFontSizeFallback =
+      node.binding === "subTitle"
+        ? renderConfig.maxFontSizes.SUB_TITLE
+        : renderConfig.maxFontSizes.MAIN_TITLE;
+    const maxFontSize = options?.maxFontSize ?? maxFontSizeFallback;
+    const multiline = options?.multiline ?? true;
 
-      <div className="space-y-2">
-        {renderAutoResizeAlignmentEditor({
-          title: "content > alignment",
-          wrapperSection: "mainTitleWrapperStyle",
-          textSection: "mainTitleTextStyle",
-        })}
-
-        {renderStyleSectionEditor({
-          title: "content > style",
-          section: "mainTitleTextStyle",
-        })}
-
+    return (
+      <>
         <div
           className="grid grid-cols-2 gap-2 items-center"
-          onMouseEnter={() => setSectionHoverHighlight("cardMainTitleContainer")}
+          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
           onMouseLeave={clearSectionHoverHighlight}
-          onClick={() => setSectionActiveHighlight("cardMainTitleContainer")}
+          onClick={() => setSectionActiveHighlight(containerSection)}
         >
           <label className="text-xs text-gray-400">content / maxFontSize</label>
           <input
             type="number"
-            value={
-              renderConfig.layout.card.mainTitleOptions?.maxFontSize ??
-              renderConfig.maxFontSizes.MAIN_TITLE
-            }
+            value={maxFontSize}
             onChange={(e) => {
               const value = Number(e.target.value);
               if (!Number.isFinite(value) || value <= 0) return;
-              updateCardOptions("mainTitleOptions", { maxFontSize: value });
-              updateMaxFontSize("MAIN_TITLE", value);
+              updateCardOptions(node.optionsKey!, { maxFontSize: value });
+              if (node.binding === "mainTitle") {
+                updateMaxFontSize("MAIN_TITLE", value);
+              }
+              if (node.binding === "subTitle") {
+                updateMaxFontSize("SUB_TITLE", value);
+              }
             }}
             className="px-3 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
           />
         </div>
-
         <label
           className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2"
-          onMouseEnter={() => setSectionHoverHighlight("cardMainTitleContainer")}
+          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
           onMouseLeave={clearSectionHoverHighlight}
-          onClick={() => setSectionActiveHighlight("cardMainTitleContainer")}
+          onClick={() => setSectionActiveHighlight(containerSection)}
         >
           <span className="text-sm text-gray-200">content / multiline</span>
           <input
             type="checkbox"
-            checked={Boolean(renderConfig.layout.card.mainTitleOptions?.multiline ?? true)}
+            checked={Boolean(multiline)}
             onChange={(e) =>
-              updateCardOptions("mainTitleOptions", {
+              updateCardOptions(node.optionsKey!, {
                 multiline: e.target.checked,
               })
             }
           />
         </label>
-      </div>
-    </div>
-  );
+      </>
+    );
+  };
 
-  const renderSubTitleProperties = () => (
-    <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-      <h4 className="font-semibold text-sm text-gray-200">SubTitle</h4>
-      {renderStyleSectionEditor({
-        title: "container style",
-        section: "cardSubTitleContainer",
-      })}
-      {renderAutoResizeAlignmentEditor({
-        title: "content > alignment",
-        wrapperSection: "cardSubTitleContainer",
-        textSection: "subTitleTextStyle",
-      })}
-      {renderStyleSectionEditor({
-        title: "content > style",
-        section: "subTitleTextStyle",
-      })}
-      <div
-        className="grid grid-cols-2 gap-2 items-center"
-        onMouseEnter={() => setSectionHoverHighlight("cardSubTitleContainer")}
-        onMouseLeave={clearSectionHoverHighlight}
-        onClick={() => setSectionActiveHighlight("cardSubTitleContainer")}
-      >
-        <label className="text-xs text-gray-400">content / maxFontSize</label>
-        <input
-          type="number"
-          value={
-            renderConfig.layout.card.subTitleOptions?.maxFontSize ??
-            renderConfig.maxFontSizes.SUB_TITLE
-          }
-          onChange={(e) => {
-            const value = Number(e.target.value);
-            if (!Number.isFinite(value) || value <= 0) return;
-            updateCardOptions("subTitleOptions", { maxFontSize: value });
-            updateMaxFontSize("SUB_TITLE", value);
-          }}
-          className="px-3 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-        />
-      </div>
-      <label
-        className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2"
-        onMouseEnter={() => setSectionHoverHighlight("cardSubTitleContainer")}
-        onMouseLeave={clearSectionHoverHighlight}
-        onClick={() => setSectionActiveHighlight("cardSubTitleContainer")}
-      >
-        <span className="text-sm text-gray-200">content / multiline</span>
-        <input
-          type="checkbox"
-          checked={Boolean(renderConfig.layout.card.subTitleOptions?.multiline ?? true)}
-          onChange={(e) =>
-            updateCardOptions("subTitleOptions", {
-              multiline: e.target.checked,
+  const renderCardNodeProperties = (
+    section: V2StyleSectionKey,
+    node: V2TemplateCardNode
+  ) => {
+    const containerSection =
+      v2_parseStyleSectionKey(node.containerStyleKey) ?? section;
+    const textSection = node.textStyleKey
+      ? v2_parseStyleSectionKey(node.textStyleKey)
+      : null;
+    const wrapperSection = node.wrapperStyleKey
+      ? v2_parseStyleSectionKey(node.wrapperStyleKey)
+      : null;
+    const alignmentWrapperSection = wrapperSection ?? containerSection;
+    const hasAutoResizeAlignment =
+      node.kind === "autoResizeText" && textSection !== null;
+
+    return (
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">Card / {node.label}</h4>
+        {renderStyleSectionEditor({
+          title: "container style",
+          section: containerSection,
+        })}
+
+        {wrapperSection && wrapperSection !== containerSection
+          ? renderStyleSectionEditor({
+              title: "wrapper > style",
+              section: wrapperSection,
             })
-          }
-        />
-      </label>
-    </div>
-  );
+          : null}
+
+        {hasAutoResizeAlignment && textSection
+          ? renderAutoResizeAlignmentEditor({
+              title: "content > alignment",
+              wrapperSection: alignmentWrapperSection,
+              textSection,
+            })
+          : null}
+
+        {textSection
+          ? renderStyleSectionEditor({
+              title: "content > style",
+              section: textSection,
+            })
+          : null}
+
+        {node.kind === "autoResizeText"
+          ? renderCardNodeAutoResizeOptions({
+              node,
+              containerSection,
+            })
+          : null}
+      </div>
+    );
+  };
+
+  const renderSimplePropertiesSection = (section: V2StyleSectionKey) => {
+    const heading =
+      structurePropertiesMaps.sectionToLabel[section] ??
+      v2_STYLE_SECTION_LABELS[section];
+
+    const styleTitle =
+      section === "topObjectContainer"
+        ? "container style"
+        : section === "profileImage"
+          ? "image style"
+          : section === "profileFrame"
+            ? "frame style"
+            : "style";
+
+    return (
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">{heading}</h4>
+        {renderStyleSectionEditor({ title: styleTitle, section })}
+      </div>
+    );
+  };
 
   const renderPropertiesPanels = () => {
-    switch (selectedPropertiesSection) {
-      case "grid":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">Grid</h4>
-            {renderStyleSectionEditor({ title: "style", section: "grid" })}
-          </div>
-        );
-      case "weekFlag":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">WeekFlag</h4>
-            {renderStyleSectionEditor({ title: "style", section: "weekFlag" })}
-          </div>
-        );
-      case "topObjectContainer":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">TopObject</h4>
-            {renderStyleSectionEditor({
-              title: "container style",
-              section: "topObjectContainer",
-            })}
-          </div>
-        );
-      case "profileImage":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">Profile / Image</h4>
-            {renderStyleSectionEditor({ title: "image style", section: "profileImage" })}
-          </div>
-        );
-      case "profileFrame":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">Profile / Frame</h4>
-            {renderStyleSectionEditor({ title: "frame style", section: "profileFrame" })}
-          </div>
-        );
-      case "cardStreamingDay":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">Card / StreamingDay</h4>
-            {renderStyleSectionEditor({
-              title: "container style",
-              section: "cardStreamingDay",
-            })}
-            {renderStyleSectionEditor({
-              title: "text style",
-              section: "streamingDayStyle",
-            })}
-          </div>
-        );
-      case "cardStreamingDate":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">Card / StreamingDate</h4>
-            {renderStyleSectionEditor({
-              title: "container style",
-              section: "cardStreamingDate",
-            })}
-            {renderStyleSectionEditor({
-              title: "text style",
-              section: "streamingDateStyle",
-            })}
-          </div>
-        );
-      case "cardStreamingTime":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">Card / StreamingTime</h4>
-            {renderStyleSectionEditor({
-              title: "container style",
-              section: "cardStreamingTime",
-            })}
-            {renderStyleSectionEditor({
-              title: "text style",
-              section: "streamingTimeStyle",
-            })}
-          </div>
-        );
-      case "cardMainTitleContainer":
-        return renderMainTitleProperties();
-      case "cardSubTitleContainer":
-        return renderSubTitleProperties();
-      case "cardContainer":
-        return (
-          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-            <h4 className="font-semibold text-sm text-gray-200">Card / Container</h4>
-            {renderStyleSectionEditor({ title: "style", section: "cardContainer" })}
-          </div>
-        );
-      default:
-        return null;
+    const section = selectedPropertiesSection;
+    if (!section) return null;
+
+    const cardNode = cardNodeByPropertiesSection.get(section);
+    if (cardNode) {
+      return renderCardNodeProperties(section, cardNode);
     }
+
+    return renderSimplePropertiesSection(section);
   };
 
   const renderPropertiesTab = () => (

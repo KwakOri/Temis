@@ -232,7 +232,24 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       activeTarget: activeHighlightTarget,
     });
 
-    if (node.kind === "autoResizeText") {
+    const renderPlainTextNode = () => (
+      <p
+        key={node.id}
+        style={{
+          color: renderConfig.componentColors[node.colorKey],
+          fontFamily: v2_getComponentFontFamily(renderConfig, node.fontKey),
+          ...renderableContainerStyle,
+          ...(width !== undefined ? { width } : {}),
+          ...textStyle,
+          ...highlightStyle,
+        }}
+        className={node.containerClassName ?? "absolute flex items-center justify-center"}
+      >
+        {nodeText}
+      </p>
+    );
+
+    const renderAutoResizeNode = () => {
       const nodeOptions = node.optionsKey
         ? ((cardLayoutRecord[node.optionsKey] as Record<string, unknown>) ?? {})
         : {};
@@ -260,6 +277,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             node.containerClassName ?? "absolute flex items-center justify-center"
           }
         >
+          {/* AutoResizeText always depends on parent box size, so wrapper div is mandatory. */}
           <AutoResizeText
             style={{
               fontFamily: v2_getComponentFontFamily(renderConfig, node.fontKey),
@@ -274,24 +292,13 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           </AutoResizeText>
         </div>
       );
+    };
+
+    if (node.kind === "autoResizeText") {
+      return renderAutoResizeNode();
     }
 
-    return (
-      <p
-        key={node.id}
-        style={{
-          color: renderConfig.componentColors[node.colorKey],
-          fontFamily: v2_getComponentFontFamily(renderConfig, node.fontKey),
-          ...renderableContainerStyle,
-          ...(width !== undefined ? { width } : {}),
-          ...textStyle,
-          ...highlightStyle,
-        }}
-        className={node.containerClassName ?? "absolute flex items-center justify-center"}
-      >
-        {nodeText}
-      </p>
-    );
+    return renderPlainTextNode();
   };
 
   return (
