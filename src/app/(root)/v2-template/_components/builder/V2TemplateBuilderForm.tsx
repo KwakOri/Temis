@@ -416,23 +416,6 @@ const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
   cardContainer: "Card Container",
 };
 
-const v2_HIGHLIGHT_TARGET_TO_STYLE_SECTION_FALLBACK: Record<
-  V2TemplateHighlightTarget,
-  V2StyleSectionKey
-> = {
-  grid: "grid",
-  weekFlag: "weekFlag",
-  topObjectContainer: "topObjectContainer",
-  profileImage: "profileImage",
-  profileFrame: "profileFrame",
-  cardStreamingDay: "cardStreamingDay",
-  cardStreamingDate: "cardStreamingDate",
-  cardStreamingTime: "cardStreamingTime",
-  cardMainTitleContainer: "cardMainTitleContainer",
-  cardSubTitleContainer: "cardSubTitleContainer",
-  cardContainer: "cardContainer",
-};
-
 const v2_collectStructureTargetSectionMaps = (
   nodes: V2TemplateLayerNode[]
 ): {
@@ -476,17 +459,6 @@ const v2_collectStructureTargetSectionMaps = (
     sectionToTarget,
     sectionToLabel,
   };
-};
-
-const v2_LEGACY_STYLE_SECTION_KEY_MAP: Partial<
-  Record<string, V2StyleSectionKey>
-> = {
-  cellStreamingDay: "cardStreamingDay",
-  cellStreamingDate: "cardStreamingDate",
-  cellStreamingTime: "cardStreamingTime",
-  cellMainTitleContainer: "cardMainTitleContainer",
-  cellSubTitleContainer: "cardSubTitleContainer",
-  cellContentArea: "cardContainer",
 };
 
 const v2_HORIZONTAL_ALIGN_TO_JUSTIFY: Record<V2HorizontalAlign, string> = {
@@ -1179,8 +1151,6 @@ const v2_parseFlex42ThreeRow = (value: unknown): V2Flex42ThreeRow => {
 
 const v2_parseStyleSectionKey = (value: unknown): V2StyleSectionKey | null => {
   if (typeof value !== "string") return null;
-  const legacyMapped = v2_LEGACY_STYLE_SECTION_KEY_MAP[value];
-  if (legacyMapped) return legacyMapped;
   return value in v2_STYLE_SECTION_LABELS ? (value as V2StyleSectionKey) : null;
 };
 
@@ -1381,10 +1351,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     [renderConfig.structure.layers]
   );
   const selectedPropertiesSection = useMemo(() => {
-    return (
-      structurePropertiesMaps.targetToSection[selectedPropertiesTarget] ??
-      v2_HIGHLIGHT_TARGET_TO_STYLE_SECTION_FALLBACK[selectedPropertiesTarget]
-    );
+    return structurePropertiesMaps.targetToSection[selectedPropertiesTarget] ?? null;
   }, [selectedPropertiesTarget, structurePropertiesMaps.targetToSection]);
   const selectedPropertiesLabel = useMemo(() => {
     if (!selectedPropertiesSection) {
