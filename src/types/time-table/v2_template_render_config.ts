@@ -101,83 +101,44 @@ export interface V2TemplateAssetMap {
   profileBgByTheme: Record<string, string | null>;
 }
 
+export interface V2TemplateAssetDimension {
+  width: number;
+  height: number;
+}
+
+export type V2TemplateAssetDimensionMap = Record<
+  keyof V2TemplateAssetMap,
+  Record<string, V2TemplateAssetDimension | null>
+>;
+
+export type V2TemplateStyleRecord = CSSProperties &
+  Record<string, string | number>;
+
 export interface V2TemplateLayoutConfig {
-  grid: {
-    right: number;
-    top: number;
-    rowGap: number;
-    columnGap: number;
-    columns: number;
-  };
-  weekFlag: {
-    fontSize: number;
-    fontWeight: number;
-    width: number;
-    height: number;
-    top: number;
-    left: number;
-  };
-  topObjectContainer: {
-    width: number;
-    height: number;
-    zIndex: number;
-  };
-  profileImage: {
-    top: number;
-    left: number;
-    rotateDeg: number;
-    zIndex: number;
-  };
-  profileFrame: {
-    zIndex: number;
-  };
-  cell: {
-    streamingDay: {
-      fontSize: number;
-      height: number;
-      width: number;
-      top: number;
-    };
-    streamingDate: {
-      width: number;
-      height: number;
-      lineHeight: number;
-      fontSize: number;
-      fontWeight: number;
-      letterSpacing: number;
-      marginTop: number;
-    };
-    streamingTime: {
-      width: number;
-      height: number;
-      lineHeight: number;
-      fontSize: number;
-      top: number;
-    };
-    mainTitleContainer: {
-      height: number;
-      widthPercent: number;
-      top: number;
-    };
-    subTitleContainer: {
-      widthPercent: number;
-      height: number;
-      top: number;
-    };
-    contentArea: {
-      width: number;
-      height: number;
-      top: number;
-      marginLeft: number;
-    };
-    mainTitleTextStyle?: CSSProperties;
-    subTitleTextStyle?: CSSProperties;
+  grid: V2TemplateStyleRecord;
+  weekFlag: V2TemplateStyleRecord;
+  topObjectContainer: V2TemplateStyleRecord;
+  profileImage: V2TemplateStyleRecord;
+  profileFrame: V2TemplateStyleRecord;
+  profileTextRootStyle?: V2TemplateStyleRecord;
+  profileTextWrapperStyle?: V2TemplateStyleRecord;
+  profileTextStyle?: V2TemplateStyleRecord;
+  profileTextArtistImageStyle?: V2TemplateStyleRecord;
+  card: {
+    streamingDay: V2TemplateStyleRecord;
+    streamingDate: V2TemplateStyleRecord;
+    streamingTime: V2TemplateStyleRecord;
+    mainTitleContainer: V2TemplateStyleRecord;
+    subTitleContainer: V2TemplateStyleRecord;
+    container: V2TemplateStyleRecord;
+    mainTitleTextStyle?: V2TemplateStyleRecord;
+    subTitleTextStyle?: V2TemplateStyleRecord;
     mainTitleOptions?: V2TemplateAutoResizeOptions;
     subTitleOptions?: V2TemplateAutoResizeOptions;
-    streamingDayStyle?: CSSProperties;
-    streamingDateStyle?: CSSProperties;
-    streamingTimeStyle?: CSSProperties;
-    mainTitleWrapperStyle?: CSSProperties;
+    streamingDayStyle?: V2TemplateStyleRecord;
+    streamingDateStyle?: V2TemplateStyleRecord;
+    streamingTimeStyle?: V2TemplateStyleRecord;
+    mainTitleWrapperStyle?: V2TemplateStyleRecord;
   };
 }
 
@@ -205,5 +166,6 @@ export interface V2TemplateRenderConfig {
   profileTextPlaceholder: string;
   cardInputConfig: CardInputConfig;
   assets: V2TemplateAssetMap;
+  assetDimensions: V2TemplateAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
 }

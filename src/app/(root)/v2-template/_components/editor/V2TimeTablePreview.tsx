@@ -116,6 +116,17 @@ const V2TimeTablePreview = () => {
     [isMobile]
   );
 
+  const alphaMatteStyle = useMemo(
+    () => ({
+      backgroundColor: "#0f141c",
+      backgroundImage:
+        "linear-gradient(45deg, #1c2330 25%, transparent 25%), linear-gradient(-45deg, #1c2330 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1c2330 75%), linear-gradient(-45deg, transparent 75%, #1c2330 75%)",
+      backgroundSize: "24px 24px",
+      backgroundPosition: "0 0, 0 12px, 12px -12px, -12px 0",
+    }),
+    []
+  );
+
   const draggableStyle = useMemo(
     () => ({
       width: containerWidth,
@@ -131,7 +142,10 @@ const V2TimeTablePreview = () => {
   return (
     <div
       className="flex justify-center items-center h-full overflow-hidden pt-4 md:p-0 "
-      style={viewportStyle}
+      style={{
+        ...viewportStyle,
+        ...alphaMatteStyle,
+      }}
     >
       <div
         className="relative shadow-lg rounded-sm"

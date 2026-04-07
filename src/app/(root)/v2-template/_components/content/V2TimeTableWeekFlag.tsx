@@ -1,13 +1,18 @@
-import { getWeekDateRange, padZero } from "@/utils/date-formatter";
-import { useTimeTableData } from "@/contexts/TimeTableContext";
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
+import { useTimeTableData } from '@/contexts/TimeTableContext';
+import { useV2TemplateRenderConfigContext } from '@/contexts/v2/v2_TemplateRenderConfigContext';
+import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
+import { getWeekDateRange, padZero } from '@/utils/date-formatter';
+import { v2_getComponentFontFamily } from '@/utils/time-table/v2_template_render_config';
+import { v2_getHighlightStyle } from './v2_highlight';
+import { v2_toRenderableStyle } from './v2_style';
 // left -11.3 right 7.5 180/230
 
 const TimeTableWeekFlag = () => {
   const { weekDates } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const weekFlagLayout = renderConfig.layout.weekFlag;
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
+  const weekFlagLayout = v2_toRenderableStyle(renderConfig.layout.weekFlag);
   if (weekDates.length === 0) return null;
 
   const { start, end } = getWeekDateRange(weekDates);
@@ -16,17 +21,20 @@ const TimeTableWeekFlag = () => {
     <p
       className="absolute flex justify-center items-center z-40"
       style={{
-        fontSize: weekFlagLayout.fontSize,
-        fontWeight: weekFlagLayout.fontWeight,
-        width: weekFlagLayout.width,
-        height: weekFlagLayout.height,
-        fontFamily: v2_getComponentFontFamily(renderConfig, "WEEKLY_FLAG"),
-        color: renderConfig.componentColors.WEEKLY_FLAG,
-        top: weekFlagLayout.top,
-        left: weekFlagLayout.left,
+        ...weekFlagLayout,
+        fontFamily:
+          weekFlagLayout.fontFamily ??
+          v2_getComponentFontFamily(renderConfig, 'WEEKLY_FLAG'),
+        color: weekFlagLayout.color ?? renderConfig.componentColors.WEEKLY_FLAG,
+        ...v2_getHighlightStyle({
+          target: 'weekFlag',
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
     >
-      {start.year}.{padZero(start.month)}.{padZero(start.date)} - {end.year}.{padZero(end.month)}.{padZero(end.date)}
+      {start.year}.{padZero(start.month)}.{padZero(start.date)} - {end.year}.
+      {padZero(end.month)}.{padZero(end.date)}
     </p>
     // <div
     //   className="absolute flex flex-col z-40"

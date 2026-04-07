@@ -1,6 +1,7 @@
 "use client";
 
 import { TDefaultCard } from "@/types/time-table/data";
+import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
 import { TTheme } from "@/types/time-table/theme";
 import { createContext, PropsWithChildren, useContext } from "react";
 
@@ -10,6 +11,14 @@ export interface V2TimeTableEditorRuntimeContextValue {
   currentTheme: TTheme;
   updateTheme: (theme: TTheme) => void;
   resetData: () => void;
+  hoverHighlightTarget: V2TemplateHighlightTarget | null;
+  setHoverHighlightTarget: (
+    target: V2TemplateHighlightTarget | null
+  ) => void;
+  activeHighlightTarget: V2TemplateHighlightTarget | null;
+  setActiveHighlightTarget: (
+    target: V2TemplateHighlightTarget | null
+  ) => void;
 }
 
 const V2TimeTableEditorRuntimeContext =

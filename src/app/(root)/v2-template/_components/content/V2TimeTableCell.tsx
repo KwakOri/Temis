@@ -1,6 +1,7 @@
-import React, { CSSProperties } from 'react';
+import React from 'react';
 
 import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
+import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
 import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
@@ -13,6 +14,8 @@ import { createPlaceholdersFromConfig } from '@/utils/time-table/data';
 import { weekdays } from '@/utils/time-table/data';
 import { v2_getComponentFontFamily } from '@/utils/time-table/v2_template_render_config';
 import { Imgs } from '../../_img/imgs';
+import { v2_getHighlightStyle } from './v2_highlight';
+import { v2_toRenderableStyle } from './v2_style';
 
 interface CardStreamingTimeProps {
   isGuerrilla: boolean;
@@ -47,24 +50,28 @@ interface OfflineCardProps {
   currentTheme?: TTheme;
 }
 
-const v2_toCssProperties = (value: unknown): CSSProperties => {
-  if (!value || typeof value !== 'object') return {};
-  return value as CSSProperties;
-};
-
 const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const streamingDateLayout = renderConfig.layout.cell.streamingDate;
-  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
-  const streamingDateStyle = v2_toCssProperties(cellLayoutRecord.streamingDateStyle);
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
+  const streamingDateLayout = renderConfig.layout.card.streamingDate;
+  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const streamingDateStyle = v2_toRenderableStyle(
+    cardLayoutRecord.streamingDateStyle
+  );
 
   return (
     <p
       style={{
         color: renderConfig.componentColors.STREAMING_DATE,
         fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_DATE'),
-        ...v2_toCssProperties(streamingDateLayout),
+        ...v2_toRenderableStyle(streamingDateLayout),
         ...streamingDateStyle,
+        ...v2_getHighlightStyle({
+          target: 'cardStreamingDate',
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
       className=" flex justify-center items-center"
     >
@@ -75,17 +82,26 @@ const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
 
 const CardStreamingDay = ({ dayLabel }: CardStreamingDayProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const streamingDayLayout = renderConfig.layout.cell.streamingDay;
-  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
-  const streamingDayStyle = v2_toCssProperties(cellLayoutRecord.streamingDayStyle);
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
+  const streamingDayLayout = renderConfig.layout.card.streamingDay;
+  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const streamingDayStyle = v2_toRenderableStyle(
+    cardLayoutRecord.streamingDayStyle
+  );
 
   return (
     <p
       style={{
         color: renderConfig.componentColors.STREAMING_DAY,
         fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_DAY'),
-        ...v2_toCssProperties(streamingDayLayout),
+        ...v2_toRenderableStyle(streamingDayLayout),
         ...streamingDayStyle,
+        ...v2_getHighlightStyle({
+          target: 'cardStreamingDay',
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
       className="absolute flex justify-center items-center"
     >
@@ -96,17 +112,26 @@ const CardStreamingDay = ({ dayLabel }: CardStreamingDayProps) => {
 
 const CardStreamingTime = ({ time, isGuerrilla }: CardStreamingTimeProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const streamingTimeLayout = renderConfig.layout.cell.streamingTime;
-  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
-  const streamingTimeStyle = v2_toCssProperties(cellLayoutRecord.streamingTimeStyle);
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
+  const streamingTimeLayout = renderConfig.layout.card.streamingTime;
+  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const streamingTimeStyle = v2_toRenderableStyle(
+    cardLayoutRecord.streamingTimeStyle
+  );
 
   return (
     <p
       style={{
         color: renderConfig.componentColors.STREAMING_TIME,
         fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_TIME'),
-        ...v2_toCssProperties(streamingTimeLayout),
+        ...v2_toRenderableStyle(streamingTimeLayout),
         ...streamingTimeStyle,
+        ...v2_getHighlightStyle({
+          target: 'cardStreamingTime',
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
       className=" absolute flex justify-center items-center"
     >
@@ -117,16 +142,22 @@ const CardStreamingTime = ({ time, isGuerrilla }: CardStreamingTimeProps) => {
 
 const CardMainTitle = ({ content }: CardMainTitleProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const mainTitleLayout = renderConfig.layout.cell.mainTitleContainer;
-  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
-  const mainTitleWrapperStyle = v2_toCssProperties(
-    cellLayoutRecord.mainTitleWrapperStyle
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
+  const mainTitleLayout =
+    (renderConfig.layout.card.mainTitleContainer as Record<
+      string,
+      string | number
+    >) ?? {};
+  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const mainTitleWrapperStyle = v2_toRenderableStyle(
+    cardLayoutRecord.mainTitleWrapperStyle
   );
-  const mainTitleTextStyle = v2_toCssProperties(
-    cellLayoutRecord.mainTitleTextStyle
+  const mainTitleTextStyle = v2_toRenderableStyle(
+    cardLayoutRecord.mainTitleTextStyle
   );
   const mainTitleOptions =
-    (cellLayoutRecord.mainTitleOptions as Record<string, unknown>) ?? {};
+    (cardLayoutRecord.mainTitleOptions as Record<string, unknown>) ?? {};
   const mainTitleMaxFontSize =
     typeof mainTitleOptions.maxFontSize === 'number'
       ? mainTitleOptions.maxFontSize
@@ -138,14 +169,26 @@ const CardMainTitle = ({ content }: CardMainTitleProps) => {
   const placeholders = createPlaceholdersFromConfig({
     cardInputConfig: renderConfig.cardInputConfig,
   });
-  const { widthPercent, ...mainTitleWrapperLayout } = mainTitleLayout;
+  const { widthPercent, ...mainTitleWrapperLayoutRaw } = mainTitleLayout;
+  const mainTitleWrapperLayout = v2_toRenderableStyle(mainTitleWrapperLayoutRaw);
+  const mainTitleWidth =
+    typeof widthPercent === 'number'
+      ? `${widthPercent}%`
+      : typeof widthPercent === 'string'
+        ? widthPercent
+        : mainTitleWrapperLayout.width;
 
   return (
     <div
       style={{
-        width: `${widthPercent}%`,
-        ...v2_toCssProperties(mainTitleWrapperLayout),
+        ...mainTitleWrapperLayout,
+        ...(mainTitleWidth !== undefined ? { width: mainTitleWidth } : {}),
         ...mainTitleWrapperStyle,
+        ...v2_getHighlightStyle({
+          target: 'cardMainTitleContainer',
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
       className="absolute flex justify-center items-center shrink-0"
     >
@@ -167,13 +210,19 @@ const CardMainTitle = ({ content }: CardMainTitleProps) => {
 
 const CardSubTitle = ({ content }: CardSubTitleProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const subTitleLayout = renderConfig.layout.cell.subTitleContainer;
-  const cellLayoutRecord = renderConfig.layout.cell as Record<string, unknown>;
-  const subTitleTextStyle = v2_toCssProperties(
-    cellLayoutRecord.subTitleTextStyle
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
+  const subTitleLayout =
+    (renderConfig.layout.card.subTitleContainer as Record<
+      string,
+      string | number
+    >) ?? {};
+  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const subTitleTextStyle = v2_toRenderableStyle(
+    cardLayoutRecord.subTitleTextStyle
   );
   const subTitleOptions =
-    (cellLayoutRecord.subTitleOptions as Record<string, unknown>) ?? {};
+    (cardLayoutRecord.subTitleOptions as Record<string, unknown>) ?? {};
   const subTitleMaxFontSize =
     typeof subTitleOptions.maxFontSize === 'number'
       ? subTitleOptions.maxFontSize
@@ -185,13 +234,25 @@ const CardSubTitle = ({ content }: CardSubTitleProps) => {
   const placeholders = createPlaceholdersFromConfig({
     cardInputConfig: renderConfig.cardInputConfig,
   });
-  const { widthPercent, ...subTitleWrapperLayout } = subTitleLayout;
+  const { widthPercent, ...subTitleWrapperLayoutRaw } = subTitleLayout;
+  const subTitleWrapperLayout = v2_toRenderableStyle(subTitleWrapperLayoutRaw);
+  const subTitleWidth =
+    typeof widthPercent === 'number'
+      ? `${widthPercent}%`
+      : typeof widthPercent === 'string'
+        ? widthPercent
+        : subTitleWrapperLayout.width;
 
   return (
     <div
       style={{
-        width: `${widthPercent}%`,
-        ...v2_toCssProperties(subTitleWrapperLayout),
+        ...subTitleWrapperLayout,
+        ...(subTitleWidth !== undefined ? { width: subTitleWidth } : {}),
+        ...v2_getHighlightStyle({
+          target: 'cardSubTitleContainer',
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
       className="absolute flex justify-center items-center"
     >
@@ -279,7 +340,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   currentTheme,
 }) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
   const cardSize = renderConfig.cardSizes.online;
+  const cardContainerLayout = v2_toRenderableStyle(
+    renderConfig.layout.card.container
+  );
   const weekdayByOption = weekdays[renderConfig.weekdayOption] ?? weekdays.en;
   const dayLabel = weekdayByOption[time.day] ?? '';
 
@@ -297,7 +363,15 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         <OfflineCard day={time.day} currentTheme={currentTheme} />
       ) : (
         <div
-          style={{ ...cardSize }}
+          style={{
+            ...cardSize,
+            ...cardContainerLayout,
+            ...v2_getHighlightStyle({
+              target: 'cardContainer',
+              hoverTarget: hoverHighlightTarget,
+              activeTarget: activeHighlightTarget,
+            }),
+          }}
           key={time.day}
           className="relative flex justify-center"
         >

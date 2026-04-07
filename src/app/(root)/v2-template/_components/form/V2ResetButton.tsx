@@ -8,7 +8,7 @@ const ResetButton: React.FC<ResetButtonProps> = ({ onReset }) => {
   return (
     <button
       onClick={onReset}
-      className="bg-red-500 shrink-0 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
+      className="shrink-0 border border-[#5c2d32] bg-[#7a3239] hover:bg-[#914049] text-white font-bold py-2 px-4 rounded transition-colors"
     >
       리셋
     </button>

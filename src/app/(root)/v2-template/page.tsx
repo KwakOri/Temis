@@ -1,17 +1,46 @@
 'use client';
 
 import { V2TemplateRenderConfigProvider } from '@/contexts/v2/v2_TemplateRenderConfigContext';
-import { useV2TemplateRenderConfig } from '@/hooks/query/useV2TemplateRenderConfig';
 import type { V2TemplateRenderConfigResponse } from '@/services/v2_template_render_config_service';
-import type { V2TemplateRenderConfig } from '@/types/time-table/v2_template_render_config';
-import { v2_createDefaultTemplateRenderConfig } from '@/utils/time-table/v2_template_render_config';
+import type {
+  V2TemplateRenderConfig,
+} from '@/types/time-table/v2_template_render_config';
+import {
+  v2_createDefaultTemplateRenderConfig,
+  v2_normalizeTemplateRenderConfig,
+} from '@/utils/time-table/v2_template_render_config';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { V2TemplateFontFaceStyle, V2TimeTableEditor } from './_components';
+import { Imgs } from './_img/imgs';
 import './_styles/index.css';
 
 const v2_TEMPLATE_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const v2_RENDER_CONFIG_STORAGE_PREFIX = 'v2-template-render-config';
+const v2_LOCAL_STORAGE_SOFT_LIMIT_BYTES = 2 * 1024 * 1024;
+
+const v2_isQuotaExceededError = (error: unknown): boolean => {
+  if (!(error instanceof DOMException)) return false;
+  return (
+    error.name === 'QuotaExceededError' ||
+    error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    error.code === 22 ||
+    error.code === 1014
+  );
+};
+
+const v2_createStorageSafeRenderConfig = (
+  current: V2TemplateRenderConfig,
+  fallback: V2TemplateRenderConfig
+): V2TemplateRenderConfig => {
+  return {
+    ...current,
+    // 이미지 에셋은 localStorage에서 제외한다.
+    assets: fallback.assets,
+    assetDimensions: fallback.assetDimensions,
+  };
+};
 
 const TimeTableTemplatePage = () => {
   const searchParams = useSearchParams();
@@ -21,8 +50,6 @@ const TimeTableTemplatePage = () => {
     if (!rawTemplateId) return undefined;
     return v2_TEMPLATE_ID_REGEX.test(rawTemplateId) ? rawTemplateId : undefined;
   }, [rawTemplateId]);
-
-  const { data, isLoading } = useV2TemplateRenderConfig(templateId);
 
   const exampleData = useMemo<V2TemplateRenderConfigResponse>(
     () => ({
@@ -92,10 +119,10 @@ const TimeTableTemplatePage = () => {
       },
       baseColors: {
         first: {
-          primary: '#86889B',
-          secondary: '#BBBBBB',
-          tertiary: '#FFFFFF',
-          quaternary: '#A7A7A7',
+          primary: '#FFF6E5',
+          secondary: '#EC7363',
+          tertiary: '',
+          quaternary: '',
         },
         second: {
           primary: '#263238',
@@ -111,13 +138,13 @@ const TimeTableTemplatePage = () => {
         },
       },
       componentColors: {
-        MAIN_TITLE: '#86889B',
-        SUB_TITLE: '#BBBBBB',
-        STREAMING_TIME: '#FFFFFF',
-        STREAMING_DATE: '#FFFFFF',
-        STREAMING_DAY: '#E0E0E0',
-        ARTIST: '#111111',
-        WEEKLY_FLAG: '#A7A7A7',
+        MAIN_TITLE: '#EC7363',
+        SUB_TITLE: '#FFF6E5',
+        STREAMING_TIME: '#FFF6E5',
+        STREAMING_DATE: '#FFF6E5',
+        STREAMING_DAY: '#FFF6E5',
+        ARTIST: '#FFF6E5',
+        WEEKLY_FLAG: '#FFF6E5',
       },
       componentFonts: {
         MAIN_TITLE: 'primary',
@@ -129,22 +156,22 @@ const TimeTableTemplatePage = () => {
         WEEKLY_FLAG: 'primary',
       },
       maxFontSizes: {
-        MAIN_TITLE: 70,
-        SUB_TITLE: 42,
-        ARTIST: 36,
+        MAIN_TITLE: 82,
+        SUB_TITLE: 57,
+        ARTIST: 84,
       },
       cardSizes: {
         online: {
-          width: 634,
-          height: 558,
+          width: 800,
+          height: 617,
         },
         offline: {
-          width: 634,
-          height: 558,
+          width: 800,
+          height: 617,
         },
         profile: {
-          width: 1300,
-          height: 1770,
+          width: 1540,
+          height: 1540,
         },
         frame: {
           width: 4000,
@@ -156,7 +183,7 @@ const TimeTableTemplatePage = () => {
         isMultiple: false,
         maxStreamingTimeByDay: 1,
       },
-      profileTextPlaceholder: '',
+      profileTextPlaceholder: '아티스트 명',
       cardInputConfig: {
         fields: [
           {
@@ -190,104 +217,195 @@ const TimeTableTemplatePage = () => {
       },
       assets: {
         bgByTheme: {
-          first: '/time-table/v2/bg-first.png',
-          second: '/time-table/v2/bg-second.png',
-          third: '/time-table/v2/bg-third.png',
+          first: Imgs.first.bg.src,
+          second: Imgs.first.bg.src,
+          third: Imgs.first.bg.src,
         },
         topObjectByTheme: {
-          first: '/time-table/v2/top-object-first.png',
-          second: '/time-table/v2/top-object-second.png',
-          third: '/time-table/v2/top-object-third.png',
+          first: Imgs.first.topObject.src,
+          second: Imgs.first.topObject.src,
+          third: Imgs.first.topObject.src,
         },
         onlineByTheme: {
-          first: '/time-table/v2/online-first.png',
-          second: '/time-table/v2/online-second.png',
-          third: '/time-table/v2/online-third.png',
+          first: Imgs.first.online.src,
+          second: Imgs.first.online.src,
+          third: Imgs.first.online.src,
         },
         offlineByTheme: {
-          first: '/time-table/v2/offline-first.png',
-          second: '/time-table/v2/offline-second.png',
-          third: '/time-table/v2/offline-third.png',
+          first: Imgs.first.offline.src,
+          second: Imgs.first.offline.src,
+          third: Imgs.first.offline.src,
         },
         profileFrameByTheme: {
-          first: '/time-table/v2/frame-first.png',
-          second: '/time-table/v2/frame-second.png',
-          third: '/time-table/v2/frame-third.png',
+          first: Imgs.first.profileFrame.src,
+          second: Imgs.first.profileFrame.src,
+          third: Imgs.first.profileFrame.src,
         },
         profileBgByTheme: {
-          first: '/time-table/v2/profile-bg-first.png',
-          second: '/time-table/v2/profile-bg-second.png',
-          third: '/time-table/v2/profile-bg-third.png',
+          first: Imgs.first.profileFrame.src,
+          second: Imgs.first.profileFrame.src,
+          third: Imgs.first.profileFrame.src,
+        },
+      },
+      assetDimensions: {
+        bgByTheme: {
+          first: null,
+          second: null,
+          third: null,
+        },
+        topObjectByTheme: {
+          first: null,
+          second: null,
+          third: null,
+        },
+        onlineByTheme: {
+          first: null,
+          second: null,
+          third: null,
+        },
+        offlineByTheme: {
+          first: null,
+          second: null,
+          third: null,
+        },
+        profileFrameByTheme: {
+          first: null,
+          second: null,
+          third: null,
+        },
+        profileBgByTheme: {
+          first: null,
+          second: null,
+          third: null,
         },
       },
       layout: {
         grid: {
-          right: 264,
-          top: 244,
-          rowGap: 32,
-          columnGap: 72,
+          layoutMode: 'grid3x3',
+          flex42ThreeRow: 'bottom',
+          flex42Align: 'center',
+          left: 32,
+          top: 96,
+          rowGap: 8,
+          columnGap: 20,
           columns: 3,
         },
         weekFlag: {
-          fontSize: 68,
-          fontWeight: 500,
-          width: 1000,
-          height: 100,
-          top: 664,
-          left: 1848,
+          fontSize: 76,
+          fontWeight: 700,
+          width: 580,
+          height: 120,
+          top: 564,
+          left: 1556,
         },
         topObjectContainer: {
+          position: 'absolute',
           width: 4000,
           height: 2250,
           zIndex: 30,
         },
         profileImage: {
-          top: 264,
-          left: 218,
-          rotateDeg: -6.7,
+          top: 516,
+          left: 2400,
           zIndex: 10,
         },
         profileFrame: {
+          position: 'absolute',
+          width: 4000,
+          height: 2250,
           zIndex: 20,
         },
-        cell: {
+        profileTextRootStyle: {
+          left: 4,
+          zIndex: 30,
+          justifyContent: 'flex-start',
+          alignItems: 'center',
+        },
+        profileTextWrapperStyle: {
+          position: 'absolute',
+          width: 1318,
+          height: 160,
+          bottom: 268,
+          right: 200,
+          rotate: '1.6deg',
+        },
+        card: {
           streamingDay: {
-            fontSize: 64,
-            height: 80,
-            width: 300,
-            top: 48,
+            top: 0,
+            left: 0,
+            width: 160,
+            height: 100,
+            display: 'flex',
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            paddingLeft: 8,
           },
           streamingDate: {
-            width: 120,
-            height: 120,
-            lineHeight: 1,
-            fontSize: 62,
-            fontWeight: 600,
-            letterSpacing: -1,
-            marginTop: 4,
+            width: 160,
+            height: 100,
+            position: 'absolute',
+            top: -16,
+            left: -24,
+            zIndex: 10,
           },
           streamingTime: {
-            width: 312,
-            height: 80,
-            lineHeight: 1,
-            fontSize: 38,
-            top: 476,
+            width: 252,
+            height: 40,
+            top: 508,
           },
           mainTitleContainer: {
-            height: 192,
-            widthPercent: 80,
-            top: 230,
+            height: 280,
+            widthPercent: 100,
+            top: 132,
           },
           subTitleContainer: {
-            widthPercent: 80,
-            height: 80,
-            top: 152,
+            widthPercent: 100,
+            height: 64,
+            top: 440,
           },
-          contentArea: {
-            width: 612,
-            height: 528,
-            top: 30,
-            marginLeft: 16,
+          container: {
+            width: 600,
+            height: 504,
+            top: 68,
+            left: 10,
+          },
+          mainTitleTextStyle: {
+            lineHeight: 1.2,
+            fontWeight: 700,
+          },
+          subTitleTextStyle: {
+            lineHeight: 1,
+            fontWeight: 400,
+          },
+          mainTitleOptions: {
+            maxFontSize: 82,
+            multiline: true,
+          },
+          subTitleOptions: {
+            maxFontSize: 57,
+            multiline: true,
+          },
+          streamingDayStyle: {
+            fontSize: 56,
+            fontWeight: 700,
+            lineHeight: 1,
+          },
+          streamingDateStyle: {
+            fontSize: 68,
+            fontWeight: 400,
+            lineHeight: 1,
+            letterSpacing: 3,
+            rotate: '-14deg',
+          },
+          streamingTimeStyle: {
+            fontSize: 31,
+            fontWeight: 400,
+            lineHeight: 1,
+          },
+          mainTitleWrapperStyle: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
           },
         },
       },
@@ -299,24 +417,68 @@ const TimeTableTemplatePage = () => {
   );
 
   const fallbackConfig = useMemo(() => v2_createDefaultTemplateRenderConfig(), []);
-  const resolvedData = data ?? exampleData;
-  const resolvedRenderConfig = resolvedData.renderConfig ?? fallbackConfig;
+  const defaultRenderConfig = useMemo<V2TemplateRenderConfig>(
+    () => exampleData.renderConfig ?? fallbackConfig,
+    [exampleData.renderConfig, fallbackConfig]
+  );
+  const storageKey = useMemo(
+    () => `${v2_RENDER_CONFIG_STORAGE_PREFIX}:${templateId ?? exampleData.templateId}`,
+    [exampleData.templateId, templateId]
+  );
   const [renderConfig, setRenderConfig] =
-    useState<V2TemplateRenderConfig>(resolvedRenderConfig);
+    useState<V2TemplateRenderConfig>(defaultRenderConfig);
+  const [isLoading, setIsLoading] = useState(true);
+  const storageSafeRenderConfig = useMemo(
+    () => v2_createStorageSafeRenderConfig(renderConfig, defaultRenderConfig),
+    [defaultRenderConfig, renderConfig]
+  );
 
   useEffect(() => {
-    setRenderConfig(resolvedRenderConfig);
-  }, [resolvedRenderConfig]);
+    setIsLoading(true);
+    try {
+      const rawStored = window.localStorage.getItem(storageKey);
+      if (!rawStored) {
+        setRenderConfig(defaultRenderConfig);
+        return;
+      }
+      const parsed = JSON.parse(rawStored);
+      setRenderConfig(v2_normalizeTemplateRenderConfig(parsed));
+    } catch (error) {
+      console.error('Failed to restore render config from localStorage', error);
+      setRenderConfig(defaultRenderConfig);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [defaultRenderConfig, storageKey]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    const serialized = JSON.stringify(storageSafeRenderConfig);
+
+    try {
+      if (serialized.length > v2_LOCAL_STORAGE_SOFT_LIMIT_BYTES) {
+        window.localStorage.removeItem(storageKey);
+        return;
+      }
+      window.localStorage.setItem(storageKey, serialized);
+    } catch (error) {
+      if (v2_isQuotaExceededError(error)) {
+        window.localStorage.removeItem(storageKey);
+        return;
+      }
+      console.error('Failed to persist render config to localStorage', error);
+    }
+  }, [isLoading, storageKey, storageSafeRenderConfig]);
 
   const providerValue = useMemo(
     () => ({
       templateId: templateId ?? null,
-      source: resolvedData.source ?? 'default',
+      source: 'default' as const,
       isLoading,
       renderConfig,
       setRenderConfig,
     }),
-    [isLoading, renderConfig, resolvedData.source, templateId]
+    [isLoading, renderConfig, templateId]
   );
 
   return (

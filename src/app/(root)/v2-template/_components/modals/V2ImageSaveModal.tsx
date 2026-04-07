@@ -442,10 +442,10 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
                   {chip.isCurrentWeek && !chip.isEllipsis ? (
                     <div
                       className="h-6 flex justify-center items-center
-                    px-3 rounded-lg text-xs font-medium border text-center bg-orange-100 text-orange-800 border-orange-400 gap-1"
+                    px-3 rounded-lg text-xs font-medium border text-center bg-blue-100 text-blue-800 border-blue-400 gap-1"
                     >
                       <ArrowBigDownDash
-                        color={"oklch(75% 0.183 55.934)"}
+                        color={"#1d4ed8"}
                         size={16}
                         strokeWidth={2.5}
                       />

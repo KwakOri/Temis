@@ -30,7 +30,7 @@ const V2MondaySelector = ({ mondayDateStr, onDateChange }: MondaySelectorProps) 
   };
 
   return (
-    <div className="h-12 gap-4 flex justify-between items-center bg-timetable-card-bg shadow-[0_2px_3.4px_rgba(0,0,0,0.08)] border-2 border-timetable-card-border transition-all duration-200 grow-0 rounded-2xl px-3">
+    <div className="h-12 gap-4 flex justify-between items-center bg-timetable-card-bg shadow-[0_10px_24px_rgba(0,0,0,0.3)] border border-timetable-card-border transition-all duration-200 grow-0 rounded-2xl px-3">
       <CardTitle size="sm" label="주간 선택" />
       <div className="flex-1 flex items-center justify-between rounded-xl">
         <button

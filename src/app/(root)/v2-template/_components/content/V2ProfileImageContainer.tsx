@@ -6,13 +6,10 @@ import {
 } from '@/contexts/v2/v2_TemplateRenderConfigContext';
 import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
 import { v2_getComponentFontFamily } from '@/utils/time-table/v2_template_render_config';
-import { CSSProperties, PropsWithChildren } from 'react';
+import { PropsWithChildren } from 'react';
 import { Imgs } from '../../_img/imgs';
-
-const v2_toCssProperties = (value: unknown): CSSProperties => {
-  if (!value || typeof value !== 'object') return {};
-  return value as CSSProperties;
-};
+import { v2_getHighlightStyle } from './v2_highlight';
+import { v2_toRenderableStyle } from './v2_style';
 
 const v2_getArtistImageSrc = ({
   currentTheme,
@@ -34,18 +31,22 @@ const v2_getArtistImageSrc = ({
 const ProfileImage = () => {
   const { imageSrc } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
   const profileSize = renderConfig.cardSizes.profile;
-  const profileLayout = renderConfig.layout.profileImage;
+  const profileLayout = v2_toRenderableStyle(renderConfig.layout.profileImage);
 
   return (
     <div
       style={{
         ...profileSize,
-        rotate: `${profileLayout.rotateDeg}deg`,
-        position: 'absolute',
-        top: profileLayout.top,
-        left: profileLayout.left,
-        zIndex: profileLayout.zIndex,
+        ...profileLayout,
+        position: profileLayout.position ?? "absolute",
+        ...v2_getHighlightStyle({
+          target: "profileImage",
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
     >
       {imageSrc && (
@@ -60,9 +61,11 @@ const ProfileImage = () => {
 };
 
 const ProfileFrame = () => {
-  const { currentTheme } = useV2TimeTableEditorRuntimeContext();
+  const { currentTheme, hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const frameSize = renderConfig.cardSizes.frame;
+  const frameLayout = v2_toRenderableStyle(renderConfig.layout.profileFrame);
   const frameUrl =
     v2_getAssetUrlFromConfig({
       renderConfig,
@@ -74,8 +77,13 @@ const ProfileFrame = () => {
     <div
       style={{
         ...frameSize,
-        zIndex: renderConfig.layout.profileFrame.zIndex,
-        position: 'absolute',
+        ...frameLayout,
+        position: frameLayout.position ?? "absolute",
+        ...v2_getHighlightStyle({
+          target: "profileFrame",
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
     >
       <img
@@ -98,10 +106,12 @@ const ProfileText = () => {
   }
 
   const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
-  const rootStyle = v2_toCssProperties(layoutRecord.profileTextRootStyle);
-  const wrapperStyle = v2_toCssProperties(layoutRecord.profileTextWrapperStyle);
-  const textStyle = v2_toCssProperties(layoutRecord.profileTextStyle);
-  const artistImageStyle = v2_toCssProperties(layoutRecord.profileTextArtistImageStyle);
+  const rootStyle = v2_toRenderableStyle(layoutRecord.profileTextRootStyle);
+  const wrapperStyle = v2_toRenderableStyle(layoutRecord.profileTextWrapperStyle);
+  const textStyle = v2_toRenderableStyle(layoutRecord.profileTextStyle);
+  const artistImageStyle = v2_toRenderableStyle(
+    layoutRecord.profileTextArtistImageStyle
+  );
 
   const artistImageSrc = v2_getArtistImageSrc({
     currentTheme,
@@ -164,13 +174,34 @@ const ProfileText = () => {
 
 const ProfileImageContainer = ({ children }: PropsWithChildren) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
+  const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
+  const profileTextRootStyle =
+    (layoutRecord.profileTextRootStyle as Record<string, unknown> | undefined) ??
+    undefined;
+  const zCandidates = [
+    renderConfig.layout.profileImage?.zIndex,
+    renderConfig.layout.profileFrame?.zIndex,
+    profileTextRootStyle?.zIndex,
+  ]
+    .map((value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      if (typeof value === 'string') {
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      return undefined;
+    })
+    .filter((value): value is number => value !== undefined);
+  const containerZIndex =
+    zCandidates.length > 0 ? Math.max(...zCandidates) : undefined;
 
   return (
     <div
-      className="absolute flex justify-center z-10"
+      className="absolute flex justify-center"
       style={{
         width: renderConfig.templateSize.width,
         height: renderConfig.templateSize.height,
+        ...(containerZIndex !== undefined ? { zIndex: containerZIndex } : {}),
       }}
       draggable={false}
     >

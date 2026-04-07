@@ -8,6 +8,7 @@ import {
   V2TemplateFontFaceMetrics,
   V2TemplateFontRegistryItem,
   V2TemplateRenderConfig,
+  V2TemplateStyleRecord,
 } from "@/types/time-table/v2_template_render_config";
 
 const v2_DEFAULT_THEME = "first";
@@ -155,22 +156,22 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   },
   baseColors: {
     first: {
-      primary: "#86889B",
-      secondary: "#BBBBBB",
-      tertiary: "#FFFFFF",
-      quaternary: "#A7A7A7",
+      primary: "#FFF6E5",
+      secondary: "#EC7363",
+      tertiary: "",
+      quaternary: "",
     },
     second: { ...v2_DEFAULT_COLOR_PALETTE },
     third: { ...v2_DEFAULT_COLOR_PALETTE },
   },
   componentColors: {
-    MAIN_TITLE: "#86889B",
-    SUB_TITLE: "#BBBBBB",
-    STREAMING_TIME: "#FFFFFF",
-    STREAMING_DATE: "#FFFFFF",
-    STREAMING_DAY: "",
-    ARTIST: "",
-    WEEKLY_FLAG: "#A7A7A7",
+    MAIN_TITLE: "#EC7363",
+    SUB_TITLE: "#FFF6E5",
+    STREAMING_TIME: "#FFF6E5",
+    STREAMING_DATE: "#FFF6E5",
+    STREAMING_DAY: "#FFF6E5",
+    ARTIST: "#FFF6E5",
+    WEEKLY_FLAG: "#FFF6E5",
   },
   componentFonts: {
     MAIN_TITLE: "primary",
@@ -182,22 +183,22 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     WEEKLY_FLAG: "primary",
   },
   maxFontSizes: {
-    MAIN_TITLE: 70,
-    SUB_TITLE: 42,
-    ARTIST: 0,
+    MAIN_TITLE: 82,
+    SUB_TITLE: 57,
+    ARTIST: 84,
   },
   cardSizes: {
     online: {
-      width: 634,
-      height: 558,
+      width: 800,
+      height: 617,
     },
     offline: {
-      width: 634,
-      height: 558,
+      width: 800,
+      height: 617,
     },
     profile: {
-      width: 1300,
-      height: 1770,
+      width: 1540,
+      height: 1540,
     },
     frame: {
       width: 4000,
@@ -205,7 +206,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     },
   },
   editorOptions: { ...v2_DEFAULT_EDITOR_OPTIONS },
-  profileTextPlaceholder: "",
+  profileTextPlaceholder: "아티스트 명",
   cardInputConfig: v2_DEFAULT_CARD_INPUT_CONFIG,
   assets: {
     bgByTheme: {
@@ -227,93 +228,154 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
   },
+  assetDimensions: {
+    bgByTheme: {
+      first: null,
+    },
+    topObjectByTheme: {
+      first: null,
+    },
+    onlineByTheme: {
+      first: null,
+    },
+    offlineByTheme: {
+      first: null,
+    },
+    profileFrameByTheme: {
+      first: null,
+    },
+    profileBgByTheme: {
+      first: null,
+    },
+  },
   layout: {
     grid: {
-      right: 264,
-      top: 244,
-      rowGap: 32,
-      columnGap: 72,
+      layoutMode: "grid3x3",
+      flex42ThreeRow: "bottom",
+      flex42Align: "center",
+      left: 32,
+      top: 96,
+      rowGap: 8,
+      columnGap: 20,
       columns: 3,
     },
     weekFlag: {
-      fontSize: 68,
-      fontWeight: 500,
-      width: 1000,
-      height: 100,
-      top: 664,
-      left: 1848,
+      fontSize: 76,
+      fontWeight: 700,
+      width: 580,
+      height: 120,
+      top: 564,
+      left: 1556,
     },
     topObjectContainer: {
+      position: "absolute",
       width: 4000,
       height: 2250,
       zIndex: 30,
     },
     profileImage: {
-      top: 264,
-      left: 218,
-      rotateDeg: -6.7,
+      top: 516,
+      left: 2400,
       zIndex: 10,
     },
     profileFrame: {
+      position: "absolute",
+      width: 4000,
+      height: 2250,
       zIndex: 20,
     },
-    cell: {
+    profileTextRootStyle: {
+      left: 4,
+      zIndex: 30,
+      justifyContent: "flex-start",
+      alignItems: "center",
+    },
+    profileTextWrapperStyle: {
+      position: "absolute",
+      width: 1318,
+      height: 160,
+      bottom: 268,
+      right: 200,
+      rotate: "1.6deg",
+    },
+    card: {
       streamingDay: {
-        fontSize: 64,
-        height: 80,
-        width: 300,
-        top: 48,
+        top: 0,
+        left: 0,
+        width: 160,
+        height: 100,
+        display: "flex",
+        justifyContent: "flex-start",
+        alignItems: "center",
+        paddingLeft: 8,
       },
       streamingDate: {
-        width: 120,
-        height: 120,
-        lineHeight: 1,
-        fontSize: 62,
-        fontWeight: 600,
-        letterSpacing: -1,
-        marginTop: 4,
+        width: 160,
+        height: 100,
+        position: "absolute",
+        top: -16,
+        left: -24,
+        zIndex: 10,
       },
       streamingTime: {
-        width: 312,
-        height: 80,
-        lineHeight: 1,
-        fontSize: 38,
-        top: 476,
+        width: 252,
+        height: 40,
+        top: 508,
       },
       mainTitleContainer: {
-        height: 192,
-        widthPercent: 80,
-        top: 230,
+        height: 280,
+        widthPercent: 100,
+        top: 132,
       },
       subTitleContainer: {
-        widthPercent: 80,
-        height: 80,
-        top: 152,
+        widthPercent: 100,
+        height: 64,
+        top: 440,
       },
-      contentArea: {
-        width: 612,
-        height: 528,
-        top: 30,
-        marginLeft: 16,
+      container: {
+        width: 600,
+        height: 504,
+        top: 68,
+        left: 10,
       },
       mainTitleTextStyle: {
-        lineHeight: 1,
-        fontWeight: 800,
+        lineHeight: 1.2,
+        fontWeight: 700,
       },
       subTitleTextStyle: {
         lineHeight: 1,
-        fontWeight: 700,
+        fontWeight: 400,
       },
       mainTitleOptions: {
+        maxFontSize: 82,
         multiline: true,
       },
       subTitleOptions: {
+        maxFontSize: 57,
         multiline: true,
       },
-      streamingDayStyle: {},
-      streamingDateStyle: {},
-      streamingTimeStyle: {},
-      mainTitleWrapperStyle: {},
+      streamingDayStyle: {
+        fontSize: 56,
+        fontWeight: 700,
+        lineHeight: 1,
+      },
+      streamingDateStyle: {
+        fontSize: 68,
+        fontWeight: 400,
+        lineHeight: 1,
+        letterSpacing: 3,
+        rotate: "-14deg",
+      },
+      streamingTimeStyle: {
+        fontSize: 31,
+        fontWeight: 400,
+        lineHeight: 1,
+      },
+      mainTitleWrapperStyle: {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      },
     },
   },
 };
@@ -363,11 +425,31 @@ const v2_mergeCssPropertiesRecord = (
 
   const merged: Record<string, string | number> = { ...base };
   Object.entries(candidate).forEach(([key, value]) => {
-    if (typeof value === "string" || (typeof value === "number" && Number.isFinite(value))) {
+    if (typeof value === "number" && Number.isFinite(value)) {
       merged[key] = value;
+      return;
+    }
+
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+        merged[key] = Number(trimmed);
+      } else {
+        merged[key] = value;
+      }
     }
   });
   return merged;
+};
+
+const v2_mergeStyleRecord = (
+  base: V2TemplateStyleRecord | undefined,
+  candidate: unknown
+): V2TemplateStyleRecord => {
+  return v2_mergeCssPropertiesRecord(
+    (base ?? {}) as Record<string, string | number>,
+    candidate
+  ) as V2TemplateStyleRecord;
 };
 
 const v2_asStringArray = (value: unknown, fallback: string[]): string[] => {
@@ -455,6 +537,37 @@ const v2_mergeThemeStringMap = (
     if (typeof value === "string" || value === null) {
       merged[theme] = value as string | null;
     }
+  });
+
+  return merged;
+};
+
+const v2_mergeThemeAssetDimensionMap = (
+  base: Record<string, { width: number; height: number } | null>,
+  candidate: unknown
+): Record<string, { width: number; height: number } | null> => {
+  if (!v2_isRecord(candidate)) return base;
+
+  const merged: Record<string, { width: number; height: number } | null> = {
+    ...base,
+  };
+
+  Object.entries(candidate).forEach(([theme, value]) => {
+    if (value === null) {
+      merged[theme] = null;
+      return;
+    }
+    if (!v2_isRecord(value)) return;
+
+    const width = v2_asNumber(value.width, NaN);
+    const height = v2_asNumber(value.height, NaN);
+
+    if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+
+    merged[theme] = {
+      width: Math.max(0, Math.round(width)),
+      height: Math.max(0, Math.round(height)),
+    };
   });
 
   return merged;
@@ -838,276 +951,138 @@ export const v2_normalizeTemplateRenderConfig = (
     };
   }
 
+  if (v2_isRecord(raw.assetDimensions)) {
+    normalized.assetDimensions = {
+      bgByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.bgByTheme,
+        raw.assetDimensions.bgByTheme
+      ),
+      topObjectByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.topObjectByTheme,
+        raw.assetDimensions.topObjectByTheme
+      ),
+      onlineByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.onlineByTheme,
+        raw.assetDimensions.onlineByTheme
+      ),
+      offlineByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineByTheme,
+        raw.assetDimensions.offlineByTheme
+      ),
+      profileFrameByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.profileFrameByTheme,
+        raw.assetDimensions.profileFrameByTheme
+      ),
+      profileBgByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.profileBgByTheme,
+        raw.assetDimensions.profileBgByTheme
+      ),
+    };
+  }
+
   if (v2_isRecord(raw.layout)) {
-    if (v2_isRecord(raw.layout.grid)) {
-      normalized.layout.grid = {
-        right: v2_asNumber(raw.layout.grid.right, normalized.layout.grid.right),
-        top: v2_asNumber(raw.layout.grid.top, normalized.layout.grid.top),
-        rowGap: v2_asNumber(
-          raw.layout.grid.rowGap,
-          normalized.layout.grid.rowGap
-        ),
-        columnGap: v2_asNumber(
-          raw.layout.grid.columnGap,
-          normalized.layout.grid.columnGap
-        ),
-        columns: v2_asNumber(
-          raw.layout.grid.columns,
-          normalized.layout.grid.columns
-        ),
-      };
-    }
+    const layout = raw.layout;
+    normalized.layout.grid = v2_mergeStyleRecord(normalized.layout.grid, layout.grid);
+    normalized.layout.weekFlag = v2_mergeStyleRecord(
+      normalized.layout.weekFlag,
+      layout.weekFlag
+    );
+    normalized.layout.topObjectContainer = v2_mergeStyleRecord(
+      normalized.layout.topObjectContainer,
+      layout.topObjectContainer
+    );
+    normalized.layout.profileImage = v2_mergeStyleRecord(
+      normalized.layout.profileImage,
+      layout.profileImage
+    );
+    normalized.layout.profileFrame = v2_mergeStyleRecord(
+      normalized.layout.profileFrame,
+      layout.profileFrame
+    );
+    normalized.layout.profileTextRootStyle = v2_mergeStyleRecord(
+      normalized.layout.profileTextRootStyle,
+      layout.profileTextRootStyle
+    );
+    normalized.layout.profileTextWrapperStyle = v2_mergeStyleRecord(
+      normalized.layout.profileTextWrapperStyle,
+      layout.profileTextWrapperStyle
+    );
+    normalized.layout.profileTextStyle = v2_mergeStyleRecord(
+      normalized.layout.profileTextStyle,
+      layout.profileTextStyle
+    );
+    normalized.layout.profileTextArtistImageStyle = v2_mergeStyleRecord(
+      normalized.layout.profileTextArtistImageStyle,
+      layout.profileTextArtistImageStyle
+    );
 
-    if (v2_isRecord(raw.layout.weekFlag)) {
-      normalized.layout.weekFlag = {
-        fontSize: v2_asNumber(
-          raw.layout.weekFlag.fontSize,
-          normalized.layout.weekFlag.fontSize
-        ),
-        fontWeight: v2_asNumber(
-          raw.layout.weekFlag.fontWeight,
-          normalized.layout.weekFlag.fontWeight
-        ),
-        width: v2_asNumber(raw.layout.weekFlag.width, normalized.layout.weekFlag.width),
-        height: v2_asNumber(
-          raw.layout.weekFlag.height,
-          normalized.layout.weekFlag.height
-        ),
-        top: v2_asNumber(raw.layout.weekFlag.top, normalized.layout.weekFlag.top),
-        left: v2_asNumber(raw.layout.weekFlag.left, normalized.layout.weekFlag.left),
-      };
-    }
+    const cardLayoutSource = v2_isRecord(layout.card)
+      ? layout.card
+      : v2_isRecord(layout.cell)
+        ? layout.cell
+        : null;
 
-    if (v2_isRecord(raw.layout.topObjectContainer)) {
-      normalized.layout.topObjectContainer = {
-        width: v2_asNumber(
-          raw.layout.topObjectContainer.width,
-          normalized.layout.topObjectContainer.width
-        ),
-        height: v2_asNumber(
-          raw.layout.topObjectContainer.height,
-          normalized.layout.topObjectContainer.height
-        ),
-        zIndex: v2_asNumber(
-          raw.layout.topObjectContainer.zIndex,
-          normalized.layout.topObjectContainer.zIndex
-        ),
-      };
-    }
-
-    if (v2_isRecord(raw.layout.profileImage)) {
-      normalized.layout.profileImage = {
-        top: v2_asNumber(
-          raw.layout.profileImage.top,
-          normalized.layout.profileImage.top
-        ),
-        left: v2_asNumber(
-          raw.layout.profileImage.left,
-          normalized.layout.profileImage.left
-        ),
-        rotateDeg: v2_asNumber(
-          raw.layout.profileImage.rotateDeg,
-          normalized.layout.profileImage.rotateDeg
-        ),
-        zIndex: v2_asNumber(
-          raw.layout.profileImage.zIndex,
-          normalized.layout.profileImage.zIndex
-        ),
-      };
-    }
-
-    if (v2_isRecord(raw.layout.profileFrame)) {
-      normalized.layout.profileFrame = {
-        zIndex: v2_asNumber(
-          raw.layout.profileFrame.zIndex,
-          normalized.layout.profileFrame.zIndex
-        ),
-      };
-    }
-
-    if (v2_isRecord(raw.layout.cell)) {
-      const cell = raw.layout.cell;
-
-      if (v2_isRecord(cell.streamingDay)) {
-        normalized.layout.cell.streamingDay = {
-          fontSize: v2_asNumber(
-            cell.streamingDay.fontSize,
-            normalized.layout.cell.streamingDay.fontSize
-          ),
-          height: v2_asNumber(
-            cell.streamingDay.height,
-            normalized.layout.cell.streamingDay.height
-          ),
-          width: v2_asNumber(
-            cell.streamingDay.width,
-            normalized.layout.cell.streamingDay.width
-          ),
-          top: v2_asNumber(
-            cell.streamingDay.top,
-            normalized.layout.cell.streamingDay.top
-          ),
-        };
-      }
-
-      if (v2_isRecord(cell.streamingDate)) {
-        normalized.layout.cell.streamingDate = {
-          width: v2_asNumber(
-            cell.streamingDate.width,
-            normalized.layout.cell.streamingDate.width
-          ),
-          height: v2_asNumber(
-            cell.streamingDate.height,
-            normalized.layout.cell.streamingDate.height
-          ),
-          lineHeight: v2_asNumber(
-            cell.streamingDate.lineHeight,
-            normalized.layout.cell.streamingDate.lineHeight
-          ),
-          fontSize: v2_asNumber(
-            cell.streamingDate.fontSize,
-            normalized.layout.cell.streamingDate.fontSize
-          ),
-          fontWeight: v2_asNumber(
-            cell.streamingDate.fontWeight,
-            normalized.layout.cell.streamingDate.fontWeight
-          ),
-          letterSpacing: v2_asNumber(
-            cell.streamingDate.letterSpacing,
-            normalized.layout.cell.streamingDate.letterSpacing
-          ),
-          marginTop: v2_asNumber(
-            cell.streamingDate.marginTop,
-            normalized.layout.cell.streamingDate.marginTop
-          ),
-        };
-      }
-
-      if (v2_isRecord(cell.streamingTime)) {
-        normalized.layout.cell.streamingTime = {
-          width: v2_asNumber(
-            cell.streamingTime.width,
-            normalized.layout.cell.streamingTime.width
-          ),
-          height: v2_asNumber(
-            cell.streamingTime.height,
-            normalized.layout.cell.streamingTime.height
-          ),
-          lineHeight: v2_asNumber(
-            cell.streamingTime.lineHeight,
-            normalized.layout.cell.streamingTime.lineHeight
-          ),
-          fontSize: v2_asNumber(
-            cell.streamingTime.fontSize,
-            normalized.layout.cell.streamingTime.fontSize
-          ),
-          top: v2_asNumber(
-            cell.streamingTime.top,
-            normalized.layout.cell.streamingTime.top
-          ),
-        };
-      }
-
-      if (v2_isRecord(cell.mainTitleContainer)) {
-        normalized.layout.cell.mainTitleContainer = {
-          height: v2_asNumber(
-            cell.mainTitleContainer.height,
-            normalized.layout.cell.mainTitleContainer.height
-          ),
-          widthPercent: v2_asNumber(
-            cell.mainTitleContainer.widthPercent,
-            normalized.layout.cell.mainTitleContainer.widthPercent
-          ),
-          top: v2_asNumber(
-            cell.mainTitleContainer.top,
-            normalized.layout.cell.mainTitleContainer.top
-          ),
-        };
-      }
-
-      if (v2_isRecord(cell.subTitleContainer)) {
-        normalized.layout.cell.subTitleContainer = {
-          widthPercent: v2_asNumber(
-            cell.subTitleContainer.widthPercent,
-            normalized.layout.cell.subTitleContainer.widthPercent
-          ),
-          height: v2_asNumber(
-            cell.subTitleContainer.height,
-            normalized.layout.cell.subTitleContainer.height
-          ),
-          top: v2_asNumber(
-            cell.subTitleContainer.top,
-            normalized.layout.cell.subTitleContainer.top
-          ),
-        };
-      }
-
-      if (v2_isRecord(cell.contentArea)) {
-        normalized.layout.cell.contentArea = {
-          width: v2_asNumber(
-            cell.contentArea.width,
-            normalized.layout.cell.contentArea.width
-          ),
-          height: v2_asNumber(
-            cell.contentArea.height,
-            normalized.layout.cell.contentArea.height
-          ),
-          top: v2_asNumber(
-            cell.contentArea.top,
-            normalized.layout.cell.contentArea.top
-          ),
-          marginLeft: v2_asNumber(
-            cell.contentArea.marginLeft,
-            normalized.layout.cell.contentArea.marginLeft
-          ),
-        };
-      }
-
-      normalized.layout.cell.mainTitleTextStyle = v2_mergeCssPropertiesRecord(
-        (normalized.layout.cell.mainTitleTextStyle ??
-          {}) as Record<string, string | number>,
-        cell.mainTitleTextStyle
+    if (cardLayoutSource) {
+      normalized.layout.card.streamingDay = v2_mergeStyleRecord(
+        normalized.layout.card.streamingDay,
+        cardLayoutSource.streamingDay
+      );
+      normalized.layout.card.streamingDate = v2_mergeStyleRecord(
+        normalized.layout.card.streamingDate,
+        cardLayoutSource.streamingDate
+      );
+      normalized.layout.card.streamingTime = v2_mergeStyleRecord(
+        normalized.layout.card.streamingTime,
+        cardLayoutSource.streamingTime
+      );
+      normalized.layout.card.mainTitleContainer = v2_mergeStyleRecord(
+        normalized.layout.card.mainTitleContainer,
+        cardLayoutSource.mainTitleContainer
+      );
+      normalized.layout.card.subTitleContainer = v2_mergeStyleRecord(
+        normalized.layout.card.subTitleContainer,
+        cardLayoutSource.subTitleContainer
+      );
+      normalized.layout.card.container = v2_mergeStyleRecord(
+        normalized.layout.card.container,
+        cardLayoutSource.container ?? cardLayoutSource.contentArea
       );
 
-      normalized.layout.cell.subTitleTextStyle = v2_mergeCssPropertiesRecord(
-        (normalized.layout.cell.subTitleTextStyle ??
-          {}) as Record<string, string | number>,
-        cell.subTitleTextStyle
+      normalized.layout.card.mainTitleTextStyle = v2_mergeStyleRecord(
+        normalized.layout.card.mainTitleTextStyle,
+        cardLayoutSource.mainTitleTextStyle
+      );
+      normalized.layout.card.subTitleTextStyle = v2_mergeStyleRecord(
+        normalized.layout.card.subTitleTextStyle,
+        cardLayoutSource.subTitleTextStyle
+      );
+      normalized.layout.card.streamingDayStyle = v2_mergeStyleRecord(
+        normalized.layout.card.streamingDayStyle,
+        cardLayoutSource.streamingDayStyle
+      );
+      normalized.layout.card.streamingDateStyle = v2_mergeStyleRecord(
+        normalized.layout.card.streamingDateStyle,
+        cardLayoutSource.streamingDateStyle
+      );
+      normalized.layout.card.streamingTimeStyle = v2_mergeStyleRecord(
+        normalized.layout.card.streamingTimeStyle,
+        cardLayoutSource.streamingTimeStyle
+      );
+      normalized.layout.card.mainTitleWrapperStyle = v2_mergeStyleRecord(
+        normalized.layout.card.mainTitleWrapperStyle,
+        cardLayoutSource.mainTitleWrapperStyle
       );
 
-      normalized.layout.cell.streamingDayStyle = v2_mergeCssPropertiesRecord(
-        (normalized.layout.cell.streamingDayStyle ??
-          {}) as Record<string, string | number>,
-        cell.streamingDayStyle
-      );
-
-      normalized.layout.cell.streamingDateStyle = v2_mergeCssPropertiesRecord(
-        (normalized.layout.cell.streamingDateStyle ??
-          {}) as Record<string, string | number>,
-        cell.streamingDateStyle
-      );
-
-      normalized.layout.cell.streamingTimeStyle = v2_mergeCssPropertiesRecord(
-        (normalized.layout.cell.streamingTimeStyle ??
-          {}) as Record<string, string | number>,
-        cell.streamingTimeStyle
-      );
-
-      normalized.layout.cell.mainTitleWrapperStyle = v2_mergeCssPropertiesRecord(
-        (normalized.layout.cell.mainTitleWrapperStyle ??
-          {}) as Record<string, string | number>,
-        cell.mainTitleWrapperStyle
-      );
-
-      if (v2_isRecord(cell.mainTitleOptions)) {
-        const prevOptions = normalized.layout.cell.mainTitleOptions ?? {};
+      if (v2_isRecord(cardLayoutSource.mainTitleOptions)) {
+        const prevOptions = normalized.layout.card.mainTitleOptions ?? {};
         const nextMaxFontSize = v2_asOptionalNumber(
-          cell.mainTitleOptions.maxFontSize
+          cardLayoutSource.mainTitleOptions.maxFontSize
         );
         const nextMultiline = v2_asOptionalBoolean(
-          cell.mainTitleOptions.multiline
+          cardLayoutSource.mainTitleOptions.multiline
         );
 
-        normalized.layout.cell.mainTitleOptions = {
+        normalized.layout.card.mainTitleOptions = {
           ...prevOptions,
           ...(nextMaxFontSize !== undefined
             ? { maxFontSize: nextMaxFontSize }
@@ -1116,16 +1091,16 @@ export const v2_normalizeTemplateRenderConfig = (
         };
       }
 
-      if (v2_isRecord(cell.subTitleOptions)) {
-        const prevOptions = normalized.layout.cell.subTitleOptions ?? {};
+      if (v2_isRecord(cardLayoutSource.subTitleOptions)) {
+        const prevOptions = normalized.layout.card.subTitleOptions ?? {};
         const nextMaxFontSize = v2_asOptionalNumber(
-          cell.subTitleOptions.maxFontSize
+          cardLayoutSource.subTitleOptions.maxFontSize
         );
         const nextMultiline = v2_asOptionalBoolean(
-          cell.subTitleOptions.multiline
+          cardLayoutSource.subTitleOptions.multiline
         );
 
-        normalized.layout.cell.subTitleOptions = {
+        normalized.layout.card.subTitleOptions = {
           ...prevOptions,
           ...(nextMaxFontSize !== undefined
             ? { maxFontSize: nextMaxFontSize }
@@ -1146,10 +1121,18 @@ export const v2_getThemedAssetUrl = (
   currentTheme: string,
   fallbackTheme: string = v2_DEFAULT_THEME
 ): string | null => {
+  const toValidAssetUrl = (value: string | null | undefined): string | null => {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  };
+
   return (
-    map[currentTheme] ??
-    map[fallbackTheme] ??
-    Object.values(map).find((value) => typeof value === "string" && value.length > 0) ??
+    toValidAssetUrl(map[currentTheme]) ??
+    toValidAssetUrl(map[fallbackTheme]) ??
+    Object.values(map)
+      .map((value) => toValidAssetUrl(value))
+      .find((value): value is string => typeof value === "string") ??
     null
   );
 };

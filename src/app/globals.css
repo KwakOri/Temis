@@ -19,6 +19,67 @@
   --color-timetable-form-bg: #f5f0ed;
 }
 
+.v2-dark-form-theme {
+  --color-timetable-card-bg: #1b212c;
+  --color-timetable-card-border: #303848;
+  --color-timetable-input-bg: #262f3d;
+  --color-timetable-input-hover: #2f3a4b;
+  --color-timetable-form-bg: #121722;
+  --timetable-card-title-color: #e8edf6;
+
+  color: #e8edf6;
+  background-color: var(--color-timetable-form-bg);
+}
+
+.v2-template-theme {
+  --color-timetable-primary: #4f8cff;
+  --color-timetable-primary-hover: #3d79f2;
+}
+
+.v2-dark-form-theme :is(.bg-white, .bg-gray-50, .bg-gray-100) {
+  background-color: #1b212c !important;
+}
+
+.v2-dark-form-theme :is(.border-gray-100, .border-gray-200, .border-gray-300) {
+  border-color: #303848 !important;
+}
+
+.v2-dark-form-theme :is(.text-gray-900, .text-gray-800, .text-gray-700) {
+  color: #e8edf6 !important;
+}
+
+.v2-dark-form-theme :is(.text-gray-600, .text-gray-500) {
+  color: #b8c3d7 !important;
+}
+
+.v2-dark-form-theme :is(.text-gray-400, .text-gray-300) {
+  color: #8a96ac !important;
+}
+
+.v2-dark-form-theme :is(input, textarea, select) {
+  color: inherit;
+}
+
+.v2-dark-form-theme
+  :is(input:not([type="color"]):not([type="checkbox"]):not([type="radio"])) {
+  border-color: #3a4353;
+  background-color: var(--color-timetable-input-bg);
+}
+
+.v2-dark-form-theme textarea,
+.v2-dark-form-theme select {
+  border-color: #3a4353;
+  background-color: var(--color-timetable-input-bg);
+}
+
+.v2-dark-form-theme :is(input, textarea)::placeholder {
+  color: #8a96ac;
+}
+
+.v2-dark-form-theme :is(.shadow-sm, .shadow-md, .shadow-lg) {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }

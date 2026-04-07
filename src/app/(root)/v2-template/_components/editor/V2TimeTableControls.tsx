@@ -10,11 +10,11 @@ import {
 const TimeTableControls: React.FC = () => {
   const { scale, updateScale } = useTimeTableUI();
   return (
-    <div className="fixed top-4 left-4 z-50 bg-white/80 px-4 py-2 rounded select-none flex items-center gap-4">
+    <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-[#303848] bg-[#121722]/95 px-4 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.35)] select-none flex items-center gap-4">
       {/* 뒤로가기 버튼 */}
       <Link
         href="/my-page"
-        className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+        className="flex items-center text-gray-300 hover:text-gray-100 transition-colors"
       >
         <svg
           className="w-4 h-4 mr-1"
@@ -33,11 +33,11 @@ const TimeTableControls: React.FC = () => {
       </Link>
 
       {/* 구분선 */}
-      <div className="w-px h-6 bg-gray-300"></div>
+      <div className="w-px h-6 bg-[#303848]"></div>
 
       {/* 배율 조절 */}
       <div className="flex items-center">
-        <label className="text-sm text-gray-600 font-medium">
+        <label className="text-sm text-gray-200 font-medium">
           미리보기 배율: {scale.toFixed(1)}x
         </label>
         <input
@@ -54,18 +54,18 @@ const TimeTableControls: React.FC = () => {
               })
             )
           }
-          className="ml-2 w-60 h-2 rounded-lg appearance-none bg-gray-300
-          accent-timetable-primary
+          className="ml-2 w-72 h-2 rounded-lg appearance-none bg-[#2a3344]
+          accent-[#4f8cff]
           [&::-webkit-slider-thumb]:appearance-none
           [&::-webkit-slider-thumb]:h-5
           [&::-webkit-slider-thumb]:w-5
           [&::-webkit-slider-thumb]:rounded-full
-          [&::-webkit-slider-thumb]:bg-timetable-primary
+          [&::-webkit-slider-thumb]:bg-[#4f8cff]
           [&::-webkit-slider-thumb]:shadow-md
           [&::-moz-range-thumb]:h-5
           [&::-moz-range-thumb]:w-5
           [&::-moz-range-thumb]:rounded-full
-          [&::-moz-range-thumb]:bg-timetable-primary
+          [&::-moz-range-thumb]:bg-[#4f8cff]
           [&::-moz-range-thumb]:shadow-md
           "
         />

@@ -287,7 +287,7 @@ const V2TimeTableForm: React.FC = () => {
   return (
     <>
       <div className="md:h-full min-h-0 md:max-w-[400px] md:min-w-[300px] md:w-1/4 h-full">
-        <div className="h-full shrink-0 flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full ">
+        <div className="v2-dark-form-theme h-full shrink-0 flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full ">
           <div className="flex-1 flex flex-col min-h-0">
             <V2TimeTableFormTabs
               activeTab={activeTab}

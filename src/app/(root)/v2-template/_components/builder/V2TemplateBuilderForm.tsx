@@ -1,16 +1,50 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlignHorizontalJustifyCenter,
+  AlignHorizontalJustifyEnd,
+  AlignHorizontalJustifyStart,
+  AlignVerticalJustifyCenter,
+  AlignVerticalJustifyEnd,
+  AlignVerticalJustifyStart,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Braces,
+  ChevronDown,
+  ChevronRight,
+  Columns3,
+  Grid3X3,
+  Hash,
+  Layers,
+  LayoutGrid,
+  LucideIcon,
+  Move,
+  Palette,
+  Percent,
+  Plus,
+  RotateCw,
+  Rows3,
+  Ruler,
+  Square,
+  SlidersHorizontal,
+  Text,
+  Type,
+} from "lucide-react";
 
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import {
+  V2TemplateAssetDimension,
   V2TemplateAssetMap,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/v2_template_render_config";
+import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
 
 type V2BuilderTab =
   | "canvas"
-  | "layout"
+  | "properties"
   | "style"
   | "assets"
   | "data"
@@ -18,7 +52,7 @@ type V2BuilderTab =
 
 const v2_BUILDER_TABS: Array<{ id: V2BuilderTab; label: string }> = [
   { id: "canvas", label: "캔버스" },
-  { id: "layout", label: "레이아웃" },
+  { id: "properties", label: "속성" },
   { id: "style", label: "스타일" },
   { id: "assets", label: "에셋" },
   { id: "data", label: "샘플 데이터" },
@@ -44,6 +78,7 @@ const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
 };
 
 const v2_STYLE_PROPERTY_CATALOG = [
+  "position",
   "top",
   "left",
   "right",
@@ -68,8 +103,20 @@ const v2_STYLE_PROPERTY_CATALOG = [
   "fontWeight",
   "lineHeight",
   "letterSpacing",
+  "rowGap",
+  "columnGap",
+  "columns",
+  "gridTemplateColumns",
   "textAlign",
   "color",
+  "backgroundColor",
+  "borderWidth",
+  "borderStyle",
+  "borderColor",
+  "borderRadius",
+  "boxShadow",
+  "filter",
+  "backdropFilter",
   "opacity",
   "zIndex",
   "display",
@@ -83,6 +130,17 @@ const v2_STYLE_PROPERTY_CATALOG = [
 ] as const;
 
 type V2StyleSectionKey =
+  | "grid"
+  | "weekFlag"
+  | "topObjectContainer"
+  | "profileImage"
+  | "profileFrame"
+  | "cardStreamingDay"
+  | "cardStreamingDate"
+  | "cardStreamingTime"
+  | "cardMainTitleContainer"
+  | "cardSubTitleContainer"
+  | "cardContainer"
   | "streamingDayStyle"
   | "streamingDateStyle"
   | "streamingTimeStyle"
@@ -90,10 +148,1110 @@ type V2StyleSectionKey =
   | "mainTitleTextStyle"
   | "subTitleTextStyle";
 
-const V2TemplateBuilderForm: React.FC = () => {
+type V2HorizontalAlign = "left" | "center" | "right";
+type V2VerticalAlign = "top" | "center" | "bottom";
+type V2BoilerplateFieldType = "number" | "text" | "select";
+type V2GridLayoutMode = "grid3x3" | "flex4x2";
+type V2Flex42Align = "left" | "center" | "right";
+type V2Flex42ThreeRow = "top" | "bottom";
+
+interface V2BoilerplateFieldConfig {
+  key: string;
+  label: string;
+  type?: V2BoilerplateFieldType;
+  options?: ReadonlyArray<{ label: string; value: string }>;
+  placeholder?: string;
+  step?: string;
+}
+
+interface V2BoilerplateGroupConfig {
+  id: string;
+  label: string;
+  fields: V2BoilerplateFieldConfig[];
+}
+
+interface V2TemplateBuilderFormProps {
+  focusStyleSection?: string | null;
+  focusStyleSectionNonce?: number;
+}
+
+const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
+  Record<V2StyleSectionKey, Record<string, string | number>>
+> = {
+  grid: {
+    layoutMode: "grid3x3",
+    flex42ThreeRow: "bottom",
+    flex42Align: "center",
+    left: 32,
+    top: 96,
+    rowGap: 8,
+    columnGap: 20,
+    columns: 3,
+  },
+  weekFlag: {
+    top: 564,
+    left: 1556,
+    width: 580,
+    height: 120,
+    fontSize: 76,
+    fontWeight: 700,
+  },
+  topObjectContainer: {
+    position: "absolute",
+    width: 4000,
+    height: 2250,
+    zIndex: 30,
+  },
+  profileImage: {
+    top: 516,
+    left: 2400,
+    width: 1540,
+    height: 1540,
+    zIndex: 10,
+  },
+  profileFrame: {
+    position: "absolute",
+    width: 4000,
+    height: 2250,
+    zIndex: 20,
+  },
+  cardStreamingDay: {
+    top: 0,
+    left: 0,
+    width: 160,
+    height: 100,
+    display: "flex",
+    justifyContent: "flex-start",
+    alignItems: "center",
+    paddingLeft: 8,
+  },
+  cardStreamingDate: {
+    width: 160,
+    height: 100,
+    position: "absolute",
+    top: -16,
+    left: -24,
+    zIndex: 10,
+  },
+  cardStreamingTime: {
+    width: 252,
+    height: 40,
+    top: 508,
+  },
+  cardMainTitleContainer: {
+    height: 280,
+    widthPercent: 100,
+    top: 132,
+  },
+  cardSubTitleContainer: {
+    widthPercent: 100,
+    height: 64,
+    top: 440,
+  },
+  cardContainer: {
+    width: 600,
+    height: 504,
+    top: 68,
+    left: 10,
+  },
+  streamingDayStyle: {
+    fontSize: 56,
+    fontWeight: 700,
+    lineHeight: 1,
+    textAlign: "left",
+  },
+  streamingDateStyle: {
+    fontSize: 68,
+    fontWeight: 400,
+    lineHeight: 1,
+    letterSpacing: 3,
+    rotate: "-14deg",
+    textAlign: "center",
+  },
+  streamingTimeStyle: {
+    fontSize: 31,
+    fontWeight: 400,
+    lineHeight: 1,
+    textAlign: "center",
+  },
+  mainTitleWrapperStyle: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  mainTitleTextStyle: {
+    lineHeight: 1.2,
+    fontWeight: 700,
+    textAlign: "center",
+  },
+  subTitleTextStyle: {
+    lineHeight: 1,
+    fontWeight: 400,
+    textAlign: "center",
+  },
+};
+
+const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
+  grid: "Grid",
+  weekFlag: "WeekFlag",
+  topObjectContainer: "TopObject",
+  profileImage: "ProfileImage",
+  profileFrame: "ProfileFrame",
+  cardStreamingDay: "Card.StreamingDay",
+  cardStreamingDate: "Card.StreamingDate",
+  cardStreamingTime: "Card.StreamingTime",
+  cardMainTitleContainer: "Card.MainTitleContainer",
+  cardSubTitleContainer: "Card.SubTitleContainer",
+  cardContainer: "Card.Container",
+  streamingDayStyle: "StreamingDay.TextStyle",
+  streamingDateStyle: "StreamingDate.TextStyle",
+  streamingTimeStyle: "StreamingTime.TextStyle",
+  mainTitleWrapperStyle: "MainTitle.WrapperStyle",
+  mainTitleTextStyle: "MainTitle.TextStyle",
+  subTitleTextStyle: "SubTitle.TextStyle",
+};
+
+const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
+  "grid",
+  "weekFlag",
+  "topObjectContainer",
+  "profileImage",
+  "profileFrame",
+  "cardStreamingDay",
+  "streamingDayStyle",
+  "cardStreamingDate",
+  "streamingDateStyle",
+  "cardStreamingTime",
+  "streamingTimeStyle",
+  "cardMainTitleContainer",
+  "mainTitleWrapperStyle",
+  "mainTitleTextStyle",
+  "cardSubTitleContainer",
+  "subTitleTextStyle",
+  "cardContainer",
+];
+
+const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
+  V2StyleSectionKey,
+  V2TemplateHighlightTarget
+> = {
+  grid: "grid",
+  weekFlag: "weekFlag",
+  topObjectContainer: "topObjectContainer",
+  profileImage: "profileImage",
+  profileFrame: "profileFrame",
+  cardStreamingDay: "cardStreamingDay",
+  cardStreamingDate: "cardStreamingDate",
+  cardStreamingTime: "cardStreamingTime",
+  cardMainTitleContainer: "cardMainTitleContainer",
+  cardSubTitleContainer: "cardSubTitleContainer",
+  cardContainer: "cardContainer",
+  streamingDayStyle: "cardStreamingDay",
+  streamingDateStyle: "cardStreamingDate",
+  streamingTimeStyle: "cardStreamingTime",
+  mainTitleWrapperStyle: "cardMainTitleContainer",
+  mainTitleTextStyle: "cardMainTitleContainer",
+  subTitleTextStyle: "cardSubTitleContainer",
+};
+
+const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
+  grid: "Grid",
+  weekFlag: "WeekFlag",
+  topObjectContainer: "TopObject",
+  profileImage: "Profile Image",
+  profileFrame: "Profile Frame",
+  cardStreamingDay: "Card / StreamingDay",
+  cardStreamingDate: "Card / StreamingDate",
+  cardStreamingTime: "Card / StreamingTime",
+  cardMainTitleContainer: "Card / MainTitle",
+  cardSubTitleContainer: "Card / SubTitle",
+  cardContainer: "Card Container",
+};
+
+const v2_LEGACY_STYLE_SECTION_KEY_MAP: Partial<
+  Record<string, V2StyleSectionKey>
+> = {
+  cellStreamingDay: "cardStreamingDay",
+  cellStreamingDate: "cardStreamingDate",
+  cellStreamingTime: "cardStreamingTime",
+  cellMainTitleContainer: "cardMainTitleContainer",
+  cellSubTitleContainer: "cardSubTitleContainer",
+  cellContentArea: "cardContainer",
+};
+
+const v2_HORIZONTAL_ALIGN_TO_JUSTIFY: Record<V2HorizontalAlign, string> = {
+  left: "flex-start",
+  center: "center",
+  right: "flex-end",
+};
+
+const v2_JUSTIFY_TO_HORIZONTAL_ALIGN: Partial<Record<string, V2HorizontalAlign>> = {
+  "flex-start": "left",
+  center: "center",
+  "flex-end": "right",
+};
+
+const v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS: Record<V2VerticalAlign, string> = {
+  top: "flex-start",
+  center: "center",
+  bottom: "flex-end",
+};
+
+const v2_ALIGN_ITEMS_TO_VERTICAL_ALIGN: Partial<Record<string, V2VerticalAlign>> = {
+  "flex-start": "top",
+  center: "center",
+  "flex-end": "bottom",
+};
+
+const v2_BOILERPLATE_SELECT_OPTIONS = {
+  position: [
+    { label: "absolute", value: "absolute" },
+    { label: "relative", value: "relative" },
+    { label: "fixed", value: "fixed" },
+    { label: "sticky", value: "sticky" },
+    { label: "static", value: "static" },
+  ],
+  display: [
+    { label: "block", value: "block" },
+    { label: "flex", value: "flex" },
+    { label: "grid", value: "grid" },
+    { label: "inline-block", value: "inline-block" },
+    { label: "inline", value: "inline" },
+    { label: "none", value: "none" },
+  ],
+  justifyContent: [
+    { label: "flex-start", value: "flex-start" },
+    { label: "center", value: "center" },
+    { label: "flex-end", value: "flex-end" },
+    { label: "space-between", value: "space-between" },
+    { label: "space-around", value: "space-around" },
+    { label: "space-evenly", value: "space-evenly" },
+  ],
+  alignItems: [
+    { label: "flex-start", value: "flex-start" },
+    { label: "center", value: "center" },
+    { label: "flex-end", value: "flex-end" },
+    { label: "stretch", value: "stretch" },
+    { label: "baseline", value: "baseline" },
+  ],
+  textAlign: [
+    { label: "left", value: "left" },
+    { label: "center", value: "center" },
+    { label: "right", value: "right" },
+    { label: "start", value: "start" },
+    { label: "end", value: "end" },
+  ],
+  whiteSpace: [
+    { label: "normal", value: "normal" },
+    { label: "nowrap", value: "nowrap" },
+    { label: "pre-line", value: "pre-line" },
+  ],
+  wordBreak: [
+    { label: "normal", value: "normal" },
+    { label: "break-all", value: "break-all" },
+    { label: "keep-all", value: "keep-all" },
+    { label: "break-word", value: "break-word" },
+  ],
+  borderStyle: [
+    { label: "none", value: "none" },
+    { label: "solid", value: "solid" },
+    { label: "dashed", value: "dashed" },
+    { label: "dotted", value: "dotted" },
+    { label: "double", value: "double" },
+  ],
+};
+
+const v2_BOILERPLATE_NUMERIC_KEYS = new Set([
+  "top",
+  "left",
+  "right",
+  "bottom",
+  "width",
+  "height",
+  "minWidth",
+  "maxWidth",
+  "minHeight",
+  "maxHeight",
+  "margin",
+  "marginTop",
+  "marginRight",
+  "marginBottom",
+  "marginLeft",
+  "padding",
+  "paddingTop",
+  "paddingRight",
+  "paddingBottom",
+  "paddingLeft",
+  "fontSize",
+  "fontWeight",
+  "lineHeight",
+  "letterSpacing",
+  "borderWidth",
+  "borderRadius",
+  "rowGap",
+  "columnGap",
+  "columns",
+  "zIndex",
+  "opacity",
+  "widthPercent",
+  "rotateDeg",
+  "gap",
+]);
+
+const v2_BOILERPLATE_SECTION_GROUPS: Record<
+  V2StyleSectionKey,
+  V2BoilerplateGroupConfig[]
+> = {
+  grid: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "right", label: "Right" },
+        { key: "left", label: "Left" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "zIndex", label: "Z-index" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "columns", label: "Columns" },
+        { key: "gridTemplateColumns", label: "Grid Template Columns", type: "text", placeholder: "repeat(3, minmax(0, 1fr))" },
+        { key: "rowGap", label: "Row Gap" },
+        { key: "columnGap", label: "Column Gap" },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  weekFlag: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "zIndex", label: "Z-index" },
+      ],
+    },
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#A7A7A7" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+      ],
+    },
+  ],
+  topObjectContainer: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "zIndex", label: "Z-index" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "transformOrigin", label: "Transform Origin", type: "text", placeholder: "center center" },
+      ],
+    },
+  ],
+  profileImage: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "zIndex", label: "Z-index" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "transformOrigin", label: "Transform Origin", type: "text", placeholder: "center center" },
+      ],
+    },
+  ],
+  profileFrame: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "zIndex", label: "Z-index" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+      ],
+    },
+  ],
+  cardStreamingDay: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "marginTop", label: "Margin Top" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  cardStreamingDate: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "marginTop", label: "Margin Top" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  cardStreamingTime: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  cardMainTitleContainer: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "widthPercent", label: "Width (%)", step: "0.1" },
+        { key: "height", label: "Height" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  cardSubTitleContainer: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "widthPercent", label: "Width (%)", step: "0.1" },
+        { key: "height", label: "Height" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  cardContainer: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "marginTop", label: "Margin Top" },
+        { key: "marginLeft", label: "Margin Left" },
+        { key: "paddingTop", label: "Padding Top" },
+        { key: "paddingRight", label: "Padding Right" },
+        { key: "paddingBottom", label: "Padding Bottom" },
+        { key: "paddingLeft", label: "Padding Left" },
+      ],
+    },
+  ],
+  streamingDayStyle: [
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#FFFFFF" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+        { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
+      ],
+    },
+  ],
+  streamingDateStyle: [
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#FFFFFF" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+        { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
+      ],
+    },
+  ],
+  streamingTimeStyle: [
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#FFFFFF" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+        { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
+      ],
+    },
+  ],
+  mainTitleWrapperStyle: [
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+        { key: "gap", label: "Gap" },
+        { key: "paddingTop", label: "Padding Top" },
+        { key: "paddingRight", label: "Padding Right" },
+        { key: "paddingBottom", label: "Padding Bottom" },
+        { key: "paddingLeft", label: "Padding Left" },
+      ],
+    },
+  ],
+  mainTitleTextStyle: [
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#86889B" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+        { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
+      ],
+    },
+  ],
+  subTitleTextStyle: [
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#BBBBBB" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+        { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
+      ],
+    },
+  ],
+};
+
+const v2_BOILERPLATE_GROUP_ICON_MAP: Record<string, LucideIcon> = {
+  transform: Move,
+  transformMisc: Move,
+  position: Move,
+  size: Ruler,
+  layer: Layers,
+  motion: RotateCw,
+  layout: LayoutGrid,
+  spacing: SlidersHorizontal,
+  typography: Type,
+  fill: Palette,
+  stroke: Square,
+  effects: SlidersHorizontal,
+};
+
+const v2_BOILERPLATE_FIELD_ICON_MAP: Record<string, LucideIcon> = {
+  position: Move,
+  top: ArrowUp,
+  right: ArrowRight,
+  bottom: ArrowDown,
+  left: ArrowLeft,
+  width: Ruler,
+  widthPercent: Percent,
+  minWidth: Ruler,
+  maxWidth: Ruler,
+  height: Ruler,
+  minHeight: Ruler,
+  maxHeight: Ruler,
+  marginTop: ArrowUp,
+  marginRight: ArrowRight,
+  marginBottom: ArrowDown,
+  marginLeft: ArrowLeft,
+  paddingTop: ArrowUp,
+  paddingRight: ArrowRight,
+  paddingBottom: ArrowDown,
+  paddingLeft: ArrowLeft,
+  rowGap: Rows3,
+  columnGap: Columns3,
+  gap: SlidersHorizontal,
+  columns: Columns3,
+  gridTemplateColumns: Grid3X3,
+  display: LayoutGrid,
+  justifyContent: AlignHorizontalJustifyCenter,
+  alignItems: AlignVerticalJustifyCenter,
+  textAlign: AlignHorizontalJustifyCenter,
+  fontFamily: Type,
+  fontSize: Text,
+  fontWeight: Hash,
+  lineHeight: Rows3,
+  letterSpacing: Columns3,
+  color: Palette,
+  backgroundColor: Palette,
+  borderWidth: Square,
+  borderStyle: Square,
+  borderColor: Square,
+  borderRadius: Square,
+  boxShadow: SlidersHorizontal,
+  filter: SlidersHorizontal,
+  backdropFilter: SlidersHorizontal,
+  opacity: SlidersHorizontal,
+  zIndex: Layers,
+  rotateDeg: RotateCw,
+  transform: RotateCw,
+  transformOrigin: Move,
+  whiteSpace: Braces,
+  wordBreak: Braces,
+};
+
+const v2_getBoilerplateFieldIcon = (
+  field: V2BoilerplateFieldConfig,
+  groupId: string
+): LucideIcon => {
+  const mapped = v2_BOILERPLATE_FIELD_ICON_MAP[field.key];
+  if (mapped) return mapped;
+  return v2_BOILERPLATE_GROUP_ICON_MAP[groupId] ?? SlidersHorizontal;
+};
+
+const v2_ALIGNMENT_HORIZONTAL_ICON_MAP: Record<V2HorizontalAlign, LucideIcon> = {
+  left: AlignHorizontalJustifyStart,
+  center: AlignHorizontalJustifyCenter,
+  right: AlignHorizontalJustifyEnd,
+};
+
+const v2_ALIGNMENT_VERTICAL_ICON_MAP: Record<V2VerticalAlign, LucideIcon> = {
+  top: AlignVerticalJustifyStart,
+  center: AlignVerticalJustifyCenter,
+  bottom: AlignVerticalJustifyEnd,
+};
+
+const v2_STYLE_GROUP_DISPLAY_LABEL: Record<string, string> = {
+  transform: "Position",
+  transformMisc: "Transform",
+  position: "Position",
+  size: "Size",
+  layer: "Layer",
+  motion: "Transform",
+  layout: "Auto layout",
+  spacing: "Spacing",
+  typography: "Appearance",
+  fill: "Fill",
+  stroke: "Stroke",
+  effects: "Effects",
+};
+
+const v2_STYLE_EXTENSION_GROUPS: V2BoilerplateGroupConfig[] = [
+  {
+    id: "fill",
+    label: "Fill",
+    fields: [{ key: "backgroundColor", label: "Background Color", type: "text", placeholder: "#FFFFFF" }],
+  },
+  {
+    id: "stroke",
+    label: "Stroke",
+    fields: [
+      { key: "borderWidth", label: "Border Width" },
+      { key: "borderStyle", label: "Border Style", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.borderStyle },
+      { key: "borderColor", label: "Border Color", type: "text", placeholder: "#000000" },
+      { key: "borderRadius", label: "Border Radius" },
+    ],
+  },
+  {
+    id: "effects",
+    label: "Effects",
+    fields: [
+      { key: "boxShadow", label: "Box Shadow", type: "text", placeholder: "0 8px 24px rgba(0,0,0,0.2)" },
+      { key: "filter", label: "Filter", type: "text", placeholder: "blur(4px)" },
+      { key: "backdropFilter", label: "Backdrop Filter", type: "text", placeholder: "blur(6px)" },
+    ],
+  },
+];
+
+const v2_STYLE_EXTENSION_GROUP_IDS = new Set(["fill", "stroke", "effects"]);
+
+const v2_STYLE_EXTENSION_DEFAULT_VALUES: Record<
+  string,
+  Record<string, string | number>
+> = {
+  fill: {
+    backgroundColor: "#FFFFFF",
+  },
+  stroke: {
+    borderWidth: 1,
+    borderStyle: "solid",
+    borderColor: "#000000",
+  },
+  effects: {
+    boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+  },
+};
+
+const v2_FIELD_CATEGORY_ORDER = {
+  position: ["position", "top", "bottom", "left", "right", "rotateDeg"],
+  size: [
+    "width",
+    "widthPercent",
+    "height",
+    "minWidth",
+    "maxWidth",
+    "minHeight",
+    "maxHeight",
+  ],
+  layer: ["zIndex", "opacity"],
+  motion: ["rotate", "transformOrigin", "transform"],
+  layout: [
+    "display",
+    "columns",
+    "gridTemplateColumns",
+    "rowGap",
+    "columnGap",
+    "gap",
+    "justifyContent",
+    "alignItems",
+  ],
+  spacing: [
+    "marginTop",
+    "marginRight",
+    "marginBottom",
+    "marginLeft",
+    "paddingTop",
+    "paddingRight",
+    "paddingBottom",
+    "paddingLeft",
+    "margin",
+    "padding",
+  ],
+} as const;
+
+const v2_parseGridLayoutMode = (value: unknown): V2GridLayoutMode => {
+  return value === "flex4x2" ? "flex4x2" : "grid3x3";
+};
+
+const v2_parseFlex42Align = (value: unknown): V2Flex42Align => {
+  if (value === "left" || value === "center" || value === "right") return value;
+  return "center";
+};
+
+const v2_parseFlex42ThreeRow = (value: unknown): V2Flex42ThreeRow => {
+  return value === "top" ? "top" : "bottom";
+};
+
+const v2_parseStyleSectionKey = (value: unknown): V2StyleSectionKey | null => {
+  if (typeof value !== "string") return null;
+  const legacyMapped = v2_LEGACY_STYLE_SECTION_KEY_MAP[value];
+  if (legacyMapped) return legacyMapped;
+  return value in v2_STYLE_SECTION_LABELS ? (value as V2StyleSectionKey) : null;
+};
+
+const v2_parseGridEmptySlot = (value: unknown): number | null => {
+  const candidate =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseInt(value, 10)
+        : NaN;
+
+  if (!Number.isFinite(candidate)) return null;
+  const rounded = Math.round(candidate);
+  if (rounded < 1 || rounded > 9) return null;
+  return rounded;
+};
+
+const v2_getGridEmptySlotsFromMap = (
+  sectionMap: Record<string, string | number>
+): number[] => {
+  const slots = [
+    v2_parseGridEmptySlot(sectionMap.gridEmptySlotA),
+    v2_parseGridEmptySlot(sectionMap.gridEmptySlotB),
+  ].filter((slot): slot is number => slot !== null);
+
+  return Array.from(new Set(slots)).slice(0, 2);
+};
+
+const v2_POSITION_MUTEX_MAP: Partial<Record<string, string>> = {
+  top: "bottom",
+  bottom: "top",
+  left: "right",
+  right: "left",
+};
+
+const v2_hasRenderableStyleValue = (
+  value: string | number | undefined
+): boolean => {
+  if (value === undefined) return false;
+  if (typeof value === "string") return value.trim() !== "";
+  return true;
+};
+
+const v2_sortFieldsByOrder = (
+  fields: V2BoilerplateFieldConfig[],
+  order: readonly string[]
+) => {
+  return [...fields].sort((a, b) => {
+    const ai = order.indexOf(a.key);
+    const bi = order.indexOf(b.key);
+    if (ai === -1 && bi === -1) return a.label.localeCompare(b.label);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+};
+
+const v2_partitionFields = (
+  fields: V2BoilerplateFieldConfig[],
+  keys: readonly string[]
+) => {
+  const keySet = new Set(keys);
+  return {
+    picked: fields.filter((field) => keySet.has(field.key)),
+    rest: fields.filter((field) => !keySet.has(field.key)),
+  };
+};
+
+const v2_POSITION_CATEGORY_KEY_SET = new Set<string>(
+  v2_FIELD_CATEGORY_ORDER.position
+);
+const v2_SIZE_CATEGORY_KEY_SET = new Set<string>(v2_FIELD_CATEGORY_ORDER.size);
+const v2_LAYER_CATEGORY_KEY_SET = new Set<string>(v2_FIELD_CATEGORY_ORDER.layer);
+const v2_MOTION_CATEGORY_KEY_SET = new Set<string>(
+  v2_FIELD_CATEGORY_ORDER.motion
+);
+
+const v2_expandDisplayGroups = (
+  groups: V2BoilerplateGroupConfig[]
+): V2BoilerplateGroupConfig[] => {
+  return groups.flatMap((group) => {
+    if (group.id === "transform") {
+      const position = v2_sortFieldsByOrder(
+        group.fields.filter((field) => v2_POSITION_CATEGORY_KEY_SET.has(field.key)),
+        v2_FIELD_CATEGORY_ORDER.position
+      );
+      const size = v2_sortFieldsByOrder(
+        group.fields.filter((field) => v2_SIZE_CATEGORY_KEY_SET.has(field.key)),
+        v2_FIELD_CATEGORY_ORDER.size
+      );
+      const layer = v2_sortFieldsByOrder(
+        group.fields.filter((field) => v2_LAYER_CATEGORY_KEY_SET.has(field.key)),
+        v2_FIELD_CATEGORY_ORDER.layer
+      );
+      const motion = v2_sortFieldsByOrder(
+        group.fields.filter((field) => v2_MOTION_CATEGORY_KEY_SET.has(field.key)),
+        v2_FIELD_CATEGORY_ORDER.motion
+      );
+
+      const categorizedKeys = new Set<string>([
+        ...v2_FIELD_CATEGORY_ORDER.position,
+        ...v2_FIELD_CATEGORY_ORDER.size,
+        ...v2_FIELD_CATEGORY_ORDER.layer,
+        ...v2_FIELD_CATEGORY_ORDER.motion,
+      ]);
+      const rest = group.fields.filter((field) => !categorizedKeys.has(field.key));
+
+      return [
+        ...(position.length > 0
+          ? [{ id: "position", label: "Position", fields: position }]
+          : []),
+        ...(size.length > 0 ? [{ id: "size", label: "Size", fields: size }] : []),
+        ...(layer.length > 0
+          ? [{ id: "layer", label: "Layer", fields: layer }]
+          : []),
+        ...(motion.length > 0
+          ? [{ id: "motion", label: "Transform", fields: motion }]
+          : []),
+        ...(rest.length > 0
+          ? [{ id: "transformMisc", label: "Transform", fields: rest }]
+          : []),
+      ];
+    }
+
+    if (group.id === "layout") {
+      const { picked: spacing, rest: layoutRaw } = v2_partitionFields(
+        group.fields,
+        v2_FIELD_CATEGORY_ORDER.spacing
+      );
+      const layout = v2_sortFieldsByOrder(
+        layoutRaw,
+        v2_FIELD_CATEGORY_ORDER.layout
+      );
+      const spacingSorted = v2_sortFieldsByOrder(
+        spacing,
+        v2_FIELD_CATEGORY_ORDER.spacing
+      );
+
+      return [
+        ...(layout.length > 0
+          ? [{ id: "layout", label: "Auto layout", fields: layout }]
+          : []),
+        ...(spacingSorted.length > 0
+          ? [{ id: "spacing", label: "Spacing", fields: spacingSorted }]
+          : []),
+      ];
+    }
+
+    return [group];
+  });
+};
+
+const v2_BOILERPLATE_STORAGE_KEY =
+  "v2-template-builder-style-boilerplates-v1";
+
+const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
+  focusStyleSection = null,
+  focusStyleSectionNonce = 0,
+}) => {
   const { renderConfig, setRenderConfig } = useV2TemplateRenderConfigContext();
-  const { data, updateData, currentTheme, updateTheme, resetData } =
-    useV2TimeTableEditorRuntimeContext();
+  const {
+    data,
+    updateData,
+    currentTheme,
+    updateTheme,
+    resetData,
+    setHoverHighlightTarget,
+    setActiveHighlightTarget,
+  } = useV2TimeTableEditorRuntimeContext();
   const { actions } = useTimeTable();
 
   const [activeTab, setActiveTab] = useState<V2BuilderTab>("canvas");
@@ -103,6 +1261,122 @@ const V2TemplateBuilderForm: React.FC = () => {
   const [assetTheme, setAssetTheme] = useState<string>(
     renderConfig.defaultTheme || "first"
   );
+  const [boilerplateConfig, setBoilerplateConfig] = useState<
+    Partial<Record<V2StyleSectionKey, Record<string, string | number>>>
+  >(() =>
+    JSON.parse(
+      JSON.stringify(v2_DEFAULT_STYLE_SECTION_BOILERPLATES)
+    ) as Partial<Record<V2StyleSectionKey, Record<string, string | number>>>
+  );
+  const [boilerplateTarget, setBoilerplateTarget] =
+    useState<V2StyleSectionKey>("grid");
+  const [isBoilerplateSettingsOpen, setIsBoilerplateSettingsOpen] =
+    useState(false);
+  const [styleGroupExpanded, setStyleGroupExpanded] = useState<
+    Record<string, boolean>
+  >({});
+  const inspectorTabRef = useRef<HTMLDivElement | null>(null);
+  const [selectedPropertiesTarget, setSelectedPropertiesTarget] =
+    useState<V2TemplateHighlightTarget>("grid");
+
+  useEffect(() => {
+    if (activeTab !== "style" && activeTab !== "properties") {
+      setHoverHighlightTarget(null);
+      setActiveHighlightTarget(null);
+    }
+  }, [activeTab, setActiveHighlightTarget, setHoverHighlightTarget]);
+
+  useEffect(() => {
+    if (activeTab !== "style" && activeTab !== "properties") return;
+
+    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (inspectorTabRef.current?.contains(target)) return;
+      setActiveHighlightTarget(null);
+    };
+
+    document.addEventListener("mousedown", handlePointerDownOutside);
+    document.addEventListener("touchstart", handlePointerDownOutside, {
+      passive: true,
+    });
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside);
+      document.removeEventListener("touchstart", handlePointerDownOutside);
+    };
+  }, [activeTab, setActiveHighlightTarget]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(v2_BOILERPLATE_STORAGE_KEY);
+      if (!stored) return;
+      const parsed = JSON.parse(stored);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+
+      const nextConfig: Partial<
+        Record<V2StyleSectionKey, Record<string, string | number>>
+      > = JSON.parse(JSON.stringify(v2_DEFAULT_STYLE_SECTION_BOILERPLATES));
+
+      Object.entries(parsed).forEach(([rawSection, value]) => {
+        const section = v2_parseStyleSectionKey(rawSection);
+        if (!section) return;
+        if (!value || typeof value !== "object" || Array.isArray(value)) return;
+
+        const sanitized: Record<string, string | number> = {};
+        Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
+          if (typeof item === "string") {
+            sanitized[key] = item;
+            return;
+          }
+          if (typeof item === "number" && Number.isFinite(item)) {
+            sanitized[key] = item;
+          }
+        });
+
+        nextConfig[section] = sanitized;
+      });
+
+      setBoilerplateConfig(nextConfig);
+    } catch (error) {
+      console.error("Failed to restore style boilerplates", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        v2_BOILERPLATE_STORAGE_KEY,
+        JSON.stringify(boilerplateConfig)
+      );
+    } catch (error) {
+      console.error("Failed to persist style boilerplates", error);
+    }
+  }, [boilerplateConfig]);
+
+  useEffect(() => {
+    if (!isBoilerplateSettingsOpen) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsBoilerplateSettingsOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [isBoilerplateSettingsOpen]);
+
+  useEffect(() => {
+    const nextSection = v2_parseStyleSectionKey(focusStyleSection);
+    if (!nextSection) return;
+    const nextTarget = v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[nextSection];
+    setSelectedPropertiesTarget(nextTarget);
+    setActiveHighlightTarget(nextTarget);
+    setActiveTab("properties");
+  }, [focusStyleSection, focusStyleSectionNonce, setActiveHighlightTarget]);
 
   const safeUpdateConfig = (
     updater: (prev: typeof renderConfig) => typeof renderConfig
@@ -155,92 +1429,240 @@ const V2TemplateBuilderForm: React.FC = () => {
     }));
   };
 
-  const updateGridLayout = (
-    key: "right" | "top" | "rowGap" | "columnGap" | "columns",
-    value: number
-  ) => {
-    if (!Number.isFinite(value)) return;
+  const getStyleSectionMap = (
+    section: V2StyleSectionKey
+  ): Record<string, string | number> => {
+    if (section === "grid") {
+      return (renderConfig.layout.grid as Record<string, string | number>) ?? {};
+    }
+    if (section === "weekFlag") {
+      return (
+        (renderConfig.layout.weekFlag as Record<string, string | number>) ?? {}
+      );
+    }
+    if (section === "topObjectContainer") {
+      return (
+        (renderConfig.layout.topObjectContainer as Record<string, string | number>) ??
+        {}
+      );
+    }
+    if (section === "profileImage") {
+      return (
+        (renderConfig.layout.profileImage as Record<string, string | number>) ?? {}
+      );
+    }
+    if (section === "profileFrame") {
+      return (
+        (renderConfig.layout.profileFrame as Record<string, string | number>) ?? {}
+      );
+    }
+    if (section === "cardStreamingDay") {
+      return (
+        (renderConfig.layout.card.streamingDay as Record<string, string | number>) ??
+        {}
+      );
+    }
+    if (section === "cardStreamingDate") {
+      return (
+        (renderConfig.layout.card.streamingDate as Record<string, string | number>) ??
+        {}
+      );
+    }
+    if (section === "cardStreamingTime") {
+      return (
+        (renderConfig.layout.card.streamingTime as Record<string, string | number>) ??
+        {}
+      );
+    }
+    if (section === "cardMainTitleContainer") {
+      return (
+        (renderConfig.layout.card.mainTitleContainer as Record<
+          string,
+          string | number
+        >) ?? {}
+      );
+    }
+    if (section === "cardSubTitleContainer") {
+      return (
+        (renderConfig.layout.card.subTitleContainer as Record<
+          string,
+          string | number
+        >) ?? {}
+      );
+    }
+    if (section === "cardContainer") {
+      return (
+        (renderConfig.layout.card.container as Record<string, string | number>) ??
+        {}
+      );
+    }
 
-    safeUpdateConfig((prev) => ({
-      ...prev,
-      layout: {
-        ...prev.layout,
-        grid: {
-          ...prev.layout.grid,
-          [key]: key === "columns" ? Math.max(1, Math.round(value)) : value,
-        },
-      },
-    }));
+    return (
+      (renderConfig.layout.card[section] as Record<string, string | number>) ?? {}
+    );
   };
-
-  const updateWeekFlagLayout = (
-    key: "top" | "left" | "fontSize" | "fontWeight",
-    value: number
-  ) => {
-    if (!Number.isFinite(value)) return;
-
-    safeUpdateConfig((prev) => ({
-      ...prev,
-      layout: {
-        ...prev.layout,
-        weekFlag: {
-          ...prev.layout.weekFlag,
-          [key]: value,
-        },
-      },
-    }));
-  };
-
-  const updateCellLayout = (
-    key:
-      | "streamingTime"
-      | "streamingDate"
-      | "mainTitleContainer"
-      | "subTitleContainer",
-    patch: Record<string, number>
-  ) => {
-    safeUpdateConfig((prev) => ({
-      ...prev,
-      layout: {
-        ...prev.layout,
-        cell: {
-          ...prev.layout.cell,
-          [key]: {
-            ...(prev.layout.cell[key] as Record<string, number>),
-            ...patch,
-          },
-        },
-      },
-    }));
-  };
-
-  const getStyleSectionMap = (section: V2StyleSectionKey) =>
-    ((renderConfig.layout.cell[section] as Record<string, string | number>) ??
-      {}) as Record<string, string | number>;
 
   const parseStyleValue = (rawValue: string): string | number => {
     const trimmed = rawValue.trim();
     if (trimmed === "") return "";
-    if (/^-?\\d+(\\.\\d+)?$/.test(trimmed)) {
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
       return Number(trimmed);
     }
     return trimmed;
+  };
+
+  const withExclusiveInsetValue = (
+    currentMap: Record<string, string | number>,
+    key: string,
+    nextValue: string | number
+  ) => {
+    const nextMap: Record<string, string | number> = {
+      ...currentMap,
+      [key]: nextValue,
+    };
+
+    const counterpartKey = v2_POSITION_MUTEX_MAP[key];
+    if (!counterpartKey) return nextMap;
+    if (!v2_hasRenderableStyleValue(nextValue)) return nextMap;
+
+    delete nextMap[counterpartKey];
+    return nextMap;
   };
 
   const updateStyleSection = (
     section: V2StyleSectionKey,
     nextMap: Record<string, string | number>
   ) => {
-    safeUpdateConfig((prev) => ({
-      ...prev,
-      layout: {
-        ...prev.layout,
-        cell: {
-          ...prev.layout.cell,
-          [section]: nextMap,
+    safeUpdateConfig((prev) => {
+      if (section === "grid") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            grid: nextMap,
+          },
+        };
+      }
+      if (section === "weekFlag") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            weekFlag: nextMap,
+          },
+        };
+      }
+      if (section === "topObjectContainer") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            topObjectContainer: nextMap,
+          },
+        };
+      }
+      if (section === "profileImage") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            profileImage: nextMap,
+          },
+        };
+      }
+      if (section === "profileFrame") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            profileFrame: nextMap,
+          },
+        };
+      }
+      if (section === "cardStreamingDay") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            card: {
+              ...prev.layout.card,
+              streamingDay: nextMap,
+            },
+          },
+        };
+      }
+      if (section === "cardStreamingDate") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            card: {
+              ...prev.layout.card,
+              streamingDate: nextMap,
+            },
+          },
+        };
+      }
+      if (section === "cardStreamingTime") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            card: {
+              ...prev.layout.card,
+              streamingTime: nextMap,
+            },
+          },
+        };
+      }
+      if (section === "cardMainTitleContainer") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            card: {
+              ...prev.layout.card,
+              mainTitleContainer: nextMap,
+            },
+          },
+        };
+      }
+      if (section === "cardSubTitleContainer") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            card: {
+              ...prev.layout.card,
+              subTitleContainer: nextMap,
+            },
+          },
+        };
+      }
+      if (section === "cardContainer") {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            card: {
+              ...prev.layout.card,
+              container: nextMap,
+            },
+          },
+        };
+      }
+
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout,
+          card: {
+            ...prev.layout.card,
+            [section]: nextMap,
+          },
         },
-      },
-    }));
+      };
+    });
   };
 
   const addStyleProperty = (section: V2StyleSectionKey) => {
@@ -262,7 +1684,263 @@ const V2TemplateBuilderForm: React.FC = () => {
     updateStyleSection(section, nextMap);
   };
 
-  const renameStyleProperty = (
+  const updateStylePropertyValue = (
+    section: V2StyleSectionKey,
+    key: string,
+    rawValue: string
+  ) => {
+    const currentMap = getStyleSectionMap(section);
+    const nextValue = parseStyleValue(rawValue);
+    updateStyleSection(
+      section,
+      withExclusiveInsetValue(currentMap, key, nextValue)
+    );
+  };
+
+  const updateGridLayoutMode = (mode: V2GridLayoutMode) => {
+    const currentMap = getStyleSectionMap("grid");
+    updateStyleSection("grid", {
+      ...currentMap,
+      layoutMode: mode,
+    });
+  };
+
+  const updateFlex42Align = (align: V2Flex42Align) => {
+    const currentMap = getStyleSectionMap("grid");
+    updateStyleSection("grid", {
+      ...currentMap,
+      flex42Align: align,
+    });
+  };
+
+  const updateFlex42ThreeRow = (targetRow: V2Flex42ThreeRow) => {
+    const currentMap = getStyleSectionMap("grid");
+    updateStyleSection("grid", {
+      ...currentMap,
+      flex42ThreeRow: targetRow,
+    });
+  };
+
+  const pickGridEmptySlot = (slot: number) => {
+    const currentMap = getStyleSectionMap("grid");
+    const currentSlots = v2_getGridEmptySlotsFromMap(currentMap);
+    const isSelected = currentSlots.includes(slot);
+
+    let nextSlots: number[];
+    if (isSelected) {
+      nextSlots = currentSlots.filter((value) => value !== slot);
+    } else if (currentSlots.length < 2) {
+      nextSlots = [...currentSlots, slot];
+    } else {
+      nextSlots = [currentSlots[1], slot];
+    }
+
+    const nextMap: Record<string, string | number> = {
+      ...currentMap,
+    };
+    if (nextSlots[0] !== undefined) {
+      nextMap.gridEmptySlotA = nextSlots[0];
+    } else {
+      delete nextMap.gridEmptySlotA;
+    }
+    if (nextSlots[1] !== undefined) {
+      nextMap.gridEmptySlotB = nextSlots[1];
+    } else {
+      delete nextMap.gridEmptySlotB;
+    }
+
+    updateStyleSection("grid", nextMap);
+  };
+
+  const getHighlightTargetFromStyleSection = (
+    section: V2StyleSectionKey
+  ): V2TemplateHighlightTarget => {
+    return v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[section];
+  };
+
+  const setSectionHoverHighlight = (section: V2StyleSectionKey) => {
+    setHoverHighlightTarget(getHighlightTargetFromStyleSection(section));
+  };
+
+  const clearSectionHoverHighlight = () => {
+    setHoverHighlightTarget(null);
+  };
+
+  const setSectionActiveHighlight = (section: V2StyleSectionKey) => {
+    setActiveHighlightTarget(getHighlightTargetFromStyleSection(section));
+  };
+
+  const isStyleGroupOpen = ({
+    section,
+    group,
+    sectionMap,
+  }: {
+    section: V2StyleSectionKey;
+    group: V2BoilerplateGroupConfig;
+    sectionMap: Record<string, string | number>;
+  }) => {
+    const stateKey = `${section}:${group.id}`;
+    const explicit = styleGroupExpanded[stateKey];
+    if (typeof explicit === "boolean") return explicit;
+
+    const hasAnyValue = group.fields.some((field) => {
+      const value = sectionMap[field.key];
+      if (value === undefined) return false;
+      if (typeof value === "string") return value.trim() !== "";
+      return true;
+    });
+
+    if (hasAnyValue) return true;
+    if (group.id === "fill" || group.id === "stroke" || group.id === "effects") {
+      return false;
+    }
+    return true;
+  };
+
+  const toggleStyleGroupOpen = (
+    section: V2StyleSectionKey,
+    groupId: string
+  ) => {
+    const stateKey = `${section}:${groupId}`;
+    setStyleGroupExpanded((prev) => ({
+      ...prev,
+      [stateKey]: !(prev[stateKey] ?? false),
+    }));
+  };
+
+  const applyStyleExtensionGroupDefaults = (
+    section: V2StyleSectionKey,
+    groupId: string
+  ) => {
+    const defaults = v2_STYLE_EXTENSION_DEFAULT_VALUES[groupId];
+    if (!defaults) return;
+
+    const currentMap = getStyleSectionMap(section);
+    const nextMap: Record<string, string | number> = { ...currentMap };
+
+    Object.entries(defaults).forEach(([key, value]) => {
+      const currentValue = nextMap[key];
+      const isUnset =
+        currentValue === undefined ||
+        (typeof currentValue === "string" && currentValue.trim() === "");
+      if (isUnset) {
+        nextMap[key] = value;
+      }
+    });
+
+    updateStyleSection(section, nextMap);
+
+    const stateKey = `${section}:${groupId}`;
+    setStyleGroupExpanded((prev) => ({
+      ...prev,
+      [stateKey]: true,
+    }));
+  };
+
+  const getHorizontalAlignFromStyle = (
+    wrapperMap: Record<string, string | number>,
+    textMap: Record<string, string | number>
+  ): V2HorizontalAlign => {
+    const textAlignRaw = textMap.textAlign;
+    if (
+      textAlignRaw === "left" ||
+      textAlignRaw === "center" ||
+      textAlignRaw === "right"
+    ) {
+      return textAlignRaw;
+    }
+
+    const justifyRaw = wrapperMap.justifyContent;
+    if (typeof justifyRaw === "string") {
+      return v2_JUSTIFY_TO_HORIZONTAL_ALIGN[justifyRaw] ?? "center";
+    }
+    return "center";
+  };
+
+  const getVerticalAlignFromStyle = (
+    wrapperMap: Record<string, string | number>
+  ): V2VerticalAlign => {
+    const alignItemsRaw = wrapperMap.alignItems;
+    if (typeof alignItemsRaw === "string") {
+      return v2_ALIGN_ITEMS_TO_VERTICAL_ALIGN[alignItemsRaw] ?? "center";
+    }
+    return "center";
+  };
+
+  const updateAutoResizeHorizontalAlign = ({
+    wrapperSection,
+    textSection,
+    align,
+  }: {
+    wrapperSection: V2StyleSectionKey;
+    textSection: V2StyleSectionKey;
+    align: V2HorizontalAlign;
+  }) => {
+    const wrapperMap = getStyleSectionMap(wrapperSection);
+    const textMap = getStyleSectionMap(textSection);
+
+    updateStyleSection(wrapperSection, {
+      ...wrapperMap,
+      justifyContent: v2_HORIZONTAL_ALIGN_TO_JUSTIFY[align],
+    });
+
+    updateStyleSection(textSection, {
+      ...textMap,
+      textAlign: align,
+    });
+  };
+
+  const updateAutoResizeVerticalAlign = ({
+    wrapperSection,
+    align,
+  }: {
+    wrapperSection: V2StyleSectionKey;
+    align: V2VerticalAlign;
+  }) => {
+    const wrapperMap = getStyleSectionMap(wrapperSection);
+
+    updateStyleSection(wrapperSection, {
+      ...wrapperMap,
+      alignItems: v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS[align],
+    });
+  };
+
+  const getBoilerplateSectionMap = (section: V2StyleSectionKey) => {
+    return boilerplateConfig[section] ?? {};
+  };
+
+  const updateBoilerplateSection = (
+    section: V2StyleSectionKey,
+    nextMap: Record<string, string | number>
+  ) => {
+    setBoilerplateConfig((prev) => ({
+      ...prev,
+      [section]: nextMap,
+    }));
+  };
+
+  const addBoilerplateProperty = (section: V2StyleSectionKey) => {
+    const currentMap = getBoilerplateSectionMap(section);
+    let nextIndex = 1;
+    while (currentMap[`custom_${nextIndex}`] !== undefined) {
+      nextIndex += 1;
+    }
+    const nextKey = `custom_${nextIndex}`;
+
+    updateBoilerplateSection(section, {
+      ...currentMap,
+      [nextKey]: "",
+    });
+  };
+
+  const removeBoilerplateProperty = (section: V2StyleSectionKey, key: string) => {
+    const currentMap = getBoilerplateSectionMap(section);
+    const nextMap = { ...currentMap };
+    delete nextMap[key];
+    updateBoilerplateSection(section, nextMap);
+  };
+
+  const renameBoilerplateProperty = (
     section: V2StyleSectionKey,
     currentKey: string,
     nextKeyRaw: string
@@ -270,27 +1948,130 @@ const V2TemplateBuilderForm: React.FC = () => {
     const nextKey = nextKeyRaw.trim();
     if (!nextKey) return;
 
-    const currentMap = getStyleSectionMap(section);
+    const currentMap = getBoilerplateSectionMap(section);
     const value = currentMap[currentKey];
     const nextMap = { ...currentMap };
     delete nextMap[currentKey];
     nextMap[nextKey] = value;
-    updateStyleSection(section, nextMap);
+    updateBoilerplateSection(section, nextMap);
   };
 
-  const updateStylePropertyValue = (
+  const updateBoilerplatePropertyValue = (
     section: V2StyleSectionKey,
     key: string,
     rawValue: string
   ) => {
-    const currentMap = getStyleSectionMap(section);
-    updateStyleSection(section, {
-      ...currentMap,
-      [key]: parseStyleValue(rawValue),
+    const currentMap = getBoilerplateSectionMap(section);
+    const nextValue = parseStyleValue(rawValue);
+    updateBoilerplateSection(
+      section,
+      withExclusiveInsetValue(currentMap, key, nextValue)
+    );
+  };
+
+  const getBoilerplateFieldType = (
+    field: V2BoilerplateFieldConfig
+  ): V2BoilerplateFieldType => {
+    if (field.type) return field.type;
+    if (v2_BOILERPLATE_NUMERIC_KEYS.has(field.key)) return "number";
+    return "text";
+  };
+
+  const getBoilerplateFieldStep = (field: V2BoilerplateFieldConfig) => {
+    if (field.step) return field.step;
+    if (field.key === "opacity") return "0.01";
+    if (field.key === "lineHeight" || field.key === "letterSpacing") return "0.1";
+    if (field.key === "rotateDeg") return "0.1";
+    if (field.key === "widthPercent") return "0.1";
+    return "1";
+  };
+
+  const resetBoilerplateSection = (section: V2StyleSectionKey) => {
+    const defaults = v2_DEFAULT_STYLE_SECTION_BOILERPLATES[section] ?? {};
+    updateBoilerplateSection(section, {
+      ...(JSON.parse(
+        JSON.stringify(defaults)
+      ) as Record<string, string | number>),
     });
   };
 
-  const updateCellOptions = (
+  const getBoilerplateAutoResizePair = (
+    section: V2StyleSectionKey
+  ): { wrapperSection: V2StyleSectionKey; textSection: V2StyleSectionKey } | null => {
+    if (section === "mainTitleWrapperStyle" || section === "mainTitleTextStyle") {
+      return {
+        wrapperSection: "mainTitleWrapperStyle",
+        textSection: "mainTitleTextStyle",
+      };
+    }
+    if (section === "cardSubTitleContainer" || section === "subTitleTextStyle") {
+      return {
+        wrapperSection: "cardSubTitleContainer",
+        textSection: "subTitleTextStyle",
+      };
+    }
+    return null;
+  };
+
+  const getBoilerplateHorizontalAlign = ({
+    wrapperSection,
+    textSection,
+  }: {
+    wrapperSection: V2StyleSectionKey;
+    textSection: V2StyleSectionKey;
+  }): V2HorizontalAlign => {
+    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
+    const textMap = getBoilerplateSectionMap(textSection);
+    return getHorizontalAlignFromStyle(wrapperMap, textMap);
+  };
+
+  const getBoilerplateVerticalAlign = ({
+    wrapperSection,
+  }: {
+    wrapperSection: V2StyleSectionKey;
+  }): V2VerticalAlign => {
+    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
+    return getVerticalAlignFromStyle(wrapperMap);
+  };
+
+  const updateBoilerplateAutoResizeHorizontalAlign = ({
+    wrapperSection,
+    textSection,
+    align,
+  }: {
+    wrapperSection: V2StyleSectionKey;
+    textSection: V2StyleSectionKey;
+    align: V2HorizontalAlign;
+  }) => {
+    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
+    const textMap = getBoilerplateSectionMap(textSection);
+
+    updateBoilerplateSection(wrapperSection, {
+      ...wrapperMap,
+      justifyContent: v2_HORIZONTAL_ALIGN_TO_JUSTIFY[align],
+    });
+
+    updateBoilerplateSection(textSection, {
+      ...textMap,
+      textAlign: align,
+    });
+  };
+
+  const updateBoilerplateAutoResizeVerticalAlign = ({
+    wrapperSection,
+    align,
+  }: {
+    wrapperSection: V2StyleSectionKey;
+    align: V2VerticalAlign;
+  }) => {
+    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
+    updateBoilerplateSection(wrapperSection, {
+      ...wrapperMap,
+      alignItems: v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS[align],
+    });
+  };
+
+  const updateCardOptions = (
     optionKey: "mainTitleOptions" | "subTitleOptions",
     patch: { maxFontSize?: number; multiline?: boolean }
   ) => {
@@ -298,10 +2079,10 @@ const V2TemplateBuilderForm: React.FC = () => {
       ...prev,
       layout: {
         ...prev.layout,
-        cell: {
-          ...prev.layout.cell,
+        card: {
+          ...prev.layout.card,
           [optionKey]: {
-            ...(prev.layout.cell[optionKey] ?? {}),
+            ...(prev.layout.card[optionKey] ?? {}),
             ...patch,
           },
         },
@@ -353,7 +2134,8 @@ const V2TemplateBuilderForm: React.FC = () => {
   const updateAssetUrl = (
     key: keyof V2TemplateAssetMap,
     theme: string,
-    value: string
+    value: string,
+    dimension: V2TemplateAssetDimension | null = null
   ) => {
     safeUpdateConfig((prev) => ({
       ...prev,
@@ -364,7 +2146,67 @@ const V2TemplateBuilderForm: React.FC = () => {
           [theme]: value.trim() === "" ? null : value,
         },
       },
+      assetDimensions: {
+        ...prev.assetDimensions,
+        [key]: {
+          ...prev.assetDimensions[key],
+          [theme]: value.trim() === "" ? null : dimension,
+        },
+      },
     }));
+  };
+
+  const readImageFileAsDataUrl = (
+    file: File
+  ): Promise<{ dataUrl: string; width: number; height: number }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onerror = () => {
+        reject(new Error("파일을 읽지 못했습니다."));
+      };
+
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result !== "string") {
+          reject(new Error("이미지 데이터 변환에 실패했습니다."));
+          return;
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          resolve({
+            dataUrl: result,
+            width: img.naturalWidth,
+            height: img.naturalHeight,
+          });
+        };
+        img.onerror = () => {
+          reject(new Error("이미지 크기 확인에 실패했습니다."));
+        };
+        img.src = result;
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleAssetFileUpload = async (
+    key: keyof V2TemplateAssetMap,
+    theme: string,
+    file: File | null
+  ) => {
+    if (!file) return;
+
+    try {
+      const result = await readImageFileAsDataUrl(file);
+      updateAssetUrl(key, theme, result.dataUrl, {
+        width: result.width,
+        height: result.height,
+      });
+    } catch (error) {
+      console.error("Failed to upload asset image", error);
+    }
   };
 
   const firstCard = data[0];
@@ -418,58 +2260,776 @@ const V2TemplateBuilderForm: React.FC = () => {
     section: V2StyleSectionKey;
   }) => {
     const sectionMap = getStyleSectionMap(section);
-    const entries = Object.entries(sectionMap);
+    const isGridSection = section === "grid";
+    const groups = [
+      ...v2_expandDisplayGroups(v2_BOILERPLATE_SECTION_GROUPS[section] ?? []),
+      ...v2_STYLE_EXTENSION_GROUPS,
+    ];
+    const gridPresetKeys = isGridSection
+      ? [
+          "layoutMode",
+          "gridEmptySlotA",
+          "gridEmptySlotB",
+          "flex42ThreeRow",
+          "flex42Align",
+        ]
+      : [];
+    const presetKeys = new Set([
+      ...groups.flatMap((group) => group.fields.map((field) => field.key)),
+      ...gridPresetKeys,
+    ]);
+    const customEntries = Object.entries(sectionMap).filter(
+      ([property]) => !presetKeys.has(property)
+    );
+    const gridLayoutMode = isGridSection
+      ? v2_parseGridLayoutMode(sectionMap.layoutMode)
+      : null;
+    const gridEmptySlots = isGridSection
+      ? v2_getGridEmptySlotsFromMap(sectionMap)
+      : [];
+    const flex42Align = isGridSection
+      ? v2_parseFlex42Align(sectionMap.flex42Align)
+      : "center";
+    const flex42ThreeRow = isGridSection
+      ? v2_parseFlex42ThreeRow(sectionMap.flex42ThreeRow)
+      : "bottom";
 
     return (
-      <div className="rounded border border-gray-300 bg-white p-3 space-y-2">
+      <div className="rounded border border-[#3a3d44] bg-[#1f2126] p-3 space-y-3">
         <div className="flex items-center justify-between">
-          <h5 className="text-xs font-semibold text-gray-700">{title}</h5>
-          <button
-            type="button"
-            onClick={() => addStyleProperty(section)}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-          >
-            + CSS 속성 추가
-          </button>
+          <h5 className="text-xs font-semibold text-gray-100">{title}</h5>
         </div>
 
-        {entries.length === 0 && (
-          <p className="text-xs text-gray-400">추가된 속성이 없습니다.</p>
+        {isGridSection && (
+          <div className="rounded border border-[#343842] bg-[#1b1d22] p-3 space-y-3">
+            <h6 className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">
+              Layout Mode
+            </h6>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => updateGridLayoutMode("grid3x3")}
+                className={`rounded border px-2 py-1 text-xs ${
+                  gridLayoutMode === "grid3x3"
+                    ? "border-blue-400 bg-blue-500/20 text-blue-200"
+                    : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+                }`}
+              >
+                3 x 3 (Grid)
+              </button>
+              <button
+                type="button"
+                onClick={() => updateGridLayoutMode("flex4x2")}
+                className={`rounded border px-2 py-1 text-xs ${
+                  gridLayoutMode === "flex4x2"
+                    ? "border-blue-400 bg-blue-500/20 text-blue-200"
+                    : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+                }`}
+              >
+                4 x 2 (Flex)
+              </button>
+            </div>
+
+            {gridLayoutMode === "grid3x3" ? (
+              <div className="space-y-2">
+                <span className="text-[11px] text-gray-400">비울 칸 선택</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
+                    const isSelected = gridEmptySlots.includes(slot);
+
+                    return (
+                      <button
+                        key={`grid-empty-slot-${slot}`}
+                        type="button"
+                        onClick={() => pickGridEmptySlot(slot)}
+                        className={`relative rounded border px-2 py-2 text-xs font-semibold transition ${
+                          isSelected
+                            ? "border-blue-400/80 bg-blue-500/20 text-blue-100"
+                            : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+                        }`}
+                      >
+                        <span>{slot}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <span className="text-[11px] text-gray-400">3칸 줄 위치</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { label: "윗줄 3칸", value: "top" },
+                    { label: "아랫줄 3칸", value: "bottom" },
+                  ] as Array<{ label: string; value: V2Flex42ThreeRow }>).map(
+                    (option) => (
+                      <button
+                        key={`flex42-three-row-${option.value}`}
+                        type="button"
+                        onClick={() => updateFlex42ThreeRow(option.value)}
+                        className={`rounded border px-2 py-1 text-xs ${
+                          flex42ThreeRow === option.value
+                            ? "border-blue-400 bg-blue-500/20 text-blue-200"
+                            : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  )}
+                </div>
+                <span className="text-[11px] text-gray-400">3칸 줄 정렬</span>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { label: "Left", value: "left" },
+                    { label: "Center", value: "center" },
+                    { label: "Right", value: "right" },
+                  ] as Array<{ label: string; value: V2Flex42Align }>).map(
+                    (option) => (
+                      <button
+                        key={`flex42-align-${option.value}`}
+                        type="button"
+                        onClick={() => updateFlex42Align(option.value)}
+                        className={`rounded border px-2 py-1 text-xs ${
+                          flex42Align === option.value
+                            ? "border-blue-400 bg-blue-500/20 text-blue-200"
+                            : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
-        {entries.map(([property, value], index) => (
-          <div key={`${section}-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-            <input
-              list={`v2-style-props-${section}`}
-              value={property}
-              onChange={(e) =>
-                renameStyleProperty(section, property, e.target.value)
-              }
-              className="px-2 py-1 rounded border border-gray-300 text-xs"
-            />
-            <input
-              value={String(value)}
-              onChange={(e) =>
-                updateStylePropertyValue(section, property, e.target.value)
-              }
-              className="px-2 py-1 rounded border border-gray-300 text-xs"
-              placeholder="값"
-            />
+        {groups.map((group) => {
+          const GroupIcon =
+            v2_BOILERPLATE_GROUP_ICON_MAP[group.id] ?? SlidersHorizontal;
+          const groupLabel = v2_STYLE_GROUP_DISPLAY_LABEL[group.id] ?? group.label;
+          const isPositionGroup = group.id === "position";
+          const isGroupOpen = isStyleGroupOpen({
+            section,
+            group,
+            sectionMap,
+          });
+          const ChevronIcon = isGroupOpen ? ChevronDown : ChevronRight;
+          const isExtensionGroup = v2_STYLE_EXTENSION_GROUP_IDS.has(group.id);
+          const filledCount = group.fields.filter((field) => {
+            const value = sectionMap[field.key];
+            if (value === undefined) return false;
+            if (typeof value === "string") return value.trim() !== "";
+            return true;
+          }).length;
+
+          return (
+            <div
+              key={`${section}-style-group-${group.id}`}
+              className="border-t border-[#343842] pt-3 space-y-2"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleStyleGroupOpen(section, group.id)}
+                  className="flex-1 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-300 inline-flex items-center justify-between gap-2"
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <ChevronIcon className="h-3.5 w-3.5 text-gray-500" />
+                    <GroupIcon className="h-3.5 w-3.5 text-gray-400" />
+                    {groupLabel}
+                  </span>
+                  <span className="text-[10px] text-gray-500">{filledCount}</span>
+                </button>
+                {isExtensionGroup && (
+                  <button
+                    type="button"
+                    onClick={() => applyStyleExtensionGroupDefaults(section, group.id)}
+                    className="h-6 w-6 shrink-0 rounded border border-[#3a3d44] bg-[#2a2d33] text-gray-300 hover:bg-[#323640] inline-flex items-center justify-center"
+                    aria-label={`${groupLabel} 기본 항목 추가`}
+                    title={`${groupLabel} 기본 항목 추가`}
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              {isGroupOpen && (
+                <div className="grid grid-cols-2 gap-2">
+                  {group.fields.map((field) => {
+                    const fieldType = getBoilerplateFieldType(field);
+                    const value = sectionMap[field.key];
+                    const valueString = value === undefined ? "" : String(value);
+                    const hasValue =
+                      value !== undefined && !(typeof value === "string" && value === "");
+                    const selectOptions = field.options ?? [];
+                    const FieldIcon = v2_getBoilerplateFieldIcon(field, group.id);
+                    const counterpartKey = v2_POSITION_MUTEX_MAP[field.key];
+                    const isMutedByMutex =
+                      isPositionGroup &&
+                      !!counterpartKey &&
+                      !v2_hasRenderableStyleValue(value) &&
+                      v2_hasRenderableStyleValue(sectionMap[counterpartKey]);
+                    const fieldWrapperClass =
+                      isPositionGroup && field.key === "position"
+                        ? "col-span-2 space-y-1"
+                        : "space-y-1";
+                    const fieldOpacityClass = isMutedByMutex ? "opacity-50" : "";
+
+                    return (
+                      <div
+                        key={`${section}-${group.id}-style-${field.key}`}
+                        className={`${fieldWrapperClass} ${fieldOpacityClass}`.trim()}
+                        onMouseEnter={() => setSectionHoverHighlight(section)}
+                        onMouseLeave={clearSectionHoverHighlight}
+                        onClick={() => setSectionActiveHighlight(section)}
+                      >
+                        <label className="text-[11px] text-gray-400 inline-flex items-center gap-1">
+                          <FieldIcon className="h-3.5 w-3.5 text-gray-500" />
+                          {field.label}
+                        </label>
+                        <div className="grid grid-cols-[1fr_auto] gap-1">
+                          {fieldType === "select" ? (
+                            <select
+                              value={valueString}
+                              onChange={(e) =>
+                                updateStylePropertyValue(
+                                  section,
+                                  field.key,
+                                  e.target.value
+                                )
+                              }
+                              className="w-full rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
+                            >
+                              <option value="">(비움)</option>
+                              {selectOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type={fieldType === "number" ? "number" : "text"}
+                              step={
+                                fieldType === "number"
+                                  ? getBoilerplateFieldStep(field)
+                                  : undefined
+                              }
+                              value={valueString}
+                              onChange={(e) =>
+                                updateStylePropertyValue(
+                                  section,
+                                  field.key,
+                                  e.target.value
+                                )
+                              }
+                              className="w-full rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
+                              placeholder={field.placeholder ?? "값"}
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeStyleProperty(section, field.key)}
+                            className={`rounded border px-2 text-xs ${
+                              hasValue
+                                ? "border-red-400/40 text-red-300 hover:bg-red-500/10"
+                                : "border-transparent text-transparent pointer-events-none"
+                            }`}
+                            aria-label={`${field.label} 속성 삭제`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <div className="border-t border-[#343842] pt-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <h6 className="text-[11px] font-semibold uppercase tracking-wide text-gray-300 inline-flex items-center gap-1">
+              <Braces className="h-3.5 w-3.5 text-gray-400" />
+              Custom CSS
+            </h6>
             <button
               type="button"
-              onClick={() => removeStyleProperty(section, property)}
-              className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
+              onClick={() => addStyleProperty(section)}
+              className="text-xs font-semibold text-blue-400 hover:text-blue-300"
             >
-              삭제
+              + CSS 속성 추가
             </button>
           </div>
-        ))}
+          {customEntries.length === 0 && (
+            <p className="text-xs text-gray-500">추가된 속성이 없습니다.</p>
+          )}
+          {customEntries.map(([property, value], index) => (
+            <div
+              key={`style-custom-${section}-${index}`}
+              className="grid grid-cols-[1fr_1fr_auto] gap-2"
+              onMouseEnter={() => setSectionHoverHighlight(section)}
+              onMouseLeave={clearSectionHoverHighlight}
+              onClick={() => setSectionActiveHighlight(section)}
+            >
+              <div className="rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-200 flex items-center">
+                {property}
+              </div>
+              <input
+                value={String(value)}
+                onChange={(e) =>
+                  updateStylePropertyValue(section, property, e.target.value)
+                }
+                className="rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
+                placeholder="값"
+              />
+              <button
+                type="button"
+                onClick={() => removeStyleProperty(section, property)}
+                className="rounded border border-red-400/40 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10"
+              >
+                삭제
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
-        <datalist id={`v2-style-props-${section}`}>
+  const renderAutoResizeAlignmentEditor = ({
+    title,
+    wrapperSection,
+    textSection,
+  }: {
+    title: string;
+    wrapperSection: V2StyleSectionKey;
+    textSection: V2StyleSectionKey;
+  }) => {
+    const wrapperMap = getStyleSectionMap(wrapperSection);
+    const textMap = getStyleSectionMap(textSection);
+    const horizontalAlign = getHorizontalAlignFromStyle(wrapperMap, textMap);
+    const verticalAlign = getVerticalAlignFromStyle(wrapperMap);
+
+    const horizontalOptions: Array<{
+      label: string;
+      value: V2HorizontalAlign;
+      icon: LucideIcon;
+    }> = [
+      { label: "좌측", value: "left", icon: v2_ALIGNMENT_HORIZONTAL_ICON_MAP.left },
+      { label: "중앙", value: "center", icon: v2_ALIGNMENT_HORIZONTAL_ICON_MAP.center },
+      { label: "우측", value: "right", icon: v2_ALIGNMENT_HORIZONTAL_ICON_MAP.right },
+    ];
+
+    const verticalOptions: Array<{
+      label: string;
+      value: V2VerticalAlign;
+      icon: LucideIcon;
+    }> = [
+      { label: "상단", value: "top", icon: v2_ALIGNMENT_VERTICAL_ICON_MAP.top },
+      { label: "중앙", value: "center", icon: v2_ALIGNMENT_VERTICAL_ICON_MAP.center },
+      { label: "하단", value: "bottom", icon: v2_ALIGNMENT_VERTICAL_ICON_MAP.bottom },
+    ];
+
+    return (
+      <div
+        className="rounded border border-[#3a3d44] bg-[#1f2126] p-3 space-y-2"
+        onMouseEnter={() => setSectionHoverHighlight(wrapperSection)}
+        onMouseLeave={clearSectionHoverHighlight}
+        onClick={() => setSectionActiveHighlight(wrapperSection)}
+      >
+        <h5 className="text-xs font-semibold text-gray-100 inline-flex items-center gap-1">
+          <AlignHorizontalJustifyCenter className="h-3.5 w-3.5 text-gray-400" />
+          {title}
+        </h5>
+        <p className="text-[11px] text-gray-400">
+          가로 정렬은 container `justifyContent` + text `textAlign`을 함께
+          조정하고, 세로 정렬은 container `alignItems`만 조정합니다.
+        </p>
+
+        <div className="grid grid-cols-2 items-center gap-2">
+          <p className="text-xs text-gray-300">가로 정렬</p>
+          <div className="grid grid-cols-3 gap-2">
+            {horizontalOptions.map((option) => {
+              const isActive = horizontalAlign === option.value;
+              const Icon = option.icon;
+              return (
+                <button
+                  key={`${title}-horizontal-${option.value}`}
+                  type="button"
+                  onClick={() =>
+                    updateAutoResizeHorizontalAlign({
+                      wrapperSection,
+                      textSection,
+                      align: option.value,
+                    })
+                  }
+                  className={`px-2 py-1 rounded text-xs border ${
+                    isActive
+                      ? "border-blue-400 bg-blue-500/20 text-blue-200"
+                      : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <Icon className="h-3.5 w-3.5" />
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 items-center gap-2">
+          <p className="text-xs text-gray-300">세로 정렬</p>
+          <div className="grid grid-cols-3 gap-2">
+            {verticalOptions.map((option) => {
+              const isActive = verticalAlign === option.value;
+              const Icon = option.icon;
+              return (
+                <button
+                  key={`${title}-vertical-${option.value}`}
+                  type="button"
+                  onClick={() =>
+                    updateAutoResizeVerticalAlign({
+                      wrapperSection,
+                      align: option.value,
+                    })
+                  }
+                  className={`px-2 py-1 rounded text-xs border ${
+                    isActive
+                      ? "border-blue-400 bg-blue-500/20 text-blue-200"
+                      : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <Icon className="h-3.5 w-3.5" />
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBoilerplateSectionEditor = ({
+    title,
+    section,
+  }: {
+    title: string;
+    section: V2StyleSectionKey;
+  }) => {
+    const sectionMap = getBoilerplateSectionMap(section);
+    const groups = v2_expandDisplayGroups(
+      v2_BOILERPLATE_SECTION_GROUPS[section] ?? []
+    );
+    const presetKeys = new Set(
+      groups.flatMap((group) => group.fields.map((field) => field.key))
+    );
+    const customEntries = Object.entries(sectionMap).filter(
+      ([property]) => !presetKeys.has(property)
+    );
+    const autoResizePair = getBoilerplateAutoResizePair(section);
+    const horizontalAlign = autoResizePair
+      ? getBoilerplateHorizontalAlign(autoResizePair)
+      : null;
+    const verticalAlign = autoResizePair
+      ? getBoilerplateVerticalAlign({ wrapperSection: autoResizePair.wrapperSection })
+      : null;
+    const horizontalOptions: Array<{ label: string; value: V2HorizontalAlign }> = [
+      { label: "좌측", value: "left" },
+      { label: "중앙", value: "center" },
+      { label: "우측", value: "right" },
+    ];
+    const verticalOptions: Array<{ label: string; value: V2VerticalAlign }> = [
+      { label: "상단", value: "top" },
+      { label: "중앙", value: "center" },
+      { label: "하단", value: "bottom" },
+    ];
+
+    return (
+      <div className="rounded border border-gray-300 bg-white p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h5 className="text-xs font-semibold text-gray-700">{title}</h5>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => resetBoilerplateSection(section)}
+              className="px-2 py-1 rounded border border-gray-300 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              기본값 복원
+            </button>
+            <button
+              type="button"
+              onClick={() => addBoilerplateProperty(section)}
+              className="px-2 py-1 rounded border border-blue-300 text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
+            >
+              + 커스텀 CSS
+            </button>
+          </div>
+        </div>
+
+        {autoResizePair && (
+          <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-2">
+            <h6 className="text-[11px] font-semibold tracking-wide text-gray-600 uppercase inline-flex items-center gap-1">
+              <AlignHorizontalJustifyCenter className="h-3.5 w-3.5" />
+              Alignment
+            </h6>
+            <p className="text-[11px] text-gray-500">
+              가로 정렬은 `justifyContent` + `textAlign`을 함께, 세로 정렬은
+              `alignItems`만 바꿉니다.
+            </p>
+            <div className="grid grid-cols-2 items-center gap-2">
+              <span className="text-xs text-gray-600">가로 정렬</span>
+              <div className="grid grid-cols-3 gap-2">
+                {horizontalOptions.map((option) => {
+                  const isActive = horizontalAlign === option.value;
+                  const Icon = v2_ALIGNMENT_HORIZONTAL_ICON_MAP[option.value];
+                  return (
+                    <button
+                      key={`bp-align-x-${section}-${option.value}`}
+                      type="button"
+                      onClick={() =>
+                        updateBoilerplateAutoResizeHorizontalAlign({
+                          wrapperSection: autoResizePair.wrapperSection,
+                          textSection: autoResizePair.textSection,
+                          align: option.value,
+                        })
+                      }
+                      className={`px-2 py-1 rounded text-xs border ${
+                        isActive
+                          ? "border-blue-400 bg-blue-50 text-blue-700"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Icon className="h-3.5 w-3.5" />
+                        {option.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 items-center gap-2">
+              <span className="text-xs text-gray-600">세로 정렬</span>
+              <div className="grid grid-cols-3 gap-2">
+                {verticalOptions.map((option) => {
+                  const isActive = verticalAlign === option.value;
+                  const Icon = v2_ALIGNMENT_VERTICAL_ICON_MAP[option.value];
+                  return (
+                    <button
+                      key={`bp-align-y-${section}-${option.value}`}
+                      type="button"
+                      onClick={() =>
+                        updateBoilerplateAutoResizeVerticalAlign({
+                          wrapperSection: autoResizePair.wrapperSection,
+                          align: option.value,
+                        })
+                      }
+                      className={`px-2 py-1 rounded text-xs border ${
+                        isActive
+                          ? "border-blue-400 bg-blue-50 text-blue-700"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <Icon className="h-3.5 w-3.5" />
+                        {option.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {groups.map((group) => {
+          const GroupIcon =
+            v2_BOILERPLATE_GROUP_ICON_MAP[group.id] ?? SlidersHorizontal;
+
+          return (
+            <div
+              key={`${section}-${group.id}`}
+              className="rounded border border-gray-200 bg-gray-50 p-3 space-y-2"
+            >
+              <h6 className="text-[11px] font-semibold tracking-wide text-gray-600 uppercase inline-flex items-center gap-1">
+                <GroupIcon className="h-3.5 w-3.5" />
+                {group.label}
+              </h6>
+              <div className="grid grid-cols-1 gap-2">
+                {group.fields.map((field) => {
+                  const fieldType = getBoilerplateFieldType(field);
+                  const value = sectionMap[field.key];
+                  const valueString = value === undefined ? "" : String(value);
+                  const selectOptions = field.options ?? [];
+                  const FieldIcon = v2_getBoilerplateFieldIcon(field, group.id);
+
+                  return (
+                    <label
+                      key={`${section}-${group.id}-${field.key}`}
+                      className="grid grid-cols-2 items-center gap-2"
+                    >
+                      <span className="text-xs text-gray-600 inline-flex items-center gap-1">
+                        <FieldIcon className="h-3.5 w-3.5 text-gray-400" />
+                        {field.label}
+                      </span>
+                      {fieldType === "select" ? (
+                        <select
+                          value={valueString}
+                          onChange={(e) =>
+                            updateBoilerplatePropertyValue(
+                              section,
+                              field.key,
+                              e.target.value
+                            )
+                          }
+                          className="px-2 py-1 rounded border border-gray-300 bg-white text-xs"
+                        >
+                          <option value="">(비움)</option>
+                          {selectOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={fieldType === "number" ? "number" : "text"}
+                          step={
+                            fieldType === "number"
+                              ? getBoilerplateFieldStep(field)
+                              : undefined
+                          }
+                          value={valueString}
+                          onChange={(e) =>
+                            updateBoilerplatePropertyValue(
+                              section,
+                              field.key,
+                              e.target.value
+                            )
+                          }
+                          className="px-2 py-1 rounded border border-gray-300 bg-white text-xs"
+                          placeholder={field.placeholder ?? "값"}
+                        />
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="rounded border border-gray-200 bg-white p-3 space-y-2">
+          <h6 className="text-[11px] font-semibold tracking-wide text-gray-600 uppercase inline-flex items-center gap-1">
+            <Braces className="h-3.5 w-3.5" />
+            Custom CSS
+          </h6>
+          {customEntries.length === 0 && (
+            <p className="text-xs text-gray-400">추가된 커스텀 속성이 없습니다.</p>
+          )}
+          {customEntries.map(([property, value], index) => (
+            <div
+              key={`bp-custom-${section}-${index}`}
+              className="grid grid-cols-[1fr_1fr_auto] gap-2"
+            >
+              <input
+                list={`v2-bp-style-props-${section}`}
+                value={property}
+                onChange={(e) =>
+                  renameBoilerplateProperty(section, property, e.target.value)
+                }
+                className="px-2 py-1 rounded border border-gray-300 text-xs"
+              />
+              <input
+                value={String(value)}
+                onChange={(e) =>
+                  updateBoilerplatePropertyValue(section, property, e.target.value)
+                }
+                className="px-2 py-1 rounded border border-gray-300 text-xs"
+                placeholder="값"
+              />
+              <button
+                type="button"
+                onClick={() => removeBoilerplateProperty(section, property)}
+                className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
+              >
+                삭제
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <datalist id={`v2-bp-style-props-${section}`}>
           {v2_STYLE_PROPERTY_CATALOG.map((property) => (
             <option key={property} value={property} />
           ))}
         </datalist>
+      </div>
+    );
+  };
+
+  const renderBoilerplateSettingsModal = () => {
+    if (!isBoilerplateSettingsOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <button
+          type="button"
+          aria-label="보일러플레이트 설정 닫기"
+          className="absolute inset-0 bg-gray-900/45"
+          onClick={() => setIsBoilerplateSettingsOpen(false)}
+        />
+        <div className="relative z-10 w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-300 bg-white p-4 shadow-xl space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h4 className="font-semibold text-sm text-gray-700">
+                보일러플레이트 설정
+              </h4>
+              <p className="text-xs text-gray-500">
+                각 항목의 보일러플레이트 적용 버튼으로 넣을 속성 템플릿을 여기서
+                미리 관리합니다.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsBoilerplateSettingsOpen(false)}
+              className="px-3 py-2 rounded border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            >
+              닫기
+            </button>
+          </div>
+          <div className="grid grid-cols-2 items-center gap-2">
+            <label className="text-xs text-gray-500">대상 항목</label>
+            <select
+              value={boilerplateTarget}
+              onChange={(e) =>
+                setBoilerplateTarget(e.target.value as V2StyleSectionKey)
+              }
+              className="px-2 py-1 rounded border border-gray-300 bg-white text-xs"
+            >
+              {v2_STYLE_SECTION_ORDER.map((section) => (
+                <option key={section} value={section}>
+                  {v2_STYLE_SECTION_LABELS[section]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {renderBoilerplateSectionEditor({
+            title: v2_STYLE_SECTION_LABELS[boilerplateTarget],
+            section: boilerplateTarget,
+          })}
+        </div>
       </div>
     );
   };
@@ -534,304 +3094,147 @@ const V2TemplateBuilderForm: React.FC = () => {
     </div>
   );
 
-  const renderLayoutTab = () => (
-    <div className="space-y-4">
-      <h3 className="font-bold text-base text-gray-800">레이아웃</h3>
+  const renderStyleTab = () => (
+    <div
+      ref={inspectorTabRef}
+      className="space-y-4 rounded-xl border border-[#2f3239] bg-[#111317] p-3 text-gray-100"
+      onMouseLeave={clearSectionHoverHighlight}
+      onBlurCapture={(event) => {
+        const nextFocused = event.relatedTarget;
+        if (!(nextFocused instanceof Node)) {
+          setActiveHighlightTarget(null);
+          return;
+        }
+        if (!inspectorTabRef.current?.contains(nextFocused)) {
+          setActiveHighlightTarget(null);
+        }
+      }}
+    >
+      <h3 className="font-bold text-base text-gray-100">스타일</h3>
 
-      <h4 className="font-semibold text-sm text-gray-700">Grid</h4>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-gray-500">right</label>
-        <input
-          type="number"
-          value={renderConfig.layout.grid.right}
-          onChange={(e) => updateGridLayout("right", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">top</label>
-        <input
-          type="number"
-          value={renderConfig.layout.grid.top}
-          onChange={(e) => updateGridLayout("top", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">row gap</label>
-        <input
-          type="number"
-          value={renderConfig.layout.grid.rowGap}
-          onChange={(e) => updateGridLayout("rowGap", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">column gap</label>
-        <input
-          type="number"
-          value={renderConfig.layout.grid.columnGap}
-          onChange={(e) => updateGridLayout("columnGap", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">columns</label>
-        <input
-          type="number"
-          min={1}
-          value={renderConfig.layout.grid.columns}
-          onChange={(e) => updateGridLayout("columns", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="space-y-1">
+            <h4 className="font-semibold text-sm text-gray-200">
+              보일러플레이트 설정
+            </h4>
+            <p className="text-xs text-gray-400">
+              설정 버튼으로 항목별 기본 CSS 속성을 팝업에서 관리합니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsBoilerplateSettingsOpen(true)}
+            className="shrink-0 px-3 py-2 rounded border border-[#4f8cff] bg-[#1a2c4f] text-xs font-semibold text-blue-200 hover:bg-[#1f3661]"
+          >
+            설정 열기
+          </button>
+        </div>
       </div>
 
-      <h4 className="font-semibold text-sm text-gray-700">Week Flag</h4>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-gray-500">top</label>
-        <input
-          type="number"
-          value={renderConfig.layout.weekFlag.top}
-          onChange={(e) => updateWeekFlagLayout("top", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">left</label>
-        <input
-          type="number"
-          value={renderConfig.layout.weekFlag.left}
-          onChange={(e) => updateWeekFlagLayout("left", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">font size</label>
-        <input
-          type="number"
-          value={renderConfig.layout.weekFlag.fontSize}
-          onChange={(e) =>
-            updateWeekFlagLayout("fontSize", Number(e.target.value))
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">font weight</label>
-        <input
-          type="number"
-          value={renderConfig.layout.weekFlag.fontWeight}
-          onChange={(e) =>
-            updateWeekFlagLayout("fontWeight", Number(e.target.value))
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">컴포넌트 색상</h4>
+        <div className="space-y-2">
+          {v2_TEMPLATE_COLOR_KEYS.map((key) => (
+            <label key={key} className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-400">{key}</span>
+              <input
+                type="color"
+                value={renderConfig.componentColors[key] || "#000000"}
+                onChange={(e) => updateColor(key, e.target.value)}
+                className="w-14 h-8 rounded border border-[#3a3d44] bg-[#2a2d33]"
+              />
+            </label>
+          ))}
+        </div>
       </div>
 
-      <h4 className="font-semibold text-sm text-gray-700">Cell</h4>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-gray-500">streamingTime top</label>
-        <input
-          type="number"
-          value={renderConfig.layout.cell.streamingTime.top}
-          onChange={(e) =>
-            updateCellLayout("streamingTime", { top: Number(e.target.value) })
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">streamingTime font</label>
-        <input
-          type="number"
-          value={renderConfig.layout.cell.streamingTime.fontSize}
-          onChange={(e) =>
-            updateCellLayout("streamingTime", {
-              fontSize: Number(e.target.value),
-            })
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-
-        <label className="text-xs text-gray-500">main wrapper top</label>
-        <input
-          type="number"
-          value={renderConfig.layout.cell.mainTitleContainer.top}
-          onChange={(e) =>
-            updateCellLayout("mainTitleContainer", {
-              top: Number(e.target.value),
-            })
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">main wrapper width%</label>
-        <input
-          type="number"
-          value={renderConfig.layout.cell.mainTitleContainer.widthPercent}
-          onChange={(e) =>
-            updateCellLayout("mainTitleContainer", {
-              widthPercent: Number(e.target.value),
-            })
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-
-        <label className="text-xs text-gray-500">sub wrapper top</label>
-        <input
-          type="number"
-          value={renderConfig.layout.cell.subTitleContainer.top}
-          onChange={(e) =>
-            updateCellLayout("subTitleContainer", {
-              top: Number(e.target.value),
-            })
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">sub wrapper width%</label>
-        <input
-          type="number"
-          value={renderConfig.layout.cell.subTitleContainer.widthPercent}
-          onChange={(e) =>
-            updateCellLayout("subTitleContainer", {
-              widthPercent: Number(e.target.value),
-            })
-          }
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">컴포넌트 폰트 토큰</h4>
+        <div className="space-y-2">
+          {v2_TEMPLATE_COLOR_KEYS.map((key) => (
+            <label key={key} className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-400">{key}</span>
+              <select
+                value={renderConfig.componentFonts[key]}
+                onChange={(e) => updateComponentFont(key, e.target.value)}
+                className="px-2 py-1 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              >
+                {fontTokenOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ))}
+        </div>
       </div>
     </div>
   );
 
-  const renderStyleTab = () => (
-    <div className="space-y-4">
-      <h3 className="font-bold text-base text-gray-800">스타일</h3>
+  const renderMainTitleProperties = () => (
+    <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+      <h4 className="font-semibold text-sm text-gray-200">MainTitle</h4>
+      {renderStyleSectionEditor({
+        title: "container style",
+        section: "cardMainTitleContainer",
+      })}
 
-      <h4 className="font-semibold text-sm text-gray-700">컴포넌트 색상</h4>
       <div className="space-y-2">
-        {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-          <label key={key} className="flex items-center justify-between gap-2">
-            <span className="text-xs text-gray-500">{key}</span>
-            <input
-              type="color"
-              value={renderConfig.componentColors[key] || "#000000"}
-              onChange={(e) => updateColor(key, e.target.value)}
-              className="w-14 h-8 border rounded bg-white"
-            />
-          </label>
-        ))}
+        {renderStyleSectionEditor({
+          title: "wrapper > style",
+          section: "mainTitleWrapperStyle",
+        })}
       </div>
 
-      <h4 className="font-semibold text-sm text-gray-700">컴포넌트 폰트 토큰</h4>
       <div className="space-y-2">
-        {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-          <label key={key} className="flex items-center justify-between gap-2">
-            <span className="text-xs text-gray-500">{key}</span>
-            <select
-              value={renderConfig.componentFonts[key]}
-              onChange={(e) => updateComponentFont(key, e.target.value)}
-              className="px-2 py-1 rounded border border-gray-300 bg-white text-xs"
-            >
-              {fontTokenOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
-      </div>
-
-      <div className="rounded-xl border border-gray-300 bg-white p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-700">StreamingDay</h4>
-        {renderStyleSectionEditor({
-          title: "style",
-          section: "streamingDayStyle",
+        {renderAutoResizeAlignmentEditor({
+          title: "content > alignment",
+          wrapperSection: "mainTitleWrapperStyle",
+          textSection: "mainTitleTextStyle",
         })}
-      </div>
 
-      <div className="rounded-xl border border-gray-300 bg-white p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-700">StreamingDate</h4>
-        {renderStyleSectionEditor({
-          title: "style",
-          section: "streamingDateStyle",
-        })}
-      </div>
-
-      <div className="rounded-xl border border-gray-300 bg-white p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-700">StreamingTime</h4>
-        {renderStyleSectionEditor({
-          title: "style",
-          section: "streamingTimeStyle",
-        })}
-      </div>
-
-      <div className="rounded-xl border border-gray-300 bg-white p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-700">MainTitle</h4>
-
-        <div className="space-y-2">
-          {renderStyleSectionEditor({
-            title: "wrapper > style",
-            section: "mainTitleWrapperStyle",
-          })}
-        </div>
-
-        <div className="space-y-2">
-          {renderStyleSectionEditor({
-            title: "content > style",
-            section: "mainTitleTextStyle",
-          })}
-
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-gray-500">content / maxFontSize</label>
-            <input
-              type="number"
-              value={
-                renderConfig.layout.cell.mainTitleOptions?.maxFontSize ??
-                renderConfig.maxFontSizes.MAIN_TITLE
-              }
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                if (!Number.isFinite(value) || value <= 0) return;
-                updateCellOptions("mainTitleOptions", { maxFontSize: value });
-                updateMaxFontSize("MAIN_TITLE", value);
-              }}
-              className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-            />
-          </div>
-
-          <label className="flex items-center justify-between gap-2 rounded border border-gray-300 bg-white px-3 py-2">
-            <span className="text-sm text-gray-700">content / multiline</span>
-            <input
-              type="checkbox"
-              checked={Boolean(
-                renderConfig.layout.cell.mainTitleOptions?.multiline ?? true
-              )}
-              onChange={(e) =>
-                updateCellOptions("mainTitleOptions", {
-                  multiline: e.target.checked,
-                })
-              }
-            />
-          </label>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-gray-300 bg-white p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-700">SubTitle</h4>
         {renderStyleSectionEditor({
           title: "content > style",
-          section: "subTitleTextStyle",
+          section: "mainTitleTextStyle",
         })}
-        <div className="grid grid-cols-2 gap-2">
-          <label className="text-xs text-gray-500">content / maxFontSize</label>
+
+        <div
+          className="grid grid-cols-2 gap-2 items-center"
+          onMouseEnter={() => setSectionHoverHighlight("cardMainTitleContainer")}
+          onMouseLeave={clearSectionHoverHighlight}
+          onClick={() => setSectionActiveHighlight("cardMainTitleContainer")}
+        >
+          <label className="text-xs text-gray-400">content / maxFontSize</label>
           <input
             type="number"
             value={
-              renderConfig.layout.cell.subTitleOptions?.maxFontSize ??
-              renderConfig.maxFontSizes.SUB_TITLE
+              renderConfig.layout.card.mainTitleOptions?.maxFontSize ??
+              renderConfig.maxFontSizes.MAIN_TITLE
             }
             onChange={(e) => {
               const value = Number(e.target.value);
               if (!Number.isFinite(value) || value <= 0) return;
-              updateCellOptions("subTitleOptions", { maxFontSize: value });
-              updateMaxFontSize("SUB_TITLE", value);
+              updateCardOptions("mainTitleOptions", { maxFontSize: value });
+              updateMaxFontSize("MAIN_TITLE", value);
             }}
-            className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
+            className="px-3 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
           />
         </div>
-        <label className="flex items-center justify-between gap-2 rounded border border-gray-300 bg-white px-3 py-2">
-          <span className="text-sm text-gray-700">content / multiline</span>
+
+        <label
+          className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2"
+          onMouseEnter={() => setSectionHoverHighlight("cardMainTitleContainer")}
+          onMouseLeave={clearSectionHoverHighlight}
+          onClick={() => setSectionActiveHighlight("cardMainTitleContainer")}
+        >
+          <span className="text-sm text-gray-200">content / multiline</span>
           <input
             type="checkbox"
-            checked={Boolean(
-              renderConfig.layout.cell.subTitleOptions?.multiline ?? true
-            )}
+            checked={Boolean(renderConfig.layout.card.mainTitleOptions?.multiline ?? true)}
             onChange={(e) =>
-              updateCellOptions("subTitleOptions", {
+              updateCardOptions("mainTitleOptions", {
                 multiline: e.target.checked,
               })
             }
@@ -841,9 +3244,195 @@ const V2TemplateBuilderForm: React.FC = () => {
     </div>
   );
 
+  const renderSubTitleProperties = () => (
+    <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+      <h4 className="font-semibold text-sm text-gray-200">SubTitle</h4>
+      {renderStyleSectionEditor({
+        title: "container style",
+        section: "cardSubTitleContainer",
+      })}
+      {renderAutoResizeAlignmentEditor({
+        title: "content > alignment",
+        wrapperSection: "cardSubTitleContainer",
+        textSection: "subTitleTextStyle",
+      })}
+      {renderStyleSectionEditor({
+        title: "content > style",
+        section: "subTitleTextStyle",
+      })}
+      <div
+        className="grid grid-cols-2 gap-2 items-center"
+        onMouseEnter={() => setSectionHoverHighlight("cardSubTitleContainer")}
+        onMouseLeave={clearSectionHoverHighlight}
+        onClick={() => setSectionActiveHighlight("cardSubTitleContainer")}
+      >
+        <label className="text-xs text-gray-400">content / maxFontSize</label>
+        <input
+          type="number"
+          value={
+            renderConfig.layout.card.subTitleOptions?.maxFontSize ??
+            renderConfig.maxFontSizes.SUB_TITLE
+          }
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            if (!Number.isFinite(value) || value <= 0) return;
+            updateCardOptions("subTitleOptions", { maxFontSize: value });
+            updateMaxFontSize("SUB_TITLE", value);
+          }}
+          className="px-3 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+        />
+      </div>
+      <label
+        className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2"
+        onMouseEnter={() => setSectionHoverHighlight("cardSubTitleContainer")}
+        onMouseLeave={clearSectionHoverHighlight}
+        onClick={() => setSectionActiveHighlight("cardSubTitleContainer")}
+      >
+        <span className="text-sm text-gray-200">content / multiline</span>
+        <input
+          type="checkbox"
+          checked={Boolean(renderConfig.layout.card.subTitleOptions?.multiline ?? true)}
+          onChange={(e) =>
+            updateCardOptions("subTitleOptions", {
+              multiline: e.target.checked,
+            })
+          }
+        />
+      </label>
+    </div>
+  );
+
+  const renderPropertiesPanels = () => {
+    switch (selectedPropertiesTarget) {
+      case "grid":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">Grid</h4>
+            {renderStyleSectionEditor({ title: "style", section: "grid" })}
+          </div>
+        );
+      case "weekFlag":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">WeekFlag</h4>
+            {renderStyleSectionEditor({ title: "style", section: "weekFlag" })}
+          </div>
+        );
+      case "topObjectContainer":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">TopObject</h4>
+            {renderStyleSectionEditor({
+              title: "container style",
+              section: "topObjectContainer",
+            })}
+          </div>
+        );
+      case "profileImage":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">Profile / Image</h4>
+            {renderStyleSectionEditor({ title: "image style", section: "profileImage" })}
+          </div>
+        );
+      case "profileFrame":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">Profile / Frame</h4>
+            {renderStyleSectionEditor({ title: "frame style", section: "profileFrame" })}
+          </div>
+        );
+      case "cardStreamingDay":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">Card / StreamingDay</h4>
+            {renderStyleSectionEditor({
+              title: "container style",
+              section: "cardStreamingDay",
+            })}
+            {renderStyleSectionEditor({
+              title: "text style",
+              section: "streamingDayStyle",
+            })}
+          </div>
+        );
+      case "cardStreamingDate":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">Card / StreamingDate</h4>
+            {renderStyleSectionEditor({
+              title: "container style",
+              section: "cardStreamingDate",
+            })}
+            {renderStyleSectionEditor({
+              title: "text style",
+              section: "streamingDateStyle",
+            })}
+          </div>
+        );
+      case "cardStreamingTime":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">Card / StreamingTime</h4>
+            {renderStyleSectionEditor({
+              title: "container style",
+              section: "cardStreamingTime",
+            })}
+            {renderStyleSectionEditor({
+              title: "text style",
+              section: "streamingTimeStyle",
+            })}
+          </div>
+        );
+      case "cardMainTitleContainer":
+        return renderMainTitleProperties();
+      case "cardSubTitleContainer":
+        return renderSubTitleProperties();
+      case "cardContainer":
+        return (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+            <h4 className="font-semibold text-sm text-gray-200">Card / Container</h4>
+            {renderStyleSectionEditor({ title: "style", section: "cardContainer" })}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderPropertiesTab = () => (
+    <div
+      ref={inspectorTabRef}
+      className="space-y-4 rounded-xl border border-[#2f3239] bg-[#111317] p-3 text-gray-100"
+      onMouseLeave={clearSectionHoverHighlight}
+      onBlurCapture={(event) => {
+        const nextFocused = event.relatedTarget;
+        if (!(nextFocused instanceof Node)) {
+          setActiveHighlightTarget(null);
+          return;
+        }
+        if (!inspectorTabRef.current?.contains(nextFocused)) {
+          setActiveHighlightTarget(null);
+        }
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-bold text-base text-gray-100">속성</h3>
+        <span className="rounded border border-[#3a3d44] bg-[#1a1c20] px-2 py-1 text-[11px] text-gray-300">
+          {v2_HIGHLIGHT_TARGET_LABELS[selectedPropertiesTarget]}
+        </span>
+      </div>
+      <p className="text-xs text-gray-400">
+        왼쪽 Layers에서 오브젝트를 클릭하면 해당 오브젝트의 속성만 표시됩니다.
+      </p>
+
+      {renderPropertiesPanels()}
+    </div>
+  );
+
   const renderAssetsTab = () => (
     <div className="space-y-4">
-      <h3 className="font-bold text-base text-gray-800">에셋 URL</h3>
+      <h3 className="font-bold text-base text-gray-800">에셋 파일</h3>
 
       <div className="grid grid-cols-2 items-center gap-2">
         <label className="text-xs text-gray-500">theme</label>
@@ -861,18 +3450,52 @@ const V2TemplateBuilderForm: React.FC = () => {
       </div>
 
       <div className="space-y-3">
-        {v2_ASSET_KEYS.map((key) => (
-          <div key={key} className="space-y-1">
-            <label className="text-xs text-gray-500 block">{v2_ASSET_LABELS[key]}</label>
-            <input
-              type="text"
-              value={renderConfig.assets[key][assetTheme] ?? ""}
-              onChange={(e) => updateAssetUrl(key, assetTheme, e.target.value)}
-              placeholder="https://..."
-              className="w-full px-3 py-2 rounded border border-gray-300 bg-white text-xs"
-            />
-          </div>
-        ))}
+        {v2_ASSET_KEYS.map((key) => {
+          const inputId = `v2-asset-upload-${key}-${assetTheme}`;
+          const assetUrl = renderConfig.assets[key][assetTheme];
+          const assetSize = renderConfig.assetDimensions[key][assetTheme];
+
+          return (
+            <div key={key} className="rounded border border-gray-300 bg-white p-3 space-y-2">
+              <p className="text-xs text-gray-500">{v2_ASSET_LABELS[key]}</p>
+
+              <input
+                id={inputId}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) =>
+                  handleAssetFileUpload(key, assetTheme, e.target.files?.[0] ?? null)
+                }
+              />
+
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor={inputId}
+                  className="inline-flex cursor-pointer items-center justify-center rounded border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                >
+                  파일 선택
+                </label>
+                <button
+                  type="button"
+                  onClick={() => updateAssetUrl(key, assetTheme, "", null)}
+                  className="inline-flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  초기화
+                </button>
+              </div>
+
+              <p className="text-[11px] text-gray-500 break-all">
+                {assetUrl ? "업로드 완료" : "선택된 파일 없음"}
+              </p>
+              {assetSize && (
+                <p className="text-[11px] text-emerald-700">
+                  size: {assetSize.width} x {assetSize.height}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -970,7 +3593,7 @@ const V2TemplateBuilderForm: React.FC = () => {
 
   const renderActiveTab = () => {
     if (activeTab === "canvas") return renderCanvasTab();
-    if (activeTab === "layout") return renderLayoutTab();
+    if (activeTab === "properties") return renderPropertiesTab();
     if (activeTab === "style") return renderStyleTab();
     if (activeTab === "assets") return renderAssetsTab();
     if (activeTab === "data") return renderDataTab();
@@ -978,8 +3601,8 @@ const V2TemplateBuilderForm: React.FC = () => {
   };
 
   return (
-    <div className="md:h-full min-h-0 md:max-w-[440px] md:min-w-[330px] md:w-[30%] h-full">
-      <div className="h-full shrink-0 flex flex-col bg-gray-100 border-t-2 md:border-t-0 md:border-l-2 border-gray-300 w-full">
+    <div className="h-full min-h-0 w-full">
+      <div className="v2-dark-form-theme h-full min-h-0 shrink-0 flex flex-col border-l border-[#303848] bg-gray-100 w-full">
         <div className="flex border-b-2 border-timetable-card-border bg-timetable-card-bg">
           {v2_BUILDER_TABS.map((tab) => {
             const isActive = activeTab === tab.id;
@@ -1002,6 +3625,7 @@ const V2TemplateBuilderForm: React.FC = () => {
           {renderActiveTab()}
         </div>
       </div>
+      {renderBoilerplateSettingsModal()}
     </div>
   );
 };

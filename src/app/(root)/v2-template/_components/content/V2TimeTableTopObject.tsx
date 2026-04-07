@@ -4,11 +4,16 @@ import {
 } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import { Imgs } from "../../_img/imgs";
+import { v2_getHighlightStyle } from "./v2_highlight";
+import { v2_toRenderableStyle } from "./v2_style";
 
 const TimeTableTopObject = () => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { currentTheme } = useV2TimeTableEditorRuntimeContext();
-  const topObjectLayout = renderConfig.layout.topObjectContainer;
+  const { currentTheme, hoverHighlightTarget, activeHighlightTarget } =
+    useV2TimeTableEditorRuntimeContext();
+  const topObjectLayout = v2_toRenderableStyle(
+    renderConfig.layout.topObjectContainer
+  );
   const assetUrl =
     v2_getAssetUrlFromConfig({
       renderConfig,
@@ -19,10 +24,13 @@ const TimeTableTopObject = () => {
   return (
     <div
       style={{
-        width: topObjectLayout.width,
-        height: topObjectLayout.height,
-        position: "absolute",
-        zIndex: topObjectLayout.zIndex,
+        ...topObjectLayout,
+        position: topObjectLayout.position ?? "absolute",
+        ...v2_getHighlightStyle({
+          target: "topObjectContainer",
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
     >
       <img src={assetUrl} alt="top-object" draggable={false} />
