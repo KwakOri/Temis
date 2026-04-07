@@ -37,6 +37,7 @@ import {
   V2TemplateCardNode,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
+  V2TemplateVisibilityMode,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/v2_template_render_config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
@@ -128,6 +129,15 @@ const v2_STYLE_PROPERTY_CATALOG = [
 ] as const;
 
 const v2_LOCKED_STYLE_PROPERTY_KEYS = new Set<string>(["zIndex"]);
+
+const v2_CARD_NODE_VISIBILITY_OPTIONS: Array<{
+  value: V2TemplateVisibilityMode;
+  label: string;
+}> = [
+  { value: "always", label: "항상 표시" },
+  { value: "onlineOnly", label: "온라인만" },
+  { value: "offlineOnly", label: "오프라인만" },
+];
 
 type V2StyleSectionKey =
   | "grid"
@@ -2066,6 +2076,33 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     }));
   };
 
+  const updateCardNodeVisibilityMode = (
+    nodeId: string,
+    visibilityMode: V2TemplateVisibilityMode
+  ) => {
+    safeUpdateConfig((prev) => {
+      const prevNode = prev.structure.card.nodes[nodeId];
+      if (!prevNode) return prev;
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          card: {
+            ...prev.structure.card,
+            nodes: {
+              ...prev.structure.card.nodes,
+              [nodeId]: {
+                ...prevNode,
+                visibilityMode,
+              },
+            },
+          },
+        },
+      };
+    });
+  };
+
   const updateColor = (
     key: (typeof v2_TEMPLATE_COLOR_KEYS)[number],
     value: string
@@ -3192,6 +3229,30 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">Card / {node.label}</h4>
+        <div
+          className="grid grid-cols-2 gap-2 items-center"
+          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
+          onMouseLeave={clearSectionHoverHighlight}
+          onClick={() => setSectionActiveHighlight(containerSection)}
+        >
+          <label className="text-xs text-gray-400">표시 조건</label>
+          <select
+            value={node.visibilityMode ?? "always"}
+            onChange={(event) =>
+              updateCardNodeVisibilityMode(
+                node.id,
+                event.target.value as V2TemplateVisibilityMode
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
         {renderStyleSectionEditor({
           title: "container style",
           section: containerSection,

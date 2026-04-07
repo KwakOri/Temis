@@ -18,6 +18,7 @@ import {
   V2TemplateStructureConfig,
   V2TemplateRenderConfig,
   V2TemplateStyleRecord,
+  V2TemplateVisibilityMode,
 } from "@/types/time-table/v2_template_render_config";
 
 const v2_DEFAULT_THEME = "first";
@@ -100,6 +101,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
     label: "Grid",
     kind: "component",
     componentKey: "grid",
+    visibilityMode: "always",
     icon: "grid",
     target: "grid",
     sectionKey: "grid",
@@ -108,6 +110,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
         id: "card",
         label: "Card",
         kind: "group",
+        visibilityMode: "always",
         icon: "group",
         target: "cardContainer",
         sectionKey: "cardContainer",
@@ -116,6 +119,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
             id: "streaming-day",
             label: "StreamingDay",
             kind: "component",
+            visibilityMode: "always",
             icon: "text",
             target: "cardStreamingDay",
             sectionKey: "cardStreamingDay",
@@ -124,6 +128,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
             id: "streaming-date",
             label: "StreamingDate",
             kind: "component",
+            visibilityMode: "always",
             icon: "text",
             target: "cardStreamingDate",
             sectionKey: "cardStreamingDate",
@@ -132,6 +137,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
             id: "streaming-time",
             label: "StreamingTime",
             kind: "component",
+            visibilityMode: "always",
             icon: "text",
             target: "cardStreamingTime",
             sectionKey: "cardStreamingTime",
@@ -140,6 +146,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
             id: "main-title",
             label: "MainTitle",
             kind: "component",
+            visibilityMode: "always",
             icon: "text",
             target: "cardMainTitleContainer",
             sectionKey: "cardMainTitleContainer",
@@ -148,6 +155,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
             id: "sub-title",
             label: "SubTitle",
             kind: "component",
+            visibilityMode: "always",
             icon: "text",
             target: "cardSubTitleContainer",
             sectionKey: "cardSubTitleContainer",
@@ -161,6 +169,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
     label: "WeekFlag",
     kind: "component",
     componentKey: "weekFlag",
+    visibilityMode: "always",
     icon: "calendar",
     target: "weekFlag",
     sectionKey: "weekFlag",
@@ -170,6 +179,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
     label: "TopObject",
     kind: "component",
     componentKey: "topObject",
+    visibilityMode: "always",
     icon: "image",
     target: "topObjectContainer",
     sectionKey: "topObjectContainer",
@@ -179,12 +189,14 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
     label: "Profile",
     kind: "component",
     componentKey: "profile",
+    visibilityMode: "always",
     icon: "group",
     children: [
       {
         id: "profile-image",
         label: "Image",
         kind: "component",
+        visibilityMode: "always",
         icon: "image",
         target: "profileImage",
         sectionKey: "profileImage",
@@ -193,6 +205,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
         id: "profile-frame",
         label: "Frame",
         kind: "component",
+        visibilityMode: "always",
         icon: "layers",
         target: "profileFrame",
         sectionKey: "profileFrame",
@@ -220,6 +233,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       layerId: "streaming-day",
       highlightTarget: "cardStreamingDay",
       binding: "streamingDay",
+      visibilityMode: "onlineOnly",
       containerStyleKey: "streamingDay",
       textStyleKey: "streamingDayStyle",
       colorKey: "STREAMING_DAY",
@@ -233,6 +247,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       layerId: "streaming-date",
       highlightTarget: "cardStreamingDate",
       binding: "streamingDate",
+      visibilityMode: "onlineOnly",
       containerStyleKey: "streamingDate",
       textStyleKey: "streamingDateStyle",
       colorKey: "STREAMING_DATE",
@@ -246,6 +261,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       layerId: "streaming-time",
       highlightTarget: "cardStreamingTime",
       binding: "streamingTime",
+      visibilityMode: "onlineOnly",
       containerStyleKey: "streamingTime",
       textStyleKey: "streamingTimeStyle",
       colorKey: "STREAMING_TIME",
@@ -259,6 +275,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       layerId: "main-title",
       highlightTarget: "cardMainTitleContainer",
       binding: "mainTitle",
+      visibilityMode: "onlineOnly",
       containerStyleKey: "mainTitleContainer",
       wrapperStyleKey: "mainTitleWrapperStyle",
       textStyleKey: "mainTitleTextStyle",
@@ -275,6 +292,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       layerId: "sub-title",
       highlightTarget: "cardSubTitleContainer",
       binding: "subTitle",
+      visibilityMode: "onlineOnly",
       containerStyleKey: "subTitleContainer",
       textStyleKey: "subTitleTextStyle",
       optionsKey: "subTitleOptions",
@@ -697,6 +715,12 @@ const v2_LAYER_COMPONENT_KEY_SET = new Set([
   "profile",
 ]);
 
+const v2_VISIBILITY_MODE_SET = new Set([
+  "always",
+  "onlineOnly",
+  "offlineOnly",
+]);
+
 const v2_getDefaultLayerComponentKeyById = (
   id: string
 ): V2TemplateLayerComponentKey | undefined => {
@@ -756,6 +780,11 @@ const v2_normalizeLayerTree = (
         : undefined;
     const sectionKey =
       typeof rawNode.sectionKey === "string" ? rawNode.sectionKey : undefined;
+    const visibilityMode: V2TemplateVisibilityMode | undefined =
+      typeof rawNode.visibilityMode === "string" &&
+      v2_VISIBILITY_MODE_SET.has(rawNode.visibilityMode)
+        ? (rawNode.visibilityMode as V2TemplateVisibilityMode)
+        : "always";
 
     const children = Array.isArray(rawNode.children)
       ? rawNode.children
@@ -783,6 +812,7 @@ const v2_normalizeLayerTree = (
       ...(icon ? { icon } : {}),
       ...(target ? { target } : {}),
       ...(sectionKey ? { sectionKey } : {}),
+      ...(visibilityMode ? { visibilityMode } : {}),
       ...(hasChildren ? { children } : {}),
     };
   };
@@ -809,6 +839,11 @@ const v2_normalizeCardNode = (
     v2_CARD_NODE_BINDING_SET.has(candidate.binding)
       ? (candidate.binding as V2TemplateCardNode["binding"])
       : fallback.binding;
+  const visibilityMode: V2TemplateVisibilityMode | undefined =
+    typeof candidate.visibilityMode === "string" &&
+    v2_VISIBILITY_MODE_SET.has(candidate.visibilityMode)
+      ? (candidate.visibilityMode as V2TemplateVisibilityMode)
+      : fallback.visibilityMode ?? "always";
   const containerStyleKey = v2_isCardStyleKey(candidate.containerStyleKey)
     ? candidate.containerStyleKey
     : fallback.containerStyleKey;
@@ -842,6 +877,7 @@ const v2_normalizeCardNode = (
         ? (candidate.highlightTarget as V2TemplateCardNode["highlightTarget"])
         : fallback.highlightTarget,
     binding,
+    visibilityMode,
     containerStyleKey,
     ...(textStyleKey ? { textStyleKey } : {}),
     ...(wrapperStyleKey ? { wrapperStyleKey } : {}),
@@ -1586,6 +1622,19 @@ export const v2_normalizeTemplateRenderConfig = (
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
   return normalized;
+};
+
+export const v2_isVisibleByMode = ({
+  mode,
+  isOffline,
+}: {
+  mode?: V2TemplateVisibilityMode;
+  isOffline: boolean;
+}): boolean => {
+  const resolvedMode = mode ?? "always";
+  if (resolvedMode === "onlineOnly") return !isOffline;
+  if (resolvedMode === "offlineOnly") return isOffline;
+  return true;
 };
 
 export const v2_getThemedAssetUrl = (

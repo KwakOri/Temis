@@ -115,6 +115,11 @@ export type V2TemplateAssetDimensionMap = Record<
 export type V2TemplateStyleRecord = CSSProperties &
   Record<string, string | number>;
 
+export type V2TemplateVisibilityMode =
+  | "always"
+  | "onlineOnly"
+  | "offlineOnly";
+
 export type V2TemplateLayerIconKey =
   | "group"
   | "grid"
@@ -139,6 +144,7 @@ export interface V2TemplateLayerNode {
   icon?: V2TemplateLayerIconKey;
   target?: V2TemplateHighlightTarget;
   sectionKey?: string;
+  visibilityMode?: V2TemplateVisibilityMode;
   children?: V2TemplateLayerNode[];
 }
 
@@ -174,6 +180,7 @@ export interface V2TemplateCardNode {
   layerId: string;
   highlightTarget: V2TemplateHighlightTarget;
   binding: V2TemplateCardNodeBinding;
+  visibilityMode?: V2TemplateVisibilityMode;
   containerStyleKey: V2TemplateCardStyleKey;
   textStyleKey?: V2TemplateCardStyleKey;
   wrapperStyleKey?: V2TemplateCardStyleKey;

@@ -14,7 +14,10 @@ import {
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
 import { createPlaceholdersFromConfig, weekdays } from "@/utils/time-table/data";
-import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
+import {
+  v2_getComponentFontFamily,
+  v2_isVisibleByMode,
+} from "@/utils/time-table/v2_template_render_config";
 import { Imgs } from "../../_img/imgs";
 import {
   V2AutoResizeNodeRenderer,
@@ -31,7 +34,6 @@ interface TimeTableCellProps {
 }
 
 interface OfflineCardProps {
-  day: number;
   currentTheme?: TTheme;
 }
 
@@ -137,7 +139,7 @@ const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
   );
 };
 
-const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
+const OfflineCardBG = ({ currentTheme }: OfflineCardProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.offline;
   const offlineUrl =
@@ -150,12 +152,7 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
     Imgs.first.offline.src;
 
   return (
-    <div
-      style={{
-        ...cardSize,
-      }}
-      key={day}
-    >
+    <div style={{ ...cardSize }} className="absolute -z-10">
       <img
         src={offlineUrl}
         alt="offline"
@@ -177,7 +174,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     useV2TimeTableEditorRuntimeContext();
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const cardStructure = renderConfig.structure.card;
-  const cardSize = renderConfig.cardSizes.online;
+  const cardIsOffline = Boolean(time.isOffline);
+  const cardSize = cardIsOffline
+    ? renderConfig.cardSizes.offline
+    : renderConfig.cardSizes.online;
   const cardContainerStyleMap = v2_toCardStyleMap(
     cardLayoutRecord,
     cardStructure.containerStyleKey
@@ -201,6 +201,14 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     const node = cardStructure.nodes[nodeId];
     if (!node) return null;
     if (isLayerHidden(node.layerId)) return null;
+    if (
+      !v2_isVisibleByMode({
+        mode: node.visibilityMode,
+        isOffline: cardIsOffline,
+      })
+    ) {
+      return null;
+    }
 
     const containerStyleMap = v2_toCardStyleMap(
       cardLayoutRecord,
@@ -290,28 +298,27 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   };
 
   return (
-    <>
-      {time.isOffline ? (
-        <OfflineCard day={time.day} currentTheme={currentTheme} />
-      ) : (
-        <div
-          style={{
-            ...cardSize,
-            ...cardContainerLayout,
-            ...v2_getHighlightStyle({
-              target: cardStructure.containerHighlightTarget,
-              hoverTarget: hoverHighlightTarget,
-              activeTarget: activeHighlightTarget,
-            }),
-          }}
-          key={time.day}
-          className="relative flex justify-center"
-        >
-          {cardStructure.nodeOrder.map((nodeId) => renderCardNode(nodeId))}
-          <OnlineCardBG currentTheme={currentTheme} />
-        </div>
-      )}
-    </>
+    <div
+      style={{
+        ...cardSize,
+        ...cardContainerLayout,
+        ...v2_getHighlightStyle({
+          target: cardStructure.containerHighlightTarget,
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
+      }}
+      key={time.day}
+      className="relative flex justify-center"
+    >
+      {cardStructure.nodeOrder.map((nodeId) => renderCardNode(nodeId))}
+      {v2_isVisibleByMode({ mode: "onlineOnly", isOffline: cardIsOffline }) ? (
+        <OnlineCardBG currentTheme={currentTheme} />
+      ) : null}
+      {v2_isVisibleByMode({ mode: "offlineOnly", isOffline: cardIsOffline }) ? (
+        <OfflineCardBG currentTheme={currentTheme} />
+      ) : null}
+    </div>
   );
 };
 
