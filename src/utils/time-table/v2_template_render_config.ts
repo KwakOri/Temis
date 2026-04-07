@@ -965,6 +965,24 @@ const v2_normalizeCardStructure = (
       ) {
         nextTransform.offsetY = rawTransform.offsetY;
       }
+      if (
+        typeof rawTransform.rotateDeg === "number" &&
+        Number.isFinite(rawTransform.rotateDeg)
+      ) {
+        nextTransform.rotateDeg = rawTransform.rotateDeg;
+      }
+      if (
+        typeof rawTransform.scale === "number" &&
+        Number.isFinite(rawTransform.scale)
+      ) {
+        nextTransform.scale = rawTransform.scale;
+      }
+      if (
+        typeof rawTransform.opacity === "number" &&
+        Number.isFinite(rawTransform.opacity)
+      ) {
+        nextTransform.opacity = rawTransform.opacity;
+      }
       if (Object.keys(nextTransform).length === 0) return;
       instanceTransforms[key] = nextTransform;
     });

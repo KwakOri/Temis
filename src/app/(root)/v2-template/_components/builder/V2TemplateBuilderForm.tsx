@@ -34,6 +34,7 @@ import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRende
 import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
+  V2TemplateCardInstanceTransform,
   V2TemplateCardNode,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
@@ -2116,34 +2117,66 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     }));
   };
 
-  const updateCardInstanceOffset = (
+  const updateCardInstanceTransform = (
     index: number,
-    axis: "offsetX" | "offsetY",
+    key: keyof V2TemplateCardInstanceTransform,
     value: number
   ) => {
     if (!Number.isFinite(value)) return;
-    const rounded = Math.round(value);
 
     safeUpdateConfig((prev) => {
-      const key = String(index);
+      const transformKey = String(index);
       const prevTransforms = prev.structure.card.instanceTransforms ?? {};
-      const prevTransform = prevTransforms[key] ?? {};
-      const nextTransform = {
+      const prevTransform = prevTransforms[transformKey] ?? {};
+      const nextTransform: V2TemplateCardInstanceTransform = {
         ...prevTransform,
-        [axis]: rounded,
       };
 
-      if (nextTransform.offsetX === 0) delete nextTransform.offsetX;
-      if (nextTransform.offsetY === 0) delete nextTransform.offsetY;
+      if (key === "offsetX" || key === "offsetY") {
+        const rounded = Math.round(value);
+        if (rounded === 0) {
+          delete nextTransform[key];
+        } else {
+          nextTransform[key] = rounded;
+        }
+      }
+
+      if (key === "rotateDeg") {
+        const rounded = Math.round(value * 10) / 10;
+        if (rounded === 0) {
+          delete nextTransform.rotateDeg;
+        } else {
+          nextTransform.rotateDeg = rounded;
+        }
+      }
+
+      if (key === "scale") {
+        const rounded = Math.round(Math.max(0.1, value) * 100) / 100;
+        if (rounded === 1) {
+          delete nextTransform.scale;
+        } else {
+          nextTransform.scale = rounded;
+        }
+      }
+
+      if (key === "opacity") {
+        const clamped = Math.min(1, Math.max(0, value));
+        const rounded = Math.round(clamped * 100) / 100;
+        if (rounded === 1) {
+          delete nextTransform.opacity;
+        } else {
+          nextTransform.opacity = rounded;
+        }
+      }
 
       const nextTransforms = {
         ...prevTransforms,
       };
 
       if (Object.keys(nextTransform).length === 0) {
-        delete nextTransforms[key];
+        delete nextTransforms[transformKey];
       } else {
-        nextTransforms[key] = nextTransform;
+        nextTransforms[transformKey] = nextTransform;
       }
 
       return {
@@ -3380,8 +3413,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         {instanceMode === "detached" ? (
           <div className="space-y-2">
             <p className="text-[11px] text-gray-400">
-              카드 1~7 각각의 위치 오프셋(X/Y)을 조정합니다.
+              카드 1~7 각각의 개별 보정값(X/Y/회전/스케일/불투명도)을 조정합니다.
             </p>
+            <div className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_1fr] gap-2 items-center text-[11px] text-gray-500">
+              <span />
+              <span>X</span>
+              <span>Y</span>
+              <span>R</span>
+              <span>S</span>
+              <span>O</span>
+            </div>
             {Array.from({ length: 7 }).map((_, index) => {
               const key = String(index);
               const transform = instanceTransforms[key] ?? {};
@@ -3389,15 +3430,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
                 typeof transform.offsetX === "number" ? transform.offsetX : 0;
               const offsetY =
                 typeof transform.offsetY === "number" ? transform.offsetY : 0;
+              const rotateDeg =
+                typeof transform.rotateDeg === "number" ? transform.rotateDeg : 0;
+              const scale =
+                typeof transform.scale === "number" ? transform.scale : 1;
+              const opacity =
+                typeof transform.opacity === "number" ? transform.opacity : 1;
 
               return (
-                <div key={key} className="grid grid-cols-[56px_1fr_1fr] gap-2 items-center">
+                <div
+                  key={key}
+                  className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_1fr] gap-2 items-center"
+                >
                   <span className="text-xs text-gray-300">Card {index + 1}</span>
                   <input
                     type="number"
                     value={offsetX}
                     onChange={(event) =>
-                      updateCardInstanceOffset(
+                      updateCardInstanceTransform(
                         index,
                         "offsetX",
                         Number(event.target.value)
@@ -3410,7 +3460,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
                     type="number"
                     value={offsetY}
                     onChange={(event) =>
-                      updateCardInstanceOffset(
+                      updateCardInstanceTransform(
                         index,
                         "offsetY",
                         Number(event.target.value)
@@ -3418,6 +3468,51 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
                     }
                     className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
                     placeholder="Y"
+                  />
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={rotateDeg}
+                    onChange={(event) =>
+                      updateCardInstanceTransform(
+                        index,
+                        "rotateDeg",
+                        Number(event.target.value)
+                      )
+                    }
+                    className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                    placeholder="deg"
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.1"
+                    value={scale}
+                    onChange={(event) =>
+                      updateCardInstanceTransform(
+                        index,
+                        "scale",
+                        Number(event.target.value)
+                      )
+                    }
+                    className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                    placeholder="1"
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={opacity}
+                    onChange={(event) =>
+                      updateCardInstanceTransform(
+                        index,
+                        "opacity",
+                        Number(event.target.value)
+                      )
+                    }
+                    className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                    placeholder="1"
                   />
                 </div>
               );

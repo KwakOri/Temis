@@ -197,6 +197,9 @@ export interface V2TemplateCardNode {
 export interface V2TemplateCardInstanceTransform {
   offsetX?: number;
   offsetY?: number;
+  rotateDeg?: number;
+  scale?: number;
+  opacity?: number;
 }
 
 export interface V2TemplateCardStructure {

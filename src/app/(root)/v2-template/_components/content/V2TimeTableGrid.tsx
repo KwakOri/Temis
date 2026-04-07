@@ -18,10 +18,21 @@ const v2_parseCardInstanceMode = (
   return value === "detached" ? "detached" : "component";
 };
 
-const v2_getCardInstanceOffset = (
-  transforms: Record<string, { offsetX?: number; offsetY?: number }> | undefined,
+const v2_getCardInstanceTransform = (
+  transforms:
+    | Record<
+        string,
+        {
+          offsetX?: number;
+          offsetY?: number;
+          rotateDeg?: number;
+          scale?: number;
+          opacity?: number;
+        }
+      >
+    | undefined,
   index: number
-): { x: number; y: number } => {
+): { x: number; y: number; rotateDeg: number; scale: number; opacity: number } => {
   const transform = transforms?.[String(index)];
   const x =
     typeof transform?.offsetX === "number" && Number.isFinite(transform.offsetX)
@@ -31,7 +42,20 @@ const v2_getCardInstanceOffset = (
     typeof transform?.offsetY === "number" && Number.isFinite(transform.offsetY)
       ? transform.offsetY
       : 0;
-  return { x, y };
+  const rotateDeg =
+    typeof transform?.rotateDeg === "number" &&
+    Number.isFinite(transform.rotateDeg)
+      ? transform.rotateDeg
+      : 0;
+  const scale =
+    typeof transform?.scale === "number" && Number.isFinite(transform.scale)
+      ? Math.max(0.1, transform.scale)
+      : 1;
+  const opacity =
+    typeof transform?.opacity === "number" && Number.isFinite(transform.opacity)
+      ? Math.min(1, Math.max(0, transform.opacity))
+      : 1;
+  return { x, y, rotateDeg, scale, opacity };
 };
 
 const v2_parseGridLayoutMode = (value: unknown): V2GridLayoutMode => {
@@ -120,11 +144,28 @@ const TimeTableGrid: React.FC = () => {
 
   const getCardInstanceWrapperStyle = (index: number): React.CSSProperties => {
     if (cardInstanceMode !== "detached") return {};
-    const offset = v2_getCardInstanceOffset(cardInstanceTransforms, index);
-    if (offset.x === 0 && offset.y === 0) return {};
-    return {
-      transform: `translate(${offset.x}px, ${offset.y}px)`,
-    };
+    const transform = v2_getCardInstanceTransform(cardInstanceTransforms, index);
+
+    const transformParts: string[] = [];
+    if (transform.x !== 0 || transform.y !== 0) {
+      transformParts.push(`translate(${transform.x}px, ${transform.y}px)`);
+    }
+    if (transform.rotateDeg !== 0) {
+      transformParts.push(`rotate(${transform.rotateDeg}deg)`);
+    }
+    if (transform.scale !== 1) {
+      transformParts.push(`scale(${transform.scale})`);
+    }
+
+    const style: React.CSSProperties = {};
+    if (transformParts.length > 0) {
+      style.transform = transformParts.join(" ");
+      style.transformOrigin = "center center";
+    }
+    if (transform.opacity !== 1) {
+      style.opacity = transform.opacity;
+    }
+    return style;
   };
 
   if (isLayerHidden("grid")) return null;
