@@ -151,30 +151,13 @@ export interface V2TemplateLayerNode {
   children?: V2TemplateLayerNode[];
 }
 
-export type V2TemplateCardStyleKey =
-  | "streamingDay"
-  | "streamingDate"
-  | "streamingTime"
-  | "mainTitleContainer"
-  | "subTitleContainer"
-  | "container"
-  | "mainTitleTextStyle"
-  | "subTitleTextStyle"
-  | "mainTitleWrapperStyle"
-  | "streamingDayStyle"
-  | "streamingDateStyle"
-  | "streamingTimeStyle";
+export type V2TemplateCardStyleKey = string;
 
-export type V2TemplateCardOptionsKey = "mainTitleOptions" | "subTitleOptions";
+export type V2TemplateCardOptionsKey = string;
 
 export type V2TemplateCardNodeKind = "text" | "flexibleText";
 
-export type V2TemplateCardNodeBinding =
-  | "streamingDay"
-  | "streamingDate"
-  | "streamingTime"
-  | "mainTitle"
-  | "subTitle";
+export type V2TemplateCardNodeBinding = string;
 
 export interface V2TemplateCardNode {
   id: string;
@@ -242,6 +225,7 @@ export interface V2TemplateLayoutConfig {
     streamingDateStyle?: V2TemplateStyleRecord;
     streamingTimeStyle?: V2TemplateStyleRecord;
     mainTitleWrapperStyle?: V2TemplateStyleRecord;
+    [key: string]: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined;
   };
 }
 

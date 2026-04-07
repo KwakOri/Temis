@@ -87,6 +87,7 @@ const v2_getCardNodeTextValue = ({
   dayLabel,
   weekDate,
   isGuerrilla,
+  primaryEntry,
   entryTime,
   entryMainTitle,
   entrySubTitle,
@@ -96,15 +97,13 @@ const v2_getCardNodeTextValue = ({
   dayLabel: string;
   weekDate: Date;
   isGuerrilla: boolean;
+  primaryEntry: Record<string, unknown>;
   entryTime: string;
   entryMainTitle: string;
   entrySubTitle: string;
   placeholders: Record<string, string>;
 }): string => {
-  const resolveByBinding: Record<
-    V2TemplateCardNode["binding"],
-    () => string
-  > = {
+  const resolveKnownBinding: Record<string, () => string> = {
     streamingDay: () => dayLabel,
     streamingDate: () => padZero(weekDate.getDate()),
     streamingTime: () => (isGuerrilla ? "게릴라" : formatTime(entryTime, "half")),
@@ -112,7 +111,17 @@ const v2_getCardNodeTextValue = ({
     subTitle: () => entrySubTitle || placeholders.subTitle || "",
   };
 
-  return resolveByBinding[node.binding]();
+  const known = resolveKnownBinding[node.binding];
+  if (known) return known();
+
+  const dynamicValue = primaryEntry[node.binding];
+  if (typeof dynamicValue === "string") return dynamicValue;
+  if (typeof dynamicValue === "number") return String(dynamicValue);
+
+  const placeholder = placeholders[node.binding];
+  if (typeof placeholder === "string") return placeholder;
+
+  return "";
 };
 
 const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
@@ -230,6 +239,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       dayLabel,
       weekDate,
       isGuerrilla: Boolean(primaryEntry.isGuerrilla),
+      primaryEntry: primaryEntry as Record<string, unknown>,
       entryTime,
       entryMainTitle,
       entrySubTitle,

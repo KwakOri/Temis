@@ -77,26 +77,6 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   maxStreamingTimeByDay: 1,
 };
 
-const v2_CARD_STYLE_KEYS: readonly V2TemplateCardStyleKey[] = [
-  "streamingDay",
-  "streamingDate",
-  "streamingTime",
-  "mainTitleContainer",
-  "subTitleContainer",
-  "container",
-  "mainTitleTextStyle",
-  "subTitleTextStyle",
-  "mainTitleWrapperStyle",
-  "streamingDayStyle",
-  "streamingDateStyle",
-  "streamingTimeStyle",
-] as const;
-
-const v2_CARD_OPTIONS_KEYS: readonly V2TemplateCardOptionsKey[] = [
-  "mainTitleOptions",
-  "subTitleOptions",
-] as const;
-
 const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
     id: "grid",
@@ -748,28 +728,18 @@ const v2_CARD_NODE_KIND_SET = new Set([
   "autoResizeText",
 ]);
 
-const v2_CARD_NODE_BINDING_SET = new Set([
-  "streamingDay",
-  "streamingDate",
-  "streamingTime",
-  "mainTitle",
-  "subTitle",
-]);
+const v2_isNonEmptyString = (value: unknown): value is string => {
+  return typeof value === "string" && value.trim().length > 0;
+};
 
 const v2_isCardStyleKey = (value: unknown): value is V2TemplateCardStyleKey => {
-  return (
-    typeof value === "string" &&
-    (v2_CARD_STYLE_KEYS as readonly string[]).includes(value)
-  );
+  return v2_isNonEmptyString(value);
 };
 
 const v2_isCardOptionsKey = (
   value: unknown
 ): value is V2TemplateCardOptionsKey => {
-  return (
-    typeof value === "string" &&
-    (v2_CARD_OPTIONS_KEYS as readonly string[]).includes(value)
-  );
+  return v2_isNonEmptyString(value);
 };
 
 const v2_normalizeLayerTree = (
@@ -857,9 +827,8 @@ const v2_normalizeCardNode = (
         : (candidate.kind as V2TemplateCardNode["kind"])
       : fallback.kind;
   const binding: V2TemplateCardNode["binding"] =
-    typeof candidate.binding === "string" &&
-    v2_CARD_NODE_BINDING_SET.has(candidate.binding)
-      ? (candidate.binding as V2TemplateCardNode["binding"])
+    v2_isNonEmptyString(candidate.binding)
+      ? candidate.binding
       : fallback.binding;
   const visibilityMode: V2TemplateVisibilityMode | undefined =
     typeof candidate.visibilityMode === "string" &&
@@ -919,6 +888,50 @@ const v2_normalizeCardNode = (
   };
 };
 
+const v2_createFallbackCardNode = (
+  nodeId: string,
+  candidate: unknown
+): V2TemplateCardNode | null => {
+  if (!v2_isRecord(candidate)) return null;
+
+  const id = v2_asString(candidate.id, nodeId).trim();
+  if (!id) return null;
+
+  const label = v2_asString(candidate.label, id);
+  const kind: V2TemplateCardNode["kind"] =
+    typeof candidate.kind === "string" && v2_CARD_NODE_KIND_SET.has(candidate.kind)
+      ? candidate.kind === "autoResizeText"
+        ? "flexibleText"
+        : (candidate.kind as V2TemplateCardNode["kind"])
+      : "text";
+
+  return {
+    id,
+    label,
+    kind,
+    layerId: v2_asString(candidate.layerId, id),
+    highlightTarget: v2_asString(candidate.highlightTarget, "cardContainer"),
+    binding: v2_asString(candidate.binding, id),
+    visibilityMode: "always",
+    containerStyleKey: v2_asString(candidate.containerStyleKey, "container"),
+    ...(v2_isNonEmptyString(candidate.textStyleKey)
+      ? { textStyleKey: candidate.textStyleKey }
+      : {}),
+    ...(v2_isNonEmptyString(candidate.wrapperStyleKey)
+      ? { wrapperStyleKey: candidate.wrapperStyleKey }
+      : {}),
+    ...(v2_isNonEmptyString(candidate.optionsKey)
+      ? { optionsKey: candidate.optionsKey }
+      : {}),
+    colorKey: "SUB_TITLE",
+    fontKey: "SUB_TITLE",
+    containerClassName: "absolute flex justify-center items-center",
+    ...(typeof candidate.textClassName === "string"
+      ? { textClassName: candidate.textClassName }
+      : {}),
+  };
+};
+
 const v2_normalizeCardStructure = (
   candidate: unknown,
   fallback: V2TemplateCardStructure
@@ -931,7 +944,8 @@ const v2_normalizeCardStructure = (
 
   if (v2_isRecord(candidate.nodes)) {
     Object.entries(candidate.nodes).forEach(([nodeId, rawNode]) => {
-      const fallbackNode = fallback.nodes[nodeId];
+      const fallbackNode =
+        fallback.nodes[nodeId] ?? v2_createFallbackCardNode(nodeId, rawNode);
       if (!fallbackNode) return;
       nextNodes[nodeId] = v2_normalizeCardNode(rawNode, fallbackNode);
     });
@@ -944,9 +958,14 @@ const v2_normalizeCardStructure = (
       )
     : [];
 
-  const nodeOrder = nodeOrderCandidate.length > 0
-    ? Array.from(new Set(nodeOrderCandidate))
-    : fallback.nodeOrder;
+  const baseNodeOrder =
+    nodeOrderCandidate.length > 0
+      ? Array.from(new Set(nodeOrderCandidate))
+      : fallback.nodeOrder;
+  const appendedNodeIds = Object.keys(nextNodes).filter(
+    (nodeId) => !baseNodeOrder.includes(nodeId)
+  );
+  const nodeOrder = [...baseNodeOrder, ...appendedNodeIds];
 
   const instanceMode: V2TemplateComponentInstanceMode =
     typeof candidate.instanceMode === "string" &&

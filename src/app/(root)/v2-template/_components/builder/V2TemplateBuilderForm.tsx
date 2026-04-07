@@ -36,6 +36,7 @@ import {
   V2TemplateAssetMap,
   V2TemplateCardInstanceTransform,
   V2TemplateCardNode,
+  V2TemplateCardOptionsKey,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
   V2TemplateVisibilityMode,
@@ -2059,7 +2060,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const updateCardOptions = (
-    optionKey: "mainTitleOptions" | "subTitleOptions",
+    optionKey: V2TemplateCardOptionsKey,
     patch: { maxFontSize?: number; multiline?: boolean }
   ) => {
     safeUpdateConfig((prev) => ({

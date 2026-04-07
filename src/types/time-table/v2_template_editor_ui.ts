@@ -13,4 +13,5 @@ export const v2_TEMPLATE_HIGHLIGHT_TARGETS = [
 ] as const;
 
 export type V2TemplateHighlightTarget =
-  (typeof v2_TEMPLATE_HIGHLIGHT_TARGETS)[number];
+  | (typeof v2_TEMPLATE_HIGHLIGHT_TARGETS)[number]
+  | string;
