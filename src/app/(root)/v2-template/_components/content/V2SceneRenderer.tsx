@@ -19,16 +19,6 @@ const v2_COMPONENT_RENDERER_MAP: Record<
   profile: V2ProfileImageSection,
 };
 
-const v2_getFallbackComponentKeyByNodeId = (
-  nodeId: string
-): V2TemplateLayerComponentKey | null => {
-  if (nodeId === "grid") return "grid";
-  if (nodeId === "week-flag") return "weekFlag";
-  if (nodeId === "top-object") return "topObject";
-  if (nodeId === "profile") return "profile";
-  return null;
-};
-
 const v2_renderSceneNode = (node: V2TemplateLayerNode): React.ReactNode => {
   if (node.kind === "group") {
     if (!node.children?.length) return null;
@@ -39,8 +29,7 @@ const v2_renderSceneNode = (node: V2TemplateLayerNode): React.ReactNode => {
     );
   }
 
-  const componentKey =
-    node.componentKey ?? v2_getFallbackComponentKeyByNodeId(node.id);
+  const componentKey = node.componentKey;
   if (!componentKey) return null;
 
   const Component = v2_COMPONENT_RENDERER_MAP[componentKey];
