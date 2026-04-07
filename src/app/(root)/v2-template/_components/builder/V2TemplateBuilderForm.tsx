@@ -36,6 +36,7 @@ import {
   V2TemplateAssetMap,
   V2TemplateCardNode,
   V2TemplateLayerNode,
+  V2TemplateRenderConfig,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/v2_template_render_config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
@@ -372,6 +373,33 @@ const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   mainTitleWrapperStyle: "cardMainTitleContainer",
   mainTitleTextStyle: "cardMainTitleContainer",
   subTitleTextStyle: "cardSubTitleContainer",
+};
+
+const v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
+  Record<V2StyleSectionKey, keyof V2TemplateRenderConfig["layout"]>
+> = {
+  grid: "grid",
+  weekFlag: "weekFlag",
+  topObjectContainer: "topObjectContainer",
+  profileImage: "profileImage",
+  profileFrame: "profileFrame",
+};
+
+const v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
+  Record<V2StyleSectionKey, keyof V2TemplateRenderConfig["layout"]["card"]>
+> = {
+  cardStreamingDay: "streamingDay",
+  cardStreamingDate: "streamingDate",
+  cardStreamingTime: "streamingTime",
+  cardMainTitleContainer: "mainTitleContainer",
+  cardSubTitleContainer: "subTitleContainer",
+  cardContainer: "container",
+  streamingDayStyle: "streamingDayStyle",
+  streamingDateStyle: "streamingDateStyle",
+  streamingTimeStyle: "streamingTimeStyle",
+  mainTitleWrapperStyle: "mainTitleWrapperStyle",
+  mainTitleTextStyle: "mainTitleTextStyle",
+  subTitleTextStyle: "subTitleTextStyle",
 };
 
 const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
@@ -1554,74 +1582,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const getStyleSectionMap = (
     section: V2StyleSectionKey
   ): Record<string, string | number> => {
-    if (section === "grid") {
-      return (renderConfig.layout.grid as Record<string, string | number>) ?? {};
-    }
-    if (section === "weekFlag") {
+    const rootLayoutKey = v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+    if (rootLayoutKey) {
       return (
-        (renderConfig.layout.weekFlag as Record<string, string | number>) ?? {}
-      );
-    }
-    if (section === "topObjectContainer") {
-      return (
-        (renderConfig.layout.topObjectContainer as Record<string, string | number>) ??
-        {}
-      );
-    }
-    if (section === "profileImage") {
-      return (
-        (renderConfig.layout.profileImage as Record<string, string | number>) ?? {}
-      );
-    }
-    if (section === "profileFrame") {
-      return (
-        (renderConfig.layout.profileFrame as Record<string, string | number>) ?? {}
-      );
-    }
-    if (section === "cardStreamingDay") {
-      return (
-        (renderConfig.layout.card.streamingDay as Record<string, string | number>) ??
-        {}
-      );
-    }
-    if (section === "cardStreamingDate") {
-      return (
-        (renderConfig.layout.card.streamingDate as Record<string, string | number>) ??
-        {}
-      );
-    }
-    if (section === "cardStreamingTime") {
-      return (
-        (renderConfig.layout.card.streamingTime as Record<string, string | number>) ??
-        {}
-      );
-    }
-    if (section === "cardMainTitleContainer") {
-      return (
-        (renderConfig.layout.card.mainTitleContainer as Record<
-          string,
-          string | number
-        >) ?? {}
-      );
-    }
-    if (section === "cardSubTitleContainer") {
-      return (
-        (renderConfig.layout.card.subTitleContainer as Record<
-          string,
-          string | number
-        >) ?? {}
-      );
-    }
-    if (section === "cardContainer") {
-      return (
-        (renderConfig.layout.card.container as Record<string, string | number>) ??
-        {}
+        (renderConfig.layout[rootLayoutKey] as Record<string, string | number>) ?? {}
       );
     }
 
-    return (
-      (renderConfig.layout.card[section] as Record<string, string | number>) ?? {}
-    );
+    const cardLayoutKey = v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+    if (cardLayoutKey) {
+      return (
+        (renderConfig.layout.card[cardLayoutKey] as Record<
+          string,
+          string | number
+        >) ?? {}
+      );
+    }
+
+    return {};
   };
 
   const parseStyleValue = (rawValue: string): string | number => {
@@ -1656,134 +1634,32 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     nextMap: Record<string, string | number>
   ) => {
     safeUpdateConfig((prev) => {
-      if (section === "grid") {
+      const rootLayoutKey = v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+      if (rootLayoutKey) {
         return {
           ...prev,
           layout: {
             ...prev.layout,
-            grid: nextMap,
+            [rootLayoutKey]: nextMap,
           },
         };
       }
-      if (section === "weekFlag") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            weekFlag: nextMap,
-          },
-        };
-      }
-      if (section === "topObjectContainer") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            topObjectContainer: nextMap,
-          },
-        };
-      }
-      if (section === "profileImage") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            profileImage: nextMap,
-          },
-        };
-      }
-      if (section === "profileFrame") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            profileFrame: nextMap,
-          },
-        };
-      }
-      if (section === "cardStreamingDay") {
+
+      const cardLayoutKey = v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[section];
+      if (cardLayoutKey) {
         return {
           ...prev,
           layout: {
             ...prev.layout,
             card: {
               ...prev.layout.card,
-              streamingDay: nextMap,
-            },
-          },
-        };
-      }
-      if (section === "cardStreamingDate") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            card: {
-              ...prev.layout.card,
-              streamingDate: nextMap,
-            },
-          },
-        };
-      }
-      if (section === "cardStreamingTime") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            card: {
-              ...prev.layout.card,
-              streamingTime: nextMap,
-            },
-          },
-        };
-      }
-      if (section === "cardMainTitleContainer") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            card: {
-              ...prev.layout.card,
-              mainTitleContainer: nextMap,
-            },
-          },
-        };
-      }
-      if (section === "cardSubTitleContainer") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            card: {
-              ...prev.layout.card,
-              subTitleContainer: nextMap,
-            },
-          },
-        };
-      }
-      if (section === "cardContainer") {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            card: {
-              ...prev.layout.card,
-              container: nextMap,
+              [cardLayoutKey]: nextMap,
             },
           },
         };
       }
 
-      return {
-        ...prev,
-        layout: {
-          ...prev.layout,
-          card: {
-            ...prev.layout.card,
-            [section]: nextMap,
-          },
-        },
-      };
+      return prev;
     });
   };
 
