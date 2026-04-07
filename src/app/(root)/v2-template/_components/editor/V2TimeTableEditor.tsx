@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-react";
 
 import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
@@ -22,7 +22,6 @@ const v2_ROOT_LAYER_IDS = [
   'week-flag',
   'top-object',
   'profile',
-  'card',
 ] as const;
 const v2_PROFILE_LAYER_IDS = ['profile-image', 'profile-frame'] as const;
 const v2_CARD_LAYER_IDS = [
@@ -77,6 +76,9 @@ const V2TimeTableEditor: React.FC = () => {
     section: string;
     nonce: number;
   } | null>(null);
+  const [hiddenLayerIds, setHiddenLayerIds] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const parseZIndex = (value: unknown): number | undefined => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -131,7 +133,6 @@ const V2TimeTableEditor: React.FC = () => {
       'week-flag': parseZIndex(renderConfig.layout.weekFlag?.zIndex) ?? 0,
       'top-object': parseZIndex(renderConfig.layout.topObjectContainer?.zIndex) ?? 0,
       profile: Math.max(profileImageZ, profileFrameZ, profileTextZ),
-      card: parseZIndex(renderConfig.layout.card.container?.zIndex) ?? 0,
     };
 
     const profileZMap: Partial<Record<string, number>> = {
@@ -250,12 +251,6 @@ const V2TimeTableEditor: React.FC = () => {
                 zIndex
               );
               break;
-            case 'card':
-              nextLayout.card.container = setStyleZIndex(
-                nextLayout.card.container as V2TemplateStyleRecord,
-                zIndex
-              );
-              break;
             case 'profile':
               nextLayout.profileImage = setStyleZIndex(
                 nextLayout.profileImage as V2TemplateStyleRecord,
@@ -316,6 +311,44 @@ const V2TimeTableEditor: React.FC = () => {
     [actions, state]
   );
 
+  const isLayerHidden = useCallback(
+    (layerId: string): boolean => {
+      return hiddenLayerIds[layerId] === true;
+    },
+    [hiddenLayerIds]
+  );
+
+  const setLayerHidden = useCallback((layerId: string, hidden: boolean) => {
+    setHiddenLayerIds((prev) => {
+      if (hidden) {
+        return {
+          ...prev,
+          [layerId]: true,
+        };
+      }
+
+      if (!prev[layerId]) return prev;
+      const next = { ...prev };
+      delete next[layerId];
+      return next;
+    });
+  }, []);
+
+  const toggleLayerHidden = useCallback((layerId: string) => {
+    setHiddenLayerIds((prev) => {
+      const current = prev[layerId] === true;
+      if (current) {
+        const next = { ...prev };
+        delete next[layerId];
+        return next;
+      }
+      return {
+        ...prev,
+        [layerId]: true,
+      };
+    });
+  }, []);
+
   const runtimeValue = useMemo(
     () => ({
       data,
@@ -323,6 +356,10 @@ const V2TimeTableEditor: React.FC = () => {
       currentTheme,
       updateTheme,
       resetData,
+      hiddenLayerIds,
+      isLayerHidden,
+      toggleLayerHidden,
+      setLayerHidden,
       hoverHighlightTarget,
       setHoverHighlightTarget,
       activeHighlightTarget,
@@ -332,8 +369,12 @@ const V2TimeTableEditor: React.FC = () => {
       activeHighlightTarget,
       currentTheme,
       data,
+      hiddenLayerIds,
       hoverHighlightTarget,
+      isLayerHidden,
       resetData,
+      setLayerHidden,
+      toggleLayerHidden,
       updateData,
       updateTheme,
     ]

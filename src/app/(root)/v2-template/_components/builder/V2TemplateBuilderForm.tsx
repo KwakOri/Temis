@@ -1,11 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlignHorizontalJustifyCenter,
-  AlignHorizontalJustifyEnd,
-  AlignHorizontalJustifyStart,
   AlignVerticalJustifyCenter,
-  AlignVerticalJustifyEnd,
-  AlignVerticalJustifyStart,
   ArrowDown,
   ArrowLeft,
   ArrowRight,
@@ -155,6 +151,27 @@ type V2BoilerplateFieldType = "number" | "text" | "select";
 type V2GridLayoutMode = "grid3x3" | "flex4x2";
 type V2Flex42Align = "left" | "center" | "right";
 type V2Flex42ThreeRow = "top" | "bottom";
+
+const v2_ALIGNMENT_HORIZONTAL_ORDER: V2HorizontalAlign[] = [
+  "left",
+  "center",
+  "right",
+];
+const v2_ALIGNMENT_VERTICAL_ORDER: V2VerticalAlign[] = [
+  "top",
+  "center",
+  "bottom",
+];
+const v2_HORIZONTAL_ALIGN_LABELS: Record<V2HorizontalAlign, string> = {
+  left: "좌측",
+  center: "중앙",
+  right: "우측",
+};
+const v2_VERTICAL_ALIGN_LABELS: Record<V2VerticalAlign, string> = {
+  top: "상단",
+  center: "중앙",
+  bottom: "하단",
+};
 
 interface V2BoilerplateFieldConfig {
   key: string;
@@ -955,18 +972,6 @@ const v2_getBoilerplateFieldIcon = (
   const mapped = v2_BOILERPLATE_FIELD_ICON_MAP[field.key];
   if (mapped) return mapped;
   return v2_BOILERPLATE_GROUP_ICON_MAP[groupId] ?? SlidersHorizontal;
-};
-
-const v2_ALIGNMENT_HORIZONTAL_ICON_MAP: Record<V2HorizontalAlign, LucideIcon> = {
-  left: AlignHorizontalJustifyStart,
-  center: AlignHorizontalJustifyCenter,
-  right: AlignHorizontalJustifyEnd,
-};
-
-const v2_ALIGNMENT_VERTICAL_ICON_MAP: Record<V2VerticalAlign, LucideIcon> = {
-  top: AlignVerticalJustifyStart,
-  center: AlignVerticalJustifyCenter,
-  bottom: AlignVerticalJustifyEnd,
 };
 
 const v2_STYLE_GROUP_DISPLAY_LABEL: Record<string, string> = {
@@ -2631,25 +2636,23 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const horizontalAlign = getHorizontalAlignFromStyle(wrapperMap, textMap);
     const verticalAlign = getVerticalAlignFromStyle(wrapperMap);
 
-    const horizontalOptions: Array<{
-      label: string;
-      value: V2HorizontalAlign;
-      icon: LucideIcon;
-    }> = [
-      { label: "좌측", value: "left", icon: v2_ALIGNMENT_HORIZONTAL_ICON_MAP.left },
-      { label: "중앙", value: "center", icon: v2_ALIGNMENT_HORIZONTAL_ICON_MAP.center },
-      { label: "우측", value: "right", icon: v2_ALIGNMENT_HORIZONTAL_ICON_MAP.right },
-    ];
-
-    const verticalOptions: Array<{
-      label: string;
-      value: V2VerticalAlign;
-      icon: LucideIcon;
-    }> = [
-      { label: "상단", value: "top", icon: v2_ALIGNMENT_VERTICAL_ICON_MAP.top },
-      { label: "중앙", value: "center", icon: v2_ALIGNMENT_VERTICAL_ICON_MAP.center },
-      { label: "하단", value: "bottom", icon: v2_ALIGNMENT_VERTICAL_ICON_MAP.bottom },
-    ];
+    const applyPointAlignment = ({
+      horizontal,
+      vertical,
+    }: {
+      horizontal: V2HorizontalAlign;
+      vertical: V2VerticalAlign;
+    }) => {
+      updateAutoResizeHorizontalAlign({
+        wrapperSection,
+        textSection,
+        align: horizontal,
+      });
+      updateAutoResizeVerticalAlign({
+        wrapperSection,
+        align: vertical,
+      });
+    };
 
     return (
       <div
@@ -2663,72 +2666,42 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           {title}
         </h5>
         <p className="text-[11px] text-gray-400">
-          가로 정렬은 container `justifyContent` + text `textAlign`을 함께
-          조정하고, 세로 정렬은 container `alignItems`만 조정합니다.
+          점 하나를 클릭하면 가로(`justifyContent` + `textAlign`)와 세로(`alignItems`)가
+          함께 반영됩니다.
         </p>
 
-        <div className="grid grid-cols-2 items-center gap-2">
-          <p className="text-xs text-gray-300">가로 정렬</p>
+        <div className="rounded border border-[#343842] bg-[#1b1d22] p-2 inline-block">
           <div className="grid grid-cols-3 gap-2">
-            {horizontalOptions.map((option) => {
-              const isActive = horizontalAlign === option.value;
-              const Icon = option.icon;
-              return (
-                <button
-                  key={`${title}-horizontal-${option.value}`}
-                  type="button"
-                  onClick={() =>
-                    updateAutoResizeHorizontalAlign({
-                      wrapperSection,
-                      textSection,
-                      align: option.value,
-                    })
-                  }
-                  className={`px-2 py-1 rounded text-xs border ${
-                    isActive
-                      ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                      : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                  }`}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    <Icon className="h-3.5 w-3.5" />
-                    {option.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 items-center gap-2">
-          <p className="text-xs text-gray-300">세로 정렬</p>
-          <div className="grid grid-cols-3 gap-2">
-            {verticalOptions.map((option) => {
-              const isActive = verticalAlign === option.value;
-              const Icon = option.icon;
-              return (
-                <button
-                  key={`${title}-vertical-${option.value}`}
-                  type="button"
-                  onClick={() =>
-                    updateAutoResizeVerticalAlign({
-                      wrapperSection,
-                      align: option.value,
-                    })
-                  }
-                  className={`px-2 py-1 rounded text-xs border ${
-                    isActive
-                      ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                      : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                  }`}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    <Icon className="h-3.5 w-3.5" />
-                    {option.label}
-                  </span>
-                </button>
-              );
-            })}
+            {v2_ALIGNMENT_VERTICAL_ORDER.flatMap((vertical) =>
+              v2_ALIGNMENT_HORIZONTAL_ORDER.map((horizontal) => {
+                const isActive =
+                  horizontalAlign === horizontal && verticalAlign === vertical;
+                return (
+                  <button
+                    key={`${title}-point-${vertical}-${horizontal}`}
+                    type="button"
+                    onClick={() =>
+                      applyPointAlignment({
+                        horizontal,
+                        vertical,
+                      })
+                    }
+                    aria-label={`${v2_VERTICAL_ALIGN_LABELS[vertical]} ${v2_HORIZONTAL_ALIGN_LABELS[horizontal]}`}
+                    className={`h-9 w-9 rounded border inline-flex items-center justify-center transition ${
+                      isActive
+                        ? "border-blue-400 bg-blue-500/20"
+                        : "border-[#3a3d44] bg-[#2a2d33] hover:bg-[#323640]"
+                    }`}
+                  >
+                    <span
+                      className={`rounded-full ${
+                        isActive ? "h-2.5 w-2.5 bg-blue-300" : "h-2 w-2 bg-gray-500"
+                      }`}
+                    />
+                  </button>
+                );
+              })
+            )}
           </div>
         </div>
       </div>
@@ -2760,16 +2733,25 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const verticalAlign = autoResizePair
       ? getBoilerplateVerticalAlign({ wrapperSection: autoResizePair.wrapperSection })
       : null;
-    const horizontalOptions: Array<{ label: string; value: V2HorizontalAlign }> = [
-      { label: "좌측", value: "left" },
-      { label: "중앙", value: "center" },
-      { label: "우측", value: "right" },
-    ];
-    const verticalOptions: Array<{ label: string; value: V2VerticalAlign }> = [
-      { label: "상단", value: "top" },
-      { label: "중앙", value: "center" },
-      { label: "하단", value: "bottom" },
-    ];
+
+    const applyBoilerplatePointAlignment = ({
+      horizontal,
+      vertical,
+    }: {
+      horizontal: V2HorizontalAlign;
+      vertical: V2VerticalAlign;
+    }) => {
+      if (!autoResizePair) return;
+      updateBoilerplateAutoResizeHorizontalAlign({
+        wrapperSection: autoResizePair.wrapperSection,
+        textSection: autoResizePair.textSection,
+        align: horizontal,
+      });
+      updateBoilerplateAutoResizeVerticalAlign({
+        wrapperSection: autoResizePair.wrapperSection,
+        align: vertical,
+      });
+    };
 
     return (
       <div className="rounded border border-gray-300 bg-white p-3 space-y-3">
@@ -2800,70 +2782,41 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               Alignment
             </h6>
             <p className="text-[11px] text-gray-500">
-              가로 정렬은 `justifyContent` + `textAlign`을 함께, 세로 정렬은
-              `alignItems`만 바꿉니다.
+              점 하나를 클릭하면 가로(`justifyContent` + `textAlign`)와 세로(`alignItems`)가
+              함께 반영됩니다.
             </p>
-            <div className="grid grid-cols-2 items-center gap-2">
-              <span className="text-xs text-gray-600">가로 정렬</span>
+            <div className="rounded border border-gray-200 bg-white p-2 inline-block">
               <div className="grid grid-cols-3 gap-2">
-                {horizontalOptions.map((option) => {
-                  const isActive = horizontalAlign === option.value;
-                  const Icon = v2_ALIGNMENT_HORIZONTAL_ICON_MAP[option.value];
-                  return (
-                    <button
-                      key={`bp-align-x-${section}-${option.value}`}
-                      type="button"
-                      onClick={() =>
-                        updateBoilerplateAutoResizeHorizontalAlign({
-                          wrapperSection: autoResizePair.wrapperSection,
-                          textSection: autoResizePair.textSection,
-                          align: option.value,
-                        })
-                      }
-                      className={`px-2 py-1 rounded text-xs border ${
-                        isActive
-                          ? "border-blue-400 bg-blue-50 text-blue-700"
-                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        <Icon className="h-3.5 w-3.5" />
-                        {option.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="grid grid-cols-2 items-center gap-2">
-              <span className="text-xs text-gray-600">세로 정렬</span>
-              <div className="grid grid-cols-3 gap-2">
-                {verticalOptions.map((option) => {
-                  const isActive = verticalAlign === option.value;
-                  const Icon = v2_ALIGNMENT_VERTICAL_ICON_MAP[option.value];
-                  return (
-                    <button
-                      key={`bp-align-y-${section}-${option.value}`}
-                      type="button"
-                      onClick={() =>
-                        updateBoilerplateAutoResizeVerticalAlign({
-                          wrapperSection: autoResizePair.wrapperSection,
-                          align: option.value,
-                        })
-                      }
-                      className={`px-2 py-1 rounded text-xs border ${
-                        isActive
-                          ? "border-blue-400 bg-blue-50 text-blue-700"
-                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="inline-flex items-center gap-1">
-                        <Icon className="h-3.5 w-3.5" />
-                        {option.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                {v2_ALIGNMENT_VERTICAL_ORDER.flatMap((vertical) =>
+                  v2_ALIGNMENT_HORIZONTAL_ORDER.map((horizontal) => {
+                    const isActive =
+                      horizontalAlign === horizontal && verticalAlign === vertical;
+                    return (
+                      <button
+                        key={`bp-align-point-${section}-${vertical}-${horizontal}`}
+                        type="button"
+                        onClick={() =>
+                          applyBoilerplatePointAlignment({
+                            horizontal,
+                            vertical,
+                          })
+                        }
+                        aria-label={`${v2_VERTICAL_ALIGN_LABELS[vertical]} ${v2_HORIZONTAL_ALIGN_LABELS[horizontal]}`}
+                        className={`h-9 w-9 rounded border inline-flex items-center justify-center transition ${
+                          isActive
+                            ? "border-blue-400 bg-blue-50"
+                            : "border-gray-300 bg-white hover:bg-gray-50"
+                        }`}
+                      >
+                        <span
+                          className={`rounded-full ${
+                            isActive ? "h-2.5 w-2.5 bg-blue-600" : "h-2 w-2 bg-gray-400"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

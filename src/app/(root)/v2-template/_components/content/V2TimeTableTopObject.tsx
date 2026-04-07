@@ -9,8 +9,12 @@ import { v2_toRenderableStyle } from "./v2_style";
 
 const TimeTableTopObject = () => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { currentTheme, hoverHighlightTarget, activeHighlightTarget } =
-    useV2TimeTableEditorRuntimeContext();
+  const {
+    currentTheme,
+    hoverHighlightTarget,
+    activeHighlightTarget,
+    isLayerHidden,
+  } = useV2TimeTableEditorRuntimeContext();
   const topObjectLayout = v2_toRenderableStyle(
     renderConfig.layout.topObjectContainer
   );
@@ -20,6 +24,8 @@ const TimeTableTopObject = () => {
       key: "topObjectByTheme",
       currentTheme,
     }) ?? Imgs.first.topObject.src;
+
+  if (isLayerHidden("top-object")) return null;
 
   return (
     <div

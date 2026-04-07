@@ -52,13 +52,15 @@ interface OfflineCardProps {
 
 const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const streamingDateLayout = renderConfig.layout.card.streamingDate;
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const streamingDateStyle = v2_toRenderableStyle(
     cardLayoutRecord.streamingDateStyle
   );
+
+  if (isLayerHidden('streaming-date')) return null;
 
   return (
     <p
@@ -82,13 +84,15 @@ const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
 
 const CardStreamingDay = ({ dayLabel }: CardStreamingDayProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const streamingDayLayout = renderConfig.layout.card.streamingDay;
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const streamingDayStyle = v2_toRenderableStyle(
     cardLayoutRecord.streamingDayStyle
   );
+
+  if (isLayerHidden('streaming-day')) return null;
 
   return (
     <p
@@ -112,13 +116,15 @@ const CardStreamingDay = ({ dayLabel }: CardStreamingDayProps) => {
 
 const CardStreamingTime = ({ time, isGuerrilla }: CardStreamingTimeProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const streamingTimeLayout = renderConfig.layout.card.streamingTime;
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const streamingTimeStyle = v2_toRenderableStyle(
     cardLayoutRecord.streamingTimeStyle
   );
+
+  if (isLayerHidden('streaming-time')) return null;
 
   return (
     <p
@@ -142,7 +148,7 @@ const CardStreamingTime = ({ time, isGuerrilla }: CardStreamingTimeProps) => {
 
 const CardMainTitle = ({ content }: CardMainTitleProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const mainTitleLayout =
     (renderConfig.layout.card.mainTitleContainer as Record<
@@ -178,6 +184,8 @@ const CardMainTitle = ({ content }: CardMainTitleProps) => {
         ? widthPercent
         : mainTitleWrapperLayout.width;
 
+  if (isLayerHidden('main-title')) return null;
+
   return (
     <div
       style={{
@@ -210,7 +218,7 @@ const CardMainTitle = ({ content }: CardMainTitleProps) => {
 
 const CardSubTitle = ({ content }: CardSubTitleProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const subTitleLayout =
     (renderConfig.layout.card.subTitleContainer as Record<
@@ -242,6 +250,8 @@ const CardSubTitle = ({ content }: CardSubTitleProps) => {
       : typeof widthPercent === 'string'
         ? widthPercent
         : subTitleWrapperLayout.width;
+
+  if (isLayerHidden('sub-title')) return null;
 
   return (
     <div
@@ -340,7 +350,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   currentTheme,
 }) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const cardSize = renderConfig.cardSizes.online;
   const cardContainerLayout = v2_toRenderableStyle(
@@ -350,6 +360,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const dayLabel = weekdayByOption[time.day] ?? '';
 
   if (!weekDate) return 'Loading';
+  if (isLayerHidden('card')) return null;
 
   // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};

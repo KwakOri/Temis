@@ -51,8 +51,13 @@ const v2_parseGridEmptySlots = (
 };
 
 const TimeTableGrid: React.FC = () => {
-  const { data, currentTheme, hoverHighlightTarget, activeHighlightTarget } =
-    useV2TimeTableEditorRuntimeContext();
+  const {
+    data,
+    currentTheme,
+    hoverHighlightTarget,
+    activeHighlightTarget,
+    isLayerHidden,
+  } = useV2TimeTableEditorRuntimeContext();
   const { weekDates } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const gridLayout =
@@ -85,6 +90,8 @@ const TimeTableGrid: React.FC = () => {
       : typeof columns === "number" && Number.isFinite(columns)
         ? `repeat(${Math.max(1, Math.round(columns))}, minmax(0, 1fr))`
         : "repeat(3, minmax(0, 1fr))";
+
+  if (isLayerHidden("grid")) return null;
 
   if (layoutMode === "flex4x2") {
     const threeRowAlignClass =

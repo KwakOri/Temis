@@ -31,10 +31,12 @@ const v2_getArtistImageSrc = ({
 const ProfileImage = () => {
   const { imageSrc } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const profileSize = renderConfig.cardSizes.profile;
   const profileLayout = v2_toRenderableStyle(renderConfig.layout.profileImage);
+
+  if (isLayerHidden('profile-image')) return null;
 
   return (
     <div
@@ -61,8 +63,12 @@ const ProfileImage = () => {
 };
 
 const ProfileFrame = () => {
-  const { currentTheme, hoverHighlightTarget, activeHighlightTarget } =
-    useV2TimeTableEditorRuntimeContext();
+  const {
+    currentTheme,
+    hoverHighlightTarget,
+    activeHighlightTarget,
+    isLayerHidden,
+  } = useV2TimeTableEditorRuntimeContext();
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const frameSize = renderConfig.cardSizes.frame;
   const frameLayout = v2_toRenderableStyle(renderConfig.layout.profileFrame);
@@ -72,6 +78,8 @@ const ProfileFrame = () => {
       key: 'profileFrameByTheme',
       currentTheme,
     }) ?? Imgs.first.profileFrame.src;
+
+  if (isLayerHidden('profile-frame')) return null;
 
   return (
     <div
@@ -211,6 +219,9 @@ const ProfileImageContainer = ({ children }: PropsWithChildren) => {
 };
 
 const ProfileImageSection = () => {
+  const { isLayerHidden } = useV2TimeTableEditorRuntimeContext();
+  if (isLayerHidden('profile')) return null;
+
   return (
     <ProfileImageContainer>
       <ProfileText />

@@ -10,10 +10,10 @@ import { v2_toRenderableStyle } from './v2_style';
 const TimeTableWeekFlag = () => {
   const { weekDates } = useTimeTableData();
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
   const weekFlagLayout = v2_toRenderableStyle(renderConfig.layout.weekFlag);
-  if (weekDates.length === 0) return null;
+  if (weekDates.length === 0 || isLayerHidden("week-flag")) return null;
 
   const { start, end } = getWeekDateRange(weekDates);
 

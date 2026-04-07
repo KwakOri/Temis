@@ -11,6 +11,10 @@ export interface V2TimeTableEditorRuntimeContextValue {
   currentTheme: TTheme;
   updateTheme: (theme: TTheme) => void;
   resetData: () => void;
+  hiddenLayerIds: Record<string, boolean>;
+  isLayerHidden: (layerId: string) => boolean;
+  toggleLayerHidden: (layerId: string) => void;
+  setLayerHidden: (layerId: string, hidden: boolean) => void;
   hoverHighlightTarget: V2TemplateHighlightTarget | null;
   setHoverHighlightTarget: (
     target: V2TemplateHighlightTarget | null

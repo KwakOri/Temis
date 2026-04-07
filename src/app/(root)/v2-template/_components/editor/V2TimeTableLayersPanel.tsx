@@ -2,6 +2,8 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  Eye,
+  EyeOff,
   GripVertical,
   Folder,
   Grid3X3,
@@ -91,6 +93,19 @@ const v2_toOrderMap = (
   });
 };
 
+const v2_findNodeById = (
+  nodes: V2LayerNode[],
+  nodeId: string
+): V2LayerNode | null => {
+  for (const node of nodes) {
+    if (node.id === nodeId) return node;
+    if (!node.children?.length) continue;
+    const found = v2_findNodeById(node.children, nodeId);
+    if (found) return found;
+  }
+  return null;
+};
+
 const v2_createInitialOrderMap = (): Record<string, string[]> => {
   const initialOrderMap: Record<string, string[]> = {};
   v2_toOrderMap(v2_ROOT_LAYER_PARENT_ID, v2_LAYER_TREE, initialOrderMap);
@@ -103,6 +118,46 @@ const v2_LAYER_TREE: V2LayerNode[] = [
     label: "Grid",
     icon: Grid3X3,
     target: "grid",
+    children: [
+      {
+        id: "card",
+        label: "Card",
+        icon: Folder,
+        target: "cardContainer",
+        children: [
+          {
+            id: "streaming-day",
+            label: "StreamingDay",
+            icon: Type,
+            target: "cardStreamingDay",
+          },
+          {
+            id: "streaming-date",
+            label: "StreamingDate",
+            icon: Type,
+            target: "cardStreamingDate",
+          },
+          {
+            id: "streaming-time",
+            label: "StreamingTime",
+            icon: Type,
+            target: "cardStreamingTime",
+          },
+          {
+            id: "main-title",
+            label: "MainTitle",
+            icon: Type,
+            target: "cardMainTitleContainer",
+          },
+          {
+            id: "sub-title",
+            label: "SubTitle",
+            icon: Type,
+            target: "cardSubTitleContainer",
+          },
+        ],
+      },
+    ],
   },
   {
     id: "week-flag",
@@ -135,44 +190,6 @@ const v2_LAYER_TREE: V2LayerNode[] = [
       },
     ],
   },
-  {
-    id: "card",
-    label: "Card",
-    icon: Folder,
-    target: "cardContainer",
-    children: [
-      {
-        id: "streaming-day",
-        label: "StreamingDay",
-        icon: Type,
-        target: "cardStreamingDay",
-      },
-      {
-        id: "streaming-date",
-        label: "StreamingDate",
-        icon: Type,
-        target: "cardStreamingDate",
-      },
-      {
-        id: "streaming-time",
-        label: "StreamingTime",
-        icon: Type,
-        target: "cardStreamingTime",
-      },
-      {
-        id: "main-title",
-        label: "MainTitle",
-        icon: Type,
-        target: "cardMainTitleContainer",
-      },
-      {
-        id: "sub-title",
-        label: "SubTitle",
-        icon: Type,
-        target: "cardSubTitleContainer",
-      },
-    ],
-  },
 ];
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
@@ -184,8 +201,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     activeHighlightTarget,
     setActiveHighlightTarget,
     setHoverHighlightTarget,
+    isLayerHidden,
+    toggleLayerHidden,
   } = useV2TimeTableEditorRuntimeContext();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    grid: true,
     profile: true,
     card: true,
   });
@@ -279,7 +299,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const renderNode = (
     node: V2LayerNode,
     depth = 0,
-    parentId: V2LayerParentId
+    parentId: V2LayerParentId,
+    ancestorHidden = false
   ): React.ReactNode => {
     const hasChildren = Boolean(node.children?.length);
     const isOpen = expanded[node.id] ?? false;
@@ -299,13 +320,19 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       dropState?.parentId === parentId &&
       dropState.nodeId === node.id &&
       dropState.position === "after";
+    const isSelfHidden = isLayerHidden(node.id);
+    const isEffectivelyHidden = ancestorHidden || isSelfHidden;
+    const isInheritedHidden = ancestorHidden && !isSelfHidden;
+    const VisibilityIcon = isEffectivelyHidden ? EyeOff : Eye;
+    const parentNode =
+      parentId === v2_ROOT_LAYER_PARENT_ID
+        ? null
+        : v2_findNodeById(v2_LAYER_TREE, parentId);
     const orderedSiblings = getOrderedChildren(
       parentId,
       parentId === v2_ROOT_LAYER_PARENT_ID
         ? v2_LAYER_TREE
-        : (v2_LAYER_TREE.find((layerNode) => layerNode.id === parentId)?.children ??
-            node.children ??
-            [])
+        : (parentNode?.children ?? [])
     );
     const orderedSiblingIds = orderedSiblings.map((layerNode) => layerNode.id);
 
@@ -320,7 +347,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
         <div
           className={`flex items-center gap-1 rounded px-2 py-1 transition ${
             isSelected ? "bg-[#2a3447] text-[#d8e5ff]" : "text-gray-300 hover:bg-[#1b1f27]"
-          } ${isDragging ? "opacity-50" : "opacity-100"}`}
+          } ${isDragging ? "opacity-50" : isEffectivelyHidden ? "opacity-50" : "opacity-100"}`}
           draggable={isReorderable}
           onDragStart={(event) => {
             if (!isReorderable) return;
@@ -412,6 +439,24 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate text-xs font-medium">{node.label}</span>
           </button>
+          <button
+            type="button"
+            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-[#2a2f3a] ${
+              isInheritedHidden ? "text-[#5d6473]" : "text-[#99a8c9]"
+            }`}
+            onMouseDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleLayerHidden(node.id);
+            }}
+            draggable={false}
+            aria-label={isSelfHidden ? `${node.label} 보이기` : `${node.label} 숨기기`}
+            title={isSelfHidden ? "보이기" : "숨기기"}
+          >
+            <VisibilityIcon className="h-3.5 w-3.5" />
+          </button>
         </div>
         {isDropTargetAfter && (
           <div
@@ -422,7 +467,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
         {hasChildren && isOpen && (
           <div className="space-y-1">
             {getOrderedChildren(node.id, node.children ?? []).map((child) =>
-              renderNode(child, depth + 1, node.id)
+              renderNode(child, depth + 1, node.id, isEffectivelyHidden)
             )}
           </div>
         )}
@@ -438,7 +483,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {getOrderedChildren(v2_ROOT_LAYER_PARENT_ID, v2_LAYER_TREE).map(
-            (node) => renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID)
+            (node) => renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID, false)
           )}
         </div>
       </div>
