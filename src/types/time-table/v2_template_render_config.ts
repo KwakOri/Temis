@@ -120,6 +120,8 @@ export type V2TemplateVisibilityMode =
   | "onlineOnly"
   | "offlineOnly";
 
+export type V2TemplateComponentInstanceMode = "component" | "detached";
+
 export type V2TemplateLayerIconKey =
   | "group"
   | "grid"
@@ -145,6 +147,7 @@ export interface V2TemplateLayerNode {
   target?: V2TemplateHighlightTarget;
   sectionKey?: string;
   visibilityMode?: V2TemplateVisibilityMode;
+  isTemplateComponent?: boolean;
   children?: V2TemplateLayerNode[];
 }
 
@@ -191,10 +194,17 @@ export interface V2TemplateCardNode {
   textClassName?: string;
 }
 
+export interface V2TemplateCardInstanceTransform {
+  offsetX?: number;
+  offsetY?: number;
+}
+
 export interface V2TemplateCardStructure {
   containerLayerId: string;
   containerHighlightTarget: V2TemplateHighlightTarget;
   containerStyleKey: V2TemplateCardStyleKey;
+  instanceMode: V2TemplateComponentInstanceMode;
+  instanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
   nodeOrder: string[];
   nodes: Record<string, V2TemplateCardNode>;
 }

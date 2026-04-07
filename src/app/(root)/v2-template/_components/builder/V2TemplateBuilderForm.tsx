@@ -2103,6 +2103,62 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
+  const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
+    safeUpdateConfig((prev) => ({
+      ...prev,
+      structure: {
+        ...prev.structure,
+        card: {
+          ...prev.structure.card,
+          instanceMode,
+        },
+      },
+    }));
+  };
+
+  const updateCardInstanceOffset = (
+    index: number,
+    axis: "offsetX" | "offsetY",
+    value: number
+  ) => {
+    if (!Number.isFinite(value)) return;
+    const rounded = Math.round(value);
+
+    safeUpdateConfig((prev) => {
+      const key = String(index);
+      const prevTransforms = prev.structure.card.instanceTransforms ?? {};
+      const prevTransform = prevTransforms[key] ?? {};
+      const nextTransform = {
+        ...prevTransform,
+        [axis]: rounded,
+      };
+
+      if (nextTransform.offsetX === 0) delete nextTransform.offsetX;
+      if (nextTransform.offsetY === 0) delete nextTransform.offsetY;
+
+      const nextTransforms = {
+        ...prevTransforms,
+      };
+
+      if (Object.keys(nextTransform).length === 0) {
+        delete nextTransforms[key];
+      } else {
+        nextTransforms[key] = nextTransform;
+      }
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          card: {
+            ...prev.structure.card,
+            instanceTransforms: nextTransforms,
+          },
+        },
+      };
+    });
+  };
+
   const updateColor = (
     key: (typeof v2_TEMPLATE_COLOR_KEYS)[number],
     value: string
@@ -3290,6 +3346,88 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
+  const renderCardComponentProperties = (section: V2StyleSectionKey) => {
+    if (section !== "cardContainer") return null;
+
+    const instanceMode = renderConfig.structure.card.instanceMode ?? "component";
+    const instanceTransforms = renderConfig.structure.card.instanceTransforms ?? {};
+
+    return (
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h5 className="text-xs font-semibold text-gray-200">Card Component</h5>
+          <span className="rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
+            Component
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">인스턴스 모드</label>
+          <select
+            value={instanceMode}
+            onChange={(event) =>
+              updateCardInstanceMode(
+                event.target.value === "detached" ? "detached" : "component"
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            <option value="component">공통 컴포넌트</option>
+            <option value="detached">개별 인스턴스</option>
+          </select>
+        </div>
+
+        {instanceMode === "detached" ? (
+          <div className="space-y-2">
+            <p className="text-[11px] text-gray-400">
+              카드 1~7 각각의 위치 오프셋(X/Y)을 조정합니다.
+            </p>
+            {Array.from({ length: 7 }).map((_, index) => {
+              const key = String(index);
+              const transform = instanceTransforms[key] ?? {};
+              const offsetX =
+                typeof transform.offsetX === "number" ? transform.offsetX : 0;
+              const offsetY =
+                typeof transform.offsetY === "number" ? transform.offsetY : 0;
+
+              return (
+                <div key={key} className="grid grid-cols-[56px_1fr_1fr] gap-2 items-center">
+                  <span className="text-xs text-gray-300">Card {index + 1}</span>
+                  <input
+                    type="number"
+                    value={offsetX}
+                    onChange={(event) =>
+                      updateCardInstanceOffset(
+                        index,
+                        "offsetX",
+                        Number(event.target.value)
+                      )
+                    }
+                    className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                    placeholder="X"
+                  />
+                  <input
+                    type="number"
+                    value={offsetY}
+                    onChange={(event) =>
+                      updateCardInstanceOffset(
+                        index,
+                        "offsetY",
+                        Number(event.target.value)
+                      )
+                    }
+                    className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                    placeholder="Y"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderSimplePropertiesSection = (section: V2StyleSectionKey) => {
     const heading =
       structurePropertiesMaps.sectionToLabel[section] ??
@@ -3307,6 +3445,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">{heading}</h4>
+        {renderCardComponentProperties(section)}
         {renderStyleSectionEditor({ title: styleTitle, section })}
       </div>
     );

@@ -3,6 +3,8 @@ import {
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
   V2TemplateCardNode,
+  V2TemplateCardInstanceTransform,
+  V2TemplateComponentInstanceMode,
   V2TemplateCardOptionsKey,
   V2TemplateCardStyleKey,
   V2TemplateCardStructure,
@@ -111,6 +113,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
         label: "Card",
         kind: "group",
         visibilityMode: "always",
+        isTemplateComponent: true,
         icon: "group",
         target: "cardContainer",
         sectionKey: "cardContainer",
@@ -218,6 +221,8 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
   containerStyleKey: "container",
+  instanceMode: "component",
+  instanceTransforms: {},
   nodeOrder: [
     "streaming-day",
     "streaming-date",
@@ -721,6 +726,8 @@ const v2_VISIBILITY_MODE_SET = new Set([
   "offlineOnly",
 ]);
 
+const v2_COMPONENT_INSTANCE_MODE_SET = new Set(["component", "detached"]);
+
 const v2_getDefaultLayerComponentKeyById = (
   id: string
 ): V2TemplateLayerComponentKey | undefined => {
@@ -729,6 +736,10 @@ const v2_getDefaultLayerComponentKeyById = (
   if (id === "top-object") return "topObject";
   if (id === "profile") return "profile";
   return undefined;
+};
+
+const v2_getDefaultTemplateComponentFlagById = (id: string): boolean => {
+  return id === "card";
 };
 
 const v2_CARD_NODE_KIND_SET = new Set(["text", "autoResizeText"]);
@@ -785,6 +796,10 @@ const v2_normalizeLayerTree = (
       v2_VISIBILITY_MODE_SET.has(rawNode.visibilityMode)
         ? (rawNode.visibilityMode as V2TemplateVisibilityMode)
         : "always";
+    const isTemplateComponent =
+      typeof rawNode.isTemplateComponent === "boolean"
+        ? rawNode.isTemplateComponent
+        : v2_getDefaultTemplateComponentFlagById(id);
 
     const children = Array.isArray(rawNode.children)
       ? rawNode.children
@@ -813,6 +828,7 @@ const v2_normalizeLayerTree = (
       ...(target ? { target } : {}),
       ...(sectionKey ? { sectionKey } : {}),
       ...(visibilityMode ? { visibilityMode } : {}),
+      ...(isTemplateComponent ? { isTemplateComponent } : {}),
       ...(hasChildren ? { children } : {}),
     };
   };
@@ -926,6 +942,36 @@ const v2_normalizeCardStructure = (
     ? Array.from(new Set(nodeOrderCandidate))
     : fallback.nodeOrder;
 
+  const instanceMode: V2TemplateComponentInstanceMode =
+    typeof candidate.instanceMode === "string" &&
+    v2_COMPONENT_INSTANCE_MODE_SET.has(candidate.instanceMode)
+      ? (candidate.instanceMode as V2TemplateComponentInstanceMode)
+      : fallback.instanceMode;
+
+  const instanceTransforms: Record<string, V2TemplateCardInstanceTransform> = {};
+  if (v2_isRecord(candidate.instanceTransforms)) {
+    Object.entries(candidate.instanceTransforms).forEach(([key, rawTransform]) => {
+      if (!v2_isRecord(rawTransform)) return;
+      const nextTransform: V2TemplateCardInstanceTransform = {};
+      if (
+        typeof rawTransform.offsetX === "number" &&
+        Number.isFinite(rawTransform.offsetX)
+      ) {
+        nextTransform.offsetX = rawTransform.offsetX;
+      }
+      if (
+        typeof rawTransform.offsetY === "number" &&
+        Number.isFinite(rawTransform.offsetY)
+      ) {
+        nextTransform.offsetY = rawTransform.offsetY;
+      }
+      if (Object.keys(nextTransform).length === 0) return;
+      instanceTransforms[key] = nextTransform;
+    });
+  } else {
+    Object.assign(instanceTransforms, fallback.instanceTransforms);
+  }
+
   return {
     containerLayerId: v2_asString(
       candidate.containerLayerId,
@@ -938,6 +984,8 @@ const v2_normalizeCardStructure = (
     containerStyleKey: v2_isCardStyleKey(candidate.containerStyleKey)
       ? candidate.containerStyleKey
       : fallback.containerStyleKey,
+    instanceMode,
+    instanceTransforms,
     nodeOrder,
     nodes: nextNodes,
   };

@@ -1,8 +1,9 @@
-import React, { Fragment } from "react";
+import React from "react";
 
 import { useTimeTableData } from "@/contexts/TimeTableContext";
 import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
+import { V2TemplateComponentInstanceMode } from "@/types/time-table/v2_template_render_config";
 import V2TimeTableCell from "./V2TimeTableCell";
 import { v2_getHighlightStyle } from "./v2_highlight";
 import { v2_toRenderableStyle } from "./v2_style";
@@ -10,6 +11,28 @@ import { v2_toRenderableStyle } from "./v2_style";
 type V2GridLayoutMode = "grid3x3" | "flex4x2";
 type V2Flex42Align = "left" | "center" | "right";
 type V2Flex42ThreeRow = "top" | "bottom";
+
+const v2_parseCardInstanceMode = (
+  value: unknown
+): V2TemplateComponentInstanceMode => {
+  return value === "detached" ? "detached" : "component";
+};
+
+const v2_getCardInstanceOffset = (
+  transforms: Record<string, { offsetX?: number; offsetY?: number }> | undefined,
+  index: number
+): { x: number; y: number } => {
+  const transform = transforms?.[String(index)];
+  const x =
+    typeof transform?.offsetX === "number" && Number.isFinite(transform.offsetX)
+      ? transform.offsetX
+      : 0;
+  const y =
+    typeof transform?.offsetY === "number" && Number.isFinite(transform.offsetY)
+      ? transform.offsetY
+      : 0;
+  return { x, y };
+};
 
 const v2_parseGridLayoutMode = (value: unknown): V2GridLayoutMode => {
   return value === "flex4x2" ? "flex4x2" : "grid3x3";
@@ -90,6 +113,19 @@ const TimeTableGrid: React.FC = () => {
       : typeof columns === "number" && Number.isFinite(columns)
         ? `repeat(${Math.max(1, Math.round(columns))}, minmax(0, 1fr))`
         : "repeat(3, minmax(0, 1fr))";
+  const cardInstanceMode = v2_parseCardInstanceMode(
+    renderConfig.structure.card.instanceMode
+  );
+  const cardInstanceTransforms = renderConfig.structure.card.instanceTransforms;
+
+  const getCardInstanceWrapperStyle = (index: number): React.CSSProperties => {
+    if (cardInstanceMode !== "detached") return {};
+    const offset = v2_getCardInstanceOffset(cardInstanceTransforms, index);
+    if (offset.x === 0 && offset.y === 0) return {};
+    return {
+      transform: `translate(${offset.x}px, ${offset.y}px)`,
+    };
+  };
 
   if (isLayerHidden("grid")) return null;
 
@@ -127,14 +163,17 @@ const TimeTableGrid: React.FC = () => {
           {topRowItems.map((time, localIndex) => {
             const index = localIndex;
             return (
-              <Fragment key={`flex42-top-row-${time.day}`}>
+              <div
+                key={`flex42-top-row-${time.day}`}
+                style={getCardInstanceWrapperStyle(index)}
+              >
                 <V2TimeTableCell
                   time={time}
                   currentTheme={currentTheme}
                   weekDate={weekDates[index]}
                   index={index}
                 />
-              </Fragment>
+              </div>
             );
           })}
         </div>
@@ -145,14 +184,17 @@ const TimeTableGrid: React.FC = () => {
           {bottomRowItems.map((time, localIndex) => {
             const index = bottomRowIndexOffset + localIndex;
             return (
-              <Fragment key={`flex42-bottom-row-${time.day}`}>
+              <div
+                key={`flex42-bottom-row-${time.day}`}
+                style={getCardInstanceWrapperStyle(index)}
+              >
                 <V2TimeTableCell
                   time={time}
                   currentTheme={currentTheme}
                   weekDate={weekDates[index]}
                   index={index}
                 />
-              </Fragment>
+              </div>
             );
           })}
         </div>
@@ -178,14 +220,17 @@ const TimeTableGrid: React.FC = () => {
     }
 
     slotNodes.push(
-      <Fragment key={`grid3x3-cell-${slot}`}>
+      <div
+        key={`grid3x3-cell-${slot}`}
+        style={getCardInstanceWrapperStyle(itemIndex)}
+      >
         <V2TimeTableCell
           time={time}
           currentTheme={currentTheme}
           weekDate={weekDate}
           index={itemIndex}
         />
-      </Fragment>
+      </div>
     );
     itemIndex += 1;
   }

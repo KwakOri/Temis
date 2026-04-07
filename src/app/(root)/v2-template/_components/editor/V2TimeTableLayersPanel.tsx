@@ -369,6 +369,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           >
             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate text-xs font-medium">{node.label}</span>
+            {node.isTemplateComponent ? (
+              <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
+                Component
+              </span>
+            ) : null}
           </button>
           <button
             type="button"
