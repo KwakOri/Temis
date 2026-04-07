@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
+import type { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
 
 export const v2_TEMPLATE_RENDER_CONFIG_VERSION = 1 as const;
 
@@ -114,6 +115,78 @@ export type V2TemplateAssetDimensionMap = Record<
 export type V2TemplateStyleRecord = CSSProperties &
   Record<string, string | number>;
 
+export type V2TemplateLayerIconKey =
+  | "group"
+  | "grid"
+  | "calendar"
+  | "image"
+  | "layers"
+  | "text";
+
+export interface V2TemplateLayerNode {
+  id: string;
+  label: string;
+  icon?: V2TemplateLayerIconKey;
+  target?: V2TemplateHighlightTarget;
+  sectionKey?: string;
+  children?: V2TemplateLayerNode[];
+}
+
+export type V2TemplateCardStyleKey =
+  | "streamingDay"
+  | "streamingDate"
+  | "streamingTime"
+  | "mainTitleContainer"
+  | "subTitleContainer"
+  | "container"
+  | "mainTitleTextStyle"
+  | "subTitleTextStyle"
+  | "mainTitleWrapperStyle"
+  | "streamingDayStyle"
+  | "streamingDateStyle"
+  | "streamingTimeStyle";
+
+export type V2TemplateCardOptionsKey = "mainTitleOptions" | "subTitleOptions";
+
+export type V2TemplateCardNodeKind = "text" | "autoResizeText";
+
+export type V2TemplateCardNodeBinding =
+  | "streamingDay"
+  | "streamingDate"
+  | "streamingTime"
+  | "mainTitle"
+  | "subTitle";
+
+export interface V2TemplateCardNode {
+  id: string;
+  label: string;
+  kind: V2TemplateCardNodeKind;
+  layerId: string;
+  highlightTarget: V2TemplateHighlightTarget;
+  binding: V2TemplateCardNodeBinding;
+  containerStyleKey: V2TemplateCardStyleKey;
+  textStyleKey?: V2TemplateCardStyleKey;
+  wrapperStyleKey?: V2TemplateCardStyleKey;
+  optionsKey?: V2TemplateCardOptionsKey;
+  colorKey: V2TemplateColorKey;
+  fontKey: V2TemplateFontKey;
+  containerClassName?: string;
+  textClassName?: string;
+}
+
+export interface V2TemplateCardStructure {
+  containerLayerId: string;
+  containerHighlightTarget: V2TemplateHighlightTarget;
+  containerStyleKey: V2TemplateCardStyleKey;
+  nodeOrder: string[];
+  nodes: Record<string, V2TemplateCardNode>;
+}
+
+export interface V2TemplateStructureConfig {
+  layers: V2TemplateLayerNode[];
+  card: V2TemplateCardStructure;
+}
+
 export interface V2TemplateLayoutConfig {
   grid: V2TemplateStyleRecord;
   weekFlag: V2TemplateStyleRecord;
@@ -168,4 +241,5 @@ export interface V2TemplateRenderConfig {
   assets: V2TemplateAssetMap;
   assetDimensions: V2TemplateAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
+  structure: V2TemplateStructureConfig;
 }

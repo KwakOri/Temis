@@ -7,7 +7,11 @@ import { useV2TemplateRenderConfigContext } from '@/contexts/v2/v2_TemplateRende
 import { V2TimeTableEditorRuntimeProvider } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
 import { useTimeTableEditor } from '@/hooks';
 import { V2TemplateHighlightTarget } from '@/types/time-table/v2_template_editor_ui';
-import { V2TemplateStyleRecord } from '@/types/time-table/v2_template_render_config';
+import {
+  V2TemplateLayerNode,
+  V2TemplateRenderConfig,
+  V2TemplateStyleRecord,
+} from '@/types/time-table/v2_template_render_config';
 import { TTheme } from '@/types/time-table/theme';
 import V2TemplateBuilderForm from '../builder/V2TemplateBuilderForm';
 import V2Loading from '../shared/V2Loading';
@@ -17,20 +21,68 @@ import V2TimeTableControls from './V2TimeTableControls';
 import V2TimeTablePreview from './V2TimeTablePreview';
 
 const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
-const v2_ROOT_LAYER_IDS = [
-  'grid',
-  'week-flag',
-  'top-object',
-  'profile',
-] as const;
-const v2_PROFILE_LAYER_IDS = ['profile-image', 'profile-frame'] as const;
-const v2_CARD_LAYER_IDS = [
-  'streaming-day',
-  'streaming-date',
-  'streaming-time',
-  'main-title',
-  'sub-title',
-] as const;
+type V2LayoutShape = V2TemplateRenderConfig['layout'];
+
+const v2_TARGET_TO_STYLE_SECTION_FALLBACK: Partial<
+  Record<V2TemplateHighlightTarget, string>
+> = {
+  grid: 'grid',
+  weekFlag: 'weekFlag',
+  topObjectContainer: 'topObjectContainer',
+  profileImage: 'profileImage',
+  profileFrame: 'profileFrame',
+  cardStreamingDay: 'cardStreamingDay',
+  cardStreamingDate: 'cardStreamingDate',
+  cardStreamingTime: 'cardStreamingTime',
+  cardMainTitleContainer: 'cardMainTitleContainer',
+  cardSubTitleContainer: 'cardSubTitleContainer',
+  cardContainer: 'cardContainer',
+};
+
+const v2_collectLayerNodeMap = (
+  nodes: V2TemplateLayerNode[],
+  nodeMap: Map<string, V2TemplateLayerNode> = new Map()
+): Map<string, V2TemplateLayerNode> => {
+  nodes.forEach((node) => {
+    nodeMap.set(node.id, node);
+    if (node.children?.length) {
+      v2_collectLayerNodeMap(node.children, nodeMap);
+    }
+  });
+  return nodeMap;
+};
+
+const v2_getStyleRecordBySectionKey = (
+  layout: V2LayoutShape,
+  sectionKey: string
+): V2TemplateStyleRecord | undefined => {
+  switch (sectionKey) {
+    case 'grid':
+      return layout.grid as V2TemplateStyleRecord;
+    case 'weekFlag':
+      return layout.weekFlag as V2TemplateStyleRecord;
+    case 'topObjectContainer':
+      return layout.topObjectContainer as V2TemplateStyleRecord;
+    case 'profileImage':
+      return layout.profileImage as V2TemplateStyleRecord;
+    case 'profileFrame':
+      return layout.profileFrame as V2TemplateStyleRecord;
+    case 'cardStreamingDay':
+      return layout.card.streamingDay as V2TemplateStyleRecord;
+    case 'cardStreamingDate':
+      return layout.card.streamingDate as V2TemplateStyleRecord;
+    case 'cardStreamingTime':
+      return layout.card.streamingTime as V2TemplateStyleRecord;
+    case 'cardMainTitleContainer':
+      return layout.card.mainTitleContainer as V2TemplateStyleRecord;
+    case 'cardSubTitleContainer':
+      return layout.card.subTitleContainer as V2TemplateStyleRecord;
+    case 'cardContainer':
+      return layout.card.container as V2TemplateStyleRecord;
+    default:
+      return undefined;
+  }
+};
 
 const useV2TemplateEditorSettings = () => {
   const { renderConfig, setRenderConfig } = useV2TemplateRenderConfigContext();
@@ -89,73 +141,60 @@ const V2TimeTableEditor: React.FC = () => {
     return undefined;
   };
 
-  const sortLayerIdsByZIndex = (
-    ids: readonly string[],
-    zIndexMap: Partial<Record<string, number>>
-  ): string[] => {
-    return [...ids].sort((a, b) => {
-      const aZ = zIndexMap[a] ?? 0;
-      const bZ = zIndexMap[b] ?? 0;
-      if (aZ === bZ) {
-        return ids.indexOf(a) - ids.indexOf(b);
-      }
-      return bZ - aZ;
-    });
-  };
-
-  const v2_TARGET_TO_STYLE_SECTION: Partial<
-    Record<V2TemplateHighlightTarget, string>
-  > = {
-    grid: 'grid',
-    weekFlag: 'weekFlag',
-    topObjectContainer: 'topObjectContainer',
-    profileImage: 'profileImage',
-    profileFrame: 'profileFrame',
-    cardStreamingDay: 'cardStreamingDay',
-    cardStreamingDate: 'cardStreamingDate',
-    cardStreamingTime: 'cardStreamingTime',
-    cardMainTitleContainer: 'cardMainTitleContainer',
-    cardSubTitleContainer: 'cardSubTitleContainer',
-    cardContainer: 'cardContainer',
-  };
-
   const orderedIdsByParent = useMemo(() => {
-    const profileTextRootStyle = renderConfig.layout.profileTextRootStyle as
-      | V2TemplateStyleRecord
-      | undefined;
-
-    const profileImageZ = parseZIndex(renderConfig.layout.profileImage?.zIndex) ?? 0;
-    const profileFrameZ = parseZIndex(renderConfig.layout.profileFrame?.zIndex) ?? 0;
-    const profileTextZ = parseZIndex(profileTextRootStyle?.zIndex) ?? 0;
-
-    const rootZMap: Partial<Record<string, number>> = {
-      grid: parseZIndex(renderConfig.layout.grid?.zIndex) ?? 0,
-      'week-flag': parseZIndex(renderConfig.layout.weekFlag?.zIndex) ?? 0,
-      'top-object': parseZIndex(renderConfig.layout.topObjectContainer?.zIndex) ?? 0,
-      profile: Math.max(profileImageZ, profileFrameZ, profileTextZ),
+    const getSectionZIndex = (sectionKey?: string): number | undefined => {
+      if (!sectionKey) return undefined;
+      const style = v2_getStyleRecordBySectionKey(renderConfig.layout, sectionKey);
+      return parseZIndex(style?.zIndex);
     };
 
-    const profileZMap: Partial<Record<string, number>> = {
-      'profile-image': profileImageZ,
-      'profile-frame': profileFrameZ,
+    const zIndexCache = new Map<string, number>();
+    const getNodeZIndex = (node: V2TemplateLayerNode): number => {
+      const cached = zIndexCache.get(node.id);
+      if (cached !== undefined) return cached;
+
+      const own = getSectionZIndex(node.sectionKey);
+      let value = own ?? Number.NEGATIVE_INFINITY;
+
+      if (node.children?.length) {
+        node.children.forEach((child) => {
+          value = Math.max(value, getNodeZIndex(child));
+        });
+      }
+
+      if (node.id === 'profile') {
+        const profileTextZ = parseZIndex(renderConfig.layout.profileTextRootStyle?.zIndex);
+        value = Math.max(value, profileTextZ ?? Number.NEGATIVE_INFINITY);
+      }
+
+      const normalizedValue = Number.isFinite(value) ? value : 0;
+      zIndexCache.set(node.id, normalizedValue);
+      return normalizedValue;
     };
 
-    const cardZMap: Partial<Record<string, number>> = {
-      'streaming-day': parseZIndex(renderConfig.layout.card.streamingDay?.zIndex) ?? 0,
-      'streaming-date':
-        parseZIndex(renderConfig.layout.card.streamingDate?.zIndex) ?? 0,
-      'streaming-time':
-        parseZIndex(renderConfig.layout.card.streamingTime?.zIndex) ?? 0,
-      'main-title':
-        parseZIndex(renderConfig.layout.card.mainTitleContainer?.zIndex) ?? 0,
-      'sub-title': parseZIndex(renderConfig.layout.card.subTitleContainer?.zIndex) ?? 0,
+    const sortNodes = (nodes: V2TemplateLayerNode[]): V2TemplateLayerNode[] => {
+      return [...nodes].sort((a, b) => {
+        const aZ = getNodeZIndex(a);
+        const bZ = getNodeZIndex(b);
+        if (aZ === bZ) {
+          return nodes.indexOf(a) - nodes.indexOf(b);
+        }
+        return bZ - aZ;
+      });
     };
 
-    return {
-      [v2_ROOT_LAYER_PARENT_ID]: sortLayerIdsByZIndex(v2_ROOT_LAYER_IDS, rootZMap),
-      profile: sortLayerIdsByZIndex(v2_PROFILE_LAYER_IDS, profileZMap),
-      card: sortLayerIdsByZIndex(v2_CARD_LAYER_IDS, cardZMap),
+    const orderedMap: Record<string, string[]> = {};
+    const buildOrder = (nodes: V2TemplateLayerNode[], parentId: string) => {
+      const sorted = sortNodes(nodes);
+      orderedMap[parentId] = sorted.map((node) => node.id);
+      sorted.forEach((node) => {
+        if (!node.children?.length) return;
+        buildOrder(node.children, node.id);
+      });
     };
+
+    buildOrder(renderConfig.structure.layers, v2_ROOT_LAYER_PARENT_ID);
+    return orderedMap;
   }, [renderConfig]);
 
   const applyLayerZIndex = ({
@@ -179,6 +218,16 @@ const V2TimeTableEditor: React.FC = () => {
           ...prev.layout.card,
         },
       };
+      const layerNodeMap = v2_collectLayerNodeMap(prev.structure.layers);
+      const parentNode =
+        parentId === v2_ROOT_LAYER_PARENT_ID
+          ? null
+          : layerNodeMap.get(parentId) ?? null;
+      const siblings =
+        parentId === v2_ROOT_LAYER_PARENT_ID
+          ? prev.structure.layers
+          : (parentNode?.children ?? []);
+      const siblingIdSet = new Set(siblings.map((sibling) => sibling.id));
 
       const setStyleZIndex = (
         style: V2TemplateStyleRecord | undefined,
@@ -190,114 +239,103 @@ const V2TimeTableEditor: React.FC = () => {
         };
       };
 
-      const setCardChildZ = (nodeId: string, zIndex: number) => {
-        switch (nodeId) {
-          case 'streaming-day':
-            nextLayout.card.streamingDay = setStyleZIndex(
-              nextLayout.card.streamingDay as V2TemplateStyleRecord,
+      const setSectionZIndex = (sectionKey: string, zIndex: number) => {
+        switch (sectionKey) {
+          case 'grid':
+            nextLayout.grid = setStyleZIndex(
+              nextLayout.grid as V2TemplateStyleRecord,
               zIndex
             );
-            break;
-          case 'streaming-date':
-            nextLayout.card.streamingDate = setStyleZIndex(
-              nextLayout.card.streamingDate as V2TemplateStyleRecord,
+            return;
+          case 'weekFlag':
+            nextLayout.weekFlag = setStyleZIndex(
+              nextLayout.weekFlag as V2TemplateStyleRecord,
               zIndex
             );
-            break;
-          case 'streaming-time':
-            nextLayout.card.streamingTime = setStyleZIndex(
-              nextLayout.card.streamingTime as V2TemplateStyleRecord,
+            return;
+          case 'topObjectContainer':
+            nextLayout.topObjectContainer = setStyleZIndex(
+              nextLayout.topObjectContainer as V2TemplateStyleRecord,
               zIndex
             );
-            break;
-          case 'main-title':
-            nextLayout.card.mainTitleContainer = setStyleZIndex(
-              nextLayout.card.mainTitleContainer as V2TemplateStyleRecord,
-              zIndex
-            );
-            break;
-          case 'sub-title':
-            nextLayout.card.subTitleContainer = setStyleZIndex(
-              nextLayout.card.subTitleContainer as V2TemplateStyleRecord,
-              zIndex
-            );
-            break;
-          default:
-            break;
-        }
-      };
-
-      if (parentId === v2_ROOT_LAYER_PARENT_ID) {
-        orderedIds.forEach((nodeId) => {
-          const zIndex = zMap.get(nodeId);
-          if (zIndex === undefined) return;
-
-          switch (nodeId) {
-            case 'grid':
-              nextLayout.grid = setStyleZIndex(
-                nextLayout.grid as V2TemplateStyleRecord,
-                zIndex
-              );
-              break;
-            case 'week-flag':
-              nextLayout.weekFlag = setStyleZIndex(
-                nextLayout.weekFlag as V2TemplateStyleRecord,
-                zIndex
-              );
-              break;
-            case 'top-object':
-              nextLayout.topObjectContainer = setStyleZIndex(
-                nextLayout.topObjectContainer as V2TemplateStyleRecord,
-                zIndex
-              );
-              break;
-            case 'profile':
-              nextLayout.profileImage = setStyleZIndex(
-                nextLayout.profileImage as V2TemplateStyleRecord,
-                zIndex
-              );
-              nextLayout.profileFrame = setStyleZIndex(
-                nextLayout.profileFrame as V2TemplateStyleRecord,
-                zIndex
-              );
-              nextLayout.profileTextRootStyle = setStyleZIndex(
-                nextLayout.profileTextRootStyle as V2TemplateStyleRecord,
-                zIndex
-              );
-              break;
-            default:
-              break;
-          }
-        });
-      }
-
-      if (parentId === 'profile') {
-        orderedIds.forEach((nodeId) => {
-          const zIndex = zMap.get(nodeId);
-          if (zIndex === undefined) return;
-          if (nodeId === 'profile-image') {
+            return;
+          case 'profileImage':
             nextLayout.profileImage = setStyleZIndex(
               nextLayout.profileImage as V2TemplateStyleRecord,
               zIndex
             );
             return;
-          }
-          if (nodeId === 'profile-frame') {
+          case 'profileFrame':
             nextLayout.profileFrame = setStyleZIndex(
               nextLayout.profileFrame as V2TemplateStyleRecord,
               zIndex
             );
-          }
-        });
-      }
+            return;
+          case 'cardStreamingDay':
+            nextLayout.card.streamingDay = setStyleZIndex(
+              nextLayout.card.streamingDay as V2TemplateStyleRecord,
+              zIndex
+            );
+            return;
+          case 'cardStreamingDate':
+            nextLayout.card.streamingDate = setStyleZIndex(
+              nextLayout.card.streamingDate as V2TemplateStyleRecord,
+              zIndex
+            );
+            return;
+          case 'cardStreamingTime':
+            nextLayout.card.streamingTime = setStyleZIndex(
+              nextLayout.card.streamingTime as V2TemplateStyleRecord,
+              zIndex
+            );
+            return;
+          case 'cardMainTitleContainer':
+            nextLayout.card.mainTitleContainer = setStyleZIndex(
+              nextLayout.card.mainTitleContainer as V2TemplateStyleRecord,
+              zIndex
+            );
+            return;
+          case 'cardSubTitleContainer':
+            nextLayout.card.subTitleContainer = setStyleZIndex(
+              nextLayout.card.subTitleContainer as V2TemplateStyleRecord,
+              zIndex
+            );
+            return;
+          case 'cardContainer':
+            nextLayout.card.container = setStyleZIndex(
+              nextLayout.card.container as V2TemplateStyleRecord,
+              zIndex
+            );
+            return;
+          default:
+            return;
+        }
+      };
 
-      if (parentId === 'card') {
-        orderedIds.forEach((nodeId) => {
-          const zIndex = zMap.get(nodeId);
-          if (zIndex === undefined) return;
-          setCardChildZ(nodeId, zIndex);
-        });
-      }
+      const applyNodeZIndex = (node: V2TemplateLayerNode, zIndex: number) => {
+        if (node.sectionKey) {
+          setSectionZIndex(node.sectionKey, zIndex);
+          return;
+        }
+        if (node.children?.length) {
+          node.children.forEach((child) => applyNodeZIndex(child, zIndex));
+        }
+        if (node.id === 'profile') {
+          nextLayout.profileTextRootStyle = setStyleZIndex(
+            nextLayout.profileTextRootStyle as V2TemplateStyleRecord,
+            zIndex
+          );
+        }
+      };
+
+      orderedIds.forEach((nodeId) => {
+        if (!siblingIdSet.has(nodeId)) return;
+        const zIndex = zMap.get(nodeId);
+        if (zIndex === undefined) return;
+        const node = layerNodeMap.get(nodeId);
+        if (!node) return;
+        applyNodeZIndex(node, zIndex);
+      });
 
       return {
         ...prev,
@@ -440,9 +478,10 @@ const V2TimeTableEditor: React.FC = () => {
                           orderedIds,
                         });
                       }}
-                      onSelectLayer={(target) => {
+                      onSelectLayer={({ target, sectionKey }) => {
                         setIsRightPanelOpen(true);
-                        const section = v2_TARGET_TO_STYLE_SECTION[target];
+                        const section =
+                          sectionKey ?? v2_TARGET_TO_STYLE_SECTION_FALLBACK[target];
                         if (!section) return;
                         setStyleFocusRequest({
                           section,

@@ -1,42 +1,24 @@
-import React from 'react';
+import React from "react";
 
-import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
-import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
+import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
-} from '@/contexts/v2/v2_TemplateRenderConfigContext';
-import { TDefaultCard } from '@/types/time-table/data';
-import { TTheme } from '@/types/time-table/theme';
-import { padZero } from '@/utils/date-formatter';
-import { formatTime } from '@/utils/time-formatter';
-import { createPlaceholdersFromConfig } from '@/utils/time-table/data';
-import { weekdays } from '@/utils/time-table/data';
-import { v2_getComponentFontFamily } from '@/utils/time-table/v2_template_render_config';
-import { Imgs } from '../../_img/imgs';
-import { v2_getHighlightStyle } from './v2_highlight';
-import { v2_toRenderableStyle } from './v2_style';
-
-interface CardStreamingTimeProps {
-  isGuerrilla: boolean;
-  time: string;
-}
-
-interface CardStreamingDateProps {
-  date: number;
-}
-
-interface CardStreamingDayProps {
-  dayLabel: string;
-}
-
-interface CardMainTitleProps {
-  content: string;
-}
-
-interface CardSubTitleProps {
-  content: string | null;
-}
+} from "@/contexts/v2/v2_TemplateRenderConfigContext";
+import { TDefaultCard } from "@/types/time-table/data";
+import { TTheme } from "@/types/time-table/theme";
+import {
+  V2TemplateCardNode,
+  V2TemplateCardStyleKey,
+} from "@/types/time-table/v2_template_render_config";
+import { padZero } from "@/utils/date-formatter";
+import { formatTime } from "@/utils/time-formatter";
+import { createPlaceholdersFromConfig, weekdays } from "@/utils/time-table/data";
+import { v2_getComponentFontFamily } from "@/utils/time-table/v2_template_render_config";
+import { Imgs } from "../../_img/imgs";
+import { v2_getHighlightStyle } from "./v2_highlight";
+import { v2_toRenderableStyle } from "./v2_style";
 
 interface TimeTableCellProps {
   time: TDefaultCard;
@@ -50,241 +32,85 @@ interface OfflineCardProps {
   currentTheme?: TTheme;
 }
 
-const CardStreamingDate = ({ date }: CardStreamingDateProps) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
-    useV2TimeTableEditorRuntimeContext();
-  const streamingDateLayout = renderConfig.layout.card.streamingDate;
-  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
-  const streamingDateStyle = v2_toRenderableStyle(
-    cardLayoutRecord.streamingDateStyle
-  );
-
-  if (isLayerHidden('streaming-date')) return null;
-
-  return (
-    <p
-      style={{
-        color: renderConfig.componentColors.STREAMING_DATE,
-        fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_DATE'),
-        ...v2_toRenderableStyle(streamingDateLayout),
-        ...streamingDateStyle,
-        ...v2_getHighlightStyle({
-          target: 'cardStreamingDate',
-          hoverTarget: hoverHighlightTarget,
-          activeTarget: activeHighlightTarget,
-        }),
-      }}
-      className=" flex justify-center items-center"
-    >
-      {padZero(date)}
-    </p>
-  );
-};
-
-const CardStreamingDay = ({ dayLabel }: CardStreamingDayProps) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
-    useV2TimeTableEditorRuntimeContext();
-  const streamingDayLayout = renderConfig.layout.card.streamingDay;
-  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
-  const streamingDayStyle = v2_toRenderableStyle(
-    cardLayoutRecord.streamingDayStyle
-  );
-
-  if (isLayerHidden('streaming-day')) return null;
-
-  return (
-    <p
-      style={{
-        color: renderConfig.componentColors.STREAMING_DAY,
-        fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_DAY'),
-        ...v2_toRenderableStyle(streamingDayLayout),
-        ...streamingDayStyle,
-        ...v2_getHighlightStyle({
-          target: 'cardStreamingDay',
-          hoverTarget: hoverHighlightTarget,
-          activeTarget: activeHighlightTarget,
-        }),
-      }}
-      className="absolute flex justify-center items-center"
-    >
-      {dayLabel}
-    </p>
-  );
-};
-
-const CardStreamingTime = ({ time, isGuerrilla }: CardStreamingTimeProps) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
-    useV2TimeTableEditorRuntimeContext();
-  const streamingTimeLayout = renderConfig.layout.card.streamingTime;
-  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
-  const streamingTimeStyle = v2_toRenderableStyle(
-    cardLayoutRecord.streamingTimeStyle
-  );
-
-  if (isLayerHidden('streaming-time')) return null;
-
-  return (
-    <p
-      style={{
-        color: renderConfig.componentColors.STREAMING_TIME,
-        fontFamily: v2_getComponentFontFamily(renderConfig, 'STREAMING_TIME'),
-        ...v2_toRenderableStyle(streamingTimeLayout),
-        ...streamingTimeStyle,
-        ...v2_getHighlightStyle({
-          target: 'cardStreamingTime',
-          hoverTarget: hoverHighlightTarget,
-          activeTarget: activeHighlightTarget,
-        }),
-      }}
-      className=" absolute flex justify-center items-center"
-    >
-      {isGuerrilla ? '게릴라' : formatTime(time, 'half')}
-    </p>
-  );
-};
-
-const CardMainTitle = ({ content }: CardMainTitleProps) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
-    useV2TimeTableEditorRuntimeContext();
-  const mainTitleLayout =
-    (renderConfig.layout.card.mainTitleContainer as Record<
-      string,
-      string | number
-    >) ?? {};
-  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
-  const mainTitleWrapperStyle = v2_toRenderableStyle(
-    cardLayoutRecord.mainTitleWrapperStyle
-  );
-  const mainTitleTextStyle = v2_toRenderableStyle(
-    cardLayoutRecord.mainTitleTextStyle
-  );
-  const mainTitleOptions =
-    (cardLayoutRecord.mainTitleOptions as Record<string, unknown>) ?? {};
-  const mainTitleMaxFontSize =
-    typeof mainTitleOptions.maxFontSize === 'number'
-      ? mainTitleOptions.maxFontSize
-      : renderConfig.maxFontSizes.MAIN_TITLE;
-  const mainTitleMultiline =
-    typeof mainTitleOptions.multiline === 'boolean'
-      ? mainTitleOptions.multiline
-      : true;
-  const placeholders = createPlaceholdersFromConfig({
-    cardInputConfig: renderConfig.cardInputConfig,
-  });
-  const { widthPercent, ...mainTitleWrapperLayoutRaw } = mainTitleLayout;
-  const mainTitleWrapperLayout = v2_toRenderableStyle(mainTitleWrapperLayoutRaw);
-  const mainTitleWidth =
-    typeof widthPercent === 'number'
-      ? `${widthPercent}%`
-      : typeof widthPercent === 'string'
-        ? widthPercent
-        : mainTitleWrapperLayout.width;
-
-  if (isLayerHidden('main-title')) return null;
-
-  return (
-    <div
-      style={{
-        ...mainTitleWrapperLayout,
-        ...(mainTitleWidth !== undefined ? { width: mainTitleWidth } : {}),
-        ...mainTitleWrapperStyle,
-        ...v2_getHighlightStyle({
-          target: 'cardMainTitleContainer',
-          hoverTarget: hoverHighlightTarget,
-          activeTarget: activeHighlightTarget,
-        }),
-      }}
-      className="absolute flex justify-center items-center shrink-0"
-    >
-      <AutoResizeText
-        style={{
-          fontFamily: v2_getComponentFontFamily(renderConfig, 'MAIN_TITLE'),
-          color: renderConfig.componentColors.MAIN_TITLE,
-          ...mainTitleTextStyle,
-        }}
-        className="leading-none text-center"
-        multiline={mainTitleMultiline}
-        maxFontSize={mainTitleMaxFontSize}
-      >
-        {content ? (content as string) : placeholders.mainTitle}
-      </AutoResizeText>
-    </div>
-  );
-};
-
-const CardSubTitle = ({ content }: CardSubTitleProps) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
-    useV2TimeTableEditorRuntimeContext();
-  const subTitleLayout =
-    (renderConfig.layout.card.subTitleContainer as Record<
-      string,
-      string | number
-    >) ?? {};
-  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
-  const subTitleTextStyle = v2_toRenderableStyle(
-    cardLayoutRecord.subTitleTextStyle
-  );
-  const subTitleOptions =
-    (cardLayoutRecord.subTitleOptions as Record<string, unknown>) ?? {};
-  const subTitleMaxFontSize =
-    typeof subTitleOptions.maxFontSize === 'number'
-      ? subTitleOptions.maxFontSize
-      : renderConfig.maxFontSizes.SUB_TITLE;
-  const subTitleMultiline =
-    typeof subTitleOptions.multiline === 'boolean'
-      ? subTitleOptions.multiline
-      : true;
-  const placeholders = createPlaceholdersFromConfig({
-    cardInputConfig: renderConfig.cardInputConfig,
-  });
-  const { widthPercent, ...subTitleWrapperLayoutRaw } = subTitleLayout;
-  const subTitleWrapperLayout = v2_toRenderableStyle(subTitleWrapperLayoutRaw);
-  const subTitleWidth =
-    typeof widthPercent === 'number'
-      ? `${widthPercent}%`
-      : typeof widthPercent === 'string'
-        ? widthPercent
-        : subTitleWrapperLayout.width;
-
-  if (isLayerHidden('sub-title')) return null;
-
-  return (
-    <div
-      style={{
-        ...subTitleWrapperLayout,
-        ...(subTitleWidth !== undefined ? { width: subTitleWidth } : {}),
-        ...v2_getHighlightStyle({
-          target: 'cardSubTitleContainer',
-          hoverTarget: hoverHighlightTarget,
-          activeTarget: activeHighlightTarget,
-        }),
-      }}
-      className="absolute flex justify-center items-center"
-    >
-      <AutoResizeText
-        style={{
-          fontFamily: v2_getComponentFontFamily(renderConfig, 'SUB_TITLE'),
-          color: renderConfig.componentColors.SUB_TITLE,
-          ...subTitleTextStyle,
-        }}
-        className="leading-none text-center w-full"
-        maxFontSize={subTitleMaxFontSize}
-        multiline={subTitleMultiline}
-      >
-        {content ? (content as string) : placeholders.subTitle}
-      </AutoResizeText>
-    </div>
-  );
-};
-
 interface OnlineCardBGProps {
   currentTheme?: TTheme;
 }
+
+const v2_toCardStyleMap = (
+  cardLayoutRecord: Record<string, unknown>,
+  styleKey: V2TemplateCardStyleKey
+): Record<string, string | number> => {
+  const raw = cardLayoutRecord[styleKey];
+  if (!raw || typeof raw !== "object") return {};
+  return raw as Record<string, string | number>;
+};
+
+const v2_resolveRenderableCardLayout = (
+  styleMap: Record<string, string | number>
+): { style: React.CSSProperties; width?: string | number } => {
+  const { widthPercent, ...layoutRaw } = styleMap;
+  const style = v2_toRenderableStyle(layoutRaw);
+  const width =
+    typeof widthPercent === "number"
+      ? `${widthPercent}%`
+      : typeof widthPercent === "string"
+        ? widthPercent
+        : style.width;
+
+  return {
+    style,
+    ...(width !== undefined ? { width } : {}),
+  };
+};
+
+const v2_getDefaultMaxFontSizeByBinding = ({
+  binding,
+  mainTitleMax,
+  subTitleMax,
+}: {
+  binding: V2TemplateCardNode["binding"];
+  mainTitleMax: number;
+  subTitleMax: number;
+}): number => {
+  if (binding === "mainTitle") return mainTitleMax;
+  if (binding === "subTitle") return subTitleMax;
+  return mainTitleMax;
+};
+
+const v2_getCardNodeTextValue = ({
+  node,
+  dayLabel,
+  weekDate,
+  isGuerrilla,
+  entryTime,
+  entryMainTitle,
+  entrySubTitle,
+  placeholders,
+}: {
+  node: V2TemplateCardNode;
+  dayLabel: string;
+  weekDate: Date;
+  isGuerrilla: boolean;
+  entryTime: string;
+  entryMainTitle: string;
+  entrySubTitle: string;
+  placeholders: Record<string, string>;
+}): string => {
+  switch (node.binding) {
+    case "streamingDay":
+      return dayLabel;
+    case "streamingDate":
+      return padZero(weekDate.getDate());
+    case "streamingTime":
+      return isGuerrilla ? "게릴라" : formatTime(entryTime, "half");
+    case "mainTitle":
+      return entryMainTitle || placeholders.mainTitle || "";
+    case "subTitle":
+      return entrySubTitle || placeholders.subTitle || "";
+    default:
+      return "";
+  }
+};
 
 const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
@@ -292,10 +118,10 @@ const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
   const onlineUrl =
     v2_getAssetUrlFromConfig({
       renderConfig,
-      key: 'onlineByTheme',
+      key: "onlineByTheme",
       currentTheme: currentTheme || renderConfig.defaultTheme,
     }) ??
-    Imgs[currentTheme || 'first']?.online?.src ??
+    Imgs[currentTheme || "first"]?.online?.src ??
     Imgs.first.online.src;
 
   return (
@@ -305,11 +131,7 @@ const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
       }}
       className="absolute -z-10"
     >
-      <img
-        className="object-cover w-full h-full"
-        src={onlineUrl}
-        alt="online"
-      />
+      <img className="h-full w-full object-cover" src={onlineUrl} alt="online" />
     </div>
   );
 };
@@ -320,10 +142,10 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
   const offlineUrl =
     v2_getAssetUrlFromConfig({
       renderConfig,
-      key: 'offlineByTheme',
+      key: "offlineByTheme",
       currentTheme: currentTheme || renderConfig.defaultTheme,
     }) ??
-    Imgs[currentTheme || 'first']?.offline?.src ??
+    Imgs[currentTheme || "first"]?.offline?.src ??
     Imgs.first.offline.src;
 
   return (
@@ -352,21 +174,125 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
     useV2TimeTableEditorRuntimeContext();
+  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const cardStructure = renderConfig.structure.card;
   const cardSize = renderConfig.cardSizes.online;
-  const cardContainerLayout = v2_toRenderableStyle(
-    renderConfig.layout.card.container
+  const cardContainerStyleMap = v2_toCardStyleMap(
+    cardLayoutRecord,
+    cardStructure.containerStyleKey
   );
+  const cardContainerLayout = v2_toRenderableStyle(cardContainerStyleMap);
   const weekdayByOption = weekdays[renderConfig.weekdayOption] ?? weekdays.en;
-  const dayLabel = weekdayByOption[time.day] ?? '';
+  const dayLabel = weekdayByOption[time.day] ?? "";
+  const placeholders = createPlaceholdersFromConfig({
+    cardInputConfig: renderConfig.cardInputConfig,
+  });
 
-  if (!weekDate) return 'Loading';
-  if (isLayerHidden('card')) return null;
+  if (!weekDate) return "Loading";
+  if (isLayerHidden(cardStructure.containerLayerId)) return null;
 
-  // 새로운 데이터 구조에서 첫 번째 엔트리를 기본값으로 사용
   const primaryEntry = time.entries?.[0] || {};
-  const entryTime = (primaryEntry.time as string) || '09:00';
-  const entryMainTitle = (primaryEntry.mainTitle as string) || '';
-  const entrySubTitle = (primaryEntry.subTitle as string) || '';
+  const entryTime = (primaryEntry.time as string) || "09:00";
+  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
+  const entrySubTitle = (primaryEntry.subTitle as string) || "";
+
+  const renderCardNode = (nodeId: string) => {
+    const node = cardStructure.nodes[nodeId];
+    if (!node) return null;
+    if (isLayerHidden(node.layerId)) return null;
+
+    const containerStyleMap = v2_toCardStyleMap(
+      cardLayoutRecord,
+      node.containerStyleKey
+    );
+    const { style: renderableContainerStyle, width } =
+      v2_resolveRenderableCardLayout(containerStyleMap);
+    const textStyleMap = node.textStyleKey
+      ? v2_toCardStyleMap(cardLayoutRecord, node.textStyleKey)
+      : {};
+    const textStyle = v2_toRenderableStyle(textStyleMap);
+    const wrapperStyle = node.wrapperStyleKey
+      ? v2_toRenderableStyle(
+          v2_toCardStyleMap(cardLayoutRecord, node.wrapperStyleKey)
+        )
+      : {};
+    const nodeText = v2_getCardNodeTextValue({
+      node,
+      dayLabel,
+      weekDate,
+      isGuerrilla: Boolean(primaryEntry.isGuerrilla),
+      entryTime,
+      entryMainTitle,
+      entrySubTitle,
+      placeholders,
+    });
+    const highlightStyle = v2_getHighlightStyle({
+      target: node.highlightTarget,
+      hoverTarget: hoverHighlightTarget,
+      activeTarget: activeHighlightTarget,
+    });
+
+    if (node.kind === "autoResizeText") {
+      const nodeOptions = node.optionsKey
+        ? ((cardLayoutRecord[node.optionsKey] as Record<string, unknown>) ?? {})
+        : {};
+      const maxFontSize =
+        typeof nodeOptions.maxFontSize === "number"
+          ? nodeOptions.maxFontSize
+          : v2_getDefaultMaxFontSizeByBinding({
+              binding: node.binding,
+              mainTitleMax: renderConfig.maxFontSizes.MAIN_TITLE,
+              subTitleMax: renderConfig.maxFontSizes.SUB_TITLE,
+            });
+      const multiline =
+        typeof nodeOptions.multiline === "boolean" ? nodeOptions.multiline : true;
+
+      return (
+        <div
+          key={node.id}
+          style={{
+            ...renderableContainerStyle,
+            ...(width !== undefined ? { width } : {}),
+            ...wrapperStyle,
+            ...highlightStyle,
+          }}
+          className={
+            node.containerClassName ?? "absolute flex items-center justify-center"
+          }
+        >
+          <AutoResizeText
+            style={{
+              fontFamily: v2_getComponentFontFamily(renderConfig, node.fontKey),
+              color: renderConfig.componentColors[node.colorKey],
+              ...textStyle,
+            }}
+            className={node.textClassName ?? "leading-none text-center"}
+            multiline={multiline}
+            maxFontSize={maxFontSize}
+          >
+            {nodeText}
+          </AutoResizeText>
+        </div>
+      );
+    }
+
+    return (
+      <p
+        key={node.id}
+        style={{
+          color: renderConfig.componentColors[node.colorKey],
+          fontFamily: v2_getComponentFontFamily(renderConfig, node.fontKey),
+          ...renderableContainerStyle,
+          ...(width !== undefined ? { width } : {}),
+          ...textStyle,
+          ...highlightStyle,
+        }}
+        className={node.containerClassName ?? "absolute flex items-center justify-center"}
+      >
+        {nodeText}
+      </p>
+    );
+  };
 
   return (
     <>
@@ -378,7 +304,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
             ...cardSize,
             ...cardContainerLayout,
             ...v2_getHighlightStyle({
-              target: 'cardContainer',
+              target: cardStructure.containerHighlightTarget,
               hoverTarget: hoverHighlightTarget,
               activeTarget: activeHighlightTarget,
             }),
@@ -386,15 +312,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           key={time.day}
           className="relative flex justify-center"
         >
-          <CardStreamingDay dayLabel={dayLabel} />
-          <CardStreamingDate date={weekDate.getDate()} />
-          <CardSubTitle content={entrySubTitle} />
-          <CardMainTitle content={entryMainTitle} />
-          <CardStreamingTime
-            isGuerrilla={Boolean(primaryEntry.isGuerrilla)}
-            time={entryTime}
-          />
-
+          {cardStructure.nodeOrder.map((nodeId) => renderCardNode(nodeId))}
           <OnlineCardBG currentTheme={currentTheme} />
         </div>
       )}

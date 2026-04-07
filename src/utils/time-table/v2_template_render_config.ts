@@ -2,11 +2,18 @@ import { CardInputConfig, SimpleFieldConfig } from "@/types/time-table/data";
 import {
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
+  V2TemplateCardNode,
+  V2TemplateCardOptionsKey,
+  V2TemplateCardStyleKey,
+  V2TemplateCardStructure,
   V2TemplateColorPalette,
   V2TemplateColorKey,
   V2TemplateEditorOptions,
   V2TemplateFontFaceMetrics,
   V2TemplateFontRegistryItem,
+  V2TemplateLayerIconKey,
+  V2TemplateLayerNode,
+  V2TemplateStructureConfig,
   V2TemplateRenderConfig,
   V2TemplateStyleRecord,
 } from "@/types/time-table/v2_template_render_config";
@@ -63,6 +70,207 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   isArtist: true,
   isMultiple: false,
   maxStreamingTimeByDay: 1,
+};
+
+const v2_CARD_STYLE_KEYS: readonly V2TemplateCardStyleKey[] = [
+  "streamingDay",
+  "streamingDate",
+  "streamingTime",
+  "mainTitleContainer",
+  "subTitleContainer",
+  "container",
+  "mainTitleTextStyle",
+  "subTitleTextStyle",
+  "mainTitleWrapperStyle",
+  "streamingDayStyle",
+  "streamingDateStyle",
+  "streamingTimeStyle",
+] as const;
+
+const v2_CARD_OPTIONS_KEYS: readonly V2TemplateCardOptionsKey[] = [
+  "mainTitleOptions",
+  "subTitleOptions",
+] as const;
+
+const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
+  {
+    id: "grid",
+    label: "Grid",
+    icon: "grid",
+    target: "grid",
+    sectionKey: "grid",
+    children: [
+      {
+        id: "card",
+        label: "Card",
+        icon: "group",
+        target: "cardContainer",
+        sectionKey: "cardContainer",
+        children: [
+          {
+            id: "streaming-day",
+            label: "StreamingDay",
+            icon: "text",
+            target: "cardStreamingDay",
+            sectionKey: "cardStreamingDay",
+          },
+          {
+            id: "streaming-date",
+            label: "StreamingDate",
+            icon: "text",
+            target: "cardStreamingDate",
+            sectionKey: "cardStreamingDate",
+          },
+          {
+            id: "streaming-time",
+            label: "StreamingTime",
+            icon: "text",
+            target: "cardStreamingTime",
+            sectionKey: "cardStreamingTime",
+          },
+          {
+            id: "main-title",
+            label: "MainTitle",
+            icon: "text",
+            target: "cardMainTitleContainer",
+            sectionKey: "cardMainTitleContainer",
+          },
+          {
+            id: "sub-title",
+            label: "SubTitle",
+            icon: "text",
+            target: "cardSubTitleContainer",
+            sectionKey: "cardSubTitleContainer",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "week-flag",
+    label: "WeekFlag",
+    icon: "calendar",
+    target: "weekFlag",
+    sectionKey: "weekFlag",
+  },
+  {
+    id: "top-object",
+    label: "TopObject",
+    icon: "image",
+    target: "topObjectContainer",
+    sectionKey: "topObjectContainer",
+  },
+  {
+    id: "profile",
+    label: "Profile",
+    icon: "group",
+    children: [
+      {
+        id: "profile-image",
+        label: "Image",
+        icon: "image",
+        target: "profileImage",
+        sectionKey: "profileImage",
+      },
+      {
+        id: "profile-frame",
+        label: "Frame",
+        icon: "layers",
+        target: "profileFrame",
+        sectionKey: "profileFrame",
+      },
+    ],
+  },
+];
+
+const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
+  containerLayerId: "card",
+  containerHighlightTarget: "cardContainer",
+  containerStyleKey: "container",
+  nodeOrder: [
+    "streaming-day",
+    "streaming-date",
+    "sub-title",
+    "main-title",
+    "streaming-time",
+  ],
+  nodes: {
+    "streaming-day": {
+      id: "streaming-day",
+      label: "StreamingDay",
+      kind: "text",
+      layerId: "streaming-day",
+      highlightTarget: "cardStreamingDay",
+      binding: "streamingDay",
+      containerStyleKey: "streamingDay",
+      textStyleKey: "streamingDayStyle",
+      colorKey: "STREAMING_DAY",
+      fontKey: "STREAMING_DAY",
+      containerClassName: "absolute flex justify-center items-center",
+    },
+    "streaming-date": {
+      id: "streaming-date",
+      label: "StreamingDate",
+      kind: "text",
+      layerId: "streaming-date",
+      highlightTarget: "cardStreamingDate",
+      binding: "streamingDate",
+      containerStyleKey: "streamingDate",
+      textStyleKey: "streamingDateStyle",
+      colorKey: "STREAMING_DATE",
+      fontKey: "STREAMING_DATE",
+      containerClassName: "absolute flex justify-center items-center",
+    },
+    "streaming-time": {
+      id: "streaming-time",
+      label: "StreamingTime",
+      kind: "text",
+      layerId: "streaming-time",
+      highlightTarget: "cardStreamingTime",
+      binding: "streamingTime",
+      containerStyleKey: "streamingTime",
+      textStyleKey: "streamingTimeStyle",
+      colorKey: "STREAMING_TIME",
+      fontKey: "STREAMING_TIME",
+      containerClassName: "absolute flex justify-center items-center",
+    },
+    "main-title": {
+      id: "main-title",
+      label: "MainTitle",
+      kind: "autoResizeText",
+      layerId: "main-title",
+      highlightTarget: "cardMainTitleContainer",
+      binding: "mainTitle",
+      containerStyleKey: "mainTitleContainer",
+      wrapperStyleKey: "mainTitleWrapperStyle",
+      textStyleKey: "mainTitleTextStyle",
+      optionsKey: "mainTitleOptions",
+      colorKey: "MAIN_TITLE",
+      fontKey: "MAIN_TITLE",
+      containerClassName: "absolute flex justify-center items-center shrink-0",
+      textClassName: "leading-none text-center",
+    },
+    "sub-title": {
+      id: "sub-title",
+      label: "SubTitle",
+      kind: "autoResizeText",
+      layerId: "sub-title",
+      highlightTarget: "cardSubTitleContainer",
+      binding: "subTitle",
+      containerStyleKey: "subTitleContainer",
+      textStyleKey: "subTitleTextStyle",
+      optionsKey: "subTitleOptions",
+      colorKey: "SUB_TITLE",
+      fontKey: "SUB_TITLE",
+      containerClassName: "absolute flex justify-center items-center",
+      textClassName: "leading-none text-center w-full",
+    },
+  },
+};
+
+const v2_DEFAULT_STRUCTURE: V2TemplateStructureConfig = {
+  layers: v2_DEFAULT_LAYER_TREE,
+  card: v2_DEFAULT_CARD_STRUCTURE,
 };
 
 const v2_DEFAULT_ESCRODREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
@@ -378,6 +586,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       },
     },
   },
+  structure: v2_DEFAULT_STRUCTURE,
 };
 
 const v2_isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -450,6 +659,213 @@ const v2_mergeStyleRecord = (
     (base ?? {}) as Record<string, string | number>,
     candidate
   ) as V2TemplateStyleRecord;
+};
+
+const v2_LAYER_ICON_KEY_SET = new Set([
+  "group",
+  "grid",
+  "calendar",
+  "image",
+  "layers",
+  "text",
+]);
+
+const v2_CARD_NODE_KIND_SET = new Set(["text", "autoResizeText"]);
+
+const v2_CARD_NODE_BINDING_SET = new Set([
+  "streamingDay",
+  "streamingDate",
+  "streamingTime",
+  "mainTitle",
+  "subTitle",
+]);
+
+const v2_isCardStyleKey = (value: unknown): value is V2TemplateCardStyleKey => {
+  return (
+    typeof value === "string" &&
+    (v2_CARD_STYLE_KEYS as readonly string[]).includes(value)
+  );
+};
+
+const v2_isCardOptionsKey = (
+  value: unknown
+): value is V2TemplateCardOptionsKey => {
+  return (
+    typeof value === "string" &&
+    (v2_CARD_OPTIONS_KEYS as readonly string[]).includes(value)
+  );
+};
+
+const v2_normalizeLayerTree = (
+  candidate: unknown,
+  fallback: V2TemplateLayerNode[]
+): V2TemplateLayerNode[] => {
+  if (!Array.isArray(candidate)) return fallback;
+
+  const parseNode = (rawNode: unknown): V2TemplateLayerNode | null => {
+    if (!v2_isRecord(rawNode)) return null;
+
+    const id = v2_asString(rawNode.id, "").trim();
+    const label = v2_asString(rawNode.label, "").trim();
+    if (!id || !label) return null;
+
+    const icon: V2TemplateLayerIconKey | undefined =
+      typeof rawNode.icon === "string" && v2_LAYER_ICON_KEY_SET.has(rawNode.icon)
+        ? (rawNode.icon as V2TemplateLayerIconKey)
+        : undefined;
+    const target: V2TemplateLayerNode["target"] =
+      typeof rawNode.target === "string"
+        ? (rawNode.target as V2TemplateLayerNode["target"])
+        : undefined;
+    const sectionKey =
+      typeof rawNode.sectionKey === "string" ? rawNode.sectionKey : undefined;
+
+    const children = Array.isArray(rawNode.children)
+      ? rawNode.children
+          .map((childNode) => parseNode(childNode))
+          .filter((childNode): childNode is V2TemplateLayerNode => childNode !== null)
+      : undefined;
+
+    return {
+      id,
+      label,
+      ...(icon ? { icon } : {}),
+      ...(target ? { target } : {}),
+      ...(sectionKey ? { sectionKey } : {}),
+      ...(children && children.length > 0 ? { children } : {}),
+    };
+  };
+
+  const parsed = candidate
+    .map((node) => parseNode(node))
+    .filter((node): node is V2TemplateLayerNode => node !== null);
+
+  return parsed.length > 0 ? parsed : fallback;
+};
+
+const v2_normalizeCardNode = (
+  candidate: unknown,
+  fallback: V2TemplateCardNode
+): V2TemplateCardNode => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  const kind: V2TemplateCardNode["kind"] =
+    typeof candidate.kind === "string" && v2_CARD_NODE_KIND_SET.has(candidate.kind)
+      ? (candidate.kind as V2TemplateCardNode["kind"])
+      : fallback.kind;
+  const binding: V2TemplateCardNode["binding"] =
+    typeof candidate.binding === "string" &&
+    v2_CARD_NODE_BINDING_SET.has(candidate.binding)
+      ? (candidate.binding as V2TemplateCardNode["binding"])
+      : fallback.binding;
+  const containerStyleKey = v2_isCardStyleKey(candidate.containerStyleKey)
+    ? candidate.containerStyleKey
+    : fallback.containerStyleKey;
+  const textStyleKey = v2_isCardStyleKey(candidate.textStyleKey)
+    ? candidate.textStyleKey
+    : fallback.textStyleKey;
+  const wrapperStyleKey = v2_isCardStyleKey(candidate.wrapperStyleKey)
+    ? candidate.wrapperStyleKey
+    : fallback.wrapperStyleKey;
+  const optionsKey = v2_isCardOptionsKey(candidate.optionsKey)
+    ? candidate.optionsKey
+    : fallback.optionsKey;
+  const colorKey =
+    typeof candidate.colorKey === "string" &&
+    (v2_TEMPLATE_COLOR_KEYS as readonly string[]).includes(candidate.colorKey)
+      ? (candidate.colorKey as V2TemplateColorKey)
+      : fallback.colorKey;
+  const fontKey =
+    typeof candidate.fontKey === "string" &&
+    (v2_TEMPLATE_COLOR_KEYS as readonly string[]).includes(candidate.fontKey)
+      ? (candidate.fontKey as V2TemplateColorKey)
+      : fallback.fontKey;
+
+  return {
+    id: v2_asString(candidate.id, fallback.id),
+    label: v2_asString(candidate.label, fallback.label),
+    kind,
+    layerId: v2_asString(candidate.layerId, fallback.layerId),
+    highlightTarget:
+      typeof candidate.highlightTarget === "string"
+        ? (candidate.highlightTarget as V2TemplateCardNode["highlightTarget"])
+        : fallback.highlightTarget,
+    binding,
+    containerStyleKey,
+    ...(textStyleKey ? { textStyleKey } : {}),
+    ...(wrapperStyleKey ? { wrapperStyleKey } : {}),
+    ...(optionsKey ? { optionsKey } : {}),
+    colorKey,
+    fontKey,
+    ...(typeof candidate.containerClassName === "string"
+      ? { containerClassName: candidate.containerClassName }
+      : fallback.containerClassName
+        ? { containerClassName: fallback.containerClassName }
+        : {}),
+    ...(typeof candidate.textClassName === "string"
+      ? { textClassName: candidate.textClassName }
+      : fallback.textClassName
+        ? { textClassName: fallback.textClassName }
+        : {}),
+  };
+};
+
+const v2_normalizeCardStructure = (
+  candidate: unknown,
+  fallback: V2TemplateCardStructure
+): V2TemplateCardStructure => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  const nextNodes: Record<string, V2TemplateCardNode> = {
+    ...fallback.nodes,
+  };
+
+  if (v2_isRecord(candidate.nodes)) {
+    Object.entries(candidate.nodes).forEach(([nodeId, rawNode]) => {
+      const fallbackNode = fallback.nodes[nodeId];
+      if (!fallbackNode) return;
+      nextNodes[nodeId] = v2_normalizeCardNode(rawNode, fallbackNode);
+    });
+  }
+
+  const nodeOrderCandidate = Array.isArray(candidate.nodeOrder)
+    ? candidate.nodeOrder.filter(
+        (nodeId): nodeId is string =>
+          typeof nodeId === "string" && nextNodes[nodeId] !== undefined
+      )
+    : [];
+
+  const nodeOrder = nodeOrderCandidate.length > 0
+    ? Array.from(new Set(nodeOrderCandidate))
+    : fallback.nodeOrder;
+
+  return {
+    containerLayerId: v2_asString(
+      candidate.containerLayerId,
+      fallback.containerLayerId
+    ),
+    containerHighlightTarget:
+      typeof candidate.containerHighlightTarget === "string"
+        ? (candidate.containerHighlightTarget as V2TemplateCardNode["highlightTarget"])
+        : fallback.containerHighlightTarget,
+    containerStyleKey: v2_isCardStyleKey(candidate.containerStyleKey)
+      ? candidate.containerStyleKey
+      : fallback.containerStyleKey,
+    nodeOrder,
+    nodes: nextNodes,
+  };
+};
+
+const v2_normalizeStructure = (
+  candidate: unknown,
+  fallback: V2TemplateStructureConfig
+): V2TemplateStructureConfig => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  return {
+    layers: v2_normalizeLayerTree(candidate.layers, fallback.layers),
+    card: v2_normalizeCardStructure(candidate.card, fallback.card),
+  };
 };
 
 const v2_asStringArray = (value: unknown, fallback: string[]): string[] => {
@@ -1111,6 +1527,11 @@ export const v2_normalizeTemplateRenderConfig = (
     }
   }
 
+  normalized.structure = v2_normalizeStructure(
+    raw.structure,
+    normalized.structure
+  );
+
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
   return normalized;
@@ -1220,5 +1641,6 @@ export const v2_isTemplateRenderConfig = (
   if (!v2_isRecord(candidate.fonts)) return false;
   if (!v2_isRecord(candidate.templateSize)) return false;
   if (!v2_isRecord(candidate.layout)) return false;
+  if (!v2_isRecord(candidate.structure)) return false;
   return true;
 };

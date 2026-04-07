@@ -34,6 +34,7 @@ import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRende
 import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
+  V2TemplateLayerNode,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/v2_template_render_config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
@@ -384,6 +385,62 @@ const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
   cardMainTitleContainer: "Card / MainTitle",
   cardSubTitleContainer: "Card / SubTitle",
   cardContainer: "Card Container",
+};
+
+const v2_HIGHLIGHT_TARGET_TO_STYLE_SECTION_FALLBACK: Record<
+  V2TemplateHighlightTarget,
+  V2StyleSectionKey
+> = {
+  grid: "grid",
+  weekFlag: "weekFlag",
+  topObjectContainer: "topObjectContainer",
+  profileImage: "profileImage",
+  profileFrame: "profileFrame",
+  cardStreamingDay: "cardStreamingDay",
+  cardStreamingDate: "cardStreamingDate",
+  cardStreamingTime: "cardStreamingTime",
+  cardMainTitleContainer: "cardMainTitleContainer",
+  cardSubTitleContainer: "cardSubTitleContainer",
+  cardContainer: "cardContainer",
+};
+
+const v2_collectStructureTargetSectionMaps = (
+  nodes: V2TemplateLayerNode[]
+): {
+  targetToSection: Partial<Record<V2TemplateHighlightTarget, V2StyleSectionKey>>;
+  sectionToTarget: Partial<Record<V2StyleSectionKey, V2TemplateHighlightTarget>>;
+} => {
+  const targetToSection: Partial<
+    Record<V2TemplateHighlightTarget, V2StyleSectionKey>
+  > = {};
+  const sectionToTarget: Partial<
+    Record<V2StyleSectionKey, V2TemplateHighlightTarget>
+  > = {};
+
+  const visit = (nodeList: V2TemplateLayerNode[]) => {
+    nodeList.forEach((node) => {
+      if (
+        node.target &&
+        node.sectionKey &&
+        node.sectionKey in v2_STYLE_SECTION_LABELS
+      ) {
+        const section = node.sectionKey as V2StyleSectionKey;
+        targetToSection[node.target] = section;
+        if (!sectionToTarget[section]) {
+          sectionToTarget[section] = node.target;
+        }
+      }
+      if (node.children?.length) {
+        visit(node.children);
+      }
+    });
+  };
+
+  visit(nodes);
+  return {
+    targetToSection,
+    sectionToTarget,
+  };
 };
 
 const v2_LEGACY_STYLE_SECTION_KEY_MAP: Partial<
@@ -1284,6 +1341,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const inspectorTabRef = useRef<HTMLDivElement | null>(null);
   const [selectedPropertiesTarget, setSelectedPropertiesTarget] =
     useState<V2TemplateHighlightTarget>("grid");
+  const structurePropertiesMaps = useMemo(
+    () => v2_collectStructureTargetSectionMaps(renderConfig.structure.layers),
+    [renderConfig.structure.layers]
+  );
+  const selectedPropertiesSection = useMemo(() => {
+    return (
+      structurePropertiesMaps.targetToSection[selectedPropertiesTarget] ??
+      v2_HIGHLIGHT_TARGET_TO_STYLE_SECTION_FALLBACK[selectedPropertiesTarget]
+    );
+  }, [selectedPropertiesTarget, structurePropertiesMaps.targetToSection]);
 
   useEffect(() => {
     if (activeTab !== "style" && activeTab !== "properties") {
@@ -1378,11 +1445,18 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   useEffect(() => {
     const nextSection = v2_parseStyleSectionKey(focusStyleSection);
     if (!nextSection) return;
-    const nextTarget = v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[nextSection];
+    const nextTarget =
+      structurePropertiesMaps.sectionToTarget[nextSection] ??
+      v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[nextSection];
     setSelectedPropertiesTarget(nextTarget);
     setActiveHighlightTarget(nextTarget);
     setActiveTab("properties");
-  }, [focusStyleSection, focusStyleSectionNonce, setActiveHighlightTarget]);
+  }, [
+    focusStyleSection,
+    focusStyleSectionNonce,
+    setActiveHighlightTarget,
+    structurePropertiesMaps.sectionToTarget,
+  ]);
 
   const safeUpdateConfig = (
     updater: (prev: typeof renderConfig) => typeof renderConfig
@@ -3277,7 +3351,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   );
 
   const renderPropertiesPanels = () => {
-    switch (selectedPropertiesTarget) {
+    switch (selectedPropertiesSection) {
       case "grid":
         return (
           <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">

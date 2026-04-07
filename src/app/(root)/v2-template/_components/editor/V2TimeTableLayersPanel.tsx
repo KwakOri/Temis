@@ -13,19 +13,34 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
+import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
+import {
+  V2TemplateLayerIconKey,
+  V2TemplateLayerNode,
+} from "@/types/time-table/v2_template_render_config";
 
-type V2LayerNode = {
-  id: string;
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  target?: V2TemplateHighlightTarget;
-  children?: V2LayerNode[];
+type V2LayerNode = V2TemplateLayerNode;
+
+const v2_LAYER_ICON_MAP: Record<
+  V2TemplateLayerIconKey,
+  React.ComponentType<{ className?: string }>
+> = {
+  group: Folder,
+  grid: Grid3X3,
+  calendar: CalendarDays,
+  image: ImageIcon,
+  layers: Layers,
+  text: Type,
 };
 
 interface V2TimeTableLayersPanelProps {
-  onSelectLayer?: (target: V2TemplateHighlightTarget) => void;
+  onSelectLayer?: (payload: {
+    target: V2TemplateHighlightTarget;
+    sectionKey?: string;
+    layerId: string;
+  }) => void;
   orderedIdsByParent?: Record<string, string[]>;
   onReorderLayers?: (payload: {
     parentId: string;
@@ -35,27 +50,6 @@ interface V2TimeTableLayersPanelProps {
 
 const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
 type V2LayerParentId = typeof v2_ROOT_LAYER_PARENT_ID | string;
-
-const v2_REORDERABLE_PARENT_ID_SET = new Set<V2LayerParentId>([
-  v2_ROOT_LAYER_PARENT_ID,
-  "profile",
-  "card",
-]);
-
-const v2_LAYER_REORDERABLE_NODE_ID_SET = new Set<string>([
-  "grid",
-  "week-flag",
-  "top-object",
-  "profile",
-  "card",
-  "profile-image",
-  "profile-frame",
-  "streaming-day",
-  "streaming-date",
-  "streaming-time",
-  "main-title",
-  "sub-title",
-]);
 
 const v2_moveLayerNode = (
   prevIds: string[],
@@ -106,97 +100,20 @@ const v2_findNodeById = (
   return null;
 };
 
-const v2_createInitialOrderMap = (): Record<string, string[]> => {
+const v2_createInitialOrderMap = (
+  layerTree: V2LayerNode[]
+): Record<string, string[]> => {
   const initialOrderMap: Record<string, string[]> = {};
-  v2_toOrderMap(v2_ROOT_LAYER_PARENT_ID, v2_LAYER_TREE, initialOrderMap);
+  v2_toOrderMap(v2_ROOT_LAYER_PARENT_ID, layerTree, initialOrderMap);
   return initialOrderMap;
 };
-
-const v2_LAYER_TREE: V2LayerNode[] = [
-  {
-    id: "grid",
-    label: "Grid",
-    icon: Grid3X3,
-    target: "grid",
-    children: [
-      {
-        id: "card",
-        label: "Card",
-        icon: Folder,
-        target: "cardContainer",
-        children: [
-          {
-            id: "streaming-day",
-            label: "StreamingDay",
-            icon: Type,
-            target: "cardStreamingDay",
-          },
-          {
-            id: "streaming-date",
-            label: "StreamingDate",
-            icon: Type,
-            target: "cardStreamingDate",
-          },
-          {
-            id: "streaming-time",
-            label: "StreamingTime",
-            icon: Type,
-            target: "cardStreamingTime",
-          },
-          {
-            id: "main-title",
-            label: "MainTitle",
-            icon: Type,
-            target: "cardMainTitleContainer",
-          },
-          {
-            id: "sub-title",
-            label: "SubTitle",
-            icon: Type,
-            target: "cardSubTitleContainer",
-          },
-        ],
-      },
-    ],
-  },
-  {
-    id: "week-flag",
-    label: "WeekFlag",
-    icon: CalendarDays,
-    target: "weekFlag",
-  },
-  {
-    id: "top-object",
-    label: "TopObject",
-    icon: ImageIcon,
-    target: "topObjectContainer",
-  },
-  {
-    id: "profile",
-    label: "Profile",
-    icon: Folder,
-    children: [
-      {
-        id: "profile-image",
-        label: "Image",
-        icon: ImageIcon,
-        target: "profileImage",
-      },
-      {
-        id: "profile-frame",
-        label: "Frame",
-        icon: Layers,
-        target: "profileFrame",
-      },
-    ],
-  },
-];
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   onSelectLayer,
   orderedIdsByParent,
   onReorderLayers,
 }) => {
+  const { renderConfig } = useV2TemplateRenderConfigContext();
   const {
     activeHighlightTarget,
     setActiveHighlightTarget,
@@ -204,15 +121,21 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     isLayerHidden,
     toggleLayerHidden,
   } = useV2TimeTableEditorRuntimeContext();
+  const layerTree = useMemo(
+    () => renderConfig.structure.layers,
+    [renderConfig.structure.layers]
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     grid: true,
     profile: true,
     card: true,
   });
+  const fallbackOrderMap = useMemo(
+    () => v2_createInitialOrderMap(layerTree),
+    [layerTree]
+  );
   const [orderedNodeIdsByParent, setOrderedNodeIdsByParent] =
-    useState<Record<string, string[]>>(() =>
-      orderedIdsByParent ? { ...orderedIdsByParent } : v2_createInitialOrderMap()
-    );
+    useState<Record<string, string[]>>({});
   const [dragState, setDragState] = useState<{
     parentId: V2LayerParentId;
     nodeId: string;
@@ -224,9 +147,12 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   } | null>(null);
 
   useEffect(() => {
-    if (!orderedIdsByParent) return;
-    setOrderedNodeIdsByParent(orderedIdsByParent);
-  }, [orderedIdsByParent]);
+    if (orderedIdsByParent) {
+      setOrderedNodeIdsByParent(orderedIdsByParent);
+      return;
+    }
+    setOrderedNodeIdsByParent(fallbackOrderMap);
+  }, [fallbackOrderMap, orderedIdsByParent]);
 
   const activeTarget = activeHighlightTarget;
   const selectedNodeIds = useMemo(() => {
@@ -241,12 +167,12 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       return selfMatched || childMatched;
     };
 
-    v2_LAYER_TREE.forEach((node) => {
+    layerTree.forEach((node) => {
       visit(node);
     });
 
     return ids;
-  }, [activeTarget]);
+  }, [activeTarget, layerTree]);
 
   const toggleNode = (id: string) => {
     setExpanded((prev) => ({
@@ -305,11 +231,10 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const hasChildren = Boolean(node.children?.length);
     const isOpen = expanded[node.id] ?? false;
     const ChevronIcon = isOpen ? ChevronDown : ChevronRight;
-    const Icon = hasChildren ? Folder : node.icon ?? Layers;
+    const iconByKey =
+      node.icon !== undefined ? v2_LAYER_ICON_MAP[node.icon] : undefined;
+    const Icon = hasChildren ? Folder : iconByKey ?? Layers;
     const isSelected = selectedNodeIds.has(node.id);
-    const isReorderable =
-      v2_REORDERABLE_PARENT_ID_SET.has(parentId) &&
-      v2_LAYER_REORDERABLE_NODE_ID_SET.has(node.id);
     const isDragging =
       dragState?.parentId === parentId && dragState.nodeId === node.id;
     const isDropTargetBefore =
@@ -327,14 +252,16 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const parentNode =
       parentId === v2_ROOT_LAYER_PARENT_ID
         ? null
-        : v2_findNodeById(v2_LAYER_TREE, parentId);
+        : v2_findNodeById(layerTree, parentId);
     const orderedSiblings = getOrderedChildren(
       parentId,
       parentId === v2_ROOT_LAYER_PARENT_ID
-        ? v2_LAYER_TREE
+        ? layerTree
         : (parentNode?.children ?? [])
     );
     const orderedSiblingIds = orderedSiblings.map((layerNode) => layerNode.id);
+    const isReorderable =
+      orderedSiblingIds.length > 1 && (node.target !== undefined || hasChildren);
 
     return (
       <div key={node.id} className="space-y-1">
@@ -430,7 +357,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             onClick={() => {
               if (node.target) {
                 setActiveHighlightTarget(node.target);
-                onSelectLayer?.(node.target);
+                onSelectLayer?.({
+                  target: node.target,
+                  sectionKey: node.sectionKey,
+                  layerId: node.id,
+                });
               } else if (hasChildren) {
                 toggleNode(node.id);
               }
@@ -482,7 +413,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           <h3 className="text-sm font-semibold text-gray-100">Layers</h3>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {getOrderedChildren(v2_ROOT_LAYER_PARENT_ID, v2_LAYER_TREE).map(
+          {getOrderedChildren(v2_ROOT_LAYER_PARENT_ID, layerTree).map(
             (node) => renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID, false)
           )}
         </div>
