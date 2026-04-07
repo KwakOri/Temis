@@ -2152,6 +2152,66 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
+  const updateCardNodeMeta = ({
+    nodeId,
+    label,
+    binding,
+  }: {
+    nodeId: string;
+    label?: string;
+    binding?: string;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const prevNode = prev.structure.card.nodes[nodeId];
+      if (!prevNode) return prev;
+
+      const nextLabel = typeof label === "string" ? label.trim() : undefined;
+      const nextBinding =
+        typeof binding === "string" ? binding.trim() : undefined;
+
+      const nextNode: V2TemplateCardNode = {
+        ...prevNode,
+        ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
+        ...(nextBinding && nextBinding.length > 0
+          ? { binding: nextBinding }
+          : {}),
+      };
+
+      const updateLayerLabel = (
+        nodes: V2TemplateLayerNode[]
+      ): V2TemplateLayerNode[] => {
+        return nodes.map((node) => {
+          if (node.id === prevNode.layerId) {
+            return {
+              ...node,
+              ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
+            };
+          }
+          if (!node.children?.length) return node;
+          return {
+            ...node,
+            children: updateLayerLabel(node.children),
+          };
+        });
+      };
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          layers: updateLayerLabel(prev.structure.layers),
+          card: {
+            ...prev.structure.card,
+            nodes: {
+              ...prev.structure.card.nodes,
+              [nodeId]: nextNode,
+            },
+          },
+        },
+      };
+    });
+  };
+
   const appendCardNode = (kind: V2TemplateCardNodeKind) => {
     safeUpdateConfig((prev) => {
       const existingIds = new Set(Object.keys(prev.structure.card.nodes));
@@ -3558,6 +3618,31 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               오브젝트 삭제
             </button>
           ) : null}
+        </div>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">오브젝트 이름</label>
+          <input
+            value={node.label}
+            onChange={(event) =>
+              updateCardNodeMeta({
+                nodeId: node.id,
+                label: event.target.value,
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          />
+          <label className="text-xs text-gray-400">바인딩 키</label>
+          <input
+            value={node.binding}
+            onChange={(event) =>
+              updateCardNodeMeta({
+                nodeId: node.id,
+                binding: event.target.value,
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+            placeholder="예: customTitle"
+          />
         </div>
         <div
           className="grid grid-cols-2 gap-2 items-center"
