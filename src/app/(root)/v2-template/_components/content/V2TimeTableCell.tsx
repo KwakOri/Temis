@@ -99,20 +99,18 @@ const v2_getCardNodeTextValue = ({
   entrySubTitle: string;
   placeholders: Record<string, string>;
 }): string => {
-  switch (node.binding) {
-    case "streamingDay":
-      return dayLabel;
-    case "streamingDate":
-      return padZero(weekDate.getDate());
-    case "streamingTime":
-      return isGuerrilla ? "게릴라" : formatTime(entryTime, "half");
-    case "mainTitle":
-      return entryMainTitle || placeholders.mainTitle || "";
-    case "subTitle":
-      return entrySubTitle || placeholders.subTitle || "";
-    default:
-      return "";
-  }
+  const resolveByBinding: Record<
+    V2TemplateCardNode["binding"],
+    () => string
+  > = {
+    streamingDay: () => dayLabel,
+    streamingDate: () => padZero(weekDate.getDate()),
+    streamingTime: () => (isGuerrilla ? "게릴라" : formatTime(entryTime, "half")),
+    mainTitle: () => entryMainTitle || placeholders.mainTitle || "",
+    subTitle: () => entrySubTitle || placeholders.subTitle || "",
+  };
+
+  return resolveByBinding[node.binding]();
 };
 
 const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
