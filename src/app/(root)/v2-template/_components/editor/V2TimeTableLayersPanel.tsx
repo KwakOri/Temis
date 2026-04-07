@@ -233,7 +233,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const ChevronIcon = isOpen ? ChevronDown : ChevronRight;
     const iconByKey =
       node.icon !== undefined ? v2_LAYER_ICON_MAP[node.icon] : undefined;
-    const Icon = hasChildren ? Folder : iconByKey ?? Layers;
+    const Icon = node.kind === "group" ? Folder : iconByKey ?? Layers;
     const isSelected = selectedNodeIds.has(node.id);
     const isDragging =
       dragState?.parentId === parentId && dragState.nodeId === node.id;
