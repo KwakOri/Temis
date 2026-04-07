@@ -1883,7 +1883,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const getHighlightTargetFromStyleSection = (
     section: V2StyleSectionKey
   ): V2TemplateHighlightTarget => {
-    return v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[section];
+    return (
+      structurePropertiesMaps.sectionToTarget[section] ??
+      v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[section]
+    );
   };
 
   const setSectionHoverHighlight = (section: V2StyleSectionKey) => {
