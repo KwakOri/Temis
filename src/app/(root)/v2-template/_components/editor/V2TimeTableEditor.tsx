@@ -23,22 +23,6 @@ import V2TimeTablePreview from './V2TimeTablePreview';
 const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
 type V2LayoutShape = V2TemplateRenderConfig['layout'];
 
-const v2_TARGET_TO_STYLE_SECTION_FALLBACK: Partial<
-  Record<V2TemplateHighlightTarget, string>
-> = {
-  grid: 'grid',
-  weekFlag: 'weekFlag',
-  topObjectContainer: 'topObjectContainer',
-  profileImage: 'profileImage',
-  profileFrame: 'profileFrame',
-  cardStreamingDay: 'cardStreamingDay',
-  cardStreamingDate: 'cardStreamingDate',
-  cardStreamingTime: 'cardStreamingTime',
-  cardMainTitleContainer: 'cardMainTitleContainer',
-  cardSubTitleContainer: 'cardSubTitleContainer',
-  cardContainer: 'cardContainer',
-};
-
 const v2_collectLayerNodeMap = (
   nodes: V2TemplateLayerNode[],
   nodeMap: Map<string, V2TemplateLayerNode> = new Map()
@@ -50,6 +34,26 @@ const v2_collectLayerNodeMap = (
     }
   });
   return nodeMap;
+};
+
+const v2_collectTargetSectionMap = (
+  nodes: V2TemplateLayerNode[]
+): Partial<Record<V2TemplateHighlightTarget, string>> => {
+  const map: Partial<Record<V2TemplateHighlightTarget, string>> = {};
+
+  const visit = (nodeList: V2TemplateLayerNode[]) => {
+    nodeList.forEach((node) => {
+      if (node.target && node.sectionKey && !map[node.target]) {
+        map[node.target] = node.sectionKey;
+      }
+      if (node.children?.length) {
+        visit(node.children);
+      }
+    });
+  };
+
+  visit(nodes);
+  return map;
 };
 
 const v2_getStyleRecordBySectionKey = (
@@ -130,6 +134,10 @@ const V2TimeTableEditor: React.FC = () => {
   } | null>(null);
   const [hiddenLayerIds, setHiddenLayerIds] = useState<Record<string, boolean>>(
     {}
+  );
+  const targetToSectionMap = useMemo(
+    () => v2_collectTargetSectionMap(renderConfig.structure.layers),
+    [renderConfig.structure.layers]
   );
 
   const parseZIndex = (value: unknown): number | undefined => {
@@ -480,8 +488,7 @@ const V2TimeTableEditor: React.FC = () => {
                       }}
                       onSelectLayer={({ target, sectionKey }) => {
                         setIsRightPanelOpen(true);
-                        const section =
-                          sectionKey ?? v2_TARGET_TO_STYLE_SECTION_FALLBACK[target];
+                        const section = sectionKey ?? targetToSectionMap[target];
                         if (!section) return;
                         setStyleFocusRequest({
                           section,
