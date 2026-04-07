@@ -22,6 +22,29 @@ import V2TimeTablePreview from './V2TimeTablePreview';
 
 const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
 type V2LayoutShape = V2TemplateRenderConfig['layout'];
+type V2RootLayoutStyleKey = keyof Omit<V2LayoutShape, 'card'>;
+type V2CardLayoutStyleKey = keyof V2LayoutShape['card'];
+
+const v2_ROOT_LAYOUT_STYLE_SECTION_MAP: Partial<
+  Record<string, V2RootLayoutStyleKey>
+> = {
+  grid: 'grid',
+  weekFlag: 'weekFlag',
+  topObjectContainer: 'topObjectContainer',
+  profileImage: 'profileImage',
+  profileFrame: 'profileFrame',
+};
+
+const v2_CARD_LAYOUT_STYLE_SECTION_MAP: Partial<
+  Record<string, V2CardLayoutStyleKey>
+> = {
+  cardStreamingDay: 'streamingDay',
+  cardStreamingDate: 'streamingDate',
+  cardStreamingTime: 'streamingTime',
+  cardMainTitleContainer: 'mainTitleContainer',
+  cardSubTitleContainer: 'subTitleContainer',
+  cardContainer: 'container',
+};
 
 const v2_collectLayerNodeMap = (
   nodes: V2TemplateLayerNode[],
@@ -60,32 +83,44 @@ const v2_getStyleRecordBySectionKey = (
   layout: V2LayoutShape,
   sectionKey: string
 ): V2TemplateStyleRecord | undefined => {
-  switch (sectionKey) {
-    case 'grid':
-      return layout.grid as V2TemplateStyleRecord;
-    case 'weekFlag':
-      return layout.weekFlag as V2TemplateStyleRecord;
-    case 'topObjectContainer':
-      return layout.topObjectContainer as V2TemplateStyleRecord;
-    case 'profileImage':
-      return layout.profileImage as V2TemplateStyleRecord;
-    case 'profileFrame':
-      return layout.profileFrame as V2TemplateStyleRecord;
-    case 'cardStreamingDay':
-      return layout.card.streamingDay as V2TemplateStyleRecord;
-    case 'cardStreamingDate':
-      return layout.card.streamingDate as V2TemplateStyleRecord;
-    case 'cardStreamingTime':
-      return layout.card.streamingTime as V2TemplateStyleRecord;
-    case 'cardMainTitleContainer':
-      return layout.card.mainTitleContainer as V2TemplateStyleRecord;
-    case 'cardSubTitleContainer':
-      return layout.card.subTitleContainer as V2TemplateStyleRecord;
-    case 'cardContainer':
-      return layout.card.container as V2TemplateStyleRecord;
-    default:
-      return undefined;
+  const rootKey = v2_ROOT_LAYOUT_STYLE_SECTION_MAP[sectionKey];
+  if (rootKey) {
+    return layout[rootKey] as V2TemplateStyleRecord;
   }
+
+  const cardKey = v2_CARD_LAYOUT_STYLE_SECTION_MAP[sectionKey];
+  if (cardKey) {
+    return layout.card[cardKey] as V2TemplateStyleRecord;
+  }
+
+  return undefined;
+};
+
+const v2_setStyleRecordBySectionKey = (
+  layout: V2LayoutShape,
+  sectionKey: string,
+  style: V2TemplateStyleRecord
+): V2LayoutShape => {
+  const rootKey = v2_ROOT_LAYOUT_STYLE_SECTION_MAP[sectionKey];
+  if (rootKey) {
+    return {
+      ...layout,
+      [rootKey]: style,
+    };
+  }
+
+  const cardKey = v2_CARD_LAYOUT_STYLE_SECTION_MAP[sectionKey];
+  if (cardKey) {
+    return {
+      ...layout,
+      card: {
+        ...layout.card,
+        [cardKey]: style,
+      },
+    };
+  }
+
+  return layout;
 };
 
 const useV2TemplateEditorSettings = () => {
@@ -220,7 +255,7 @@ const V2TimeTableEditor: React.FC = () => {
     });
 
     setRenderConfig((prev) => {
-      const nextLayout = {
+      let nextLayout = {
         ...prev.layout,
         card: {
           ...prev.layout.card,
@@ -248,76 +283,12 @@ const V2TimeTableEditor: React.FC = () => {
       };
 
       const setSectionZIndex = (sectionKey: string, zIndex: number) => {
-        switch (sectionKey) {
-          case 'grid':
-            nextLayout.grid = setStyleZIndex(
-              nextLayout.grid as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'weekFlag':
-            nextLayout.weekFlag = setStyleZIndex(
-              nextLayout.weekFlag as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'topObjectContainer':
-            nextLayout.topObjectContainer = setStyleZIndex(
-              nextLayout.topObjectContainer as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'profileImage':
-            nextLayout.profileImage = setStyleZIndex(
-              nextLayout.profileImage as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'profileFrame':
-            nextLayout.profileFrame = setStyleZIndex(
-              nextLayout.profileFrame as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'cardStreamingDay':
-            nextLayout.card.streamingDay = setStyleZIndex(
-              nextLayout.card.streamingDay as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'cardStreamingDate':
-            nextLayout.card.streamingDate = setStyleZIndex(
-              nextLayout.card.streamingDate as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'cardStreamingTime':
-            nextLayout.card.streamingTime = setStyleZIndex(
-              nextLayout.card.streamingTime as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'cardMainTitleContainer':
-            nextLayout.card.mainTitleContainer = setStyleZIndex(
-              nextLayout.card.mainTitleContainer as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'cardSubTitleContainer':
-            nextLayout.card.subTitleContainer = setStyleZIndex(
-              nextLayout.card.subTitleContainer as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          case 'cardContainer':
-            nextLayout.card.container = setStyleZIndex(
-              nextLayout.card.container as V2TemplateStyleRecord,
-              zIndex
-            );
-            return;
-          default:
-            return;
-        }
+        const currentStyle = v2_getStyleRecordBySectionKey(nextLayout, sectionKey);
+        nextLayout = v2_setStyleRecordBySectionKey(
+          nextLayout,
+          sectionKey,
+          setStyleZIndex(currentStyle, zIndex)
+        );
       };
 
       const applyNodeZIndex = (node: V2TemplateLayerNode, zIndex: number) => {
