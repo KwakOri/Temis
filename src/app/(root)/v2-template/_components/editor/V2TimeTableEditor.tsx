@@ -45,6 +45,10 @@ const v2_ROOT_LAYOUT_STYLE_SECTION_MAP: Partial<
   topObjectContainer: 'topObjectContainer',
   profileImage: 'profileImage',
   profileFrame: 'profileFrame',
+  profileTextRootStyle: 'profileTextRootStyle',
+  profileTextWrapperStyle: 'profileTextWrapperStyle',
+  profileTextStyle: 'profileTextStyle',
+  profileTextArtistImageStyle: 'profileTextArtistImageStyle',
 };
 
 const v2_collectLayerNodeMap = (

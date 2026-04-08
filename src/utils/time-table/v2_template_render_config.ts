@@ -337,6 +337,15 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
         target: "profileFrame",
         sectionKey: "profileFrame",
       },
+      {
+        id: "profile-text",
+        label: "ProfileText",
+        kind: "component",
+        visibilityMode: "always",
+        icon: "text",
+        target: "profileText",
+        sectionKey: "profileTextRootStyle",
+      },
     ],
   },
 ];
@@ -539,6 +548,7 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
         textStyleKey: "profileTextStyle",
         colorKey: "ARTIST",
         fontKey: "ARTIST",
+        highlightTarget: "profileText",
         containerClassName: "absolute z-50 flex justify-end items-center",
         textClassName: "text-center",
         visibilityMode: "always",
@@ -1675,14 +1685,62 @@ const v2_normalizeSceneNodes = (
   return parsed.length > 0 ? parsed : fallback;
 };
 
+const v2_findLayerNodeById = (
+  nodes: V2TemplateLayerNode[],
+  id: string
+): V2TemplateLayerNode | null => {
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    if (node.id === id) return node;
+    if (node.children?.length) {
+      stack.unshift(...node.children);
+    }
+  }
+  return null;
+};
+
+const v2_ensureLayerNode = (
+  nodes: V2TemplateLayerNode[],
+  targetParentId: string,
+  fallbackNode: V2TemplateLayerNode
+): V2TemplateLayerNode[] => {
+  return nodes.map((node) => {
+    if (node.id === targetParentId) {
+      const children = node.children ?? [];
+      const hasNode = children.some((child) => child.id === fallbackNode.id);
+      if (hasNode) return node;
+      return {
+        ...node,
+        children: [...children, v2_clone(fallbackNode)],
+      };
+    }
+    if (!node.children?.length) return node;
+    return {
+      ...node,
+      children: v2_ensureLayerNode(node.children, targetParentId, fallbackNode),
+    };
+  });
+};
+
 const v2_normalizeStructure = (
   candidate: unknown,
   fallback: V2TemplateStructureConfig
 ): V2TemplateStructureConfig => {
   if (!v2_isRecord(candidate)) return fallback;
 
+  const normalizedLayers = v2_normalizeLayerTree(candidate.layers, fallback.layers);
+  const fallbackProfileTextLayer = v2_findLayerNodeById(
+    fallback.layers,
+    "profile-text"
+  );
+  const nextLayers = fallbackProfileTextLayer
+    ? v2_ensureLayerNode(normalizedLayers, "profile", fallbackProfileTextLayer)
+    : normalizedLayers;
+
   return {
-    layers: v2_normalizeLayerTree(candidate.layers, fallback.layers),
+    layers: nextLayers,
     card: v2_normalizeCardStructure(candidate.card, fallback.card),
     sceneNodes: v2_normalizeSceneNodes(candidate.sceneNodes, fallback.sceneNodes),
   };

@@ -223,6 +223,10 @@ type V2StyleSectionKey =
   | "topObjectContainer"
   | "profileImage"
   | "profileFrame"
+  | "profileTextRootStyle"
+  | "profileTextWrapperStyle"
+  | "profileTextStyle"
+  | "profileTextArtistImageStyle"
   | "cardStreamingDay"
   | "cardStreamingDate"
   | "cardStreamingTime"
@@ -327,6 +331,28 @@ const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     height: 2250,
     zIndex: 20,
   },
+  profileTextRootStyle: {
+    left: 4,
+    zIndex: 30,
+    justifyContent: "flex-start",
+    alignItems: "center",
+  },
+  profileTextWrapperStyle: {
+    position: "absolute",
+    width: 1318,
+    height: 160,
+    bottom: 268,
+    right: 200,
+    rotate: "1.6deg",
+  },
+  profileTextStyle: {
+    lineHeight: 1,
+    fontWeight: 900,
+    textAlign: "center",
+  },
+  profileTextArtistImageStyle: {
+    display: "block",
+  },
   cardStreamingDay: {
     top: 0,
     left: 0,
@@ -409,6 +435,10 @@ const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   topObjectContainer: "TopObject",
   profileImage: "ProfileImage",
   profileFrame: "ProfileFrame",
+  profileTextRootStyle: "ProfileText.RootStyle",
+  profileTextWrapperStyle: "ProfileText.WrapperStyle",
+  profileTextStyle: "ProfileText.TextStyle",
+  profileTextArtistImageStyle: "ProfileText.ImageStyle",
   cardStreamingDay: "Card.StreamingDay",
   cardStreamingDate: "Card.StreamingDate",
   cardStreamingTime: "Card.StreamingTime",
@@ -429,6 +459,10 @@ const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "topObjectContainer",
   "profileImage",
   "profileFrame",
+  "profileTextRootStyle",
+  "profileTextWrapperStyle",
+  "profileTextStyle",
+  "profileTextArtistImageStyle",
   "cardStreamingDay",
   "streamingDayStyle",
   "cardStreamingDate",
@@ -452,6 +486,10 @@ const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   topObjectContainer: "topObjectContainer",
   profileImage: "profileImage",
   profileFrame: "profileFrame",
+  profileTextRootStyle: "profileText",
+  profileTextWrapperStyle: "profileText",
+  profileTextStyle: "profileText",
+  profileTextArtistImageStyle: "profileText",
   cardStreamingDay: "cardStreamingDay",
   cardStreamingDate: "cardStreamingDate",
   cardStreamingTime: "cardStreamingTime",
@@ -474,6 +512,10 @@ const v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
   topObjectContainer: "topObjectContainer",
   profileImage: "profileImage",
   profileFrame: "profileFrame",
+  profileTextRootStyle: "profileTextRootStyle",
+  profileTextWrapperStyle: "profileTextWrapperStyle",
+  profileTextStyle: "profileTextStyle",
+  profileTextArtistImageStyle: "profileTextArtistImageStyle",
 };
 
 const v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
@@ -499,6 +541,7 @@ const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
   topObjectContainer: "TopObject",
   profileImage: "Profile Image",
   profileFrame: "Profile Frame",
+  profileText: "Profile Text",
   cardStreamingDay: "Card / StreamingDay",
   cardStreamingDate: "Card / StreamingDate",
   cardStreamingTime: "Card / StreamingTime",
@@ -821,6 +864,90 @@ const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "zIndex", label: "Z-index" },
         { key: "opacity", label: "Opacity", step: "0.01" },
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+      ],
+    },
+  ],
+  profileTextRootStyle: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "zIndex", label: "Z-index" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  profileTextWrapperStyle: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "zIndex", label: "Z-index" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  profileTextStyle: [
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#A7A7A7" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+      ],
+    },
+  ],
+  profileTextArtistImageStyle: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "zIndex", label: "Z-index" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
       ],
     },
   ],
@@ -5125,6 +5252,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           ? "image style"
           : section === "profileFrame"
             ? "frame style"
+            : section === "profileTextRootStyle"
+              ? "root style"
+              : section === "profileTextWrapperStyle"
+                ? "wrapper style"
+                : section === "profileTextStyle"
+                  ? "text style"
+                  : section === "profileTextArtistImageStyle"
+                    ? "artist image style"
             : "style";
 
     return (

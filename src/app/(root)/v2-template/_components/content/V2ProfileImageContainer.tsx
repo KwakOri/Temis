@@ -110,12 +110,20 @@ const ProfileFrame = () => {
 
 const ProfileText = () => {
   const { profileText, isProfileTextVisible } = useTimeTableData();
-  const { currentTheme, globalData, data } = useV2TimeTableEditorRuntimeContext();
+  const {
+    currentTheme,
+    globalData,
+    data,
+    hoverHighlightTarget,
+    activeHighlightTarget,
+    isLayerHidden,
+  } = useV2TimeTableEditorRuntimeContext();
   const { renderConfig } = useV2TemplateRenderConfigContext();
 
   if (!renderConfig.editorOptions.isArtist || !isProfileTextVisible) {
     return null;
   }
+  if (isLayerHidden('profile-text')) return null;
 
   const sceneTextNode = v2_findSceneTextNodeById(
     renderConfig.structure.sceneNodes,
@@ -175,6 +183,11 @@ const ProfileText = () => {
         width: renderConfig.templateSize.width,
         height: renderConfig.templateSize.height,
         ...rootStyle,
+        ...v2_getHighlightStyle({
+          target: sceneTextNode?.highlightTarget ?? 'profileText',
+          hoverTarget: hoverHighlightTarget,
+          activeTarget: activeHighlightTarget,
+        }),
       }}
       className={profileTextContainerClassName}
     >
