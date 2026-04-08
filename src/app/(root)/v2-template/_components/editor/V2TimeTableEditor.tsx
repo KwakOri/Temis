@@ -5,7 +5,7 @@ import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideCon
 import { TimeTableProvider } from '@/contexts/TimeTableContext';
 import { useV2TemplateRenderConfigContext } from '@/contexts/v2/v2_TemplateRenderConfigContext';
 import { V2TimeTableEditorRuntimeProvider } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
-import { useTimeTableEditor } from '@/hooks';
+import { useV2TimeTableEditor } from '@/hooks/v2/useV2TimeTableEditor';
 import { V2TemplateHighlightTarget } from '@/types/time-table/v2_template_editor_ui';
 import {
   V2TemplateLayerNode,
@@ -246,8 +246,8 @@ const V2TimeTableEditor: React.FC = () => {
     updateTheme,
     resetData,
     isInitialized,
-  } = useTimeTableEditor({
-    cardInputConfig: inputSchema,
+  } = useV2TimeTableEditor({
+    inputSchema,
     defaultTheme,
     captureSize,
   });
