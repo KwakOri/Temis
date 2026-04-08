@@ -307,11 +307,6 @@ const V2TimeTableEditor: React.FC = () => {
         });
       }
 
-      if (node.id === 'profile') {
-        const profileTextZ = parseZIndex(renderConfig.layout.profileTextRootStyle?.zIndex);
-        value = Math.max(value, profileTextZ ?? Number.NEGATIVE_INFINITY);
-      }
-
       const normalizedValue = Number.isFinite(value) ? value : 0;
       zIndexCache.set(node.id, normalizedValue);
       return normalizedValue;
@@ -408,12 +403,6 @@ const V2TimeTableEditor: React.FC = () => {
         }
         if (node.children?.length) {
           node.children.forEach((child) => applyNodeZIndex(child, zIndex));
-        }
-        if (node.id === 'profile') {
-          nextLayout.profileTextRootStyle = setStyleZIndex(
-            nextLayout.profileTextRootStyle as V2TemplateStyleRecord,
-            zIndex
-          );
         }
       };
 
