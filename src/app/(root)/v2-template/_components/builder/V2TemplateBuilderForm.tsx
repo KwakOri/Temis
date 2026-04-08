@@ -627,6 +627,96 @@ const v2_collectSceneTextNodes = (
   return results;
 };
 
+const v2_updateLayerNodeLabelById = (
+  nodes: V2TemplateLayerNode[],
+  layerId: string,
+  label: string
+): V2TemplateLayerNode[] => {
+  return nodes.map((node) => {
+    if (node.id === layerId) {
+      return {
+        ...node,
+        label,
+      };
+    }
+    if (!node.children?.length) return node;
+    return {
+      ...node,
+      children: v2_updateLayerNodeLabelById(node.children, layerId, label),
+    };
+  });
+};
+
+const v2_mapSceneTextNodes = ({
+  nodes,
+  mapper,
+}: {
+  nodes: V2TemplateSceneNode[];
+  mapper: (node: V2TemplateSceneTextNode) => V2TemplateSceneTextNode;
+}): { nodes: V2TemplateSceneNode[]; updated: boolean } => {
+  let updated = false;
+
+  const visit = (node: V2TemplateSceneNode): V2TemplateSceneNode => {
+    if (node.kind === "group") {
+      const nextChildren = node.children.map(visit);
+      const changed = nextChildren.some(
+        (child, index) => child !== node.children[index]
+      );
+      if (!changed) return node;
+      updated = true;
+      return {
+        ...node,
+        children: nextChildren,
+      };
+    }
+
+    if (node.kind !== "text" && node.kind !== "flexibleText") {
+      return node;
+    }
+
+    const nextNode = mapper(node);
+    if (nextNode !== node) {
+      updated = true;
+    }
+    return nextNode;
+  };
+
+  const nextNodes = nodes.map(visit);
+  return {
+    nodes: updated ? nextNodes : nodes,
+    updated,
+  };
+};
+
+const v2_updateSceneTextNodeById = ({
+  nodes,
+  nodeId,
+  updater,
+}: {
+  nodes: V2TemplateSceneNode[];
+  nodeId: string;
+  updater: (node: V2TemplateSceneTextNode) => V2TemplateSceneTextNode;
+}): {
+  nodes: V2TemplateSceneNode[];
+  updated: boolean;
+  matchedNode: V2TemplateSceneTextNode | null;
+} => {
+  let matchedNode: V2TemplateSceneTextNode | null = null;
+  const { nodes: nextNodes, updated } = v2_mapSceneTextNodes({
+    nodes,
+    mapper: (node) => {
+      if (node.id !== nodeId) return node;
+      matchedNode = node;
+      return updater(node);
+    },
+  });
+  return {
+    nodes: updated ? nextNodes : nodes,
+    updated,
+    matchedNode,
+  };
+};
+
 const v2_HORIZONTAL_ALIGN_TO_JUSTIFY: Record<V2HorizontalAlign, string> = {
   left: "flex-start",
   center: "center",
@@ -1678,6 +1768,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
     return map;
   }, [renderConfig.structure.card.nodes]);
+  const sceneTextNodeByLayerId = useMemo(() => {
+    const map = new Map<string, V2TemplateSceneTextNode>();
+    v2_collectSceneTextNodes(renderConfig.structure.sceneNodes).forEach((node) => {
+      if (!node.layerId) return;
+      map.set(node.layerId, node);
+    });
+    return map;
+  }, [renderConfig.structure.sceneNodes]);
   const bindableCardNodeLabels = useMemo(() => {
     return renderConfig.structure.card.nodeOrder
       .map((nodeId) => renderConfig.structure.card.nodes[nodeId])
@@ -1943,7 +2041,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       };
       const nextFields = [...prev.formSchema.fields];
       nextFields[index] = nextField;
-      const nextNodes = Object.fromEntries(
+      const nextCardNodes = Object.fromEntries(
         Object.entries(prev.structure.card.nodes).map(([nodeId, node]) => {
           const shouldRewriteBinding =
             node.binding.mode === "field" &&
@@ -1963,6 +2061,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           ];
         })
       );
+      const { nodes: nextSceneNodes } = v2_mapSceneTextNodes({
+        nodes: prev.structure.sceneNodes,
+        mapper: (node) => {
+          const shouldRewriteBinding =
+            node.binding.mode === "field" &&
+            node.binding.scope === prevField.scope &&
+            node.binding.key === prevField.key;
+          if (!shouldRewriteBinding) return node;
+          return {
+            ...node,
+            binding: {
+              mode: "field",
+              scope: nextField.scope,
+              key: nextField.key,
+            },
+          };
+        },
+      });
       const nextFormSchema = {
         ...prev.formSchema,
         fields: nextFields,
@@ -1974,9 +2090,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
         structure: {
           ...prev.structure,
+          sceneNodes: nextSceneNodes,
           card: {
             ...prev.structure.card,
-            nodes: nextNodes,
+            nodes: nextCardNodes,
           },
         },
       };
@@ -2023,7 +2140,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const targetField = renderConfig.formSchema.fields[index];
     if (!targetField) return;
 
-    const linkedNodeIds = Object.values(renderConfig.structure.card.nodes)
+    const linkedCardNodeIds = Object.values(renderConfig.structure.card.nodes)
       .filter(
         (node) =>
           node.binding.mode === "field" &&
@@ -2031,10 +2148,21 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           node.binding.scope === targetField.scope
       )
       .map((node) => node.id);
+    const linkedSceneNodeIds = v2_collectSceneTextNodes(
+      renderConfig.structure.sceneNodes
+    )
+      .filter(
+        (node) =>
+          node.binding.mode === "field" &&
+          node.binding.key === targetField.key &&
+          node.binding.scope === targetField.scope
+      )
+      .map((node) => node.id);
+    const linkedNodeCount = linkedCardNodeIds.length + linkedSceneNodeIds.length;
 
-    if (linkedNodeIds.length > 0) {
+    if (linkedNodeCount > 0) {
       const confirmed = window.confirm(
-        `이 필드는 ${linkedNodeIds.length}개 오브젝트에서 사용 중입니다. 삭제하면 해당 바인딩이 비워집니다. 계속할까요?`
+        `이 필드는 ${linkedNodeCount}개 오브젝트에서 사용 중입니다. 삭제하면 해당 바인딩이 비워집니다. 계속할까요?`
       );
       if (!confirmed) return;
     }
@@ -2042,7 +2170,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     setFormSchemaError(null);
     safeUpdateConfig((prev) => {
       const nextFields = prev.formSchema.fields.filter((_, i) => i !== index);
-      const nextNodes = Object.fromEntries(
+      const nextCardNodes = Object.fromEntries(
         Object.entries(prev.structure.card.nodes).map(([nodeId, node]) => {
           const shouldResetBinding =
             node.binding.mode === "field" &&
@@ -2061,6 +2189,23 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           ];
         })
       );
+      const { nodes: nextSceneNodes } = v2_mapSceneTextNodes({
+        nodes: prev.structure.sceneNodes,
+        mapper: (node) => {
+          const shouldResetBinding =
+            node.binding.mode === "field" &&
+            node.binding.key === targetField.key &&
+            node.binding.scope === targetField.scope;
+          if (!shouldResetBinding) return node;
+          return {
+            ...node,
+            binding: {
+              mode: "literal",
+              value: "",
+            },
+          };
+        },
+      });
 
       const nextFormSchema = {
         ...prev.formSchema,
@@ -2073,9 +2218,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
         structure: {
           ...prev.structure,
+          sceneNodes: nextSceneNodes,
           card: {
             ...prev.structure.card,
-            nodes: nextNodes,
+            nodes: nextCardNodes,
           },
         },
       };
@@ -2930,6 +3076,114 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
+  const updateSceneTextNodeBinding = (
+    nodeId: string,
+    binding: V2TemplateSceneTextNode["binding"]
+  ) => {
+    safeUpdateConfig((prev) => {
+      const { nodes: nextSceneNodes, updated } = v2_updateSceneTextNodeById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+        updater: (node) => ({
+          ...node,
+          binding,
+        }),
+      });
+
+      if (!updated) return prev;
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+        },
+      };
+    });
+  };
+
+  const updateSceneTextNodeVisibilityMode = (
+    nodeId: string,
+    visibilityMode: V2TemplateVisibilityMode
+  ) => {
+    safeUpdateConfig((prev) => {
+      const { nodes: nextSceneNodes, updated } = v2_updateSceneTextNodeById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+        updater: (node) => ({
+          ...node,
+          visibilityMode,
+        }),
+      });
+
+      if (!updated) return prev;
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+        },
+      };
+    });
+  };
+
+  const updateSceneTextNodeMeta = ({
+    nodeId,
+    label,
+    colorKey,
+    fontKey,
+  }: {
+    nodeId: string;
+    label?: string;
+    colorKey?: V2TemplateSceneTextNode["colorKey"];
+    fontKey?: V2TemplateSceneTextNode["fontKey"];
+  }) => {
+    safeUpdateConfig((prev) => {
+      const nextLabel = typeof label === "string" ? label.trim() : undefined;
+      const nextColorKey =
+        typeof colorKey === "string" && v2_TEMPLATE_COLOR_KEYS.includes(colorKey)
+          ? colorKey
+          : undefined;
+      const nextFontKey =
+        typeof fontKey === "string" && v2_TEMPLATE_COLOR_KEYS.includes(fontKey)
+          ? fontKey
+          : undefined;
+
+      const { nodes: nextSceneNodes, updated, matchedNode } =
+        v2_updateSceneTextNodeById({
+          nodes: prev.structure.sceneNodes,
+          nodeId,
+          updater: (node) => ({
+            ...node,
+            ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
+            ...(nextColorKey ? { colorKey: nextColorKey } : {}),
+            ...(nextFontKey ? { fontKey: nextFontKey } : {}),
+          }),
+        });
+
+      if (!updated) return prev;
+
+      const nextLayers =
+        nextLabel && nextLabel.length > 0 && matchedNode?.layerId
+          ? v2_updateLayerNodeLabelById(
+              prev.structure.layers,
+              matchedNode.layerId,
+              nextLabel
+            )
+          : prev.structure.layers;
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          layers: nextLayers,
+          sceneNodes: nextSceneNodes,
+        },
+      };
+    });
+  };
+
   const createFieldForNodeBinding = (node: V2TemplateCardNode) => {
     const draft = newFieldDraftByNodeId[node.id];
     const key = draft?.key?.trim();
@@ -2950,6 +3204,40 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     if (!field) return;
 
     updateCardNodeBinding(node.id, {
+      mode: "field",
+      scope: field.scope,
+      key: field.key,
+    });
+
+    setNewFieldDraftByNodeId((prev) => ({
+      ...prev,
+      [node.id]: {
+        key: "",
+        scope: "entry",
+      },
+    }));
+  };
+
+  const createFieldForSceneNodeBinding = (node: V2TemplateSceneTextNode) => {
+    const draft = newFieldDraftByNodeId[node.id];
+    const key = draft?.key?.trim();
+    if (!key) {
+      setFormSchemaError("새 필드 키를 입력해 주세요.");
+      return;
+    }
+    const scope = draft?.scope ?? "entry";
+
+    const field = appendFormField({
+      key,
+      scope,
+      type: "text",
+      placeholder: key,
+      label: node.label,
+      defaultValue: "",
+    });
+    if (!field) return;
+
+    updateSceneTextNodeBinding(node.id, {
       mode: "field",
       scope: field.scope,
       key: field.key,
@@ -5239,6 +5527,280 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
+  const renderSceneTextNodeProperties = (
+    section: V2StyleSectionId,
+    node: V2TemplateSceneTextNode
+  ) => {
+    const containerSection = v2_resolveCardStyleSection(
+      node.containerStyleKey,
+      section
+    );
+    const textSection = node.textStyleKey
+      ? v2_resolveCardStyleSection(node.textStyleKey, containerSection)
+      : null;
+    const wrapperSection = node.wrapperStyleKey
+      ? v2_resolveCardStyleSection(node.wrapperStyleKey, containerSection)
+      : null;
+    const alignmentWrapperSection = wrapperSection ?? containerSection;
+    const hasAutoResizeAlignment =
+      node.kind === "flexibleText" && textSection !== null;
+    const bindingSelectValue =
+      node.binding.mode === "field"
+        ? `field:${node.binding.scope}:${node.binding.key}`
+        : node.binding.mode === "computed"
+          ? `computed:${node.binding.key}`
+          : "literal";
+    const fieldBinding = node.binding.mode === "field" ? node.binding : null;
+    const fieldBindingExists = (() => {
+      if (!fieldBinding) return true;
+      return renderConfig.formSchema.fields.some(
+        (field) =>
+          field.scope === fieldBinding.scope && field.key === fieldBinding.key
+      );
+    })();
+    const newFieldDraft = newFieldDraftByNodeId[node.id] ?? {
+      key: "",
+      scope: "entry" as V2TemplateFieldScope,
+    };
+
+    return (
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">Scene / {node.label}</h4>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">오브젝트 이름</label>
+          <input
+            value={node.label}
+            onChange={(event) =>
+              updateSceneTextNodeMeta({
+                nodeId: node.id,
+                label: event.target.value,
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          />
+          <label className="text-xs text-gray-400">바인딩 키</label>
+          <select
+            value={bindingSelectValue}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "literal") {
+                updateSceneTextNodeBinding(node.id, {
+                  mode: "literal",
+                  value:
+                    node.binding.mode === "literal"
+                      ? node.binding.value
+                      : v2_bindingRefToLegacyInput(node.binding),
+                });
+                return;
+              }
+
+              if (value.startsWith("computed:")) {
+                const computedKey = value.replace("computed:", "");
+                if (
+                  computedKey === "streamingDay" ||
+                  computedKey === "streamingDate" ||
+                  computedKey === "streamingTime"
+                ) {
+                  updateSceneTextNodeBinding(node.id, {
+                    mode: "computed",
+                    key: computedKey,
+                  });
+                }
+                return;
+              }
+
+              if (value.startsWith("field:")) {
+                const [, scope, ...rest] = value.split(":");
+                const key = rest.join(":");
+                if (!key) return;
+                if (scope !== "entry" && scope !== "card" && scope !== "global") {
+                  return;
+                }
+                updateSceneTextNodeBinding(node.id, {
+                  mode: "field",
+                  scope,
+                  key,
+                });
+              }
+            }}
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            <option value="computed:streamingDay">computed / streamingDay</option>
+            <option value="computed:streamingDate">computed / streamingDate</option>
+            <option value="computed:streamingTime">computed / streamingTime</option>
+            {renderConfig.formSchema.fields.map((field) => (
+              <option
+                key={`${field.scope}:${field.key}`}
+                value={`field:${field.scope}:${field.key}`}
+              >
+                field / {field.scope}.{field.key}
+              </option>
+            ))}
+            {node.binding.mode === "field" && !fieldBindingExists ? (
+              <option value={`field:${node.binding.scope}:${node.binding.key}`}>
+                field / {node.binding.scope}.{node.binding.key} (missing)
+              </option>
+            ) : null}
+            <option value="literal">literal (직접 텍스트)</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">컬러 테마 토큰</label>
+          <select
+            value={node.colorKey}
+            onChange={(event) =>
+              updateSceneTextNodeMeta({
+                nodeId: node.id,
+                colorKey: event.target.value as V2TemplateSceneTextNode["colorKey"],
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
+              <option key={`scene-color-${key}`} value={key}>
+                {key}
+              </option>
+            ))}
+          </select>
+          <label className="text-xs text-gray-400">폰트 테마 토큰</label>
+          <select
+            value={node.fontKey}
+            onChange={(event) =>
+              updateSceneTextNodeMeta({
+                nodeId: node.id,
+                fontKey: event.target.value as V2TemplateSceneTextNode["fontKey"],
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
+              <option key={`scene-font-${key}`} value={key}>
+                {key}
+              </option>
+            ))}
+          </select>
+        </div>
+        {node.binding.mode === "literal" ? (
+          <div className="grid grid-cols-2 gap-2 items-center">
+            <label className="text-xs text-gray-400">literal 값</label>
+            <input
+              value={node.binding.value}
+              onChange={(event) =>
+                updateSceneTextNodeBinding(node.id, {
+                  mode: "literal",
+                  value: event.target.value,
+                })
+              }
+              className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+              placeholder="표시할 고정 텍스트"
+            />
+          </div>
+        ) : null}
+        <div className="grid grid-cols-[1fr_96px_96px] gap-2 items-center">
+          <input
+            value={newFieldDraft.key}
+            onChange={(event) =>
+              setNewFieldDraftByNodeId((prev) => ({
+                ...prev,
+                [node.id]: {
+                  ...(prev[node.id] ?? { scope: "entry", key: "" }),
+                  key: event.target.value,
+                },
+              }))
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            placeholder="새 필드 키"
+          />
+          <select
+            value={newFieldDraft.scope}
+            onChange={(event) => {
+              const scope =
+                event.target.value === "card" || event.target.value === "global"
+                  ? event.target.value
+                  : "entry";
+              setNewFieldDraftByNodeId((prev) => ({
+                ...prev,
+                [node.id]: {
+                  ...(prev[node.id] ?? { key: "" }),
+                  scope,
+                },
+              }));
+            }}
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+          >
+            {v2_FORM_FIELD_SCOPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => createFieldForSceneNodeBinding(node)}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-2 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
+          >
+            + 필드 생성
+          </button>
+        </div>
+        {!fieldBindingExists ? (
+          <p className="text-xs text-red-300">
+            현재 바인딩된 필드가 입력 스키마에 없습니다.
+          </p>
+        ) : null}
+        <div
+          className="grid grid-cols-2 gap-2 items-center"
+          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
+          onMouseLeave={clearSectionHoverHighlight}
+          onClick={() => setSectionActiveHighlight(containerSection)}
+        >
+          <label className="text-xs text-gray-400">표시 조건</label>
+          <select
+            value={node.visibilityMode ?? "always"}
+            onChange={(event) =>
+              updateSceneTextNodeVisibilityMode(
+                node.id,
+                event.target.value as V2TemplateVisibilityMode
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {renderStyleSectionEditor({
+          title: "container style",
+          section: containerSection,
+        })}
+
+        {wrapperSection && wrapperSection !== containerSection
+          ? renderStyleSectionEditor({
+              title: "wrapper > style",
+              section: wrapperSection,
+            })
+          : null}
+
+        {hasAutoResizeAlignment && textSection
+          ? renderAutoResizeAlignmentEditor({
+              title: "content > alignment",
+              wrapperSection: alignmentWrapperSection,
+              textSection,
+            })
+          : null}
+
+        {textSection
+          ? renderStyleSectionEditor({
+              title: "content > style",
+              section: textSection,
+            })
+          : null}
+      </div>
+    );
+  };
+
   const renderSimplePropertiesSection = (section: V2StyleSectionId) => {
     const knownSection = v2_isKnownStyleSectionKey(section) ? section : null;
     const heading =
@@ -5287,6 +5849,13 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const cardNode = cardNodeByLayerId.get(selectedLayerNode.id);
     if (cardNode) {
       return renderCardNodeProperties(section ?? "cardContainer", cardNode);
+    }
+    const sceneTextNode = sceneTextNodeByLayerId.get(selectedLayerNode.id);
+    if (sceneTextNode) {
+      return renderSceneTextNodeProperties(
+        section ?? sceneTextNode.containerStyleKey,
+        sceneTextNode
+      );
     }
 
     if (!section) {
