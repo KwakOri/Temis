@@ -6,6 +6,10 @@ import {
 } from '@/contexts/v2/v2_TemplateRenderConfigContext';
 import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
 import { v2_getComponentFontFamily } from '@/utils/time-table/v2_template_render_config';
+import {
+  v2_findSceneTextNodeById,
+  v2_resolveSceneTextNodeValue,
+} from '@/utils/time-table/v2_scene_nodes';
 import { PropsWithChildren } from 'react';
 import { Imgs } from '../../_img/imgs';
 import { v2_getHighlightStyle } from './v2_highlight';
@@ -106,17 +110,31 @@ const ProfileFrame = () => {
 
 const ProfileText = () => {
   const { profileText, isProfileTextVisible } = useTimeTableData();
-  const { currentTheme } = useV2TimeTableEditorRuntimeContext();
+  const { currentTheme, globalData, data } = useV2TimeTableEditorRuntimeContext();
   const { renderConfig } = useV2TemplateRenderConfigContext();
 
   if (!renderConfig.editorOptions.isArtist || !isProfileTextVisible) {
     return null;
   }
 
+  const sceneTextNode = v2_findSceneTextNodeById(
+    renderConfig.structure.sceneNodes,
+    'scene-profile-text'
+  );
   const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
-  const rootStyle = v2_toRenderableStyle(layoutRecord.profileTextRootStyle);
-  const wrapperStyle = v2_toRenderableStyle(layoutRecord.profileTextWrapperStyle);
-  const textStyle = v2_toRenderableStyle(layoutRecord.profileTextStyle);
+  const rootStyleKey = sceneTextNode?.containerStyleKey ?? 'profileTextRootStyle';
+  const wrapperStyleKey =
+    sceneTextNode?.wrapperStyleKey ?? 'profileTextWrapperStyle';
+  const textStyleKey = sceneTextNode?.textStyleKey ?? 'profileTextStyle';
+  const rootStyle = v2_toRenderableStyle(
+    layoutRecord[rootStyleKey] as Record<string, string | number>
+  );
+  const wrapperStyle = v2_toRenderableStyle(
+    layoutRecord[wrapperStyleKey] as Record<string, string | number>
+  );
+  const textStyle = v2_toRenderableStyle(
+    layoutRecord[textStyleKey] as Record<string, string | number>
+  );
   const artistImageStyle = v2_toRenderableStyle(
     layoutRecord.profileTextArtistImageStyle
   );
@@ -126,9 +144,30 @@ const ProfileText = () => {
     fallbackTheme: renderConfig.defaultTheme,
   });
 
-  const artistText = profileText || renderConfig.profileTextPlaceholder || '';
+  const fallbackArtistText = profileText || renderConfig.profileTextPlaceholder || '';
+  const firstCard = data[0] as Record<string, unknown> | undefined;
+  const firstEntry = (firstCard?.entries as Record<string, unknown>[] | undefined)?.[0];
+  const artistText = sceneTextNode
+    ? v2_resolveSceneTextNodeValue({
+        node: sceneTextNode,
+        fallbackValue: fallbackArtistText,
+        computedValues: {
+          streamingDate: fallbackArtistText,
+          streamingDay: fallbackArtistText,
+          streamingTime: fallbackArtistText,
+        },
+        entrySource: firstEntry,
+        cardSource: firstCard,
+        globalSource: globalData as Record<string, unknown>,
+      })
+    : fallbackArtistText;
   const artistMaxFontSize =
     renderConfig.maxFontSizes.ARTIST > 0 ? renderConfig.maxFontSizes.ARTIST : 96;
+  const artistColorKey = sceneTextNode?.colorKey ?? 'ARTIST';
+  const artistFontKey = sceneTextNode?.fontKey ?? 'ARTIST';
+  const profileTextContainerClassName =
+    sceneTextNode?.containerClassName ?? 'absolute z-50 flex justify-end items-center';
+  const profileTextClassName = sceneTextNode?.textClassName ?? 'text-center';
 
   return (
     <div
@@ -137,7 +176,7 @@ const ProfileText = () => {
         height: renderConfig.templateSize.height,
         ...rootStyle,
       }}
-      className="absolute z-50 flex justify-end items-center"
+      className={profileTextContainerClassName}
     >
       <div
         style={{
@@ -155,12 +194,12 @@ const ProfileText = () => {
         <AutoResizeText
           style={{
             lineHeight: 1,
-            color: renderConfig.componentColors.ARTIST,
-            fontFamily: v2_getComponentFontFamily(renderConfig, 'ARTIST'),
+            color: renderConfig.componentColors[artistColorKey],
+            fontFamily: v2_getComponentFontFamily(renderConfig, artistFontKey),
             fontWeight: 900,
             ...textStyle,
           }}
-          className="text-center"
+          className={profileTextClassName}
           maxFontSize={artistMaxFontSize}
         >
           {artistText}
