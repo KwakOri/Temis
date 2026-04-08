@@ -3727,6 +3727,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     anchorNodeId: string;
     kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
   }) => {
+    let nextFocusLayerId: string | null = null;
+    let nextFocusTarget: V2TemplateHighlightTarget | null = null;
+
     safeUpdateConfig((prev) => {
       const anchorContext = v2_findSceneNodeContextById({
         nodes: prev.structure.sceneNodes,
@@ -3736,6 +3739,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
       const payload = createCustomSceneNodePayload(prev, kind);
       const { sceneNode, layerNode, dynamicCardLayoutPatch } = payload;
+      nextFocusLayerId = layerNode.id;
+      nextFocusTarget = layerNode.target ?? null;
       const { nodes: nextSceneNodes, updated: sceneUpdated } =
         v2_updateSceneNodeListByParentId({
           nodes: prev.structure.sceneNodes,
@@ -3785,6 +3790,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         },
       };
     });
+
+    if (nextFocusLayerId) {
+      setSelectedPropertiesLayerId(nextFocusLayerId);
+    }
+    if (nextFocusTarget) {
+      setSelectedPropertiesTarget(nextFocusTarget);
+      setActiveHighlightTarget(nextFocusTarget);
+    }
   };
 
   const addSceneChildNode = ({
@@ -3794,6 +3807,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     parentNodeId: string;
     kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
   }) => {
+    let nextFocusLayerId: string | null = null;
+    let nextFocusTarget: V2TemplateHighlightTarget | null = null;
+
     safeUpdateConfig((prev) => {
       const parentContext = v2_findSceneNodeContextById({
         nodes: prev.structure.sceneNodes,
@@ -3803,6 +3819,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
       const payload = createCustomSceneNodePayload(prev, kind);
       const { sceneNode, layerNode, dynamicCardLayoutPatch } = payload;
+      nextFocusLayerId = layerNode.id;
+      nextFocusTarget = layerNode.target ?? null;
       const { nodes: nextSceneNodes, updated: sceneUpdated } =
         v2_updateSceneNodeListByParentId({
           nodes: prev.structure.sceneNodes,
@@ -3834,6 +3852,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         },
       };
     });
+
+    if (nextFocusLayerId) {
+      setSelectedPropertiesLayerId(nextFocusLayerId);
+    }
+    if (nextFocusTarget) {
+      setSelectedPropertiesTarget(nextFocusTarget);
+      setActiveHighlightTarget(nextFocusTarget);
+    }
   };
 
   const moveSceneNode = ({
