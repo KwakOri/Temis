@@ -57,7 +57,6 @@ import {
   v2_bindingRefToLegacyInput,
   v2_createBindingRefFromLegacyInput,
   v2_isEntryFieldBindingKey,
-  v2_toLegacyCardInputConfig,
 } from "@/utils/time-table/v2_template_render_config";
 
 type V2BuilderTab =
@@ -2328,7 +2327,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       return {
         ...prev,
         formSchema: nextFormSchema,
-        cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
       };
     });
   };
@@ -2419,7 +2417,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       return {
         ...prev,
         formSchema: nextFormSchema,
-        cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
         structure: {
           ...prev.structure,
           sceneNodes: nextSceneNodes,
@@ -2547,7 +2544,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       return {
         ...prev,
         formSchema: nextFormSchema,
-        cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
         structure: {
           ...prev.structure,
           sceneNodes: nextSceneNodes,

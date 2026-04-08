@@ -1747,62 +1747,14 @@ const v2_normalizeSceneNodes = (
   return parsed.length > 0 ? parsed : fallback;
 };
 
-const v2_findLayerNodeById = (
-  nodes: V2TemplateLayerNode[],
-  id: string
-): V2TemplateLayerNode | null => {
-  const stack = [...nodes];
-  while (stack.length > 0) {
-    const node = stack.shift();
-    if (!node) continue;
-    if (node.id === id) return node;
-    if (node.children?.length) {
-      stack.unshift(...node.children);
-    }
-  }
-  return null;
-};
-
-const v2_ensureLayerNode = (
-  nodes: V2TemplateLayerNode[],
-  targetParentId: string,
-  fallbackNode: V2TemplateLayerNode
-): V2TemplateLayerNode[] => {
-  return nodes.map((node) => {
-    if (node.id === targetParentId) {
-      const children = node.children ?? [];
-      const hasNode = children.some((child) => child.id === fallbackNode.id);
-      if (hasNode) return node;
-      return {
-        ...node,
-        children: [...children, v2_clone(fallbackNode)],
-      };
-    }
-    if (!node.children?.length) return node;
-    return {
-      ...node,
-      children: v2_ensureLayerNode(node.children, targetParentId, fallbackNode),
-    };
-  });
-};
-
 const v2_normalizeStructure = (
   candidate: unknown,
   fallback: V2TemplateStructureConfig
 ): V2TemplateStructureConfig => {
   if (!v2_isRecord(candidate)) return fallback;
 
-  const normalizedLayers = v2_normalizeLayerTree(candidate.layers, fallback.layers);
-  const fallbackProfileTextLayer = v2_findLayerNodeById(
-    fallback.layers,
-    "profile-text"
-  );
-  const nextLayers = fallbackProfileTextLayer
-    ? v2_ensureLayerNode(normalizedLayers, "profile", fallbackProfileTextLayer)
-    : normalizedLayers;
-
   return {
-    layers: nextLayers,
+    layers: v2_normalizeLayerTree(candidate.layers, fallback.layers),
     card: v2_normalizeCardStructure(candidate.card, fallback.card),
     sceneNodes: v2_normalizeSceneNodes(candidate.sceneNodes, fallback.sceneNodes),
   };
@@ -1816,69 +1768,6 @@ const v2_asStringArray = (value: unknown, fallback: string[]): string[] => {
 
 const v2_clone = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
-};
-
-const v2_isCardInputConfig = (value: unknown): value is CardInputConfig => {
-  if (!v2_isRecord(value) || !Array.isArray(value.fields)) return false;
-
-  const areFieldsValid = value.fields.every((field) => {
-    if (!v2_isRecord(field)) return false;
-    if (typeof field.key !== "string") return false;
-    if (!v2_isFieldType(field.type)) return false;
-    if (typeof field.placeholder !== "string") return false;
-
-    if (field.label !== undefined && typeof field.label !== "string") return false;
-    if (field.required !== undefined && typeof field.required !== "boolean")
-      return false;
-    if (
-      field.maxLength !== undefined &&
-      (typeof field.maxLength !== "number" || !Number.isFinite(field.maxLength))
-    ) {
-      return false;
-    }
-
-    if (field.defaultValue !== undefined) {
-      const validDefault =
-        typeof field.defaultValue === "string" ||
-        typeof field.defaultValue === "number";
-      if (!validDefault) return false;
-    }
-
-    if (field.isOffline !== undefined && typeof field.isOffline !== "boolean") {
-      return false;
-    }
-
-    if (field.options !== undefined) {
-      if (!Array.isArray(field.options)) return false;
-      const optionsValid = field.options.every(
-        (option) =>
-          v2_isRecord(option) &&
-          typeof option.value === "string" &&
-          typeof option.label === "string"
-      );
-      if (!optionsValid) return false;
-    }
-
-    return true;
-  });
-
-  if (!areFieldsValid) return false;
-
-  if (
-    value.showLabels !== undefined &&
-    typeof value.showLabels !== "boolean"
-  ) {
-    return false;
-  }
-
-  if (value.offlineToggle !== undefined) {
-    if (!v2_isRecord(value.offlineToggle)) return false;
-    if (typeof value.offlineToggle.label !== "string") return false;
-    if (typeof value.offlineToggle.activeColor !== "string") return false;
-    if (typeof value.offlineToggle.inactiveColor !== "string") return false;
-  }
-
-  return true;
 };
 
 const v2_mergeThemeStringMap = (
@@ -2274,12 +2163,6 @@ export const v2_normalizeTemplateRenderConfig = (
     normalized.profileTextPlaceholder
   );
 
-  if (v2_isCardInputConfig(raw.cardInputConfig)) {
-    normalized.formSchema = v2_createFormSchemaFromCardInputConfig(
-      raw.cardInputConfig
-    );
-  }
-
   if (v2_isRecord(raw.formSchema)) {
     normalized.formSchema = v2_normalizeFormSchema(
       raw.formSchema,
@@ -2400,11 +2283,7 @@ export const v2_normalizeTemplateRenderConfig = (
       });
     }
 
-    const cardLayoutSource = v2_isRecord(layout.card)
-      ? layout.card
-      : v2_isRecord(layout.cell)
-        ? layout.cell
-        : null;
+    const cardLayoutSource = v2_isRecord(layout.card) ? layout.card : null;
 
     if (cardLayoutSource) {
       normalized.layout.card.streamingDay = v2_mergeStyleRecord(
