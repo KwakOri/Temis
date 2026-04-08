@@ -3,6 +3,7 @@ import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEd
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import { TDefaultCard } from "@/types/time-table/data";
 import { getPlaceholders } from "@/utils/time-table/data";
+import { v2_toLegacyCardInputConfig } from "@/utils/time-table/v2_template_render_config";
 import { SizeProps } from "@/utils/utils";
 import React, { useMemo } from "react";
 
@@ -33,14 +34,18 @@ const V2TimeTableInputList: React.FC<V2TimeTableInputListProps> = ({
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const { data, updateData, globalData, updateGlobalData } =
     useV2TimeTableEditorRuntimeContext();
+  const cardInputConfig = useMemo(
+    () => v2_toLegacyCardInputConfig(renderConfig.formSchema),
+    [renderConfig.formSchema]
+  );
 
   const placeholders = useMemo(
     () =>
       getPlaceholders({
-        cardInputConfig: renderConfig.cardInputConfig,
+        cardInputConfig,
         profilePlaceholder: renderConfig.profileTextPlaceholder,
       }),
-    [renderConfig.cardInputConfig, renderConfig.profileTextPlaceholder]
+    [cardInputConfig, renderConfig.profileTextPlaceholder]
   );
 
   return (
@@ -50,7 +55,7 @@ const V2TimeTableInputList: React.FC<V2TimeTableInputListProps> = ({
       globalData={globalData}
       onGlobalDataChange={updateGlobalData}
       weekdayOption={renderConfig.weekdayOption}
-      cardInputConfig={renderConfig.cardInputConfig}
+      cardInputConfig={cardInputConfig}
       placeholders={placeholders}
       isOfflineMemo={isOfflineMemo}
       isMultiple={renderConfig.editorOptions.isMultiple}
