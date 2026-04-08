@@ -69,6 +69,13 @@ import {
   v2_updateSceneTextNodeById,
 } from "./model/structure-utils";
 import {
+  V2NodeNewFieldDraft,
+  v2_getNodeBindingSelectValue,
+  v2_getNodeFieldBinding,
+  v2_getNodeNewFieldDraft,
+  v2_hasNodeBindingField,
+} from "./model/binding-utils";
+import {
   V2BoilerplateFieldConfig,
   V2BoilerplateGroupConfig,
   V2BoilerplateFieldType,
@@ -1212,7 +1219,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   >({});
   const [formSchemaError, setFormSchemaError] = useState<string | null>(null);
   const [newFieldDraftByNodeId, setNewFieldDraftByNodeId] = useState<
-    Record<string, { key: string; scope: V2TemplateFieldScope }>
+    Record<string, V2NodeNewFieldDraft>
   >({});
   const inspectorTabRef = useRef<HTMLDivElement | null>(null);
   const [selectedPropertiesTarget, setSelectedPropertiesTarget] =
@@ -5211,24 +5218,13 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const hasAutoResizeAlignment =
       node.kind === "flexibleText" && textSection !== null;
     const isRemovable = !v2_FIXED_CARD_NODE_IDS.has(node.id);
-    const bindingSelectValue =
-      node.binding.mode === "field"
-        ? `field:${node.binding.scope}:${node.binding.key}`
-        : node.binding.mode === "computed"
-          ? `computed:${node.binding.key}`
-          : "literal";
-    const fieldBinding = node.binding.mode === "field" ? node.binding : null;
-    const fieldBindingExists = (() => {
-      if (!fieldBinding) return true;
-      return renderConfig.formSchema.fields.some(
-        (field) =>
-          field.scope === fieldBinding.scope && field.key === fieldBinding.key
-      );
-    })();
-    const newFieldDraft = newFieldDraftByNodeId[node.id] ?? {
-      key: "",
-      scope: "entry" as V2TemplateFieldScope,
-    };
+    const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
+    const fieldBinding = v2_getNodeFieldBinding(node.binding);
+    const fieldBindingExists = v2_hasNodeBindingField(
+      node.binding,
+      renderConfig.formSchema.fields
+    );
+    const newFieldDraft = v2_getNodeNewFieldDraft(newFieldDraftByNodeId, node.id);
 
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
@@ -5682,24 +5678,13 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const alignmentWrapperSection = wrapperSection ?? containerSection;
     const hasAutoResizeAlignment =
       node.kind === "flexibleText" && textSection !== null;
-    const bindingSelectValue =
-      node.binding.mode === "field"
-        ? `field:${node.binding.scope}:${node.binding.key}`
-        : node.binding.mode === "computed"
-          ? `computed:${node.binding.key}`
-          : "literal";
-    const fieldBinding = node.binding.mode === "field" ? node.binding : null;
-    const fieldBindingExists = (() => {
-      if (!fieldBinding) return true;
-      return renderConfig.formSchema.fields.some(
-        (field) =>
-          field.scope === fieldBinding.scope && field.key === fieldBinding.key
-      );
-    })();
-    const newFieldDraft = newFieldDraftByNodeId[node.id] ?? {
-      key: "",
-      scope: "entry" as V2TemplateFieldScope,
-    };
+    const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
+    const fieldBinding = v2_getNodeFieldBinding(node.binding);
+    const fieldBindingExists = v2_hasNodeBindingField(
+      node.binding,
+      renderConfig.formSchema.fields
+    );
+    const newFieldDraft = v2_getNodeNewFieldDraft(newFieldDraftByNodeId, node.id);
 
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
