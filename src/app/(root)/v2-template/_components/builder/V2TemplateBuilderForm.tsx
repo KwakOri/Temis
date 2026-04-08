@@ -481,13 +481,16 @@ const v2_collectStructureTargetSectionMaps = (
   targetToSection: Record<string, V2StyleSectionId>;
   sectionToTarget: Record<V2StyleSectionId, V2TemplateHighlightTarget>;
   sectionToLabel: Record<V2StyleSectionId, string>;
+  layerIdToNode: Record<string, V2TemplateLayerNode>;
 } => {
   const targetToSection: Record<string, V2StyleSectionId> = {};
   const sectionToTarget: Record<V2StyleSectionId, V2TemplateHighlightTarget> = {};
   const sectionToLabel: Record<V2StyleSectionId, string> = {};
+  const layerIdToNode: Record<string, V2TemplateLayerNode> = {};
 
   const visit = (nodeList: V2TemplateLayerNode[]) => {
     nodeList.forEach((node) => {
+      layerIdToNode[node.id] = node;
       if (node.target && node.sectionKey) {
         const section = node.sectionKey;
         targetToSection[node.target] = section;
@@ -509,6 +512,7 @@ const v2_collectStructureTargetSectionMaps = (
     targetToSection,
     sectionToTarget,
     sectionToLabel,
+    layerIdToNode,
   };
 };
 
@@ -1206,6 +1210,32 @@ const v2_parseStyleSectionKey = (value: unknown): V2StyleSectionId | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const v2_STYLE_KEY_TO_SECTION_KEY_MAP: Partial<
+  Record<keyof V2TemplateRenderConfig["layout"]["card"], V2StyleSectionKey>
+> = Object.entries(v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP).reduce(
+  (acc, [sectionKey, styleKey]) => {
+    if (!styleKey) return acc;
+    acc[styleKey] = sectionKey as V2StyleSectionKey;
+    return acc;
+  },
+  {} as Partial<
+    Record<keyof V2TemplateRenderConfig["layout"]["card"], V2StyleSectionKey>
+  >
+);
+
+const v2_resolveCardStyleSection = (
+  styleKey: unknown,
+  fallbackSection: V2StyleSectionId
+): V2StyleSectionId => {
+  const parsed = v2_parseStyleSectionKey(styleKey);
+  if (!parsed) return fallbackSection;
+  const mapped =
+    v2_STYLE_KEY_TO_SECTION_KEY_MAP[
+      parsed as keyof V2TemplateRenderConfig["layout"]["card"]
+    ];
+  return mapped ?? parsed;
+};
+
 const v2_isKnownStyleSectionKey = (
   value: string
 ): value is V2StyleSectionKey => {
@@ -1436,25 +1466,38 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const cardNodeByPropertiesSection = useMemo(() => {
     const map = new Map<string, V2TemplateCardNode>();
     Object.values(renderConfig.structure.card.nodes).forEach((node) => {
-      const containerSection = v2_parseStyleSectionKey(node.containerStyleKey);
+      const layerNode = structurePropertiesMaps.layerIdToNode[node.layerId];
+      const layerSection = layerNode?.sectionKey
+        ? v2_parseStyleSectionKey(layerNode.sectionKey)
+        : null;
+      const containerSection = v2_resolveCardStyleSection(
+        node.containerStyleKey,
+        layerSection ?? "cardContainer"
+      );
       if (containerSection && !map.has(containerSection)) {
         map.set(containerSection, node);
       }
       if (node.textStyleKey) {
-        const textSection = v2_parseStyleSectionKey(node.textStyleKey);
+        const textSection = v2_resolveCardStyleSection(
+          node.textStyleKey,
+          containerSection
+        );
         if (textSection && !map.has(textSection)) {
           map.set(textSection, node);
         }
       }
       if (node.wrapperStyleKey) {
-        const wrapperSection = v2_parseStyleSectionKey(node.wrapperStyleKey);
+        const wrapperSection = v2_resolveCardStyleSection(
+          node.wrapperStyleKey,
+          containerSection
+        );
         if (wrapperSection && !map.has(wrapperSection)) {
           map.set(wrapperSection, node);
         }
       }
     });
     return map;
-  }, [renderConfig.structure.card.nodes]);
+  }, [renderConfig.structure.card.nodes, structurePropertiesMaps.layerIdToNode]);
   const bindableCardNodeLabels = useMemo(() => {
     return renderConfig.structure.card.nodeOrder
       .map((nodeId) => renderConfig.structure.card.nodes[nodeId])
@@ -4096,13 +4139,15 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     section: V2StyleSectionId,
     node: V2TemplateCardNode
   ) => {
-    const containerSection =
-      v2_parseStyleSectionKey(node.containerStyleKey) ?? section;
+    const containerSection = v2_resolveCardStyleSection(
+      node.containerStyleKey,
+      section
+    );
     const textSection = node.textStyleKey
-      ? v2_parseStyleSectionKey(node.textStyleKey)
+      ? v2_resolveCardStyleSection(node.textStyleKey, containerSection)
       : null;
     const wrapperSection = node.wrapperStyleKey
-      ? v2_parseStyleSectionKey(node.wrapperStyleKey)
+      ? v2_resolveCardStyleSection(node.wrapperStyleKey, containerSection)
       : null;
     const alignmentWrapperSection = wrapperSection ?? containerSection;
     const hasAutoResizeAlignment =
