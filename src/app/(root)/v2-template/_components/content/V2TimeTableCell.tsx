@@ -19,7 +19,6 @@ import {
   v2_isEntryFieldBindingKey,
   v2_isVisibleByMode,
 } from "@/utils/time-table/v2_template_render_config";
-import { Imgs } from "../../_img/imgs";
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
@@ -166,14 +165,12 @@ const v2_getCardNodeTextValue = ({
 const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.online;
-  const onlineUrl =
-    v2_getAssetUrlFromConfig({
-      renderConfig,
-      key: "onlineByTheme",
-      currentTheme: currentTheme || renderConfig.defaultTheme,
-    }) ??
-    Imgs[currentTheme || "first"]?.online?.src ??
-    Imgs.first.online.src;
+  const onlineUrl = v2_getAssetUrlFromConfig({
+    renderConfig,
+    key: "onlineByTheme",
+    currentTheme: currentTheme || renderConfig.defaultTheme,
+  });
+  if (!onlineUrl) return null;
 
   return (
     <div
@@ -190,14 +187,12 @@ const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
 const OfflineCardBG = ({ currentTheme }: OfflineCardProps) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.offline;
-  const offlineUrl =
-    v2_getAssetUrlFromConfig({
-      renderConfig,
-      key: "offlineByTheme",
-      currentTheme: currentTheme || renderConfig.defaultTheme,
-    }) ??
-    Imgs[currentTheme || "first"]?.offline?.src ??
-    Imgs.first.offline.src;
+  const offlineUrl = v2_getAssetUrlFromConfig({
+    renderConfig,
+    key: "offlineByTheme",
+    currentTheme: currentTheme || renderConfig.defaultTheme,
+  });
+  if (!offlineUrl) return null;
 
   return (
     <div style={{ ...cardSize }} className="absolute -z-10">
