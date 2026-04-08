@@ -53,6 +53,11 @@ import {
 } from "./model/layout-utils";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import {
+  v2_BOILERPLATE_NUMERIC_KEYS,
+  v2_BOILERPLATE_SELECT_OPTIONS,
+  v2_STYLE_EXTENSION_GROUPS,
+} from "./model/boilerplate-presets";
+import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
   v2_collectSceneNodeStyleKeys,
@@ -438,101 +443,6 @@ const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
   cardSubTitleContainer: "Card / SubTitle",
   cardContainer: "Card Container",
 };
-
-const v2_BOILERPLATE_SELECT_OPTIONS = {
-  position: [
-    { label: "absolute", value: "absolute" },
-    { label: "relative", value: "relative" },
-    { label: "fixed", value: "fixed" },
-    { label: "sticky", value: "sticky" },
-    { label: "static", value: "static" },
-  ],
-  display: [
-    { label: "block", value: "block" },
-    { label: "flex", value: "flex" },
-    { label: "grid", value: "grid" },
-    { label: "inline-block", value: "inline-block" },
-    { label: "inline", value: "inline" },
-    { label: "none", value: "none" },
-  ],
-  justifyContent: [
-    { label: "flex-start", value: "flex-start" },
-    { label: "center", value: "center" },
-    { label: "flex-end", value: "flex-end" },
-    { label: "space-between", value: "space-between" },
-    { label: "space-around", value: "space-around" },
-    { label: "space-evenly", value: "space-evenly" },
-  ],
-  alignItems: [
-    { label: "flex-start", value: "flex-start" },
-    { label: "center", value: "center" },
-    { label: "flex-end", value: "flex-end" },
-    { label: "stretch", value: "stretch" },
-    { label: "baseline", value: "baseline" },
-  ],
-  textAlign: [
-    { label: "left", value: "left" },
-    { label: "center", value: "center" },
-    { label: "right", value: "right" },
-    { label: "start", value: "start" },
-    { label: "end", value: "end" },
-  ],
-  whiteSpace: [
-    { label: "normal", value: "normal" },
-    { label: "nowrap", value: "nowrap" },
-    { label: "pre-line", value: "pre-line" },
-  ],
-  wordBreak: [
-    { label: "normal", value: "normal" },
-    { label: "break-all", value: "break-all" },
-    { label: "keep-all", value: "keep-all" },
-    { label: "break-word", value: "break-word" },
-  ],
-  borderStyle: [
-    { label: "none", value: "none" },
-    { label: "solid", value: "solid" },
-    { label: "dashed", value: "dashed" },
-    { label: "dotted", value: "dotted" },
-    { label: "double", value: "double" },
-  ],
-};
-
-const v2_BOILERPLATE_NUMERIC_KEYS = new Set([
-  "top",
-  "left",
-  "right",
-  "bottom",
-  "width",
-  "height",
-  "minWidth",
-  "maxWidth",
-  "minHeight",
-  "maxHeight",
-  "margin",
-  "marginTop",
-  "marginRight",
-  "marginBottom",
-  "marginLeft",
-  "padding",
-  "paddingTop",
-  "paddingRight",
-  "paddingBottom",
-  "paddingLeft",
-  "fontSize",
-  "fontWeight",
-  "lineHeight",
-  "letterSpacing",
-  "borderWidth",
-  "borderRadius",
-  "rowGap",
-  "columnGap",
-  "columns",
-  "zIndex",
-  "opacity",
-  "widthPercent",
-  "rotateDeg",
-  "gap",
-]);
 
 const v2_BOILERPLATE_SECTION_GROUPS: Record<
   V2StyleSectionKey,
@@ -998,33 +908,6 @@ const v2_BOILERPLATE_SECTION_GROUPS: Record<
     },
   ],
 };
-
-const v2_STYLE_EXTENSION_GROUPS: V2BoilerplateGroupConfig[] = [
-  {
-    id: "fill",
-    label: "Fill",
-    fields: [{ key: "backgroundColor", label: "Background Color", type: "text", placeholder: "#FFFFFF" }],
-  },
-  {
-    id: "stroke",
-    label: "Stroke",
-    fields: [
-      { key: "borderWidth", label: "Border Width" },
-      { key: "borderStyle", label: "Border Style", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.borderStyle },
-      { key: "borderColor", label: "Border Color", type: "text", placeholder: "#000000" },
-      { key: "borderRadius", label: "Border Radius" },
-    ],
-  },
-  {
-    id: "effects",
-    label: "Effects",
-    fields: [
-      { key: "boxShadow", label: "Box Shadow", type: "text", placeholder: "0 8px 24px rgba(0,0,0,0.2)" },
-      { key: "filter", label: "Filter", type: "text", placeholder: "blur(4px)" },
-      { key: "backdropFilter", label: "Backdrop Filter", type: "text", placeholder: "blur(6px)" },
-    ],
-  },
-];
 
 type V2CardLayoutStyleKey = Extract<
   keyof V2TemplateRenderConfig["layout"]["card"],
