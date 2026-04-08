@@ -59,6 +59,12 @@ import {
   v2_isEntryFieldBindingKey,
 } from "@/utils/time-table/template-render-config";
 import {
+  v2_ALIGN_ITEMS_TO_VERTICAL_ALIGN,
+  v2_HORIZONTAL_ALIGN_TO_JUSTIFY,
+  v2_JUSTIFY_TO_HORIZONTAL_ALIGN,
+  v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS,
+} from "./model/alignment-utils";
+import {
   v2_POSITION_MUTEX_MAP,
   v2_getGridEmptySlotsFromMap,
   v2_hasRenderableStyleValue,
@@ -578,30 +584,6 @@ const v2_HIGHLIGHT_TARGET_LABELS: Record<V2TemplateHighlightTarget, string> = {
   cardMainTitleContainer: "Card / MainTitle",
   cardSubTitleContainer: "Card / SubTitle",
   cardContainer: "Card Container",
-};
-
-const v2_HORIZONTAL_ALIGN_TO_JUSTIFY: Record<V2HorizontalAlign, string> = {
-  left: "flex-start",
-  center: "center",
-  right: "flex-end",
-};
-
-const v2_JUSTIFY_TO_HORIZONTAL_ALIGN: Partial<Record<string, V2HorizontalAlign>> = {
-  "flex-start": "left",
-  center: "center",
-  "flex-end": "right",
-};
-
-const v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS: Record<V2VerticalAlign, string> = {
-  top: "flex-start",
-  center: "center",
-  bottom: "flex-end",
-};
-
-const v2_ALIGN_ITEMS_TO_VERTICAL_ALIGN: Partial<Record<string, V2VerticalAlign>> = {
-  "flex-start": "top",
-  center: "center",
-  "flex-end": "bottom",
 };
 
 const v2_BOILERPLATE_SELECT_OPTIONS = {
