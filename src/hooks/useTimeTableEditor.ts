@@ -59,7 +59,7 @@ export const useTimeTableEditor = ({
     toggleOffline,
     resetData,
     resetCard,
-  } = useTimeTableData({ inputSchema: resolvedInputSchema });
+  } = useTimeTableData({ cardInputConfig: resolvedInputSchema });
 
   const { currentTheme, updateTheme, handleThemeChange, resetTheme } =
     useTimeTableTheme(defaultTheme);
