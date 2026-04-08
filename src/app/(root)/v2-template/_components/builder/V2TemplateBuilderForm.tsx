@@ -44,6 +44,8 @@ import {
   V2TemplateFormField,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
+  V2TemplateSceneNode,
+  V2TemplateSceneTextNode,
   V2TemplateVisibilityMode,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/v2_template_render_config";
@@ -556,6 +558,30 @@ const v2_collectStructureTargetSectionMaps = (
     sectionToLayerId,
     layerIdToNode,
   };
+};
+
+const v2_collectSceneTextNodes = (
+  nodes: V2TemplateSceneNode[] | undefined
+): V2TemplateSceneTextNode[] => {
+  if (!Array.isArray(nodes) || nodes.length === 0) return [];
+  const results: V2TemplateSceneTextNode[] = [];
+  const stack = [...nodes];
+
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    if (node.kind === "group") {
+      if (node.children.length > 0) {
+        stack.unshift(...node.children);
+      }
+      continue;
+    }
+    if (node.kind === "text" || node.kind === "flexibleText") {
+      results.push(node);
+    }
+  }
+
+  return results;
 };
 
 const v2_HORIZONTAL_ALIGN_TO_JUSTIFY: Record<V2HorizontalAlign, string> = {
@@ -1531,6 +1557,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       .filter((node): node is V2TemplateCardNode => Boolean(node))
       .map((node) => node.label);
   }, [renderConfig.structure.card.nodeOrder, renderConfig.structure.card.nodes]);
+  const bindableSceneTextNodeLabels = useMemo(() => {
+    return v2_collectSceneTextNodes(renderConfig.structure.sceneNodes).map(
+      (node) => node.label
+    );
+  }, [renderConfig.structure.sceneNodes]);
+  const bindableNodeLabels = useMemo(() => {
+    return Array.from(
+      new Set([...bindableCardNodeLabels, ...bindableSceneTextNodeLabels])
+    );
+  }, [bindableCardNodeLabels, bindableSceneTextNodeLabels]);
   const formSchemaDiagnostics = useMemo(() => {
     const fields = renderConfig.formSchema.fields;
     const fieldIdSet = new Set(
@@ -1542,14 +1578,26 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
 
     const missingBindings: Array<{ nodeLabel: string; scope: string; key: string }> = [];
-    Object.values(renderConfig.structure.card.nodes).forEach((node) => {
-      if (node.binding.mode !== "field") return;
-      const fieldId = `${node.binding.scope}:${node.binding.key}`;
+    const fieldBindingNodes = [
+      ...Object.values(renderConfig.structure.card.nodes).map((node) => ({
+        nodeLabel: node.label,
+        binding: node.binding,
+      })),
+      ...v2_collectSceneTextNodes(renderConfig.structure.sceneNodes).map(
+        (node) => ({
+          nodeLabel: node.label,
+          binding: node.binding,
+        })
+      ),
+    ];
+    fieldBindingNodes.forEach(({ nodeLabel, binding }) => {
+      if (binding.mode !== "field") return;
+      const fieldId = `${binding.scope}:${binding.key}`;
       if (!fieldIdSet.has(fieldId)) {
         missingBindings.push({
-          nodeLabel: node.label,
-          scope: node.binding.scope,
-          key: node.binding.key,
+          nodeLabel,
+          scope: binding.scope,
+          key: binding.key,
         });
         return;
       }
@@ -1566,7 +1614,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       missingBindings,
       unusedFields,
     };
-  }, [renderConfig.formSchema.fields, renderConfig.structure.card.nodes]);
+  }, [
+    renderConfig.formSchema.fields,
+    renderConfig.structure.card.nodes,
+    renderConfig.structure.sceneNodes,
+  ]);
 
   useEffect(() => {
     if (activeTab !== "style" && activeTab !== "properties") {
@@ -5081,8 +5133,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         {section === "cardContainer" ? (
           <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
             바인딩 키는 카드 컨테이너가 아니라 하위 텍스트 오브젝트에서 설정합니다.
-            {bindableCardNodeLabels.length > 0
-              ? ` (${bindableCardNodeLabels.join(", ")})`
+            {bindableNodeLabels.length > 0
+              ? ` (${bindableNodeLabels.join(", ")})`
               : ""}
           </div>
         ) : null}
