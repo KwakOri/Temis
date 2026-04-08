@@ -38,6 +38,8 @@ import {
   V2TemplateCardNodeKind,
   V2TemplateCardNode,
   V2TemplateCardOptionsKey,
+  V2TemplateFieldScope,
+  V2TemplateFormField,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
   V2TemplateVisibilityMode,
@@ -48,10 +50,12 @@ import {
   v2_bindingRefToLegacyInput,
   v2_createBindingRefFromLegacyInput,
   v2_isEntryFieldBindingKey,
+  v2_toLegacyCardInputConfig,
 } from "@/utils/time-table/v2_template_render_config";
 
 type V2BuilderTab =
   | "canvas"
+  | "schema"
   | "properties"
   | "style"
   | "assets"
@@ -60,12 +64,40 @@ type V2BuilderTab =
 
 const v2_BUILDER_TABS: Array<{ id: V2BuilderTab; label: string }> = [
   { id: "canvas", label: "캔버스" },
+  { id: "schema", label: "입력 스키마" },
   { id: "properties", label: "속성" },
   { id: "style", label: "스타일" },
   { id: "assets", label: "에셋" },
   { id: "data", label: "샘플 데이터" },
   { id: "export", label: "내보내기" },
 ];
+
+const v2_FORM_FIELD_SCOPE_OPTIONS: Array<{
+  value: V2TemplateFieldScope;
+  label: string;
+}> = [
+  { value: "entry", label: "entry" },
+  { value: "card", label: "card" },
+  { value: "global", label: "global" },
+];
+
+const v2_FORM_FIELD_TYPE_OPTIONS: Array<{
+  value: V2TemplateFormField["type"];
+  label: string;
+}> = [
+  { value: "text", label: "text" },
+  { value: "textarea", label: "textarea" },
+  { value: "time", label: "time" },
+  { value: "date", label: "date" },
+  { value: "select", label: "select" },
+  { value: "number", label: "number" },
+];
+
+const v2_BINDING_COMPUTED_OPTIONS = [
+  "streamingDay",
+  "streamingDate",
+  "streamingTime",
+] as const;
 
 const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
   "bgByTheme",
@@ -1369,6 +1401,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const [styleGroupExpanded, setStyleGroupExpanded] = useState<
     Record<string, boolean>
   >({});
+  const [formSchemaError, setFormSchemaError] = useState<string | null>(null);
+  const [newFieldDraftByNodeId, setNewFieldDraftByNodeId] = useState<
+    Record<string, { key: string; scope: V2TemplateFieldScope }>
+  >({});
   const inspectorTabRef = useRef<HTMLDivElement | null>(null);
   const [selectedPropertiesTarget, setSelectedPropertiesTarget] =
     useState<V2TemplateHighlightTarget>("grid");
@@ -1537,6 +1573,198 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   ) => {
     if (!setRenderConfig) return;
     setRenderConfig((prev) => updater(prev));
+  };
+
+  const updateFormSchema = (
+    updater: (prev: typeof renderConfig.formSchema) => typeof renderConfig.formSchema
+  ) => {
+    safeUpdateConfig((prev) => {
+      const nextFormSchema = updater(prev.formSchema);
+      return {
+        ...prev,
+        formSchema: nextFormSchema,
+        cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
+      };
+    });
+  };
+
+  const hasDuplicatedFormFieldKey = (
+    key: string,
+    excludeIndex?: number,
+    fields = renderConfig.formSchema.fields
+  ): boolean => {
+    const normalized = key.trim();
+    if (!normalized) return false;
+    return fields.some(
+      (field, index) => field.key === normalized && index !== excludeIndex
+    );
+  };
+
+  const updateFormFieldAt = (
+    index: number,
+    patch: Partial<V2TemplateFormField>
+  ) => {
+    safeUpdateConfig((prev) => {
+      const prevField = prev.formSchema.fields[index];
+      if (!prevField) return prev;
+
+      const nextKey = (patch.key ?? prevField.key).trim();
+      if (!nextKey) {
+        setFormSchemaError("필드 키는 비워둘 수 없습니다.");
+        return prev;
+      }
+
+      if (hasDuplicatedFormFieldKey(nextKey, index, prev.formSchema.fields)) {
+        setFormSchemaError(`중복된 필드 키입니다: ${nextKey}`);
+        return prev;
+      }
+
+      setFormSchemaError(null);
+
+      const nextField: V2TemplateFormField = {
+        ...prevField,
+        ...patch,
+        key: nextKey,
+      };
+      const nextFields = [...prev.formSchema.fields];
+      nextFields[index] = nextField;
+      const nextNodes = Object.fromEntries(
+        Object.entries(prev.structure.card.nodes).map(([nodeId, node]) => {
+          const shouldRewriteBinding =
+            node.binding.mode === "field" &&
+            node.binding.scope === prevField.scope &&
+            node.binding.key === prevField.key;
+          if (!shouldRewriteBinding) return [nodeId, node];
+          return [
+            nodeId,
+            {
+              ...node,
+              binding: {
+                mode: "field" as const,
+                scope: nextField.scope,
+                key: nextField.key,
+              },
+            },
+          ];
+        })
+      );
+      const nextFormSchema = {
+        ...prev.formSchema,
+        fields: nextFields,
+      };
+
+      return {
+        ...prev,
+        formSchema: nextFormSchema,
+        cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
+        structure: {
+          ...prev.structure,
+          card: {
+            ...prev.structure.card,
+            nodes: nextNodes,
+          },
+        },
+      };
+    });
+  };
+
+  const appendFormField = (
+    seed?: Partial<V2TemplateFormField>
+  ): V2TemplateFormField | null => {
+    const rawKey = seed?.key?.trim() ?? "";
+    const key =
+      rawKey.length > 0
+        ? rawKey
+        : `field${renderConfig.formSchema.fields.length + 1}`;
+
+    if (hasDuplicatedFormFieldKey(key)) {
+      setFormSchemaError(`중복된 필드 키입니다: ${key}`);
+      return null;
+    }
+
+    const newField: V2TemplateFormField = {
+      key,
+      scope: seed?.scope ?? "entry",
+      type: seed?.type ?? "text",
+      placeholder: seed?.placeholder ?? key,
+      ...(seed?.label ? { label: seed.label } : {}),
+      ...(seed?.defaultValue !== undefined
+        ? { defaultValue: seed.defaultValue }
+        : {}),
+      ...(typeof seed?.required === "boolean"
+        ? { required: seed.required }
+        : {}),
+    };
+
+    setFormSchemaError(null);
+    updateFormSchema((prevFormSchema) => ({
+      ...prevFormSchema,
+      fields: [...prevFormSchema.fields, newField],
+    }));
+    return newField;
+  };
+
+  const removeFormFieldAt = (index: number) => {
+    const targetField = renderConfig.formSchema.fields[index];
+    if (!targetField) return;
+
+    const linkedNodeIds = Object.values(renderConfig.structure.card.nodes)
+      .filter(
+        (node) =>
+          node.binding.mode === "field" &&
+          node.binding.key === targetField.key &&
+          node.binding.scope === targetField.scope
+      )
+      .map((node) => node.id);
+
+    if (linkedNodeIds.length > 0) {
+      const confirmed = window.confirm(
+        `이 필드는 ${linkedNodeIds.length}개 오브젝트에서 사용 중입니다. 삭제하면 해당 바인딩이 비워집니다. 계속할까요?`
+      );
+      if (!confirmed) return;
+    }
+
+    setFormSchemaError(null);
+    safeUpdateConfig((prev) => {
+      const nextFields = prev.formSchema.fields.filter((_, i) => i !== index);
+      const nextNodes = Object.fromEntries(
+        Object.entries(prev.structure.card.nodes).map(([nodeId, node]) => {
+          const shouldResetBinding =
+            node.binding.mode === "field" &&
+            node.binding.key === targetField.key &&
+            node.binding.scope === targetField.scope;
+          if (!shouldResetBinding) return [nodeId, node];
+          return [
+            nodeId,
+            {
+              ...node,
+              binding: {
+                mode: "literal" as const,
+                value: "",
+              },
+            },
+          ];
+        })
+      );
+
+      const nextFormSchema = {
+        ...prev.formSchema,
+        fields: nextFields,
+      };
+
+      return {
+        ...prev,
+        formSchema: nextFormSchema,
+        cardInputConfig: v2_toLegacyCardInputConfig(nextFormSchema),
+        structure: {
+          ...prev.structure,
+          card: {
+            ...prev.structure.card,
+            nodes: nextNodes,
+          },
+        },
+      };
+    });
   };
 
   const themeOptions = useMemo(() => {
@@ -2155,6 +2383,66 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         },
       };
     });
+  };
+
+  const updateCardNodeBinding = (
+    nodeId: string,
+    binding: V2TemplateCardNode["binding"]
+  ) => {
+    safeUpdateConfig((prev) => {
+      const prevNode = prev.structure.card.nodes[nodeId];
+      if (!prevNode) return prev;
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          card: {
+            ...prev.structure.card,
+            nodes: {
+              ...prev.structure.card.nodes,
+              [nodeId]: {
+                ...prevNode,
+                binding,
+              },
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const createFieldForNodeBinding = (node: V2TemplateCardNode) => {
+    const draft = newFieldDraftByNodeId[node.id];
+    const key = draft?.key?.trim();
+    if (!key) {
+      setFormSchemaError("새 필드 키를 입력해 주세요.");
+      return;
+    }
+    const scope = draft?.scope ?? "entry";
+
+    const field = appendFormField({
+      key,
+      scope,
+      type: "text",
+      placeholder: key,
+      label: node.label,
+      defaultValue: "",
+    });
+    if (!field) return;
+
+    updateCardNodeBinding(node.id, {
+      mode: "field",
+      scope: field.scope,
+      key: field.key,
+    });
+
+    setNewFieldDraftByNodeId((prev) => ({
+      ...prev,
+      [node.id]: {
+        key: "",
+        scope: "entry",
+      },
+    }));
   };
 
   const updateCardNodeMeta = ({
@@ -3450,6 +3738,139 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     </div>
   );
 
+  const renderSchemaTab = () => (
+    <div className="space-y-4 rounded-xl border border-[#2f3239] bg-[#111317] p-3 text-gray-100">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-bold text-base text-gray-100">입력 스키마</h3>
+        <button
+          type="button"
+          onClick={() => {
+            appendFormField({
+              key: "",
+              scope: "entry",
+              type: "text",
+              placeholder: "새 필드",
+            });
+          }}
+          className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
+        >
+          + 필드 추가
+        </button>
+      </div>
+      <p className="text-xs text-gray-400">
+        여기에서 정의한 필드는 사용자 입력 폼과 오브젝트 바인딩에서 공통으로 사용됩니다.
+      </p>
+      {formSchemaError ? (
+        <div className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1.5 text-xs text-red-300">
+          {formSchemaError}
+        </div>
+      ) : null}
+
+      <div className="space-y-2">
+        {renderConfig.formSchema.fields.map((field, index) => (
+          <div
+            key={`${field.scope}:${field.key}:${index}`}
+            className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 space-y-2"
+          >
+            <div className="grid grid-cols-[1fr_96px_120px_auto] gap-2 items-center">
+              <input
+                value={field.key}
+                onChange={(event) =>
+                  updateFormFieldAt(index, { key: event.target.value })
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="field key"
+              />
+              <select
+                value={field.scope}
+                onChange={(event) =>
+                  updateFormFieldAt(index, {
+                    scope:
+                      event.target.value === "card" ||
+                      event.target.value === "global"
+                        ? event.target.value
+                        : "entry",
+                  })
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              >
+                {v2_FORM_FIELD_SCOPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={field.type}
+                onChange={(event) =>
+                  updateFormFieldAt(index, {
+                    type: event.target.value as V2TemplateFormField["type"],
+                  })
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              >
+                {v2_FORM_FIELD_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => removeFormFieldAt(index)}
+                className="rounded border border-red-500/40 px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10"
+              >
+                삭제
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                value={field.label ?? ""}
+                onChange={(event) =>
+                  updateFormFieldAt(index, { label: event.target.value })
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="label (optional)"
+              />
+              <input
+                value={field.placeholder}
+                onChange={(event) =>
+                  updateFormFieldAt(index, { placeholder: event.target.value })
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="placeholder"
+              />
+            </div>
+            <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
+              <input
+                value={field.defaultValue === undefined ? "" : String(field.defaultValue)}
+                onChange={(event) =>
+                  updateFormFieldAt(index, { defaultValue: event.target.value })
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="default value (optional)"
+              />
+              <label className="flex items-center gap-2 text-xs text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={Boolean(field.required)}
+                  onChange={(event) =>
+                    updateFormFieldAt(index, { required: event.target.checked })
+                  }
+                />
+                required
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 text-xs text-gray-400">
+        computed 키: {v2_BINDING_COMPUTED_OPTIONS.join(", ")}
+      </div>
+    </div>
+  );
+
   const renderStyleTab = () => (
     <div
       ref={inspectorTabRef}
@@ -3609,6 +4030,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const hasAutoResizeAlignment =
       node.kind === "flexibleText" && textSection !== null;
     const isRemovable = !v2_FIXED_CARD_NODE_IDS.has(node.id);
+    const bindingSelectValue =
+      node.binding.mode === "field"
+        ? `field:${node.binding.scope}:${node.binding.key}`
+        : node.binding.mode === "computed"
+          ? `computed:${node.binding.key}`
+          : "literal";
+    const fieldBinding = node.binding.mode === "field" ? node.binding : null;
+    const fieldBindingExists = (() => {
+      if (!fieldBinding) return true;
+      return renderConfig.formSchema.fields.some(
+        (field) =>
+          field.scope === fieldBinding.scope && field.key === fieldBinding.key
+      );
+    })();
+    const newFieldDraft = newFieldDraftByNodeId[node.id] ?? {
+      key: "",
+      scope: "entry" as V2TemplateFieldScope,
+    };
 
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
@@ -3637,18 +4076,140 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
           />
           <label className="text-xs text-gray-400">바인딩 키</label>
-          <input
-            value={v2_bindingRefToLegacyInput(node.binding)}
-            onChange={(event) =>
-              updateCardNodeMeta({
-                nodeId: node.id,
-                binding: event.target.value,
-              })
-            }
+          <select
+            value={bindingSelectValue}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value === "literal") {
+                updateCardNodeBinding(node.id, {
+                  mode: "literal",
+                  value:
+                    node.binding.mode === "literal"
+                      ? node.binding.value
+                      : v2_bindingRefToLegacyInput(node.binding),
+                });
+                return;
+              }
+
+              if (value.startsWith("computed:")) {
+                const computedKey = value.replace("computed:", "");
+                if (
+                  computedKey === "streamingDay" ||
+                  computedKey === "streamingDate" ||
+                  computedKey === "streamingTime"
+                ) {
+                  updateCardNodeBinding(node.id, {
+                    mode: "computed",
+                    key: computedKey,
+                  });
+                }
+                return;
+              }
+
+              if (value.startsWith("field:")) {
+                const [, scope, ...rest] = value.split(":");
+                const key = rest.join(":");
+                if (!key) return;
+                if (scope !== "entry" && scope !== "card" && scope !== "global") {
+                  return;
+                }
+                updateCardNodeBinding(node.id, {
+                  mode: "field",
+                  scope,
+                  key,
+                });
+              }
+            }}
             className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-            placeholder="예: customTitle"
-          />
+          >
+            <option value="computed:streamingDay">computed / streamingDay</option>
+            <option value="computed:streamingDate">computed / streamingDate</option>
+            <option value="computed:streamingTime">computed / streamingTime</option>
+            {renderConfig.formSchema.fields.map((field) => (
+              <option
+                key={`${field.scope}:${field.key}`}
+                value={`field:${field.scope}:${field.key}`}
+              >
+                field / {field.scope}.{field.key}
+              </option>
+            ))}
+            {node.binding.mode === "field" && !fieldBindingExists ? (
+              <option
+                value={`field:${node.binding.scope}:${node.binding.key}`}
+              >
+                field / {node.binding.scope}.{node.binding.key} (missing)
+              </option>
+            ) : null}
+            <option value="literal">literal (직접 텍스트)</option>
+          </select>
         </div>
+        {node.binding.mode === "literal" ? (
+          <div className="grid grid-cols-2 gap-2 items-center">
+            <label className="text-xs text-gray-400">literal 값</label>
+            <input
+              value={node.binding.value}
+              onChange={(event) =>
+                updateCardNodeBinding(node.id, {
+                  mode: "literal",
+                  value: event.target.value,
+                })
+              }
+              className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+              placeholder="표시할 고정 텍스트"
+            />
+          </div>
+        ) : null}
+        <div className="grid grid-cols-[1fr_96px_96px] gap-2 items-center">
+          <input
+            value={newFieldDraft.key}
+            onChange={(event) =>
+              setNewFieldDraftByNodeId((prev) => ({
+                ...prev,
+                [node.id]: {
+                  ...(prev[node.id] ?? { scope: "entry", key: "" }),
+                  key: event.target.value,
+                },
+              }))
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            placeholder="새 필드 키"
+          />
+          <select
+            value={newFieldDraft.scope}
+            onChange={(event) => {
+              const scope =
+                event.target.value === "card" || event.target.value === "global"
+                  ? event.target.value
+                  : "entry";
+              setNewFieldDraftByNodeId((prev) => ({
+                ...prev,
+                [node.id]: {
+                  ...(prev[node.id] ?? { key: "" }),
+                  scope,
+                },
+              }));
+            }}
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+          >
+            {v2_FORM_FIELD_SCOPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => createFieldForNodeBinding(node)}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-2 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
+          >
+            + 필드 생성
+          </button>
+        </div>
+        {!fieldBindingExists ? (
+          <p className="text-xs text-red-300">
+            현재 바인딩된 필드가 입력 스키마에 없습니다.
+          </p>
+        ) : null}
         <div
           className="grid grid-cols-2 gap-2 items-center"
           onMouseEnter={() => setSectionHoverHighlight(containerSection)}
@@ -4100,6 +4661,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const renderActiveTab = () => {
     if (activeTab === "canvas") return renderCanvasTab();
+    if (activeTab === "schema") return renderSchemaTab();
     if (activeTab === "properties") return renderPropertiesTab();
     if (activeTab === "style") return renderStyleTab();
     if (activeTab === "assets") return renderAssetsTab();
