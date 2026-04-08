@@ -104,6 +104,7 @@ export interface V2TemplateAssetMap {
   offlineByTheme: Record<string, string | null>;
   profileFrameByTheme: Record<string, string | null>;
   profileBgByTheme: Record<string, string | null>;
+  guideByTheme: Record<string, string | null>;
 }
 
 export interface V2TemplateAssetDimension {

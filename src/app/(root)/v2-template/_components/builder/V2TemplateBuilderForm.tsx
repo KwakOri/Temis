@@ -106,6 +106,7 @@ const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
   "offlineByTheme",
   "profileFrameByTheme",
   "profileBgByTheme",
+  "guideByTheme",
 ];
 
 const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
@@ -115,6 +116,7 @@ const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
   offlineByTheme: "오프라인 카드",
   profileFrameByTheme: "프로필 프레임",
   profileBgByTheme: "프로필 배경",
+  guideByTheme: "가이드 레이어(상단 오버레이)",
 };
 
 const v2_STYLE_PROPERTY_CATALOG = [
@@ -4696,6 +4698,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           return (
             <div key={key} className="rounded border border-gray-300 bg-white p-3 space-y-2">
               <p className="text-xs text-gray-500">{v2_ASSET_LABELS[key]}</p>
+              {key === "guideByTheme" ? (
+                <p className="text-[11px] text-blue-600">
+                  편집 시 프리뷰 최상단에 오버레이로 표시됩니다.
+                </p>
+              ) : null}
 
               <input
                 id={inputId}

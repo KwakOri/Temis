@@ -25,6 +25,11 @@ const V2TimeTableContent: React.FC = () => {
       key: "bgByTheme",
       currentTheme,
     }) ?? Imgs[currentTheme]?.bg?.src ?? Imgs.first.bg.src;
+  const guideOverlayImage = v2_getAssetUrlFromConfig({
+    renderConfig,
+    key: "guideByTheme",
+    currentTheme,
+  });
 
   return (
     <div
@@ -42,6 +47,20 @@ const V2TimeTableContent: React.FC = () => {
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
       <V2SceneRenderer layers={renderConfig.structure.layers} />
+      {guideOverlayImage ? (
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ zIndex: 999 }}
+          aria-hidden
+        >
+          <img
+            className="h-full w-full object-cover"
+            src={guideOverlayImage}
+            alt="guide-overlay"
+            draggable={false}
+          />
+        </div>
+      ) : null}
     </div>
   );
 };

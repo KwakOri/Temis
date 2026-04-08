@@ -602,6 +602,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     profileBgByTheme: {
       first: null,
     },
+    guideByTheme: {
+      first: null,
+    },
   },
   assetDimensions: {
     bgByTheme: {
@@ -620,6 +623,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
     profileBgByTheme: {
+      first: null,
+    },
+    guideByTheme: {
       first: null,
     },
   },
@@ -1833,6 +1839,10 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assets.profileBgByTheme,
         raw.assets.profileBgByTheme
       ),
+      guideByTheme: v2_mergeThemeStringMap(
+        normalized.assets.guideByTheme,
+        raw.assets.guideByTheme
+      ),
     };
   }
 
@@ -1861,6 +1871,10 @@ export const v2_normalizeTemplateRenderConfig = (
       profileBgByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.profileBgByTheme,
         raw.assetDimensions.profileBgByTheme
+      ),
+      guideByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.guideByTheme,
+        raw.assetDimensions.guideByTheme
       ),
     };
   }

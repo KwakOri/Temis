@@ -247,6 +247,11 @@ const TimeTableTemplatePage = () => {
           second: Imgs.first.profileFrame.src,
           third: Imgs.first.profileFrame.src,
         },
+        guideByTheme: {
+          first: null,
+          second: null,
+          third: null,
+        },
       },
       assetDimensions: {
         bgByTheme: {
@@ -275,6 +280,11 @@ const TimeTableTemplatePage = () => {
           third: null,
         },
         profileBgByTheme: {
+          first: null,
+          second: null,
+          third: null,
+        },
+        guideByTheme: {
           first: null,
           second: null,
           third: null,
