@@ -44,6 +44,11 @@ import {
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/v2_template_render_config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
+import {
+  v2_bindingRefToLegacyInput,
+  v2_createBindingRefFromLegacyInput,
+  v2_isEntryFieldBindingKey,
+} from "@/utils/time-table/v2_template_render_config";
 
 type V2BuilderTab =
   | "canvas"
@@ -2173,7 +2178,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         ...prevNode,
         ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
         ...(nextBinding && nextBinding.length > 0
-          ? { binding: nextBinding }
+          ? { binding: v2_createBindingRefFromLegacyInput(nextBinding) }
           : {}),
       };
 
@@ -2236,7 +2241,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         kind,
         layerId,
         highlightTarget: target,
-        binding: nodeId,
+        binding: v2_createBindingRefFromLegacyInput(nodeId),
         visibilityMode: "always",
         containerStyleKey,
         textStyleKey,
@@ -3535,7 +3540,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
     const options = renderConfig.layout.card[node.optionsKey];
     const maxFontSizeFallback =
-      node.binding === "subTitle"
+      v2_isEntryFieldBindingKey(node.binding, "subTitle")
         ? renderConfig.maxFontSizes.SUB_TITLE
         : renderConfig.maxFontSizes.MAIN_TITLE;
     const maxFontSize = options?.maxFontSize ?? maxFontSizeFallback;
@@ -3557,10 +3562,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               const value = Number(e.target.value);
               if (!Number.isFinite(value) || value <= 0) return;
               updateCardOptions(node.optionsKey!, { maxFontSize: value });
-              if (node.binding === "mainTitle") {
+              if (v2_isEntryFieldBindingKey(node.binding, "mainTitle")) {
                 updateMaxFontSize("MAIN_TITLE", value);
               }
-              if (node.binding === "subTitle") {
+              if (v2_isEntryFieldBindingKey(node.binding, "subTitle")) {
                 updateMaxFontSize("SUB_TITLE", value);
               }
             }}
@@ -3633,7 +3638,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           />
           <label className="text-xs text-gray-400">바인딩 키</label>
           <input
-            value={node.binding}
+            value={v2_bindingRefToLegacyInput(node.binding)}
             onChange={(event) =>
               updateCardNodeMeta({
                 nodeId: node.id,

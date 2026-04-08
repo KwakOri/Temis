@@ -4,13 +4,18 @@ import {
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
   V2TemplateCardNode,
   V2TemplateCardInstanceTransform,
+  V2TemplateCardNodeBinding,
   V2TemplateComponentInstanceMode,
+  V2TemplateComputedBindingKey,
   V2TemplateCardOptionsKey,
   V2TemplateCardStyleKey,
   V2TemplateCardStructure,
   V2TemplateColorPalette,
   V2TemplateColorKey,
   V2TemplateEditorOptions,
+  V2TemplateFieldScope,
+  V2TemplateFormField,
+  V2TemplateFormSchema,
   V2TemplateFontFaceMetrics,
   V2TemplateFontRegistryItem,
   V2TemplateLayerComponentKey,
@@ -57,6 +62,123 @@ const v2_DEFAULT_CARD_INPUT_CONFIG: CardInputConfig = {
   },
 };
 
+const v2_COMPUTED_BINDING_KEYS = [
+  "streamingDay",
+  "streamingDate",
+  "streamingTime",
+] as const;
+
+const v2_COMPUTED_BINDING_KEY_SET = new Set(v2_COMPUTED_BINDING_KEYS);
+
+const v2_FIELD_SCOPE_SET = new Set(["entry", "card", "global"]);
+
+const v2_createFormSchemaFromCardInputConfig = (
+  cardInputConfig: CardInputConfig
+): V2TemplateFormSchema => {
+  const fields: V2TemplateFormField[] = cardInputConfig.fields.map((field) => ({
+    key: field.key,
+    scope: "entry",
+    type: field.type,
+    placeholder: field.placeholder,
+    ...(field.label ? { label: field.label } : {}),
+    ...(typeof field.required === "boolean"
+      ? { required: field.required }
+      : {}),
+    ...(typeof field.maxLength === "number" ? { maxLength: field.maxLength } : {}),
+    ...(Array.isArray(field.options) ? { options: field.options } : {}),
+    ...(field.defaultValue !== undefined ? { defaultValue: field.defaultValue } : {}),
+  }));
+
+  return {
+    fields,
+    ...(typeof cardInputConfig.showLabels === "boolean"
+      ? { showLabels: cardInputConfig.showLabels }
+      : {}),
+    ...(cardInputConfig.offlineToggle
+      ? { offlineToggle: cardInputConfig.offlineToggle }
+      : {}),
+  };
+};
+
+export const v2_toLegacyCardInputConfig = (
+  formSchema: V2TemplateFormSchema
+): CardInputConfig => {
+  const fields: CardInputConfig["fields"] = formSchema.fields
+    .filter((field) => field.scope === "entry")
+    .map((field) => ({
+      key: field.key,
+      type: field.type,
+      placeholder: field.placeholder,
+      ...(field.label ? { label: field.label } : {}),
+      ...(typeof field.required === "boolean"
+        ? { required: field.required }
+        : {}),
+      ...(typeof field.maxLength === "number"
+        ? { maxLength: field.maxLength }
+        : {}),
+      ...(Array.isArray(field.options) ? { options: field.options } : {}),
+      ...(field.defaultValue !== undefined
+        ? { defaultValue: field.defaultValue }
+        : {}),
+    }));
+
+  return {
+    fields,
+    ...(typeof formSchema.showLabels === "boolean"
+      ? { showLabels: formSchema.showLabels }
+      : {}),
+    ...(formSchema.offlineToggle
+      ? { offlineToggle: formSchema.offlineToggle }
+      : {}),
+  };
+};
+
+const v2_defaultBindingRefFromLegacyKey = (
+  rawKey: string
+): V2TemplateCardNodeBinding => {
+  const key = rawKey.trim();
+  if (!key) {
+    return {
+      mode: "literal",
+      value: "",
+    };
+  }
+
+  if (v2_COMPUTED_BINDING_KEY_SET.has(key as V2TemplateComputedBindingKey)) {
+    return {
+      mode: "computed",
+      key: key as V2TemplateComputedBindingKey,
+    };
+  }
+
+  return {
+    mode: "field",
+    scope: "entry",
+    key,
+  };
+};
+
+export const v2_createBindingRefFromLegacyInput = (
+  legacyInput: string
+): V2TemplateCardNodeBinding => {
+  return v2_defaultBindingRefFromLegacyKey(legacyInput);
+};
+
+export const v2_bindingRefToLegacyInput = (
+  binding: V2TemplateCardNodeBinding
+): string => {
+  if (binding.mode === "field") return binding.key;
+  if (binding.mode === "computed") return binding.key;
+  return binding.value;
+};
+
+export const v2_isEntryFieldBindingKey = (
+  binding: V2TemplateCardNodeBinding,
+  key: string
+): boolean => {
+  return binding.mode === "field" && binding.scope === "entry" && binding.key === key;
+};
+
 const v2_DEFAULT_COLOR_PALETTE: V2TemplateColorPalette = {
   primary: "",
   secondary: "",
@@ -76,6 +198,10 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   isMultiple: false,
   maxStreamingTimeByDay: 1,
 };
+
+const v2_DEFAULT_FORM_SCHEMA = v2_createFormSchemaFromCardInputConfig(
+  v2_DEFAULT_CARD_INPUT_CONFIG
+);
 
 const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
@@ -217,7 +343,10 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       kind: "text",
       layerId: "streaming-day",
       highlightTarget: "cardStreamingDay",
-      binding: "streamingDay",
+      binding: {
+        mode: "computed",
+        key: "streamingDay",
+      },
       visibilityMode: "onlineOnly",
       containerStyleKey: "streamingDay",
       textStyleKey: "streamingDayStyle",
@@ -231,7 +360,10 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       kind: "text",
       layerId: "streaming-date",
       highlightTarget: "cardStreamingDate",
-      binding: "streamingDate",
+      binding: {
+        mode: "computed",
+        key: "streamingDate",
+      },
       visibilityMode: "onlineOnly",
       containerStyleKey: "streamingDate",
       textStyleKey: "streamingDateStyle",
@@ -245,7 +377,10 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       kind: "text",
       layerId: "streaming-time",
       highlightTarget: "cardStreamingTime",
-      binding: "streamingTime",
+      binding: {
+        mode: "computed",
+        key: "streamingTime",
+      },
       visibilityMode: "onlineOnly",
       containerStyleKey: "streamingTime",
       textStyleKey: "streamingTimeStyle",
@@ -259,7 +394,11 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       kind: "flexibleText",
       layerId: "main-title",
       highlightTarget: "cardMainTitleContainer",
-      binding: "mainTitle",
+      binding: {
+        mode: "field",
+        scope: "entry",
+        key: "mainTitle",
+      },
       visibilityMode: "onlineOnly",
       containerStyleKey: "mainTitleContainer",
       wrapperStyleKey: "mainTitleWrapperStyle",
@@ -276,7 +415,11 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       kind: "flexibleText",
       layerId: "sub-title",
       highlightTarget: "cardSubTitleContainer",
-      binding: "subTitle",
+      binding: {
+        mode: "field",
+        scope: "entry",
+        key: "subTitle",
+      },
       visibilityMode: "onlineOnly",
       containerStyleKey: "subTitleContainer",
       textStyleKey: "subTitleTextStyle",
@@ -436,7 +579,8 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   },
   editorOptions: { ...v2_DEFAULT_EDITOR_OPTIONS },
   profileTextPlaceholder: "아티스트 명",
-  cardInputConfig: v2_DEFAULT_CARD_INPUT_CONFIG,
+  formSchema: v2_DEFAULT_FORM_SCHEMA,
+  cardInputConfig: v2_toLegacyCardInputConfig(v2_DEFAULT_FORM_SCHEMA),
   assets: {
     bgByTheme: {
       first: null,
@@ -742,6 +886,136 @@ const v2_isCardOptionsKey = (
   return v2_isNonEmptyString(value);
 };
 
+const v2_parseFieldScope = (
+  value: unknown,
+  fallback: V2TemplateFieldScope
+): V2TemplateFieldScope => {
+  if (typeof value === "string" && v2_FIELD_SCOPE_SET.has(value)) {
+    return value as V2TemplateFieldScope;
+  }
+  return fallback;
+};
+
+const v2_normalizeBindingRef = (
+  candidate: unknown,
+  fallback: V2TemplateCardNodeBinding
+): V2TemplateCardNodeBinding => {
+  if (typeof candidate === "string") {
+    return v2_defaultBindingRefFromLegacyKey(candidate);
+  }
+
+  if (!v2_isRecord(candidate)) {
+    return fallback;
+  }
+
+  const mode = v2_asString(candidate.mode, "").trim();
+  if (mode === "field") {
+    const key = v2_asString(candidate.key, "").trim();
+    if (!key) return fallback;
+    return {
+      mode: "field",
+      scope: v2_parseFieldScope(candidate.scope, "entry"),
+      key,
+    };
+  }
+
+  if (mode === "computed") {
+    const key = v2_asString(candidate.key, "").trim();
+    if (
+      key &&
+      v2_COMPUTED_BINDING_KEY_SET.has(key as V2TemplateComputedBindingKey)
+    ) {
+      return {
+        mode: "computed",
+        key: key as V2TemplateComputedBindingKey,
+      };
+    }
+    return fallback;
+  }
+
+  if (mode === "literal") {
+    return {
+      mode: "literal",
+      value: v2_asString(candidate.value, ""),
+    };
+  }
+
+  return fallback;
+};
+
+const v2_normalizeFormSchemaField = (
+  candidate: unknown
+): V2TemplateFormField | null => {
+  if (!v2_isRecord(candidate)) return null;
+  if (!v2_isNonEmptyString(candidate.key)) return null;
+  if (!v2_isFieldType(candidate.type)) return null;
+  if (typeof candidate.placeholder !== "string") return null;
+
+  const field: V2TemplateFormField = {
+    key: candidate.key,
+    scope: v2_parseFieldScope(candidate.scope, "entry"),
+    type: candidate.type,
+    placeholder: candidate.placeholder,
+  };
+
+  if (typeof candidate.label === "string") {
+    field.label = candidate.label;
+  }
+  if (typeof candidate.required === "boolean") {
+    field.required = candidate.required;
+  }
+  if (typeof candidate.maxLength === "number" && Number.isFinite(candidate.maxLength)) {
+    field.maxLength = candidate.maxLength;
+  }
+  if (Array.isArray(candidate.options)) {
+    field.options = candidate.options
+      .filter(v2_isRecord)
+      .map((option) => ({
+        value: v2_asString(option.value, ""),
+        label: v2_asString(option.label, ""),
+      }))
+      .filter((option) => option.value.length > 0);
+  }
+  if (
+    typeof candidate.defaultValue === "string" ||
+    (typeof candidate.defaultValue === "number" &&
+      Number.isFinite(candidate.defaultValue))
+  ) {
+    field.defaultValue = candidate.defaultValue;
+  }
+
+  return field;
+};
+
+const v2_normalizeFormSchema = (
+  candidate: unknown,
+  fallback: V2TemplateFormSchema
+): V2TemplateFormSchema => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  const fields = Array.isArray(candidate.fields)
+    ? candidate.fields
+        .map((field) => v2_normalizeFormSchemaField(field))
+        .filter((field): field is V2TemplateFormField => field !== null)
+    : [];
+
+  return {
+    fields: fields.length > 0 ? fields : fallback.fields,
+    showLabels: v2_asOptionalBoolean(candidate.showLabels) ?? fallback.showLabels,
+    offlineToggle:
+      v2_isRecord(candidate.offlineToggle) &&
+      typeof candidate.offlineToggle.label === "string" &&
+      typeof candidate.offlineToggle.activeColor === "string" &&
+      typeof candidate.offlineToggle.inactiveColor === "string"
+        ? {
+            label: candidate.offlineToggle.label,
+            activeColor: candidate.offlineToggle.activeColor,
+            inactiveColor: candidate.offlineToggle.inactiveColor,
+          }
+        : fallback.offlineToggle,
+  };
+};
+
 const v2_normalizeLayerTree = (
   candidate: unknown,
   fallback: V2TemplateLayerNode[]
@@ -826,10 +1100,10 @@ const v2_normalizeCardNode = (
         ? "flexibleText"
         : (candidate.kind as V2TemplateCardNode["kind"])
       : fallback.kind;
-  const binding: V2TemplateCardNode["binding"] =
-    v2_isNonEmptyString(candidate.binding)
-      ? candidate.binding
-      : fallback.binding;
+  const binding: V2TemplateCardNode["binding"] = v2_normalizeBindingRef(
+    candidate.binding,
+    fallback.binding
+  );
   const visibilityMode: V2TemplateVisibilityMode | undefined =
     typeof candidate.visibilityMode === "string" &&
     v2_VISIBILITY_MODE_SET.has(candidate.visibilityMode)
@@ -911,7 +1185,11 @@ const v2_createFallbackCardNode = (
     kind,
     layerId: v2_asString(candidate.layerId, id),
     highlightTarget: v2_asString(candidate.highlightTarget, "cardContainer"),
-    binding: v2_asString(candidate.binding, id),
+    binding: v2_normalizeBindingRef(candidate.binding, {
+      mode: "field",
+      scope: "entry",
+      key: id,
+    }),
     visibilityMode: "always",
     containerStyleKey: v2_asString(candidate.containerStyleKey, "container"),
     ...(v2_isNonEmptyString(candidate.textStyleKey)
@@ -1513,8 +1791,19 @@ export const v2_normalizeTemplateRenderConfig = (
   );
 
   if (v2_isCardInputConfig(raw.cardInputConfig)) {
-    normalized.cardInputConfig = raw.cardInputConfig;
+    normalized.formSchema = v2_createFormSchemaFromCardInputConfig(
+      raw.cardInputConfig
+    );
   }
+
+  if (v2_isRecord(raw.formSchema)) {
+    normalized.formSchema = v2_normalizeFormSchema(
+      raw.formSchema,
+      normalized.formSchema
+    );
+  }
+
+  normalized.cardInputConfig = v2_toLegacyCardInputConfig(normalized.formSchema);
 
   if (v2_isRecord(raw.assets)) {
     normalized.assets = {

@@ -184,6 +184,7 @@ const TimeTableTemplatePage = () => {
         maxStreamingTimeByDay: 1,
       },
       profileTextPlaceholder: '아티스트 명',
+      formSchema: v2_createDefaultTemplateRenderConfig().formSchema,
       cardInputConfig: {
         fields: [
           {

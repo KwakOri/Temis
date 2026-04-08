@@ -13,9 +13,10 @@ import {
 } from "@/types/time-table/v2_template_render_config";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
-import { createPlaceholdersFromConfig, weekdays } from "@/utils/time-table/data";
+import { weekdays } from "@/utils/time-table/data";
 import {
   v2_getComponentFontFamily,
+  v2_isEntryFieldBindingKey,
   v2_isVisibleByMode,
 } from "@/utils/time-table/v2_template_render_config";
 import { Imgs } from "../../_img/imgs";
@@ -77,9 +78,15 @@ const v2_getDefaultMaxFontSizeByBinding = ({
   mainTitleMax: number;
   subTitleMax: number;
 }): number => {
-  if (binding === "mainTitle") return mainTitleMax;
-  if (binding === "subTitle") return subTitleMax;
+  if (v2_isEntryFieldBindingKey(binding, "mainTitle")) return mainTitleMax;
+  if (v2_isEntryFieldBindingKey(binding, "subTitle")) return subTitleMax;
   return mainTitleMax;
+};
+
+const v2_toTextValue = (value: unknown): string | null => {
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
+  return null;
 };
 
 const v2_getCardNodeTextValue = ({
@@ -88,38 +95,66 @@ const v2_getCardNodeTextValue = ({
   weekDate,
   isGuerrilla,
   primaryEntry,
+  cardData,
   entryTime,
   entryMainTitle,
   entrySubTitle,
-  placeholders,
+  placeholdersByScope,
 }: {
   node: V2TemplateCardNode;
   dayLabel: string;
   weekDate: Date;
   isGuerrilla: boolean;
   primaryEntry: Record<string, unknown>;
+  cardData: Record<string, unknown>;
   entryTime: string;
   entryMainTitle: string;
   entrySubTitle: string;
-  placeholders: Record<string, string>;
+  placeholdersByScope: Record<string, Record<string, string>>;
 }): string => {
-  const resolveKnownBinding: Record<string, () => string> = {
-    streamingDay: () => dayLabel,
-    streamingDate: () => padZero(weekDate.getDate()),
-    streamingTime: () => (isGuerrilla ? "게릴라" : formatTime(entryTime, "half")),
-    mainTitle: () => entryMainTitle || placeholders.mainTitle || "",
-    subTitle: () => entrySubTitle || placeholders.subTitle || "",
-  };
+  if (node.binding.mode === "literal") {
+    return node.binding.value;
+  }
 
-  const known = resolveKnownBinding[node.binding];
-  if (known) return known();
+  if (node.binding.mode === "computed") {
+    if (node.binding.key === "streamingDay") return dayLabel;
+    if (node.binding.key === "streamingDate") return padZero(weekDate.getDate());
+    return isGuerrilla ? "게릴라" : formatTime(entryTime, "half");
+  }
 
-  const dynamicValue = primaryEntry[node.binding];
-  if (typeof dynamicValue === "string") return dynamicValue;
-  if (typeof dynamicValue === "number") return String(dynamicValue);
+  if (node.binding.key === "mainTitle") {
+    const knownMainTitle =
+      entryMainTitle ||
+      placeholdersByScope.entry.mainTitle ||
+      placeholdersByScope.card.mainTitle ||
+      placeholdersByScope.global.mainTitle;
+    if (knownMainTitle) return knownMainTitle;
+  }
 
-  const placeholder = placeholders[node.binding];
-  if (typeof placeholder === "string") return placeholder;
+  if (node.binding.key === "subTitle") {
+    const knownSubTitle =
+      entrySubTitle ||
+      placeholdersByScope.entry.subTitle ||
+      placeholdersByScope.card.subTitle ||
+      placeholdersByScope.global.subTitle;
+    if (knownSubTitle) return knownSubTitle;
+  }
+
+  const source =
+    node.binding.scope === "entry"
+      ? primaryEntry
+      : node.binding.scope === "card"
+        ? cardData
+        : undefined;
+  const rawValue = source?.[node.binding.key];
+  const value = v2_toTextValue(rawValue);
+  if (value !== null) return value;
+
+  const scopedPlaceholder = placeholdersByScope[node.binding.scope]?.[node.binding.key];
+  if (typeof scopedPlaceholder === "string") return scopedPlaceholder;
+
+  const entryFallbackPlaceholder = placeholdersByScope.entry[node.binding.key];
+  if (typeof entryFallbackPlaceholder === "string") return entryFallbackPlaceholder;
 
   return "";
 };
@@ -194,9 +229,23 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const cardContainerLayout = v2_toRenderableStyle(cardContainerStyleMap);
   const weekdayByOption = weekdays[renderConfig.weekdayOption] ?? weekdays.en;
   const dayLabel = weekdayByOption[time.day] ?? "";
-  const placeholders = createPlaceholdersFromConfig({
-    cardInputConfig: renderConfig.cardInputConfig,
-  });
+  const placeholdersByScope = renderConfig.formSchema.fields.reduce(
+    (
+      acc: Record<string, Record<string, string>>,
+      field
+    ): Record<string, Record<string, string>> => {
+      if (!acc[field.scope]) {
+        acc[field.scope] = {};
+      }
+      acc[field.scope][field.key] = field.placeholder;
+      return acc;
+    },
+    {
+      entry: {},
+      card: {},
+      global: {},
+    } as Record<string, Record<string, string>>
+  );
 
   if (!weekDate) return "Loading";
   if (isLayerHidden(cardStructure.containerLayerId)) return null;
@@ -240,10 +289,11 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       weekDate,
       isGuerrilla: Boolean(primaryEntry.isGuerrilla),
       primaryEntry: primaryEntry as Record<string, unknown>,
+      cardData: time as Record<string, unknown>,
       entryTime,
       entryMainTitle,
       entrySubTitle,
-      placeholders,
+      placeholdersByScope,
     });
     const highlightStyle = v2_getHighlightStyle({
       target: node.highlightTarget,

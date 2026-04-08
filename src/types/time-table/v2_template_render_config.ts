@@ -1,5 +1,9 @@
 import { CSSProperties } from "react";
-import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
+import {
+  CardInputConfig,
+  SimpleFieldConfig,
+  TLanOpt,
+} from "@/types/time-table/data";
 import type { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
 
 export const v2_TEMPLATE_RENDER_CONFIG_VERSION = 1 as const;
@@ -122,6 +126,28 @@ export type V2TemplateVisibilityMode =
 
 export type V2TemplateComponentInstanceMode = "component" | "detached";
 
+export type V2TemplateFieldScope = "entry" | "card" | "global";
+
+export type V2TemplateComputedBindingKey =
+  | "streamingDay"
+  | "streamingDate"
+  | "streamingTime";
+
+export type V2TemplateNodeBindingRef =
+  | {
+      mode: "field";
+      scope: V2TemplateFieldScope;
+      key: string;
+    }
+  | {
+      mode: "computed";
+      key: V2TemplateComputedBindingKey;
+    }
+  | {
+      mode: "literal";
+      value: string;
+    };
+
 export type V2TemplateLayerIconKey =
   | "group"
   | "grid"
@@ -157,7 +183,29 @@ export type V2TemplateCardOptionsKey = string;
 
 export type V2TemplateCardNodeKind = "text" | "flexibleText";
 
-export type V2TemplateCardNodeBinding = string;
+export type V2TemplateCardNodeBinding = V2TemplateNodeBindingRef;
+
+export interface V2TemplateFormField {
+  key: string;
+  scope: V2TemplateFieldScope;
+  type: SimpleFieldConfig["type"];
+  label?: string;
+  placeholder: string;
+  required?: boolean;
+  maxLength?: number;
+  options?: Array<{ value: string; label: string }>;
+  defaultValue?: string | number;
+}
+
+export interface V2TemplateFormSchema {
+  fields: V2TemplateFormField[];
+  showLabels?: boolean;
+  offlineToggle?: {
+    label: string;
+    activeColor: string;
+    inactiveColor: string;
+  };
+}
 
 export interface V2TemplateCardNode {
   id: string;
@@ -251,6 +299,8 @@ export interface V2TemplateRenderConfig {
   cardSizes: V2TemplateCardSizes;
   editorOptions: V2TemplateEditorOptions;
   profileTextPlaceholder: string;
+  formSchema: V2TemplateFormSchema;
+  // legacy mirror for existing form renderer compatibility.
   cardInputConfig: CardInputConfig;
   assets: V2TemplateAssetMap;
   assetDimensions: V2TemplateAssetDimensionMap;
