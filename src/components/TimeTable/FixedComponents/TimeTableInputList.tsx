@@ -50,17 +50,7 @@ export interface CustomFieldRenderer {
   renderer: FieldRenderer;
 }
 
-type TimeTableInputListSchemaProps =
-  | {
-      cardInputConfig: CardInputConfig;
-      inputSchema?: never;
-    }
-  | {
-      inputSchema: CardInputConfig;
-      cardInputConfig?: never;
-    };
-
-export type TimeTableInputListProps = TimeTableInputListSchemaProps & {
+export interface TimeTableInputListProps {
   data: TDefaultCard[];
   onDataChange: (newData: TDefaultCard[]) => void;
   globalData?: TGlobalData;
@@ -82,6 +72,7 @@ export type TimeTableInputListProps = TimeTableInputListSchemaProps & {
   };
 
   weekdayOption: TLanOpt;
+  cardInputConfig: CardInputConfig;
   placeholders: TPlaceholders;
   isOfflineMemo?: boolean;
 
@@ -89,7 +80,7 @@ export type TimeTableInputListProps = TimeTableInputListSchemaProps & {
   isMultiple?: boolean;
   maxStreamingTimeByDay?: number;
   size?: SizeProps;
-};
+}
 
 const resolveFieldScope = (
   fieldConfig: SimpleFieldConfig
@@ -127,18 +118,12 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     maxHeight: "1000px",
   },
   cardInputConfig,
-  inputSchema,
   placeholders,
   isOfflineMemo = false,
   isMultiple = false,
   maxStreamingTimeByDay = 1,
   size = "sm",
 }) => {
-  const resolvedInputSchema = inputSchema ?? cardInputConfig;
-  if (!resolvedInputSchema) {
-    throw new Error("TimeTableInputList requires either inputSchema or cardInputConfig");
-  }
-
   const defaultFieldRenderers = {
     time: ({
       entry,
@@ -222,18 +207,18 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   // settings.ts에서 필드 구성 가져오기
 
   // 오프라인 토글 설정 (기본값 지정)
-  const offlineToggleConfig = resolvedInputSchema.offlineToggle || {
+  const offlineToggleConfig = cardInputConfig.offlineToggle || {
     label: "휴방",
     activeColor: "bg-[#3E4A82]",
     inactiveColor: "bg-gray-300",
   };
-  const entryFieldConfigs = resolvedInputSchema.fields.filter(
+  const entryFieldConfigs = cardInputConfig.fields.filter(
     (fieldConfig) => resolveFieldScope(fieldConfig) === "entry"
   );
-  const cardFieldConfigs = resolvedInputSchema.fields.filter(
+  const cardFieldConfigs = cardInputConfig.fields.filter(
     (fieldConfig) => resolveFieldScope(fieldConfig) === "card"
   );
-  const globalFieldConfigs = resolvedInputSchema.fields.filter(
+  const globalFieldConfigs = cardInputConfig.fields.filter(
     (fieldConfig) => resolveFieldScope(fieldConfig) === "global"
   );
 
@@ -562,9 +547,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     }
 
     const newData = [...data];
-    const newEntry = createInitialEntryFromConfig({
-      cardInputConfig: resolvedInputSchema,
-    });
+    const newEntry = createInitialEntryFromConfig({ cardInputConfig });
     newData[dayIndex] = {
       ...newData[dayIndex],
       entries: [...currentEntries, newEntry],
@@ -580,9 +563,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     );
     // 최소 하나의 엔트리는 유지
     if (newEntries.length === 0) {
-      newEntries.push(
-        createInitialEntryFromConfig({ cardInputConfig: resolvedInputSchema })
-      );
+      newEntries.push(createInitialEntryFromConfig({ cardInputConfig }));
     }
     newData[dayIndex] = { ...newData[dayIndex], entries: newEntries };
     onDataChange(newData);
@@ -637,7 +618,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 getDefaultFieldValue(fieldConfig);
               return (
                 <div key={`global-${fieldConfig.key}-${fieldIndex}`}>
-                  {fieldConfig.label && resolvedInputSchema.showLabels && (
+                  {fieldConfig.label && cardInputConfig.showLabels && (
                     <label className={cn(labelVariants({ size: "xs" }), "block mb-1")}>
                       {fieldConfig.label}
                     </label>
@@ -687,7 +668,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                     day[fieldConfig.key] ?? getDefaultFieldValue(fieldConfig);
                   return (
                     <div key={`card-${day.day}-${fieldConfig.key}-${fieldIndex}`}>
-                      {fieldConfig.label && resolvedInputSchema.showLabels && (
+                      {fieldConfig.label && cardInputConfig.showLabels && (
                         <label
                           className={cn(
                             labelVariants({ size: "xs" }),
@@ -727,7 +708,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
 
                   return (
                     <div key={fieldConfig.key}>
-                      {fieldConfig.label && resolvedInputSchema.showLabels && (
+                      {fieldConfig.label && cardInputConfig.showLabels && (
                         <label
                           className={cn(
                             labelVariants({ size: "xs" }),
