@@ -37,7 +37,7 @@ const v2_LAYER_ICON_MAP: Record<
 
 interface V2TimeTableLayersPanelProps {
   onSelectLayer?: (payload: {
-    target: V2TemplateHighlightTarget;
+    target?: V2TemplateHighlightTarget;
     sectionKey?: string;
     layerId: string;
   }) => void;
@@ -356,11 +356,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             type="button"
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
             onClick={() => {
-              const resolvedTarget = node.target ?? `layer:${node.id}`;
+              const resolvedTarget = node.target;
               setSelectedLayerId(node.id);
-              setActiveHighlightTarget(resolvedTarget);
+              setActiveHighlightTarget(resolvedTarget ?? null);
               onSelectLayer?.({
-                target: resolvedTarget,
+                ...(resolvedTarget ? { target: resolvedTarget } : {}),
                 sectionKey: node.sectionKey,
                 layerId: node.id,
               });

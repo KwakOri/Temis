@@ -26,6 +26,7 @@ const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
 type V2LayoutShape = V2TemplateRenderConfig['layout'];
 type V2RootLayoutStyleKey = keyof Omit<V2LayoutShape, 'card' | 'scene'>;
 type V2CardLayoutStyleKey = keyof V2LayoutShape['card'];
+type V2SceneLayoutStyleKey = keyof V2LayoutShape['scene'];
 type V2SectionStyleResolver =
   | {
       scope: 'root';
@@ -34,6 +35,10 @@ type V2SectionStyleResolver =
   | {
       scope: 'card';
       key: V2CardLayoutStyleKey;
+    }
+  | {
+      scope: 'scene';
+      key: V2SceneLayoutStyleKey;
     };
 type V2SectionStyleResolverMap = Record<string, V2SectionStyleResolver>;
 
@@ -68,6 +73,11 @@ const v2_collectSectionStyleResolverMap = (
   structure: V2TemplateStructureConfig
 ): V2SectionStyleResolverMap => {
   const map: V2SectionStyleResolverMap = {};
+  const rootStyleKeySet = new Set<V2RootLayoutStyleKey>(
+    Object.values(v2_ROOT_LAYOUT_STYLE_SECTION_MAP).filter(
+      (styleKey): styleKey is V2RootLayoutStyleKey => Boolean(styleKey)
+    )
+  );
 
   Object.entries(v2_ROOT_LAYOUT_STYLE_SECTION_MAP).forEach(
     ([sectionKey, styleKey]) => {
@@ -81,6 +91,13 @@ const v2_collectSectionStyleResolverMap = (
 
   const layerNodeMap = v2_collectLayerNodeMap(structure.layers);
   const cardStructure = structure.card;
+  const cardStyleKeySet = new Set<string>([cardStructure.containerStyleKey]);
+  Object.values(cardStructure.nodes).forEach((cardNode) => {
+    cardStyleKeySet.add(cardNode.containerStyleKey);
+    if (cardNode.textStyleKey) cardStyleKeySet.add(cardNode.textStyleKey);
+    if (cardNode.wrapperStyleKey) cardStyleKeySet.add(cardNode.wrapperStyleKey);
+    if (cardNode.optionsKey) cardStyleKeySet.add(cardNode.optionsKey);
+  });
 
   const cardContainerLayer = layerNodeMap.get(cardStructure.containerLayerId);
   if (cardContainerLayer?.sectionKey) {
@@ -99,6 +116,49 @@ const v2_collectSectionStyleResolverMap = (
     };
   });
 
+  const visitSceneNode = (node: V2TemplateStructureConfig['sceneNodes'][number]) => {
+    if (node.kind === 'group') {
+      node.children.forEach(visitSceneNode);
+      return;
+    }
+
+    if (!node.layerId) return;
+    const layerNode = layerNodeMap.get(node.layerId);
+    const sectionKey = layerNode?.sectionKey;
+    if (!sectionKey) return;
+
+    const styleKey =
+      node.kind === 'asset'
+        ? node.styleKey
+        : node.kind === 'text' || node.kind === 'flexibleText'
+          ? node.containerStyleKey
+          : undefined;
+    if (!styleKey) return;
+
+    if (rootStyleKeySet.has(styleKey as V2RootLayoutStyleKey)) {
+      map[sectionKey] = {
+        scope: 'root',
+        key: styleKey as V2RootLayoutStyleKey,
+      };
+      return;
+    }
+
+    if (cardStyleKeySet.has(styleKey)) {
+      map[sectionKey] = {
+        scope: 'card',
+        key: styleKey as V2CardLayoutStyleKey,
+      };
+      return;
+    }
+
+    map[sectionKey] = {
+      scope: 'scene',
+      key: styleKey as V2SceneLayoutStyleKey,
+    };
+  };
+
+  structure.sceneNodes.forEach(visitSceneNode);
+
   return map;
 };
 
@@ -112,6 +172,10 @@ const v2_getStyleRecordBySectionKey = (
 
   if (resolver.scope === 'root') {
     return layout[resolver.key] as V2TemplateStyleRecord;
+  }
+
+  if (resolver.scope === 'scene') {
+    return layout.scene[resolver.key] as V2TemplateStyleRecord;
   }
 
   return layout.card[resolver.key] as V2TemplateStyleRecord;
@@ -130,6 +194,16 @@ const v2_setStyleRecordBySectionKey = (
     return {
       ...layout,
       [resolver.key]: style,
+    };
+  }
+
+  if (resolver.scope === 'scene') {
+    return {
+      ...layout,
+      scene: {
+        ...layout.scene,
+        [resolver.key]: style,
+      },
     };
   }
 
