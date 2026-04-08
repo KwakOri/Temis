@@ -143,7 +143,7 @@ const v2_getCardNodeTextValue = ({
   const source =
     node.binding.scope === "entry"
       ? primaryEntry
-      : node.binding.scope === "card"
+      : node.binding.scope === "card" || node.binding.scope === "global"
         ? cardData
         : undefined;
   const rawValue = source?.[node.binding.key];

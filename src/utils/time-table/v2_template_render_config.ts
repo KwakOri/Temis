@@ -77,7 +77,10 @@ const v2_createFormSchemaFromCardInputConfig = (
 ): V2TemplateFormSchema => {
   const fields: V2TemplateFormField[] = cardInputConfig.fields.map((field) => ({
     key: field.key,
-    scope: "entry",
+    scope:
+      field.scope === "card" || field.scope === "global"
+        ? field.scope
+        : "entry",
     type: field.type,
     placeholder: field.placeholder,
     ...(field.label ? { label: field.label } : {}),
@@ -103,10 +106,9 @@ const v2_createFormSchemaFromCardInputConfig = (
 export const v2_toLegacyCardInputConfig = (
   formSchema: V2TemplateFormSchema
 ): CardInputConfig => {
-  const fields: CardInputConfig["fields"] = formSchema.fields
-    .filter((field) => field.scope === "entry")
-    .map((field) => ({
+  const fields: CardInputConfig["fields"] = formSchema.fields.map((field) => ({
       key: field.key,
+      scope: field.scope,
       type: field.type,
       placeholder: field.placeholder,
       ...(field.label ? { label: field.label } : {}),

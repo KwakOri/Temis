@@ -145,7 +145,11 @@ export const createInitialEntryFromConfig = ({
   };
 
   // entry 레벨 필드만 기본값 설정 (isOffline 필드는 card 레벨에서 초기화)
-  cardInputConfig.fields.filter((field) => !field.isOffline).forEach((field) => {
+  cardInputConfig.fields
+    .filter(
+      (field) => !field.isOffline && (field.scope ?? "entry") === "entry"
+    )
+    .forEach((field) => {
     if (field.defaultValue !== undefined) {
       entry[field.key] = field.defaultValue;
     } else {
@@ -166,7 +170,7 @@ export const createInitialEntryFromConfig = ({
           entry[field.key] = "";
       }
     }
-  });
+    });
 
   return entry;
 };
@@ -184,7 +188,9 @@ export const createInitialCardFromConfig = ({
 
   // isOffline 필드의 기본값을 card 레벨에 초기화
   cardInputConfig.fields
-    .filter((field) => field.isOffline)
+    .filter(
+      (field) => field.isOffline || (field.scope ?? "entry") !== "entry"
+    )
     .forEach((field) => {
       card[field.key] = field.defaultValue ?? "";
     });

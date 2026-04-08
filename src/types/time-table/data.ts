@@ -5,6 +5,7 @@ export type TLanOpt = "kr" | "en" | "jp";
 
 export interface SimpleFieldConfig {
   key: string;
+  scope?: "entry" | "card" | "global";
   type: "text" | "textarea" | "time" | "date" | "select" | "number";
   label?: string;
   placeholder: string;
