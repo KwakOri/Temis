@@ -3945,6 +3945,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const removeSceneNode = (nodeId: string) => {
+    let nextFocusLayerId: string | null = null;
+    let nextFocusTarget: V2TemplateHighlightTarget | null = null;
+
     safeUpdateConfig((prev) => {
       const targetContext = v2_findSceneNodeContextById({
         nodes: prev.structure.sceneNodes,
@@ -3952,6 +3955,26 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       });
       if (!targetContext) return prev;
       if (!isSceneCustomNode(targetContext.node.id)) return prev;
+
+      if (targetContext.parentId) {
+        const parentSceneContext = v2_findSceneNodeContextById({
+          nodes: prev.structure.sceneNodes,
+          nodeId: targetContext.parentId,
+        });
+        if (parentSceneContext?.node.layerId) {
+          const parentLayerContext = v2_findLayerNodeContextById({
+            nodes: prev.structure.layers,
+            nodeId: parentSceneContext.node.layerId,
+          });
+          if (parentLayerContext) {
+            nextFocusLayerId = parentLayerContext.node.id;
+            nextFocusTarget = parentLayerContext.node.target ?? null;
+          }
+        }
+      } else if (prev.structure.layers.length > 0) {
+        nextFocusLayerId = prev.structure.layers[0].id;
+        nextFocusTarget = prev.structure.layers[0].target ?? null;
+      }
 
       const { nodes: nextSceneNodes, updated: sceneUpdated } =
         v2_updateSceneNodeListByParentId({
@@ -4002,6 +4025,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         },
       };
     });
+
+    if (nextFocusLayerId) {
+      setSelectedPropertiesLayerId(nextFocusLayerId);
+    }
+    if (nextFocusTarget) {
+      setSelectedPropertiesTarget(nextFocusTarget);
+      setActiveHighlightTarget(nextFocusTarget);
+    }
   };
 
   const updateSceneTextNodeBinding = (
