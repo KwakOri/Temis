@@ -130,6 +130,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     profile: true,
     card: true,
   });
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const fallbackOrderMap = useMemo(
     () => v2_createInitialOrderMap(layerTree),
     [layerTree]
@@ -234,7 +235,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const iconByKey =
       node.icon !== undefined ? v2_LAYER_ICON_MAP[node.icon] : undefined;
     const Icon = node.kind === "group" ? Folder : iconByKey ?? Layers;
-    const isSelected = selectedNodeIds.has(node.id);
+    const isSelected = selectedNodeIds.has(node.id) || selectedLayerId === node.id;
     const isDragging =
       dragState?.parentId === parentId && dragState.nodeId === node.id;
     const isDropTargetBefore =
@@ -355,16 +356,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             type="button"
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
             onClick={() => {
-              if (node.target) {
-                setActiveHighlightTarget(node.target);
-                onSelectLayer?.({
-                  target: node.target,
-                  sectionKey: node.sectionKey,
-                  layerId: node.id,
-                });
-              } else if (hasChildren) {
-                toggleNode(node.id);
-              }
+              const resolvedTarget = node.target ?? `layer:${node.id}`;
+              setSelectedLayerId(node.id);
+              setActiveHighlightTarget(resolvedTarget);
+              onSelectLayer?.({
+                target: resolvedTarget,
+                sectionKey: node.sectionKey,
+                layerId: node.id,
+              });
             }}
           >
             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
