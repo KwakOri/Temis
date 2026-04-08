@@ -2720,16 +2720,35 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
-    safeUpdateConfig((prev) => ({
-      ...prev,
-      structure: {
-        ...prev.structure,
-        card: {
-          ...prev.structure.card,
-          instanceMode,
+    safeUpdateConfig((prev) => {
+      const currentMode = prev.structure.card.instanceMode ?? "component";
+      if (currentMode === instanceMode) return prev;
+
+      if (currentMode === "detached" && instanceMode === "component") {
+        window.alert(
+          "개별 인스턴스로 분해한 Card 컴포넌트는 다시 공통 컴포넌트 모드로 되돌릴 수 없습니다."
+        );
+        return prev;
+      }
+
+      if (currentMode === "component" && instanceMode === "detached") {
+        const confirmed = window.confirm(
+          "Card 컴포넌트를 개별 인스턴스로 분해하면 되돌릴 수 없습니다. 계속할까요?"
+        );
+        if (!confirmed) return prev;
+      }
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          card: {
+            ...prev.structure.card,
+            instanceMode,
+          },
         },
-      },
-    }));
+      };
+    });
   };
 
   const updateCardInstanceTransform = (
@@ -4350,10 +4369,17 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             }
             className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
           >
-            <option value="component">공통 컴포넌트</option>
+            <option value="component" disabled={instanceMode === "detached"}>
+              공통 컴포넌트
+            </option>
             <option value="detached">개별 인스턴스</option>
           </select>
         </div>
+        {instanceMode === "detached" ? (
+          <p className="text-[11px] text-amber-300">
+            개별 인스턴스 분해 상태입니다. 이 모드는 되돌릴 수 없습니다.
+          </p>
+        ) : null}
 
         <div className="grid grid-cols-2 gap-2">
           <button
