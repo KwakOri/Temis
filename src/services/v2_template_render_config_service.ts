@@ -1,4 +1,4 @@
-import { V2TemplateRenderConfig } from "@/types/time-table/v2_template_render_config";
+import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
 
 export interface V2TemplateRenderConfigResponse {
   success: boolean;

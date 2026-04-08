@@ -1,15 +1,15 @@
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
-} from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { V2TemplateSceneNode } from "@/types/time-table/v2_template_render_config";
+} from "@/contexts/v2/template-render-config-context";
+import { V2TemplateSceneNode } from "@/types/time-table/template-render-config";
 import React from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { isGuideEnabled } from "@/utils/time-table/data";
-import { v2_isVisibleByMode } from "@/utils/time-table/v2_template_render_config";
+import { v2_isVisibleByMode } from "@/utils/time-table/template-render-config";
 import V2SceneRenderer from "./scene-renderer";
 
 const v2_sceneHasVisibleAssetKey = ({

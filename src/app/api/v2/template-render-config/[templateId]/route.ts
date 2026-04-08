@@ -4,7 +4,7 @@ import { TemplateService } from "@/lib/templates";
 import {
   v2_createDefaultTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
-} from "@/utils/time-table/v2_template_render_config";
+} from "@/utils/time-table/template-render-config";
 import { NextRequest, NextResponse } from "next/server";
 
 const v2_TEMPLATE_ID_REGEX =

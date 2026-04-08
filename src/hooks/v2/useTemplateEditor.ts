@@ -1,5 +1,3 @@
-import { useTimeTableState } from "@/hooks/useTimeTableState";
-import { useTimeTableTheme } from "@/hooks/useTimeTableTheme";
 import { CardInputConfig } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import {
@@ -7,23 +5,25 @@ import {
   getDefaultCards,
 } from "@/utils/time-table/data";
 import { useEffect, useState } from "react";
-import { useV2TimeTableData } from "./useV2TimeTableData";
-import { useV2TimeTablePersistence } from "./useV2TimeTablePersistence";
+import { useTemplateData } from "./useTemplateData";
+import { useTemplatePersistence } from "./useTemplatePersistence";
+import { useTemplateState } from "./useTemplateState";
+import { useTemplateTheme } from "./useTemplateTheme";
 
-export interface UseV2TimeTableEditorOptions {
+export interface UseTemplateEditorOptions {
   inputSchema: CardInputConfig;
   defaultTheme?: TTheme;
   autoSaveDelay?: number;
   captureSize?: { width: number; height: number };
 }
 
-export const useV2TimeTableEditor = ({
+export const useTemplateEditor = ({
   inputSchema,
   defaultTheme = "first",
   autoSaveDelay = 1000,
   captureSize,
-}: UseV2TimeTableEditorOptions) => {
-  const { state, actions } = useTimeTableState(captureSize);
+}: UseTemplateEditorOptions) => {
+  const { state, actions } = useTemplateState(captureSize);
   const {
     data,
     globalData,
@@ -34,13 +34,13 @@ export const useV2TimeTableEditor = ({
     toggleOffline,
     resetData,
     resetCard,
-  } = useV2TimeTableData({ inputSchema });
+  } = useTemplateData({ inputSchema });
 
   const { currentTheme, updateTheme, handleThemeChange, resetTheme } =
-    useTimeTableTheme(defaultTheme);
+    useTemplateTheme(defaultTheme);
 
   const { saveData, loadPersistedData, clearAllData, autoSave } =
-    useV2TimeTablePersistence({
+    useTemplatePersistence({
       data,
       globalData,
       currentTheme,
@@ -124,3 +124,6 @@ export const useV2TimeTableEditor = ({
     isInitialized,
   };
 };
+
+// Backward-compatible alias during migration.
+export const useV2TimeTableEditor = useTemplateEditor;

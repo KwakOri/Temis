@@ -2,7 +2,7 @@ import {
   V2TemplateComputedBindingKey,
   V2TemplateSceneNode,
   V2TemplateSceneTextNode,
-} from "@/types/time-table/v2_template_render_config";
+} from "@/types/time-table/template-render-config";
 
 const v2_toTextValue = (value: unknown): string | null => {
   if (typeof value === "string") return value;

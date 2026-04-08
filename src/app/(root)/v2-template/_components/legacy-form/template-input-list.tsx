@@ -1,6 +1,6 @@
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import { TDefaultCard } from "@/types/time-table/data";
 import { getPlaceholders } from "@/utils/time-table/data";
 import { SizeProps } from "@/utils/utils";

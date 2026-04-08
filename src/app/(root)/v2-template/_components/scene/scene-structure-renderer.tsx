@@ -4,24 +4,24 @@ import { useTimeTableData } from "@/contexts/TimeTableContext";
 import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
-} from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
-import { V2TemplateLayerNode } from "@/types/time-table/v2_template_render_config";
+} from "@/contexts/v2/template-render-config-context";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import {
   V2TemplateSceneAssetNode,
   V2TemplateSceneCardCollectionNode,
   V2TemplateSceneGroupNode,
   V2TemplateSceneNode,
   V2TemplateSceneTextNode,
-} from "@/types/time-table/v2_template_render_config";
+} from "@/types/time-table/template-render-config";
 import { getWeekDateRange, padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
 import {
   v2_getComponentFontFamily,
   v2_isVisibleByMode,
-} from "@/utils/time-table/v2_template_render_config";
-import { v2_resolveSceneTextNodeValue } from "@/utils/time-table/v2_scene_nodes";
+} from "@/utils/time-table/template-render-config";
+import { v2_resolveSceneTextNodeValue } from "@/utils/time-table/scene-nodes";
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,

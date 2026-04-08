@@ -1,9 +1,9 @@
 import React from "react";
 
 import { useTimeTableData } from "@/contexts/TimeTableContext";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { V2TemplateComponentInstanceMode } from "@/types/time-table/v2_template_render_config";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
+import { V2TemplateComponentInstanceMode } from "@/types/time-table/template-render-config";
 import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableStyle } from "./render-style";

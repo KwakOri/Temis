@@ -3,8 +3,8 @@
 import {
   V2TemplateAssetMap,
   V2TemplateRenderConfig,
-} from "@/types/time-table/v2_template_render_config";
-import { v2_getThemedAssetUrl } from "@/utils/time-table/v2_template_render_config";
+} from "@/types/time-table/template-render-config";
+import { v2_getThemedAssetUrl } from "@/utils/time-table/template-render-config";
 import {
   createContext,
   Dispatch,

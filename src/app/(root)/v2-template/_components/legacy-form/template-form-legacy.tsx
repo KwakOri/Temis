@@ -3,8 +3,8 @@ import TimeTableProfileImageSelector from '@/components/TimeTable/TimeTableProfi
 import TextRenderer from '@/components/TimeTable/fieldRenderer/TextRenderer';
 import TextareaRenderer from '@/components/TimeTable/fieldRenderer/TextareaRenderer';
 import { useTimeTable } from '@/contexts/TimeTableContext';
-import { useV2TemplateRenderConfigContext } from '@/contexts/v2/v2_TemplateRenderConfigContext';
-import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
+import { useV2TemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
+import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/template-editor-runtime-context';
 import {
   useHasActiveTeam,
   useSaveTeamScheduleFromDynamicCards,

@@ -9,7 +9,7 @@ import {
   v2_DATA_VERSION,
   v2_DAY_VALUE_NAMES,
   v2_ENTRY_VALUE_NAMES,
-} from "@/types/time-table/v2_data";
+} from "@/types/time-table/template-data";
 
 const v2_WEEK_DAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 

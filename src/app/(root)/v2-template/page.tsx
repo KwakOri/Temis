@@ -1,14 +1,14 @@
 'use client';
 
-import { V2TemplateRenderConfigProvider } from '@/contexts/v2/v2_TemplateRenderConfigContext';
+import { V2TemplateRenderConfigProvider } from '@/contexts/v2/template-render-config-context';
 import type { V2TemplateRenderConfigResponse } from '@/services/v2_template_render_config_service';
 import type {
   V2TemplateRenderConfig,
-} from '@/types/time-table/v2_template_render_config';
+} from '@/types/time-table/template-render-config';
 import {
   v2_createDefaultTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
-} from '@/utils/time-table/v2_template_render_config';
+} from '@/utils/time-table/template-render-config';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { V2TemplateFontFaceStyle, V2TimeTableEditor } from './_components';

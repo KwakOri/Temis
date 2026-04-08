@@ -102,7 +102,7 @@ export interface V2TimeTableEditorActions {
   downloadImage: (targetWidth: number, targetHeight: number) => Promise<void>;
 }
 
-export const useV2TimeTableState = (captureSize?: {
+export const useTemplateState = (captureSize?: {
   width: number;
   height: number;
 }) => {
@@ -511,3 +511,5 @@ export const useV2TimeTableState = (captureSize?: {
   return { state, actions };
 };
 
+// Backward-compatible alias during migration.
+export const useV2TimeTableState = useTemplateState;

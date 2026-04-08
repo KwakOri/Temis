@@ -13,13 +13,13 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
-import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
+import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
-} from "@/types/time-table/v2_template_render_config";
+} from "@/types/time-table/template-render-config";
 
 type V2LayerNode = V2TemplateLayerNode;
 

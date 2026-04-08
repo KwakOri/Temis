@@ -29,8 +29,8 @@ import {
 } from "lucide-react";
 
 import { useTimeTable } from "@/contexts/TimeTableContext";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
+import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
@@ -51,13 +51,13 @@ import {
   V2TemplateSceneTextNode,
   V2TemplateVisibilityMode,
   v2_TEMPLATE_COLOR_KEYS,
-} from "@/types/time-table/v2_template_render_config";
-import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
+} from "@/types/time-table/template-render-config";
+import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
   v2_bindingRefToLegacyInput,
   v2_createBindingRefFromLegacyInput,
   v2_isEntryFieldBindingKey,
-} from "@/utils/time-table/v2_template_render_config";
+} from "@/utils/time-table/template-render-config";
 
 type V2BuilderTab =
   | "canvas"

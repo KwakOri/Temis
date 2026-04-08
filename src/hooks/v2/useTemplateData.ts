@@ -13,13 +13,13 @@ import {
 } from "@/utils/time-table/data";
 import { useCallback, useState } from "react";
 
-export interface UseV2TimeTableDataOptions {
+export interface UseTemplateDataOptions {
   inputSchema: CardInputConfig;
 }
 
-export const useV2TimeTableData = ({
+export const useTemplateData = ({
   inputSchema,
-}: UseV2TimeTableDataOptions) => {
+}: UseTemplateDataOptions) => {
   const [data, setData] = useState<TDefaultCard[]>(() => {
     return getDefaultCards({ cardInputConfig: inputSchema });
   });
@@ -203,3 +203,6 @@ export const useV2TimeTableData = ({
     resetCard,
   };
 };
+
+// Backward-compatible alias during migration.
+export const useV2TimeTableData = useTemplateData;

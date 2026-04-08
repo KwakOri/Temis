@@ -31,7 +31,7 @@ import {
   V2TemplateSceneStyleKey,
   V2TemplateStyleRecord,
   V2TemplateVisibilityMode,
-} from "@/types/time-table/v2_template_render_config";
+} from "@/types/time-table/template-render-config";
 
 const v2_DEFAULT_THEME = "first";
 

@@ -1,4 +1,4 @@
-import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
+import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { CSSProperties } from "react";
 
 const v2_RED_600_RGB = "220 38 38";

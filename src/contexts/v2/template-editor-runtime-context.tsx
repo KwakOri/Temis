@@ -1,7 +1,7 @@
 "use client";
 
 import { TDefaultCard, TGlobalData } from "@/types/time-table/data";
-import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
+import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { TTheme } from "@/types/time-table/theme";
 import { createContext, PropsWithChildren, useContext } from "react";
 

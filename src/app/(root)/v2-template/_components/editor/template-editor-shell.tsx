@@ -3,16 +3,16 @@ import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-rea
 
 import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
 import { TimeTableProvider } from '@/contexts/TimeTableContext';
-import { useV2TemplateRenderConfigContext } from '@/contexts/v2/v2_TemplateRenderConfigContext';
-import { V2TimeTableEditorRuntimeProvider } from '@/contexts/v2/v2_TimeTableEditorRuntimeContext';
-import { useV2TimeTableEditor } from '@/hooks/v2/useV2TimeTableEditor';
-import { V2TemplateHighlightTarget } from '@/types/time-table/v2_template_editor_ui';
+import { useV2TemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
+import { V2TimeTableEditorRuntimeProvider } from '@/contexts/v2/template-editor-runtime-context';
+import { useTemplateEditor } from '@/hooks/v2/useTemplateEditor';
+import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui';
 import {
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
   V2TemplateStructureConfig,
   V2TemplateStyleRecord,
-} from '@/types/time-table/v2_template_render_config';
+} from '@/types/time-table/template-render-config';
 import { TTheme } from '@/types/time-table/theme';
 import V2TemplateBuilderForm from '../properties/template-properties-panel';
 import V2Loading from '../shared/loading-screen';
@@ -246,7 +246,7 @@ const V2TimeTableEditor: React.FC = () => {
     updateTheme,
     resetData,
     isInitialized,
-  } = useV2TimeTableEditor({
+  } = useTemplateEditor({
     inputSchema,
     defaultTheme,
     captureSize,

@@ -1,7 +1,7 @@
 import { TTheme } from "@/types/time-table/theme";
 import { useCallback, useState } from "react";
 
-export const useV2TimeTableTheme = (defaultTheme: TTheme = "first") => {
+export const useTemplateTheme = (defaultTheme: TTheme = "first") => {
   const [currentTheme, setCurrentTheme] = useState<TTheme>(defaultTheme);
 
   const updateTheme = useCallback((theme: TTheme) => {
@@ -29,3 +29,5 @@ export const useV2TimeTableTheme = (defaultTheme: TTheme = "first") => {
   };
 };
 
+// Backward-compatible alias during migration.
+export const useV2TimeTableTheme = useTemplateTheme;

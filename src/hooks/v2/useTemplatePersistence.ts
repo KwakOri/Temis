@@ -6,7 +6,7 @@ import {
 } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 
-export interface UseV2TimeTablePersistenceOptions {
+export interface UseTemplatePersistenceOptions {
   data: TDefaultCard[];
   globalData: TGlobalData;
   currentTheme: TTheme;
@@ -15,14 +15,14 @@ export interface UseV2TimeTablePersistenceOptions {
   autoSaveDelay?: number;
 }
 
-export const useV2TimeTablePersistence = ({
+export const useTemplatePersistence = ({
   data,
   globalData,
   currentTheme,
   inputSchema,
   defaultTheme,
   autoSaveDelay = 1000,
-}: UseV2TimeTablePersistenceOptions) =>
+}: UseTemplatePersistenceOptions) =>
   useTimeTablePersistence(
     data,
     globalData,
@@ -32,3 +32,5 @@ export const useV2TimeTablePersistence = ({
     autoSaveDelay
   );
 
+// Backward-compatible alias during migration.
+export const useV2TimeTablePersistence = useTemplatePersistence;

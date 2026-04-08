@@ -3,7 +3,7 @@ import {
   SimpleFieldConfig,
   TLanOpt,
 } from "@/types/time-table/data";
-import type { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
+import type { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 
 export const v2_TEMPLATE_RENDER_CONFIG_VERSION = 1 as const;
 
