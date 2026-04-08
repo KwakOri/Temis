@@ -120,38 +120,6 @@ const v2_createFormSchemaFromCardInputConfig = (
   };
 };
 
-export const v2_toLegacyCardInputConfig = (
-  formSchema: V2TemplateFormSchema
-): CardInputConfig => {
-  const fields: CardInputConfig["fields"] = formSchema.fields.map((field) => ({
-      key: field.key,
-      scope: field.scope,
-      type: field.type,
-      placeholder: field.placeholder,
-      ...(field.label ? { label: field.label } : {}),
-      ...(typeof field.required === "boolean"
-        ? { required: field.required }
-        : {}),
-      ...(typeof field.maxLength === "number"
-        ? { maxLength: field.maxLength }
-        : {}),
-      ...(Array.isArray(field.options) ? { options: field.options } : {}),
-      ...(field.defaultValue !== undefined
-        ? { defaultValue: field.defaultValue }
-        : {}),
-    }));
-
-  return {
-    fields,
-    ...(typeof formSchema.showLabels === "boolean"
-      ? { showLabels: formSchema.showLabels }
-      : {}),
-    ...(formSchema.offlineToggle
-      ? { offlineToggle: formSchema.offlineToggle }
-      : {}),
-  };
-};
-
 const v2_defaultBindingRefFromLegacyKey = (
   rawKey: string
 ): V2TemplateCardNodeBinding => {

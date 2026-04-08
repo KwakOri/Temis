@@ -14,7 +14,6 @@ import {
   V2TemplateStyleRecord,
 } from '@/types/time-table/v2_template_render_config';
 import { TTheme } from '@/types/time-table/theme';
-import { v2_toLegacyCardInputConfig } from '@/utils/time-table/v2_template_render_config';
 import V2TemplateBuilderForm from '../builder/V2TemplateBuilderForm';
 import V2Loading from '../shared/V2Loading';
 import V2MobileHeader from './V2MobileHeader';
@@ -219,16 +218,13 @@ const v2_setStyleRecordBySectionKey = (
 const useV2TemplateEditorSettings = () => {
   const { renderConfig, setRenderConfig } = useV2TemplateRenderConfigContext();
 
-  const cardInputConfig = useMemo(
-    () => v2_toLegacyCardInputConfig(renderConfig.formSchema),
-    [renderConfig.formSchema]
-  );
+  const inputSchema = useMemo(() => renderConfig.formSchema, [renderConfig.formSchema]);
   const captureSize = renderConfig.templateSize;
   const defaultTheme = (renderConfig.defaultTheme || 'first') as TTheme;
 
   return {
     renderConfig,
-    cardInputConfig,
+    inputSchema,
     captureSize,
     defaultTheme,
     setRenderConfig,
@@ -236,7 +232,7 @@ const useV2TemplateEditorSettings = () => {
 };
 
 const V2TimeTableEditor: React.FC = () => {
-  const { renderConfig, cardInputConfig, captureSize, defaultTheme, setRenderConfig } =
+  const { renderConfig, inputSchema, captureSize, defaultTheme, setRenderConfig } =
     useV2TemplateEditorSettings();
 
   const {
@@ -251,7 +247,7 @@ const V2TimeTableEditor: React.FC = () => {
     resetData,
     isInitialized,
   } = useTimeTableEditor({
-    cardInputConfig,
+    cardInputConfig: inputSchema,
     defaultTheme,
     captureSize,
   });
