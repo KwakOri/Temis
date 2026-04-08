@@ -1,6 +1,5 @@
 import { CSSProperties } from "react";
 import {
-  CardInputConfig,
   SimpleFieldConfig,
   TLanOpt,
 } from "@/types/time-table/data";
@@ -363,8 +362,6 @@ export interface V2TemplateRenderConfig {
   editorOptions: V2TemplateEditorOptions;
   profileTextPlaceholder: string;
   formSchema: V2TemplateFormSchema;
-  // legacy mirror for existing form renderer compatibility.
-  cardInputConfig: CardInputConfig;
   assets: V2TemplateAssetMap;
   assetDimensions: V2TemplateAssetDimensionMap;
   layout: V2TemplateLayoutConfig;

@@ -716,7 +716,6 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   editorOptions: { ...v2_DEFAULT_EDITOR_OPTIONS },
   profileTextPlaceholder: "아티스트 명",
   formSchema: v2_DEFAULT_FORM_SCHEMA,
-  cardInputConfig: v2_toLegacyCardInputConfig(v2_DEFAULT_FORM_SCHEMA),
   assets: {
     bgByTheme: {
       first: null,
@@ -2169,8 +2168,6 @@ export const v2_normalizeTemplateRenderConfig = (
       normalized.formSchema
     );
   }
-
-  normalized.cardInputConfig = v2_toLegacyCardInputConfig(normalized.formSchema);
 
   if (v2_isRecord(raw.assets)) {
     normalized.assets = {

@@ -185,37 +185,6 @@ const TimeTableTemplatePage = () => {
       },
       profileTextPlaceholder: '아티스트 명',
       formSchema: v2_createDefaultTemplateRenderConfig().formSchema,
-      cardInputConfig: {
-        fields: [
-          {
-            key: 'time',
-            type: 'time',
-            placeholder: '10:00',
-            required: true,
-            defaultValue: '10:00',
-          },
-          {
-            key: 'mainTitle',
-            type: 'textarea',
-            placeholder: '메인 타이틀\n적는 곳',
-            defaultValue: '',
-            maxLength: 200,
-          },
-          {
-            key: 'subTitle',
-            type: 'text',
-            placeholder: '서브 타이틀 적는 곳',
-            defaultValue: '',
-            maxLength: 50,
-          },
-        ],
-        showLabels: false,
-        offlineToggle: {
-          label: '휴방',
-          activeColor: 'bg-[#3E4A82]',
-          inactiveColor: 'bg-gray-300',
-        },
-      },
       assets: {
         bgByTheme: {
           first: Imgs.first.bg.src,
