@@ -31,7 +31,8 @@ const V2TimeTableInputList: React.FC<V2TimeTableInputListProps> = ({
   size = "sm",
 }) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { data, updateData } = useV2TimeTableEditorRuntimeContext();
+  const { data, updateData, globalData, updateGlobalData } =
+    useV2TimeTableEditorRuntimeContext();
 
   const placeholders = useMemo(
     () =>
@@ -46,6 +47,8 @@ const V2TimeTableInputList: React.FC<V2TimeTableInputListProps> = ({
     <TimeTableInputList
       data={data}
       onDataChange={updateData}
+      globalData={globalData}
+      onGlobalDataChange={updateGlobalData}
       weekdayOption={renderConfig.weekdayOption}
       cardInputConfig={renderConfig.cardInputConfig}
       placeholders={placeholders}

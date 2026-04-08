@@ -182,6 +182,8 @@ const V2TimeTableEditor: React.FC = () => {
     actions,
     data,
     updateData,
+    globalData,
+    updateGlobalData,
     currentTheme,
     updateTheme,
     resetData,
@@ -420,6 +422,8 @@ const V2TimeTableEditor: React.FC = () => {
     () => ({
       data,
       updateData,
+      globalData,
+      updateGlobalData,
       currentTheme,
       updateTheme,
       resetData,
@@ -436,6 +440,7 @@ const V2TimeTableEditor: React.FC = () => {
       activeHighlightTarget,
       currentTheme,
       data,
+      globalData,
       hiddenLayerIds,
       hoverHighlightTarget,
       isLayerHidden,
@@ -443,6 +448,7 @@ const V2TimeTableEditor: React.FC = () => {
       setLayerHidden,
       toggleLayerHidden,
       updateData,
+      updateGlobalData,
       updateTheme,
     ]
   );

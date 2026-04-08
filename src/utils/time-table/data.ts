@@ -3,6 +3,7 @@ import {
   TDefaultCard,
   TDynamicCard,
   TEntry,
+  TGlobalData,
   TPlaceholders,
 } from "@/types/time-table/data";
 import { TButtonTheme } from "@/types/time-table/theme";
@@ -133,6 +134,27 @@ export interface CreateInitialCardFromConfigProps {
   cardInputConfig: CardInputConfig;
 }
 
+const getInitialValueFromFieldConfig = (
+  field: CardInputConfig["fields"][number]
+): string | number => {
+  if (field.defaultValue !== undefined) {
+    return field.defaultValue;
+  }
+
+  switch (field.type) {
+    case "number":
+      return 0;
+    case "time":
+      return "09:00";
+    case "text":
+    case "textarea":
+    case "select":
+    case "date":
+    default:
+      return "";
+  }
+};
+
 // 개별 엔트리 생성 함수
 export const createInitialEntryFromConfig = ({
   cardInputConfig,
@@ -150,26 +172,7 @@ export const createInitialEntryFromConfig = ({
       (field) => !field.isOffline && (field.scope ?? "entry") === "entry"
     )
     .forEach((field) => {
-    if (field.defaultValue !== undefined) {
-      entry[field.key] = field.defaultValue;
-    } else {
-      // 타입에 따른 기본값 설정
-      switch (field.type) {
-        case "text":
-        case "textarea":
-        case "select":
-          entry[field.key] = "";
-          break;
-        case "number":
-          entry[field.key] = 0;
-          break;
-        case "time":
-          entry[field.key] = "09:00";
-          break;
-        default:
-          entry[field.key] = "";
-      }
-    }
+      entry[field.key] = getInitialValueFromFieldConfig(field);
     });
 
   return entry;
@@ -189,13 +192,27 @@ export const createInitialCardFromConfig = ({
   // isOffline 필드의 기본값을 card 레벨에 초기화
   cardInputConfig.fields
     .filter(
-      (field) => field.isOffline || (field.scope ?? "entry") !== "entry"
+      (field) => field.isOffline || (field.scope ?? "entry") === "card"
     )
     .forEach((field) => {
-      card[field.key] = field.defaultValue ?? "";
+      card[field.key] = getInitialValueFromFieldConfig(field);
     });
 
   return card;
+};
+
+export const createInitialGlobalDataFromConfig = ({
+  cardInputConfig,
+}: CreateInitialCardFromConfigProps): TGlobalData => {
+  const globalData: TGlobalData = {};
+
+  cardInputConfig.fields
+    .filter((field) => field.scope === "global")
+    .forEach((field) => {
+      globalData[field.key] = getInitialValueFromFieldConfig(field);
+    });
+
+  return globalData;
 };
 
 export const getDefaultCards = ({

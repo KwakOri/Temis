@@ -4,11 +4,12 @@ import {
   createPageAwareStorage,
   getPageId,
 } from "@/utils/pageAwareLocalStorage";
-import { TDefaultCard } from "@/types/time-table/data";
+import { TDefaultCard, TGlobalData } from "@/types/time-table/data";
 
 // localStorage 키 상수 (페이지별로 고유하게 관리됨)
 export const STORAGE_KEYS = {
   TIMETABLE_DATA: "template-timetable-data",
+  GLOBAL_DATA: "template-timetable-global-data",
   THEME: "template-timetable-theme",
   CONFIG: "template-timetable-config", // CardInputConfig 저장용
   VERSION: "template-timetable-version", // 데이터 구조 버전
@@ -84,6 +85,7 @@ const checkVersionAndClearIfNeeded = (): boolean => {
     
     // 모든 데이터 삭제
     storage.removeItem(STORAGE_KEYS.TIMETABLE_DATA);
+    storage.removeItem(STORAGE_KEYS.GLOBAL_DATA);
     storage.removeItem(STORAGE_KEYS.THEME);
     storage.removeItem(STORAGE_KEYS.CONFIG);
     
@@ -127,12 +129,27 @@ export const timeTableStorage = {
   },
 
   /**
+   * 글로벌 필드 데이터 저장
+   */
+  saveGlobalData: (globalData: TGlobalData): boolean => {
+    return saveToStorage(STORAGE_KEYS.GLOBAL_DATA, globalData);
+  },
+
+  /**
    * 테마 로드 (TTheme 타입)
    */
   loadTheme: (defaultTheme: TTheme): TTheme => {
     // 버전 확인 후 테마 로드
     checkVersionAndClearIfNeeded();
     return loadFromStorage(STORAGE_KEYS.THEME, defaultTheme);
+  },
+
+  /**
+   * 글로벌 필드 데이터 로드
+   */
+  loadGlobalData: (defaultGlobalData: TGlobalData): TGlobalData => {
+    checkVersionAndClearIfNeeded();
+    return loadFromStorage(STORAGE_KEYS.GLOBAL_DATA, defaultGlobalData);
   },
 
   /**
@@ -156,12 +173,16 @@ export const timeTableStorage = {
    */
   saveAll: (payload: {
     data: TDefaultCard[];
+    globalData?: TGlobalData;
     theme: TTheme;
     cardInputConfig: CardInputConfig;
   }): boolean => {
     let success = true;
 
     success = success && timeTableStorage.saveData(payload.data);
+    if (payload.globalData) {
+      success = success && timeTableStorage.saveGlobalData(payload.globalData);
+    }
     success = success && timeTableStorage.saveTheme(payload.theme);
     success = success && timeTableStorage.saveConfig(payload.cardInputConfig);
 
@@ -173,11 +194,13 @@ export const timeTableStorage = {
    */
   loadAll: (defaults: {
     data: TDefaultCard[];
+    globalData: TGlobalData;
     theme: TTheme;
     cardInputConfig: CardInputConfig;
   }) => {
     return {
       data: timeTableStorage.loadData(defaults.data),
+      globalData: timeTableStorage.loadGlobalData(defaults.globalData),
       theme: timeTableStorage.loadTheme(defaults.theme),
       cardInputConfig: timeTableStorage.loadConfig(defaults.cardInputConfig),
     };

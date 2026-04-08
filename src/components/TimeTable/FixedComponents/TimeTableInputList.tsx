@@ -7,6 +7,7 @@ import {
   SimpleFieldConfig,
   TDefaultCard,
   TEntry,
+  TGlobalData,
   TLanOpt,
   TPlaceholders,
 } from "@/types/time-table/data";
@@ -52,6 +53,8 @@ export interface CustomFieldRenderer {
 export interface TimeTableInputListProps {
   data: TDefaultCard[];
   onDataChange: (newData: TDefaultCard[]) => void;
+  globalData?: TGlobalData;
+  onGlobalDataChange?: (newGlobalData: TGlobalData) => void;
 
   // UI 커스터마이징
   containerClassName?: string;
@@ -102,6 +105,8 @@ const getDefaultFieldValue = (
 const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
   data,
   onDataChange,
+  globalData,
+  onGlobalDataChange,
   containerClassName = "flex flex-col gap-4 w-full select-none",
   itemClassName = "bg-white backdrop-blur-md rounded-xl p-4 shadow-[0_4px_5px_rgba(0,0,0,0.15)]",
   headerClassName = "flex justify-between items-center",
@@ -510,6 +515,14 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     fieldKey: string,
     value: string | number | boolean
   ) => {
+    if (onGlobalDataChange) {
+      onGlobalDataChange({
+        ...(globalData ?? {}),
+        [fieldKey]: value,
+      });
+      return;
+    }
+
     const newData = data.map((day) => ({
       ...day,
       [fieldKey]: value,
@@ -600,7 +613,9 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
             {globalFieldConfigs.map((fieldConfig, fieldIndex) => {
               const firstDay = data[0];
               const value =
-                firstDay?.[fieldConfig.key] ?? getDefaultFieldValue(fieldConfig);
+                globalData?.[fieldConfig.key] ??
+                firstDay?.[fieldConfig.key] ??
+                getDefaultFieldValue(fieldConfig);
               return (
                 <div key={`global-${fieldConfig.key}-${fieldIndex}`}>
                   {fieldConfig.label && cardInputConfig.showLabels && (

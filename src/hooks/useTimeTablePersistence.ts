@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import { CardInputConfig } from "@/types/time-table/data";
-import { TDefaultCard } from "@/types/time-table/data";
+import { CardInputConfig, TDefaultCard, TGlobalData } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import { 
   useFormPersistence, 
@@ -14,6 +13,7 @@ import {
  */
 export const useTimeTablePersistence = (
   data: TDefaultCard[],
+  globalData: TGlobalData,
   currentTheme: TTheme,
   cardInputConfig: CardInputConfig,
   defaultTheme: TTheme,
@@ -24,26 +24,34 @@ export const useTimeTablePersistence = (
 
   // 자동 저장 기능
   const autoSave = useAutoSavePersistence(
-    data, 
-    currentTheme, 
-    cardInputConfig, 
-    defaultTheme, 
+    data,
+    globalData,
+    currentTheme,
+    cardInputConfig,
+    defaultTheme,
     autoSaveDelay
   );
 
   // 브라우저 종료 시 저장
-  useBeforeUnloadSave(data, currentTheme, cardInputConfig, defaultTheme);
+  useBeforeUnloadSave(
+    data,
+    globalData,
+    currentTheme,
+    cardInputConfig,
+    defaultTheme
+  );
 
   // 디버깅을 위한 저장 상태 로깅 (개발 환경에서만)
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
       console.debug("TimeTable persistence data updated:", {
         dataLength: data.length,
+        globalDataLength: Object.keys(globalData).length,
         currentTheme,
         cardInputConfigFields: cardInputConfig.fields.length,
       });
     }
-  }, [data, currentTheme, cardInputConfig]);
+  }, [data, globalData, currentTheme, cardInputConfig]);
 
   return {
     // 저장/로드 함수들 (formPersistence에서 가져옴)

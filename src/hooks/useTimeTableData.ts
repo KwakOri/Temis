@@ -1,7 +1,13 @@
-import { CardInputConfig, TDefaultCard } from "@/types/time-table/data";
+import {
+  CardInputConfig,
+  TDefaultCard,
+  TFieldValue,
+  TGlobalData,
+} from "@/types/time-table/data";
 import {
   createInitialCardFromConfig,
   createInitialEntryFromConfig,
+  createInitialGlobalDataFromConfig,
   getDefaultCards,
   week,
 } from "@/utils/time-table/data";
@@ -20,10 +26,26 @@ export const useTimeTableData = ({
   const [data, setData] = useState<TDefaultCard[]>(() => {
     return getDefaultCards({ cardInputConfig });
   });
+  const [globalData, setGlobalData] = useState<TGlobalData>(() => {
+    return createInitialGlobalDataFromConfig({ cardInputConfig });
+  });
 
   // 데이터 업데이트 함수
   const updateData = useCallback((newData: TDefaultCard[]) => {
     setData(newData);
+  }, []);
+
+  // 글로벌 데이터 업데이트 함수
+  const updateGlobalData = useCallback((newGlobalData: TGlobalData) => {
+    setGlobalData(newGlobalData);
+  }, []);
+
+  // 특정 글로벌 필드 업데이트 함수
+  const updateGlobalField = useCallback((fieldKey: string, value: TFieldValue) => {
+    setGlobalData((prev) => ({
+      ...prev,
+      [fieldKey]: value,
+    }));
   }, []);
 
   // 개별 카드 업데이트 함수
@@ -154,6 +176,12 @@ export const useTimeTableData = ({
     });
 
     setData(freshDefaultCards);
+    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
+  }, [cardInputConfig]);
+
+  // 글로벌 데이터만 리셋
+  const resetGlobalData = useCallback(() => {
+    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
   }, [cardInputConfig]);
 
   // 특정 요일의 카드를 기본값으로 리셋 (CardInputConfig 기반)
@@ -174,9 +202,12 @@ export const useTimeTableData = ({
   return {
     // 상태
     data,
+    globalData,
 
     // 업데이트 함수들
     updateData,
+    updateGlobalData,
+    updateGlobalField,
     updateCard,
     updateCardField,
     updateEntryField,
@@ -188,6 +219,7 @@ export const useTimeTableData = ({
 
     // 리셋 함수들
     resetData,
+    resetGlobalData,
     resetCard,
   };
 };

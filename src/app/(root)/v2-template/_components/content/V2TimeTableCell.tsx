@@ -100,6 +100,7 @@ const v2_getCardNodeTextValue = ({
   entryMainTitle,
   entrySubTitle,
   placeholdersByScope,
+  globalData,
 }: {
   node: V2TemplateCardNode;
   dayLabel: string;
@@ -111,6 +112,7 @@ const v2_getCardNodeTextValue = ({
   entryMainTitle: string;
   entrySubTitle: string;
   placeholdersByScope: Record<string, Record<string, string>>;
+  globalData: Record<string, unknown>;
 }): string => {
   if (node.binding.mode === "literal") {
     return node.binding.value;
@@ -143,8 +145,10 @@ const v2_getCardNodeTextValue = ({
   const source =
     node.binding.scope === "entry"
       ? primaryEntry
-      : node.binding.scope === "card" || node.binding.scope === "global"
+      : node.binding.scope === "card"
         ? cardData
+        : node.binding.scope === "global"
+          ? globalData
         : undefined;
   const rawValue = source?.[node.binding.key];
   const value = v2_toTextValue(rawValue);
@@ -214,7 +218,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   currentTheme,
 }) => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden } =
+  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden, globalData } =
     useV2TimeTableEditorRuntimeContext();
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const cardStructure = renderConfig.structure.card;
@@ -294,6 +298,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       entryMainTitle,
       entrySubTitle,
       placeholdersByScope,
+      globalData: globalData as Record<string, unknown>,
     });
     const highlightStyle = v2_getHighlightStyle({
       target: node.highlightTarget,

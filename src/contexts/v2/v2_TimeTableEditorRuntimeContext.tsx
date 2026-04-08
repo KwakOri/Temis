@@ -1,6 +1,6 @@
 "use client";
 
-import { TDefaultCard } from "@/types/time-table/data";
+import { TDefaultCard, TGlobalData } from "@/types/time-table/data";
 import { V2TemplateHighlightTarget } from "@/types/time-table/v2_template_editor_ui";
 import { TTheme } from "@/types/time-table/theme";
 import { createContext, PropsWithChildren, useContext } from "react";
@@ -8,6 +8,8 @@ import { createContext, PropsWithChildren, useContext } from "react";
 export interface V2TimeTableEditorRuntimeContextValue {
   data: TDefaultCard[];
   updateData: (newData: TDefaultCard[]) => void;
+  globalData: TGlobalData;
+  updateGlobalData: (newGlobalData: TGlobalData) => void;
   currentTheme: TTheme;
   updateTheme: (theme: TTheme) => void;
   resetData: () => void;

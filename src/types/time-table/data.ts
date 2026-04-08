@@ -39,6 +39,14 @@ export interface TEntry {
     | undefined;
 }
 
+export type TFieldValue =
+  | string
+  | number
+  | boolean
+  | Array<{ text: string; checked: boolean }>;
+
+export type TGlobalData = Record<string, TFieldValue | undefined>;
+
 export interface TDefaultCard extends TDynamicCard {
   day: number;
 }
