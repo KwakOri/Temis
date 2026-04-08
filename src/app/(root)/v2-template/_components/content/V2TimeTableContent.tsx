@@ -4,12 +4,34 @@ import {
   useV2TemplateRenderConfigContext,
   v2_getAssetUrlFromConfig,
 } from "@/contexts/v2/v2_TemplateRenderConfigContext";
+import { V2TemplateSceneNode } from "@/types/time-table/v2_template_render_config";
 import React from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { Imgs } from "../../_img/imgs";
 import V2SceneRenderer from "./V2SceneRenderer";
+
+const v2_sceneHasAssetKey = (
+  nodes: V2TemplateSceneNode[] | undefined,
+  assetKey: string
+): boolean => {
+  if (!Array.isArray(nodes) || nodes.length === 0) return false;
+  const stack = [...nodes];
+
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    if (node.kind === "asset" && node.assetKey === assetKey) {
+      return true;
+    }
+    if (node.kind === "group" && node.children.length > 0) {
+      stack.unshift(...node.children);
+    }
+  }
+
+  return false;
+};
 
 const V2TimeTableContent: React.FC = () => {
   const { currentTheme } = useV2TimeTableEditorRuntimeContext();
@@ -18,6 +40,14 @@ const V2TimeTableContent: React.FC = () => {
   const { renderConfig } = useV2TemplateRenderConfigContext();
 
   if (weekDates.length === 0) return null;
+  const hasSceneBackgroundAsset = v2_sceneHasAssetKey(
+    renderConfig.structure.sceneNodes,
+    "bgByTheme"
+  );
+  const hasSceneGuideAsset = v2_sceneHasAssetKey(
+    renderConfig.structure.sceneNodes,
+    "guideByTheme"
+  );
 
   const backgroundImage =
     v2_getAssetUrlFromConfig({
@@ -37,10 +67,14 @@ const V2TimeTableContent: React.FC = () => {
       className=" box-border select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
       style={{
         transform: `scale(${scale})`,
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
+        ...(!hasSceneBackgroundAsset
+          ? {
+              backgroundImage: `url(${backgroundImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+            }
+          : {}),
         width: renderConfig.templateSize.width,
         height: renderConfig.templateSize.height,
       }}
@@ -50,7 +84,7 @@ const V2TimeTableContent: React.FC = () => {
         layers={renderConfig.structure.layers}
         sceneNodes={renderConfig.structure.sceneNodes}
       />
-      {guideOverlayImage ? (
+      {!hasSceneGuideAsset && guideOverlayImage ? (
         <div
           className="absolute inset-0 pointer-events-none"
           style={{ zIndex: 999 }}
