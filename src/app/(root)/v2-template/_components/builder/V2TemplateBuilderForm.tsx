@@ -2789,10 +2789,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     nodeId,
     label,
     binding,
+    colorKey,
+    fontKey,
   }: {
     nodeId: string;
     label?: string;
     binding?: string;
+    colorKey?: V2TemplateCardNode["colorKey"];
+    fontKey?: V2TemplateCardNode["fontKey"];
   }) => {
     safeUpdateConfig((prev) => {
       const prevNode = prev.structure.card.nodes[nodeId];
@@ -2801,6 +2805,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       const nextLabel = typeof label === "string" ? label.trim() : undefined;
       const nextBinding =
         typeof binding === "string" ? binding.trim() : undefined;
+      const nextColorKey =
+        typeof colorKey === "string" && v2_TEMPLATE_COLOR_KEYS.includes(colorKey)
+          ? colorKey
+          : undefined;
+      const nextFontKey =
+        typeof fontKey === "string" && v2_TEMPLATE_COLOR_KEYS.includes(fontKey)
+          ? fontKey
+          : undefined;
 
       const nextNode: V2TemplateCardNode = {
         ...prevNode,
@@ -2808,6 +2820,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         ...(nextBinding && nextBinding.length > 0
           ? { binding: v2_createBindingRefFromLegacyInput(nextBinding) }
           : {}),
+        ...(nextColorKey ? { colorKey: nextColorKey } : {}),
+        ...(nextFontKey ? { fontKey: nextFontKey } : {}),
       };
 
       const updateLayerLabel = (
@@ -4287,6 +4301,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">컴포넌트 색상</h4>
+        <p className="text-xs text-gray-400">
+          토큰 값 관리 영역입니다. 오브젝트별 토큰 선택은 속성 탭에서 설정합니다.
+        </p>
         <div className="space-y-2">
           {v2_TEMPLATE_COLOR_KEYS.map((key) => (
             <label key={key} className="flex items-center justify-between gap-2">
@@ -4337,6 +4354,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">컴포넌트 폰트 토큰</h4>
+        <p className="text-xs text-gray-400">
+          토큰-폰트 매핑 관리 영역입니다. 오브젝트별 폰트 토큰 선택은 속성 탭에서 설정합니다.
+        </p>
         <div className="space-y-2">
           {v2_TEMPLATE_COLOR_KEYS.map((key) => (
             <label key={key} className="flex items-center justify-between gap-2">
@@ -4706,6 +4726,42 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               </option>
             ) : null}
             <option value="literal">literal (직접 텍스트)</option>
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">컬러 테마 토큰</label>
+          <select
+            value={node.colorKey}
+            onChange={(event) =>
+              updateCardNodeMeta({
+                nodeId: node.id,
+                colorKey: event.target.value as V2TemplateCardNode["colorKey"],
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
+              <option key={`color-${key}`} value={key}>
+                {key}
+              </option>
+            ))}
+          </select>
+          <label className="text-xs text-gray-400">폰트 테마 토큰</label>
+          <select
+            value={node.fontKey}
+            onChange={(event) =>
+              updateCardNodeMeta({
+                nodeId: node.id,
+                fontKey: event.target.value as V2TemplateCardNode["fontKey"],
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
+              <option key={`font-${key}`} value={key}>
+                {key}
+              </option>
+            ))}
           </select>
         </div>
         {node.binding.mode === "literal" ? (
