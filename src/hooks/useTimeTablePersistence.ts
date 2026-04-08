@@ -15,19 +15,19 @@ export const useTimeTablePersistence = (
   data: TDefaultCard[],
   globalData: TGlobalData,
   currentTheme: TTheme,
-  cardInputConfig: CardInputConfig,
+  inputSchema: CardInputConfig,
   defaultTheme: TTheme,
   autoSaveDelay: number = 1000
 ) => {
   // 기본 지속성 기능
-  const formPersistence = useFormPersistence(cardInputConfig, defaultTheme);
+  const formPersistence = useFormPersistence(inputSchema, defaultTheme);
 
   // 자동 저장 기능
   const autoSave = useAutoSavePersistence(
     data,
     globalData,
     currentTheme,
-    cardInputConfig,
+    inputSchema,
     defaultTheme,
     autoSaveDelay
   );
@@ -37,7 +37,7 @@ export const useTimeTablePersistence = (
     data,
     globalData,
     currentTheme,
-    cardInputConfig,
+    inputSchema,
     defaultTheme
   );
 
@@ -48,10 +48,10 @@ export const useTimeTablePersistence = (
         dataLength: data.length,
         globalDataLength: Object.keys(globalData).length,
         currentTheme,
-        cardInputConfigFields: cardInputConfig.fields.length,
+        inputSchemaFields: inputSchema.fields.length,
       });
     }
-  }, [data, globalData, currentTheme, cardInputConfig]);
+  }, [data, globalData, currentTheme, inputSchema]);
 
   return {
     // 저장/로드 함수들 (formPersistence에서 가져옴)

@@ -13,21 +13,34 @@ import {
 } from "@/utils/time-table/data";
 import { useCallback, useState } from "react";
 
+type UseTimeTableDataSchemaInput =
+  | {
+      inputSchema: CardInputConfig;
+      cardInputConfig?: never;
+    }
+  | {
+      cardInputConfig: CardInputConfig;
+      inputSchema?: never;
+    };
+
 /**
  * 타임테이블 데이터 상태 관리 훅
- * CardInputConfig를 받아서 동적으로 초기 카드를 생성
+ * inputSchema(CardInputConfig)를 받아서 동적으로 초기 카드를 생성
  */
 export const useTimeTableData = ({
+  inputSchema,
   cardInputConfig,
-}: {
-  cardInputConfig: CardInputConfig;
-}) => {
-  // CardInputConfig를 기반으로 초기 데이터 생성
+}: UseTimeTableDataSchemaInput) => {
+  const resolvedInputSchema = inputSchema ?? cardInputConfig;
+
+  // inputSchema를 기반으로 초기 데이터 생성
   const [data, setData] = useState<TDefaultCard[]>(() => {
-    return getDefaultCards({ cardInputConfig });
+    return getDefaultCards({ cardInputConfig: resolvedInputSchema });
   });
   const [globalData, setGlobalData] = useState<TGlobalData>(() => {
-    return createInitialGlobalDataFromConfig({ cardInputConfig });
+    return createInitialGlobalDataFromConfig({
+      cardInputConfig: resolvedInputSchema,
+    });
   });
 
   // 데이터 업데이트 함수
@@ -116,7 +129,9 @@ export const useTimeTableData = ({
       setData((prevData) => {
         const newData = [...prevData];
         if (dayIndex >= 0 && dayIndex < newData.length) {
-          const newEntry = createInitialEntryFromConfig({ cardInputConfig });
+          const newEntry = createInitialEntryFromConfig({
+            cardInputConfig: resolvedInputSchema,
+          });
           newData[dayIndex] = {
             ...newData[dayIndex],
             entries: [...newData[dayIndex].entries, newEntry],
@@ -125,7 +140,7 @@ export const useTimeTableData = ({
         return newData;
       });
     },
-    [cardInputConfig]
+    [resolvedInputSchema]
   );
 
   // 엔트리 제거 함수
@@ -139,14 +154,18 @@ export const useTimeTableData = ({
           );
           // 최소 하나의 엔트리는 유지
           if (newEntries.length === 0) {
-            newEntries.push(createInitialEntryFromConfig({ cardInputConfig }));
+            newEntries.push(
+              createInitialEntryFromConfig({
+                cardInputConfig: resolvedInputSchema,
+              })
+            );
           }
           newData[dayIndex] = { ...newData[dayIndex], entries: newEntries };
         }
         return newData;
       });
     },
-    [cardInputConfig]
+    [resolvedInputSchema]
   );
 
   // 오프라인 토글 함수
@@ -163,11 +182,11 @@ export const useTimeTableData = ({
     });
   }, []);
 
-  // 모든 카드를 기본값으로 리셋 (CardInputConfig 기반)
+  // 모든 카드를 기본값으로 리셋 (inputSchema 기반)
   const resetData = useCallback(() => {
     const freshDefaultCards = week.map((day) => ({
       day,
-      ...createInitialCardFromConfig({ cardInputConfig }),
+      ...createInitialCardFromConfig({ cardInputConfig: resolvedInputSchema }),
     })) as TDefaultCard[];
 
     // isOffline 강제로 false로 설정
@@ -176,27 +195,33 @@ export const useTimeTableData = ({
     });
 
     setData(freshDefaultCards);
-    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
-  }, [cardInputConfig]);
+    setGlobalData(
+      createInitialGlobalDataFromConfig({ cardInputConfig: resolvedInputSchema })
+    );
+  }, [resolvedInputSchema]);
 
   // 글로벌 데이터만 리셋
   const resetGlobalData = useCallback(() => {
-    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
-  }, [cardInputConfig]);
+    setGlobalData(
+      createInitialGlobalDataFromConfig({ cardInputConfig: resolvedInputSchema })
+    );
+  }, [resolvedInputSchema]);
 
-  // 특정 요일의 카드를 기본값으로 리셋 (CardInputConfig 기반)
+  // 특정 요일의 카드를 기본값으로 리셋 (inputSchema 기반)
   const resetCard = useCallback(
     (dayIndex: number) => {
       if (dayIndex >= 0 && dayIndex < week.length) {
         const freshCard = {
           day: week[dayIndex],
-          ...createInitialCardFromConfig({ cardInputConfig }),
+          ...createInitialCardFromConfig({
+            cardInputConfig: resolvedInputSchema,
+          }),
         } as TDefaultCard;
         freshCard.isOffline = false;
         updateCard(dayIndex, freshCard);
       }
     },
-    [updateCard, cardInputConfig]
+    [updateCard, resolvedInputSchema]
   );
 
   return {
