@@ -1,1 +1,1 @@
-export { default as V2Loading } from "./V2Loading";
+export { default as V2Loading } from "./loading-screen";

@@ -1,4 +1,4 @@
-export { default as V2MobileHeader } from "./V2MobileHeader";
-export { default as V2TimeTableControls } from "./V2TimeTableControls";
-export { default as V2TimeTableEditor } from "./V2TimeTableEditor";
-export { default as V2TimeTablePreview } from "./V2TimeTablePreview";
+export { default as V2MobileHeader } from "./mobile-toolbar";
+export { default as V2TimeTableControls } from "./preview-toolbar";
+export { default as V2TimeTableEditor } from "./template-editor-shell";
+export { default as V2TimeTablePreview } from "./preview-canvas";

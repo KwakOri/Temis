@@ -1,1 +1,1 @@
-export { default as V2TemplateFontFaceStyle } from "./V2TemplateFontFaceStyle";
+export { default as V2TemplateFontFaceStyle } from "./template-font-face-style";

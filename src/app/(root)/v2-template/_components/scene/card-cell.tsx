@@ -22,9 +22,9 @@ import {
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
-} from "./V2CardNodeRenderers";
-import { v2_getHighlightStyle } from "./v2_highlight";
-import { v2_toRenderableStyle } from "./v2_style";
+} from "./card-node-renderers";
+import { v2_getHighlightStyle } from "./highlight-style";
+import { v2_toRenderableStyle } from "./render-style";
 
 interface TimeTableCellProps {
   time: TDefaultCard;

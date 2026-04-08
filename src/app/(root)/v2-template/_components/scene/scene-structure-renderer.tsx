@@ -25,10 +25,10 @@ import { v2_resolveSceneTextNodeValue } from "@/utils/time-table/v2_scene_nodes"
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
-} from "./V2CardNodeRenderers";
-import V2TimeTableGrid from "./V2TimeTableGrid";
-import { v2_getHighlightStyle } from "./v2_highlight";
-import { v2_toRenderableStyle } from "./v2_style";
+} from "./card-node-renderers";
+import V2TimeTableGrid from "./card-grid";
+import { v2_getHighlightStyle } from "./highlight-style";
+import { v2_toRenderableStyle } from "./render-style";
 
 const v2_collectLayerTargetById = (
   nodes: V2TemplateLayerNode[]

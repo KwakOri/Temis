@@ -14,12 +14,12 @@ import {
   V2TemplateStyleRecord,
 } from '@/types/time-table/v2_template_render_config';
 import { TTheme } from '@/types/time-table/theme';
-import V2TemplateBuilderForm from '../builder/V2TemplateBuilderForm';
-import V2Loading from '../shared/V2Loading';
-import V2MobileHeader from './V2MobileHeader';
-import V2TimeTableLayersPanel from './V2TimeTableLayersPanel';
-import V2TimeTableControls from './V2TimeTableControls';
-import V2TimeTablePreview from './V2TimeTablePreview';
+import V2TemplateBuilderForm from '../properties/template-properties-panel';
+import V2Loading from '../shared/loading-screen';
+import V2MobileHeader from './mobile-toolbar';
+import V2TimeTableLayersPanel from './layers-panel';
+import V2TimeTableControls from './preview-toolbar';
+import V2TimeTablePreview from './preview-canvas';
 
 const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
 type V2LayoutShape = V2TemplateRenderConfig['layout'];

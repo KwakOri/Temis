@@ -5,7 +5,7 @@ import {
   v2_PREVIEW_SCALE_MAX_MOBILE,
   v2_PREVIEW_SCALE_MIN,
   v2_clampPreviewScale,
-} from "./v2_preview_constants";
+} from "./preview-scale";
 
 const MobileHeader: React.FC = () => {
   const { state, actions } = useTimeTable();

@@ -1,6 +1,6 @@
 import { SizeProps } from "@/utils/utils";
 import React, { useEffect, useRef, useState } from "react";
-import V2ScrollableTimePicker from "./V2ScrollableTimePicker";
+import V2ScrollableTimePicker from "./scrollable-time-picker";
 
 interface V2AdaptiveTimeRendererProps {
   value: string;

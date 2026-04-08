@@ -17,13 +17,13 @@ import { useQuery } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import React, { useRef, useState } from 'react';
 import { Point } from 'react-easy-crop';
-import V2ImageCropModal from '../modals/V2ImageCropModal';
-import V2ImageSaveModal from '../modals/V2ImageSaveModal';
-import V2TimeTableDesignGuideController from '../tools/V2TimeTableDesignGuideController';
-import V2MondaySelector from './V2MondaySelector';
-import V2ResetButton from './V2ResetButton';
-import V2TimeTableFormTabs from './V2TimeTableFormTabs';
-import V2TimeTableInputList from './V2TimeTableInputList';
+import V2ImageCropModal from '../modals/image-crop-modal';
+import V2ImageSaveModal from '../modals/image-save-modal';
+import V2TimeTableDesignGuideController from '../tools/design-guide-controller';
+import V2MondaySelector from './monday-selector';
+import V2ResetButton from './reset-button';
+import V2TimeTableFormTabs from './template-form-tabs';
+import V2TimeTableInputList from './template-input-list';
 
 const V2TimeTableForm: React.FC = () => {
   const { renderConfig } = useV2TemplateRenderConfigContext();

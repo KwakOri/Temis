@@ -1,12 +1,12 @@
 import { useTimeTable } from "@/contexts/TimeTableContext";
 import { useGesture } from "@use-gesture/react";
 import { useEffect, useMemo, useState } from "react";
-import V2TimeTableContent from "../content/V2TimeTableContent";
+import V2TimeTableContent from "../scene/preview-scene";
 import {
   v2_PREVIEW_SCALE_MAX_MOBILE,
   v2_PREVIEW_SCALE_MIN,
   v2_clampPreviewScale,
-} from "./v2_preview_constants";
+} from "./preview-scale";
 
 const V2TimeTablePreview = () => {
   const { state, actions } = useTimeTable();

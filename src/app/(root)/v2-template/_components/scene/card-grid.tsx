@@ -4,9 +4,9 @@ import { useTimeTableData } from "@/contexts/TimeTableContext";
 import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/v2_TimeTableEditorRuntimeContext";
 import { useV2TemplateRenderConfigContext } from "@/contexts/v2/v2_TemplateRenderConfigContext";
 import { V2TemplateComponentInstanceMode } from "@/types/time-table/v2_template_render_config";
-import V2TimeTableCell from "./V2TimeTableCell";
-import { v2_getHighlightStyle } from "./v2_highlight";
-import { v2_toRenderableStyle } from "./v2_style";
+import V2TimeTableCell from "./card-cell";
+import { v2_getHighlightStyle } from "./highlight-style";
+import { v2_toRenderableStyle } from "./render-style";
 
 type V2GridLayoutMode = "grid3x3" | "flex4x2";
 type V2Flex42Align = "left" | "center" | "right";

@@ -10,7 +10,7 @@ import React from "react";
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { isGuideEnabled } from "@/utils/time-table/data";
 import { v2_isVisibleByMode } from "@/utils/time-table/v2_template_render_config";
-import V2SceneRenderer from "./V2SceneRenderer";
+import V2SceneRenderer from "./scene-renderer";
 
 const v2_sceneHasVisibleAssetKey = ({
   nodes,
