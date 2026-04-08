@@ -1,4 +1,4 @@
-import { CardInputConfig, SimpleFieldConfig } from "@/types/time-table/data";
+import { SimpleFieldConfig } from "@/types/time-table/data";
 import {
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
@@ -35,38 +35,6 @@ import {
 
 const v2_DEFAULT_THEME = "first";
 
-const v2_DEFAULT_CARD_INPUT_CONFIG: CardInputConfig = {
-  fields: [
-    {
-      key: "time",
-      type: "time",
-      placeholder: "10:00",
-      required: true,
-      defaultValue: "10:00",
-    },
-    {
-      key: "mainTitle",
-      type: "textarea",
-      placeholder: "메인 타이틀\n적는 곳",
-      defaultValue: "",
-      maxLength: 200,
-    },
-    {
-      key: "subTitle",
-      type: "text",
-      placeholder: "서브 타이틀 적는 곳",
-      defaultValue: "",
-      maxLength: 50,
-    },
-  ],
-  showLabels: false,
-  offlineToggle: {
-    label: "휴방",
-    activeColor: "bg-[#3E4A82]",
-    inactiveColor: "bg-gray-300",
-  },
-};
-
 const v2_COMPUTED_BINDING_KEYS = [
   "streamingDay",
   "streamingDate",
@@ -88,37 +56,6 @@ const v2_ASSET_KEYS = [
 ] as const;
 
 const v2_ASSET_KEY_SET = new Set<string>(v2_ASSET_KEYS);
-
-const v2_createFormSchemaFromCardInputConfig = (
-  cardInputConfig: CardInputConfig
-): V2TemplateFormSchema => {
-  const fields: V2TemplateFormField[] = cardInputConfig.fields.map((field) => ({
-    key: field.key,
-    scope:
-      field.scope === "card" || field.scope === "global"
-        ? field.scope
-        : "entry",
-    type: field.type,
-    placeholder: field.placeholder,
-    ...(field.label ? { label: field.label } : {}),
-    ...(typeof field.required === "boolean"
-      ? { required: field.required }
-      : {}),
-    ...(typeof field.maxLength === "number" ? { maxLength: field.maxLength } : {}),
-    ...(Array.isArray(field.options) ? { options: field.options } : {}),
-    ...(field.defaultValue !== undefined ? { defaultValue: field.defaultValue } : {}),
-  }));
-
-  return {
-    fields,
-    ...(typeof cardInputConfig.showLabels === "boolean"
-      ? { showLabels: cardInputConfig.showLabels }
-      : {}),
-    ...(cardInputConfig.offlineToggle
-      ? { offlineToggle: cardInputConfig.offlineToggle }
-      : {}),
-  };
-};
 
 const v2_defaultBindingRefFromLegacyKey = (
   rawKey: string
@@ -186,9 +123,40 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   maxStreamingTimeByDay: 1,
 };
 
-const v2_DEFAULT_FORM_SCHEMA = v2_createFormSchemaFromCardInputConfig(
-  v2_DEFAULT_CARD_INPUT_CONFIG
-);
+const v2_DEFAULT_FORM_SCHEMA: V2TemplateFormSchema = {
+  fields: [
+    {
+      key: "time",
+      scope: "entry",
+      type: "time",
+      placeholder: "10:00",
+      required: true,
+      defaultValue: "10:00",
+    },
+    {
+      key: "mainTitle",
+      scope: "entry",
+      type: "textarea",
+      placeholder: "메인 타이틀\n적는 곳",
+      defaultValue: "",
+      maxLength: 200,
+    },
+    {
+      key: "subTitle",
+      scope: "entry",
+      type: "text",
+      placeholder: "서브 타이틀 적는 곳",
+      defaultValue: "",
+      maxLength: 50,
+    },
+  ],
+  showLabels: false,
+  offlineToggle: {
+    label: "휴방",
+    activeColor: "bg-[#3E4A82]",
+    inactiveColor: "bg-gray-300",
+  },
+};
 
 const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
