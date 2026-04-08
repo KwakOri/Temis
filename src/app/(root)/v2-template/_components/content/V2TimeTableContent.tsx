@@ -46,7 +46,10 @@ const V2TimeTableContent: React.FC = () => {
       }}
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
-      <V2SceneRenderer layers={renderConfig.structure.layers} />
+      <V2SceneRenderer
+        layers={renderConfig.structure.layers}
+        sceneNodes={renderConfig.structure.sceneNodes}
+      />
       {guideOverlayImage ? (
         <div
           className="absolute inset-0 pointer-events-none"

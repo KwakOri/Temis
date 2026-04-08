@@ -3,6 +3,7 @@ import React from "react";
 import {
   V2TemplateLayerComponentKey,
   V2TemplateLayerNode,
+  V2TemplateSceneNode,
 } from "@/types/time-table/v2_template_render_config";
 import V2ProfileImageSection from "./V2ProfileImageContainer";
 import V2TimeTableGrid from "./V2TimeTableGrid";
@@ -38,7 +39,47 @@ const v2_renderSceneNode = (node: V2TemplateLayerNode): React.ReactNode => {
   return <Component key={node.id} />;
 };
 
-const V2SceneRenderer = ({ layers }: { layers: V2TemplateLayerNode[] }) => {
+const v2_renderSceneStructureNode = (
+  node: V2TemplateSceneNode
+): React.ReactNode => {
+  if (node.id === "scene-profile") {
+    return <V2ProfileImageSection key={node.id} />;
+  }
+
+  if (node.kind === "group") {
+    return (
+      <React.Fragment key={node.id}>
+        {node.children.map((childNode) => v2_renderSceneStructureNode(childNode))}
+      </React.Fragment>
+    );
+  }
+
+  if (node.kind === "cardCollection") {
+    return <V2TimeTableGrid key={node.id} />;
+  }
+
+  if (node.id === "scene-top-object") {
+    return <V2TimeTableTopObject key={node.id} />;
+  }
+
+  if (node.id === "scene-week-flag") {
+    return <V2TimeTableWeekFlag key={node.id} />;
+  }
+
+  return null;
+};
+
+const V2SceneRenderer = ({
+  layers,
+  sceneNodes,
+}: {
+  layers: V2TemplateLayerNode[];
+  sceneNodes?: V2TemplateSceneNode[];
+}) => {
+  if (Array.isArray(sceneNodes) && sceneNodes.length > 0) {
+    return <>{sceneNodes.map((sceneNode) => v2_renderSceneStructureNode(sceneNode))}</>;
+  }
+
   return <>{layers.map((layerNode) => v2_renderSceneNode(layerNode))}</>;
 };
 
