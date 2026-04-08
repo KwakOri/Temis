@@ -1,6 +1,6 @@
 'use client';
 
-import { V2TemplateRenderConfigProvider } from '@/contexts/v2/template-render-config-context';
+import { TemplateRenderConfigProvider } from '@/contexts/v2/template-render-config-context';
 import type { V2TemplateRenderConfigResponse } from '@/services/v2_template_render_config_service';
 import type {
   V2TemplateRenderConfig,
@@ -464,12 +464,12 @@ const TimeTableTemplatePage = () => {
   );
 
   return (
-    <V2TemplateRenderConfigProvider value={providerValue}>
+    <TemplateRenderConfigProvider value={providerValue}>
       <V2TemplateFontFaceStyle />
       <div className="fixed inset-0 w-full h-full">
         <V2TimeTableEditor />
       </div>
-    </V2TemplateRenderConfigProvider>
+    </TemplateRenderConfigProvider>
   );
 };
 

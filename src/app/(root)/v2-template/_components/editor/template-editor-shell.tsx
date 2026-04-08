@@ -3,8 +3,8 @@ import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-rea
 
 import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
 import { TimeTableProvider } from '@/contexts/TimeTableContext';
-import { useV2TemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
-import { V2TimeTableEditorRuntimeProvider } from '@/contexts/v2/template-editor-runtime-context';
+import { useTemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
+import { TemplateEditorRuntimeProvider } from '@/contexts/v2/template-editor-runtime-context';
 import { useTemplateEditor } from '@/hooks/v2/useTemplateEditor';
 import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui';
 import { TTheme } from '@/types/time-table/theme';
@@ -20,7 +20,7 @@ import V2TimeTableControls from './preview-toolbar';
 import V2TimeTablePreview from './preview-canvas';
 
 const useV2TemplateEditorSettings = () => {
-  const { renderConfig, setRenderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
 
   const inputSchema = useMemo(() => renderConfig.formSchema, [renderConfig.formSchema]);
   const captureSize = renderConfig.templateSize;
@@ -179,7 +179,7 @@ const V2TimeTableEditor: React.FC = () => {
   return (
     <TimeTableProvider value={timeTableState}>
       <TimeTableDesignGuideProvider>
-        <V2TimeTableEditorRuntimeProvider value={runtimeValue}>
+        <TemplateEditorRuntimeProvider value={runtimeValue}>
           {!isInitialized || state.weekDates.length === 0 ? (
             <V2Loading />
           ) : (
@@ -266,7 +266,7 @@ const V2TimeTableEditor: React.FC = () => {
               )}
             </div>
           )}
-        </V2TimeTableEditorRuntimeProvider>
+        </TemplateEditorRuntimeProvider>
       </TimeTableDesignGuideProvider>
     </TimeTableProvider>
   );

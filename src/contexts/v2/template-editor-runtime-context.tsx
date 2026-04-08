@@ -5,7 +5,7 @@ import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui
 import { TTheme } from "@/types/time-table/theme";
 import { createContext, PropsWithChildren, useContext } from "react";
 
-export interface V2TimeTableEditorRuntimeContextValue {
+export interface TemplateEditorRuntimeContextValue {
   data: TDefaultCard[];
   updateData: (newData: TDefaultCard[]) => void;
   globalData: TGlobalData;
@@ -27,28 +27,35 @@ export interface V2TimeTableEditorRuntimeContextValue {
   ) => void;
 }
 
-const V2TimeTableEditorRuntimeContext =
-  createContext<V2TimeTableEditorRuntimeContextValue | null>(null);
+export type V2TimeTableEditorRuntimeContextValue =
+  TemplateEditorRuntimeContextValue;
 
-export const V2TimeTableEditorRuntimeProvider = ({
+const TemplateEditorRuntimeContext =
+  createContext<TemplateEditorRuntimeContextValue | null>(null);
+
+export const TemplateEditorRuntimeProvider = ({
   children,
   value,
-}: PropsWithChildren<{ value: V2TimeTableEditorRuntimeContextValue }>) => {
+}: PropsWithChildren<{ value: TemplateEditorRuntimeContextValue }>) => {
   return (
-    <V2TimeTableEditorRuntimeContext.Provider value={value}>
+    <TemplateEditorRuntimeContext.Provider value={value}>
       {children}
-    </V2TimeTableEditorRuntimeContext.Provider>
+    </TemplateEditorRuntimeContext.Provider>
   );
 };
 
-export const useV2TimeTableEditorRuntimeContext = () => {
-  const context = useContext(V2TimeTableEditorRuntimeContext);
+export const useTemplateEditorRuntimeContext = () => {
+  const context = useContext(TemplateEditorRuntimeContext);
 
   if (!context) {
     throw new Error(
-      "useV2TimeTableEditorRuntimeContext must be used within V2TimeTableEditorRuntimeProvider"
+      "useTemplateEditorRuntimeContext must be used within TemplateEditorRuntimeProvider"
     );
   }
 
   return context;
 };
+
+// Backward-compatible aliases during migration.
+export const V2TimeTableEditorRuntimeProvider = TemplateEditorRuntimeProvider;
+export const useV2TimeTableEditorRuntimeContext = useTemplateEditorRuntimeContext;

@@ -2,10 +2,10 @@ import React, { useMemo } from "react";
 
 import { useTimeTableData } from "@/contexts/TimeTableContext";
 import {
-  useV2TemplateRenderConfigContext,
-  v2_getAssetUrlFromConfig,
+  useTemplateRenderConfigContext,
+  getAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import {
   V2TemplateSceneAssetNode,
@@ -78,7 +78,7 @@ const V2SceneStructureRenderer = ({
 }: {
   sceneNodes: V2TemplateSceneNode[];
 }) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
   const {
     data,
     globalData,
@@ -86,7 +86,7 @@ const V2SceneStructureRenderer = ({
     hoverHighlightTarget,
     activeHighlightTarget,
     isLayerHidden,
-  } = useV2TimeTableEditorRuntimeContext();
+  } = useTemplateEditorRuntimeContext();
   const { weekDates, profileText, imageSrc } = useTimeTableData();
   const layerTargetMap = useMemo(
     () => v2_collectLayerTargetById(renderConfig.structure.layers),
@@ -244,7 +244,7 @@ const V2SceneStructureRenderer = ({
     const isBackground = node.assetKey === "bgByTheme";
     const isGuideOverlay = node.assetKey === "guideByTheme";
 
-    const configuredAssetUrl = v2_getAssetUrlFromConfig({
+    const configuredAssetUrl = getAssetUrlFromConfig({
       renderConfig,
       key: node.assetKey,
       currentTheme,

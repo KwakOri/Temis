@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
+import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
   V2TemplateLayerIconKey,
@@ -113,14 +113,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   orderedIdsByParent,
   onReorderLayers,
 }) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
   const {
     activeHighlightTarget,
     setActiveHighlightTarget,
     setHoverHighlightTarget,
     isLayerHidden,
     toggleLayerHidden,
-  } = useV2TimeTableEditorRuntimeContext();
+  } = useTemplateEditorRuntimeContext();
   const layerTree = useMemo(
     () => renderConfig.structure.layers,
     [renderConfig.structure.layers]

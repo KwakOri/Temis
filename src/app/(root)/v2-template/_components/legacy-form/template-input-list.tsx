@@ -1,6 +1,6 @@
 import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
+import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import { TDefaultCard } from "@/types/time-table/data";
 import { getPlaceholders } from "@/utils/time-table/data";
 import { SizeProps } from "@/utils/utils";
@@ -30,9 +30,9 @@ const V2TimeTableInputList: React.FC<V2TimeTableInputListProps> = ({
   isOfflineMemo = false,
   size = "sm",
 }) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
   const { data, updateData, globalData, updateGlobalData } =
-    useV2TimeTableEditorRuntimeContext();
+    useTemplateEditorRuntimeContext();
   const inputSchema = renderConfig.formSchema;
 
   const placeholders = useMemo(

@@ -29,8 +29,8 @@ import {
 } from "lucide-react";
 
 import { useTimeTable } from "@/contexts/TimeTableContext";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
+import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
@@ -1540,7 +1540,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   focusStyleSection = null,
   focusStyleSectionNonce = 0,
 }) => {
-  const { renderConfig, setRenderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
   const {
     data,
     updateData,
@@ -1549,7 +1549,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     resetData,
     setHoverHighlightTarget,
     setActiveHighlightTarget,
-  } = useV2TimeTableEditorRuntimeContext();
+  } = useTemplateEditorRuntimeContext();
   const { actions } = useTimeTable();
 
   const [activeTab, setActiveTab] = useState<V2BuilderTab>("canvas");

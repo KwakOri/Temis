@@ -1,9 +1,9 @@
 import React from "react";
 
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import {
-  useV2TemplateRenderConfigContext,
-  v2_getAssetUrlFromConfig,
+  useTemplateRenderConfigContext,
+  getAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
@@ -163,9 +163,9 @@ const v2_getCardNodeTextValue = ({
 };
 
 const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.online;
-  const onlineUrl = v2_getAssetUrlFromConfig({
+  const onlineUrl = getAssetUrlFromConfig({
     renderConfig,
     key: "onlineByTheme",
     currentTheme: currentTheme || renderConfig.defaultTheme,
@@ -185,9 +185,9 @@ const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
 };
 
 const OfflineCardBG = ({ currentTheme }: OfflineCardProps) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.offline;
-  const offlineUrl = v2_getAssetUrlFromConfig({
+  const offlineUrl = getAssetUrlFromConfig({
     renderConfig,
     key: "offlineByTheme",
     currentTheme: currentTheme || renderConfig.defaultTheme,
@@ -212,9 +212,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   weekDate,
   currentTheme,
 }) => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
   const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden, globalData } =
-    useV2TimeTableEditorRuntimeContext();
+    useTemplateEditorRuntimeContext();
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const cardStructure = renderConfig.structure.card;
   const cardIsOffline = Boolean(time.isOffline);

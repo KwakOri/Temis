@@ -13,7 +13,7 @@ import {
   useContext,
 } from "react";
 
-export interface V2TemplateRenderConfigContextValue {
+export interface TemplateRenderConfigContextValue {
   templateId: string | null;
   source: "db" | "default";
   isLoading: boolean;
@@ -21,33 +21,35 @@ export interface V2TemplateRenderConfigContextValue {
   setRenderConfig?: Dispatch<SetStateAction<V2TemplateRenderConfig>>;
 }
 
-const V2TemplateRenderConfigContext =
-  createContext<V2TemplateRenderConfigContextValue | null>(null);
+export type V2TemplateRenderConfigContextValue = TemplateRenderConfigContextValue;
 
-export const V2TemplateRenderConfigProvider = ({
+const TemplateRenderConfigContext =
+  createContext<TemplateRenderConfigContextValue | null>(null);
+
+export const TemplateRenderConfigProvider = ({
   children,
   value,
-}: PropsWithChildren<{ value: V2TemplateRenderConfigContextValue }>) => {
+}: PropsWithChildren<{ value: TemplateRenderConfigContextValue }>) => {
   return (
-    <V2TemplateRenderConfigContext.Provider value={value}>
+    <TemplateRenderConfigContext.Provider value={value}>
       {children}
-    </V2TemplateRenderConfigContext.Provider>
+    </TemplateRenderConfigContext.Provider>
   );
 };
 
-export const useV2TemplateRenderConfigContext = () => {
-  const context = useContext(V2TemplateRenderConfigContext);
+export const useTemplateRenderConfigContext = () => {
+  const context = useContext(TemplateRenderConfigContext);
 
   if (!context) {
     throw new Error(
-      "useV2TemplateRenderConfigContext must be used within V2TemplateRenderConfigProvider"
+      "useTemplateRenderConfigContext must be used within TemplateRenderConfigProvider"
     );
   }
 
   return context;
 };
 
-export const v2_getAssetUrlFromConfig = ({
+export const getAssetUrlFromConfig = ({
   renderConfig,
   key,
   currentTheme,
@@ -62,3 +64,8 @@ export const v2_getAssetUrlFromConfig = ({
     renderConfig.defaultTheme
   );
 };
+
+// Backward-compatible aliases during migration.
+export const V2TemplateRenderConfigProvider = TemplateRenderConfigProvider;
+export const useV2TemplateRenderConfigContext = useTemplateRenderConfigContext;
+export const v2_getAssetUrlFromConfig = getAssetUrlFromConfig;

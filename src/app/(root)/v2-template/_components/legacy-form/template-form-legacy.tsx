@@ -3,8 +3,8 @@ import TimeTableProfileImageSelector from '@/components/TimeTable/TimeTableProfi
 import TextRenderer from '@/components/TimeTable/fieldRenderer/TextRenderer';
 import TextareaRenderer from '@/components/TimeTable/fieldRenderer/TextareaRenderer';
 import { useTimeTable } from '@/contexts/TimeTableContext';
-import { useV2TemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
-import { useV2TimeTableEditorRuntimeContext } from '@/contexts/v2/template-editor-runtime-context';
+import { useTemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
+import { useTemplateEditorRuntimeContext } from '@/contexts/v2/template-editor-runtime-context';
 import {
   useHasActiveTeam,
   useSaveTeamScheduleFromDynamicCards,
@@ -26,8 +26,8 @@ import V2TimeTableFormTabs from './template-form-tabs';
 import V2TimeTableInputList from './template-input-list';
 
 const V2TimeTableForm: React.FC = () => {
-  const { renderConfig } = useV2TemplateRenderConfigContext();
-  const { data, resetData } = useV2TimeTableEditorRuntimeContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
+  const { data, resetData } = useTemplateEditorRuntimeContext();
 
   const teamData = data;
   const saveable = true;

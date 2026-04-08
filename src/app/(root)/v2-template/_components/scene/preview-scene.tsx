@@ -1,8 +1,8 @@
 import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
-import { useV2TimeTableEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import {
-  useV2TemplateRenderConfigContext,
-  v2_getAssetUrlFromConfig,
+  useTemplateRenderConfigContext,
+  getAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
 import { V2TemplateSceneNode } from "@/types/time-table/template-render-config";
 import React from "react";
@@ -60,10 +60,10 @@ const v2_sceneHasVisibleAssetKey = ({
 };
 
 const V2TimeTableContent: React.FC = () => {
-  const { currentTheme, isLayerHidden, data } = useV2TimeTableEditorRuntimeContext();
+  const { currentTheme, isLayerHidden, data } = useTemplateEditorRuntimeContext();
   const { weekDates } = useTimeTableData();
   const { scale } = useTimeTableUI();
-  const { renderConfig } = useV2TemplateRenderConfigContext();
+  const { renderConfig } = useTemplateRenderConfigContext();
 
   if (weekDates.length === 0) return null;
   const firstCard = data[0] as { isOffline?: boolean } | undefined;
@@ -82,12 +82,12 @@ const V2TimeTableContent: React.FC = () => {
   });
 
   const backgroundImage =
-    v2_getAssetUrlFromConfig({
+    getAssetUrlFromConfig({
       renderConfig,
       key: "bgByTheme",
       currentTheme,
     });
-  const guideOverlayImage = v2_getAssetUrlFromConfig({
+  const guideOverlayImage = getAssetUrlFromConfig({
     renderConfig,
     key: "guideByTheme",
     currentTheme,

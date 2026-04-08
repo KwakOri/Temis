@@ -1,11 +1,11 @@
 "use client";
 
-import { useV2TemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
+import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import { v2_buildFontFaceStyleText } from "@/utils/time-table/template-render-config";
 import { useMemo } from "react";
 
 const V2TemplateFontFaceStyle = () => {
-  const { renderConfig, templateId } = useV2TemplateRenderConfigContext();
+  const { renderConfig, templateId } = useTemplateRenderConfigContext();
 
   const styleText = useMemo(() => {
     return v2_buildFontFaceStyleText(renderConfig);
