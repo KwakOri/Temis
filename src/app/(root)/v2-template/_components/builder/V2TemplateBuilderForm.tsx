@@ -2101,6 +2101,13 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     () => v2_collectSceneNodesByLayerId(renderConfig.structure.sceneNodes),
     [renderConfig.structure.sceneNodes]
   );
+  const sceneStyleSectionKeySet = useMemo(() => {
+    const next = new Set<string>();
+    renderConfig.structure.sceneNodes.forEach((node) => {
+      v2_collectSceneNodeStyleKeys(node).forEach((key) => next.add(key));
+    });
+    return next;
+  }, [renderConfig.structure.sceneNodes]);
   const bindableCardNodeLabels = useMemo(() => {
     return renderConfig.structure.card.nodeOrder
       .map((nodeId) => renderConfig.structure.card.nodes[nodeId])
@@ -2826,9 +2833,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       );
     }
 
-    const dynamicCardSection = renderConfig.layout.card[section];
-    if (dynamicCardSection && typeof dynamicCardSection === "object") {
-      return dynamicCardSection as Record<string, string | number>;
+    const dynamicSectionSource = sceneStyleSectionKeySet.has(section)
+      ? renderConfig.layout.scene[section]
+      : renderConfig.layout.card[section];
+    if (dynamicSectionSource && typeof dynamicSectionSource === "object") {
+      return dynamicSectionSource as Record<string, string | number>;
     }
 
     return {};
@@ -2891,6 +2900,19 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             card: {
               ...prev.layout.card,
               [cardLayoutKey]: nextMap,
+            },
+          },
+        };
+      }
+
+      if (sceneStyleSectionKeySet.has(section)) {
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            scene: {
+              ...prev.layout.scene,
+              [section]: nextMap,
             },
           },
         };
@@ -3511,9 +3533,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   ): {
     sceneNode: V2TemplateSceneNode;
     layerNode: V2TemplateLayerNode;
-    dynamicCardLayoutPatch: Record<
+    dynamicSceneLayoutPatch: Record<
       string,
-      NonNullable<V2TemplateRenderConfig["layout"]["card"][string]>
+      NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>
     >;
   } => {
     const existingSceneNodeIds = v2_collectSceneNodeIds(prev.structure.sceneNodes);
@@ -3547,7 +3569,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           visibilityMode: "always",
           children: [],
         },
-        dynamicCardLayoutPatch: {},
+        dynamicSceneLayoutPatch: {},
       };
     }
 
@@ -3569,7 +3591,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           target: `sceneNode:${baseSceneNodeId}`,
           visibilityMode: "always",
         },
-        dynamicCardLayoutPatch: {},
+        dynamicSceneLayoutPatch: {},
       };
     }
 
@@ -3596,7 +3618,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           sectionKey: styleKey,
           visibilityMode: "always",
         },
-        dynamicCardLayoutPatch: {
+        dynamicSceneLayoutPatch: {
           [styleKey]: {
             position: "absolute",
             top: 0,
@@ -3639,7 +3661,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           sectionKey: containerStyleKey,
           visibilityMode: "always",
         },
-        dynamicCardLayoutPatch: {
+        dynamicSceneLayoutPatch: {
           [containerStyleKey]: {
             position: "absolute",
             top: 0,
@@ -3691,7 +3713,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         sectionKey: containerStyleKey,
         visibilityMode: "always",
       },
-      dynamicCardLayoutPatch: {
+      dynamicSceneLayoutPatch: {
         [containerStyleKey]: {
           position: "absolute",
           top: 0,
@@ -3738,7 +3760,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       if (!anchorContext) return prev;
 
       const payload = createCustomSceneNodePayload(prev, kind);
-      const { sceneNode, layerNode, dynamicCardLayoutPatch } = payload;
+      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
       const { nodes: nextSceneNodes, updated: sceneUpdated } =
@@ -3778,9 +3800,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         ...prev,
         layout: {
           ...prev.layout,
-          card: {
-            ...prev.layout.card,
-            ...dynamicCardLayoutPatch,
+          scene: {
+            ...prev.layout.scene,
+            ...dynamicSceneLayoutPatch,
           },
         },
         structure: {
@@ -3818,7 +3840,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       if (!parentContext || parentContext.node.kind !== "group") return prev;
 
       const payload = createCustomSceneNodePayload(prev, kind);
-      const { sceneNode, layerNode, dynamicCardLayoutPatch } = payload;
+      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
       const { nodes: nextSceneNodes, updated: sceneUpdated } =
@@ -3840,9 +3862,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         ...prev,
         layout: {
           ...prev.layout,
-          card: {
-            ...prev.layout.card,
-            ...dynamicCardLayoutPatch,
+          scene: {
+            ...prev.layout.scene,
+            ...dynamicSceneLayoutPatch,
           },
         },
         structure: {
@@ -3986,12 +4008,12 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       if (!sceneUpdated) return prev;
 
       const styleKeysToDelete = v2_collectSceneNodeStyleKeys(targetContext.node);
-      const nextCardLayout = {
-        ...prev.layout.card,
+      const nextSceneLayout = {
+        ...prev.layout.scene,
       };
       styleKeysToDelete.forEach((styleKey) => {
-        if (styleKey in nextCardLayout) {
-          delete nextCardLayout[styleKey];
+        if (styleKey in nextSceneLayout) {
+          delete nextSceneLayout[styleKey];
         }
       });
 
@@ -4016,7 +4038,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         ...prev,
         layout: {
           ...prev.layout,
-          card: nextCardLayout,
+          scene: nextSceneLayout,
         },
         structure: {
           ...prev.structure,

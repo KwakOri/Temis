@@ -24,7 +24,7 @@ import V2TimeTablePreview from './V2TimeTablePreview';
 
 const v2_ROOT_LAYER_PARENT_ID = '__root__' as const;
 type V2LayoutShape = V2TemplateRenderConfig['layout'];
-type V2RootLayoutStyleKey = keyof Omit<V2LayoutShape, 'card'>;
+type V2RootLayoutStyleKey = keyof Omit<V2LayoutShape, 'card' | 'scene'>;
 type V2CardLayoutStyleKey = keyof V2LayoutShape['card'];
 type V2SectionStyleResolver =
   | {

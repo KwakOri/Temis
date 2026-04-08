@@ -419,6 +419,7 @@ const TimeTableTemplatePage = () => {
             alignItems: 'center',
           },
         },
+        scene: {},
       },
       structure: v2_createDefaultTemplateRenderConfig().structure,
     },

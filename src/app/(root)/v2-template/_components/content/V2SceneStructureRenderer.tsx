@@ -106,12 +106,16 @@ const V2SceneStructureRenderer = ({
 
   const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const sceneLayoutRecord = renderConfig.layout.scene as Record<string, unknown>;
   const firstCard = data[0] as Record<string, unknown> | undefined;
   const firstEntry = (firstCard?.entries as Record<string, unknown>[] | undefined)?.[0];
   const firstCardOffline = Boolean(firstCard?.isOffline);
 
   const resolveStyleRecordByKey = (key?: string): unknown => {
     if (!key) return {};
+    if (sceneLayoutRecord[key] && typeof sceneLayoutRecord[key] === "object") {
+      return sceneLayoutRecord[key];
+    }
     if (cardLayoutRecord[key] && typeof cardLayoutRecord[key] === "object") {
       return cardLayoutRecord[key];
     }

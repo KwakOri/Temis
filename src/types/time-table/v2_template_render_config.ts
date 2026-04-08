@@ -335,6 +335,9 @@ export interface V2TemplateLayoutConfig {
     mainTitleWrapperStyle?: V2TemplateStyleRecord;
     [key: string]: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined;
   };
+  scene: {
+    [key: string]: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined;
+  };
 }
 
 export interface V2TemplateRenderConfig {

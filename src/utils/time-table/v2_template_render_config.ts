@@ -2,6 +2,7 @@ import { CardInputConfig, SimpleFieldConfig } from "@/types/time-table/data";
 import {
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
+  V2TemplateAutoResizeOptions,
   V2TemplateCardNode,
   V2TemplateCardInstanceTransform,
   V2TemplateCardNodeBinding,
@@ -891,6 +892,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
         alignItems: "center",
       },
     },
+    scene: {},
   },
   structure: v2_DEFAULT_STRUCTURE,
 };
@@ -965,6 +967,66 @@ const v2_mergeStyleRecord = (
     (base ?? {}) as Record<string, string | number>,
     candidate
   ) as V2TemplateStyleRecord;
+};
+
+const v2_mergeSceneLayoutEntry = (
+  base: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined,
+  candidate: unknown
+): V2TemplateStyleRecord | V2TemplateAutoResizeOptions => {
+  const mergedStyle = v2_mergeCssPropertiesRecord(
+    (base ?? {}) as Record<string, string | number>,
+    candidate
+  );
+
+  if (!v2_isRecord(candidate)) {
+    return mergedStyle as V2TemplateStyleRecord;
+  }
+
+  const maxFontSize = v2_asOptionalNumber(candidate.maxFontSize);
+  const multiline = v2_asOptionalBoolean(candidate.multiline);
+
+  if (maxFontSize === undefined && multiline === undefined) {
+    return mergedStyle as V2TemplateStyleRecord;
+  }
+
+  const next: V2TemplateAutoResizeOptions & Record<string, string | number> = {
+    ...(base as Record<string, string | number> | undefined),
+    ...mergedStyle,
+  };
+  if (maxFontSize !== undefined) {
+    next.maxFontSize = maxFontSize;
+  }
+  if (multiline !== undefined) {
+    next.multiline = multiline;
+  }
+  return next;
+};
+
+const v2_collectSceneLayoutKeys = (
+  nodes: V2TemplateSceneNode[]
+): Set<string> => {
+  const next = new Set<string>();
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    if (node.kind === "group") {
+      stack.unshift(...node.children);
+      continue;
+    }
+    if (node.kind === "asset") {
+      if (node.styleKey) next.add(node.styleKey);
+      continue;
+    }
+    if (node.kind === "cardCollection") {
+      continue;
+    }
+    next.add(node.containerStyleKey);
+    if (node.textStyleKey) next.add(node.textStyleKey);
+    if (node.wrapperStyleKey) next.add(node.wrapperStyleKey);
+    if (node.optionsKey) next.add(node.optionsKey);
+  }
+  return next;
 };
 
 const v2_LAYER_ICON_KEY_SET = new Set([
@@ -2328,6 +2390,15 @@ export const v2_normalizeTemplateRenderConfig = (
       normalized.layout.profileTextArtistImageStyle,
       layout.profileTextArtistImageStyle
     );
+    const sceneLayoutSource = v2_isRecord(layout.scene) ? layout.scene : null;
+    if (sceneLayoutSource) {
+      Object.entries(sceneLayoutSource).forEach(([styleKey, candidate]) => {
+        normalized.layout.scene[styleKey] = v2_mergeSceneLayoutEntry(
+          normalized.layout.scene[styleKey],
+          candidate
+        );
+      });
+    }
 
     const cardLayoutSource = v2_isRecord(layout.card)
       ? layout.card
@@ -2428,6 +2499,19 @@ export const v2_normalizeTemplateRenderConfig = (
     raw.structure,
     normalized.structure
   );
+
+  const sceneLayoutKeys = v2_collectSceneLayoutKeys(normalized.structure.sceneNodes);
+  sceneLayoutKeys.forEach((styleKey) => {
+    if (!styleKey.startsWith("sceneNode:")) return;
+    const legacyCardEntry = normalized.layout.card[styleKey];
+    if (!legacyCardEntry || typeof legacyCardEntry !== "object") return;
+
+    normalized.layout.scene[styleKey] = v2_mergeSceneLayoutEntry(
+      normalized.layout.scene[styleKey],
+      legacyCardEntry
+    );
+    delete normalized.layout.card[styleKey];
+  });
 
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
