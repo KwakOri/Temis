@@ -182,9 +182,67 @@ export type V2TemplateCardStyleKey = string;
 
 export type V2TemplateCardOptionsKey = string;
 
+export type V2TemplateSceneStyleKey = string;
+
 export type V2TemplateCardNodeKind = "text" | "flexibleText";
 
 export type V2TemplateCardNodeBinding = V2TemplateNodeBindingRef;
+
+export type V2TemplateSceneNodeKind =
+  | "group"
+  | "asset"
+  | "text"
+  | "flexibleText"
+  | "cardCollection";
+
+export type V2TemplateSceneAssetFit = "cover" | "contain" | "fill";
+
+export interface V2TemplateSceneNodeBase {
+  id: string;
+  label: string;
+  kind: V2TemplateSceneNodeKind;
+  layerId?: string;
+  visibilityMode?: V2TemplateVisibilityMode;
+}
+
+export interface V2TemplateSceneGroupNode extends V2TemplateSceneNodeBase {
+  kind: "group";
+  children: V2TemplateSceneNode[];
+}
+
+export interface V2TemplateSceneAssetNode extends V2TemplateSceneNodeBase {
+  kind: "asset";
+  assetKey: keyof V2TemplateAssetMap;
+  styleKey?: V2TemplateSceneStyleKey;
+  fit?: V2TemplateSceneAssetFit;
+  alt?: string;
+}
+
+export interface V2TemplateSceneTextNode extends V2TemplateSceneNodeBase {
+  kind: "text" | "flexibleText";
+  binding: V2TemplateNodeBindingRef;
+  containerStyleKey: V2TemplateSceneStyleKey;
+  textStyleKey?: V2TemplateSceneStyleKey;
+  wrapperStyleKey?: V2TemplateSceneStyleKey;
+  optionsKey?: V2TemplateCardOptionsKey;
+  colorKey: V2TemplateColorKey;
+  fontKey: V2TemplateFontKey;
+  highlightTarget?: V2TemplateHighlightTarget;
+  containerClassName?: string;
+  textClassName?: string;
+}
+
+export interface V2TemplateSceneCardCollectionNode
+  extends V2TemplateSceneNodeBase {
+  kind: "cardCollection";
+  source: "card";
+}
+
+export type V2TemplateSceneNode =
+  | V2TemplateSceneGroupNode
+  | V2TemplateSceneAssetNode
+  | V2TemplateSceneTextNode
+  | V2TemplateSceneCardCollectionNode;
 
 export interface V2TemplateFormField {
   key: string;
@@ -247,6 +305,7 @@ export interface V2TemplateCardStructure {
 export interface V2TemplateStructureConfig {
   layers: V2TemplateLayerNode[];
   card: V2TemplateCardStructure;
+  sceneNodes: V2TemplateSceneNode[];
 }
 
 export interface V2TemplateLayoutConfig {

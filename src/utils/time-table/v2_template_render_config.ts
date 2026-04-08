@@ -24,6 +24,10 @@ import {
   V2TemplateLayerNode,
   V2TemplateStructureConfig,
   V2TemplateRenderConfig,
+  V2TemplateSceneAssetFit,
+  V2TemplateSceneNode,
+  V2TemplateSceneNodeKind,
+  V2TemplateSceneStyleKey,
   V2TemplateStyleRecord,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/v2_template_render_config";
@@ -71,6 +75,18 @@ const v2_COMPUTED_BINDING_KEYS = [
 const v2_COMPUTED_BINDING_KEY_SET = new Set(v2_COMPUTED_BINDING_KEYS);
 
 const v2_FIELD_SCOPE_SET = new Set(["entry", "card", "global"]);
+
+const v2_ASSET_KEYS = [
+  "bgByTheme",
+  "topObjectByTheme",
+  "onlineByTheme",
+  "offlineByTheme",
+  "profileFrameByTheme",
+  "profileBgByTheme",
+  "guideByTheme",
+] as const;
+
+const v2_ASSET_KEY_SET = new Set<string>(v2_ASSET_KEYS);
 
 const v2_createFormSchemaFromCardInputConfig = (
   cardInputConfig: CardInputConfig
@@ -434,9 +450,116 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
   },
 };
 
+const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
+  {
+    id: "scene-background",
+    label: "Background",
+    kind: "asset",
+    assetKey: "bgByTheme",
+    fit: "cover",
+    alt: "background",
+    visibilityMode: "always",
+  },
+  {
+    id: "scene-top-object",
+    label: "TopObject",
+    kind: "asset",
+    layerId: "top-object",
+    assetKey: "topObjectByTheme",
+    styleKey: "topObjectContainer",
+    fit: "fill",
+    alt: "top-object",
+    visibilityMode: "always",
+  },
+  {
+    id: "scene-grid",
+    label: "Grid",
+    kind: "cardCollection",
+    layerId: "grid",
+    source: "card",
+    visibilityMode: "always",
+  },
+  {
+    id: "scene-week-flag",
+    label: "WeekFlag",
+    kind: "text",
+    layerId: "week-flag",
+    binding: {
+      mode: "literal",
+      value: "",
+    },
+    containerStyleKey: "weekFlag",
+    colorKey: "WEEKLY_FLAG",
+    fontKey: "WEEKLY_FLAG",
+    highlightTarget: "weekFlag",
+    containerClassName: "absolute flex justify-center items-center z-40",
+    visibilityMode: "always",
+  },
+  {
+    id: "scene-profile",
+    label: "Profile",
+    kind: "group",
+    layerId: "profile",
+    visibilityMode: "always",
+    children: [
+      {
+        id: "scene-profile-image",
+        label: "ProfileImage",
+        kind: "asset",
+        layerId: "profile-image",
+        assetKey: "profileBgByTheme",
+        styleKey: "profileImage",
+        fit: "cover",
+        alt: "profile",
+        visibilityMode: "always",
+      },
+      {
+        id: "scene-profile-frame",
+        label: "ProfileFrame",
+        kind: "asset",
+        layerId: "profile-frame",
+        assetKey: "profileFrameByTheme",
+        styleKey: "profileFrame",
+        fit: "fill",
+        alt: "profile-frame",
+        visibilityMode: "always",
+      },
+      {
+        id: "scene-profile-text",
+        label: "ProfileText",
+        kind: "flexibleText",
+        layerId: "profile-text",
+        binding: {
+          mode: "field",
+          scope: "global",
+          key: "profileText",
+        },
+        containerStyleKey: "profileTextRootStyle",
+        wrapperStyleKey: "profileTextWrapperStyle",
+        textStyleKey: "profileTextStyle",
+        colorKey: "ARTIST",
+        fontKey: "ARTIST",
+        containerClassName: "absolute z-50 flex justify-end items-center",
+        textClassName: "text-center",
+        visibilityMode: "always",
+      },
+    ],
+  },
+  {
+    id: "scene-guide-overlay",
+    label: "GuideOverlay",
+    kind: "asset",
+    assetKey: "guideByTheme",
+    fit: "cover",
+    alt: "guide-overlay",
+    visibilityMode: "always",
+  },
+];
+
 const v2_DEFAULT_STRUCTURE: V2TemplateStructureConfig = {
   layers: v2_DEFAULT_LAYER_TREE,
   card: v2_DEFAULT_CARD_STRUCTURE,
+  sceneNodes: v2_DEFAULT_SCENE_NODES,
 };
 
 const v2_DEFAULT_ESCRODREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
@@ -880,6 +1003,16 @@ const v2_CARD_NODE_KIND_SET = new Set([
   "autoResizeText",
 ]);
 
+const v2_SCENE_NODE_KIND_SET = new Set([
+  "group",
+  "asset",
+  "text",
+  "flexibleText",
+  "cardCollection",
+]);
+
+const v2_SCENE_ASSET_FIT_SET = new Set(["cover", "contain", "fill"]);
+
 const v2_isNonEmptyString = (value: unknown): value is string => {
   return typeof value === "string" && value.trim().length > 0;
 };
@@ -891,6 +1024,12 @@ const v2_isCardStyleKey = (value: unknown): value is V2TemplateCardStyleKey => {
 const v2_isCardOptionsKey = (
   value: unknown
 ): value is V2TemplateCardOptionsKey => {
+  return v2_isNonEmptyString(value);
+};
+
+const v2_isSceneStyleKey = (
+  value: unknown
+): value is V2TemplateSceneStyleKey => {
   return v2_isNonEmptyString(value);
 };
 
@@ -1320,6 +1459,222 @@ const v2_normalizeCardStructure = (
   };
 };
 
+const v2_normalizeSceneNode = (
+  candidate: unknown,
+  fallback?: V2TemplateSceneNode
+): V2TemplateSceneNode | null => {
+  if (!v2_isRecord(candidate) && !fallback) return null;
+  const candidateRecord = v2_isRecord(candidate) ? candidate : {};
+
+  const inferredKind: V2TemplateSceneNodeKind | undefined = (() => {
+    if (
+      typeof candidateRecord.kind === "string" &&
+      v2_SCENE_NODE_KIND_SET.has(candidateRecord.kind)
+    ) {
+      return candidateRecord.kind as V2TemplateSceneNodeKind;
+    }
+    if (fallback) return fallback.kind;
+    if (Array.isArray(candidateRecord.children)) return "group";
+    if (
+      typeof candidateRecord.assetKey === "string" &&
+      v2_ASSET_KEY_SET.has(candidateRecord.assetKey)
+    ) {
+      return "asset";
+    }
+    if (candidateRecord.source === "card") return "cardCollection";
+    if (candidateRecord.binding !== undefined) return "text";
+    return undefined;
+  })();
+
+  if (!inferredKind) return null;
+
+  const id = v2_asString(candidateRecord.id, fallback?.id ?? "").trim();
+  if (!id) return null;
+
+  const base = {
+    id,
+    label: v2_asString(candidateRecord.label, fallback?.label ?? id),
+    kind: inferredKind,
+    ...(typeof candidateRecord.layerId === "string"
+      ? { layerId: candidateRecord.layerId }
+      : fallback?.layerId
+        ? { layerId: fallback.layerId }
+        : {}),
+    ...(typeof candidateRecord.visibilityMode === "string" &&
+    v2_VISIBILITY_MODE_SET.has(candidateRecord.visibilityMode)
+      ? { visibilityMode: candidateRecord.visibilityMode as V2TemplateVisibilityMode }
+      : fallback?.visibilityMode
+        ? { visibilityMode: fallback.visibilityMode }
+        : {}),
+  } as const;
+
+  if (inferredKind === "group") {
+    const fallbackChildren =
+      fallback?.kind === "group" ? fallback.children : [];
+    const fallbackById = new Map<string, V2TemplateSceneNode>();
+    fallbackChildren.forEach((child) => {
+      fallbackById.set(child.id, child);
+    });
+
+    const parsedChildren = Array.isArray(candidateRecord.children)
+      ? candidateRecord.children
+          .map((child) => {
+            const childRecord = v2_isRecord(child) ? child : null;
+            const fallbackChild =
+              childRecord && typeof childRecord.id === "string"
+                ? fallbackById.get(childRecord.id)
+                : undefined;
+            return v2_normalizeSceneNode(child, fallbackChild);
+          })
+          .filter((child): child is V2TemplateSceneNode => child !== null)
+      : fallbackChildren;
+
+    return {
+      ...base,
+      kind: "group",
+      children: parsedChildren,
+    };
+  }
+
+  if (inferredKind === "asset") {
+    const fallbackAssetKey =
+      fallback?.kind === "asset" ? fallback.assetKey : undefined;
+    const assetKeyRaw = v2_asString(
+      candidateRecord.assetKey,
+      fallbackAssetKey ?? ""
+    );
+    if (!v2_ASSET_KEY_SET.has(assetKeyRaw)) return null;
+
+    const fitRaw = v2_asString(
+      candidateRecord.fit,
+      fallback?.kind === "asset" ? fallback.fit ?? "" : ""
+    );
+    const fit = v2_SCENE_ASSET_FIT_SET.has(fitRaw)
+      ? (fitRaw as V2TemplateSceneAssetFit)
+      : undefined;
+    const styleKey = v2_isSceneStyleKey(candidateRecord.styleKey)
+      ? candidateRecord.styleKey
+      : fallback?.kind === "asset"
+        ? fallback.styleKey
+        : undefined;
+    const alt = v2_asString(
+      candidateRecord.alt,
+      fallback?.kind === "asset" ? fallback.alt ?? "" : ""
+    );
+
+    return {
+      ...base,
+      kind: "asset",
+      assetKey: assetKeyRaw as keyof V2TemplateRenderConfig["assets"],
+      ...(styleKey ? { styleKey } : {}),
+      ...(fit ? { fit } : {}),
+      ...(alt ? { alt } : {}),
+    };
+  }
+
+  if (inferredKind === "cardCollection") {
+    const source = candidateRecord.source === "card" ? "card" : "card";
+    return {
+      ...base,
+      kind: "cardCollection",
+      source,
+    };
+  }
+
+  const fallbackTextNode =
+    fallback?.kind === "text" || fallback?.kind === "flexibleText"
+      ? fallback
+      : undefined;
+  const binding = v2_normalizeBindingRef(candidateRecord.binding, {
+    mode: "literal",
+    value: "",
+  });
+  const colorKey =
+    typeof candidateRecord.colorKey === "string" &&
+    (v2_TEMPLATE_COLOR_KEYS as readonly string[]).includes(
+      candidateRecord.colorKey
+    )
+      ? (candidateRecord.colorKey as V2TemplateColorKey)
+      : fallbackTextNode?.colorKey ?? "SUB_TITLE";
+  const fontKey =
+    typeof candidateRecord.fontKey === "string" &&
+    (v2_TEMPLATE_COLOR_KEYS as readonly string[]).includes(
+      candidateRecord.fontKey
+    )
+      ? (candidateRecord.fontKey as V2TemplateColorKey)
+      : fallbackTextNode?.fontKey ?? "SUB_TITLE";
+  const containerStyleKey = v2_asString(
+    candidateRecord.containerStyleKey,
+    fallbackTextNode?.containerStyleKey ?? ""
+  ).trim();
+
+  if (!containerStyleKey) return null;
+
+  return {
+    ...base,
+    kind: inferredKind === "flexibleText" ? "flexibleText" : "text",
+    binding,
+    containerStyleKey,
+    ...(v2_isSceneStyleKey(candidateRecord.textStyleKey)
+      ? { textStyleKey: candidateRecord.textStyleKey }
+      : fallbackTextNode?.textStyleKey
+        ? { textStyleKey: fallbackTextNode.textStyleKey }
+        : {}),
+    ...(v2_isSceneStyleKey(candidateRecord.wrapperStyleKey)
+      ? { wrapperStyleKey: candidateRecord.wrapperStyleKey }
+      : fallbackTextNode?.wrapperStyleKey
+        ? { wrapperStyleKey: fallbackTextNode.wrapperStyleKey }
+        : {}),
+    ...(v2_isCardOptionsKey(candidateRecord.optionsKey)
+      ? { optionsKey: candidateRecord.optionsKey }
+      : fallbackTextNode?.optionsKey
+        ? { optionsKey: fallbackTextNode.optionsKey }
+        : {}),
+    ...(typeof candidateRecord.highlightTarget === "string"
+      ? { highlightTarget: candidateRecord.highlightTarget }
+      : fallbackTextNode?.highlightTarget
+        ? { highlightTarget: fallbackTextNode.highlightTarget }
+        : {}),
+    colorKey,
+    fontKey,
+    ...(typeof candidateRecord.containerClassName === "string"
+      ? { containerClassName: candidateRecord.containerClassName }
+      : fallbackTextNode?.containerClassName
+        ? { containerClassName: fallbackTextNode.containerClassName }
+        : {}),
+    ...(typeof candidateRecord.textClassName === "string"
+      ? { textClassName: candidateRecord.textClassName }
+      : fallbackTextNode?.textClassName
+        ? { textClassName: fallbackTextNode.textClassName }
+        : {}),
+  };
+};
+
+const v2_normalizeSceneNodes = (
+  candidate: unknown,
+  fallback: V2TemplateSceneNode[]
+): V2TemplateSceneNode[] => {
+  if (!Array.isArray(candidate)) return fallback;
+
+  const fallbackById = new Map<string, V2TemplateSceneNode>();
+  fallback.forEach((node) => {
+    fallbackById.set(node.id, node);
+  });
+
+  const parsed = candidate
+    .map((rawNode) => {
+      const nodeRecord = v2_isRecord(rawNode) ? rawNode : null;
+      const fallbackNode =
+        nodeRecord && typeof nodeRecord.id === "string"
+          ? fallbackById.get(nodeRecord.id)
+          : undefined;
+      return v2_normalizeSceneNode(rawNode, fallbackNode);
+    })
+    .filter((node): node is V2TemplateSceneNode => node !== null);
+
+  return parsed.length > 0 ? parsed : fallback;
+};
+
 const v2_normalizeStructure = (
   candidate: unknown,
   fallback: V2TemplateStructureConfig
@@ -1329,6 +1684,7 @@ const v2_normalizeStructure = (
   return {
     layers: v2_normalizeLayerTree(candidate.layers, fallback.layers),
     card: v2_normalizeCardStructure(candidate.card, fallback.card),
+    sceneNodes: v2_normalizeSceneNodes(candidate.sceneNodes, fallback.sceneNodes),
   };
 };
 
