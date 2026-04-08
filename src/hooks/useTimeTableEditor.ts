@@ -10,45 +10,31 @@ import { useTimeTablePersistence } from "./useTimeTablePersistence";
 import { useTimeTableState } from "./useTimeTableState";
 import { useTimeTableTheme } from "./useTimeTableTheme";
 
-type UseTimeTableEditorSchemaInput =
-  | {
-      inputSchema: CardInputConfig;
-      cardInputConfig?: never;
-    }
-  | {
-      cardInputConfig: CardInputConfig;
-      inputSchema?: never;
-    };
-
-type UseTimeTableEditorOptions = {
-  defaultTheme?: TTheme;
-  autoSaveDelay?: number;
-  captureSize?: { width: number; height: number };
-};
-
 /**
  * TimeTableEditor의 모든 상태와 로직을 통합 관리하는 메인 훅
- * inputSchema(CardInputConfig)를 받아서 다른 모든 훅에 전파하는 방식
+ * CardInputConfig를 받아서 다른 모든 훅에 전파하는 방식
  *
  * 이 훅은 다음과 같은 관심사를 분리하여 관리합니다:
  * - 전역 상태 (useTimeTableState)
- * - 데이터 상태 (useTimeTableData) - inputSchema 기반
+ * - 데이터 상태 (useTimeTableData) - CardInputConfig 기반
  * - 테마 상태 (useTimeTableTheme)
  * - 지속성 관리 (useTimeTablePersistence)
  */
 export const useTimeTableEditor = ({
-  inputSchema,
   cardInputConfig,
   defaultTheme = "first" as TTheme,
   autoSaveDelay = 1000,
   captureSize,
-}: UseTimeTableEditorSchemaInput & UseTimeTableEditorOptions) => {
-  const resolvedInputSchema = inputSchema ?? cardInputConfig;
-
+}: {
+  cardInputConfig: CardInputConfig;
+  defaultTheme?: TTheme;
+  autoSaveDelay?: number;
+  captureSize?: { width: number; height: number };
+}) => {
   // 전역 상태 (Context에서 관리)
   const { state, actions } = useTimeTableState(captureSize);
 
-  // 개별 상태 관리 훅들 (inputSchema 전파)
+  // 개별 상태 관리 훅들 (CardInputConfig 전파)
   const {
     data,
     globalData,
@@ -59,18 +45,18 @@ export const useTimeTableEditor = ({
     toggleOffline,
     resetData,
     resetCard,
-  } = useTimeTableData({ cardInputConfig: resolvedInputSchema });
+  } = useTimeTableData({ cardInputConfig });
 
   const { currentTheme, updateTheme, handleThemeChange, resetTheme } =
     useTimeTableTheme(defaultTheme);
 
-  // 데이터 지속성 관리 (inputSchema 포함)
+  // 데이터 지속성 관리 (CardInputConfig 포함)
   const { saveData, loadPersistedData, clearAllData, autoSave } =
     useTimeTablePersistence(
       data,
       globalData,
       currentTheme,
-      resolvedInputSchema,
+      cardInputConfig,
       defaultTheme,
       autoSaveDelay
     );
@@ -83,35 +69,27 @@ export const useTimeTableEditor = ({
       const persistedData = loadPersistedData();
 
       if (persistedData && persistedData.data) {
-        // inputSchema가 일치하는지 확인
+        // CardInputConfig가 일치하는지 확인
         const configMatches =
           persistedData.cardInputConfig &&
           JSON.stringify(persistedData.cardInputConfig) ===
-            JSON.stringify(resolvedInputSchema);
+            JSON.stringify(cardInputConfig);
 
         if (configMatches) {
           // 설정이 일치하면 저장된 데이터 복원
           updateData(persistedData.data);
           updateGlobalData(
             persistedData.globalData ??
-              createInitialGlobalDataFromConfig({
-                cardInputConfig: resolvedInputSchema,
-              })
+              createInitialGlobalDataFromConfig({ cardInputConfig })
           );
           if (persistedData.theme) {
             updateTheme(persistedData.theme);
           }
         } else {
           // 설정이 다르면 새로운 기본값으로 초기화
-          const newDefaultCards = getDefaultCards({
-            cardInputConfig: resolvedInputSchema,
-          });
+          const newDefaultCards = getDefaultCards({ cardInputConfig });
           updateData(newDefaultCards);
-          updateGlobalData(
-            createInitialGlobalDataFromConfig({
-              cardInputConfig: resolvedInputSchema,
-            })
-          );
+          updateGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
         }
       }
 
@@ -123,7 +101,7 @@ export const useTimeTableEditor = ({
     updateData,
     updateGlobalData,
     updateTheme,
-    resolvedInputSchema,
+    cardInputConfig,
   ]);
 
   // 통합된 리셋 함수 (모든 상태를 한 번에 리셋)
@@ -166,8 +144,7 @@ export const useTimeTableEditor = ({
     resetAll,
 
     // 설정 정보
-    inputSchema: resolvedInputSchema,
-    cardInputConfig: resolvedInputSchema,
+    cardInputConfig,
     captureSize,
     isInitialized,
   };

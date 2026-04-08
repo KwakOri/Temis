@@ -247,7 +247,7 @@ const V2TimeTableEditor: React.FC = () => {
     resetData,
     isInitialized,
   } = useTimeTableEditor({
-    inputSchema,
+    cardInputConfig: inputSchema,
     defaultTheme,
     captureSize,
   });
