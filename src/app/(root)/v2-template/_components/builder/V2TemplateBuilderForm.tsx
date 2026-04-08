@@ -1455,6 +1455,42 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
     return map;
   }, [renderConfig.structure.card.nodes]);
+  const formSchemaDiagnostics = useMemo(() => {
+    const fields = renderConfig.formSchema.fields;
+    const fieldIdSet = new Set(
+      fields.map((field) => `${field.scope}:${field.key}`)
+    );
+    const fieldUsageMap = new Map<string, number>();
+    fields.forEach((field) => {
+      fieldUsageMap.set(`${field.scope}:${field.key}`, 0);
+    });
+
+    const missingBindings: Array<{ nodeLabel: string; scope: string; key: string }> = [];
+    Object.values(renderConfig.structure.card.nodes).forEach((node) => {
+      if (node.binding.mode !== "field") return;
+      const fieldId = `${node.binding.scope}:${node.binding.key}`;
+      if (!fieldIdSet.has(fieldId)) {
+        missingBindings.push({
+          nodeLabel: node.label,
+          scope: node.binding.scope,
+          key: node.binding.key,
+        });
+        return;
+      }
+      fieldUsageMap.set(fieldId, (fieldUsageMap.get(fieldId) ?? 0) + 1);
+    });
+
+    const unusedFields = fields.filter((field) => {
+      const fieldId = `${field.scope}:${field.key}`;
+      return (fieldUsageMap.get(fieldId) ?? 0) === 0;
+    });
+
+    return {
+      totalFields: fields.length,
+      missingBindings,
+      unusedFields,
+    };
+  }, [renderConfig.formSchema.fields, renderConfig.structure.card.nodes]);
 
   useEffect(() => {
     if (activeTab !== "style" && activeTab !== "properties") {
@@ -3765,6 +3801,23 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           {formSchemaError}
         </div>
       ) : null}
+      <div className="rounded border border-[#3a3d44] bg-[#1a1c20] px-2 py-1.5 text-xs text-gray-300 space-y-1">
+        <p>
+          총 필드: {formSchemaDiagnostics.totalFields}개 / 미사용 필드:{" "}
+          {formSchemaDiagnostics.unusedFields.length}개
+        </p>
+        {formSchemaDiagnostics.missingBindings.length > 0 ? (
+          <p className="text-red-300">
+            누락 바인딩 {formSchemaDiagnostics.missingBindings.length}개 (
+            {formSchemaDiagnostics.missingBindings
+              .map((binding) => `${binding.nodeLabel} -> ${binding.scope}.${binding.key}`)
+              .join(", ")}
+            )
+          </p>
+        ) : (
+          <p className="text-emerald-300">누락된 바인딩 없음</p>
+        )}
+      </div>
 
       <div className="space-y-2">
         {renderConfig.formSchema.fields.map((field, index) => (
