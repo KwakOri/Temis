@@ -39,6 +39,8 @@ import {
   V2TemplateCardNode,
   V2TemplateCardOptionsKey,
   V2TemplateFieldScope,
+  V2TemplateFontFaceSource,
+  V2TemplateFontRegistryItem,
   V2TemplateFormField,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
@@ -98,6 +100,30 @@ const v2_BINDING_COMPUTED_OPTIONS = [
   "streamingDate",
   "streamingTime",
 ] as const;
+
+const v2_BASE_FONT_TOKEN_KEYS = [
+  "primary",
+  "secondary",
+  "tertiary",
+  "quaternary",
+] as const;
+
+const v2_FONT_DISPLAY_OPTIONS: Array<
+  NonNullable<V2TemplateFontRegistryItem["display"]>
+> = ["auto", "block", "swap", "fallback", "optional"];
+
+const v2_FONT_STYLE_OPTIONS: Array<NonNullable<V2TemplateFontFaceSource["style"]>> = [
+  "normal",
+  "italic",
+  "oblique",
+];
+
+const v2_FONT_FORMAT_OPTIONS: Array<NonNullable<V2TemplateFontFaceSource["format"]>> = [
+  "woff2",
+  "woff",
+  "truetype",
+  "opentype",
+];
 
 const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
   "bgByTheme",
@@ -1894,6 +1920,210 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const registryKeys = Object.keys(renderConfig.fonts.registry ?? {});
     return Array.from(new Set([...baseTokens, ...registryKeys]));
   }, [renderConfig.fonts.registry]);
+  const fontRegistryKeys = useMemo(
+    () => Object.keys(renderConfig.fonts.registry ?? {}),
+    [renderConfig.fonts.registry]
+  );
+
+  const parseFontWeightInput = (rawValue: string): number | string => {
+    const trimmed = rawValue.trim();
+    if (trimmed === "") return 400;
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+    return trimmed;
+  };
+
+  const addFontRegistryItem = () => {
+    safeUpdateConfig((prev) => {
+      const nextRegistry = { ...prev.fonts.registry };
+      let index = Object.keys(nextRegistry).length + 1;
+      let nextKey = `font${index}`;
+      while (nextRegistry[nextKey]) {
+        index += 1;
+        nextKey = `font${index}`;
+      }
+
+      nextRegistry[nextKey] = {
+        family: nextKey,
+        display: "swap",
+        faces: [
+          {
+            weight: 400,
+            style: "normal",
+            src: "",
+            format: "woff2",
+          },
+        ],
+      };
+
+      return {
+        ...prev,
+        fonts: {
+          ...prev.fonts,
+          registry: nextRegistry,
+        },
+      };
+    });
+  };
+
+  const removeFontRegistryItem = (registryKey: string) => {
+    safeUpdateConfig((prev) => {
+      if (!prev.fonts.registry[registryKey]) return prev;
+
+      const usedByBase = v2_BASE_FONT_TOKEN_KEYS.some(
+        (tokenKey) => prev.baseFonts[tokenKey] === registryKey
+      );
+      const usedByComponent = v2_TEMPLATE_COLOR_KEYS.some(
+        (componentKey) => prev.componentFonts[componentKey] === registryKey
+      );
+
+      if (usedByBase || usedByComponent) {
+        window.alert(
+          "사용 중인 폰트입니다. base/component 폰트 토큰 연결을 먼저 변경해 주세요."
+        );
+        return prev;
+      }
+
+      const nextRegistry = { ...prev.fonts.registry };
+      delete nextRegistry[registryKey];
+
+      return {
+        ...prev,
+        fonts: {
+          ...prev.fonts,
+          registry: nextRegistry,
+        },
+      };
+    });
+  };
+
+  const updateBaseFontToken = (
+    tokenKey: (typeof v2_BASE_FONT_TOKEN_KEYS)[number],
+    registryKey: string
+  ) => {
+    safeUpdateConfig((prev) => ({
+      ...prev,
+      baseFonts: {
+        ...prev.baseFonts,
+        [tokenKey]: registryKey,
+      },
+    }));
+  };
+
+  const updateFontRegistryMeta = (
+    registryKey: string,
+    patch: Partial<Pick<V2TemplateFontRegistryItem, "family" | "display">>
+  ) => {
+    safeUpdateConfig((prev) => {
+      const currentItem = prev.fonts.registry[registryKey];
+      if (!currentItem) return prev;
+
+      const nextItem: V2TemplateFontRegistryItem = {
+        ...currentItem,
+        ...(patch.family !== undefined ? { family: patch.family } : {}),
+        ...(patch.display !== undefined ? { display: patch.display } : {}),
+      };
+
+      return {
+        ...prev,
+        fonts: {
+          ...prev.fonts,
+          registry: {
+            ...prev.fonts.registry,
+            [registryKey]: nextItem,
+          },
+        },
+      };
+    });
+  };
+
+  const addFontFace = (registryKey: string) => {
+    safeUpdateConfig((prev) => {
+      const currentItem = prev.fonts.registry[registryKey];
+      if (!currentItem) return prev;
+
+      const nextFaces = [
+        ...currentItem.faces,
+        {
+          weight: 400,
+          style: "normal",
+          src: "",
+          format: "woff2",
+        } satisfies V2TemplateFontFaceSource,
+      ];
+
+      return {
+        ...prev,
+        fonts: {
+          ...prev.fonts,
+          registry: {
+            ...prev.fonts.registry,
+            [registryKey]: {
+              ...currentItem,
+              faces: nextFaces,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const updateFontFace = (
+    registryKey: string,
+    faceIndex: number,
+    patch: Partial<V2TemplateFontFaceSource>
+  ) => {
+    safeUpdateConfig((prev) => {
+      const currentItem = prev.fonts.registry[registryKey];
+      if (!currentItem) return prev;
+
+      const nextFaces = [...currentItem.faces];
+      if (!nextFaces[faceIndex]) return prev;
+      nextFaces[faceIndex] = {
+        ...nextFaces[faceIndex],
+        ...patch,
+      };
+
+      return {
+        ...prev,
+        fonts: {
+          ...prev.fonts,
+          registry: {
+            ...prev.fonts.registry,
+            [registryKey]: {
+              ...currentItem,
+              faces: nextFaces,
+            },
+          },
+        },
+      };
+    });
+  };
+
+  const removeFontFace = (registryKey: string, faceIndex: number) => {
+    safeUpdateConfig((prev) => {
+      const currentItem = prev.fonts.registry[registryKey];
+      if (!currentItem) return prev;
+      if (currentItem.faces.length <= 1) return prev;
+
+      const nextFaces = currentItem.faces.filter((_, index) => index !== faceIndex);
+
+      return {
+        ...prev,
+        fonts: {
+          ...prev.fonts,
+          registry: {
+            ...prev.fonts.registry,
+            [registryKey]: {
+              ...currentItem,
+              faces: nextFaces,
+            },
+          },
+        },
+      };
+    });
+  };
 
   const updateTemplateSize = (key: "width" | "height", value: number) => {
     if (!Number.isFinite(value) || value <= 0) return;
@@ -4073,6 +4303,39 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       </div>
 
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">베이스 폰트 토큰</h4>
+        {fontRegistryKeys.length === 0 ? (
+          <p className="text-xs text-amber-300">
+            등록된 폰트가 없습니다. 아래 폰트 레지스트리에서 먼저 추가해 주세요.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {v2_BASE_FONT_TOKEN_KEYS.map((tokenKey) => (
+              <label
+                key={tokenKey}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="text-xs text-gray-400">{tokenKey}</span>
+                <select
+                  value={renderConfig.baseFonts[tokenKey]}
+                  onChange={(event) =>
+                    updateBaseFontToken(tokenKey, event.target.value)
+                  }
+                  className="px-2 py-1 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                >
+                  {fontRegistryKeys.map((registryKey) => (
+                    <option key={registryKey} value={registryKey}>
+                      {registryKey}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">컴포넌트 폰트 토큰</h4>
         <div className="space-y-2">
           {v2_TEMPLATE_COLOR_KEYS.map((key) => (
@@ -4092,6 +4355,160 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             </label>
           ))}
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-semibold text-sm text-gray-200">폰트 레지스트리</h4>
+          <button
+            type="button"
+            onClick={addFontRegistryItem}
+            className="rounded border border-[#4f8cff] bg-[#1a2c4f] px-2 py-1 text-[11px] font-semibold text-blue-200 hover:bg-[#1f3661]"
+          >
+            + 폰트 추가
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">
+          Webfont URL(`src`)을 입력하면 `@font-face`로 자동 주입됩니다.
+        </p>
+
+        {fontRegistryKeys.length === 0 ? (
+          <p className="text-xs text-gray-500">등록된 폰트가 없습니다.</p>
+        ) : (
+          <div className="space-y-3">
+            {fontRegistryKeys.map((registryKey) => {
+              const item = renderConfig.fonts.registry[registryKey];
+              if (!item) return null;
+
+              return (
+                <div
+                  key={registryKey}
+                  className="rounded border border-[#3a3d44] bg-[#111317] p-2 space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-200">{registryKey}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeFontRegistryItem(registryKey)}
+                      className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
+                    >
+                      폰트 삭제
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={item.family}
+                      onChange={(event) =>
+                        updateFontRegistryMeta(registryKey, {
+                          family: event.target.value,
+                        })
+                      }
+                      className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                      placeholder="font-family"
+                    />
+                    <select
+                      value={item.display ?? "swap"}
+                      onChange={(event) =>
+                        updateFontRegistryMeta(registryKey, {
+                          display: event.target.value as V2TemplateFontRegistryItem["display"],
+                        })
+                      }
+                      className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                    >
+                      {v2_FONT_DISPLAY_OPTIONS.map((option) => (
+                        <option key={option} value={option}>
+                          display: {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    {item.faces.map((face, faceIndex) => (
+                      <div
+                        key={`${registryKey}-face-${faceIndex}`}
+                        className="rounded border border-[#2f3239] bg-[#171a22] p-2 space-y-2"
+                      >
+                        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
+                          <input
+                            value={String(face.weight)}
+                            onChange={(event) =>
+                              updateFontFace(registryKey, faceIndex, {
+                                weight: parseFontWeightInput(event.target.value),
+                              })
+                            }
+                            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                            placeholder="weight (e.g. 400)"
+                          />
+                          <select
+                            value={face.style ?? "normal"}
+                            onChange={(event) =>
+                              updateFontFace(registryKey, faceIndex, {
+                                style: event.target.value as V2TemplateFontFaceSource["style"],
+                              })
+                            }
+                            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                          >
+                            {v2_FONT_STYLE_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={face.format ?? "woff2"}
+                            onChange={(event) =>
+                              updateFontFace(registryKey, faceIndex, {
+                                format: event.target.value as V2TemplateFontFaceSource["format"],
+                              })
+                            }
+                            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                          >
+                            {v2_FONT_FORMAT_OPTIONS.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => removeFontFace(registryKey, faceIndex)}
+                            className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50"
+                            disabled={item.faces.length <= 1}
+                          >
+                            삭제
+                          </button>
+                        </div>
+
+                        <input
+                          value={face.src}
+                          onChange={(event) =>
+                            updateFontFace(registryKey, faceIndex, {
+                              src: event.target.value,
+                            })
+                          }
+                          className="w-full px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                          placeholder="https://.../font.woff2"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => addFontFace(registryKey)}
+                    className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
+                  >
+                    + Face 추가
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
