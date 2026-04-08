@@ -220,6 +220,9 @@ const v2_FIXED_CARD_NODE_IDS = new Set([
   "sub-title",
 ]);
 
+const v2_SCENE_CUSTOM_NODE_ID_PREFIX = "scene-custom-";
+const v2_SCENE_CUSTOM_LAYER_ID_PREFIX = "scene-custom-layer-";
+
 type V2StyleSectionKey =
   | "grid"
   | "weekFlag"
@@ -649,6 +652,234 @@ const v2_collectSceneNodesByLayerId = (
   }
 
   return map;
+};
+
+const v2_collectSceneNodeIds = (nodes: V2TemplateSceneNode[]): Set<string> => {
+  const ids = new Set<string>();
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    ids.add(node.id);
+    if (node.kind === "group" && node.children.length > 0) {
+      stack.unshift(...node.children);
+    }
+  }
+  return ids;
+};
+
+const v2_collectLayerNodeIds = (nodes: V2TemplateLayerNode[]): Set<string> => {
+  const ids = new Set<string>();
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    ids.add(node.id);
+    if (node.children?.length) {
+      stack.unshift(...node.children);
+    }
+  }
+  return ids;
+};
+
+const v2_createUniqueNodeId = (prefix: string, existingIds: Set<string>): string => {
+  let index = 1;
+  let nextId = `${prefix}${index}`;
+  while (existingIds.has(nextId)) {
+    index += 1;
+    nextId = `${prefix}${index}`;
+  }
+  return nextId;
+};
+
+const v2_findSceneNodeContextById = ({
+  nodes,
+  nodeId,
+}: {
+  nodes: V2TemplateSceneNode[];
+  nodeId: string;
+}): {
+  node: V2TemplateSceneNode;
+  parentId: string | null;
+  index: number;
+} | null => {
+  const visit = (
+    list: V2TemplateSceneNode[],
+    parentId: string | null
+  ): { node: V2TemplateSceneNode; parentId: string | null; index: number } | null => {
+    for (let index = 0; index < list.length; index += 1) {
+      const node = list[index];
+      if (node.id === nodeId) {
+        return { node, parentId, index };
+      }
+      if (node.kind !== "group" || node.children.length === 0) continue;
+      const nested = visit(node.children, node.id);
+      if (nested) return nested;
+    }
+    return null;
+  };
+
+  return visit(nodes, null);
+};
+
+const v2_updateSceneNodeListByParentId = ({
+  nodes,
+  parentId,
+  updater,
+}: {
+  nodes: V2TemplateSceneNode[];
+  parentId: string | null;
+  updater: (siblings: V2TemplateSceneNode[]) => V2TemplateSceneNode[];
+}): { nodes: V2TemplateSceneNode[]; updated: boolean } => {
+  if (parentId === null) {
+    const nextRoot = updater(nodes);
+    return {
+      nodes: nextRoot,
+      updated: nextRoot !== nodes,
+    };
+  }
+
+  let updated = false;
+  const visit = (list: V2TemplateSceneNode[]): V2TemplateSceneNode[] => {
+    let changed = false;
+    const nextList = list.map((node) => {
+      if (node.kind === "group") {
+        if (node.id === parentId) {
+          const nextChildren = updater(node.children);
+          if (nextChildren !== node.children) {
+            changed = true;
+            updated = true;
+            return {
+              ...node,
+              children: nextChildren,
+            };
+          }
+          return node;
+        }
+        if (node.children.length > 0) {
+          const nextChildren = visit(node.children);
+          if (nextChildren !== node.children) {
+            changed = true;
+            return {
+              ...node,
+              children: nextChildren,
+            };
+          }
+        }
+      }
+      return node;
+    });
+    return changed ? nextList : list;
+  };
+
+  const nextNodes = visit(nodes);
+  return {
+    nodes: nextNodes,
+    updated,
+  };
+};
+
+const v2_findLayerNodeContextById = ({
+  nodes,
+  nodeId,
+}: {
+  nodes: V2TemplateLayerNode[];
+  nodeId: string;
+}): {
+  node: V2TemplateLayerNode;
+  parentId: string | null;
+  index: number;
+} | null => {
+  const visit = (
+    list: V2TemplateLayerNode[],
+    parentId: string | null
+  ): { node: V2TemplateLayerNode; parentId: string | null; index: number } | null => {
+    for (let index = 0; index < list.length; index += 1) {
+      const node = list[index];
+      if (node.id === nodeId) {
+        return { node, parentId, index };
+      }
+      if (!node.children?.length) continue;
+      const nested = visit(node.children, node.id);
+      if (nested) return nested;
+    }
+    return null;
+  };
+
+  return visit(nodes, null);
+};
+
+const v2_updateLayerNodeListByParentId = ({
+  nodes,
+  parentId,
+  updater,
+}: {
+  nodes: V2TemplateLayerNode[];
+  parentId: string | null;
+  updater: (siblings: V2TemplateLayerNode[]) => V2TemplateLayerNode[];
+}): { nodes: V2TemplateLayerNode[]; updated: boolean } => {
+  if (parentId === null) {
+    const nextRoot = updater(nodes);
+    return {
+      nodes: nextRoot,
+      updated: nextRoot !== nodes,
+    };
+  }
+
+  let updated = false;
+  const visit = (list: V2TemplateLayerNode[]): V2TemplateLayerNode[] => {
+    let changed = false;
+    const nextList = list.map((node) => {
+      if (node.id === parentId) {
+        const nextChildren = updater(node.children ?? []);
+        if (nextChildren !== (node.children ?? [])) {
+          changed = true;
+          updated = true;
+          return {
+            ...node,
+            children: nextChildren,
+          };
+        }
+        return node;
+      }
+      if (node.children?.length) {
+        const nextChildren = visit(node.children);
+        if (nextChildren !== node.children) {
+          changed = true;
+          return {
+            ...node,
+            children: nextChildren,
+          };
+        }
+      }
+      return node;
+    });
+    return changed ? nextList : list;
+  };
+
+  const nextNodes = visit(nodes);
+  return {
+    nodes: nextNodes,
+    updated,
+  };
+};
+
+const v2_collectSceneNodeStyleKeys = (node: V2TemplateSceneNode): string[] => {
+  if (node.kind === "group") {
+    return node.children.flatMap((child) => v2_collectSceneNodeStyleKeys(child));
+  }
+  if (node.kind === "asset") {
+    return node.styleKey ? [node.styleKey] : [];
+  }
+  if (node.kind === "cardCollection") {
+    return [];
+  }
+  return [
+    node.containerStyleKey,
+    ...(node.textStyleKey ? [node.textStyleKey] : []),
+    ...(node.wrapperStyleKey ? [node.wrapperStyleKey] : []),
+    ...(node.optionsKey ? [node.optionsKey] : []),
+  ];
 };
 
 const v2_updateLayerNodeLabelById = (
@@ -3271,6 +3502,482 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
+  const isSceneCustomNode = (nodeId: string) =>
+    nodeId.startsWith(v2_SCENE_CUSTOM_NODE_ID_PREFIX);
+
+  const createCustomSceneNodePayload = (
+    prev: V2TemplateRenderConfig,
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection"
+  ): {
+    sceneNode: V2TemplateSceneNode;
+    layerNode: V2TemplateLayerNode;
+    dynamicCardLayoutPatch: Record<
+      string,
+      NonNullable<V2TemplateRenderConfig["layout"]["card"][string]>
+    >;
+  } => {
+    const existingSceneNodeIds = v2_collectSceneNodeIds(prev.structure.sceneNodes);
+    const existingLayerNodeIds = v2_collectLayerNodeIds(prev.structure.layers);
+    const baseSceneNodeId = v2_createUniqueNodeId(
+      v2_SCENE_CUSTOM_NODE_ID_PREFIX,
+      existingSceneNodeIds
+    );
+    const layerId = v2_createUniqueNodeId(
+      v2_SCENE_CUSTOM_LAYER_ID_PREFIX,
+      existingLayerNodeIds
+    );
+    const ordinal = baseSceneNodeId.replace(v2_SCENE_CUSTOM_NODE_ID_PREFIX, "");
+
+    if (kind === "group") {
+      return {
+        sceneNode: {
+          id: baseSceneNodeId,
+          label: `Group ${ordinal}`,
+          kind: "group",
+          layerId,
+          visibilityMode: "always",
+          children: [],
+        },
+        layerNode: {
+          id: layerId,
+          label: `Group ${ordinal}`,
+          kind: "group",
+          icon: "group",
+          target: `sceneNode:${baseSceneNodeId}`,
+          visibilityMode: "always",
+          children: [],
+        },
+        dynamicCardLayoutPatch: {},
+      };
+    }
+
+    if (kind === "cardCollection") {
+      return {
+        sceneNode: {
+          id: baseSceneNodeId,
+          label: `CardCollection ${ordinal}`,
+          kind: "cardCollection",
+          layerId,
+          source: "card",
+          visibilityMode: "always",
+        },
+        layerNode: {
+          id: layerId,
+          label: `CardCollection ${ordinal}`,
+          kind: "component",
+          icon: "grid",
+          target: `sceneNode:${baseSceneNodeId}`,
+          visibilityMode: "always",
+        },
+        dynamicCardLayoutPatch: {},
+      };
+    }
+
+    if (kind === "asset") {
+      const styleKey = `sceneNode:${baseSceneNodeId}:style`;
+      return {
+        sceneNode: {
+          id: baseSceneNodeId,
+          label: `Asset ${ordinal}`,
+          kind: "asset",
+          layerId,
+          assetKey: "topObjectByTheme",
+          styleKey,
+          fit: "cover",
+          alt: `asset-${ordinal}`,
+          visibilityMode: "always",
+        },
+        layerNode: {
+          id: layerId,
+          label: `Asset ${ordinal}`,
+          kind: "component",
+          icon: "image",
+          target: `sceneNode:${baseSceneNodeId}`,
+          sectionKey: styleKey,
+          visibilityMode: "always",
+        },
+        dynamicCardLayoutPatch: {
+          [styleKey]: {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: 240,
+            height: 240,
+          },
+        },
+      };
+    }
+
+    const containerStyleKey = `sceneNode:${baseSceneNodeId}:container`;
+    const textStyleKey = `sceneNode:${baseSceneNodeId}:text`;
+    if (kind === "text") {
+      return {
+        sceneNode: {
+          id: baseSceneNodeId,
+          label: `Text ${ordinal}`,
+          kind: "text",
+          layerId,
+          binding: {
+            mode: "literal",
+            value: `Text ${ordinal}`,
+          },
+          containerStyleKey,
+          textStyleKey,
+          colorKey: "SUB_TITLE",
+          fontKey: "SUB_TITLE",
+          highlightTarget: `sceneNode:${baseSceneNodeId}`,
+          containerClassName: "absolute flex justify-center items-center",
+          textClassName: "text-center",
+          visibilityMode: "always",
+        },
+        layerNode: {
+          id: layerId,
+          label: `Text ${ordinal}`,
+          kind: "component",
+          icon: "text",
+          target: `sceneNode:${baseSceneNodeId}`,
+          sectionKey: containerStyleKey,
+          visibilityMode: "always",
+        },
+        dynamicCardLayoutPatch: {
+          [containerStyleKey]: {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: 240,
+            height: 64,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          },
+          [textStyleKey]: {
+            fontSize: 32,
+            lineHeight: 1.2,
+            textAlign: "center",
+          },
+        },
+      };
+    }
+
+    const wrapperStyleKey = `sceneNode:${baseSceneNodeId}:wrapper`;
+    const optionsKey = `sceneNode:${baseSceneNodeId}:options`;
+    return {
+      sceneNode: {
+        id: baseSceneNodeId,
+        label: `FlexibleText ${ordinal}`,
+        kind: "flexibleText",
+        layerId,
+        binding: {
+          mode: "literal",
+          value: `FlexibleText ${ordinal}`,
+        },
+        containerStyleKey,
+        wrapperStyleKey,
+        textStyleKey,
+        optionsKey,
+        colorKey: "SUB_TITLE",
+        fontKey: "SUB_TITLE",
+        highlightTarget: `sceneNode:${baseSceneNodeId}`,
+        containerClassName: "absolute flex justify-center items-center",
+        textClassName: "text-center",
+        visibilityMode: "always",
+      },
+      layerNode: {
+        id: layerId,
+        label: `FlexibleText ${ordinal}`,
+        kind: "component",
+        icon: "text",
+        target: `sceneNode:${baseSceneNodeId}`,
+        sectionKey: containerStyleKey,
+        visibilityMode: "always",
+      },
+      dynamicCardLayoutPatch: {
+        [containerStyleKey]: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: 320,
+          height: 96,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        [wrapperStyleKey]: {
+          justifyContent: "center",
+          alignItems: "center",
+        },
+        [textStyleKey]: {
+          fontSize: 42,
+          lineHeight: 1.1,
+          textAlign: "center",
+          fontWeight: 700,
+        },
+        [optionsKey]: {
+          maxFontSize: 56,
+          multiline: true,
+        },
+      },
+    };
+  };
+
+  const addSceneSiblingNode = ({
+    anchorNodeId,
+    kind,
+  }: {
+    anchorNodeId: string;
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
+  }) => {
+    safeUpdateConfig((prev) => {
+      const anchorContext = v2_findSceneNodeContextById({
+        nodes: prev.structure.sceneNodes,
+        nodeId: anchorNodeId,
+      });
+      if (!anchorContext) return prev;
+
+      const payload = createCustomSceneNodePayload(prev, kind);
+      const { sceneNode, layerNode, dynamicCardLayoutPatch } = payload;
+      const { nodes: nextSceneNodes, updated: sceneUpdated } =
+        v2_updateSceneNodeListByParentId({
+          nodes: prev.structure.sceneNodes,
+          parentId: anchorContext.parentId,
+          updater: (siblings) => {
+            const nextSiblings = [...siblings];
+            nextSiblings.splice(anchorContext.index + 1, 0, sceneNode);
+            return nextSiblings;
+          },
+        });
+      if (!sceneUpdated) return prev;
+
+      const anchorLayerId = anchorContext.node.layerId;
+      let nextLayers = prev.structure.layers;
+      if (anchorLayerId) {
+        const layerContext = v2_findLayerNodeContextById({
+          nodes: prev.structure.layers,
+          nodeId: anchorLayerId,
+        });
+        if (layerContext) {
+          const { nodes: updatedLayers } = v2_updateLayerNodeListByParentId({
+            nodes: prev.structure.layers,
+            parentId: layerContext.parentId,
+            updater: (siblings) => {
+              const nextSiblings = [...siblings];
+              nextSiblings.splice(layerContext.index + 1, 0, layerNode);
+              return nextSiblings;
+            },
+          });
+          nextLayers = updatedLayers;
+        }
+      }
+
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout,
+          card: {
+            ...prev.layout.card,
+            ...dynamicCardLayoutPatch,
+          },
+        },
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+          layers: nextLayers,
+        },
+      };
+    });
+  };
+
+  const addSceneChildNode = ({
+    parentNodeId,
+    kind,
+  }: {
+    parentNodeId: string;
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
+  }) => {
+    safeUpdateConfig((prev) => {
+      const parentContext = v2_findSceneNodeContextById({
+        nodes: prev.structure.sceneNodes,
+        nodeId: parentNodeId,
+      });
+      if (!parentContext || parentContext.node.kind !== "group") return prev;
+
+      const payload = createCustomSceneNodePayload(prev, kind);
+      const { sceneNode, layerNode, dynamicCardLayoutPatch } = payload;
+      const { nodes: nextSceneNodes, updated: sceneUpdated } =
+        v2_updateSceneNodeListByParentId({
+          nodes: prev.structure.sceneNodes,
+          parentId: parentNodeId,
+          updater: (siblings) => [...siblings, sceneNode],
+        });
+      if (!sceneUpdated) return prev;
+
+      const parentLayerId = parentContext.node.layerId ?? null;
+      const { nodes: nextLayers } = v2_updateLayerNodeListByParentId({
+        nodes: prev.structure.layers,
+        parentId: parentLayerId,
+        updater: (siblings) => [...siblings, layerNode],
+      });
+
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout,
+          card: {
+            ...prev.layout.card,
+            ...dynamicCardLayoutPatch,
+          },
+        },
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+          layers: nextLayers,
+        },
+      };
+    });
+  };
+
+  const moveSceneNode = ({
+    nodeId,
+    direction,
+  }: {
+    nodeId: string;
+    direction: "up" | "down";
+  }) => {
+    safeUpdateConfig((prev) => {
+      const context = v2_findSceneNodeContextById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+      });
+      if (!context) return prev;
+      const targetIndex = direction === "up" ? context.index - 1 : context.index + 1;
+
+      const { nodes: nextSceneNodes, updated: sceneUpdated } =
+        v2_updateSceneNodeListByParentId({
+          nodes: prev.structure.sceneNodes,
+          parentId: context.parentId,
+          updater: (siblings) => {
+            if (targetIndex < 0 || targetIndex >= siblings.length) return siblings;
+            const nextSiblings = [...siblings];
+            const [moved] = nextSiblings.splice(context.index, 1);
+            if (!moved) return siblings;
+            nextSiblings.splice(targetIndex, 0, moved);
+            return nextSiblings;
+          },
+        });
+      if (!sceneUpdated) return prev;
+
+      const layerId = context.node.layerId;
+      if (!layerId) {
+        return {
+          ...prev,
+          structure: {
+            ...prev.structure,
+            sceneNodes: nextSceneNodes,
+          },
+        };
+      }
+
+      const layerContext = v2_findLayerNodeContextById({
+        nodes: prev.structure.layers,
+        nodeId: layerId,
+      });
+      if (!layerContext) {
+        return {
+          ...prev,
+          structure: {
+            ...prev.structure,
+            sceneNodes: nextSceneNodes,
+          },
+        };
+      }
+
+      const { nodes: nextLayers } = v2_updateLayerNodeListByParentId({
+        nodes: prev.structure.layers,
+        parentId: layerContext.parentId,
+        updater: (siblings) => {
+          const nextSiblings = [...siblings];
+          const currentIndex = nextSiblings.findIndex((item) => item.id === layerId);
+          if (currentIndex < 0) return siblings;
+          const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+          if (nextIndex < 0 || nextIndex >= nextSiblings.length) return siblings;
+          const [moved] = nextSiblings.splice(currentIndex, 1);
+          if (!moved) return siblings;
+          nextSiblings.splice(nextIndex, 0, moved);
+          return nextSiblings;
+        },
+      });
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+          layers: nextLayers,
+        },
+      };
+    });
+  };
+
+  const removeSceneNode = (nodeId: string) => {
+    safeUpdateConfig((prev) => {
+      const targetContext = v2_findSceneNodeContextById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+      });
+      if (!targetContext) return prev;
+      if (!isSceneCustomNode(targetContext.node.id)) return prev;
+
+      const { nodes: nextSceneNodes, updated: sceneUpdated } =
+        v2_updateSceneNodeListByParentId({
+          nodes: prev.structure.sceneNodes,
+          parentId: targetContext.parentId,
+          updater: (siblings) =>
+            siblings.filter((sibling) => sibling.id !== targetContext.node.id),
+        });
+      if (!sceneUpdated) return prev;
+
+      const styleKeysToDelete = v2_collectSceneNodeStyleKeys(targetContext.node);
+      const nextCardLayout = {
+        ...prev.layout.card,
+      };
+      styleKeysToDelete.forEach((styleKey) => {
+        if (styleKey in nextCardLayout) {
+          delete nextCardLayout[styleKey];
+        }
+      });
+
+      const targetLayerId = targetContext.node.layerId;
+      const nextLayers = targetLayerId
+        ? (() => {
+            const layerContext = v2_findLayerNodeContextById({
+              nodes: prev.structure.layers,
+              nodeId: targetLayerId,
+            });
+            if (!layerContext) return prev.structure.layers;
+            return v2_updateLayerNodeListByParentId({
+              nodes: prev.structure.layers,
+              parentId: layerContext.parentId,
+              updater: (siblings) =>
+                siblings.filter((sibling) => sibling.id !== targetLayerId),
+            }).nodes;
+          })()
+        : prev.structure.layers;
+
+      return {
+        ...prev,
+        layout: {
+          ...prev.layout,
+          card: nextCardLayout,
+        },
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+          layers: nextLayers,
+        },
+      };
+    });
+  };
+
   const updateSceneTextNodeBinding = (
     nodeId: string,
     binding: V2TemplateSceneTextNode["binding"]
@@ -5742,6 +6449,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">Scene / {node.label}</h4>
+        {renderSceneNodeStructureControls({ node, allowChildren: false })}
         <div className="grid grid-cols-2 gap-2 items-center">
           <label className="text-xs text-gray-400">오브젝트 이름</label>
           <input
@@ -5977,6 +6685,108 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
+  const renderSceneNodeStructureControls = ({
+    node,
+    allowChildren,
+  }: {
+    node:
+      | V2TemplateSceneTextNode
+      | V2TemplateSceneAssetNode
+      | V2TemplateSceneGroupNode
+      | V2TemplateSceneCardCollectionNode;
+    allowChildren: boolean;
+  }) => {
+    const canDelete = isSceneCustomNode(node.id);
+    const addButtons: Array<{
+      label: string;
+      kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
+    }> = [
+      { label: "+ Text", kind: "text" },
+      { label: "+ Flexible", kind: "flexibleText" },
+      { label: "+ Asset", kind: "asset" },
+      { label: "+ Group", kind: "group" },
+      { label: "+ Cards", kind: "cardCollection" },
+    ];
+
+    return (
+      <div className="rounded border border-[#3a3d44] bg-[#141821] p-2 space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          Structure
+        </p>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => moveSceneNode({ nodeId: node.id, direction: "up" })}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs text-gray-100 hover:bg-[#323640]"
+          >
+            위로
+          </button>
+          <button
+            type="button"
+            onClick={() => moveSceneNode({ nodeId: node.id, direction: "down" })}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs text-gray-100 hover:bg-[#323640]"
+          >
+            아래로
+          </button>
+          <button
+            type="button"
+            onClick={() => removeSceneNode(node.id)}
+            disabled={!canDelete}
+            className={`rounded border px-2 py-1.5 text-xs ${
+              canDelete
+                ? "border-red-400/40 text-red-300 hover:bg-red-500/10"
+                : "border-[#3a3d44] text-gray-500 cursor-not-allowed"
+            }`}
+          >
+            삭제
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-gray-500">동일 레벨 추가</p>
+          <div className="grid grid-cols-3 gap-2">
+            {addButtons.map((button) => (
+              <button
+                key={`${node.id}-sibling-${button.kind}`}
+                type="button"
+                onClick={() =>
+                  addSceneSiblingNode({
+                    anchorNodeId: node.id,
+                    kind: button.kind,
+                  })
+                }
+                className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
+              >
+                {button.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {allowChildren ? (
+          <div className="space-y-1.5">
+            <p className="text-[11px] text-gray-500">하위 추가</p>
+            <div className="grid grid-cols-3 gap-2">
+              {addButtons.map((button) => (
+                <button
+                  key={`${node.id}-child-${button.kind}`}
+                  type="button"
+                  onClick={() =>
+                    addSceneChildNode({
+                      parentNodeId: node.id,
+                      kind: button.kind,
+                    })
+                  }
+                  className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
+                >
+                  {button.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderSceneAssetNodeProperties = (
     node: V2TemplateSceneAssetNode,
     section: V2StyleSectionId | null
@@ -5986,6 +6796,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">Scene Asset / {node.label}</h4>
+        {renderSceneNodeStructureControls({ node, allowChildren: false })}
         <div className="grid grid-cols-2 gap-2 items-center">
           <label className="text-xs text-gray-400">오브젝트 이름</label>
           <input
@@ -6080,6 +6891,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">Scene Group / {node.label}</h4>
+        {renderSceneNodeStructureControls({ node, allowChildren: true })}
         <div className="grid grid-cols-2 gap-2 items-center">
           <label className="text-xs text-gray-400">오브젝트 이름</label>
           <input
@@ -6121,6 +6933,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         <h4 className="font-semibold text-sm text-gray-200">
           Scene Card Collection / {node.label}
         </h4>
+        {renderSceneNodeStructureControls({ node, allowChildren: false })}
         <div className="grid grid-cols-2 gap-2 items-center">
           <label className="text-xs text-gray-400">오브젝트 이름</label>
           <input
