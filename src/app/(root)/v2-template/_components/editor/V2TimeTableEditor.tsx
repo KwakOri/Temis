@@ -59,26 +59,6 @@ const v2_collectLayerNodeMap = (
   return nodeMap;
 };
 
-const v2_collectTargetSectionMap = (
-  nodes: V2TemplateLayerNode[]
-): Partial<Record<V2TemplateHighlightTarget, string>> => {
-  const map: Partial<Record<V2TemplateHighlightTarget, string>> = {};
-
-  const visit = (nodeList: V2TemplateLayerNode[]) => {
-    nodeList.forEach((node) => {
-      if (node.target && node.sectionKey && !map[node.target]) {
-        map[node.target] = node.sectionKey;
-      }
-      if (node.children?.length) {
-        visit(node.children);
-      }
-    });
-  };
-
-  visit(nodes);
-  return map;
-};
-
 const v2_collectSectionStyleResolverMap = (
   structure: V2TemplateStructureConfig
 ): V2SectionStyleResolverMap => {
@@ -199,16 +179,12 @@ const V2TimeTableEditor: React.FC = () => {
     useState<V2TemplateHighlightTarget | null>(null);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [styleFocusRequest, setStyleFocusRequest] = useState<{
-    section: string;
+  const [propertiesFocusRequest, setPropertiesFocusRequest] = useState<{
+    layerId: string;
     nonce: number;
   } | null>(null);
   const [hiddenLayerIds, setHiddenLayerIds] = useState<Record<string, boolean>>(
     {}
-  );
-  const targetToSectionMap = useMemo(
-    () => v2_collectTargetSectionMap(renderConfig.structure.layers),
-    [renderConfig.structure.layers]
   );
   const sectionStyleResolverMap = useMemo(
     () => v2_collectSectionStyleResolverMap(renderConfig.structure),
@@ -513,12 +489,10 @@ const V2TimeTableEditor: React.FC = () => {
                           orderedIds,
                         });
                       }}
-                      onSelectLayer={({ target, sectionKey }) => {
+                      onSelectLayer={({ layerId }) => {
                         setIsRightPanelOpen(true);
-                        const section = sectionKey ?? targetToSectionMap[target];
-                        if (!section) return;
-                        setStyleFocusRequest({
-                          section,
+                        setPropertiesFocusRequest({
+                          layerId,
                           nonce: Date.now(),
                         });
                       }}
@@ -531,8 +505,8 @@ const V2TimeTableEditor: React.FC = () => {
                     }`}
                   >
                     <V2TemplateBuilderForm
-                      focusStyleSection={styleFocusRequest?.section ?? null}
-                      focusStyleSectionNonce={styleFocusRequest?.nonce ?? 0}
+                      focusLayerId={propertiesFocusRequest?.layerId ?? null}
+                      focusLayerNonce={propertiesFocusRequest?.nonce ?? 0}
                     />
                   </aside>
                 </>

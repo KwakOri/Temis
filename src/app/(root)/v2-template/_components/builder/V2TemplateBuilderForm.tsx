@@ -251,6 +251,8 @@ interface V2BoilerplateGroupConfig {
 }
 
 interface V2TemplateBuilderFormProps {
+  focusLayerId?: string | null;
+  focusLayerNonce?: number;
   focusStyleSection?: string | null;
   focusStyleSectionNonce?: number;
 }
@@ -481,11 +483,15 @@ const v2_collectStructureTargetSectionMaps = (
   targetToSection: Record<string, V2StyleSectionId>;
   sectionToTarget: Record<V2StyleSectionId, V2TemplateHighlightTarget>;
   sectionToLabel: Record<V2StyleSectionId, string>;
+  targetToLayerId: Partial<Record<V2TemplateHighlightTarget, string>>;
+  sectionToLayerId: Record<V2StyleSectionId, string>;
   layerIdToNode: Record<string, V2TemplateLayerNode>;
 } => {
   const targetToSection: Record<string, V2StyleSectionId> = {};
   const sectionToTarget: Record<V2StyleSectionId, V2TemplateHighlightTarget> = {};
   const sectionToLabel: Record<V2StyleSectionId, string> = {};
+  const targetToLayerId: Partial<Record<V2TemplateHighlightTarget, string>> = {};
+  const sectionToLayerId: Record<V2StyleSectionId, string> = {};
   const layerIdToNode: Record<string, V2TemplateLayerNode> = {};
 
   const visit = (nodeList: V2TemplateLayerNode[]) => {
@@ -500,6 +506,12 @@ const v2_collectStructureTargetSectionMaps = (
         if (!sectionToLabel[section]) {
           sectionToLabel[section] = node.label;
         }
+        if (!targetToLayerId[node.target]) {
+          targetToLayerId[node.target] = node.id;
+        }
+        if (!sectionToLayerId[section]) {
+          sectionToLayerId[section] = node.id;
+        }
       }
       if (node.children?.length) {
         visit(node.children);
@@ -512,6 +524,8 @@ const v2_collectStructureTargetSectionMaps = (
     targetToSection,
     sectionToTarget,
     sectionToLabel,
+    targetToLayerId,
+    sectionToLayerId,
     layerIdToNode,
   };
 };
@@ -1395,6 +1409,8 @@ const v2_BOILERPLATE_STORAGE_KEY =
   "v2-template-builder-style-boilerplates-v1";
 
 const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
+  focusLayerId = null,
+  focusLayerNonce = 0,
   focusStyleSection = null,
   focusStyleSectionNonce = 0,
 }) => {
@@ -1438,14 +1454,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const inspectorTabRef = useRef<HTMLDivElement | null>(null);
   const [selectedPropertiesTarget, setSelectedPropertiesTarget] =
     useState<V2TemplateHighlightTarget>("grid");
+  const [selectedPropertiesLayerId, setSelectedPropertiesLayerId] =
+    useState<string>("grid");
   const structurePropertiesMaps = useMemo(
     () => v2_collectStructureTargetSectionMaps(renderConfig.structure.layers),
     [renderConfig.structure.layers]
   );
+  const selectedPropertiesLayerNode = useMemo(
+    () => structurePropertiesMaps.layerIdToNode[selectedPropertiesLayerId] ?? null,
+    [selectedPropertiesLayerId, structurePropertiesMaps.layerIdToNode]
+  );
   const selectedPropertiesSection = useMemo(() => {
-    return structurePropertiesMaps.targetToSection[selectedPropertiesTarget] ?? null;
-  }, [selectedPropertiesTarget, structurePropertiesMaps.targetToSection]);
+    const rawSection = selectedPropertiesLayerNode?.sectionKey;
+    return v2_parseStyleSectionKey(rawSection) ?? null;
+  }, [selectedPropertiesLayerNode]);
   const selectedPropertiesLabel = useMemo(() => {
+    if (selectedPropertiesLayerNode?.label) {
+      return selectedPropertiesLayerNode.label;
+    }
     if (!selectedPropertiesSection) {
       return v2_HIGHLIGHT_TARGET_LABELS[selectedPropertiesTarget];
     }
@@ -1459,45 +1485,18 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         : selectedPropertiesSection)
     );
   }, [
+    selectedPropertiesLayerNode,
     selectedPropertiesSection,
     selectedPropertiesTarget,
     structurePropertiesMaps.sectionToLabel,
   ]);
-  const cardNodeByPropertiesSection = useMemo(() => {
+  const cardNodeByLayerId = useMemo(() => {
     const map = new Map<string, V2TemplateCardNode>();
     Object.values(renderConfig.structure.card.nodes).forEach((node) => {
-      const layerNode = structurePropertiesMaps.layerIdToNode[node.layerId];
-      const layerSection = layerNode?.sectionKey
-        ? v2_parseStyleSectionKey(layerNode.sectionKey)
-        : null;
-      const containerSection = v2_resolveCardStyleSection(
-        node.containerStyleKey,
-        layerSection ?? "cardContainer"
-      );
-      if (containerSection && !map.has(containerSection)) {
-        map.set(containerSection, node);
-      }
-      if (node.textStyleKey) {
-        const textSection = v2_resolveCardStyleSection(
-          node.textStyleKey,
-          containerSection
-        );
-        if (textSection && !map.has(textSection)) {
-          map.set(textSection, node);
-        }
-      }
-      if (node.wrapperStyleKey) {
-        const wrapperSection = v2_resolveCardStyleSection(
-          node.wrapperStyleKey,
-          containerSection
-        );
-        if (wrapperSection && !map.has(wrapperSection)) {
-          map.set(wrapperSection, node);
-        }
-      }
+      map.set(node.layerId, node);
     });
     return map;
-  }, [renderConfig.structure.card.nodes, structurePropertiesMaps.layerIdToNode]);
+  }, [renderConfig.structure.card.nodes]);
   const bindableCardNodeLabels = useMemo(() => {
     return renderConfig.structure.card.nodeOrder
       .map((nodeId) => renderConfig.structure.card.nodes[nodeId])
@@ -1633,6 +1632,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   }, [isBoilerplateSettingsOpen]);
 
   useEffect(() => {
+    if (!focusLayerId) return;
+    const layerNode = structurePropertiesMaps.layerIdToNode[focusLayerId];
+    if (!layerNode) return;
+
+    setSelectedPropertiesLayerId(layerNode.id);
+    if (layerNode.target) {
+      setSelectedPropertiesTarget(layerNode.target);
+      setActiveHighlightTarget(layerNode.target);
+    }
+    setActiveTab("properties");
+  }, [
+    focusLayerId,
+    focusLayerNonce,
+    setActiveHighlightTarget,
+    structurePropertiesMaps.layerIdToNode,
+  ]);
+
+  useEffect(() => {
     const nextSection = v2_parseStyleSectionKey(focusStyleSection);
     if (!nextSection) return;
     const knownSection = v2_isKnownStyleSectionKey(nextSection)
@@ -1643,6 +1660,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       (knownSection
         ? v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[knownSection]
         : "cardContainer");
+    const nextLayerId = structurePropertiesMaps.sectionToLayerId[nextSection];
+
+    if (nextLayerId) {
+      setSelectedPropertiesLayerId(nextLayerId);
+    }
     setSelectedPropertiesTarget(nextTarget);
     setActiveHighlightTarget(nextTarget);
     setActiveTab("properties");
@@ -1650,6 +1672,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     focusStyleSection,
     focusStyleSectionNonce,
     setActiveHighlightTarget,
+    structurePropertiesMaps.sectionToLayerId,
     structurePropertiesMaps.sectionToTarget,
   ]);
 
@@ -4595,12 +4618,21 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const renderPropertiesPanels = () => {
-    const section = selectedPropertiesSection;
-    if (!section) return null;
+    const selectedLayerNode = selectedPropertiesLayerNode;
+    if (!selectedLayerNode) return null;
 
-    const cardNode = cardNodeByPropertiesSection.get(section);
+    const section = selectedPropertiesSection;
+    const cardNode = cardNodeByLayerId.get(selectedLayerNode.id);
     if (cardNode) {
-      return renderCardNodeProperties(section, cardNode);
+      return renderCardNodeProperties(section ?? "cardContainer", cardNode);
+    }
+
+    if (!section) {
+      return (
+        <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 text-xs text-gray-400">
+          선택한 레이어에는 스타일 섹션이 연결되어 있지 않습니다.
+        </div>
+      );
     }
 
     return renderSimplePropertiesSection(section);
