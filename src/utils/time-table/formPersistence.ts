@@ -1,6 +1,7 @@
 import {
   CardInputConfig,
   TDefaultCard,
+  TFieldValue,
   TGlobalData,
 } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
@@ -11,6 +12,25 @@ import {
   createAutoSave,
   timeTableStorage,
 } from "./localStorage";
+
+const isSupportedFieldValue = (value: unknown): value is TFieldValue => {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return true;
+  }
+
+  if (!Array.isArray(value)) return false;
+  return value.every(
+    (item) =>
+      typeof item === "object" &&
+      item !== null &&
+      typeof (item as { text?: unknown }).text === "string" &&
+      typeof (item as { checked?: unknown }).checked === "boolean"
+  );
+};
 
 /**
  * 폼 데이터 지속성을 위한 커스텀 훅
@@ -44,11 +64,30 @@ export const useFormPersistence = (
       !Array.isArray(loadedData.globalData)
         ? loadedData.globalData
         : defaultGlobalData;
+    const migratedGlobalData = { ...validatedGlobalData };
+    const firstCard = validatedData[0];
+
+    // legacy fallback: 글로벌 필드가 카드에 저장되어 있던 값을 글로벌 저장소로 보정
+    cardInputConfig.fields
+      .filter((field) => field.scope === "global")
+      .forEach((field) => {
+        const currentValue = migratedGlobalData[field.key];
+        const legacyValue = firstCard?.[field.key];
+        const isCurrentUnset =
+          currentValue === undefined ||
+          currentValue === null ||
+          (typeof currentValue === "string" && currentValue.trim() === "");
+
+        if (!isCurrentUnset) return;
+        if (!isSupportedFieldValue(legacyValue)) return;
+
+        migratedGlobalData[field.key] = legacyValue;
+      });
 
     return {
       ...loadedData,
       data: validatedData,
-      globalData: validatedGlobalData,
+      globalData: migratedGlobalData,
     };
   }, [cardInputConfig, defaultTheme]);
 
