@@ -22,7 +22,6 @@ import {
   v2_isVisibleByMode,
 } from "@/utils/time-table/v2_template_render_config";
 import { v2_resolveSceneTextNodeValue } from "@/utils/time-table/v2_scene_nodes";
-import { Imgs } from "../../_img/imgs";
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
@@ -50,16 +49,6 @@ const v2_collectLayerTargetById = (
 
   return next;
 };
-
-const v2_assetFallbackMap = {
-  bgByTheme: "bg",
-  topObjectByTheme: "topObject",
-  onlineByTheme: "online",
-  offlineByTheme: "offline",
-  profileFrameByTheme: "profileFrame",
-  profileBgByTheme: "artist",
-  guideByTheme: null,
-} as const;
 
 const v2_toRenderableLayout = (
   value: unknown
@@ -255,63 +244,16 @@ const V2SceneStructureRenderer = ({
     const isBackground = node.assetKey === "bgByTheme";
     const isGuideOverlay = node.assetKey === "guideByTheme";
 
-    if (isProfileImage) {
-      const uploadedProfileImage =
-        typeof imageSrc === "string" && imageSrc.trim() ? imageSrc : null;
-      if (!uploadedProfileImage) return null;
-      const profileImageStyle = v2_toRenderableStyle(
-        resolveStyleRecordByKey(node.styleKey)
-      );
-      const profileImageTarget = node.layerId ? layerTargetMap[node.layerId] : undefined;
-      const profileImageHighlightStyle = profileImageTarget
-        ? v2_getHighlightStyle({
-            target: profileImageTarget,
-            hoverTarget: hoverHighlightTarget,
-            activeTarget: activeHighlightTarget,
-          })
-        : {};
-
-      return (
-        <div
-          key={node.id}
-          style={{
-            ...renderConfig.cardSizes.profile,
-            position: "absolute",
-            ...profileImageStyle,
-            ...profileImageHighlightStyle,
-          }}
-        >
-          <img
-            src={uploadedProfileImage}
-            alt={node.alt ?? node.label}
-            draggable={false}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: node.fit ?? "cover",
-            }}
-          />
-        </div>
-      );
-    }
-
     const configuredAssetUrl = v2_getAssetUrlFromConfig({
       renderConfig,
       key: node.assetKey,
       currentTheme,
     });
-    const fallbackTheme =
-      Imgs[currentTheme as keyof typeof Imgs] ?? Imgs[renderConfig.defaultTheme as keyof typeof Imgs] ?? Imgs.first;
-    const fallbackKey = v2_assetFallbackMap[node.assetKey];
-    const fallbackAssetUrl =
-      fallbackKey &&
-      typeof fallbackTheme[fallbackKey] === "object" &&
-      fallbackTheme[fallbackKey] &&
-      "src" in fallbackTheme[fallbackKey]
-        ? (fallbackTheme[fallbackKey] as { src: string }).src
+    const uploadedProfileImage =
+      isProfileImage && typeof imageSrc === "string" && imageSrc.trim()
+        ? imageSrc
         : null;
-
-    const assetUrl = configuredAssetUrl ?? fallbackAssetUrl;
+    const assetUrl = uploadedProfileImage ?? configuredAssetUrl;
     if (!assetUrl) return null;
 
     const style = v2_toRenderableStyle(resolveStyleRecordByKey(node.styleKey));

@@ -9,24 +9,50 @@ import React from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { isGuideEnabled } from "@/utils/time-table/data";
-import { Imgs } from "../../_img/imgs";
+import { v2_isVisibleByMode } from "@/utils/time-table/v2_template_render_config";
 import V2SceneRenderer from "./V2SceneRenderer";
 
-const v2_sceneHasAssetKey = (
-  nodes: V2TemplateSceneNode[] | undefined,
-  assetKey: string
-): boolean => {
+const v2_sceneHasVisibleAssetKey = ({
+  nodes,
+  assetKey,
+  isLayerHidden,
+  isOffline,
+}: {
+  nodes: V2TemplateSceneNode[] | undefined;
+  assetKey: string;
+  isLayerHidden: (layerId: string) => boolean;
+  isOffline: boolean;
+}): boolean => {
   if (!Array.isArray(nodes) || nodes.length === 0) return false;
-  const stack = [...nodes];
+  const stack: Array<{ node: V2TemplateSceneNode; parentHidden: boolean }> = nodes.map(
+    (node) => ({
+      node,
+      parentHidden: false,
+    })
+  );
 
   while (stack.length > 0) {
-    const node = stack.shift();
-    if (!node) continue;
+    const current = stack.shift();
+    if (!current) continue;
+    const { node, parentHidden } = current;
+    const hiddenByLayer =
+      parentHidden || (node.layerId ? isLayerHidden(node.layerId) : false);
+    const visibleByMode = v2_isVisibleByMode({
+      mode: node.visibilityMode,
+      isOffline,
+    });
+    if (hiddenByLayer || !visibleByMode) continue;
+
     if (node.kind === "asset" && node.assetKey === assetKey) {
       return true;
     }
     if (node.kind === "group" && node.children.length > 0) {
-      stack.unshift(...node.children);
+      stack.unshift(
+        ...node.children.map((childNode) => ({
+          node: childNode,
+          parentHidden: hiddenByLayer,
+        }))
+      );
     }
   }
 
@@ -34,27 +60,33 @@ const v2_sceneHasAssetKey = (
 };
 
 const V2TimeTableContent: React.FC = () => {
-  const { currentTheme } = useV2TimeTableEditorRuntimeContext();
+  const { currentTheme, isLayerHidden, data } = useV2TimeTableEditorRuntimeContext();
   const { weekDates } = useTimeTableData();
   const { scale } = useTimeTableUI();
   const { renderConfig } = useV2TemplateRenderConfigContext();
 
   if (weekDates.length === 0) return null;
-  const hasSceneBackgroundAsset = v2_sceneHasAssetKey(
-    renderConfig.structure.sceneNodes,
-    "bgByTheme"
-  );
-  const hasSceneGuideAsset = v2_sceneHasAssetKey(
-    renderConfig.structure.sceneNodes,
-    "guideByTheme"
-  );
+  const firstCard = data[0] as { isOffline?: boolean } | undefined;
+  const firstCardOffline = Boolean(firstCard?.isOffline);
+  const hasSceneBackgroundAsset = v2_sceneHasVisibleAssetKey({
+    nodes: renderConfig.structure.sceneNodes,
+    assetKey: "bgByTheme",
+    isLayerHidden,
+    isOffline: firstCardOffline,
+  });
+  const hasSceneGuideAsset = v2_sceneHasVisibleAssetKey({
+    nodes: renderConfig.structure.sceneNodes,
+    assetKey: "guideByTheme",
+    isLayerHidden,
+    isOffline: firstCardOffline,
+  });
 
   const backgroundImage =
     v2_getAssetUrlFromConfig({
       renderConfig,
       key: "bgByTheme",
       currentTheme,
-    }) ?? Imgs[currentTheme]?.bg?.src ?? Imgs.first.bg.src;
+    });
   const guideOverlayImage = v2_getAssetUrlFromConfig({
     renderConfig,
     key: "guideByTheme",
@@ -67,7 +99,7 @@ const V2TimeTableContent: React.FC = () => {
       className=" box-border select-none font-sans origin-top-left relative overflow-hidden shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
       style={{
         transform: `scale(${scale})`,
-        ...(!hasSceneBackgroundAsset
+        ...(!hasSceneBackgroundAsset && backgroundImage
           ? {
               backgroundImage: `url(${backgroundImage})`,
               backgroundSize: "cover",
@@ -81,7 +113,6 @@ const V2TimeTableContent: React.FC = () => {
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
       <V2SceneRenderer
-        layers={renderConfig.structure.layers}
         sceneNodes={renderConfig.structure.sceneNodes}
       />
       {!hasSceneGuideAsset && guideOverlayImage ? (
