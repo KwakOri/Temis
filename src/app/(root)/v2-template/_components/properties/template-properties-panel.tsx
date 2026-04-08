@@ -59,6 +59,14 @@ import {
   v2_isEntryFieldBindingKey,
 } from "@/utils/time-table/template-render-config";
 import {
+  v2_POSITION_MUTEX_MAP,
+  v2_getGridEmptySlotsFromMap,
+  v2_hasRenderableStyleValue,
+  v2_parseFlex42Align,
+  v2_parseFlex42ThreeRow,
+  v2_parseGridLayoutMode,
+} from "./model/layout-utils";
+import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
   v2_collectSceneNodeStyleKeys,
@@ -1331,19 +1339,6 @@ const v2_FIELD_CATEGORY_ORDER = {
   ],
 } as const;
 
-const v2_parseGridLayoutMode = (value: unknown): V2GridLayoutMode => {
-  return value === "flex4x2" ? "flex4x2" : "grid3x3";
-};
-
-const v2_parseFlex42Align = (value: unknown): V2Flex42Align => {
-  if (value === "left" || value === "center" || value === "right") return value;
-  return "center";
-};
-
-const v2_parseFlex42ThreeRow = (value: unknown): V2Flex42ThreeRow => {
-  return value === "top" ? "top" : "bottom";
-};
-
 const v2_parseStyleSectionKey = (value: unknown): V2StyleSectionId | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -1380,46 +1375,6 @@ const v2_isKnownStyleSectionKey = (
   value: string
 ): value is V2StyleSectionKey => {
   return value in v2_STYLE_SECTION_LABELS;
-};
-
-const v2_parseGridEmptySlot = (value: unknown): number | null => {
-  const candidate =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number.parseInt(value, 10)
-        : NaN;
-
-  if (!Number.isFinite(candidate)) return null;
-  const rounded = Math.round(candidate);
-  if (rounded < 1 || rounded > 9) return null;
-  return rounded;
-};
-
-const v2_getGridEmptySlotsFromMap = (
-  sectionMap: Record<string, string | number>
-): number[] => {
-  const slots = [
-    v2_parseGridEmptySlot(sectionMap.gridEmptySlotA),
-    v2_parseGridEmptySlot(sectionMap.gridEmptySlotB),
-  ].filter((slot): slot is number => slot !== null);
-
-  return Array.from(new Set(slots)).slice(0, 2);
-};
-
-const v2_POSITION_MUTEX_MAP: Partial<Record<string, string>> = {
-  top: "bottom",
-  bottom: "top",
-  left: "right",
-  right: "left",
-};
-
-const v2_hasRenderableStyleValue = (
-  value: string | number | undefined
-): boolean => {
-  if (value === undefined) return false;
-  if (typeof value === "string") return value.trim() !== "";
-  return true;
 };
 
 const v2_sortFieldsByOrder = (
