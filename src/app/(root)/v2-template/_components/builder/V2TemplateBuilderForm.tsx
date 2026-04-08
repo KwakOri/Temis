@@ -44,6 +44,9 @@ import {
   V2TemplateFormField,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
+  V2TemplateSceneAssetNode,
+  V2TemplateSceneCardCollectionNode,
+  V2TemplateSceneGroupNode,
   V2TemplateSceneNode,
   V2TemplateSceneTextNode,
   V2TemplateVisibilityMode,
@@ -627,6 +630,27 @@ const v2_collectSceneTextNodes = (
   return results;
 };
 
+const v2_collectSceneNodesByLayerId = (
+  nodes: V2TemplateSceneNode[] | undefined
+): Map<string, V2TemplateSceneNode> => {
+  const map = new Map<string, V2TemplateSceneNode>();
+  if (!Array.isArray(nodes) || nodes.length === 0) return map;
+
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    if (node.layerId) {
+      map.set(node.layerId, node);
+    }
+    if (node.kind === "group" && node.children.length > 0) {
+      stack.unshift(...node.children);
+    }
+  }
+
+  return map;
+};
+
 const v2_updateLayerNodeLabelById = (
   nodes: V2TemplateLayerNode[],
   layerId: string,
@@ -710,6 +734,80 @@ const v2_updateSceneTextNodeById = ({
       return updater(node);
     },
   });
+  return {
+    nodes: updated ? nextNodes : nodes,
+    updated,
+    matchedNode,
+  };
+};
+
+const v2_updateSceneNodeById = ({
+  nodes,
+  nodeId,
+  updater,
+}: {
+  nodes: V2TemplateSceneNode[];
+  nodeId: string;
+  updater: (node: V2TemplateSceneNode) => V2TemplateSceneNode;
+}): {
+  nodes: V2TemplateSceneNode[];
+  updated: boolean;
+  matchedNode: V2TemplateSceneNode | null;
+} => {
+  let updated = false;
+  let matchedNode: V2TemplateSceneNode | null = null;
+
+  const visit = (node: V2TemplateSceneNode): V2TemplateSceneNode => {
+    if (node.kind === "group") {
+      const nextChildren = node.children.map(visit);
+      const childrenChanged = nextChildren.some(
+        (child, index) => child !== node.children[index]
+      );
+
+      if (node.id !== nodeId) {
+        if (!childrenChanged) return node;
+        updated = true;
+        return {
+          ...node,
+          children: nextChildren,
+        };
+      }
+
+      matchedNode = node;
+      const targetNode = updater(node);
+      const nextGroup =
+        targetNode.kind === "group"
+          ? targetNode
+          : {
+              ...targetNode,
+              kind: "group" as const,
+              children: node.children,
+            };
+      const finalGroup =
+        childrenChanged && nextGroup.kind === "group"
+          ? {
+              ...nextGroup,
+              children: nextChildren,
+            }
+          : nextGroup;
+
+      if (finalGroup !== node || childrenChanged) {
+        updated = true;
+      }
+      return finalGroup;
+    }
+
+    if (node.id !== nodeId) return node;
+
+    matchedNode = node;
+    const nextNode = updater(node);
+    if (nextNode !== node) {
+      updated = true;
+    }
+    return nextNode;
+  };
+
+  const nextNodes = nodes.map(visit);
   return {
     nodes: updated ? nextNodes : nodes,
     updated,
@@ -1768,14 +1866,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
     return map;
   }, [renderConfig.structure.card.nodes]);
-  const sceneTextNodeByLayerId = useMemo(() => {
-    const map = new Map<string, V2TemplateSceneTextNode>();
-    v2_collectSceneTextNodes(renderConfig.structure.sceneNodes).forEach((node) => {
-      if (!node.layerId) return;
-      map.set(node.layerId, node);
-    });
-    return map;
-  }, [renderConfig.structure.sceneNodes]);
+  const sceneNodeByLayerId = useMemo(
+    () => v2_collectSceneNodesByLayerId(renderConfig.structure.sceneNodes),
+    [renderConfig.structure.sceneNodes]
+  );
   const bindableCardNodeLabels = useMemo(() => {
     return renderConfig.structure.card.nodeOrder
       .map((nodeId) => renderConfig.structure.card.nodes[nodeId])
@@ -3076,6 +3170,107 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
+  const updateSceneNodeVisibilityMode = (
+    nodeId: string,
+    visibilityMode: V2TemplateVisibilityMode
+  ) => {
+    safeUpdateConfig((prev) => {
+      const { nodes: nextSceneNodes, updated } = v2_updateSceneNodeById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+        updater: (node) => ({
+          ...node,
+          visibilityMode,
+        }),
+      });
+
+      if (!updated) return prev;
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+        },
+      };
+    });
+  };
+
+  const updateSceneNodeLabel = (nodeId: string, rawLabel: string) => {
+    const nextLabel = rawLabel.trim();
+    if (!nextLabel) return;
+
+    safeUpdateConfig((prev) => {
+      const { nodes: nextSceneNodes, updated, matchedNode } =
+        v2_updateSceneNodeById({
+          nodes: prev.structure.sceneNodes,
+          nodeId,
+          updater: (node) => ({
+            ...node,
+            label: nextLabel,
+          }),
+        });
+
+      if (!updated) return prev;
+
+      const nextLayers = matchedNode?.layerId
+        ? v2_updateLayerNodeLabelById(
+            prev.structure.layers,
+            matchedNode.layerId,
+            nextLabel
+          )
+        : prev.structure.layers;
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          layers: nextLayers,
+          sceneNodes: nextSceneNodes,
+        },
+      };
+    });
+  };
+
+  const updateSceneAssetNodeMeta = ({
+    nodeId,
+    assetKey,
+    fit,
+    alt,
+  }: {
+    nodeId: string;
+    assetKey?: keyof V2TemplateAssetMap;
+    fit?: V2TemplateSceneAssetNode["fit"];
+    alt?: string;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const { nodes: nextSceneNodes, updated } = v2_updateSceneNodeById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+        updater: (node) => {
+          if (node.kind !== "asset") return node;
+          const nextAlt = typeof alt === "string" ? alt.trim() : undefined;
+          return {
+            ...node,
+            ...(assetKey ? { assetKey } : {}),
+            ...(fit ? { fit } : {}),
+            ...(nextAlt !== undefined ? { alt: nextAlt } : {}),
+          };
+        },
+      });
+
+      if (!updated) return prev;
+
+      return {
+        ...prev,
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+        },
+      };
+    });
+  };
+
   const updateSceneTextNodeBinding = (
     nodeId: string,
     binding: V2TemplateSceneTextNode["binding"]
@@ -3106,26 +3301,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     nodeId: string,
     visibilityMode: V2TemplateVisibilityMode
   ) => {
-    safeUpdateConfig((prev) => {
-      const { nodes: nextSceneNodes, updated } = v2_updateSceneTextNodeById({
-        nodes: prev.structure.sceneNodes,
-        nodeId,
-        updater: (node) => ({
-          ...node,
-          visibilityMode,
-        }),
-      });
-
-      if (!updated) return prev;
-
-      return {
-        ...prev,
-        structure: {
-          ...prev.structure,
-          sceneNodes: nextSceneNodes,
-        },
-      };
-    });
+    updateSceneNodeVisibilityMode(nodeId, visibilityMode);
   };
 
   const updateSceneTextNodeMeta = ({
@@ -5801,6 +5977,183 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
+  const renderSceneAssetNodeProperties = (
+    node: V2TemplateSceneAssetNode,
+    section: V2StyleSectionId | null
+  ) => {
+    const styleSection = section ?? v2_parseStyleSectionKey(node.styleKey);
+
+    return (
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">Scene Asset / {node.label}</h4>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">오브젝트 이름</label>
+          <input
+            value={node.label}
+            onChange={(event) => updateSceneNodeLabel(node.id, event.target.value)}
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          />
+          <label className="text-xs text-gray-400">에셋 키</label>
+          <select
+            value={node.assetKey}
+            onChange={(event) =>
+              updateSceneAssetNodeMeta({
+                nodeId: node.id,
+                assetKey: event.target.value as keyof V2TemplateAssetMap,
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_ASSET_KEYS.map((assetKey) => (
+              <option key={`scene-asset-key-${assetKey}`} value={assetKey}>
+                {v2_ASSET_LABELS[assetKey]}
+              </option>
+            ))}
+          </select>
+          <label className="text-xs text-gray-400">Fit</label>
+          <select
+            value={node.fit ?? "cover"}
+            onChange={(event) =>
+              updateSceneAssetNodeMeta({
+                nodeId: node.id,
+                fit: event.target.value as V2TemplateSceneAssetNode["fit"],
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            <option value="cover">cover</option>
+            <option value="contain">contain</option>
+            <option value="fill">fill</option>
+          </select>
+          <label className="text-xs text-gray-400">표시 조건</label>
+          <select
+            value={node.visibilityMode ?? "always"}
+            onChange={(event) =>
+              updateSceneNodeVisibilityMode(
+                node.id,
+                event.target.value as V2TemplateVisibilityMode
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
+              <option key={`scene-asset-visible-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">alt</label>
+          <input
+            value={node.alt ?? ""}
+            onChange={(event) =>
+              updateSceneAssetNodeMeta({
+                nodeId: node.id,
+                alt: event.target.value,
+              })
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+            placeholder="이미지 alt 텍스트"
+          />
+          <label className="text-xs text-gray-400">style key</label>
+          <div className="px-2 py-2 rounded border border-[#3a3d44] bg-[#121418] text-xs text-gray-300">
+            {node.styleKey ?? "-"}
+          </div>
+        </div>
+        {styleSection ? (
+          renderStyleSectionEditor({
+            title: "asset style",
+            section: styleSection,
+          })
+        ) : (
+          <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
+            이 에셋 노드는 연결된 style section이 없습니다.
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSceneGroupNodeProperties = (node: V2TemplateSceneGroupNode) => {
+    const childCount = node.children.length;
+    return (
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">Scene Group / {node.label}</h4>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">오브젝트 이름</label>
+          <input
+            value={node.label}
+            onChange={(event) => updateSceneNodeLabel(node.id, event.target.value)}
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          />
+          <label className="text-xs text-gray-400">표시 조건</label>
+          <select
+            value={node.visibilityMode ?? "always"}
+            onChange={(event) =>
+              updateSceneNodeVisibilityMode(
+                node.id,
+                event.target.value as V2TemplateVisibilityMode
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
+              <option key={`scene-group-visible-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
+          하위 노드: {childCount}개
+        </div>
+      </div>
+    );
+  };
+
+  const renderSceneCardCollectionProperties = (
+    node: V2TemplateSceneCardCollectionNode,
+    section: V2StyleSectionId | null
+  ) => {
+    return (
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">
+          Scene Card Collection / {node.label}
+        </h4>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">오브젝트 이름</label>
+          <input
+            value={node.label}
+            onChange={(event) => updateSceneNodeLabel(node.id, event.target.value)}
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          />
+          <label className="text-xs text-gray-400">표시 조건</label>
+          <select
+            value={node.visibilityMode ?? "always"}
+            onChange={(event) =>
+              updateSceneNodeVisibilityMode(
+                node.id,
+                event.target.value as V2TemplateVisibilityMode
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
+              <option key={`scene-card-collection-visible-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
+          source: {node.source}
+        </div>
+        {section ? renderStyleSectionEditor({ title: "layout style", section }) : null}
+      </div>
+    );
+  };
+
   const renderSimplePropertiesSection = (section: V2StyleSectionId) => {
     const knownSection = v2_isKnownStyleSectionKey(section) ? section : null;
     const heading =
@@ -5850,12 +6203,23 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     if (cardNode) {
       return renderCardNodeProperties(section ?? "cardContainer", cardNode);
     }
-    const sceneTextNode = sceneTextNodeByLayerId.get(selectedLayerNode.id);
-    if (sceneTextNode) {
-      return renderSceneTextNodeProperties(
-        section ?? sceneTextNode.containerStyleKey,
-        sceneTextNode
-      );
+    const sceneNode = sceneNodeByLayerId.get(selectedLayerNode.id);
+    if (sceneNode) {
+      if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {
+        return renderSceneTextNodeProperties(
+          section ?? sceneNode.containerStyleKey,
+          sceneNode
+        );
+      }
+      if (sceneNode.kind === "asset") {
+        return renderSceneAssetNodeProperties(sceneNode, section);
+      }
+      if (sceneNode.kind === "group") {
+        return renderSceneGroupNodeProperties(sceneNode);
+      }
+      if (sceneNode.kind === "cardCollection") {
+        return renderSceneCardCollectionProperties(sceneNode, section);
+      }
     }
 
     if (!section) {
