@@ -77,6 +77,7 @@ import useTemplatePropertiesFocusEffects from "./hooks/use-template-properties-f
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
 import useTemplateSceneNodePropertyPanels from "./hooks/use-template-scene-node-property-panels";
 import useTemplateSimplePropertiesPanel from "./hooks/use-template-simple-properties-panel";
+import useTemplateSampleDataActions from "./hooks/use-template-sample-data-actions";
 import useTemplateThemeAssetActions from "./hooks/use-template-theme-asset-actions";
 
 const v2_BUILDER_TABS: Array<{ id: V2BuilderTabId; label: string }> = [
@@ -875,62 +876,19 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return null;
   };
 
-  const firstCard = data[0];
-  const firstEntry = firstCard?.entries?.[0];
-
-  const updateFirstEntryField = (
-    key: string,
-    value: string | number | boolean
-  ) => {
-    const next = [...data];
-    if (!next[0] || !next[0].entries?.[0]) return;
-
-    next[0] = {
-      ...next[0],
-      entries: [
-        {
-          ...next[0].entries[0],
-          [key]: value,
-        },
-        ...next[0].entries.slice(1),
-      ],
-    };
-
-    updateData(next);
-  };
-
-  const updateFirstCardField = (
-    key: string,
-    value: string | number | boolean
-  ) => {
-    const next = [...data];
-    if (!next[0]) return;
-    next[0] = {
-      ...next[0],
-      [key]: value,
-    };
-    updateData(next);
-  };
-
-  const updateGlobalSampleField = (
-    key: string,
-    value: string | number
-  ) => {
-    updateGlobalData({
-      ...globalData,
-      [key]: value,
-    });
-  };
-
-  const updateFirstDayOffline = (isOffline: boolean) => {
-    const next = [...data];
-    if (!next[0]) return;
-    next[0] = {
-      ...next[0],
-      isOffline,
-    };
-    updateData(next);
-  };
+  const {
+    firstCard,
+    firstEntry,
+    updateFirstEntryField,
+    updateFirstCardField,
+    updateGlobalSampleField,
+    updateFirstDayOffline,
+  } = useTemplateSampleDataActions({
+    data,
+    updateData,
+    globalData,
+    updateGlobalData,
+  });
 
   const handleCopyJson = async () => {
     try {

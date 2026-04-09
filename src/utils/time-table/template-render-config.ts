@@ -1379,6 +1379,85 @@ const v2_normalizeGraphNode = (
   };
 };
 
+const v2_sanitizeNodeGraph = ({
+  graph,
+  fallback,
+}: {
+  graph: V2TemplateNodeGraph;
+  fallback: V2TemplateNodeGraph;
+}): V2TemplateNodeGraph => {
+  const validNodeIds = new Set(Object.keys(graph.nodes));
+  if (validNodeIds.size === 0) return fallback;
+
+  const nextNodes: Record<string, V2TemplateGraphNode> = {};
+  Object.entries(graph.nodes).forEach(([id, node]) => {
+    nextNodes[id] = {
+      ...node,
+      childIds: Array.from(
+        new Set(
+          node.childIds.filter(
+            (childId) => childId !== id && validNodeIds.has(childId)
+          )
+        )
+      ),
+    };
+  });
+
+  const parentByChild = new Map<string, string>();
+  Object.values(nextNodes).forEach((node) => {
+    node.childIds.forEach((childId) => {
+      if (!parentByChild.has(childId)) {
+        parentByChild.set(childId, node.id);
+      }
+    });
+  });
+
+  const requestedRootSet = new Set(
+    graph.rootNodeIds.filter((nodeId) => validNodeIds.has(nodeId))
+  );
+
+  Object.values(nextNodes).forEach((node) => {
+    const forcedParentId = parentByChild.get(node.id);
+    if (forcedParentId) {
+      node.parentId = forcedParentId;
+      return;
+    }
+    if (requestedRootSet.has(node.id)) {
+      node.parentId = null;
+      return;
+    }
+    node.parentId = node.parentId && validNodeIds.has(node.parentId) ? node.parentId : null;
+  });
+
+  const computedRootNodeIds = Object.values(nextNodes)
+    .filter((node) => node.parentId === null)
+    .map((node) => node.id);
+  const prioritizedRootNodeIds = [
+    ...graph.rootNodeIds.filter((nodeId) => computedRootNodeIds.includes(nodeId)),
+    ...computedRootNodeIds.filter((nodeId) => !graph.rootNodeIds.includes(nodeId)),
+  ];
+
+  const nextComponentDefinitions = Object.entries(graph.componentDefinitions).reduce<
+    Record<string, V2TemplateGraphComponentDefinition>
+  >((acc, [componentId, definition]) => {
+    if (!validNodeIds.has(definition.rootNodeId)) return acc;
+    acc[componentId] = definition;
+    return acc;
+  }, {});
+
+  return {
+    rootNodeIds:
+      prioritizedRootNodeIds.length > 0
+        ? prioritizedRootNodeIds
+        : fallback.rootNodeIds.filter((nodeId) => validNodeIds.has(nodeId)),
+    nodes: nextNodes,
+    componentDefinitions:
+      Object.keys(nextComponentDefinitions).length > 0
+        ? nextComponentDefinitions
+        : fallback.componentDefinitions,
+  };
+};
+
 const v2_normalizeNodeGraph = (
   candidate: unknown,
   fallback: V2TemplateNodeGraph
@@ -1450,14 +1529,17 @@ const v2_normalizeNodeGraph = (
       )
     : [];
 
-  return {
-    rootNodeIds:
-      candidateRootNodeIds.length > 0
-        ? candidateRootNodeIds
-        : fallback.rootNodeIds,
-    nodes: nextNodes,
-    componentDefinitions: nextComponentDefinitions,
-  };
+  return v2_sanitizeNodeGraph({
+    graph: {
+      rootNodeIds:
+        candidateRootNodeIds.length > 0
+          ? candidateRootNodeIds
+          : fallback.rootNodeIds,
+      nodes: nextNodes,
+      componentDefinitions: nextComponentDefinitions,
+    },
+    fallback,
+  });
 };
 
 const v2_parseFieldScope = (
