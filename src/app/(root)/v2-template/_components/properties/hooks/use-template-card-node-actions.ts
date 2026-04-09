@@ -350,7 +350,11 @@ const useTemplateCardNodeActions = ({
 
   const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
     safeUpdateConfig((prev) => {
-      const currentMode = prev.structure.card.instanceMode ?? "component";
+      const graphCardDefinition = prev.graph.componentDefinitions.card;
+      const currentMode =
+        graphCardDefinition?.instanceMode ??
+        prev.structure.card.instanceMode ??
+        "component";
       if (currentMode === instanceMode) return prev;
 
       if (currentMode === "detached" && instanceMode === "component") {
@@ -369,6 +373,30 @@ const useTemplateCardNodeActions = ({
 
       return {
         ...prev,
+        graph: {
+          ...prev.graph,
+          componentDefinitions: {
+            ...prev.graph.componentDefinitions,
+            card: {
+              ...(prev.graph.componentDefinitions.card ?? {
+                id: "card",
+                label: "Card",
+                rootNodeId: "component-card-root",
+                kind: "template",
+              }),
+              ...(instanceMode === "detached"
+                ? {
+                    instanceMode: "detached" as const,
+                    detachedAt:
+                      prev.graph.componentDefinitions.card?.detachedAt ??
+                      new Date().toISOString(),
+                  }
+                : {
+                    instanceMode: "component" as const,
+                  }),
+            },
+          },
+        },
         structure: {
           ...prev.structure,
           card: {

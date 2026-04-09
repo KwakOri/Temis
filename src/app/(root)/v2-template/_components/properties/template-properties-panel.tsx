@@ -1214,9 +1214,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     sectionToLabel: structurePropertiesMaps.sectionToLabel,
     styleSectionLabels: v2_STYLE_SECTION_LABELS,
     bindableNodeLabels,
-    cardInstanceMode: renderConfig.structure.card.instanceMode ?? "component",
-    cardInstanceTransforms:
-      renderConfig.structure.card.instanceTransforms ?? {},
+    cardInstanceMode: runtimeCardStructure.instanceMode ?? "component",
+    cardInstanceTransforms: runtimeCardStructure.instanceTransforms ?? {},
     onChangeCardInstanceMode: updateCardInstanceMode,
     onAppendCardTextNode: () => appendCardNode("text"),
     onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),

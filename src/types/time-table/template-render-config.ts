@@ -289,6 +289,9 @@ export interface V2TemplateGraphComponentDefinition {
   label: string;
   rootNodeId: string;
   description?: string;
+  kind?: "template" | "custom";
+  instanceMode?: V2TemplateComponentInstanceMode;
+  detachedAt?: string;
 }
 
 export interface V2TemplateNodeGraph {

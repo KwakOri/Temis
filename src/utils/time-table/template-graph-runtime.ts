@@ -300,7 +300,7 @@ export const v2_getRuntimeCardStructure = (
     containerLayerId: fallbackCard.containerLayerId,
     containerHighlightTarget: fallbackCard.containerHighlightTarget,
     containerStyleKey: fallbackCard.containerStyleKey,
-    instanceMode: fallbackCard.instanceMode,
+    instanceMode: cardDefinition.instanceMode ?? fallbackCard.instanceMode,
     instanceTransforms: fallbackCard.instanceTransforms,
     nodeOrder: nextNodeOrder,
     nodes: nextNodes,

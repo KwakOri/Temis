@@ -658,6 +658,8 @@ export const v2_createNodeGraphFromStructure = (
       label: "Card",
       rootNodeId: cardRootId,
       description: "Legacy default card component",
+      kind: "template",
+      instanceMode: structure.card.instanceMode,
     },
   };
 
@@ -1416,6 +1418,19 @@ const v2_normalizeNodeGraph = (
           rootNodeId,
           ...(typeof rawDefinition.description === "string"
             ? { description: rawDefinition.description }
+            : {}),
+          ...(rawDefinition.kind === "template" || rawDefinition.kind === "custom"
+            ? { kind: rawDefinition.kind }
+            : {}),
+          ...(typeof rawDefinition.instanceMode === "string" &&
+          v2_COMPONENT_INSTANCE_MODE_SET.has(rawDefinition.instanceMode)
+            ? {
+                instanceMode:
+                  rawDefinition.instanceMode as V2TemplateComponentInstanceMode,
+              }
+            : {}),
+          ...(typeof rawDefinition.detachedAt === "string"
+            ? { detachedAt: rawDefinition.detachedAt }
             : {}),
         };
       }
