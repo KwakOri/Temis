@@ -174,6 +174,10 @@ Move / Extract Copy 분리:
   - dev 진단 추가:
     - graph orderKey 무결성 검증기(`v2_validateOrderKeyGraph`)
     - 에디터 런타임에서 무결성 이슈 콘솔 경고
+  - Properties의 카드 편집 흐름을 활성 컴포넌트 기준으로 일반화:
+    - `use-template-card-node-actions`에서 `componentDefinitions.card` 하드코딩 제거
+    - 선택 레이어/카드 컬렉션 기준 `activeCardComponentId` 해석 후 append/remove/instance 설정 적용
+    - 카드 노드/바인딩 진단 수집 범위를 기본 컴포넌트 단일에서 전체 컴포넌트 집합으로 확장
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)

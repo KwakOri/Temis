@@ -14,6 +14,8 @@ import {
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
+  v2_getDefaultCardComponentId,
+  v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeCardStructure,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
@@ -164,9 +166,36 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     useState<V2TemplateHighlightTarget>("grid");
   const [selectedPropertiesLayerId, setSelectedPropertiesLayerId] =
     useState<string>("grid");
-  const runtimeCardStructure = useMemo(
-    () => v2_getRuntimeCardStructure(renderConfig),
+  const defaultCardComponentId = useMemo(
+    () => v2_getDefaultCardComponentId(renderConfig),
     [renderConfig]
+  );
+  const runtimeCardStructuresByComponentId = useMemo(() => {
+    const next: Record<
+      string,
+      ReturnType<typeof v2_getRuntimeCardStructureByComponentId>
+    > = {};
+    Object.keys(renderConfig.graph.componentDefinitions ?? {}).forEach(
+      (componentId) => {
+        next[componentId] = v2_getRuntimeCardStructureByComponentId(
+          renderConfig,
+          componentId
+        );
+      }
+    );
+    if (!next[defaultCardComponentId]) {
+      next[defaultCardComponentId] = v2_getRuntimeCardStructureByComponentId(
+        renderConfig,
+        defaultCardComponentId
+      );
+    }
+    return next;
+  }, [defaultCardComponentId, renderConfig]);
+  const runtimeCardStructure = useMemo(
+    () =>
+      runtimeCardStructuresByComponentId[defaultCardComponentId] ??
+      v2_getRuntimeCardStructure(renderConfig),
+    [defaultCardComponentId, renderConfig, runtimeCardStructuresByComponentId]
   );
   const runtimeLayerTree = useMemo(
     () => v2_getRuntimeLayerTree(renderConfig),
@@ -212,15 +241,80 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   ]);
   const cardNodeByLayerId = useMemo(() => {
     const map = new Map<string, V2TemplateCardNode>();
-    Object.values(runtimeCardStructure.nodes).forEach((node) => {
-      map.set(node.layerId, node);
+    Object.values(runtimeCardStructuresByComponentId).forEach((structure) => {
+      Object.values(structure.nodes).forEach((node) => {
+        map.set(node.layerId, node);
+      });
     });
     return map;
-  }, [runtimeCardStructure.nodes]);
+  }, [runtimeCardStructuresByComponentId]);
+  const cardNodeComponentIdByLayerId = useMemo(() => {
+    const map = new Map<string, string>();
+    Object.entries(runtimeCardStructuresByComponentId).forEach(
+      ([componentId, structure]) => {
+        Object.values(structure.nodes).forEach((node) => {
+          map.set(node.layerId, componentId);
+        });
+      }
+    );
+    return map;
+  }, [runtimeCardStructuresByComponentId]);
+  const componentIdByRootLayerId = useMemo(() => {
+    const map = new Map<string, string>();
+    Object.entries(runtimeCardStructuresByComponentId).forEach(
+      ([componentId, structure]) => {
+        map.set(structure.containerLayerId, componentId);
+      }
+    );
+    return map;
+  }, [runtimeCardStructuresByComponentId]);
   const sceneNodeByLayerId = useMemo(
     () => v2_collectSceneNodesByLayerId(runtimeSceneNodes),
     [runtimeSceneNodes]
   );
+  const activeCardComponentId = useMemo(() => {
+    const selectedSceneNode = sceneNodeByLayerId.get(selectedPropertiesLayerId);
+    if (selectedSceneNode?.kind === "cardCollection") {
+      const selectedComponentId = selectedSceneNode.componentId?.trim();
+      if (
+        selectedComponentId &&
+        runtimeCardStructuresByComponentId[selectedComponentId]
+      ) {
+        return selectedComponentId;
+      }
+      return defaultCardComponentId;
+    }
+
+    const cardNodeComponentId =
+      cardNodeComponentIdByLayerId.get(selectedPropertiesLayerId);
+    if (cardNodeComponentId) return cardNodeComponentId;
+
+    const rootLayerComponentId =
+      componentIdByRootLayerId.get(selectedPropertiesLayerId);
+    if (rootLayerComponentId) return rootLayerComponentId;
+
+    return defaultCardComponentId;
+  }, [
+    cardNodeComponentIdByLayerId,
+    componentIdByRootLayerId,
+    defaultCardComponentId,
+    runtimeCardStructuresByComponentId,
+    sceneNodeByLayerId,
+    selectedPropertiesLayerId,
+  ]);
+  const activeCardStructure = useMemo(
+    () =>
+      runtimeCardStructuresByComponentId[activeCardComponentId] ??
+      runtimeCardStructure,
+    [activeCardComponentId, runtimeCardStructure, runtimeCardStructuresByComponentId]
+  );
+  const allRuntimeCardNodes = useMemo(() => {
+    return Object.values(runtimeCardStructuresByComponentId).flatMap((structure) =>
+      structure.nodeOrder
+        .map((nodeId) => structure.nodes[nodeId])
+        .filter((node): node is V2TemplateCardNode => Boolean(node))
+    );
+  }, [runtimeCardStructuresByComponentId]);
   const sceneStyleSectionKeySet = useMemo(() => {
     const next = new Set<string>();
     runtimeSceneNodes.forEach((node) => {
@@ -229,11 +323,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return next;
   }, [runtimeSceneNodes]);
   const bindableCardNodeLabels = useMemo(() => {
-    return runtimeCardStructure.nodeOrder
-      .map((nodeId) => runtimeCardStructure.nodes[nodeId])
-      .filter((node): node is V2TemplateCardNode => Boolean(node))
-      .map((node) => node.label);
-  }, [runtimeCardStructure.nodeOrder, runtimeCardStructure.nodes]);
+    return allRuntimeCardNodes.map((node) => node.label);
+  }, [allRuntimeCardNodes]);
   const runtimeSceneTextNodes = useMemo(
     () => v2_collectSceneTextNodes(runtimeSceneNodes),
     [runtimeSceneNodes]
@@ -307,18 +398,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   }, [bindableCardNodeLabels, bindableSceneTextNodeLabels]);
   const formSchemaDiagnostics = useMemo(() => {
-    const cardNodes = runtimeCardStructure.nodeOrder
-      .map((nodeId) => runtimeCardStructure.nodes[nodeId])
-      .filter((node): node is V2TemplateCardNode => Boolean(node));
     return v2_collectFormSchemaDiagnostics({
       fields: renderConfig.formSchema.fields,
-      cardNodes,
+      cardNodes: allRuntimeCardNodes,
       sceneTextNodes: runtimeSceneTextNodes,
     });
   }, [
+    allRuntimeCardNodes,
     renderConfig.formSchema.fields,
-    runtimeCardStructure.nodeOrder,
-    runtimeCardStructure.nodes,
     runtimeSceneTextNodes,
   ]);
 
@@ -481,6 +568,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     safeUpdateConfig,
     templateColorKeys: v2_TEMPLATE_COLOR_KEYS,
     fixedCardNodeIds: v2_FIXED_CARD_NODE_IDS,
+    resolveActiveComponentId: () => activeCardComponentId,
   });
 
   const {
@@ -900,8 +988,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     sectionToLabel: structurePropertiesMaps.sectionToLabel,
     styleSectionLabels: v2_STYLE_SECTION_LABELS,
     bindableNodeLabels,
-    cardInstanceMode: runtimeCardStructure.instanceMode ?? "component",
-    cardInstanceTransforms: runtimeCardStructure.instanceTransforms ?? {},
+    cardInstanceMode: activeCardStructure.instanceMode ?? "component",
+    cardInstanceTransforms: activeCardStructure.instanceTransforms ?? {},
     onChangeCardInstanceMode: updateCardInstanceMode,
     onAppendCardTextNode: () => appendCardNode("text"),
     onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),

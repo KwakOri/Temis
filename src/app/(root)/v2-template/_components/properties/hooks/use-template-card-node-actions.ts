@@ -15,7 +15,10 @@ import {
   v2_graphRemoveNodeSubtree,
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
-import { v2_getRuntimeCardStructure } from "@/utils/time-table/template-graph-runtime";
+import {
+  v2_getDefaultCardComponentId,
+  v2_getRuntimeCardStructureByComponentId,
+} from "@/utils/time-table/template-graph-runtime";
 import {
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
@@ -28,12 +31,14 @@ interface UseTemplateCardNodeActionsParams {
   ) => void;
   templateColorKeys: readonly V2TemplateColorKey[];
   fixedCardNodeIds: Set<string>;
+  resolveActiveComponentId?: (config: V2TemplateRenderConfig) => string;
 }
 
 const useTemplateCardNodeActions = ({
   safeUpdateConfig,
   templateColorKeys,
   fixedCardNodeIds,
+  resolveActiveComponentId,
 }: UseTemplateCardNodeActionsParams) => {
   const v2_cardNodeToGraphNode = (node: V2TemplateCardNode): V2TemplateGraphNode => {
     return {
@@ -90,9 +95,8 @@ const useTemplateCardNodeActions = ({
     visibilityMode: V2TemplateVisibilityMode
   ) => {
     safeUpdateConfig((prev) => {
-      const runtimeCard = v2_getRuntimeCardStructure(prev);
-      const prevNode = runtimeCard.nodes[nodeId];
-      if (!prevNode) return prev;
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode) return prev;
       const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
         ...node,
         visibilityMode,
@@ -109,9 +113,8 @@ const useTemplateCardNodeActions = ({
     binding: V2TemplateCardNode["binding"]
   ) => {
     safeUpdateConfig((prev) => {
-      const runtimeCard = v2_getRuntimeCardStructure(prev);
-      const prevNode = runtimeCard.nodes[nodeId];
-      if (!prevNode) return prev;
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode) return prev;
       const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
         ...node,
         binding,
@@ -139,9 +142,8 @@ const useTemplateCardNodeActions = ({
     fontKey?: V2TemplateCardNode["fontKey"];
   }) => {
     safeUpdateConfig((prev) => {
-      const runtimeCard = v2_getRuntimeCardStructure(prev);
-      const prevNode = runtimeCard.nodes[nodeId];
-      if (!prevNode) return prev;
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode) return prev;
 
       const nextLabel = typeof label === "string" ? label.trim() : undefined;
       const nextColorKey =
@@ -172,8 +174,13 @@ const useTemplateCardNodeActions = ({
 
   const appendCardNode = (kind: V2TemplateCardNodeKind) => {
     safeUpdateConfig((prev) => {
-      const runtimeCard = v2_getRuntimeCardStructure(prev);
-      const existingIds = new Set(Object.keys(runtimeCard.nodes));
+      const componentIdCandidate = resolveActiveComponentId?.(prev);
+      const componentId =
+        componentIdCandidate?.trim() || v2_getDefaultCardComponentId(prev);
+      const componentDefinition = prev.graph.componentDefinitions[componentId];
+      if (!componentDefinition) return prev;
+
+      const existingIds = new Set(Object.keys(prev.graph.nodes));
       let nextIndex = 1;
       let nodeId = `card-node-${nextIndex}`;
       while (existingIds.has(nodeId)) {
@@ -222,12 +229,10 @@ const useTemplateCardNodeActions = ({
         }),
       };
 
-      const cardRootNodeId =
-        prev.graph.componentDefinitions.card?.rootNodeId ?? "component-card-root";
       const nextGraphNode = v2_cardNodeToGraphNode(nextNode);
       const nextGraph = v2_graphAppendChild({
         graph: prev.graph,
-        parentId: cardRootNodeId,
+        parentId: componentDefinition.rootNodeId,
         newNode: nextGraphNode,
       });
       return {
@@ -245,18 +250,25 @@ const useTemplateCardNodeActions = ({
     if (fixedCardNodeIds.has(nodeId)) return;
 
     safeUpdateConfig((prev) => {
-      const runtimeCard = v2_getRuntimeCardStructure(prev);
-      const targetNode = runtimeCard.nodes[nodeId];
-      if (!targetNode) return prev;
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode) return prev;
+      const styleKeys = graphNode.styles ?? {};
 
       const nextCardLayout = {
         ...prev.layout.card,
       };
-      delete nextCardLayout[targetNode.containerStyleKey];
-      if (targetNode.textStyleKey) delete nextCardLayout[targetNode.textStyleKey];
-      if (targetNode.wrapperStyleKey)
-        delete nextCardLayout[targetNode.wrapperStyleKey];
-      if (targetNode.optionsKey) delete nextCardLayout[targetNode.optionsKey];
+      if (typeof styleKeys.containerStyleKey === "string") {
+        delete nextCardLayout[styleKeys.containerStyleKey];
+      }
+      if (typeof styleKeys.textStyleKey === "string") {
+        delete nextCardLayout[styleKeys.textStyleKey];
+      }
+      if (typeof styleKeys.wrapperStyleKey === "string") {
+        delete nextCardLayout[styleKeys.wrapperStyleKey];
+      }
+      if (typeof styleKeys.optionsKey === "string") {
+        delete nextCardLayout[styleKeys.optionsKey];
+      }
       const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, nodeId);
       return {
         ...prev,
@@ -271,8 +283,12 @@ const useTemplateCardNodeActions = ({
 
   const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
     safeUpdateConfig((prev) => {
-      const runtimeCard = v2_getRuntimeCardStructure(prev);
-      const graphCardDefinition = prev.graph.componentDefinitions.card;
+      const componentIdCandidate = resolveActiveComponentId?.(prev);
+      const componentId =
+        componentIdCandidate?.trim() || v2_getDefaultCardComponentId(prev);
+      const graphCardDefinition = prev.graph.componentDefinitions[componentId];
+      if (!graphCardDefinition) return prev;
+      const runtimeCard = v2_getRuntimeCardStructureByComponentId(prev, componentId);
       const currentMode =
         graphCardDefinition?.instanceMode ?? runtimeCard.instanceMode ?? "component";
       if (currentMode === instanceMode) return prev;
@@ -295,25 +311,20 @@ const useTemplateCardNodeActions = ({
         ...prev.graph,
         componentDefinitions: {
           ...prev.graph.componentDefinitions,
-          card: {
-            ...(prev.graph.componentDefinitions.card ?? {
-              id: "card",
-              label: "Card",
-              rootNodeId: "component-card-root",
-              kind: "template",
-            }),
+          [componentId]: {
+            ...graphCardDefinition,
             ...(instanceMode === "detached"
               ? {
                   instanceMode: "detached" as const,
                   detachedAt:
-                    prev.graph.componentDefinitions.card?.detachedAt ??
+                    graphCardDefinition.detachedAt ??
                     new Date().toISOString(),
                 }
               : {
                   instanceMode: "component" as const,
                 }),
             instanceTransforms:
-              prev.graph.componentDefinitions.card?.instanceTransforms ??
+              graphCardDefinition.instanceTransforms ??
               runtimeCard.instanceTransforms,
           },
         },
@@ -333,10 +344,15 @@ const useTemplateCardNodeActions = ({
     if (!Number.isFinite(value)) return;
 
     safeUpdateConfig((prev) => {
-      const runtimeCard = v2_getRuntimeCardStructure(prev);
+      const componentIdCandidate = resolveActiveComponentId?.(prev);
+      const componentId =
+        componentIdCandidate?.trim() || v2_getDefaultCardComponentId(prev);
+      const graphCardDefinition = prev.graph.componentDefinitions[componentId];
+      if (!graphCardDefinition) return prev;
+      const runtimeCard = v2_getRuntimeCardStructureByComponentId(prev, componentId);
       const transformKey = String(index);
       const prevTransforms =
-        prev.graph.componentDefinitions.card?.instanceTransforms ??
+        graphCardDefinition.instanceTransforms ??
         runtimeCard.instanceTransforms ??
         {};
       const prevTransform = prevTransforms[transformKey] ?? {};
@@ -395,13 +411,8 @@ const useTemplateCardNodeActions = ({
         ...prev.graph,
         componentDefinitions: {
           ...prev.graph.componentDefinitions,
-          card: {
-            ...(prev.graph.componentDefinitions.card ?? {
-              id: "card",
-              label: "Card",
-              rootNodeId: "component-card-root",
-              kind: "template",
-            }),
+          [componentId]: {
+            ...graphCardDefinition,
             instanceTransforms: nextTransforms,
           },
         },
