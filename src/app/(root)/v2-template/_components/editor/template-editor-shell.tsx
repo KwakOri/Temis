@@ -304,6 +304,29 @@ const V2TimeTableEditor: React.FC = () => {
       };
     });
   };
+  const detachComponentMaster = (componentId: string) => {
+    if (!setRenderConfig) return;
+    setRenderConfig((prev) => {
+      const definition = prev.graph.componentDefinitions[componentId];
+      if (!definition) return prev;
+      if (definition.instanceMode === "detached") return prev;
+
+      return {
+        ...prev,
+        graph: {
+          ...prev.graph,
+          componentDefinitions: {
+            ...prev.graph.componentDefinitions,
+            [componentId]: {
+              ...definition,
+              instanceMode: "detached",
+              detachedAt: new Date().toISOString(),
+            },
+          },
+        },
+      };
+    });
+  };
 
   const uiContextValue = useMemo(
     () => ({ state, actions }),
@@ -451,6 +474,7 @@ const V2TimeTableEditor: React.FC = () => {
                       onRelocateLayers={(payload) => {
                         applyLayerRelocation(payload);
                       }}
+                      onDetachComponent={detachComponentMaster}
                       onSelectLayer={({ layerId }) => {
                         setIsRightPanelOpen(true);
                         setPropertiesFocusRequest({

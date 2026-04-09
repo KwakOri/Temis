@@ -62,6 +62,7 @@ interface V2TimeTableLayersPanelProps {
     targetParentId: string;
     targetIndex: number;
   }) => void;
+  onDetachComponent?: (componentId: string) => void;
 }
 
 const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
@@ -157,6 +158,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   onReorderLayers,
   canRelocateLayer,
   onRelocateLayers,
+  onDetachComponent,
 }) => {
   const {
     activeHighlightTarget,
@@ -583,31 +585,51 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 </div>
               ) : (
                 componentCatalog.map((componentItem) => (
-                  <button
+                  <div
                     key={componentItem.id}
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-2 text-left hover:bg-[#1d2636]"
-                    onClick={() => {
-                      if (!componentItem.rootLayerId) return;
-                      setSelectedLayerId(componentItem.rootLayerId);
-                      onSelectLayer?.({
-                        layerId: componentItem.rootLayerId,
-                      });
-                    }}
+                    className="space-y-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-2"
                   >
-                    <Component className="h-3.5 w-3.5 shrink-0 text-[#9ab3dd]" />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-semibold text-[#d3e2ff]">
-                        {componentItem.label}
-                      </p>
-                      <p className="truncate text-[10px] text-[#7f92b5]">
-                        {componentItem.kind} / {componentItem.instanceMode}
-                      </p>
-                    </div>
-                    <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
-                      Master
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 text-left hover:bg-[#1d2636]"
+                      onClick={() => {
+                        if (!componentItem.rootLayerId) return;
+                        setSelectedLayerId(componentItem.rootLayerId);
+                        onSelectLayer?.({
+                          layerId: componentItem.rootLayerId,
+                        });
+                      }}
+                    >
+                      <Component className="h-3.5 w-3.5 shrink-0 text-[#9ab3dd]" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-[#d3e2ff]">
+                          {componentItem.label}
+                        </p>
+                        <p className="truncate text-[10px] text-[#7f92b5]">
+                          {componentItem.kind} / {componentItem.instanceMode}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
+                        Master
+                      </span>
+                    </button>
+                    {componentItem.instanceMode !== "detached" ? (
+                      <button
+                        type="button"
+                        className="w-full rounded border border-[#8a4f4f] bg-[#2a1b1b] px-2 py-1 text-[11px] font-semibold text-[#f2b7b7] hover:bg-[#352020]"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDetachComponent?.(componentItem.id);
+                        }}
+                      >
+                        Detach (되돌릴 수 없음)
+                      </button>
+                    ) : (
+                      <div className="w-full rounded border border-[#3b5b8b] bg-[#14233d] px-2 py-1 text-[11px] font-semibold text-[#9ec1ff]">
+                        Detached
+                      </div>
+                    )}
+                  </div>
                 ))
               )}
             </div>
