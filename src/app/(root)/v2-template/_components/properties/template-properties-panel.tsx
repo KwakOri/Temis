@@ -105,6 +105,7 @@ import TemplateDataTab from "./panels/template-data-tab";
 import TemplateExportTab from "./panels/template-export-tab";
 import TemplatePropertiesTab from "./panels/template-properties-tab";
 import TemplateSchemaTab from "./panels/template-schema-tab";
+import TemplateStyleTab from "./panels/template-style-tab";
 
 type V2BuilderTab =
   | "canvas"
@@ -4016,23 +4017,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   );
 
   const renderStyleTab = () => (
-    <div
-      ref={inspectorTabRef}
-      className="space-y-4 rounded-xl border border-[#2f3239] bg-[#111317] p-3 text-gray-100"
+    <TemplateStyleTab
+      inspectorRef={inspectorTabRef}
       onMouseLeave={clearSectionHoverHighlight}
-      onBlurCapture={(event) => {
-        const nextFocused = event.relatedTarget;
-        if (!(nextFocused instanceof Node)) {
-          setActiveHighlightTarget(null);
-          return;
-        }
-        if (!inspectorTabRef.current?.contains(nextFocused)) {
-          setActiveHighlightTarget(null);
-        }
-      }}
+      onBlurOutside={() => setActiveHighlightTarget(null)}
     >
-      <h3 className="font-bold text-base text-gray-100">스타일</h3>
-
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="space-y-1">
@@ -4284,7 +4273,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </TemplateStyleTab>
   );
 
   const renderCardNodeAutoResizeOptions = ({
