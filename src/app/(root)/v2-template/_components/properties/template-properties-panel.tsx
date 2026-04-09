@@ -75,6 +75,7 @@ import TemplateSceneAssetProperties from "./components/template-scene-asset-prop
 import TemplateSceneCardCollectionProperties from "./components/template-scene-card-collection-properties";
 import TemplateSceneGroupProperties from "./components/template-scene-group-properties";
 import TemplateSceneNodeStructureControls from "./components/template-scene-node-structure-controls";
+import TemplateSelectedPropertiesPanelRouter from "./components/template-selected-properties-panel-router";
 import TemplateSimplePropertiesSection from "./components/template-simple-properties-section";
 import TemplateStyleSectionEditor from "./components/template-style-section-editor";
 import TemplateAssetsTab from "./panels/template-assets-tab";
@@ -2128,45 +2129,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
-  const renderPropertiesPanels = () => {
-    const selectedLayerNode = selectedPropertiesLayerNode;
-    if (!selectedLayerNode) return null;
-
-    const section = selectedPropertiesSection;
-    const cardNode = cardNodeByLayerId.get(selectedLayerNode.id);
-    if (cardNode) {
-      return renderCardNodeProperties(section ?? "cardContainer", cardNode);
-    }
-    const sceneNode = sceneNodeByLayerId.get(selectedLayerNode.id);
-    if (sceneNode) {
-      if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {
-        return renderSceneTextNodeProperties(
-          section ?? sceneNode.containerStyleKey,
-          sceneNode
-        );
-      }
-      if (sceneNode.kind === "asset") {
-        return renderSceneAssetNodeProperties(sceneNode, section);
-      }
-      if (sceneNode.kind === "group") {
-        return renderSceneGroupNodeProperties(sceneNode);
-      }
-      if (sceneNode.kind === "cardCollection") {
-        return renderSceneCardCollectionProperties(sceneNode, section);
-      }
-    }
-
-    if (!section) {
-      return (
-        <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 text-xs text-gray-400">
-          선택한 레이어에는 스타일 섹션이 연결되어 있지 않습니다.
-        </div>
-      );
-    }
-
-    return renderSimplePropertiesSection(section);
-  };
-
   const renderPropertiesTab = () => (
     <TemplatePropertiesTab
       inspectorRef={inspectorTabRef}
@@ -2174,7 +2136,18 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       onMouseLeave={clearSectionHoverHighlight}
       onBlurOutside={() => setActiveHighlightTarget(null)}
     >
-      {renderPropertiesPanels()}
+      <TemplateSelectedPropertiesPanelRouter
+        selectedLayerNode={selectedPropertiesLayerNode}
+        selectedSection={selectedPropertiesSection}
+        cardNodeByLayerId={cardNodeByLayerId}
+        sceneNodeByLayerId={sceneNodeByLayerId}
+        renderCardNodeProperties={renderCardNodeProperties}
+        renderSceneTextNodeProperties={renderSceneTextNodeProperties}
+        renderSceneAssetNodeProperties={renderSceneAssetNodeProperties}
+        renderSceneGroupNodeProperties={renderSceneGroupNodeProperties}
+        renderSceneCardCollectionProperties={renderSceneCardCollectionProperties}
+        renderSimplePropertiesSection={renderSimplePropertiesSection}
+      />
     </TemplatePropertiesTab>
   );
 
