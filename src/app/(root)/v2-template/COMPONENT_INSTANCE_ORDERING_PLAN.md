@@ -129,3 +129,23 @@ Move / Extract Copy 분리:
    - 기존 UI 동작 동일성 확인
 3. 타입체크/린트 최소 검증 후 커밋
 
+## 8) 진행 현황 (2026-04-09)
+
+- 완료
+  - Phase A: `OrderAdapter`(pointer) 도입 및 실제 정렬 경로 연결
+  - Phase B(기반): graph node `order` 슬롯(`model/prevSiblingId/orderKey`) 타입/정규화 추가
+  - pointer 정합성 보정 유틸(`v2_normalizePointerOrderInGraph`) 추가 및 editor/render-config 경로 연결
+  - re-parent primitive(`v2_graphMoveNode`) 추가
+  - Scene 노드 구조 패널에서 부모 이동 UI 연결
+  - Layers 패널 `before/inside/after` 드롭 및 re-parent relay 연결
+  - 왼쪽 패널 `Layers / Components` 분리 탭 추가
+  - Components 탭 `Detach (one-way)` 동작 추가
+
+- 부분 완료
+  - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
+  - Phase D: Components 탭 최소 분리 완료 (마스터 편집 전용 플로우 강화 필요)
+
+- 남은 핵심
+  - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
+  - orderKey adapter 실제 도입 및 pointer->orderKey 전환 유틸 고도화
+  - 완전 graph-only 경로로 잔여 fallback 의존 제거
