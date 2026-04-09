@@ -89,6 +89,20 @@ const V2TimeTableEditor: React.FC = () => {
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
   );
+  const runtimeComponentCatalog = useMemo(() => {
+    const definitions = Object.values(renderConfig.graph.componentDefinitions ?? {});
+    return definitions.map((definition) => {
+      const rootNode = renderConfig.graph.nodes[definition.rootNodeId];
+      return {
+        id: definition.id,
+        label: definition.label || definition.id,
+        rootNodeId: definition.rootNodeId,
+        rootLayerId: rootNode?.layerId ?? null,
+        kind: definition.kind ?? "custom",
+        instanceMode: definition.instanceMode ?? "component",
+      };
+    });
+  }, [renderConfig.graph.componentDefinitions, renderConfig.graph.nodes]);
   const runtimeCardStructure = useMemo(
     () => v2_getRuntimeCardStructure(renderConfig),
     [renderConfig]
@@ -408,6 +422,7 @@ const V2TimeTableEditor: React.FC = () => {
                   >
                     <V2TimeTableLayersPanel
                       layerTree={runtimeLayerTree}
+                      componentCatalog={runtimeComponentCatalog}
                       orderedIdsByParent={orderedIdsByParent}
                       onReorderLayers={({ parentId, orderedIds }) => {
                         applyLayerZIndex({

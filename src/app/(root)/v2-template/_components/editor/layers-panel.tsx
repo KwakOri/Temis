@@ -2,6 +2,7 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  Component,
   Eye,
   EyeOff,
   GripVertical,
@@ -36,6 +37,14 @@ const v2_LAYER_ICON_MAP: Record<
 
 interface V2TimeTableLayersPanelProps {
   layerTree?: V2LayerNode[];
+  componentCatalog?: Array<{
+    id: string;
+    label: string;
+    rootNodeId: string;
+    rootLayerId: string | null;
+    kind: "template" | "custom";
+    instanceMode: "component" | "detached";
+  }>;
   onSelectLayer?: (payload: {
     target?: V2TemplateHighlightTarget;
     sectionKey?: string;
@@ -141,6 +150,7 @@ const v2_createInitialOrderMap = (
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   layerTree: layerTreeProp,
+  componentCatalog = [],
   onSelectLayer,
   orderedIdsByParent,
   onReorderLayers,
@@ -162,6 +172,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     card: true,
   });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"layers" | "components">("layers");
   const defaultOrderMap = useMemo(
     () => v2_createInitialOrderMap(layerTree),
     [layerTree]
@@ -516,12 +527,74 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   return (
     <div className="v2-dark-form-theme h-full min-h-0 w-full border-r border-[#303848] bg-[#121722]">
       <div className="flex h-full min-h-0 flex-col">
-        <div className="border-b border-[#303848] px-3 py-3">
-          <h3 className="text-sm font-semibold text-gray-100">Layers</h3>
+        <div className="border-b border-[#303848] px-3 py-3 space-y-2">
+          <h3 className="text-sm font-semibold text-gray-100">Structure</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab("layers")}
+              className={`rounded border px-2 py-1.5 text-xs font-semibold ${
+                activeTab === "layers"
+                  ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
+                  : "border-[#354056] bg-[#171e2b] text-[#9db2d8] hover:bg-[#1f2838]"
+              }`}
+            >
+              Layers
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("components")}
+              className={`rounded border px-2 py-1.5 text-xs font-semibold ${
+                activeTab === "components"
+                  ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
+                  : "border-[#354056] bg-[#171e2b] text-[#9db2d8] hover:bg-[#1f2838]"
+              }`}
+            >
+              Components
+            </button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {getOrderedChildren(v2_ROOT_LAYER_PARENT_ID, layerTree).map(
-            (node) => renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID, false)
+          {activeTab === "layers" ? (
+            getOrderedChildren(v2_ROOT_LAYER_PARENT_ID, layerTree).map(
+              (node) => renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID, false)
+            )
+          ) : (
+            <div className="space-y-2">
+              {componentCatalog.length === 0 ? (
+                <div className="rounded border border-[#2f394d] bg-[#151c28] px-2 py-2 text-[11px] text-[#8ca2c8]">
+                  등록된 컴포넌트가 없습니다.
+                </div>
+              ) : (
+                componentCatalog.map((componentItem) => (
+                  <button
+                    key={componentItem.id}
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-2 text-left hover:bg-[#1d2636]"
+                    onClick={() => {
+                      if (!componentItem.rootLayerId) return;
+                      setSelectedLayerId(componentItem.rootLayerId);
+                      onSelectLayer?.({
+                        layerId: componentItem.rootLayerId,
+                      });
+                    }}
+                  >
+                    <Component className="h-3.5 w-3.5 shrink-0 text-[#9ab3dd]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-semibold text-[#d3e2ff]">
+                        {componentItem.label}
+                      </p>
+                      <p className="truncate text-[10px] text-[#7f92b5]">
+                        {componentItem.kind} / {componentItem.instanceMode}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
+                      Master
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
           )}
         </div>
       </div>
