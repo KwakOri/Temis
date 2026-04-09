@@ -1,6 +1,8 @@
 import {
+  V2TemplateCardStructure,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
+  V2TemplateSceneNode,
   V2TemplateStructureConfig,
   V2TemplateStyleRecord,
 } from "@/types/time-table/template-render-config";
@@ -56,6 +58,22 @@ export const collectLayerNodeMap = (
 export const collectStyleSectionResolverMap = (
   structure: V2TemplateStructureConfig
 ): SectionStyleResolverMap => {
+  return collectStyleSectionResolverMapFromRuntime({
+    layers: structure.layers,
+    card: structure.card,
+    sceneNodes: structure.sceneNodes,
+  });
+};
+
+export const collectStyleSectionResolverMapFromRuntime = ({
+  layers,
+  card,
+  sceneNodes,
+}: {
+  layers: V2TemplateLayerNode[];
+  card: V2TemplateCardStructure;
+  sceneNodes: V2TemplateSceneNode[];
+}): SectionStyleResolverMap => {
   const map: SectionStyleResolverMap = {};
   const rootStyleKeySet = new Set<RootLayoutStyleKey>(
     Object.values(ROOT_LAYOUT_STYLE_SECTION_MAP).filter(
@@ -73,25 +91,24 @@ export const collectStyleSectionResolverMap = (
     }
   );
 
-  const layerNodeMap = collectLayerNodeMap(structure.layers);
-  const cardStructure = structure.card;
-  const cardStyleKeySet = new Set<string>([cardStructure.containerStyleKey]);
-  Object.values(cardStructure.nodes).forEach((cardNode) => {
+  const layerNodeMap = collectLayerNodeMap(layers);
+  const cardStyleKeySet = new Set<string>([card.containerStyleKey]);
+  Object.values(card.nodes).forEach((cardNode) => {
     cardStyleKeySet.add(cardNode.containerStyleKey);
     if (cardNode.textStyleKey) cardStyleKeySet.add(cardNode.textStyleKey);
     if (cardNode.wrapperStyleKey) cardStyleKeySet.add(cardNode.wrapperStyleKey);
     if (cardNode.optionsKey) cardStyleKeySet.add(cardNode.optionsKey);
   });
 
-  const cardContainerLayer = layerNodeMap.get(cardStructure.containerLayerId);
+  const cardContainerLayer = layerNodeMap.get(card.containerLayerId);
   if (cardContainerLayer?.sectionKey) {
     map[cardContainerLayer.sectionKey] = {
       scope: "card",
-      key: cardStructure.containerStyleKey as CardLayoutStyleKey,
+      key: card.containerStyleKey as CardLayoutStyleKey,
     };
   }
 
-  Object.values(cardStructure.nodes).forEach((cardNode) => {
+  Object.values(card.nodes).forEach((cardNode) => {
     const layerNode = layerNodeMap.get(cardNode.layerId);
     if (!layerNode?.sectionKey) return;
     map[layerNode.sectionKey] = {
@@ -100,7 +117,7 @@ export const collectStyleSectionResolverMap = (
     };
   });
 
-  const visitSceneNode = (node: V2TemplateStructureConfig["sceneNodes"][number]) => {
+  const visitSceneNode = (node: V2TemplateSceneNode) => {
     if (node.kind === "group") {
       node.children.forEach(visitSceneNode);
       return;
@@ -141,7 +158,7 @@ export const collectStyleSectionResolverMap = (
     };
   };
 
-  structure.sceneNodes.forEach(visitSceneNode);
+  sceneNodes.forEach(visitSceneNode);
 
   return map;
 };

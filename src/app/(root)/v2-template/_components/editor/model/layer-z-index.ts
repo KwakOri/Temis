@@ -1,13 +1,12 @@
 import {
   V2TemplateLayerNode,
-  V2TemplateStructureConfig,
   V2TemplateStyleRecord,
 } from "@/types/time-table/template-render-config";
 import {
   ROOT_LAYER_PARENT_ID,
+  SectionStyleResolverMap,
   TemplateLayoutShape,
   collectLayerNodeMap,
-  collectStyleSectionResolverMap,
   getStyleRecordBySectionKey,
   setStyleRecordBySectionKey,
 } from "./style-section-resolver";
@@ -22,14 +21,14 @@ const parseZIndex = (value: unknown): number | undefined => {
 };
 
 export const buildOrderedLayerIdsByParent = ({
-  structure,
+  layers,
   layout,
+  resolverMap,
 }: {
-  structure: V2TemplateStructureConfig;
+  layers: V2TemplateLayerNode[];
   layout: TemplateLayoutShape;
+  resolverMap: SectionStyleResolverMap;
 }): Record<string, string[]> => {
-  const resolverMap = collectStyleSectionResolverMap(structure);
-
   const getSectionZIndex = (sectionKey?: string): number | undefined => {
     if (!sectionKey) return undefined;
     const style = getStyleRecordBySectionKey(layout, sectionKey, resolverMap);
@@ -76,18 +75,20 @@ export const buildOrderedLayerIdsByParent = ({
     });
   };
 
-  buildOrder(structure.layers, ROOT_LAYER_PARENT_ID);
+  buildOrder(layers, ROOT_LAYER_PARENT_ID);
   return orderedMap;
 };
 
 export const applyReorderedLayerZIndex = ({
   layout,
-  structure,
+  layers,
+  resolverMap,
   parentId,
   orderedIds,
 }: {
   layout: TemplateLayoutShape;
-  structure: V2TemplateStructureConfig;
+  layers: V2TemplateLayerNode[];
+  resolverMap: SectionStyleResolverMap;
   parentId: string;
   orderedIds: string[];
 }): TemplateLayoutShape => {
@@ -98,19 +99,18 @@ export const applyReorderedLayerZIndex = ({
     zMap.set(id, (orderedIds.length - index) * 10);
   });
 
-  const resolverMap = collectStyleSectionResolverMap(structure);
   let nextLayout: TemplateLayoutShape = {
     ...layout,
     card: {
       ...layout.card,
     },
   };
-  const layerNodeMap = collectLayerNodeMap(structure.layers);
+  const layerNodeMap = collectLayerNodeMap(layers);
   const parentNode =
     parentId === ROOT_LAYER_PARENT_ID ? null : layerNodeMap.get(parentId) ?? null;
   const siblings =
     parentId === ROOT_LAYER_PARENT_ID
-      ? structure.layers
+      ? layers
       : (parentNode?.children ?? []);
   const siblingIdSet = new Set(siblings.map((sibling) => sibling.id));
 

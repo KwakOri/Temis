@@ -8,12 +8,18 @@ import { TemplateEditorUIProvider } from '@/contexts/v2/template-editor-ui-conte
 import { useTemplateEditor } from '@/hooks/v2/useTemplateEditor';
 import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui';
 import { TTheme } from '@/types/time-table/theme';
+import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
+import {
+  v2_getRuntimeCardStructure,
+  v2_getRuntimeSceneNodes,
+} from '@/utils/time-table/template-graph-runtime';
 import V2TemplateBuilderForm from '../properties/template-properties-panel';
 import V2Loading from '../shared/loading-screen';
 import {
   applyReorderedLayerZIndex,
   buildOrderedLayerIdsByParent,
 } from './model/layer-z-index';
+import { collectStyleSectionResolverMapFromRuntime } from './model/style-section-resolver';
 import V2MobileHeader from './mobile-toolbar';
 import V2TimeTableLayersPanel from './layers-panel';
 import V2TimeTableControls from './preview-toolbar';
@@ -68,13 +74,35 @@ const V2TimeTableEditor: React.FC = () => {
   const [hiddenLayerIds, setHiddenLayerIds] = useState<Record<string, boolean>>(
     {}
   );
+  const runtimeLayerTree = useMemo(
+    () => v2_getRuntimeLayerTree(renderConfig),
+    [renderConfig]
+  );
+  const runtimeCardStructure = useMemo(
+    () => v2_getRuntimeCardStructure(renderConfig),
+    [renderConfig]
+  );
+  const runtimeSceneNodes = useMemo(
+    () => v2_getRuntimeSceneNodes(renderConfig),
+    [renderConfig]
+  );
+  const runtimeStyleResolverMap = useMemo(
+    () =>
+      collectStyleSectionResolverMapFromRuntime({
+        layers: runtimeLayerTree,
+        card: runtimeCardStructure,
+        sceneNodes: runtimeSceneNodes,
+      }),
+    [runtimeCardStructure, runtimeLayerTree, runtimeSceneNodes]
+  );
 
   const orderedIdsByParent = useMemo(() => {
     return buildOrderedLayerIdsByParent({
-      structure: renderConfig.structure,
+      layers: runtimeLayerTree,
       layout: renderConfig.layout,
+      resolverMap: runtimeStyleResolverMap,
     });
-  }, [renderConfig.layout, renderConfig.structure]);
+  }, [renderConfig.layout, runtimeLayerTree, runtimeStyleResolverMap]);
 
   const applyLayerZIndex = ({
     parentId,
@@ -86,11 +114,20 @@ const V2TimeTableEditor: React.FC = () => {
     if (!setRenderConfig || orderedIds.length === 0) return;
 
     setRenderConfig((prev) => {
+      const prevRuntimeLayerTree = v2_getRuntimeLayerTree(prev);
+      const prevRuntimeCard = v2_getRuntimeCardStructure(prev);
+      const prevRuntimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const prevRuntimeResolverMap = collectStyleSectionResolverMapFromRuntime({
+        layers: prevRuntimeLayerTree,
+        card: prevRuntimeCard,
+        sceneNodes: prevRuntimeSceneNodes,
+      });
       return {
         ...prev,
         layout: applyReorderedLayerZIndex({
           layout: prev.layout,
-          structure: prev.structure,
+          layers: prevRuntimeLayerTree,
+          resolverMap: prevRuntimeResolverMap,
           parentId,
           orderedIds,
         }),
@@ -229,6 +266,7 @@ const V2TimeTableEditor: React.FC = () => {
                     }`}
                   >
                     <V2TimeTableLayersPanel
+                      layerTree={runtimeLayerTree}
                       orderedIdsByParent={orderedIdsByParent}
                       onReorderLayers={({ parentId, orderedIds }) => {
                         applyLayerZIndex({

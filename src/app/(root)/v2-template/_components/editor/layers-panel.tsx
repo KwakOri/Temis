@@ -36,6 +36,7 @@ const v2_LAYER_ICON_MAP: Record<
 };
 
 interface V2TimeTableLayersPanelProps {
+  layerTree?: V2LayerNode[];
   onSelectLayer?: (payload: {
     target?: V2TemplateHighlightTarget;
     sectionKey?: string;
@@ -109,6 +110,7 @@ const v2_createInitialOrderMap = (
 };
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
+  layerTree: layerTreeProp,
   onSelectLayer,
   orderedIdsByParent,
   onReorderLayers,
@@ -121,10 +123,10 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     isLayerHidden,
     toggleLayerHidden,
   } = useTemplateEditorRuntimeContext();
-  const layerTree = useMemo(
-    () => renderConfig.structure.layers,
-    [renderConfig.structure.layers]
-  );
+  const layerTree = useMemo(() => {
+    if (layerTreeProp && layerTreeProp.length > 0) return layerTreeProp;
+    return renderConfig.structure.layers;
+  }, [layerTreeProp, renderConfig.structure.layers]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     grid: true,
     profile: true,

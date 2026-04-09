@@ -17,6 +17,7 @@ import {
 import { getWeekDateRange, padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
+import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import { v2_getRuntimeCardStructure } from "@/utils/time-table/template-graph-runtime";
 import {
   v2_getComponentFontFamily,
@@ -90,9 +91,13 @@ const V2SceneStructureRenderer = ({
   } = useTemplateEditorRuntimeContext();
   const { weekDates, profileText, imageSrc, preferProfileDummyImage } =
     useTemplateEditorData();
+  const runtimeLayerTree = useMemo(
+    () => v2_getRuntimeLayerTree(renderConfig),
+    [renderConfig]
+  );
   const layerTargetMap = useMemo(
-    () => v2_collectLayerTargetById(renderConfig.structure.layers),
-    [renderConfig.structure.layers]
+    () => v2_collectLayerTargetById(runtimeLayerTree),
+    [runtimeLayerTree]
   );
 
   const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;

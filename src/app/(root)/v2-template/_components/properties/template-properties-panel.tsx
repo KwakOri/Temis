@@ -20,6 +20,7 @@ import {
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
+import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
   v2_getRuntimeCardStructure,
   v2_getRuntimeSceneNodes,
@@ -448,13 +449,17 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     () => v2_getRuntimeCardStructure(renderConfig),
     [renderConfig]
   );
+  const runtimeLayerTree = useMemo(
+    () => v2_getRuntimeLayerTree(renderConfig),
+    [renderConfig]
+  );
   const runtimeSceneNodes = useMemo(
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
   );
   const structurePropertiesMaps = useMemo(
-    () => v2_collectStructureTargetSectionMaps(renderConfig.structure.layers),
-    [renderConfig.structure.layers]
+    () => v2_collectStructureTargetSectionMaps(runtimeLayerTree),
+    [runtimeLayerTree]
   );
   const selectedPropertiesLayerNode = useMemo(
     () => structurePropertiesMaps.layerIdToNode[selectedPropertiesLayerId] ?? null,
