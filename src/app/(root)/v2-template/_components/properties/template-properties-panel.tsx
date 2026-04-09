@@ -20,10 +20,7 @@ import {
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
-import {
-  v2_bindingRefToLegacyInput,
-  v2_isEntryFieldBindingKey,
-} from "@/utils/time-table/template-render-config";
+import { v2_bindingRefToLegacyInput } from "@/utils/time-table/template-render-config";
 import {
   v2_HORIZONTAL_ALIGN_TO_JUSTIFY,
   v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS,
@@ -47,9 +44,6 @@ import {
 } from "./model/structure-utils";
 import {
   V2NodeNewFieldDraft,
-  v2_getNodeBindingSelectValue,
-  v2_getNodeNewFieldDraft,
-  v2_hasNodeBindingField,
 } from "./model/binding-utils";
 import {
   V2BoilerplateFieldConfig,
@@ -60,13 +54,10 @@ import {
   v2_isKnownStyleSectionKey,
   v2_parseStyleSectionKey,
   v2_resolveCardStyleSection,
-  v2_resolveTextNodeSections,
 } from "./model/style-section-utils";
 import { v2_getPropertiesStyleEditorTitle } from "./model/style-section-title-utils";
-import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
 import TemplateBoilerplateSectionEditor from "./components/template-boilerplate-section-editor";
 import TemplateBoilerplateSettingsModal from "./components/template-boilerplate-settings-modal";
-import TemplateBoundTextNodePropertiesPanel from "./components/template-bound-text-node-properties-panel";
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
 import TemplateAutoResizeAlignmentEditor from "./components/template-auto-resize-alignment-editor";
 import TemplateSelectedPropertiesPanelRouter from "./components/template-selected-properties-panel-router";
@@ -85,6 +76,7 @@ import TemplateSchemaTab from "./panels/template-schema-tab";
 import TemplateStyleTab from "./panels/template-style-tab";
 import TemplateStyleThemeSettings from "./panels/template-style-theme-settings";
 import useTemplateStyleEditorActions from "./hooks/use-template-style-editor-actions";
+import useTemplateBoundTextNodePropertyPanels from "./hooks/use-template-bound-text-node-property-panels";
 import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
 import useTemplateSceneNodePropertyPanels from "./hooks/use-template-scene-node-property-panels";
@@ -1678,169 +1670,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     </TemplateStyleTab>
   );
 
-  const renderCardNodeAutoResizeOptions = ({
-    node,
-    containerSection,
-  }: {
-    node: V2TemplateCardNode;
-    containerSection: V2StyleSectionId;
-  }) => {
-    if (!node.optionsKey) return null;
-
-    const options = renderConfig.layout.card[node.optionsKey];
-    const maxFontSizeFallback =
-      v2_isEntryFieldBindingKey(node.binding, "subTitle")
-        ? renderConfig.maxFontSizes.SUB_TITLE
-        : renderConfig.maxFontSizes.MAIN_TITLE;
-    const maxFontSizeCandidate = Number(options?.maxFontSize);
-    const maxFontSize =
-      Number.isFinite(maxFontSizeCandidate) && maxFontSizeCandidate > 0
-        ? maxFontSizeCandidate
-        : maxFontSizeFallback;
-    const multiline =
-      typeof options?.multiline === "boolean"
-        ? options.multiline
-        : options?.multiline === undefined
-          ? true
-          : String(options.multiline).toLowerCase() === "true";
-
-    return (
-      <TemplateCardAutoResizeOptions
-        maxFontSize={maxFontSize}
-        multiline={multiline}
-        onHoverContainer={() => setSectionHoverHighlight(containerSection)}
-        onLeaveContainer={clearSectionHoverHighlight}
-        onActivateContainer={() => setSectionActiveHighlight(containerSection)}
-        onChangeMaxFontSize={(value) => {
-          updateCardOptions(node.optionsKey!, { maxFontSize: value });
-          if (v2_isEntryFieldBindingKey(node.binding, "mainTitle")) {
-            updateMaxFontSize("MAIN_TITLE", value);
-          }
-          if (v2_isEntryFieldBindingKey(node.binding, "subTitle")) {
-            updateMaxFontSize("SUB_TITLE", value);
-          }
-        }}
-        onChangeMultiline={(value) =>
-          updateCardOptions(node.optionsKey!, {
-            multiline: value,
-          })
-        }
-      />
-    );
-  };
-
-  const renderCardNodeProperties = (
-    section: V2StyleSectionId,
-    node: V2TemplateCardNode
-  ) => {
-    const {
-      containerSection,
-      textSection,
-      wrapperSection,
-      alignmentWrapperSection,
-      hasAutoResizeAlignment,
-    } = v2_resolveTextNodeSections({
-      containerStyleKey: node.containerStyleKey,
-      textStyleKey: node.textStyleKey,
-      wrapperStyleKey: node.wrapperStyleKey,
-      fallbackSection: section,
-      styleKeyToSectionMap: v2_STYLE_KEY_TO_SECTION_KEY_MAP,
-      isFlexibleText: node.kind === "flexibleText",
-    });
-    const isRemovable = !v2_FIXED_CARD_NODE_IDS.has(node.id);
-    const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
-    const fieldBindingExists = v2_hasNodeBindingField(
-      node.binding,
-      renderConfig.formSchema.fields
-    );
-    const newFieldDraft = v2_getNodeNewFieldDraft(newFieldDraftByNodeId, node.id);
-
-    const headerAction = isRemovable ? (
-      <button
-        type="button"
-        onClick={() => removeCardNode(node.id)}
-        className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
-      >
-        오브젝트 삭제
-      </button>
-    ) : null;
-
-    return (
-      <TemplateBoundTextNodePropertiesPanel
-        heading={`Card / ${node.label}`}
-        headerAction={headerAction}
-        label={node.label}
-        colorKey={node.colorKey}
-        fontKey={node.fontKey}
-        visibilityMode={node.visibilityMode ?? "always"}
-        binding={node.binding}
-        bindingSelectValue={bindingSelectValue}
-        fields={renderConfig.formSchema.fields}
-        computedOptions={v2_BINDING_COMPUTED_OPTIONS}
-        scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
-        newFieldDraft={newFieldDraft}
-        fieldBindingExists={fieldBindingExists}
-        colorKeys={v2_TEMPLATE_COLOR_KEYS}
-        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-        containerSection={containerSection}
-        wrapperSection={wrapperSection}
-        alignmentWrapperSection={alignmentWrapperSection}
-        textSection={textSection}
-        hasAutoResizeAlignment={hasAutoResizeAlignment}
-        tailContent={
-          node.kind === "flexibleText"
-            ? renderCardNodeAutoResizeOptions({
-                node,
-                containerSection,
-              })
-            : null
-        }
-        renderStyleSectionEditor={renderStyleSectionEditor}
-        renderAutoResizeAlignmentEditor={renderAutoResizeAlignmentEditor}
-        onChangeLabel={(value) =>
-          updateCardNodeMeta({
-            nodeId: node.id,
-            label: value,
-          })
-        }
-        onChangeColorKey={(value) =>
-          updateCardNodeMeta({
-            nodeId: node.id,
-            colorKey: value,
-          })
-        }
-        onChangeFontKey={(value) =>
-          updateCardNodeMeta({
-            nodeId: node.id,
-            fontKey: value,
-          })
-        }
-        onChangeVisibilityMode={(value) =>
-          updateCardNodeVisibilityMode(node.id, value)
-        }
-        onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
-        onMouseLeaveVisibility={clearSectionHoverHighlight}
-        onClickVisibility={() => setSectionActiveHighlight(containerSection)}
-        onSelectBinding={(value) => {
-          const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
-          if (!nextBinding) return;
-          updateCardNodeBinding(node.id, nextBinding);
-        }}
-        onChangeLiteral={(value) =>
-          updateCardNodeBinding(node.id, {
-            mode: "literal",
-            value,
-          })
-        }
-        onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
-        onChangeDraftScope={(scope) =>
-          updateNodeNewFieldDraft(node.id, { scope })
-        }
-        onCreateField={() => createFieldForCardNodeBinding(node)}
-      />
-    );
-  };
-
   const renderCardComponentProperties = (section: V2StyleSectionId) => {
     if (section !== "cardContainer") return null;
 
@@ -1883,101 +1712,36 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onUpdateSceneNodeVisibilityMode: updateSceneNodeVisibilityMode,
   });
 
-  const renderSceneTextNodeProperties = (
-    section: V2StyleSectionId,
-    node: V2TemplateSceneTextNode
-  ) => {
-    const {
-      containerSection,
-      textSection,
-      wrapperSection,
-      alignmentWrapperSection,
-      hasAutoResizeAlignment,
-    } = v2_resolveTextNodeSections({
-      containerStyleKey: node.containerStyleKey,
-      textStyleKey: node.textStyleKey,
-      wrapperStyleKey: node.wrapperStyleKey,
-      fallbackSection: section,
+  const { renderCardNodeProperties, renderSceneTextNodeProperties } =
+    useTemplateBoundTextNodePropertyPanels({
+      renderConfig,
       styleKeyToSectionMap: v2_STYLE_KEY_TO_SECTION_KEY_MAP,
-      isFlexibleText: node.kind === "flexibleText",
+      fixedCardNodeIds: v2_FIXED_CARD_NODE_IDS,
+      colorKeys: v2_TEMPLATE_COLOR_KEYS,
+      computedOptions: v2_BINDING_COMPUTED_OPTIONS,
+      scopeOptions: v2_FORM_FIELD_SCOPE_OPTIONS,
+      visibilityOptions: v2_CARD_NODE_VISIBILITY_OPTIONS,
+      newFieldDraftByNodeId,
+      renderStyleSectionEditor,
+      renderAutoResizeAlignmentEditor,
+      renderSceneNodeStructureControls,
+      parseBindingFromSelectValue: v2_parseBindingFromSelectValue,
+      onSetSectionHoverHighlight: setSectionHoverHighlight,
+      onClearSectionHoverHighlight: clearSectionHoverHighlight,
+      onSetSectionActiveHighlight: setSectionActiveHighlight,
+      onUpdateCardOptions: updateCardOptions,
+      onUpdateMaxFontSize: updateMaxFontSize,
+      onRemoveCardNode: removeCardNode,
+      onUpdateCardNodeMeta: updateCardNodeMeta,
+      onUpdateCardNodeVisibilityMode: updateCardNodeVisibilityMode,
+      onUpdateCardNodeBinding: updateCardNodeBinding,
+      onUpdateNodeNewFieldDraft: updateNodeNewFieldDraft,
+      onCreateFieldForCardNodeBinding: createFieldForCardNodeBinding,
+      onUpdateSceneTextNodeMeta: updateSceneTextNodeMeta,
+      onUpdateSceneTextNodeVisibilityMode: updateSceneTextNodeVisibilityMode,
+      onUpdateSceneTextNodeBinding: updateSceneTextNodeBinding,
+      onCreateFieldForSceneNodeBinding: createFieldForSceneNodeBinding,
     });
-    const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
-    const fieldBindingExists = v2_hasNodeBindingField(
-      node.binding,
-      renderConfig.formSchema.fields
-    );
-    const newFieldDraft = v2_getNodeNewFieldDraft(newFieldDraftByNodeId, node.id);
-
-    return (
-      <TemplateBoundTextNodePropertiesPanel
-        heading={`Scene / ${node.label}`}
-        structureControls={renderSceneNodeStructureControls({
-          node,
-          allowChildren: false,
-        })}
-        label={node.label}
-        colorKey={node.colorKey}
-        fontKey={node.fontKey}
-        visibilityMode={node.visibilityMode ?? "always"}
-        binding={node.binding}
-        bindingSelectValue={bindingSelectValue}
-        fields={renderConfig.formSchema.fields}
-        computedOptions={v2_BINDING_COMPUTED_OPTIONS}
-        scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
-        newFieldDraft={newFieldDraft}
-        fieldBindingExists={fieldBindingExists}
-        colorKeys={v2_TEMPLATE_COLOR_KEYS}
-        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-        containerSection={containerSection}
-        wrapperSection={wrapperSection}
-        alignmentWrapperSection={alignmentWrapperSection}
-        textSection={textSection}
-        hasAutoResizeAlignment={hasAutoResizeAlignment}
-        renderStyleSectionEditor={renderStyleSectionEditor}
-        renderAutoResizeAlignmentEditor={renderAutoResizeAlignmentEditor}
-        onChangeLabel={(value) =>
-          updateSceneTextNodeMeta({
-            nodeId: node.id,
-            label: value,
-          })
-        }
-        onChangeColorKey={(value) =>
-          updateSceneTextNodeMeta({
-            nodeId: node.id,
-            colorKey: value,
-          })
-        }
-        onChangeFontKey={(value) =>
-          updateSceneTextNodeMeta({
-            nodeId: node.id,
-            fontKey: value,
-          })
-        }
-        onChangeVisibilityMode={(value) =>
-          updateSceneTextNodeVisibilityMode(node.id, value)
-        }
-        onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
-        onMouseLeaveVisibility={clearSectionHoverHighlight}
-        onClickVisibility={() => setSectionActiveHighlight(containerSection)}
-        onSelectBinding={(value) => {
-          const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
-          if (!nextBinding) return;
-          updateSceneTextNodeBinding(node.id, nextBinding);
-        }}
-        onChangeLiteral={(value) =>
-          updateSceneTextNodeBinding(node.id, {
-            mode: "literal",
-            value,
-          })
-        }
-        onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
-        onChangeDraftScope={(scope) =>
-          updateNodeNewFieldDraft(node.id, { scope })
-        }
-        onCreateField={() => createFieldForSceneNodeBinding(node)}
-      />
-    );
-  };
 
   const renderSimplePropertiesSection = (section: V2StyleSectionId) => {
     const knownSection = v2_isKnownStyleSectionKey(section, v2_STYLE_SECTION_LABELS) ? section : null;
