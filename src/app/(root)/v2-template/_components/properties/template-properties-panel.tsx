@@ -45,10 +45,15 @@ import {
   v2_parseStyleSectionKey,
   v2_resolveCardStyleSection,
 } from "./model/style-section-utils";
+import {
+  v2_applyTemplatePreset,
+  v2_TEMPLATE_PRESET_DEFINITIONS,
+} from "./model/template-presets";
 import TemplateBoilerplateSectionEditor from "./components/template-boilerplate-section-editor";
 import TemplateBoilerplateSettingsModal from "./components/template-boilerplate-settings-modal";
 import TemplateAutoResizeAlignmentEditor from "./components/template-auto-resize-alignment-editor";
 import TemplateSelectedPropertiesPanelRouter from "./components/template-selected-properties-panel-router";
+import TemplateStylePresetControls from "./components/template-style-preset-controls";
 import TemplateStyleSectionEditor from "./components/template-style-section-editor";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabContentRouter, {
@@ -439,6 +444,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     useState<V2StyleSectionKey>("grid");
   const [isBoilerplateSettingsOpen, setIsBoilerplateSettingsOpen] =
     useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState(
+    v2_TEMPLATE_PRESET_DEFINITIONS[0]?.id ?? "default_boilerplate"
+  );
   const [formSchemaError, setFormSchemaError] = useState<string | null>(null);
   const [newFieldDraftByNodeId, setNewFieldDraftByNodeId] = useState<
     Record<string, V2NodeNewFieldDraft>
@@ -936,6 +944,20 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     }
   };
 
+  const applySelectedPreset = () => {
+    const presetDefinition = v2_TEMPLATE_PRESET_DEFINITIONS.find(
+      (preset) => preset.id === selectedPresetId
+    );
+    if (!presetDefinition) return;
+
+    safeUpdateConfig((prev) =>
+      v2_applyTemplatePreset({
+        current: prev,
+        preset: presetDefinition.createConfig(),
+      })
+    );
+  };
+
   const renderStyleSectionEditor = ({
     title,
     section,
@@ -1129,6 +1151,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       onMouseLeave={clearSectionHoverHighlight}
       onBlurOutside={() => setActiveHighlightTarget(null)}
     >
+      <TemplateStylePresetControls
+        presetOptions={v2_TEMPLATE_PRESET_DEFINITIONS.map((preset) => ({
+          id: preset.id,
+          label: preset.label,
+          description: preset.description,
+        }))}
+        selectedPresetId={selectedPresetId}
+        onChangePresetId={setSelectedPresetId}
+        onApplyPreset={applySelectedPreset}
+      />
       <TemplateStyleThemeSettings
         renderConfig={renderConfig}
         colorKeys={v2_TEMPLATE_COLOR_KEYS}
