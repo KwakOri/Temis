@@ -1652,24 +1652,30 @@ const v2_normalizeNodeGraph = (
 ): V2TemplateNodeGraph => {
   if (!v2_isRecord(candidate)) return fallback;
 
+  const hasCandidateNodes =
+    v2_isRecord(candidate.nodes) && Object.keys(candidate.nodes).length > 0;
+
   const nextNodes: Record<string, V2TemplateGraphNode> = {
-    ...fallback.nodes,
+    ...(hasCandidateNodes ? {} : fallback.nodes),
   };
 
   if (v2_isRecord(candidate.nodes)) {
     Object.entries(candidate.nodes).forEach(([nodeId, rawNode]) => {
-      const fallbackNode = nextNodes[nodeId];
+      const fallbackNode = nextNodes[nodeId] ?? fallback.nodes[nodeId];
       const normalizedNode = v2_normalizeGraphNode(nodeId, rawNode, fallbackNode);
       if (!normalizedNode) return;
       nextNodes[normalizedNode.id] = normalizedNode;
     });
   }
 
+  const hasCandidateComponentDefinitions =
+    v2_isRecord(candidate.componentDefinitions) &&
+    Object.keys(candidate.componentDefinitions).length > 0;
   const nextComponentDefinitions: Record<
     string,
     V2TemplateGraphComponentDefinition
   > = {
-    ...fallback.componentDefinitions,
+    ...(hasCandidateComponentDefinitions ? {} : fallback.componentDefinitions),
   };
 
   if (v2_isRecord(candidate.componentDefinitions)) {
