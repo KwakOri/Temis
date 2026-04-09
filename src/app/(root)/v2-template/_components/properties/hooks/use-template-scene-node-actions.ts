@@ -32,9 +32,6 @@ import {
   v2_createUniqueNodeId,
   v2_findLayerNodeContextById,
   v2_findSceneNodeContextById,
-  v2_updateLayerNodeLabelById,
-  v2_updateSceneNodeById,
-  v2_updateSceneTextNodeById,
 } from "../model/structure-utils";
 import {
   v2_createDefaultTextNodeLayoutPatch,
@@ -177,26 +174,29 @@ const useTemplateSceneNodeActions = ({
     visibilityMode: V2TemplateVisibilityMode
   ) => {
     safeUpdateConfig((prev) => {
-      const { nodes: nextSceneNodes, updated } = v2_updateSceneNodeById({
-        nodes: prev.structure.sceneNodes,
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
         nodeId,
-        updater: (node) => ({
-          ...node,
-          visibilityMode,
-        }),
       });
-
-      if (!updated) return prev;
+      if (!nodeContext) return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        visibilityMode,
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          visibilityMode,
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -207,36 +207,29 @@ const useTemplateSceneNodeActions = ({
     if (!nextLabel) return;
 
     safeUpdateConfig((prev) => {
-      const { nodes: nextSceneNodes, updated, matchedNode } =
-        v2_updateSceneNodeById({
-          nodes: prev.structure.sceneNodes,
-          nodeId,
-          updater: (node) => ({
-            ...node,
-            label: nextLabel,
-          }),
-        });
-
-      if (!updated) return prev;
-
-      const nextLayers = matchedNode?.layerId
-        ? v2_updateLayerNodeLabelById(
-            prev.structure.layers,
-            matchedNode.layerId,
-            nextLabel
-          )
-        : prev.structure.layers;
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!nodeContext) return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        label: nextLabel,
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          label: nextLabel,
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          layers: nextLayers,
-          sceneNodes: nextSceneNodes,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -254,37 +247,35 @@ const useTemplateSceneNodeActions = ({
     alt?: string;
   }) => {
     safeUpdateConfig((prev) => {
-      const { nodes: nextSceneNodes, updated } = v2_updateSceneNodeById({
-        nodes: prev.structure.sceneNodes,
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
         nodeId,
-        updater: (node) => {
-          if (node.kind !== "asset") return node;
-          const nextAlt = typeof alt === "string" ? alt.trim() : undefined;
-          return {
-            ...node,
-            ...(assetKey ? { assetKey } : {}),
-            ...(fit ? { fit } : {}),
-            ...(nextAlt !== undefined ? { alt: nextAlt } : {}),
-          };
-        },
       });
-
-      if (!updated) return prev;
+      if (!nodeContext || nodeContext.node.kind !== "asset") return prev;
+      const nextAlt = typeof alt === "string" ? alt.trim() : undefined;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          ...(assetKey ? { assetKey } : {}),
+          ...(fit ? { fit } : {}),
+          ...(nextAlt !== undefined ? { alt: nextAlt } : {}),
+        },
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          meta: {
-            ...(node.meta ?? {}),
-            ...(assetKey ? { assetKey } : {}),
-            ...(fit ? { fit } : {}),
-            ...(typeof alt === "string" ? { alt: alt.trim() } : {}),
-          },
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -302,32 +293,32 @@ const useTemplateSceneNodeActions = ({
         return prev;
       }
 
-      const { nodes: nextSceneNodes, updated } = v2_updateSceneNodeById({
-        nodes: prev.structure.sceneNodes,
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
         nodeId,
-        updater: (node) => {
-          if (node.kind !== "cardCollection") return node;
-          return {
-            ...node,
-            componentId,
-          };
-        },
       });
-
-      if (!updated) return prev;
+      if (!nodeContext || nodeContext.node.kind !== "cardCollection") return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          componentId,
+        },
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          meta: {
-            ...(node.meta ?? {}),
-            componentId,
-          },
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -853,30 +844,38 @@ const useTemplateSceneNodeActions = ({
     binding: V2TemplateSceneTextNode["binding"]
   ) => {
     safeUpdateConfig((prev) => {
-      const { nodes: nextSceneNodes, updated } = v2_updateSceneTextNodeById({
-        nodes: prev.structure.sceneNodes,
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
         nodeId,
-        updater: (node) => ({
-          ...node,
-          binding,
-        }),
       });
-
-      if (!updated) return prev;
+      if (
+        !nodeContext ||
+        (nodeContext.node.kind !== "text" && nodeContext.node.kind !== "flexibleText")
+      ) {
+        return prev;
+      }
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        binding,
+        meta: {
+          ...(node.meta ?? {}),
+          layerIcon: binding.mode === "computed" ? "calendar" : "text",
+        },
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          binding,
-          meta: {
-            ...(node.meta ?? {}),
-            layerIcon: binding.mode === "computed" ? "calendar" : "text",
-          },
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -910,45 +909,40 @@ const useTemplateSceneNodeActions = ({
         typeof fontKey === "string" && templateColorKeys.includes(fontKey)
           ? fontKey
           : undefined;
-
-      const { nodes: nextSceneNodes, updated, matchedNode } =
-        v2_updateSceneTextNodeById({
-          nodes: prev.structure.sceneNodes,
-          nodeId,
-          updater: (node) => ({
-            ...node,
-            ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-            ...(nextColorKey ? { colorKey: nextColorKey } : {}),
-            ...(nextFontKey ? { fontKey: nextFontKey } : {}),
-          }),
-        });
-
-      if (!updated) return prev;
-
-      const nextLayers =
-        nextLabel && nextLabel.length > 0 && matchedNode?.layerId
-          ? v2_updateLayerNodeLabelById(
-              prev.structure.layers,
-              matchedNode.layerId,
-              nextLabel
-            )
-          : prev.structure.layers;
+      if (!nextLabel && !nextColorKey && !nextFontKey) return prev;
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (
+        !nodeContext ||
+        (nodeContext.node.kind !== "text" && nodeContext.node.kind !== "flexibleText")
+      ) {
+        return prev;
+      }
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
+        meta: {
+          ...(node.meta ?? {}),
+          ...(nextColorKey ? { colorKey: nextColorKey } : {}),
+          ...(nextFontKey ? { fontKey: nextFontKey } : {}),
+        },
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-          meta: {
-            ...(node.meta ?? {}),
-            ...(nextColorKey ? { colorKey: nextColorKey } : {}),
-            ...(nextFontKey ? { fontKey: nextFontKey } : {}),
-          },
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          layers: nextLayers,
-          sceneNodes: nextSceneNodes,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
