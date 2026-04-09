@@ -124,11 +124,17 @@ export const v2_pointerOrderAdapter: V2OrderAdapter<V2PointerOrderState> = {
   reorderWithinParent: v2_reorderPointerStateByOrderedIds,
 };
 
-export const v2_getOrderAdapter = (
+export function v2_getOrderAdapter(
+  model: "pointer"
+): V2OrderAdapter<V2PointerOrderState>;
+export function v2_getOrderAdapter(
+  model: "orderKey"
+): V2OrderAdapter<Record<string, string>>;
+export function v2_getOrderAdapter(
   model: V2OrderModel
-): V2OrderAdapter<V2PointerOrderState | Record<string, string>> => {
+): V2OrderAdapter<V2PointerOrderState> | V2OrderAdapter<Record<string, string>> {
   if (model === "orderKey") {
     return v2_orderKeyOrderAdapter;
   }
   return v2_pointerOrderAdapter;
-};
+}
