@@ -1,4 +1,5 @@
 import type { V2TemplateOrderModel } from "@/types/time-table/template-render-config";
+import { v2_orderKeyOrderAdapter } from "./order-key-adapter";
 
 export type V2OrderModel = V2TemplateOrderModel;
 
@@ -121,4 +122,13 @@ export const v2_pointerOrderAdapter: V2OrderAdapter<V2PointerOrderState> = {
   model: "pointer",
   buildOrderedIdsByParent: v2_buildOrderedIdsByParentFromPointer,
   reorderWithinParent: v2_reorderPointerStateByOrderedIds,
+};
+
+export const v2_getOrderAdapter = (
+  model: V2OrderModel
+): V2OrderAdapter<V2PointerOrderState | Record<string, string>> => {
+  if (model === "orderKey") {
+    return v2_orderKeyOrderAdapter;
+  }
+  return v2_pointerOrderAdapter;
 };
