@@ -35,14 +35,11 @@ import {
   v2_isEntryFieldBindingKey,
 } from "@/utils/time-table/template-render-config";
 import {
-  v2_ALIGN_ITEMS_TO_VERTICAL_ALIGN,
   v2_HORIZONTAL_ALIGN_TO_JUSTIFY,
-  v2_JUSTIFY_TO_HORIZONTAL_ALIGN,
   v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS,
 } from "./model/alignment-utils";
 import {
   v2_POSITION_MUTEX_MAP,
-  v2_getGridEmptySlotsFromMap,
   v2_hasRenderableStyleValue,
 } from "./model/layout-utils";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
@@ -75,9 +72,7 @@ import {
 } from "./model/binding-utils";
 import {
   V2BoilerplateFieldConfig,
-  V2BoilerplateGroupConfig,
   V2BoilerplateFieldType,
-  v2_STYLE_EXTENSION_DEFAULT_VALUES,
 } from "./model/boilerplate-ui-utils";
 import {
   v2_createStyleKeyToSectionKeyMap,
@@ -106,6 +101,7 @@ import TemplatePropertiesTab from "./panels/template-properties-tab";
 import TemplateSchemaTab from "./panels/template-schema-tab";
 import TemplateStyleTab from "./panels/template-style-tab";
 import TemplateStyleThemeSettings from "./panels/template-style-theme-settings";
+import useTemplateStyleEditorActions from "./hooks/use-template-style-editor-actions";
 
 type V2BuilderTab =
   | "canvas"
@@ -296,9 +292,6 @@ type V2StyleSectionId = V2StyleSectionKey | string;
 
 type V2HorizontalAlign = "left" | "center" | "right";
 type V2VerticalAlign = "top" | "center" | "bottom";
-type V2GridLayoutMode = "grid3x3" | "flex4x2";
-type V2Flex42Align = "left" | "center" | "right";
-type V2Flex42ThreeRow = "top" | "bottom";
 
 interface V2TemplateBuilderFormProps {
   focusLayerId?: string | null;
@@ -485,9 +478,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     useState<V2StyleSectionKey>("grid");
   const [isBoilerplateSettingsOpen, setIsBoilerplateSettingsOpen] =
     useState(false);
-  const [styleGroupExpanded, setStyleGroupExpanded] = useState<
-    Record<string, boolean>
-  >({});
   const [formSchemaError, setFormSchemaError] = useState<string | null>(null);
   const [newFieldDraftByNodeId, setNewFieldDraftByNodeId] = useState<
     Record<string, V2NodeNewFieldDraft>
@@ -760,6 +750,40 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     if (!setRenderConfig) return;
     setRenderConfig((prev) => updater(prev));
   };
+
+  const {
+    getStyleSectionMap,
+    addStyleProperty,
+    removeStyleProperty,
+    updateStylePropertyValue,
+    updateGridLayoutMode,
+    updateFlex42Align,
+    updateFlex42ThreeRow,
+    pickGridEmptySlot,
+    setSectionHoverHighlight,
+    clearSectionHoverHighlight,
+    setSectionActiveHighlight,
+    isStyleGroupOpen,
+    toggleStyleGroupOpen,
+    applyStyleExtensionGroupDefaults,
+    getHorizontalAlignFromStyle,
+    getVerticalAlignFromStyle,
+    updateAutoResizeHorizontalAlign,
+    updateAutoResizeVerticalAlign,
+  } = useTemplateStyleEditorActions({
+    renderConfig,
+    safeUpdateConfig,
+    sceneStyleSectionKeySet,
+    structureSectionToTarget: structurePropertiesMaps.sectionToTarget,
+    setHoverHighlightTarget,
+    setActiveHighlightTarget,
+    styleSectionLabels: v2_STYLE_SECTION_LABELS,
+    rootLayoutStyleSectionKeyMap: v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP,
+    cardLayoutStyleSectionKeyMap: v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP,
+    styleSectionHighlightTargetMap: v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP,
+    stylePropertyCatalog: v2_STYLE_PROPERTY_CATALOG,
+    lockedStylePropertyKeys: v2_LOCKED_STYLE_PROPERTY_KEYS,
+  });
 
   const updateFormSchema = (
     updater: (prev: typeof renderConfig.formSchema) => typeof renderConfig.formSchema
@@ -1246,381 +1270,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     }));
   };
 
-  const getStyleSectionMap = (
-    section: V2StyleSectionId
-  ): Record<string, string | number> => {
-    const knownSection = v2_isKnownStyleSectionKey(section, v2_STYLE_SECTION_LABELS) ? section : null;
-    const rootLayoutKey = knownSection
-      ? v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
-      : undefined;
-    if (rootLayoutKey) {
-      return (
-        (renderConfig.layout[rootLayoutKey] as Record<string, string | number>) ?? {}
-      );
-    }
-
-    const cardLayoutKey = knownSection
-      ? v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
-      : undefined;
-    if (cardLayoutKey) {
-      return (
-        (renderConfig.layout.card[cardLayoutKey] as Record<
-          string,
-          string | number
-        >) ?? {}
-      );
-    }
-
-    const dynamicSectionSource = sceneStyleSectionKeySet.has(section)
-      ? renderConfig.layout.scene[section]
-      : renderConfig.layout.card[section];
-    if (dynamicSectionSource && typeof dynamicSectionSource === "object") {
-      return dynamicSectionSource as Record<string, string | number>;
-    }
-
-    return {};
-  };
-
-  const parseStyleValue = (rawValue: string): string | number => {
-    const trimmed = rawValue.trim();
-    if (trimmed === "") return "";
-    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-      return Number(trimmed);
-    }
-    return trimmed;
-  };
-
-  const withExclusiveInsetValue = (
-    currentMap: Record<string, string | number>,
-    key: string,
-    nextValue: string | number
-  ) => {
-    const nextMap: Record<string, string | number> = {
-      ...currentMap,
-      [key]: nextValue,
-    };
-
-    const counterpartKey = v2_POSITION_MUTEX_MAP[key];
-    if (!counterpartKey) return nextMap;
-    if (!v2_hasRenderableStyleValue(nextValue)) return nextMap;
-
-    delete nextMap[counterpartKey];
-    return nextMap;
-  };
-
-  const updateStyleSection = (
-    section: V2StyleSectionId,
-    nextMap: Record<string, string | number>
-  ) => {
-    safeUpdateConfig((prev) => {
-      const knownSection = v2_isKnownStyleSectionKey(section, v2_STYLE_SECTION_LABELS) ? section : null;
-      const rootLayoutKey = knownSection
-        ? v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
-        : undefined;
-      if (rootLayoutKey) {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            [rootLayoutKey]: nextMap,
-          },
-        };
-      }
-
-      const cardLayoutKey = knownSection
-        ? v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP[knownSection]
-        : undefined;
-      if (cardLayoutKey) {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            card: {
-              ...prev.layout.card,
-              [cardLayoutKey]: nextMap,
-            },
-          },
-        };
-      }
-
-      if (sceneStyleSectionKeySet.has(section)) {
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            scene: {
-              ...prev.layout.scene,
-              [section]: nextMap,
-            },
-          },
-        };
-      }
-
-      return {
-        ...prev,
-        layout: {
-          ...prev.layout,
-          card: {
-            ...prev.layout.card,
-            [section]: nextMap,
-          },
-        },
-      };
-    });
-  };
-
-  const addStyleProperty = (section: V2StyleSectionId) => {
-    const currentMap = getStyleSectionMap(section);
-    const nextKey =
-      v2_STYLE_PROPERTY_CATALOG.find(
-        (property) =>
-          !v2_LOCKED_STYLE_PROPERTY_KEYS.has(property) &&
-          currentMap[property] === undefined
-      ) ??
-      `custom_${Object.keys(currentMap).length + 1}`;
-
-    updateStyleSection(section, {
-      ...currentMap,
-      [nextKey]: "",
-    });
-  };
-
-  const removeStyleProperty = (section: V2StyleSectionId, key: string) => {
-    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(key)) return;
-    const currentMap = getStyleSectionMap(section);
-    const nextMap = { ...currentMap };
-    delete nextMap[key];
-    updateStyleSection(section, nextMap);
-  };
-
-  const updateStylePropertyValue = (
-    section: V2StyleSectionId,
-    key: string,
-    rawValue: string
-  ) => {
-    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(key)) return;
-    const currentMap = getStyleSectionMap(section);
-    const nextValue = parseStyleValue(rawValue);
-    updateStyleSection(
-      section,
-      withExclusiveInsetValue(currentMap, key, nextValue)
-    );
-  };
-
-  const updateGridLayoutMode = (mode: V2GridLayoutMode) => {
-    const currentMap = getStyleSectionMap("grid");
-    updateStyleSection("grid", {
-      ...currentMap,
-      layoutMode: mode,
-    });
-  };
-
-  const updateFlex42Align = (align: V2Flex42Align) => {
-    const currentMap = getStyleSectionMap("grid");
-    updateStyleSection("grid", {
-      ...currentMap,
-      flex42Align: align,
-    });
-  };
-
-  const updateFlex42ThreeRow = (targetRow: V2Flex42ThreeRow) => {
-    const currentMap = getStyleSectionMap("grid");
-    updateStyleSection("grid", {
-      ...currentMap,
-      flex42ThreeRow: targetRow,
-    });
-  };
-
-  const pickGridEmptySlot = (slot: number) => {
-    const currentMap = getStyleSectionMap("grid");
-    const currentSlots = v2_getGridEmptySlotsFromMap(currentMap);
-    const isSelected = currentSlots.includes(slot);
-
-    let nextSlots: number[];
-    if (isSelected) {
-      nextSlots = currentSlots.filter((value) => value !== slot);
-    } else if (currentSlots.length < 2) {
-      nextSlots = [...currentSlots, slot];
-    } else {
-      nextSlots = [currentSlots[1], slot];
-    }
-
-    const nextMap: Record<string, string | number> = {
-      ...currentMap,
-    };
-    if (nextSlots[0] !== undefined) {
-      nextMap.gridEmptySlotA = nextSlots[0];
-    } else {
-      delete nextMap.gridEmptySlotA;
-    }
-    if (nextSlots[1] !== undefined) {
-      nextMap.gridEmptySlotB = nextSlots[1];
-    } else {
-      delete nextMap.gridEmptySlotB;
-    }
-
-    updateStyleSection("grid", nextMap);
-  };
-
-  const getHighlightTargetFromStyleSection = (
-    section: V2StyleSectionId
-  ): V2TemplateHighlightTarget => {
-    const knownSection = v2_isKnownStyleSectionKey(section, v2_STYLE_SECTION_LABELS) ? section : null;
-    return (
-      structurePropertiesMaps.sectionToTarget[section] ??
-      (knownSection
-        ? v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[knownSection]
-        : "cardContainer")
-    );
-  };
-
-  const setSectionHoverHighlight = (section: V2StyleSectionId) => {
-    setHoverHighlightTarget(getHighlightTargetFromStyleSection(section));
-  };
-
-  const clearSectionHoverHighlight = () => {
-    setHoverHighlightTarget(null);
-  };
-
-  const setSectionActiveHighlight = (section: V2StyleSectionId) => {
-    setActiveHighlightTarget(getHighlightTargetFromStyleSection(section));
-  };
-
-  const isStyleGroupOpen = ({
-    section,
-    group,
-    sectionMap,
-  }: {
-    section: V2StyleSectionId;
-    group: V2BoilerplateGroupConfig;
-    sectionMap: Record<string, string | number>;
-  }) => {
-    const stateKey = `${section}:${group.id}`;
-    const explicit = styleGroupExpanded[stateKey];
-    if (typeof explicit === "boolean") return explicit;
-
-    const hasAnyValue = group.fields.some((field) => {
-      const value = sectionMap[field.key];
-      if (value === undefined) return false;
-      if (typeof value === "string") return value.trim() !== "";
-      return true;
-    });
-
-    if (hasAnyValue) return true;
-    if (group.id === "fill" || group.id === "stroke" || group.id === "effects") {
-      return false;
-    }
-    return true;
-  };
-
-  const toggleStyleGroupOpen = (
-    section: V2StyleSectionId,
-    groupId: string
-  ) => {
-    const stateKey = `${section}:${groupId}`;
-    setStyleGroupExpanded((prev) => ({
-      ...prev,
-      [stateKey]: !(prev[stateKey] ?? false),
-    }));
-  };
-
-  const applyStyleExtensionGroupDefaults = (
-    section: V2StyleSectionId,
-    groupId: string
-  ) => {
-    const defaults = v2_STYLE_EXTENSION_DEFAULT_VALUES[groupId];
-    if (!defaults) return;
-
-    const currentMap = getStyleSectionMap(section);
-    const nextMap: Record<string, string | number> = { ...currentMap };
-
-    Object.entries(defaults).forEach(([key, value]) => {
-      const currentValue = nextMap[key];
-      const isUnset =
-        currentValue === undefined ||
-        (typeof currentValue === "string" && currentValue.trim() === "");
-      if (isUnset) {
-        nextMap[key] = value;
-      }
-    });
-
-    updateStyleSection(section, nextMap);
-
-    const stateKey = `${section}:${groupId}`;
-    setStyleGroupExpanded((prev) => ({
-      ...prev,
-      [stateKey]: true,
-    }));
-  };
-
-  const getHorizontalAlignFromStyle = (
-    wrapperMap: Record<string, string | number>,
-    textMap: Record<string, string | number>
-  ): V2HorizontalAlign => {
-    const textAlignRaw = textMap.textAlign;
-    if (
-      textAlignRaw === "left" ||
-      textAlignRaw === "center" ||
-      textAlignRaw === "right"
-    ) {
-      return textAlignRaw;
-    }
-
-    const justifyRaw = wrapperMap.justifyContent;
-    if (typeof justifyRaw === "string") {
-      return v2_JUSTIFY_TO_HORIZONTAL_ALIGN[justifyRaw] ?? "center";
-    }
-    return "center";
-  };
-
-  const getVerticalAlignFromStyle = (
-    wrapperMap: Record<string, string | number>
-  ): V2VerticalAlign => {
-    const alignItemsRaw = wrapperMap.alignItems;
-    if (typeof alignItemsRaw === "string") {
-      return v2_ALIGN_ITEMS_TO_VERTICAL_ALIGN[alignItemsRaw] ?? "center";
-    }
-    return "center";
-  };
-
-  const updateAutoResizeHorizontalAlign = ({
-    wrapperSection,
-    textSection,
-    align,
-  }: {
-    wrapperSection: V2StyleSectionId;
-    textSection: V2StyleSectionId;
-    align: V2HorizontalAlign;
-  }) => {
-    const wrapperMap = getStyleSectionMap(wrapperSection);
-    const textMap = getStyleSectionMap(textSection);
-
-    updateStyleSection(wrapperSection, {
-      ...wrapperMap,
-      justifyContent: v2_HORIZONTAL_ALIGN_TO_JUSTIFY[align],
-    });
-
-    updateStyleSection(textSection, {
-      ...textMap,
-      textAlign: align,
-    });
-  };
-
-  const updateAutoResizeVerticalAlign = ({
-    wrapperSection,
-    align,
-  }: {
-    wrapperSection: V2StyleSectionId;
-    align: V2VerticalAlign;
-  }) => {
-    const wrapperMap = getStyleSectionMap(wrapperSection);
-
-    updateStyleSection(wrapperSection, {
-      ...wrapperMap,
-      alignItems: v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS[align],
-    });
-  };
-
   const getBoilerplateSectionMap = (section: V2StyleSectionKey) => {
     return boilerplateConfig[section] ?? {};
   };
@@ -1671,6 +1320,33 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     delete nextMap[currentKey];
     nextMap[nextKey] = value;
     updateBoilerplateSection(section, nextMap);
+  };
+
+  const parseStyleValue = (rawValue: string): string | number => {
+    const trimmed = rawValue.trim();
+    if (trimmed === "") return "";
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return Number(trimmed);
+    }
+    return trimmed;
+  };
+
+  const withExclusiveInsetValue = (
+    currentMap: Record<string, string | number>,
+    key: string,
+    nextValue: string | number
+  ) => {
+    const nextMap: Record<string, string | number> = {
+      ...currentMap,
+      [key]: nextValue,
+    };
+
+    const counterpartKey = v2_POSITION_MUTEX_MAP[key];
+    if (!counterpartKey) return nextMap;
+    if (!v2_hasRenderableStyleValue(nextValue)) return nextMap;
+
+    delete nextMap[counterpartKey];
+    return nextMap;
   };
 
   const updateBoilerplatePropertyValue = (
