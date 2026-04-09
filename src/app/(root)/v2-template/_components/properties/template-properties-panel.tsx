@@ -9,7 +9,6 @@ import {
 import {
   V2TemplateCardNode,
   V2TemplateRenderConfig,
-  V2TemplateSceneTextNode,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
@@ -19,13 +18,11 @@ import {
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
-import { v2_BOILERPLATE_SELECT_OPTIONS } from "./model/boilerplate-presets";
 import {
   v2_collectSceneNodeStyleKeys,
   v2_collectSceneNodesByLayerId,
   v2_collectSceneTextNodes,
   v2_collectStructureTargetSectionMaps,
-  v2_updateSceneTextNodeById,
 } from "./model/structure-utils";
 import { v2_collectFormSchemaDiagnostics } from "./model/form-schema-diagnostics";
 import {
@@ -35,7 +32,6 @@ import {
   v2_createStyleKeyToSectionKeyMap,
   v2_isKnownStyleSectionKey,
   v2_parseStyleSectionKey,
-  v2_resolveCardStyleSection,
 } from "./model/style-section-utils";
 import {
   v2_applyTemplatePreset,
