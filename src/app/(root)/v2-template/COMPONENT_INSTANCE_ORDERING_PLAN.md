@@ -150,6 +150,8 @@ Move / Extract Copy 분리:
   - `renderConfig` 저장 포맷에서 파생 필드 `structure` 제거:
     - 기본 config/normalize 결과에서 structure를 생성/저장하지 않음
     - `V2TemplateRenderConfig` 타입에서도 `structure` 필드 제거
+  - default graph seed의 `v2_DEFAULT_STRUCTURE` 의존 제거:
+    - 기본 graph를 `layers/sceneNodes/card` seed에서 직접 생성
   - graph 갱신 후 structure 수동 동기화 래퍼(no-op) 경로 제거
   - `order-adapter` 조회 타입을 모델별 overload로 정리해 `tsc` 안정화
 
@@ -162,4 +164,3 @@ Move / Extract Copy 분리:
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
   - orderKey adapter 실제 도입 및 pointer->orderKey 전환 유틸 고도화
-  - default graph 생성용 `structure` 상수 의존을 독립 graph seed로 치환할지 결정

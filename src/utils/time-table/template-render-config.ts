@@ -25,7 +25,6 @@ import {
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
   V2TemplateNodeGraph,
-  V2TemplateStructureConfig,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetFit,
   V2TemplateSceneNode,
@@ -491,12 +490,6 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
   },
 ];
 
-const v2_DEFAULT_STRUCTURE: V2TemplateStructureConfig = {
-  layers: v2_DEFAULT_LAYER_TREE,
-  card: v2_DEFAULT_CARD_STRUCTURE,
-  sceneNodes: v2_DEFAULT_SCENE_NODES,
-};
-
 const v2_mapSceneNodeKindToGraphType = (
   kind: V2TemplateSceneNode["kind"]
 ): V2TemplateGraphNodeType => {
@@ -551,12 +544,18 @@ const v2_toLayerGraphMeta = (layerNode?: V2TemplateLayerNode) => {
   return Object.keys(nextMeta).length > 0 ? nextMeta : undefined;
 };
 
-export const v2_createNodeGraphFromStructure = (
-  structure: V2TemplateStructureConfig
-): V2TemplateNodeGraph => {
+const v2_createDefaultNodeGraph = ({
+  layers,
+  sceneNodes,
+  card,
+}: {
+  layers: V2TemplateLayerNode[];
+  sceneNodes: V2TemplateSceneNode[];
+  card: V2TemplateCardStructure;
+}): V2TemplateNodeGraph => {
   const nodes: Record<string, V2TemplateGraphNode> = {};
   const rootNodeIds: string[] = [];
-  const layerNodeById = v2_collectLayerNodesById(structure.layers);
+  const layerNodeById = v2_collectLayerNodesById(layers);
 
   const resolveLayerMeta = ({
     layerId,
@@ -650,16 +649,16 @@ export const v2_createNodeGraphFromStructure = (
     }
   };
 
-  structure.sceneNodes.forEach((sceneNode) => {
+  sceneNodes.forEach((sceneNode) => {
     visitSceneNode(sceneNode, null);
   });
 
   const cardRootId = "component-card-root";
-  const cardNodeIds = structure.card.nodeOrder.filter(
-    (nodeId) => structure.card.nodes[nodeId] !== undefined
+  const cardNodeIds = card.nodeOrder.filter(
+    (nodeId) => card.nodes[nodeId] !== undefined
   );
   const cardRootLayerMeta = resolveLayerMeta({
-    layerId: structure.card.containerLayerId,
+    layerId: card.containerLayerId,
     fallbackId: cardRootId,
   });
 
@@ -669,11 +668,11 @@ export const v2_createNodeGraphFromStructure = (
     label: "Card",
     parentId: null,
     childIds: cardNodeIds,
-    layerId: structure.card.containerLayerId,
-    highlightTarget: structure.card.containerHighlightTarget,
+    layerId: card.containerLayerId,
+    highlightTarget: card.containerHighlightTarget,
     visibilityMode: "always",
     styles: {
-      containerStyleKey: structure.card.containerStyleKey,
+      containerStyleKey: card.containerStyleKey,
     },
     meta: {
       componentId: "card",
@@ -682,7 +681,7 @@ export const v2_createNodeGraphFromStructure = (
   };
 
   cardNodeIds.forEach((nodeId) => {
-    const cardNode = structure.card.nodes[nodeId];
+    const cardNode = card.nodes[nodeId];
     if (!cardNode) return;
     const layerMeta = resolveLayerMeta({
       layerId: cardNode.layerId,
@@ -731,8 +730,8 @@ export const v2_createNodeGraphFromStructure = (
       rootNodeId: cardRootId,
       description: "Default card component",
       kind: "template",
-      instanceMode: structure.card.instanceMode,
-      instanceTransforms: structure.card.instanceTransforms,
+      instanceMode: card.instanceMode,
+      instanceTransforms: card.instanceTransforms,
     },
   };
 
@@ -743,7 +742,11 @@ export const v2_createNodeGraphFromStructure = (
   });
 };
 
-const v2_DEFAULT_GRAPH = v2_createNodeGraphFromStructure(v2_DEFAULT_STRUCTURE);
+const v2_DEFAULT_GRAPH = v2_createDefaultNodeGraph({
+  layers: v2_DEFAULT_LAYER_TREE,
+  sceneNodes: v2_DEFAULT_SCENE_NODES,
+  card: v2_DEFAULT_CARD_STRUCTURE,
+});
 
 const v2_DEFAULT_ESCRODREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
   {
