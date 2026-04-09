@@ -9,6 +9,7 @@ import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import {
   V2TemplateCardNode,
+  V2TemplateCardStructure,
   V2TemplateCardStyleKey,
 } from "@/types/time-table/template-render-config";
 import { padZero } from "@/utils/date-formatter";
@@ -31,6 +32,7 @@ interface TimeTableCellProps {
   weekDate: Date;
   index: number;
   currentTheme: TTheme;
+  cardStructure: V2TemplateCardStructure;
 }
 
 interface OfflineCardProps {
@@ -211,12 +213,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   time,
   weekDate,
   currentTheme,
+  cardStructure,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden, globalData } =
     useTemplateEditorRuntimeContext();
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
-  const cardStructure = renderConfig.structure.card;
   const cardIsOffline = Boolean(time.isOffline);
   const cardSize = cardIsOffline
     ? renderConfig.cardSizes.offline

@@ -12,6 +12,7 @@ import React from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { isGuideEnabled } from "@/utils/time-table/data";
+import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
 import { v2_isVisibleByMode } from "@/utils/time-table/template-render-config";
 import V2SceneRenderer from "./scene-renderer";
 
@@ -67,18 +68,22 @@ const V2TimeTableContent: React.FC = () => {
   const { weekDates } = useTemplateEditorData();
   const { scale } = useTemplateEditorUI();
   const { renderConfig } = useTemplateRenderConfigContext();
+  const runtimeSceneNodes = React.useMemo(
+    () => v2_getRuntimeSceneNodes(renderConfig),
+    [renderConfig]
+  );
 
   if (weekDates.length === 0) return null;
   const firstCard = data[0] as { isOffline?: boolean } | undefined;
   const firstCardOffline = Boolean(firstCard?.isOffline);
   const hasSceneBackgroundAsset = v2_sceneHasVisibleAssetKey({
-    nodes: renderConfig.structure.sceneNodes,
+    nodes: runtimeSceneNodes,
     assetKey: "bgByTheme",
     isLayerHidden,
     isOffline: firstCardOffline,
   });
   const hasSceneGuideAsset = v2_sceneHasVisibleAssetKey({
-    nodes: renderConfig.structure.sceneNodes,
+    nodes: runtimeSceneNodes,
     assetKey: "guideByTheme",
     isLayerHidden,
     isOffline: firstCardOffline,
@@ -116,7 +121,7 @@ const V2TimeTableContent: React.FC = () => {
     >
       {isGuideEnabled && <TimeTableDesignGuide />}
       <V2SceneRenderer
-        sceneNodes={renderConfig.structure.sceneNodes}
+        sceneNodes={runtimeSceneNodes}
       />
       {!hasSceneGuideAsset && guideOverlayImage ? (
         <div

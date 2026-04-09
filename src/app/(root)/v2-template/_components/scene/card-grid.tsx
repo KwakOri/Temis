@@ -3,7 +3,10 @@ import React from "react";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
-import { V2TemplateComponentInstanceMode } from "@/types/time-table/template-render-config";
+import {
+  V2TemplateCardStructure,
+  V2TemplateComponentInstanceMode,
+} from "@/types/time-table/template-render-config";
 import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableStyle } from "./render-style";
@@ -97,7 +100,9 @@ const v2_parseGridEmptySlots = (
   return new Set(uniqueSlots);
 };
 
-const TimeTableGrid: React.FC = () => {
+const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
+  cardStructure,
+}) => {
   const {
     data,
     currentTheme,
@@ -137,10 +142,8 @@ const TimeTableGrid: React.FC = () => {
       : typeof columns === "number" && Number.isFinite(columns)
         ? `repeat(${Math.max(1, Math.round(columns))}, minmax(0, 1fr))`
         : "repeat(3, minmax(0, 1fr))";
-  const cardInstanceMode = v2_parseCardInstanceMode(
-    renderConfig.structure.card.instanceMode
-  );
-  const cardInstanceTransforms = renderConfig.structure.card.instanceTransforms;
+  const cardInstanceMode = v2_parseCardInstanceMode(cardStructure.instanceMode);
+  const cardInstanceTransforms = cardStructure.instanceTransforms;
 
   const getCardInstanceWrapperStyle = (index: number): React.CSSProperties => {
     if (cardInstanceMode !== "detached") return {};
@@ -213,6 +216,7 @@ const TimeTableGrid: React.FC = () => {
                   currentTheme={currentTheme}
                   weekDate={weekDates[index]}
                   index={index}
+                  cardStructure={cardStructure}
                 />
               </div>
             );
@@ -234,6 +238,7 @@ const TimeTableGrid: React.FC = () => {
                   currentTheme={currentTheme}
                   weekDate={weekDates[index]}
                   index={index}
+                  cardStructure={cardStructure}
                 />
               </div>
             );
@@ -270,6 +275,7 @@ const TimeTableGrid: React.FC = () => {
           currentTheme={currentTheme}
           weekDate={weekDate}
           index={itemIndex}
+          cardStructure={cardStructure}
         />
       </div>
     );
