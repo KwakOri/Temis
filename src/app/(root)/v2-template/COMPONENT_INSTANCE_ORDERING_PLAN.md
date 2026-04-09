@@ -146,12 +146,13 @@ Move / Extract Copy 분리:
   - normalize 단계에서 graph payload 우선 처리:
     - graph가 존재하면 structure 기반 fallback 주입 최소화
     - 최종 structure를 normalized graph에서 runtime 재생성
+  - normalize의 structure->graph fallback 제거로 graph-only 입력 경로 확정
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
   - Phase D: Components 탭 최소 분리 완료 (마스터 편집 전용 플로우 강화 필요)
   - Phase E(진행): `cardCollection`에 `componentId`를 도입해 카드 렌더/레이어 생성 경로를 컴포넌트 기반으로 일반화
-  - graph-only 전환(진행): 구조 직접 수정 코드는 대부분 정리됨. `graph` 미보유 레거시 입력의 구조 마이그레이션 경로 정리만 남음
+  - graph-only 전환(진행): 구조 직접 수정 코드는 정리됨. normalize 보조 유틸/타입 정리만 남음
 
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합

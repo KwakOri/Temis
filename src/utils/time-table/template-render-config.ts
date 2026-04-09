@@ -1184,28 +1184,6 @@ const v2_mergeSceneLayoutEntry = (
   return next;
 };
 
-const v2_hasGraphPayload = (candidate: unknown): boolean => {
-  if (!v2_isRecord(candidate)) return false;
-  if (v2_isRecord(candidate.nodes) && Object.keys(candidate.nodes).length > 0) {
-    return true;
-  }
-  if (
-    Array.isArray(candidate.rootNodeIds) &&
-    candidate.rootNodeIds.some(
-      (nodeId) => typeof nodeId === "string" && nodeId.trim().length > 0
-    )
-  ) {
-    return true;
-  }
-  if (
-    v2_isRecord(candidate.componentDefinitions) &&
-    Object.keys(candidate.componentDefinitions).length > 0
-  ) {
-    return true;
-  }
-  return false;
-};
-
 const v2_LAYER_ICON_KEY_SET = new Set([
   "group",
   "grid",
@@ -2384,7 +2362,7 @@ const v2_normalizeSceneNodes = (
   return parsed.length > 0 ? parsed : fallback;
 };
 
-const v2_normalizeStructure = (
+export const v2_normalizeStructure = (
   candidate: unknown,
   fallback: V2TemplateStructureConfig
 ): V2TemplateStructureConfig => {
@@ -3009,15 +2987,7 @@ export const v2_normalizeTemplateRenderConfig = (
     }
   }
 
-  const hasGraphPayload = v2_hasGraphPayload(raw.graph);
-  const normalizedStructure = hasGraphPayload
-    ? normalized.structure
-    : v2_normalizeStructure(raw.structure, normalized.structure);
-  normalized.structure = normalizedStructure;
-  const graphFallback = hasGraphPayload
-    ? normalized.graph
-    : v2_createNodeGraphFromStructure(normalizedStructure);
-  normalized.graph = v2_normalizeNodeGraph(raw.graph, graphFallback);
+  normalized.graph = v2_normalizeNodeGraph(raw.graph, normalized.graph);
   const runtimeConfig: V2TemplateRenderConfig = {
     ...normalized,
     graph: normalized.graph,
