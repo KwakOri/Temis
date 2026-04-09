@@ -1,9 +1,9 @@
 import {
-  CardInputConfig,
   TDefaultCard,
   TFieldValue,
   TGlobalData,
 } from "@/types/time-table/data";
+import { V2TemplateFormSchema } from "@/types/time-table/template-render-config";
 import {
   createInitialCardFromConfig,
   createInitialEntryFromConfig,
@@ -11,20 +11,26 @@ import {
   getDefaultCards,
   week,
 } from "@/utils/time-table/data";
-import { useCallback, useState } from "react";
+import { v2_toCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
+import { useCallback, useMemo, useState } from "react";
 
 export interface UseTemplateDataOptions {
-  inputSchema: CardInputConfig;
+  inputSchema: V2TemplateFormSchema;
 }
 
 export const useTemplateData = ({
   inputSchema,
 }: UseTemplateDataOptions) => {
+  const cardInputConfig = useMemo(
+    () => v2_toCardInputConfig(inputSchema),
+    [inputSchema]
+  );
+
   const [data, setData] = useState<TDefaultCard[]>(() => {
-    return getDefaultCards({ cardInputConfig: inputSchema });
+    return getDefaultCards({ cardInputConfig });
   });
   const [globalData, setGlobalData] = useState<TGlobalData>(() => {
-    return createInitialGlobalDataFromConfig({ cardInputConfig: inputSchema });
+    return createInitialGlobalDataFromConfig({ cardInputConfig });
   });
 
   const updateData = useCallback((newData: TDefaultCard[]) => {
@@ -107,7 +113,7 @@ export const useTemplateData = ({
         const next = [...prevData];
         if (dayIndex >= 0 && dayIndex < next.length) {
           const newEntry = createInitialEntryFromConfig({
-            cardInputConfig: inputSchema,
+            cardInputConfig,
           });
           next[dayIndex] = {
             ...next[dayIndex],
@@ -117,7 +123,7 @@ export const useTemplateData = ({
         return next;
       });
     },
-    [inputSchema]
+    [cardInputConfig]
   );
 
   const removeEntry = useCallback(
@@ -129,16 +135,14 @@ export const useTemplateData = ({
             (_, index) => index !== entryIndex
           );
           if (entries.length === 0) {
-            entries.push(
-              createInitialEntryFromConfig({ cardInputConfig: inputSchema })
-            );
+            entries.push(createInitialEntryFromConfig({ cardInputConfig }));
           }
           next[dayIndex] = { ...next[dayIndex], entries };
         }
         return next;
       });
     },
-    [inputSchema]
+    [cardInputConfig]
   );
 
   const toggleOffline = useCallback((dayIndex: number) => {
@@ -157,7 +161,7 @@ export const useTemplateData = ({
   const resetData = useCallback(() => {
     const fresh = week.map((day) => ({
       day,
-      ...createInitialCardFromConfig({ cardInputConfig: inputSchema }),
+      ...createInitialCardFromConfig({ cardInputConfig }),
     })) as TDefaultCard[];
 
     fresh.forEach((card) => {
@@ -165,25 +169,25 @@ export const useTemplateData = ({
     });
 
     setData(fresh);
-    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig: inputSchema }));
-  }, [inputSchema]);
+    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
+  }, [cardInputConfig]);
 
   const resetGlobalData = useCallback(() => {
-    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig: inputSchema }));
-  }, [inputSchema]);
+    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
+  }, [cardInputConfig]);
 
   const resetCard = useCallback(
     (dayIndex: number) => {
       if (dayIndex >= 0 && dayIndex < week.length) {
         const freshCard = {
           day: week[dayIndex],
-          ...createInitialCardFromConfig({ cardInputConfig: inputSchema }),
+          ...createInitialCardFromConfig({ cardInputConfig }),
         } as TDefaultCard;
         freshCard.isOffline = false;
         updateCard(dayIndex, freshCard);
       }
     },
-    [updateCard, inputSchema]
+    [updateCard, cardInputConfig]
   );
 
   return {

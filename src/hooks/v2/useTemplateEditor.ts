@@ -1,17 +1,18 @@
-import { CardInputConfig } from "@/types/time-table/data";
+import { V2TemplateFormSchema } from "@/types/time-table/template-render-config";
 import { TTheme } from "@/types/time-table/theme";
 import {
   createInitialGlobalDataFromConfig,
   getDefaultCards,
 } from "@/utils/time-table/data";
-import { useEffect, useState } from "react";
+import { v2_toCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
+import { useEffect, useMemo, useState } from "react";
 import { useTemplateData } from "./useTemplateData";
 import { useTemplatePersistence } from "./useTemplatePersistence";
 import { useTemplateState } from "./useTemplateState";
 import { useTemplateTheme } from "./useTemplateTheme";
 
 export interface UseTemplateEditorOptions {
-  inputSchema: CardInputConfig;
+  inputSchema: V2TemplateFormSchema;
   defaultTheme?: TTheme;
   autoSaveDelay?: number;
   captureSize?: { width: number; height: number };
@@ -23,6 +24,10 @@ export const useTemplateEditor = ({
   autoSaveDelay = 1000,
   captureSize,
 }: UseTemplateEditorOptions) => {
+  const cardInputConfig = useMemo(
+    () => v2_toCardInputConfig(inputSchema),
+    [inputSchema]
+  );
   const { state, actions } = useTemplateState(captureSize);
   const {
     data,
@@ -59,22 +64,22 @@ export const useTemplateEditor = ({
         const configMatches =
           persistedData.cardInputConfig &&
           JSON.stringify(persistedData.cardInputConfig) ===
-            JSON.stringify(inputSchema);
+            JSON.stringify(cardInputConfig);
 
         if (configMatches) {
           updateData(persistedData.data);
           updateGlobalData(
             persistedData.globalData ??
-              createInitialGlobalDataFromConfig({ cardInputConfig: inputSchema })
+              createInitialGlobalDataFromConfig({ cardInputConfig })
           );
           if (persistedData.theme) {
             updateTheme(persistedData.theme);
           }
         } else {
-          const newDefaultCards = getDefaultCards({ cardInputConfig: inputSchema });
+          const newDefaultCards = getDefaultCards({ cardInputConfig });
           updateData(newDefaultCards);
           updateGlobalData(
-            createInitialGlobalDataFromConfig({ cardInputConfig: inputSchema })
+            createInitialGlobalDataFromConfig({ cardInputConfig })
           );
         }
       }
@@ -87,7 +92,7 @@ export const useTemplateEditor = ({
     updateData,
     updateGlobalData,
     updateTheme,
-    inputSchema,
+    cardInputConfig,
   ]);
 
   const resetAll = () => {
@@ -118,7 +123,7 @@ export const useTemplateEditor = ({
     autoSave,
     resetAll,
     inputSchema,
-    cardInputConfig: inputSchema,
+    cardInputConfig,
     defaultTheme,
     captureSize,
     isInitialized,
