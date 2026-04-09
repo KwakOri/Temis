@@ -273,15 +273,25 @@ export const applyReorderedLayerOrderKey = ({
 
   if (orderedGraphNodeIds.length === 0) return graph;
 
+  const existingSiblingGraphNodeIds =
+    parentGraphId == null
+      ? graph.rootNodeIds
+      : (graph.nodes[parentGraphId]?.childIds ?? []);
+  const nextSiblingGraphNodeIds = v2_reorderSubsetPreservingOthers({
+    existingIds: existingSiblingGraphNodeIds,
+    reorderedSubsetIds: orderedGraphNodeIds,
+  });
+
   const nextNodes: Record<string, V2TemplateGraphNode> = {
     ...graph.nodes,
   };
   let hasNodeChanges = false;
 
-  orderedGraphNodeIds.forEach((graphNodeId, index) => {
+  nextSiblingGraphNodeIds.forEach((graphNodeId, index) => {
     const node = graph.nodes[graphNodeId];
     if (!node) return;
-    const prevSiblingId = index === 0 ? null : (orderedGraphNodeIds[index - 1] ?? null);
+    const prevSiblingId =
+      index === 0 ? null : (nextSiblingGraphNodeIds[index - 1] ?? null);
     const nextOrder = {
       model: "orderKey" as const,
       orderKey: v2_createOrderKey(index),
@@ -302,10 +312,7 @@ export const applyReorderedLayerOrderKey = ({
   });
 
   if (parentGraphId == null) {
-    const nextRootNodeIds = v2_reorderSubsetPreservingOthers({
-      existingIds: graph.rootNodeIds,
-      reorderedSubsetIds: orderedGraphNodeIds,
-    });
+    const nextRootNodeIds = nextSiblingGraphNodeIds;
     const rootChanged =
       nextRootNodeIds.length !== graph.rootNodeIds.length ||
       nextRootNodeIds.some((id, index) => id !== graph.rootNodeIds[index]);
@@ -327,10 +334,7 @@ export const applyReorderedLayerOrderKey = ({
       : graph;
   }
 
-  const nextChildIds = v2_reorderSubsetPreservingOthers({
-    existingIds: parentNode.childIds,
-    reorderedSubsetIds: orderedGraphNodeIds,
-  });
+  const nextChildIds = nextSiblingGraphNodeIds;
   const childChanged =
     nextChildIds.length !== parentNode.childIds.length ||
     nextChildIds.some((id, index) => id !== parentNode.childIds[index]);

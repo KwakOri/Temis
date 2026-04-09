@@ -146,15 +146,83 @@ export const v2_normalizePointerOrderInGraph = (
 export const v2_getSiblingIdsByParentFromGraph = (
   graph: V2TemplateNodeGraph
 ): Record<string, string[]> => {
+  const validNodeIds = new Set(Object.keys(graph.nodes));
   const byParent: Record<string, string[]> = {};
-  Object.values(graph.nodes).forEach((node) => {
-    const parentId = v2_toParentId(v2_toParentKey(node.parentId));
-    const key = parentId ?? v2_ROOT_PARENT_KEY;
-    const current = byParent[key] ?? [];
-    current.push(node.id);
-    byParent[key] = current;
+  const placed = new Set<string>();
+
+  const pushUnique = (parentKey: string, nodeId: string) => {
+    if (!validNodeIds.has(nodeId)) return;
+    const current = byParent[parentKey] ?? [];
+    if (current.includes(nodeId)) return;
+    byParent[parentKey] = [...current, nodeId];
+    placed.add(nodeId);
+  };
+
+  graph.rootNodeIds.forEach((nodeId) => {
+    const node = graph.nodes[nodeId];
+    if (!node || node.parentId !== null) return;
+    pushUnique(v2_ROOT_PARENT_KEY, nodeId);
   });
+
+  Object.values(graph.nodes).forEach((parentNode) => {
+    const validChildren = parentNode.childIds.filter((childId) => {
+      const childNode = graph.nodes[childId];
+      return Boolean(childNode && childNode.parentId === parentNode.id);
+    });
+
+    validChildren.forEach((childId) => {
+      pushUnique(parentNode.id, childId);
+    });
+  });
+
+  Object.values(graph.nodes).forEach((node) => {
+    if (placed.has(node.id)) return;
+    pushUnique(v2_toParentKey(node.parentId), node.id);
+  });
+
   return byParent;
+};
+
+const v2_buildOrderedIdsFromPointer = ({
+  siblingIds,
+  nodeById,
+}: {
+  siblingIds: string[];
+  nodeById: Record<string, V2TemplateGraphNode>;
+}): string[] => {
+  const validSiblingIds = siblingIds.filter((id) => Boolean(nodeById[id]));
+  if (validSiblingIds.length === 0) return [];
+
+  const siblingIdSet = new Set(validSiblingIds);
+  const nextByPrev = new Map<string | null, string[]>();
+
+  validSiblingIds.forEach((id) => {
+    const node = nodeById[id];
+    const rawPrev = node.order?.prevSiblingId ?? null;
+    const prevSiblingId =
+      rawPrev !== null && siblingIdSet.has(rawPrev) ? rawPrev : null;
+    const current = nextByPrev.get(prevSiblingId) ?? [];
+    nextByPrev.set(prevSiblingId, [...current, id]);
+  });
+
+  const ordered: string[] = [];
+  const visited = new Set<string>();
+  const walk = (id: string) => {
+    if (visited.has(id)) return;
+    visited.add(id);
+    ordered.push(id);
+    const nextIds = nextByPrev.get(id) ?? [];
+    nextIds.forEach((nextId) => walk(nextId));
+  };
+
+  (nextByPrev.get(null) ?? []).forEach((headId) => walk(headId));
+  validSiblingIds.forEach((id) => {
+    if (!visited.has(id)) {
+      walk(id);
+    }
+  });
+
+  return ordered;
 };
 
 export const v2_convertPointerOrderToOrderKeyInGraph = (
@@ -165,32 +233,37 @@ export const v2_convertPointerOrderToOrderKeyInGraph = (
   const nextNodes: Record<string, V2TemplateGraphNode> = {
     ...normalizedGraph.nodes,
   };
+  let nextRootNodeIds = [...normalizedGraph.rootNodeIds];
   let hasChanges = false;
 
-  Object.entries(siblingIdsByParent).forEach(([, siblingIds]) => {
-    const orderedIds = siblingIds
+  Object.entries(siblingIdsByParent).forEach(([parentKey, siblingIds]) => {
+    const existingNodes = siblingIds
       .map((id) => normalizedGraph.nodes[id])
-      .filter((node): node is V2TemplateGraphNode => Boolean(node))
-      .sort((a, b) => {
-        const aOrder = a.order;
-        const bOrder = b.order;
-        if (!aOrder && !bOrder) return 0;
-        if (!aOrder) return 1;
-        if (!bOrder) return -1;
-        if (aOrder.model === "orderKey" && bOrder.model === "orderKey") {
-          const aKey = aOrder.orderKey ?? "";
-          const bKey = bOrder.orderKey ?? "";
-          if (aKey === bKey) return 0;
-          return aKey < bKey ? -1 : 1;
-        }
-        if (aOrder.model === "orderKey") return -1;
-        if (bOrder.model === "orderKey") return 1;
+      .filter((node): node is V2TemplateGraphNode => Boolean(node));
+    if (existingNodes.length === 0) return;
 
-        const indexA = siblingIds.indexOf(a.id);
-        const indexB = siblingIds.indexOf(b.id);
-        return indexA - indexB;
-      })
-      .map((node) => node.id);
+    const allOrderKey = existingNodes.every(
+      (node) =>
+        node.order?.model === "orderKey" &&
+        typeof node.order.orderKey === "string" &&
+        node.order.orderKey.trim().length > 0
+    );
+
+    const orderedIds = allOrderKey
+      ? existingNodes
+          .sort((a, b) => {
+            const aKey = a.order?.orderKey ?? "";
+            const bKey = b.order?.orderKey ?? "";
+            if (aKey === bKey) {
+              return siblingIds.indexOf(a.id) - siblingIds.indexOf(b.id);
+            }
+            return aKey < bKey ? -1 : 1;
+          })
+          .map((node) => node.id)
+      : v2_buildOrderedIdsFromPointer({
+          siblingIds,
+          nodeById: normalizedGraph.nodes,
+        });
 
     orderedIds.forEach((nodeId, index) => {
       const node = normalizedGraph.nodes[nodeId];
@@ -209,11 +282,36 @@ export const v2_convertPointerOrderToOrderKeyInGraph = (
       };
       hasChanges = true;
     });
+
+    const parentId = v2_toParentId(parentKey);
+    if (parentId === null) {
+      const rootChanged =
+        nextRootNodeIds.length !== orderedIds.length ||
+        nextRootNodeIds.some((id, index) => id !== orderedIds[index]);
+      if (rootChanged) {
+        nextRootNodeIds = [...orderedIds];
+        hasChanges = true;
+      }
+      return;
+    }
+
+    const parentNode = nextNodes[parentId];
+    if (!parentNode) return;
+    const childChanged =
+      parentNode.childIds.length !== orderedIds.length ||
+      parentNode.childIds.some((id, index) => id !== orderedIds[index]);
+    if (!childChanged) return;
+    nextNodes[parentId] = {
+      ...parentNode,
+      childIds: orderedIds,
+    };
+    hasChanges = true;
   });
 
   if (!hasChanges) return normalizedGraph;
   return {
     ...normalizedGraph,
     nodes: nextNodes,
+    rootNodeIds: nextRootNodeIds,
   };
 };
