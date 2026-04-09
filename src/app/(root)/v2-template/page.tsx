@@ -5,11 +5,12 @@ import type {
   V2TemplateRenderConfig,
 } from '@/types/time-table/template-render-config';
 import {
+  v2_createNodeGraphFromStructure,
   v2_createDefaultTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
 } from '@/utils/time-table/template-render-config';
 import { useSearchParams } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { Dispatch, SetStateAction, useCallback, useEffect, useMemo, useState } from 'react';
 import { V2TemplateFontFaceStyle, V2TimeTableEditor } from './_components';
 import { v2_createExampleRenderConfigResponse } from './_data/example-render-config-response';
 import './_styles/index.css';
@@ -68,6 +69,28 @@ const TimeTableTemplatePage = () => {
     () => v2_createStorageSafeRenderConfig(renderConfig, defaultRenderConfig),
     [defaultRenderConfig, renderConfig]
   );
+  const setRenderConfigWithGraphSync = useCallback<
+    Dispatch<SetStateAction<V2TemplateRenderConfig>>
+  >((updater) => {
+    setRenderConfig((prev) => {
+      const next =
+        typeof updater === 'function'
+          ? (updater as (prevState: V2TemplateRenderConfig) => V2TemplateRenderConfig)(
+              prev
+            )
+          : updater;
+
+      // 편집 액션이 structure만 갱신한 경우 graph를 자동 동기화한다.
+      if (next.structure !== prev.structure && next.graph === prev.graph) {
+        return {
+          ...next,
+          graph: v2_createNodeGraphFromStructure(next.structure),
+        };
+      }
+
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     setIsLoading(true);
@@ -112,9 +135,9 @@ const TimeTableTemplatePage = () => {
       source: 'default' as const,
       isLoading,
       renderConfig,
-      setRenderConfig,
+      setRenderConfig: setRenderConfigWithGraphSync,
     }),
-    [isLoading, renderConfig, templateId]
+    [isLoading, renderConfig, setRenderConfigWithGraphSync, templateId]
   );
 
   return (

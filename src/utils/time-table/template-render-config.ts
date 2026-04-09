@@ -530,7 +530,7 @@ const v2_mapCardNodeKindToGraphType = (
   return "text";
 };
 
-const v2_createNodeGraphFromStructure = (
+export const v2_createNodeGraphFromStructure = (
   structure: V2TemplateStructureConfig
 ): V2TemplateNodeGraph => {
   const nodes: Record<string, V2TemplateGraphNode> = {};
