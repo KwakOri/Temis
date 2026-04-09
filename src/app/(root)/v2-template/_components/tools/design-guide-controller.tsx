@@ -1,11 +1,11 @@
 "use client";
 
-import { useTimeTableDesignGuideContext } from "@/contexts/TimeTableDesignGuideContext";
+import { useTemplateDesignGuideContext } from "@/contexts/v2/template-design-guide-context";
 import React from "react";
 
 const TimeTableDesignGuideController: React.FC = () => {
   const { isVisible, opacity, toggleVisible, setOpacity } =
-    useTimeTableDesignGuideContext();
+    useTemplateDesignGuideContext();
   const handleOpacityChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newOpacity = parseFloat(event.target.value);
     setOpacity(newOpacity);

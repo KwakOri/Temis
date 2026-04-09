@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-react";
 
-import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
+import { TemplateDesignGuideProvider } from '@/contexts/v2/template-design-guide-context';
 import { useTemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
 import { TemplateEditorRuntimeProvider } from '@/contexts/v2/template-editor-runtime-context';
 import { TemplateEditorUIProvider } from '@/contexts/v2/template-editor-ui-context';
@@ -178,7 +178,7 @@ const V2TimeTableEditor: React.FC = () => {
 
   return (
     <TemplateEditorUIProvider value={uiContextValue}>
-      <TimeTableDesignGuideProvider>
+      <TemplateDesignGuideProvider>
         <TemplateEditorRuntimeProvider value={runtimeValue}>
           {!isInitialized || state.weekDates.length === 0 ? (
             <V2Loading />
@@ -267,7 +267,7 @@ const V2TimeTableEditor: React.FC = () => {
             </div>
           )}
         </TemplateEditorRuntimeProvider>
-      </TimeTableDesignGuideProvider>
+      </TemplateDesignGuideProvider>
     </TemplateEditorUIProvider>
   );
 };
