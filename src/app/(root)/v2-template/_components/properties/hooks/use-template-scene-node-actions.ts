@@ -32,6 +32,11 @@ import {
   v2_updateSceneNodeListByParentId,
   v2_updateSceneTextNodeById,
 } from "../model/structure-utils";
+import {
+  v2_createDefaultTextNodeLayoutPatch,
+  v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
+  v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+} from "../model/text-node-defaults";
 
 interface UseTemplateSceneNodeActionsParams {
   renderConfig: V2TemplateRenderConfig;
@@ -369,7 +374,7 @@ const useTemplateSceneNodeActions = ({
           colorKey: "SUB_TITLE",
           fontKey: "SUB_TITLE",
           highlightTarget: `sceneNode:${baseSceneNodeId}`,
-          containerClassName: "absolute flex justify-center items-center",
+          containerClassName: v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
           textClassName: "text-center",
           visibilityMode: "always",
         },
@@ -382,23 +387,11 @@ const useTemplateSceneNodeActions = ({
           sectionKey: containerStyleKey,
           visibilityMode: "always",
         },
-        dynamicSceneLayoutPatch: {
-          [containerStyleKey]: {
-            position: "absolute",
-            top: 0,
-            left: 0,
-            width: 240,
-            height: 64,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          },
-          [textStyleKey]: {
-            fontSize: 32,
-            lineHeight: 1.2,
-            textAlign: "center",
-          },
-        },
+        dynamicSceneLayoutPatch: v2_createDefaultTextNodeLayoutPatch({
+          containerStyleKey,
+          textStyleKey,
+          isFlexibleText: false,
+        }),
       };
     }
 
@@ -421,8 +414,8 @@ const useTemplateSceneNodeActions = ({
         colorKey: "SUB_TITLE",
         fontKey: "SUB_TITLE",
         highlightTarget: `sceneNode:${baseSceneNodeId}`,
-        containerClassName: "absolute flex justify-center items-center",
-        textClassName: "text-center",
+        containerClassName: v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+        textClassName: v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
         visibilityMode: "always",
       },
       layerNode: {
@@ -434,32 +427,13 @@ const useTemplateSceneNodeActions = ({
         sectionKey: containerStyleKey,
         visibilityMode: "always",
       },
-      dynamicSceneLayoutPatch: {
-        [containerStyleKey]: {
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: 320,
-          height: 96,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        },
-        [wrapperStyleKey]: {
-          justifyContent: "center",
-          alignItems: "center",
-        },
-        [textStyleKey]: {
-          fontSize: 42,
-          lineHeight: 1.1,
-          textAlign: "center",
-          fontWeight: 700,
-        },
-        [optionsKey]: {
-          maxFontSize: 56,
-          multiline: true,
-        },
-      },
+      dynamicSceneLayoutPatch: v2_createDefaultTextNodeLayoutPatch({
+        containerStyleKey,
+        textStyleKey,
+        wrapperStyleKey,
+        optionsKey,
+        isFlexibleText: true,
+      }),
     };
   };
 

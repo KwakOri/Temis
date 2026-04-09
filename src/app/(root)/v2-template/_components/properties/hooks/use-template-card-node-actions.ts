@@ -17,6 +17,11 @@ import {
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
 import { v2_createBindingRefFromLegacyInput } from "@/utils/time-table/template-render-config";
+import {
+  v2_createDefaultTextNodeLayoutPatch,
+  v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
+  v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+} from "../model/text-node-defaults";
 
 interface UseTemplateCardNodeActionsParams {
   safeUpdateConfig: (
@@ -251,42 +256,21 @@ const useTemplateCardNodeActions = ({
         ...(kind === "flexibleText" ? { wrapperStyleKey, optionsKey } : {}),
         colorKey: "SUB_TITLE",
         fontKey: "SUB_TITLE",
-        containerClassName: "absolute flex justify-center items-center",
+        containerClassName: v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
         ...(kind === "flexibleText"
-          ? { textClassName: "leading-none text-center" }
+          ? { textClassName: v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME }
           : {}),
       };
 
       const nextCardLayout = {
         ...prev.layout.card,
-        [containerStyleKey]: {
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: 240,
-          height: 64,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        },
-        [textStyleKey]: {
-          fontSize: 32,
-          lineHeight: 1.2,
-          textAlign: "center",
-          fontWeight: 500,
-        },
-        ...(kind === "flexibleText"
-          ? {
-              [wrapperStyleKey]: {
-                justifyContent: "center",
-                alignItems: "center",
-              },
-              [optionsKey]: {
-                maxFontSize: 56,
-                multiline: true,
-              },
-            }
-          : {}),
+        ...v2_createDefaultTextNodeLayoutPatch({
+          containerStyleKey,
+          textStyleKey,
+          wrapperStyleKey,
+          optionsKey,
+          isFlexibleText: kind === "flexibleText",
+        }),
       };
 
       const appendLayerNode = (
