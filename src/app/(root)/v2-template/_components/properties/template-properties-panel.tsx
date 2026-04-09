@@ -2,9 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlignHorizontalJustifyCenter,
   Braces,
-  ChevronDown,
-  ChevronRight,
-  Plus,
 } from "lucide-react";
 
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
@@ -51,15 +48,11 @@ import {
   v2_POSITION_MUTEX_MAP,
   v2_getGridEmptySlotsFromMap,
   v2_hasRenderableStyleValue,
-  v2_parseFlex42Align,
-  v2_parseFlex42ThreeRow,
-  v2_parseGridLayoutMode,
 } from "./model/layout-utils";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import {
   v2_BOILERPLATE_NUMERIC_KEYS,
   v2_BOILERPLATE_SELECT_OPTIONS,
-  v2_STYLE_EXTENSION_GROUPS,
 } from "./model/boilerplate-presets";
 import { v2_BOILERPLATE_SECTION_GROUPS } from "./model/boilerplate-section-groups";
 import {
@@ -106,11 +99,13 @@ import {
 import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
 import TemplateBoundTextNodePropertiesPanel from "./components/template-bound-text-node-properties-panel";
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
+import TemplateAutoResizeAlignmentEditor from "./components/template-auto-resize-alignment-editor";
 import TemplateSceneAssetProperties from "./components/template-scene-asset-properties";
 import TemplateSceneCardCollectionProperties from "./components/template-scene-card-collection-properties";
 import TemplateSceneGroupProperties from "./components/template-scene-group-properties";
 import TemplateSceneNodeStructureControls from "./components/template-scene-node-structure-controls";
 import TemplateSimplePropertiesSection from "./components/template-simple-properties-section";
+import TemplateStyleSectionEditor from "./components/template-style-section-editor";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
@@ -3263,357 +3258,29 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   }: {
     title: string;
     section: V2StyleSectionId;
-  }) => {
-    const knownSection = v2_isKnownStyleSectionKey(section, v2_STYLE_SECTION_LABELS) ? section : null;
-    const sectionMap = getStyleSectionMap(section);
-    const isGridSection = knownSection === "grid";
-    const groups = [
-      ...v2_expandDisplayGroups(
-        knownSection ? v2_BOILERPLATE_SECTION_GROUPS[knownSection] ?? [] : []
-      ),
-      ...v2_STYLE_EXTENSION_GROUPS,
-    ];
-    const gridPresetKeys = isGridSection
-      ? [
-          "layoutMode",
-          "gridEmptySlotA",
-          "gridEmptySlotB",
-          "flex42ThreeRow",
-          "flex42Align",
-        ]
-      : [];
-    const presetKeys = new Set([
-      ...groups.flatMap((group) => group.fields.map((field) => field.key)),
-      ...gridPresetKeys,
-    ]);
-    const customEntries = Object.entries(sectionMap).filter(
-      ([property]) =>
-        !presetKeys.has(property) && !v2_LOCKED_STYLE_PROPERTY_KEYS.has(property)
-    );
-    const gridLayoutMode = isGridSection
-      ? v2_parseGridLayoutMode(sectionMap.layoutMode)
-      : null;
-    const gridEmptySlots = isGridSection
-      ? v2_getGridEmptySlotsFromMap(sectionMap)
-      : [];
-    const flex42Align = isGridSection
-      ? v2_parseFlex42Align(sectionMap.flex42Align)
-      : "center";
-    const flex42ThreeRow = isGridSection
-      ? v2_parseFlex42ThreeRow(sectionMap.flex42ThreeRow)
-      : "bottom";
-
-    return (
-      <div className="rounded border border-[#3a3d44] bg-[#1f2126] p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <h5 className="text-xs font-semibold text-gray-100">{title}</h5>
-        </div>
-
-        {isGridSection && (
-          <div className="rounded border border-[#343842] bg-[#1b1d22] p-3 space-y-3">
-            <h6 className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">
-              Layout Mode
-            </h6>
-
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => updateGridLayoutMode("grid3x3")}
-                className={`rounded border px-2 py-1 text-xs ${
-                  gridLayoutMode === "grid3x3"
-                    ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                    : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                }`}
-              >
-                3 x 3 (Grid)
-              </button>
-              <button
-                type="button"
-                onClick={() => updateGridLayoutMode("flex4x2")}
-                className={`rounded border px-2 py-1 text-xs ${
-                  gridLayoutMode === "flex4x2"
-                    ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                    : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                }`}
-              >
-                4 x 2 (Flex)
-              </button>
-            </div>
-
-            {gridLayoutMode === "grid3x3" ? (
-              <div className="space-y-2">
-                <span className="text-[11px] text-gray-400">비울 칸 선택</span>
-                <div className="grid grid-cols-3 gap-2">
-                  {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
-                    const isSelected = gridEmptySlots.includes(slot);
-
-                    return (
-                      <button
-                        key={`grid-empty-slot-${slot}`}
-                        type="button"
-                        onClick={() => pickGridEmptySlot(slot)}
-                        className={`relative rounded border px-2 py-2 text-xs font-semibold transition ${
-                          isSelected
-                            ? "border-blue-400/80 bg-blue-500/20 text-blue-100"
-                            : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                        }`}
-                      >
-                        <span>{slot}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <span className="text-[11px] text-gray-400">3칸 줄 위치</span>
-                <div className="grid grid-cols-2 gap-2">
-                  {([
-                    { label: "윗줄 3칸", value: "top" },
-                    { label: "아랫줄 3칸", value: "bottom" },
-                  ] as Array<{ label: string; value: V2Flex42ThreeRow }>).map(
-                    (option) => (
-                      <button
-                        key={`flex42-three-row-${option.value}`}
-                        type="button"
-                        onClick={() => updateFlex42ThreeRow(option.value)}
-                        className={`rounded border px-2 py-1 text-xs ${
-                          flex42ThreeRow === option.value
-                            ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                            : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    )
-                  )}
-                </div>
-                <span className="text-[11px] text-gray-400">3칸 줄 정렬</span>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    { label: "Left", value: "left" },
-                    { label: "Center", value: "center" },
-                    { label: "Right", value: "right" },
-                  ] as Array<{ label: string; value: V2Flex42Align }>).map(
-                    (option) => (
-                      <button
-                        key={`flex42-align-${option.value}`}
-                        type="button"
-                        onClick={() => updateFlex42Align(option.value)}
-                        className={`rounded border px-2 py-1 text-xs ${
-                          flex42Align === option.value
-                            ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                            : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {groups.map((group) => {
-          const visibleFields = group.fields.filter(
-            (field) => !v2_LOCKED_STYLE_PROPERTY_KEYS.has(field.key)
-          );
-          if (visibleFields.length === 0) return null;
-
-          const GroupIcon = v2_getBoilerplateGroupIcon(group.id);
-          const groupLabel = v2_STYLE_GROUP_DISPLAY_LABEL[group.id] ?? group.label;
-          const isPositionGroup = group.id === "position";
-          const isGroupOpen = isStyleGroupOpen({
-            section,
-            group,
-            sectionMap,
-          });
-          const ChevronIcon = isGroupOpen ? ChevronDown : ChevronRight;
-          const isExtensionGroup = v2_STYLE_EXTENSION_GROUP_IDS.has(group.id);
-          const filledCount = visibleFields.filter((field) => {
-            const value = sectionMap[field.key];
-            if (value === undefined) return false;
-            if (typeof value === "string") return value.trim() !== "";
-            return true;
-          }).length;
-
-          return (
-            <div
-              key={`${section}-style-group-${group.id}`}
-              className="border-t border-[#343842] pt-3 space-y-2"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleStyleGroupOpen(section, group.id)}
-                  className="flex-1 text-left text-[11px] font-semibold uppercase tracking-wide text-gray-300 inline-flex items-center justify-between gap-2"
-                >
-                  <span className="inline-flex items-center gap-1">
-                    <ChevronIcon className="h-3.5 w-3.5 text-gray-500" />
-                    <GroupIcon className="h-3.5 w-3.5 text-gray-400" />
-                    {groupLabel}
-                  </span>
-                  <span className="text-[10px] text-gray-500">{filledCount}</span>
-                </button>
-                {isExtensionGroup && (
-                  <button
-                    type="button"
-                    onClick={() => applyStyleExtensionGroupDefaults(section, group.id)}
-                    className="h-6 w-6 shrink-0 rounded border border-[#3a3d44] bg-[#2a2d33] text-gray-300 hover:bg-[#323640] inline-flex items-center justify-center"
-                    aria-label={`${groupLabel} 기본 항목 추가`}
-                    title={`${groupLabel} 기본 항목 추가`}
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-              {isGroupOpen && (
-                <div className="grid grid-cols-2 gap-2">
-                  {visibleFields.map((field) => {
-                    const fieldType = getBoilerplateFieldType(field);
-                    const value = sectionMap[field.key];
-                    const valueString = value === undefined ? "" : String(value);
-                    const hasValue =
-                      value !== undefined && !(typeof value === "string" && value === "");
-                    const selectOptions = field.options ?? [];
-                    const FieldIcon = v2_getBoilerplateFieldIcon(field, group.id);
-                    const counterpartKey = v2_POSITION_MUTEX_MAP[field.key];
-                    const isMutedByMutex =
-                      isPositionGroup &&
-                      !!counterpartKey &&
-                      !v2_hasRenderableStyleValue(value) &&
-                      v2_hasRenderableStyleValue(sectionMap[counterpartKey]);
-                    const fieldWrapperClass =
-                      isPositionGroup && field.key === "position"
-                        ? "col-span-2 space-y-1"
-                        : "space-y-1";
-                    const fieldOpacityClass = isMutedByMutex ? "opacity-50" : "";
-
-                    return (
-                      <div
-                        key={`${section}-${group.id}-style-${field.key}`}
-                        className={`${fieldWrapperClass} ${fieldOpacityClass}`.trim()}
-                        onMouseEnter={() => setSectionHoverHighlight(section)}
-                        onMouseLeave={clearSectionHoverHighlight}
-                        onClick={() => setSectionActiveHighlight(section)}
-                      >
-                        <label className="text-[11px] text-gray-400 inline-flex items-center gap-1">
-                          <FieldIcon className="h-3.5 w-3.5 text-gray-500" />
-                          {field.label}
-                        </label>
-                        <div className="grid grid-cols-[1fr_auto] gap-1">
-                          {fieldType === "select" ? (
-                            <select
-                              value={valueString}
-                              onChange={(e) =>
-                                updateStylePropertyValue(
-                                  section,
-                                  field.key,
-                                  e.target.value
-                                )
-                              }
-                              className="w-full rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
-                            >
-                              <option value="">(비움)</option>
-                              {selectOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input
-                              type={fieldType === "number" ? "number" : "text"}
-                              step={
-                                fieldType === "number"
-                                  ? getBoilerplateFieldStep(field)
-                                  : undefined
-                              }
-                              value={valueString}
-                              onChange={(e) =>
-                                updateStylePropertyValue(
-                                  section,
-                                  field.key,
-                                  e.target.value
-                                )
-                              }
-                              className="w-full rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
-                              placeholder={field.placeholder ?? "값"}
-                            />
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => removeStyleProperty(section, field.key)}
-                            className={`rounded border px-2 text-xs ${
-                              hasValue
-                                ? "border-red-400/40 text-red-300 hover:bg-red-500/10"
-                                : "border-transparent text-transparent pointer-events-none"
-                            }`}
-                            aria-label={`${field.label} 속성 삭제`}
-                          >
-                            ×
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        <div className="border-t border-[#343842] pt-3 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <h6 className="text-[11px] font-semibold uppercase tracking-wide text-gray-300 inline-flex items-center gap-1">
-              <Braces className="h-3.5 w-3.5 text-gray-400" />
-              Custom CSS
-            </h6>
-            <button
-              type="button"
-              onClick={() => addStyleProperty(section)}
-              className="text-xs font-semibold text-blue-400 hover:text-blue-300"
-            >
-              + CSS 속성 추가
-            </button>
-          </div>
-          {customEntries.length === 0 && (
-            <p className="text-xs text-gray-500">추가된 속성이 없습니다.</p>
-          )}
-          {customEntries.map(([property, value], index) => (
-            <div
-              key={`style-custom-${section}-${index}`}
-              className="grid grid-cols-[1fr_1fr_auto] gap-2"
-              onMouseEnter={() => setSectionHoverHighlight(section)}
-              onMouseLeave={clearSectionHoverHighlight}
-              onClick={() => setSectionActiveHighlight(section)}
-            >
-              <div className="rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-200 flex items-center">
-                {property}
-              </div>
-              <input
-                value={String(value)}
-                onChange={(e) =>
-                  updateStylePropertyValue(section, property, e.target.value)
-                }
-                className="rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
-                placeholder="값"
-              />
-              <button
-                type="button"
-                onClick={() => removeStyleProperty(section, property)}
-                className="rounded border border-red-400/40 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10"
-              >
-                삭제
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  };
+  }) => (
+    <TemplateStyleSectionEditor
+      title={title}
+      section={section}
+      getStyleSectionMap={getStyleSectionMap}
+      lockedStylePropertyKeys={v2_LOCKED_STYLE_PROPERTY_KEYS}
+      isStyleGroupOpen={isStyleGroupOpen}
+      onToggleStyleGroupOpen={toggleStyleGroupOpen}
+      onSetSectionHoverHighlight={setSectionHoverHighlight}
+      onClearSectionHoverHighlight={clearSectionHoverHighlight}
+      onSetSectionActiveHighlight={setSectionActiveHighlight}
+      onApplyStyleExtensionGroupDefaults={applyStyleExtensionGroupDefaults}
+      onUpdateStylePropertyValue={updateStylePropertyValue}
+      onRemoveStyleProperty={removeStyleProperty}
+      onAddStyleProperty={addStyleProperty}
+      onUpdateGridLayoutMode={updateGridLayoutMode}
+      onPickGridEmptySlot={pickGridEmptySlot}
+      onUpdateFlex42ThreeRow={updateFlex42ThreeRow}
+      onUpdateFlex42Align={updateFlex42Align}
+      getBoilerplateFieldType={getBoilerplateFieldType}
+      getBoilerplateFieldStep={getBoilerplateFieldStep}
+    />
+  );
 
   const renderAutoResizeAlignmentEditor = ({
     title,
@@ -3623,83 +3290,19 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     title: string;
     wrapperSection: V2StyleSectionId;
     textSection: V2StyleSectionId;
-  }) => {
-    const wrapperMap = getStyleSectionMap(wrapperSection);
-    const textMap = getStyleSectionMap(textSection);
-    const horizontalAlign = getHorizontalAlignFromStyle(wrapperMap, textMap);
-    const verticalAlign = getVerticalAlignFromStyle(wrapperMap);
-
-    const applyPointAlignment = ({
-      horizontal,
-      vertical,
-    }: {
-      horizontal: V2HorizontalAlign;
-      vertical: V2VerticalAlign;
-    }) => {
-      updateAutoResizeHorizontalAlign({
-        wrapperSection,
-        textSection,
-        align: horizontal,
-      });
-      updateAutoResizeVerticalAlign({
-        wrapperSection,
-        align: vertical,
-      });
-    };
-
-    return (
-      <div
-        className="rounded border border-[#3a3d44] bg-[#1f2126] p-3 space-y-2"
-        onMouseEnter={() => setSectionHoverHighlight(wrapperSection)}
-        onMouseLeave={clearSectionHoverHighlight}
-        onClick={() => setSectionActiveHighlight(wrapperSection)}
-      >
-        <h5 className="text-xs font-semibold text-gray-100 inline-flex items-center gap-1">
-          <AlignHorizontalJustifyCenter className="h-3.5 w-3.5 text-gray-400" />
-          {title}
-        </h5>
-        <p className="text-[11px] text-gray-400">
-          점 하나를 클릭하면 가로(`justifyContent` + `textAlign`)와 세로(`alignItems`)가
-          함께 반영됩니다.
-        </p>
-
-        <div className="rounded border border-[#343842] bg-[#1b1d22] p-2 inline-block">
-          <div className="grid grid-cols-3 gap-2">
-            {v2_ALIGNMENT_VERTICAL_ORDER.flatMap((vertical) =>
-              v2_ALIGNMENT_HORIZONTAL_ORDER.map((horizontal) => {
-                const isActive =
-                  horizontalAlign === horizontal && verticalAlign === vertical;
-                return (
-                  <button
-                    key={`${title}-point-${vertical}-${horizontal}`}
-                    type="button"
-                    onClick={() =>
-                      applyPointAlignment({
-                        horizontal,
-                        vertical,
-                      })
-                    }
-                    aria-label={`${v2_VERTICAL_ALIGN_LABELS[vertical]} ${v2_HORIZONTAL_ALIGN_LABELS[horizontal]}`}
-                    className={`h-9 w-9 rounded border inline-flex items-center justify-center transition ${
-                      isActive
-                        ? "border-blue-400 bg-blue-500/20"
-                        : "border-[#3a3d44] bg-[#2a2d33] hover:bg-[#323640]"
-                    }`}
-                  >
-                    <span
-                      className={`rounded-full ${
-                        isActive ? "h-2.5 w-2.5 bg-blue-300" : "h-2 w-2 bg-gray-500"
-                      }`}
-                    />
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  }) => (
+    <TemplateAutoResizeAlignmentEditor
+      title={title}
+      wrapperSection={wrapperSection}
+      textSection={textSection}
+      getStyleSectionMap={getStyleSectionMap}
+      onUpdateAutoResizeHorizontalAlign={updateAutoResizeHorizontalAlign}
+      onUpdateAutoResizeVerticalAlign={updateAutoResizeVerticalAlign}
+      onSetSectionHoverHighlight={setSectionHoverHighlight}
+      onClearSectionHoverHighlight={clearSectionHoverHighlight}
+      onSetSectionActiveHighlight={setSectionActiveHighlight}
+    />
+  );
 
   const renderBoilerplateSectionEditor = ({
     title,
