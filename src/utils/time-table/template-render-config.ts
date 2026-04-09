@@ -1201,47 +1201,6 @@ const v2_hasGraphPayload = (candidate: unknown): boolean => {
   return false;
 };
 
-const v2_collectSceneLayoutKeysFromGraph = (
-  graph: V2TemplateNodeGraph
-): Set<string> => {
-  const next = new Set<string>();
-  const componentRootNodeIdSet = new Set(
-    Object.values(graph.componentDefinitions).map((definition) => definition.rootNodeId)
-  );
-  const stack = graph.rootNodeIds.filter(
-    (nodeId) => !componentRootNodeIdSet.has(nodeId)
-  );
-  const visited = new Set<string>();
-
-  while (stack.length > 0) {
-    const nodeId = stack.shift();
-    if (!nodeId || visited.has(nodeId)) continue;
-    visited.add(nodeId);
-
-    const node = graph.nodes[nodeId];
-    if (!node) continue;
-    if (node.type === "group") {
-      stack.unshift(...node.childIds);
-      continue;
-    }
-    if (node.type === "image") {
-      if (node.styles?.styleKey) next.add(node.styles.styleKey);
-      continue;
-    }
-    if (node.type === "cardCollection") {
-      continue;
-    }
-    if (node.type !== "text" && node.type !== "flexibleText") {
-      continue;
-    }
-    if (node.styles?.containerStyleKey) next.add(node.styles.containerStyleKey);
-    if (node.styles?.textStyleKey) next.add(node.styles.textStyleKey);
-    if (node.styles?.wrapperStyleKey) next.add(node.styles.wrapperStyleKey);
-    if (node.styles?.optionsKey) next.add(node.styles.optionsKey);
-  }
-  return next;
-};
-
 const v2_LAYER_ICON_KEY_SET = new Set([
   "group",
   "grid",
@@ -2979,7 +2938,7 @@ export const v2_normalizeTemplateRenderConfig = (
       );
       normalized.layout.card.container = v2_mergeStyleRecord(
         normalized.layout.card.container,
-        cardLayoutSource.container ?? cardLayoutSource.contentArea
+        cardLayoutSource.container
       );
 
       normalized.layout.card.mainTitleTextStyle = v2_mergeStyleRecord(
@@ -3054,19 +3013,6 @@ export const v2_normalizeTemplateRenderConfig = (
     ? normalized.graph
     : v2_createNodeGraphFromStructure(normalizedStructure);
   normalized.graph = v2_normalizeNodeGraph(raw.graph, graphFallback);
-
-  const sceneLayoutKeys = v2_collectSceneLayoutKeysFromGraph(normalized.graph);
-  sceneLayoutKeys.forEach((styleKey) => {
-    if (!styleKey.startsWith("sceneNode:")) return;
-    const legacyCardEntry = normalized.layout.card[styleKey];
-    if (!legacyCardEntry || typeof legacyCardEntry !== "object") return;
-
-    normalized.layout.scene[styleKey] = v2_mergeSceneLayoutEntry(
-      normalized.layout.scene[styleKey],
-      legacyCardEntry
-    );
-    delete normalized.layout.card[styleKey];
-  });
 
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
