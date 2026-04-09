@@ -16,7 +16,6 @@ import {
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
 import { v2_getRuntimeCardStructure } from "@/utils/time-table/template-graph-runtime";
-import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 import {
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
@@ -98,10 +97,10 @@ const useTemplateCardNodeActions = ({
         ...node,
         visibilityMode,
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -121,10 +120,10 @@ const useTemplateCardNodeActions = ({
           layerIcon: binding.mode === "computed" ? "calendar" : "text",
         },
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -164,10 +163,10 @@ const useTemplateCardNodeActions = ({
           ...(nextFontKey ? { fontKey: nextFontKey } : {}),
         },
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -231,14 +230,14 @@ const useTemplateCardNodeActions = ({
         parentId: cardRootNodeId,
         newNode: nextGraphNode,
       });
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
         layout: {
           ...prev.layout,
           card: nextCardLayout,
         },
-      });
+      };
     });
   };
 
@@ -259,14 +258,14 @@ const useTemplateCardNodeActions = ({
         delete nextCardLayout[targetNode.wrapperStyleKey];
       if (targetNode.optionsKey) delete nextCardLayout[targetNode.optionsKey];
       const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, nodeId);
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
         layout: {
           ...prev.layout,
           card: nextCardLayout,
         },
-      });
+      };
     });
   };
 
@@ -319,10 +318,10 @@ const useTemplateCardNodeActions = ({
           },
         },
       };
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -407,10 +406,10 @@ const useTemplateCardNodeActions = ({
           },
         },
       };
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 

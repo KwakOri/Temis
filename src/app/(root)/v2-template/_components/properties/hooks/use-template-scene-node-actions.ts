@@ -22,7 +22,6 @@ import {
 } from "@/utils/time-table/template-graph-editor";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
-import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
@@ -182,10 +181,10 @@ const useTemplateSceneNodeActions = ({
         ...node,
         visibilityMode,
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -204,10 +203,10 @@ const useTemplateSceneNodeActions = ({
         ...node,
         label: nextLabel,
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -239,10 +238,10 @@ const useTemplateSceneNodeActions = ({
           ...(nextAlt !== undefined ? { alt: nextAlt } : {}),
         },
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -271,10 +270,10 @@ const useTemplateSceneNodeActions = ({
           componentId,
         },
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -497,7 +496,7 @@ const useTemplateSceneNodeActions = ({
         anchorNodeId,
         newNode: nextGraphNode,
       });
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
         layout: {
@@ -507,7 +506,7 @@ const useTemplateSceneNodeActions = ({
             ...dynamicSceneLayoutPatch,
           },
         },
-      });
+      };
     });
 
     if (nextFocusLayerId) {
@@ -548,7 +547,7 @@ const useTemplateSceneNodeActions = ({
         parentId: parentNodeId,
         newNode: nextGraphNode,
       });
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
         layout: {
@@ -558,7 +557,7 @@ const useTemplateSceneNodeActions = ({
             ...dynamicSceneLayoutPatch,
           },
         },
-      });
+      };
     });
 
     if (nextFocusLayerId) {
@@ -603,10 +602,10 @@ const useTemplateSceneNodeActions = ({
         nodeId,
         direction,
       });
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -668,10 +667,10 @@ const useTemplateSceneNodeActions = ({
           ? effectiveTargetIndex
           : undefined,
       });
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -719,14 +718,14 @@ const useTemplateSceneNodeActions = ({
         }
       });
       const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, nodeId);
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
         layout: {
           ...prev.layout,
           scene: nextSceneLayout,
         },
-      });
+      };
     });
 
     if (nextFocusLayerId) {
@@ -762,10 +761,10 @@ const useTemplateSceneNodeActions = ({
           layerIcon: binding.mode === "computed" ? "calendar" : "text",
         },
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 
@@ -818,10 +817,10 @@ const useTemplateSceneNodeActions = ({
           ...(nextFontKey ? { fontKey: nextFontKey } : {}),
         },
       }));
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
 

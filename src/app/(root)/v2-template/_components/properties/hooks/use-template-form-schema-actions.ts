@@ -4,7 +4,6 @@ import {
   V2TemplateFormField,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
-import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 
 interface UseTemplateFormSchemaActionsParams {
   renderConfig: V2TemplateRenderConfig;
@@ -140,11 +139,11 @@ const useTemplateFormSchemaActions = ({
         ...prev.graph,
         nodes: nextGraphNodes,
       };
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
         formSchema: nextFormSchema,
-      });
+      };
     });
   };
 
@@ -222,11 +221,11 @@ const useTemplateFormSchemaActions = ({
         ...prev.graph,
         nodes: nextGraphNodes,
       };
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
         formSchema: nextFormSchema,
-      });
+      };
     });
   };
 

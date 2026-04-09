@@ -13,7 +13,6 @@ import {
   v2_getRuntimeCardStructure,
   v2_getRuntimeSceneNodes,
 } from '@/utils/time-table/template-graph-runtime';
-import { v2_withRuntimeStructure } from '@/utils/time-table/template-runtime-structure';
 import V2TemplateBuilderForm from '../properties/template-properties-panel';
 import V2Loading from '../shared/loading-screen';
 import {
@@ -226,10 +225,10 @@ const V2TimeTableEditor: React.FC = () => {
         targetParentId: targetSceneParentId ?? null,
         targetIndex: effectiveIndex,
       });
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: nextGraph,
-      });
+      };
     });
   };
   const detachComponentMaster = (componentId: string) => {
@@ -239,7 +238,7 @@ const V2TimeTableEditor: React.FC = () => {
       if (!definition) return prev;
       if (definition.instanceMode === "detached") return prev;
 
-      return v2_withRuntimeStructure({
+      return {
         ...prev,
         graph: {
           ...prev.graph,
@@ -252,7 +251,7 @@ const V2TimeTableEditor: React.FC = () => {
             },
           },
         },
-      });
+      };
     });
   };
 
