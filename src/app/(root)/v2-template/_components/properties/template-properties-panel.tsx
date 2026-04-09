@@ -103,6 +103,7 @@ import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
 import TemplateExportTab from "./panels/template-export-tab";
+import TemplatePropertiesTab from "./panels/template-properties-tab";
 import TemplateSchemaTab from "./panels/template-schema-tab";
 
 type V2BuilderTab =
@@ -5446,33 +5447,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   };
 
   const renderPropertiesTab = () => (
-    <div
-      ref={inspectorTabRef}
-      className="space-y-4 rounded-xl border border-[#2f3239] bg-[#111317] p-3 text-gray-100"
+    <TemplatePropertiesTab
+      inspectorRef={inspectorTabRef}
+      selectedLabel={selectedPropertiesLabel}
       onMouseLeave={clearSectionHoverHighlight}
-      onBlurCapture={(event) => {
-        const nextFocused = event.relatedTarget;
-        if (!(nextFocused instanceof Node)) {
-          setActiveHighlightTarget(null);
-          return;
-        }
-        if (!inspectorTabRef.current?.contains(nextFocused)) {
-          setActiveHighlightTarget(null);
-        }
-      }}
+      onBlurOutside={() => setActiveHighlightTarget(null)}
     >
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="font-bold text-base text-gray-100">속성</h3>
-        <span className="rounded border border-[#3a3d44] bg-[#1a1c20] px-2 py-1 text-[11px] text-gray-300">
-          {selectedPropertiesLabel}
-        </span>
-      </div>
-      <p className="text-xs text-gray-400">
-        왼쪽 Layers에서 오브젝트를 클릭하면 해당 오브젝트의 속성만 표시됩니다.
-      </p>
-
       {renderPropertiesPanels()}
-    </div>
+    </TemplatePropertiesTab>
   );
 
   const renderAssetsTab = () => (
