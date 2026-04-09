@@ -1179,29 +1179,65 @@ const v2_mergeSceneLayoutEntry = (
   return next;
 };
 
-const v2_collectSceneLayoutKeys = (
-  nodes: V2TemplateSceneNode[]
+const v2_hasGraphPayload = (candidate: unknown): boolean => {
+  if (!v2_isRecord(candidate)) return false;
+  if (v2_isRecord(candidate.nodes) && Object.keys(candidate.nodes).length > 0) {
+    return true;
+  }
+  if (
+    Array.isArray(candidate.rootNodeIds) &&
+    candidate.rootNodeIds.some(
+      (nodeId) => typeof nodeId === "string" && nodeId.trim().length > 0
+    )
+  ) {
+    return true;
+  }
+  if (
+    v2_isRecord(candidate.componentDefinitions) &&
+    Object.keys(candidate.componentDefinitions).length > 0
+  ) {
+    return true;
+  }
+  return false;
+};
+
+const v2_collectSceneLayoutKeysFromGraph = (
+  graph: V2TemplateNodeGraph
 ): Set<string> => {
   const next = new Set<string>();
-  const stack = [...nodes];
+  const componentRootNodeIdSet = new Set(
+    Object.values(graph.componentDefinitions).map((definition) => definition.rootNodeId)
+  );
+  const stack = graph.rootNodeIds.filter(
+    (nodeId) => !componentRootNodeIdSet.has(nodeId)
+  );
+  const visited = new Set<string>();
+
   while (stack.length > 0) {
-    const node = stack.shift();
+    const nodeId = stack.shift();
+    if (!nodeId || visited.has(nodeId)) continue;
+    visited.add(nodeId);
+
+    const node = graph.nodes[nodeId];
     if (!node) continue;
-    if (node.kind === "group") {
-      stack.unshift(...node.children);
+    if (node.type === "group") {
+      stack.unshift(...node.childIds);
       continue;
     }
-    if (node.kind === "asset") {
-      if (node.styleKey) next.add(node.styleKey);
+    if (node.type === "image") {
+      if (node.styles?.styleKey) next.add(node.styles.styleKey);
       continue;
     }
-    if (node.kind === "cardCollection") {
+    if (node.type === "cardCollection") {
       continue;
     }
-    next.add(node.containerStyleKey);
-    if (node.textStyleKey) next.add(node.textStyleKey);
-    if (node.wrapperStyleKey) next.add(node.wrapperStyleKey);
-    if (node.optionsKey) next.add(node.optionsKey);
+    if (node.type !== "text" && node.type !== "flexibleText") {
+      continue;
+    }
+    if (node.styles?.containerStyleKey) next.add(node.styles.containerStyleKey);
+    if (node.styles?.textStyleKey) next.add(node.styles.textStyleKey);
+    if (node.styles?.wrapperStyleKey) next.add(node.styles.wrapperStyleKey);
+    if (node.styles?.optionsKey) next.add(node.styles.optionsKey);
   }
   return next;
 };
@@ -3003,14 +3039,14 @@ export const v2_normalizeTemplateRenderConfig = (
     }
   }
 
-  normalized.structure = v2_normalizeStructure(
-    raw.structure,
-    normalized.structure
-  );
-  const graphFallback = v2_createNodeGraphFromStructure(normalized.structure);
+  const normalizedStructure = v2_normalizeStructure(raw.structure, normalized.structure);
+  normalized.structure = normalizedStructure;
+  const graphFallback = v2_hasGraphPayload(raw.graph)
+    ? normalized.graph
+    : v2_createNodeGraphFromStructure(normalizedStructure);
   normalized.graph = v2_normalizeNodeGraph(raw.graph, graphFallback);
 
-  const sceneLayoutKeys = v2_collectSceneLayoutKeys(normalized.structure.sceneNodes);
+  const sceneLayoutKeys = v2_collectSceneLayoutKeysFromGraph(normalized.graph);
   sceneLayoutKeys.forEach((styleKey) => {
     if (!styleKey.startsWith("sceneNode:")) return;
     const legacyCardEntry = normalized.layout.card[styleKey];
