@@ -3108,7 +3108,6 @@ export const v2_isTemplateRenderConfig = (
   if (!v2_isRecord(candidate.fonts)) return false;
   if (!v2_isRecord(candidate.templateSize)) return false;
   if (!v2_isRecord(candidate.layout)) return false;
-  if (!v2_isRecord(candidate.structure)) return false;
   if (!v2_isRecord(candidate.graph)) return false;
   return true;
 };

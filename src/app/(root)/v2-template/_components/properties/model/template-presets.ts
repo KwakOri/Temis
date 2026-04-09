@@ -2,6 +2,7 @@
 
 import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
 import { v2_createDefaultTemplateRenderConfig } from "@/utils/time-table/template-render-config";
+import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 
 export interface V2TemplatePresetDefinition {
   id: string;
@@ -26,7 +27,7 @@ export const v2_applyTemplatePreset = ({
   current: V2TemplateRenderConfig;
   preset: V2TemplateRenderConfig;
 }): V2TemplateRenderConfig => {
-  return {
+  return v2_withRuntimeStructure({
     ...current,
     metadata: {
       ...current.metadata,
@@ -50,10 +51,9 @@ export const v2_applyTemplatePreset = ({
     profileTextPlaceholder: preset.profileTextPlaceholder,
     formSchema: preset.formSchema,
     layout: preset.layout,
-    structure: preset.structure,
     graph: preset.graph,
     // 에셋 URL은 작업 중 손실이 크므로 현재값을 보존한다.
     assets: current.assets,
     assetDimensions: current.assetDimensions,
-  };
+  });
 };
