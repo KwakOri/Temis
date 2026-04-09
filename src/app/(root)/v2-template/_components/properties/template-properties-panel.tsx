@@ -103,13 +103,13 @@ import {
   v2_resolveCardStyleSection,
 } from "./model/style-section-utils";
 import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
+import TemplateBoundTextNodePropertiesPanel from "./components/template-bound-text-node-properties-panel";
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
 import TemplateSceneAssetProperties from "./components/template-scene-asset-properties";
 import TemplateSceneCardCollectionProperties from "./components/template-scene-card-collection-properties";
 import TemplateSceneGroupProperties from "./components/template-scene-group-properties";
 import TemplateSceneNodeStructureControls from "./components/template-scene-node-structure-controls";
 import TemplateSimplePropertiesSection from "./components/template-simple-properties-section";
-import TemplateTextNodePropertiesSection from "./components/template-text-node-properties-section";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
@@ -4206,7 +4206,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     ) : null;
 
     return (
-      <TemplateTextNodePropertiesSection
+      <TemplateBoundTextNodePropertiesPanel
         heading={`Card / ${node.label}`}
         headerAction={headerAction}
         label={node.label}
@@ -4222,35 +4222,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         fieldBindingExists={fieldBindingExists}
         colorKeys={v2_TEMPLATE_COLOR_KEYS}
         visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-        containerStyleEditor={renderStyleSectionEditor({
-          title: "container style",
-          section: containerSection,
-        })}
-        wrapperStyleEditor={
-          wrapperSection && wrapperSection !== containerSection
-            ? renderStyleSectionEditor({
-                title: "wrapper > style",
-                section: wrapperSection,
-              })
-            : null
-        }
-        alignmentEditor={
-          hasAutoResizeAlignment && textSection
-            ? renderAutoResizeAlignmentEditor({
-                title: "content > alignment",
-                wrapperSection: alignmentWrapperSection,
-                textSection,
-              })
-            : null
-        }
-        textStyleEditor={
-          textSection
-            ? renderStyleSectionEditor({
-                title: "content > style",
-                section: textSection,
-              })
-            : null
-        }
+        containerSection={containerSection}
+        wrapperSection={wrapperSection}
+        alignmentWrapperSection={alignmentWrapperSection}
+        textSection={textSection}
+        hasAutoResizeAlignment={hasAutoResizeAlignment}
         tailContent={
           node.kind === "flexibleText"
             ? renderCardNodeAutoResizeOptions({
@@ -4259,6 +4235,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               })
             : null
         }
+        renderStyleSectionEditor={renderStyleSectionEditor}
+        renderAutoResizeAlignmentEditor={renderAutoResizeAlignmentEditor}
         onChangeLabel={(value) =>
           updateCardNodeMeta({
             nodeId: node.id,
@@ -4355,7 +4333,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const newFieldDraft = v2_getNodeNewFieldDraft(newFieldDraftByNodeId, node.id);
 
     return (
-      <TemplateTextNodePropertiesSection
+      <TemplateBoundTextNodePropertiesPanel
         heading={`Scene / ${node.label}`}
         structureControls={renderSceneNodeStructureControls({
           node,
@@ -4374,35 +4352,13 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         fieldBindingExists={fieldBindingExists}
         colorKeys={v2_TEMPLATE_COLOR_KEYS}
         visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-        containerStyleEditor={renderStyleSectionEditor({
-          title: "container style",
-          section: containerSection,
-        })}
-        wrapperStyleEditor={
-          wrapperSection && wrapperSection !== containerSection
-            ? renderStyleSectionEditor({
-                title: "wrapper > style",
-                section: wrapperSection,
-              })
-            : null
-        }
-        alignmentEditor={
-          hasAutoResizeAlignment && textSection
-            ? renderAutoResizeAlignmentEditor({
-                title: "content > alignment",
-                wrapperSection: alignmentWrapperSection,
-                textSection,
-              })
-            : null
-        }
-        textStyleEditor={
-          textSection
-            ? renderStyleSectionEditor({
-                title: "content > style",
-                section: textSection,
-              })
-            : null
-        }
+        containerSection={containerSection}
+        wrapperSection={wrapperSection}
+        alignmentWrapperSection={alignmentWrapperSection}
+        textSection={textSection}
+        hasAutoResizeAlignment={hasAutoResizeAlignment}
+        renderStyleSectionEditor={renderStyleSectionEditor}
+        renderAutoResizeAlignmentEditor={renderAutoResizeAlignmentEditor}
         onChangeLabel={(value) =>
           updateSceneTextNodeMeta({
             nodeId: node.id,
