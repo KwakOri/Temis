@@ -15,6 +15,7 @@ import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui
 import {
   v2_graphAppendChild,
   v2_graphInsertSiblingAfter,
+  v2_graphMoveNode,
   v2_graphRemoveNodeSubtree,
   v2_graphReorderNodeWithinParent,
   v2_graphUpdateNode,
@@ -135,6 +136,28 @@ const v2_sceneNodeToGraphNode = (
       ...(sceneNode.textClassName ? { textClassName: sceneNode.textClassName } : {}),
     },
   };
+};
+
+const v2_isSceneNodeDescendant = ({
+  ancestorNode,
+  targetNodeId,
+}: {
+  ancestorNode: V2TemplateSceneNode;
+  targetNodeId: string;
+}): boolean => {
+  if (ancestorNode.kind !== "group") return false;
+  const queue = [...ancestorNode.children];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+    if (current.id === targetNodeId) return true;
+    if (current.kind === "group") {
+      queue.push(...current.children);
+    }
+  }
+
+  return false;
 };
 
 const useTemplateSceneNodeActions = ({
@@ -707,6 +730,148 @@ const useTemplateSceneNodeActions = ({
     });
   };
 
+  const relocateSceneNode = ({
+    nodeId,
+    targetParentId,
+    targetIndex,
+  }: {
+    nodeId: string;
+    targetParentId: string | null;
+    targetIndex?: number;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const sourceContext = v2_findSceneNodeContextById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+      });
+      if (!sourceContext) return prev;
+
+      if (targetParentId === nodeId) return prev;
+
+      const targetParentContext =
+        targetParentId === null
+          ? null
+          : v2_findSceneNodeContextById({
+              nodes: prev.structure.sceneNodes,
+              nodeId: targetParentId,
+            });
+
+      if (targetParentId !== null) {
+        if (!targetParentContext || targetParentContext.node.kind !== "group") {
+          return prev;
+        }
+        if (
+          v2_isSceneNodeDescendant({
+            ancestorNode: sourceContext.node,
+            targetNodeId: targetParentId,
+          })
+        ) {
+          return prev;
+        }
+      }
+
+      const sourceParentId = sourceContext.parentId;
+      const sourceIndex = sourceContext.index;
+      const desiredIndex = Number.isFinite(targetIndex)
+        ? Math.max(0, Math.floor(targetIndex as number))
+        : Number.POSITIVE_INFINITY;
+      const effectiveTargetIndex =
+        sourceParentId === targetParentId && desiredIndex > sourceIndex
+          ? desiredIndex - 1
+          : desiredIndex;
+
+      const { nodes: afterRemovalNodes, updated: removalUpdated } =
+        v2_updateSceneNodeListByParentId({
+          nodes: prev.structure.sceneNodes,
+          parentId: sourceParentId,
+          updater: (siblings) => siblings.filter((sibling) => sibling.id !== nodeId),
+        });
+      if (!removalUpdated) return prev;
+
+      const { nodes: nextSceneNodes, updated: insertUpdated } =
+        v2_updateSceneNodeListByParentId({
+          nodes: afterRemovalNodes,
+          parentId: targetParentId,
+          updater: (siblings) => {
+            const nextSiblings = [...siblings];
+            const insertAt = Number.isFinite(effectiveTargetIndex)
+              ? Math.max(0, Math.min(nextSiblings.length, effectiveTargetIndex))
+              : nextSiblings.length;
+            nextSiblings.splice(insertAt, 0, sourceContext.node);
+            return nextSiblings;
+          },
+        });
+      if (!insertUpdated) return prev;
+
+      let nextLayers = prev.structure.layers;
+      const sourceLayerId = sourceContext.node.layerId ?? null;
+      if (sourceLayerId) {
+        const sourceLayerContext = v2_findLayerNodeContextById({
+          nodes: prev.structure.layers,
+          nodeId: sourceLayerId,
+        });
+        if (sourceLayerContext) {
+          const targetLayerParentId =
+            targetParentId === null
+              ? null
+              : (targetParentContext?.node.layerId ?? null);
+
+          const { nodes: nextLayerAfterRemoval, updated: layerRemovalUpdated } =
+            v2_updateLayerNodeListByParentId({
+              nodes: prev.structure.layers,
+              parentId: sourceLayerContext.parentId,
+              updater: (siblings) =>
+                siblings.filter((sibling) => sibling.id !== sourceLayerId),
+            });
+
+          if (layerRemovalUpdated) {
+            const sourceLayerIndex = sourceLayerContext.index;
+            const effectiveLayerIndex =
+              sourceLayerContext.parentId === targetLayerParentId &&
+              desiredIndex > sourceLayerIndex
+                ? desiredIndex - 1
+                : desiredIndex;
+
+            const { nodes: updatedLayers, updated: layerInsertUpdated } =
+              v2_updateLayerNodeListByParentId({
+                nodes: nextLayerAfterRemoval,
+                parentId: targetLayerParentId,
+                updater: (siblings) => {
+                  const nextSiblings = [...siblings];
+                  const insertAt = Number.isFinite(effectiveLayerIndex)
+                    ? Math.max(0, Math.min(nextSiblings.length, effectiveLayerIndex))
+                    : nextSiblings.length;
+                  nextSiblings.splice(insertAt, 0, sourceLayerContext.node);
+                  return nextSiblings;
+                },
+              });
+
+            if (layerInsertUpdated) {
+              nextLayers = updatedLayers;
+            }
+          }
+        }
+      }
+
+      return {
+        ...prev,
+        graph: v2_graphMoveNode({
+          graph: prev.graph,
+          nodeId,
+          targetParentId,
+          targetIndex: Number.isFinite(effectiveTargetIndex)
+            ? effectiveTargetIndex
+            : undefined,
+        }),
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+          layers: nextLayers,
+        },
+      };
+    });
+  };
+
   const removeSceneNode = (nodeId: string) => {
     let nextFocusLayerId: string | null = null;
     let nextFocusTarget: V2TemplateHighlightTarget | null = null;
@@ -913,6 +1078,7 @@ const useTemplateSceneNodeActions = ({
     addSceneSiblingNode,
     addSceneChildNode,
     moveSceneNode,
+    relocateSceneNode,
     removeSceneNode,
     updateSceneTextNodeBinding,
     updateSceneTextNodeVisibilityMode,
