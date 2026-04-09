@@ -1,5 +1,4 @@
 export * from "./editor";
-export * from "./legacy-form";
 export * from "./modals";
 export * from "./properties";
 export * from "./scene";
