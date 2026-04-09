@@ -104,12 +104,12 @@ import {
 } from "./model/style-section-utils";
 import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
-import TemplateNodeBindingEditor from "./components/template-node-binding-editor";
-import TemplateNodeMetaEditor from "./components/template-node-meta-editor";
 import TemplateSceneAssetProperties from "./components/template-scene-asset-properties";
 import TemplateSceneCardCollectionProperties from "./components/template-scene-card-collection-properties";
 import TemplateSceneGroupProperties from "./components/template-scene-group-properties";
 import TemplateSceneNodeStructureControls from "./components/template-scene-node-structure-controls";
+import TemplateSimplePropertiesSection from "./components/template-simple-properties-section";
+import TemplateTextNodePropertiesSection from "./components/template-text-node-properties-section";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
@@ -4195,111 +4195,111 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
     const newFieldDraft = v2_getNodeNewFieldDraft(newFieldDraftByNodeId, node.id);
 
+    const headerAction = isRemovable ? (
+      <button
+        type="button"
+        onClick={() => removeCardNode(node.id)}
+        className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
+      >
+        오브젝트 삭제
+      </button>
+    ) : null;
+
     return (
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="font-semibold text-sm text-gray-200">Card / {node.label}</h4>
-          {isRemovable ? (
-            <button
-              type="button"
-              onClick={() => removeCardNode(node.id)}
-              className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
-            >
-              오브젝트 삭제
-            </button>
-          ) : null}
-        </div>
-        <TemplateNodeMetaEditor
-          label={node.label}
-          colorKey={node.colorKey}
-          fontKey={node.fontKey}
-          visibilityMode={node.visibilityMode ?? "always"}
-          colorKeys={v2_TEMPLATE_COLOR_KEYS}
-          visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-          onChangeLabel={(value) =>
-            updateCardNodeMeta({
-              nodeId: node.id,
-              label: value,
-            })
-          }
-          onChangeColorKey={(value) =>
-            updateCardNodeMeta({
-              nodeId: node.id,
-              colorKey: value,
-            })
-          }
-          onChangeFontKey={(value) =>
-            updateCardNodeMeta({
-              nodeId: node.id,
-              fontKey: value,
-            })
-          }
-          onChangeVisibilityMode={(value) =>
-            updateCardNodeVisibilityMode(node.id, value)
-          }
-          onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
-          onMouseLeaveVisibility={clearSectionHoverHighlight}
-          onClickVisibility={() => setSectionActiveHighlight(containerSection)}
-        />
-        <TemplateNodeBindingEditor
-          binding={node.binding}
-          bindingSelectValue={bindingSelectValue}
-          fields={renderConfig.formSchema.fields}
-          computedOptions={v2_BINDING_COMPUTED_OPTIONS}
-          scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
-          newFieldDraft={newFieldDraft}
-          fieldBindingExists={fieldBindingExists}
-          onSelectBinding={(value) => {
-            const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
-            if (!nextBinding) return;
-            updateCardNodeBinding(node.id, nextBinding);
-          }}
-          onChangeLiteral={(value) =>
-            updateCardNodeBinding(node.id, {
-              mode: "literal",
-              value,
-            })
-          }
-          onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
-          onChangeDraftScope={(scope) =>
-            updateNodeNewFieldDraft(node.id, { scope })
-          }
-          onCreateField={() => createFieldForCardNodeBinding(node)}
-        />
-        {renderStyleSectionEditor({
+      <TemplateTextNodePropertiesSection
+        heading={`Card / ${node.label}`}
+        headerAction={headerAction}
+        label={node.label}
+        colorKey={node.colorKey}
+        fontKey={node.fontKey}
+        visibilityMode={node.visibilityMode ?? "always"}
+        binding={node.binding}
+        bindingSelectValue={bindingSelectValue}
+        fields={renderConfig.formSchema.fields}
+        computedOptions={v2_BINDING_COMPUTED_OPTIONS}
+        scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
+        newFieldDraft={newFieldDraft}
+        fieldBindingExists={fieldBindingExists}
+        colorKeys={v2_TEMPLATE_COLOR_KEYS}
+        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
+        containerStyleEditor={renderStyleSectionEditor({
           title: "container style",
           section: containerSection,
         })}
-
-        {wrapperSection && wrapperSection !== containerSection
-          ? renderStyleSectionEditor({
-              title: "wrapper > style",
-              section: wrapperSection,
-            })
-          : null}
-
-        {hasAutoResizeAlignment && textSection
-          ? renderAutoResizeAlignmentEditor({
-              title: "content > alignment",
-              wrapperSection: alignmentWrapperSection,
-              textSection,
-            })
-          : null}
-
-        {textSection
-          ? renderStyleSectionEditor({
-              title: "content > style",
-              section: textSection,
-            })
-          : null}
-
-        {node.kind === "flexibleText"
-          ? renderCardNodeAutoResizeOptions({
-              node,
-              containerSection,
-            })
-          : null}
-      </div>
+        wrapperStyleEditor={
+          wrapperSection && wrapperSection !== containerSection
+            ? renderStyleSectionEditor({
+                title: "wrapper > style",
+                section: wrapperSection,
+              })
+            : null
+        }
+        alignmentEditor={
+          hasAutoResizeAlignment && textSection
+            ? renderAutoResizeAlignmentEditor({
+                title: "content > alignment",
+                wrapperSection: alignmentWrapperSection,
+                textSection,
+              })
+            : null
+        }
+        textStyleEditor={
+          textSection
+            ? renderStyleSectionEditor({
+                title: "content > style",
+                section: textSection,
+              })
+            : null
+        }
+        tailContent={
+          node.kind === "flexibleText"
+            ? renderCardNodeAutoResizeOptions({
+                node,
+                containerSection,
+              })
+            : null
+        }
+        onChangeLabel={(value) =>
+          updateCardNodeMeta({
+            nodeId: node.id,
+            label: value,
+          })
+        }
+        onChangeColorKey={(value) =>
+          updateCardNodeMeta({
+            nodeId: node.id,
+            colorKey: value,
+          })
+        }
+        onChangeFontKey={(value) =>
+          updateCardNodeMeta({
+            nodeId: node.id,
+            fontKey: value,
+          })
+        }
+        onChangeVisibilityMode={(value) =>
+          updateCardNodeVisibilityMode(node.id, value)
+        }
+        onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
+        onMouseLeaveVisibility={clearSectionHoverHighlight}
+        onClickVisibility={() => setSectionActiveHighlight(containerSection)}
+        onSelectBinding={(value) => {
+          const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
+          if (!nextBinding) return;
+          updateCardNodeBinding(node.id, nextBinding);
+        }}
+        onChangeLiteral={(value) =>
+          updateCardNodeBinding(node.id, {
+            mode: "literal",
+            value,
+          })
+        }
+        onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
+        onChangeDraftScope={(scope) =>
+          updateNodeNewFieldDraft(node.id, { scope })
+        }
+        onCreateField={() => createFieldForCardNodeBinding(node)}
+      />
     );
   };
 
@@ -4355,93 +4355,95 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const newFieldDraft = v2_getNodeNewFieldDraft(newFieldDraftByNodeId, node.id);
 
     return (
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">Scene / {node.label}</h4>
-        {renderSceneNodeStructureControls({ node, allowChildren: false })}
-        <TemplateNodeMetaEditor
-          label={node.label}
-          colorKey={node.colorKey}
-          fontKey={node.fontKey}
-          visibilityMode={node.visibilityMode ?? "always"}
-          colorKeys={v2_TEMPLATE_COLOR_KEYS}
-          visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-          onChangeLabel={(value) =>
-            updateSceneTextNodeMeta({
-              nodeId: node.id,
-              label: value,
-            })
-          }
-          onChangeColorKey={(value) =>
-            updateSceneTextNodeMeta({
-              nodeId: node.id,
-              colorKey: value,
-            })
-          }
-          onChangeFontKey={(value) =>
-            updateSceneTextNodeMeta({
-              nodeId: node.id,
-              fontKey: value,
-            })
-          }
-          onChangeVisibilityMode={(value) =>
-            updateSceneTextNodeVisibilityMode(node.id, value)
-          }
-          onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
-          onMouseLeaveVisibility={clearSectionHoverHighlight}
-          onClickVisibility={() => setSectionActiveHighlight(containerSection)}
-        />
-        <TemplateNodeBindingEditor
-          binding={node.binding}
-          bindingSelectValue={bindingSelectValue}
-          fields={renderConfig.formSchema.fields}
-          computedOptions={v2_BINDING_COMPUTED_OPTIONS}
-          scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
-          newFieldDraft={newFieldDraft}
-          fieldBindingExists={fieldBindingExists}
-          onSelectBinding={(value) => {
-            const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
-            if (!nextBinding) return;
-            updateSceneTextNodeBinding(node.id, nextBinding);
-          }}
-          onChangeLiteral={(value) =>
-            updateSceneTextNodeBinding(node.id, {
-              mode: "literal",
-              value,
-            })
-          }
-          onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
-          onChangeDraftScope={(scope) =>
-            updateNodeNewFieldDraft(node.id, { scope })
-          }
-          onCreateField={() => createFieldForSceneNodeBinding(node)}
-        />
-        {renderStyleSectionEditor({
+      <TemplateTextNodePropertiesSection
+        heading={`Scene / ${node.label}`}
+        structureControls={renderSceneNodeStructureControls({
+          node,
+          allowChildren: false,
+        })}
+        label={node.label}
+        colorKey={node.colorKey}
+        fontKey={node.fontKey}
+        visibilityMode={node.visibilityMode ?? "always"}
+        binding={node.binding}
+        bindingSelectValue={bindingSelectValue}
+        fields={renderConfig.formSchema.fields}
+        computedOptions={v2_BINDING_COMPUTED_OPTIONS}
+        scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
+        newFieldDraft={newFieldDraft}
+        fieldBindingExists={fieldBindingExists}
+        colorKeys={v2_TEMPLATE_COLOR_KEYS}
+        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
+        containerStyleEditor={renderStyleSectionEditor({
           title: "container style",
           section: containerSection,
         })}
-
-        {wrapperSection && wrapperSection !== containerSection
-          ? renderStyleSectionEditor({
-              title: "wrapper > style",
-              section: wrapperSection,
-            })
-          : null}
-
-        {hasAutoResizeAlignment && textSection
-          ? renderAutoResizeAlignmentEditor({
-              title: "content > alignment",
-              wrapperSection: alignmentWrapperSection,
-              textSection,
-            })
-          : null}
-
-        {textSection
-          ? renderStyleSectionEditor({
-              title: "content > style",
-              section: textSection,
-            })
-          : null}
-      </div>
+        wrapperStyleEditor={
+          wrapperSection && wrapperSection !== containerSection
+            ? renderStyleSectionEditor({
+                title: "wrapper > style",
+                section: wrapperSection,
+              })
+            : null
+        }
+        alignmentEditor={
+          hasAutoResizeAlignment && textSection
+            ? renderAutoResizeAlignmentEditor({
+                title: "content > alignment",
+                wrapperSection: alignmentWrapperSection,
+                textSection,
+              })
+            : null
+        }
+        textStyleEditor={
+          textSection
+            ? renderStyleSectionEditor({
+                title: "content > style",
+                section: textSection,
+              })
+            : null
+        }
+        onChangeLabel={(value) =>
+          updateSceneTextNodeMeta({
+            nodeId: node.id,
+            label: value,
+          })
+        }
+        onChangeColorKey={(value) =>
+          updateSceneTextNodeMeta({
+            nodeId: node.id,
+            colorKey: value,
+          })
+        }
+        onChangeFontKey={(value) =>
+          updateSceneTextNodeMeta({
+            nodeId: node.id,
+            fontKey: value,
+          })
+        }
+        onChangeVisibilityMode={(value) =>
+          updateSceneTextNodeVisibilityMode(node.id, value)
+        }
+        onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
+        onMouseLeaveVisibility={clearSectionHoverHighlight}
+        onClickVisibility={() => setSectionActiveHighlight(containerSection)}
+        onSelectBinding={(value) => {
+          const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
+          if (!nextBinding) return;
+          updateSceneTextNodeBinding(node.id, nextBinding);
+        }}
+        onChangeLiteral={(value) =>
+          updateSceneTextNodeBinding(node.id, {
+            mode: "literal",
+            value,
+          })
+        }
+        onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
+        onChangeDraftScope={(scope) =>
+          updateNodeNewFieldDraft(node.id, { scope })
+        }
+        onCreateField={() => createFieldForSceneNodeBinding(node)}
+      />
     );
   };
 
@@ -4604,19 +4606,13 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             : "style";
 
     return (
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">{heading}</h4>
-        {section === "cardContainer" ? (
-          <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
-            바인딩 키는 카드 컨테이너가 아니라 하위 텍스트 오브젝트에서 설정합니다.
-            {bindableNodeLabels.length > 0
-              ? ` (${bindableNodeLabels.join(", ")})`
-              : ""}
-          </div>
-        ) : null}
-        {renderCardComponentProperties(section)}
-        {renderStyleSectionEditor({ title: styleTitle, section })}
-      </div>
+      <TemplateSimplePropertiesSection
+        heading={heading}
+        section={section}
+        bindableNodeLabels={bindableNodeLabels}
+        cardComponentProperties={renderCardComponentProperties(section)}
+        styleEditor={renderStyleSectionEditor({ title: styleTitle, section })}
+      />
     );
   };
 
