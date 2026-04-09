@@ -4,8 +4,8 @@ import {
   v2_createInitialGlobalDataFromFormSchema,
   v2_getDefaultCardsFromFormSchema,
 } from "@/utils/time-table/v2-form-data";
-import { v2_toCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
-import { useEffect, useMemo, useState } from "react";
+import { v2_isFormSchemaEquivalentToCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
+import { useEffect, useState } from "react";
 import { useTemplateData } from "./useTemplateData";
 import { useTemplatePersistence } from "./useTemplatePersistence";
 import { useTemplateState } from "./useTemplateState";
@@ -24,10 +24,6 @@ export const useTemplateEditor = ({
   autoSaveDelay = 1000,
   captureSize,
 }: UseTemplateEditorOptions) => {
-  const cardInputConfig = useMemo(
-    () => v2_toCardInputConfig(inputSchema),
-    [inputSchema]
-  );
   const { state, actions } = useTemplateState(captureSize);
   const {
     data,
@@ -63,8 +59,10 @@ export const useTemplateEditor = ({
       if (persistedData && persistedData.data) {
         const configMatches =
           persistedData.cardInputConfig &&
-          JSON.stringify(persistedData.cardInputConfig) ===
-            JSON.stringify(cardInputConfig);
+          v2_isFormSchemaEquivalentToCardInputConfig({
+            formSchema: inputSchema,
+            cardInputConfig: persistedData.cardInputConfig,
+          });
 
         if (configMatches) {
           updateData(persistedData.data);
@@ -98,7 +96,6 @@ export const useTemplateEditor = ({
     updateData,
     updateGlobalData,
     updateTheme,
-    cardInputConfig,
     inputSchema,
   ]);
 
@@ -130,7 +127,6 @@ export const useTemplateEditor = ({
     autoSave,
     resetAll,
     inputSchema,
-    cardInputConfig,
     defaultTheme,
     captureSize,
     isInitialized,
