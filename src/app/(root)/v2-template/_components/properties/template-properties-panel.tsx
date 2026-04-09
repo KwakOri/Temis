@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
@@ -103,6 +103,7 @@ interface V2TemplateBuilderFormProps {
   focusLayerNonce?: number;
   focusStyleSection?: string | null;
   focusStyleSectionNonce?: number;
+  focusEditorMode?: "instance" | "master";
 }
 
 type V2CardLayoutStyleKey = Extract<
@@ -122,6 +123,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   focusLayerNonce = 0,
   focusStyleSection = null,
   focusStyleSectionNonce = 0,
+  focusEditorMode = "instance",
 }) => {
   const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
   const {
@@ -166,6 +168,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     useState<V2TemplateHighlightTarget>("grid");
   const [selectedPropertiesLayerId, setSelectedPropertiesLayerId] =
     useState<string>("grid");
+  const [selectedPropertiesEditorMode, setSelectedPropertiesEditorMode] =
+    useState<"instance" | "master">("instance");
   const defaultCardComponentId = useMemo(
     () => v2_getDefaultCardComponentId(renderConfig),
     [renderConfig]
@@ -436,6 +440,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     setSelectedPropertiesTarget,
     activatePropertiesTab: () => setActiveTab("properties"),
   });
+  useEffect(() => {
+    if (!focusLayerId) return;
+    setSelectedPropertiesEditorMode(focusEditorMode);
+  }, [focusEditorMode, focusLayerId, focusLayerNonce]);
 
   const safeUpdateConfig = (
     updater: (prev: typeof renderConfig) => typeof renderConfig
@@ -1002,6 +1010,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     <TemplatePropertiesTab
       inspectorRef={inspectorTabRef}
       selectedLabel={selectedPropertiesLabel}
+      editorMode={selectedPropertiesEditorMode}
       onMouseLeave={clearSectionHoverHighlight}
       onBlurOutside={() => setActiveHighlightTarget(null)}
     >

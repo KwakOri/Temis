@@ -50,6 +50,7 @@ interface V2TimeTableLayersPanelProps {
     target?: V2TemplateHighlightTarget;
     sectionKey?: string;
     layerId: string;
+    editorMode: "instance" | "master";
   }) => void;
   orderedIdsByParent?: Record<string, string[]>;
   onReorderLayers?: (payload: {
@@ -480,16 +481,17 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           <button
             type="button"
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            onClick={() => {
-              const resolvedTarget = node.target;
-              setSelectedLayerId(node.id);
-              setActiveHighlightTarget(resolvedTarget ?? null);
-              onSelectLayer?.({
-                ...(resolvedTarget ? { target: resolvedTarget } : {}),
-                sectionKey: node.sectionKey,
-                layerId: node.id,
-              });
-            }}
+              onClick={() => {
+                const resolvedTarget = node.target;
+                setSelectedLayerId(node.id);
+                setActiveHighlightTarget(resolvedTarget ?? null);
+                onSelectLayer?.({
+                  ...(resolvedTarget ? { target: resolvedTarget } : {}),
+                  sectionKey: node.sectionKey,
+                  layerId: node.id,
+                  editorMode: "instance",
+                });
+              }}
           >
             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate text-xs font-medium">{node.label}</span>
@@ -598,6 +600,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                         setSelectedLayerId(componentItem.rootLayerId);
                         onSelectLayer?.({
                           layerId: componentItem.rootLayerId,
+                          editorMode: "master",
                         });
                       }}
                     >

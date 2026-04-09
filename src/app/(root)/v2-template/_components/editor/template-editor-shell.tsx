@@ -81,6 +81,7 @@ const V2TimeTableEditor: React.FC = () => {
   const [propertiesFocusRequest, setPropertiesFocusRequest] = useState<{
     layerId: string;
     nonce: number;
+    editorMode: "instance" | "master";
   } | null>(null);
   const [hiddenLayerIds, setHiddenLayerIds] = useState<Record<string, boolean>>(
     {}
@@ -446,11 +447,12 @@ const V2TimeTableEditor: React.FC = () => {
                         applyLayerRelocation(payload);
                       }}
                       onDetachComponent={detachComponentMaster}
-                      onSelectLayer={({ layerId }) => {
+                      onSelectLayer={({ layerId, editorMode }) => {
                         setIsRightPanelOpen(true);
                         setPropertiesFocusRequest({
                           layerId,
                           nonce: Date.now(),
+                          editorMode,
                         });
                       }}
                     />
@@ -464,6 +466,9 @@ const V2TimeTableEditor: React.FC = () => {
                     <V2TemplateBuilderForm
                       focusLayerId={propertiesFocusRequest?.layerId ?? null}
                       focusLayerNonce={propertiesFocusRequest?.nonce ?? 0}
+                      focusEditorMode={
+                        propertiesFocusRequest?.editorMode ?? "instance"
+                      }
                     />
                   </aside>
                 </>
