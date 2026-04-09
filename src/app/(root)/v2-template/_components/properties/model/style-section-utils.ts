@@ -30,6 +30,60 @@ export const v2_resolveCardStyleSection = <TStyleKey extends string>(
   return mapped ?? parsed;
 };
 
+export interface V2ResolvedTextNodeSections {
+  containerSection: string;
+  textSection: string | null;
+  wrapperSection: string | null;
+  alignmentWrapperSection: string;
+  hasAutoResizeAlignment: boolean;
+}
+
+export const v2_resolveTextNodeSections = <TStyleKey extends string>({
+  containerStyleKey,
+  textStyleKey,
+  wrapperStyleKey,
+  fallbackSection,
+  styleKeyToSectionMap,
+  isFlexibleText,
+}: {
+  containerStyleKey: unknown;
+  textStyleKey?: unknown;
+  wrapperStyleKey?: unknown;
+  fallbackSection: string;
+  styleKeyToSectionMap: Partial<Record<TStyleKey, string>>;
+  isFlexibleText: boolean;
+}): V2ResolvedTextNodeSections => {
+  const containerSection = v2_resolveCardStyleSection(
+    containerStyleKey,
+    fallbackSection,
+    styleKeyToSectionMap
+  );
+  const textSection = textStyleKey
+    ? v2_resolveCardStyleSection(
+        textStyleKey,
+        containerSection,
+        styleKeyToSectionMap
+      )
+    : null;
+  const wrapperSection = wrapperStyleKey
+    ? v2_resolveCardStyleSection(
+        wrapperStyleKey,
+        containerSection,
+        styleKeyToSectionMap
+      )
+    : null;
+  const alignmentWrapperSection = wrapperSection ?? containerSection;
+  const hasAutoResizeAlignment = isFlexibleText && textSection !== null;
+
+  return {
+    containerSection,
+    textSection,
+    wrapperSection,
+    alignmentWrapperSection,
+    hasAutoResizeAlignment,
+  };
+};
+
 export const v2_isKnownStyleSectionKey = <TSectionKey extends string>(
   value: string,
   sectionLabelMap: Record<TSectionKey, unknown>

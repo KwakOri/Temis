@@ -101,6 +101,7 @@ import {
   v2_isKnownStyleSectionKey,
   v2_parseStyleSectionKey,
   v2_resolveCardStyleSection,
+  v2_resolveTextNodeSections,
 } from "./model/style-section-utils";
 import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
 import TemplateBoundTextNodePropertiesPanel from "./components/template-bound-text-node-properties-panel";
@@ -4165,28 +4166,20 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     section: V2StyleSectionId,
     node: V2TemplateCardNode
   ) => {
-    const containerSection = v2_resolveCardStyleSection(
-      node.containerStyleKey,
-      section,
-      v2_STYLE_KEY_TO_SECTION_KEY_MAP
-    );
-    const textSection = node.textStyleKey
-      ? v2_resolveCardStyleSection(
-          node.textStyleKey,
-          containerSection,
-          v2_STYLE_KEY_TO_SECTION_KEY_MAP
-        )
-      : null;
-    const wrapperSection = node.wrapperStyleKey
-      ? v2_resolveCardStyleSection(
-          node.wrapperStyleKey,
-          containerSection,
-          v2_STYLE_KEY_TO_SECTION_KEY_MAP
-        )
-      : null;
-    const alignmentWrapperSection = wrapperSection ?? containerSection;
-    const hasAutoResizeAlignment =
-      node.kind === "flexibleText" && textSection !== null;
+    const {
+      containerSection,
+      textSection,
+      wrapperSection,
+      alignmentWrapperSection,
+      hasAutoResizeAlignment,
+    } = v2_resolveTextNodeSections({
+      containerStyleKey: node.containerStyleKey,
+      textStyleKey: node.textStyleKey,
+      wrapperStyleKey: node.wrapperStyleKey,
+      fallbackSection: section,
+      styleKeyToSectionMap: v2_STYLE_KEY_TO_SECTION_KEY_MAP,
+      isFlexibleText: node.kind === "flexibleText",
+    });
     const isRemovable = !v2_FIXED_CARD_NODE_IDS.has(node.id);
     const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
     const fieldBindingExists = v2_hasNodeBindingField(
@@ -4303,28 +4296,20 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     section: V2StyleSectionId,
     node: V2TemplateSceneTextNode
   ) => {
-    const containerSection = v2_resolveCardStyleSection(
-      node.containerStyleKey,
-      section,
-      v2_STYLE_KEY_TO_SECTION_KEY_MAP
-    );
-    const textSection = node.textStyleKey
-      ? v2_resolveCardStyleSection(
-          node.textStyleKey,
-          containerSection,
-          v2_STYLE_KEY_TO_SECTION_KEY_MAP
-        )
-      : null;
-    const wrapperSection = node.wrapperStyleKey
-      ? v2_resolveCardStyleSection(
-          node.wrapperStyleKey,
-          containerSection,
-          v2_STYLE_KEY_TO_SECTION_KEY_MAP
-        )
-      : null;
-    const alignmentWrapperSection = wrapperSection ?? containerSection;
-    const hasAutoResizeAlignment =
-      node.kind === "flexibleText" && textSection !== null;
+    const {
+      containerSection,
+      textSection,
+      wrapperSection,
+      alignmentWrapperSection,
+      hasAutoResizeAlignment,
+    } = v2_resolveTextNodeSections({
+      containerStyleKey: node.containerStyleKey,
+      textStyleKey: node.textStyleKey,
+      wrapperStyleKey: node.wrapperStyleKey,
+      fallbackSection: section,
+      styleKeyToSectionMap: v2_STYLE_KEY_TO_SECTION_KEY_MAP,
+      isFlexibleText: node.kind === "flexibleText",
+    });
     const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
     const fieldBindingExists = v2_hasNodeBindingField(
       node.binding,
