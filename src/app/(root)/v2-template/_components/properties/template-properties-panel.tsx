@@ -78,7 +78,11 @@ import TemplateSceneNodeStructureControls from "./components/template-scene-node
 import TemplateSimplePropertiesSection from "./components/template-simple-properties-section";
 import TemplateStyleSectionEditor from "./components/template-style-section-editor";
 import TemplateAssetsTab from "./panels/template-assets-tab";
+import TemplateBuilderTabContentRouter, {
+  type V2BuilderTabId,
+} from "./panels/template-builder-tab-content-router";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
+import TemplateCanvasTab from "./panels/template-canvas-tab";
 import TemplateDataTab from "./panels/template-data-tab";
 import TemplateExportTab from "./panels/template-export-tab";
 import TemplatePropertiesTab from "./panels/template-properties-tab";
@@ -90,16 +94,7 @@ import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
 import useTemplateThemeAssetActions from "./hooks/use-template-theme-asset-actions";
 
-type V2BuilderTab =
-  | "canvas"
-  | "schema"
-  | "properties"
-  | "style"
-  | "assets"
-  | "data"
-  | "export";
-
-const v2_BUILDER_TABS: Array<{ id: V2BuilderTab; label: string }> = [
+const v2_BUILDER_TABS: Array<{ id: V2BuilderTabId; label: string }> = [
   { id: "canvas", label: "캔버스" },
   { id: "schema", label: "입력 스키마" },
   { id: "properties", label: "속성" },
@@ -447,7 +442,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const { preferProfileDummyImage, updatePreferProfileDummyImage } =
     useTemplateEditorData();
 
-  const [activeTab, setActiveTab] = useState<V2BuilderTab>("canvas");
+  const [activeTab, setActiveTab] = useState<V2BuilderTabId>("canvas");
   const [copyState, setCopyState] = useState<"idle" | "success" | "error">(
     "idle"
   );
@@ -1614,63 +1609,26 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   );
 
   const renderCanvasTab = () => (
-    <div className="space-y-4">
-      <h3 className="font-bold text-base text-gray-800">캔버스</h3>
-
-      <div className="grid grid-cols-2 gap-2">
-        <label className="text-xs text-gray-500">width</label>
-        <input
-          type="number"
-          value={renderConfig.templateSize.width}
-          onChange={(e) => updateTemplateSize("width", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-        <label className="text-xs text-gray-500">height</label>
-        <input
-          type="number"
-          value={renderConfig.templateSize.height}
-          onChange={(e) => updateTemplateSize("height", Number(e.target.value))}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 items-center">
-        <label className="text-xs text-gray-500">default theme</label>
-        <select
-          value={renderConfig.defaultTheme}
-          onChange={(e) => {
-            const nextTheme = e.target.value;
-            safeUpdateConfig((prev) => ({
-              ...prev,
-              defaultTheme: nextTheme,
-            }));
-            if (!themeOptions.includes(assetTheme)) {
-              setAssetTheme(nextTheme);
-            }
-          }}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        >
-          {themeOptions.map((theme) => (
-            <option key={theme} value={theme}>
-              {theme}
-            </option>
-          ))}
-        </select>
-
-        <label className="text-xs text-gray-500">preview theme</label>
-        <select
-          value={currentTheme}
-          onChange={(e) => updateTheme(e.target.value as typeof currentTheme)}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        >
-          {themeOptions.map((theme) => (
-            <option key={theme} value={theme}>
-              {theme}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
+    <TemplateCanvasTab
+      templateWidth={renderConfig.templateSize.width}
+      templateHeight={renderConfig.templateSize.height}
+      defaultTheme={renderConfig.defaultTheme}
+      previewTheme={currentTheme}
+      themeOptions={themeOptions}
+      onUpdateTemplateSize={updateTemplateSize}
+      onChangeDefaultTheme={(nextTheme) => {
+        safeUpdateConfig((prev) => ({
+          ...prev,
+          defaultTheme: nextTheme,
+        }));
+        if (!themeOptions.includes(assetTheme)) {
+          setAssetTheme(nextTheme);
+        }
+      }}
+      onChangePreviewTheme={(nextTheme) =>
+        updateTheme(nextTheme as typeof currentTheme)
+      }
+    />
   );
 
   const renderSchemaTab = () => (
@@ -2264,16 +2222,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     />
   );
 
-  const renderActiveTab = () => {
-    if (activeTab === "canvas") return renderCanvasTab();
-    if (activeTab === "schema") return renderSchemaTab();
-    if (activeTab === "properties") return renderPropertiesTab();
-    if (activeTab === "style") return renderStyleTab();
-    if (activeTab === "assets") return renderAssetsTab();
-    if (activeTab === "data") return renderDataTab();
-    return renderExportTab();
-  };
-
   return (
     <div className="h-full min-h-0 w-full">
       <div className="v2-dark-form-theme h-full min-h-0 shrink-0 flex flex-col border-l border-[#303848] bg-gray-100 w-full">
@@ -2283,7 +2231,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           onSelectTab={setActiveTab}
         />
         <div className="flex-1 overflow-y-auto p-4 h-full bg-timetable-form-bg">
-          {renderActiveTab()}
+          <TemplateBuilderTabContentRouter
+            activeTab={activeTab}
+            renderCanvasTab={renderCanvasTab}
+            renderSchemaTab={renderSchemaTab}
+            renderPropertiesTab={renderPropertiesTab}
+            renderStyleTab={renderStyleTab}
+            renderAssetsTab={renderAssetsTab}
+            renderDataTab={renderDataTab}
+            renderExportTab={renderExportTab}
+          />
         </div>
       </div>
       {renderBoilerplateSettingsModal()}
