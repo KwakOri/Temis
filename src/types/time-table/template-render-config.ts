@@ -243,6 +243,60 @@ export type V2TemplateSceneNode =
   | V2TemplateSceneTextNode
   | V2TemplateSceneCardCollectionNode;
 
+export type V2TemplateGraphNodeType =
+  | "group"
+  | "image"
+  | "text"
+  | "flexibleText"
+  | "cardCollection"
+  | "componentInstance";
+
+export interface V2TemplateGraphNodeStyleRefs {
+  styleKey?: string;
+  containerStyleKey?: string;
+  textStyleKey?: string;
+  wrapperStyleKey?: string;
+  optionsKey?: string;
+}
+
+export interface V2TemplateGraphNodeMeta {
+  assetKey?: keyof V2TemplateAssetMap;
+  fit?: V2TemplateSceneAssetFit;
+  alt?: string;
+  source?: "card";
+  componentId?: string;
+  instanceId?: string;
+  colorKey?: V2TemplateColorKey;
+  fontKey?: V2TemplateFontKey;
+}
+
+export interface V2TemplateGraphNode {
+  id: string;
+  type: V2TemplateGraphNodeType;
+  label: string;
+  parentId: string | null;
+  childIds: string[];
+  layerId?: string;
+  highlightTarget?: V2TemplateHighlightTarget;
+  visibilityMode?: V2TemplateVisibilityMode;
+  binding?: V2TemplateNodeBindingRef;
+  styles?: V2TemplateGraphNodeStyleRefs;
+  meta?: V2TemplateGraphNodeMeta;
+}
+
+export interface V2TemplateGraphComponentDefinition {
+  id: string;
+  label: string;
+  rootNodeId: string;
+  description?: string;
+}
+
+export interface V2TemplateNodeGraph {
+  rootNodeIds: string[];
+  nodes: Record<string, V2TemplateGraphNode>;
+  componentDefinitions: Record<string, V2TemplateGraphComponentDefinition>;
+}
+
 export interface V2TemplateFormField {
   key: string;
   scope: V2TemplateFieldScope;
@@ -366,4 +420,5 @@ export interface V2TemplateRenderConfig {
   assetDimensions: V2TemplateAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
   structure: V2TemplateStructureConfig;
+  graph: V2TemplateNodeGraph;
 }

@@ -19,10 +19,14 @@ import {
   V2TemplateFormSchema,
   V2TemplateFontFaceMetrics,
   V2TemplateFontRegistryItem,
+  V2TemplateGraphComponentDefinition,
+  V2TemplateGraphNode,
+  V2TemplateGraphNodeType,
   V2TemplateLayerComponentKey,
   V2TemplateLayerIconKey,
   V2TemplateLayerNodeKind,
   V2TemplateLayerNode,
+  V2TemplateNodeGraph,
   V2TemplateStructureConfig,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetFit,
@@ -509,6 +513,163 @@ const v2_DEFAULT_STRUCTURE: V2TemplateStructureConfig = {
   sceneNodes: v2_DEFAULT_SCENE_NODES,
 };
 
+const v2_mapSceneNodeKindToGraphType = (
+  kind: V2TemplateSceneNode["kind"]
+): V2TemplateGraphNodeType => {
+  if (kind === "group") return "group";
+  if (kind === "asset") return "image";
+  if (kind === "cardCollection") return "cardCollection";
+  if (kind === "flexibleText") return "flexibleText";
+  return "text";
+};
+
+const v2_mapCardNodeKindToGraphType = (
+  kind: V2TemplateCardNode["kind"]
+): V2TemplateGraphNodeType => {
+  if (kind === "flexibleText") return "flexibleText";
+  return "text";
+};
+
+const v2_createNodeGraphFromStructure = (
+  structure: V2TemplateStructureConfig
+): V2TemplateNodeGraph => {
+  const nodes: Record<string, V2TemplateGraphNode> = {};
+  const rootNodeIds: string[] = [];
+
+  const visitSceneNode = (
+    sceneNode: V2TemplateSceneNode,
+    parentId: string | null
+  ): void => {
+    const childIds =
+      sceneNode.kind === "group" ? sceneNode.children.map((child) => child.id) : [];
+
+    const nextNode: V2TemplateGraphNode = {
+      id: sceneNode.id,
+      type: v2_mapSceneNodeKindToGraphType(sceneNode.kind),
+      label: sceneNode.label,
+      parentId,
+      childIds,
+      ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
+      ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+    };
+
+    if (sceneNode.kind === "asset") {
+      nextNode.styles = sceneNode.styleKey ? { styleKey: sceneNode.styleKey } : {};
+      nextNode.meta = {
+        assetKey: sceneNode.assetKey,
+        ...(sceneNode.fit ? { fit: sceneNode.fit } : {}),
+        ...(sceneNode.alt ? { alt: sceneNode.alt } : {}),
+      };
+    } else if (sceneNode.kind === "cardCollection") {
+      nextNode.meta = { source: sceneNode.source };
+    } else if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {
+      nextNode.binding = sceneNode.binding;
+      nextNode.styles = {
+        containerStyleKey: sceneNode.containerStyleKey,
+        ...(sceneNode.textStyleKey ? { textStyleKey: sceneNode.textStyleKey } : {}),
+        ...(sceneNode.wrapperStyleKey
+          ? { wrapperStyleKey: sceneNode.wrapperStyleKey }
+          : {}),
+        ...(sceneNode.optionsKey ? { optionsKey: sceneNode.optionsKey } : {}),
+      };
+      nextNode.meta = {
+        colorKey: sceneNode.colorKey,
+        fontKey: sceneNode.fontKey,
+      };
+      if (sceneNode.highlightTarget) {
+        nextNode.highlightTarget = sceneNode.highlightTarget;
+      }
+    }
+
+    nodes[nextNode.id] = nextNode;
+
+    if (parentId === null) {
+      rootNodeIds.push(nextNode.id);
+    }
+
+    if (sceneNode.kind === "group") {
+      sceneNode.children.forEach((child) => {
+        visitSceneNode(child, sceneNode.id);
+      });
+    }
+  };
+
+  structure.sceneNodes.forEach((sceneNode) => {
+    visitSceneNode(sceneNode, null);
+  });
+
+  const cardRootId = "component-card-root";
+  const cardNodeIds = structure.card.nodeOrder.filter(
+    (nodeId) => structure.card.nodes[nodeId] !== undefined
+  );
+
+  nodes[cardRootId] = {
+    id: cardRootId,
+    type: "group",
+    label: "Card",
+    parentId: null,
+    childIds: cardNodeIds,
+    layerId: structure.card.containerLayerId,
+    highlightTarget: structure.card.containerHighlightTarget,
+    visibilityMode: "always",
+    styles: {
+      containerStyleKey: structure.card.containerStyleKey,
+    },
+    meta: {
+      componentId: "card",
+    },
+  };
+
+  cardNodeIds.forEach((nodeId) => {
+    const cardNode = structure.card.nodes[nodeId];
+    if (!cardNode) return;
+
+    nodes[nodeId] = {
+      id: cardNode.id,
+      type: v2_mapCardNodeKindToGraphType(cardNode.kind),
+      label: cardNode.label,
+      parentId: cardRootId,
+      childIds: [],
+      layerId: cardNode.layerId,
+      highlightTarget: cardNode.highlightTarget,
+      visibilityMode: cardNode.visibilityMode,
+      binding: cardNode.binding,
+      styles: {
+        containerStyleKey: cardNode.containerStyleKey,
+        ...(cardNode.textStyleKey ? { textStyleKey: cardNode.textStyleKey } : {}),
+        ...(cardNode.wrapperStyleKey
+          ? { wrapperStyleKey: cardNode.wrapperStyleKey }
+          : {}),
+        ...(cardNode.optionsKey ? { optionsKey: cardNode.optionsKey } : {}),
+      },
+      meta: {
+        colorKey: cardNode.colorKey,
+        fontKey: cardNode.fontKey,
+      },
+    };
+  });
+
+  const componentDefinitions: Record<
+    string,
+    V2TemplateGraphComponentDefinition
+  > = {
+    card: {
+      id: "card",
+      label: "Card",
+      rootNodeId: cardRootId,
+      description: "Legacy default card component",
+    },
+  };
+
+  return {
+    rootNodeIds,
+    nodes,
+    componentDefinitions,
+  };
+};
+
+const v2_DEFAULT_GRAPH = v2_createNodeGraphFromStructure(v2_DEFAULT_STRUCTURE);
+
 const v2_DEFAULT_ESCRODREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
   {
     weight: 100,
@@ -830,6 +991,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     scene: {},
   },
   structure: v2_DEFAULT_STRUCTURE,
+  graph: v2_DEFAULT_GRAPH,
 };
 
 const v2_isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -1038,6 +1200,249 @@ const v2_isSceneStyleKey = (
   value: unknown
 ): value is V2TemplateSceneStyleKey => {
   return v2_isNonEmptyString(value);
+};
+
+const v2_GRAPH_NODE_TYPE_SET = new Set([
+  "group",
+  "image",
+  "text",
+  "flexibleText",
+  "cardCollection",
+  "componentInstance",
+]);
+
+const v2_normalizeGraphNodeType = (
+  value: unknown,
+  fallback?: V2TemplateGraphNodeType
+): V2TemplateGraphNodeType | null => {
+  if (typeof value === "string" && v2_GRAPH_NODE_TYPE_SET.has(value)) {
+    return value as V2TemplateGraphNodeType;
+  }
+  return fallback ?? null;
+};
+
+const v2_normalizeGraphNodeStyleRefs = (
+  candidate: unknown,
+  fallback?: V2TemplateGraphNode["styles"]
+): V2TemplateGraphNode["styles"] => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  const next: NonNullable<V2TemplateGraphNode["styles"]> = {
+    ...(fallback ?? {}),
+  };
+
+  if (typeof candidate.styleKey === "string") {
+    next.styleKey = candidate.styleKey;
+  }
+  if (typeof candidate.containerStyleKey === "string") {
+    next.containerStyleKey = candidate.containerStyleKey;
+  }
+  if (typeof candidate.textStyleKey === "string") {
+    next.textStyleKey = candidate.textStyleKey;
+  }
+  if (typeof candidate.wrapperStyleKey === "string") {
+    next.wrapperStyleKey = candidate.wrapperStyleKey;
+  }
+  if (typeof candidate.optionsKey === "string") {
+    next.optionsKey = candidate.optionsKey;
+  }
+
+  return Object.keys(next).length > 0 ? next : undefined;
+};
+
+const v2_normalizeGraphNodeMeta = (
+  candidate: unknown,
+  fallback?: V2TemplateGraphNode["meta"]
+): V2TemplateGraphNode["meta"] => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  const next: NonNullable<V2TemplateGraphNode["meta"]> = {
+    ...(fallback ?? {}),
+  };
+
+  if (typeof candidate.assetKey === "string" && v2_ASSET_KEY_SET.has(candidate.assetKey)) {
+    next.assetKey = candidate.assetKey as keyof V2TemplateRenderConfig["assets"];
+  }
+  if (
+    typeof candidate.fit === "string" &&
+    v2_SCENE_ASSET_FIT_SET.has(candidate.fit)
+  ) {
+    next.fit = candidate.fit as V2TemplateSceneAssetFit;
+  }
+  if (typeof candidate.alt === "string") {
+    next.alt = candidate.alt;
+  }
+  if (candidate.source === "card") {
+    next.source = "card";
+  }
+  if (typeof candidate.componentId === "string") {
+    next.componentId = candidate.componentId;
+  }
+  if (typeof candidate.instanceId === "string") {
+    next.instanceId = candidate.instanceId;
+  }
+  if (
+    typeof candidate.colorKey === "string" &&
+    (v2_TEMPLATE_COLOR_KEYS as readonly string[]).includes(candidate.colorKey)
+  ) {
+    next.colorKey = candidate.colorKey as V2TemplateColorKey;
+  }
+  if (
+    typeof candidate.fontKey === "string" &&
+    (v2_TEMPLATE_COLOR_KEYS as readonly string[]).includes(candidate.fontKey)
+  ) {
+    next.fontKey = candidate.fontKey as V2TemplateColorKey;
+  }
+
+  return Object.keys(next).length > 0 ? next : undefined;
+};
+
+const v2_normalizeGraphNode = (
+  nodeId: string,
+  candidate: unknown,
+  fallback?: V2TemplateGraphNode
+): V2TemplateGraphNode | null => {
+  if (!v2_isRecord(candidate) && !fallback) return null;
+  const nodeRecord = v2_isRecord(candidate) ? candidate : {};
+
+  const id = v2_asString(nodeRecord.id, nodeId).trim();
+  if (!id) return null;
+
+  const type = v2_normalizeGraphNodeType(nodeRecord.type, fallback?.type);
+  if (!type) return null;
+
+  const childIds = Array.isArray(nodeRecord.childIds)
+    ? Array.from(
+        new Set(
+          nodeRecord.childIds.filter(
+            (childId): childId is string =>
+              typeof childId === "string" && childId.trim().length > 0
+          )
+        )
+      )
+    : fallback?.childIds ?? [];
+
+  const parentId =
+    nodeRecord.parentId === null
+      ? null
+      : typeof nodeRecord.parentId === "string"
+        ? nodeRecord.parentId
+        : fallback?.parentId ?? null;
+
+  const binding =
+    nodeRecord.binding !== undefined || fallback?.binding !== undefined
+      ? v2_normalizeBindingRef(nodeRecord.binding, fallback?.binding ?? {
+          mode: "literal",
+          value: "",
+        })
+      : undefined;
+
+  const visibilityMode: V2TemplateVisibilityMode | undefined =
+    typeof nodeRecord.visibilityMode === "string" &&
+    v2_VISIBILITY_MODE_SET.has(nodeRecord.visibilityMode)
+      ? (nodeRecord.visibilityMode as V2TemplateVisibilityMode)
+      : fallback?.visibilityMode;
+
+  return {
+    id,
+    type,
+    label: v2_asString(nodeRecord.label, fallback?.label ?? id),
+    parentId,
+    childIds,
+    ...(typeof nodeRecord.layerId === "string"
+      ? { layerId: nodeRecord.layerId }
+      : fallback?.layerId
+        ? { layerId: fallback.layerId }
+        : {}),
+    ...(typeof nodeRecord.highlightTarget === "string"
+      ? { highlightTarget: nodeRecord.highlightTarget as V2TemplateGraphNode["highlightTarget"] }
+      : fallback?.highlightTarget
+        ? { highlightTarget: fallback.highlightTarget }
+        : {}),
+    ...(visibilityMode ? { visibilityMode } : {}),
+    ...(binding ? { binding } : {}),
+    ...(v2_normalizeGraphNodeStyleRefs(nodeRecord.styles, fallback?.styles)
+      ? {
+          styles: v2_normalizeGraphNodeStyleRefs(
+            nodeRecord.styles,
+            fallback?.styles
+          ),
+        }
+      : {}),
+    ...(v2_normalizeGraphNodeMeta(nodeRecord.meta, fallback?.meta)
+      ? {
+          meta: v2_normalizeGraphNodeMeta(nodeRecord.meta, fallback?.meta),
+        }
+      : {}),
+  };
+};
+
+const v2_normalizeNodeGraph = (
+  candidate: unknown,
+  fallback: V2TemplateNodeGraph
+): V2TemplateNodeGraph => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  const nextNodes: Record<string, V2TemplateGraphNode> = {
+    ...fallback.nodes,
+  };
+
+  if (v2_isRecord(candidate.nodes)) {
+    Object.entries(candidate.nodes).forEach(([nodeId, rawNode]) => {
+      const fallbackNode = nextNodes[nodeId];
+      const normalizedNode = v2_normalizeGraphNode(nodeId, rawNode, fallbackNode);
+      if (!normalizedNode) return;
+      nextNodes[normalizedNode.id] = normalizedNode;
+    });
+  }
+
+  const nextComponentDefinitions: Record<
+    string,
+    V2TemplateGraphComponentDefinition
+  > = {
+    ...fallback.componentDefinitions,
+  };
+
+  if (v2_isRecord(candidate.componentDefinitions)) {
+    Object.entries(candidate.componentDefinitions).forEach(
+      ([componentId, rawDefinition]) => {
+        if (!v2_isRecord(rawDefinition)) return;
+        const id = v2_asString(rawDefinition.id, componentId).trim();
+        const rootNodeId = v2_asString(rawDefinition.rootNodeId, "").trim();
+        if (!id || !rootNodeId || !nextNodes[rootNodeId]) return;
+        nextComponentDefinitions[id] = {
+          id,
+          label: v2_asString(rawDefinition.label, id),
+          rootNodeId,
+          ...(typeof rawDefinition.description === "string"
+            ? { description: rawDefinition.description }
+            : {}),
+        };
+      }
+    );
+  }
+
+  const candidateRootNodeIds = Array.isArray(candidate.rootNodeIds)
+    ? Array.from(
+        new Set(
+          candidate.rootNodeIds.filter(
+            (nodeId): nodeId is string =>
+              typeof nodeId === "string" &&
+              nodeId.trim().length > 0 &&
+              nextNodes[nodeId] !== undefined
+          )
+        )
+      )
+    : [];
+
+  return {
+    rootNodeIds:
+      candidateRootNodeIds.length > 0
+        ? candidateRootNodeIds
+        : fallback.rootNodeIds,
+    nodes: nextNodes,
+    componentDefinitions: nextComponentDefinitions,
+  };
 };
 
 const v2_parseFieldScope = (
@@ -2311,6 +2716,8 @@ export const v2_normalizeTemplateRenderConfig = (
     raw.structure,
     normalized.structure
   );
+  const graphFallback = v2_createNodeGraphFromStructure(normalized.structure);
+  normalized.graph = v2_normalizeNodeGraph(raw.graph, graphFallback);
 
   const sceneLayoutKeys = v2_collectSceneLayoutKeys(normalized.structure.sceneNodes);
   sceneLayoutKeys.forEach((styleKey) => {
@@ -2448,5 +2855,6 @@ export const v2_isTemplateRenderConfig = (
   if (!v2_isRecord(candidate.templateSize)) return false;
   if (!v2_isRecord(candidate.layout)) return false;
   if (!v2_isRecord(candidate.structure)) return false;
+  if (!v2_isRecord(candidate.graph)) return false;
   return true;
 };
