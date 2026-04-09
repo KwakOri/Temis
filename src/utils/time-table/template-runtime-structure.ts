@@ -1,4 +1,7 @@
-import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
+import {
+  V2TemplateRenderConfig,
+  V2TemplateStructureConfig,
+} from "@/types/time-table/template-render-config";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
   v2_getRuntimeCardStructure,
@@ -7,7 +10,7 @@ import {
 
 export const v2_buildRuntimeStructure = (
   renderConfig: V2TemplateRenderConfig
-): V2TemplateRenderConfig["structure"] => {
+): V2TemplateStructureConfig => {
   return {
     layers: v2_getRuntimeLayerTree(renderConfig),
     card: v2_getRuntimeCardStructure(renderConfig),
@@ -18,8 +21,5 @@ export const v2_buildRuntimeStructure = (
 export const v2_withRuntimeStructure = (
   renderConfig: V2TemplateRenderConfig
 ): V2TemplateRenderConfig => {
-  return {
-    ...renderConfig,
-    structure: v2_buildRuntimeStructure(renderConfig),
-  };
+  return renderConfig;
 };

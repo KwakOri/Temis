@@ -33,7 +33,6 @@ import {
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import { v2_normalizePointerOrderInGraph } from "@/utils/time-table/template-graph-order";
-import { v2_buildRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 
 const v2_DEFAULT_THEME = "first";
 
@@ -1066,7 +1065,6 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     },
     scene: {},
   },
-  structure: v2_DEFAULT_STRUCTURE,
   graph: v2_DEFAULT_GRAPH,
 };
 
@@ -2440,8 +2438,6 @@ export const v2_normalizeTemplateRenderConfig = (
   }
 
   normalized.graph = v2_normalizeNodeGraph(raw.graph, normalized.graph);
-  normalized.structure = v2_buildRuntimeStructure(normalized);
-
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
   return normalized;

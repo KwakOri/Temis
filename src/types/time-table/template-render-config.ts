@@ -440,6 +440,6 @@ export interface V2TemplateRenderConfig {
   assets: V2TemplateAssetMap;
   assetDimensions: V2TemplateAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
-  structure: V2TemplateStructureConfig;
+  structure?: V2TemplateStructureConfig;
   graph: V2TemplateNodeGraph;
 }
