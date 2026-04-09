@@ -18,7 +18,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
-        { key: "zIndex", label: "Z-index" },
       ],
     },
     {
@@ -48,7 +47,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
-        { key: "zIndex", label: "Z-index" },
       ],
     },
     {
@@ -78,7 +76,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "bottom", label: "Bottom" },
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
-        { key: "zIndex", label: "Z-index" },
         { key: "opacity", label: "Opacity", step: "0.01" },
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
         { key: "transformOrigin", label: "Transform Origin", type: "text", placeholder: "center center" },
@@ -97,7 +94,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "bottom", label: "Bottom" },
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
-        { key: "zIndex", label: "Z-index" },
         { key: "opacity", label: "Opacity", step: "0.01" },
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
         { key: "transformOrigin", label: "Transform Origin", type: "text", placeholder: "center center" },
@@ -116,7 +112,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "bottom", label: "Bottom" },
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
-        { key: "zIndex", label: "Z-index" },
         { key: "opacity", label: "Opacity", step: "0.01" },
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
       ],
@@ -134,7 +129,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "bottom", label: "Bottom" },
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
-        { key: "zIndex", label: "Z-index" },
       ],
     },
     {
@@ -160,7 +154,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
-        { key: "zIndex", label: "Z-index" },
       ],
     },
     {
@@ -201,7 +194,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "bottom", label: "Bottom" },
         { key: "width", label: "Width" },
         { key: "height", label: "Height" },
-        { key: "zIndex", label: "Z-index" },
         { key: "opacity", label: "Opacity", step: "0.01" },
       ],
     },
