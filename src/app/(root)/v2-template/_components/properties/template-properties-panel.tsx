@@ -988,6 +988,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     sectionToLabel: structurePropertiesMaps.sectionToLabel,
     styleSectionLabels: v2_STYLE_SECTION_LABELS,
     bindableNodeLabels,
+    cardContainerSectionKey: activeCardStructure.containerStyleKey,
     cardInstanceMode: activeCardStructure.instanceMode ?? "component",
     cardInstanceTransforms: activeCardStructure.instanceTransforms ?? {},
     onChangeCardInstanceMode: updateCardInstanceMode,

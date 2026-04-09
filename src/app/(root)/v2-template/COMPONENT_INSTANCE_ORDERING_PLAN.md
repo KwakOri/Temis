@@ -178,6 +178,7 @@ Move / Extract Copy 분리:
     - `use-template-card-node-actions`에서 `componentDefinitions.card` 하드코딩 제거
     - 선택 레이어/카드 컬렉션 기준 `activeCardComponentId` 해석 후 append/remove/instance 설정 적용
     - 카드 노드/바인딩 진단 수집 범위를 기본 컴포넌트 단일에서 전체 컴포넌트 집합으로 확장
+    - 카드 컴포넌트 속성 패널 노출 조건을 `cardContainer` 상수 대신 활성 컴포넌트의 `containerStyleKey`로 전환
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)

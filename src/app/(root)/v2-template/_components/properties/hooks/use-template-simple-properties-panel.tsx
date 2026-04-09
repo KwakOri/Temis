@@ -14,6 +14,7 @@ interface UseTemplateSimplePropertiesPanelParams {
   sectionToLabel: Record<string, string>;
   styleSectionLabels: Record<string, string>;
   bindableNodeLabels: string[];
+  cardContainerSectionKey: string;
   cardInstanceMode: "component" | "detached";
   cardInstanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
   onChangeCardInstanceMode: (mode: "component" | "detached") => void;
@@ -34,6 +35,7 @@ const useTemplateSimplePropertiesPanel = ({
   sectionToLabel,
   styleSectionLabels,
   bindableNodeLabels,
+  cardContainerSectionKey,
   cardInstanceMode,
   cardInstanceTransforms,
   onChangeCardInstanceMode,
@@ -43,7 +45,7 @@ const useTemplateSimplePropertiesPanel = ({
   renderStyleSectionEditor,
 }: UseTemplateSimplePropertiesPanelParams) => {
   const renderCardComponentProperties = (section: V2StyleSectionId) => {
-    if (section !== "cardContainer") return null;
+    if (section !== cardContainerSectionKey) return null;
 
     return (
       <TemplateCardComponentProperties
