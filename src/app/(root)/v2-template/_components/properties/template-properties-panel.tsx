@@ -59,6 +59,7 @@ import TemplateStyleThemeSettings from "./panels/template-style-theme-settings";
 import useTemplateStyleEditorActions from "./hooks/use-template-style-editor-actions";
 import useTemplateBoundTextNodePropertyPanels from "./hooks/use-template-bound-text-node-property-panels";
 import useTemplateBoilerplateActions from "./hooks/use-template-boilerplate-actions";
+import useTemplateBoilerplateUiEffects from "./hooks/use-template-boilerplate-ui-effects";
 import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateFormSchemaActions from "./hooks/use-template-form-schema-actions";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
@@ -587,68 +588,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     };
   }, [activeTab, setActiveHighlightTarget]);
 
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(v2_BOILERPLATE_STORAGE_KEY);
-      if (!stored) return;
-      const parsed = JSON.parse(stored);
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
-
-      const nextConfig: Partial<
-        Record<V2StyleSectionKey, Record<string, string | number>>
-      > = JSON.parse(JSON.stringify(v2_DEFAULT_STYLE_SECTION_BOILERPLATES));
-
-      Object.entries(parsed).forEach(([rawSection, value]) => {
-        const section = v2_parseStyleSectionKey(rawSection);
-        if (!section) return;
-        if (!v2_isKnownStyleSectionKey(section, v2_STYLE_SECTION_LABELS)) return;
-        if (!value || typeof value !== "object" || Array.isArray(value)) return;
-
-        const sanitized: Record<string, string | number> = {};
-        Object.entries(value as Record<string, unknown>).forEach(([key, item]) => {
-          if (typeof item === "string") {
-            sanitized[key] = item;
-            return;
-          }
-          if (typeof item === "number" && Number.isFinite(item)) {
-            sanitized[key] = item;
-          }
-        });
-
-        nextConfig[section] = sanitized;
-      });
-
-      setBoilerplateConfig(nextConfig);
-    } catch (error) {
-      console.error("Failed to restore style boilerplates", error);
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        v2_BOILERPLATE_STORAGE_KEY,
-        JSON.stringify(boilerplateConfig)
-      );
-    } catch (error) {
-      console.error("Failed to persist style boilerplates", error);
-    }
-  }, [boilerplateConfig]);
-
-  useEffect(() => {
-    if (!isBoilerplateSettingsOpen) return;
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsBoilerplateSettingsOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [isBoilerplateSettingsOpen]);
+  useTemplateBoilerplateUiEffects({
+    storageKey: v2_BOILERPLATE_STORAGE_KEY,
+    styleSectionLabels: v2_STYLE_SECTION_LABELS,
+    boilerplateConfig,
+    setBoilerplateConfig,
+    isBoilerplateSettingsOpen,
+    setIsBoilerplateSettingsOpen,
+  });
 
   useEffect(() => {
     if (!focusLayerId) return;
