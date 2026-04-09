@@ -106,6 +106,7 @@ import TemplateExportTab from "./panels/template-export-tab";
 import TemplatePropertiesTab from "./panels/template-properties-tab";
 import TemplateSchemaTab from "./panels/template-schema-tab";
 import TemplateStyleTab from "./panels/template-style-tab";
+import TemplateStyleThemeSettings from "./panels/template-style-theme-settings";
 
 type V2BuilderTab =
   | "canvas"
@@ -4022,257 +4023,27 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       onMouseLeave={clearSectionHoverHighlight}
       onBlurOutside={() => setActiveHighlightTarget(null)}
     >
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3">
-        <div className="flex items-center justify-between gap-3">
-          <div className="space-y-1">
-            <h4 className="font-semibold text-sm text-gray-200">
-              보일러플레이트 설정
-            </h4>
-            <p className="text-xs text-gray-400">
-              설정 버튼으로 항목별 기본 CSS 속성을 팝업에서 관리합니다.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsBoilerplateSettingsOpen(true)}
-            className="shrink-0 px-3 py-2 rounded border border-[#4f8cff] bg-[#1a2c4f] text-xs font-semibold text-blue-200 hover:bg-[#1f3661]"
-          >
-            설정 열기
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">컴포넌트 색상</h4>
-        <p className="text-xs text-gray-400">
-          토큰 값 관리 영역입니다. 오브젝트별 토큰 선택은 속성 탭에서 설정합니다.
-        </p>
-        <div className="space-y-2">
-          {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-            <label key={key} className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-400">{key}</span>
-              <input
-                type="color"
-                value={renderConfig.componentColors[key] || "#000000"}
-                onChange={(e) => updateColor(key, e.target.value)}
-                className="w-14 h-8 rounded border border-[#3a3d44] bg-[#2a2d33]"
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">베이스 폰트 토큰</h4>
-        {fontRegistryKeys.length === 0 ? (
-          <p className="text-xs text-amber-300">
-            등록된 폰트가 없습니다. 아래 폰트 레지스트리에서 먼저 추가해 주세요.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {v2_BASE_FONT_TOKEN_KEYS.map((tokenKey) => (
-              <label
-                key={tokenKey}
-                className="flex items-center justify-between gap-2"
-              >
-                <span className="text-xs text-gray-400">{tokenKey}</span>
-                <select
-                  value={renderConfig.baseFonts[tokenKey]}
-                  onChange={(event) =>
-                    updateBaseFontToken(tokenKey, event.target.value)
-                  }
-                  className="px-2 py-1 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                >
-                  {fontRegistryKeys.map((registryKey) => (
-                    <option key={registryKey} value={registryKey}>
-                      {registryKey}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">컴포넌트 폰트 토큰</h4>
-        <p className="text-xs text-gray-400">
-          토큰-폰트 매핑 관리 영역입니다. 오브젝트별 폰트 토큰 선택은 속성 탭에서 설정합니다.
-        </p>
-        <div className="space-y-2">
-          {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-            <label key={key} className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-400">{key}</span>
-              <select
-                value={renderConfig.componentFonts[key]}
-                onChange={(e) => updateComponentFont(key, e.target.value)}
-                className="px-2 py-1 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-              >
-                {fontTokenOptions.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className="font-semibold text-sm text-gray-200">폰트 레지스트리</h4>
-          <button
-            type="button"
-            onClick={addFontRegistryItem}
-            className="rounded border border-[#4f8cff] bg-[#1a2c4f] px-2 py-1 text-[11px] font-semibold text-blue-200 hover:bg-[#1f3661]"
-          >
-            + 폰트 추가
-          </button>
-        </div>
-        <p className="text-xs text-gray-400">
-          Webfont URL(`src`)을 입력하면 `@font-face`로 자동 주입됩니다.
-        </p>
-
-        {fontRegistryKeys.length === 0 ? (
-          <p className="text-xs text-gray-500">등록된 폰트가 없습니다.</p>
-        ) : (
-          <div className="space-y-3">
-            {fontRegistryKeys.map((registryKey) => {
-              const item = renderConfig.fonts.registry[registryKey];
-              if (!item) return null;
-
-              return (
-                <div
-                  key={registryKey}
-                  className="rounded border border-[#3a3d44] bg-[#111317] p-2 space-y-2"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-200">{registryKey}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeFontRegistryItem(registryKey)}
-                      className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
-                    >
-                      폰트 삭제
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={item.family}
-                      onChange={(event) =>
-                        updateFontRegistryMeta(registryKey, {
-                          family: event.target.value,
-                        })
-                      }
-                      className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                      placeholder="font-family"
-                    />
-                    <select
-                      value={item.display ?? "swap"}
-                      onChange={(event) =>
-                        updateFontRegistryMeta(registryKey, {
-                          display: event.target.value as V2TemplateFontRegistryItem["display"],
-                        })
-                      }
-                      className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                    >
-                      {v2_FONT_DISPLAY_OPTIONS.map((option) => (
-                        <option key={option} value={option}>
-                          display: {option}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    {item.faces.map((face, faceIndex) => (
-                      <div
-                        key={`${registryKey}-face-${faceIndex}`}
-                        className="rounded border border-[#2f3239] bg-[#171a22] p-2 space-y-2"
-                      >
-                        <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2">
-                          <input
-                            value={String(face.weight)}
-                            onChange={(event) =>
-                              updateFontFace(registryKey, faceIndex, {
-                                weight: parseFontWeightInput(event.target.value),
-                              })
-                            }
-                            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                            placeholder="weight (e.g. 400)"
-                          />
-                          <select
-                            value={face.style ?? "normal"}
-                            onChange={(event) =>
-                              updateFontFace(registryKey, faceIndex, {
-                                style: event.target.value as V2TemplateFontFaceSource["style"],
-                              })
-                            }
-                            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                          >
-                            {v2_FONT_STYLE_OPTIONS.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={face.format ?? "woff2"}
-                            onChange={(event) =>
-                              updateFontFace(registryKey, faceIndex, {
-                                format: event.target.value as V2TemplateFontFaceSource["format"],
-                              })
-                            }
-                            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                          >
-                            {v2_FONT_FORMAT_OPTIONS.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => removeFontFace(registryKey, faceIndex)}
-                            className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:opacity-50"
-                            disabled={item.faces.length <= 1}
-                          >
-                            삭제
-                          </button>
-                        </div>
-
-                        <input
-                          value={face.src}
-                          onChange={(event) =>
-                            updateFontFace(registryKey, faceIndex, {
-                              src: event.target.value,
-                            })
-                          }
-                          className="w-full px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                          placeholder="https://.../font.woff2"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => addFontFace(registryKey)}
-                    className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
-                  >
-                    + Face 추가
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <TemplateStyleThemeSettings
+        renderConfig={renderConfig}
+        colorKeys={v2_TEMPLATE_COLOR_KEYS}
+        baseFontTokenKeys={v2_BASE_FONT_TOKEN_KEYS}
+        fontDisplayOptions={v2_FONT_DISPLAY_OPTIONS}
+        fontStyleOptions={v2_FONT_STYLE_OPTIONS}
+        fontFormatOptions={v2_FONT_FORMAT_OPTIONS}
+        fontRegistryKeys={fontRegistryKeys}
+        fontTokenOptions={fontTokenOptions}
+        onOpenBoilerplateSettings={() => setIsBoilerplateSettingsOpen(true)}
+        onUpdateColor={updateColor}
+        onUpdateBaseFontToken={updateBaseFontToken}
+        onUpdateComponentFont={updateComponentFont}
+        onAddFontRegistryItem={addFontRegistryItem}
+        onRemoveFontRegistryItem={removeFontRegistryItem}
+        onUpdateFontRegistryMeta={updateFontRegistryMeta}
+        onAddFontFace={addFontFace}
+        onUpdateFontFace={updateFontFace}
+        onRemoveFontFace={removeFontFace}
+        parseFontWeightInput={parseFontWeightInput}
+      />
     </TemplateStyleTab>
   );
 
