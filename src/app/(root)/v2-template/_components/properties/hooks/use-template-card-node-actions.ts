@@ -55,6 +55,13 @@ const useTemplateCardNodeActions = ({
       meta: {
         colorKey: node.colorKey,
         fontKey: node.fontKey,
+        layerTarget: node.highlightTarget,
+        layerSectionKey: node.containerStyleKey,
+        layerIcon: node.binding.mode === "computed" ? "calendar" : "text",
+        ...(node.containerClassName
+          ? { containerClassName: node.containerClassName }
+          : {}),
+        ...(node.textClassName ? { textClassName: node.textClassName } : {}),
       },
     };
   };
@@ -121,6 +128,10 @@ const useTemplateCardNodeActions = ({
         graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
           ...node,
           binding,
+          meta: {
+            ...(node.meta ?? {}),
+            layerIcon: binding.mode === "computed" ? "calendar" : "text",
+          },
         })),
         structure: {
           ...prev.structure,
@@ -430,8 +441,11 @@ const useTemplateCardNodeActions = ({
                       new Date().toISOString(),
                   }
                 : {
-                    instanceMode: "component" as const,
-                  }),
+                  instanceMode: "component" as const,
+                }),
+              instanceTransforms:
+                prev.graph.componentDefinitions.card?.instanceTransforms ??
+                prev.structure.card.instanceTransforms,
             },
           },
         },
@@ -510,6 +524,21 @@ const useTemplateCardNodeActions = ({
 
       return {
         ...prev,
+        graph: {
+          ...prev.graph,
+          componentDefinitions: {
+            ...prev.graph.componentDefinitions,
+            card: {
+              ...(prev.graph.componentDefinitions.card ?? {
+                id: "card",
+                label: "Card",
+                rootNodeId: "component-card-root",
+                kind: "template",
+              }),
+              instanceTransforms: nextTransforms,
+            },
+          },
+        },
         structure: {
           ...prev.structure,
           card: {

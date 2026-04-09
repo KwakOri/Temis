@@ -268,6 +268,13 @@ export interface V2TemplateGraphNodeMeta {
   instanceId?: string;
   colorKey?: V2TemplateColorKey;
   fontKey?: V2TemplateFontKey;
+  layerIcon?: V2TemplateLayerIconKey;
+  layerComponentKey?: V2TemplateLayerComponentKey;
+  layerTarget?: V2TemplateHighlightTarget;
+  layerSectionKey?: string;
+  isTemplateComponent?: boolean;
+  containerClassName?: string;
+  textClassName?: string;
 }
 
 export interface V2TemplateGraphNode {
@@ -291,6 +298,7 @@ export interface V2TemplateGraphComponentDefinition {
   description?: string;
   kind?: "template" | "custom";
   instanceMode?: V2TemplateComponentInstanceMode;
+  instanceTransforms?: Record<string, V2TemplateCardInstanceTransform>;
   detachedAt?: string;
 }
 

@@ -63,6 +63,9 @@ const v2_sceneNodeToGraphNode = (
       childIds: sceneNode.children.map((child) => child.id),
       ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+      meta: {
+        layerIcon: "group",
+      },
     };
   }
 
@@ -80,6 +83,8 @@ const v2_sceneNodeToGraphNode = (
         assetKey: sceneNode.assetKey,
         ...(sceneNode.fit ? { fit: sceneNode.fit } : {}),
         ...(sceneNode.alt ? { alt: sceneNode.alt } : {}),
+        ...(sceneNode.styleKey ? { layerSectionKey: sceneNode.styleKey } : {}),
+        layerIcon: "image",
       },
     };
   }
@@ -95,6 +100,9 @@ const v2_sceneNodeToGraphNode = (
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       meta: {
         source: sceneNode.source,
+        layerTarget: "grid",
+        layerSectionKey: "grid",
+        layerIcon: "grid",
       },
     };
   }
@@ -118,6 +126,13 @@ const v2_sceneNodeToGraphNode = (
     meta: {
       colorKey: sceneNode.colorKey,
       fontKey: sceneNode.fontKey,
+      layerTarget: sceneNode.highlightTarget,
+      layerSectionKey: sceneNode.containerStyleKey,
+      layerIcon: sceneNode.binding.mode === "computed" ? "calendar" : "text",
+      ...(sceneNode.containerClassName
+        ? { containerClassName: sceneNode.containerClassName }
+        : {}),
+      ...(sceneNode.textClassName ? { textClassName: sceneNode.textClassName } : {}),
     },
   };
 };
@@ -805,6 +820,10 @@ const useTemplateSceneNodeActions = ({
         graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
           ...node,
           binding,
+          meta: {
+            ...(node.meta ?? {}),
+            layerIcon: binding.mode === "computed" ? "calendar" : "text",
+          },
         })),
         structure: {
           ...prev.structure,

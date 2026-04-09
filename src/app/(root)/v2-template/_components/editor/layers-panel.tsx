@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
@@ -115,7 +114,6 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   orderedIdsByParent,
   onReorderLayers,
 }) => {
-  const { renderConfig } = useTemplateRenderConfigContext();
   const {
     activeHighlightTarget,
     setActiveHighlightTarget,
@@ -124,16 +122,15 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     toggleLayerHidden,
   } = useTemplateEditorRuntimeContext();
   const layerTree = useMemo(() => {
-    if (layerTreeProp && layerTreeProp.length > 0) return layerTreeProp;
-    return renderConfig.structure.layers;
-  }, [layerTreeProp, renderConfig.structure.layers]);
+    return layerTreeProp ?? [];
+  }, [layerTreeProp]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     grid: true,
     profile: true,
     card: true,
   });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
-  const fallbackOrderMap = useMemo(
+  const defaultOrderMap = useMemo(
     () => v2_createInitialOrderMap(layerTree),
     [layerTree]
   );
@@ -154,8 +151,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       setOrderedNodeIdsByParent(orderedIdsByParent);
       return;
     }
-    setOrderedNodeIdsByParent(fallbackOrderMap);
-  }, [fallbackOrderMap, orderedIdsByParent]);
+    setOrderedNodeIdsByParent(defaultOrderMap);
+  }, [defaultOrderMap, orderedIdsByParent]);
 
   const activeTarget = activeHighlightTarget;
   const selectedNodeIds = useMemo(() => {
