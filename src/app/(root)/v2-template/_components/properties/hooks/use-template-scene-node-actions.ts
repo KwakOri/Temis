@@ -20,6 +20,11 @@ import {
   v2_graphReorderNodeWithinParent,
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
+import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
+import {
+  v2_getRuntimeCardStructure,
+  v2_getRuntimeSceneNodes,
+} from "@/utils/time-table/template-graph-runtime";
 import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
@@ -783,8 +788,9 @@ const useTemplateSceneNodeActions = ({
     targetIndex?: number;
   }) => {
     safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
       const sourceContext = v2_findSceneNodeContextById({
-        nodes: prev.structure.sceneNodes,
+        nodes: runtimeSceneNodes,
         nodeId,
       });
       if (!sourceContext) return prev;
@@ -795,7 +801,7 @@ const useTemplateSceneNodeActions = ({
         targetParentId === null
           ? null
           : v2_findSceneNodeContextById({
-              nodes: prev.structure.sceneNodes,
+              nodes: runtimeSceneNodes,
               nodeId: targetParentId,
             });
 
@@ -822,94 +828,27 @@ const useTemplateSceneNodeActions = ({
         sourceParentId === targetParentId && desiredIndex > sourceIndex
           ? desiredIndex - 1
           : desiredIndex;
-
-      const { nodes: afterRemovalNodes, updated: removalUpdated } =
-        v2_updateSceneNodeListByParentId({
-          nodes: prev.structure.sceneNodes,
-          parentId: sourceParentId,
-          updater: (siblings) => siblings.filter((sibling) => sibling.id !== nodeId),
-        });
-      if (!removalUpdated) return prev;
-
-      const { nodes: nextSceneNodes, updated: insertUpdated } =
-        v2_updateSceneNodeListByParentId({
-          nodes: afterRemovalNodes,
-          parentId: targetParentId,
-          updater: (siblings) => {
-            const nextSiblings = [...siblings];
-            const insertAt = Number.isFinite(effectiveTargetIndex)
-              ? Math.max(0, Math.min(nextSiblings.length, effectiveTargetIndex))
-              : nextSiblings.length;
-            nextSiblings.splice(insertAt, 0, sourceContext.node);
-            return nextSiblings;
-          },
-        });
-      if (!insertUpdated) return prev;
-
-      let nextLayers = prev.structure.layers;
-      const sourceLayerId = sourceContext.node.layerId ?? null;
-      if (sourceLayerId) {
-        const sourceLayerContext = v2_findLayerNodeContextById({
-          nodes: prev.structure.layers,
-          nodeId: sourceLayerId,
-        });
-        if (sourceLayerContext) {
-          const targetLayerParentId =
-            targetParentId === null
-              ? null
-              : (targetParentContext?.node.layerId ?? null);
-
-          const { nodes: nextLayerAfterRemoval, updated: layerRemovalUpdated } =
-            v2_updateLayerNodeListByParentId({
-              nodes: prev.structure.layers,
-              parentId: sourceLayerContext.parentId,
-              updater: (siblings) =>
-                siblings.filter((sibling) => sibling.id !== sourceLayerId),
-            });
-
-          if (layerRemovalUpdated) {
-            const sourceLayerIndex = sourceLayerContext.index;
-            const effectiveLayerIndex =
-              sourceLayerContext.parentId === targetLayerParentId &&
-              desiredIndex > sourceLayerIndex
-                ? desiredIndex - 1
-                : desiredIndex;
-
-            const { nodes: updatedLayers, updated: layerInsertUpdated } =
-              v2_updateLayerNodeListByParentId({
-                nodes: nextLayerAfterRemoval,
-                parentId: targetLayerParentId,
-                updater: (siblings) => {
-                  const nextSiblings = [...siblings];
-                  const insertAt = Number.isFinite(effectiveLayerIndex)
-                    ? Math.max(0, Math.min(nextSiblings.length, effectiveLayerIndex))
-                    : nextSiblings.length;
-                  nextSiblings.splice(insertAt, 0, sourceLayerContext.node);
-                  return nextSiblings;
-                },
-              });
-
-            if (layerInsertUpdated) {
-              nextLayers = updatedLayers;
-            }
-          }
-        }
-      }
+      const nextGraph = v2_graphMoveNode({
+        graph: prev.graph,
+        nodeId,
+        targetParentId,
+        targetIndex: Number.isFinite(effectiveTargetIndex)
+          ? effectiveTargetIndex
+          : undefined,
+      });
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphMoveNode({
-          graph: prev.graph,
-          nodeId,
-          targetParentId,
-          targetIndex: Number.isFinite(effectiveTargetIndex)
-            ? effectiveTargetIndex
-            : undefined,
-        }),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          layers: nextLayers,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
