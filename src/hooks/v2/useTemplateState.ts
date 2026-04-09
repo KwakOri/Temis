@@ -53,7 +53,7 @@ const getInitialScale = (templateWidth?: number, templateHeight?: number) => {
   return clampedScale;
 };
 
-export interface V2TimeTableEditorState {
+export interface TemplateEditorUIState {
   profileText: string;
   memoText: string;
   imageSrc: string | null;
@@ -68,7 +68,7 @@ export interface V2TimeTableEditorState {
   captureSize: { width: number; height: number } | undefined;
 }
 
-export interface V2TimeTableEditorActions {
+export interface TemplateEditorUIActions {
   updateProfileText: (text: string) => void;
   updateMemoText: (text: string) => void;
   updateImageSrc: (src: string | null) => void;
@@ -265,7 +265,7 @@ export const useTemplateState = (captureSize?: {
     return () => window.removeEventListener("resize", handleResize);
   }, [scale, captureSize]);
 
-  const actions: V2TimeTableEditorActions = {
+  const actions: TemplateEditorUIActions = {
     updateProfileText: (text: string) => setProfileText(text),
     updateMemoText: (text: string) => setMemoText(text),
     updateImageSrc: (src: string | null) => setImageSrc(src),
@@ -493,7 +493,7 @@ export const useTemplateState = (captureSize?: {
     },
   };
 
-  const state: V2TimeTableEditorState = {
+  const state: TemplateEditorUIState = {
     profileText,
     memoText,
     imageSrc,
@@ -511,5 +511,7 @@ export const useTemplateState = (captureSize?: {
   return { state, actions };
 };
 
-// Backward-compatible alias during migration.
+// Backward-compatible aliases during migration.
+export type V2TimeTableEditorState = TemplateEditorUIState;
+export type V2TimeTableEditorActions = TemplateEditorUIActions;
 export const useV2TimeTableState = useTemplateState;

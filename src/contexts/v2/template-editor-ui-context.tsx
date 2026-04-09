@@ -1,14 +1,14 @@
 "use client";
 
 import {
-  V2TimeTableEditorActions,
-  V2TimeTableEditorState,
+  TemplateEditorUIActions,
+  TemplateEditorUIState,
 } from "@/hooks/v2/useTemplateState";
 import { createContext, PropsWithChildren, useContext } from "react";
 
 export interface TemplateEditorUIContextValue {
-  state: V2TimeTableEditorState;
-  actions: V2TimeTableEditorActions;
+  state: TemplateEditorUIState;
+  actions: TemplateEditorUIActions;
 }
 
 const TemplateEditorUIContext = createContext<TemplateEditorUIContextValue | null>(
