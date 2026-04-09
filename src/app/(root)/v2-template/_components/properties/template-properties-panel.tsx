@@ -99,6 +99,9 @@ import {
   v2_parseStyleSectionKey,
   v2_resolveCardStyleSection,
 } from "./model/style-section-utils";
+import TemplateAssetsTab from "./panels/template-assets-tab";
+import TemplateDataTab from "./panels/template-data-tab";
+import TemplateExportTab from "./panels/template-export-tab";
 
 type V2BuilderTab =
   | "canvas"
@@ -5600,169 +5603,45 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   );
 
   const renderAssetsTab = () => (
-    <div className="space-y-4">
-      <h3 className="font-bold text-base text-gray-800">에셋 파일</h3>
-
-      <div className="grid grid-cols-2 items-center gap-2">
-        <label className="text-xs text-gray-500">theme</label>
-        <select
-          value={assetTheme}
-          onChange={(e) => setAssetTheme(e.target.value)}
-          className="px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        >
-          {themeOptions.map((theme) => (
-            <option key={theme} value={theme}>
-              {theme}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="space-y-3">
-        {v2_ASSET_KEYS.map((key) => {
-          const inputId = `v2-asset-upload-${key}-${assetTheme}`;
-          const assetUrl = renderConfig.assets[key][assetTheme];
-          const assetSize = renderConfig.assetDimensions[key][assetTheme];
-
-          return (
-            <div key={key} className="rounded border border-gray-300 bg-white p-3 space-y-2">
-              <p className="text-xs text-gray-500">{v2_ASSET_LABELS[key]}</p>
-              {key === "guideByTheme" ? (
-                <p className="text-[11px] text-blue-600">
-                  편집 시 프리뷰 최상단에 오버레이로 표시됩니다.
-                </p>
-              ) : null}
-
-              <input
-                id={inputId}
-                type="file"
-                accept="image/*"
-                className="sr-only"
-                onChange={(e) =>
-                  handleAssetFileUpload(key, assetTheme, e.target.files?.[0] ?? null)
-                }
-              />
-
-              <div className="flex items-center gap-2">
-                <label
-                  htmlFor={inputId}
-                  className="inline-flex cursor-pointer items-center justify-center rounded border border-blue-300 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                >
-                  파일 선택
-                </label>
-                <button
-                  type="button"
-                  onClick={() => updateAssetUrl(key, assetTheme, "", null)}
-                  className="inline-flex items-center justify-center rounded border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  초기화
-                </button>
-              </div>
-
-              <p className="text-[11px] text-gray-500 break-all">
-                {assetUrl ? "업로드 완료" : "선택된 파일 없음"}
-              </p>
-              {assetSize && (
-                <p className="text-[11px] text-emerald-700">
-                  size: {assetSize.width} x {assetSize.height}
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <TemplateAssetsTab
+      assetTheme={assetTheme}
+      themeOptions={themeOptions}
+      renderConfig={renderConfig}
+      assetKeys={v2_ASSET_KEYS}
+      assetLabels={v2_ASSET_LABELS}
+      setAssetTheme={setAssetTheme}
+      onUploadFile={handleAssetFileUpload}
+      onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
+    />
   );
 
   const renderDataTab = () => (
-    <div className="space-y-4">
-      <h3 className="font-bold text-base text-gray-800">샘플 데이터</h3>
-      <p className="text-xs text-gray-500">
-        월요일 카드(첫 번째 카드)만 빠르게 조정해서 프리뷰 확인
-      </p>
-
-      <div className="space-y-2">
-        <label className="text-xs text-gray-500 block">time</label>
-        <input
-          type="time"
-          value={(firstEntry?.time as string) || "09:00"}
-          onChange={(e) => updateFirstEntryField("time", e.target.value)}
-          className="w-full px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs text-gray-500 block">mainTitle</label>
-        <textarea
-          rows={3}
-          value={(firstEntry?.mainTitle as string) || ""}
-          onChange={(e) => updateFirstEntryField("mainTitle", e.target.value)}
-          className="w-full px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-xs text-gray-500 block">subTitle</label>
-        <input
-          type="text"
-          value={(firstEntry?.subTitle as string) || ""}
-          onChange={(e) => updateFirstEntryField("subTitle", e.target.value)}
-          className="w-full px-3 py-2 rounded border border-gray-300 bg-white text-sm"
-        />
-      </div>
-
-      <label className="flex items-center justify-between gap-2 rounded border border-gray-300 bg-white px-3 py-2">
-        <span className="text-sm text-gray-700">isGuerrilla</span>
-        <input
-          type="checkbox"
-          checked={Boolean(firstEntry?.isGuerrilla)}
-          onChange={(e) => updateFirstEntryField("isGuerrilla", e.target.checked)}
-        />
-      </label>
-
-      <label className="flex items-center justify-between gap-2 rounded border border-gray-300 bg-white px-3 py-2">
-        <span className="text-sm text-gray-700">monday isOffline</span>
-        <input
-          type="checkbox"
-          checked={Boolean(firstCard?.isOffline)}
-          onChange={(e) => updateFirstDayOffline(e.target.checked)}
-        />
-      </label>
-    </div>
+    <TemplateDataTab
+      timeValue={(firstEntry?.time as string) || "09:00"}
+      mainTitleValue={(firstEntry?.mainTitle as string) || ""}
+      subTitleValue={(firstEntry?.subTitle as string) || ""}
+      isGuerrilla={Boolean(firstEntry?.isGuerrilla)}
+      isOffline={Boolean(firstCard?.isOffline)}
+      onChangeTime={(value) => updateFirstEntryField("time", value)}
+      onChangeMainTitle={(value) => updateFirstEntryField("mainTitle", value)}
+      onChangeSubTitle={(value) => updateFirstEntryField("subTitle", value)}
+      onToggleGuerrilla={(value) => updateFirstEntryField("isGuerrilla", value)}
+      onToggleOffline={updateFirstDayOffline}
+    />
   );
 
   const renderExportTab = () => (
-    <div className="space-y-4">
-      <h3 className="font-bold text-base text-gray-800">내보내기</h3>
-      <button
-        onClick={handleCopyJson}
-        className="w-full bg-timetable-primary text-white py-2 rounded text-sm font-semibold hover:bg-timetable-primary-hover transition"
-      >
-        renderConfig JSON 복사
-      </button>
-      {copyState === "success" && (
-        <p className="text-xs text-green-600">JSON이 클립보드에 복사됐습니다.</p>
-      )}
-      {copyState === "error" && (
-        <p className="text-xs text-red-600">복사에 실패했습니다. 콘솔을 확인해 주세요.</p>
-      )}
-
-      <button
-        onClick={() =>
-          downloadImage(
-            renderConfig.templateSize.width,
-            renderConfig.templateSize.height
-          )
-        }
-        className="w-full bg-gray-700 text-white py-2 rounded text-sm font-semibold hover:bg-gray-800 transition"
-      >
-        프리뷰 PNG 저장
-      </button>
-      <button
-        onClick={resetData}
-        className="w-full bg-red-500 text-white py-2 rounded text-sm font-semibold hover:bg-red-600 transition"
-      >
-        샘플 데이터 리셋
-      </button>
-    </div>
+    <TemplateExportTab
+      copyState={copyState}
+      onCopyJson={handleCopyJson}
+      onDownloadPreview={() =>
+        downloadImage(
+          renderConfig.templateSize.width,
+          renderConfig.templateSize.height
+        )
+      }
+      onResetData={resetData}
+    />
   );
 
   const renderActiveTab = () => {
