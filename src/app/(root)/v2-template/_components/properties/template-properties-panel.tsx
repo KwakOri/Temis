@@ -9,7 +9,10 @@ import {
 
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
-import { useTemplateEditorActions } from "@/contexts/v2/template-editor-ui-context";
+import {
+  useTemplateEditorActions,
+  useTemplateEditorData,
+} from "@/contexts/v2/template-editor-ui-context";
 import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
@@ -493,6 +496,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     setActiveHighlightTarget,
   } = useTemplateEditorRuntimeContext();
   const { downloadImage } = useTemplateEditorActions();
+  const { preferProfileDummyImage, updatePreferProfileDummyImage } =
+    useTemplateEditorData();
 
   const [activeTab, setActiveTab] = useState<V2BuilderTab>("canvas");
   const [copyState, setCopyState] = useState<"idle" | "success" | "error">(
@@ -4734,9 +4739,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       assetTheme={assetTheme}
       themeOptions={themeOptions}
       renderConfig={renderConfig}
+      preferProfileDummyImage={preferProfileDummyImage}
       assetKeys={v2_ASSET_KEYS}
       assetLabels={v2_ASSET_LABELS}
       setAssetTheme={setAssetTheme}
+      onTogglePreferProfileDummyImage={updatePreferProfileDummyImage}
       onUploadFile={handleAssetFileUpload}
       onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
     />

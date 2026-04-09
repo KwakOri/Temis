@@ -7,9 +7,11 @@ interface TemplateAssetsTabProps {
   assetTheme: string;
   themeOptions: string[];
   renderConfig: V2TemplateRenderConfig;
+  preferProfileDummyImage: boolean;
   assetKeys: Array<keyof V2TemplateAssetMap>;
   assetLabels: Record<keyof V2TemplateAssetMap, string>;
   setAssetTheme: (theme: string) => void;
+  onTogglePreferProfileDummyImage: (value: boolean) => void;
   onUploadFile: (
     key: keyof V2TemplateAssetMap,
     theme: string,
@@ -22,9 +24,11 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   assetTheme,
   themeOptions,
   renderConfig,
+  preferProfileDummyImage,
   assetKeys,
   assetLabels,
   setAssetTheme,
+  onTogglePreferProfileDummyImage,
   onUploadFile,
   onResetAsset,
 }) => {
@@ -46,6 +50,19 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
           ))}
         </select>
       </div>
+
+      <label className="flex items-center justify-between gap-2 rounded border border-gray-300 bg-white px-3 py-2">
+        <span className="text-xs text-gray-600">
+          편집 시 프로필 더미 이미지 우선 표시
+        </span>
+        <input
+          type="checkbox"
+          checked={preferProfileDummyImage}
+          onChange={(event) =>
+            onTogglePreferProfileDummyImage(event.target.checked)
+          }
+        />
+      </label>
 
       <div className="space-y-3">
         {assetKeys.map((key) => {

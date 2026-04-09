@@ -87,7 +87,8 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateEditorRuntimeContext();
-  const { weekDates, profileText, imageSrc } = useTemplateEditorData();
+  const { weekDates, profileText, imageSrc, preferProfileDummyImage } =
+    useTemplateEditorData();
   const layerTargetMap = useMemo(
     () => v2_collectLayerTargetById(renderConfig.structure.layers),
     [renderConfig.structure.layers]
@@ -253,7 +254,11 @@ const V2SceneStructureRenderer = ({
       isProfileImage && typeof imageSrc === "string" && imageSrc.trim()
         ? imageSrc
         : null;
-    const assetUrl = uploadedProfileImage ?? configuredAssetUrl;
+    const assetUrl = isProfileImage
+      ? preferProfileDummyImage
+        ? configuredAssetUrl ?? uploadedProfileImage
+        : uploadedProfileImage ?? configuredAssetUrl
+      : configuredAssetUrl;
     if (!assetUrl) return null;
 
     const style = v2_toRenderableStyle(resolveStyleRecordByKey(node.styleKey));

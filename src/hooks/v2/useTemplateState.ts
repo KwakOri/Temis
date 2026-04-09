@@ -57,6 +57,7 @@ export interface TemplateEditorUIState {
   profileText: string;
   memoText: string;
   imageSrc: string | null;
+  preferProfileDummyImage: boolean;
   imageEditData: ImageEditData | null;
   mondayDateStr: string;
   weekDates: Date[];
@@ -72,6 +73,7 @@ export interface TemplateEditorUIActions {
   updateProfileText: (text: string) => void;
   updateMemoText: (text: string) => void;
   updateImageSrc: (src: string | null) => void;
+  updatePreferProfileDummyImage: (value: boolean) => void;
   updateMondayDate: (dateStr: string) => void;
   updateScale: (newScale: number) => void;
   updateIsMobile: (mobile: boolean) => void;
@@ -124,6 +126,14 @@ export const useTemplateState = (captureSize?: {
     }
     return null;
   });
+  const [preferProfileDummyImage, setPreferProfileDummyImage] = useState<boolean>(
+    () => {
+      if (typeof window !== "undefined") {
+        return pageAwareStorage.getItem("preferProfileDummyImage", false);
+      }
+      return false;
+    }
+  );
   const [isProfileTextVisible, setIsProfileTextVisible] = useState<boolean>(
     () => {
       if (typeof window !== "undefined") {
@@ -191,6 +201,15 @@ export const useTemplateState = (captureSize?: {
       }
     }
   }, [imageSrc]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      pageAwareStorage.setItem(
+        "preferProfileDummyImage",
+        preferProfileDummyImage
+      );
+    }
+  }, [preferProfileDummyImage]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -269,6 +288,8 @@ export const useTemplateState = (captureSize?: {
     updateProfileText: (text: string) => setProfileText(text),
     updateMemoText: (text: string) => setMemoText(text),
     updateImageSrc: (src: string | null) => setImageSrc(src),
+    updatePreferProfileDummyImage: (value: boolean) =>
+      setPreferProfileDummyImage(value),
     updateMondayDate: (dateStr: string) => setMondayDateStr(dateStr),
     updateScale: (newScale: number) => setScale(newScale),
     updateIsMobile: (mobile: boolean) => setIsMobile(mobile),
@@ -497,6 +518,7 @@ export const useTemplateState = (captureSize?: {
     profileText,
     memoText,
     imageSrc,
+    preferProfileDummyImage,
     imageEditData,
     mondayDateStr,
     weekDates,
