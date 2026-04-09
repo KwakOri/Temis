@@ -7,6 +7,7 @@ export interface V2PointerOrderNode {
   id: string;
   parentId: string;
   prevSiblingId?: string | null;
+  orderKey?: string;
 }
 
 export type V2PointerOrderState = Record<string, string | null>;

@@ -48,10 +48,18 @@ const v2_buildOrderedIdsByParentFromOrderKey = (
   const next: Record<string, string[]> = {};
 
   buckets.forEach((bucket, parentId) => {
-    // Placeholder policy:
-    // - keep input order stable for now
-    // - actual fractional/lexo insertion policy will be introduced in Phase F
-    next[parentId] = v2_toUnique(bucket.map((node) => node.id));
+    const sorted = [...bucket].sort((a, b) => {
+      const aKey = typeof a.orderKey === "string" ? a.orderKey : "";
+      const bKey = typeof b.orderKey === "string" ? b.orderKey : "";
+      if (aKey && bKey) {
+        if (aKey === bKey) return 0;
+        return aKey < bKey ? -1 : 1;
+      }
+      if (aKey) return -1;
+      if (bKey) return 1;
+      return bucket.indexOf(a) - bucket.indexOf(b);
+    });
+    next[parentId] = v2_toUnique(sorted.map((node) => node.id));
   });
 
   return next;

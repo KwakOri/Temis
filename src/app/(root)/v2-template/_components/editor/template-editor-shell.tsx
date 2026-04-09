@@ -16,6 +16,7 @@ import {
 import V2TemplateBuilderForm from '../properties/template-properties-panel';
 import V2Loading from '../shared/loading-screen';
 import {
+  applyReorderedLayerOrderKey,
   applyReorderedLayerZIndex,
   buildOrderedLayerIdsByParent,
 } from './model/layer-z-index';
@@ -138,8 +139,9 @@ const V2TimeTableEditor: React.FC = () => {
       layers: runtimeLayerTree,
       layout: renderConfig.layout,
       resolverMap: runtimeStyleResolverMap,
+      graph: renderConfig.graph,
     });
-  }, [renderConfig.layout, runtimeLayerTree, runtimeStyleResolverMap]);
+  }, [renderConfig.graph, renderConfig.layout, runtimeLayerTree, runtimeStyleResolverMap]);
 
   const applyLayerZIndex = ({
     parentId,
@@ -161,6 +163,11 @@ const V2TimeTableEditor: React.FC = () => {
       });
       return {
         ...prev,
+        graph: applyReorderedLayerOrderKey({
+          graph: prev.graph,
+          parentId,
+          orderedIds,
+        }),
         layout: applyReorderedLayerZIndex({
           layout: prev.layout,
           layers: prevRuntimeLayerTree,

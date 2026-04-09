@@ -31,7 +31,7 @@ import {
   V2TemplateStyleRecord,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
-import { v2_normalizePointerOrderInGraph } from "@/utils/time-table/template-graph-order";
+import { v2_convertPointerOrderToOrderKeyInGraph } from "@/utils/time-table/template-graph-order";
 
 const v2_DEFAULT_THEME = "first";
 
@@ -735,7 +735,7 @@ const v2_createDefaultNodeGraph = ({
     },
   };
 
-  return v2_normalizePointerOrderInGraph({
+  return v2_convertPointerOrderToOrderKeyInGraph({
     rootNodeIds,
     nodes,
     componentDefinitions,
@@ -1521,7 +1521,7 @@ const v2_sanitizeNodeGraph = ({
     return acc;
   }, {});
 
-  return v2_normalizePointerOrderInGraph({
+  return v2_convertPointerOrderToOrderKeyInGraph({
     rootNodeIds:
       prioritizedRootNodeIds.length > 0
         ? prioritizedRootNodeIds

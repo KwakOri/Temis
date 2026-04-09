@@ -2,7 +2,10 @@ import {
   V2TemplateGraphNode,
   V2TemplateNodeGraph,
 } from "@/types/time-table/template-render-config";
-import { v2_normalizePointerOrderInGraph } from "@/utils/time-table/template-graph-order";
+import {
+  v2_convertPointerOrderToOrderKeyInGraph,
+  v2_normalizePointerOrderInGraph,
+} from "@/utils/time-table/template-graph-order";
 
 const v2_cloneGraphNodes = (
   nodes: Record<string, V2TemplateGraphNode>
@@ -22,7 +25,9 @@ const v2_cloneGraphNodes = (
 };
 
 const v2_finalizeGraph = (graph: V2TemplateNodeGraph): V2TemplateNodeGraph => {
-  return v2_normalizePointerOrderInGraph(graph);
+  return v2_convertPointerOrderToOrderKeyInGraph(
+    v2_normalizePointerOrderInGraph(graph)
+  );
 };
 
 const v2_clampIndex = (value: number, maxLength: number): number => {

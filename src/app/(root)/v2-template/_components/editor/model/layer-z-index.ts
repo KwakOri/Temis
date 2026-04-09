@@ -1,5 +1,7 @@
 import {
+  V2TemplateGraphNode,
   V2TemplateLayerNode,
+  V2TemplateNodeGraph,
   V2TemplateStyleRecord,
 } from "@/types/time-table/template-render-config";
 import {
@@ -15,6 +17,8 @@ import {
   v2_pointerOrderAdapter,
 } from "./order-adapter";
 
+const v2_ORDER_KEY_STEP = 1024;
+
 const parseZIndex = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -24,14 +28,68 @@ const parseZIndex = (value: unknown): number | undefined => {
   return undefined;
 };
 
+const v2_toUnique = (ids: string[]): string[] => {
+  const seen = new Set<string>();
+  const next: string[] = [];
+  ids.forEach((id) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    next.push(id);
+  });
+  return next;
+};
+
+const v2_createOrderKey = (index: number): string => {
+  return String((index + 1) * v2_ORDER_KEY_STEP).padStart(10, "0");
+};
+
+const v2_buildGraphNodeByLayerId = (
+  graph: V2TemplateNodeGraph
+): Map<string, V2TemplateGraphNode> => {
+  const next = new Map<string, V2TemplateGraphNode>();
+  Object.values(graph.nodes).forEach((node) => {
+    if (!node.layerId || next.has(node.layerId)) return;
+    next.set(node.layerId, node);
+  });
+  return next;
+};
+
+const v2_reorderSubsetPreservingOthers = ({
+  existingIds,
+  reorderedSubsetIds,
+}: {
+  existingIds: string[];
+  reorderedSubsetIds: string[];
+}): string[] => {
+  const normalizedSubsetIds = v2_toUnique(reorderedSubsetIds);
+  const subsetSet = new Set(normalizedSubsetIds);
+  let cursor = 0;
+  const next = existingIds.map((id) => {
+    if (!subsetSet.has(id)) return id;
+    const replacement = normalizedSubsetIds[cursor];
+    cursor += 1;
+    return replacement ?? id;
+  });
+
+  normalizedSubsetIds.forEach((id) => {
+    if (!next.includes(id)) {
+      next.push(id);
+    }
+  });
+
+  return next;
+};
+
 export const buildOrderedLayerIdsByParent = ({
   layers,
   layout,
   resolverMap,
+  graph,
 }: {
   layers: V2TemplateLayerNode[];
   layout: TemplateLayoutShape;
   resolverMap: SectionStyleResolverMap;
+  graph: V2TemplateNodeGraph;
 }): Record<string, string[]> => {
   const getSectionZIndex = (sectionKey?: string): number | undefined => {
     if (!sectionKey) return undefined;
@@ -69,9 +127,112 @@ export const buildOrderedLayerIdsByParent = ({
     });
   };
 
+  const graphNodeByLayerId = v2_buildGraphNodeByLayerId(graph);
+  const getOrderedIdsByGraph = (
+    parentId: string,
+    nodes: V2TemplateLayerNode[]
+  ): string[] | null => {
+    const parentGraphId =
+      parentId === ROOT_LAYER_PARENT_ID
+        ? null
+        : graphNodeByLayerId.get(parentId)?.id;
+    if (parentId !== ROOT_LAYER_PARENT_ID && parentGraphId === undefined) return null;
+
+    const defaultIds = nodes.map((node) => node.id);
+    const entries = defaultIds
+      .map((layerId, index) => {
+        const graphNode = graphNodeByLayerId.get(layerId);
+        if (!graphNode || graphNode.parentId !== parentGraphId) return null;
+        return {
+          layerId,
+          index,
+          graphNode,
+        };
+      })
+      .filter(
+        (
+          entry
+        ): entry is {
+          layerId: string;
+          index: number;
+          graphNode: V2TemplateGraphNode;
+        } => Boolean(entry)
+      );
+
+    if (entries.length === 0) return null;
+
+    const allOrderKey = entries.every(
+      (entry) =>
+        entry.graphNode.order?.model === "orderKey" &&
+        typeof entry.graphNode.order.orderKey === "string" &&
+        entry.graphNode.order.orderKey.trim().length > 0
+    );
+    if (allOrderKey) {
+      const orderedByOrderKey = [...entries]
+        .sort((a, b) => {
+          const aKey = a.graphNode.order?.orderKey ?? "";
+          const bKey = b.graphNode.order?.orderKey ?? "";
+          if (aKey === bKey) return a.index - b.index;
+          return aKey < bKey ? -1 : 1;
+        })
+        .map((entry) => entry.layerId);
+      const orderedSet = new Set(orderedByOrderKey);
+      const remaining = defaultIds.filter((id) => !orderedSet.has(id));
+      return [...orderedByOrderKey, ...remaining];
+    }
+
+    const allPointer = entries.every(
+      (entry) => entry.graphNode.order?.model === "pointer"
+    );
+    if (allPointer) {
+      const pointerNodes: V2PointerOrderNode[] = entries.map((entry) => ({
+        id: entry.graphNode.id,
+        parentId: parentId,
+        prevSiblingId: entry.graphNode.order?.prevSiblingId ?? null,
+      }));
+      const orderedGraphNodeIds =
+        v2_pointerOrderAdapter.buildOrderedIdsByParent(pointerNodes)[parentId] ?? [];
+      const layerIdByGraphNodeId = new Map(
+        entries.map((entry) => [entry.graphNode.id, entry.layerId])
+      );
+      const orderedByPointer = orderedGraphNodeIds
+        .map((graphNodeId) => layerIdByGraphNodeId.get(graphNodeId))
+        .filter((layerId): layerId is string => Boolean(layerId));
+      const orderedSet = new Set(orderedByPointer);
+      const remaining = defaultIds.filter((id) => !orderedSet.has(id));
+      return [...orderedByPointer, ...remaining];
+    }
+
+    const siblingSequence =
+      parentGraphId === null
+        ? graph.rootNodeIds
+        : parentGraphId
+          ? (graph.nodes[parentGraphId]?.childIds ?? [])
+          : [];
+    const orderedByGraphSequence = [...entries]
+      .sort((a, b) => {
+        const indexA = siblingSequence.indexOf(a.graphNode.id);
+        const indexB = siblingSequence.indexOf(b.graphNode.id);
+        const normalizedA = indexA >= 0 ? indexA : Number.MAX_SAFE_INTEGER;
+        const normalizedB = indexB >= 0 ? indexB : Number.MAX_SAFE_INTEGER;
+        if (normalizedA === normalizedB) return a.index - b.index;
+        return normalizedA - normalizedB;
+      })
+      .map((entry) => entry.layerId);
+    const orderedSet = new Set(orderedByGraphSequence);
+    const remaining = defaultIds.filter((id) => !orderedSet.has(id));
+    return [...orderedByGraphSequence, ...remaining];
+  };
+
   const orderedMap: Record<string, string[]> = {};
   const buildOrder = (nodes: V2TemplateLayerNode[], parentId: string) => {
-    const sorted = sortNodes(nodes);
+    const orderedByGraph = getOrderedIdsByGraph(parentId, nodes);
+    const sorted = orderedByGraph
+      ? orderedByGraph
+          .map((nodeId) => nodes.find((node) => node.id === nodeId))
+          .filter((node): node is V2TemplateLayerNode => Boolean(node))
+      : sortNodes(nodes);
+
     orderedMap[parentId] = sorted.map((node) => node.id);
     sorted.forEach((node) => {
       if (!node.children?.length) return;
@@ -80,26 +241,114 @@ export const buildOrderedLayerIdsByParent = ({
   };
 
   buildOrder(layers, ROOT_LAYER_PARENT_ID);
+  return orderedMap;
+};
 
-  const pointerNodes: V2PointerOrderNode[] = [];
-  Object.entries(orderedMap).forEach(([parentId, orderedIds]) => {
-    orderedIds.forEach((id, index) => {
-      pointerNodes.push({
-        id,
-        parentId,
-        prevSiblingId: index === 0 ? null : (orderedIds[index - 1] ?? null),
-      });
+export const applyReorderedLayerOrderKey = ({
+  graph,
+  parentId,
+  orderedIds,
+}: {
+  graph: V2TemplateNodeGraph;
+  parentId: string;
+  orderedIds: string[];
+}): V2TemplateNodeGraph => {
+  const normalizedOrderedIds = v2_toUnique(orderedIds);
+  if (normalizedOrderedIds.length === 0) return graph;
+
+  const graphNodeByLayerId = v2_buildGraphNodeByLayerId(graph);
+  const parentGraphId =
+    parentId === ROOT_LAYER_PARENT_ID ? null : graphNodeByLayerId.get(parentId)?.id;
+  if (parentId !== ROOT_LAYER_PARENT_ID && parentGraphId === undefined) {
+    return graph;
+  }
+
+  const orderedGraphNodeIds = normalizedOrderedIds
+    .map((layerId) => graphNodeByLayerId.get(layerId))
+    .filter(
+      (node): node is V2TemplateGraphNode =>
+        node !== undefined && node.parentId === parentGraphId
+    )
+    .map((node) => node.id);
+
+  if (orderedGraphNodeIds.length === 0) return graph;
+
+  const nextNodes: Record<string, V2TemplateGraphNode> = {
+    ...graph.nodes,
+  };
+  let hasNodeChanges = false;
+
+  orderedGraphNodeIds.forEach((graphNodeId, index) => {
+    const node = graph.nodes[graphNodeId];
+    if (!node) return;
+    const prevSiblingId = index === 0 ? null : (orderedGraphNodeIds[index - 1] ?? null);
+    const nextOrder = {
+      model: "orderKey" as const,
+      orderKey: v2_createOrderKey(index),
+      prevSiblingId,
+    };
+    if (
+      node.order?.model === nextOrder.model &&
+      node.order?.orderKey === nextOrder.orderKey &&
+      node.order?.prevSiblingId === nextOrder.prevSiblingId
+    ) {
+      return;
+    }
+    nextNodes[graphNodeId] = {
+      ...node,
+      order: nextOrder,
+    };
+    hasNodeChanges = true;
+  });
+
+  if (parentGraphId == null) {
+    const nextRootNodeIds = v2_reorderSubsetPreservingOthers({
+      existingIds: graph.rootNodeIds,
+      reorderedSubsetIds: orderedGraphNodeIds,
     });
+    const rootChanged =
+      nextRootNodeIds.length !== graph.rootNodeIds.length ||
+      nextRootNodeIds.some((id, index) => id !== graph.rootNodeIds[index]);
+    if (!hasNodeChanges && !rootChanged) return graph;
+    return {
+      ...graph,
+      nodes: nextNodes,
+      rootNodeIds: rootChanged ? nextRootNodeIds : graph.rootNodeIds,
+    };
+  }
+
+  const parentNode = graph.nodes[parentGraphId];
+  if (!parentNode) {
+    return hasNodeChanges
+      ? {
+          ...graph,
+          nodes: nextNodes,
+        }
+      : graph;
+  }
+
+  const nextChildIds = v2_reorderSubsetPreservingOthers({
+    existingIds: parentNode.childIds,
+    reorderedSubsetIds: orderedGraphNodeIds,
   });
+  const childChanged =
+    nextChildIds.length !== parentNode.childIds.length ||
+    nextChildIds.some((id, index) => id !== parentNode.childIds[index]);
 
-  const orderedByAdapter = v2_pointerOrderAdapter.buildOrderedIdsByParent(pointerNodes);
-  const nextOrderedMap: Record<string, string[]> = {};
+  if (!hasNodeChanges && !childChanged) return graph;
 
-  Object.entries(orderedMap).forEach(([parentId, orderedIds]) => {
-    nextOrderedMap[parentId] = orderedByAdapter[parentId] ?? orderedIds;
-  });
-
-  return nextOrderedMap;
+  return {
+    ...graph,
+    nodes: {
+      ...nextNodes,
+      [parentNode.id]: childChanged
+        ? {
+            ...parentNode,
+            childIds: nextChildIds,
+          }
+        : nextNodes[parentNode.id] ?? parentNode,
+    },
+  };
 };
 
 export const applyReorderedLayerZIndex = ({
@@ -117,18 +366,7 @@ export const applyReorderedLayerZIndex = ({
 }): TemplateLayoutShape => {
   if (orderedIds.length === 0) return layout;
 
-  const pointerState = v2_pointerOrderAdapter.reorderWithinParent({
-    state: {},
-    orderedIds,
-  });
-  const normalizedOrderedIds =
-    v2_pointerOrderAdapter.buildOrderedIdsByParent(
-      orderedIds.map((id) => ({
-        id,
-        parentId,
-        prevSiblingId: pointerState[id] ?? null,
-      }))
-    )[parentId] ?? orderedIds;
+  const normalizedOrderedIds = v2_toUnique(orderedIds);
 
   const zMap = new Map<string, number>();
   normalizedOrderedIds.forEach((id, index) => {
