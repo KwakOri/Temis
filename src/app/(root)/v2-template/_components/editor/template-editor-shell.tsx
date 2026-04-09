@@ -111,6 +111,21 @@ const V2TimeTableEditor: React.FC = () => {
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
   );
+  const relocatableLayerIdSet = useMemo(() => {
+    const next = new Set<string>();
+    const visit = (nodes: typeof runtimeSceneNodes) => {
+      nodes.forEach((node) => {
+        if (node.layerId) {
+          next.add(node.layerId);
+        }
+        if (node.kind === "group") {
+          visit(node.children);
+        }
+      });
+    };
+    visit(runtimeSceneNodes);
+    return next;
+  }, [runtimeSceneNodes]);
   const runtimeStyleResolverMap = useMemo(
     () =>
       collectStyleSectionResolverMapFromRuntime({
@@ -424,6 +439,9 @@ const V2TimeTableEditor: React.FC = () => {
                       layerTree={runtimeLayerTree}
                       componentCatalog={runtimeComponentCatalog}
                       orderedIdsByParent={orderedIdsByParent}
+                      canRelocateLayer={(layerId) =>
+                        relocatableLayerIdSet.has(layerId)
+                      }
                       onReorderLayers={({ parentId, orderedIds }) => {
                         applyLayerZIndex({
                           parentId,

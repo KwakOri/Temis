@@ -55,6 +55,7 @@ interface V2TimeTableLayersPanelProps {
     parentId: string;
     orderedIds: string[];
   }) => void;
+  canRelocateLayer?: (layerId: string) => boolean;
   onRelocateLayers?: (payload: {
     layerId: string;
     sourceParentId: string;
@@ -154,6 +155,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   onSelectLayer,
   orderedIdsByParent,
   onReorderLayers,
+  canRelocateLayer,
   onRelocateLayers,
 }) => {
   const {
@@ -344,7 +346,6 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             if (!dragState) return;
             if (dragState.nodeId === node.id) return;
 
-            event.preventDefault();
             const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
             const offsetY = event.clientY - rect.top;
             const nextPosition =
@@ -355,6 +356,16 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 : offsetY < rect.height / 2
                   ? "before"
                   : "after";
+            const previewTargetParentId =
+              nextPosition === "inside" ? node.id : parentId;
+            if (
+              previewTargetParentId !== dragState.parentId &&
+              !canRelocateLayer?.(dragState.nodeId)
+            ) {
+              return;
+            }
+
+            event.preventDefault();
             setDropState({
               parentId,
               nodeId: node.id,
@@ -400,6 +411,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 parentId,
                 orderedIds: nextOrder,
               });
+              setDropState(null);
+              setDragState(null);
+              return;
+            }
+            if (!canRelocateLayer?.(dragState.nodeId)) {
               setDropState(null);
               setDragState(null);
               return;
