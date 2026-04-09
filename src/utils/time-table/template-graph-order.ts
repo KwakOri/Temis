@@ -326,6 +326,50 @@ export const v2_validateOrderKeyGraph = (
 ): V2OrderKeyGraphValidationResult => {
   const siblingIdsByParent = v2_getSiblingIdsByParentFromGraph(graph);
   const issues: string[] = [];
+  const nodeIds = new Set(Object.keys(graph.nodes));
+
+  graph.rootNodeIds.forEach((rootId) => {
+    const rootNode = graph.nodes[rootId];
+    if (!rootNode) {
+      issues.push(`[${v2_ROOT_PARENT_KEY}] missing root node: ${rootId}`);
+      return;
+    }
+    if (rootNode.parentId !== null) {
+      issues.push(
+        `[${v2_ROOT_PARENT_KEY}] root ${rootId} parentId is not null (${String(
+          rootNode.parentId
+        )})`
+      );
+    }
+  });
+
+  Object.values(graph.nodes).forEach((node) => {
+    if (node.parentId !== null) {
+      const parentNode = graph.nodes[node.parentId];
+      if (!parentNode) {
+        issues.push(`[${node.id}] missing parent: ${node.parentId}`);
+      } else if (!parentNode.childIds.includes(node.id)) {
+        issues.push(
+          `[${node.id}] parent ${node.parentId} does not include child reference`
+        );
+      }
+    }
+
+    node.childIds.forEach((childId) => {
+      if (!nodeIds.has(childId)) {
+        issues.push(`[${node.id}] missing child node: ${childId}`);
+        return;
+      }
+      const childNode = graph.nodes[childId];
+      if (childNode.parentId !== node.id) {
+        issues.push(
+          `[${node.id}] child ${childId} parent mismatch: ${String(
+            childNode.parentId
+          )}`
+        );
+      }
+    });
+  });
 
   Object.entries(siblingIdsByParent).forEach(([parentKey, siblingIds]) => {
     const seenOrderKeys = new Set<string>();

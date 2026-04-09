@@ -174,6 +174,7 @@ Move / Extract Copy 분리:
   - dev 진단 추가:
     - graph orderKey 무결성 검증기(`v2_validateOrderKeyGraph`)
     - 에디터 런타임에서 무결성 이슈 콘솔 경고
+    - 검증 범위를 parent/child 참조 정합성까지 확장 (re-parent 회귀 조기 탐지)
   - Properties의 카드 편집 흐름을 활성 컴포넌트 기준으로 일반화:
     - `use-template-card-node-actions`에서 `componentDefinitions.card` 하드코딩 제거
     - 선택 레이어/카드 컬렉션 기준 `activeCardComponentId` 해석 후 append/remove/instance 설정 적용
