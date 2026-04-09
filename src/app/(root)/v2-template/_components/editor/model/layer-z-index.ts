@@ -10,6 +10,10 @@ import {
   getStyleRecordBySectionKey,
   setStyleRecordBySectionKey,
 } from "./style-section-resolver";
+import {
+  V2PointerOrderNode,
+  v2_pointerOrderAdapter,
+} from "./order-adapter";
 
 const parseZIndex = (value: unknown): number | undefined => {
   if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -76,7 +80,26 @@ export const buildOrderedLayerIdsByParent = ({
   };
 
   buildOrder(layers, ROOT_LAYER_PARENT_ID);
-  return orderedMap;
+
+  const pointerNodes: V2PointerOrderNode[] = [];
+  Object.entries(orderedMap).forEach(([parentId, orderedIds]) => {
+    orderedIds.forEach((id, index) => {
+      pointerNodes.push({
+        id,
+        parentId,
+        prevSiblingId: index === 0 ? null : (orderedIds[index - 1] ?? null),
+      });
+    });
+  });
+
+  const orderedByAdapter = v2_pointerOrderAdapter.buildOrderedIdsByParent(pointerNodes);
+  const nextOrderedMap: Record<string, string[]> = {};
+
+  Object.entries(orderedMap).forEach(([parentId, orderedIds]) => {
+    nextOrderedMap[parentId] = orderedByAdapter[parentId] ?? orderedIds;
+  });
+
+  return nextOrderedMap;
 };
 
 export const applyReorderedLayerZIndex = ({
@@ -94,9 +117,22 @@ export const applyReorderedLayerZIndex = ({
 }): TemplateLayoutShape => {
   if (orderedIds.length === 0) return layout;
 
+  const pointerState = v2_pointerOrderAdapter.reorderWithinParent({
+    state: {},
+    orderedIds,
+  });
+  const normalizedOrderedIds =
+    v2_pointerOrderAdapter.buildOrderedIdsByParent(
+      orderedIds.map((id) => ({
+        id,
+        parentId,
+        prevSiblingId: pointerState[id] ?? null,
+      }))
+    )[parentId] ?? orderedIds;
+
   const zMap = new Map<string, number>();
-  orderedIds.forEach((id, index) => {
-    zMap.set(id, (orderedIds.length - index) * 10);
+  normalizedOrderedIds.forEach((id, index) => {
+    zMap.set(id, (normalizedOrderedIds.length - index) * 10);
   });
 
   let nextLayout: TemplateLayoutShape = {
@@ -144,7 +180,7 @@ export const applyReorderedLayerZIndex = ({
     }
   };
 
-  orderedIds.forEach((nodeId) => {
+  normalizedOrderedIds.forEach((nodeId) => {
     if (!siblingIdSet.has(nodeId)) return;
     const zIndex = zMap.get(nodeId);
     if (zIndex === undefined) return;
