@@ -166,9 +166,9 @@ export const v2_createExampleRenderConfigResponse =
             third: Imgs.first.profileFrame.src,
           },
           profileBgByTheme: {
-            first: Imgs.first.profileFrame.src,
-            second: Imgs.first.profileFrame.src,
-            third: Imgs.first.profileFrame.src,
+            first: Imgs.first.artist.src,
+            second: Imgs.first.artist.src,
+            third: Imgs.first.artist.src,
           },
           guideByTheme: {
             first: null,

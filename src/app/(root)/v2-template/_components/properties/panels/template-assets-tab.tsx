@@ -64,6 +64,12 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
                   편집 시 프리뷰 최상단에 오버레이로 표시됩니다.
                 </p>
               ) : null}
+              {key === "profileBgByTheme" ? (
+                <p className="text-[11px] text-blue-600">
+                  사용자 프로필 이미지를 업로드하지 않은 상태에서 프리뷰에 표시될
+                  더미 이미지입니다.
+                </p>
+              ) : null}
 
               <input
                 id={inputId}

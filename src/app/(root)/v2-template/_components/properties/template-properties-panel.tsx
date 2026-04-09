@@ -196,7 +196,7 @@ const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
   onlineByTheme: "온라인 카드",
   offlineByTheme: "오프라인 카드",
   profileFrameByTheme: "프로필 프레임",
-  profileBgByTheme: "프로필 배경",
+  profileBgByTheme: "프로필 더미 이미지(편집용)",
   guideByTheme: "가이드 레이어(상단 오버레이)",
 };
 
