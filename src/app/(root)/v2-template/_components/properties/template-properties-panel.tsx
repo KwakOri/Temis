@@ -1,8 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  AlignHorizontalJustifyCenter,
-  Braces,
-} from "lucide-react";
 
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
@@ -54,7 +50,6 @@ import {
   v2_BOILERPLATE_NUMERIC_KEYS,
   v2_BOILERPLATE_SELECT_OPTIONS,
 } from "./model/boilerplate-presets";
-import { v2_BOILERPLATE_SECTION_GROUPS } from "./model/boilerplate-section-groups";
 import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
@@ -82,12 +77,7 @@ import {
   V2BoilerplateFieldConfig,
   V2BoilerplateGroupConfig,
   V2BoilerplateFieldType,
-  v2_expandDisplayGroups,
-  v2_getBoilerplateFieldIcon,
-  v2_getBoilerplateGroupIcon,
   v2_STYLE_EXTENSION_DEFAULT_VALUES,
-  v2_STYLE_EXTENSION_GROUP_IDS,
-  v2_STYLE_GROUP_DISPLAY_LABEL,
 } from "./model/boilerplate-ui-utils";
 import {
   v2_createStyleKeyToSectionKeyMap,
@@ -97,6 +87,8 @@ import {
   v2_resolveTextNodeSections,
 } from "./model/style-section-utils";
 import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
+import TemplateBoilerplateSectionEditor from "./components/template-boilerplate-section-editor";
+import TemplateBoilerplateSettingsModal from "./components/template-boilerplate-settings-modal";
 import TemplateBoundTextNodePropertiesPanel from "./components/template-bound-text-node-properties-panel";
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
 import TemplateAutoResizeAlignmentEditor from "./components/template-auto-resize-alignment-editor";
@@ -307,27 +299,6 @@ type V2VerticalAlign = "top" | "center" | "bottom";
 type V2GridLayoutMode = "grid3x3" | "flex4x2";
 type V2Flex42Align = "left" | "center" | "right";
 type V2Flex42ThreeRow = "top" | "bottom";
-
-const v2_ALIGNMENT_HORIZONTAL_ORDER: V2HorizontalAlign[] = [
-  "left",
-  "center",
-  "right",
-];
-const v2_ALIGNMENT_VERTICAL_ORDER: V2VerticalAlign[] = [
-  "top",
-  "center",
-  "bottom",
-];
-const v2_HORIZONTAL_ALIGN_LABELS: Record<V2HorizontalAlign, string> = {
-  left: "좌측",
-  center: "중앙",
-  right: "우측",
-};
-const v2_VERTICAL_ALIGN_LABELS: Record<V2VerticalAlign, string> = {
-  top: "상단",
-  center: "중앙",
-  bottom: "하단",
-};
 
 interface V2TemplateBuilderFormProps {
   focusLayerId?: string | null;
@@ -3310,298 +3281,90 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   }: {
     title: string;
     section: V2StyleSectionKey;
-  }) => {
-    const sectionMap = getBoilerplateSectionMap(section);
-    const groups = v2_expandDisplayGroups(
-      v2_BOILERPLATE_SECTION_GROUPS[section] ?? []
-    );
-    const presetKeys = new Set(
-      groups.flatMap((group) => group.fields.map((field) => field.key))
-    );
-    const customEntries = Object.entries(sectionMap).filter(
-      ([property]) =>
-        !presetKeys.has(property) && !v2_LOCKED_STYLE_PROPERTY_KEYS.has(property)
-    );
-    const autoResizePair = getBoilerplateAutoResizePair(section);
-    const horizontalAlign = autoResizePair
-      ? getBoilerplateHorizontalAlign(autoResizePair)
-      : null;
-    const verticalAlign = autoResizePair
-      ? getBoilerplateVerticalAlign({ wrapperSection: autoResizePair.wrapperSection })
-      : null;
+  }) => (
+    <TemplateBoilerplateSectionEditor
+      title={title}
+      section={section}
+      getBoilerplateSectionMap={(nextSection) =>
+        getBoilerplateSectionMap(nextSection as V2StyleSectionKey)
+      }
+      lockedStylePropertyKeys={v2_LOCKED_STYLE_PROPERTY_KEYS}
+      stylePropertyCatalog={v2_STYLE_PROPERTY_CATALOG}
+      getBoilerplateAutoResizePair={(nextSection) =>
+        getBoilerplateAutoResizePair(nextSection as V2StyleSectionKey)
+      }
+      getBoilerplateHorizontalAlign={({ wrapperSection, textSection }) =>
+        getBoilerplateHorizontalAlign({
+          wrapperSection: wrapperSection as V2StyleSectionKey,
+          textSection: textSection as V2StyleSectionKey,
+        })
+      }
+      getBoilerplateVerticalAlign={({ wrapperSection }) =>
+        getBoilerplateVerticalAlign({
+          wrapperSection: wrapperSection as V2StyleSectionKey,
+        })
+      }
+      onUpdateBoilerplateAutoResizeHorizontalAlign={({
+        wrapperSection,
+        textSection,
+        align,
+      }) =>
+        updateBoilerplateAutoResizeHorizontalAlign({
+          wrapperSection: wrapperSection as V2StyleSectionKey,
+          textSection: textSection as V2StyleSectionKey,
+          align,
+        })
+      }
+      onUpdateBoilerplateAutoResizeVerticalAlign={({ wrapperSection, align }) =>
+        updateBoilerplateAutoResizeVerticalAlign({
+          wrapperSection: wrapperSection as V2StyleSectionKey,
+          align,
+        })
+      }
+      onResetBoilerplateSection={(nextSection) =>
+        resetBoilerplateSection(nextSection as V2StyleSectionKey)
+      }
+      onAddBoilerplateProperty={(nextSection) =>
+        addBoilerplateProperty(nextSection as V2StyleSectionKey)
+      }
+      getBoilerplateFieldType={getBoilerplateFieldType}
+      getBoilerplateFieldStep={getBoilerplateFieldStep}
+      onUpdateBoilerplatePropertyValue={(nextSection, key, value) =>
+        updateBoilerplatePropertyValue(
+          nextSection as V2StyleSectionKey,
+          key,
+          value
+        )
+      }
+      onRenameBoilerplateProperty={(nextSection, currentKey, nextKey) =>
+        renameBoilerplateProperty(
+          nextSection as V2StyleSectionKey,
+          currentKey,
+          nextKey
+        )
+      }
+      onRemoveBoilerplateProperty={(nextSection, key) =>
+        removeBoilerplateProperty(nextSection as V2StyleSectionKey, key)
+      }
+    />
+  );
 
-    const applyBoilerplatePointAlignment = ({
-      horizontal,
-      vertical,
-    }: {
-      horizontal: V2HorizontalAlign;
-      vertical: V2VerticalAlign;
-    }) => {
-      if (!autoResizePair) return;
-      updateBoilerplateAutoResizeHorizontalAlign({
-        wrapperSection: autoResizePair.wrapperSection,
-        textSection: autoResizePair.textSection,
-        align: horizontal,
-      });
-      updateBoilerplateAutoResizeVerticalAlign({
-        wrapperSection: autoResizePair.wrapperSection,
-        align: vertical,
-      });
-    };
-
-    return (
-      <div className="rounded border border-gray-300 bg-white p-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <h5 className="text-xs font-semibold text-gray-700">{title}</h5>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => resetBoilerplateSection(section)}
-              className="px-2 py-1 rounded border border-gray-300 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              기본값 복원
-            </button>
-            <button
-              type="button"
-              onClick={() => addBoilerplateProperty(section)}
-              className="px-2 py-1 rounded border border-blue-300 text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
-            >
-              + 커스텀 CSS
-            </button>
-          </div>
-        </div>
-
-        {autoResizePair && (
-          <div className="rounded border border-gray-200 bg-gray-50 p-3 space-y-2">
-            <h6 className="text-[11px] font-semibold tracking-wide text-gray-600 uppercase inline-flex items-center gap-1">
-              <AlignHorizontalJustifyCenter className="h-3.5 w-3.5" />
-              Alignment
-            </h6>
-            <p className="text-[11px] text-gray-500">
-              점 하나를 클릭하면 가로(`justifyContent` + `textAlign`)와 세로(`alignItems`)가
-              함께 반영됩니다.
-            </p>
-            <div className="rounded border border-gray-200 bg-white p-2 inline-block">
-              <div className="grid grid-cols-3 gap-2">
-                {v2_ALIGNMENT_VERTICAL_ORDER.flatMap((vertical) =>
-                  v2_ALIGNMENT_HORIZONTAL_ORDER.map((horizontal) => {
-                    const isActive =
-                      horizontalAlign === horizontal && verticalAlign === vertical;
-                    return (
-                      <button
-                        key={`bp-align-point-${section}-${vertical}-${horizontal}`}
-                        type="button"
-                        onClick={() =>
-                          applyBoilerplatePointAlignment({
-                            horizontal,
-                            vertical,
-                          })
-                        }
-                        aria-label={`${v2_VERTICAL_ALIGN_LABELS[vertical]} ${v2_HORIZONTAL_ALIGN_LABELS[horizontal]}`}
-                        className={`h-9 w-9 rounded border inline-flex items-center justify-center transition ${
-                          isActive
-                            ? "border-blue-400 bg-blue-50"
-                            : "border-gray-300 bg-white hover:bg-gray-50"
-                        }`}
-                      >
-                        <span
-                          className={`rounded-full ${
-                            isActive ? "h-2.5 w-2.5 bg-blue-600" : "h-2 w-2 bg-gray-400"
-                          }`}
-                        />
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {groups.map((group) => {
-          const visibleFields = group.fields.filter(
-            (field) => !v2_LOCKED_STYLE_PROPERTY_KEYS.has(field.key)
-          );
-          if (visibleFields.length === 0) return null;
-
-          const GroupIcon = v2_getBoilerplateGroupIcon(group.id);
-
-          return (
-            <div
-              key={`${section}-${group.id}`}
-              className="rounded border border-gray-200 bg-gray-50 p-3 space-y-2"
-            >
-              <h6 className="text-[11px] font-semibold tracking-wide text-gray-600 uppercase inline-flex items-center gap-1">
-                <GroupIcon className="h-3.5 w-3.5" />
-                {group.label}
-              </h6>
-              <div className="grid grid-cols-1 gap-2">
-                {visibleFields.map((field) => {
-                  const fieldType = getBoilerplateFieldType(field);
-                  const value = sectionMap[field.key];
-                  const valueString = value === undefined ? "" : String(value);
-                  const selectOptions = field.options ?? [];
-                  const FieldIcon = v2_getBoilerplateFieldIcon(field, group.id);
-
-                  return (
-                    <label
-                      key={`${section}-${group.id}-${field.key}`}
-                      className="grid grid-cols-2 items-center gap-2"
-                    >
-                      <span className="text-xs text-gray-600 inline-flex items-center gap-1">
-                        <FieldIcon className="h-3.5 w-3.5 text-gray-400" />
-                        {field.label}
-                      </span>
-                      {fieldType === "select" ? (
-                        <select
-                          value={valueString}
-                          onChange={(e) =>
-                            updateBoilerplatePropertyValue(
-                              section,
-                              field.key,
-                              e.target.value
-                            )
-                          }
-                          className="px-2 py-1 rounded border border-gray-300 bg-white text-xs"
-                        >
-                          <option value="">(비움)</option>
-                          {selectOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={fieldType === "number" ? "number" : "text"}
-                          step={
-                            fieldType === "number"
-                              ? getBoilerplateFieldStep(field)
-                              : undefined
-                          }
-                          value={valueString}
-                          onChange={(e) =>
-                            updateBoilerplatePropertyValue(
-                              section,
-                              field.key,
-                              e.target.value
-                            )
-                          }
-                          className="px-2 py-1 rounded border border-gray-300 bg-white text-xs"
-                          placeholder={field.placeholder ?? "값"}
-                        />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-
-        <div className="rounded border border-gray-200 bg-white p-3 space-y-2">
-          <h6 className="text-[11px] font-semibold tracking-wide text-gray-600 uppercase inline-flex items-center gap-1">
-            <Braces className="h-3.5 w-3.5" />
-            Custom CSS
-          </h6>
-          {customEntries.length === 0 && (
-            <p className="text-xs text-gray-400">추가된 커스텀 속성이 없습니다.</p>
-          )}
-          {customEntries.map(([property, value], index) => (
-            <div
-              key={`bp-custom-${section}-${index}`}
-              className="grid grid-cols-[1fr_1fr_auto] gap-2"
-            >
-              <input
-                list={`v2-bp-style-props-${section}`}
-                value={property}
-                onChange={(e) =>
-                  renameBoilerplateProperty(section, property, e.target.value)
-                }
-                className="px-2 py-1 rounded border border-gray-300 text-xs"
-              />
-              <input
-                value={String(value)}
-                onChange={(e) =>
-                  updateBoilerplatePropertyValue(section, property, e.target.value)
-                }
-                className="px-2 py-1 rounded border border-gray-300 text-xs"
-                placeholder="값"
-              />
-              <button
-                type="button"
-                onClick={() => removeBoilerplateProperty(section, property)}
-                className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
-              >
-                삭제
-              </button>
-            </div>
-          ))}
-        </div>
-
-        <datalist id={`v2-bp-style-props-${section}`}>
-          {v2_STYLE_PROPERTY_CATALOG.map((property) => (
-            <option key={property} value={property} />
-          ))}
-        </datalist>
-      </div>
-    );
-  };
-
-  const renderBoilerplateSettingsModal = () => {
-    if (!isBoilerplateSettingsOpen) return null;
-
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <button
-          type="button"
-          aria-label="보일러플레이트 설정 닫기"
-          className="absolute inset-0 bg-gray-900/45"
-          onClick={() => setIsBoilerplateSettingsOpen(false)}
-        />
-        <div className="relative z-10 w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-2xl border border-gray-300 bg-white p-4 shadow-xl space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="space-y-1">
-              <h4 className="font-semibold text-sm text-gray-700">
-                보일러플레이트 설정
-              </h4>
-              <p className="text-xs text-gray-500">
-                각 항목의 보일러플레이트 적용 버튼으로 넣을 속성 템플릿을 여기서
-                미리 관리합니다.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsBoilerplateSettingsOpen(false)}
-              className="px-3 py-2 rounded border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              닫기
-            </button>
-          </div>
-          <div className="grid grid-cols-2 items-center gap-2">
-            <label className="text-xs text-gray-500">대상 항목</label>
-            <select
-              value={boilerplateTarget}
-              onChange={(e) =>
-                setBoilerplateTarget(e.target.value as V2StyleSectionKey)
-              }
-              className="px-2 py-1 rounded border border-gray-300 bg-white text-xs"
-            >
-              {v2_STYLE_SECTION_ORDER.map((section) => (
-                <option key={section} value={section}>
-                  {v2_STYLE_SECTION_LABELS[section]}
-                </option>
-              ))}
-            </select>
-          </div>
-          {renderBoilerplateSectionEditor({
-            title: v2_STYLE_SECTION_LABELS[boilerplateTarget],
-            section: boilerplateTarget,
-          })}
-        </div>
-      </div>
-    );
-  };
+  const renderBoilerplateSettingsModal = () => (
+    <TemplateBoilerplateSettingsModal
+      open={isBoilerplateSettingsOpen}
+      target={boilerplateTarget}
+      targetOptions={v2_STYLE_SECTION_ORDER.map((section) => ({
+        value: section,
+        label: v2_STYLE_SECTION_LABELS[section],
+      }))}
+      onClose={() => setIsBoilerplateSettingsOpen(false)}
+      onChangeTarget={(value) => setBoilerplateTarget(value as V2StyleSectionKey)}
+      editor={renderBoilerplateSectionEditor({
+        title: v2_STYLE_SECTION_LABELS[boilerplateTarget],
+        section: boilerplateTarget,
+      })}
+    />
+  );
 
   const renderCanvasTab = () => (
     <div className="space-y-4">
