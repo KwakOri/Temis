@@ -35,6 +35,12 @@ const v2_createPointerOrder = (
   };
 };
 
+const v2_ORDER_KEY_STEP = 1024;
+
+const v2_createOrderKey = (index: number): string => {
+  return String((index + 1) * v2_ORDER_KEY_STEP).padStart(10, "0");
+};
+
 export const v2_normalizePointerOrderInGraph = (
   graph: V2TemplateNodeGraph
 ): V2TemplateNodeGraph => {
@@ -149,4 +155,65 @@ export const v2_getSiblingIdsByParentFromGraph = (
     byParent[key] = current;
   });
   return byParent;
+};
+
+export const v2_convertPointerOrderToOrderKeyInGraph = (
+  graph: V2TemplateNodeGraph
+): V2TemplateNodeGraph => {
+  const normalizedGraph = v2_normalizePointerOrderInGraph(graph);
+  const siblingIdsByParent = v2_getSiblingIdsByParentFromGraph(normalizedGraph);
+  const nextNodes: Record<string, V2TemplateGraphNode> = {
+    ...normalizedGraph.nodes,
+  };
+  let hasChanges = false;
+
+  Object.entries(siblingIdsByParent).forEach(([, siblingIds]) => {
+    const orderedIds = siblingIds
+      .map((id) => normalizedGraph.nodes[id])
+      .filter((node): node is V2TemplateGraphNode => Boolean(node))
+      .sort((a, b) => {
+        const aOrder = a.order;
+        const bOrder = b.order;
+        if (!aOrder && !bOrder) return 0;
+        if (!aOrder) return 1;
+        if (!bOrder) return -1;
+        if (aOrder.model === "orderKey" && bOrder.model === "orderKey") {
+          const aKey = aOrder.orderKey ?? "";
+          const bKey = bOrder.orderKey ?? "";
+          if (aKey === bKey) return 0;
+          return aKey < bKey ? -1 : 1;
+        }
+        if (aOrder.model === "orderKey") return -1;
+        if (bOrder.model === "orderKey") return 1;
+
+        const indexA = siblingIds.indexOf(a.id);
+        const indexB = siblingIds.indexOf(b.id);
+        return indexA - indexB;
+      })
+      .map((node) => node.id);
+
+    orderedIds.forEach((nodeId, index) => {
+      const node = normalizedGraph.nodes[nodeId];
+      if (!node) return;
+      const prevSiblingId = index === 0 ? null : (orderedIds[index - 1] ?? null);
+      const nextOrder: V2TemplateGraphNodeOrder = {
+        model: "orderKey",
+        orderKey: v2_createOrderKey(index),
+        prevSiblingId,
+      };
+      if (v2_isOrderEqual(node.order, nextOrder)) return;
+
+      nextNodes[nodeId] = {
+        ...node,
+        order: nextOrder,
+      };
+      hasChanges = true;
+    });
+  });
+
+  if (!hasChanges) return normalizedGraph;
+  return {
+    ...normalizedGraph,
+    nodes: nextNodes,
+  };
 };
