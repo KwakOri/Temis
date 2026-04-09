@@ -21,19 +21,8 @@ import {
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { v2_bindingRefToLegacyInput } from "@/utils/time-table/template-render-config";
-import {
-  v2_HORIZONTAL_ALIGN_TO_JUSTIFY,
-  v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS,
-} from "./model/alignment-utils";
-import {
-  v2_POSITION_MUTEX_MAP,
-  v2_hasRenderableStyleValue,
-} from "./model/layout-utils";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
-import {
-  v2_BOILERPLATE_NUMERIC_KEYS,
-  v2_BOILERPLATE_SELECT_OPTIONS,
-} from "./model/boilerplate-presets";
+import { v2_BOILERPLATE_SELECT_OPTIONS } from "./model/boilerplate-presets";
 import {
   v2_collectSceneNodeStyleKeys,
   v2_collectSceneNodesByLayerId,
@@ -44,10 +33,6 @@ import {
 import {
   V2NodeNewFieldDraft,
 } from "./model/binding-utils";
-import {
-  V2BoilerplateFieldConfig,
-  V2BoilerplateFieldType,
-} from "./model/boilerplate-ui-utils";
 import {
   v2_createStyleKeyToSectionKeyMap,
   v2_isKnownStyleSectionKey,
@@ -73,6 +58,7 @@ import TemplateStyleTab from "./panels/template-style-tab";
 import TemplateStyleThemeSettings from "./panels/template-style-theme-settings";
 import useTemplateStyleEditorActions from "./hooks/use-template-style-editor-actions";
 import useTemplateBoundTextNodePropertyPanels from "./hooks/use-template-bound-text-node-property-panels";
+import useTemplateBoilerplateActions from "./hooks/use-template-boilerplate-actions";
 import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateFormSchemaActions from "./hooks/use-template-form-schema-actions";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
@@ -257,9 +243,6 @@ type V2StyleSectionKey =
   | "mainTitleTextStyle"
   | "subTitleTextStyle";
 type V2StyleSectionId = V2StyleSectionKey | string;
-
-type V2HorizontalAlign = "left" | "center" | "right";
-type V2VerticalAlign = "top" | "center" | "bottom";
 
 interface V2TemplateBuilderFormProps {
   focusLayerId?: string | null;
@@ -808,200 +791,27 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     }));
   };
 
-  const getBoilerplateSectionMap = (section: V2StyleSectionKey) => {
-    return boilerplateConfig[section] ?? {};
-  };
-
-  const updateBoilerplateSection = (
-    section: V2StyleSectionKey,
-    nextMap: Record<string, string | number>
-  ) => {
-    setBoilerplateConfig((prev) => ({
-      ...prev,
-      [section]: nextMap,
-    }));
-  };
-
-  const addBoilerplateProperty = (section: V2StyleSectionKey) => {
-    const currentMap = getBoilerplateSectionMap(section);
-    let nextIndex = 1;
-    while (currentMap[`custom_${nextIndex}`] !== undefined) {
-      nextIndex += 1;
-    }
-    const nextKey = `custom_${nextIndex}`;
-
-    updateBoilerplateSection(section, {
-      ...currentMap,
-      [nextKey]: "",
-    });
-  };
-
-  const removeBoilerplateProperty = (section: V2StyleSectionKey, key: string) => {
-    const currentMap = getBoilerplateSectionMap(section);
-    const nextMap = { ...currentMap };
-    delete nextMap[key];
-    updateBoilerplateSection(section, nextMap);
-  };
-
-  const renameBoilerplateProperty = (
-    section: V2StyleSectionKey,
-    currentKey: string,
-    nextKeyRaw: string
-  ) => {
-    const nextKey = nextKeyRaw.trim();
-    if (!nextKey) return;
-    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(nextKey)) return;
-
-    const currentMap = getBoilerplateSectionMap(section);
-    const value = currentMap[currentKey];
-    const nextMap = { ...currentMap };
-    delete nextMap[currentKey];
-    nextMap[nextKey] = value;
-    updateBoilerplateSection(section, nextMap);
-  };
-
-  const parseStyleValue = (rawValue: string): string | number => {
-    const trimmed = rawValue.trim();
-    if (trimmed === "") return "";
-    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-      return Number(trimmed);
-    }
-    return trimmed;
-  };
-
-  const withExclusiveInsetValue = (
-    currentMap: Record<string, string | number>,
-    key: string,
-    nextValue: string | number
-  ) => {
-    const nextMap: Record<string, string | number> = {
-      ...currentMap,
-      [key]: nextValue,
-    };
-
-    const counterpartKey = v2_POSITION_MUTEX_MAP[key];
-    if (!counterpartKey) return nextMap;
-    if (!v2_hasRenderableStyleValue(nextValue)) return nextMap;
-
-    delete nextMap[counterpartKey];
-    return nextMap;
-  };
-
-  const updateBoilerplatePropertyValue = (
-    section: V2StyleSectionKey,
-    key: string,
-    rawValue: string
-  ) => {
-    if (v2_LOCKED_STYLE_PROPERTY_KEYS.has(key)) return;
-    const currentMap = getBoilerplateSectionMap(section);
-    const nextValue = parseStyleValue(rawValue);
-    updateBoilerplateSection(
-      section,
-      withExclusiveInsetValue(currentMap, key, nextValue)
-    );
-  };
-
-  const getBoilerplateFieldType = (
-    field: V2BoilerplateFieldConfig
-  ): V2BoilerplateFieldType => {
-    if (field.type) return field.type;
-    if (v2_BOILERPLATE_NUMERIC_KEYS.has(field.key)) return "number";
-    return "text";
-  };
-
-  const getBoilerplateFieldStep = (field: V2BoilerplateFieldConfig) => {
-    if (field.step) return field.step;
-    if (field.key === "opacity") return "0.01";
-    if (field.key === "lineHeight" || field.key === "letterSpacing") return "0.1";
-    if (field.key === "rotateDeg") return "0.1";
-    if (field.key === "widthPercent") return "0.1";
-    return "1";
-  };
-
-  const resetBoilerplateSection = (section: V2StyleSectionKey) => {
-    const defaults = v2_DEFAULT_STYLE_SECTION_BOILERPLATES[section] ?? {};
-    updateBoilerplateSection(section, {
-      ...(JSON.parse(
-        JSON.stringify(defaults)
-      ) as Record<string, string | number>),
-    });
-  };
-
-  const getBoilerplateAutoResizePair = (
-    section: V2StyleSectionKey
-  ): { wrapperSection: V2StyleSectionKey; textSection: V2StyleSectionKey } | null => {
-    if (section === "mainTitleWrapperStyle" || section === "mainTitleTextStyle") {
-      return {
-        wrapperSection: "mainTitleWrapperStyle",
-        textSection: "mainTitleTextStyle",
-      };
-    }
-    if (section === "cardSubTitleContainer" || section === "subTitleTextStyle") {
-      return {
-        wrapperSection: "cardSubTitleContainer",
-        textSection: "subTitleTextStyle",
-      };
-    }
-    return null;
-  };
-
-  const getBoilerplateHorizontalAlign = ({
-    wrapperSection,
-    textSection,
-  }: {
-    wrapperSection: V2StyleSectionKey;
-    textSection: V2StyleSectionKey;
-  }): V2HorizontalAlign => {
-    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
-    const textMap = getBoilerplateSectionMap(textSection);
-    return getHorizontalAlignFromStyle(wrapperMap, textMap);
-  };
-
-  const getBoilerplateVerticalAlign = ({
-    wrapperSection,
-  }: {
-    wrapperSection: V2StyleSectionKey;
-  }): V2VerticalAlign => {
-    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
-    return getVerticalAlignFromStyle(wrapperMap);
-  };
-
-  const updateBoilerplateAutoResizeHorizontalAlign = ({
-    wrapperSection,
-    textSection,
-    align,
-  }: {
-    wrapperSection: V2StyleSectionKey;
-    textSection: V2StyleSectionKey;
-    align: V2HorizontalAlign;
-  }) => {
-    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
-    const textMap = getBoilerplateSectionMap(textSection);
-
-    updateBoilerplateSection(wrapperSection, {
-      ...wrapperMap,
-      justifyContent: v2_HORIZONTAL_ALIGN_TO_JUSTIFY[align],
-    });
-
-    updateBoilerplateSection(textSection, {
-      ...textMap,
-      textAlign: align,
-    });
-  };
-
-  const updateBoilerplateAutoResizeVerticalAlign = ({
-    wrapperSection,
-    align,
-  }: {
-    wrapperSection: V2StyleSectionKey;
-    align: V2VerticalAlign;
-  }) => {
-    const wrapperMap = getBoilerplateSectionMap(wrapperSection);
-    updateBoilerplateSection(wrapperSection, {
-      ...wrapperMap,
-      alignItems: v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS[align],
-    });
-  };
+  const {
+    getBoilerplateSectionMap,
+    addBoilerplateProperty,
+    removeBoilerplateProperty,
+    renameBoilerplateProperty,
+    updateBoilerplatePropertyValue,
+    getBoilerplateFieldType,
+    getBoilerplateFieldStep,
+    resetBoilerplateSection,
+    getBoilerplateAutoResizePair,
+    getBoilerplateHorizontalAlign,
+    getBoilerplateVerticalAlign,
+    updateBoilerplateAutoResizeHorizontalAlign,
+    updateBoilerplateAutoResizeVerticalAlign,
+  } = useTemplateBoilerplateActions({
+    boilerplateConfig,
+    setBoilerplateConfig,
+    lockedStylePropertyKeys: v2_LOCKED_STYLE_PROPERTY_KEYS,
+    getHorizontalAlignFromStyle,
+    getVerticalAlignFromStyle,
+  });
 
   const {
     updateCardOptions,
