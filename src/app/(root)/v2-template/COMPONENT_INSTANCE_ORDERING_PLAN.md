@@ -147,14 +147,19 @@ Move / Extract Copy 분리:
     - graph가 존재하면 structure 기반 fallback 주입 최소화
     - 최종 structure를 normalized graph에서 runtime 재생성
   - normalize의 structure->graph fallback 제거로 graph-only 입력 경로 확정
+  - `renderConfig` 저장 포맷에서 파생 필드 `structure` 제거:
+    - 기본 config/normalize 결과에서 structure를 생성/저장하지 않음
+    - `V2TemplateRenderConfig` 타입에서도 `structure` 필드 제거
+  - graph 갱신 후 structure 수동 동기화 래퍼(no-op) 경로 제거
+  - `order-adapter` 조회 타입을 모델별 overload로 정리해 `tsc` 안정화
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
   - Phase D: Components 탭 최소 분리 완료 (마스터 편집 전용 플로우 강화 필요)
   - Phase E(진행): `cardCollection`에 `componentId`를 도입해 카드 렌더/레이어 생성 경로를 컴포넌트 기반으로 일반화
-  - graph-only 전환(진행): 구조 직접 수정 코드는 정리됨. normalize 보조 유틸/타입 정리만 남음
+  - graph-only 전환(마무리): 저장/정규화 경로는 graph 중심으로 정리됨. 기본 그래프 부트스트랩(기존 default structure 상수 기반) 분리 여부만 남음
 
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
   - orderKey adapter 실제 도입 및 pointer->orderKey 전환 유틸 고도화
-  - 완전 graph-only 경로로 잔여 fallback 의존 제거
+  - default graph 생성용 `structure` 상수 의존을 독립 graph seed로 치환할지 결정
