@@ -37,6 +37,11 @@ import {
   V2TemplateStyleRecord,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
+import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
+import {
+  v2_getRuntimeCardStructure,
+  v2_getRuntimeSceneNodes,
+} from "@/utils/time-table/template-graph-runtime";
 import { v2_normalizePointerOrderInGraph } from "@/utils/time-table/template-graph-order";
 
 const v2_DEFAULT_THEME = "first";
@@ -3013,6 +3018,15 @@ export const v2_normalizeTemplateRenderConfig = (
     ? normalized.graph
     : v2_createNodeGraphFromStructure(normalizedStructure);
   normalized.graph = v2_normalizeNodeGraph(raw.graph, graphFallback);
+  const runtimeConfig: V2TemplateRenderConfig = {
+    ...normalized,
+    graph: normalized.graph,
+  };
+  normalized.structure = {
+    layers: v2_getRuntimeLayerTree(runtimeConfig),
+    card: v2_getRuntimeCardStructure(runtimeConfig),
+    sceneNodes: v2_getRuntimeSceneNodes(runtimeConfig),
+  };
 
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
