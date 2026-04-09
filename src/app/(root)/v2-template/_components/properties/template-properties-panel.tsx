@@ -16,7 +16,6 @@ import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers
 import {
   v2_getDefaultCardComponentId,
   v2_getRuntimeCardStructureByComponentId,
-  v2_getRuntimeCardStructure,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
@@ -195,12 +194,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     }
     return next;
   }, [defaultCardComponentId, renderConfig]);
-  const runtimeCardStructure = useMemo(
-    () =>
-      runtimeCardStructuresByComponentId[defaultCardComponentId] ??
-      v2_getRuntimeCardStructure(renderConfig),
-    [defaultCardComponentId, renderConfig, runtimeCardStructuresByComponentId]
-  );
   const runtimeLayerTree = useMemo(
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
@@ -309,8 +302,12 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const activeCardStructure = useMemo(
     () =>
       runtimeCardStructuresByComponentId[activeCardComponentId] ??
-      runtimeCardStructure,
-    [activeCardComponentId, runtimeCardStructure, runtimeCardStructuresByComponentId]
+      runtimeCardStructuresByComponentId[defaultCardComponentId],
+    [
+      activeCardComponentId,
+      defaultCardComponentId,
+      runtimeCardStructuresByComponentId,
+    ]
   );
   const allRuntimeCardNodes = useMemo(() => {
     return Object.values(runtimeCardStructuresByComponentId).flatMap((structure) =>
