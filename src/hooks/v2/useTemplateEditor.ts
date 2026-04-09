@@ -1,9 +1,9 @@
 import { V2TemplateFormSchema } from "@/types/time-table/template-render-config";
 import { TTheme } from "@/types/time-table/theme";
 import {
-  createInitialGlobalDataFromConfig,
-  getDefaultCards,
-} from "@/utils/time-table/data";
+  v2_createInitialGlobalDataFromFormSchema,
+  v2_getDefaultCardsFromFormSchema,
+} from "@/utils/time-table/v2-form-data";
 import { v2_toCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
 import { useEffect, useMemo, useState } from "react";
 import { useTemplateData } from "./useTemplateData";
@@ -70,16 +70,22 @@ export const useTemplateEditor = ({
           updateData(persistedData.data);
           updateGlobalData(
             persistedData.globalData ??
-              createInitialGlobalDataFromConfig({ cardInputConfig })
+              v2_createInitialGlobalDataFromFormSchema({
+                formSchema: inputSchema,
+              })
           );
           if (persistedData.theme) {
             updateTheme(persistedData.theme);
           }
         } else {
-          const newDefaultCards = getDefaultCards({ cardInputConfig });
+          const newDefaultCards = v2_getDefaultCardsFromFormSchema({
+            formSchema: inputSchema,
+          });
           updateData(newDefaultCards);
           updateGlobalData(
-            createInitialGlobalDataFromConfig({ cardInputConfig })
+            v2_createInitialGlobalDataFromFormSchema({
+              formSchema: inputSchema,
+            })
           );
         }
       }
@@ -93,6 +99,7 @@ export const useTemplateEditor = ({
     updateGlobalData,
     updateTheme,
     cardInputConfig,
+    inputSchema,
   ]);
 
   const resetAll = () => {

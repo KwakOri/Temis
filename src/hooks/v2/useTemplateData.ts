@@ -5,14 +5,13 @@ import {
 } from "@/types/time-table/data";
 import { V2TemplateFormSchema } from "@/types/time-table/template-render-config";
 import {
-  createInitialCardFromConfig,
-  createInitialEntryFromConfig,
-  createInitialGlobalDataFromConfig,
-  getDefaultCards,
-  week,
-} from "@/utils/time-table/data";
-import { v2_toCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
-import { useCallback, useMemo, useState } from "react";
+  v2_createInitialCardFromFormSchema,
+  v2_createInitialEntryFromFormSchema,
+  v2_createInitialGlobalDataFromFormSchema,
+  v2_getDefaultCardsFromFormSchema,
+  v2_WEEK,
+} from "@/utils/time-table/v2-form-data";
+import { useCallback, useState } from "react";
 
 export interface UseTemplateDataOptions {
   inputSchema: V2TemplateFormSchema;
@@ -21,16 +20,11 @@ export interface UseTemplateDataOptions {
 export const useTemplateData = ({
   inputSchema,
 }: UseTemplateDataOptions) => {
-  const cardInputConfig = useMemo(
-    () => v2_toCardInputConfig(inputSchema),
-    [inputSchema]
-  );
-
   const [data, setData] = useState<TDefaultCard[]>(() => {
-    return getDefaultCards({ cardInputConfig });
+    return v2_getDefaultCardsFromFormSchema({ formSchema: inputSchema });
   });
   const [globalData, setGlobalData] = useState<TGlobalData>(() => {
-    return createInitialGlobalDataFromConfig({ cardInputConfig });
+    return v2_createInitialGlobalDataFromFormSchema({ formSchema: inputSchema });
   });
 
   const updateData = useCallback((newData: TDefaultCard[]) => {
@@ -112,8 +106,8 @@ export const useTemplateData = ({
       setData((prevData) => {
         const next = [...prevData];
         if (dayIndex >= 0 && dayIndex < next.length) {
-          const newEntry = createInitialEntryFromConfig({
-            cardInputConfig,
+          const newEntry = v2_createInitialEntryFromFormSchema({
+            formSchema: inputSchema,
           });
           next[dayIndex] = {
             ...next[dayIndex],
@@ -123,7 +117,7 @@ export const useTemplateData = ({
         return next;
       });
     },
-    [cardInputConfig]
+    [inputSchema]
   );
 
   const removeEntry = useCallback(
@@ -135,14 +129,16 @@ export const useTemplateData = ({
             (_, index) => index !== entryIndex
           );
           if (entries.length === 0) {
-            entries.push(createInitialEntryFromConfig({ cardInputConfig }));
+            entries.push(
+              v2_createInitialEntryFromFormSchema({ formSchema: inputSchema })
+            );
           }
           next[dayIndex] = { ...next[dayIndex], entries };
         }
         return next;
       });
     },
-    [cardInputConfig]
+    [inputSchema]
   );
 
   const toggleOffline = useCallback((dayIndex: number) => {
@@ -159,9 +155,9 @@ export const useTemplateData = ({
   }, []);
 
   const resetData = useCallback(() => {
-    const fresh = week.map((day) => ({
+    const fresh = v2_WEEK.map((day) => ({
       day,
-      ...createInitialCardFromConfig({ cardInputConfig }),
+      ...v2_createInitialCardFromFormSchema({ formSchema: inputSchema }),
     })) as TDefaultCard[];
 
     fresh.forEach((card) => {
@@ -169,25 +165,29 @@ export const useTemplateData = ({
     });
 
     setData(fresh);
-    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
-  }, [cardInputConfig]);
+    setGlobalData(
+      v2_createInitialGlobalDataFromFormSchema({ formSchema: inputSchema })
+    );
+  }, [inputSchema]);
 
   const resetGlobalData = useCallback(() => {
-    setGlobalData(createInitialGlobalDataFromConfig({ cardInputConfig }));
-  }, [cardInputConfig]);
+    setGlobalData(
+      v2_createInitialGlobalDataFromFormSchema({ formSchema: inputSchema })
+    );
+  }, [inputSchema]);
 
   const resetCard = useCallback(
     (dayIndex: number) => {
-      if (dayIndex >= 0 && dayIndex < week.length) {
+      if (dayIndex >= 0 && dayIndex < v2_WEEK.length) {
         const freshCard = {
-          day: week[dayIndex],
-          ...createInitialCardFromConfig({ cardInputConfig }),
+          day: v2_WEEK[dayIndex],
+          ...v2_createInitialCardFromFormSchema({ formSchema: inputSchema }),
         } as TDefaultCard;
         freshCard.isOffline = false;
         updateCard(dayIndex, freshCard);
       }
     },
-    [updateCard, cardInputConfig]
+    [updateCard, inputSchema]
   );
 
   return {
