@@ -9,7 +9,6 @@ import {
 import {
   V2TemplateAssetMap,
   V2TemplateCardNode,
-  V2TemplateCardNodeBinding,
   V2TemplateFieldScope,
   V2TemplateFontFaceSource,
   V2TemplateFontRegistryItem,
@@ -25,7 +24,6 @@ import {
   v2_getRuntimeCardStructure,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
-import { v2_bindingRefToLegacyInput } from "@/utils/time-table/template-render-config";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import { v2_BOILERPLATE_SELECT_OPTIONS } from "./model/boilerplate-presets";
 import {
@@ -38,6 +36,7 @@ import {
 import { v2_collectFormSchemaDiagnostics } from "./model/form-schema-diagnostics";
 import {
   V2NodeNewFieldDraft,
+  v2_parseNodeBindingFromSelectValue,
 } from "./model/binding-utils";
 import {
   v2_createStyleKeyToSectionKeyMap,
@@ -830,52 +829,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
-  const v2_parseBindingFromSelectValue = (
-    value: string,
-    currentBinding: V2TemplateCardNodeBinding
-  ): V2TemplateCardNodeBinding | null => {
-    if (value === "literal") {
-      return {
-        mode: "literal",
-        value:
-          currentBinding.mode === "literal"
-            ? currentBinding.value
-            : v2_bindingRefToLegacyInput(currentBinding),
-      };
-    }
-
-    if (value.startsWith("computed:")) {
-      const computedKey = value.replace("computed:", "");
-      if (
-        computedKey === "streamingDay" ||
-        computedKey === "streamingDate" ||
-        computedKey === "streamingTime"
-      ) {
-        return {
-          mode: "computed",
-          key: computedKey,
-        };
-      }
-      return null;
-    }
-
-    if (value.startsWith("field:")) {
-      const [, scope, ...rest] = value.split(":");
-      const key = rest.join(":");
-      if (!key) return null;
-      if (scope !== "entry" && scope !== "card" && scope !== "global") {
-        return null;
-      }
-      return {
-        mode: "field",
-        scope,
-        key,
-      };
-    }
-
-    return null;
-  };
-
   const {
     firstCard,
     firstEntry,
@@ -1180,7 +1133,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       renderStyleSectionEditor,
       renderAutoResizeAlignmentEditor,
       renderSceneNodeStructureControls,
-      parseBindingFromSelectValue: v2_parseBindingFromSelectValue,
+      parseBindingFromSelectValue: v2_parseNodeBindingFromSelectValue,
       onSetSectionHoverHighlight: setSectionHoverHighlight,
       onClearSectionHoverHighlight: clearSectionHoverHighlight,
       onSetSectionActiveHighlight: setSectionActiveHighlight,

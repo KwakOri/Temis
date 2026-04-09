@@ -1,4 +1,5 @@
 import type {
+  V2TemplateCardNodeBinding,
   V2TemplateFieldScope,
   V2TemplateFormField,
   V2TemplateNodeBindingRef,
@@ -48,4 +49,55 @@ export const v2_getNodeNewFieldDraft = (
   nodeId: string
 ): V2NodeNewFieldDraft => {
   return draftMap[nodeId] ?? v2_DEFAULT_NEW_FIELD_DRAFT;
+};
+
+export const v2_bindingToLiteralText = (
+  binding: V2TemplateNodeBindingRef
+): string => {
+  if (binding.mode === "literal") return binding.value;
+  if (binding.mode === "field") return binding.key;
+  return binding.key;
+};
+
+export const v2_parseNodeBindingFromSelectValue = (
+  value: string,
+  currentBinding: V2TemplateCardNodeBinding
+): V2TemplateCardNodeBinding | null => {
+  if (value === "literal") {
+    return {
+      mode: "literal",
+      value: v2_bindingToLiteralText(currentBinding),
+    };
+  }
+
+  if (value.startsWith("computed:")) {
+    const computedKey = value.replace("computed:", "");
+    if (
+      computedKey === "streamingDay" ||
+      computedKey === "streamingDate" ||
+      computedKey === "streamingTime"
+    ) {
+      return {
+        mode: "computed",
+        key: computedKey,
+      };
+    }
+    return null;
+  }
+
+  if (value.startsWith("field:")) {
+    const [, scope, ...rest] = value.split(":");
+    const key = rest.join(":");
+    if (!key) return null;
+    if (scope !== "entry" && scope !== "card" && scope !== "global") {
+      return null;
+    }
+    return {
+      mode: "field",
+      scope,
+      key,
+    };
+  }
+
+  return null;
 };

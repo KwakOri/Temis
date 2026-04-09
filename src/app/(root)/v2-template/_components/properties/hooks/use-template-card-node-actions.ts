@@ -16,7 +16,6 @@ import {
   v2_graphRemoveNodeSubtree,
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
-import { v2_createBindingRefFromLegacyInput } from "@/utils/time-table/template-render-config";
 import {
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
@@ -143,13 +142,11 @@ const useTemplateCardNodeActions = ({
   const updateCardNodeMeta = ({
     nodeId,
     label,
-    binding,
     colorKey,
     fontKey,
   }: {
     nodeId: string;
     label?: string;
-    binding?: string;
     colorKey?: V2TemplateCardNode["colorKey"];
     fontKey?: V2TemplateCardNode["fontKey"];
   }) => {
@@ -158,7 +155,6 @@ const useTemplateCardNodeActions = ({
       if (!prevNode) return prev;
 
       const nextLabel = typeof label === "string" ? label.trim() : undefined;
-      const nextBinding = typeof binding === "string" ? binding.trim() : undefined;
       const nextColorKey =
         typeof colorKey === "string" && templateColorKeys.includes(colorKey)
           ? colorKey
@@ -171,9 +167,6 @@ const useTemplateCardNodeActions = ({
       const nextNode: V2TemplateCardNode = {
         ...prevNode,
         ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-        ...(nextBinding && nextBinding.length > 0
-          ? { binding: v2_createBindingRefFromLegacyInput(nextBinding) }
-          : {}),
         ...(nextColorKey ? { colorKey: nextColorKey } : {}),
         ...(nextFontKey ? { fontKey: nextFontKey } : {}),
       };
@@ -201,9 +194,6 @@ const useTemplateCardNodeActions = ({
         graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
           ...node,
           ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-          ...(nextBinding && nextBinding.length > 0
-            ? { binding: v2_createBindingRefFromLegacyInput(nextBinding) }
-            : {}),
           meta: {
             ...(node.meta ?? {}),
             ...(nextColorKey ? { colorKey: nextColorKey } : {}),
@@ -249,7 +239,10 @@ const useTemplateCardNodeActions = ({
         kind,
         layerId,
         highlightTarget: target,
-        binding: v2_createBindingRefFromLegacyInput(nodeId),
+        binding: {
+          mode: "literal",
+          value: label,
+        },
         visibilityMode: "always",
         containerStyleKey,
         textStyleKey,
