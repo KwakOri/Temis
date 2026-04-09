@@ -99,6 +99,7 @@ import {
   v2_parseStyleSectionKey,
   v2_resolveCardStyleSection,
 } from "./model/style-section-utils";
+import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
@@ -4061,53 +4062,40 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       v2_isEntryFieldBindingKey(node.binding, "subTitle")
         ? renderConfig.maxFontSizes.SUB_TITLE
         : renderConfig.maxFontSizes.MAIN_TITLE;
-    const maxFontSize = options?.maxFontSize ?? maxFontSizeFallback;
-    const multiline = options?.multiline ?? true;
+    const maxFontSizeCandidate = Number(options?.maxFontSize);
+    const maxFontSize =
+      Number.isFinite(maxFontSizeCandidate) && maxFontSizeCandidate > 0
+        ? maxFontSizeCandidate
+        : maxFontSizeFallback;
+    const multiline =
+      typeof options?.multiline === "boolean"
+        ? options.multiline
+        : options?.multiline === undefined
+          ? true
+          : String(options.multiline).toLowerCase() === "true";
 
     return (
-      <>
-        <div
-          className="grid grid-cols-2 gap-2 items-center"
-          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
-          onMouseLeave={clearSectionHoverHighlight}
-          onClick={() => setSectionActiveHighlight(containerSection)}
-        >
-          <label className="text-xs text-gray-400">content / maxFontSize</label>
-          <input
-            type="number"
-            value={maxFontSize}
-            onChange={(e) => {
-              const value = Number(e.target.value);
-              if (!Number.isFinite(value) || value <= 0) return;
-              updateCardOptions(node.optionsKey!, { maxFontSize: value });
-              if (v2_isEntryFieldBindingKey(node.binding, "mainTitle")) {
-                updateMaxFontSize("MAIN_TITLE", value);
-              }
-              if (v2_isEntryFieldBindingKey(node.binding, "subTitle")) {
-                updateMaxFontSize("SUB_TITLE", value);
-              }
-            }}
-            className="px-3 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          />
-        </div>
-        <label
-          className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2"
-          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
-          onMouseLeave={clearSectionHoverHighlight}
-          onClick={() => setSectionActiveHighlight(containerSection)}
-        >
-          <span className="text-sm text-gray-200">content / multiline</span>
-          <input
-            type="checkbox"
-            checked={Boolean(multiline)}
-            onChange={(e) =>
-              updateCardOptions(node.optionsKey!, {
-                multiline: e.target.checked,
-              })
-            }
-          />
-        </label>
-      </>
+      <TemplateCardAutoResizeOptions
+        maxFontSize={maxFontSize}
+        multiline={multiline}
+        onHoverContainer={() => setSectionHoverHighlight(containerSection)}
+        onLeaveContainer={clearSectionHoverHighlight}
+        onActivateContainer={() => setSectionActiveHighlight(containerSection)}
+        onChangeMaxFontSize={(value) => {
+          updateCardOptions(node.optionsKey!, { maxFontSize: value });
+          if (v2_isEntryFieldBindingKey(node.binding, "mainTitle")) {
+            updateMaxFontSize("MAIN_TITLE", value);
+          }
+          if (v2_isEntryFieldBindingKey(node.binding, "subTitle")) {
+            updateMaxFontSize("SUB_TITLE", value);
+          }
+        }}
+        onChangeMultiline={(value) =>
+          updateCardOptions(node.optionsKey!, {
+            multiline: value,
+          })
+        }
+      />
     );
   };
 
