@@ -21,7 +21,10 @@ import {
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
-import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
+import {
+  v2_getDefaultCardComponentId,
+  v2_getRuntimeSceneNodes,
+} from "@/utils/time-table/template-graph-runtime";
 import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
@@ -49,7 +52,8 @@ interface UseTemplateSceneNodeActionsParams {
 }
 
 const v2_sceneNodeToGraphNode = (
-  sceneNode: V2TemplateSceneNode
+  sceneNode: V2TemplateSceneNode,
+  defaultCardComponentId: string
 ): V2TemplateGraphNode => {
   if (sceneNode.kind === "group") {
     return {
@@ -97,7 +101,7 @@ const v2_sceneNodeToGraphNode = (
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       meta: {
         source: sceneNode.source,
-        componentId: sceneNode.componentId ?? "card",
+        componentId: sceneNode.componentId ?? defaultCardComponentId,
         layerTarget: "grid",
         layerSectionKey: "grid",
         layerIcon: "grid",
@@ -329,6 +333,7 @@ const useTemplateSceneNodeActions = ({
     }
 
     if (kind === "cardCollection") {
+      const defaultCardComponentId = v2_getDefaultCardComponentId(prev);
       return {
         sceneNode: {
           id: baseSceneNodeId,
@@ -336,7 +341,7 @@ const useTemplateSceneNodeActions = ({
           kind: "cardCollection",
           layerId,
           source: "card",
-          componentId: "card",
+          componentId: defaultCardComponentId,
           visibilityMode: "always",
         },
         layerNode: {
@@ -490,7 +495,10 @@ const useTemplateSceneNodeActions = ({
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
 
-      const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
+      const nextGraphNode = v2_sceneNodeToGraphNode(
+        sceneNode,
+        v2_getDefaultCardComponentId(prev)
+      );
       const nextGraph = v2_graphInsertSiblingAfter({
         graph: prev.graph,
         anchorNodeId,
@@ -541,7 +549,10 @@ const useTemplateSceneNodeActions = ({
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
 
-      const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
+      const nextGraphNode = v2_sceneNodeToGraphNode(
+        sceneNode,
+        v2_getDefaultCardComponentId(prev)
+      );
       const nextGraph = v2_graphAppendChild({
         graph: prev.graph,
         parentId: parentNodeId,

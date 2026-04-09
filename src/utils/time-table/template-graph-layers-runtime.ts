@@ -7,6 +7,7 @@ import {
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
 import {
+  v2_getDefaultCardComponentId,
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
@@ -51,6 +52,7 @@ export const v2_getRuntimeLayerTree = (
 ): V2TemplateLayerNode[] => {
   const graph = renderConfig.graph;
   const graphNodes = graph?.nodes ?? {};
+  const defaultCardComponentId = v2_getDefaultCardComponentId(renderConfig);
   const runtimeSceneNodes = v2_getRuntimeSceneNodes(renderConfig);
   const componentLayerCache = new Map<string, V2TemplateLayerNode>();
 
@@ -139,7 +141,10 @@ export const v2_getRuntimeLayerTree = (
     }
 
     if (node.kind === "cardCollection") {
-      const componentId = node.componentId ?? graphNode?.meta?.componentId ?? "card";
+      const componentId =
+        node.componentId ??
+        graphNode?.meta?.componentId ??
+        defaultCardComponentId;
       return {
         id: layerId,
         label: node.label,

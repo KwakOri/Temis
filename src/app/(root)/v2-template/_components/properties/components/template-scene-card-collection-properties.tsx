@@ -30,10 +30,12 @@ const TemplateSceneCardCollectionProperties: React.FC<
   onChangeComponentId,
   onChangeVisibilityMode,
 }) => {
+  const preferredComponentId = node.componentId ?? componentOptions[0]?.value;
   const selectedComponentId =
-    componentOptions.some((option) => option.value === (node.componentId ?? "card"))
-      ? (node.componentId ?? "card")
-      : (componentOptions[0]?.value ?? "card");
+    preferredComponentId &&
+    componentOptions.some((option) => option.value === preferredComponentId)
+      ? preferredComponentId
+      : (componentOptions[0]?.value ?? "");
 
   return (
     <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">

@@ -79,10 +79,12 @@ const v2_buildSceneNodeFromGraph = ({
   graphNode,
   graphNodes,
   visited,
+  defaultCardComponentId,
 }: {
   graphNode: V2TemplateGraphNode;
   graphNodes: Record<string, V2TemplateGraphNode>;
   visited: Set<string>;
+  defaultCardComponentId: string;
 }): V2TemplateSceneNode | null => {
   if (visited.has(graphNode.id)) return null;
   visited.add(graphNode.id);
@@ -105,6 +107,7 @@ const v2_buildSceneNodeFromGraph = ({
           graphNode: childNode,
           graphNodes,
           visited,
+          defaultCardComponentId,
         })
       )
       .filter((childNode): childNode is V2TemplateSceneNode => childNode !== null);
@@ -138,7 +141,7 @@ const v2_buildSceneNodeFromGraph = ({
         typeof graphNode.meta?.componentId === "string" &&
         graphNode.meta.componentId.trim().length > 0
           ? graphNode.meta.componentId
-          : "card",
+          : defaultCardComponentId,
     };
   }
 
@@ -204,6 +207,7 @@ export const v2_getRuntimeSceneNodes = (
 
   if (sceneRoots.length === 0) return [];
 
+  const defaultCardComponentId = v2_getDefaultCardComponentId(renderConfig);
   const visited = new Set<string>();
   return sceneRoots
     .map((rootNode) =>
@@ -211,9 +215,20 @@ export const v2_getRuntimeSceneNodes = (
         graphNode: rootNode,
         graphNodes: graph.nodes,
         visited,
+        defaultCardComponentId,
       })
     )
     .filter((node): node is V2TemplateSceneNode => node !== null);
+};
+
+export const v2_getDefaultCardComponentId = (
+  renderConfig: V2TemplateRenderConfig
+): string => {
+  const componentDefinitions = renderConfig.graph?.componentDefinitions ?? {};
+  if (componentDefinitions.card) return "card";
+
+  const firstComponentId = Object.keys(componentDefinitions)[0];
+  return firstComponentId ?? "card";
 };
 
 const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {
@@ -275,5 +290,8 @@ export const v2_getRuntimeCardStructureByComponentId = (
 export const v2_getRuntimeCardStructure = (
   renderConfig: V2TemplateRenderConfig
 ): V2TemplateCardStructure => {
-  return v2_getRuntimeCardStructureByComponentId(renderConfig, "card");
+  return v2_getRuntimeCardStructureByComponentId(
+    renderConfig,
+    v2_getDefaultCardComponentId(renderConfig)
+  );
 };

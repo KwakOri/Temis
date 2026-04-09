@@ -17,7 +17,10 @@ import { getWeekDateRange, padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
 import { weekdays } from "@/utils/time-table/data";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
-import { v2_getRuntimeCardStructureByComponentId } from "@/utils/time-table/template-graph-runtime";
+import {
+  v2_getDefaultCardComponentId,
+  v2_getRuntimeCardStructureByComponentId,
+} from "@/utils/time-table/template-graph-runtime";
 import {
   v2_getComponentFontFamily,
   v2_isVisibleByMode,
@@ -102,6 +105,10 @@ const V2SceneStructureRenderer = ({
   const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const sceneLayoutRecord = renderConfig.layout.scene as Record<string, unknown>;
+  const defaultCardComponentId = useMemo(
+    () => v2_getDefaultCardComponentId(renderConfig),
+    [renderConfig]
+  );
   const runtimeCardStructureByComponentId = useMemo(() => {
     const next: Record<string, ReturnType<typeof v2_getRuntimeCardStructureByComponentId>> = {};
     Object.keys(renderConfig.graph.componentDefinitions ?? {}).forEach((componentId) => {
@@ -110,11 +117,14 @@ const V2SceneStructureRenderer = ({
         componentId
       );
     });
-    if (!next.card) {
-      next.card = v2_getRuntimeCardStructureByComponentId(renderConfig, "card");
+    if (!next[defaultCardComponentId]) {
+      next[defaultCardComponentId] = v2_getRuntimeCardStructureByComponentId(
+        renderConfig,
+        defaultCardComponentId
+      );
     }
     return next;
-  }, [renderConfig]);
+  }, [defaultCardComponentId, renderConfig]);
   const firstCard = data[0] as Record<string, unknown> | undefined;
   const firstEntry = (firstCard?.entries as Record<string, unknown>[] | undefined)?.[0];
   const firstCardOffline = Boolean(firstCard?.isOffline);
@@ -347,10 +357,10 @@ const V2SceneStructureRenderer = ({
   };
 
   const renderCardCollectionNode = (node: V2TemplateSceneCardCollectionNode) => {
-    const componentId = node.componentId ?? "card";
+    const componentId = node.componentId ?? defaultCardComponentId;
     const runtimeCardStructure =
       runtimeCardStructureByComponentId[componentId] ??
-      runtimeCardStructureByComponentId.card;
+      runtimeCardStructureByComponentId[defaultCardComponentId];
     if (node.source === "card") {
       return <V2TimeTableGrid key={node.id} cardStructure={runtimeCardStructure} />;
     }
