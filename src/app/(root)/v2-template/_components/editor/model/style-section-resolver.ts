@@ -3,7 +3,6 @@ import {
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
   V2TemplateSceneNode,
-  V2TemplateStructureConfig,
   V2TemplateStyleRecord,
 } from "@/types/time-table/template-render-config";
 
@@ -53,16 +52,6 @@ export const collectLayerNodeMap = (
     }
   });
   return nodeMap;
-};
-
-export const collectStyleSectionResolverMap = (
-  structure: V2TemplateStructureConfig
-): SectionStyleResolverMap => {
-  return collectStyleSectionResolverMapFromRuntime({
-    layers: structure.layers,
-    card: structure.card,
-    sceneNodes: structure.sceneNodes,
-  });
 };
 
 export const collectStyleSectionResolverMapFromRuntime = ({
