@@ -3045,9 +3045,12 @@ export const v2_normalizeTemplateRenderConfig = (
     }
   }
 
-  const normalizedStructure = v2_normalizeStructure(raw.structure, normalized.structure);
+  const hasGraphPayload = v2_hasGraphPayload(raw.graph);
+  const normalizedStructure = hasGraphPayload
+    ? normalized.structure
+    : v2_normalizeStructure(raw.structure, normalized.structure);
   normalized.structure = normalizedStructure;
-  const graphFallback = v2_hasGraphPayload(raw.graph)
+  const graphFallback = hasGraphPayload
     ? normalized.graph
     : v2_createNodeGraphFromStructure(normalizedStructure);
   normalized.graph = v2_normalizeNodeGraph(raw.graph, graphFallback);
