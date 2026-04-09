@@ -33,6 +33,7 @@ type V2StructureControlNode =
 interface UseTemplateSceneNodePropertyPanelsParams {
   assetKeys: Array<keyof V2TemplateAssetMap>;
   assetLabels: Record<keyof V2TemplateAssetMap, string>;
+  sceneCardCollectionComponentOptions: Array<{ value: string; label: string }>;
   visibilityOptions: Array<{ value: V2TemplateVisibilityMode; label: string }>;
   isSceneCustomNode: (nodeId: string) => boolean;
   renderStyleSectionEditor: ({
@@ -71,11 +72,16 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     nodeId: string,
     visibilityMode: V2TemplateVisibilityMode
   ) => void;
+  onUpdateSceneCardCollectionComponentId: (
+    nodeId: string,
+    componentId: string
+  ) => void;
 }
 
 const useTemplateSceneNodePropertyPanels = ({
   assetKeys,
   assetLabels,
+  sceneCardCollectionComponentOptions,
   visibilityOptions,
   isSceneCustomNode,
   renderStyleSectionEditor,
@@ -89,6 +95,7 @@ const useTemplateSceneNodePropertyPanels = ({
   onUpdateSceneNodeLabel,
   onUpdateSceneAssetNodeMeta,
   onUpdateSceneNodeVisibilityMode,
+  onUpdateSceneCardCollectionComponentId,
 }: UseTemplateSceneNodePropertyPanelsParams) => {
   const renderSceneNodeStructureControls = ({
     node,
@@ -217,6 +224,7 @@ const useTemplateSceneNodePropertyPanels = ({
     return (
       <TemplateSceneCardCollectionProperties
         node={node}
+        componentOptions={sceneCardCollectionComponentOptions}
         visibilityOptions={visibilityOptions}
         structureControls={renderSceneNodeStructureControls({
           node,
@@ -224,6 +232,9 @@ const useTemplateSceneNodePropertyPanels = ({
         })}
         layoutStyleEditor={layoutStyleEditor}
         onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
+        onChangeComponentId={(value) =>
+          onUpdateSceneCardCollectionComponentId(node.id, value)
+        }
         onChangeVisibilityMode={(value) =>
           onUpdateSceneNodeVisibilityMode(node.id, value)
         }

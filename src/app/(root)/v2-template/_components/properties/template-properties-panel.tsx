@@ -487,6 +487,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateSceneNodeVisibilityMode,
     updateSceneNodeLabel,
     updateSceneAssetNodeMeta,
+    updateSceneCardCollectionComponentId,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,
@@ -505,6 +506,17 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     sceneCustomLayerIdPrefix: v2_SCENE_CUSTOM_LAYER_ID_PREFIX,
     templateColorKeys: v2_TEMPLATE_COLOR_KEYS,
   });
+
+  const sceneCardCollectionComponentOptions = useMemo(
+    () =>
+      Object.values(renderConfig.graph.componentDefinitions)
+        .map((definition) => ({
+          value: definition.id,
+          label: definition.label || definition.id,
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [renderConfig.graph.componentDefinitions]
+  );
 
   const {
     parseFontWeightInput,
@@ -824,6 +836,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   } = useTemplateSceneNodePropertyPanels({
     assetKeys: v2_ASSET_KEYS,
     assetLabels: v2_ASSET_LABELS,
+    sceneCardCollectionComponentOptions,
     visibilityOptions: v2_CARD_NODE_VISIBILITY_OPTIONS,
     isSceneCustomNode,
     renderStyleSectionEditor: ({ title, section }) =>
@@ -849,6 +862,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onUpdateSceneNodeLabel: updateSceneNodeLabel,
     onUpdateSceneAssetNodeMeta: updateSceneAssetNodeMeta,
     onUpdateSceneNodeVisibilityMode: updateSceneNodeVisibilityMode,
+    onUpdateSceneCardCollectionComponentId: updateSceneCardCollectionComponentId,
   });
 
   const { renderCardNodeProperties, renderSceneTextNodeProperties } =

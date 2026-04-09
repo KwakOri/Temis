@@ -287,6 +287,49 @@ const useTemplateSceneNodeActions = ({
     });
   };
 
+  const updateSceneCardCollectionComponentId = (
+    nodeId: string,
+    rawComponentId: string
+  ) => {
+    const componentId = rawComponentId.trim();
+    if (!componentId) return;
+
+    safeUpdateConfig((prev) => {
+      if (!prev.graph.componentDefinitions[componentId]) {
+        return prev;
+      }
+
+      const { nodes: nextSceneNodes, updated } = v2_updateSceneNodeById({
+        nodes: prev.structure.sceneNodes,
+        nodeId,
+        updater: (node) => {
+          if (node.kind !== "cardCollection") return node;
+          return {
+            ...node,
+            componentId,
+          };
+        },
+      });
+
+      if (!updated) return prev;
+
+      return {
+        ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          meta: {
+            ...(node.meta ?? {}),
+            componentId,
+          },
+        })),
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+        },
+      };
+    });
+  };
+
   const isSceneCustomNode = (nodeId: string) =>
     nodeId.startsWith(sceneCustomNodeIdPrefix);
 
@@ -1074,6 +1117,7 @@ const useTemplateSceneNodeActions = ({
     updateSceneNodeVisibilityMode,
     updateSceneNodeLabel,
     updateSceneAssetNodeMeta,
+    updateSceneCardCollectionComponentId,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,
