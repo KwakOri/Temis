@@ -33,9 +33,7 @@ import {
   v2_findLayerNodeContextById,
   v2_findSceneNodeContextById,
   v2_updateLayerNodeLabelById,
-  v2_updateLayerNodeListByParentId,
   v2_updateSceneNodeById,
-  v2_updateSceneNodeListByParentId,
   v2_updateSceneTextNodeById,
 } from "../model/structure-utils";
 import {
@@ -349,8 +347,10 @@ const useTemplateSceneNodeActions = ({
       NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>
     >;
   } => {
-    const existingSceneNodeIds = v2_collectSceneNodeIds(prev.structure.sceneNodes);
-    const existingLayerNodeIds = v2_collectLayerNodeIds(prev.structure.layers);
+    const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+    const runtimeLayerTree = v2_getRuntimeLayerTree(prev);
+    const existingSceneNodeIds = v2_collectSceneNodeIds(runtimeSceneNodes);
+    const existingLayerNodeIds = v2_collectLayerNodeIds(runtimeLayerTree);
     const baseSceneNodeId = v2_createUniqueNodeId(
       sceneCustomNodeIdPrefix,
       existingSceneNodeIds
@@ -534,8 +534,9 @@ const useTemplateSceneNodeActions = ({
     let nextFocusTarget: V2TemplateHighlightTarget | null = null;
 
     safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
       const anchorContext = v2_findSceneNodeContextById({
-        nodes: prev.structure.sceneNodes,
+        nodes: runtimeSceneNodes,
         nodeId: anchorNodeId,
       });
       if (!anchorContext) return prev;
@@ -544,38 +545,6 @@ const useTemplateSceneNodeActions = ({
       const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
-      const { nodes: nextSceneNodes, updated: sceneUpdated } =
-        v2_updateSceneNodeListByParentId({
-          nodes: prev.structure.sceneNodes,
-          parentId: anchorContext.parentId,
-          updater: (siblings) => {
-            const nextSiblings = [...siblings];
-            nextSiblings.splice(anchorContext.index + 1, 0, sceneNode);
-            return nextSiblings;
-          },
-        });
-      if (!sceneUpdated) return prev;
-
-      const anchorLayerId = anchorContext.node.layerId;
-      let nextLayers = prev.structure.layers;
-      if (anchorLayerId) {
-        const layerContext = v2_findLayerNodeContextById({
-          nodes: prev.structure.layers,
-          nodeId: anchorLayerId,
-        });
-        if (layerContext) {
-          const { nodes: updatedLayers } = v2_updateLayerNodeListByParentId({
-            nodes: prev.structure.layers,
-            parentId: layerContext.parentId,
-            updater: (siblings) => {
-              const nextSiblings = [...siblings];
-              nextSiblings.splice(layerContext.index + 1, 0, layerNode);
-              return nextSiblings;
-            },
-          });
-          nextLayers = updatedLayers;
-        }
-      }
 
       const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
       const nextGraph = v2_graphInsertSiblingAfter({
@@ -583,6 +552,10 @@ const useTemplateSceneNodeActions = ({
         anchorNodeId,
         newNode: nextGraphNode,
       });
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
@@ -596,8 +569,9 @@ const useTemplateSceneNodeActions = ({
         },
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          layers: nextLayers,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -622,8 +596,9 @@ const useTemplateSceneNodeActions = ({
     let nextFocusTarget: V2TemplateHighlightTarget | null = null;
 
     safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
       const parentContext = v2_findSceneNodeContextById({
-        nodes: prev.structure.sceneNodes,
+        nodes: runtimeSceneNodes,
         nodeId: parentNodeId,
       });
       if (!parentContext || parentContext.node.kind !== "group") return prev;
@@ -632,20 +607,6 @@ const useTemplateSceneNodeActions = ({
       const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
-      const { nodes: nextSceneNodes, updated: sceneUpdated } =
-        v2_updateSceneNodeListByParentId({
-          nodes: prev.structure.sceneNodes,
-          parentId: parentNodeId,
-          updater: (siblings) => [...siblings, sceneNode],
-        });
-      if (!sceneUpdated) return prev;
-
-      const parentLayerId = parentContext.node.layerId ?? null;
-      const { nodes: nextLayers } = v2_updateLayerNodeListByParentId({
-        nodes: prev.structure.layers,
-        parentId: parentLayerId,
-        updater: (siblings) => [...siblings, layerNode],
-      });
 
       const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
       const nextGraph = v2_graphAppendChild({
@@ -653,6 +614,10 @@ const useTemplateSceneNodeActions = ({
         parentId: parentNodeId,
         newNode: nextGraphNode,
       });
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
@@ -666,8 +631,9 @@ const useTemplateSceneNodeActions = ({
         },
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          layers: nextLayers,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -813,8 +779,10 @@ const useTemplateSceneNodeActions = ({
     let nextFocusTarget: V2TemplateHighlightTarget | null = null;
 
     safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const runtimeLayerTree = v2_getRuntimeLayerTree(prev);
       const targetContext = v2_findSceneNodeContextById({
-        nodes: prev.structure.sceneNodes,
+        nodes: runtimeSceneNodes,
         nodeId,
       });
       if (!targetContext) return prev;
@@ -822,12 +790,12 @@ const useTemplateSceneNodeActions = ({
 
       if (targetContext.parentId) {
         const parentSceneContext = v2_findSceneNodeContextById({
-          nodes: prev.structure.sceneNodes,
+          nodes: runtimeSceneNodes,
           nodeId: targetContext.parentId,
         });
         if (parentSceneContext?.node.layerId) {
           const parentLayerContext = v2_findLayerNodeContextById({
-            nodes: prev.structure.layers,
+            nodes: runtimeLayerTree,
             nodeId: parentSceneContext.node.layerId,
           });
           if (parentLayerContext) {
@@ -835,19 +803,10 @@ const useTemplateSceneNodeActions = ({
             nextFocusTarget = parentLayerContext.node.target ?? null;
           }
         }
-      } else if (prev.structure.layers.length > 0) {
-        nextFocusLayerId = prev.structure.layers[0].id;
-        nextFocusTarget = prev.structure.layers[0].target ?? null;
+      } else if (runtimeLayerTree.length > 0) {
+        nextFocusLayerId = runtimeLayerTree[0].id;
+        nextFocusTarget = runtimeLayerTree[0].target ?? null;
       }
-
-      const { nodes: nextSceneNodes, updated: sceneUpdated } =
-        v2_updateSceneNodeListByParentId({
-          nodes: prev.structure.sceneNodes,
-          parentId: targetContext.parentId,
-          updater: (siblings) =>
-            siblings.filter((sibling) => sibling.id !== targetContext.node.id),
-        });
-      if (!sceneUpdated) return prev;
 
       const styleKeysToDelete = v2_collectSceneNodeStyleKeys(targetContext.node);
       const nextSceneLayout = {
@@ -858,35 +817,24 @@ const useTemplateSceneNodeActions = ({
           delete nextSceneLayout[styleKey];
         }
       });
-
-      const targetLayerId = targetContext.node.layerId;
-      const nextLayers = targetLayerId
-        ? (() => {
-            const layerContext = v2_findLayerNodeContextById({
-              nodes: prev.structure.layers,
-              nodeId: targetLayerId,
-            });
-            if (!layerContext) return prev.structure.layers;
-            return v2_updateLayerNodeListByParentId({
-              nodes: prev.structure.layers,
-              parentId: layerContext.parentId,
-              updater: (siblings) =>
-                siblings.filter((sibling) => sibling.id !== targetLayerId),
-            }).nodes;
-          })()
-        : prev.structure.layers;
+      const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, nodeId);
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphRemoveNodeSubtree(prev.graph, nodeId),
+        graph: nextGraph,
         layout: {
           ...prev.layout,
           scene: nextSceneLayout,
         },
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          layers: nextLayers,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
