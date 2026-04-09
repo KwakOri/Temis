@@ -1,4 +1,4 @@
-import { useTimeTable } from "@/contexts/TimeTableContext";
+import { useTemplateEditorUIContext } from "@/contexts/v2/template-editor-ui-context";
 import { useGesture } from "@use-gesture/react";
 import { useEffect, useMemo, useState } from "react";
 import V2TimeTableContent from "../scene/preview-scene";
@@ -9,7 +9,7 @@ import {
 } from "./preview-scale";
 
 const V2TimeTablePreview = () => {
-  const { state, actions } = useTimeTable();
+  const { state, actions } = useTemplateEditorUIContext();
   const { scale, isMobile, captureSize } = state;
   const { updateScale } = actions;
   const [position, setPosition] = useState({ x: 0, y: 0 });

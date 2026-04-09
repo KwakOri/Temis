@@ -2,9 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-react";
 
 import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
-import { TimeTableProvider } from '@/contexts/TimeTableContext';
 import { useTemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
 import { TemplateEditorRuntimeProvider } from '@/contexts/v2/template-editor-runtime-context';
+import { TemplateEditorUIProvider } from '@/contexts/v2/template-editor-ui-context';
 import { useTemplateEditor } from '@/hooks/v2/useTemplateEditor';
 import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui';
 import { TTheme } from '@/types/time-table/theme';
@@ -98,7 +98,7 @@ const V2TimeTableEditor: React.FC = () => {
     });
   };
 
-  const timeTableState = useMemo(
+  const uiContextValue = useMemo(
     () => ({ state, actions }),
     [actions, state]
   );
@@ -177,7 +177,7 @@ const V2TimeTableEditor: React.FC = () => {
   );
 
   return (
-    <TimeTableProvider value={timeTableState}>
+    <TemplateEditorUIProvider value={uiContextValue}>
       <TimeTableDesignGuideProvider>
         <TemplateEditorRuntimeProvider value={runtimeValue}>
           {!isInitialized || state.weekDates.length === 0 ? (
@@ -268,7 +268,7 @@ const V2TimeTableEditor: React.FC = () => {
           )}
         </TemplateEditorRuntimeProvider>
       </TimeTableDesignGuideProvider>
-    </TimeTableProvider>
+    </TemplateEditorUIProvider>
   );
 };
 

@@ -1,7 +1,7 @@
 import React from "react";
 
-import { useTimeTableData } from "@/contexts/TimeTableContext";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import { V2TemplateComponentInstanceMode } from "@/types/time-table/template-render-config";
 import V2TimeTableCell from "./card-cell";
@@ -105,7 +105,7 @@ const TimeTableGrid: React.FC = () => {
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateEditorRuntimeContext();
-  const { weekDates } = useTimeTableData();
+  const { weekDates } = useTemplateEditorData();
   const { renderConfig } = useTemplateRenderConfigContext();
   const gridLayout =
     (renderConfig.layout.grid as Record<string, string | number>) ?? {};

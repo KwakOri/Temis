@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
 
-import { useTimeTableData } from "@/contexts/TimeTableContext";
 import {
   useTemplateRenderConfigContext,
   getAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
 import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import {
   V2TemplateSceneAssetNode,
@@ -87,7 +87,7 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateEditorRuntimeContext();
-  const { weekDates, profileText, imageSrc } = useTimeTableData();
+  const { weekDates, profileText, imageSrc } = useTemplateEditorData();
   const layerTargetMap = useMemo(
     () => v2_collectLayerTargetById(renderConfig.structure.layers),
     [renderConfig.structure.layers]

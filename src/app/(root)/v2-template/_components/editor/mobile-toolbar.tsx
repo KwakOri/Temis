@@ -1,4 +1,4 @@
-import { useTimeTable } from "@/contexts/TimeTableContext";
+import { useTemplateEditorUIContext } from "@/contexts/v2/template-editor-ui-context";
 import Link from "next/link";
 import React from "react";
 import {
@@ -8,7 +8,7 @@ import {
 } from "./preview-scale";
 
 const MobileHeader: React.FC = () => {
-  const { state, actions } = useTimeTable();
+  const { state, actions } = useTemplateEditorUIContext();
   return (
     <div className="sticky top-0 flex items-center justify-between p-4 bg-timetable-form-bg backdrop-blur-sm border-b border-gray-200 z-50">
       {/* 뒤로가기 버튼 */}

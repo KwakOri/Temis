@@ -7,9 +7,9 @@ import {
   Plus,
 } from "lucide-react";
 
-import { useTimeTable } from "@/contexts/TimeTableContext";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
+import { useTemplateEditorActions } from "@/contexts/v2/template-editor-ui-context";
 import {
   V2TemplateAssetDimension,
   V2TemplateAssetMap,
@@ -477,7 +477,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     setHoverHighlightTarget,
     setActiveHighlightTarget,
   } = useTemplateEditorRuntimeContext();
-  const { actions } = useTimeTable();
+  const { downloadImage } = useTemplateEditorActions();
 
   const [activeTab, setActiveTab] = useState<V2BuilderTab>("canvas");
   const [copyState, setCopyState] = useState<"idle" | "success" | "error">(
@@ -5747,7 +5747,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
       <button
         onClick={() =>
-          actions.downloadImage(
+          downloadImage(
             renderConfig.templateSize.width,
             renderConfig.templateSize.height
           )

@@ -1,4 +1,4 @@
-import { useTimeTableUI } from "@/contexts/TimeTableContext";
+import { useTemplateEditorUI } from "@/contexts/v2/template-editor-ui-context";
 import Link from "next/link";
 import React from "react";
 import {
@@ -8,7 +8,7 @@ import {
 } from "./preview-scale";
 
 const TimeTableControls: React.FC = () => {
-  const { scale, updateScale } = useTimeTableUI();
+  const { scale, updateScale } = useTemplateEditorUI();
   return (
     <div className="fixed top-4 left-1/2 z-50 -translate-x-1/2 rounded-lg border border-[#303848] bg-[#121722]/95 px-4 py-2 shadow-[0_12px_30px_rgba(0,0,0,0.35)] select-none flex items-center gap-4">
       {/* 뒤로가기 버튼 */}

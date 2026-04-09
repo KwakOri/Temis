@@ -1,5 +1,8 @@
-import { useTimeTableData, useTimeTableUI } from "@/contexts/TimeTableContext";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import {
+  useTemplateEditorData,
+  useTemplateEditorUI,
+} from "@/contexts/v2/template-editor-ui-context";
 import {
   useTemplateRenderConfigContext,
   getAssetUrlFromConfig,
@@ -61,8 +64,8 @@ const v2_sceneHasVisibleAssetKey = ({
 
 const V2TimeTableContent: React.FC = () => {
   const { currentTheme, isLayerHidden, data } = useTemplateEditorRuntimeContext();
-  const { weekDates } = useTimeTableData();
-  const { scale } = useTimeTableUI();
+  const { weekDates } = useTemplateEditorData();
+  const { scale } = useTemplateEditorUI();
   const { renderConfig } = useTemplateRenderConfigContext();
 
   if (weekDates.length === 0) return null;
