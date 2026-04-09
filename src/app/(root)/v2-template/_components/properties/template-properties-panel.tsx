@@ -62,6 +62,7 @@ import {
   v2_resolveCardStyleSection,
   v2_resolveTextNodeSections,
 } from "./model/style-section-utils";
+import { v2_getPropertiesStyleEditorTitle } from "./model/style-section-title-utils";
 import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
 import TemplateBoilerplateSectionEditor from "./components/template-boilerplate-section-editor";
 import TemplateBoilerplateSettingsModal from "./components/template-boilerplate-settings-modal";
@@ -1983,23 +1984,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const heading =
       structurePropertiesMaps.sectionToLabel[section] ??
       (knownSection ? v2_STYLE_SECTION_LABELS[knownSection] : section);
-
-    const styleTitle =
-      section === "topObjectContainer"
-        ? "container style"
-        : section === "profileImage"
-          ? "image style"
-          : section === "profileFrame"
-            ? "frame style"
-            : section === "profileTextRootStyle"
-              ? "root style"
-              : section === "profileTextWrapperStyle"
-                ? "wrapper style"
-                : section === "profileTextStyle"
-                  ? "text style"
-                  : section === "profileTextArtistImageStyle"
-                    ? "artist image style"
-            : "style";
+    const styleTitle = v2_getPropertiesStyleEditorTitle(section);
 
     return (
       <TemplateSimplePropertiesSection
