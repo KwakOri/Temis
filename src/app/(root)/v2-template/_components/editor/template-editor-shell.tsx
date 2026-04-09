@@ -19,11 +19,22 @@ import {
   applyReorderedLayerZIndex,
   buildOrderedLayerIdsByParent,
 } from './model/layer-z-index';
-import { collectStyleSectionResolverMapFromRuntime } from './model/style-section-resolver';
+import {
+  ROOT_LAYER_PARENT_ID,
+  collectStyleSectionResolverMapFromRuntime,
+} from './model/style-section-resolver';
 import V2MobileHeader from './mobile-toolbar';
 import V2TimeTableLayersPanel from './layers-panel';
 import V2TimeTableControls from './preview-toolbar';
 import V2TimeTablePreview from './preview-canvas';
+import { v2_graphMoveNode } from '@/utils/time-table/template-graph-editor';
+import {
+  v2_collectSceneNodesByLayerId,
+  v2_findLayerNodeContextById,
+  v2_findSceneNodeContextById,
+  v2_updateLayerNodeListByParentId,
+  v2_updateSceneNodeListByParentId,
+} from '../properties/model/structure-utils';
 
 const useV2TemplateEditorSettings = () => {
   const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
@@ -131,6 +142,136 @@ const V2TimeTableEditor: React.FC = () => {
           parentId,
           orderedIds,
         }),
+      };
+    });
+  };
+  const applyLayerRelocation = ({
+    layerId,
+    targetParentId,
+    targetIndex,
+  }: {
+    layerId: string;
+    targetParentId: string;
+    targetIndex: number;
+  }) => {
+    if (!setRenderConfig) return;
+
+    setRenderConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const sceneNodeByLayerId = v2_collectSceneNodesByLayerId(runtimeSceneNodes);
+      const sourceSceneNode = sceneNodeByLayerId.get(layerId);
+
+      if (!sourceSceneNode) {
+        return prev;
+      }
+
+      const targetLayerParentId =
+        targetParentId === ROOT_LAYER_PARENT_ID ? null : targetParentId;
+      const targetSceneParentId =
+        targetLayerParentId === null
+          ? null
+          : (() => {
+              const parentSceneNode = sceneNodeByLayerId.get(targetLayerParentId);
+              if (!parentSceneNode || parentSceneNode.kind !== "group") return undefined;
+              return parentSceneNode.id;
+            })();
+
+      if (targetLayerParentId !== null && targetSceneParentId === undefined) {
+        return prev;
+      }
+
+      const sourceSceneContext = v2_findSceneNodeContextById({
+        nodes: prev.structure.sceneNodes,
+        nodeId: sourceSceneNode.id,
+      });
+      if (!sourceSceneContext) return prev;
+
+      const desiredIndex = Math.max(0, Math.floor(targetIndex));
+      const effectiveIndex =
+        sourceSceneContext.parentId === targetSceneParentId &&
+        desiredIndex > sourceSceneContext.index
+          ? desiredIndex - 1
+          : desiredIndex;
+
+      const { nodes: afterSceneRemoval, updated: sceneRemoved } =
+        v2_updateSceneNodeListByParentId({
+          nodes: prev.structure.sceneNodes,
+          parentId: sourceSceneContext.parentId,
+          updater: (siblings) =>
+            siblings.filter((sibling) => sibling.id !== sourceSceneNode.id),
+        });
+      if (!sceneRemoved) return prev;
+
+      const { nodes: nextSceneNodes, updated: sceneInserted } =
+        v2_updateSceneNodeListByParentId({
+          nodes: afterSceneRemoval,
+          parentId: targetSceneParentId ?? null,
+          updater: (siblings) => {
+            const nextSiblings = [...siblings];
+            const insertIndex = Math.max(
+              0,
+              Math.min(nextSiblings.length, effectiveIndex)
+            );
+            nextSiblings.splice(insertIndex, 0, sourceSceneContext.node);
+            return nextSiblings;
+          },
+        });
+      if (!sceneInserted) return prev;
+
+      let nextLayers = prev.structure.layers;
+      const sourceLayerContext = v2_findLayerNodeContextById({
+        nodes: prev.structure.layers,
+        nodeId: layerId,
+      });
+      if (sourceLayerContext) {
+        const { nodes: afterLayerRemoval, updated: layerRemoved } =
+          v2_updateLayerNodeListByParentId({
+            nodes: prev.structure.layers,
+            parentId: sourceLayerContext.parentId,
+            updater: (siblings) =>
+              siblings.filter((sibling) => sibling.id !== layerId),
+          });
+
+        if (layerRemoved) {
+          const effectiveLayerIndex =
+            sourceLayerContext.parentId === targetLayerParentId &&
+            desiredIndex > sourceLayerContext.index
+              ? desiredIndex - 1
+              : desiredIndex;
+
+          const { nodes: layerInserted, updated: layerInsertedUpdated } =
+            v2_updateLayerNodeListByParentId({
+              nodes: afterLayerRemoval,
+              parentId: targetLayerParentId,
+              updater: (siblings) => {
+                const nextSiblings = [...siblings];
+                const insertIndex = Math.max(
+                  0,
+                  Math.min(nextSiblings.length, effectiveLayerIndex)
+                );
+                nextSiblings.splice(insertIndex, 0, sourceLayerContext.node);
+                return nextSiblings;
+              },
+            });
+          if (layerInsertedUpdated) {
+            nextLayers = layerInserted;
+          }
+        }
+      }
+
+      return {
+        ...prev,
+        graph: v2_graphMoveNode({
+          graph: prev.graph,
+          nodeId: sourceSceneNode.id,
+          targetParentId: targetSceneParentId ?? null,
+          targetIndex: effectiveIndex,
+        }),
+        structure: {
+          ...prev.structure,
+          sceneNodes: nextSceneNodes,
+          layers: nextLayers,
+        },
       };
     });
   };
@@ -273,6 +414,9 @@ const V2TimeTableEditor: React.FC = () => {
                           parentId,
                           orderedIds,
                         });
+                      }}
+                      onRelocateLayers={(payload) => {
+                        applyLayerRelocation(payload);
                       }}
                       onSelectLayer={({ layerId }) => {
                         setIsRightPanelOpen(true);

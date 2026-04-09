@@ -46,6 +46,12 @@ interface V2TimeTableLayersPanelProps {
     parentId: string;
     orderedIds: string[];
   }) => void;
+  onRelocateLayers?: (payload: {
+    layerId: string;
+    sourceParentId: string;
+    targetParentId: string;
+    targetIndex: number;
+  }) => void;
 }
 
 const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
@@ -100,6 +106,31 @@ const v2_findNodeById = (
   return null;
 };
 
+const v2_isDescendantLayer = ({
+  nodes,
+  ancestorId,
+  targetId,
+}: {
+  nodes: V2LayerNode[];
+  ancestorId: string;
+  targetId: string;
+}): boolean => {
+  const ancestorNode = v2_findNodeById(nodes, ancestorId);
+  if (!ancestorNode?.children?.length) return false;
+
+  const queue = [...ancestorNode.children];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+    if (current.id === targetId) return true;
+    if (current.children?.length) {
+      queue.push(...current.children);
+    }
+  }
+
+  return false;
+};
+
 const v2_createInitialOrderMap = (
   layerTree: V2LayerNode[]
 ): Record<string, string[]> => {
@@ -113,6 +144,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   onSelectLayer,
   orderedIdsByParent,
   onReorderLayers,
+  onRelocateLayers,
 }) => {
   const {
     activeHighlightTarget,
@@ -139,11 +171,12 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const [dragState, setDragState] = useState<{
     parentId: V2LayerParentId;
     nodeId: string;
+    siblingIds: string[];
   } | null>(null);
   const [dropState, setDropState] = useState<{
     parentId: V2LayerParentId;
     nodeId: string;
-    position: "before" | "after";
+    position: "before" | "after" | "inside";
   } | null>(null);
 
   useEffect(() => {
@@ -245,6 +278,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       dropState?.parentId === parentId &&
       dropState.nodeId === node.id &&
       dropState.position === "after";
+    const isDropTargetInside =
+      dropState?.nodeId === node.id && dropState.position === "inside";
     const isSelfHidden = isLayerHidden(node.id);
     const isEffectivelyHidden = ancestorHidden || isSelfHidden;
     const isInheritedHidden = ancestorHidden && !isSelfHidden;
@@ -260,8 +295,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
         : (parentNode?.children ?? [])
     );
     const orderedSiblingIds = orderedSiblings.map((layerNode) => layerNode.id);
-    const isReorderable =
-      orderedSiblingIds.length > 1 && (node.target !== undefined || hasChildren);
+    const childOrderedIds = getOrderedChildren(node.id, node.children ?? []).map(
+      (layerNode) => layerNode.id
+    );
+    const isReorderable = node.target !== undefined || hasChildren;
+    const canDropInside = node.kind === "group";
 
     return (
       <div key={node.id} className="space-y-1">
@@ -281,6 +319,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             setDragState({
               parentId,
               nodeId: node.id,
+              siblingIds: orderedSiblingIds,
             });
             setDropState(null);
             event.dataTransfer.effectAllowed = "move";
@@ -292,13 +331,19 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           }}
           onDragOver={(event) => {
             if (!dragState) return;
-            if (dragState.parentId !== parentId) return;
             if (dragState.nodeId === node.id) return;
 
             event.preventDefault();
             const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
             const offsetY = event.clientY - rect.top;
-            const nextPosition = offsetY < rect.height / 2 ? "before" : "after";
+            const nextPosition =
+              canDropInside &&
+              offsetY > rect.height * 0.32 &&
+              offsetY < rect.height * 0.68
+                ? "inside"
+                : offsetY < rect.height / 2
+                  ? "before"
+                  : "after";
             setDropState({
               parentId,
               nodeId: node.id,
@@ -307,21 +352,72 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           }}
           onDrop={(event) => {
             if (!dragState || !dropState) return;
-            if (dragState.parentId !== parentId || dropState.parentId !== parentId) {
-              return;
-            }
             if (dragState.nodeId === node.id) return;
             event.preventDefault();
 
-            const nextOrder = v2_moveLayerNode(
-              orderedSiblingIds,
-              dragState.nodeId,
-              node.id,
-              dropState.position
-            );
-            commitLayerOrder({
-              parentId,
-              orderedIds: nextOrder,
+            const targetParentId =
+              dropState.position === "inside" ? node.id : parentId;
+            const rawTargetIndex =
+              dropState.position === "inside"
+                ? childOrderedIds.length
+                : orderedSiblingIds.indexOf(node.id) +
+                  (dropState.position === "after" ? 1 : 0);
+            const targetIndex = Math.max(0, rawTargetIndex);
+            if (
+              v2_isDescendantLayer({
+                nodes: layerTree,
+                ancestorId: dragState.nodeId,
+                targetId: targetParentId,
+              })
+            ) {
+              setDropState(null);
+              setDragState(null);
+              return;
+            }
+
+            if (
+              targetParentId === dragState.parentId &&
+              dropState.position !== "inside"
+            ) {
+              const nextOrder = v2_moveLayerNode(
+                orderedSiblingIds,
+                dragState.nodeId,
+                node.id,
+                dropState.position
+              );
+              commitLayerOrder({
+                parentId,
+                orderedIds: nextOrder,
+              });
+              setDropState(null);
+              setDragState(null);
+              return;
+            }
+
+            setOrderedNodeIdsByParent((prev) => {
+              const sourceIds = dragState.siblingIds.filter(
+                (id) => id !== dragState.nodeId
+              );
+              const targetSource =
+                targetParentId === dragState.parentId
+                  ? sourceIds
+                  : (prev[targetParentId] ?? []);
+              const targetIds = targetSource.filter((id) => id !== dragState.nodeId);
+              const insertIndex = Math.max(0, Math.min(targetIds.length, targetIndex));
+              targetIds.splice(insertIndex, 0, dragState.nodeId);
+
+              return {
+                ...prev,
+                [dragState.parentId]: sourceIds,
+                [targetParentId]: targetIds,
+              };
+            });
+
+            onRelocateLayers?.({
+              layerId: dragState.nodeId,
+              sourceParentId: dragState.parentId,
+              targetParentId,
+              targetIndex,
             });
             setDropState(null);
             setDragState(null);
@@ -392,6 +488,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             <VisibilityIcon className="h-3.5 w-3.5" />
           </button>
         </div>
+        {isDropTargetInside && (
+          <div
+            className="ml-2 mr-1 rounded border border-dashed border-[#4f8cff]/90 bg-[#4f8cff]/10 px-2 py-1 text-[10px] text-[#9ec1ff]"
+            style={{ marginLeft: `${depth * 14 + 22}px` }}
+          >
+            하위로 이동
+          </div>
+        )}
         {isDropTargetAfter && (
           <div
             className="ml-2 mr-1 h-[2px] rounded bg-[#4f8cff]"
