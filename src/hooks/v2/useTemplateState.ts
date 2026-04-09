@@ -510,8 +510,3 @@ export const useTemplateState = (captureSize?: {
 
   return { state, actions };
 };
-
-// Backward-compatible aliases during migration.
-export type V2TimeTableEditorState = TemplateEditorUIState;
-export type V2TimeTableEditorActions = TemplateEditorUIActions;
-export const useV2TimeTableState = useTemplateState;

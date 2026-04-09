@@ -124,6 +124,3 @@ export const useTemplateEditor = ({
     isInitialized,
   };
 };
-
-// Backward-compatible alias during migration.
-export const useV2TimeTableEditor = useTemplateEditor;

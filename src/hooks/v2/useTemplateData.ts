@@ -203,6 +203,3 @@ export const useTemplateData = ({
     resetCard,
   };
 };
-
-// Backward-compatible alias during migration.
-export const useV2TimeTableData = useTemplateData;

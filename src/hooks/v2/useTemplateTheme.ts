@@ -28,6 +28,3 @@ export const useTemplateTheme = (defaultTheme: TTheme = "first") => {
     toggleTheme,
   };
 };
-
-// Backward-compatible alias during migration.
-export const useV2TimeTableTheme = useTemplateTheme;

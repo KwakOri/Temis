@@ -65,6 +65,3 @@ export const useTemplatePersistence = ({
     autoSave,
   };
 };
-
-// Backward-compatible alias during migration.
-export const useV2TimeTablePersistence = useTemplatePersistence;

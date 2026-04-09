@@ -27,9 +27,6 @@ export interface TemplateEditorRuntimeContextValue {
   ) => void;
 }
 
-export type V2TimeTableEditorRuntimeContextValue =
-  TemplateEditorRuntimeContextValue;
-
 const TemplateEditorRuntimeContext =
   createContext<TemplateEditorRuntimeContextValue | null>(null);
 
@@ -55,7 +52,3 @@ export const useTemplateEditorRuntimeContext = () => {
 
   return context;
 };
-
-// Backward-compatible aliases during migration.
-export const V2TimeTableEditorRuntimeProvider = TemplateEditorRuntimeProvider;
-export const useV2TimeTableEditorRuntimeContext = useTemplateEditorRuntimeContext;

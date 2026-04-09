@@ -21,8 +21,6 @@ export interface TemplateRenderConfigContextValue {
   setRenderConfig?: Dispatch<SetStateAction<V2TemplateRenderConfig>>;
 }
 
-export type V2TemplateRenderConfigContextValue = TemplateRenderConfigContextValue;
-
 const TemplateRenderConfigContext =
   createContext<TemplateRenderConfigContextValue | null>(null);
 
@@ -64,8 +62,3 @@ export const getAssetUrlFromConfig = ({
     renderConfig.defaultTheme
   );
 };
-
-// Backward-compatible aliases during migration.
-export const V2TemplateRenderConfigProvider = TemplateRenderConfigProvider;
-export const useV2TemplateRenderConfigContext = useTemplateRenderConfigContext;
-export const v2_getAssetUrlFromConfig = getAssetUrlFromConfig;

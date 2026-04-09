@@ -83,8 +83,3 @@ export const useTemplateEditorActions = () => {
     downloadImage: actions.downloadImage,
   };
 };
-
-// Backward-compatible aliases during migration.
-export type V2TimeTableUIContextValue = TemplateEditorUIContextValue;
-export const V2TimeTableUIProvider = TemplateEditorUIProvider;
-export const useV2TimeTableUIContext = useTemplateEditorUIContext;
