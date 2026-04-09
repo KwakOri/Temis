@@ -16,6 +16,7 @@ import {
   V2TemplateCardInstanceTransform,
   V2TemplateCardNodeKind,
   V2TemplateCardNode,
+  V2TemplateCardNodeBinding,
   V2TemplateCardOptionsKey,
   V2TemplateFieldScope,
   V2TemplateFontFaceSource,
@@ -78,7 +79,6 @@ import {
 import {
   V2NodeNewFieldDraft,
   v2_getNodeBindingSelectValue,
-  v2_getNodeFieldBinding,
   v2_getNodeNewFieldDraft,
   v2_hasNodeBindingField,
 } from "./model/binding-utils";
@@ -101,6 +101,8 @@ import {
 } from "./model/style-section-utils";
 import TemplateCardAutoResizeOptions from "./components/template-card-auto-resize-options";
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
+import TemplateNodeBindingEditor from "./components/template-node-binding-editor";
+import TemplateNodeMetaEditor from "./components/template-node-meta-editor";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
@@ -2606,42 +2608,29 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     });
   };
 
-  const createFieldForNodeBinding = (node: V2TemplateCardNode) => {
-    const draft = newFieldDraftByNodeId[node.id];
-    const key = draft?.key?.trim();
-    if (!key) {
-      setFormSchemaError("새 필드 키를 입력해 주세요.");
-      return;
-    }
-    const scope = draft?.scope ?? "entry";
-
-    const field = appendFormField({
-      key,
-      scope,
-      type: "text",
-      placeholder: key,
-      label: node.label,
-      defaultValue: "",
-    });
-    if (!field) return;
-
-    updateCardNodeBinding(node.id, {
-      mode: "field",
-      scope: field.scope,
-      key: field.key,
-    });
-
+  const updateNodeNewFieldDraft = (
+    nodeId: string,
+    patch: Partial<V2NodeNewFieldDraft>
+  ) => {
     setNewFieldDraftByNodeId((prev) => ({
       ...prev,
-      [node.id]: {
-        key: "",
-        scope: "entry",
+      [nodeId]: {
+        ...(prev[nodeId] ?? { scope: "entry", key: "" }),
+        ...patch,
       },
     }));
   };
 
-  const createFieldForSceneNodeBinding = (node: V2TemplateSceneTextNode) => {
-    const draft = newFieldDraftByNodeId[node.id];
+  const createFieldForNodeBinding = ({
+    nodeId,
+    nodeLabel,
+    onBindField,
+  }: {
+    nodeId: string;
+    nodeLabel: string;
+    onBindField: (scope: V2TemplateFieldScope, key: string) => void;
+  }) => {
+    const draft = newFieldDraftByNodeId[nodeId];
     const key = draft?.key?.trim();
     if (!key) {
       setFormSchemaError("새 필드 키를 입력해 주세요.");
@@ -2654,24 +2643,87 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       scope,
       type: "text",
       placeholder: key,
-      label: node.label,
+      label: nodeLabel,
       defaultValue: "",
     });
     if (!field) return;
 
-    updateSceneTextNodeBinding(node.id, {
-      mode: "field",
-      scope: field.scope,
-      key: field.key,
-    });
+    onBindField(field.scope, field.key);
+    updateNodeNewFieldDraft(nodeId, { key: "", scope: "entry" });
+  };
 
-    setNewFieldDraftByNodeId((prev) => ({
-      ...prev,
-      [node.id]: {
-        key: "",
-        scope: "entry",
+  const createFieldForCardNodeBinding = (node: V2TemplateCardNode) => {
+    createFieldForNodeBinding({
+      nodeId: node.id,
+      nodeLabel: node.label,
+      onBindField: (scope, key) => {
+        updateCardNodeBinding(node.id, {
+          mode: "field",
+          scope,
+          key,
+        });
       },
-    }));
+    });
+  };
+
+  const createFieldForSceneNodeBinding = (node: V2TemplateSceneTextNode) => {
+    createFieldForNodeBinding({
+      nodeId: node.id,
+      nodeLabel: node.label,
+      onBindField: (scope, key) => {
+        updateSceneTextNodeBinding(node.id, {
+          mode: "field",
+          scope,
+          key,
+        });
+      },
+    });
+  };
+
+  const v2_parseBindingFromSelectValue = (
+    value: string,
+    currentBinding: V2TemplateCardNodeBinding
+  ): V2TemplateCardNodeBinding | null => {
+    if (value === "literal") {
+      return {
+        mode: "literal",
+        value:
+          currentBinding.mode === "literal"
+            ? currentBinding.value
+            : v2_bindingRefToLegacyInput(currentBinding),
+      };
+    }
+
+    if (value.startsWith("computed:")) {
+      const computedKey = value.replace("computed:", "");
+      if (
+        computedKey === "streamingDay" ||
+        computedKey === "streamingDate" ||
+        computedKey === "streamingTime"
+      ) {
+        return {
+          mode: "computed",
+          key: computedKey,
+        };
+      }
+      return null;
+    }
+
+    if (value.startsWith("field:")) {
+      const [, scope, ...rest] = value.split(":");
+      const key = rest.join(":");
+      if (!key) return null;
+      if (scope !== "entry" && scope !== "card" && scope !== "global") {
+        return null;
+      }
+      return {
+        mode: "field",
+        scope,
+        key,
+      };
+    }
+
+    return null;
   };
 
   const updateCardNodeMeta = ({
@@ -4128,7 +4180,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       node.kind === "flexibleText" && textSection !== null;
     const isRemovable = !v2_FIXED_CARD_NODE_IDS.has(node.id);
     const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
-    const fieldBinding = v2_getNodeFieldBinding(node.binding);
     const fieldBindingExists = v2_hasNodeBindingField(
       node.binding,
       renderConfig.formSchema.fields
@@ -4149,213 +4200,63 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             </button>
           ) : null}
         </div>
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">오브젝트 이름</label>
-          <input
-            value={node.label}
-            onChange={(event) =>
-              updateCardNodeMeta({
-                nodeId: node.id,
-                label: event.target.value,
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          />
-          <label className="text-xs text-gray-400">바인딩 키</label>
-          <select
-            value={bindingSelectValue}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (value === "literal") {
-                updateCardNodeBinding(node.id, {
-                  mode: "literal",
-                  value:
-                    node.binding.mode === "literal"
-                      ? node.binding.value
-                      : v2_bindingRefToLegacyInput(node.binding),
-                });
-                return;
-              }
-
-              if (value.startsWith("computed:")) {
-                const computedKey = value.replace("computed:", "");
-                if (
-                  computedKey === "streamingDay" ||
-                  computedKey === "streamingDate" ||
-                  computedKey === "streamingTime"
-                ) {
-                  updateCardNodeBinding(node.id, {
-                    mode: "computed",
-                    key: computedKey,
-                  });
-                }
-                return;
-              }
-
-              if (value.startsWith("field:")) {
-                const [, scope, ...rest] = value.split(":");
-                const key = rest.join(":");
-                if (!key) return;
-                if (scope !== "entry" && scope !== "card" && scope !== "global") {
-                  return;
-                }
-                updateCardNodeBinding(node.id, {
-                  mode: "field",
-                  scope,
-                  key,
-                });
-              }
-            }}
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            <option value="computed:streamingDay">computed / streamingDay</option>
-            <option value="computed:streamingDate">computed / streamingDate</option>
-            <option value="computed:streamingTime">computed / streamingTime</option>
-            {renderConfig.formSchema.fields.map((field) => (
-              <option
-                key={`${field.scope}:${field.key}`}
-                value={`field:${field.scope}:${field.key}`}
-              >
-                field / {field.scope}.{field.key}
-              </option>
-            ))}
-            {node.binding.mode === "field" && !fieldBindingExists ? (
-              <option
-                value={`field:${node.binding.scope}:${node.binding.key}`}
-              >
-                field / {node.binding.scope}.{node.binding.key} (missing)
-              </option>
-            ) : null}
-            <option value="literal">literal (직접 텍스트)</option>
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">컬러 테마 토큰</label>
-          <select
-            value={node.colorKey}
-            onChange={(event) =>
-              updateCardNodeMeta({
-                nodeId: node.id,
-                colorKey: event.target.value as V2TemplateCardNode["colorKey"],
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-              <option key={`color-${key}`} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-          <label className="text-xs text-gray-400">폰트 테마 토큰</label>
-          <select
-            value={node.fontKey}
-            onChange={(event) =>
-              updateCardNodeMeta({
-                nodeId: node.id,
-                fontKey: event.target.value as V2TemplateCardNode["fontKey"],
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-              <option key={`font-${key}`} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-        </div>
-        {node.binding.mode === "literal" ? (
-          <div className="grid grid-cols-2 gap-2 items-center">
-            <label className="text-xs text-gray-400">literal 값</label>
-            <input
-              value={node.binding.value}
-              onChange={(event) =>
-                updateCardNodeBinding(node.id, {
-                  mode: "literal",
-                  value: event.target.value,
-                })
-              }
-              className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-              placeholder="표시할 고정 텍스트"
-            />
-          </div>
-        ) : null}
-        <div className="grid grid-cols-[1fr_96px_96px] gap-2 items-center">
-          <input
-            value={newFieldDraft.key}
-            onChange={(event) =>
-              setNewFieldDraftByNodeId((prev) => ({
-                ...prev,
-                [node.id]: {
-                  ...(prev[node.id] ?? { scope: "entry", key: "" }),
-                  key: event.target.value,
-                },
-              }))
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-            placeholder="새 필드 키"
-          />
-          <select
-            value={newFieldDraft.scope}
-            onChange={(event) => {
-              const scope =
-                event.target.value === "card" || event.target.value === "global"
-                  ? event.target.value
-                  : "entry";
-              setNewFieldDraftByNodeId((prev) => ({
-                ...prev,
-                [node.id]: {
-                  ...(prev[node.id] ?? { key: "" }),
-                  scope,
-                },
-              }));
-            }}
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-          >
-            {v2_FORM_FIELD_SCOPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => createFieldForNodeBinding(node)}
-            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-2 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
-          >
-            + 필드 생성
-          </button>
-        </div>
-        {!fieldBindingExists ? (
-          <p className="text-xs text-red-300">
-            현재 바인딩된 필드가 입력 스키마에 없습니다.
-          </p>
-        ) : null}
-        <div
-          className="grid grid-cols-2 gap-2 items-center"
-          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
-          onMouseLeave={clearSectionHoverHighlight}
-          onClick={() => setSectionActiveHighlight(containerSection)}
-        >
-          <label className="text-xs text-gray-400">표시 조건</label>
-          <select
-            value={node.visibilityMode ?? "always"}
-            onChange={(event) =>
-              updateCardNodeVisibilityMode(
-                node.id,
-                event.target.value as V2TemplateVisibilityMode
-              )
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <TemplateNodeMetaEditor
+          label={node.label}
+          colorKey={node.colorKey}
+          fontKey={node.fontKey}
+          visibilityMode={node.visibilityMode ?? "always"}
+          colorKeys={v2_TEMPLATE_COLOR_KEYS}
+          visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
+          onChangeLabel={(value) =>
+            updateCardNodeMeta({
+              nodeId: node.id,
+              label: value,
+            })
+          }
+          onChangeColorKey={(value) =>
+            updateCardNodeMeta({
+              nodeId: node.id,
+              colorKey: value,
+            })
+          }
+          onChangeFontKey={(value) =>
+            updateCardNodeMeta({
+              nodeId: node.id,
+              fontKey: value,
+            })
+          }
+          onChangeVisibilityMode={(value) =>
+            updateCardNodeVisibilityMode(node.id, value)
+          }
+          onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
+          onMouseLeaveVisibility={clearSectionHoverHighlight}
+          onClickVisibility={() => setSectionActiveHighlight(containerSection)}
+        />
+        <TemplateNodeBindingEditor
+          binding={node.binding}
+          bindingSelectValue={bindingSelectValue}
+          fields={renderConfig.formSchema.fields}
+          computedOptions={v2_BINDING_COMPUTED_OPTIONS}
+          scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
+          newFieldDraft={newFieldDraft}
+          fieldBindingExists={fieldBindingExists}
+          onSelectBinding={(value) => {
+            const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
+            if (!nextBinding) return;
+            updateCardNodeBinding(node.id, nextBinding);
+          }}
+          onChangeLiteral={(value) =>
+            updateCardNodeBinding(node.id, {
+              mode: "literal",
+              value,
+            })
+          }
+          onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
+          onChangeDraftScope={(scope) =>
+            updateNodeNewFieldDraft(node.id, { scope })
+          }
+          onCreateField={() => createFieldForCardNodeBinding(node)}
+        />
         {renderStyleSectionEditor({
           title: "container style",
           section: containerSection,
@@ -4438,7 +4339,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const hasAutoResizeAlignment =
       node.kind === "flexibleText" && textSection !== null;
     const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
-    const fieldBinding = v2_getNodeFieldBinding(node.binding);
     const fieldBindingExists = v2_hasNodeBindingField(
       node.binding,
       renderConfig.formSchema.fields
@@ -4449,211 +4349,63 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
         <h4 className="font-semibold text-sm text-gray-200">Scene / {node.label}</h4>
         {renderSceneNodeStructureControls({ node, allowChildren: false })}
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">오브젝트 이름</label>
-          <input
-            value={node.label}
-            onChange={(event) =>
-              updateSceneTextNodeMeta({
-                nodeId: node.id,
-                label: event.target.value,
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          />
-          <label className="text-xs text-gray-400">바인딩 키</label>
-          <select
-            value={bindingSelectValue}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (value === "literal") {
-                updateSceneTextNodeBinding(node.id, {
-                  mode: "literal",
-                  value:
-                    node.binding.mode === "literal"
-                      ? node.binding.value
-                      : v2_bindingRefToLegacyInput(node.binding),
-                });
-                return;
-              }
-
-              if (value.startsWith("computed:")) {
-                const computedKey = value.replace("computed:", "");
-                if (
-                  computedKey === "streamingDay" ||
-                  computedKey === "streamingDate" ||
-                  computedKey === "streamingTime"
-                ) {
-                  updateSceneTextNodeBinding(node.id, {
-                    mode: "computed",
-                    key: computedKey,
-                  });
-                }
-                return;
-              }
-
-              if (value.startsWith("field:")) {
-                const [, scope, ...rest] = value.split(":");
-                const key = rest.join(":");
-                if (!key) return;
-                if (scope !== "entry" && scope !== "card" && scope !== "global") {
-                  return;
-                }
-                updateSceneTextNodeBinding(node.id, {
-                  mode: "field",
-                  scope,
-                  key,
-                });
-              }
-            }}
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            <option value="computed:streamingDay">computed / streamingDay</option>
-            <option value="computed:streamingDate">computed / streamingDate</option>
-            <option value="computed:streamingTime">computed / streamingTime</option>
-            {renderConfig.formSchema.fields.map((field) => (
-              <option
-                key={`${field.scope}:${field.key}`}
-                value={`field:${field.scope}:${field.key}`}
-              >
-                field / {field.scope}.{field.key}
-              </option>
-            ))}
-            {node.binding.mode === "field" && !fieldBindingExists ? (
-              <option value={`field:${node.binding.scope}:${node.binding.key}`}>
-                field / {node.binding.scope}.{node.binding.key} (missing)
-              </option>
-            ) : null}
-            <option value="literal">literal (직접 텍스트)</option>
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">컬러 테마 토큰</label>
-          <select
-            value={node.colorKey}
-            onChange={(event) =>
-              updateSceneTextNodeMeta({
-                nodeId: node.id,
-                colorKey: event.target.value as V2TemplateSceneTextNode["colorKey"],
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-              <option key={`scene-color-${key}`} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-          <label className="text-xs text-gray-400">폰트 테마 토큰</label>
-          <select
-            value={node.fontKey}
-            onChange={(event) =>
-              updateSceneTextNodeMeta({
-                nodeId: node.id,
-                fontKey: event.target.value as V2TemplateSceneTextNode["fontKey"],
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_TEMPLATE_COLOR_KEYS.map((key) => (
-              <option key={`scene-font-${key}`} value={key}>
-                {key}
-              </option>
-            ))}
-          </select>
-        </div>
-        {node.binding.mode === "literal" ? (
-          <div className="grid grid-cols-2 gap-2 items-center">
-            <label className="text-xs text-gray-400">literal 값</label>
-            <input
-              value={node.binding.value}
-              onChange={(event) =>
-                updateSceneTextNodeBinding(node.id, {
-                  mode: "literal",
-                  value: event.target.value,
-                })
-              }
-              className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-              placeholder="표시할 고정 텍스트"
-            />
-          </div>
-        ) : null}
-        <div className="grid grid-cols-[1fr_96px_96px] gap-2 items-center">
-          <input
-            value={newFieldDraft.key}
-            onChange={(event) =>
-              setNewFieldDraftByNodeId((prev) => ({
-                ...prev,
-                [node.id]: {
-                  ...(prev[node.id] ?? { scope: "entry", key: "" }),
-                  key: event.target.value,
-                },
-              }))
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-            placeholder="새 필드 키"
-          />
-          <select
-            value={newFieldDraft.scope}
-            onChange={(event) => {
-              const scope =
-                event.target.value === "card" || event.target.value === "global"
-                  ? event.target.value
-                  : "entry";
-              setNewFieldDraftByNodeId((prev) => ({
-                ...prev,
-                [node.id]: {
-                  ...(prev[node.id] ?? { key: "" }),
-                  scope,
-                },
-              }));
-            }}
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-          >
-            {v2_FORM_FIELD_SCOPE_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => createFieldForSceneNodeBinding(node)}
-            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-2 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
-          >
-            + 필드 생성
-          </button>
-        </div>
-        {!fieldBindingExists ? (
-          <p className="text-xs text-red-300">
-            현재 바인딩된 필드가 입력 스키마에 없습니다.
-          </p>
-        ) : null}
-        <div
-          className="grid grid-cols-2 gap-2 items-center"
-          onMouseEnter={() => setSectionHoverHighlight(containerSection)}
-          onMouseLeave={clearSectionHoverHighlight}
-          onClick={() => setSectionActiveHighlight(containerSection)}
-        >
-          <label className="text-xs text-gray-400">표시 조건</label>
-          <select
-            value={node.visibilityMode ?? "always"}
-            onChange={(event) =>
-              updateSceneTextNodeVisibilityMode(
-                node.id,
-                event.target.value as V2TemplateVisibilityMode
-              )
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <TemplateNodeMetaEditor
+          label={node.label}
+          colorKey={node.colorKey}
+          fontKey={node.fontKey}
+          visibilityMode={node.visibilityMode ?? "always"}
+          colorKeys={v2_TEMPLATE_COLOR_KEYS}
+          visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
+          onChangeLabel={(value) =>
+            updateSceneTextNodeMeta({
+              nodeId: node.id,
+              label: value,
+            })
+          }
+          onChangeColorKey={(value) =>
+            updateSceneTextNodeMeta({
+              nodeId: node.id,
+              colorKey: value,
+            })
+          }
+          onChangeFontKey={(value) =>
+            updateSceneTextNodeMeta({
+              nodeId: node.id,
+              fontKey: value,
+            })
+          }
+          onChangeVisibilityMode={(value) =>
+            updateSceneTextNodeVisibilityMode(node.id, value)
+          }
+          onMouseEnterVisibility={() => setSectionHoverHighlight(containerSection)}
+          onMouseLeaveVisibility={clearSectionHoverHighlight}
+          onClickVisibility={() => setSectionActiveHighlight(containerSection)}
+        />
+        <TemplateNodeBindingEditor
+          binding={node.binding}
+          bindingSelectValue={bindingSelectValue}
+          fields={renderConfig.formSchema.fields}
+          computedOptions={v2_BINDING_COMPUTED_OPTIONS}
+          scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
+          newFieldDraft={newFieldDraft}
+          fieldBindingExists={fieldBindingExists}
+          onSelectBinding={(value) => {
+            const nextBinding = v2_parseBindingFromSelectValue(value, node.binding);
+            if (!nextBinding) return;
+            updateSceneTextNodeBinding(node.id, nextBinding);
+          }}
+          onChangeLiteral={(value) =>
+            updateSceneTextNodeBinding(node.id, {
+              mode: "literal",
+              value,
+            })
+          }
+          onChangeDraftKey={(value) => updateNodeNewFieldDraft(node.id, { key: value })}
+          onChangeDraftScope={(scope) =>
+            updateNodeNewFieldDraft(node.id, { scope })
+          }
+          onCreateField={() => createFieldForSceneNodeBinding(node)}
+        />
         {renderStyleSectionEditor({
           title: "container style",
           section: containerSection,
