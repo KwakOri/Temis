@@ -15,9 +15,6 @@ import {
   V2TemplateFontRegistryItem,
   V2TemplateFormField,
   V2TemplateRenderConfig,
-  V2TemplateSceneAssetNode,
-  V2TemplateSceneCardCollectionNode,
-  V2TemplateSceneGroupNode,
   V2TemplateSceneTextNode,
   V2TemplateVisibilityMode,
   v2_TEMPLATE_COLOR_KEYS,
@@ -71,10 +68,6 @@ import TemplateBoilerplateSettingsModal from "./components/template-boilerplate-
 import TemplateBoundTextNodePropertiesPanel from "./components/template-bound-text-node-properties-panel";
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
 import TemplateAutoResizeAlignmentEditor from "./components/template-auto-resize-alignment-editor";
-import TemplateSceneAssetProperties from "./components/template-scene-asset-properties";
-import TemplateSceneCardCollectionProperties from "./components/template-scene-card-collection-properties";
-import TemplateSceneGroupProperties from "./components/template-scene-group-properties";
-import TemplateSceneNodeStructureControls from "./components/template-scene-node-structure-controls";
 import TemplateSelectedPropertiesPanelRouter from "./components/template-selected-properties-panel-router";
 import TemplateSimplePropertiesSection from "./components/template-simple-properties-section";
 import TemplateStyleSectionEditor from "./components/template-style-section-editor";
@@ -93,6 +86,7 @@ import TemplateStyleThemeSettings from "./panels/template-style-theme-settings";
 import useTemplateStyleEditorActions from "./hooks/use-template-style-editor-actions";
 import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
+import useTemplateSceneNodePropertyPanels from "./hooks/use-template-scene-node-property-panels";
 import useTemplateThemeAssetActions from "./hooks/use-template-theme-asset-actions";
 
 const v2_BUILDER_TABS: Array<{ id: V2BuilderTabId; label: string }> = [
@@ -1864,6 +1858,30 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     );
   };
 
+  const {
+    renderSceneNodeStructureControls,
+    renderSceneAssetNodeProperties,
+    renderSceneGroupNodeProperties,
+    renderSceneCardCollectionProperties,
+  } = useTemplateSceneNodePropertyPanels({
+    assetKeys: v2_ASSET_KEYS,
+    assetLabels: v2_ASSET_LABELS,
+    visibilityOptions: v2_CARD_NODE_VISIBILITY_OPTIONS,
+    isSceneCustomNode,
+    renderStyleSectionEditor: ({ title, section }) =>
+      renderStyleSectionEditor({
+        title,
+        section: section as V2StyleSectionId,
+      }),
+    onMoveSceneNode: moveSceneNode,
+    onRemoveSceneNode: removeSceneNode,
+    onAddSceneSiblingNode: addSceneSiblingNode,
+    onAddSceneChildNode: addSceneChildNode,
+    onUpdateSceneNodeLabel: updateSceneNodeLabel,
+    onUpdateSceneAssetNodeMeta: updateSceneAssetNodeMeta,
+    onUpdateSceneNodeVisibilityMode: updateSceneNodeVisibilityMode,
+  });
+
   const renderSceneTextNodeProperties = (
     section: V2StyleSectionId,
     node: V2TemplateSceneTextNode
@@ -1956,141 +1974,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           updateNodeNewFieldDraft(node.id, { scope })
         }
         onCreateField={() => createFieldForSceneNodeBinding(node)}
-      />
-    );
-  };
-
-  const renderSceneNodeStructureControls = ({
-    node,
-    allowChildren,
-  }: {
-    node:
-      | V2TemplateSceneTextNode
-      | V2TemplateSceneAssetNode
-      | V2TemplateSceneGroupNode
-      | V2TemplateSceneCardCollectionNode;
-    allowChildren: boolean;
-  }) => {
-    const canDelete = isSceneCustomNode(node.id);
-
-    return (
-      <TemplateSceneNodeStructureControls
-        nodeId={node.id}
-        allowChildren={allowChildren}
-        canDelete={canDelete}
-        onMoveUp={() => moveSceneNode({ nodeId: node.id, direction: "up" })}
-        onMoveDown={() => moveSceneNode({ nodeId: node.id, direction: "down" })}
-        onDelete={() => removeSceneNode(node.id)}
-        onAddSibling={(kind) =>
-          addSceneSiblingNode({
-            anchorNodeId: node.id,
-            kind,
-          })
-        }
-        onAddChild={(kind) =>
-          addSceneChildNode({
-            parentNodeId: node.id,
-            kind,
-          })
-        }
-      />
-    );
-  };
-
-  const renderSceneAssetNodeProperties = (
-    node: V2TemplateSceneAssetNode,
-    section: V2StyleSectionId | null
-  ) => {
-    const styleSection = section ?? v2_parseStyleSectionKey(node.styleKey);
-    const styleEditor = styleSection ? (
-      renderStyleSectionEditor({
-        title: "asset style",
-        section: styleSection,
-      })
-    ) : (
-      <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
-        이 에셋 노드는 연결된 style section이 없습니다.
-      </div>
-    );
-
-    return (
-      <TemplateSceneAssetProperties
-        node={node}
-        assetKeys={v2_ASSET_KEYS}
-        assetLabels={v2_ASSET_LABELS}
-        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-        structureControls={renderSceneNodeStructureControls({
-          node,
-          allowChildren: false,
-        })}
-        styleEditor={styleEditor}
-        onChangeLabel={(value) => updateSceneNodeLabel(node.id, value)}
-        onChangeAssetKey={(value) =>
-          updateSceneAssetNodeMeta({
-            nodeId: node.id,
-            assetKey: value,
-          })
-        }
-        onChangeFit={(value) =>
-          updateSceneAssetNodeMeta({
-            nodeId: node.id,
-            fit: value,
-          })
-        }
-        onChangeVisibilityMode={(value) =>
-          updateSceneNodeVisibilityMode(node.id, value)
-        }
-        onChangeAlt={(value) =>
-          updateSceneAssetNodeMeta({
-            nodeId: node.id,
-            alt: value,
-          })
-        }
-      />
-    );
-  };
-
-  const renderSceneGroupNodeProperties = (node: V2TemplateSceneGroupNode) => {
-    const childCount = node.children.length;
-    return (
-      <TemplateSceneGroupProperties
-        label={node.label}
-        childCount={childCount}
-        visibilityMode={node.visibilityMode ?? "always"}
-        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-        structureControls={renderSceneNodeStructureControls({
-          node,
-          allowChildren: true,
-        })}
-        onChangeLabel={(value) => updateSceneNodeLabel(node.id, value)}
-        onChangeVisibilityMode={(value) =>
-          updateSceneNodeVisibilityMode(node.id, value)
-        }
-      />
-    );
-  };
-
-  const renderSceneCardCollectionProperties = (
-    node: V2TemplateSceneCardCollectionNode,
-    section: V2StyleSectionId | null
-  ) => {
-    const layoutStyleEditor = section
-      ? renderStyleSectionEditor({ title: "layout style", section })
-      : null;
-
-    return (
-      <TemplateSceneCardCollectionProperties
-        node={node}
-        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
-        structureControls={renderSceneNodeStructureControls({
-          node,
-          allowChildren: false,
-        })}
-        layoutStyleEditor={layoutStyleEditor}
-        onChangeLabel={(value) => updateSceneNodeLabel(node.id, value)}
-        onChangeVisibilityMode={(value) =>
-          updateSceneNodeVisibilityMode(node.id, value)
-        }
       />
     );
   };
