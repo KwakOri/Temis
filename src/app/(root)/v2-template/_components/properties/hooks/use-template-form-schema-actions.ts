@@ -22,6 +22,37 @@ const useTemplateFormSchemaActions = ({
   safeUpdateConfig,
   setFormSchemaError,
 }: UseTemplateFormSchemaActionsParams) => {
+  const rewriteGraphFieldBinding = ({
+    graphNodes,
+    scope,
+    key,
+    replaceWith,
+  }: {
+    graphNodes: V2TemplateRenderConfig["graph"]["nodes"];
+    scope: V2TemplateFormField["scope"];
+    key: string;
+    replaceWith:
+      | { mode: "field"; scope: V2TemplateFormField["scope"]; key: string }
+      | { mode: "literal"; value: string };
+  }) => {
+    return Object.fromEntries(
+      Object.entries(graphNodes).map(([nodeId, node]) => {
+        const shouldRewrite =
+          node.binding?.mode === "field" &&
+          node.binding.scope === scope &&
+          node.binding.key === key;
+        if (!shouldRewrite) return [nodeId, node];
+        return [
+          nodeId,
+          {
+            ...node,
+            binding: replaceWith,
+          },
+        ];
+      })
+    );
+  };
+
   const updateFormSchema = (
     updater: (
       prev: V2TemplateRenderConfig["formSchema"]
@@ -118,9 +149,23 @@ const useTemplateFormSchemaActions = ({
         ...prev.formSchema,
         fields: nextFields,
       };
+      const nextGraphNodes = rewriteGraphFieldBinding({
+        graphNodes: prev.graph.nodes,
+        scope: prevField.scope,
+        key: prevField.key,
+        replaceWith: {
+          mode: "field",
+          scope: nextField.scope,
+          key: nextField.key,
+        },
+      });
 
       return {
         ...prev,
+        graph: {
+          ...prev.graph,
+          nodes: nextGraphNodes,
+        },
         formSchema: nextFormSchema,
         structure: {
           ...prev.structure,
@@ -245,9 +290,22 @@ const useTemplateFormSchemaActions = ({
         ...prev.formSchema,
         fields: nextFields,
       };
+      const nextGraphNodes = rewriteGraphFieldBinding({
+        graphNodes: prev.graph.nodes,
+        scope: targetField.scope,
+        key: targetField.key,
+        replaceWith: {
+          mode: "literal",
+          value: "",
+        },
+      });
 
       return {
         ...prev,
+        graph: {
+          ...prev.graph,
+          nodes: nextGraphNodes,
+        },
         formSchema: nextFormSchema,
         structure: {
           ...prev.structure,
