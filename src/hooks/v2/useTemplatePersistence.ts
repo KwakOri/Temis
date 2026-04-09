@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import {
   TDefaultCard,
   TGlobalData,
@@ -6,11 +6,10 @@ import {
 import { V2TemplateFormSchema } from "@/types/time-table/template-render-config";
 import { TTheme } from "@/types/time-table/theme";
 import {
-  useAutoSavePersistence,
-  useBeforeUnloadSave,
-  useFormPersistence,
-} from "@/utils/time-table/formPersistence";
-import { v2_toCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
+  useV2AutoSavePersistence,
+  useV2BeforeUnloadSave,
+  useV2FormPersistence,
+} from "@/utils/time-table/v2-form-persistence";
 
 export interface UseTemplatePersistenceOptions {
   data: TDefaultCard[];
@@ -29,27 +28,22 @@ export const useTemplatePersistence = ({
   defaultTheme,
   autoSaveDelay = 1000,
 }: UseTemplatePersistenceOptions) => {
-  const cardInputConfig = useMemo(
-    () => v2_toCardInputConfig(inputSchema),
-    [inputSchema]
-  );
+  const formPersistence = useV2FormPersistence(inputSchema, defaultTheme);
 
-  const formPersistence = useFormPersistence(cardInputConfig, defaultTheme);
-
-  const autoSave = useAutoSavePersistence(
+  const autoSave = useV2AutoSavePersistence(
     data,
     globalData,
     currentTheme,
-    cardInputConfig,
+    inputSchema,
     defaultTheme,
     autoSaveDelay
   );
 
-  useBeforeUnloadSave(
+  useV2BeforeUnloadSave(
     data,
     globalData,
     currentTheme,
-    cardInputConfig,
+    inputSchema,
     defaultTheme
   );
 
@@ -59,10 +53,10 @@ export const useTemplatePersistence = ({
         dataLength: data.length,
         globalDataLength: Object.keys(globalData).length,
         currentTheme,
-        inputSchemaFields: cardInputConfig.fields.length,
+        inputSchemaFields: inputSchema.fields.length,
       });
     }
-  }, [cardInputConfig.fields.length, currentTheme, data, globalData]);
+  }, [inputSchema.fields.length, currentTheme, data, globalData]);
 
   return {
     saveData: formPersistence.saveData,
