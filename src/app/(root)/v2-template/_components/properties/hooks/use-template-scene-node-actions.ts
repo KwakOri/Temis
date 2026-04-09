@@ -689,90 +689,44 @@ const useTemplateSceneNodeActions = ({
     direction: "up" | "down";
   }) => {
     safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
       const context = v2_findSceneNodeContextById({
-        nodes: prev.structure.sceneNodes,
+        nodes: runtimeSceneNodes,
         nodeId,
       });
       if (!context) return prev;
       const targetIndex = direction === "up" ? context.index - 1 : context.index + 1;
+      const siblingCount =
+        context.parentId === null
+          ? runtimeSceneNodes.length
+          : (() => {
+              const parentContext = v2_findSceneNodeContextById({
+                nodes: runtimeSceneNodes,
+                nodeId: context.parentId,
+              });
+              if (!parentContext || parentContext.node.kind !== "group") return 0;
+              return parentContext.node.children.length;
+            })();
+      if (targetIndex < 0 || targetIndex >= siblingCount) return prev;
 
-      const { nodes: nextSceneNodes, updated: sceneUpdated } =
-        v2_updateSceneNodeListByParentId({
-          nodes: prev.structure.sceneNodes,
-          parentId: context.parentId,
-          updater: (siblings) => {
-            if (targetIndex < 0 || targetIndex >= siblings.length) return siblings;
-            const nextSiblings = [...siblings];
-            const [moved] = nextSiblings.splice(context.index, 1);
-            if (!moved) return siblings;
-            nextSiblings.splice(targetIndex, 0, moved);
-            return nextSiblings;
-          },
-        });
-      if (!sceneUpdated) return prev;
-
-      const layerId = context.node.layerId;
-      if (!layerId) {
-        return {
-          ...prev,
-          graph: v2_graphReorderNodeWithinParent({
-            graph: prev.graph,
-            nodeId,
-            direction,
-          }),
-          structure: {
-            ...prev.structure,
-            sceneNodes: nextSceneNodes,
-          },
-        };
-      }
-
-      const layerContext = v2_findLayerNodeContextById({
-        nodes: prev.structure.layers,
-        nodeId: layerId,
+      const nextGraph = v2_graphReorderNodeWithinParent({
+        graph: prev.graph,
+        nodeId,
+        direction,
       });
-      if (!layerContext) {
-        return {
-          ...prev,
-          graph: v2_graphReorderNodeWithinParent({
-            graph: prev.graph,
-            nodeId,
-            direction,
-          }),
-          structure: {
-            ...prev.structure,
-            sceneNodes: nextSceneNodes,
-          },
-        };
-      }
-
-      const { nodes: nextLayers } = v2_updateLayerNodeListByParentId({
-        nodes: prev.structure.layers,
-        parentId: layerContext.parentId,
-        updater: (siblings) => {
-          const nextSiblings = [...siblings];
-          const currentIndex = nextSiblings.findIndex((item) => item.id === layerId);
-          if (currentIndex < 0) return siblings;
-          const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-          if (nextIndex < 0 || nextIndex >= nextSiblings.length) return siblings;
-          const [moved] = nextSiblings.splice(currentIndex, 1);
-          if (!moved) return siblings;
-          nextSiblings.splice(nextIndex, 0, moved);
-          return nextSiblings;
-        },
-      });
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphReorderNodeWithinParent({
-          graph: prev.graph,
-          nodeId,
-          direction,
-        }),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          layers: nextLayers,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
