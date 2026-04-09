@@ -4,12 +4,18 @@ import {
   V2TemplateCardInstanceTransform,
   V2TemplateCardNode,
   V2TemplateCardNodeKind,
+  V2TemplateGraphNode,
   V2TemplateCardOptionsKey,
   V2TemplateColorKey,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
+import {
+  v2_graphAppendChild,
+  v2_graphRemoveNodeSubtree,
+  v2_graphUpdateNode,
+} from "@/utils/time-table/template-graph-editor";
 import { v2_createBindingRefFromLegacyInput } from "@/utils/time-table/template-render-config";
 
 interface UseTemplateCardNodeActionsParams {
@@ -25,6 +31,30 @@ const useTemplateCardNodeActions = ({
   templateColorKeys,
   fixedCardNodeIds,
 }: UseTemplateCardNodeActionsParams) => {
+  const v2_cardNodeToGraphNode = (node: V2TemplateCardNode): V2TemplateGraphNode => {
+    return {
+      id: node.id,
+      type: node.kind === "flexibleText" ? "flexibleText" : "text",
+      label: node.label,
+      parentId: null,
+      childIds: [],
+      layerId: node.layerId,
+      highlightTarget: node.highlightTarget,
+      visibilityMode: node.visibilityMode,
+      binding: node.binding,
+      styles: {
+        containerStyleKey: node.containerStyleKey,
+        ...(node.textStyleKey ? { textStyleKey: node.textStyleKey } : {}),
+        ...(node.wrapperStyleKey ? { wrapperStyleKey: node.wrapperStyleKey } : {}),
+        ...(node.optionsKey ? { optionsKey: node.optionsKey } : {}),
+      },
+      meta: {
+        colorKey: node.colorKey,
+        fontKey: node.fontKey,
+      },
+    };
+  };
+
   const updateCardOptions = (
     optionKey: V2TemplateCardOptionsKey,
     patch: { maxFontSize?: number; multiline?: boolean }
@@ -54,6 +84,10 @@ const useTemplateCardNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          visibilityMode,
+        })),
         structure: {
           ...prev.structure,
           card: {
@@ -80,6 +114,10 @@ const useTemplateCardNodeActions = ({
       if (!prevNode) return prev;
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          binding,
+        })),
         structure: {
           ...prev.structure,
           card: {
@@ -155,6 +193,18 @@ const useTemplateCardNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
+          ...(nextBinding && nextBinding.length > 0
+            ? { binding: v2_createBindingRefFromLegacyInput(nextBinding) }
+            : {}),
+          meta: {
+            ...(node.meta ?? {}),
+            ...(nextColorKey ? { colorKey: nextColorKey } : {}),
+            ...(nextFontKey ? { fontKey: nextFontKey } : {}),
+          },
+        })),
         structure: {
           ...prev.structure,
           layers: updateLayerLabel(prev.structure.layers),
@@ -268,8 +318,18 @@ const useTemplateCardNodeActions = ({
         });
       };
 
+      const cardRootNodeId =
+        prev.graph.componentDefinitions.card?.rootNodeId ?? "component-card-root";
+      const nextGraphNode = v2_cardNodeToGraphNode(nextNode);
+      const nextGraph = v2_graphAppendChild({
+        graph: prev.graph,
+        parentId: cardRootNodeId,
+        newNode: nextGraphNode,
+      });
+
       return {
         ...prev,
+        graph: nextGraph,
         layout: {
           ...prev.layout,
           card: nextCardLayout,
@@ -331,6 +391,7 @@ const useTemplateCardNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphRemoveNodeSubtree(prev.graph, nodeId),
         layout: {
           ...prev.layout,
           card: nextCardLayout,
