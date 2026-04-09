@@ -55,13 +55,10 @@ import {
   v2_parseStyleSectionKey,
   v2_resolveCardStyleSection,
 } from "./model/style-section-utils";
-import { v2_getPropertiesStyleEditorTitle } from "./model/style-section-title-utils";
 import TemplateBoilerplateSectionEditor from "./components/template-boilerplate-section-editor";
 import TemplateBoilerplateSettingsModal from "./components/template-boilerplate-settings-modal";
-import TemplateCardComponentProperties from "./components/template-card-component-properties";
 import TemplateAutoResizeAlignmentEditor from "./components/template-auto-resize-alignment-editor";
 import TemplateSelectedPropertiesPanelRouter from "./components/template-selected-properties-panel-router";
-import TemplateSimplePropertiesSection from "./components/template-simple-properties-section";
 import TemplateStyleSectionEditor from "./components/template-style-section-editor";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabContentRouter, {
@@ -80,6 +77,7 @@ import useTemplateBoundTextNodePropertyPanels from "./hooks/use-template-bound-t
 import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
 import useTemplateSceneNodePropertyPanels from "./hooks/use-template-scene-node-property-panels";
+import useTemplateSimplePropertiesPanel from "./hooks/use-template-simple-properties-panel";
 import useTemplateThemeAssetActions from "./hooks/use-template-theme-asset-actions";
 
 const v2_BUILDER_TABS: Array<{ id: V2BuilderTabId; label: string }> = [
@@ -1670,24 +1668,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     </TemplateStyleTab>
   );
 
-  const renderCardComponentProperties = (section: V2StyleSectionId) => {
-    if (section !== "cardContainer") return null;
-
-    const instanceMode = renderConfig.structure.card.instanceMode ?? "component";
-    const instanceTransforms = renderConfig.structure.card.instanceTransforms ?? {};
-
-    return (
-      <TemplateCardComponentProperties
-        instanceMode={instanceMode}
-        instanceTransforms={instanceTransforms}
-        onChangeInstanceMode={updateCardInstanceMode}
-        onAppendTextNode={() => appendCardNode("text")}
-        onAppendFlexibleTextNode={() => appendCardNode("flexibleText")}
-        onUpdateInstanceTransform={updateCardInstanceTransform}
-      />
-    );
-  };
-
   const {
     renderSceneNodeStructureControls,
     renderSceneAssetNodeProperties,
@@ -1743,23 +1723,19 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       onCreateFieldForSceneNodeBinding: createFieldForSceneNodeBinding,
     });
 
-  const renderSimplePropertiesSection = (section: V2StyleSectionId) => {
-    const knownSection = v2_isKnownStyleSectionKey(section, v2_STYLE_SECTION_LABELS) ? section : null;
-    const heading =
-      structurePropertiesMaps.sectionToLabel[section] ??
-      (knownSection ? v2_STYLE_SECTION_LABELS[knownSection] : section);
-    const styleTitle = v2_getPropertiesStyleEditorTitle(section);
-
-    return (
-      <TemplateSimplePropertiesSection
-        heading={heading}
-        section={section}
-        bindableNodeLabels={bindableNodeLabels}
-        cardComponentProperties={renderCardComponentProperties(section)}
-        styleEditor={renderStyleSectionEditor({ title: styleTitle, section })}
-      />
-    );
-  };
+  const { renderSimplePropertiesSection } = useTemplateSimplePropertiesPanel({
+    sectionToLabel: structurePropertiesMaps.sectionToLabel,
+    styleSectionLabels: v2_STYLE_SECTION_LABELS,
+    bindableNodeLabels,
+    cardInstanceMode: renderConfig.structure.card.instanceMode ?? "component",
+    cardInstanceTransforms:
+      renderConfig.structure.card.instanceTransforms ?? {},
+    onChangeCardInstanceMode: updateCardInstanceMode,
+    onAppendCardTextNode: () => appendCardNode("text"),
+    onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),
+    onUpdateCardInstanceTransform: updateCardInstanceTransform,
+    renderStyleSectionEditor,
+  });
 
   const renderPropertiesTab = () => (
     <TemplatePropertiesTab
