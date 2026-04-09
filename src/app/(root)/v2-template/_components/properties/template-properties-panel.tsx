@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
@@ -62,6 +62,7 @@ import useTemplateBoilerplateActions from "./hooks/use-template-boilerplate-acti
 import useTemplateBoilerplateUiEffects from "./hooks/use-template-boilerplate-ui-effects";
 import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateFormSchemaActions from "./hooks/use-template-form-schema-actions";
+import useTemplatePropertiesFocusEffects from "./hooks/use-template-properties-focus-effects";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
 import useTemplateSceneNodePropertyPanels from "./hooks/use-template-scene-node-property-panels";
 import useTemplateSimplePropertiesPanel from "./hooks/use-template-simple-properties-panel";
@@ -560,34 +561,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     renderConfig.structure.sceneNodes,
   ]);
 
-  useEffect(() => {
-    if (activeTab !== "style" && activeTab !== "properties") {
-      setHoverHighlightTarget(null);
-      setActiveHighlightTarget(null);
-    }
-  }, [activeTab, setActiveHighlightTarget, setHoverHighlightTarget]);
-
-  useEffect(() => {
-    if (activeTab !== "style" && activeTab !== "properties") return;
-
-    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (inspectorTabRef.current?.contains(target)) return;
-      setActiveHighlightTarget(null);
-    };
-
-    document.addEventListener("mousedown", handlePointerDownOutside);
-    document.addEventListener("touchstart", handlePointerDownOutside, {
-      passive: true,
-    });
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDownOutside);
-      document.removeEventListener("touchstart", handlePointerDownOutside);
-    };
-  }, [activeTab, setActiveHighlightTarget]);
-
   useTemplateBoilerplateUiEffects({
     storageKey: v2_BOILERPLATE_STORAGE_KEY,
     styleSectionLabels: v2_STYLE_SECTION_LABELS,
@@ -597,50 +570,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     setIsBoilerplateSettingsOpen,
   });
 
-  useEffect(() => {
-    if (!focusLayerId) return;
-    const layerNode = structurePropertiesMaps.layerIdToNode[focusLayerId];
-    if (!layerNode) return;
-
-    setSelectedPropertiesLayerId(layerNode.id);
-    if (layerNode.target) {
-      setSelectedPropertiesTarget(layerNode.target);
-      setActiveHighlightTarget(layerNode.target);
-    }
-    setActiveTab("properties");
-  }, [
+  useTemplatePropertiesFocusEffects({
+    activeTab,
+    inspectorTabRef,
+    setHoverHighlightTarget,
+    setActiveHighlightTarget,
     focusLayerId,
     focusLayerNonce,
-    setActiveHighlightTarget,
-    structurePropertiesMaps.layerIdToNode,
-  ]);
-
-  useEffect(() => {
-    const nextSection = v2_parseStyleSectionKey(focusStyleSection);
-    if (!nextSection) return;
-    const knownSection = v2_isKnownStyleSectionKey(nextSection, v2_STYLE_SECTION_LABELS)
-      ? nextSection
-      : null;
-    const nextTarget =
-      structurePropertiesMaps.sectionToTarget[nextSection] ??
-      (knownSection
-        ? v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP[knownSection]
-        : "cardContainer");
-    const nextLayerId = structurePropertiesMaps.sectionToLayerId[nextSection];
-
-    if (nextLayerId) {
-      setSelectedPropertiesLayerId(nextLayerId);
-    }
-    setSelectedPropertiesTarget(nextTarget);
-    setActiveHighlightTarget(nextTarget);
-    setActiveTab("properties");
-  }, [
     focusStyleSection,
     focusStyleSectionNonce,
-    setActiveHighlightTarget,
-    structurePropertiesMaps.sectionToLayerId,
-    structurePropertiesMaps.sectionToTarget,
-  ]);
+    layerIdToNode: structurePropertiesMaps.layerIdToNode,
+    sectionToLayerId: structurePropertiesMaps.sectionToLayerId,
+    sectionToTarget: structurePropertiesMaps.sectionToTarget,
+    styleSectionLabels: v2_STYLE_SECTION_LABELS,
+    styleSectionHighlightTargetMap: v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP,
+    setSelectedPropertiesLayerId,
+    setSelectedPropertiesTarget,
+    activatePropertiesTab: () => setActiveTab("properties"),
+  });
 
   const safeUpdateConfig = (
     updater: (prev: typeof renderConfig) => typeof renderConfig
