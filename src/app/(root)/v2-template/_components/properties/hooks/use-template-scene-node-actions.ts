@@ -3,6 +3,7 @@
 import {
   V2TemplateAssetMap,
   V2TemplateColorKey,
+  V2TemplateGraphNode,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetNode,
@@ -11,6 +12,13 @@ import {
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
+import {
+  v2_graphAppendChild,
+  v2_graphInsertSiblingAfter,
+  v2_graphRemoveNodeSubtree,
+  v2_graphReorderNodeWithinParent,
+  v2_graphUpdateNode,
+} from "@/utils/time-table/template-graph-editor";
 import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
@@ -37,6 +45,77 @@ interface UseTemplateSceneNodeActionsParams {
   sceneCustomLayerIdPrefix: string;
   templateColorKeys: readonly V2TemplateColorKey[];
 }
+
+const v2_sceneNodeToGraphNode = (
+  sceneNode: V2TemplateSceneNode
+): V2TemplateGraphNode => {
+  if (sceneNode.kind === "group") {
+    return {
+      id: sceneNode.id,
+      type: "group",
+      label: sceneNode.label,
+      parentId: null,
+      childIds: sceneNode.children.map((child) => child.id),
+      ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
+      ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+    };
+  }
+
+  if (sceneNode.kind === "asset") {
+    return {
+      id: sceneNode.id,
+      type: "image",
+      label: sceneNode.label,
+      parentId: null,
+      childIds: [],
+      ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
+      ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+      ...(sceneNode.styleKey ? { styles: { styleKey: sceneNode.styleKey } } : {}),
+      meta: {
+        assetKey: sceneNode.assetKey,
+        ...(sceneNode.fit ? { fit: sceneNode.fit } : {}),
+        ...(sceneNode.alt ? { alt: sceneNode.alt } : {}),
+      },
+    };
+  }
+
+  if (sceneNode.kind === "cardCollection") {
+    return {
+      id: sceneNode.id,
+      type: "cardCollection",
+      label: sceneNode.label,
+      parentId: null,
+      childIds: [],
+      ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
+      ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+      meta: {
+        source: sceneNode.source,
+      },
+    };
+  }
+
+  return {
+    id: sceneNode.id,
+    type: sceneNode.kind === "flexibleText" ? "flexibleText" : "text",
+    label: sceneNode.label,
+    parentId: null,
+    childIds: [],
+    ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
+    ...(sceneNode.highlightTarget ? { highlightTarget: sceneNode.highlightTarget } : {}),
+    ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+    binding: sceneNode.binding,
+    styles: {
+      containerStyleKey: sceneNode.containerStyleKey,
+      ...(sceneNode.textStyleKey ? { textStyleKey: sceneNode.textStyleKey } : {}),
+      ...(sceneNode.wrapperStyleKey ? { wrapperStyleKey: sceneNode.wrapperStyleKey } : {}),
+      ...(sceneNode.optionsKey ? { optionsKey: sceneNode.optionsKey } : {}),
+    },
+    meta: {
+      colorKey: sceneNode.colorKey,
+      fontKey: sceneNode.fontKey,
+    },
+  };
+};
 
 const useTemplateSceneNodeActions = ({
   renderConfig,
@@ -66,6 +145,10 @@ const useTemplateSceneNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          visibilityMode,
+        })),
         structure: {
           ...prev.structure,
           sceneNodes: nextSceneNodes,
@@ -101,6 +184,10 @@ const useTemplateSceneNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          label: nextLabel,
+        })),
         structure: {
           ...prev.structure,
           layers: nextLayers,
@@ -141,6 +228,15 @@ const useTemplateSceneNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          meta: {
+            ...(node.meta ?? {}),
+            ...(assetKey ? { assetKey } : {}),
+            ...(fit ? { fit } : {}),
+            ...(typeof alt === "string" ? { alt: alt.trim() } : {}),
+          },
+        })),
         structure: {
           ...prev.structure,
           sceneNodes: nextSceneNodes,
@@ -421,8 +517,16 @@ const useTemplateSceneNodeActions = ({
         }
       }
 
+      const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
+      const nextGraph = v2_graphInsertSiblingAfter({
+        graph: prev.graph,
+        anchorNodeId,
+        newNode: nextGraphNode,
+      });
+
       return {
         ...prev,
+        graph: nextGraph,
         layout: {
           ...prev.layout,
           scene: {
@@ -483,8 +587,16 @@ const useTemplateSceneNodeActions = ({
         updater: (siblings) => [...siblings, layerNode],
       });
 
+      const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
+      const nextGraph = v2_graphAppendChild({
+        graph: prev.graph,
+        parentId: parentNodeId,
+        newNode: nextGraphNode,
+      });
+
       return {
         ...prev,
+        graph: nextGraph,
         layout: {
           ...prev.layout,
           scene: {
@@ -543,6 +655,11 @@ const useTemplateSceneNodeActions = ({
       if (!layerId) {
         return {
           ...prev,
+          graph: v2_graphReorderNodeWithinParent({
+            graph: prev.graph,
+            nodeId,
+            direction,
+          }),
           structure: {
             ...prev.structure,
             sceneNodes: nextSceneNodes,
@@ -557,6 +674,11 @@ const useTemplateSceneNodeActions = ({
       if (!layerContext) {
         return {
           ...prev,
+          graph: v2_graphReorderNodeWithinParent({
+            graph: prev.graph,
+            nodeId,
+            direction,
+          }),
           structure: {
             ...prev.structure,
             sceneNodes: nextSceneNodes,
@@ -582,6 +704,11 @@ const useTemplateSceneNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphReorderNodeWithinParent({
+          graph: prev.graph,
+          nodeId,
+          direction,
+        }),
         structure: {
           ...prev.structure,
           sceneNodes: nextSceneNodes,
@@ -661,6 +788,7 @@ const useTemplateSceneNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphRemoveNodeSubtree(prev.graph, nodeId),
         layout: {
           ...prev.layout,
           scene: nextSceneLayout,
@@ -700,6 +828,10 @@ const useTemplateSceneNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          binding,
+        })),
         structure: {
           ...prev.structure,
           sceneNodes: nextSceneNodes,
@@ -762,6 +894,15 @@ const useTemplateSceneNodeActions = ({
 
       return {
         ...prev,
+        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+          ...node,
+          ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
+          meta: {
+            ...(node.meta ?? {}),
+            ...(nextColorKey ? { colorKey: nextColorKey } : {}),
+            ...(nextFontKey ? { fontKey: nextFontKey } : {}),
+          },
+        })),
         structure: {
           ...prev.structure,
           layers: nextLayers,
