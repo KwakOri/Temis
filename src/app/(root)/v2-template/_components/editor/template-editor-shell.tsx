@@ -30,10 +30,7 @@ import V2TimeTablePreview from './preview-canvas';
 import { v2_graphMoveNode } from '@/utils/time-table/template-graph-editor';
 import {
   v2_collectSceneNodesByLayerId,
-  v2_findLayerNodeContextById,
   v2_findSceneNodeContextById,
-  v2_updateLayerNodeListByParentId,
-  v2_updateSceneNodeListByParentId,
 } from '../properties/model/structure-utils';
 
 const useV2TemplateEditorSettings = () => {
@@ -210,7 +207,7 @@ const V2TimeTableEditor: React.FC = () => {
       }
 
       const sourceSceneContext = v2_findSceneNodeContextById({
-        nodes: prev.structure.sceneNodes,
+        nodes: runtimeSceneNodes,
         nodeId: sourceSceneNode.id,
       });
       if (!sourceSceneContext) return prev;
@@ -222,84 +219,25 @@ const V2TimeTableEditor: React.FC = () => {
           ? desiredIndex - 1
           : desiredIndex;
 
-      const { nodes: afterSceneRemoval, updated: sceneRemoved } =
-        v2_updateSceneNodeListByParentId({
-          nodes: prev.structure.sceneNodes,
-          parentId: sourceSceneContext.parentId,
-          updater: (siblings) =>
-            siblings.filter((sibling) => sibling.id !== sourceSceneNode.id),
-        });
-      if (!sceneRemoved) return prev;
-
-      const { nodes: nextSceneNodes, updated: sceneInserted } =
-        v2_updateSceneNodeListByParentId({
-          nodes: afterSceneRemoval,
-          parentId: targetSceneParentId ?? null,
-          updater: (siblings) => {
-            const nextSiblings = [...siblings];
-            const insertIndex = Math.max(
-              0,
-              Math.min(nextSiblings.length, effectiveIndex)
-            );
-            nextSiblings.splice(insertIndex, 0, sourceSceneContext.node);
-            return nextSiblings;
-          },
-        });
-      if (!sceneInserted) return prev;
-
-      let nextLayers = prev.structure.layers;
-      const sourceLayerContext = v2_findLayerNodeContextById({
-        nodes: prev.structure.layers,
-        nodeId: layerId,
+      const nextGraph = v2_graphMoveNode({
+        graph: prev.graph,
+        nodeId: sourceSceneNode.id,
+        targetParentId: targetSceneParentId ?? null,
+        targetIndex: effectiveIndex,
       });
-      if (sourceLayerContext) {
-        const { nodes: afterLayerRemoval, updated: layerRemoved } =
-          v2_updateLayerNodeListByParentId({
-            nodes: prev.structure.layers,
-            parentId: sourceLayerContext.parentId,
-            updater: (siblings) =>
-              siblings.filter((sibling) => sibling.id !== layerId),
-          });
-
-        if (layerRemoved) {
-          const effectiveLayerIndex =
-            sourceLayerContext.parentId === targetLayerParentId &&
-            desiredIndex > sourceLayerContext.index
-              ? desiredIndex - 1
-              : desiredIndex;
-
-          const { nodes: layerInserted, updated: layerInsertedUpdated } =
-            v2_updateLayerNodeListByParentId({
-              nodes: afterLayerRemoval,
-              parentId: targetLayerParentId,
-              updater: (siblings) => {
-                const nextSiblings = [...siblings];
-                const insertIndex = Math.max(
-                  0,
-                  Math.min(nextSiblings.length, effectiveLayerIndex)
-                );
-                nextSiblings.splice(insertIndex, 0, sourceLayerContext.node);
-                return nextSiblings;
-              },
-            });
-          if (layerInsertedUpdated) {
-            nextLayers = layerInserted;
-          }
-        }
-      }
+      const nextRuntimeConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphMoveNode({
-          graph: prev.graph,
-          nodeId: sourceSceneNode.id,
-          targetParentId: targetSceneParentId ?? null,
-          targetIndex: effectiveIndex,
-        }),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          layers: nextLayers,
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
