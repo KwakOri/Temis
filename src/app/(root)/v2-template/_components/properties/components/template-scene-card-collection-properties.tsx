@@ -55,7 +55,7 @@ const TemplateSceneCardCollectionProperties: React.FC<
         </select>
       </div>
       <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
-        source: {node.source}
+        source: {node.source} / component: {node.componentId ?? "card"}
       </div>
       {layoutStyleEditor}
     </div>

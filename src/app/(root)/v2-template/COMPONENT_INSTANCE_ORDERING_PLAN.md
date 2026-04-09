@@ -129,7 +129,7 @@ Move / Extract Copy 분리:
    - 기존 UI 동작 동일성 확인
 3. 타입체크/린트 최소 검증 후 커밋
 
-## 8) 진행 현황 (2026-04-09)
+## 8) 진행 현황 (2026-04-10)
 
 - 완료
   - Phase A: `OrderAdapter`(pointer) 도입 및 실제 정렬 경로 연결
@@ -144,6 +144,7 @@ Move / Extract Copy 분리:
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
   - Phase D: Components 탭 최소 분리 완료 (마스터 편집 전용 플로우 강화 필요)
+  - Phase E(진행): `cardCollection`에 `componentId`를 도입해 카드 렌더/레이어 생성 경로를 컴포넌트 기반으로 일반화
 
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합

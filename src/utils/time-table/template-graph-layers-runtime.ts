@@ -7,7 +7,7 @@ import {
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
 import {
-  v2_getRuntimeCardStructure,
+  v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
 
@@ -52,56 +52,67 @@ export const v2_getRuntimeLayerTree = (
   const graph = renderConfig.graph;
   const graphNodes = graph?.nodes ?? {};
   const runtimeSceneNodes = v2_getRuntimeSceneNodes(renderConfig);
-  const runtimeCardStructure = v2_getRuntimeCardStructure(renderConfig);
-  const cardDefinition = graph?.componentDefinitions?.card;
-  const cardRootGraphNode = cardDefinition
-    ? graphNodes[cardDefinition.rootNodeId]
-    : undefined;
+  const componentLayerCache = new Map<string, V2TemplateLayerNode>();
 
-  const cardLayerNodes: V2TemplateLayerNode[] = runtimeCardStructure.nodeOrder
-    .map((nodeId) => runtimeCardStructure.nodes[nodeId])
-    .filter((node): node is V2TemplateCardNode => Boolean(node))
-    .map((node) => {
-      const graphNode = graphNodes[node.id];
-      const next: V2TemplateLayerNode = {
-        id: node.layerId,
-        label: node.label,
-        kind: "component",
-        icon:
-          node.binding.mode === "computed"
-            ? "calendar"
-            : graphNode?.meta?.layerIcon ?? v2_inferLayerIconFromBinding(node.binding),
-        target:
-          graphNode?.meta?.layerTarget ?? graphNode?.highlightTarget ?? node.highlightTarget,
-        sectionKey:
-          graphNode?.meta?.layerSectionKey ?? node.containerStyleKey,
-        visibilityMode: node.visibilityMode ?? "always",
-      };
+  const createComponentLayerTree = (componentId: string): V2TemplateLayerNode => {
+    const cached = componentLayerCache.get(componentId);
+    if (cached) return cached;
 
-      if (graphNode?.meta?.layerComponentKey) {
-        next.componentKey = graphNode.meta.layerComponentKey;
-      }
+    const runtimeCardStructure = v2_getRuntimeCardStructureByComponentId(
+      renderConfig,
+      componentId
+    );
+    const componentDefinition = graph?.componentDefinitions?.[componentId];
+    const componentRootGraphNode = componentDefinition
+      ? graphNodes[componentDefinition.rootNodeId]
+      : undefined;
 
-      return next;
-    });
+    const cardLayerNodes: V2TemplateLayerNode[] = runtimeCardStructure.nodeOrder
+      .map((nodeId) => runtimeCardStructure.nodes[nodeId])
+      .filter((node): node is V2TemplateCardNode => Boolean(node))
+      .map((node) => {
+        const graphNode = graphNodes[node.id];
+        const next: V2TemplateLayerNode = {
+          id: node.layerId,
+          label: node.label,
+          kind: "component",
+          icon:
+            node.binding.mode === "computed"
+              ? "calendar"
+              : graphNode?.meta?.layerIcon ?? v2_inferLayerIconFromBinding(node.binding),
+          target:
+            graphNode?.meta?.layerTarget ?? graphNode?.highlightTarget ?? node.highlightTarget,
+          sectionKey: graphNode?.meta?.layerSectionKey ?? node.containerStyleKey,
+          visibilityMode: node.visibilityMode ?? "always",
+        };
 
-  const cardRootLayerNode: V2TemplateLayerNode = {
-    id: runtimeCardStructure.containerLayerId,
-    label: cardRootGraphNode?.label ?? cardDefinition?.label ?? "Card",
-    kind: "group",
-    isTemplateComponent: cardRootGraphNode?.meta?.isTemplateComponent ?? true,
-    icon: cardRootGraphNode?.meta?.layerIcon ?? "group",
-    target:
-      cardRootGraphNode?.meta?.layerTarget ??
-      cardRootGraphNode?.highlightTarget ??
-      runtimeCardStructure.containerHighlightTarget,
-    sectionKey:
-      cardRootGraphNode?.meta?.layerSectionKey ??
-      cardRootGraphNode?.styles?.containerStyleKey ??
-      runtimeCardStructure.containerStyleKey,
-    visibilityMode:
-      cardRootGraphNode?.visibilityMode ?? "always",
-    children: cardLayerNodes,
+        if (graphNode?.meta?.layerComponentKey) {
+          next.componentKey = graphNode.meta.layerComponentKey;
+        }
+
+        return next;
+      });
+
+    const rootLayerNode: V2TemplateLayerNode = {
+      id: runtimeCardStructure.containerLayerId,
+      label: componentRootGraphNode?.label ?? componentDefinition?.label ?? componentId,
+      kind: "group",
+      isTemplateComponent: componentRootGraphNode?.meta?.isTemplateComponent ?? true,
+      icon: componentRootGraphNode?.meta?.layerIcon ?? "group",
+      target:
+        componentRootGraphNode?.meta?.layerTarget ??
+        componentRootGraphNode?.highlightTarget ??
+        runtimeCardStructure.containerHighlightTarget,
+      sectionKey:
+        componentRootGraphNode?.meta?.layerSectionKey ??
+        componentRootGraphNode?.styles?.containerStyleKey ??
+        runtimeCardStructure.containerStyleKey,
+      visibilityMode: componentRootGraphNode?.visibilityMode ?? "always",
+      children: cardLayerNodes,
+    };
+
+    componentLayerCache.set(componentId, rootLayerNode);
+    return rootLayerNode;
   };
 
   const mapSceneNodeToLayerNode = (
@@ -128,6 +139,7 @@ export const v2_getRuntimeLayerTree = (
     }
 
     if (node.kind === "cardCollection") {
+      const componentId = node.componentId ?? graphNode?.meta?.componentId ?? "card";
       return {
         id: layerId,
         label: node.label,
@@ -138,7 +150,7 @@ export const v2_getRuntimeLayerTree = (
         target: graphNode?.meta?.layerTarget ?? "grid",
         sectionKey: graphNode?.meta?.layerSectionKey ?? "grid",
         visibilityMode: node.visibilityMode ?? "always",
-        children: [cardRootLayerNode],
+        children: [createComponentLayerTree(componentId)],
       };
     }
 

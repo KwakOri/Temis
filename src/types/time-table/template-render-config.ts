@@ -235,6 +235,7 @@ export interface V2TemplateSceneCardCollectionNode
   extends V2TemplateSceneNodeBase {
   kind: "cardCollection";
   source: "card";
+  componentId?: string;
 }
 
 export type V2TemplateSceneNode =

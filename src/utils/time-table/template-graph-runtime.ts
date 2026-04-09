@@ -134,6 +134,11 @@ const v2_buildSceneNodeFromGraph = ({
       ...base,
       kind: "cardCollection",
       source: graphNode.meta?.source === "card" ? "card" : "card",
+      componentId:
+        typeof graphNode.meta?.componentId === "string" &&
+        graphNode.meta.componentId.trim().length > 0
+          ? graphNode.meta.componentId
+          : "card",
     };
   }
 
@@ -221,19 +226,20 @@ const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {
   nodes: {},
 };
 
-export const v2_getRuntimeCardStructure = (
-  renderConfig: V2TemplateRenderConfig
+export const v2_getRuntimeCardStructureByComponentId = (
+  renderConfig: V2TemplateRenderConfig,
+  componentId: string
 ): V2TemplateCardStructure => {
   const graph = renderConfig.graph;
-  const cardDefinition = graph?.componentDefinitions?.card;
-  if (!cardDefinition) return v2_EMPTY_CARD_STRUCTURE;
+  const componentDefinition = graph?.componentDefinitions?.[componentId];
+  if (!componentDefinition) return v2_EMPTY_CARD_STRUCTURE;
 
-  const cardRootNode = graph.nodes[cardDefinition.rootNodeId];
+  const cardRootNode = graph.nodes[componentDefinition.rootNodeId];
   if (!cardRootNode) {
     return {
       ...v2_EMPTY_CARD_STRUCTURE,
-      instanceMode: cardDefinition.instanceMode ?? "component",
-      instanceTransforms: cardDefinition.instanceTransforms ?? {},
+      instanceMode: componentDefinition.instanceMode ?? "component",
+      instanceTransforms: componentDefinition.instanceTransforms ?? {},
     };
   }
 
@@ -259,9 +265,15 @@ export const v2_getRuntimeCardStructure = (
       cardRootNode.styles?.containerStyleKey ??
       cardRootNode.meta?.layerSectionKey ??
       "cardContainer",
-    instanceMode: cardDefinition.instanceMode ?? "component",
-    instanceTransforms: cardDefinition.instanceTransforms ?? {},
+    instanceMode: componentDefinition.instanceMode ?? "component",
+    instanceTransforms: componentDefinition.instanceTransforms ?? {},
     nodeOrder: nextNodeOrder,
     nodes: nextNodes,
   };
+};
+
+export const v2_getRuntimeCardStructure = (
+  renderConfig: V2TemplateRenderConfig
+): V2TemplateCardStructure => {
+  return v2_getRuntimeCardStructureByComponentId(renderConfig, "card");
 };

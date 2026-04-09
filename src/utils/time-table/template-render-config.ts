@@ -415,6 +415,7 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     kind: "cardCollection",
     layerId: "grid",
     source: "card",
+    componentId: "card",
     visibilityMode: "always",
   },
   {
@@ -613,6 +614,7 @@ export const v2_createNodeGraphFromStructure = (
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
         source: sceneNode.source,
+        componentId: sceneNode.componentId ?? "card",
       };
     } else if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {
       nextNode.binding = sceneNode.binding;
@@ -2270,10 +2272,15 @@ const v2_normalizeSceneNode = (
 
   if (inferredKind === "cardCollection") {
     const source = candidateRecord.source === "card" ? "card" : "card";
+    const componentId = v2_asString(
+      candidateRecord.componentId,
+      fallback?.kind === "cardCollection" ? fallback.componentId ?? "card" : "card"
+    ).trim();
     return {
       ...base,
       kind: "cardCollection",
       source,
+      componentId: componentId || "card",
     };
   }
 

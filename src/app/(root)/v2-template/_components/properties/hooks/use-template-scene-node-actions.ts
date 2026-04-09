@@ -100,6 +100,7 @@ const v2_sceneNodeToGraphNode = (
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       meta: {
         source: sceneNode.source,
+        componentId: sceneNode.componentId ?? "card",
         layerTarget: "grid",
         layerSectionKey: "grid",
         layerIcon: "grid",
@@ -343,6 +344,7 @@ const useTemplateSceneNodeActions = ({
           kind: "cardCollection",
           layerId,
           source: "card",
+          componentId: "card",
           visibilityMode: "always",
         },
         layerNode: {
