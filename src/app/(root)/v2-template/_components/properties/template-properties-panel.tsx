@@ -35,6 +35,7 @@ import {
   v2_collectStructureTargetSectionMaps,
   v2_updateSceneTextNodeById,
 } from "./model/structure-utils";
+import { v2_collectFormSchemaDiagnostics } from "./model/form-schema-diagnostics";
 import {
   V2NodeNewFieldDraft,
 } from "./model/binding-utils";
@@ -408,6 +409,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const {
     data,
     updateData,
+    globalData,
+    updateGlobalData,
     currentTheme,
     updateTheme,
     resetData,
@@ -515,63 +518,32 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       .filter((node): node is V2TemplateCardNode => Boolean(node))
       .map((node) => node.label);
   }, [runtimeCardStructure.nodeOrder, runtimeCardStructure.nodes]);
+  const runtimeSceneTextNodes = useMemo(
+    () => v2_collectSceneTextNodes(runtimeSceneNodes),
+    [runtimeSceneNodes]
+  );
   const bindableSceneTextNodeLabels = useMemo(() => {
-    return v2_collectSceneTextNodes(runtimeSceneNodes).map((node) => node.label);
-  }, [runtimeSceneNodes]);
+    return runtimeSceneTextNodes.map((node) => node.label);
+  }, [runtimeSceneTextNodes]);
   const bindableNodeLabels = useMemo(() => {
     return Array.from(
       new Set([...bindableCardNodeLabels, ...bindableSceneTextNodeLabels])
     );
   }, [bindableCardNodeLabels, bindableSceneTextNodeLabels]);
   const formSchemaDiagnostics = useMemo(() => {
-    const fields = renderConfig.formSchema.fields;
-    const fieldIdSet = new Set(
-      fields.map((field) => `${field.scope}:${field.key}`)
-    );
-    const fieldUsageMap = new Map<string, number>();
-    fields.forEach((field) => {
-      fieldUsageMap.set(`${field.scope}:${field.key}`, 0);
+    const cardNodes = runtimeCardStructure.nodeOrder
+      .map((nodeId) => runtimeCardStructure.nodes[nodeId])
+      .filter((node): node is V2TemplateCardNode => Boolean(node));
+    return v2_collectFormSchemaDiagnostics({
+      fields: renderConfig.formSchema.fields,
+      cardNodes,
+      sceneTextNodes: runtimeSceneTextNodes,
     });
-
-    const missingBindings: Array<{ nodeLabel: string; scope: string; key: string }> = [];
-    const fieldBindingNodes = [
-      ...Object.values(runtimeCardStructure.nodes).map((node) => ({
-        nodeLabel: node.label,
-        binding: node.binding,
-      })),
-      ...v2_collectSceneTextNodes(runtimeSceneNodes).map((node) => ({
-        nodeLabel: node.label,
-        binding: node.binding,
-      })),
-    ];
-    fieldBindingNodes.forEach(({ nodeLabel, binding }) => {
-      if (binding.mode !== "field") return;
-      const fieldId = `${binding.scope}:${binding.key}`;
-      if (!fieldIdSet.has(fieldId)) {
-        missingBindings.push({
-          nodeLabel,
-          scope: binding.scope,
-          key: binding.key,
-        });
-        return;
-      }
-      fieldUsageMap.set(fieldId, (fieldUsageMap.get(fieldId) ?? 0) + 1);
-    });
-
-    const unusedFields = fields.filter((field) => {
-      const fieldId = `${field.scope}:${field.key}`;
-      return (fieldUsageMap.get(fieldId) ?? 0) === 0;
-    });
-
-    return {
-      totalFields: fields.length,
-      missingBindings,
-      unusedFields,
-    };
   }, [
     renderConfig.formSchema.fields,
+    runtimeCardStructure.nodeOrder,
     runtimeCardStructure.nodes,
-    runtimeSceneNodes,
+    runtimeSceneTextNodes,
   ]);
 
   useTemplateBoilerplateUiEffects({
@@ -898,7 +870,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const firstCard = data[0];
   const firstEntry = firstCard?.entries?.[0];
 
-  const updateFirstEntryField = (key: string, value: string | boolean) => {
+  const updateFirstEntryField = (
+    key: string,
+    value: string | number | boolean
+  ) => {
     const next = [...data];
     if (!next[0] || !next[0].entries?.[0]) return;
 
@@ -914,6 +889,29 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     };
 
     updateData(next);
+  };
+
+  const updateFirstCardField = (
+    key: string,
+    value: string | number | boolean
+  ) => {
+    const next = [...data];
+    if (!next[0]) return;
+    next[0] = {
+      ...next[0],
+      [key]: value,
+    };
+    updateData(next);
+  };
+
+  const updateGlobalSampleField = (
+    key: string,
+    value: string | number
+  ) => {
+    updateGlobalData({
+      ...globalData,
+      [key]: value,
+    });
   };
 
   const updateFirstDayOffline = (isOffline: boolean) => {
@@ -1262,15 +1260,22 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const renderDataTab = () => (
     <TemplateDataTab
-      timeValue={(firstEntry?.time as string) || "09:00"}
-      mainTitleValue={(firstEntry?.mainTitle as string) || ""}
-      subTitleValue={(firstEntry?.subTitle as string) || ""}
-      isGuerrilla={Boolean(firstEntry?.isGuerrilla)}
+      fields={renderConfig.formSchema.fields}
+      entryValues={(firstEntry ?? {}) as Record<string, unknown>}
+      cardValues={(firstCard ?? {}) as Record<string, unknown>}
+      globalValues={globalData as Record<string, unknown>}
       isOffline={Boolean(firstCard?.isOffline)}
-      onChangeTime={(value) => updateFirstEntryField("time", value)}
-      onChangeMainTitle={(value) => updateFirstEntryField("mainTitle", value)}
-      onChangeSubTitle={(value) => updateFirstEntryField("subTitle", value)}
-      onToggleGuerrilla={(value) => updateFirstEntryField("isGuerrilla", value)}
+      onChangeField={(scope, key, value) => {
+        if (scope === "entry") {
+          updateFirstEntryField(key, value);
+          return;
+        }
+        if (scope === "card") {
+          updateFirstCardField(key, value);
+          return;
+        }
+        updateGlobalSampleField(key, value);
+      }}
       onToggleOffline={updateFirstDayOffline}
     />
   );

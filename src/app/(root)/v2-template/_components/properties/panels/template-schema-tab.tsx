@@ -7,7 +7,9 @@ interface TemplateSchemaTabProps {
   formSchemaError: string | null;
   diagnostics: {
     totalFields: number;
-    unusedFields: unknown[];
+    unusedFields: V2TemplateFormField[];
+    duplicateFields: Array<{ scope: string; key: string; count: number }>;
+    invalidFields: Array<{ scope: string; key: string; reason: string }>;
     missingBindings: Array<{
       nodeLabel: string;
       scope: string;
@@ -62,6 +64,24 @@ const TemplateSchemaTab: React.FC<TemplateSchemaTabProps> = ({
           총 필드: {diagnostics.totalFields}개 / 미사용 필드:{" "}
           {diagnostics.unusedFields.length}개
         </p>
+        {diagnostics.duplicateFields.length > 0 ? (
+          <p className="text-amber-300">
+            중복 필드 {diagnostics.duplicateFields.length}개 (
+            {diagnostics.duplicateFields
+              .map((field) => `${field.scope}.${field.key} x${field.count}`)
+              .join(", ")}
+            )
+          </p>
+        ) : null}
+        {diagnostics.invalidFields.length > 0 ? (
+          <p className="text-amber-300">
+            스키마 경고 {diagnostics.invalidFields.length}개 (
+            {diagnostics.invalidFields
+              .map((field) => `${field.scope}.${field.key}: ${field.reason}`)
+              .join(", ")}
+            )
+          </p>
+        ) : null}
         {diagnostics.missingBindings.length > 0 ? (
           <p className="text-red-300">
             누락 바인딩 {diagnostics.missingBindings.length}개 (
