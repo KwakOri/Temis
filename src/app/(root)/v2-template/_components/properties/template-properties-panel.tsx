@@ -103,6 +103,7 @@ import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
 import TemplateExportTab from "./panels/template-export-tab";
+import TemplateSchemaTab from "./panels/template-schema-tab";
 
 type V2BuilderTab =
   | "canvas"
@@ -3993,153 +3994,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   );
 
   const renderSchemaTab = () => (
-    <div className="space-y-4 rounded-xl border border-[#2f3239] bg-[#111317] p-3 text-gray-100">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="font-bold text-base text-gray-100">입력 스키마</h3>
-        <button
-          type="button"
-          onClick={() => {
-            appendFormField({
-              key: "",
-              scope: "entry",
-              type: "text",
-              placeholder: "새 필드",
-            });
-          }}
-          className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
-        >
-          + 필드 추가
-        </button>
-      </div>
-      <p className="text-xs text-gray-400">
-        여기에서 정의한 필드는 사용자 입력 폼과 오브젝트 바인딩에서 공통으로 사용됩니다.
-      </p>
-      {formSchemaError ? (
-        <div className="rounded border border-red-500/40 bg-red-500/10 px-2 py-1.5 text-xs text-red-300">
-          {formSchemaError}
-        </div>
-      ) : null}
-      <div className="rounded border border-[#3a3d44] bg-[#1a1c20] px-2 py-1.5 text-xs text-gray-300 space-y-1">
-        <p>
-          총 필드: {formSchemaDiagnostics.totalFields}개 / 미사용 필드:{" "}
-          {formSchemaDiagnostics.unusedFields.length}개
-        </p>
-        {formSchemaDiagnostics.missingBindings.length > 0 ? (
-          <p className="text-red-300">
-            누락 바인딩 {formSchemaDiagnostics.missingBindings.length}개 (
-            {formSchemaDiagnostics.missingBindings
-              .map((binding) => `${binding.nodeLabel} -> ${binding.scope}.${binding.key}`)
-              .join(", ")}
-            )
-          </p>
-        ) : (
-          <p className="text-emerald-300">누락된 바인딩 없음</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        {renderConfig.formSchema.fields.map((field, index) => (
-          <div
-            key={`${field.scope}:${field.key}:${index}`}
-            className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 space-y-2"
-          >
-            <div className="grid grid-cols-[1fr_96px_120px_auto] gap-2 items-center">
-              <input
-                value={field.key}
-                onChange={(event) =>
-                  updateFormFieldAt(index, { key: event.target.value })
-                }
-                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                placeholder="field key"
-              />
-              <select
-                value={field.scope}
-                onChange={(event) =>
-                  updateFormFieldAt(index, {
-                    scope:
-                      event.target.value === "card" ||
-                      event.target.value === "global"
-                        ? event.target.value
-                        : "entry",
-                  })
-                }
-                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-              >
-                {v2_FORM_FIELD_SCOPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={field.type}
-                onChange={(event) =>
-                  updateFormFieldAt(index, {
-                    type: event.target.value as V2TemplateFormField["type"],
-                  })
-                }
-                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-              >
-                {v2_FORM_FIELD_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => removeFormFieldAt(index)}
-                className="rounded border border-red-500/40 px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10"
-              >
-                삭제
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={field.label ?? ""}
-                onChange={(event) =>
-                  updateFormFieldAt(index, { label: event.target.value })
-                }
-                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                placeholder="label (optional)"
-              />
-              <input
-                value={field.placeholder}
-                onChange={(event) =>
-                  updateFormFieldAt(index, { placeholder: event.target.value })
-                }
-                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                placeholder="placeholder"
-              />
-            </div>
-            <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
-              <input
-                value={field.defaultValue === undefined ? "" : String(field.defaultValue)}
-                onChange={(event) =>
-                  updateFormFieldAt(index, { defaultValue: event.target.value })
-                }
-                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                placeholder="default value (optional)"
-              />
-              <label className="flex items-center gap-2 text-xs text-gray-300">
-                <input
-                  type="checkbox"
-                  checked={Boolean(field.required)}
-                  onChange={(event) =>
-                    updateFormFieldAt(index, { required: event.target.checked })
-                  }
-                />
-                required
-              </label>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 text-xs text-gray-400">
-        computed 키: {v2_BINDING_COMPUTED_OPTIONS.join(", ")}
-      </div>
-    </div>
+    <TemplateSchemaTab
+      formSchemaError={formSchemaError}
+      diagnostics={formSchemaDiagnostics}
+      fields={renderConfig.formSchema.fields}
+      computedKeys={v2_BINDING_COMPUTED_OPTIONS}
+      scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
+      typeOptions={v2_FORM_FIELD_TYPE_OPTIONS}
+      onAppendField={() =>
+        appendFormField({
+          key: "",
+          scope: "entry",
+          type: "text",
+          placeholder: "새 필드",
+        })
+      }
+      onRemoveField={removeFormFieldAt}
+      onUpdateField={updateFormFieldAt}
+    />
   );
 
   const renderStyleTab = () => (
