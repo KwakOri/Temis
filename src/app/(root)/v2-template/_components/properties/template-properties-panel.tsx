@@ -242,6 +242,66 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     () => v2_collectSceneTextNodes(runtimeSceneNodes),
     [runtimeSceneNodes]
   );
+  const sceneNodeParentIdById = useMemo(() => {
+    const next: Record<string, string | null> = {};
+    const visit = (
+      nodes: typeof runtimeSceneNodes,
+      parentId: string | null
+    ) => {
+      nodes.forEach((node) => {
+        next[node.id] = parentId;
+        if (node.kind === "group") {
+          visit(node.children, node.id);
+        }
+      });
+    };
+    visit(runtimeSceneNodes, null);
+    return next;
+  }, [runtimeSceneNodes]);
+  const sceneNodeDescendantIdsById = useMemo(() => {
+    const next: Record<string, Set<string>> = {};
+
+    const collectDescendants = (node: (typeof runtimeSceneNodes)[number]): Set<string> => {
+      if (node.kind !== "group") {
+        next[node.id] = new Set();
+        return next[node.id];
+      }
+
+      const descendants = new Set<string>();
+      node.children.forEach((child) => {
+        descendants.add(child.id);
+        const childDescendants = collectDescendants(child);
+        childDescendants.forEach((id) => descendants.add(id));
+      });
+      next[node.id] = descendants;
+      return descendants;
+    };
+
+    runtimeSceneNodes.forEach((rootNode) => {
+      collectDescendants(rootNode);
+    });
+
+    return next;
+  }, [runtimeSceneNodes]);
+  const sceneGroupParentOptions = useMemo(() => {
+    const options: Array<{ value: string | null; label: string }> = [
+      { value: null, label: "(루트)" },
+    ];
+
+    const visit = (nodes: typeof runtimeSceneNodes, depth: number) => {
+      nodes.forEach((node) => {
+        if (node.kind !== "group") return;
+        options.push({
+          value: node.id,
+          label: `${"  ".repeat(depth)}${node.label}`,
+        });
+        visit(node.children, depth + 1);
+      });
+    };
+
+    visit(runtimeSceneNodes, 0);
+    return options;
+  }, [runtimeSceneNodes]);
   const bindableSceneTextNodeLabels = useMemo(() => {
     return runtimeSceneTextNodes.map((node) => node.label);
   }, [runtimeSceneTextNodes]);
@@ -435,12 +495,12 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     addSceneSiblingNode,
     addSceneChildNode,
     moveSceneNode,
+    relocateSceneNode,
     removeSceneNode,
     updateSceneTextNodeBinding,
     updateSceneTextNodeVisibilityMode,
     updateSceneTextNodeMeta,
   } = useTemplateSceneNodeActions({
-    renderConfig,
     safeUpdateConfig,
     setSelectedPropertiesLayerId,
     setSelectedPropertiesTarget,
@@ -776,6 +836,17 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         section: section as V2StyleSectionId,
       }),
     onMoveSceneNode: moveSceneNode,
+    onRelocateSceneNode: relocateSceneNode,
+    getSceneNodeParentId: (nodeId) => sceneNodeParentIdById[nodeId] ?? null,
+    getSceneGroupParentOptions: (nodeId) => {
+      const descendantIds = sceneNodeDescendantIdsById[nodeId] ?? new Set<string>();
+      return sceneGroupParentOptions.filter((option) => {
+        if (option.value === null) return true;
+        if (option.value === nodeId) return false;
+        if (descendantIds.has(option.value)) return false;
+        return true;
+      });
+    },
     onRemoveSceneNode: removeSceneNode,
     onAddSceneSiblingNode: addSceneSiblingNode,
     onAddSceneChildNode: addSceneChildNode,

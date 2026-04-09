@@ -43,6 +43,14 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     section: V2SceneNodeSectionId;
   }) => React.ReactNode;
   onMoveSceneNode: (params: { nodeId: string; direction: "up" | "down" }) => void;
+  onRelocateSceneNode: (params: {
+    nodeId: string;
+    targetParentId: string | null;
+  }) => void;
+  getSceneNodeParentId: (nodeId: string) => string | null;
+  getSceneGroupParentOptions: (
+    nodeId: string
+  ) => Array<{ value: string | null; label: string }>;
   onRemoveSceneNode: (nodeId: string) => void;
   onAddSceneSiblingNode: (params: {
     anchorNodeId: string;
@@ -72,6 +80,9 @@ const useTemplateSceneNodePropertyPanels = ({
   isSceneCustomNode,
   renderStyleSectionEditor,
   onMoveSceneNode,
+  onRelocateSceneNode,
+  getSceneNodeParentId,
+  getSceneGroupParentOptions,
   onRemoveSceneNode,
   onAddSceneSiblingNode,
   onAddSceneChildNode,
@@ -93,9 +104,17 @@ const useTemplateSceneNodePropertyPanels = ({
         nodeId={node.id}
         allowChildren={allowChildren}
         canDelete={canDelete}
+        currentParentId={getSceneNodeParentId(node.id)}
+        parentOptions={getSceneGroupParentOptions(node.id)}
         onMoveUp={() => onMoveSceneNode({ nodeId: node.id, direction: "up" })}
         onMoveDown={() =>
           onMoveSceneNode({ nodeId: node.id, direction: "down" })
+        }
+        onRelocate={(targetParentId) =>
+          onRelocateSceneNode({
+            nodeId: node.id,
+            targetParentId,
+          })
         }
         onDelete={() => onRemoveSceneNode(node.id)}
         onAddSibling={(kind) =>

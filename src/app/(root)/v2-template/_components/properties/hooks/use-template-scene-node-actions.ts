@@ -40,7 +40,6 @@ import {
 } from "../model/text-node-defaults";
 
 interface UseTemplateSceneNodeActionsParams {
-  renderConfig: V2TemplateRenderConfig;
   safeUpdateConfig: (
     updater: (prev: V2TemplateRenderConfig) => V2TemplateRenderConfig
   ) => void;
@@ -161,7 +160,6 @@ const v2_isSceneNodeDescendant = ({
 };
 
 const useTemplateSceneNodeActions = ({
-  renderConfig,
   safeUpdateConfig,
   setSelectedPropertiesLayerId,
   setSelectedPropertiesTarget,
