@@ -109,6 +109,7 @@ import TemplateNodeMetaEditor from "./components/template-node-meta-editor";
 import TemplateSceneAssetProperties from "./components/template-scene-asset-properties";
 import TemplateSceneCardCollectionProperties from "./components/template-scene-card-collection-properties";
 import TemplateSceneGroupProperties from "./components/template-scene-group-properties";
+import TemplateSceneNodeStructureControls from "./components/template-scene-node-structure-controls";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
@@ -4456,93 +4457,28 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     allowChildren: boolean;
   }) => {
     const canDelete = isSceneCustomNode(node.id);
-    const addButtons: Array<{
-      label: string;
-      kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
-    }> = [
-      { label: "+ Text", kind: "text" },
-      { label: "+ Flexible", kind: "flexibleText" },
-      { label: "+ Asset", kind: "asset" },
-      { label: "+ Group", kind: "group" },
-      { label: "+ Cards", kind: "cardCollection" },
-    ];
 
     return (
-      <div className="rounded border border-[#3a3d44] bg-[#141821] p-2 space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-          Structure
-        </p>
-        <div className="grid grid-cols-3 gap-2">
-          <button
-            type="button"
-            onClick={() => moveSceneNode({ nodeId: node.id, direction: "up" })}
-            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs text-gray-100 hover:bg-[#323640]"
-          >
-            위로
-          </button>
-          <button
-            type="button"
-            onClick={() => moveSceneNode({ nodeId: node.id, direction: "down" })}
-            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs text-gray-100 hover:bg-[#323640]"
-          >
-            아래로
-          </button>
-          <button
-            type="button"
-            onClick={() => removeSceneNode(node.id)}
-            disabled={!canDelete}
-            className={`rounded border px-2 py-1.5 text-xs ${
-              canDelete
-                ? "border-red-400/40 text-red-300 hover:bg-red-500/10"
-                : "border-[#3a3d44] text-gray-500 cursor-not-allowed"
-            }`}
-          >
-            삭제
-          </button>
-        </div>
-        <div className="space-y-1.5">
-          <p className="text-[11px] text-gray-500">동일 레벨 추가</p>
-          <div className="grid grid-cols-3 gap-2">
-            {addButtons.map((button) => (
-              <button
-                key={`${node.id}-sibling-${button.kind}`}
-                type="button"
-                onClick={() =>
-                  addSceneSiblingNode({
-                    anchorNodeId: node.id,
-                    kind: button.kind,
-                  })
-                }
-                className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
-              >
-                {button.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        {allowChildren ? (
-          <div className="space-y-1.5">
-            <p className="text-[11px] text-gray-500">하위 추가</p>
-            <div className="grid grid-cols-3 gap-2">
-              {addButtons.map((button) => (
-                <button
-                  key={`${node.id}-child-${button.kind}`}
-                  type="button"
-                  onClick={() =>
-                    addSceneChildNode({
-                      parentNodeId: node.id,
-                      kind: button.kind,
-                    })
-                  }
-                  className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
-                >
-                  {button.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-      </div>
+      <TemplateSceneNodeStructureControls
+        nodeId={node.id}
+        allowChildren={allowChildren}
+        canDelete={canDelete}
+        onMoveUp={() => moveSceneNode({ nodeId: node.id, direction: "up" })}
+        onMoveDown={() => moveSceneNode({ nodeId: node.id, direction: "down" })}
+        onDelete={() => removeSceneNode(node.id)}
+        onAddSibling={(kind) =>
+          addSceneSiblingNode({
+            anchorNodeId: node.id,
+            kind,
+          })
+        }
+        onAddChild={(kind) =>
+          addSceneChildNode({
+            parentNodeId: node.id,
+            kind,
+          })
+        }
+      />
     );
   };
 
