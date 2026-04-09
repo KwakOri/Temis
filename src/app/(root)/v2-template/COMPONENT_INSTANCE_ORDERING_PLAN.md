@@ -154,6 +154,15 @@ Move / Extract Copy 분리:
     - 기본 graph를 `layers/sceneNodes/card` seed에서 직접 생성
   - graph 갱신 후 structure 수동 동기화 래퍼(no-op) 경로 제거
   - `order-adapter` 조회 타입을 모델별 overload로 정리해 `tsc` 안정화
+  - v2 훅 경로를 `formSchema` 중심으로 정리:
+    - `useTemplateData/useTemplateEditor/useTemplatePersistence`에서 v2 전용 데이터/영속성 브릿지 사용
+    - 레거시 `CardInputConfig` 연결은 adapter/wrapper 경계로 격리
+  - cardCollection의 기본 `componentId` 해석을 그래프 기반으로 정리:
+    - `"card"` 하드코딩 fallback 축소
+    - 런타임/레이어/속성 패널에서 공통 기본 컴포넌트 해석 사용
+  - pointer -> orderKey 전환 유틸 초안 추가:
+    - `v2_convertPointerOrderToOrderKeyInGraph`
+    - 추후 adapter 실사용 전환 실험 기반 마련
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
@@ -163,4 +172,4 @@ Move / Extract Copy 분리:
 
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
-  - orderKey adapter 실제 도입 및 pointer->orderKey 전환 유틸 고도화
+  - orderKey adapter 실제 도입(런타임/레이어 정렬 경로 연결) 및 전환 유틸 고도화
