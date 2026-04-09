@@ -163,6 +163,14 @@ Move / Extract Copy 분리:
   - pointer -> orderKey 전환 유틸 초안 추가:
     - `v2_convertPointerOrderToOrderKeyInGraph`
     - 추후 adapter 실사용 전환 실험 기반 마련
+  - 레이어 정렬 실경로를 orderKey 기반으로 전환:
+    - layer 패널 reorder 시 graph `orderKey/prevSiblingId` 갱신
+    - layer 읽기 순서 계산 시 graph orderKey 우선 사용
+    - normalize/finalize에서 pointer -> orderKey 승격 연결
+  - 형제 집합 단위 orderKey 재균등화(rebalance) 적용:
+    - 중복/누락/순서 꼬임 시 deterministic 재정렬
+    - rootNodeIds/childIds 동기화 강화
+  - layer 런타임 정렬에서 pointer rebuild 의존 제거
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
@@ -172,4 +180,4 @@ Move / Extract Copy 분리:
 
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
-  - orderKey adapter 실제 도입(런타임/레이어 정렬 경로 연결) 및 전환 유틸 고도화
+  - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강
