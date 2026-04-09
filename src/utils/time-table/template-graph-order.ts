@@ -315,3 +315,71 @@ export const v2_convertPointerOrderToOrderKeyInGraph = (
     rootNodeIds: nextRootNodeIds,
   };
 };
+
+export interface V2OrderKeyGraphValidationResult {
+  valid: boolean;
+  issues: string[];
+}
+
+export const v2_validateOrderKeyGraph = (
+  graph: V2TemplateNodeGraph
+): V2OrderKeyGraphValidationResult => {
+  const siblingIdsByParent = v2_getSiblingIdsByParentFromGraph(graph);
+  const issues: string[] = [];
+
+  Object.entries(siblingIdsByParent).forEach(([parentKey, siblingIds]) => {
+    const seenOrderKeys = new Set<string>();
+    let previousOrderKey: string | null = null;
+    let previousNodeId: string | null = null;
+
+    siblingIds.forEach((nodeId) => {
+      const node = graph.nodes[nodeId];
+      if (!node) {
+        issues.push(`[${parentKey}] missing node: ${nodeId}`);
+        return;
+      }
+
+      if (node.order?.model !== "orderKey") {
+        issues.push(`[${parentKey}] ${nodeId} is not orderKey model`);
+        previousNodeId = nodeId;
+        return;
+      }
+
+      const orderKey = node.order.orderKey;
+      if (!orderKey) {
+        issues.push(`[${parentKey}] ${nodeId} missing orderKey`);
+      } else {
+        if (seenOrderKeys.has(orderKey)) {
+          issues.push(`[${parentKey}] duplicate orderKey: ${orderKey}`);
+        } else {
+          seenOrderKeys.add(orderKey);
+        }
+
+        if (previousOrderKey !== null && orderKey <= previousOrderKey) {
+          issues.push(
+            `[${parentKey}] non-monotonic orderKey: ${previousOrderKey} -> ${orderKey}`
+          );
+        }
+        previousOrderKey = orderKey;
+      }
+
+      const expectedPrevSiblingId = previousNodeId;
+      const actualPrevSiblingId =
+        node.order.prevSiblingId === undefined ? null : node.order.prevSiblingId;
+      if (actualPrevSiblingId !== expectedPrevSiblingId) {
+        issues.push(
+          `[${parentKey}] ${nodeId} prevSiblingId mismatch: expected ${String(
+            expectedPrevSiblingId
+          )}, got ${String(actualPrevSiblingId)}`
+        );
+      }
+
+      previousNodeId = nodeId;
+    });
+  });
+
+  return {
+    valid: issues.length === 0,
+    issues,
+  };
+};

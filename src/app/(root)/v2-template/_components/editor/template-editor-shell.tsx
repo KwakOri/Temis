@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-react";
 
 import { TemplateDesignGuideProvider } from '@/contexts/v2/template-design-guide-context';
@@ -29,6 +29,7 @@ import V2TimeTableLayersPanel from './layers-panel';
 import V2TimeTableControls from './preview-toolbar';
 import V2TimeTablePreview from './preview-canvas';
 import { v2_graphMoveNode } from '@/utils/time-table/template-graph-editor';
+import { v2_validateOrderKeyGraph } from '@/utils/time-table/template-graph-order';
 import {
   v2_collectSceneNodesByLayerId,
   v2_findSceneNodeContextById,
@@ -142,6 +143,16 @@ const V2TimeTableEditor: React.FC = () => {
       graph: renderConfig.graph,
     });
   }, [renderConfig.graph, renderConfig.layout, runtimeLayerTree, runtimeStyleResolverMap]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const validation = v2_validateOrderKeyGraph(renderConfig.graph);
+    if (validation.valid) return;
+    console.warn(
+      '[v2-template] orderKey graph validation issues detected',
+      validation.issues
+    );
+  }, [renderConfig.graph]);
 
   const applyLayerZIndex = ({
     parentId,
