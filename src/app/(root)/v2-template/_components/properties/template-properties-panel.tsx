@@ -100,6 +100,7 @@ import {
   v2_resolveCardStyleSection,
 } from "./model/style-section-utils";
 import TemplateAssetsTab from "./panels/template-assets-tab";
+import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
 import TemplateExportTab from "./panels/template-export-tab";
 
@@ -5657,24 +5658,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   return (
     <div className="h-full min-h-0 w-full">
       <div className="v2-dark-form-theme h-full min-h-0 shrink-0 flex flex-col border-l border-[#303848] bg-gray-100 w-full">
-        <div className="flex border-b-2 border-timetable-card-border bg-timetable-card-bg">
-          {v2_BUILDER_TABS.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 py-3 px-1 text-[11px] font-bold text-center transition-all duration-200 border-b-2 ${
-                  isActive
-                    ? "text-timetable-primary border-timetable-primary"
-                    : "text-gray-500 border-transparent hover:bg-timetable-input-bg hover:text-gray-700"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+        <TemplateBuilderTabs
+          tabs={v2_BUILDER_TABS}
+          activeTab={activeTab}
+          onSelectTab={setActiveTab}
+        />
         <div className="flex-1 overflow-y-auto p-4 h-full bg-timetable-form-bg">
           {renderActiveTab()}
         </div>
