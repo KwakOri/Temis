@@ -1,5 +1,6 @@
 import type { V2TemplateRenderConfigResponse } from "@/services/v2_template_render_config_service";
 import { v2_createDefaultTemplateRenderConfig } from "@/utils/time-table/template-render-config";
+import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 import { Imgs } from "../_img/imgs";
 
 export const v2_createExampleRenderConfigResponse =
@@ -11,7 +12,7 @@ export const v2_createExampleRenderConfigResponse =
       templateId: "00000000-0000-0000-0000-000000000000",
       source: "db",
       configVersion: 1,
-      renderConfig: {
+      renderConfig: v2_withRuntimeStructure({
         version: 1,
         metadata: {
           schema: "v2_template_render_config",
@@ -344,9 +345,8 @@ export const v2_createExampleRenderConfigResponse =
           },
           scene: {},
         },
-        structure: fallbackConfig.structure,
         graph: fallbackConfig.graph,
-      },
+      }),
       createdAt: "2026-03-29T00:00:00.000Z",
       updatedAt: "2026-03-29T00:00:00.000Z",
     };
