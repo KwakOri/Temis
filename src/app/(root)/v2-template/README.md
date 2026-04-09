@@ -12,6 +12,8 @@
 - 페이지에서 `templateId` query param이 있으면 DB 설정 조회
 - 조회 실패/미존재 시 `v2_default` 설정 fallback 사용
 - 컴포넌트는 `V2TemplateRenderConfigContext`를 통해 설정을 읽습니다.
+- 프로필 이미지는 기본적으로 `사용자 업로드 이미지 > 에셋의 더미 프로필 이미지` 우선순위로 렌더링됩니다.
+- 에셋 탭의 `편집 시 프로필 더미 이미지 우선 표시` 토글을 켜면, 편집/검수 중에는 더미 이미지를 우선 표시합니다.
 
 ### 폰트 관리
 
@@ -30,3 +32,13 @@
 
 - 미리보기 기본: `/time-table/_v2_template`
 - 특정 템플릿 설정 확인: `/time-table/_v2_template?templateId=<uuid>`
+
+### 검증 체크리스트
+
+- 타입체크: `npx tsc --noEmit`
+- Layers 선택/hover/click 시 프리뷰 하이라이트가 정상 동작하는지 확인
+- 속성 탭에서 Card/Scene Text 바인딩 변경(computed/field/literal) 반영 확인
+- 바인딩 필드 생성(`+ 필드 생성`) 시 입력 스키마와 바인딩이 동시에 갱신되는지 확인
+- 에셋 탭에서 프로필 더미 이미지 업로드/초기화 및 더미 우선 토글 동작 확인
+- 사용자 프로필 이미지 업로드 후, 더미 우선 토글 ON/OFF에 따라 프리뷰가 즉시 전환되는지 확인
+- localStorage 복원 확인(새로고침 후 style/assets/schema 상태 유지)
