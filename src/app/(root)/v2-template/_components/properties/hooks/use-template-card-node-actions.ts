@@ -7,7 +7,6 @@ import {
   V2TemplateGraphNode,
   V2TemplateCardOptionsKey,
   V2TemplateColorKey,
-  V2TemplateLayerNode,
   V2TemplateRenderConfig,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
@@ -16,6 +15,11 @@ import {
   v2_graphRemoveNodeSubtree,
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
+import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
+import {
+  v2_getRuntimeCardStructure,
+  v2_getRuntimeSceneNodes,
+} from "@/utils/time-table/template-graph-runtime";
 import {
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
@@ -90,27 +94,26 @@ const useTemplateCardNodeActions = ({
     visibilityMode: V2TemplateVisibilityMode
   ) => {
     safeUpdateConfig((prev) => {
-      const prevNode = prev.structure.card.nodes[nodeId];
+      const runtimeCard = v2_getRuntimeCardStructure(prev);
+      const prevNode = runtimeCard.nodes[nodeId];
       if (!prevNode) return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        visibilityMode,
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          visibilityMode,
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          card: {
-            ...prev.structure.card,
-            nodes: {
-              ...prev.structure.card.nodes,
-              [nodeId]: {
-                ...prevNode,
-                visibilityMode,
-              },
-            },
-          },
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
         },
       };
     });
@@ -121,30 +124,29 @@ const useTemplateCardNodeActions = ({
     binding: V2TemplateCardNode["binding"]
   ) => {
     safeUpdateConfig((prev) => {
-      const prevNode = prev.structure.card.nodes[nodeId];
+      const runtimeCard = v2_getRuntimeCardStructure(prev);
+      const prevNode = runtimeCard.nodes[nodeId];
       if (!prevNode) return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        binding,
+        meta: {
+          ...(node.meta ?? {}),
+          layerIcon: binding.mode === "computed" ? "calendar" : "text",
+        },
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          binding,
-          meta: {
-            ...(node.meta ?? {}),
-            layerIcon: binding.mode === "computed" ? "calendar" : "text",
-          },
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          card: {
-            ...prev.structure.card,
-            nodes: {
-              ...prev.structure.card.nodes,
-              [nodeId]: {
-                ...prevNode,
-                binding,
-              },
-            },
-          },
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
         },
       };
     });
@@ -162,7 +164,8 @@ const useTemplateCardNodeActions = ({
     fontKey?: V2TemplateCardNode["fontKey"];
   }) => {
     safeUpdateConfig((prev) => {
-      const prevNode = prev.structure.card.nodes[nodeId];
+      const runtimeCard = v2_getRuntimeCardStructure(prev);
+      const prevNode = runtimeCard.nodes[nodeId];
       if (!prevNode) return prev;
 
       const nextLabel = typeof label === "string" ? label.trim() : undefined;
@@ -175,52 +178,29 @@ const useTemplateCardNodeActions = ({
           ? fontKey
           : undefined;
 
-      const nextNode: V2TemplateCardNode = {
-        ...prevNode,
+      if (!nextLabel && !nextColorKey && !nextFontKey) return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
         ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-        ...(nextColorKey ? { colorKey: nextColorKey } : {}),
-        ...(nextFontKey ? { fontKey: nextFontKey } : {}),
-      };
-
-      const updateLayerLabel = (
-        nodes: V2TemplateLayerNode[]
-      ): V2TemplateLayerNode[] => {
-        return nodes.map((node) => {
-          if (node.id === prevNode.layerId) {
-            return {
-              ...node,
-              ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-            };
-          }
-          if (!node.children?.length) return node;
-          return {
-            ...node,
-            children: updateLayerLabel(node.children),
-          };
-        });
+        meta: {
+          ...(node.meta ?? {}),
+          ...(nextColorKey ? { colorKey: nextColorKey } : {}),
+          ...(nextFontKey ? { fontKey: nextFontKey } : {}),
+        },
+      }));
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
       };
 
       return {
         ...prev,
-        graph: v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-          ...node,
-          ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-          meta: {
-            ...(node.meta ?? {}),
-            ...(nextColorKey ? { colorKey: nextColorKey } : {}),
-            ...(nextFontKey ? { fontKey: nextFontKey } : {}),
-          },
-        })),
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          layers: updateLayerLabel(prev.structure.layers),
-          card: {
-            ...prev.structure.card,
-            nodes: {
-              ...prev.structure.card.nodes,
-              [nodeId]: nextNode,
-            },
-          },
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
         },
       };
     });
@@ -228,7 +208,8 @@ const useTemplateCardNodeActions = ({
 
   const appendCardNode = (kind: V2TemplateCardNodeKind) => {
     safeUpdateConfig((prev) => {
-      const existingIds = new Set(Object.keys(prev.structure.card.nodes));
+      const runtimeCard = v2_getRuntimeCardStructure(prev);
+      const existingIds = new Set(Object.keys(runtimeCard.nodes));
       let nextIndex = 1;
       let nodeId = `card-node-${nextIndex}`;
       while (existingIds.has(nodeId)) {
@@ -277,35 +258,6 @@ const useTemplateCardNodeActions = ({
         }),
       };
 
-      const appendLayerNode = (
-        nodes: V2TemplateLayerNode[]
-      ): V2TemplateLayerNode[] => {
-        return nodes.map((node) => {
-          if (node.id === prev.structure.card.containerLayerId) {
-            return {
-              ...node,
-              children: [
-                ...(node.children ?? []),
-                {
-                  id: layerId,
-                  label,
-                  kind: "component",
-                  icon: "text",
-                  target,
-                  sectionKey: containerStyleKey,
-                  visibilityMode: "always",
-                },
-              ],
-            };
-          }
-          if (!node.children?.length) return node;
-          return {
-            ...node,
-            children: appendLayerNode(node.children),
-          };
-        });
-      };
-
       const cardRootNodeId =
         prev.graph.componentDefinitions.card?.rootNodeId ?? "component-card-root";
       const nextGraphNode = v2_cardNodeToGraphNode(nextNode);
@@ -314,6 +266,10 @@ const useTemplateCardNodeActions = ({
         parentId: cardRootNodeId,
         newNode: nextGraphNode,
       });
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
@@ -324,15 +280,9 @@ const useTemplateCardNodeActions = ({
         },
         structure: {
           ...prev.structure,
-          layers: appendLayerNode(prev.structure.layers),
-          card: {
-            ...prev.structure.card,
-            nodeOrder: [...prev.structure.card.nodeOrder, nodeId],
-            nodes: {
-              ...prev.structure.card.nodes,
-              [nodeId]: nextNode,
-            },
-          },
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
         },
       };
     });
@@ -342,17 +292,9 @@ const useTemplateCardNodeActions = ({
     if (fixedCardNodeIds.has(nodeId)) return;
 
     safeUpdateConfig((prev) => {
-      const targetNode = prev.structure.card.nodes[nodeId];
+      const runtimeCard = v2_getRuntimeCardStructure(prev);
+      const targetNode = runtimeCard.nodes[nodeId];
       if (!targetNode) return prev;
-
-      const nextNodes = {
-        ...prev.structure.card.nodes,
-      };
-      delete nextNodes[nodeId];
-
-      const nextNodeOrder = prev.structure.card.nodeOrder.filter(
-        (id) => id !== nodeId
-      );
 
       const nextCardLayout = {
         ...prev.layout.card,
@@ -362,36 +304,24 @@ const useTemplateCardNodeActions = ({
       if (targetNode.wrapperStyleKey)
         delete nextCardLayout[targetNode.wrapperStyleKey];
       if (targetNode.optionsKey) delete nextCardLayout[targetNode.optionsKey];
-
-      const removeLayerNode = (
-        nodes: V2TemplateLayerNode[]
-      ): V2TemplateLayerNode[] => {
-        return nodes
-          .filter((node) => node.id !== targetNode.layerId)
-          .map((node) => {
-            if (!node.children?.length) return node;
-            return {
-              ...node,
-              children: removeLayerNode(node.children),
-            };
-          });
+      const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, nodeId);
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
       };
 
       return {
         ...prev,
-        graph: v2_graphRemoveNodeSubtree(prev.graph, nodeId),
+        graph: nextGraph,
         layout: {
           ...prev.layout,
           card: nextCardLayout,
         },
         structure: {
           ...prev.structure,
-          layers: removeLayerNode(prev.structure.layers),
-          card: {
-            ...prev.structure.card,
-            nodeOrder: nextNodeOrder,
-            nodes: nextNodes,
-          },
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
         },
       };
     });
@@ -399,11 +329,10 @@ const useTemplateCardNodeActions = ({
 
   const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
     safeUpdateConfig((prev) => {
+      const runtimeCard = v2_getRuntimeCardStructure(prev);
       const graphCardDefinition = prev.graph.componentDefinitions.card;
       const currentMode =
-        graphCardDefinition?.instanceMode ??
-        prev.structure.card.instanceMode ??
-        "component";
+        graphCardDefinition?.instanceMode ?? runtimeCard.instanceMode ?? "component";
       if (currentMode === instanceMode) return prev;
 
       if (currentMode === "detached" && instanceMode === "component") {
@@ -420,41 +349,46 @@ const useTemplateCardNodeActions = ({
         if (!confirmed) return prev;
       }
 
-      return {
-        ...prev,
-        graph: {
-          ...prev.graph,
-          componentDefinitions: {
-            ...prev.graph.componentDefinitions,
-            card: {
-              ...(prev.graph.componentDefinitions.card ?? {
-                id: "card",
-                label: "Card",
-                rootNodeId: "component-card-root",
-                kind: "template",
-              }),
-              ...(instanceMode === "detached"
-                ? {
-                    instanceMode: "detached" as const,
-                    detachedAt:
-                      prev.graph.componentDefinitions.card?.detachedAt ??
-                      new Date().toISOString(),
-                  }
-                : {
+      const nextGraph = {
+        ...prev.graph,
+        componentDefinitions: {
+          ...prev.graph.componentDefinitions,
+          card: {
+            ...(prev.graph.componentDefinitions.card ?? {
+              id: "card",
+              label: "Card",
+              rootNodeId: "component-card-root",
+              kind: "template",
+            }),
+            ...(instanceMode === "detached"
+              ? {
+                  instanceMode: "detached" as const,
+                  detachedAt:
+                    prev.graph.componentDefinitions.card?.detachedAt ??
+                    new Date().toISOString(),
+                }
+              : {
                   instanceMode: "component" as const,
                 }),
-              instanceTransforms:
-                prev.graph.componentDefinitions.card?.instanceTransforms ??
-                prev.structure.card.instanceTransforms,
-            },
+            instanceTransforms:
+              prev.graph.componentDefinitions.card?.instanceTransforms ??
+              runtimeCard.instanceTransforms,
           },
         },
+      };
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
+
+      return {
+        ...prev,
+        graph: nextGraph,
         structure: {
           ...prev.structure,
-          card: {
-            ...prev.structure.card,
-            instanceMode,
-          },
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
         },
       };
     });
@@ -468,8 +402,12 @@ const useTemplateCardNodeActions = ({
     if (!Number.isFinite(value)) return;
 
     safeUpdateConfig((prev) => {
+      const runtimeCard = v2_getRuntimeCardStructure(prev);
       const transformKey = String(index);
-      const prevTransforms = prev.structure.card.instanceTransforms ?? {};
+      const prevTransforms =
+        prev.graph.componentDefinitions.card?.instanceTransforms ??
+        runtimeCard.instanceTransforms ??
+        {};
       const prevTransform = prevTransforms[transformKey] ?? {};
       const nextTransform: V2TemplateCardInstanceTransform = {
         ...prevTransform,
@@ -522,29 +460,34 @@ const useTemplateCardNodeActions = ({
         nextTransforms[transformKey] = nextTransform;
       }
 
-      return {
-        ...prev,
-        graph: {
-          ...prev.graph,
-          componentDefinitions: {
-            ...prev.graph.componentDefinitions,
-            card: {
-              ...(prev.graph.componentDefinitions.card ?? {
-                id: "card",
-                label: "Card",
-                rootNodeId: "component-card-root",
-                kind: "template",
-              }),
-              instanceTransforms: nextTransforms,
-            },
-          },
-        },
-        structure: {
-          ...prev.structure,
+      const nextGraph = {
+        ...prev.graph,
+        componentDefinitions: {
+          ...prev.graph.componentDefinitions,
           card: {
-            ...prev.structure.card,
+            ...(prev.graph.componentDefinitions.card ?? {
+              id: "card",
+              label: "Card",
+              rootNodeId: "component-card-root",
+              kind: "template",
+            }),
             instanceTransforms: nextTransforms,
           },
+        },
+      };
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
+
+      return {
+        ...prev,
+        graph: nextGraph,
+        structure: {
+          ...prev.structure,
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
         },
       };
     });
