@@ -20,6 +20,10 @@ import {
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
+import {
+  v2_getRuntimeCardStructure,
+  v2_getRuntimeSceneNodes,
+} from "@/utils/time-table/template-graph-runtime";
 import { v2_bindingRefToLegacyInput } from "@/utils/time-table/template-render-config";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import { v2_BOILERPLATE_SELECT_OPTIONS } from "./model/boilerplate-presets";
@@ -440,6 +444,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     useState<V2TemplateHighlightTarget>("grid");
   const [selectedPropertiesLayerId, setSelectedPropertiesLayerId] =
     useState<string>("grid");
+  const runtimeCardStructure = useMemo(
+    () => v2_getRuntimeCardStructure(renderConfig),
+    [renderConfig]
+  );
+  const runtimeSceneNodes = useMemo(
+    () => v2_getRuntimeSceneNodes(renderConfig),
+    [renderConfig]
+  );
   const structurePropertiesMaps = useMemo(
     () => v2_collectStructureTargetSectionMaps(renderConfig.structure.layers),
     [renderConfig.structure.layers]
@@ -476,33 +488,31 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   ]);
   const cardNodeByLayerId = useMemo(() => {
     const map = new Map<string, V2TemplateCardNode>();
-    Object.values(renderConfig.structure.card.nodes).forEach((node) => {
+    Object.values(runtimeCardStructure.nodes).forEach((node) => {
       map.set(node.layerId, node);
     });
     return map;
-  }, [renderConfig.structure.card.nodes]);
+  }, [runtimeCardStructure.nodes]);
   const sceneNodeByLayerId = useMemo(
-    () => v2_collectSceneNodesByLayerId(renderConfig.structure.sceneNodes),
-    [renderConfig.structure.sceneNodes]
+    () => v2_collectSceneNodesByLayerId(runtimeSceneNodes),
+    [runtimeSceneNodes]
   );
   const sceneStyleSectionKeySet = useMemo(() => {
     const next = new Set<string>();
-    renderConfig.structure.sceneNodes.forEach((node) => {
+    runtimeSceneNodes.forEach((node) => {
       v2_collectSceneNodeStyleKeys(node).forEach((key) => next.add(key));
     });
     return next;
-  }, [renderConfig.structure.sceneNodes]);
+  }, [runtimeSceneNodes]);
   const bindableCardNodeLabels = useMemo(() => {
-    return renderConfig.structure.card.nodeOrder
-      .map((nodeId) => renderConfig.structure.card.nodes[nodeId])
+    return runtimeCardStructure.nodeOrder
+      .map((nodeId) => runtimeCardStructure.nodes[nodeId])
       .filter((node): node is V2TemplateCardNode => Boolean(node))
       .map((node) => node.label);
-  }, [renderConfig.structure.card.nodeOrder, renderConfig.structure.card.nodes]);
+  }, [runtimeCardStructure.nodeOrder, runtimeCardStructure.nodes]);
   const bindableSceneTextNodeLabels = useMemo(() => {
-    return v2_collectSceneTextNodes(renderConfig.structure.sceneNodes).map(
-      (node) => node.label
-    );
-  }, [renderConfig.structure.sceneNodes]);
+    return v2_collectSceneTextNodes(runtimeSceneNodes).map((node) => node.label);
+  }, [runtimeSceneNodes]);
   const bindableNodeLabels = useMemo(() => {
     return Array.from(
       new Set([...bindableCardNodeLabels, ...bindableSceneTextNodeLabels])
@@ -520,16 +530,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
     const missingBindings: Array<{ nodeLabel: string; scope: string; key: string }> = [];
     const fieldBindingNodes = [
-      ...Object.values(renderConfig.structure.card.nodes).map((node) => ({
+      ...Object.values(runtimeCardStructure.nodes).map((node) => ({
         nodeLabel: node.label,
         binding: node.binding,
       })),
-      ...v2_collectSceneTextNodes(renderConfig.structure.sceneNodes).map(
-        (node) => ({
-          nodeLabel: node.label,
-          binding: node.binding,
-        })
-      ),
+      ...v2_collectSceneTextNodes(runtimeSceneNodes).map((node) => ({
+        nodeLabel: node.label,
+        binding: node.binding,
+      })),
     ];
     fieldBindingNodes.forEach(({ nodeLabel, binding }) => {
       if (binding.mode !== "field") return;
@@ -557,8 +565,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     };
   }, [
     renderConfig.formSchema.fields,
-    renderConfig.structure.card.nodes,
-    renderConfig.structure.sceneNodes,
+    runtimeCardStructure.nodes,
+    runtimeSceneNodes,
   ]);
 
   useTemplateBoilerplateUiEffects({
