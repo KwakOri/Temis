@@ -10,6 +10,7 @@ import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui
 import { TTheme } from '@/types/time-table/theme';
 import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
 import {
+  v2_getDefaultCardComponentId,
   v2_getRuntimeCardStructure,
   v2_getRuntimeSceneNodes,
 } from '@/utils/time-table/template-graph-runtime';
@@ -88,7 +89,30 @@ const V2TimeTableEditor: React.FC = () => {
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
   );
+  const defaultCardComponentId = useMemo(
+    () => v2_getDefaultCardComponentId(renderConfig),
+    [renderConfig]
+  );
+  const runtimeSceneNodes = useMemo(
+    () => v2_getRuntimeSceneNodes(renderConfig),
+    [renderConfig]
+  );
   const runtimeComponentCatalog = useMemo(() => {
+    const instanceCountByComponentId: Record<string, number> = {};
+    const collectCardCollectionCounts = (nodes: typeof runtimeSceneNodes) => {
+      nodes.forEach((node) => {
+        if (node.kind === "cardCollection") {
+          const componentId = node.componentId ?? defaultCardComponentId;
+          instanceCountByComponentId[componentId] =
+            (instanceCountByComponentId[componentId] ?? 0) + 1;
+        }
+        if (node.kind === "group") {
+          collectCardCollectionCounts(node.children);
+        }
+      });
+    };
+    collectCardCollectionCounts(runtimeSceneNodes);
+
     const definitions = Object.values(renderConfig.graph.componentDefinitions ?? {});
     return definitions.map((definition) => {
       const rootNode = renderConfig.graph.nodes[definition.rootNodeId];
@@ -99,15 +123,17 @@ const V2TimeTableEditor: React.FC = () => {
         rootLayerId: rootNode?.layerId ?? null,
         kind: definition.kind ?? "custom",
         instanceMode: definition.instanceMode ?? "component",
+        instanceCount: instanceCountByComponentId[definition.id] ?? 0,
       };
     });
-  }, [renderConfig.graph.componentDefinitions, renderConfig.graph.nodes]);
+  }, [
+    defaultCardComponentId,
+    renderConfig.graph.componentDefinitions,
+    renderConfig.graph.nodes,
+    runtimeSceneNodes,
+  ]);
   const runtimeCardStructure = useMemo(
     () => v2_getRuntimeCardStructure(renderConfig),
-    [renderConfig]
-  );
-  const runtimeSceneNodes = useMemo(
-    () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
   );
   const relocatableLayerIdSet = useMemo(() => {

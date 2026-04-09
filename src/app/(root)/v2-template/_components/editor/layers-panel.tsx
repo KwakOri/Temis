@@ -44,6 +44,7 @@ interface V2TimeTableLayersPanelProps {
     rootLayerId: string | null;
     kind: "template" | "custom";
     instanceMode: "component" | "detached";
+    instanceCount: number;
   }>;
   onSelectLayer?: (payload: {
     target?: V2TemplateHighlightTarget;
@@ -607,6 +608,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                         </p>
                         <p className="truncate text-[10px] text-[#7f92b5]">
                           {componentItem.kind} / {componentItem.instanceMode}
+                        </p>
+                        <p className="truncate text-[10px] text-[#7f92b5]">
+                          instances: {componentItem.instanceCount}
                         </p>
                       </div>
                       <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
