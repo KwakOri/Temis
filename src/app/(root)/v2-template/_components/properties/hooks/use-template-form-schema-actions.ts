@@ -5,9 +5,10 @@ import {
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
 import {
-  v2_collectSceneTextNodes,
-  v2_mapSceneTextNodes,
-} from "../model/structure-utils";
+  v2_getRuntimeCardStructure,
+  v2_getRuntimeSceneNodes,
+} from "@/utils/time-table/template-graph-runtime";
+import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 
 interface UseTemplateFormSchemaActionsParams {
   renderConfig: V2TemplateRenderConfig;
@@ -67,6 +68,24 @@ const useTemplateFormSchemaActions = ({
     });
   };
 
+  const countLinkedGraphBindingNodes = ({
+    nodes,
+    scope,
+    key,
+  }: {
+    nodes: V2TemplateRenderConfig["graph"]["nodes"];
+    scope: V2TemplateFormField["scope"];
+    key: string;
+  }): number => {
+    return Object.values(nodes).filter((node) => {
+      return (
+        node.binding?.mode === "field" &&
+        node.binding.scope === scope &&
+        node.binding.key === key
+      );
+    }).length;
+  };
+
   const hasDuplicatedFormFieldKey = (
     key: string,
     excludeIndex?: number,
@@ -107,44 +126,6 @@ const useTemplateFormSchemaActions = ({
       };
       const nextFields = [...prev.formSchema.fields];
       nextFields[index] = nextField;
-      const nextCardNodes = Object.fromEntries(
-        Object.entries(prev.structure.card.nodes).map(([nodeId, node]) => {
-          const shouldRewriteBinding =
-            node.binding.mode === "field" &&
-            node.binding.scope === prevField.scope &&
-            node.binding.key === prevField.key;
-          if (!shouldRewriteBinding) return [nodeId, node];
-          return [
-            nodeId,
-            {
-              ...node,
-              binding: {
-                mode: "field" as const,
-                scope: nextField.scope,
-                key: nextField.key,
-              },
-            },
-          ];
-        })
-      );
-      const { nodes: nextSceneNodes } = v2_mapSceneTextNodes({
-        nodes: prev.structure.sceneNodes,
-        mapper: (node) => {
-          const shouldRewriteBinding =
-            node.binding.mode === "field" &&
-            node.binding.scope === prevField.scope &&
-            node.binding.key === prevField.key;
-          if (!shouldRewriteBinding) return node;
-          return {
-            ...node,
-            binding: {
-              mode: "field",
-              scope: nextField.scope,
-              key: nextField.key,
-            },
-          };
-        },
-      });
       const nextFormSchema = {
         ...prev.formSchema,
         fields: nextFields,
@@ -159,21 +140,24 @@ const useTemplateFormSchemaActions = ({
           key: nextField.key,
         },
       });
+      const nextGraph = {
+        ...prev.graph,
+        nodes: nextGraphNodes,
+      };
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: {
-          ...prev.graph,
-          nodes: nextGraphNodes,
-        },
+        graph: nextGraph,
         formSchema: nextFormSchema,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          card: {
-            ...prev.structure.card,
-            nodes: nextCardNodes,
-          },
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
@@ -219,25 +203,11 @@ const useTemplateFormSchemaActions = ({
     const targetField = renderConfig.formSchema.fields[index];
     if (!targetField) return;
 
-    const linkedCardNodeIds = Object.values(renderConfig.structure.card.nodes)
-      .filter(
-        (node) =>
-          node.binding.mode === "field" &&
-          node.binding.key === targetField.key &&
-          node.binding.scope === targetField.scope
-      )
-      .map((node) => node.id);
-    const linkedSceneNodeIds = v2_collectSceneTextNodes(
-      renderConfig.structure.sceneNodes
-    )
-      .filter(
-        (node) =>
-          node.binding.mode === "field" &&
-          node.binding.key === targetField.key &&
-          node.binding.scope === targetField.scope
-      )
-      .map((node) => node.id);
-    const linkedNodeCount = linkedCardNodeIds.length + linkedSceneNodeIds.length;
+    const linkedNodeCount = countLinkedGraphBindingNodes({
+      nodes: renderConfig.graph.nodes,
+      scope: targetField.scope,
+      key: targetField.key,
+    });
 
     if (linkedNodeCount > 0) {
       const confirmed = window.confirm(
@@ -249,42 +219,6 @@ const useTemplateFormSchemaActions = ({
     setFormSchemaError(null);
     safeUpdateConfig((prev) => {
       const nextFields = prev.formSchema.fields.filter((_, i) => i !== index);
-      const nextCardNodes = Object.fromEntries(
-        Object.entries(prev.structure.card.nodes).map(([nodeId, node]) => {
-          const shouldResetBinding =
-            node.binding.mode === "field" &&
-            node.binding.key === targetField.key &&
-            node.binding.scope === targetField.scope;
-          if (!shouldResetBinding) return [nodeId, node];
-          return [
-            nodeId,
-            {
-              ...node,
-              binding: {
-                mode: "literal" as const,
-                value: "",
-              },
-            },
-          ];
-        })
-      );
-      const { nodes: nextSceneNodes } = v2_mapSceneTextNodes({
-        nodes: prev.structure.sceneNodes,
-        mapper: (node) => {
-          const shouldResetBinding =
-            node.binding.mode === "field" &&
-            node.binding.key === targetField.key &&
-            node.binding.scope === targetField.scope;
-          if (!shouldResetBinding) return node;
-          return {
-            ...node,
-            binding: {
-              mode: "literal",
-              value: "",
-            },
-          };
-        },
-      });
 
       const nextFormSchema = {
         ...prev.formSchema,
@@ -299,21 +233,24 @@ const useTemplateFormSchemaActions = ({
           value: "",
         },
       });
+      const nextGraph = {
+        ...prev.graph,
+        nodes: nextGraphNodes,
+      };
+      const nextRuntimeConfig: V2TemplateRenderConfig = {
+        ...prev,
+        graph: nextGraph,
+      };
 
       return {
         ...prev,
-        graph: {
-          ...prev.graph,
-          nodes: nextGraphNodes,
-        },
+        graph: nextGraph,
         formSchema: nextFormSchema,
         structure: {
           ...prev.structure,
-          sceneNodes: nextSceneNodes,
-          card: {
-            ...prev.structure.card,
-            nodes: nextCardNodes,
-          },
+          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
+          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
+          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
         },
       };
     });
