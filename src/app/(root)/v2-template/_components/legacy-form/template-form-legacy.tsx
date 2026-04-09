@@ -2,9 +2,9 @@ import { FormCard } from '@/components/TimeTable/FixedComponents/FormCard';
 import TimeTableProfileImageSelector from '@/components/TimeTable/TimeTableProfileImageSelector';
 import TextRenderer from '@/components/TimeTable/fieldRenderer/TextRenderer';
 import TextareaRenderer from '@/components/TimeTable/fieldRenderer/TextareaRenderer';
-import { useTimeTable } from '@/contexts/TimeTableContext';
 import { useTemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
 import { useTemplateEditorRuntimeContext } from '@/contexts/v2/template-editor-runtime-context';
+import { useTemplateEditorUIContext } from '@/contexts/v2/template-editor-ui-context';
 import {
   useHasActiveTeam,
   useSaveTeamScheduleFromDynamicCards,
@@ -38,7 +38,7 @@ const V2TimeTableForm: React.FC = () => {
   const cropWidth = renderConfig.cardSizes.profile.width;
   const cropHeight = renderConfig.cardSizes.profile.height;
 
-  const { state, actions } = useTimeTable();
+  const { state, actions } = useTemplateEditorUIContext();
   const pathname = usePathname();
 
   const { data: isTeam = false } = useHasActiveTeam();
