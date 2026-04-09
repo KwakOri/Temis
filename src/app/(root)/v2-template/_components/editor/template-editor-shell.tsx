@@ -99,13 +99,22 @@ const V2TimeTableEditor: React.FC = () => {
     [renderConfig]
   );
   const runtimeComponentCatalog = useMemo(() => {
-    const instanceCountByComponentId: Record<string, number> = {};
+    const instanceStatsByComponentId: Record<
+      string,
+      { count: number; firstLayerId: string | null }
+    > = {};
     const collectCardCollectionCounts = (nodes: typeof runtimeSceneNodes) => {
       nodes.forEach((node) => {
         if (node.kind === "cardCollection") {
           const componentId = node.componentId ?? defaultCardComponentId;
-          instanceCountByComponentId[componentId] =
-            (instanceCountByComponentId[componentId] ?? 0) + 1;
+          const previous = instanceStatsByComponentId[componentId] ?? {
+            count: 0,
+            firstLayerId: null,
+          };
+          instanceStatsByComponentId[componentId] = {
+            count: previous.count + 1,
+            firstLayerId: previous.firstLayerId ?? node.layerId ?? null,
+          };
         }
         if (node.kind === "group") {
           collectCardCollectionCounts(node.children);
@@ -124,7 +133,9 @@ const V2TimeTableEditor: React.FC = () => {
         rootLayerId: rootNode?.layerId ?? null,
         kind: definition.kind ?? "custom",
         instanceMode: definition.instanceMode ?? "component",
-        instanceCount: instanceCountByComponentId[definition.id] ?? 0,
+        instanceCount: instanceStatsByComponentId[definition.id]?.count ?? 0,
+        firstInstanceLayerId:
+          instanceStatsByComponentId[definition.id]?.firstLayerId ?? null,
       };
     });
   }, [

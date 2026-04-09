@@ -42,6 +42,7 @@ interface V2TimeTableLayersPanelProps {
     label: string;
     rootNodeId: string;
     rootLayerId: string | null;
+    firstInstanceLayerId: string | null;
     kind: "template" | "custom";
     instanceMode: "component" | "detached";
     instanceCount: number;
@@ -636,6 +637,25 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                         Detached
                       </div>
                     )}
+                    {componentItem.firstInstanceLayerId ? (
+                      <button
+                        type="button"
+                        className="w-full rounded border border-[#3a5f9e] bg-[#182643] px-2 py-1 text-[11px] font-semibold text-[#a8c7ff] hover:bg-[#1d2e51]"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          const firstInstanceLayerId =
+                            componentItem.firstInstanceLayerId;
+                          if (!firstInstanceLayerId) return;
+                          setSelectedLayerId(firstInstanceLayerId);
+                          onSelectLayer?.({
+                            layerId: firstInstanceLayerId,
+                            editorMode: "instance",
+                          });
+                        }}
+                      >
+                        첫 인스턴스 이동
+                      </button>
+                    ) : null}
                   </div>
                 ))
               )}
