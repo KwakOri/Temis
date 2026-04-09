@@ -93,24 +93,49 @@ const v2_toCardNode = (
   };
 };
 
+const v2_collectSceneNodeById = (
+  nodes: V2TemplateSceneNode[]
+): Map<string, V2TemplateSceneNode> => {
+  const next = new Map<string, V2TemplateSceneNode>();
+  const stack = [...nodes];
+  while (stack.length > 0) {
+    const node = stack.shift();
+    if (!node) continue;
+    next.set(node.id, node);
+    if (node.kind === "group" && node.children.length > 0) {
+      stack.unshift(...node.children);
+    }
+  }
+  return next;
+};
+
 const v2_buildSceneNodeFromGraph = ({
   graphNode,
   graphNodes,
+  fallbackById,
   visited,
 }: {
   graphNode: V2TemplateGraphNode;
   graphNodes: Record<string, V2TemplateGraphNode>;
+  fallbackById: Map<string, V2TemplateSceneNode>;
   visited: Set<string>;
 }): V2TemplateSceneNode | null => {
   if (visited.has(graphNode.id)) return null;
   visited.add(graphNode.id);
+  const fallbackNode = fallbackById.get(graphNode.id);
 
   const base = {
     id: graphNode.id,
-    label: graphNode.label,
-    ...(graphNode.layerId ? { layerId: graphNode.layerId } : {}),
-    ...(v2_toVisibilityMode(graphNode.visibilityMode)
-      ? { visibilityMode: v2_toVisibilityMode(graphNode.visibilityMode) }
+    label: fallbackNode?.label ?? graphNode.label,
+    ...(fallbackNode?.layerId
+      ? { layerId: fallbackNode.layerId }
+      : graphNode.layerId
+        ? { layerId: graphNode.layerId }
+        : {}),
+    ...(fallbackNode?.visibilityMode
+      ? { visibilityMode: fallbackNode.visibilityMode }
+      : v2_toVisibilityMode(graphNode.visibilityMode)
+        ? { visibilityMode: v2_toVisibilityMode(graphNode.visibilityMode) }
       : {}),
   } as const;
 
@@ -122,6 +147,7 @@ const v2_buildSceneNodeFromGraph = ({
         v2_buildSceneNodeFromGraph({
           graphNode: childNode,
           graphNodes,
+          fallbackById,
           visited,
         })
       )
@@ -135,6 +161,12 @@ const v2_buildSceneNodeFromGraph = ({
   }
 
   if (graphNode.type === "image") {
+    if (fallbackNode?.kind === "asset") {
+      return {
+        ...fallbackNode,
+        id: graphNode.id,
+      };
+    }
     if (!graphNode.meta?.assetKey) return null;
 
     return {
@@ -148,6 +180,12 @@ const v2_buildSceneNodeFromGraph = ({
   }
 
   if (graphNode.type === "cardCollection") {
+    if (fallbackNode?.kind === "cardCollection") {
+      return {
+        ...fallbackNode,
+        id: graphNode.id,
+      };
+    }
     return {
       ...base,
       kind: "cardCollection",
@@ -156,6 +194,15 @@ const v2_buildSceneNodeFromGraph = ({
   }
 
   if (graphNode.type === "text" || graphNode.type === "flexibleText") {
+    if (
+      fallbackNode &&
+      (fallbackNode.kind === "text" || fallbackNode.kind === "flexibleText")
+    ) {
+      return {
+        ...fallbackNode,
+        id: graphNode.id,
+      };
+    }
     if (!graphNode.styles?.containerStyleKey) return null;
     const colorKey =
       graphNode.meta?.colorKey && v2_COLOR_KEY_SET.has(graphNode.meta.colorKey)
@@ -194,6 +241,7 @@ export const v2_getRuntimeSceneNodes = (
   renderConfig: V2TemplateRenderConfig
 ): V2TemplateSceneNode[] => {
   const fallbackNodes = renderConfig.structure.sceneNodes;
+  const fallbackById = v2_collectSceneNodeById(fallbackNodes);
   const graph = renderConfig.graph;
   if (!graph || !graph.nodes || !Array.isArray(graph.rootNodeIds)) {
     return fallbackNodes;
@@ -211,6 +259,7 @@ export const v2_getRuntimeSceneNodes = (
       v2_buildSceneNodeFromGraph({
         graphNode: rootNode,
         graphNodes: graph.nodes,
+        fallbackById,
         visited,
       })
     )
@@ -238,7 +287,8 @@ export const v2_getRuntimeCardStructure = (
   cardRootNode.childIds.forEach((childId) => {
     const graphNode = graph.nodes[childId];
     if (!graphNode) return;
-    const nextCardNode = v2_toCardNode(graphNode, fallbackCard.nodes[childId]);
+    const nextCardNode =
+      fallbackCard.nodes[childId] ?? v2_toCardNode(graphNode, fallbackCard.nodes[childId]);
     if (!nextCardNode) return;
     nextNodes[nextCardNode.id] = nextCardNode;
     nextNodeOrder.push(nextCardNode.id);
@@ -247,12 +297,9 @@ export const v2_getRuntimeCardStructure = (
   if (nextNodeOrder.length === 0) return fallbackCard;
 
   return {
-    containerLayerId: cardRootNode.layerId ?? fallbackCard.containerLayerId,
-    containerHighlightTarget:
-      (cardRootNode.highlightTarget ??
-        fallbackCard.containerHighlightTarget) as V2TemplateCardNode["highlightTarget"],
-    containerStyleKey:
-      cardRootNode.styles?.containerStyleKey ?? fallbackCard.containerStyleKey,
+    containerLayerId: fallbackCard.containerLayerId,
+    containerHighlightTarget: fallbackCard.containerHighlightTarget,
+    containerStyleKey: fallbackCard.containerStyleKey,
     instanceMode: fallbackCard.instanceMode,
     instanceTransforms: fallbackCard.instanceTransforms,
     nodeOrder: nextNodeOrder,
