@@ -103,6 +103,9 @@ import TemplateCardAutoResizeOptions from "./components/template-card-auto-resiz
 import TemplateCardComponentProperties from "./components/template-card-component-properties";
 import TemplateNodeBindingEditor from "./components/template-node-binding-editor";
 import TemplateNodeMetaEditor from "./components/template-node-meta-editor";
+import TemplateSceneAssetProperties from "./components/template-scene-asset-properties";
+import TemplateSceneCardCollectionProperties from "./components/template-scene-card-collection-properties";
+import TemplateSceneGroupProperties from "./components/template-scene-group-properties";
 import TemplateAssetsTab from "./panels/template-assets-tab";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
 import TemplateDataTab from "./panels/template-data-tab";
@@ -4543,135 +4546,71 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     section: V2StyleSectionId | null
   ) => {
     const styleSection = section ?? v2_parseStyleSectionKey(node.styleKey);
+    const styleEditor = styleSection ? (
+      renderStyleSectionEditor({
+        title: "asset style",
+        section: styleSection,
+      })
+    ) : (
+      <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
+        이 에셋 노드는 연결된 style section이 없습니다.
+      </div>
+    );
 
     return (
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">Scene Asset / {node.label}</h4>
-        {renderSceneNodeStructureControls({ node, allowChildren: false })}
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">오브젝트 이름</label>
-          <input
-            value={node.label}
-            onChange={(event) => updateSceneNodeLabel(node.id, event.target.value)}
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          />
-          <label className="text-xs text-gray-400">에셋 키</label>
-          <select
-            value={node.assetKey}
-            onChange={(event) =>
-              updateSceneAssetNodeMeta({
-                nodeId: node.id,
-                assetKey: event.target.value as keyof V2TemplateAssetMap,
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_ASSET_KEYS.map((assetKey) => (
-              <option key={`scene-asset-key-${assetKey}`} value={assetKey}>
-                {v2_ASSET_LABELS[assetKey]}
-              </option>
-            ))}
-          </select>
-          <label className="text-xs text-gray-400">Fit</label>
-          <select
-            value={node.fit ?? "cover"}
-            onChange={(event) =>
-              updateSceneAssetNodeMeta({
-                nodeId: node.id,
-                fit: event.target.value as V2TemplateSceneAssetNode["fit"],
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            <option value="cover">cover</option>
-            <option value="contain">contain</option>
-            <option value="fill">fill</option>
-          </select>
-          <label className="text-xs text-gray-400">표시 조건</label>
-          <select
-            value={node.visibilityMode ?? "always"}
-            onChange={(event) =>
-              updateSceneNodeVisibilityMode(
-                node.id,
-                event.target.value as V2TemplateVisibilityMode
-              )
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
-              <option key={`scene-asset-visible-${option.value}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">alt</label>
-          <input
-            value={node.alt ?? ""}
-            onChange={(event) =>
-              updateSceneAssetNodeMeta({
-                nodeId: node.id,
-                alt: event.target.value,
-              })
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-            placeholder="이미지 alt 텍스트"
-          />
-          <label className="text-xs text-gray-400">style key</label>
-          <div className="px-2 py-2 rounded border border-[#3a3d44] bg-[#121418] text-xs text-gray-300">
-            {node.styleKey ?? "-"}
-          </div>
-        </div>
-        {styleSection ? (
-          renderStyleSectionEditor({
-            title: "asset style",
-            section: styleSection,
+      <TemplateSceneAssetProperties
+        node={node}
+        assetKeys={v2_ASSET_KEYS}
+        assetLabels={v2_ASSET_LABELS}
+        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
+        structureControls={renderSceneNodeStructureControls({
+          node,
+          allowChildren: false,
+        })}
+        styleEditor={styleEditor}
+        onChangeLabel={(value) => updateSceneNodeLabel(node.id, value)}
+        onChangeAssetKey={(value) =>
+          updateSceneAssetNodeMeta({
+            nodeId: node.id,
+            assetKey: value,
           })
-        ) : (
-          <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
-            이 에셋 노드는 연결된 style section이 없습니다.
-          </div>
-        )}
-      </div>
+        }
+        onChangeFit={(value) =>
+          updateSceneAssetNodeMeta({
+            nodeId: node.id,
+            fit: value,
+          })
+        }
+        onChangeVisibilityMode={(value) =>
+          updateSceneNodeVisibilityMode(node.id, value)
+        }
+        onChangeAlt={(value) =>
+          updateSceneAssetNodeMeta({
+            nodeId: node.id,
+            alt: value,
+          })
+        }
+      />
     );
   };
 
   const renderSceneGroupNodeProperties = (node: V2TemplateSceneGroupNode) => {
     const childCount = node.children.length;
     return (
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">Scene Group / {node.label}</h4>
-        {renderSceneNodeStructureControls({ node, allowChildren: true })}
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">오브젝트 이름</label>
-          <input
-            value={node.label}
-            onChange={(event) => updateSceneNodeLabel(node.id, event.target.value)}
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          />
-          <label className="text-xs text-gray-400">표시 조건</label>
-          <select
-            value={node.visibilityMode ?? "always"}
-            onChange={(event) =>
-              updateSceneNodeVisibilityMode(
-                node.id,
-                event.target.value as V2TemplateVisibilityMode
-              )
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
-              <option key={`scene-group-visible-${option.value}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
-          하위 노드: {childCount}개
-        </div>
-      </div>
+      <TemplateSceneGroupProperties
+        label={node.label}
+        childCount={childCount}
+        visibilityMode={node.visibilityMode ?? "always"}
+        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
+        structureControls={renderSceneNodeStructureControls({
+          node,
+          allowChildren: true,
+        })}
+        onChangeLabel={(value) => updateSceneNodeLabel(node.id, value)}
+        onChangeVisibilityMode={(value) =>
+          updateSceneNodeVisibilityMode(node.id, value)
+        }
+      />
     );
   };
 
@@ -4679,42 +4618,24 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     node: V2TemplateSceneCardCollectionNode,
     section: V2StyleSectionId | null
   ) => {
+    const layoutStyleEditor = section
+      ? renderStyleSectionEditor({ title: "layout style", section })
+      : null;
+
     return (
-      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">
-          Scene Card Collection / {node.label}
-        </h4>
-        {renderSceneNodeStructureControls({ node, allowChildren: false })}
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">오브젝트 이름</label>
-          <input
-            value={node.label}
-            onChange={(event) => updateSceneNodeLabel(node.id, event.target.value)}
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          />
-          <label className="text-xs text-gray-400">표시 조건</label>
-          <select
-            value={node.visibilityMode ?? "always"}
-            onChange={(event) =>
-              updateSceneNodeVisibilityMode(
-                node.id,
-                event.target.value as V2TemplateVisibilityMode
-              )
-            }
-            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-          >
-            {v2_CARD_NODE_VISIBILITY_OPTIONS.map((option) => (
-              <option key={`scene-card-collection-visible-${option.value}`} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
-          source: {node.source}
-        </div>
-        {section ? renderStyleSectionEditor({ title: "layout style", section }) : null}
-      </div>
+      <TemplateSceneCardCollectionProperties
+        node={node}
+        visibilityOptions={v2_CARD_NODE_VISIBILITY_OPTIONS}
+        structureControls={renderSceneNodeStructureControls({
+          node,
+          allowChildren: false,
+        })}
+        layoutStyleEditor={layoutStyleEditor}
+        onChangeLabel={(value) => updateSceneNodeLabel(node.id, value)}
+        onChangeVisibilityMode={(value) =>
+          updateSceneNodeVisibilityMode(node.id, value)
+        }
+      />
     );
   };
 
