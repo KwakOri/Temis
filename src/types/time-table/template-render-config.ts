@@ -251,6 +251,14 @@ export type V2TemplateGraphNodeType =
   | "cardCollection"
   | "componentInstance";
 
+export type V2TemplateOrderModel = "pointer" | "orderKey";
+
+export interface V2TemplateGraphNodeOrder {
+  model: V2TemplateOrderModel;
+  prevSiblingId?: string | null;
+  orderKey?: string;
+}
+
 export interface V2TemplateGraphNodeStyleRefs {
   styleKey?: string;
   containerStyleKey?: string;
@@ -283,6 +291,7 @@ export interface V2TemplateGraphNode {
   label: string;
   parentId: string | null;
   childIds: string[];
+  order?: V2TemplateGraphNodeOrder;
   layerId?: string;
   highlightTarget?: V2TemplateHighlightTarget;
   visibilityMode?: V2TemplateVisibilityMode;

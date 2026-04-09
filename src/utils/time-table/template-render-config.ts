@@ -21,6 +21,7 @@ import {
   V2TemplateFontRegistryItem,
   V2TemplateGraphComponentDefinition,
   V2TemplateGraphNode,
+  V2TemplateGraphNodeOrder,
   V2TemplateGraphNodeType,
   V2TemplateLayerComponentKey,
   V2TemplateLayerIconKey,
@@ -1286,6 +1287,7 @@ const v2_GRAPH_NODE_TYPE_SET = new Set([
   "cardCollection",
   "componentInstance",
 ]);
+const v2_ORDER_MODEL_SET = new Set(["pointer", "orderKey"]);
 
 const v2_normalizeGraphNodeType = (
   value: unknown,
@@ -1324,6 +1326,36 @@ const v2_normalizeGraphNodeStyleRefs = (
   }
 
   return Object.keys(next).length > 0 ? next : undefined;
+};
+
+const v2_normalizeGraphNodeOrder = (
+  candidate: unknown,
+  fallback?: V2TemplateGraphNodeOrder
+): V2TemplateGraphNodeOrder | undefined => {
+  if (!v2_isRecord(candidate)) return fallback;
+
+  const next: V2TemplateGraphNodeOrder = {
+    model:
+      typeof candidate.model === "string" && v2_ORDER_MODEL_SET.has(candidate.model)
+        ? (candidate.model as V2TemplateGraphNodeOrder["model"])
+        : fallback?.model ?? "pointer",
+  };
+
+  if (candidate.prevSiblingId === null) {
+    next.prevSiblingId = null;
+  } else if (typeof candidate.prevSiblingId === "string") {
+    next.prevSiblingId = candidate.prevSiblingId;
+  } else if (fallback?.prevSiblingId !== undefined) {
+    next.prevSiblingId = fallback.prevSiblingId;
+  }
+
+  if (typeof candidate.orderKey === "string" && candidate.orderKey.trim().length > 0) {
+    next.orderKey = candidate.orderKey;
+  } else if (typeof fallback?.orderKey === "string" && fallback.orderKey.length > 0) {
+    next.orderKey = fallback.orderKey;
+  }
+
+  return next;
 };
 
 const v2_normalizeGraphNodeMeta = (
@@ -1446,6 +1478,18 @@ const v2_normalizeGraphNode = (
     v2_VISIBILITY_MODE_SET.has(nodeRecord.visibilityMode)
       ? (nodeRecord.visibilityMode as V2TemplateVisibilityMode)
       : fallback?.visibilityMode;
+  const normalizedStyles = v2_normalizeGraphNodeStyleRefs(
+    nodeRecord.styles,
+    fallback?.styles
+  );
+  const normalizedMeta = v2_normalizeGraphNodeMeta(
+    nodeRecord.meta,
+    fallback?.meta
+  );
+  const normalizedOrder = v2_normalizeGraphNodeOrder(
+    nodeRecord.order,
+    fallback?.order
+  );
 
   return {
     id,
@@ -1465,19 +1509,9 @@ const v2_normalizeGraphNode = (
         : {}),
     ...(visibilityMode ? { visibilityMode } : {}),
     ...(binding ? { binding } : {}),
-    ...(v2_normalizeGraphNodeStyleRefs(nodeRecord.styles, fallback?.styles)
-      ? {
-          styles: v2_normalizeGraphNodeStyleRefs(
-            nodeRecord.styles,
-            fallback?.styles
-          ),
-        }
-      : {}),
-    ...(v2_normalizeGraphNodeMeta(nodeRecord.meta, fallback?.meta)
-      ? {
-          meta: v2_normalizeGraphNodeMeta(nodeRecord.meta, fallback?.meta),
-        }
-      : {}),
+    ...(normalizedStyles ? { styles: normalizedStyles } : {}),
+    ...(normalizedMeta ? { meta: normalizedMeta } : {}),
+    ...(normalizedOrder ? { order: normalizedOrder } : {}),
   };
 };
 
@@ -1538,6 +1572,19 @@ const v2_sanitizeNodeGraph = ({
     ...graph.rootNodeIds.filter((nodeId) => computedRootNodeIds.includes(nodeId)),
     ...computedRootNodeIds.filter((nodeId) => !graph.rootNodeIds.includes(nodeId)),
   ];
+
+  Object.values(nextNodes).forEach((node) => {
+    if (!node.order || node.order.model !== "pointer") return;
+    const prevSiblingId = node.order.prevSiblingId;
+    if (prevSiblingId === undefined || prevSiblingId === null) return;
+    const prevNode = nextNodes[prevSiblingId];
+    if (!prevNode || prevNode.parentId !== node.parentId || prevNode.id === node.id) {
+      node.order = {
+        ...node.order,
+        prevSiblingId: null,
+      };
+    }
+  });
 
   const nextComponentDefinitions = Object.entries(graph.componentDefinitions).reduce<
     Record<string, V2TemplateGraphComponentDefinition>

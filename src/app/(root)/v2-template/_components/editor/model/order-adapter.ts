@@ -1,4 +1,6 @@
-export type V2OrderModel = "pointer" | "orderKey";
+import type { V2TemplateOrderModel } from "@/types/time-table/template-render-config";
+
+export type V2OrderModel = V2TemplateOrderModel;
 
 export interface V2PointerOrderNode {
   id: string;
