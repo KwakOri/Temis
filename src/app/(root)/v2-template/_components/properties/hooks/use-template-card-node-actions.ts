@@ -15,11 +15,8 @@ import {
   v2_graphRemoveNodeSubtree,
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
-import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
-import {
-  v2_getRuntimeCardStructure,
-  v2_getRuntimeSceneNodes,
-} from "@/utils/time-table/template-graph-runtime";
+import { v2_getRuntimeCardStructure } from "@/utils/time-table/template-graph-runtime";
+import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 import {
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
@@ -101,21 +98,10 @@ const useTemplateCardNodeActions = ({
         ...node,
         visibilityMode,
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -135,20 +121,10 @@ const useTemplateCardNodeActions = ({
           layerIcon: binding.mode === "computed" ? "calendar" : "text",
         },
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -188,21 +164,10 @@ const useTemplateCardNodeActions = ({
           ...(nextFontKey ? { fontKey: nextFontKey } : {}),
         },
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -266,25 +231,14 @@ const useTemplateCardNodeActions = ({
         parentId: cardRootNodeId,
         newNode: nextGraphNode,
       });
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
-        ...prev,
-        graph: nextGraph,
-      };
-
-      return {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
         layout: {
           ...prev.layout,
           card: nextCardLayout,
         },
-        structure: {
-          ...prev.structure,
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -305,25 +259,14 @@ const useTemplateCardNodeActions = ({
         delete nextCardLayout[targetNode.wrapperStyleKey];
       if (targetNode.optionsKey) delete nextCardLayout[targetNode.optionsKey];
       const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, nodeId);
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
-        ...prev,
-        graph: nextGraph,
-      };
-
-      return {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
         layout: {
           ...prev.layout,
           card: nextCardLayout,
         },
-        structure: {
-          ...prev.structure,
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -376,21 +319,10 @@ const useTemplateCardNodeActions = ({
           },
         },
       };
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -475,21 +407,10 @@ const useTemplateCardNodeActions = ({
           },
         },
       };
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 

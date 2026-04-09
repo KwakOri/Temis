@@ -21,10 +21,8 @@ import {
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
-import {
-  v2_getRuntimeCardStructure,
-  v2_getRuntimeSceneNodes,
-} from "@/utils/time-table/template-graph-runtime";
+import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
+import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
@@ -184,21 +182,10 @@ const useTemplateSceneNodeActions = ({
         ...node,
         visibilityMode,
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -217,21 +204,10 @@ const useTemplateSceneNodeActions = ({
         ...node,
         label: nextLabel,
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -263,21 +239,10 @@ const useTemplateSceneNodeActions = ({
           ...(nextAlt !== undefined ? { alt: nextAlt } : {}),
         },
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -306,21 +271,10 @@ const useTemplateSceneNodeActions = ({
           componentId,
         },
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -543,12 +497,7 @@ const useTemplateSceneNodeActions = ({
         anchorNodeId,
         newNode: nextGraphNode,
       });
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
-        ...prev,
-        graph: nextGraph,
-      };
-
-      return {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
         layout: {
@@ -558,13 +507,7 @@ const useTemplateSceneNodeActions = ({
             ...dynamicSceneLayoutPatch,
           },
         },
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
 
     if (nextFocusLayerId) {
@@ -605,12 +548,7 @@ const useTemplateSceneNodeActions = ({
         parentId: parentNodeId,
         newNode: nextGraphNode,
       });
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
-        ...prev,
-        graph: nextGraph,
-      };
-
-      return {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
         layout: {
@@ -620,13 +558,7 @@ const useTemplateSceneNodeActions = ({
             ...dynamicSceneLayoutPatch,
           },
         },
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
 
     if (nextFocusLayerId) {
@@ -671,21 +603,10 @@ const useTemplateSceneNodeActions = ({
         nodeId,
         direction,
       });
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -747,21 +668,10 @@ const useTemplateSceneNodeActions = ({
           ? effectiveTargetIndex
           : undefined,
       });
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -809,25 +719,14 @@ const useTemplateSceneNodeActions = ({
         }
       });
       const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, nodeId);
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
-        ...prev,
-        graph: nextGraph,
-      };
-
-      return {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
         layout: {
           ...prev.layout,
           scene: nextSceneLayout,
         },
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
 
     if (nextFocusLayerId) {
@@ -863,21 +762,10 @@ const useTemplateSceneNodeActions = ({
           layerIcon: binding.mode === "computed" ? "calendar" : "text",
         },
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -930,21 +818,10 @@ const useTemplateSceneNodeActions = ({
           ...(nextFontKey ? { fontKey: nextFontKey } : {}),
         },
       }));
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
-      };
-
-      return {
-        ...prev,
-        graph: nextGraph,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 

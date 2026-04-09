@@ -4,11 +4,7 @@ import {
   V2TemplateFormField,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
-import {
-  v2_getRuntimeCardStructure,
-  v2_getRuntimeSceneNodes,
-} from "@/utils/time-table/template-graph-runtime";
-import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
+import { v2_withRuntimeStructure } from "@/utils/time-table/template-runtime-structure";
 
 interface UseTemplateFormSchemaActionsParams {
   renderConfig: V2TemplateRenderConfig;
@@ -144,22 +140,11 @@ const useTemplateFormSchemaActions = ({
         ...prev.graph,
         nodes: nextGraphNodes,
       };
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
-        ...prev,
-        graph: nextGraph,
-      };
-
-      return {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
         formSchema: nextFormSchema,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
@@ -237,22 +222,11 @@ const useTemplateFormSchemaActions = ({
         ...prev.graph,
         nodes: nextGraphNodes,
       };
-      const nextRuntimeConfig: V2TemplateRenderConfig = {
-        ...prev,
-        graph: nextGraph,
-      };
-
-      return {
+      return v2_withRuntimeStructure({
         ...prev,
         graph: nextGraph,
         formSchema: nextFormSchema,
-        structure: {
-          ...prev.structure,
-          sceneNodes: v2_getRuntimeSceneNodes(nextRuntimeConfig),
-          layers: v2_getRuntimeLayerTree(nextRuntimeConfig),
-          card: v2_getRuntimeCardStructure(nextRuntimeConfig),
-        },
-      };
+      });
     });
   };
 
