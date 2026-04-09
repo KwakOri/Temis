@@ -143,12 +143,15 @@ Move / Extract Copy 분리:
   - Scene/Properties 주요 액션(`reorder`, `relocate`, `add/remove`, `binding/meta`)을 graph-first sync로 통일
   - Card 노드 액션(`visibility`, `binding`, `meta`, `append/remove`, `instance`)을 graph-first sync로 통일
   - Form schema 바인딩 재작성 흐름을 graph 기준으로 통일하고 runtime 구조 재생성으로 연결
+  - normalize 단계에서 graph payload 우선 처리:
+    - graph가 존재하면 structure 기반 fallback 주입 최소화
+    - 최종 structure를 normalized graph에서 runtime 재생성
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
   - Phase D: Components 탭 최소 분리 완료 (마스터 편집 전용 플로우 강화 필요)
   - Phase E(진행): `cardCollection`에 `componentId`를 도입해 카드 렌더/레이어 생성 경로를 컴포넌트 기반으로 일반화
-  - graph-only 전환(진행): 구조 직접 수정 코드를 런타임 재생성 기반으로 축소했으나 normalize/legacy 이행 경로 추가 정리가 남아 있음
+  - graph-only 전환(진행): 구조 직접 수정 코드는 대부분 정리됨. `graph` 미보유 레거시 입력의 구조 마이그레이션 경로 정리만 남음
 
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
