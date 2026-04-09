@@ -8,7 +8,6 @@ import {
 } from "@/contexts/v2/template-editor-ui-context";
 import {
   V2TemplateCardNode,
-  V2TemplateFieldScope,
   V2TemplateRenderConfig,
   V2TemplateSceneTextNode,
   v2_TEMPLATE_COLOR_KEYS,
@@ -30,7 +29,6 @@ import {
 } from "./model/structure-utils";
 import { v2_collectFormSchemaDiagnostics } from "./model/form-schema-diagnostics";
 import {
-  V2NodeNewFieldDraft,
   v2_parseNodeBindingFromSelectValue,
 } from "./model/binding-utils";
 import {
@@ -98,6 +96,7 @@ import useTemplatePropertiesFocusEffects from "./hooks/use-template-properties-f
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
 import useTemplateSceneNodePropertyPanels from "./hooks/use-template-scene-node-property-panels";
 import useTemplateSimplePropertiesPanel from "./hooks/use-template-simple-properties-panel";
+import useTemplateNodeBindingFieldActions from "./hooks/use-template-node-binding-field-actions";
 import useTemplateSampleDataActions from "./hooks/use-template-sample-data-actions";
 import useTemplateThemeAssetActions from "./hooks/use-template-theme-asset-actions";
 
@@ -164,9 +163,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     v2_TEMPLATE_PRESET_DEFINITIONS[0]?.id ?? "default_boilerplate"
   );
   const [formSchemaError, setFormSchemaError] = useState<string | null>(null);
-  const [newFieldDraftByNodeId, setNewFieldDraftByNodeId] = useState<
-    Record<string, V2NodeNewFieldDraft>
-  >({});
   const inspectorTabRef = useRef<HTMLDivElement | null>(null);
   const [selectedPropertiesTarget, setSelectedPropertiesTarget] =
     useState<V2TemplateHighlightTarget>("grid");
@@ -473,77 +469,29 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     safeUpdateConfig,
   });
 
-  const updateNodeNewFieldDraft = (
-    nodeId: string,
-    patch: Partial<V2NodeNewFieldDraft>
-  ) => {
-    setNewFieldDraftByNodeId((prev) => ({
-      ...prev,
-      [nodeId]: {
-        ...(prev[nodeId] ?? { scope: "entry", key: "" }),
-        ...patch,
-      },
-    }));
-  };
-
-  const createFieldForNodeBinding = ({
-    nodeId,
-    nodeLabel,
-    onBindField,
-  }: {
-    nodeId: string;
-    nodeLabel: string;
-    onBindField: (scope: V2TemplateFieldScope, key: string) => void;
-  }) => {
-    const draft = newFieldDraftByNodeId[nodeId];
-    const key = draft?.key?.trim();
-    if (!key) {
-      setFormSchemaError("새 필드 키를 입력해 주세요.");
-      return;
-    }
-    const scope = draft?.scope ?? "entry";
-
-    const field = appendFormField({
-      key,
-      scope,
-      type: "text",
-      placeholder: key,
-      label: nodeLabel,
-      defaultValue: "",
-    });
-    if (!field) return;
-
-    onBindField(field.scope, field.key);
-    updateNodeNewFieldDraft(nodeId, { key: "", scope: "entry" });
-  };
-
-  const createFieldForCardNodeBinding = (node: V2TemplateCardNode) => {
-    createFieldForNodeBinding({
-      nodeId: node.id,
-      nodeLabel: node.label,
-      onBindField: (scope, key) => {
-        updateCardNodeBinding(node.id, {
-          mode: "field",
-          scope,
-          key,
-        });
-      },
-    });
-  };
-
-  const createFieldForSceneNodeBinding = (node: V2TemplateSceneTextNode) => {
-    createFieldForNodeBinding({
-      nodeId: node.id,
-      nodeLabel: node.label,
-      onBindField: (scope, key) => {
-        updateSceneTextNodeBinding(node.id, {
-          mode: "field",
-          scope,
-          key,
-        });
-      },
-    });
-  };
+  const {
+    newFieldDraftByNodeId,
+    updateNodeNewFieldDraft,
+    createFieldForCardNodeBinding,
+    createFieldForSceneNodeBinding,
+  } = useTemplateNodeBindingFieldActions({
+    appendFormField,
+    setFormSchemaError,
+    onBindCardNodeField: (nodeId, field) => {
+      updateCardNodeBinding(nodeId, {
+        mode: "field",
+        scope: field.scope,
+        key: field.key,
+      });
+    },
+    onBindSceneNodeField: (nodeId, field) => {
+      updateSceneTextNodeBinding(nodeId, {
+        mode: "field",
+        scope: field.scope,
+        key: field.key,
+      });
+    },
+  });
 
   const {
     firstCard,
