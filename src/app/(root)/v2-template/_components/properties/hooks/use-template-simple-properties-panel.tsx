@@ -14,6 +14,7 @@ interface UseTemplateSimplePropertiesPanelParams {
   sectionToLabel: Record<string, string>;
   styleSectionLabels: Record<string, string>;
   bindableNodeLabels: string[];
+  editorMode: "instance" | "master";
   cardContainerSectionKey: string;
   cardInstanceMode: "component" | "detached";
   cardInstanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
@@ -35,6 +36,7 @@ const useTemplateSimplePropertiesPanel = ({
   sectionToLabel,
   styleSectionLabels,
   bindableNodeLabels,
+  editorMode,
   cardContainerSectionKey,
   cardInstanceMode,
   cardInstanceTransforms,
@@ -46,6 +48,14 @@ const useTemplateSimplePropertiesPanel = ({
 }: UseTemplateSimplePropertiesPanelParams) => {
   const renderCardComponentProperties = (section: V2StyleSectionId) => {
     if (section !== cardContainerSectionKey) return null;
+    if (editorMode === "instance") {
+      return (
+        <div className="rounded-lg border border-[#3d4f74] bg-[#15223d] px-3 py-2 text-[11px] text-[#a9c4ff]">
+          인스턴스 모드에서는 마스터 구조를 수정할 수 없습니다. Components 탭에서
+          Master를 선택해 편집해 주세요.
+        </div>
+      );
+    }
 
     return (
       <TemplateCardComponentProperties

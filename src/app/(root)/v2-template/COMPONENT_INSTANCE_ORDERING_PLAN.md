@@ -185,6 +185,7 @@ Move / Extract Copy 분리:
     - 컴포넌트 카드에서 `첫 인스턴스 이동` 액션 제공 (Master -> Instance 왕복)
   - Layers/Components 선택 컨텍스트를 속성 패널로 전달:
     - Layers 선택 시 `Instance`, Components 선택 시 `Master` 편집 모드 배지 표시
+    - Instance 모드에서는 카드 마스터 구조 편집 UI를 안내 메시지로 대체해 경계 강화
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
