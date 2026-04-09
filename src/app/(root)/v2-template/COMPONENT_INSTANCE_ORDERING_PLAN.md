@@ -171,6 +171,9 @@ Move / Extract Copy 분리:
     - 중복/누락/순서 꼬임 시 deterministic 재정렬
     - rootNodeIds/childIds 동기화 강화
   - layer 런타임 정렬에서 pointer rebuild 의존 제거
+  - dev 진단 추가:
+    - graph orderKey 무결성 검증기(`v2_validateOrderKeyGraph`)
+    - 에디터 런타임에서 무결성 이슈 콘솔 경고
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
