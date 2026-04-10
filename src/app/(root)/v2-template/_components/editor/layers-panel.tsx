@@ -432,29 +432,38 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
 
     const relocateSelectedLayerByKeyboard = (direction: "left" | "right") => {
       if (!selectedLayerId) return;
-      if (selectedLayerIds.length > 1) {
+      const selectedIds =
+        selectedLayerIds.length > 0 ? selectedLayerIds : [selectedLayerId];
+
+      const sourceParentCandidates = new Set<string>();
+      Object.entries(orderedNodeIdsByParent).forEach(([parentId, ids]) => {
+        if (selectedIds.some((id) => ids.includes(id))) {
+          sourceParentCandidates.add(parentId);
+        }
+      });
+
+      if (sourceParentCandidates.size !== 1) {
         setDragFeedback({
           tone: "error",
-          message: "키보드 그룹 이동은 단일 선택에서만 지원됩니다.",
+          message: "키보드 그룹 이동은 같은 부모의 레이어에서만 지원됩니다.",
         });
         return;
       }
 
-      const sourceParentEntry = Object.entries(orderedNodeIdsByParent).find(
-        ([, ids]) => ids.includes(selectedLayerId)
+      const sourceParentId = Array.from(sourceParentCandidates)[0];
+      const sourceSiblingIds = orderedNodeIdsByParent[sourceParentId] ?? [];
+      const selectedInOrder = sourceSiblingIds.filter((id) =>
+        selectedIds.includes(id)
       );
-      if (!sourceParentEntry) return;
-      const [sourceParentId, sourceSiblingIds] = sourceParentEntry;
-      const sourceIndex = sourceSiblingIds.indexOf(selectedLayerId);
-      if (sourceIndex < 0) return;
+      if (selectedInOrder.length === 0) return;
 
       if (
         sourceParentId !== v2_ROOT_LAYER_PARENT_ID &&
-        !canRelocateLayer?.(selectedLayerId)
+        selectedInOrder.some((id) => !canRelocateLayer?.(id))
       ) {
         setDragFeedback({
           tone: "error",
-          message: "이 레이어는 그룹 이동이 잠겨 있습니다.",
+          message: "선택한 레이어 중 그룹 이동이 잠긴 항목이 있습니다.",
         });
         return;
       }
@@ -466,39 +475,47 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           ([, ids]) => ids.includes(sourceParentId)
         );
         const targetParentId = targetParentEntry?.[0] ?? v2_ROOT_LAYER_PARENT_ID;
-        const targetSiblingIds = [
-          ...(orderedNodeIdsByParent[targetParentId] ?? []),
-        ];
+        const targetSiblingIds = orderedNodeIdsByParent[targetParentId] ?? [];
         const sourceParentIndex = targetSiblingIds.indexOf(sourceParentId);
         if (sourceParentIndex < 0) return;
         const targetIndex = sourceParentIndex + 1;
 
         setOrderedNodeIdsByParent((prev) => {
+          const selectedSet = new Set(selectedInOrder);
           const nextSourceIds = (prev[sourceParentId] ?? []).filter(
-            (id) => id !== selectedLayerId
+            (id) => !selectedSet.has(id)
           );
           const nextTargetIds = [...(prev[targetParentId] ?? [])];
-          nextTargetIds.splice(targetIndex, 0, selectedLayerId);
+          nextTargetIds.splice(targetIndex, 0, ...selectedInOrder);
           return {
             ...prev,
             [sourceParentId]: nextSourceIds,
             [targetParentId]: nextTargetIds,
           };
         });
-        onRelocateLayers?.({
-          layerId: selectedLayerId,
-          sourceParentId,
-          targetParentId,
-          targetIndex,
+        selectedInOrder.forEach((id, index) => {
+          onRelocateLayers?.({
+            layerId: id,
+            sourceParentId,
+            targetParentId,
+            targetIndex: targetIndex + index,
+          });
         });
         setDragFeedback({
           tone: "info",
-          message: "레이어를 한 단계 바깥 그룹으로 이동했습니다.",
+          message:
+            selectedInOrder.length > 1
+              ? `${selectedInOrder.length}개 레이어를 한 단계 바깥 그룹으로 이동했습니다.`
+              : "레이어를 한 단계 바깥 그룹으로 이동했습니다.",
         });
         return;
       }
 
-      const prevSiblingId = sourceSiblingIds[sourceIndex - 1];
+      const firstSelectedId = selectedInOrder[0];
+      const firstSelectedIndex = sourceSiblingIds.indexOf(firstSelectedId);
+      if (firstSelectedIndex <= 0) return;
+
+      const prevSiblingId = sourceSiblingIds[firstSelectedIndex - 1];
       if (!prevSiblingId) return;
       const targetGroupNode = v2_findNodeById(layerTree, prevSiblingId);
       if (!targetGroupNode || targetGroupNode.kind !== "group") {
@@ -510,29 +527,51 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       }
 
       const targetParentId = targetGroupNode.id;
+      if (
+        selectedInOrder.some((id) =>
+          v2_isDescendantLayer({
+            nodes: layerTree,
+            ancestorId: id,
+            targetId: targetParentId,
+          })
+        )
+      ) {
+        setDragFeedback({
+          tone: "error",
+          message: "자기 하위 레이어 안으로는 이동할 수 없습니다.",
+        });
+        return;
+      }
+
       const targetIndex = (orderedNodeIdsByParent[targetParentId] ?? []).length;
 
       setOrderedNodeIdsByParent((prev) => {
+        const selectedSet = new Set(selectedInOrder);
         const nextSourceIds = (prev[sourceParentId] ?? []).filter(
-          (id) => id !== selectedLayerId
+          (id) => !selectedSet.has(id)
         );
         const nextTargetIds = [...(prev[targetParentId] ?? [])];
-        nextTargetIds.splice(targetIndex, 0, selectedLayerId);
+        nextTargetIds.splice(targetIndex, 0, ...selectedInOrder);
         return {
           ...prev,
           [sourceParentId]: nextSourceIds,
           [targetParentId]: nextTargetIds,
         };
       });
-      onRelocateLayers?.({
-        layerId: selectedLayerId,
-        sourceParentId,
-        targetParentId,
-        targetIndex,
+      selectedInOrder.forEach((id, index) => {
+        onRelocateLayers?.({
+          layerId: id,
+          sourceParentId,
+          targetParentId,
+          targetIndex: targetIndex + index,
+        });
       });
       setDragFeedback({
         tone: "info",
-        message: "레이어를 이전 그룹 하위로 이동했습니다.",
+        message:
+          selectedInOrder.length > 1
+            ? `${selectedInOrder.length}개 레이어를 이전 그룹 하위로 이동했습니다.`
+            : "레이어를 이전 그룹 하위로 이동했습니다.",
       });
     };
 

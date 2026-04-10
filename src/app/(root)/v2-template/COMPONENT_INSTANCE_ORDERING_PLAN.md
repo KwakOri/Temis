@@ -198,6 +198,7 @@ Move / Extract Copy 분리:
     - 레이어 다중 선택(Cmd/Ctrl+클릭, Shift 범위 선택) 및 키보드 순서 이동(Alt+↑/↓) 지원
     - 다중 선택 레이어의 블록 드래그 reorder 및 그룹 이동(re-parent) 지원
     - 단일 선택 레이어의 키보드 re-parent(Alt+Shift+←/→) 지원
+    - 다중 선택 레이어의 키보드 re-parent(Alt+Shift+←/→) 지원
   - orderKey 회귀 검증 실행 경로 추가:
     - `scripts/check-v2-orderkey.ts` + `npm run check:v2-orderkey`
     - 로컬/CI에서 동일한 회귀 검증 엔트리 사용 가능
@@ -211,4 +212,4 @@ Move / Extract Copy 분리:
 
 - 남은 핵심
   - Phase C/Phase D UX polishing:
-    - 다중 선택 상태에서 키보드 기반 re-parent 단축 UX 확장
+    - 마우스/키보드 조작 가이드 UX(툴팁/헬프) 고도화
