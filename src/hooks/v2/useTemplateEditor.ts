@@ -2,9 +2,9 @@ import { V2TemplateFormSchema } from "@/types/time-table/template-render-config"
 import { TTheme } from "@/types/time-table/theme";
 import {
   v2_createInitialGlobalDataFromFormSchema,
-  v2_getDefaultCardsFromFormSchema,
+  v2_hydrateCardsFromFormSchema,
+  v2_hydrateGlobalDataFromFormSchema,
 } from "@/utils/time-table/v2-form-data";
-import { v2_isFormSchemaEquivalentToCardInputConfig } from "@/utils/time-table/v2-form-schema-adapter";
 import { useEffect, useState } from "react";
 import { useTemplateData } from "./useTemplateData";
 import { useTemplatePersistence } from "./useTemplatePersistence";
@@ -57,34 +57,24 @@ export const useTemplateEditor = ({
       const persistedData = loadPersistedData();
 
       if (persistedData && persistedData.data) {
-        const configMatches =
-          persistedData.cardInputConfig &&
-          v2_isFormSchemaEquivalentToCardInputConfig({
+        updateData(
+          v2_hydrateCardsFromFormSchema({
             formSchema: inputSchema,
-            cardInputConfig: persistedData.cardInputConfig,
-          });
-
-        if (configMatches) {
-          updateData(persistedData.data);
-          updateGlobalData(
-            persistedData.globalData ??
+            data: persistedData.data,
+          })
+        );
+        updateGlobalData(
+          v2_hydrateGlobalDataFromFormSchema({
+            formSchema: inputSchema,
+            globalData:
+              persistedData.globalData ??
               v2_createInitialGlobalDataFromFormSchema({
                 formSchema: inputSchema,
-              })
-          );
-          if (persistedData.theme) {
-            updateTheme(persistedData.theme);
-          }
-        } else {
-          const newDefaultCards = v2_getDefaultCardsFromFormSchema({
-            formSchema: inputSchema,
-          });
-          updateData(newDefaultCards);
-          updateGlobalData(
-            v2_createInitialGlobalDataFromFormSchema({
-              formSchema: inputSchema,
-            })
-          );
+              }),
+          })
+        );
+        if (persistedData.theme) {
+          updateTheme(persistedData.theme);
         }
       }
 
