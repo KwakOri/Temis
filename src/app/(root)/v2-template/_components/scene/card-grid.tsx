@@ -10,7 +10,6 @@ import {
   V2TemplateSceneComponentInstanceNode,
 } from "@/types/time-table/template-render-config";
 import {
-  v2_dayKeyFromIndex,
   v2_parseDayKey,
 } from "@/utils/time-table/template-render-config";
 import V2TimeTableCell from "./card-cell";
@@ -164,18 +163,7 @@ const TimeTableGrid: React.FC<{
     });
     return map;
   }, [data]);
-  const fallbackInstances = data.map((_, index) => ({
-    id: `card-instance-fallback-${index}`,
-    label: `Card ${index + 1}`,
-    kind: "componentInstance" as const,
-    componentId: "card",
-    instanceId: String(index),
-    dayKey: v2_dayKeyFromIndex(index),
-  }));
-  const runtimeInstances =
-    Array.isArray(instances) && instances.length > 0
-      ? instances.slice(0, Math.max(data.length, instances.length))
-      : fallbackInstances;
+  const runtimeInstances = Array.isArray(instances) ? instances : [];
 
   const getCardInstanceWrapperStyle = (
     instanceId: string,
