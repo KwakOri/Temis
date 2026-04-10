@@ -30,7 +30,10 @@ import V2TimeTableLayersPanel from './layers-panel';
 import V2TimeTableControls from './preview-toolbar';
 import V2TimeTablePreview from './preview-canvas';
 import { v2_graphMoveNode } from '@/utils/time-table/template-graph-editor';
-import { v2_validateOrderKeyGraph } from '@/utils/time-table/template-graph-order';
+import {
+  v2_runOrderKeyRegressionChecks,
+  v2_validateOrderKeyGraph,
+} from '@/utils/time-table/template-graph-order';
 import { v2_normalizeTemplateRenderConfig } from '@/utils/time-table/template-render-config';
 import {
   v2_collectSceneNodesByLayerId,
@@ -80,6 +83,7 @@ const V2TimeTableEditor: React.FC = () => {
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const orderKeyRepairAttemptRef = useRef<string | null>(null);
+  const orderKeyRegressionCheckedRef = useRef(false);
   const [propertiesFocusRequest, setPropertiesFocusRequest] = useState<{
     layerId: string;
     nonce: number;
@@ -183,6 +187,18 @@ const V2TimeTableEditor: React.FC = () => {
       graph: renderConfig.graph,
     });
   }, [renderConfig.graph, renderConfig.layout, runtimeLayerTree, runtimeStyleResolverMap]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    if (orderKeyRegressionCheckedRef.current) return;
+    orderKeyRegressionCheckedRef.current = true;
+    const regressionCheck = v2_runOrderKeyRegressionChecks();
+    if (regressionCheck.valid) return;
+    console.error(
+      '[v2-template] orderKey regression checks failed',
+      regressionCheck.issues
+    );
+  }, []);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;

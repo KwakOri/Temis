@@ -427,3 +427,178 @@ export const v2_validateOrderKeyGraph = (
     issues,
   };
 };
+
+export interface V2OrderKeyRegressionCheckResult {
+  valid: boolean;
+  issues: string[];
+}
+
+const v2_cloneGraph = (graph: V2TemplateNodeGraph): V2TemplateNodeGraph => {
+  return JSON.parse(JSON.stringify(graph)) as V2TemplateNodeGraph;
+};
+
+export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResult => {
+  const cases: Array<{
+    name: string;
+    graph: V2TemplateNodeGraph;
+    expectedRootNodeIds?: string[];
+    expectedChildIdsByParent?: Record<string, string[]>;
+  }> = [
+    {
+      name: "pointer-root-chain",
+      graph: {
+        rootNodeIds: ["c", "a", "b"],
+        componentDefinitions: {},
+        nodes: {
+          a: {
+            id: "a",
+            type: "group",
+            label: "A",
+            parentId: null,
+            childIds: [],
+            order: { model: "pointer", prevSiblingId: null },
+          },
+          b: {
+            id: "b",
+            type: "group",
+            label: "B",
+            parentId: null,
+            childIds: [],
+            order: { model: "pointer", prevSiblingId: "a" },
+          },
+          c: {
+            id: "c",
+            type: "group",
+            label: "C",
+            parentId: null,
+            childIds: [],
+            order: { model: "pointer", prevSiblingId: "b" },
+          },
+        },
+      },
+      expectedRootNodeIds: ["a", "b", "c"],
+    },
+    {
+      name: "pointer-child-chain",
+      graph: {
+        rootNodeIds: ["p"],
+        componentDefinitions: {},
+        nodes: {
+          p: {
+            id: "p",
+            type: "group",
+            label: "Parent",
+            parentId: null,
+            childIds: ["z", "x", "y"],
+            order: { model: "pointer", prevSiblingId: null },
+          },
+          x: {
+            id: "x",
+            type: "text",
+            label: "X",
+            parentId: "p",
+            childIds: [],
+            order: { model: "pointer", prevSiblingId: null },
+          },
+          y: {
+            id: "y",
+            type: "text",
+            label: "Y",
+            parentId: "p",
+            childIds: [],
+            order: { model: "pointer", prevSiblingId: "x" },
+          },
+          z: {
+            id: "z",
+            type: "text",
+            label: "Z",
+            parentId: "p",
+            childIds: [],
+            order: { model: "pointer", prevSiblingId: "y" },
+          },
+        },
+      },
+      expectedChildIdsByParent: {
+        p: ["x", "y", "z"],
+      },
+    },
+    {
+      name: "duplicate-order-key-rebalance",
+      graph: {
+        rootNodeIds: ["a", "b", "c"],
+        componentDefinitions: {},
+        nodes: {
+          a: {
+            id: "a",
+            type: "group",
+            label: "A",
+            parentId: null,
+            childIds: [],
+            order: { model: "orderKey", orderKey: "0000001024", prevSiblingId: null },
+          },
+          b: {
+            id: "b",
+            type: "group",
+            label: "B",
+            parentId: null,
+            childIds: [],
+            order: { model: "orderKey", orderKey: "0000001024", prevSiblingId: "a" },
+          },
+          c: {
+            id: "c",
+            type: "group",
+            label: "C",
+            parentId: null,
+            childIds: [],
+            order: { model: "orderKey", orderKey: "0000001024", prevSiblingId: "b" },
+          },
+        },
+      },
+      expectedRootNodeIds: ["a", "b", "c"],
+    },
+  ];
+
+  const issues: string[] = [];
+
+  cases.forEach((testCase) => {
+    const converted = v2_convertPointerOrderToOrderKeyInGraph(
+      v2_cloneGraph(testCase.graph)
+    );
+    const validation = v2_validateOrderKeyGraph(converted);
+    if (!validation.valid) {
+      validation.issues.forEach((issue) => {
+        issues.push(`[${testCase.name}] ${issue}`);
+      });
+    }
+
+    if (testCase.expectedRootNodeIds) {
+      const expected = testCase.expectedRootNodeIds.join(",");
+      const actual = converted.rootNodeIds.join(",");
+      if (expected !== actual) {
+        issues.push(
+          `[${testCase.name}] root order mismatch: expected ${expected}, got ${actual}`
+        );
+      }
+    }
+
+    if (testCase.expectedChildIdsByParent) {
+      Object.entries(testCase.expectedChildIdsByParent).forEach(
+        ([parentId, expectedChildIds]) => {
+          const actualChildIds = converted.nodes[parentId]?.childIds ?? [];
+          if (expectedChildIds.join(",") !== actualChildIds.join(",")) {
+            issues.push(
+              `[${testCase.name}] child order mismatch (${parentId}): expected ${expectedChildIds.join(
+                ","
+              )}, got ${actualChildIds.join(",")}`
+            );
+          }
+        }
+      );
+    }
+  });
+
+  return {
+    valid: issues.length === 0,
+    issues,
+  };
+};

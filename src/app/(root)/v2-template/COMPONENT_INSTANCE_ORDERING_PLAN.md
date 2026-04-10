@@ -201,4 +201,5 @@ Move / Extract Copy 분리:
   - Phase C/Phase D UX polishing:
     - re-parent DnD drop affordance/edge-case UX 보강
     - Components 탭의 마스터 편집 전용 플로우(직접 편집 진입 동선) 추가 고도화
-  - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강
+  - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강:
+    - dev 부트 시 `v2_runOrderKeyRegressionChecks` 실행을 CI/스크립트 경로까지 확장

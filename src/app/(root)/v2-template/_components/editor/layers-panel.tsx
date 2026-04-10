@@ -70,6 +70,7 @@ interface V2TimeTableLayersPanelProps {
 
 const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
 type V2LayerParentId = typeof v2_ROOT_LAYER_PARENT_ID | string;
+type V2DropPosition = "before" | "after" | "inside";
 
 const v2_moveLayerNode = (
   prevIds: string[],
@@ -194,8 +195,19 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const [dropState, setDropState] = useState<{
     parentId: V2LayerParentId;
     nodeId: string;
-    position: "before" | "after" | "inside";
+    position: V2DropPosition;
+    blockedReason?: string | null;
   } | null>(null);
+  const [dragFeedback, setDragFeedback] = useState<{
+    tone: "info" | "error";
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!dragFeedback) return;
+    const timeout = setTimeout(() => setDragFeedback(null), 1800);
+    return () => clearTimeout(timeout);
+  }, [dragFeedback]);
 
   useEffect(() => {
     if (orderedIdsByParent) {
@@ -298,6 +310,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       dropState.position === "after";
     const isDropTargetInside =
       dropState?.nodeId === node.id && dropState.position === "inside";
+    const isDropTargetBlocked =
+      (isDropTargetBefore || isDropTargetAfter || isDropTargetInside) &&
+      Boolean(dropState?.blockedReason);
     const isSelfHidden = isLayerHidden(node.id);
     const isEffectivelyHidden = ancestorHidden || isSelfHidden;
     const isInheritedHidden = ancestorHidden && !isSelfHidden;
@@ -323,7 +338,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       <div key={node.id} className="space-y-1">
         {isDropTargetBefore && (
           <div
-            className="ml-2 mr-1 h-[2px] rounded bg-[#4f8cff]"
+            className={`ml-2 mr-1 h-[2px] rounded ${
+              isDropTargetBlocked ? "bg-[#ef4444]" : "bg-[#4f8cff]"
+            }`}
             style={{ marginLeft: `${depth * 14 + 8}px` }}
           />
         )}
@@ -340,6 +357,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               siblingIds: orderedSiblingIds,
             });
             setDropState(null);
+            setDragFeedback(null);
             event.dataTransfer.effectAllowed = "move";
             event.dataTransfer.setData("text/plain", node.id);
           }}
@@ -363,11 +381,20 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                   : "after";
             const previewTargetParentId =
               nextPosition === "inside" ? node.id : parentId;
+            let blockedReason: string | null = null;
             if (
               previewTargetParentId !== dragState.parentId &&
               !canRelocateLayer?.(dragState.nodeId)
             ) {
-              return;
+              blockedReason = "이 레이어는 다른 그룹으로 이동할 수 없습니다.";
+            } else if (
+              v2_isDescendantLayer({
+                nodes: layerTree,
+                ancestorId: dragState.nodeId,
+                targetId: previewTargetParentId,
+              })
+            ) {
+              blockedReason = "자기 하위 레이어 안으로는 이동할 수 없습니다.";
             }
 
             event.preventDefault();
@@ -375,12 +402,31 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               parentId,
               nodeId: node.id,
               position: nextPosition,
+              blockedReason,
             });
+            if (blockedReason) {
+              setDragFeedback({
+                tone: "error",
+                message: blockedReason,
+              });
+            } else {
+              setDragFeedback(null);
+            }
           }}
           onDrop={(event) => {
             if (!dragState || !dropState) return;
             if (dragState.nodeId === node.id) return;
             event.preventDefault();
+
+            if (dropState.blockedReason) {
+              setDragFeedback({
+                tone: "error",
+                message: dropState.blockedReason,
+              });
+              setDropState(null);
+              setDragState(null);
+              return;
+            }
 
             const targetParentId =
               dropState.position === "inside" ? node.id : parentId;
@@ -416,11 +462,19 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 parentId,
                 orderedIds: nextOrder,
               });
+              setDragFeedback({
+                tone: "info",
+                message: "레이어 순서를 변경했습니다.",
+              });
               setDropState(null);
               setDragState(null);
               return;
             }
             if (!canRelocateLayer?.(dragState.nodeId)) {
+              setDragFeedback({
+                tone: "error",
+                message: "이 레이어는 그룹 이동이 잠겨 있습니다.",
+              });
               setDropState(null);
               setDragState(null);
               return;
@@ -450,6 +504,10 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               sourceParentId: dragState.parentId,
               targetParentId,
               targetIndex,
+            });
+            setDragFeedback({
+              tone: "info",
+              message: "레이어를 새 그룹으로 이동했습니다.",
             });
             setDropState(null);
             setDragState(null);
@@ -523,15 +581,21 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
         </div>
         {isDropTargetInside && (
           <div
-            className="ml-2 mr-1 rounded border border-dashed border-[#4f8cff]/90 bg-[#4f8cff]/10 px-2 py-1 text-[10px] text-[#9ec1ff]"
+            className={`ml-2 mr-1 rounded border border-dashed px-2 py-1 text-[10px] ${
+              isDropTargetBlocked
+                ? "border-[#ef4444]/80 bg-[#ef4444]/10 text-[#f5b8b8]"
+                : "border-[#4f8cff]/90 bg-[#4f8cff]/10 text-[#9ec1ff]"
+            }`}
             style={{ marginLeft: `${depth * 14 + 22}px` }}
           >
-            하위로 이동
+            {isDropTargetBlocked ? "이동 불가" : "하위로 이동"}
           </div>
         )}
         {isDropTargetAfter && (
           <div
-            className="ml-2 mr-1 h-[2px] rounded bg-[#4f8cff]"
+            className={`ml-2 mr-1 h-[2px] rounded ${
+              isDropTargetBlocked ? "bg-[#ef4444]" : "bg-[#4f8cff]"
+            }`}
             style={{ marginLeft: `${depth * 14 + 8}px` }}
           />
         )}
@@ -577,6 +641,17 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
+          {dragFeedback ? (
+            <div
+              className={`mb-2 rounded border px-2 py-1.5 text-[11px] ${
+                dragFeedback.tone === "error"
+                  ? "border-[#8a4f4f] bg-[#2a1b1b] text-[#f2b7b7]"
+                  : "border-[#3b5b8b] bg-[#14233d] text-[#9ec1ff]"
+              }`}
+            >
+              {dragFeedback.message}
+            </div>
+          ) : null}
           {activeTab === "layers" ? (
             getOrderedChildren(v2_ROOT_LAYER_PARENT_ID, layerTree).map(
               (node) => renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID, false)
@@ -637,6 +712,21 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                         Detached
                       </div>
                     )}
+                    <button
+                      type="button"
+                      className="w-full rounded border border-[#3f6ad8] bg-[#1a2b57] px-2 py-1 text-[11px] font-semibold text-[#b9ccff] hover:bg-[#22376f]"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (!componentItem.rootLayerId) return;
+                        setSelectedLayerId(componentItem.rootLayerId);
+                        onSelectLayer?.({
+                          layerId: componentItem.rootLayerId,
+                          editorMode: "master",
+                        });
+                      }}
+                    >
+                      마스터 편집 열기
+                    </button>
                     {componentItem.firstInstanceLayerId ? (
                       <button
                         type="button"
