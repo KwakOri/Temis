@@ -434,6 +434,61 @@ const V2TimeTableEditor: React.FC = () => {
           },
         };
       }
+      if (sourceIsComponentInstance && targetSceneParentNode?.kind === "cardCollection") {
+        const staleStyleKey =
+          typeof movedNode.styles?.styleKey === "string" &&
+          movedNode.styles.styleKey.trim().length > 0
+            ? movedNode.styles.styleKey
+            : null;
+        const instanceId =
+          typeof movedNode.meta?.instanceId === "string" &&
+          movedNode.meta.instanceId.trim().length > 0
+            ? movedNode.meta.instanceId
+            : sourceSceneContext.node.kind === "componentInstance"
+              ? sourceSceneContext.node.instanceId
+              : movedNode.id;
+        const nextStyles = {
+          ...(movedNode.styles ?? {}),
+        };
+        delete nextStyles.styleKey;
+        const nextGraphWithoutStyle = {
+          ...nextGraph,
+          nodes: {
+            ...nextGraph.nodes,
+            [sourceSceneNode.id]: {
+              ...movedNode,
+              ...(Object.keys(nextStyles).length > 0
+                ? { styles: nextStyles }
+                : { styles: undefined }),
+              meta: {
+                ...(movedNode.meta ?? {}),
+                layerTarget: `cardInstance:${instanceId}`,
+                layerSectionKey: "grid",
+                layerIcon: "layers" as const,
+              },
+            },
+          },
+        };
+        if (!staleStyleKey) {
+          return {
+            ...prev,
+            graph: nextGraphWithoutStyle,
+          };
+        }
+
+        const nextSceneLayout = {
+          ...prev.layout.scene,
+        };
+        delete nextSceneLayout[staleStyleKey];
+        return {
+          ...prev,
+          graph: nextGraphWithoutStyle,
+          layout: {
+            ...prev.layout,
+            scene: nextSceneLayout,
+          },
+        };
+      }
       return {
         ...prev,
         graph: nextGraph,
