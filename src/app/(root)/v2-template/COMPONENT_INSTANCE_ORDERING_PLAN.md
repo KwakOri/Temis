@@ -188,6 +188,7 @@ Move / Extract Copy 분리:
     - scene의 `cardCollection` 사용처를 집계해 컴포넌트별 instance count 표시
     - 컴포넌트 카드에서 `첫 인스턴스 이동` 액션 제공 (Master -> Instance 왕복)
     - 컴포넌트 선택 하이라이트/선택 상태 유지로 편집 컨텍스트 가시성 강화
+    - Layers 행에서 `Master` 바로가기 액션 제공 (Instance -> Master 단축 진입)
   - Layers/Components 선택 컨텍스트를 속성 패널로 전달:
     - Layers 선택 시 `Instance`, Components 선택 시 `Master` 편집 모드 배지 표시
     - Instance 모드에서는 카드 마스터 구조 편집 UI를 안내 메시지로 대체해 경계 강화
