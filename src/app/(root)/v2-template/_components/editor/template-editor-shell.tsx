@@ -29,7 +29,10 @@ import V2MobileHeader from './mobile-toolbar';
 import V2TimeTableLayersPanel from './layers-panel';
 import V2TimeTableControls from './preview-toolbar';
 import V2TimeTablePreview from './preview-canvas';
-import { v2_graphMoveNode } from '@/utils/time-table/template-graph-editor';
+import {
+  v2_graphInsertSiblingAfter,
+  v2_graphMoveNode,
+} from '@/utils/time-table/template-graph-editor';
 import {
   v2_runOrderKeyRegressionChecks,
   v2_validateOrderKeyGraph,
@@ -37,6 +40,8 @@ import {
 import { v2_normalizeTemplateRenderConfig } from '@/utils/time-table/template-render-config';
 import {
   v2_collectSceneNodesByLayerId,
+  v2_collectLayerNodeIds,
+  v2_createUniqueNodeId,
   v2_findSceneNodeContextById,
 } from '../properties/model/structure-utils';
 
@@ -55,6 +60,12 @@ const useV2TemplateEditorSettings = () => {
     setRenderConfig,
   };
 };
+
+const v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX = "scene-component-instance-";
+const v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX = "scene-component-instance-layer-";
+
+const v2_createComponentInstanceStyleKey = (nodeId: string) =>
+  `sceneNode:${nodeId}:style`;
 
 const V2TimeTableEditor: React.FC = () => {
   const { renderConfig, inputSchema, captureSize, defaultTheme, setRenderConfig } =
@@ -104,6 +115,51 @@ const V2TimeTableEditor: React.FC = () => {
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
   );
+  const componentInstanceMetaByLayerId = useMemo(() => {
+    const next = new Map<
+      string,
+      {
+        nodeId: string;
+        canExtractCopy: boolean;
+      }
+    >();
+
+    const visit = (
+      nodes: typeof runtimeSceneNodes,
+      parentKind: "root" | "group" | "cardCollection"
+    ) => {
+      nodes.forEach((node) => {
+        if (node.kind === "componentInstance") {
+          const layerId = node.layerId ?? node.id;
+          next.set(layerId, {
+            nodeId: node.id,
+            canExtractCopy: parentKind === "cardCollection",
+          });
+          return;
+        }
+
+        if (
+          (node.kind === "group" || node.kind === "cardCollection") &&
+          node.children &&
+          node.children.length > 0
+        ) {
+          visit(node.children, node.kind);
+        }
+      });
+    };
+
+    visit(runtimeSceneNodes, "root");
+    return next;
+  }, [runtimeSceneNodes]);
+  const extractableComponentInstanceLayerIdSet = useMemo(() => {
+    const next = new Set<string>();
+    componentInstanceMetaByLayerId.forEach((meta, layerId) => {
+      if (meta.canExtractCopy) {
+        next.add(layerId);
+      }
+    });
+    return next;
+  }, [componentInstanceMetaByLayerId]);
   const runtimeComponentCatalog = useMemo(() => {
     const instanceStatsByComponentId: Record<
       string,
@@ -359,6 +415,94 @@ const V2TimeTableEditor: React.FC = () => {
       };
     });
   };
+  const extractComponentInstanceLayerCopy = (layerId: string) => {
+    const sourceMeta = componentInstanceMetaByLayerId.get(layerId);
+    if (!sourceMeta) return;
+
+    if (!setRenderConfig) return;
+    setRenderConfig((prev) => {
+      const runtimeScene = v2_getRuntimeSceneNodes(prev);
+      const sourceContext = v2_findSceneNodeContextById({
+        nodes: runtimeScene,
+        nodeId: sourceMeta.nodeId,
+      });
+      if (!sourceContext || sourceContext.node.kind !== "componentInstance") {
+        return prev;
+      }
+
+      if (!sourceContext.parentId) return prev;
+      const sourceParentContext = v2_findSceneNodeContextById({
+        nodes: runtimeScene,
+        nodeId: sourceContext.parentId,
+      });
+      if (!sourceParentContext || sourceParentContext.node.kind !== "cardCollection") {
+        return prev;
+      }
+
+      const sourceGraphNode = prev.graph.nodes[sourceMeta.nodeId];
+      if (!sourceGraphNode || sourceGraphNode.type !== "componentInstance") {
+        return prev;
+      }
+
+      const existingNodeIds = new Set(Object.keys(prev.graph.nodes));
+      const cloneNodeId = v2_createUniqueNodeId(
+        v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX,
+        existingNodeIds
+      );
+      const existingLayerIds = v2_collectLayerNodeIds(v2_getRuntimeLayerTree(prev));
+      const cloneLayerId = v2_createUniqueNodeId(
+        v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX,
+        existingLayerIds
+      );
+      const styleKey = v2_createComponentInstanceStyleKey(cloneNodeId);
+
+      const cloneNode = {
+        ...sourceGraphNode,
+        id: cloneNodeId,
+        label: `${sourceGraphNode.label} Copy`,
+        layerId: cloneLayerId,
+        parentId: sourceGraphNode.parentId,
+        childIds: [],
+        styles: {
+          ...(sourceGraphNode.styles ?? {}),
+          styleKey,
+        },
+        meta: {
+          ...(sourceGraphNode.meta ?? {}),
+          layerTarget: `sceneNode:${cloneNodeId}`,
+          layerSectionKey: styleKey,
+          layerIcon: "layers" as const,
+        },
+      };
+
+      let nextGraph = v2_graphInsertSiblingAfter({
+        graph: prev.graph,
+        anchorNodeId: sourceMeta.nodeId,
+        newNode: cloneNode,
+      });
+      nextGraph = v2_graphMoveNode({
+        graph: nextGraph,
+        nodeId: cloneNodeId,
+        targetParentId: null,
+      });
+
+      return {
+        ...prev,
+        graph: nextGraph,
+        layout: {
+          ...prev.layout,
+          scene: {
+            ...prev.layout.scene,
+            [styleKey]: prev.layout.scene[styleKey] ?? {
+              position: "absolute",
+              top: 120,
+              left: 120,
+            },
+          },
+        },
+      };
+    });
+  };
 
   const uiContextValue = useMemo(
     () => ({ state, actions }),
@@ -493,6 +637,9 @@ const V2TimeTableEditor: React.FC = () => {
                     <V2TimeTableLayersPanel
                       layerTree={runtimeLayerTree}
                       componentCatalog={runtimeComponentCatalog}
+                      extractableComponentInstanceLayerIdSet={
+                        extractableComponentInstanceLayerIdSet
+                      }
                       orderedIdsByParent={orderedIdsByParent}
                       canRelocateLayer={(layerId) =>
                         relocatableLayerIdSet.has(layerId)
@@ -507,6 +654,9 @@ const V2TimeTableEditor: React.FC = () => {
                         applyLayerRelocation(payload);
                       }}
                       onDetachComponent={detachComponentMaster}
+                      onExtractComponentInstanceLayerCopy={
+                        extractComponentInstanceLayerCopy
+                      }
                       onSelectLayer={({ layerId, editorMode }) => {
                         setIsRightPanelOpen(true);
                         setPropertiesFocusRequest({

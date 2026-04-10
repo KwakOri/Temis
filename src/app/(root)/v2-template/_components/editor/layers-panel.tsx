@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronRight,
   Component,
+  Copy,
   Eye,
   EyeOff,
   GripVertical,
@@ -66,6 +67,8 @@ interface V2TimeTableLayersPanelProps {
     targetIndex: number;
   }) => void;
   onDetachComponent?: (componentId: string) => void;
+  extractableComponentInstanceLayerIdSet?: Set<string>;
+  onExtractComponentInstanceLayerCopy?: (layerId: string) => void;
 }
 
 const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
@@ -188,6 +191,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   canRelocateLayer,
   onRelocateLayers,
   onDetachComponent,
+  extractableComponentInstanceLayerIdSet,
+  onExtractComponentInstanceLayerCopy,
 }) => {
   const {
     activeHighlightTarget,
@@ -649,6 +654,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     );
     const isReorderable = node.target !== undefined || hasChildren;
     const canDropInside = node.kind === "group";
+    const isExtractableComponentInstance =
+      Boolean(extractableComponentInstanceLayerIdSet?.has(node.id)) &&
+      !hasChildren;
 
     return (
       <div key={node.id} className="space-y-1">
@@ -991,6 +999,31 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               </>
             ) : null}
           </div>
+          <button
+            type="button"
+            className={`inline-flex h-5 shrink-0 items-center justify-center rounded border px-1 text-[10px] font-semibold uppercase tracking-wide transition ${
+              isExtractableComponentInstance
+                ? "border-[#3a4d72] bg-[#1a2538] text-[#9ec1ff] hover:border-[#4f8cff] hover:bg-[#203150]"
+                : "hidden"
+            }`}
+            onMouseDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!isExtractableComponentInstance) return;
+              onExtractComponentInstanceLayerCopy?.(node.id);
+              setDragFeedback({
+                tone: "info",
+                message: "인스턴스를 루트 레이어로 복제했습니다.",
+              });
+            }}
+            draggable={false}
+            aria-label={`${node.label} 인스턴스 복제`}
+            title="Extract Copy To Root"
+          >
+            <Copy className="h-3 w-3" />
+          </button>
           <button
             type="button"
             className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-[#2a2f3a] ${
