@@ -177,35 +177,6 @@ export const buildOrderedLayerIdsByParent = ({
       return [...orderedByOrderKey, ...remaining];
     }
 
-    const hasPointerOnlyEntries = entries.some(
-      (entry) => entry.graphNode.order?.model === "pointer"
-    );
-    if (hasPointerOnlyEntries) {
-      // Migration-safe fallback:
-      // Graph normalization should already convert pointer -> orderKey.
-      // If stale pointer order remains, prefer graph sibling sequence instead of
-      // rebuilding pointer chains in the panel layer runtime.
-      const orderedByGraphSequence = [...entries]
-        .sort((a, b) => {
-          const parentSiblingIds =
-            parentGraphId === null
-              ? graph.rootNodeIds
-              : parentGraphId
-                ? (graph.nodes[parentGraphId]?.childIds ?? [])
-                : [];
-          const indexA = parentSiblingIds.indexOf(a.graphNode.id);
-          const indexB = parentSiblingIds.indexOf(b.graphNode.id);
-          const normalizedA = indexA >= 0 ? indexA : Number.MAX_SAFE_INTEGER;
-          const normalizedB = indexB >= 0 ? indexB : Number.MAX_SAFE_INTEGER;
-          if (normalizedA === normalizedB) return a.index - b.index;
-          return normalizedA - normalizedB;
-        })
-        .map((entry) => entry.layerId);
-      const orderedSet = new Set(orderedByGraphSequence);
-      const remaining = defaultIds.filter((id) => !orderedSet.has(id));
-      return [...orderedByGraphSequence, ...remaining];
-    }
-
     const siblingSequence =
       parentGraphId === null
         ? graph.rootNodeIds

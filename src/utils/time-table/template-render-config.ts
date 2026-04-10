@@ -1264,7 +1264,7 @@ const v2_normalizeGraphNodeOrder = (
     model:
       typeof candidate.model === "string" && v2_ORDER_MODEL_SET.has(candidate.model)
         ? (candidate.model as V2TemplateGraphNodeOrder["model"])
-        : fallback?.model ?? "pointer",
+        : fallback?.model ?? "orderKey",
   };
 
   if (candidate.prevSiblingId === null) {

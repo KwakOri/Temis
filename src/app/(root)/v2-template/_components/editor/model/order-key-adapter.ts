@@ -1,4 +1,4 @@
-import type { V2OrderAdapter, V2PointerOrderNode } from "./order-adapter";
+import type { V2OrderAdapter, V2OrderNode } from "./order-adapter";
 
 export type V2OrderKeyState = Record<string, string>;
 
@@ -13,8 +13,8 @@ const v2_toUnique = (ids: string[]): string[] => {
   return next;
 };
 
-const v2_buildParentBuckets = (nodes: V2PointerOrderNode[]) => {
-  const buckets = new Map<string, V2PointerOrderNode[]>();
+const v2_buildParentBuckets = (nodes: V2OrderNode[]) => {
+  const buckets = new Map<string, V2OrderNode[]>();
   nodes.forEach((node) => {
     const list = buckets.get(node.parentId) ?? [];
     list.push(node);
@@ -42,7 +42,7 @@ const v2_reorderOrderKeyStateByOrderedIds = ({
 };
 
 const v2_buildOrderedIdsByParentFromOrderKey = (
-  nodes: V2PointerOrderNode[]
+  nodes: V2OrderNode[]
 ): Record<string, string[]> => {
   const buckets = v2_buildParentBuckets(nodes);
   const next: Record<string, string[]> = {};
