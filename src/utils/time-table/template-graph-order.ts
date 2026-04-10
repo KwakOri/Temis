@@ -445,7 +445,7 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
     expectedChildIdsByParent?: Record<string, string[]>;
   }> = [
     {
-      name: "pointer-root-chain",
+      name: "root-sequence-priority",
       graph: {
         rootNodeIds: ["c", "a", "b"],
         componentDefinitions: {},
@@ -476,10 +476,10 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
           },
         },
       },
-      expectedRootNodeIds: ["a", "b", "c"],
+      expectedRootNodeIds: ["c", "a", "b"],
     },
     {
-      name: "pointer-child-chain",
+      name: "child-sequence-priority",
       graph: {
         rootNodeIds: ["p"],
         componentDefinitions: {},
@@ -519,7 +519,7 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
         },
       },
       expectedChildIdsByParent: {
-        p: ["x", "y", "z"],
+        p: ["z", "x", "y"],
       },
     },
     {
