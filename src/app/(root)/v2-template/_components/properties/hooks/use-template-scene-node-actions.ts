@@ -59,11 +59,33 @@ const v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX = "scene-component-instance-layer
 const v2_createComponentInstanceStyleKey = (nodeId: string) =>
   `sceneNode:${nodeId}:style`;
 
-const v2_getFirstComponentDefinitionId = (
+const v2_getPreferredCardCollectionComponentId = (
   config: V2TemplateRenderConfig
 ): string | null => {
-  const componentIds = Object.keys(config.graph.componentDefinitions ?? {});
-  return componentIds[0] ?? null;
+  const componentDefinitions = config.graph.componentDefinitions ?? {};
+  const validComponentIdSet = new Set(Object.keys(componentDefinitions));
+  if (validComponentIdSet.size === 0) return null;
+
+  const runtimeSceneNodes = v2_getRuntimeSceneNodes(config);
+  const queue = [...runtimeSceneNodes];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    if (!node) continue;
+    if (node.kind === "cardCollection") {
+      const componentId = node.componentId?.trim();
+      if (componentId && validComponentIdSet.has(componentId)) {
+        return componentId;
+      }
+    }
+    if (node.kind === "group") {
+      queue.push(...node.children);
+    }
+  }
+
+  const templateComponentDefinition = Object.values(componentDefinitions).find(
+    (definition) => definition.kind === "template"
+  );
+  return templateComponentDefinition?.id ?? null;
 };
 
 const v2_createCardCollectionInstanceGraphNode = ({
@@ -444,7 +466,7 @@ const useTemplateSceneNodeActions = ({
     }
 
     if (kind === "cardCollection") {
-      const componentId = v2_getFirstComponentDefinitionId(prev);
+      const componentId = v2_getPreferredCardCollectionComponentId(prev);
       if (!componentId) return null;
       return {
         sceneNode: {

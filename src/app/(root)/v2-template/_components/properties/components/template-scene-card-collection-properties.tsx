@@ -30,12 +30,12 @@ const TemplateSceneCardCollectionProperties: React.FC<
   onChangeComponentId,
   onChangeVisibilityMode,
 }) => {
-  const preferredComponentId = node.componentId ?? componentOptions[0]?.value;
   const selectedComponentId =
-    preferredComponentId &&
-    componentOptions.some((option) => option.value === preferredComponentId)
-      ? preferredComponentId
-      : (componentOptions[0]?.value ?? "");
+    typeof node.componentId === "string" &&
+    componentOptions.some((option) => option.value === node.componentId)
+      ? node.componentId
+      : "";
+  const hasComponentOptions = componentOptions.length > 0;
 
   return (
     <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
@@ -68,8 +68,14 @@ const TemplateSceneCardCollectionProperties: React.FC<
         <select
           value={selectedComponentId}
           onChange={(event) => onChangeComponentId(event.target.value)}
+          disabled={!hasComponentOptions}
           className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
         >
+          <option value="" disabled>
+            {hasComponentOptions
+              ? "컴포넌트를 선택하세요"
+              : "사용 가능한 컴포넌트가 없습니다"}
+          </option>
           {componentOptions.map((option) => (
             <option
               key={`scene-card-collection-component-${option.value}`}
