@@ -888,8 +888,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             <span className="inline-block h-5 w-5 shrink-0" />
           )}
 
-          <button
-            type="button"
+          <div
+            role="button"
+            tabIndex={0}
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
             onClick={(event) => {
               const resolvedTarget = node.target;
@@ -937,6 +938,22 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 editorMode: "instance",
               });
             }}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              const resolvedTarget = node.target;
+              setSelectedComponentId(null);
+              setSelectedLayerIds([node.id]);
+              setLastSelectedLayerId(node.id);
+              setSelectedLayerId(node.id);
+              setActiveHighlightTarget(resolvedTarget ?? null);
+              onSelectLayer?.({
+                ...(resolvedTarget ? { target: resolvedTarget } : {}),
+                sectionKey: node.sectionKey,
+                layerId: node.id,
+                editorMode: "instance",
+              });
+            }}
           >
             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate text-xs font-medium">{node.label}</span>
@@ -973,7 +990,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 </button>
               </>
             ) : null}
-          </button>
+          </div>
           <button
             type="button"
             className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-[#2a2f3a] ${
