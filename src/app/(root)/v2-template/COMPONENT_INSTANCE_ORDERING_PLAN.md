@@ -208,6 +208,5 @@ Move / Extract Copy 분리:
 - 남은 핵심
   - Phase C/Phase D UX polishing:
     - re-parent DnD에서 다중 선택/키보드 단축 조작 등 고급 UX 고도화
-    - Components 탭의 마스터 편집 전용 단축 동선(예: jump-to-master from layer row) 추가 검토
   - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강:
     - `check:v2-orderkey`를 CI 파이프라인에 연결
