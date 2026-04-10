@@ -152,6 +152,13 @@ const v2_buildSceneNodeFromGraph = ({
           Boolean(childNode && childNode.type === "componentInstance")
       )
       .map((childNode, index) => {
+        const childComponentId =
+          typeof childNode.meta?.componentId === "string"
+            ? childNode.meta.componentId.trim()
+            : "";
+        if (!childComponentId || !validComponentIdSet.has(childComponentId)) {
+          return null;
+        }
         visited.add(childNode.id);
         const instanceId =
           typeof childNode.meta?.instanceId === "string"
@@ -159,14 +166,6 @@ const v2_buildSceneNodeFromGraph = ({
             : String(index);
         const dayKey =
           v2_parseDayKey(childNode.meta?.dayKey) ?? v2_dayKeyFromIndex(index);
-        const childComponentIdCandidate =
-          typeof childNode.meta?.componentId === "string"
-            ? childNode.meta.componentId.trim()
-            : "";
-        const childComponentId =
-          childComponentIdCandidate && validComponentIdSet.has(childComponentIdCandidate)
-            ? childComponentIdCandidate
-            : componentId;
         return {
           id: childNode.id,
           label: childNode.label || `Card ${index + 1}`,
@@ -182,7 +181,10 @@ const v2_buildSceneNodeFromGraph = ({
             ? { styleKey: childNode.styles.styleKey }
             : {}),
         };
-      });
+      })
+      .filter((childNode): childNode is NonNullable<typeof childNode> =>
+        childNode !== null
+      );
 
     return {
       ...base,
