@@ -196,6 +196,7 @@ Move / Extract Copy 분리:
     - drop target이 blocked일 때 inline 사유 메시지 표시
     - 드롭 피드백 배너와 타깃 지점 메시지를 함께 제공해 실패 원인 즉시 확인 가능
     - 레이어 다중 선택(Cmd/Ctrl+클릭, Shift 범위 선택) 및 키보드 순서 이동(Alt+↑/↓) 지원
+    - 단일 선택 레이어의 키보드 re-parent(Alt+Shift+←/→) 지원
   - orderKey 회귀 검증 실행 경로 추가:
     - `scripts/check-v2-orderkey.ts` + `npm run check:v2-orderkey`
     - 로컬/CI에서 동일한 회귀 검증 엔트리 사용 가능
@@ -210,4 +211,3 @@ Move / Extract Copy 분리:
 - 남은 핵심
   - Phase C/Phase D UX polishing:
     - 다중 선택 상태에서 re-parent(그룹 간 이동) 동작 확장
-    - 마우스 드래그 외 키보드 기반 re-parent 단축 UX 설계/적용

@@ -404,6 +404,124 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       return;
     }
 
+    const relocateSelectedLayerByKeyboard = (direction: "left" | "right") => {
+      if (!selectedLayerId) return;
+      if (selectedLayerIds.length > 1) {
+        setDragFeedback({
+          tone: "error",
+          message: "키보드 그룹 이동은 단일 선택에서만 지원됩니다.",
+        });
+        return;
+      }
+
+      const sourceParentEntry = Object.entries(orderedNodeIdsByParent).find(
+        ([, ids]) => ids.includes(selectedLayerId)
+      );
+      if (!sourceParentEntry) return;
+      const [sourceParentId, sourceSiblingIds] = sourceParentEntry;
+      const sourceIndex = sourceSiblingIds.indexOf(selectedLayerId);
+      if (sourceIndex < 0) return;
+
+      if (
+        sourceParentId !== v2_ROOT_LAYER_PARENT_ID &&
+        !canRelocateLayer?.(selectedLayerId)
+      ) {
+        setDragFeedback({
+          tone: "error",
+          message: "이 레이어는 그룹 이동이 잠겨 있습니다.",
+        });
+        return;
+      }
+
+      if (direction === "left") {
+        if (sourceParentId === v2_ROOT_LAYER_PARENT_ID) return;
+
+        const targetParentEntry = Object.entries(orderedNodeIdsByParent).find(
+          ([, ids]) => ids.includes(sourceParentId)
+        );
+        const targetParentId = targetParentEntry?.[0] ?? v2_ROOT_LAYER_PARENT_ID;
+        const targetSiblingIds = [
+          ...(orderedNodeIdsByParent[targetParentId] ?? []),
+        ];
+        const sourceParentIndex = targetSiblingIds.indexOf(sourceParentId);
+        if (sourceParentIndex < 0) return;
+        const targetIndex = sourceParentIndex + 1;
+
+        setOrderedNodeIdsByParent((prev) => {
+          const nextSourceIds = (prev[sourceParentId] ?? []).filter(
+            (id) => id !== selectedLayerId
+          );
+          const nextTargetIds = [...(prev[targetParentId] ?? [])];
+          nextTargetIds.splice(targetIndex, 0, selectedLayerId);
+          return {
+            ...prev,
+            [sourceParentId]: nextSourceIds,
+            [targetParentId]: nextTargetIds,
+          };
+        });
+        onRelocateLayers?.({
+          layerId: selectedLayerId,
+          sourceParentId,
+          targetParentId,
+          targetIndex,
+        });
+        setDragFeedback({
+          tone: "info",
+          message: "레이어를 한 단계 바깥 그룹으로 이동했습니다.",
+        });
+        return;
+      }
+
+      const prevSiblingId = sourceSiblingIds[sourceIndex - 1];
+      if (!prevSiblingId) return;
+      const targetGroupNode = v2_findNodeById(layerTree, prevSiblingId);
+      if (!targetGroupNode || targetGroupNode.kind !== "group") {
+        setDragFeedback({
+          tone: "error",
+          message: "오른쪽 이동은 이전 형제 그룹이 있을 때만 가능합니다.",
+        });
+        return;
+      }
+
+      const targetParentId = targetGroupNode.id;
+      const targetIndex = (orderedNodeIdsByParent[targetParentId] ?? []).length;
+
+      setOrderedNodeIdsByParent((prev) => {
+        const nextSourceIds = (prev[sourceParentId] ?? []).filter(
+          (id) => id !== selectedLayerId
+        );
+        const nextTargetIds = [...(prev[targetParentId] ?? [])];
+        nextTargetIds.splice(targetIndex, 0, selectedLayerId);
+        return {
+          ...prev,
+          [sourceParentId]: nextSourceIds,
+          [targetParentId]: nextTargetIds,
+        };
+      });
+      onRelocateLayers?.({
+        layerId: selectedLayerId,
+        sourceParentId,
+        targetParentId,
+        targetIndex,
+      });
+      setDragFeedback({
+        tone: "info",
+        message: "레이어를 이전 그룹 하위로 이동했습니다.",
+      });
+    };
+
+    if (event.altKey && event.shiftKey && event.key === "ArrowLeft") {
+      event.preventDefault();
+      relocateSelectedLayerByKeyboard("left");
+      return;
+    }
+
+    if (event.altKey && event.shiftKey && event.key === "ArrowRight") {
+      event.preventDefault();
+      relocateSelectedLayerByKeyboard("right");
+      return;
+    }
+
     if (!event.altKey) return;
     if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
 
@@ -856,7 +974,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           {activeTab === "layers" ? (
             <div className="mb-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-1.5 text-[10px] text-[#8ca2c8]">
               다중 선택: `Cmd/Ctrl + 클릭` / 범위 선택: `Shift + 클릭` / 이동:
-              `Alt + ↑/↓`
+              `Alt + ↑/↓` / 그룹 이동: `Alt + Shift + ←/→`
             </div>
           ) : null}
           {dragFeedback ? (
