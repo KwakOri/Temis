@@ -1,0 +1,41 @@
+name: V2 Template OrderKey Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/app/(root)/v2-template/**'
+      - 'src/utils/time-table/template-graph-order.ts'
+      - 'src/utils/time-table/template-render-config.ts'
+      - 'src/types/time-table/template-render-config.ts'
+      - 'scripts/check-v2-orderkey.ts'
+      - 'package.json'
+      - 'package-lock.json'
+  push:
+    paths:
+      - 'src/app/(root)/v2-template/**'
+      - 'src/utils/time-table/template-graph-order.ts'
+      - 'src/utils/time-table/template-render-config.ts'
+      - 'src/types/time-table/template-render-config.ts'
+      - 'scripts/check-v2-orderkey.ts'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  check-orderkey:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run OrderKey regression checks
+        run: npm run check:v2-orderkey

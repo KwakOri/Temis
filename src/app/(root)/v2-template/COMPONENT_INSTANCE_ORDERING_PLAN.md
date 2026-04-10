@@ -195,9 +195,11 @@ Move / Extract Copy 분리:
   - Layers DnD UX 보강:
     - drop target이 blocked일 때 inline 사유 메시지 표시
     - 드롭 피드백 배너와 타깃 지점 메시지를 함께 제공해 실패 원인 즉시 확인 가능
+    - 레이어 다중 선택(Cmd/Ctrl+클릭, Shift 범위 선택) 및 키보드 순서 이동(Alt+↑/↓) 지원
   - orderKey 회귀 검증 실행 경로 추가:
     - `scripts/check-v2-orderkey.ts` + `npm run check:v2-orderkey`
     - 로컬/CI에서 동일한 회귀 검증 엔트리 사용 가능
+    - GitHub Actions 워크플로우(`.github/workflows/v2-template-orderkey-check.yml`) 연결
 
 - 부분 완료
   - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (edge-case UX 추가 다듬기 필요)
@@ -207,6 +209,5 @@ Move / Extract Copy 분리:
 
 - 남은 핵심
   - Phase C/Phase D UX polishing:
-    - re-parent DnD에서 다중 선택/키보드 단축 조작 등 고급 UX 고도화
-  - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강:
-    - `check:v2-orderkey`를 CI 파이프라인에 연결
+    - 다중 선택 상태에서 re-parent(그룹 간 이동) 동작 확장
+    - 마우스 드래그 외 키보드 기반 re-parent 단축 UX 설계/적용

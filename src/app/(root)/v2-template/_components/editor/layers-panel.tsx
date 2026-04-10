@@ -180,6 +180,10 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     card: true,
   });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [selectedLayerIds, setSelectedLayerIds] = useState<string[]>([]);
+  const [lastSelectedLayerId, setLastSelectedLayerId] = useState<string | null>(
+    null
+  );
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null
   );
@@ -296,6 +300,117 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     });
   };
 
+  const moveSelectedLayersByStep = (step: -1 | 1) => {
+    const selectedIds =
+      selectedLayerIds.length > 0
+        ? selectedLayerIds
+        : selectedLayerId
+          ? [selectedLayerId]
+          : [];
+    if (selectedIds.length === 0) return;
+
+    const parentCandidates = new Set<V2LayerParentId>();
+    Object.entries(orderedNodeIdsByParent).forEach(([parentId, ids]) => {
+      if (selectedIds.some((id) => ids.includes(id))) {
+        parentCandidates.add(parentId);
+      }
+    });
+
+    if (parentCandidates.size !== 1) {
+      setDragFeedback({
+        tone: "error",
+        message: "같은 그룹의 레이어만 함께 이동할 수 있습니다.",
+      });
+      return;
+    }
+
+    const parentId = Array.from(parentCandidates)[0];
+    const siblingIds = [...(orderedNodeIdsByParent[parentId] ?? [])];
+    if (siblingIds.length === 0) return;
+
+    const selectedSet = new Set(selectedIds);
+    const selectedInOrder = siblingIds.filter((id) => selectedSet.has(id));
+    if (selectedInOrder.length === 0) return;
+
+    const selectedIndices = selectedInOrder
+      .map((id) => siblingIds.indexOf(id))
+      .filter((index) => index >= 0);
+    if (selectedIndices.length === 0) return;
+
+    const minIndex = Math.min(...selectedIndices);
+    const maxIndex = Math.max(...selectedIndices);
+
+    if (step < 0 && minIndex === 0) return;
+    if (step > 0 && maxIndex === siblingIds.length - 1) return;
+
+    const remaining = siblingIds.filter((id) => !selectedSet.has(id));
+    const beforeId = step < 0 ? siblingIds[minIndex - 1] : undefined;
+    const afterId = step > 0 ? siblingIds[maxIndex + 1] : undefined;
+
+    let insertIndex = 0;
+    if (step < 0) {
+      const beforeIndex = beforeId ? remaining.indexOf(beforeId) : -1;
+      insertIndex = Math.max(0, beforeIndex);
+    } else {
+      const afterIndex = afterId ? remaining.indexOf(afterId) : -1;
+      insertIndex = Math.max(0, afterIndex + 1);
+    }
+
+    const nextOrder = [...remaining];
+    nextOrder.splice(insertIndex, 0, ...selectedInOrder);
+    commitLayerOrder({
+      parentId,
+      orderedIds: nextOrder,
+    });
+    setDragFeedback({
+      tone: "info",
+      message:
+        step < 0
+          ? "선택한 레이어를 위로 이동했습니다."
+          : "선택한 레이어를 아래로 이동했습니다.",
+    });
+  };
+
+  const handleLayersKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
+    event
+  ) => {
+    if (activeTab !== "layers") return;
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+      event.preventDefault();
+      if (!selectedLayerId) return;
+
+      const parentEntry = Object.entries(orderedNodeIdsByParent).find(([, ids]) =>
+        ids.includes(selectedLayerId)
+      );
+      if (!parentEntry) return;
+
+      const [, siblingIds] = parentEntry;
+      setSelectedLayerIds(siblingIds);
+      setDragFeedback({
+        tone: "info",
+        message: `현재 그룹의 ${siblingIds.length}개 레이어를 선택했습니다.`,
+      });
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (selectedLayerId) {
+        setSelectedLayerIds([selectedLayerId]);
+      } else {
+        setSelectedLayerIds([]);
+      }
+      return;
+    }
+
+    if (!event.altKey) return;
+    if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+
+    event.preventDefault();
+    moveSelectedLayersByStep(event.key === "ArrowUp" ? -1 : 1);
+  };
+
   const renderNode = (
     node: V2LayerNode,
     depth = 0,
@@ -308,7 +423,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const iconByKey =
       node.icon !== undefined ? v2_LAYER_ICON_MAP[node.icon] : undefined;
     const Icon = node.kind === "group" ? Folder : iconByKey ?? Layers;
-    const isSelected = selectedNodeIds.has(node.id) || selectedLayerId === node.id;
+    const isSelected =
+      selectedNodeIds.has(node.id) || selectedLayerIds.includes(node.id);
     const isDragging =
       dragState?.parentId === parentId && dragState.nodeId === node.id;
     const isDropTargetBefore =
@@ -555,9 +671,43 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           <button
             type="button"
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
-            onClick={() => {
+            onClick={(event) => {
               const resolvedTarget = node.target;
+              const withModifier = event.metaKey || event.ctrlKey;
+              const withRange = event.shiftKey;
+
+              let nextSelectedLayerIds: string[] = [];
+              if (
+                withRange &&
+                lastSelectedLayerId &&
+                orderedSiblingIds.includes(lastSelectedLayerId)
+              ) {
+                const anchorIndex = orderedSiblingIds.indexOf(lastSelectedLayerId);
+                const currentIndex = orderedSiblingIds.indexOf(node.id);
+                const [from, to] =
+                  anchorIndex < currentIndex
+                    ? [anchorIndex, currentIndex]
+                    : [currentIndex, anchorIndex];
+                nextSelectedLayerIds = orderedSiblingIds.slice(from, to + 1);
+              } else if (withModifier) {
+                if (selectedLayerIds.includes(node.id)) {
+                  nextSelectedLayerIds = selectedLayerIds.filter(
+                    (id) => id !== node.id
+                  );
+                } else {
+                  nextSelectedLayerIds = [...selectedLayerIds, node.id];
+                }
+
+                if (nextSelectedLayerIds.length === 0) {
+                  nextSelectedLayerIds = [node.id];
+                }
+              } else {
+                nextSelectedLayerIds = [node.id];
+              }
+
               setSelectedComponentId(null);
+              setSelectedLayerIds(nextSelectedLayerIds);
+              setLastSelectedLayerId(node.id);
               setSelectedLayerId(node.id);
               setActiveHighlightTarget(resolvedTarget ?? null);
               onSelectLayer?.({
@@ -586,6 +736,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                     } else {
                       setSelectedComponentId(null);
                     }
+                    setSelectedLayerIds([node.id]);
+                    setLastSelectedLayerId(node.id);
                     setSelectedLayerId(node.id);
                     onSelectLayer?.({
                       ...(node.target ? { target: node.target } : {}),
@@ -671,6 +823,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               onClick={() => {
                 setActiveTab("layers");
                 setSelectedComponentId(null);
+                if (selectedLayerId) {
+                  setSelectedLayerIds([selectedLayerId]);
+                }
               }}
               className={`rounded border px-2 py-1.5 text-xs font-semibold ${
                 activeTab === "layers"
@@ -693,7 +848,17 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             </button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2">
+        <div
+          className="flex-1 overflow-y-auto p-2"
+          tabIndex={0}
+          onKeyDown={handleLayersKeyDown}
+        >
+          {activeTab === "layers" ? (
+            <div className="mb-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-1.5 text-[10px] text-[#8ca2c8]">
+              다중 선택: `Cmd/Ctrl + 클릭` / 범위 선택: `Shift + 클릭` / 이동:
+              `Alt + ↑/↓`
+            </div>
+          ) : null}
           {dragFeedback ? (
             <div
               className={`mb-2 rounded border px-2 py-1.5 text-[11px] ${
@@ -735,6 +900,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                     onClick={() => {
                       if (!componentItem.rootLayerId) return;
                       setSelectedComponentId(componentItem.id);
+                      setSelectedLayerIds([componentItem.rootLayerId]);
+                      setLastSelectedLayerId(componentItem.rootLayerId);
                       setSelectedLayerId(componentItem.rootLayerId);
                       onSelectLayer?.({
                         layerId: componentItem.rootLayerId,
@@ -781,6 +948,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                         event.stopPropagation();
                         if (!componentItem.rootLayerId) return;
                         setSelectedComponentId(componentItem.id);
+                        setSelectedLayerIds([componentItem.rootLayerId]);
+                        setLastSelectedLayerId(componentItem.rootLayerId);
                         setSelectedLayerId(componentItem.rootLayerId);
                         onSelectLayer?.({
                           layerId: componentItem.rootLayerId,
@@ -801,6 +970,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                           if (!firstInstanceLayerId) return;
                           setActiveTab("layers");
                           setSelectedComponentId(componentItem.id);
+                          setSelectedLayerIds([firstInstanceLayerId]);
+                          setLastSelectedLayerId(firstInstanceLayerId);
                           setSelectedLayerId(firstInstanceLayerId);
                           onSelectLayer?.({
                             layerId: firstInstanceLayerId,
