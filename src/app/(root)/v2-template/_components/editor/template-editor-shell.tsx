@@ -345,33 +345,35 @@ const V2TimeTableEditor: React.FC = () => {
       if (!sourceSceneNode) {
         return prev;
       }
-
-      const targetLayerParentId =
-        targetParentId === ROOT_LAYER_PARENT_ID ? null : targetParentId;
-      const targetSceneParentId =
-        targetLayerParentId === null
-          ? null
-          : (() => {
-              const parentSceneNode = sceneNodeByLayerId.get(targetLayerParentId);
-              if (
-                !parentSceneNode ||
-                (parentSceneNode.kind !== "group" &&
-                  parentSceneNode.kind !== "cardCollection")
-              ) {
-                return undefined;
-              }
-              return parentSceneNode.id;
-            })();
-
-      if (targetLayerParentId !== null && targetSceneParentId === undefined) {
-        return prev;
-      }
-
       const sourceSceneContext = v2_findSceneNodeContextById({
         nodes: runtimeSceneNodes,
         nodeId: sourceSceneNode.id,
       });
       if (!sourceSceneContext) return prev;
+      const sourceIsComponentInstance =
+        sourceSceneContext.node.kind === "componentInstance";
+
+      const targetLayerParentId =
+        targetParentId === ROOT_LAYER_PARENT_ID ? null : targetParentId;
+      const targetSceneParentNode =
+        targetLayerParentId === null
+          ? null
+          : sceneNodeByLayerId.get(targetLayerParentId) ?? null;
+      if (
+        targetLayerParentId !== null &&
+        (!targetSceneParentNode ||
+          (targetSceneParentNode.kind !== "group" &&
+            targetSceneParentNode.kind !== "cardCollection"))
+      ) {
+        return prev;
+      }
+      if (
+        targetSceneParentNode?.kind === "cardCollection" &&
+        !sourceIsComponentInstance
+      ) {
+        return prev;
+      }
+      const targetSceneParentId = targetSceneParentNode?.id ?? null;
 
       const desiredIndex = Math.max(0, Math.floor(targetIndex));
       const effectiveIndex =
@@ -386,6 +388,59 @@ const V2TimeTableEditor: React.FC = () => {
         targetParentId: targetSceneParentId ?? null,
         targetIndex: effectiveIndex,
       });
+      const movedNode = nextGraph.nodes[sourceSceneNode.id];
+      if (!movedNode) {
+        return {
+          ...prev,
+          graph: nextGraph,
+        };
+      }
+      if (sourceIsComponentInstance && targetSceneParentNode?.kind !== "cardCollection") {
+        const styleKey =
+          typeof movedNode.styles?.styleKey === "string" &&
+          movedNode.styles.styleKey.trim().length > 0
+            ? movedNode.styles.styleKey
+            : v2_createComponentInstanceStyleKey(sourceSceneNode.id);
+        const nextGraphWithStyle = {
+          ...nextGraph,
+          nodes: {
+            ...nextGraph.nodes,
+            [sourceSceneNode.id]: {
+              ...movedNode,
+              styles: {
+                ...(movedNode.styles ?? {}),
+                styleKey,
+              },
+              meta: {
+                ...(movedNode.meta ?? {}),
+                layerTarget: `sceneNode:${sourceSceneNode.id}`,
+                layerSectionKey: styleKey,
+                layerIcon: "layers" as const,
+              },
+            },
+          },
+        };
+        const existingStyle = prev.layout.scene[styleKey];
+        return {
+          ...prev,
+          graph: nextGraphWithStyle,
+          layout: {
+            ...prev.layout,
+            scene: {
+              ...prev.layout.scene,
+              ...(existingStyle
+                ? {}
+                : {
+                    [styleKey]: {
+                      position: "absolute",
+                      top: 120,
+                      left: 120,
+                    },
+                  }),
+            },
+          },
+        };
+      }
       return {
         ...prev,
         graph: nextGraph,
