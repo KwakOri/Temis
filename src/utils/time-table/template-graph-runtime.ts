@@ -137,7 +137,7 @@ const v2_buildSceneNodeFromGraph = ({
     return {
       ...base,
       kind: "cardCollection",
-      source: graphNode.meta?.source === "card" ? "card" : "card",
+      source: "card",
       componentId:
         typeof graphNode.meta?.componentId === "string" &&
         graphNode.meta.componentId.trim().length > 0
