@@ -187,19 +187,26 @@ Move / Extract Copy 분리:
   - Components 탭 정보 강화:
     - scene의 `cardCollection` 사용처를 집계해 컴포넌트별 instance count 표시
     - 컴포넌트 카드에서 `첫 인스턴스 이동` 액션 제공 (Master -> Instance 왕복)
+    - 컴포넌트 선택 하이라이트/선택 상태 유지로 편집 컨텍스트 가시성 강화
   - Layers/Components 선택 컨텍스트를 속성 패널로 전달:
     - Layers 선택 시 `Instance`, Components 선택 시 `Master` 편집 모드 배지 표시
     - Instance 모드에서는 카드 마스터 구조 편집 UI를 안내 메시지로 대체해 경계 강화
+  - Layers DnD UX 보강:
+    - drop target이 blocked일 때 inline 사유 메시지 표시
+    - 드롭 피드백 배너와 타깃 지점 메시지를 함께 제공해 실패 원인 즉시 확인 가능
+  - orderKey 회귀 검증 실행 경로 추가:
+    - `scripts/check-v2-orderkey.ts` + `npm run check:v2-orderkey`
+    - 로컬/CI에서 동일한 회귀 검증 엔트리 사용 가능
 
 - 부분 완료
-  - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (추가 UX polishing 필요)
-  - Phase D: Components 탭 최소 분리 완료 (마스터 편집 전용 플로우 강화 필요)
+  - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (edge-case UX 추가 다듬기 필요)
+  - Phase D: Components 탭 최소 분리 완료 (마스터 편집 동선은 강화했으며 추가 단축 UX 여지 존재)
   - Phase E(진행): `cardCollection`에 `componentId`를 도입해 카드 렌더/레이어 생성 경로를 컴포넌트 기반으로 일반화
   - graph-only 전환(마무리): 저장/정규화 경로는 graph 중심으로 정리됨. 기본 그래프 부트스트랩(기존 default structure 상수 기반) 분리 여부만 남음
 
 - 남은 핵심
   - Phase C/Phase D UX polishing:
-    - re-parent DnD drop affordance/edge-case UX 보강
-    - Components 탭의 마스터 편집 전용 플로우(직접 편집 진입 동선) 추가 고도화
+    - re-parent DnD에서 다중 선택/키보드 단축 조작 등 고급 UX 고도화
+    - Components 탭의 마스터 편집 전용 단축 동선(예: jump-to-master from layer row) 추가 검토
   - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강:
-    - dev 부트 시 `v2_runOrderKeyRegressionChecks` 실행을 CI/스크립트 경로까지 확장
+    - `check:v2-orderkey`를 CI 파이프라인에 연결
