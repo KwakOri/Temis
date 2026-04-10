@@ -1917,33 +1917,28 @@ const v2_normalizeNodeGraph = (
     Object.entries(candidate.componentDefinitions).forEach(
       ([componentId, rawDefinition]) => {
         if (!v2_isRecord(rawDefinition)) return;
-        const fallbackDefinition = nextComponentDefinitions[componentId];
         const id = v2_asString(
           rawDefinition.id,
-          fallbackDefinition?.id ?? componentId
+          componentId
         ).trim();
         const rootNodeId = v2_asString(
           rawDefinition.rootNodeId,
-          fallbackDefinition?.rootNodeId ?? ""
+          ""
         ).trim();
         if (!id || !rootNodeId || !nextNodes[rootNodeId]) return;
         const instanceTransforms = v2_normalizeCardInstanceTransforms(
           rawDefinition.instanceTransforms,
-          fallbackDefinition?.instanceTransforms ?? {}
+          {}
         );
         nextComponentDefinitions[id] = {
           id,
-          label: v2_asString(rawDefinition.label, fallbackDefinition?.label ?? id),
+          label: v2_asString(rawDefinition.label, id),
           rootNodeId,
           ...(typeof rawDefinition.description === "string"
             ? { description: rawDefinition.description }
-            : typeof fallbackDefinition?.description === "string"
-              ? { description: fallbackDefinition.description }
             : {}),
           ...(rawDefinition.kind === "template" || rawDefinition.kind === "custom"
             ? { kind: rawDefinition.kind }
-            : fallbackDefinition?.kind
-              ? { kind: fallbackDefinition.kind }
             : {}),
           ...(typeof rawDefinition.instanceMode === "string" &&
           v2_COMPONENT_INSTANCE_MODE_SET.has(rawDefinition.instanceMode)
@@ -1951,18 +1946,12 @@ const v2_normalizeNodeGraph = (
                 instanceMode:
                   rawDefinition.instanceMode as V2TemplateComponentInstanceMode,
               }
-            : fallbackDefinition?.instanceMode
-              ? {
-                  instanceMode: fallbackDefinition.instanceMode,
-                }
             : {}),
           ...(Object.keys(instanceTransforms).length > 0
             ? { instanceTransforms }
             : {}),
           ...(typeof rawDefinition.detachedAt === "string"
             ? { detachedAt: rawDefinition.detachedAt }
-            : typeof fallbackDefinition?.detachedAt === "string"
-              ? { detachedAt: fallbackDefinition.detachedAt }
             : {}),
         };
       }
