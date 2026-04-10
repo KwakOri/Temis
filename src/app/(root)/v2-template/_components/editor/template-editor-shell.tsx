@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-react";
 
 import { TemplateDesignGuideProvider } from '@/contexts/v2/template-design-guide-context';
@@ -31,6 +31,7 @@ import V2TimeTableControls from './preview-toolbar';
 import V2TimeTablePreview from './preview-canvas';
 import { v2_graphMoveNode } from '@/utils/time-table/template-graph-editor';
 import { v2_validateOrderKeyGraph } from '@/utils/time-table/template-graph-order';
+import { v2_normalizeTemplateRenderConfig } from '@/utils/time-table/template-render-config';
 import {
   v2_collectSceneNodesByLayerId,
   v2_findSceneNodeContextById,
@@ -78,6 +79,7 @@ const V2TimeTableEditor: React.FC = () => {
     useState<V2TemplateHighlightTarget | null>(null);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const orderKeyRepairAttemptRef = useRef<string | null>(null);
   const [propertiesFocusRequest, setPropertiesFocusRequest] = useState<{
     layerId: string;
     nonce: number;
@@ -185,12 +187,22 @@ const V2TimeTableEditor: React.FC = () => {
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
     const validation = v2_validateOrderKeyGraph(renderConfig.graph);
-    if (validation.valid) return;
+    if (validation.valid) {
+      orderKeyRepairAttemptRef.current = null;
+      return;
+    }
+
+    const issueSignature = validation.issues.join("|");
+    if (orderKeyRepairAttemptRef.current === issueSignature) return;
+    orderKeyRepairAttemptRef.current = issueSignature;
+
     console.warn(
       '[v2-template] orderKey graph validation issues detected',
       validation.issues
     );
-  }, [renderConfig.graph]);
+    if (!setRenderConfig) return;
+    setRenderConfig((prev) => v2_normalizeTemplateRenderConfig(prev));
+  }, [renderConfig.graph, setRenderConfig]);
 
   const applyLayerZIndex = ({
     parentId,
