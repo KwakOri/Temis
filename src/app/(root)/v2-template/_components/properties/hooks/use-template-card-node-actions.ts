@@ -16,7 +16,6 @@ import {
   v2_graphUpdateNode,
 } from "@/utils/time-table/template-graph-editor";
 import {
-  v2_getDefaultCardComponentId,
   v2_getRuntimeCardStructureByComponentId,
 } from "@/utils/time-table/template-graph-runtime";
 import {
@@ -31,7 +30,7 @@ interface UseTemplateCardNodeActionsParams {
   ) => void;
   templateColorKeys: readonly V2TemplateColorKey[];
   fixedCardNodeIds: Set<string>;
-  resolveActiveComponentId?: (config: V2TemplateRenderConfig) => string;
+  resolveActiveComponentId?: (config: V2TemplateRenderConfig) => string | null;
 }
 
 const useTemplateCardNodeActions = ({
@@ -175,8 +174,8 @@ const useTemplateCardNodeActions = ({
   const appendCardNode = (kind: V2TemplateCardNodeKind) => {
     safeUpdateConfig((prev) => {
       const componentIdCandidate = resolveActiveComponentId?.(prev);
-      const componentId =
-        componentIdCandidate?.trim() || v2_getDefaultCardComponentId(prev);
+      const componentId = componentIdCandidate?.trim();
+      if (!componentId) return prev;
       const componentDefinition = prev.graph.componentDefinitions[componentId];
       if (!componentDefinition) return prev;
 
@@ -284,8 +283,8 @@ const useTemplateCardNodeActions = ({
   const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
     safeUpdateConfig((prev) => {
       const componentIdCandidate = resolveActiveComponentId?.(prev);
-      const componentId =
-        componentIdCandidate?.trim() || v2_getDefaultCardComponentId(prev);
+      const componentId = componentIdCandidate?.trim();
+      if (!componentId) return prev;
       const graphCardDefinition = prev.graph.componentDefinitions[componentId];
       if (!graphCardDefinition) return prev;
       const runtimeCard = v2_getRuntimeCardStructureByComponentId(prev, componentId);
@@ -345,8 +344,8 @@ const useTemplateCardNodeActions = ({
 
     safeUpdateConfig((prev) => {
       const componentIdCandidate = resolveActiveComponentId?.(prev);
-      const componentId =
-        componentIdCandidate?.trim() || v2_getDefaultCardComponentId(prev);
+      const componentId = componentIdCandidate?.trim();
+      if (!componentId) return prev;
       const graphCardDefinition = prev.graph.componentDefinitions[componentId];
       if (!graphCardDefinition) return prev;
       const runtimeCard = v2_getRuntimeCardStructureByComponentId(prev, componentId);

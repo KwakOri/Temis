@@ -16,7 +16,6 @@ import {
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
-  v2_getDefaultCardComponentId,
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
@@ -172,10 +171,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     useState<string>("grid");
   const [selectedPropertiesEditorMode, setSelectedPropertiesEditorMode] =
     useState<"instance" | "master">("instance");
-  const defaultCardComponentId = useMemo(
-    () => v2_getDefaultCardComponentId(renderConfig),
-    [renderConfig]
-  );
   const runtimeCardStructuresByComponentId = useMemo(() => {
     const next: Record<
       string,
@@ -189,14 +184,12 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         );
       }
     );
-    if (!next[defaultCardComponentId]) {
-      next[defaultCardComponentId] = v2_getRuntimeCardStructureByComponentId(
-        renderConfig,
-        defaultCardComponentId
-      );
-    }
     return next;
-  }, [defaultCardComponentId, renderConfig]);
+  }, [renderConfig]);
+  const runtimeCardComponentIds = useMemo(
+    () => Object.keys(runtimeCardStructuresByComponentId),
+    [runtimeCardStructuresByComponentId]
+  );
   const runtimeLayerTree = useMemo(
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
@@ -282,7 +275,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       ) {
         return selectedComponentId;
       }
-      return defaultCardComponentId;
+      return runtimeCardComponentIds[0] ?? null;
     }
 
     const cardNodeComponentId =
@@ -293,24 +286,21 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       componentIdByRootLayerId.get(selectedPropertiesLayerId);
     if (rootLayerComponentId) return rootLayerComponentId;
 
-    return defaultCardComponentId;
+    return runtimeCardComponentIds[0] ?? null;
   }, [
     cardNodeComponentIdByLayerId,
     componentIdByRootLayerId,
-    defaultCardComponentId,
+    runtimeCardComponentIds,
     runtimeCardStructuresByComponentId,
     sceneNodeByLayerId,
     selectedPropertiesLayerId,
   ]);
   const activeCardStructure = useMemo(
     () =>
-      runtimeCardStructuresByComponentId[activeCardComponentId] ??
-      runtimeCardStructuresByComponentId[defaultCardComponentId],
-    [
-      activeCardComponentId,
-      defaultCardComponentId,
-      runtimeCardStructuresByComponentId,
-    ]
+      activeCardComponentId
+        ? runtimeCardStructuresByComponentId[activeCardComponentId] ?? null
+        : null,
+    [activeCardComponentId, runtimeCardStructuresByComponentId]
   );
   const allRuntimeCardNodes = useMemo(() => {
     return Object.values(runtimeCardStructuresByComponentId).flatMap((structure) =>
@@ -1071,9 +1061,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     styleSectionLabels: v2_STYLE_SECTION_LABELS,
     bindableNodeLabels,
     editorMode: selectedPropertiesEditorMode,
-    cardContainerSectionKey: activeCardStructure.containerStyleKey,
-    cardInstanceMode: activeCardStructure.instanceMode ?? "component",
-    cardInstanceTransforms: activeCardStructure.instanceTransforms ?? {},
+    cardContainerSectionKey:
+      activeCardStructure?.containerStyleKey ?? "cardContainer",
+    cardInstanceMode: activeCardStructure?.instanceMode ?? "component",
+    cardInstanceTransforms: activeCardStructure?.instanceTransforms ?? {},
     onChangeCardInstanceMode: updateCardInstanceMode,
     onAppendCardTextNode: () => appendCardNode("text"),
     onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),
