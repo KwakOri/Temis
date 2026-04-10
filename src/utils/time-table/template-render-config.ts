@@ -661,11 +661,8 @@ const v2_pickComponentIdForCardCollection = ({
     collectionNode.meta.componentId.trim().length > 0
       ? collectionNode.meta.componentId
       : null;
-  if (metaComponentId && componentDefinitions[metaComponentId]) {
-    return metaComponentId;
-  }
-  const firstComponentId = Object.keys(componentDefinitions)[0];
-  return firstComponentId ?? null;
+  if (!metaComponentId) return null;
+  return componentDefinitions[metaComponentId] ? metaComponentId : null;
 };
 
 const v2_createCardInstanceNode = ({
