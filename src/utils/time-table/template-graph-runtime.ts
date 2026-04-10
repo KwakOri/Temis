@@ -1,4 +1,5 @@
 import {
+  v2_DEFAULT_CARD_COMPONENT_ID,
   v2_TEMPLATE_COLOR_KEYS,
   V2TemplateCardNode,
   V2TemplateCardStructure,
@@ -225,10 +226,23 @@ export const v2_getDefaultCardComponentId = (
   renderConfig: V2TemplateRenderConfig
 ): string => {
   const componentDefinitions = renderConfig.graph?.componentDefinitions ?? {};
-  if (componentDefinitions.card) return "card";
+  if (componentDefinitions[v2_DEFAULT_CARD_COMPONENT_ID]) {
+    return v2_DEFAULT_CARD_COMPONENT_ID;
+  }
+
+  const graphNodes = renderConfig.graph?.nodes ?? {};
+  const sceneCardCollectionComponentId = Object.values(graphNodes).find(
+    (node) =>
+      node.type === "cardCollection" &&
+      typeof node.meta?.componentId === "string" &&
+      node.meta.componentId.trim().length > 0
+  )?.meta?.componentId;
+  if (typeof sceneCardCollectionComponentId === "string") {
+    return sceneCardCollectionComponentId;
+  }
 
   const firstComponentId = Object.keys(componentDefinitions)[0];
-  return firstComponentId ?? "card";
+  return firstComponentId ?? v2_DEFAULT_CARD_COMPONENT_ID;
 };
 
 const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {

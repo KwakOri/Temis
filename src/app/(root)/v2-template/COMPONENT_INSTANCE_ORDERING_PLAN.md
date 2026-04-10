@@ -197,4 +197,5 @@ Move / Extract Copy 분리:
 
 - 남은 핵심
   - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
+  - default card 컴포넌트 id를 상수(`v2_DEFAULT_CARD_COMPONENT_ID`)로 통일해 하드코딩 `"card"` 분산 축소
   - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강

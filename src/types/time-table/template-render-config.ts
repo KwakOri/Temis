@@ -6,6 +6,7 @@ import {
 import type { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 
 export const v2_TEMPLATE_RENDER_CONFIG_VERSION = 1 as const;
+export const v2_DEFAULT_CARD_COMPONENT_ID = "card" as const;
 
 export const v2_TEMPLATE_COLOR_KEYS = [
   "MAIN_TITLE",

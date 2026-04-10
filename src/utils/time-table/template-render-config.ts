@@ -1,5 +1,6 @@
 import { SimpleFieldConfig } from "@/types/time-table/data";
 import {
+  v2_DEFAULT_CARD_COMPONENT_ID,
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
   V2TemplateAutoResizeOptions,
@@ -156,7 +157,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
     sectionKey: "grid",
     children: [
       {
-        id: "card",
+        id: v2_DEFAULT_CARD_COMPONENT_ID,
         label: "Card",
         kind: "group",
         visibilityMode: "always",
@@ -409,7 +410,7 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     kind: "cardCollection",
     layerId: "grid",
     source: "card",
-    componentId: "card",
+    componentId: v2_DEFAULT_CARD_COMPONENT_ID,
     visibilityMode: "always",
   },
   {
@@ -608,7 +609,7 @@ const v2_createDefaultNodeGraph = ({
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
         source: sceneNode.source,
-        componentId: sceneNode.componentId ?? "card",
+        componentId: sceneNode.componentId ?? v2_DEFAULT_CARD_COMPONENT_ID,
       };
     } else if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {
       nextNode.binding = sceneNode.binding;
@@ -675,7 +676,7 @@ const v2_createDefaultNodeGraph = ({
       containerStyleKey: card.containerStyleKey,
     },
     meta: {
-      componentId: "card",
+      componentId: v2_DEFAULT_CARD_COMPONENT_ID,
       ...(cardRootLayerMeta ?? {}),
     },
   };
@@ -724,8 +725,8 @@ const v2_createDefaultNodeGraph = ({
     string,
     V2TemplateGraphComponentDefinition
   > = {
-    card: {
-      id: "card",
+    [v2_DEFAULT_CARD_COMPONENT_ID]: {
+      id: v2_DEFAULT_CARD_COMPONENT_ID,
       label: "Card",
       rootNodeId: cardRootId,
       description: "Default card component",
