@@ -96,6 +96,31 @@ const v2_moveLayerNode = (
   return nextIds;
 };
 
+const v2_moveLayerBlock = ({
+  prevIds,
+  draggedIds,
+  dropId,
+  dropPosition,
+}: {
+  prevIds: string[];
+  draggedIds: string[];
+  dropId: string;
+  dropPosition: "before" | "after";
+}): string[] => {
+  if (draggedIds.length === 0) return prevIds;
+  if (draggedIds.includes(dropId)) return prevIds;
+
+  const draggedSet = new Set(draggedIds);
+  const remaining = prevIds.filter((id) => !draggedSet.has(id));
+  const targetIndex = remaining.indexOf(dropId);
+  if (targetIndex < 0) return prevIds;
+
+  const insertIndex = dropPosition === "before" ? targetIndex : targetIndex + 1;
+  const next = [...remaining];
+  next.splice(insertIndex, 0, ...draggedIds);
+  return next;
+};
+
 const v2_toOrderMap = (
   parentId: V2LayerParentId,
   nodes: V2LayerNode[],
@@ -198,6 +223,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     parentId: V2LayerParentId;
     nodeId: string;
     siblingIds: string[];
+    draggedNodeIds: string[];
   } | null>(null);
   const [dropState, setDropState] = useState<{
     parentId: V2LayerParentId;
@@ -544,7 +570,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const isSelected =
       selectedNodeIds.has(node.id) || selectedLayerIds.includes(node.id);
     const isDragging =
-      dragState?.parentId === parentId && dragState.nodeId === node.id;
+      dragState?.parentId === parentId &&
+      dragState.draggedNodeIds.includes(node.id);
     const isDropTargetBefore =
       dropState?.parentId === parentId &&
       dropState.nodeId === node.id &&
@@ -600,15 +627,23 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           draggable={isReorderable}
           onDragStart={(event) => {
             if (!isReorderable) return;
+            const siblingSelection = selectedLayerIds.filter((id) =>
+              orderedSiblingIds.includes(id)
+            );
+            const draggedNodeIds =
+              selectedLayerIds.includes(node.id) && siblingSelection.length > 1
+                ? orderedSiblingIds.filter((id) => siblingSelection.includes(id))
+                : [node.id];
             setDragState({
               parentId,
               nodeId: node.id,
               siblingIds: orderedSiblingIds,
+              draggedNodeIds,
             });
             setDropState(null);
             setDragFeedback(null);
             event.dataTransfer.effectAllowed = "move";
-            event.dataTransfer.setData("text/plain", node.id);
+            event.dataTransfer.setData("text/plain", draggedNodeIds.join(","));
           }}
           onDragEnd={() => {
             setDragState(null);
@@ -616,7 +651,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           }}
           onDragOver={(event) => {
             if (!dragState) return;
-            if (dragState.nodeId === node.id) return;
+            if (dragState.draggedNodeIds.includes(node.id)) return;
 
             const rect = (event.currentTarget as HTMLDivElement).getBoundingClientRect();
             const offsetY = event.clientY - rect.top;
@@ -633,15 +668,19 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             let blockedReason: string | null = null;
             if (
               previewTargetParentId !== dragState.parentId &&
-              !canRelocateLayer?.(dragState.nodeId)
+              dragState.draggedNodeIds.some(
+                (draggedId) => !canRelocateLayer?.(draggedId)
+              )
             ) {
               blockedReason = "이 레이어는 다른 그룹으로 이동할 수 없습니다.";
             } else if (
-              v2_isDescendantLayer({
-                nodes: layerTree,
-                ancestorId: dragState.nodeId,
-                targetId: previewTargetParentId,
-              })
+              dragState.draggedNodeIds.some((draggedId) =>
+                v2_isDescendantLayer({
+                  nodes: layerTree,
+                  ancestorId: draggedId,
+                  targetId: previewTargetParentId,
+                })
+              )
             ) {
               blockedReason = "자기 하위 레이어 안으로는 이동할 수 없습니다.";
             }
@@ -664,7 +703,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           }}
           onDrop={(event) => {
             if (!dragState || !dropState) return;
-            if (dragState.nodeId === node.id) return;
+            if (dragState.draggedNodeIds.includes(node.id)) return;
             event.preventDefault();
 
             if (dropState.blockedReason) {
@@ -686,11 +725,13 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                   (dropState.position === "after" ? 1 : 0);
             const targetIndex = Math.max(0, rawTargetIndex);
             if (
-              v2_isDescendantLayer({
-                nodes: layerTree,
-                ancestorId: dragState.nodeId,
-                targetId: targetParentId,
-              })
+              dragState.draggedNodeIds.some((draggedId) =>
+                v2_isDescendantLayer({
+                  nodes: layerTree,
+                  ancestorId: draggedId,
+                  targetId: targetParentId,
+                })
+              )
             ) {
               setDropState(null);
               setDragState(null);
@@ -701,25 +742,40 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               targetParentId === dragState.parentId &&
               dropState.position !== "inside"
             ) {
-              const nextOrder = v2_moveLayerNode(
-                orderedSiblingIds,
-                dragState.nodeId,
-                node.id,
-                dropState.position
-              );
+              const nextOrder =
+                dragState.draggedNodeIds.length > 1
+                  ? v2_moveLayerBlock({
+                      prevIds: orderedSiblingIds,
+                      draggedIds: dragState.draggedNodeIds,
+                      dropId: node.id,
+                      dropPosition: dropState.position,
+                    })
+                  : v2_moveLayerNode(
+                      orderedSiblingIds,
+                      dragState.nodeId,
+                      node.id,
+                      dropState.position
+                    );
               commitLayerOrder({
                 parentId,
                 orderedIds: nextOrder,
               });
               setDragFeedback({
                 tone: "info",
-                message: "레이어 순서를 변경했습니다.",
+                message:
+                  dragState.draggedNodeIds.length > 1
+                    ? `${dragState.draggedNodeIds.length}개 레이어 순서를 변경했습니다.`
+                    : "레이어 순서를 변경했습니다.",
               });
               setDropState(null);
               setDragState(null);
               return;
             }
-            if (!canRelocateLayer?.(dragState.nodeId)) {
+            if (
+              dragState.draggedNodeIds.some(
+                (draggedId) => !canRelocateLayer?.(draggedId)
+              )
+            ) {
               setDragFeedback({
                 tone: "error",
                 message: "이 레이어는 그룹 이동이 잠겨 있습니다.",
@@ -730,16 +786,17 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             }
 
             setOrderedNodeIdsByParent((prev) => {
+              const draggedSet = new Set(dragState.draggedNodeIds);
               const sourceIds = dragState.siblingIds.filter(
-                (id) => id !== dragState.nodeId
+                (id) => !draggedSet.has(id)
               );
               const targetSource =
                 targetParentId === dragState.parentId
                   ? sourceIds
                   : (prev[targetParentId] ?? []);
-              const targetIds = targetSource.filter((id) => id !== dragState.nodeId);
+              const targetIds = targetSource.filter((id) => !draggedSet.has(id));
               const insertIndex = Math.max(0, Math.min(targetIds.length, targetIndex));
-              targetIds.splice(insertIndex, 0, dragState.nodeId);
+              targetIds.splice(insertIndex, 0, ...dragState.draggedNodeIds);
 
               return {
                 ...prev,
@@ -748,15 +805,20 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               };
             });
 
-            onRelocateLayers?.({
-              layerId: dragState.nodeId,
-              sourceParentId: dragState.parentId,
-              targetParentId,
-              targetIndex,
+            dragState.draggedNodeIds.forEach((draggedId, index) => {
+              onRelocateLayers?.({
+                layerId: draggedId,
+                sourceParentId: dragState.parentId,
+                targetParentId,
+                targetIndex: targetIndex + index,
+              });
             });
             setDragFeedback({
               tone: "info",
-              message: "레이어를 새 그룹으로 이동했습니다.",
+              message:
+                dragState.draggedNodeIds.length > 1
+                  ? `${dragState.draggedNodeIds.length}개 레이어를 새 그룹으로 이동했습니다.`
+                  : "레이어를 새 그룹으로 이동했습니다.",
             });
             setDropState(null);
             setDragState(null);
