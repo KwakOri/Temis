@@ -8,7 +8,9 @@ import {
 } from "@/contexts/v2/template-editor-ui-context";
 import {
   V2TemplateCardNode,
+  V2TemplateDayKey,
   V2TemplateRenderConfig,
+  v2_TEMPLATE_DAY_KEYS,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
@@ -18,6 +20,7 @@ import {
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
+import { v2_resolveDayLabelByKey } from "@/utils/time-table/template-render-config";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import {
   v2_collectSceneNodeStyleKeys,
@@ -589,6 +592,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateSceneNodeLabel,
     updateSceneAssetNodeMeta,
     updateSceneCardCollectionComponentId,
+    updateSceneComponentInstanceDayKey,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,
@@ -619,6 +623,19 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     [renderConfig.graph.componentDefinitions]
   );
 
+  const dayKeyOptions = useMemo(
+    () =>
+      v2_TEMPLATE_DAY_KEYS.map((dayKey) => ({
+        value: dayKey,
+        label: `${dayKey.toUpperCase()} · ${v2_resolveDayLabelByKey({
+          dayKey,
+          dayLabelFormat: renderConfig.dayLabelFormat,
+          fallbackWeekdayOption: renderConfig.weekdayOption,
+        })}`,
+      })),
+    [renderConfig.dayLabelFormat, renderConfig.weekdayOption]
+  );
+
   const {
     parseFontWeightInput,
     addFontRegistryItem,
@@ -637,6 +654,48 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     renderConfig,
     safeUpdateConfig,
   });
+
+  const updateDayLabelFormatMode = (mode: "preset" | "custom") => {
+    safeUpdateConfig((prev) => ({
+      ...prev,
+      dayLabelFormat: {
+        ...prev.dayLabelFormat,
+        mode,
+      },
+    }));
+  };
+
+  const updateDayLabelFormatPreset = (preset: "kr" | "en" | "jp") => {
+    safeUpdateConfig((prev) => ({
+      ...prev,
+      weekdayOption: preset,
+      dayLabelFormat: {
+        ...prev.dayLabelFormat,
+        preset,
+      },
+    }));
+  };
+
+  const updateDayLabelCustomLabel = (dayKey: V2TemplateDayKey, value: string) => {
+    safeUpdateConfig((prev) => {
+      const nextCustom: Partial<Record<V2TemplateDayKey, string>> = {
+        ...prev.dayLabelFormat.custom,
+      };
+      const trimmed = value.trim();
+      if (trimmed.length === 0) {
+        delete nextCustom[dayKey];
+      } else {
+        nextCustom[dayKey] = trimmed;
+      }
+      return {
+        ...prev,
+        dayLabelFormat: {
+          ...prev.dayLabelFormat,
+          custom: nextCustom,
+        },
+      };
+    });
+  };
 
   const {
     newFieldDraftByNodeId,
@@ -912,6 +971,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         fontDisplayOptions={v2_FONT_DISPLAY_OPTIONS}
         fontStyleOptions={v2_FONT_STYLE_OPTIONS}
         fontFormatOptions={v2_FONT_FORMAT_OPTIONS}
+        dayKeyOptions={dayKeyOptions}
         fontRegistryKeys={fontRegistryKeys}
         fontTokenOptions={fontTokenOptions}
         onOpenBoilerplateSettings={() => setIsBoilerplateSettingsOpen(true)}
@@ -925,6 +985,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         onUpdateFontFace={updateFontFace}
         onRemoveFontFace={removeFontFace}
         parseFontWeightInput={parseFontWeightInput}
+        onUpdateDayLabelMode={updateDayLabelFormatMode}
+        onUpdateDayLabelPreset={updateDayLabelFormatPreset}
+        onUpdateDayLabelCustomLabel={updateDayLabelCustomLabel}
       />
     </TemplateStyleTab>
   );
@@ -939,6 +1002,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     assetKeys: v2_ASSET_KEYS,
     assetLabels: v2_ASSET_LABELS,
     sceneCardCollectionComponentOptions,
+    dayKeyOptions,
     visibilityOptions: v2_CARD_NODE_VISIBILITY_OPTIONS,
     isSceneCustomNode,
     renderStyleSectionEditor: ({ title, section }) =>
@@ -965,6 +1029,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onUpdateSceneAssetNodeMeta: updateSceneAssetNodeMeta,
     onUpdateSceneNodeVisibilityMode: updateSceneNodeVisibilityMode,
     onUpdateSceneCardCollectionComponentId: updateSceneCardCollectionComponentId,
+    onUpdateSceneComponentInstanceDayKey: updateSceneComponentInstanceDayKey,
   });
 
   const { renderCardNodeProperties, renderSceneTextNodeProperties } =

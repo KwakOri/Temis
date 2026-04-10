@@ -3,6 +3,7 @@
 import {
   V2TemplateAssetMap,
   V2TemplateColorKey,
+  V2TemplateDayKey,
   V2TemplateGraphNode,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
@@ -338,6 +339,31 @@ const useTemplateSceneNodeActions = ({
         meta: {
           ...(node.meta ?? {}),
           componentId,
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
+  const updateSceneComponentInstanceDayKey = (
+    nodeId: string,
+    dayKey: V2TemplateDayKey
+  ) => {
+    safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!nodeContext || nodeContext.node.kind !== "componentInstance") return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          dayKey,
         },
       }));
       return {
@@ -979,6 +1005,7 @@ const useTemplateSceneNodeActions = ({
     updateSceneNodeLabel,
     updateSceneAssetNodeMeta,
     updateSceneCardCollectionComponentId,
+    updateSceneComponentInstanceDayKey,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,

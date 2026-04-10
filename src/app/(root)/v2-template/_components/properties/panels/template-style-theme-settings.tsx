@@ -4,6 +4,7 @@ import React from "react";
 
 import {
   V2TemplateColorKey,
+  V2TemplateDayKey,
   V2TemplateFontFaceSource,
   V2TemplateFontRegistryItem,
   V2TemplateRenderConfig,
@@ -16,6 +17,7 @@ interface TemplateStyleThemeSettingsProps {
   fontDisplayOptions: readonly NonNullable<V2TemplateFontRegistryItem["display"]>[];
   fontStyleOptions: readonly NonNullable<V2TemplateFontFaceSource["style"]>[];
   fontFormatOptions: readonly NonNullable<V2TemplateFontFaceSource["format"]>[];
+  dayKeyOptions: Array<{ value: V2TemplateDayKey; label: string }>;
   fontRegistryKeys: string[];
   fontTokenOptions: string[];
   onOpenBoilerplateSettings: () => void;
@@ -39,6 +41,9 @@ interface TemplateStyleThemeSettingsProps {
   ) => void;
   onRemoveFontFace: (registryKey: string, faceIndex: number) => void;
   parseFontWeightInput: (rawValue: string) => number | string;
+  onUpdateDayLabelMode: (mode: "preset" | "custom") => void;
+  onUpdateDayLabelPreset: (preset: "kr" | "en" | "jp") => void;
+  onUpdateDayLabelCustomLabel: (dayKey: V2TemplateDayKey, value: string) => void;
 }
 
 const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
@@ -48,6 +53,7 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
   fontDisplayOptions,
   fontStyleOptions,
   fontFormatOptions,
+  dayKeyOptions,
   fontRegistryKeys,
   fontTokenOptions,
   onOpenBoilerplateSettings,
@@ -61,6 +67,9 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
   onUpdateFontFace,
   onRemoveFontFace,
   parseFontWeightInput,
+  onUpdateDayLabelMode,
+  onUpdateDayLabelPreset,
+  onUpdateDayLabelCustomLabel,
 }) => {
   return (
     <>
@@ -82,6 +91,59 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
             설정 열기
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">요일 라벨 포맷</h4>
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">모드</label>
+          <select
+            value={renderConfig.dayLabelFormat.mode}
+            onChange={(event) =>
+              onUpdateDayLabelMode(event.target.value as "preset" | "custom")
+            }
+            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+          >
+            <option value="preset">preset</option>
+            <option value="custom">custom</option>
+          </select>
+          <label className="text-xs text-gray-400">프리셋</label>
+          <select
+            value={renderConfig.dayLabelFormat.preset}
+            onChange={(event) =>
+              onUpdateDayLabelPreset(event.target.value as "kr" | "en" | "jp")
+            }
+            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+          >
+            <option value="kr">kr</option>
+            <option value="en">en</option>
+            <option value="jp">jp</option>
+          </select>
+        </div>
+        {renderConfig.dayLabelFormat.mode === "custom" ? (
+          <div className="space-y-2">
+            {dayKeyOptions.map((option) => (
+              <label
+                key={`day-label-custom-${option.value}`}
+                className="flex items-center justify-between gap-2"
+              >
+                <span className="text-xs text-gray-400 min-w-20">{option.value}</span>
+                <input
+                  value={renderConfig.dayLabelFormat.custom[option.value] ?? ""}
+                  onChange={(event) =>
+                    onUpdateDayLabelCustomLabel(option.value, event.target.value)
+                  }
+                  placeholder={option.label}
+                  className="min-w-0 flex-1 px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                />
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-500">
+            custom 모드에서 요일별 라벨을 직접 입력할 수 있습니다.
+          </p>
+        )}
       </div>
 
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">

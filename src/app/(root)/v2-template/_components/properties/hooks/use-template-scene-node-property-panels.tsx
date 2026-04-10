@@ -4,6 +4,7 @@ import React from "react";
 
 import {
   V2TemplateAssetMap,
+  V2TemplateDayKey,
   V2TemplateSceneAssetNode,
   V2TemplateSceneCardCollectionNode,
   V2TemplateSceneComponentInstanceNode,
@@ -78,6 +79,11 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     nodeId: string,
     componentId: string
   ) => void;
+  dayKeyOptions: Array<{ value: V2TemplateDayKey; label: string }>;
+  onUpdateSceneComponentInstanceDayKey: (
+    nodeId: string,
+    dayKey: V2TemplateDayKey
+  ) => void;
 }
 
 const useTemplateSceneNodePropertyPanels = ({
@@ -98,6 +104,8 @@ const useTemplateSceneNodePropertyPanels = ({
   onUpdateSceneAssetNodeMeta,
   onUpdateSceneNodeVisibilityMode,
   onUpdateSceneCardCollectionComponentId,
+  dayKeyOptions,
+  onUpdateSceneComponentInstanceDayKey,
 }: UseTemplateSceneNodePropertyPanelsParams) => {
   const renderSceneNodeStructureControls = ({
     node,
@@ -248,20 +256,57 @@ const useTemplateSceneNodePropertyPanels = ({
     node: V2TemplateSceneComponentInstanceNode
   ) => {
     return (
-      <TemplateSceneGroupProperties
-        label={node.label}
-        childCount={0}
-        visibilityMode={node.visibilityMode ?? "always"}
-        visibilityOptions={visibilityOptions}
-        structureControls={renderSceneNodeStructureControls({
+      <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
+        <h4 className="font-semibold text-sm text-gray-200">
+          Scene Component Instance / {node.label}
+        </h4>
+        {renderSceneNodeStructureControls({
           node,
           allowChildren: false,
         })}
-        onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
-        onChangeVisibilityMode={(value) =>
-          onUpdateSceneNodeVisibilityMode(node.id, value)
-        }
-      />
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <label className="text-xs text-gray-400">오브젝트 이름</label>
+          <input
+            value={node.label}
+            onChange={(event) => onUpdateSceneNodeLabel(node.id, event.target.value)}
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          />
+          <label className="text-xs text-gray-400">표시 조건</label>
+          <select
+            value={node.visibilityMode ?? "always"}
+            onChange={(event) =>
+              onUpdateSceneNodeVisibilityMode(
+                node.id,
+                event.target.value as V2TemplateVisibilityMode
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {visibilityOptions.map((option) => (
+              <option key={`scene-component-instance-visible-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <label className="text-xs text-gray-400">day key</label>
+          <select
+            value={node.dayKey}
+            onChange={(event) =>
+              onUpdateSceneComponentInstanceDayKey(
+                node.id,
+                event.target.value as V2TemplateDayKey
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+          >
+            {dayKeyOptions.map((option) => (
+              <option key={`scene-component-instance-daykey-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
     );
   };
 
