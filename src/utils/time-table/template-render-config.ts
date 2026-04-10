@@ -409,7 +409,6 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     label: "Grid",
     kind: "cardCollection",
     layerId: "grid",
-    source: "card",
     componentId: v2_DEFAULT_CARD_COMPONENT_ID,
     visibilityMode: "always",
   },
@@ -608,7 +607,6 @@ const v2_createDefaultNodeGraph = ({
     } else if (sceneNode.kind === "cardCollection") {
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
-        source: sceneNode.source,
         componentId: sceneNode.componentId ?? v2_DEFAULT_CARD_COMPONENT_ID,
       };
     } else if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {

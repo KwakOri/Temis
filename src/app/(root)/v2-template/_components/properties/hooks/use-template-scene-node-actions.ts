@@ -100,7 +100,6 @@ const v2_sceneNodeToGraphNode = (
       ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       meta: {
-        source: sceneNode.source,
         componentId: sceneNode.componentId ?? defaultCardComponentId,
         layerTarget: "grid",
         layerSectionKey: "grid",
@@ -340,7 +339,6 @@ const useTemplateSceneNodeActions = ({
           label: `CardCollection ${ordinal}`,
           kind: "cardCollection",
           layerId,
-          source: "card",
           componentId: defaultCardComponentId,
           visibilityMode: "always",
         },
