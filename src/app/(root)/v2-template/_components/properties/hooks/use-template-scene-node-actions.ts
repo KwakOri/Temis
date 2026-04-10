@@ -23,7 +23,6 @@ import {
 } from "@/utils/time-table/template-graph-editor";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
-  v2_getDefaultCardComponentId,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
 import { v2_dayKeyFromIndex } from "@/utils/time-table/template-render-config";
@@ -59,6 +58,13 @@ const v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX = "scene-component-instance-layer
 
 const v2_createComponentInstanceStyleKey = (nodeId: string) =>
   `sceneNode:${nodeId}:style`;
+
+const v2_getFirstComponentDefinitionId = (
+  config: V2TemplateRenderConfig
+): string | null => {
+  const componentIds = Object.keys(config.graph.componentDefinitions ?? {});
+  return componentIds[0] ?? null;
+};
 
 const v2_createCardCollectionInstanceGraphNode = ({
   nodeId,
@@ -97,8 +103,7 @@ const v2_createCardCollectionInstanceGraphNode = ({
 };
 
 const v2_sceneNodeToGraphNode = (
-  sceneNode: V2TemplateSceneNode,
-  defaultCardComponentId: string
+  sceneNode: V2TemplateSceneNode
 ): V2TemplateGraphNode => {
   if (sceneNode.kind === "group") {
     return {
@@ -145,7 +150,7 @@ const v2_sceneNodeToGraphNode = (
       ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       meta: {
-        componentId: sceneNode.componentId ?? defaultCardComponentId,
+        componentId: sceneNode.componentId,
         layerTarget: "grid",
         layerSectionKey: "grid",
         layerIcon: "grid",
@@ -400,7 +405,7 @@ const useTemplateSceneNodeActions = ({
       string,
       NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>
     >;
-  } => {
+  } | null => {
     const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
     const runtimeLayerTree = v2_getRuntimeLayerTree(prev);
     const existingSceneNodeIds = v2_collectSceneNodeIds(runtimeSceneNodes);
@@ -439,14 +444,15 @@ const useTemplateSceneNodeActions = ({
     }
 
     if (kind === "cardCollection") {
-      const defaultCardComponentId = v2_getDefaultCardComponentId(prev);
+      const componentId = v2_getFirstComponentDefinitionId(prev);
+      if (!componentId) return null;
       return {
         sceneNode: {
           id: baseSceneNodeId,
           label: `CardCollection ${ordinal}`,
           kind: "cardCollection",
           layerId,
-          componentId: defaultCardComponentId,
+          componentId,
           visibilityMode: "always",
         },
         layerNode: {
@@ -596,20 +602,20 @@ const useTemplateSceneNodeActions = ({
       if (!anchorContext) return prev;
 
       const payload = createCustomSceneNodePayload(prev, kind);
+      if (!payload) return prev;
       const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
 
-      const nextGraphNode = v2_sceneNodeToGraphNode(
-        sceneNode,
-        v2_getDefaultCardComponentId(prev)
-      );
+      const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
       let nextGraph = v2_graphInsertSiblingAfter({
         graph: prev.graph,
         anchorNodeId,
         newNode: nextGraphNode,
       });
       if (sceneNode.kind === "cardCollection") {
+        const componentId = sceneNode.componentId;
+        if (!componentId) return prev;
         const existingIds = new Set(Object.keys(nextGraph.nodes));
         for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
           const instanceId = String(index);
@@ -627,8 +633,7 @@ const useTemplateSceneNodeActions = ({
               nodeId: instanceNodeId,
               collectionNodeId: sceneNode.id,
               collectionLayerId: sceneNode.layerId,
-              componentId:
-                sceneNode.componentId ?? v2_getDefaultCardComponentId(prev),
+              componentId,
               instanceId,
             }),
           });
@@ -675,20 +680,20 @@ const useTemplateSceneNodeActions = ({
       if (!parentContext || parentContext.node.kind !== "group") return prev;
 
       const payload = createCustomSceneNodePayload(prev, kind);
+      if (!payload) return prev;
       const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
 
-      const nextGraphNode = v2_sceneNodeToGraphNode(
-        sceneNode,
-        v2_getDefaultCardComponentId(prev)
-      );
+      const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
       let nextGraph = v2_graphAppendChild({
         graph: prev.graph,
         parentId: parentNodeId,
         newNode: nextGraphNode,
       });
       if (sceneNode.kind === "cardCollection") {
+        const componentId = sceneNode.componentId;
+        if (!componentId) return prev;
         const existingIds = new Set(Object.keys(nextGraph.nodes));
         for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
           const instanceId = String(index);
@@ -706,8 +711,7 @@ const useTemplateSceneNodeActions = ({
               nodeId: instanceNodeId,
               collectionNodeId: sceneNode.id,
               collectionLayerId: sceneNode.layerId,
-              componentId:
-                sceneNode.componentId ?? v2_getDefaultCardComponentId(prev),
+              componentId,
               instanceId,
             }),
           });
