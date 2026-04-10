@@ -316,6 +316,10 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const isDropTargetBlocked =
       (isDropTargetBefore || isDropTargetAfter || isDropTargetInside) &&
       Boolean(dropState?.blockedReason);
+    const dropBlockedReason =
+      isDropTargetBlocked && dropState?.blockedReason
+        ? dropState.blockedReason
+        : null;
     const isSelfHidden = isLayerHidden(node.id);
     const isEffectivelyHidden = ancestorHidden || isSelfHidden;
     const isInheritedHidden = ancestorHidden && !isSelfHidden;
@@ -603,6 +607,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             style={{ marginLeft: `${depth * 14 + 8}px` }}
           />
         )}
+        {dropBlockedReason ? (
+          <div
+            className="ml-2 mr-1 rounded border border-[#8a4f4f] bg-[#2a1b1b] px-2 py-1 text-[10px] text-[#f2b7b7]"
+            style={{ marginLeft: `${depth * 14 + 22}px` }}
+          >
+            {dropBlockedReason}
+          </div>
+        ) : null}
         {hasChildren && isOpen && (
           <div className="space-y-1">
             {getOrderedChildren(node.id, node.children ?? []).map((child) =>
