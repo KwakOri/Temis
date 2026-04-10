@@ -1872,7 +1872,7 @@ const v2_sanitizeNodeGraph = ({
     componentDefinitions:
       Object.keys(nextComponentDefinitions).length > 0
         ? nextComponentDefinitions
-        : fallback.componentDefinitions,
+        : {},
   });
 };
 
@@ -1901,11 +1901,15 @@ const v2_normalizeNodeGraph = (
   const hasCandidateComponentDefinitions =
     v2_isRecord(candidate.componentDefinitions) &&
     Object.keys(candidate.componentDefinitions).length > 0;
+  const shouldUseFallbackComponentDefinitions =
+    !hasCandidateNodes && !hasCandidateComponentDefinitions;
   const nextComponentDefinitions: Record<
     string,
     V2TemplateGraphComponentDefinition
   > = {
-    ...(hasCandidateComponentDefinitions ? {} : fallback.componentDefinitions),
+    ...(shouldUseFallbackComponentDefinitions
+      ? fallback.componentDefinitions
+      : {}),
   };
 
   if (v2_isRecord(candidate.componentDefinitions)) {
