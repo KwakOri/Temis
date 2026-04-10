@@ -1799,13 +1799,17 @@ const v2_normalizeGraphNode = (
 
 const v2_sanitizeNodeGraph = ({
   graph,
-  fallback,
 }: {
   graph: V2TemplateNodeGraph;
-  fallback: V2TemplateNodeGraph;
 }): V2TemplateNodeGraph => {
   const validNodeIds = new Set(Object.keys(graph.nodes));
-  if (validNodeIds.size === 0) return fallback;
+  if (validNodeIds.size === 0) {
+    return {
+      rootNodeIds: [],
+      nodes: {},
+      componentDefinitions: {},
+    };
+  }
 
   const nextNodes: Record<string, V2TemplateGraphNode> = {};
   Object.entries(graph.nodes).forEach(([id, node]) => {
@@ -1867,7 +1871,7 @@ const v2_sanitizeNodeGraph = ({
     rootNodeIds:
       prioritizedRootNodeIds.length > 0
         ? prioritizedRootNodeIds
-        : fallback.rootNodeIds.filter((nodeId) => validNodeIds.has(nodeId)),
+        : [],
     nodes: nextNodes,
     componentDefinitions:
       Object.keys(nextComponentDefinitions).length > 0
@@ -1884,10 +1888,9 @@ const v2_normalizeNodeGraph = (
 
   const hasCandidateNodes =
     v2_isRecord(candidate.nodes) && Object.keys(candidate.nodes).length > 0;
+  const hasCandidateRootNodeIds = Array.isArray(candidate.rootNodeIds);
 
-  const nextNodes: Record<string, V2TemplateGraphNode> = {
-    ...(hasCandidateNodes ? {} : fallback.nodes),
-  };
+  const nextNodes: Record<string, V2TemplateGraphNode> = {};
 
   if (v2_isRecord(candidate.nodes)) {
     Object.entries(candidate.nodes).forEach(([nodeId, rawNode]) => {
@@ -1901,16 +1904,15 @@ const v2_normalizeNodeGraph = (
   const hasCandidateComponentDefinitions =
     v2_isRecord(candidate.componentDefinitions) &&
     Object.keys(candidate.componentDefinitions).length > 0;
-  const shouldUseFallbackComponentDefinitions =
-    !hasCandidateNodes && !hasCandidateComponentDefinitions;
+  const hasGraphPayload =
+    hasCandidateNodes ||
+    hasCandidateComponentDefinitions ||
+    hasCandidateRootNodeIds;
+  if (!hasGraphPayload) return fallback;
   const nextComponentDefinitions: Record<
     string,
     V2TemplateGraphComponentDefinition
-  > = {
-    ...(shouldUseFallbackComponentDefinitions
-      ? fallback.componentDefinitions
-      : {}),
-  };
+  > = {};
 
   if (v2_isRecord(candidate.componentDefinitions)) {
     Object.entries(candidate.componentDefinitions).forEach(
@@ -1988,13 +1990,10 @@ const v2_normalizeNodeGraph = (
   return v2_sanitizeNodeGraph({
     graph: {
       rootNodeIds:
-        candidateRootNodeIds.length > 0
-          ? candidateRootNodeIds
-          : fallback.rootNodeIds,
+        candidateRootNodeIds.length > 0 ? candidateRootNodeIds : [],
       nodes: upgradedNodes,
       componentDefinitions: nextComponentDefinitions,
     },
-    fallback,
   });
 };
 
