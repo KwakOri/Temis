@@ -1566,24 +1566,20 @@ const v2_GRAPH_NODE_TYPE_SET = new Set([
 const v2_ORDER_MODEL_SET = new Set(["pointer", "orderKey"]);
 
 const v2_normalizeGraphNodeType = (
-  value: unknown,
-  fallback?: V2TemplateGraphNodeType
+  value: unknown
 ): V2TemplateGraphNodeType | null => {
   if (typeof value === "string" && v2_GRAPH_NODE_TYPE_SET.has(value)) {
     return value as V2TemplateGraphNodeType;
   }
-  return fallback ?? null;
+  return null;
 };
 
 const v2_normalizeGraphNodeStyleRefs = (
-  candidate: unknown,
-  fallback?: V2TemplateGraphNode["styles"]
+  candidate: unknown
 ): V2TemplateGraphNode["styles"] => {
-  if (!v2_isRecord(candidate)) return fallback;
+  if (!v2_isRecord(candidate)) return undefined;
 
-  const next: NonNullable<V2TemplateGraphNode["styles"]> = {
-    ...(fallback ?? {}),
-  };
+  const next: NonNullable<V2TemplateGraphNode["styles"]> = {};
 
   if (typeof candidate.styleKey === "string") {
     next.styleKey = candidate.styleKey;
@@ -1605,16 +1601,15 @@ const v2_normalizeGraphNodeStyleRefs = (
 };
 
 const v2_normalizeGraphNodeOrder = (
-  candidate: unknown,
-  fallback?: V2TemplateGraphNodeOrder
+  candidate: unknown
 ): V2TemplateGraphNodeOrder | undefined => {
-  if (!v2_isRecord(candidate)) return fallback;
+  if (!v2_isRecord(candidate)) return undefined;
 
   if (
     typeof candidate.model === "string" &&
     !v2_ORDER_MODEL_SET.has(candidate.model)
   ) {
-    return fallback;
+    return undefined;
   }
   const next: V2TemplateGraphNodeOrder = {
     // Pointer model is accepted only for read-compat input.
@@ -1626,28 +1621,21 @@ const v2_normalizeGraphNodeOrder = (
     next.prevSiblingId = null;
   } else if (typeof candidate.prevSiblingId === "string") {
     next.prevSiblingId = candidate.prevSiblingId;
-  } else if (fallback?.prevSiblingId !== undefined) {
-    next.prevSiblingId = fallback.prevSiblingId;
   }
 
   if (typeof candidate.orderKey === "string" && candidate.orderKey.trim().length > 0) {
     next.orderKey = candidate.orderKey;
-  } else if (typeof fallback?.orderKey === "string" && fallback.orderKey.length > 0) {
-    next.orderKey = fallback.orderKey;
   }
 
   return next;
 };
 
 const v2_normalizeGraphNodeMeta = (
-  candidate: unknown,
-  fallback?: V2TemplateGraphNode["meta"]
+  candidate: unknown
 ): V2TemplateGraphNode["meta"] => {
-  if (!v2_isRecord(candidate)) return fallback;
+  if (!v2_isRecord(candidate)) return undefined;
 
-  const next: NonNullable<V2TemplateGraphNode["meta"]> = {
-    ...(fallback ?? {}),
-  };
+  const next: NonNullable<V2TemplateGraphNode["meta"]> = {};
 
   if (typeof candidate.assetKey === "string" && v2_ASSET_KEY_SET.has(candidate.assetKey)) {
     next.assetKey = candidate.assetKey as keyof V2TemplateRenderConfig["assets"];
@@ -1717,16 +1705,15 @@ const v2_normalizeGraphNodeMeta = (
 
 const v2_normalizeGraphNode = (
   nodeId: string,
-  candidate: unknown,
-  fallback?: V2TemplateGraphNode
+  candidate: unknown
 ): V2TemplateGraphNode | null => {
-  if (!v2_isRecord(candidate) && !fallback) return null;
-  const nodeRecord = v2_isRecord(candidate) ? candidate : {};
+  if (!v2_isRecord(candidate)) return null;
+  const nodeRecord = candidate;
 
   const id = v2_asString(nodeRecord.id, nodeId).trim();
   if (!id) return null;
 
-  const type = v2_normalizeGraphNodeType(nodeRecord.type, fallback?.type);
+  const type = v2_normalizeGraphNodeType(nodeRecord.type);
   if (!type) return null;
 
   const childIds = Array.isArray(nodeRecord.childIds)
@@ -1738,18 +1725,18 @@ const v2_normalizeGraphNode = (
           )
         )
       )
-    : fallback?.childIds ?? [];
+    : [];
 
   const parentId =
     nodeRecord.parentId === null
       ? null
       : typeof nodeRecord.parentId === "string"
         ? nodeRecord.parentId
-        : fallback?.parentId ?? null;
+        : null;
 
   const binding =
-    nodeRecord.binding !== undefined || fallback?.binding !== undefined
-      ? v2_normalizeBindingRef(nodeRecord.binding, fallback?.binding ?? {
+    nodeRecord.binding !== undefined
+      ? v2_normalizeBindingRef(nodeRecord.binding, {
           mode: "literal",
           value: "",
         })
@@ -1759,36 +1746,23 @@ const v2_normalizeGraphNode = (
     typeof nodeRecord.visibilityMode === "string" &&
     v2_VISIBILITY_MODE_SET.has(nodeRecord.visibilityMode)
       ? (nodeRecord.visibilityMode as V2TemplateVisibilityMode)
-      : fallback?.visibilityMode;
-  const normalizedStyles = v2_normalizeGraphNodeStyleRefs(
-    nodeRecord.styles,
-    fallback?.styles
-  );
-  const normalizedMeta = v2_normalizeGraphNodeMeta(
-    nodeRecord.meta,
-    fallback?.meta
-  );
-  const normalizedOrder = v2_normalizeGraphNodeOrder(
-    nodeRecord.order,
-    fallback?.order
-  );
+      : undefined;
+  const normalizedStyles = v2_normalizeGraphNodeStyleRefs(nodeRecord.styles);
+  const normalizedMeta = v2_normalizeGraphNodeMeta(nodeRecord.meta);
+  const normalizedOrder = v2_normalizeGraphNodeOrder(nodeRecord.order);
 
   return {
     id,
     type,
-    label: v2_asString(nodeRecord.label, fallback?.label ?? id),
+    label: v2_asString(nodeRecord.label, id),
     parentId,
     childIds,
     ...(typeof nodeRecord.layerId === "string"
       ? { layerId: nodeRecord.layerId }
-      : fallback?.layerId
-        ? { layerId: fallback.layerId }
-        : {}),
+      : {}),
     ...(typeof nodeRecord.highlightTarget === "string"
       ? { highlightTarget: nodeRecord.highlightTarget as V2TemplateGraphNode["highlightTarget"] }
-      : fallback?.highlightTarget
-        ? { highlightTarget: fallback.highlightTarget }
-        : {}),
+      : {}),
     ...(visibilityMode ? { visibilityMode } : {}),
     ...(binding ? { binding } : {}),
     ...(normalizedStyles ? { styles: normalizedStyles } : {}),
