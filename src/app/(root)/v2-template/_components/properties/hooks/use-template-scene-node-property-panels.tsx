@@ -3,6 +3,7 @@
 import React from "react";
 
 import {
+  v2_TEMPLATE_DAY_KEYS,
   V2TemplateAssetMap,
   V2TemplateDayKey,
   V2TemplateSceneAssetNode,
@@ -230,25 +231,56 @@ const useTemplateSceneNodePropertyPanels = ({
     const layoutStyleEditor = section
       ? renderStyleSectionEditor({ title: "layout style", section })
       : null;
+    const dayKeys = (node.children ?? []).map((child) => child.dayKey);
+    const duplicateDayKeys = Array.from(
+      new Set(
+        dayKeys.filter(
+          (dayKey, index) => dayKeys.indexOf(dayKey) !== index
+        )
+      )
+    );
+    const missingDayKeys = v2_TEMPLATE_DAY_KEYS.filter(
+      (dayKey) => !dayKeys.includes(dayKey)
+    );
 
     return (
-      <TemplateSceneCardCollectionProperties
-        node={node}
-        componentOptions={sceneCardCollectionComponentOptions}
-        visibilityOptions={visibilityOptions}
-        structureControls={renderSceneNodeStructureControls({
-          node,
-          allowChildren: false,
-        })}
-        layoutStyleEditor={layoutStyleEditor}
-        onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
-        onChangeComponentId={(value) =>
-          onUpdateSceneCardCollectionComponentId(node.id, value)
-        }
-        onChangeVisibilityMode={(value) =>
-          onUpdateSceneNodeVisibilityMode(node.id, value)
-        }
-      />
+      <div className="space-y-2">
+        <TemplateSceneCardCollectionProperties
+          node={node}
+          componentOptions={sceneCardCollectionComponentOptions}
+          visibilityOptions={visibilityOptions}
+          structureControls={renderSceneNodeStructureControls({
+            node,
+            allowChildren: false,
+          })}
+          layoutStyleEditor={layoutStyleEditor}
+          onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
+          onChangeComponentId={(value) =>
+            onUpdateSceneCardCollectionComponentId(node.id, value)
+          }
+          onChangeVisibilityMode={(value) =>
+            onUpdateSceneNodeVisibilityMode(node.id, value)
+          }
+        />
+        {duplicateDayKeys.length > 0 || missingDayKeys.length > 0 ? (
+          <div className="rounded border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-100 space-y-1">
+            {duplicateDayKeys.length > 0 ? (
+              <p>
+                중복 dayKey: {duplicateDayKeys.join(", ")}
+              </p>
+            ) : null}
+            {missingDayKeys.length > 0 ? (
+              <p>
+                미할당 dayKey: {missingDayKeys.join(", ")}
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="rounded border border-[#3b5b8b] bg-[#14233d] px-2.5 py-2 text-[11px] text-[#9ec1ff]">
+            7개 dayKey가 모두 유효하게 매핑되었습니다.
+          </div>
+        )}
+      </div>
     );
   };
 
