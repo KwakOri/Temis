@@ -655,7 +655,7 @@ const v2_pickComponentIdForCardCollection = ({
 }: {
   collectionNode: V2TemplateGraphNode;
   componentDefinitions: Record<string, V2TemplateGraphComponentDefinition>;
-}): string => {
+}): string | null => {
   const metaComponentId =
     typeof collectionNode.meta?.componentId === "string" &&
     collectionNode.meta.componentId.trim().length > 0
@@ -664,11 +664,8 @@ const v2_pickComponentIdForCardCollection = ({
   if (metaComponentId && componentDefinitions[metaComponentId]) {
     return metaComponentId;
   }
-  if (componentDefinitions[v2_DEFAULT_CARD_COMPONENT_ID]) {
-    return v2_DEFAULT_CARD_COMPONENT_ID;
-  }
   const firstComponentId = Object.keys(componentDefinitions)[0];
-  return firstComponentId ?? v2_DEFAULT_CARD_COMPONENT_ID;
+  return firstComponentId ?? null;
 };
 
 const v2_createCardInstanceNode = ({
@@ -733,6 +730,7 @@ const v2_ensureCardCollectionComponentInstances = ({
       collectionNode: node,
       componentDefinitions,
     });
+    if (!componentId) return;
     const childInstanceIdsFromChildList = node.childIds.filter((childId) => {
       const childNode = nextNodes[childId];
       return Boolean(childNode && childNode.type === "componentInstance");
@@ -940,7 +938,7 @@ const v2_createDefaultNodeGraph = ({
     } else if (sceneNode.kind === "cardCollection") {
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
-        componentId: sceneNode.componentId ?? v2_DEFAULT_CARD_COMPONENT_ID,
+        ...(sceneNode.componentId ? { componentId: sceneNode.componentId } : {}),
       };
     } else if (sceneNode.kind === "componentInstance") {
       if (sceneNode.styleKey) {
