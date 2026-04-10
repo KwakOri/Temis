@@ -1894,8 +1894,7 @@ const v2_normalizeNodeGraph = (
 
   if (v2_isRecord(candidate.nodes)) {
     Object.entries(candidate.nodes).forEach(([nodeId, rawNode]) => {
-      const fallbackNode = nextNodes[nodeId] ?? fallback.nodes[nodeId];
-      const normalizedNode = v2_normalizeGraphNode(nodeId, rawNode, fallbackNode);
+      const normalizedNode = v2_normalizeGraphNode(nodeId, rawNode);
       if (!normalizedNode) return;
       nextNodes[normalizedNode.id] = normalizedNode;
     });
