@@ -26,15 +26,6 @@ const v2_isOrderEqual = (
   );
 };
 
-const v2_createPointerOrder = (
-  prevSiblingId: string | null
-): V2TemplateGraphNodeOrder => {
-  return {
-    model: "pointer",
-    prevSiblingId,
-  };
-};
-
 const v2_ORDER_KEY_STEP = 1024;
 
 const v2_createOrderKey = (index: number): string => {
@@ -124,7 +115,11 @@ export const v2_normalizePointerOrderInGraph = (
               ? { prevSiblingId: currentOrder.prevSiblingId }
               : {}),
           }
-        : v2_createPointerOrder(index === 0 ? null : (ids[index - 1] ?? null));
+        : {
+            model: "orderKey" as const,
+            orderKey: v2_createOrderKey(index),
+            prevSiblingId: index === 0 ? null : (ids[index - 1] ?? null),
+          };
 
       if (v2_isOrderEqual(currentOrder, nextOrder)) return;
 
@@ -183,48 +178,6 @@ export const v2_getSiblingIdsByParentFromGraph = (
   return byParent;
 };
 
-const v2_buildOrderedIdsFromPointer = ({
-  siblingIds,
-  nodeById,
-}: {
-  siblingIds: string[];
-  nodeById: Record<string, V2TemplateGraphNode>;
-}): string[] => {
-  const validSiblingIds = siblingIds.filter((id) => Boolean(nodeById[id]));
-  if (validSiblingIds.length === 0) return [];
-
-  const siblingIdSet = new Set(validSiblingIds);
-  const nextByPrev = new Map<string | null, string[]>();
-
-  validSiblingIds.forEach((id) => {
-    const node = nodeById[id];
-    const rawPrev = node.order?.prevSiblingId ?? null;
-    const prevSiblingId =
-      rawPrev !== null && siblingIdSet.has(rawPrev) ? rawPrev : null;
-    const current = nextByPrev.get(prevSiblingId) ?? [];
-    nextByPrev.set(prevSiblingId, [...current, id]);
-  });
-
-  const ordered: string[] = [];
-  const visited = new Set<string>();
-  const walk = (id: string) => {
-    if (visited.has(id)) return;
-    visited.add(id);
-    ordered.push(id);
-    const nextIds = nextByPrev.get(id) ?? [];
-    nextIds.forEach((nextId) => walk(nextId));
-  };
-
-  (nextByPrev.get(null) ?? []).forEach((headId) => walk(headId));
-  validSiblingIds.forEach((id) => {
-    if (!visited.has(id)) {
-      walk(id);
-    }
-  });
-
-  return ordered;
-};
-
 export const v2_convertPointerOrderToOrderKeyInGraph = (
   graph: V2TemplateNodeGraph
 ): V2TemplateNodeGraph => {
@@ -242,28 +195,16 @@ export const v2_convertPointerOrderToOrderKeyInGraph = (
       .filter((node): node is V2TemplateGraphNode => Boolean(node));
     if (existingNodes.length === 0) return;
 
-    const allOrderKey = existingNodes.every(
-      (node) =>
-        node.order?.model === "orderKey" &&
-        typeof node.order.orderKey === "string" &&
-        node.order.orderKey.trim().length > 0
-    );
-
-    const orderedIds = allOrderKey
-      ? existingNodes
-          .sort((a, b) => {
-            const aKey = a.order?.orderKey ?? "";
-            const bKey = b.order?.orderKey ?? "";
-            if (aKey === bKey) {
-              return siblingIds.indexOf(a.id) - siblingIds.indexOf(b.id);
-            }
-            return aKey < bKey ? -1 : 1;
-          })
-          .map((node) => node.id)
-      : v2_buildOrderedIdsFromPointer({
-          siblingIds,
-          nodeById: normalizedGraph.nodes,
-        });
+    const orderedIds = existingNodes
+      .sort((a, b) => {
+        const aKey = a.order?.orderKey ?? "";
+        const bKey = b.order?.orderKey ?? "";
+        if (aKey === bKey) {
+          return siblingIds.indexOf(a.id) - siblingIds.indexOf(b.id);
+        }
+        return aKey < bKey ? -1 : 1;
+      })
+      .map((node) => node.id);
 
     orderedIds.forEach((nodeId, index) => {
       const node = normalizedGraph.nodes[nodeId];

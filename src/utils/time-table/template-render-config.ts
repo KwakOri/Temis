@@ -1496,19 +1496,6 @@ const v2_sanitizeNodeGraph = ({
     ...computedRootNodeIds.filter((nodeId) => !graph.rootNodeIds.includes(nodeId)),
   ];
 
-  Object.values(nextNodes).forEach((node) => {
-    if (!node.order || node.order.model !== "pointer") return;
-    const prevSiblingId = node.order.prevSiblingId;
-    if (prevSiblingId === undefined || prevSiblingId === null) return;
-    const prevNode = nextNodes[prevSiblingId];
-    if (!prevNode || prevNode.parentId !== node.parentId || prevNode.id === node.id) {
-      node.order = {
-        ...node.order,
-        prevSiblingId: null,
-      };
-    }
-  });
-
   const nextComponentDefinitions = Object.entries(graph.componentDefinitions).reduce<
     Record<string, V2TemplateGraphComponentDefinition>
   >((acc, [componentId, definition]) => {
