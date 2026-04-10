@@ -205,6 +205,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     tone: "info" | "error";
     message: string;
   } | null>(null);
+  const componentIdByRootLayerId = useMemo(() => {
+    const map = new Map<string, string>();
+    componentCatalog.forEach((componentItem) => {
+      if (!componentItem.rootLayerId) return;
+      map.set(componentItem.rootLayerId, componentItem.id);
+    });
+    return map;
+  }, [componentCatalog]);
 
   useEffect(() => {
     if (!dragFeedback) return;
@@ -563,9 +571,35 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate text-xs font-medium">{node.label}</span>
             {node.isTemplateComponent ? (
-              <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
-                Component
-              </span>
+              <>
+                <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
+                  Component
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 rounded border border-[#4f8cff] bg-[#1f355f] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#d6e6ff] hover:bg-[#27457a]"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    const componentId = componentIdByRootLayerId.get(node.id);
+                    if (componentId) {
+                      setSelectedComponentId(componentId);
+                    } else {
+                      setSelectedComponentId(null);
+                    }
+                    setSelectedLayerId(node.id);
+                    onSelectLayer?.({
+                      ...(node.target ? { target: node.target } : {}),
+                      sectionKey: node.sectionKey,
+                      layerId: node.id,
+                      editorMode: "master",
+                    });
+                  }}
+                  aria-label={`${node.label} 마스터 편집`}
+                  title="마스터 편집 열기"
+                >
+                  Master
+                </button>
+              </>
             ) : null}
           </button>
           <button
