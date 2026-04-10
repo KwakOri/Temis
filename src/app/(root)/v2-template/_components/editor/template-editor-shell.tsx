@@ -10,7 +10,6 @@ import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui
 import { TTheme } from '@/types/time-table/theme';
 import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
 import {
-  v2_getDefaultCardComponentId,
   v2_getRuntimeCardStructure,
   v2_getRuntimeSceneNodes,
 } from '@/utils/time-table/template-graph-runtime';
@@ -107,10 +106,6 @@ const V2TimeTableEditor: React.FC = () => {
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
   );
-  const defaultCardComponentId = useMemo(
-    () => v2_getDefaultCardComponentId(renderConfig),
-    [renderConfig]
-  );
   const runtimeSceneNodes = useMemo(
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
@@ -168,19 +163,18 @@ const V2TimeTableEditor: React.FC = () => {
     const collectCardCollectionCounts = (nodes: typeof runtimeSceneNodes) => {
       nodes.forEach((node) => {
         if (node.kind === "cardCollection") {
-          const componentId = node.componentId ?? defaultCardComponentId;
+          const componentId = node.componentId?.trim();
+          if (!componentId) return;
           const previous = instanceStatsByComponentId[componentId] ?? {
             count: 0,
             firstLayerId: null,
           };
-          const instanceCount =
-            Array.isArray(node.children) && node.children.length > 0
-              ? node.children.length
-              : 1;
-          const firstInstanceLayerId =
-            Array.isArray(node.children) && node.children.length > 0
-              ? (node.children[0]?.layerId ?? null)
-              : null;
+          const instanceCount = Array.isArray(node.children)
+            ? node.children.length
+            : 0;
+          const firstInstanceLayerId = Array.isArray(node.children)
+            ? (node.children[0]?.layerId ?? null)
+            : null;
           instanceStatsByComponentId[componentId] = {
             count: previous.count + instanceCount,
             firstLayerId:
@@ -213,7 +207,6 @@ const V2TimeTableEditor: React.FC = () => {
       };
     });
   }, [
-    defaultCardComponentId,
     renderConfig.graph.componentDefinitions,
     renderConfig.graph.nodes,
     runtimeSceneNodes,
