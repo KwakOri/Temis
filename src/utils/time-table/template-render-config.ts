@@ -943,13 +943,20 @@ const v2_createDefaultNodeGraph = ({
         componentId: sceneNode.componentId ?? v2_DEFAULT_CARD_COMPONENT_ID,
       };
     } else if (sceneNode.kind === "componentInstance") {
+      if (sceneNode.styleKey) {
+        nextNode.styles = {
+          styleKey: sceneNode.styleKey,
+        };
+      }
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
         componentId: sceneNode.componentId,
         instanceId: sceneNode.instanceId,
         dayKey: sceneNode.dayKey,
-        layerTarget: `cardInstance:${sceneNode.instanceId}`,
-        layerSectionKey: "grid",
+        layerTarget: sceneNode.styleKey
+          ? `sceneNode:${sceneNode.id}`
+          : `cardInstance:${sceneNode.instanceId}`,
+        layerSectionKey: sceneNode.styleKey ?? "grid",
         layerIcon: "layers",
       };
     } else if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {

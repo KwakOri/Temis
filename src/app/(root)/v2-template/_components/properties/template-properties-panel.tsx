@@ -598,6 +598,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     addSceneChildNode,
     moveSceneNode,
     relocateSceneNode,
+    extractSceneComponentInstanceCopy,
     removeSceneNode,
     updateSceneTextNodeBinding,
     updateSceneTextNodeVisibilityMode,
@@ -1030,6 +1031,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onUpdateSceneNodeVisibilityMode: updateSceneNodeVisibilityMode,
     onUpdateSceneCardCollectionComponentId: updateSceneCardCollectionComponentId,
     onUpdateSceneComponentInstanceDayKey: updateSceneComponentInstanceDayKey,
+    onExtractSceneComponentInstanceCopy: ({ nodeId }) =>
+      extractSceneComponentInstanceCopy({ nodeId }),
   });
 
   const { renderCardNodeProperties, renderSceneTextNodeProperties } =

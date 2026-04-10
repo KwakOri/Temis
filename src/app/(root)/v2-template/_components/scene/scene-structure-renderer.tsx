@@ -10,6 +10,7 @@ import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import {
   V2TemplateSceneAssetNode,
   V2TemplateSceneCardCollectionNode,
+  V2TemplateSceneComponentInstanceNode,
   V2TemplateSceneNode,
   V2TemplateSceneTextNode,
 } from "@/types/time-table/template-render-config";
@@ -32,6 +33,7 @@ import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
 } from "./card-node-renderers";
+import V2TimeTableCell from "./card-cell";
 import V2TimeTableGrid from "./card-grid";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableStyle } from "./render-style";
@@ -130,6 +132,16 @@ const V2SceneStructureRenderer = ({
   const firstCard = data[0] as Record<string, unknown> | undefined;
   const firstEntry = (firstCard?.entries as Record<string, unknown>[] | undefined)?.[0];
   const firstCardOffline = Boolean(firstCard?.isOffline);
+  const dataIndexByDayKey = useMemo(() => {
+    const map: Record<string, number> = {};
+    data.forEach((card, index) => {
+      const dayKey = v2_parseDayKey(card.day);
+      if (!dayKey) return;
+      if (map[dayKey] !== undefined) return;
+      map[dayKey] = index;
+    });
+    return map;
+  }, [data]);
 
   const resolveStyleRecordByKey = (key?: string): unknown => {
     if (!key) return {};
@@ -370,6 +382,57 @@ const V2SceneStructureRenderer = ({
     );
   };
 
+  const renderComponentInstanceNode = (
+    node: V2TemplateSceneComponentInstanceNode
+  ) => {
+    const componentId = node.componentId ?? defaultCardComponentId;
+    const runtimeCardStructure =
+      runtimeCardStructureByComponentId[componentId] ??
+      runtimeCardStructureByComponentId[defaultCardComponentId];
+
+    const dayIndex = dataIndexByDayKey[node.dayKey];
+    const parsedInstanceIndex = Number.parseInt(node.instanceId, 10);
+    const dataIndex =
+      dayIndex !== undefined
+        ? dayIndex
+        : Number.isFinite(parsedInstanceIndex) && parsedInstanceIndex >= 0
+          ? parsedInstanceIndex
+          : 0;
+    const cardData = data[dataIndex];
+    const weekDate = weekDates[dataIndex];
+    if (!cardData || !weekDate) return null;
+
+    const style = v2_toRenderableStyle(resolveStyleRecordByKey(node.styleKey));
+    const resolvedTarget =
+      (node.layerId ? layerTargetMap[node.layerId] : undefined) ??
+      `sceneNode:${node.id}`;
+    const highlightStyle = v2_getHighlightStyle({
+      target: resolvedTarget,
+      hoverTarget: hoverHighlightTarget,
+      activeTarget: activeHighlightTarget,
+    });
+
+    return (
+      <div
+        key={node.id}
+        style={{
+          position: "absolute",
+          ...style,
+          ...highlightStyle,
+        }}
+      >
+        <V2TimeTableCell
+          time={cardData}
+          dayKeyOverride={node.dayKey}
+          currentTheme={currentTheme}
+          weekDate={weekDate}
+          index={dataIndex}
+          cardStructure={runtimeCardStructure}
+        />
+      </div>
+    );
+  };
+
   const renderSceneNode = (
     node: V2TemplateSceneNode,
     parentHidden: boolean
@@ -394,6 +457,7 @@ const V2SceneStructureRenderer = ({
       return renderTextNode(node);
     }
     if (node.kind === "cardCollection") return renderCardCollectionNode(node);
+    if (node.kind === "componentInstance") return renderComponentInstanceNode(node);
     return null;
   };
 

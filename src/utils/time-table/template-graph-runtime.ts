@@ -198,6 +198,9 @@ const v2_buildSceneNodeFromGraph = ({
               : componentId,
           instanceId,
           dayKey,
+          ...(childNode.styles?.styleKey
+            ? { styleKey: childNode.styles.styleKey }
+            : {}),
         };
       });
 
@@ -232,6 +235,9 @@ const v2_buildSceneNodeFromGraph = ({
       dayKey:
         v2_parseDayKey(graphNode.meta?.dayKey) ??
         v2_dayKeyFromIndex(Number.parseInt(graphNode.meta?.instanceId ?? "", 10)),
+      ...(graphNode.styles?.styleKey
+        ? { styleKey: graphNode.styles.styleKey }
+        : {}),
     };
   }
 

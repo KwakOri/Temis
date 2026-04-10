@@ -54,6 +54,11 @@ interface UseTemplateSceneNodeActionsParams {
 }
 
 const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
+const v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX = "scene-component-instance-";
+const v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX = "scene-component-instance-layer-";
+
+const v2_createComponentInstanceStyleKey = (nodeId: string) =>
+  `sceneNode:${nodeId}:style`;
 
 const v2_createCardCollectionInstanceGraphNode = ({
   nodeId,
@@ -157,12 +162,21 @@ const v2_sceneNodeToGraphNode = (
       childIds: [],
       ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+      ...(sceneNode.styleKey
+        ? {
+            styles: {
+              styleKey: sceneNode.styleKey,
+            },
+          }
+        : {}),
       meta: {
         componentId: sceneNode.componentId,
         instanceId: sceneNode.instanceId,
         dayKey: sceneNode.dayKey,
-        layerTarget: `cardInstance:${sceneNode.instanceId}`,
-        layerSectionKey: "grid",
+        layerTarget: sceneNode.styleKey
+          ? `sceneNode:${sceneNode.id}`
+          : `cardInstance:${sceneNode.instanceId}`,
+        layerSectionKey: sceneNode.styleKey ?? "grid",
         layerIcon: "layers",
       },
     };
@@ -795,6 +809,8 @@ const useTemplateSceneNodeActions = ({
             });
       const sourceIsComponentInstance =
         sourceContext.node.kind === "componentInstance";
+      const targetParentKind =
+        targetParentId === null ? "root" : targetParentContext?.node.kind ?? null;
 
       if (targetParentId !== null) {
         if (
@@ -819,12 +835,6 @@ const useTemplateSceneNodeActions = ({
           return prev;
         }
       }
-      if (
-        sourceIsComponentInstance &&
-        (targetParentId === null || targetParentContext?.node.kind !== "cardCollection")
-      ) {
-        return prev;
-      }
 
       const sourceParentId = sourceContext.parentId;
       const sourceIndex = sourceContext.index;
@@ -843,9 +853,154 @@ const useTemplateSceneNodeActions = ({
           ? effectiveTargetIndex
           : undefined,
       });
+      const movedNode = nextGraph.nodes[nodeId];
+      if (!movedNode) {
+        return {
+          ...prev,
+          graph: nextGraph,
+        };
+      }
+      if (sourceIsComponentInstance && targetParentKind !== "cardCollection") {
+        const styleKey =
+          typeof movedNode.styles?.styleKey === "string" &&
+          movedNode.styles.styleKey.trim().length > 0
+            ? movedNode.styles.styleKey
+            : v2_createComponentInstanceStyleKey(nodeId);
+        const nextGraphWithStyle = v2_graphUpdateNode(nextGraph, nodeId, (node) => ({
+          ...node,
+          styles: {
+            ...(node.styles ?? {}),
+            styleKey,
+          },
+          meta: {
+            ...(node.meta ?? {}),
+            layerTarget: `sceneNode:${node.id}`,
+            layerSectionKey: styleKey,
+            layerIcon: "layers",
+          },
+        }));
+        const existingStyle = prev.layout.scene[styleKey];
+        return {
+          ...prev,
+          graph: nextGraphWithStyle,
+          layout: {
+            ...prev.layout,
+            scene: {
+              ...prev.layout.scene,
+              ...(existingStyle
+                ? {}
+                : {
+                    [styleKey]: {
+                      position: "absolute",
+                      top: 120,
+                      left: 120,
+                    },
+                  }),
+            },
+          },
+        };
+      }
       return {
         ...prev,
         graph: nextGraph,
+      };
+    });
+  };
+
+  const extractSceneComponentInstanceCopy = ({
+    nodeId,
+    targetParentId,
+    targetIndex,
+  }: {
+    nodeId: string;
+    targetParentId?: string | null;
+    targetIndex?: number;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const sourceContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!sourceContext || sourceContext.node.kind !== "componentInstance") {
+        return prev;
+      }
+
+      const targetParent = targetParentId ?? null;
+      if (targetParent !== null) {
+        const targetParentContext = v2_findSceneNodeContextById({
+          nodes: runtimeSceneNodes,
+          nodeId: targetParent,
+        });
+        if (!targetParentContext || targetParentContext.node.kind !== "group") {
+          return prev;
+        }
+      }
+
+      const existingNodeIds = new Set(Object.keys(prev.graph.nodes));
+      const cloneNodeId = v2_createUniqueNodeId(
+        v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX,
+        existingNodeIds
+      );
+      const existingLayerIds = v2_collectLayerNodeIds(v2_getRuntimeLayerTree(prev));
+      const cloneLayerId = v2_createUniqueNodeId(
+        v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX,
+        existingLayerIds
+      );
+      const styleKey = v2_createComponentInstanceStyleKey(cloneNodeId);
+
+      const sourceGraphNode = prev.graph.nodes[nodeId];
+      if (!sourceGraphNode || sourceGraphNode.type !== "componentInstance") {
+        return prev;
+      }
+
+      const cloneNode: V2TemplateGraphNode = {
+        ...sourceGraphNode,
+        id: cloneNodeId,
+        label: `${sourceGraphNode.label} Copy`,
+        layerId: cloneLayerId,
+        parentId: sourceGraphNode.parentId,
+        childIds: [],
+        styles: {
+          ...(sourceGraphNode.styles ?? {}),
+          styleKey,
+        },
+        meta: {
+          ...(sourceGraphNode.meta ?? {}),
+          layerTarget: `sceneNode:${cloneNodeId}`,
+          layerSectionKey: styleKey,
+          layerIcon: "layers",
+        },
+      };
+
+      let nextGraph = v2_graphInsertSiblingAfter({
+        graph: prev.graph,
+        anchorNodeId: nodeId,
+        newNode: cloneNode,
+      });
+      nextGraph = v2_graphMoveNode({
+        graph: nextGraph,
+        nodeId: cloneNodeId,
+        targetParentId: targetParent,
+        ...(typeof targetIndex === "number" ? { targetIndex } : {}),
+      });
+
+      return {
+        ...prev,
+        graph: nextGraph,
+        layout: {
+          ...prev.layout,
+          scene: {
+            ...prev.layout.scene,
+            [styleKey]:
+              prev.layout.scene[styleKey] ??
+              ({
+                position: "absolute",
+                top: 120,
+                left: 120,
+              } as NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>),
+          },
+        },
       };
     });
   };
@@ -1011,6 +1166,7 @@ const useTemplateSceneNodeActions = ({
     addSceneChildNode,
     moveSceneNode,
     relocateSceneNode,
+    extractSceneComponentInstanceCopy,
     removeSceneNode,
     updateSceneTextNodeBinding,
     updateSceneTextNodeVisibilityMode,

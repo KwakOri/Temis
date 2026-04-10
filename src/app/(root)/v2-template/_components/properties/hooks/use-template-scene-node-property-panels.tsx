@@ -85,6 +85,11 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     nodeId: string,
     dayKey: V2TemplateDayKey
   ) => void;
+  onExtractSceneComponentInstanceCopy: (params: {
+    nodeId: string;
+    targetParentId?: string | null;
+    targetIndex?: number;
+  }) => void;
 }
 
 const useTemplateSceneNodePropertyPanels = ({
@@ -107,6 +112,7 @@ const useTemplateSceneNodePropertyPanels = ({
   onUpdateSceneCardCollectionComponentId,
   dayKeyOptions,
   onUpdateSceneComponentInstanceDayKey,
+  onExtractSceneComponentInstanceCopy,
 }: UseTemplateSceneNodePropertyPanelsParams) => {
   const renderSceneNodeStructureControls = ({
     node,
@@ -338,6 +344,18 @@ const useTemplateSceneNodePropertyPanels = ({
             ))}
           </select>
         </div>
+        <button
+          type="button"
+          onClick={() =>
+            onExtractSceneComponentInstanceCopy({
+              nodeId: node.id,
+              targetParentId: null,
+            })
+          }
+          className="w-full rounded border border-[#3f6ad8] bg-[#1a2b57] px-2 py-1.5 text-xs font-semibold text-[#b9ccff] hover:bg-[#22376f]"
+        >
+          Extract Copy To Root
+        </button>
       </div>
     );
   };

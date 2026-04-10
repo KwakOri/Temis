@@ -178,6 +178,21 @@ export const v2_getRuntimeLayerTree = (
       };
     }
 
+    if (node.kind === "componentInstance") {
+      const sectionKey = node.styleKey ?? graphNode?.meta?.layerSectionKey ?? "grid";
+      return {
+        id: layerId,
+        label: node.label,
+        kind: "component",
+        icon: "layers",
+        target:
+          graphNode?.meta?.layerTarget ??
+          (node.styleKey ? `sceneNode:${node.id}` : `cardInstance:${node.instanceId}`),
+        sectionKey,
+        visibilityMode: node.visibilityMode ?? "always",
+      };
+    }
+
     const inferredSectionKey = v2_inferSectionKeyFromSceneNode(node);
     const inferredTarget =
       (node.kind === "text" || node.kind === "flexibleText") &&

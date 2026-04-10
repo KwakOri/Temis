@@ -262,6 +262,7 @@ export interface V2TemplateSceneComponentInstanceNode
   componentId: string;
   instanceId: string;
   dayKey: V2TemplateDayKey;
+  styleKey?: V2TemplateSceneStyleKey;
 }
 
 export type V2TemplateSceneNode =

@@ -362,8 +362,11 @@ export const v2_collectSceneNodeStyleKeys = (node: V2TemplateSceneNode): string[
   if (node.kind === "group") {
     return node.children.flatMap((child) => v2_collectSceneNodeStyleKeys(child));
   }
-  if (node.kind === "cardCollection" || node.kind === "componentInstance") {
+  if (node.kind === "cardCollection") {
     return [];
+  }
+  if (node.kind === "componentInstance") {
+    return node.styleKey ? [node.styleKey] : [];
   }
   if (node.kind === "asset") {
     return node.styleKey ? [node.styleKey] : [];
