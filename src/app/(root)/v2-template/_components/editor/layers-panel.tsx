@@ -180,6 +180,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     card: true,
   });
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
+    null
+  );
   const [activeTab, setActiveTab] = useState<"layers" | "components">("layers");
   const defaultOrderMap = useMemo(
     () => v2_createInitialOrderMap(layerTree),
@@ -540,17 +543,18 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           <button
             type="button"
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              onClick={() => {
-                const resolvedTarget = node.target;
-                setSelectedLayerId(node.id);
-                setActiveHighlightTarget(resolvedTarget ?? null);
-                onSelectLayer?.({
-                  ...(resolvedTarget ? { target: resolvedTarget } : {}),
-                  sectionKey: node.sectionKey,
-                  layerId: node.id,
-                  editorMode: "instance",
-                });
-              }}
+            onClick={() => {
+              const resolvedTarget = node.target;
+              setSelectedComponentId(null);
+              setSelectedLayerId(node.id);
+              setActiveHighlightTarget(resolvedTarget ?? null);
+              onSelectLayer?.({
+                ...(resolvedTarget ? { target: resolvedTarget } : {}),
+                sectionKey: node.sectionKey,
+                layerId: node.id,
+                editorMode: "instance",
+              });
+            }}
           >
             <Icon className="h-3.5 w-3.5 shrink-0 text-gray-400" />
             <span className="truncate text-xs font-medium">{node.label}</span>
@@ -618,7 +622,10 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => setActiveTab("layers")}
+              onClick={() => {
+                setActiveTab("layers");
+                setSelectedComponentId(null);
+              }}
               className={`rounded border px-2 py-1.5 text-xs font-semibold ${
                 activeTab === "layers"
                   ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
@@ -663,19 +670,28 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                   등록된 컴포넌트가 없습니다.
                 </div>
               ) : (
-                componentCatalog.map((componentItem) => (
-                  <div
-                    key={componentItem.id}
-                    className="space-y-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-2"
-                  >
-                    <button
-                      type="button"
-                      className="flex w-full items-center gap-2 text-left hover:bg-[#1d2636]"
-                      onClick={() => {
-                        if (!componentItem.rootLayerId) return;
-                        setSelectedLayerId(componentItem.rootLayerId);
-                        onSelectLayer?.({
-                          layerId: componentItem.rootLayerId,
+              componentCatalog.map((componentItem) => (
+                <div
+                  key={componentItem.id}
+                  className={`space-y-2 rounded border px-2 py-2 transition ${
+                    selectedComponentId === componentItem.id
+                      ? "border-[#4f8cff] bg-[#18243a]"
+                      : "border-[#2f394d] bg-[#151c28]"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left transition ${
+                      selectedComponentId === componentItem.id
+                        ? "bg-[#1d2d49]"
+                        : "hover:bg-[#1d2636]"
+                    }`}
+                    onClick={() => {
+                      if (!componentItem.rootLayerId) return;
+                      setSelectedComponentId(componentItem.id);
+                      setSelectedLayerId(componentItem.rootLayerId);
+                      onSelectLayer?.({
+                        layerId: componentItem.rootLayerId,
                           editorMode: "master",
                         });
                       }}
@@ -718,6 +734,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                       onClick={(event) => {
                         event.stopPropagation();
                         if (!componentItem.rootLayerId) return;
+                        setSelectedComponentId(componentItem.id);
                         setSelectedLayerId(componentItem.rootLayerId);
                         onSelectLayer?.({
                           layerId: componentItem.rootLayerId,
@@ -736,6 +753,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                           const firstInstanceLayerId =
                             componentItem.firstInstanceLayerId;
                           if (!firstInstanceLayerId) return;
+                          setActiveTab("layers");
+                          setSelectedComponentId(componentItem.id);
                           setSelectedLayerId(firstInstanceLayerId);
                           onSelectLayer?.({
                             layerId: firstInstanceLayerId,
