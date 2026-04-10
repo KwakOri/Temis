@@ -9,6 +9,10 @@ import {
   V2TemplateSceneNode,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
+import {
+  v2_dayKeyFromIndex,
+  v2_parseDayKey,
+} from "@/utils/time-table/template-render-config";
 
 const v2_COLOR_KEY_SET = new Set(v2_TEMPLATE_COLOR_KEYS);
 const v2_VISIBILITY_MODE_SET = new Set(["always", "onlineOnly", "offlineOnly"]);
@@ -52,6 +56,7 @@ const v2_createFallbackComponentInstances = ({
       visibilityMode: "always" as const,
       componentId,
       instanceId,
+      dayKey: v2_dayKeyFromIndex(index),
     };
   });
 };
@@ -176,6 +181,8 @@ const v2_buildSceneNodeFromGraph = ({
           typeof childNode.meta?.instanceId === "string"
             ? childNode.meta.instanceId
             : String(index);
+        const dayKey =
+          v2_parseDayKey(childNode.meta?.dayKey) ?? v2_dayKeyFromIndex(index);
         return {
           id: childNode.id,
           label: childNode.label || `Card ${index + 1}`,
@@ -190,6 +197,7 @@ const v2_buildSceneNodeFromGraph = ({
               ? childNode.meta.componentId
               : componentId,
           instanceId,
+          dayKey,
         };
       });
 
@@ -221,6 +229,9 @@ const v2_buildSceneNodeFromGraph = ({
         typeof graphNode.meta?.instanceId === "string"
           ? graphNode.meta.instanceId
           : graphNode.id,
+      dayKey:
+        v2_parseDayKey(graphNode.meta?.dayKey) ??
+        v2_dayKeyFromIndex(Number.parseInt(graphNode.meta?.instanceId ?? "", 10)),
     };
   }
 

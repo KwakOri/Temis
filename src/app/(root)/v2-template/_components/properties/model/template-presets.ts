@@ -35,6 +35,7 @@ export const v2_applyTemplatePreset = ({
     },
     templateSize: preset.templateSize,
     weekdayOption: preset.weekdayOption,
+    dayLabelFormat: preset.dayLabelFormat,
     monthOption: preset.monthOption,
     themes: [...preset.themes],
     defaultTheme: preset.defaultTheme,

@@ -6,8 +6,13 @@ import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-co
 import {
   V2TemplateCardStructure,
   V2TemplateComponentInstanceMode,
+  V2TemplateDayKey,
   V2TemplateSceneComponentInstanceNode,
 } from "@/types/time-table/template-render-config";
+import {
+  v2_dayKeyFromIndex,
+  v2_parseDayKey,
+} from "@/utils/time-table/template-render-config";
 import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableStyle } from "./render-style";
@@ -149,12 +154,23 @@ const TimeTableGrid: React.FC<{
         : "repeat(3, minmax(0, 1fr))";
   const cardInstanceMode = v2_parseCardInstanceMode(cardStructure.instanceMode);
   const cardInstanceTransforms = cardStructure.instanceTransforms;
+  const dataIndexByDayKey = React.useMemo(() => {
+    const map: Partial<Record<V2TemplateDayKey, number>> = {};
+    data.forEach((card, index) => {
+      const dayKey = v2_parseDayKey(card.day);
+      if (!dayKey) return;
+      if (map[dayKey] !== undefined) return;
+      map[dayKey] = index;
+    });
+    return map;
+  }, [data]);
   const fallbackInstances = data.map((_, index) => ({
     id: `card-instance-fallback-${index}`,
     label: `Card ${index + 1}`,
     kind: "componentInstance" as const,
     componentId: "card",
     instanceId: String(index),
+    dayKey: v2_dayKeyFromIndex(index),
   }));
   const runtimeInstances =
     Array.isArray(instances) && instances.length > 0
@@ -212,6 +228,9 @@ const TimeTableGrid: React.FC<{
       instance: V2TemplateSceneComponentInstanceNode,
       fallbackIndex: number
     ) => {
+      if (dataIndexByDayKey[instance.dayKey] !== undefined) {
+        return dataIndexByDayKey[instance.dayKey] as number;
+      }
       const parsedIndex = Number.parseInt(instance.instanceId, 10);
       if (
         Number.isFinite(parsedIndex) &&
@@ -255,6 +274,7 @@ const TimeTableGrid: React.FC<{
               >
                 <V2TimeTableCell
                   time={time}
+                  dayKeyOverride={instance.dayKey}
                   currentTheme={currentTheme}
                   weekDate={weekDate}
                   index={dataIndex}
@@ -281,6 +301,7 @@ const TimeTableGrid: React.FC<{
               >
                 <V2TimeTableCell
                   time={time}
+                  dayKeyOverride={instance.dayKey}
                   currentTheme={currentTheme}
                   weekDate={weekDate}
                   index={dataIndex}
@@ -310,10 +331,13 @@ const TimeTableGrid: React.FC<{
     }
 
     const parsedIndex = Number.parseInt(instance.instanceId, 10);
+    const dayKeyIndex = dataIndexByDayKey[instance.dayKey];
     const dataIndex =
-      Number.isFinite(parsedIndex) && parsedIndex >= 0 && parsedIndex < data.length
-        ? parsedIndex
-        : itemIndex;
+      dayKeyIndex !== undefined
+        ? dayKeyIndex
+        : Number.isFinite(parsedIndex) && parsedIndex >= 0 && parsedIndex < data.length
+          ? parsedIndex
+          : itemIndex;
     const time = data[dataIndex];
     const weekDate = weekDates[dataIndex];
 
@@ -329,6 +353,7 @@ const TimeTableGrid: React.FC<{
       >
         <V2TimeTableCell
           time={time}
+          dayKeyOverride={instance.dayKey}
           currentTheme={currentTheme}
           weekDate={weekDate}
           index={dataIndex}

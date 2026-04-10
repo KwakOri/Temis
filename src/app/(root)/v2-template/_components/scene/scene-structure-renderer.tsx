@@ -15,15 +15,17 @@ import {
 } from "@/types/time-table/template-render-config";
 import { getWeekDateRange, padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
-import { weekdays } from "@/utils/time-table/data";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
   v2_getDefaultCardComponentId,
   v2_getRuntimeCardStructureByComponentId,
 } from "@/utils/time-table/template-graph-runtime";
 import {
+  v2_dayKeyFromIndex,
   v2_getComponentFontFamily,
   v2_isVisibleByMode,
+  v2_parseDayKey,
+  v2_resolveDayLabelByKey,
 } from "@/utils/time-table/template-render-config";
 import { v2_resolveSceneTextNodeValue } from "@/utils/time-table/scene-nodes";
 import {
@@ -157,15 +159,13 @@ const V2SceneStructureRenderer = ({
       ? (resolveStyleRecordByKey(node.optionsKey) as Record<string, unknown>)
       : {};
 
-    const weekdayByOption = weekdays[renderConfig.weekdayOption] ?? weekdays.en;
-    const firstDayRaw =
-      firstCard && typeof firstCard.day === "string"
-        ? weekdayByOption[firstCard.day as keyof typeof weekdayByOption]
-        : "";
-    const firstDayLabel =
-      typeof firstDayRaw === "string" || typeof firstDayRaw === "number"
-        ? String(firstDayRaw)
-        : "";
+    const firstDayKey =
+      v2_parseDayKey(firstCard?.day) ?? v2_dayKeyFromIndex(0);
+    const firstDayLabel = v2_resolveDayLabelByKey({
+      dayKey: firstDayKey,
+      dayLabelFormat: renderConfig.dayLabelFormat,
+      fallbackWeekdayOption: renderConfig.weekdayOption,
+    });
     const firstWeekDate = weekDates[0];
     const firstDateLabel =
       firstWeekDate instanceof Date && !Number.isNaN(firstWeekDate.getTime())

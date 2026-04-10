@@ -20,6 +20,22 @@ export const v2_TEMPLATE_COLOR_KEYS = [
 
 export type V2TemplateColorKey = (typeof v2_TEMPLATE_COLOR_KEYS)[number];
 export type V2TemplateFontKey = V2TemplateColorKey;
+export const v2_TEMPLATE_DAY_KEYS = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+] as const;
+export type V2TemplateDayKey = (typeof v2_TEMPLATE_DAY_KEYS)[number];
+
+export interface V2TemplateDayLabelFormat {
+  mode: "preset" | "custom";
+  preset: TLanOpt;
+  custom: Partial<Record<V2TemplateDayKey, string>>;
+}
 
 export interface V2TemplateSize {
   width: number;
@@ -245,6 +261,7 @@ export interface V2TemplateSceneComponentInstanceNode
   kind: "componentInstance";
   componentId: string;
   instanceId: string;
+  dayKey: V2TemplateDayKey;
 }
 
 export type V2TemplateSceneNode =
@@ -284,6 +301,7 @@ export interface V2TemplateGraphNodeMeta {
   alt?: string;
   componentId?: string;
   instanceId?: string;
+  dayKey?: V2TemplateDayKey;
   colorKey?: V2TemplateColorKey;
   fontKey?: V2TemplateFontKey;
   layerIcon?: V2TemplateLayerIconKey;
@@ -432,6 +450,7 @@ export interface V2TemplateRenderConfig {
   };
   templateSize: V2TemplateSize;
   weekdayOption: TLanOpt;
+  dayLabelFormat: V2TemplateDayLabelFormat;
   monthOption: TLanOpt;
   themes: string[];
   defaultTheme: string;

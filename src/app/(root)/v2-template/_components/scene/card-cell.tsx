@@ -10,14 +10,17 @@ import { TTheme } from "@/types/time-table/theme";
 import {
   V2TemplateCardNode,
   V2TemplateCardStructure,
+  V2TemplateDayKey,
   V2TemplateCardStyleKey,
 } from "@/types/time-table/template-render-config";
 import { padZero } from "@/utils/date-formatter";
 import { formatTime } from "@/utils/time-formatter";
-import { weekdays } from "@/utils/time-table/data";
 import {
+  v2_dayKeyFromIndex,
   v2_getComponentFontFamily,
   v2_isEntryFieldBindingKey,
+  v2_parseDayKey,
+  v2_resolveDayLabelByKey,
   v2_isVisibleByMode,
 } from "@/utils/time-table/template-render-config";
 import {
@@ -31,6 +34,7 @@ interface TimeTableCellProps {
   time: TDefaultCard;
   weekDate: Date;
   index: number;
+  dayKeyOverride?: V2TemplateDayKey;
   currentTheme: TTheme;
   cardStructure: V2TemplateCardStructure;
 }
@@ -212,6 +216,8 @@ const OfflineCardBG = ({ currentTheme }: OfflineCardProps) => {
 const TimeTableCell: React.FC<TimeTableCellProps> = ({
   time,
   weekDate,
+  dayKeyOverride,
+  index,
   currentTheme,
   cardStructure,
 }) => {
@@ -228,8 +234,13 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     cardStructure.containerStyleKey
   );
   const cardContainerLayout = v2_toRenderableStyle(cardContainerStyleMap);
-  const weekdayByOption = weekdays[renderConfig.weekdayOption] ?? weekdays.en;
-  const dayLabel = weekdayByOption[time.day] ?? "";
+  const dayKey =
+    dayKeyOverride ?? v2_parseDayKey(time.day) ?? v2_dayKeyFromIndex(index);
+  const dayLabel = v2_resolveDayLabelByKey({
+    dayKey,
+    dayLabelFormat: renderConfig.dayLabelFormat,
+    fallbackWeekdayOption: renderConfig.weekdayOption,
+  });
   const placeholdersByScope = renderConfig.formSchema.fields.reduce(
     (
       acc: Record<string, Record<string, string>>,

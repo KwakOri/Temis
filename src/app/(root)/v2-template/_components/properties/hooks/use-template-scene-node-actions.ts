@@ -25,6 +25,7 @@ import {
   v2_getDefaultCardComponentId,
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
+import { v2_dayKeyFromIndex } from "@/utils/time-table/template-render-config";
 import {
   v2_collectLayerNodeIds,
   v2_collectSceneNodeIds,
@@ -68,6 +69,7 @@ const v2_createCardCollectionInstanceGraphNode = ({
 }): V2TemplateGraphNode => {
   const parsed = Number.parseInt(instanceId, 10);
   const safeIndex = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  const dayKey = v2_dayKeyFromIndex(safeIndex);
 
   return {
     id: nodeId,
@@ -80,6 +82,7 @@ const v2_createCardCollectionInstanceGraphNode = ({
     meta: {
       componentId,
       instanceId,
+      dayKey,
       layerTarget: `cardInstance:${instanceId}`,
       layerSectionKey: "grid",
       layerIcon: "layers",
@@ -156,6 +159,7 @@ const v2_sceneNodeToGraphNode = (
       meta: {
         componentId: sceneNode.componentId,
         instanceId: sceneNode.instanceId,
+        dayKey: sceneNode.dayKey,
         layerTarget: `cardInstance:${sceneNode.instanceId}`,
         layerSectionKey: "grid",
         layerIcon: "layers",

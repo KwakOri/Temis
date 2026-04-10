@@ -23,6 +23,11 @@ export const v2_createExampleRenderConfigResponse =
           height: 2250,
         },
         weekdayOption: "en",
+        dayLabelFormat: {
+          mode: "preset",
+          preset: "en",
+          custom: {},
+        },
         monthOption: "en",
         themes: ["first", "second", "third"],
         defaultTheme: "first",

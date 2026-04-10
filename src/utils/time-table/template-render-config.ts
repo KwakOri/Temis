@@ -1,6 +1,10 @@
-import { SimpleFieldConfig } from "@/types/time-table/data";
+import {
+  SimpleFieldConfig,
+  TLanOpt,
+} from "@/types/time-table/data";
 import {
   v2_DEFAULT_CARD_COMPONENT_ID,
+  v2_TEMPLATE_DAY_KEYS,
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
   V2TemplateAutoResizeOptions,
@@ -22,6 +26,8 @@ import {
   V2TemplateGraphNode,
   V2TemplateGraphNodeOrder,
   V2TemplateGraphNodeType,
+  V2TemplateDayKey,
+  V2TemplateDayLabelFormat,
   V2TemplateLayerComponentKey,
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
@@ -33,6 +39,7 @@ import {
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import { v2_convertPointerOrderToOrderKeyInGraph } from "@/utils/time-table/template-graph-order";
+import { weekdays } from "@/utils/time-table/data";
 
 const v2_DEFAULT_THEME = "first";
 
@@ -89,6 +96,114 @@ export const v2_isEntryFieldBindingKey = (
   key: string
 ): boolean => {
   return binding.mode === "field" && binding.scope === "entry" && binding.key === key;
+};
+
+const v2_DAY_KEY_SET = new Set<string>(v2_TEMPLATE_DAY_KEYS);
+const v2_DAY_KEY_ALIASES: Record<string, V2TemplateDayKey> = {
+  "0": "mon",
+  "1": "tue",
+  "2": "wed",
+  "3": "thu",
+  "4": "fri",
+  "5": "sat",
+  "6": "sun",
+  mon: "mon",
+  monday: "mon",
+  tue: "tue",
+  tues: "tue",
+  tuesday: "tue",
+  wed: "wed",
+  weds: "wed",
+  wednesday: "wed",
+  thu: "thu",
+  thur: "thu",
+  thurs: "thu",
+  thursday: "thu",
+  fri: "fri",
+  friday: "fri",
+  sat: "sat",
+  saturday: "sat",
+  sun: "sun",
+  sunday: "sun",
+  월: "mon",
+  화: "tue",
+  수: "wed",
+  목: "thu",
+  금: "fri",
+  토: "sat",
+  일: "sun",
+};
+const v2_DAY_INDEX_BY_KEY: Record<V2TemplateDayKey, number> = {
+  mon: 0,
+  tue: 1,
+  wed: 2,
+  thu: 3,
+  fri: 4,
+  sat: 5,
+  sun: 6,
+};
+
+export const v2_dayKeyFromIndex = (index: number): V2TemplateDayKey => {
+  if (!Number.isFinite(index)) return "mon";
+  const normalized = ((Math.trunc(index) % 7) + 7) % 7;
+  return v2_TEMPLATE_DAY_KEYS[normalized] ?? "mon";
+};
+
+export const v2_dayIndexFromKey = (dayKey: V2TemplateDayKey): number => {
+  return v2_DAY_INDEX_BY_KEY[dayKey];
+};
+
+export const v2_parseDayKey = (candidate: unknown): V2TemplateDayKey | null => {
+  if (typeof candidate === "number" && Number.isFinite(candidate)) {
+    return v2_dayKeyFromIndex(candidate);
+  }
+
+  if (typeof candidate !== "string") {
+    return null;
+  }
+
+  const normalized = candidate.trim().toLowerCase();
+  if (!normalized) return null;
+  if (v2_DAY_KEY_SET.has(normalized)) {
+    return normalized as V2TemplateDayKey;
+  }
+
+  return v2_DAY_KEY_ALIASES[normalized] ?? null;
+};
+
+const v2_createDefaultDayLabelFormat = (
+  preset: TLanOpt = "en"
+): V2TemplateDayLabelFormat => ({
+  mode: "preset",
+  preset,
+  custom: {},
+});
+
+export const v2_resolveDayLabelByKey = ({
+  dayKey,
+  dayLabelFormat,
+  fallbackWeekdayOption = "en",
+}: {
+  dayKey: V2TemplateDayKey;
+  dayLabelFormat?: V2TemplateDayLabelFormat;
+  fallbackWeekdayOption?: TLanOpt;
+}): string => {
+  const preset = dayLabelFormat?.preset ?? fallbackWeekdayOption;
+  const labels = weekdays[preset] ?? weekdays.en;
+  const presetLabel = labels[v2_dayIndexFromKey(dayKey)];
+  const defaultLabel =
+    typeof presetLabel === "string" || typeof presetLabel === "number"
+      ? String(presetLabel)
+      : "";
+
+  if (dayLabelFormat?.mode === "custom") {
+    const custom = dayLabelFormat.custom?.[dayKey];
+    if (typeof custom === "string" && custom.trim().length > 0) {
+      return custom;
+    }
+  }
+
+  return defaultLabel;
 };
 
 const v2_DEFAULT_COLOR_PALETTE: V2TemplateColorPalette = {
@@ -561,15 +676,18 @@ const v2_createCardInstanceNode = ({
   collectionNode,
   componentId,
   instanceId,
+  dayKey,
 }: {
   nodeId: string;
   collectionNode: V2TemplateGraphNode;
   componentId: string;
   instanceId: string;
+  dayKey?: V2TemplateDayKey;
 }): V2TemplateGraphNode => {
   const numericIndex = Number.parseInt(instanceId, 10);
   const safeIndex =
     Number.isFinite(numericIndex) && numericIndex >= 0 ? numericIndex : 0;
+  const resolvedDayKey = dayKey ?? v2_dayKeyFromIndex(safeIndex);
 
   return {
     id: nodeId,
@@ -582,6 +700,7 @@ const v2_createCardInstanceNode = ({
     meta: {
       componentId,
       instanceId,
+      dayKey: resolvedDayKey,
       layerIcon: "layers",
       layerTarget: `cardInstance:${instanceId}`,
       layerSectionKey: "grid",
@@ -650,6 +769,7 @@ const v2_ensureCardCollectionComponentInstances = ({
         collectionNode: node,
         componentId,
         instanceId,
+        dayKey: v2_dayKeyFromIndex(instanceIndex),
       });
       hasChanges = true;
     }
@@ -662,6 +782,7 @@ const v2_ensureCardCollectionComponentInstances = ({
         typeof currentNode.meta?.instanceId === "string"
           ? currentNode.meta.instanceId
           : String(index);
+      const dayKey = v2_parseDayKey(currentNode.meta?.dayKey) ?? v2_dayKeyFromIndex(index);
       const normalized = v2_createCardInstanceNode({
         nodeId: currentNode.id,
         collectionNode: node,
@@ -671,11 +792,13 @@ const v2_ensureCardCollectionComponentInstances = ({
             ? currentNode.meta.componentId
             : componentId,
         instanceId,
+        dayKey,
       });
 
       const metaChanged =
         currentNode.meta?.componentId !== normalized.meta?.componentId ||
         currentNode.meta?.instanceId !== normalized.meta?.instanceId ||
+        currentNode.meta?.dayKey !== normalized.meta?.dayKey ||
         currentNode.meta?.layerIcon !== normalized.meta?.layerIcon ||
         currentNode.meta?.layerTarget !== normalized.meta?.layerTarget ||
         currentNode.meta?.layerSectionKey !== normalized.meta?.layerSectionKey;
@@ -818,6 +941,16 @@ const v2_createDefaultNodeGraph = ({
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
         componentId: sceneNode.componentId ?? v2_DEFAULT_CARD_COMPONENT_ID,
+      };
+    } else if (sceneNode.kind === "componentInstance") {
+      nextNode.meta = {
+        ...(nextNode.meta ?? {}),
+        componentId: sceneNode.componentId,
+        instanceId: sceneNode.instanceId,
+        dayKey: sceneNode.dayKey,
+        layerTarget: `cardInstance:${sceneNode.instanceId}`,
+        layerSectionKey: "grid",
+        layerIcon: "layers",
       };
     } else if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {
       nextNode.binding = sceneNode.binding;
@@ -1030,6 +1163,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     height: 2250,
   },
   weekdayOption: "en",
+  dayLabelFormat: v2_createDefaultDayLabelFormat("en"),
   monthOption: "en",
   themes: [v2_DEFAULT_THEME],
   defaultTheme: v2_DEFAULT_THEME,
@@ -1525,6 +1659,10 @@ const v2_normalizeGraphNodeMeta = (
   }
   if (typeof candidate.instanceId === "string") {
     next.instanceId = candidate.instanceId;
+  }
+  const normalizedDayKey = v2_parseDayKey(candidate.dayKey);
+  if (normalizedDayKey) {
+    next.dayKey = normalizedDayKey;
   }
   if (
     typeof candidate.colorKey === "string" &&
@@ -2221,6 +2359,41 @@ const v2_normalizeFontRegistryItem = (
   };
 };
 
+const v2_normalizeDayLabelFormat = (
+  value: unknown,
+  fallbackPreset: TLanOpt
+): V2TemplateDayLabelFormat => {
+  const next = v2_createDefaultDayLabelFormat(fallbackPreset);
+  if (!v2_isRecord(value)) {
+    return next;
+  }
+
+  if (value.mode === "custom" || value.mode === "preset") {
+    next.mode = value.mode;
+  }
+
+  if (value.preset === "kr" || value.preset === "en" || value.preset === "jp") {
+    next.preset = value.preset;
+  }
+
+  if (v2_isRecord(value.custom)) {
+    const customEntries = Object.entries(value.custom).reduce<
+      Partial<Record<V2TemplateDayKey, string>>
+    >((acc, [rawKey, rawLabel]) => {
+      const dayKey = v2_parseDayKey(rawKey);
+      if (!dayKey) return acc;
+      if (typeof rawLabel !== "string") return acc;
+      const label = rawLabel.trim();
+      if (!label) return acc;
+      acc[dayKey] = label;
+      return acc;
+    }, {});
+    next.custom = customEntries;
+  }
+
+  return next;
+};
+
 export const v2_createDefaultTemplateRenderConfig = (): V2TemplateRenderConfig => {
   return v2_clone(v2_DEFAULT_TEMPLATE_RENDER_CONFIG);
 };
@@ -2261,6 +2434,15 @@ export const v2_normalizeTemplateRenderConfig = (
     raw.weekdayOption === "jp"
   ) {
     normalized.weekdayOption = raw.weekdayOption;
+  }
+  normalized.dayLabelFormat = v2_createDefaultDayLabelFormat(
+    normalized.weekdayOption
+  );
+  if (raw.dayLabelFormat !== undefined) {
+    normalized.dayLabelFormat = v2_normalizeDayLabelFormat(
+      raw.dayLabelFormat,
+      normalized.weekdayOption
+    );
   }
 
   if (
