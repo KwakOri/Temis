@@ -211,5 +211,4 @@ Move / Extract Copy 분리:
   - graph-only 전환(마무리): 저장/정규화 경로는 graph 중심으로 정리됨. 기본 그래프 부트스트랩(기존 default structure 상수 기반) 분리 여부만 남음
 
 - 남은 핵심
-  - Phase C/Phase D UX polishing:
-    - 마우스/키보드 조작 가이드 UX(툴팁/헬프) 고도화
+  - 없음(현 시점 핵심 항목 완료). 이후는 편의성 개선(도움말 문구/튜토리얼) 레벨의 선택 과제.

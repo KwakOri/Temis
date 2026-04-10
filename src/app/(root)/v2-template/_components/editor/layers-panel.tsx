@@ -212,6 +212,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     null
   );
+  const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<"layers" | "components">("layers");
   const defaultOrderMap = useMemo(
     () => v2_createInitialOrderMap(layerTree),
@@ -1035,7 +1036,19 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     <div className="v2-dark-form-theme h-full min-h-0 w-full border-r border-[#303848] bg-[#121722]">
       <div className="flex h-full min-h-0 flex-col">
         <div className="border-b border-[#303848] px-3 py-3 space-y-2">
-          <h3 className="text-sm font-semibold text-gray-100">Structure</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-100">Structure</h3>
+            {activeTab === "layers" ? (
+              <button
+                type="button"
+                className="rounded border border-[#354056] bg-[#171e2b] px-1.5 py-0.5 text-[10px] font-semibold text-[#9db2d8] hover:bg-[#1f2838]"
+                onClick={() => setIsShortcutHelpOpen((prev) => !prev)}
+                aria-label="레이어 조작 도움말"
+              >
+                {isShortcutHelpOpen ? "도움말 숨김" : "도움말 보기"}
+              </button>
+            ) : null}
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -1072,10 +1085,11 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           tabIndex={0}
           onKeyDown={handleLayersKeyDown}
         >
-          {activeTab === "layers" ? (
+          {activeTab === "layers" && isShortcutHelpOpen ? (
             <div className="mb-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-1.5 text-[10px] text-[#8ca2c8]">
               다중 선택: `Cmd/Ctrl + 클릭` / 범위 선택: `Shift + 클릭` / 이동:
-              `Alt + ↑/↓` / 그룹 이동: `Alt + Shift + ←/→`
+              `Alt + ↑/↓` / 그룹 이동: `Alt + Shift + ←/→` / 동일 부모 다중
+              선택 드래그 지원
             </div>
           ) : null}
           {dragFeedback ? (
