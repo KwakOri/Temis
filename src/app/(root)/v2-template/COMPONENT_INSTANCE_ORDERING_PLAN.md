@@ -198,8 +198,7 @@ Move / Extract Copy 분리:
   - graph-only 전환(마무리): 저장/정규화 경로는 graph 중심으로 정리됨. 기본 그래프 부트스트랩(기존 default structure 상수 기반) 분리 여부만 남음
 
 - 남은 핵심
-  - Card 전용 예외 경로 축소 및 일반 컴포넌트 규칙으로 통합
-  - default card 컴포넌트 id를 상수(`v2_DEFAULT_CARD_COMPONENT_ID`)로 통일해 하드코딩 `"card"` 분산 축소
-  - scene cardCollection 렌더 경로의 고정 source 분기 제거(단일 경로화)
-  - scene `cardCollection.source` 필드를 제거하고 graph meta normalize 처리도 정리
+  - Phase C/Phase D UX polishing:
+    - re-parent DnD drop affordance/edge-case UX 보강
+    - Components 탭의 마스터 편집 전용 플로우(직접 편집 진입 동선) 추가 고도화
   - orderKey 전환 이후 회귀 테스트 체계(자동화) 보강
