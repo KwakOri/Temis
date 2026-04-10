@@ -1615,11 +1615,16 @@ const v2_normalizeGraphNodeOrder = (
 ): V2TemplateGraphNodeOrder | undefined => {
   if (!v2_isRecord(candidate)) return fallback;
 
+  if (
+    typeof candidate.model === "string" &&
+    !v2_ORDER_MODEL_SET.has(candidate.model)
+  ) {
+    return fallback;
+  }
   const next: V2TemplateGraphNodeOrder = {
-    model:
-      typeof candidate.model === "string" && v2_ORDER_MODEL_SET.has(candidate.model)
-        ? (candidate.model as V2TemplateGraphNodeOrder["model"])
-        : fallback?.model ?? "orderKey",
+    // Pointer model is accepted only for read-compat input.
+    // Normalized graph state should always write orderKey model.
+    model: "orderKey",
   };
 
   if (candidate.prevSiblingId === null) {
