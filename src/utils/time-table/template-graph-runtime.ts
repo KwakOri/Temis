@@ -1,5 +1,4 @@
 import {
-  v2_DEFAULT_CARD_COMPONENT_ID,
   v2_TEMPLATE_COLOR_KEYS,
   V2TemplateCardNode,
   V2TemplateCardStructure,
@@ -33,32 +32,6 @@ const v2_toBinding = (node: V2TemplateGraphNode): V2TemplateCardNode["binding"] 
     mode: "literal",
     value: "",
   };
-};
-
-const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
-
-const v2_createFallbackComponentInstances = ({
-  collectionNodeId,
-  collectionLayerId,
-  componentId,
-}: {
-  collectionNodeId: string;
-  collectionLayerId?: string;
-  componentId: string;
-}) => {
-  return Array.from({ length: v2_DEFAULT_CARD_INSTANCE_COUNT }).map((_, index) => {
-    const instanceId = String(index);
-    return {
-      id: `${collectionNodeId}:instance:${instanceId}`,
-      label: `Card ${index + 1}`,
-      kind: "componentInstance" as const,
-      layerId: `${collectionLayerId ?? collectionNodeId}-instance-${index + 1}`,
-      visibilityMode: "always" as const,
-      componentId,
-      instanceId,
-      dayKey: v2_dayKeyFromIndex(index),
-    };
-  });
 };
 
 const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | null => {
@@ -110,12 +83,12 @@ const v2_buildSceneNodeFromGraph = ({
   graphNode,
   graphNodes,
   visited,
-  defaultCardComponentId,
+  validComponentIdSet,
 }: {
   graphNode: V2TemplateGraphNode;
   graphNodes: Record<string, V2TemplateGraphNode>;
   visited: Set<string>;
-  defaultCardComponentId: string;
+  validComponentIdSet: Set<string>;
 }): V2TemplateSceneNode | null => {
   if (visited.has(graphNode.id)) return null;
   visited.add(graphNode.id);
@@ -138,7 +111,7 @@ const v2_buildSceneNodeFromGraph = ({
           graphNode: childNode,
           graphNodes,
           visited,
-          defaultCardComponentId,
+          validComponentIdSet,
         })
       )
       .filter((childNode): childNode is V2TemplateSceneNode => childNode !== null);
@@ -164,11 +137,14 @@ const v2_buildSceneNodeFromGraph = ({
   }
 
   if (graphNode.type === "cardCollection") {
-    const componentId =
-      typeof graphNode.meta?.componentId === "string" &&
-      graphNode.meta.componentId.trim().length > 0
-        ? graphNode.meta.componentId
-        : defaultCardComponentId;
+    const componentIdCandidate =
+      typeof graphNode.meta?.componentId === "string"
+        ? graphNode.meta.componentId.trim()
+        : "";
+    if (!componentIdCandidate || !validComponentIdSet.has(componentIdCandidate)) {
+      return null;
+    }
+    const componentId = componentIdCandidate;
     const children = graphNode.childIds
       .map((childId) => graphNodes[childId])
       .filter(
@@ -183,6 +159,14 @@ const v2_buildSceneNodeFromGraph = ({
             : String(index);
         const dayKey =
           v2_parseDayKey(childNode.meta?.dayKey) ?? v2_dayKeyFromIndex(index);
+        const childComponentIdCandidate =
+          typeof childNode.meta?.componentId === "string"
+            ? childNode.meta.componentId.trim()
+            : "";
+        const childComponentId =
+          childComponentIdCandidate && validComponentIdSet.has(childComponentIdCandidate)
+            ? childComponentIdCandidate
+            : componentId;
         return {
           id: childNode.id,
           label: childNode.label || `Card ${index + 1}`,
@@ -191,11 +175,7 @@ const v2_buildSceneNodeFromGraph = ({
           ...(v2_toVisibilityMode(childNode.visibilityMode)
             ? { visibilityMode: v2_toVisibilityMode(childNode.visibilityMode) }
             : {}),
-          componentId:
-            typeof childNode.meta?.componentId === "string" &&
-            childNode.meta.componentId.trim().length > 0
-              ? childNode.meta.componentId
-              : componentId,
+          componentId: childComponentId,
           instanceId,
           dayKey,
           ...(childNode.styles?.styleKey
@@ -208,26 +188,22 @@ const v2_buildSceneNodeFromGraph = ({
       ...base,
       kind: "cardCollection",
       componentId,
-      children:
-        children.length > 0
-          ? children
-          : v2_createFallbackComponentInstances({
-              collectionNodeId: graphNode.id,
-              collectionLayerId: graphNode.layerId,
-              componentId,
-            }),
+      children,
     };
   }
 
   if (graphNode.type === "componentInstance") {
+    const componentIdCandidate =
+      typeof graphNode.meta?.componentId === "string"
+        ? graphNode.meta.componentId.trim()
+        : "";
+    if (!componentIdCandidate || !validComponentIdSet.has(componentIdCandidate)) {
+      return null;
+    }
     return {
       ...base,
       kind: "componentInstance",
-      componentId:
-        typeof graphNode.meta?.componentId === "string" &&
-        graphNode.meta.componentId.trim().length > 0
-          ? graphNode.meta.componentId
-          : defaultCardComponentId,
+      componentId: componentIdCandidate,
       instanceId:
         typeof graphNode.meta?.instanceId === "string"
           ? graphNode.meta.instanceId
@@ -303,7 +279,9 @@ export const v2_getRuntimeSceneNodes = (
 
   if (sceneRoots.length === 0) return [];
 
-  const defaultCardComponentId = v2_getDefaultCardComponentId(renderConfig);
+  const validComponentIdSet = new Set(
+    Object.keys(graph.componentDefinitions ?? {})
+  );
   const visited = new Set<string>();
   return sceneRoots
     .map((rootNode) =>
@@ -311,7 +289,7 @@ export const v2_getRuntimeSceneNodes = (
         graphNode: rootNode,
         graphNodes: graph.nodes,
         visited,
-        defaultCardComponentId,
+        validComponentIdSet,
       })
     )
     .filter((node): node is V2TemplateSceneNode => node !== null);
@@ -319,11 +297,8 @@ export const v2_getRuntimeSceneNodes = (
 
 export const v2_getDefaultCardComponentId = (
   renderConfig: V2TemplateRenderConfig
-): string => {
+): string | null => {
   const componentDefinitions = renderConfig.graph?.componentDefinitions ?? {};
-  if (componentDefinitions[v2_DEFAULT_CARD_COMPONENT_ID]) {
-    return v2_DEFAULT_CARD_COMPONENT_ID;
-  }
 
   const graphNodes = renderConfig.graph?.nodes ?? {};
   const sceneCardCollectionComponentId = Object.values(graphNodes).find(
@@ -332,12 +307,15 @@ export const v2_getDefaultCardComponentId = (
       typeof node.meta?.componentId === "string" &&
       node.meta.componentId.trim().length > 0
   )?.meta?.componentId;
-  if (typeof sceneCardCollectionComponentId === "string") {
+  if (
+    typeof sceneCardCollectionComponentId === "string" &&
+    componentDefinitions[sceneCardCollectionComponentId]
+  ) {
     return sceneCardCollectionComponentId;
   }
 
   const firstComponentId = Object.keys(componentDefinitions)[0];
-  return firstComponentId ?? v2_DEFAULT_CARD_COMPONENT_ID;
+  return firstComponentId ?? null;
 };
 
 const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {
@@ -399,8 +377,12 @@ export const v2_getRuntimeCardStructureByComponentId = (
 export const v2_getRuntimeCardStructure = (
   renderConfig: V2TemplateRenderConfig
 ): V2TemplateCardStructure => {
+  const componentId = v2_getDefaultCardComponentId(renderConfig);
+  if (!componentId) {
+    return v2_EMPTY_CARD_STRUCTURE;
+  }
   return v2_getRuntimeCardStructureByComponentId(
     renderConfig,
-    v2_getDefaultCardComponentId(renderConfig)
+    componentId
   );
 };
