@@ -18,7 +18,7 @@ const TimeTableGrid: React.FC<TimeTableGridProps> = ({
   return (
     <div
       style={{ left: 232, top: 490, rotate: '-2.2deg', gap: 2 }}
-      className="absolute flex flex-col z-20 bg-black/30"
+      className="absolute flex flex-col z-20 "
     >
       {data.map((time, i) => (
         <Fragment key={time.day}>

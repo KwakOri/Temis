@@ -34,7 +34,7 @@ export const templateSize = {
 export const BASE_FONTS = {
   PRIMARY: 'SchoolSafeOuting',
   SECONDARY: 'SchoolSafetyNotification',
-  TERTIARY: '',
+  TERTIARY: 'Nanum Myeongjo',
   QUATERNARY: '',
 };
 
@@ -107,7 +107,7 @@ export const COMP_FONTS = {
   STREAMING_DATE: BASE_FONTS.PRIMARY,
   STREAMING_DAY: BASE_FONTS.PRIMARY,
   ARTIST: BASE_FONTS.PRIMARY,
-  WEEKLY_FLAG: BASE_FONTS.PRIMARY,
+  WEEKLY_FLAG: BASE_FONTS.TERTIARY
 };
 
 export const MAX_FONT_SIZES = {

@@ -17,16 +17,17 @@ const TimeTableWeekFlag = ({
   return (
     <>
       <p
-        className="absolute flex justify-center items-center z-40 bg-black/30"
+        className="absolute flex justify-center items-center z-40"
         style={{
-          fontSize: 44,
+          fontSize: 36,
           width: 400,
           height: 100,
           fontFamily: COMP_FONTS.WEEKLY_FLAG,
           color: COMP_COLORS.WEEKLY_FLAG,
-          top: 388,
-          left: 892,
+          top: 392,
+          left: 890,
           rotate: '-2.2deg',
+          
         }}
       >
         {padZero(start.month)}.{padZero(start.date)} ~ {padZero(end.month)}.
