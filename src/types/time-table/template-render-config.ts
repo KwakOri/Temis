@@ -272,7 +272,6 @@ export interface V2TemplateGraphNodeMeta {
   assetKey?: keyof V2TemplateAssetMap;
   fit?: V2TemplateSceneAssetFit;
   alt?: string;
-  source?: "card";
   componentId?: string;
   instanceId?: string;
   colorKey?: V2TemplateColorKey;

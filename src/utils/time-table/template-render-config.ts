@@ -1306,9 +1306,6 @@ const v2_normalizeGraphNodeMeta = (
   if (typeof candidate.alt === "string") {
     next.alt = candidate.alt;
   }
-  if (candidate.source === "card") {
-    next.source = "card";
-  }
   if (typeof candidate.componentId === "string") {
     next.componentId = candidate.componentId;
   }
