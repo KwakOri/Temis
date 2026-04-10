@@ -193,7 +193,8 @@ export type V2TemplateSceneNodeKind =
   | "asset"
   | "text"
   | "flexibleText"
-  | "cardCollection";
+  | "cardCollection"
+  | "componentInstance";
 
 export type V2TemplateSceneAssetFit = "cover" | "contain" | "fill";
 
@@ -236,13 +237,22 @@ export interface V2TemplateSceneCardCollectionNode
   extends V2TemplateSceneNodeBase {
   kind: "cardCollection";
   componentId?: string;
+  children?: V2TemplateSceneComponentInstanceNode[];
+}
+
+export interface V2TemplateSceneComponentInstanceNode
+  extends V2TemplateSceneNodeBase {
+  kind: "componentInstance";
+  componentId: string;
+  instanceId: string;
 }
 
 export type V2TemplateSceneNode =
   | V2TemplateSceneGroupNode
   | V2TemplateSceneAssetNode
   | V2TemplateSceneTextNode
-  | V2TemplateSceneCardCollectionNode;
+  | V2TemplateSceneCardCollectionNode
+  | V2TemplateSceneComponentInstanceNode;
 
 export type V2TemplateGraphNodeType =
   | "group"

@@ -350,7 +350,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     const next: Record<string, Set<string>> = {};
 
     const collectDescendants = (node: (typeof runtimeSceneNodes)[number]): Set<string> => {
-      if (node.kind !== "group") {
+      if (
+        (node.kind !== "group" && node.kind !== "cardCollection") ||
+        !node.children
+      ) {
         next[node.id] = new Set();
         return next[node.id];
       }
@@ -378,7 +381,12 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
     const visit = (nodes: typeof runtimeSceneNodes, depth: number) => {
       nodes.forEach((node) => {
-        if (node.kind !== "group") return;
+        if (
+          (node.kind !== "group" && node.kind !== "cardCollection") ||
+          !node.children
+        ) {
+          return;
+        }
         options.push({
           value: node.id,
           label: `${"  ".repeat(depth)}${node.label}`,
@@ -926,6 +934,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     renderSceneAssetNodeProperties,
     renderSceneGroupNodeProperties,
     renderSceneCardCollectionProperties,
+    renderSceneComponentInstanceProperties,
   } = useTemplateSceneNodePropertyPanels({
     assetKeys: v2_ASSET_KEYS,
     assetLabels: v2_ASSET_LABELS,
@@ -1022,6 +1031,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         renderSceneAssetNodeProperties={renderSceneAssetNodeProperties}
         renderSceneGroupNodeProperties={renderSceneGroupNodeProperties}
         renderSceneCardCollectionProperties={renderSceneCardCollectionProperties}
+        renderSceneComponentInstanceProperties={renderSceneComponentInstanceProperties}
         renderSimplePropertiesSection={renderSimplePropertiesSection}
       />
     </TemplatePropertiesTab>

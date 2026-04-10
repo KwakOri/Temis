@@ -6,6 +6,7 @@ import {
   V2TemplateCardNode,
   V2TemplateSceneAssetNode,
   V2TemplateSceneCardCollectionNode,
+  V2TemplateSceneComponentInstanceNode,
   V2TemplateSceneGroupNode,
   V2TemplateSceneTextNode,
 } from "@/types/time-table/template-render-config";
@@ -20,6 +21,7 @@ interface TemplateSelectedPropertiesPanelRouterProps {
     | V2TemplateSceneAssetNode
     | V2TemplateSceneGroupNode
     | V2TemplateSceneCardCollectionNode
+    | V2TemplateSceneComponentInstanceNode
   >;
   renderCardNodeProperties: (
     section: string,
@@ -40,6 +42,9 @@ interface TemplateSelectedPropertiesPanelRouterProps {
     node: V2TemplateSceneCardCollectionNode,
     section: string | null
   ) => React.ReactNode;
+  renderSceneComponentInstanceProperties: (
+    node: V2TemplateSceneComponentInstanceNode
+  ) => React.ReactNode;
   renderSimplePropertiesSection: (section: string) => React.ReactNode;
 }
 
@@ -55,6 +60,7 @@ const TemplateSelectedPropertiesPanelRouter: React.FC<
   renderSceneAssetNodeProperties,
   renderSceneGroupNodeProperties,
   renderSceneCardCollectionProperties,
+  renderSceneComponentInstanceProperties,
   renderSimplePropertiesSection,
 }) => {
   if (!selectedLayerNode) return null;
@@ -88,6 +94,9 @@ const TemplateSelectedPropertiesPanelRouter: React.FC<
           {renderSceneCardCollectionProperties(sceneNode, selectedSection)}
         </>
       );
+    }
+    if (sceneNode.kind === "componentInstance") {
+      return <>{renderSceneComponentInstanceProperties(sceneNode)}</>;
     }
   }
 

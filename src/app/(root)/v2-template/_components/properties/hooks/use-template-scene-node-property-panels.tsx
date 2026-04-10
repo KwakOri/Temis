@@ -6,6 +6,7 @@ import {
   V2TemplateAssetMap,
   V2TemplateSceneAssetNode,
   V2TemplateSceneCardCollectionNode,
+  V2TemplateSceneComponentInstanceNode,
   V2TemplateSceneGroupNode,
   V2TemplateSceneTextNode,
   V2TemplateVisibilityMode,
@@ -17,7 +18,7 @@ import TemplateSceneNodeStructureControls from "../components/template-scene-nod
 import { v2_parseStyleSectionKey } from "../model/style-section-utils";
 
 type V2SceneNodeSectionId = string;
-type V2SceneNodeKind =
+type V2SceneNodeInsertKind =
   | "text"
   | "flexibleText"
   | "asset"
@@ -28,7 +29,8 @@ type V2StructureControlNode =
   | V2TemplateSceneTextNode
   | V2TemplateSceneAssetNode
   | V2TemplateSceneGroupNode
-  | V2TemplateSceneCardCollectionNode;
+  | V2TemplateSceneCardCollectionNode
+  | V2TemplateSceneComponentInstanceNode;
 
 interface UseTemplateSceneNodePropertyPanelsParams {
   assetKeys: Array<keyof V2TemplateAssetMap>;
@@ -55,11 +57,11 @@ interface UseTemplateSceneNodePropertyPanelsParams {
   onRemoveSceneNode: (nodeId: string) => void;
   onAddSceneSiblingNode: (params: {
     anchorNodeId: string;
-    kind: V2SceneNodeKind;
+    kind: V2SceneNodeInsertKind;
   }) => void;
   onAddSceneChildNode: (params: {
     parentNodeId: string;
-    kind: V2SceneNodeKind;
+    kind: V2SceneNodeInsertKind;
   }) => void;
   onUpdateSceneNodeLabel: (nodeId: string, label: string) => void;
   onUpdateSceneAssetNodeMeta: (params: {
@@ -242,11 +244,33 @@ const useTemplateSceneNodePropertyPanels = ({
     );
   };
 
+  const renderSceneComponentInstanceProperties = (
+    node: V2TemplateSceneComponentInstanceNode
+  ) => {
+    return (
+      <TemplateSceneGroupProperties
+        label={node.label}
+        childCount={0}
+        visibilityMode={node.visibilityMode ?? "always"}
+        visibilityOptions={visibilityOptions}
+        structureControls={renderSceneNodeStructureControls({
+          node,
+          allowChildren: false,
+        })}
+        onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
+        onChangeVisibilityMode={(value) =>
+          onUpdateSceneNodeVisibilityMode(node.id, value)
+        }
+      />
+    );
+  };
+
   return {
     renderSceneNodeStructureControls,
     renderSceneAssetNodeProperties,
     renderSceneGroupNodeProperties,
     renderSceneCardCollectionProperties,
+    renderSceneComponentInstanceProperties,
   };
 };
 

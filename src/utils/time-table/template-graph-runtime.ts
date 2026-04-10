@@ -31,6 +31,31 @@ const v2_toBinding = (node: V2TemplateGraphNode): V2TemplateCardNode["binding"] 
   };
 };
 
+const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
+
+const v2_createFallbackComponentInstances = ({
+  collectionNodeId,
+  collectionLayerId,
+  componentId,
+}: {
+  collectionNodeId: string;
+  collectionLayerId?: string;
+  componentId: string;
+}) => {
+  return Array.from({ length: v2_DEFAULT_CARD_INSTANCE_COUNT }).map((_, index) => {
+    const instanceId = String(index);
+    return {
+      id: `${collectionNodeId}:instance:${instanceId}`,
+      label: `Card ${index + 1}`,
+      kind: "componentInstance" as const,
+      layerId: `${collectionLayerId ?? collectionNodeId}-instance-${index + 1}`,
+      visibilityMode: "always" as const,
+      componentId,
+      instanceId,
+    };
+  });
+};
+
 const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | null => {
   if (graphNode.type !== "text" && graphNode.type !== "flexibleText") return null;
 
@@ -134,14 +159,68 @@ const v2_buildSceneNodeFromGraph = ({
   }
 
   if (graphNode.type === "cardCollection") {
+    const componentId =
+      typeof graphNode.meta?.componentId === "string" &&
+      graphNode.meta.componentId.trim().length > 0
+        ? graphNode.meta.componentId
+        : defaultCardComponentId;
+    const children = graphNode.childIds
+      .map((childId) => graphNodes[childId])
+      .filter(
+        (childNode): childNode is V2TemplateGraphNode =>
+          Boolean(childNode && childNode.type === "componentInstance")
+      )
+      .map((childNode, index) => {
+        visited.add(childNode.id);
+        const instanceId =
+          typeof childNode.meta?.instanceId === "string"
+            ? childNode.meta.instanceId
+            : String(index);
+        return {
+          id: childNode.id,
+          label: childNode.label || `Card ${index + 1}`,
+          kind: "componentInstance" as const,
+          ...(childNode.layerId ? { layerId: childNode.layerId } : {}),
+          ...(v2_toVisibilityMode(childNode.visibilityMode)
+            ? { visibilityMode: v2_toVisibilityMode(childNode.visibilityMode) }
+            : {}),
+          componentId:
+            typeof childNode.meta?.componentId === "string" &&
+            childNode.meta.componentId.trim().length > 0
+              ? childNode.meta.componentId
+              : componentId,
+          instanceId,
+        };
+      });
+
     return {
       ...base,
       kind: "cardCollection",
+      componentId,
+      children:
+        children.length > 0
+          ? children
+          : v2_createFallbackComponentInstances({
+              collectionNodeId: graphNode.id,
+              collectionLayerId: graphNode.layerId,
+              componentId,
+            }),
+    };
+  }
+
+  if (graphNode.type === "componentInstance") {
+    return {
+      ...base,
+      kind: "componentInstance",
       componentId:
         typeof graphNode.meta?.componentId === "string" &&
         graphNode.meta.componentId.trim().length > 0
           ? graphNode.meta.componentId
           : defaultCardComponentId,
+      instanceId:
+        typeof graphNode.meta?.instanceId === "string"
+          ? graphNode.meta.instanceId
+          : graphNode.id,
     };
   }
 

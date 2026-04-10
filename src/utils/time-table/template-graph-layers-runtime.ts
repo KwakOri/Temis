@@ -145,6 +145,22 @@ export const v2_getRuntimeLayerTree = (
         node.componentId ??
         graphNode?.meta?.componentId ??
         defaultCardComponentId;
+      const instanceLayerNodes = (node.children ?? []).map((instanceNode, index) => {
+        const instanceId =
+          typeof instanceNode.instanceId === "string"
+            ? instanceNode.instanceId
+            : String(index);
+        const layerId = instanceNode.layerId ?? instanceNode.id;
+        return {
+          id: layerId,
+          label: instanceNode.label,
+          kind: "component" as const,
+          icon: "layers" as const,
+          target: `cardInstance:${instanceId}`,
+          sectionKey: "grid",
+          visibilityMode: instanceNode.visibilityMode ?? "always",
+        };
+      });
       return {
         id: layerId,
         label: node.label,
@@ -155,7 +171,10 @@ export const v2_getRuntimeLayerTree = (
         target: graphNode?.meta?.layerTarget ?? "grid",
         sectionKey: graphNode?.meta?.layerSectionKey ?? "grid",
         visibilityMode: node.visibilityMode ?? "always",
-        children: [createComponentLayerTree(componentId)],
+        children:
+          instanceLayerNodes.length > 0
+            ? instanceLayerNodes
+            : [createComponentLayerTree(componentId)],
       };
     }
 

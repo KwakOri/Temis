@@ -361,7 +361,13 @@ const V2SceneStructureRenderer = ({
     const runtimeCardStructure =
       runtimeCardStructureByComponentId[componentId] ??
       runtimeCardStructureByComponentId[defaultCardComponentId];
-    return <V2TimeTableGrid key={node.id} cardStructure={runtimeCardStructure} />;
+    return (
+      <V2TimeTableGrid
+        key={node.id}
+        cardStructure={runtimeCardStructure}
+        instances={node.children}
+      />
+    );
   };
 
   const renderSceneNode = (

@@ -57,6 +57,7 @@ const v2_ASSET_KEYS = [
 ] as const;
 
 const v2_ASSET_KEY_SET = new Set<string>(v2_ASSET_KEYS);
+const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
 
 const v2_defaultBindingRefFromInputKey = (
   rawKey: string
@@ -496,6 +497,7 @@ const v2_mapSceneNodeKindToGraphType = (
   if (kind === "group") return "group";
   if (kind === "asset") return "image";
   if (kind === "cardCollection") return "cardCollection";
+  if (kind === "componentInstance") return "componentInstance";
   if (kind === "flexibleText") return "flexibleText";
   return "text";
 };
@@ -518,6 +520,212 @@ const v2_collectLayerNodesById = (
     }
   });
   return map;
+};
+
+const v2_areStringArraysEqual = (a: string[], b: string[]): boolean => {
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) return false;
+  }
+  return true;
+};
+
+const v2_toUniqueStringList = (values: string[]): string[] => {
+  return Array.from(new Set(values.filter((value) => value.trim().length > 0)));
+};
+
+const v2_pickComponentIdForCardCollection = ({
+  collectionNode,
+  componentDefinitions,
+}: {
+  collectionNode: V2TemplateGraphNode;
+  componentDefinitions: Record<string, V2TemplateGraphComponentDefinition>;
+}): string => {
+  const metaComponentId =
+    typeof collectionNode.meta?.componentId === "string" &&
+    collectionNode.meta.componentId.trim().length > 0
+      ? collectionNode.meta.componentId
+      : null;
+  if (metaComponentId && componentDefinitions[metaComponentId]) {
+    return metaComponentId;
+  }
+  if (componentDefinitions[v2_DEFAULT_CARD_COMPONENT_ID]) {
+    return v2_DEFAULT_CARD_COMPONENT_ID;
+  }
+  const firstComponentId = Object.keys(componentDefinitions)[0];
+  return firstComponentId ?? v2_DEFAULT_CARD_COMPONENT_ID;
+};
+
+const v2_createCardInstanceNode = ({
+  nodeId,
+  collectionNode,
+  componentId,
+  instanceId,
+}: {
+  nodeId: string;
+  collectionNode: V2TemplateGraphNode;
+  componentId: string;
+  instanceId: string;
+}): V2TemplateGraphNode => {
+  const numericIndex = Number.parseInt(instanceId, 10);
+  const safeIndex =
+    Number.isFinite(numericIndex) && numericIndex >= 0 ? numericIndex : 0;
+
+  return {
+    id: nodeId,
+    type: "componentInstance",
+    label: `Card ${safeIndex + 1}`,
+    parentId: collectionNode.id,
+    childIds: [],
+    layerId: `${collectionNode.layerId ?? collectionNode.id}-instance-${safeIndex + 1}`,
+    visibilityMode: "always",
+    meta: {
+      componentId,
+      instanceId,
+      layerIcon: "layers",
+      layerTarget: `cardInstance:${instanceId}`,
+      layerSectionKey: "grid",
+    },
+  };
+};
+
+const v2_ensureCardCollectionComponentInstances = ({
+  nodes,
+  componentDefinitions,
+  instanceCount = v2_DEFAULT_CARD_INSTANCE_COUNT,
+}: {
+  nodes: Record<string, V2TemplateGraphNode>;
+  componentDefinitions: Record<string, V2TemplateGraphComponentDefinition>;
+  instanceCount?: number;
+}): Record<string, V2TemplateGraphNode> => {
+  const nodeList = Object.values(nodes);
+  if (nodeList.length === 0) return nodes;
+
+  const nextNodes: Record<string, V2TemplateGraphNode> = {
+    ...nodes,
+  };
+  const usedIds = new Set(Object.keys(nextNodes));
+  let hasChanges = false;
+
+  nodeList.forEach((node) => {
+    if (node.type !== "cardCollection") return;
+
+    const componentId = v2_pickComponentIdForCardCollection({
+      collectionNode: node,
+      componentDefinitions,
+    });
+    const childInstanceIdsFromChildList = node.childIds.filter((childId) => {
+      const childNode = nextNodes[childId];
+      return Boolean(childNode && childNode.type === "componentInstance");
+    });
+    const childInstanceIdsFromParent = Object.values(nextNodes)
+      .filter(
+        (candidate) =>
+          candidate.type === "componentInstance" && candidate.parentId === node.id
+      )
+      .map((candidate) => candidate.id);
+    const orderedInstanceIds = v2_toUniqueStringList([
+      ...childInstanceIdsFromChildList,
+      ...childInstanceIdsFromParent,
+    ]);
+
+    const desiredInstanceIds = [...orderedInstanceIds];
+
+    for (
+      let instanceIndex = desiredInstanceIds.length;
+      instanceIndex < instanceCount;
+      instanceIndex += 1
+    ) {
+      const instanceId = String(instanceIndex);
+      let graphNodeId = `${node.id}:instance:${instanceId}`;
+      let suffix = 1;
+      while (usedIds.has(graphNodeId)) {
+        graphNodeId = `${node.id}:instance:${instanceId}:${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(graphNodeId);
+      desiredInstanceIds.push(graphNodeId);
+      nextNodes[graphNodeId] = v2_createCardInstanceNode({
+        nodeId: graphNodeId,
+        collectionNode: node,
+        componentId,
+        instanceId,
+      });
+      hasChanges = true;
+    }
+
+    desiredInstanceIds.forEach((instanceGraphNodeId, index) => {
+      const currentNode = nextNodes[instanceGraphNodeId];
+      if (!currentNode || currentNode.type !== "componentInstance") return;
+
+      const instanceId =
+        typeof currentNode.meta?.instanceId === "string"
+          ? currentNode.meta.instanceId
+          : String(index);
+      const normalized = v2_createCardInstanceNode({
+        nodeId: currentNode.id,
+        collectionNode: node,
+        componentId:
+          typeof currentNode.meta?.componentId === "string" &&
+          currentNode.meta.componentId.trim().length > 0
+            ? currentNode.meta.componentId
+            : componentId,
+        instanceId,
+      });
+
+      const metaChanged =
+        currentNode.meta?.componentId !== normalized.meta?.componentId ||
+        currentNode.meta?.instanceId !== normalized.meta?.instanceId ||
+        currentNode.meta?.layerIcon !== normalized.meta?.layerIcon ||
+        currentNode.meta?.layerTarget !== normalized.meta?.layerTarget ||
+        currentNode.meta?.layerSectionKey !== normalized.meta?.layerSectionKey;
+      if (
+        currentNode.parentId === normalized.parentId &&
+        currentNode.layerId === normalized.layerId &&
+        currentNode.label === normalized.label &&
+        currentNode.visibilityMode === normalized.visibilityMode &&
+        metaChanged === false
+      ) {
+        return;
+      }
+      nextNodes[instanceGraphNodeId] = {
+        ...currentNode,
+        parentId: normalized.parentId,
+        layerId: normalized.layerId,
+        label: normalized.label,
+        visibilityMode: normalized.visibilityMode,
+        meta: {
+          ...(currentNode.meta ?? {}),
+          ...(normalized.meta ?? {}),
+        },
+      };
+      hasChanges = true;
+    });
+
+    const normalizedCollectionMeta = {
+      ...(node.meta ?? {}),
+      componentId,
+      layerTarget: node.meta?.layerTarget ?? "grid",
+      layerSectionKey: node.meta?.layerSectionKey ?? "grid",
+      layerIcon: node.meta?.layerIcon ?? "grid",
+    };
+    const childIdsChanged = !v2_areStringArraysEqual(node.childIds, desiredInstanceIds);
+    const metaChanged =
+      node.meta?.componentId !== normalizedCollectionMeta.componentId ||
+      node.meta?.layerTarget !== normalizedCollectionMeta.layerTarget ||
+      node.meta?.layerSectionKey !== normalizedCollectionMeta.layerSectionKey ||
+      node.meta?.layerIcon !== normalizedCollectionMeta.layerIcon;
+    if (!childIdsChanged && !metaChanged) return;
+
+    nextNodes[node.id] = {
+      ...node,
+      childIds: desiredInstanceIds,
+      meta: normalizedCollectionMeta,
+    };
+    hasChanges = true;
+  });
+
+  return hasChanges ? nextNodes : nodes;
 };
 
 const v2_toLayerGraphMeta = (layerNode?: V2TemplateLayerNode) => {
@@ -574,7 +782,9 @@ const v2_createDefaultNodeGraph = ({
     parentId: string | null
   ): void => {
     const childIds =
-      sceneNode.kind === "group" ? sceneNode.children.map((child) => child.id) : [];
+      sceneNode.kind === "group" || sceneNode.kind === "cardCollection"
+        ? (sceneNode.children ?? []).map((child) => child.id)
+        : [];
 
     const nextNode: V2TemplateGraphNode = {
       id: sceneNode.id,
@@ -641,8 +851,8 @@ const v2_createDefaultNodeGraph = ({
       rootNodeIds.push(nextNode.id);
     }
 
-    if (sceneNode.kind === "group") {
-      sceneNode.children.forEach((child) => {
+    if (sceneNode.kind === "group" || sceneNode.kind === "cardCollection") {
+      (sceneNode.children ?? []).forEach((child) => {
         visitSceneNode(child, sceneNode.id);
       });
     }
@@ -733,10 +943,14 @@ const v2_createDefaultNodeGraph = ({
       instanceTransforms: card.instanceTransforms,
     },
   };
+  const nextNodes = v2_ensureCardCollectionComponentInstances({
+    nodes,
+    componentDefinitions,
+  });
 
   return v2_convertPointerOrderToOrderKeyInGraph({
     rootNodeIds,
-    nodes,
+    nodes: nextNodes,
     componentDefinitions,
   });
 };
@@ -1617,6 +1831,10 @@ const v2_normalizeNodeGraph = (
         )
       )
     : [];
+  const upgradedNodes = v2_ensureCardCollectionComponentInstances({
+    nodes: nextNodes,
+    componentDefinitions: nextComponentDefinitions,
+  });
 
   return v2_sanitizeNodeGraph({
     graph: {
@@ -1624,7 +1842,7 @@ const v2_normalizeNodeGraph = (
         candidateRootNodeIds.length > 0
           ? candidateRootNodeIds
           : fallback.rootNodeIds,
-      nodes: nextNodes,
+      nodes: upgradedNodes,
       componentDefinitions: nextComponentDefinitions,
     },
     fallback,

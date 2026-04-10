@@ -6,6 +6,7 @@ import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-co
 import {
   V2TemplateCardStructure,
   V2TemplateComponentInstanceMode,
+  V2TemplateSceneComponentInstanceNode,
 } from "@/types/time-table/template-render-config";
 import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
@@ -34,9 +35,12 @@ const v2_getCardInstanceTransform = (
         }
       >
     | undefined,
-  index: number
+  index: number,
+  instanceKey?: string
 ): { x: number; y: number; rotateDeg: number; scale: number; opacity: number } => {
-  const transform = transforms?.[String(index)];
+  const transform =
+    (typeof instanceKey === "string" ? transforms?.[instanceKey] : undefined) ??
+    transforms?.[String(index)];
   const x =
     typeof transform?.offsetX === "number" && Number.isFinite(transform.offsetX)
       ? transform.offsetX
@@ -100,9 +104,10 @@ const v2_parseGridEmptySlots = (
   return new Set(uniqueSlots);
 };
 
-const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
-  cardStructure,
-}) => {
+const TimeTableGrid: React.FC<{
+  cardStructure: V2TemplateCardStructure;
+  instances?: V2TemplateSceneComponentInstanceNode[];
+}> = ({ cardStructure, instances }) => {
   const {
     data,
     currentTheme,
@@ -144,10 +149,25 @@ const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
         : "repeat(3, minmax(0, 1fr))";
   const cardInstanceMode = v2_parseCardInstanceMode(cardStructure.instanceMode);
   const cardInstanceTransforms = cardStructure.instanceTransforms;
+  const fallbackInstances = data.map((_, index) => ({
+    id: `card-instance-fallback-${index}`,
+    label: `Card ${index + 1}`,
+    kind: "componentInstance" as const,
+    componentId: "card",
+    instanceId: String(index),
+  }));
+  const runtimeInstances =
+    Array.isArray(instances) && instances.length > 0
+      ? instances.slice(0, Math.max(data.length, instances.length))
+      : fallbackInstances;
 
-  const getCardInstanceWrapperStyle = (index: number): React.CSSProperties => {
+  const getCardInstanceWrapperStyle = (
+    instanceId: string,
+    fallbackIndex: number
+  ): React.CSSProperties => {
     if (cardInstanceMode !== "detached") return {};
-    const transform = v2_getCardInstanceTransform(cardInstanceTransforms, index);
+    const transform =
+      v2_getCardInstanceTransform(cardInstanceTransforms, fallbackIndex, instanceId);
 
     const transformParts: string[] = [];
     if (transform.x !== 0 || transform.y !== 0) {
@@ -181,9 +201,27 @@ const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
           ? "justify-end"
           : "justify-center";
     const isTopRowThree = flex42ThreeRow === "top";
-    const topRowItems = isTopRowThree ? data.slice(0, 3) : data.slice(0, 4);
-    const bottomRowItems = isTopRowThree ? data.slice(3, 7) : data.slice(4, 7);
+    const topRowInstances = isTopRowThree
+      ? runtimeInstances.slice(0, 3)
+      : runtimeInstances.slice(0, 4);
+    const bottomRowInstances = isTopRowThree
+      ? runtimeInstances.slice(3, 7)
+      : runtimeInstances.slice(4, 7);
     const bottomRowIndexOffset = isTopRowThree ? 3 : 4;
+    const resolveDataIndex = (
+      instance: V2TemplateSceneComponentInstanceNode,
+      fallbackIndex: number
+    ) => {
+      const parsedIndex = Number.parseInt(instance.instanceId, 10);
+      if (
+        Number.isFinite(parsedIndex) &&
+        parsedIndex >= 0 &&
+        parsedIndex < data.length
+      ) {
+        return parsedIndex;
+      }
+      return fallbackIndex;
+    };
 
     return (
       <div
@@ -204,18 +242,22 @@ const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
           className={`flex ${isTopRowThree ? threeRowAlignClass : "justify-start"}`}
           style={{ columnGap }}
         >
-          {topRowItems.map((time, localIndex) => {
+          {topRowInstances.map((instance, localIndex) => {
             const index = localIndex;
+            const dataIndex = resolveDataIndex(instance, index);
+            const time = data[dataIndex];
+            const weekDate = weekDates[dataIndex];
+            if (!time || !weekDate) return null;
             return (
               <div
-                key={`flex42-top-row-${time.day}`}
-                style={getCardInstanceWrapperStyle(index)}
+                key={instance.id}
+                style={getCardInstanceWrapperStyle(instance.instanceId, dataIndex)}
               >
                 <V2TimeTableCell
                   time={time}
                   currentTheme={currentTheme}
-                  weekDate={weekDates[index]}
-                  index={index}
+                  weekDate={weekDate}
+                  index={dataIndex}
                   cardStructure={cardStructure}
                 />
               </div>
@@ -226,18 +268,22 @@ const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
           className={`flex ${isTopRowThree ? "justify-start" : threeRowAlignClass}`}
           style={{ columnGap }}
         >
-          {bottomRowItems.map((time, localIndex) => {
+          {bottomRowInstances.map((instance, localIndex) => {
             const index = bottomRowIndexOffset + localIndex;
+            const dataIndex = resolveDataIndex(instance, index);
+            const time = data[dataIndex];
+            const weekDate = weekDates[dataIndex];
+            if (!time || !weekDate) return null;
             return (
               <div
-                key={`flex42-bottom-row-${time.day}`}
-                style={getCardInstanceWrapperStyle(index)}
+                key={instance.id}
+                style={getCardInstanceWrapperStyle(instance.instanceId, dataIndex)}
               >
                 <V2TimeTableCell
                   time={time}
                   currentTheme={currentTheme}
-                  weekDate={weekDates[index]}
-                  index={index}
+                  weekDate={weekDate}
+                  index={dataIndex}
                   cardStructure={cardStructure}
                 />
               </div>
@@ -257,8 +303,19 @@ const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
       continue;
     }
 
-    const time = data[itemIndex];
-    const weekDate = weekDates[itemIndex];
+    const instance = runtimeInstances[itemIndex];
+    if (!instance) {
+      slotNodes.push(<div key={`grid3x3-missing-${slot}`} />);
+      continue;
+    }
+
+    const parsedIndex = Number.parseInt(instance.instanceId, 10);
+    const dataIndex =
+      Number.isFinite(parsedIndex) && parsedIndex >= 0 && parsedIndex < data.length
+        ? parsedIndex
+        : itemIndex;
+    const time = data[dataIndex];
+    const weekDate = weekDates[dataIndex];
 
     if (!time || !weekDate) {
       slotNodes.push(<div key={`grid3x3-missing-${slot}`} />);
@@ -267,14 +324,14 @@ const TimeTableGrid: React.FC<{ cardStructure: V2TemplateCardStructure }> = ({
 
     slotNodes.push(
       <div
-        key={`grid3x3-cell-${slot}`}
-        style={getCardInstanceWrapperStyle(itemIndex)}
+        key={instance.id}
+        style={getCardInstanceWrapperStyle(instance.instanceId, dataIndex)}
       >
         <V2TimeTableCell
           time={time}
           currentTheme={currentTheme}
           weekDate={weekDate}
-          index={itemIndex}
+          index={dataIndex}
           cardStructure={cardStructure}
         />
       </div>

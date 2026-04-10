@@ -117,9 +117,21 @@ const V2TimeTableEditor: React.FC = () => {
             count: 0,
             firstLayerId: null,
           };
+          const instanceCount =
+            Array.isArray(node.children) && node.children.length > 0
+              ? node.children.length
+              : 1;
+          const firstInstanceLayerId =
+            Array.isArray(node.children) && node.children.length > 0
+              ? (node.children[0]?.layerId ?? null)
+              : null;
           instanceStatsByComponentId[componentId] = {
-            count: previous.count + 1,
-            firstLayerId: previous.firstLayerId ?? node.layerId ?? null,
+            count: previous.count + instanceCount,
+            firstLayerId:
+              previous.firstLayerId ??
+              firstInstanceLayerId ??
+              node.layerId ??
+              null,
           };
         }
         if (node.kind === "group") {
@@ -161,7 +173,10 @@ const V2TimeTableEditor: React.FC = () => {
         if (node.layerId) {
           next.add(node.layerId);
         }
-        if (node.kind === "group") {
+        if (
+          (node.kind === "group" || node.kind === "cardCollection") &&
+          node.children
+        ) {
           visit(node.children);
         }
       });
@@ -282,7 +297,13 @@ const V2TimeTableEditor: React.FC = () => {
           ? null
           : (() => {
               const parentSceneNode = sceneNodeByLayerId.get(targetLayerParentId);
-              if (!parentSceneNode || parentSceneNode.kind !== "group") return undefined;
+              if (
+                !parentSceneNode ||
+                (parentSceneNode.kind !== "group" &&
+                  parentSceneNode.kind !== "cardCollection")
+              ) {
+                return undefined;
+              }
               return parentSceneNode.id;
             })();
 

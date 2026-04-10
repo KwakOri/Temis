@@ -51,6 +51,42 @@ interface UseTemplateSceneNodeActionsParams {
   templateColorKeys: readonly V2TemplateColorKey[];
 }
 
+const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
+
+const v2_createCardCollectionInstanceGraphNode = ({
+  nodeId,
+  collectionNodeId,
+  collectionLayerId,
+  componentId,
+  instanceId,
+}: {
+  nodeId: string;
+  collectionNodeId: string;
+  collectionLayerId?: string;
+  componentId: string;
+  instanceId: string;
+}): V2TemplateGraphNode => {
+  const parsed = Number.parseInt(instanceId, 10);
+  const safeIndex = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+
+  return {
+    id: nodeId,
+    type: "componentInstance",
+    label: `Card ${safeIndex + 1}`,
+    parentId: collectionNodeId,
+    childIds: [],
+    layerId: `${collectionLayerId ?? collectionNodeId}-instance-${safeIndex + 1}`,
+    visibilityMode: "always",
+    meta: {
+      componentId,
+      instanceId,
+      layerTarget: `cardInstance:${instanceId}`,
+      layerSectionKey: "grid",
+      layerIcon: "layers",
+    },
+  };
+};
+
 const v2_sceneNodeToGraphNode = (
   sceneNode: V2TemplateSceneNode,
   defaultCardComponentId: string
@@ -96,7 +132,7 @@ const v2_sceneNodeToGraphNode = (
       type: "cardCollection",
       label: sceneNode.label,
       parentId: null,
-      childIds: [],
+      childIds: (sceneNode.children ?? []).map((child) => child.id),
       ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       meta: {
@@ -104,6 +140,25 @@ const v2_sceneNodeToGraphNode = (
         layerTarget: "grid",
         layerSectionKey: "grid",
         layerIcon: "grid",
+      },
+    };
+  }
+
+  if (sceneNode.kind === "componentInstance") {
+    return {
+      id: sceneNode.id,
+      type: "componentInstance",
+      label: sceneNode.label,
+      parentId: null,
+      childIds: [],
+      ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
+      ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+      meta: {
+        componentId: sceneNode.componentId,
+        instanceId: sceneNode.instanceId,
+        layerTarget: `cardInstance:${sceneNode.instanceId}`,
+        layerSectionKey: "grid",
+        layerIcon: "layers",
       },
     };
   }
@@ -145,14 +200,22 @@ const v2_isSceneNodeDescendant = ({
   ancestorNode: V2TemplateSceneNode;
   targetNodeId: string;
 }): boolean => {
-  if (ancestorNode.kind !== "group") return false;
+  if (
+    (ancestorNode.kind !== "group" && ancestorNode.kind !== "cardCollection") ||
+    !ancestorNode.children
+  ) {
+    return false;
+  }
   const queue = [...ancestorNode.children];
 
   while (queue.length > 0) {
     const current = queue.shift();
     if (!current) continue;
     if (current.id === targetNodeId) return true;
-    if (current.kind === "group") {
+    if (
+      (current.kind === "group" || current.kind === "cardCollection") &&
+      current.children
+    ) {
       queue.push(...current.children);
     }
   }
@@ -497,11 +560,36 @@ const useTemplateSceneNodeActions = ({
         sceneNode,
         v2_getDefaultCardComponentId(prev)
       );
-      const nextGraph = v2_graphInsertSiblingAfter({
+      let nextGraph = v2_graphInsertSiblingAfter({
         graph: prev.graph,
         anchorNodeId,
         newNode: nextGraphNode,
       });
+      if (sceneNode.kind === "cardCollection") {
+        const existingIds = new Set(Object.keys(nextGraph.nodes));
+        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
+          const instanceId = String(index);
+          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
+          let suffix = 1;
+          while (existingIds.has(instanceNodeId)) {
+            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
+            suffix += 1;
+          }
+          existingIds.add(instanceNodeId);
+          nextGraph = v2_graphAppendChild({
+            graph: nextGraph,
+            parentId: sceneNode.id,
+            newNode: v2_createCardCollectionInstanceGraphNode({
+              nodeId: instanceNodeId,
+              collectionNodeId: sceneNode.id,
+              collectionLayerId: sceneNode.layerId,
+              componentId:
+                sceneNode.componentId ?? v2_getDefaultCardComponentId(prev),
+              instanceId,
+            }),
+          });
+        }
+      }
       return {
         ...prev,
         graph: nextGraph,
@@ -551,11 +639,36 @@ const useTemplateSceneNodeActions = ({
         sceneNode,
         v2_getDefaultCardComponentId(prev)
       );
-      const nextGraph = v2_graphAppendChild({
+      let nextGraph = v2_graphAppendChild({
         graph: prev.graph,
         parentId: parentNodeId,
         newNode: nextGraphNode,
       });
+      if (sceneNode.kind === "cardCollection") {
+        const existingIds = new Set(Object.keys(nextGraph.nodes));
+        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
+          const instanceId = String(index);
+          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
+          let suffix = 1;
+          while (existingIds.has(instanceNodeId)) {
+            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
+            suffix += 1;
+          }
+          existingIds.add(instanceNodeId);
+          nextGraph = v2_graphAppendChild({
+            graph: nextGraph,
+            parentId: sceneNode.id,
+            newNode: v2_createCardCollectionInstanceGraphNode({
+              nodeId: instanceNodeId,
+              collectionNodeId: sceneNode.id,
+              collectionLayerId: sceneNode.layerId,
+              componentId:
+                sceneNode.componentId ?? v2_getDefaultCardComponentId(prev),
+              instanceId,
+            }),
+          });
+        }
+      }
       return {
         ...prev,
         graph: nextGraph,
@@ -601,8 +714,14 @@ const useTemplateSceneNodeActions = ({
                 nodes: runtimeSceneNodes,
                 nodeId: context.parentId,
               });
-              if (!parentContext || parentContext.node.kind !== "group") return 0;
-              return parentContext.node.children.length;
+              if (
+                !parentContext ||
+                (parentContext.node.kind !== "group" &&
+                  parentContext.node.kind !== "cardCollection")
+              ) {
+                return 0;
+              }
+              return parentContext.node.children?.length ?? 0;
             })();
       if (targetIndex < 0 || targetIndex >= siblingCount) return prev;
 
@@ -644,9 +763,21 @@ const useTemplateSceneNodeActions = ({
               nodes: runtimeSceneNodes,
               nodeId: targetParentId,
             });
+      const sourceIsComponentInstance =
+        sourceContext.node.kind === "componentInstance";
 
       if (targetParentId !== null) {
-        if (!targetParentContext || targetParentContext.node.kind !== "group") {
+        if (
+          !targetParentContext ||
+          (targetParentContext.node.kind !== "group" &&
+            targetParentContext.node.kind !== "cardCollection")
+        ) {
+          return prev;
+        }
+        if (
+          targetParentContext.node.kind === "cardCollection" &&
+          !sourceIsComponentInstance
+        ) {
           return prev;
         }
         if (
@@ -657,6 +788,12 @@ const useTemplateSceneNodeActions = ({
         ) {
           return prev;
         }
+      }
+      if (
+        sourceIsComponentInstance &&
+        (targetParentId === null || targetParentContext?.node.kind !== "cardCollection")
+      ) {
+        return prev;
       }
 
       const sourceParentId = sourceContext.parentId;
