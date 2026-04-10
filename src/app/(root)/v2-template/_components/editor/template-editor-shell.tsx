@@ -558,6 +558,13 @@ const V2TimeTableEditor: React.FC = () => {
       };
     });
   };
+  const moveComponentInstanceLayerToRoot = (layerId: string) => {
+    applyLayerRelocation({
+      layerId,
+      targetParentId: ROOT_LAYER_PARENT_ID,
+      targetIndex: Number.MAX_SAFE_INTEGER,
+    });
+  };
 
   const uiContextValue = useMemo(
     () => ({ state, actions }),
@@ -711,6 +718,9 @@ const V2TimeTableEditor: React.FC = () => {
                       onDetachComponent={detachComponentMaster}
                       onExtractComponentInstanceLayerCopy={
                         extractComponentInstanceLayerCopy
+                      }
+                      onMoveComponentInstanceLayerToRoot={
+                        moveComponentInstanceLayerToRoot
                       }
                       onSelectLayer={({ layerId, editorMode }) => {
                         setIsRightPanelOpen(true);

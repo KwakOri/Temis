@@ -1,4 +1,5 @@
 import {
+  ArrowUpRight,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -69,6 +70,7 @@ interface V2TimeTableLayersPanelProps {
   onDetachComponent?: (componentId: string) => void;
   extractableComponentInstanceLayerIdSet?: Set<string>;
   onExtractComponentInstanceLayerCopy?: (layerId: string) => void;
+  onMoveComponentInstanceLayerToRoot?: (layerId: string) => void;
 }
 
 const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
@@ -193,6 +195,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   onDetachComponent,
   extractableComponentInstanceLayerIdSet,
   onExtractComponentInstanceLayerCopy,
+  onMoveComponentInstanceLayerToRoot,
 }) => {
   const {
     activeHighlightTarget,
@@ -1023,6 +1026,31 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             title="Extract Copy To Root"
           >
             <Copy className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            className={`inline-flex h-5 shrink-0 items-center justify-center rounded border px-1 text-[10px] font-semibold uppercase tracking-wide transition ${
+              isExtractableComponentInstance
+                ? "border-[#3a4d72] bg-[#1a2538] text-[#9ec1ff] hover:border-[#4f8cff] hover:bg-[#203150]"
+                : "hidden"
+            }`}
+            onMouseDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!isExtractableComponentInstance) return;
+              onMoveComponentInstanceLayerToRoot?.(node.id);
+              setDragFeedback({
+                tone: "info",
+                message: "인스턴스를 루트 레이어로 이동했습니다.",
+              });
+            }}
+            draggable={false}
+            aria-label={`${node.label} 인스턴스 루트 이동`}
+            title="Move To Root"
+          >
+            <ArrowUpRight className="h-3 w-3" />
           </button>
           <button
             type="button"
