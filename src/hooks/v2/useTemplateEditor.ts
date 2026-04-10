@@ -40,15 +40,14 @@ export const useTemplateEditor = ({
   const { currentTheme, updateTheme, handleThemeChange, resetTheme } =
     useTemplateTheme(defaultTheme);
 
-  const { saveData, loadPersistedData, clearAllData, autoSave } =
-    useTemplatePersistence({
-      data,
-      globalData,
-      currentTheme,
-      inputSchema,
-      defaultTheme,
-      autoSaveDelay,
-    });
+  const { loadPersistedData, clearAllData } = useTemplatePersistence({
+    data,
+    globalData,
+    currentTheme,
+    inputSchema,
+    defaultTheme,
+    autoSaveDelay,
+  });
 
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -111,14 +110,7 @@ export const useTemplateEditor = ({
     updateTheme,
     handleThemeChange,
     resetTheme,
-    saveData,
-    loadPersistedData,
-    clearAllData,
-    autoSave,
     resetAll,
-    inputSchema,
-    defaultTheme,
-    captureSize,
     isInitialized,
   };
 };

@@ -158,6 +158,7 @@ Move / Extract Copy 분리:
     - `useTemplateData/useTemplateEditor/useTemplatePersistence`에서 v2 전용 데이터/영속성 브릿지 사용
     - v2 전용 persistence를 `formSchema` 기반 저장/로드로 전환해 `CardInputConfig` adapter 의존 제거
     - 레거시 호환 함수 `v2-form-schema-adapter` 제거
+    - `useTemplatePersistence/useTemplateEditor` 반환 API에서 미사용 persistence 핸들 제거
   - cardCollection의 기본 `componentId` 해석을 그래프 기반으로 정리:
     - `"card"` 하드코딩 fallback 축소
     - 런타임/레이어/속성 패널에서 공통 기본 컴포넌트 해석 사용

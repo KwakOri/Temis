@@ -30,7 +30,7 @@ export const useTemplatePersistence = ({
 }: UseTemplatePersistenceOptions) => {
   const formPersistence = useV2FormPersistence(inputSchema, defaultTheme);
 
-  const autoSave = useV2AutoSavePersistence(
+  useV2AutoSavePersistence(
     data,
     globalData,
     currentTheme,
@@ -59,9 +59,7 @@ export const useTemplatePersistence = ({
   }, [inputSchema.fields.length, currentTheme, data, globalData]);
 
   return {
-    saveData: formPersistence.saveData,
     loadPersistedData: formPersistence.loadPersistedData,
     clearAllData: formPersistence.clearAllData,
-    autoSave,
   };
 };
