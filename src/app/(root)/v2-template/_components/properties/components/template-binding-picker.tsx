@@ -42,10 +42,16 @@ const TemplateBindingPicker: React.FC<TemplateBindingPickerProps> = ({
   triggerAriaLabel = "바인딩 선택 열기",
 }) => {
   const [open, setOpen] = React.useState(false);
+  const [searchText, setSearchText] = React.useState("");
   const selectedLabel = React.useMemo(
     () => v2_getNodeBindingLabel(binding, fields),
     [binding, fields]
   );
+  React.useEffect(() => {
+    if (!open) {
+      setSearchText("");
+    }
+  }, [open]);
   const fieldsByScope = React.useMemo(() => {
     const next: Record<V2TemplateFieldScope, V2TemplateFormField[]> = {
       entry: [],
@@ -65,6 +71,32 @@ const TemplateBindingPicker: React.FC<TemplateBindingPickerProps> = ({
     onSelectBinding(value);
     setOpen(false);
   };
+  const normalizedSearch = searchText.trim().toLowerCase();
+  const includesSearch = (value: string) => {
+    if (!normalizedSearch) return true;
+    return value.toLowerCase().includes(normalizedSearch);
+  };
+  const filteredComputedOptions = React.useMemo(() => {
+    return computedOptions.filter((option) =>
+      includesSearch(`computed ${option}`)
+    );
+  }, [computedOptions, normalizedSearch]);
+  const filteredFieldsByScope = React.useMemo(() => {
+    const next: Record<V2TemplateFieldScope, V2TemplateFormField[]> = {
+      entry: [],
+      card: [],
+      global: [],
+    };
+    v2_SCOPE_ORDER.forEach((scope) => {
+      next[scope] = fieldsByScope[scope].filter((field) =>
+        includesSearch(
+          `${field.scope} ${field.key} ${field.label ?? ""} ${field.type}`
+        )
+      );
+    });
+    return next;
+  }, [fieldsByScope, normalizedSearch]);
+  const shouldShowLiteral = includesSearch("literal 직접 텍스트");
 
   const renderOptionButton = (params: {
     value: string;
@@ -126,11 +158,25 @@ const TemplateBindingPicker: React.FC<TemplateBindingPickerProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  setOpen(false);
+                  setSearchText("");
+                }}
                 className="rounded border border-[#3a3d44] bg-[#222936] px-2 py-1 text-xs font-semibold text-[#d0d8e5] hover:bg-[#2a3446]"
               >
                 닫기
               </button>
+            </div>
+            <div className="rounded border border-[#2f3a4c] bg-[#111825] p-2 space-y-2">
+              <label className="block text-[11px] font-semibold uppercase tracking-wide text-[#8fa6cf]">
+                검색
+              </label>
+              <input
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="key / label / type / scope 검색"
+                className="w-full rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-2 text-xs text-gray-100 placeholder:text-[#70819f]"
+              />
             </div>
 
             <details open className="rounded border border-[#2f3a4c] bg-[#111825]">
@@ -138,7 +184,10 @@ const TemplateBindingPicker: React.FC<TemplateBindingPickerProps> = ({
                 Computed
               </summary>
               <div className="space-y-1 border-t border-[#283247] p-2">
-                {computedOptions.map((option) =>
+                {filteredComputedOptions.length === 0 ? (
+                  <p className="text-[11px] text-[#6f86ad]">검색 결과가 없습니다.</p>
+                ) : null}
+                {filteredComputedOptions.map((option) =>
                   renderOptionButton({
                     value: `computed:${option}`,
                     label: `computed / ${option}`,
@@ -156,13 +205,13 @@ const TemplateBindingPicker: React.FC<TemplateBindingPickerProps> = ({
                 {v2_SCOPE_ORDER.map((scope) => (
                   <details key={`binding-scope-${scope}`} open className="rounded border border-[#26334a] bg-[#0e1521]">
                     <summary className="cursor-pointer select-none px-2 py-1.5 text-xs font-semibold text-[#9fb6de]">
-                      {v2_SCOPE_LABELS[scope]} ({fieldsByScope[scope].length})
+                      {v2_SCOPE_LABELS[scope]} ({filteredFieldsByScope[scope].length})
                     </summary>
                     <div className="space-y-1 border-t border-[#22304a] p-2">
-                      {fieldsByScope[scope].length === 0 ? (
+                      {filteredFieldsByScope[scope].length === 0 ? (
                         <p className="text-[11px] text-[#6f86ad]">필드가 없습니다.</p>
                       ) : (
-                        fieldsByScope[scope].map((field) =>
+                        filteredFieldsByScope[scope].map((field) =>
                           renderOptionButton({
                             value: `field:${field.scope}:${field.key}`,
                             label: `field / ${field.scope}.${field.key}`,
@@ -195,11 +244,15 @@ const TemplateBindingPicker: React.FC<TemplateBindingPickerProps> = ({
                 Literal
               </summary>
               <div className="border-t border-[#283247] p-2">
-                {renderOptionButton({
-                  value: "literal",
-                  label: "literal (직접 텍스트)",
-                  selected: bindingSelectValue === "literal",
-                })}
+                {shouldShowLiteral ? (
+                  renderOptionButton({
+                    value: "literal",
+                    label: "literal (직접 텍스트)",
+                    selected: bindingSelectValue === "literal",
+                  })
+                ) : (
+                  <p className="text-[11px] text-[#6f86ad]">검색 결과가 없습니다.</p>
+                )}
               </div>
             </details>
           </div>
