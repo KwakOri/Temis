@@ -1875,7 +1875,9 @@ const v2_sanitizeNodeGraph = ({
       node.parentId = null;
       return;
     }
-    node.parentId = node.parentId && validNodeIds.has(node.parentId) ? node.parentId : null;
+    // Graph-only mode: parentId-only links are not trusted.
+    // Parent-child relation must be expressed by parent's childIds.
+    node.parentId = null;
   });
 
   const computedRootNodeIds = Object.values(nextNodes)
