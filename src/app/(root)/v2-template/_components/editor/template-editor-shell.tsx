@@ -10,7 +10,7 @@ import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui
 import { TTheme } from '@/types/time-table/theme';
 import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
 import {
-  v2_getRuntimeCardStructure,
+  v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
 } from '@/utils/time-table/template-graph-runtime';
 import V2TemplateBuilderForm from '../properties/template-properties-panel';
@@ -211,8 +211,11 @@ const V2TimeTableEditor: React.FC = () => {
     renderConfig.graph.nodes,
     runtimeSceneNodes,
   ]);
-  const runtimeCardStructure = useMemo(
-    () => v2_getRuntimeCardStructure(renderConfig),
+  const runtimeCardStructures = useMemo(
+    () =>
+      Object.keys(renderConfig.graph.componentDefinitions ?? {}).map((componentId) =>
+        v2_getRuntimeCardStructureByComponentId(renderConfig, componentId)
+      ),
     [renderConfig]
   );
   const relocatableLayerIdSet = useMemo(() => {
@@ -237,10 +240,10 @@ const V2TimeTableEditor: React.FC = () => {
     () =>
       collectStyleSectionResolverMapFromRuntime({
         layers: runtimeLayerTree,
-        card: runtimeCardStructure,
+        cards: runtimeCardStructures,
         sceneNodes: runtimeSceneNodes,
       }),
-    [runtimeCardStructure, runtimeLayerTree, runtimeSceneNodes]
+    [runtimeCardStructures, runtimeLayerTree, runtimeSceneNodes]
   );
 
   const orderedIdsByParent = useMemo(() => {
@@ -295,11 +298,15 @@ const V2TimeTableEditor: React.FC = () => {
 
     setRenderConfig((prev) => {
       const prevRuntimeLayerTree = v2_getRuntimeLayerTree(prev);
-      const prevRuntimeCard = v2_getRuntimeCardStructure(prev);
+      const prevRuntimeCards = Object.keys(
+        prev.graph.componentDefinitions ?? {}
+      ).map((componentId) =>
+        v2_getRuntimeCardStructureByComponentId(prev, componentId)
+      );
       const prevRuntimeSceneNodes = v2_getRuntimeSceneNodes(prev);
       const prevRuntimeResolverMap = collectStyleSectionResolverMapFromRuntime({
         layers: prevRuntimeLayerTree,
-        card: prevRuntimeCard,
+        cards: prevRuntimeCards,
         sceneNodes: prevRuntimeSceneNodes,
       });
       return {

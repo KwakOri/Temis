@@ -56,11 +56,11 @@ export const collectLayerNodeMap = (
 
 export const collectStyleSectionResolverMapFromRuntime = ({
   layers,
-  card,
+  cards,
   sceneNodes,
 }: {
   layers: V2TemplateLayerNode[];
-  card: V2TemplateCardStructure;
+  cards: V2TemplateCardStructure[];
   sceneNodes: V2TemplateSceneNode[];
 }): SectionStyleResolverMap => {
   const map: SectionStyleResolverMap = {};
@@ -81,29 +81,32 @@ export const collectStyleSectionResolverMapFromRuntime = ({
   );
 
   const layerNodeMap = collectLayerNodeMap(layers);
-  const cardStyleKeySet = new Set<string>([card.containerStyleKey]);
-  Object.values(card.nodes).forEach((cardNode) => {
-    cardStyleKeySet.add(cardNode.containerStyleKey);
-    if (cardNode.textStyleKey) cardStyleKeySet.add(cardNode.textStyleKey);
-    if (cardNode.wrapperStyleKey) cardStyleKeySet.add(cardNode.wrapperStyleKey);
-    if (cardNode.optionsKey) cardStyleKeySet.add(cardNode.optionsKey);
-  });
+  const cardStyleKeySet = new Set<string>();
+  cards.forEach((card) => {
+    cardStyleKeySet.add(card.containerStyleKey);
+    Object.values(card.nodes).forEach((cardNode) => {
+      cardStyleKeySet.add(cardNode.containerStyleKey);
+      if (cardNode.textStyleKey) cardStyleKeySet.add(cardNode.textStyleKey);
+      if (cardNode.wrapperStyleKey) cardStyleKeySet.add(cardNode.wrapperStyleKey);
+      if (cardNode.optionsKey) cardStyleKeySet.add(cardNode.optionsKey);
+    });
 
-  const cardContainerLayer = layerNodeMap.get(card.containerLayerId);
-  if (cardContainerLayer?.sectionKey) {
-    map[cardContainerLayer.sectionKey] = {
-      scope: "card",
-      key: card.containerStyleKey as CardLayoutStyleKey,
-    };
-  }
+    const cardContainerLayer = layerNodeMap.get(card.containerLayerId);
+    if (cardContainerLayer?.sectionKey) {
+      map[cardContainerLayer.sectionKey] = {
+        scope: "card",
+        key: card.containerStyleKey as CardLayoutStyleKey,
+      };
+    }
 
-  Object.values(card.nodes).forEach((cardNode) => {
-    const layerNode = layerNodeMap.get(cardNode.layerId);
-    if (!layerNode?.sectionKey) return;
-    map[layerNode.sectionKey] = {
-      scope: "card",
-      key: cardNode.containerStyleKey as CardLayoutStyleKey,
-    };
+    Object.values(card.nodes).forEach((cardNode) => {
+      const layerNode = layerNodeMap.get(cardNode.layerId);
+      if (!layerNode?.sectionKey) return;
+      map[layerNode.sectionKey] = {
+        scope: "card",
+        key: cardNode.containerStyleKey as CardLayoutStyleKey,
+      };
+    });
   });
 
   const visitSceneNode = (node: V2TemplateSceneNode) => {
