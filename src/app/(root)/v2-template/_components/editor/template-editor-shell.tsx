@@ -7,6 +7,11 @@ import { TemplateEditorRuntimeProvider } from '@/contexts/v2/template-editor-run
 import { TemplateEditorUIProvider } from '@/contexts/v2/template-editor-ui-context';
 import { useTemplateEditor } from '@/hooks/v2/useTemplateEditor';
 import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui';
+import {
+  V2TemplateGraphNode,
+  V2TemplateGraphNodeStyleRefs,
+  V2TemplateNodeGraph,
+} from '@/types/time-table/template-render-config';
 import { TTheme } from '@/types/time-table/theme';
 import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
 import {
@@ -31,6 +36,7 @@ import V2TimeTablePreview from './preview-canvas';
 import {
   v2_graphInsertSiblingAfter,
   v2_graphMoveNode,
+  v2_graphRemoveNodeSubtree,
 } from '@/utils/time-table/template-graph-editor';
 import {
   v2_runOrderKeyRegressionChecks,
@@ -62,9 +68,104 @@ const useV2TemplateEditorSettings = () => {
 
 const v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX = "scene-component-instance-";
 const v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX = "scene-component-instance-layer-";
+const v2_COMPONENT_NODE_PREFIX = "component-node-";
+const v2_COMPONENT_LAYER_PREFIX = "component-layer-";
+const v2_COMPONENT_ID_PREFIX = "component-";
+const v2_COMPONENT_DEFAULT_LABEL_PREFIX = "Component";
 
 const v2_createComponentInstanceStyleKey = (nodeId: string) =>
   `sceneNode:${nodeId}:style`;
+
+type V2ComponentMutationResult = {
+  ok: boolean;
+  tone: "info" | "error";
+  message: string;
+  selectedComponentId?: string | null;
+  selectedLayerId?: string | null;
+};
+
+const v2_GRAPH_STYLE_REF_KEYS: Array<keyof V2TemplateGraphNodeStyleRefs> = [
+  "styleKey",
+  "containerStyleKey",
+  "textStyleKey",
+  "wrapperStyleKey",
+  "optionsKey",
+];
+
+const v2_cloneForStorage = <T,>(value: T): T => {
+  return JSON.parse(JSON.stringify(value)) as T;
+};
+
+const v2_collectStyleKeysFromRefs = (
+  refs: V2TemplateGraphNodeStyleRefs | undefined
+): string[] => {
+  if (!refs) return [];
+  const keys: string[] = [];
+  v2_GRAPH_STYLE_REF_KEYS.forEach((styleRefKey) => {
+    const value = refs[styleRefKey];
+    if (typeof value === "string" && value.trim().length > 0) {
+      keys.push(value);
+    }
+  });
+  return keys;
+};
+
+const v2_collectSubtreeNodeIds = ({
+  graph,
+  rootNodeId,
+}: {
+  graph: V2TemplateNodeGraph;
+  rootNodeId: string;
+}): string[] => {
+  if (!graph.nodes[rootNodeId]) return [];
+  const collected: string[] = [];
+  const queue = [rootNodeId];
+  const visited = new Set<string>();
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+    if (!nodeId || visited.has(nodeId)) continue;
+    const node = graph.nodes[nodeId];
+    if (!node) continue;
+    visited.add(nodeId);
+    collected.push(nodeId);
+    node.childIds.forEach((childId) => {
+      if (!visited.has(childId)) {
+        queue.push(childId);
+      }
+    });
+  }
+
+  return collected;
+};
+
+const v2_collectGraphLayerIds = (graph: V2TemplateNodeGraph): Set<string> => {
+  const layerIds = new Set<string>();
+  Object.values(graph.nodes).forEach((node) => {
+    if (typeof node.layerId === "string" && node.layerId.trim().length > 0) {
+      layerIds.add(node.layerId);
+    }
+  });
+  return layerIds;
+};
+
+const v2_createUniqueStyleKey = ({
+  baseKey,
+  existingKeys,
+}: {
+  baseKey: string;
+  existingKeys: Set<string>;
+}): string => {
+  const trimmedBase = baseKey.trim().length > 0 ? baseKey.trim() : "style";
+  let nextKey = trimmedBase;
+  let index = 2;
+  while (existingKeys.has(nextKey)) {
+    nextKey = `${trimmedBase}-${index}`;
+    index += 1;
+  }
+  existingKeys.add(nextKey);
+  return nextKey;
+};
 
 const V2TimeTableEditor: React.FC = () => {
   const { renderConfig, inputSchema, captureSize, defaultTheme, setRenderConfig } =
@@ -502,6 +603,446 @@ const V2TimeTableEditor: React.FC = () => {
       };
     });
   };
+  const createComponentMaster = (): V2ComponentMutationResult => {
+    if (!setRenderConfig) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "컴포넌트를 생성할 수 없습니다.",
+      };
+    }
+
+    const existingComponentIds = new Set(
+      Object.keys(renderConfig.graph.componentDefinitions ?? {})
+    );
+    const existingNodeIds = new Set(Object.keys(renderConfig.graph.nodes ?? {}));
+    const existingLayerIds = v2_collectGraphLayerIds(renderConfig.graph);
+    const existingStyleKeys = new Set(Object.keys(renderConfig.layout.card ?? {}));
+
+    const componentId = v2_createUniqueNodeId(
+      v2_COMPONENT_ID_PREFIX,
+      existingComponentIds
+    );
+    const componentIndex = Object.keys(renderConfig.graph.componentDefinitions ?? {})
+      .length + 1;
+    const componentLabel = `${v2_COMPONENT_DEFAULT_LABEL_PREFIX} ${componentIndex}`;
+    const rootNodeId = v2_createUniqueNodeId(
+      v2_COMPONENT_NODE_PREFIX,
+      existingNodeIds
+    );
+    const rootLayerId = v2_createUniqueNodeId(
+      v2_COMPONENT_LAYER_PREFIX,
+      existingLayerIds
+    );
+    const containerStyleKey = v2_createUniqueStyleKey({
+      baseKey: `${componentId}-container`,
+      existingKeys: existingStyleKeys,
+    });
+
+    setRenderConfig((prev) => {
+      if (prev.graph.componentDefinitions[componentId]) return prev;
+      if (prev.graph.nodes[rootNodeId]) return prev;
+
+      const rootNode: V2TemplateGraphNode = {
+        id: rootNodeId,
+        type: "group",
+        label: `${componentLabel} Root`,
+        parentId: null,
+        childIds: [],
+        layerId: rootLayerId,
+        highlightTarget: `component:${componentId}`,
+        styles: {
+          containerStyleKey,
+        },
+        meta: {
+          layerIcon: "group",
+          layerTarget: `component:${componentId}`,
+          layerSectionKey: containerStyleKey,
+          isTemplateComponent: true,
+        },
+      };
+
+      return {
+        ...prev,
+        graph: {
+          ...prev.graph,
+          rootNodeIds: prev.graph.rootNodeIds.includes(rootNodeId)
+            ? prev.graph.rootNodeIds
+            : [...prev.graph.rootNodeIds, rootNodeId],
+          nodes: {
+            ...prev.graph.nodes,
+            [rootNodeId]: rootNode,
+          },
+          componentDefinitions: {
+            ...prev.graph.componentDefinitions,
+            [componentId]: {
+              id: componentId,
+              label: componentLabel,
+              rootNodeId,
+              kind: "custom",
+              instanceMode: "component",
+              instanceTransforms: {},
+            },
+          },
+        },
+        layout: {
+          ...prev.layout,
+          card: {
+            ...prev.layout.card,
+            [containerStyleKey]:
+              prev.layout.card[containerStyleKey] ?? {
+                position: "relative",
+                width: 312,
+                height: 80,
+              },
+          },
+        },
+      };
+    });
+
+    return {
+      ok: true,
+      tone: "info",
+      message: `${componentLabel} 컴포넌트를 생성했습니다.`,
+      selectedComponentId: componentId,
+      selectedLayerId: rootLayerId,
+    };
+  };
+  const duplicateComponentMaster = (
+    sourceComponentId: string
+  ): V2ComponentMutationResult => {
+    if (!setRenderConfig) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "컴포넌트를 복제할 수 없습니다.",
+      };
+    }
+
+    const sourceDefinition = renderConfig.graph.componentDefinitions[sourceComponentId];
+    if (!sourceDefinition) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "복제할 컴포넌트를 찾을 수 없습니다.",
+      };
+    }
+    const sourceRootNode = renderConfig.graph.nodes[sourceDefinition.rootNodeId];
+    if (!sourceRootNode) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "복제할 컴포넌트 루트가 손상되었습니다.",
+      };
+    }
+
+    const subtreeNodeIds = v2_collectSubtreeNodeIds({
+      graph: renderConfig.graph,
+      rootNodeId: sourceDefinition.rootNodeId,
+    });
+    if (subtreeNodeIds.length === 0) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "복제할 컴포넌트 노드가 없습니다.",
+      };
+    }
+
+    const existingComponentIds = new Set(
+      Object.keys(renderConfig.graph.componentDefinitions ?? {})
+    );
+    const existingNodeIds = new Set(Object.keys(renderConfig.graph.nodes ?? {}));
+    const existingLayerIds = v2_collectGraphLayerIds(renderConfig.graph);
+    const existingStyleKeys = new Set(Object.keys(renderConfig.layout.card ?? {}));
+
+    const duplicatedComponentId = v2_createUniqueNodeId(
+      `${sourceComponentId}-copy-`,
+      existingComponentIds
+    );
+    const duplicatedLabel = `${sourceDefinition.label} Copy`;
+    const rootNodeId = v2_createUniqueNodeId(
+      v2_COMPONENT_NODE_PREFIX,
+      existingNodeIds
+    );
+    const rootLayerId = v2_createUniqueNodeId(
+      v2_COMPONENT_LAYER_PREFIX,
+      existingLayerIds
+    );
+
+    const nodeIdMap = new Map<string, string>();
+    nodeIdMap.set(sourceDefinition.rootNodeId, rootNodeId);
+    subtreeNodeIds.forEach((nodeId) => {
+      if (nodeId === sourceDefinition.rootNodeId) return;
+      const nextNodeId = v2_createUniqueNodeId(
+        `${v2_COMPONENT_NODE_PREFIX}${duplicatedComponentId}-`,
+        existingNodeIds
+      );
+      nodeIdMap.set(nodeId, nextNodeId);
+    });
+
+    const layerIdMap = new Map<string, string>();
+    subtreeNodeIds.forEach((nodeId) => {
+      const sourceNode = renderConfig.graph.nodes[nodeId];
+      if (!sourceNode?.layerId) return;
+      const nextLayerId =
+        nodeId === sourceDefinition.rootNodeId
+          ? rootLayerId
+          : v2_createUniqueNodeId(
+              `${v2_COMPONENT_LAYER_PREFIX}${duplicatedComponentId}-`,
+              existingLayerIds
+            );
+      layerIdMap.set(sourceNode.layerId, nextLayerId);
+    });
+
+    const styleKeyMap = new Map<string, string>();
+    subtreeNodeIds.forEach((nodeId) => {
+      const sourceNode = renderConfig.graph.nodes[nodeId];
+      if (!sourceNode) return;
+      v2_collectStyleKeysFromRefs(sourceNode.styles).forEach((sourceStyleKey) => {
+        if (styleKeyMap.has(sourceStyleKey)) return;
+        const nextStyleKey = v2_createUniqueStyleKey({
+          baseKey: `${duplicatedComponentId}-${sourceStyleKey}`,
+          existingKeys: existingStyleKeys,
+        });
+        styleKeyMap.set(sourceStyleKey, nextStyleKey);
+      });
+    });
+
+    setRenderConfig((prev) => {
+      const nextNodes = {
+        ...prev.graph.nodes,
+      };
+      subtreeNodeIds.forEach((sourceNodeId) => {
+        const sourceNode = prev.graph.nodes[sourceNodeId];
+        const duplicatedNodeId = nodeIdMap.get(sourceNodeId);
+        if (!sourceNode || !duplicatedNodeId) return;
+
+        const nextStyles = sourceNode.styles
+          ? {
+              ...sourceNode.styles,
+            }
+          : undefined;
+        if (nextStyles) {
+          v2_GRAPH_STYLE_REF_KEYS.forEach((styleRefKey) => {
+            const sourceStyleKey = nextStyles[styleRefKey];
+            if (
+              typeof sourceStyleKey === "string" &&
+              styleKeyMap.has(sourceStyleKey)
+            ) {
+              nextStyles[styleRefKey] = styleKeyMap.get(sourceStyleKey);
+            }
+          });
+        }
+
+        const nextMeta = sourceNode.meta
+          ? {
+              ...sourceNode.meta,
+            }
+          : undefined;
+        if (
+          nextMeta?.layerSectionKey &&
+          styleKeyMap.has(nextMeta.layerSectionKey)
+        ) {
+          nextMeta.layerSectionKey = styleKeyMap.get(nextMeta.layerSectionKey);
+        }
+        if (sourceNodeId === sourceDefinition.rootNodeId) {
+          if (!nextMeta) {
+            nextNodes[duplicatedNodeId] = {
+              ...sourceNode,
+              id: duplicatedNodeId,
+              label: `${duplicatedLabel} Root`,
+              parentId: null,
+              childIds: sourceNode.childIds
+                .map((childId) => nodeIdMap.get(childId))
+                .filter((childId): childId is string => Boolean(childId)),
+              layerId: rootLayerId,
+              highlightTarget: `component:${duplicatedComponentId}`,
+              ...(nextStyles ? { styles: nextStyles } : {}),
+              meta: {
+                layerIcon: "group",
+                layerTarget: `component:${duplicatedComponentId}`,
+                layerSectionKey:
+                  nextStyles?.containerStyleKey ??
+                  sourceNode.meta?.layerSectionKey ??
+                  `${duplicatedComponentId}-container`,
+                isTemplateComponent: true,
+              },
+            };
+            return;
+          }
+          nextMeta.layerIcon = "group";
+          nextMeta.layerTarget = `component:${duplicatedComponentId}`;
+          nextMeta.isTemplateComponent = true;
+        }
+
+        nextNodes[duplicatedNodeId] = {
+          ...sourceNode,
+          id: duplicatedNodeId,
+          label:
+            sourceNodeId === sourceDefinition.rootNodeId
+              ? `${duplicatedLabel} Root`
+              : sourceNode.label,
+          parentId:
+            sourceNode.parentId === null
+              ? null
+              : (nodeIdMap.get(sourceNode.parentId) ?? null),
+          childIds: sourceNode.childIds
+            .map((childId) => nodeIdMap.get(childId))
+            .filter((childId): childId is string => Boolean(childId)),
+          ...(sourceNode.layerId
+            ? { layerId: layerIdMap.get(sourceNode.layerId) ?? sourceNode.layerId }
+            : {}),
+          ...(nextStyles ? { styles: nextStyles } : {}),
+          ...(nextMeta ? { meta: nextMeta } : {}),
+        };
+      });
+
+      const nextLayoutCard = {
+        ...prev.layout.card,
+      };
+      styleKeyMap.forEach((nextStyleKey, sourceStyleKey) => {
+        const sourceValue = prev.layout.card[sourceStyleKey];
+        if (sourceValue === undefined) return;
+        nextLayoutCard[nextStyleKey] = v2_cloneForStorage(sourceValue);
+      });
+
+      return {
+        ...prev,
+        graph: {
+          ...prev.graph,
+          rootNodeIds: prev.graph.rootNodeIds.includes(rootNodeId)
+            ? prev.graph.rootNodeIds
+            : [...prev.graph.rootNodeIds, rootNodeId],
+          nodes: nextNodes,
+          componentDefinitions: {
+            ...prev.graph.componentDefinitions,
+            [duplicatedComponentId]: {
+              ...sourceDefinition,
+              id: duplicatedComponentId,
+              label: duplicatedLabel,
+              rootNodeId,
+              kind: sourceDefinition.kind ?? "custom",
+              instanceMode: sourceDefinition.instanceMode ?? "component",
+              instanceTransforms: {
+                ...(sourceDefinition.instanceTransforms ?? {}),
+              },
+            },
+          },
+        },
+        layout: {
+          ...prev.layout,
+          card: nextLayoutCard,
+        },
+      };
+    });
+
+    return {
+      ok: true,
+      tone: "info",
+      message: `${sourceDefinition.label} 컴포넌트를 복제했습니다.`,
+      selectedComponentId: duplicatedComponentId,
+      selectedLayerId: rootLayerId,
+    };
+  };
+  const deleteComponentMaster = (
+    componentId: string
+  ): V2ComponentMutationResult => {
+    if (!setRenderConfig) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "컴포넌트를 삭제할 수 없습니다.",
+      };
+    }
+
+    const definition = renderConfig.graph.componentDefinitions[componentId];
+    if (!definition) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "삭제할 컴포넌트를 찾을 수 없습니다.",
+      };
+    }
+
+    const referencedInstanceCount = Object.values(renderConfig.graph.nodes).reduce(
+      (count, node) => {
+        if (node.type !== "componentInstance") return count;
+        const nodeComponentId =
+          typeof node.meta?.componentId === "string"
+            ? node.meta.componentId.trim()
+            : "";
+        return nodeComponentId === componentId ? count + 1 : count;
+      },
+      0
+    );
+    if (referencedInstanceCount > 0) {
+      return {
+        ok: false,
+        tone: "error",
+        message: `사용 중인 인스턴스 ${referencedInstanceCount}개가 있어 삭제할 수 없습니다.`,
+      };
+    }
+
+    const subtreeNodeIds = v2_collectSubtreeNodeIds({
+      graph: renderConfig.graph,
+      rootNodeId: definition.rootNodeId,
+    });
+    if (subtreeNodeIds.length === 0) {
+      return {
+        ok: false,
+        tone: "error",
+        message: "삭제할 컴포넌트 루트를 찾을 수 없습니다.",
+      };
+    }
+
+    const styleKeysToCleanup = new Set<string>();
+    subtreeNodeIds.forEach((nodeId) => {
+      const node = renderConfig.graph.nodes[nodeId];
+      if (!node) return;
+      v2_collectStyleKeysFromRefs(node.styles).forEach((styleKey) => {
+        styleKeysToCleanup.add(styleKey);
+      });
+    });
+
+    setRenderConfig((prev) => {
+      const nextGraph = v2_graphRemoveNodeSubtree(prev.graph, definition.rootNodeId);
+      const remainingStyleKeySet = new Set<string>();
+      Object.values(nextGraph.nodes).forEach((node) => {
+        v2_collectStyleKeysFromRefs(node.styles).forEach((styleKey) => {
+          remainingStyleKeySet.add(styleKey);
+        });
+      });
+
+      const nextLayoutCard = {
+        ...prev.layout.card,
+      };
+      styleKeysToCleanup.forEach((styleKey) => {
+        if (remainingStyleKeySet.has(styleKey)) return;
+        delete nextLayoutCard[styleKey];
+      });
+
+      return {
+        ...prev,
+        graph: nextGraph,
+        layout: {
+          ...prev.layout,
+          card: nextLayoutCard,
+        },
+      };
+    });
+
+    const remainingComponents = runtimeComponentCatalog.filter(
+      (item) => item.id !== componentId && item.rootLayerId
+    );
+    const nextSelected = remainingComponents[0] ?? null;
+    return {
+      ok: true,
+      tone: "info",
+      message: `${definition.label} 컴포넌트를 삭제했습니다.`,
+      selectedComponentId: nextSelected?.id ?? null,
+      selectedLayerId: nextSelected?.rootLayerId ?? null,
+    };
+  };
   const detachComponentMaster = (componentId: string) => {
     if (!setRenderConfig) return;
     setRenderConfig((prev) => {
@@ -771,6 +1312,9 @@ const V2TimeTableEditor: React.FC = () => {
                         applyLayerRelocation(payload);
                       }}
                       onDetachComponent={detachComponentMaster}
+                      onCreateComponent={createComponentMaster}
+                      onDuplicateComponent={duplicateComponentMaster}
+                      onDeleteComponent={deleteComponentMaster}
                       onExtractComponentInstanceLayerCopy={
                         extractComponentInstanceLayerCopy
                       }

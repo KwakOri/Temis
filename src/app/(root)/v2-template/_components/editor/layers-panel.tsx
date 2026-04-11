@@ -12,6 +12,8 @@ import {
   Grid3X3,
   ImageIcon,
   Layers,
+  Plus,
+  Trash2,
   Type,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
@@ -24,6 +26,13 @@ import {
 } from "@/types/time-table/template-render-config";
 
 type V2LayerNode = V2TemplateLayerNode;
+type V2ComponentMutationResult = {
+  ok: boolean;
+  tone: "info" | "error";
+  message: string;
+  selectedComponentId?: string | null;
+  selectedLayerId?: string | null;
+};
 
 const v2_LAYER_ICON_MAP: Record<
   V2TemplateLayerIconKey,
@@ -68,6 +77,9 @@ interface V2TimeTableLayersPanelProps {
     targetIndex: number;
   }) => void;
   onDetachComponent?: (componentId: string) => void;
+  onCreateComponent?: () => V2ComponentMutationResult;
+  onDuplicateComponent?: (componentId: string) => V2ComponentMutationResult;
+  onDeleteComponent?: (componentId: string) => V2ComponentMutationResult;
   extractableComponentInstanceLayerIdSet?: Set<string>;
   onExtractComponentInstanceLayerCopy?: (layerId: string) => void;
   onMoveComponentInstanceLayerToRoot?: (layerId: string) => void;
@@ -193,6 +205,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   canRelocateLayer,
   onRelocateLayers,
   onDetachComponent,
+  onCreateComponent,
+  onDuplicateComponent,
+  onDeleteComponent,
   extractableComponentInstanceLayerIdSet,
   onExtractComponentInstanceLayerCopy,
   onMoveComponentInstanceLayerToRoot,
@@ -254,6 +269,32 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     setSelectedLayerId(componentItem.rootLayerId);
     onSelectLayer?.({
       layerId: componentItem.rootLayerId,
+      editorMode: "master",
+    });
+  };
+  const applyComponentMutationResult = (
+    result: V2ComponentMutationResult | undefined
+  ) => {
+    if (!result) return;
+    setDragFeedback({
+      tone: result.tone,
+      message: result.message,
+    });
+    if (result.selectedComponentId !== undefined) {
+      setSelectedComponentId(result.selectedComponentId);
+    }
+    if (result.selectedLayerId === undefined) return;
+    if (!result.selectedLayerId) {
+      setSelectedLayerId(null);
+      setSelectedLayerIds([]);
+      return;
+    }
+
+    setSelectedLayerId(result.selectedLayerId);
+    setSelectedLayerIds([result.selectedLayerId]);
+    setLastSelectedLayerId(result.selectedLayerId);
+    onSelectLayer?.({
+      layerId: result.selectedLayerId,
       editorMode: "master",
     });
   };
@@ -1207,6 +1248,16 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             )
           ) : (
             <div className="space-y-2">
+              <button
+                type="button"
+                className="flex w-full items-center justify-center gap-1 rounded border border-[#3f6ad8] bg-[#1a2b57] px-2 py-1.5 text-[11px] font-semibold text-[#b9ccff] hover:bg-[#22376f]"
+                onClick={() => {
+                  applyComponentMutationResult(onCreateComponent?.());
+                }}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New Component
+              </button>
               {componentCatalog.length === 0 ? (
                 <div className="rounded border border-[#2f394d] bg-[#151c28] px-2 py-2 text-[11px] text-[#8ca2c8]">
                   등록된 컴포넌트가 없습니다.
@@ -1274,6 +1325,41 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                     >
                       마스터 편집 열기
                     </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center gap-1 rounded border border-[#3a5f9e] bg-[#182643] px-2 py-1 text-[11px] font-semibold text-[#a8c7ff] hover:bg-[#1d2e51]"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          applyComponentMutationResult(
+                            onDuplicateComponent?.(componentItem.id)
+                          );
+                        }}
+                      >
+                        <Copy className="h-3 w-3" />
+                        Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center gap-1 rounded border border-[#8a4f4f] bg-[#2a1b1b] px-2 py-1 text-[11px] font-semibold text-[#f2b7b7] hover:bg-[#352020]"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (
+                            !window.confirm(
+                              `${componentItem.label} 컴포넌트를 삭제할까요?`
+                            )
+                          ) {
+                            return;
+                          }
+                          applyComponentMutationResult(
+                            onDeleteComponent?.(componentItem.id)
+                          );
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </button>
+                    </div>
                     {componentItem.firstInstanceLayerId ? (
                       <button
                         type="button"
