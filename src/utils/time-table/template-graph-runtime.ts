@@ -297,50 +297,6 @@ export const v2_getRuntimeSceneNodes = (
     .filter((node): node is V2TemplateSceneNode => node !== null);
 };
 
-const v2_getSceneCardCollectionComponentId = (
-  renderConfig: V2TemplateRenderConfig
-): string | null => {
-  const graph = renderConfig.graph;
-  if (!graph || !graph.nodes || !Array.isArray(graph.rootNodeIds)) {
-    return null;
-  }
-
-  const validComponentIdSet = new Set(
-    Object.keys(graph.componentDefinitions ?? {})
-  );
-  if (validComponentIdSet.size === 0) return null;
-
-  const visited = new Set<string>();
-  const stack = [...graph.rootNodeIds]
-    .reverse()
-    .map((nodeId) => graph.nodes[nodeId])
-    .filter((node): node is V2TemplateGraphNode => Boolean(node));
-
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node || visited.has(node.id)) continue;
-    visited.add(node.id);
-
-    if (node.type === "cardCollection") {
-      const componentId =
-        typeof node.meta?.componentId === "string"
-          ? node.meta.componentId.trim()
-          : "";
-      if (componentId && validComponentIdSet.has(componentId)) {
-        return componentId;
-      }
-    }
-
-    for (let index = node.childIds.length - 1; index >= 0; index -= 1) {
-      const childNode = graph.nodes[node.childIds[index]];
-      if (!childNode) continue;
-      stack.push(childNode);
-    }
-  }
-
-  return null;
-};
-
 const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
@@ -395,17 +351,4 @@ export const v2_getRuntimeCardStructureByComponentId = (
     nodeOrder: nextNodeOrder,
     nodes: nextNodes,
   };
-};
-
-export const v2_getRuntimeCardStructure = (
-  renderConfig: V2TemplateRenderConfig
-): V2TemplateCardStructure => {
-  const componentId = v2_getSceneCardCollectionComponentId(renderConfig);
-  if (!componentId) {
-    return v2_EMPTY_CARD_STRUCTURE;
-  }
-  return v2_getRuntimeCardStructureByComponentId(
-    renderConfig,
-    componentId
-  );
 };
