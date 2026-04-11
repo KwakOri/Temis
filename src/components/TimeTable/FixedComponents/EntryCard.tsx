@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
 import { TEntry } from "@/types/time-table/data";
+import { SizeProps } from "@/utils/utils";
 import { Trash2 } from "lucide-react";
-import { entryCardVariants } from "./styles";
+import { buttonVariants, entryCardVariants } from "./styles";
 
 interface EntryCardProps {
   entry: TEntry;
@@ -12,6 +13,7 @@ interface EntryCardProps {
   children: React.ReactNode;
   className?: string;
   variant?: "default" | "primary" | "secondary";
+  size?: SizeProps;
 }
 
 export const EntryCard: React.FC<EntryCardProps> = ({
@@ -23,6 +25,7 @@ export const EntryCard: React.FC<EntryCardProps> = ({
   children,
   className,
   variant = "default",
+  size = "sm",
 }) => {
   return (
     <div
@@ -45,7 +48,14 @@ export const EntryCard: React.FC<EntryCardProps> = ({
       {showDeleteButton && showHeader && onDelete && (
         <button
           type="button"
-          className="delete-button h-6 rounded-lg bg-timetable-primary transition-colors flex gap-1 items-center justify-center group hover: cursor-pointer text-xs text-timetable-card-bg font-medium"
+          className={cn(
+            "delete-button transition-colors flex gap-1 items-center justify-center group hover:cursor-pointer text-timetable-card-bg font-medium",
+            buttonVariants({
+              variant: "light",
+              size,
+              fullWidth: true,
+            })
+          )}
           onClick={onDelete}
           aria-label="엔트리 삭제"
         >
