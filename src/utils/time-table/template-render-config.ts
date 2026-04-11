@@ -727,16 +727,18 @@ const v2_ensureCardCollectionComponentInstances = ({
       const childNode = nextNodes[childId];
       return Boolean(childNode && childNode.type === "componentInstance");
     });
-    const childInstanceIdsFromParent = Object.values(nextNodes)
-      .filter(
-        (candidate) =>
-          candidate.type === "componentInstance" && candidate.parentId === node.id
-      )
-      .map((candidate) => candidate.id);
-    const orderedInstanceIds = v2_toUniqueStringList([
-      ...childInstanceIdsFromChildList,
-      ...childInstanceIdsFromParent,
-    ]);
+    const orderedInstanceIds =
+      childInstanceIdsFromChildList.length > 0
+        ? v2_toUniqueStringList(childInstanceIdsFromChildList)
+        : v2_toUniqueStringList(
+            Object.values(nextNodes)
+              .filter(
+                (candidate) =>
+                  candidate.type === "componentInstance" &&
+                  candidate.parentId === node.id
+              )
+              .map((candidate) => candidate.id)
+          );
 
     const desiredInstanceIds = [...orderedInstanceIds];
 
