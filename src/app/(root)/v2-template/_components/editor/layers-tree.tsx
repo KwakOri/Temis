@@ -21,12 +21,19 @@ import {
   V2TemplateLayerNode,
 } from "@/types/time-table/template-render-config";
 import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/time-table/template-scene-structure-messages";
+import {
+  v2_findNodeById,
+  v2_getOrderedChildren,
+  v2_isDescendantLayer,
+  V2LayerParentId,
+  v2_moveLayerBlock,
+  v2_moveLayerNode,
+  v2_ROOT_LAYER_PARENT_ID,
+  V2DropPosition,
+} from "./layers-dnd";
 import { V2LayersComponentItem } from "./layers-components-tab";
 
 type V2LayerNode = V2TemplateLayerNode;
-const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
-type V2LayerParentId = typeof v2_ROOT_LAYER_PARENT_ID | string;
-type V2DropPosition = "before" | "after" | "inside";
 
 const v2_LAYER_ICON_MAP: Record<
   V2TemplateLayerIconKey,
@@ -53,93 +60,6 @@ type V2LayerTreeDropState = {
   position: V2DropPosition;
   blockedReason?: string | null;
 } | null;
-
-const v2_moveLayerNode = (
-  prevIds: string[],
-  dragId: string,
-  dropId: string,
-  dropPosition: "before" | "after"
-): string[] => {
-  const dragIndex = prevIds.indexOf(dragId);
-  const dropIndex = prevIds.indexOf(dropId);
-
-  if (dragIndex < 0 || dropIndex < 0 || dragId === dropId) {
-    return prevIds;
-  }
-
-  const nextIds = [...prevIds];
-  nextIds.splice(dragIndex, 1);
-
-  const targetIndex = nextIds.indexOf(dropId);
-  if (targetIndex < 0) return prevIds;
-  const insertIndex = dropPosition === "before" ? targetIndex : targetIndex + 1;
-  nextIds.splice(insertIndex, 0, dragId);
-
-  return nextIds;
-};
-
-const v2_moveLayerBlock = ({
-  prevIds,
-  draggedIds,
-  dropId,
-  dropPosition,
-}: {
-  prevIds: string[];
-  draggedIds: string[];
-  dropId: string;
-  dropPosition: "before" | "after";
-}): string[] => {
-  if (draggedIds.length === 0) return prevIds;
-  if (draggedIds.includes(dropId)) return prevIds;
-
-  const draggedSet = new Set(draggedIds);
-  const remaining = prevIds.filter((id) => !draggedSet.has(id));
-  const targetIndex = remaining.indexOf(dropId);
-  if (targetIndex < 0) return prevIds;
-
-  const insertIndex = dropPosition === "before" ? targetIndex : targetIndex + 1;
-  const next = [...remaining];
-  next.splice(insertIndex, 0, ...draggedIds);
-  return next;
-};
-
-const v2_findNodeById = (
-  nodes: V2LayerNode[],
-  nodeId: string
-): V2LayerNode | null => {
-  for (const node of nodes) {
-    if (node.id === nodeId) return node;
-    if (!node.children?.length) continue;
-    const found = v2_findNodeById(node.children, nodeId);
-    if (found) return found;
-  }
-  return null;
-};
-
-const v2_isDescendantLayer = ({
-  nodes,
-  ancestorId,
-  targetId,
-}: {
-  nodes: V2LayerNode[];
-  ancestorId: string;
-  targetId: string;
-}): boolean => {
-  const ancestorNode = v2_findNodeById(nodes, ancestorId);
-  if (!ancestorNode?.children?.length) return false;
-
-  const queue = [...ancestorNode.children];
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) continue;
-    if (current.id === targetId) return true;
-    if (current.children?.length) {
-      queue.push(...current.children);
-    }
-  }
-
-  return false;
-};
 
 interface V2LayersTreeProps {
   layerTree: V2LayerNode[];
@@ -225,26 +145,12 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
   const getOrderedChildren = (
     parentId: V2LayerParentId,
     nodes: V2LayerNode[]
-  ): V2LayerNode[] => {
-    const orderedIds = orderedNodeIdsByParent[parentId];
-    if (!orderedIds?.length) return nodes;
-
-    const nodeMap = new Map(nodes.map((node) => [node.id, node]));
-    const orderedNodes: V2LayerNode[] = [];
-
-    orderedIds.forEach((id) => {
-      const node = nodeMap.get(id);
-      if (!node) return;
-      orderedNodes.push(node);
-      nodeMap.delete(id);
+  ): V2LayerNode[] =>
+    v2_getOrderedChildren({
+      orderedNodeIdsByParent,
+      parentId,
+      nodes,
     });
-
-    nodeMap.forEach((node) => {
-      orderedNodes.push(node);
-    });
-
-    return orderedNodes;
-  };
 
   const renderNode = (
     node: V2LayerNode,

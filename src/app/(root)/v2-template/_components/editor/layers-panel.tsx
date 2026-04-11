@@ -4,6 +4,14 @@ import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-r
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/time-table/template-scene-structure-messages";
+import {
+  V2DropPosition,
+  V2LayerParentId,
+  v2_createInitialOrderMap,
+  v2_findNodeById,
+  v2_isDescendantLayer,
+  v2_ROOT_LAYER_PARENT_ID,
+} from "./layers-dnd";
 import V2LayersComponentsTab, {
   V2LayersComponentItem,
 } from "./layers-components-tab";
@@ -47,68 +55,6 @@ interface V2TimeTableLayersPanelProps {
   onExtractComponentInstanceLayerCopy?: (layerId: string) => void;
   onMoveComponentInstanceLayerToRoot?: (layerId: string) => void;
 }
-
-const v2_ROOT_LAYER_PARENT_ID = "__root__" as const;
-type V2LayerParentId = typeof v2_ROOT_LAYER_PARENT_ID | string;
-type V2DropPosition = "before" | "after" | "inside";
-
-const v2_toOrderMap = (
-  parentId: V2LayerParentId,
-  nodes: V2LayerNode[],
-  map: Record<string, string[]>
-) => {
-  map[parentId] = nodes.map((node) => node.id);
-  nodes.forEach((node) => {
-    if (!node.children?.length) return;
-    v2_toOrderMap(node.id, node.children, map);
-  });
-};
-
-const v2_findNodeById = (
-  nodes: V2LayerNode[],
-  nodeId: string
-): V2LayerNode | null => {
-  for (const node of nodes) {
-    if (node.id === nodeId) return node;
-    if (!node.children?.length) continue;
-    const found = v2_findNodeById(node.children, nodeId);
-    if (found) return found;
-  }
-  return null;
-};
-
-const v2_isDescendantLayer = ({
-  nodes,
-  ancestorId,
-  targetId,
-}: {
-  nodes: V2LayerNode[];
-  ancestorId: string;
-  targetId: string;
-}): boolean => {
-  const ancestorNode = v2_findNodeById(nodes, ancestorId);
-  if (!ancestorNode?.children?.length) return false;
-
-  const queue = [...ancestorNode.children];
-  while (queue.length > 0) {
-    const current = queue.shift();
-    if (!current) continue;
-    if (current.id === targetId) return true;
-    if (current.children?.length) {
-      queue.push(...current.children);
-    }
-  }
-
-  return false;
-};
-
-const v2_createInitialOrderMap = (
-  layerTree: V2LayerNode[]
-): Record<string, string[]> => {
-  const initialOrderMap: Record<string, string[]> = {};
-  v2_toOrderMap(v2_ROOT_LAYER_PARENT_ID, layerTree, initialOrderMap);
-  return initialOrderMap;
-};
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   layerTree: layerTreeProp,
