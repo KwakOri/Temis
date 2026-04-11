@@ -1737,10 +1737,7 @@ const v2_normalizeGraphNode = (
 
   const binding =
     nodeRecord.binding !== undefined
-      ? v2_normalizeBindingRef(nodeRecord.binding, {
-          mode: "literal",
-          value: "",
-        })
+      ? v2_normalizeBindingRef(nodeRecord.binding)
       : undefined;
 
   const visibilityMode: V2TemplateVisibilityMode | undefined =
@@ -1983,21 +1980,25 @@ const v2_parseFieldScope = (
 };
 
 const v2_normalizeBindingRef = (
-  candidate: unknown,
-  fallback: V2TemplateCardNodeBinding
+  candidate: unknown
 ): V2TemplateCardNodeBinding => {
+  const defaultBinding: V2TemplateCardNodeBinding = {
+    mode: "literal",
+    value: "",
+  };
+
   if (typeof candidate === "string") {
     return v2_defaultBindingRefFromInputKey(candidate);
   }
 
   if (!v2_isRecord(candidate)) {
-    return fallback;
+    return defaultBinding;
   }
 
   const mode = v2_asString(candidate.mode, "").trim();
   if (mode === "field") {
     const key = v2_asString(candidate.key, "").trim();
-    if (!key) return fallback;
+    if (!key) return defaultBinding;
     return {
       mode: "field",
       scope: v2_parseFieldScope(candidate.scope, "entry"),
@@ -2016,7 +2017,7 @@ const v2_normalizeBindingRef = (
         key: key as V2TemplateComputedBindingKey,
       };
     }
-    return fallback;
+    return defaultBinding;
   }
 
   if (mode === "literal") {
@@ -2026,7 +2027,7 @@ const v2_normalizeBindingRef = (
     };
   }
 
-  return fallback;
+  return defaultBinding;
 };
 
 const v2_normalizeFormSchemaField = (
