@@ -13,7 +13,6 @@ import {
   v2_TEMPLATE_DAY_KEYS,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
-import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
   v2_getRuntimeCardStructureByComponentId,
@@ -25,7 +24,6 @@ import {
   v2_collectSceneNodeStyleKeys,
   v2_collectSceneNodesByLayerId,
   v2_collectSceneTextNodes,
-  v2_collectStructureTargetSectionMaps,
 } from "./model/structure-utils";
 import { v2_collectFormSchemaDiagnostics } from "./model/form-schema-diagnostics";
 import {
@@ -40,8 +38,6 @@ import {
 } from "./model/properties-aggregators";
 import {
   v2_createStyleKeyToSectionKeyMap,
-  v2_isKnownStyleSectionKey,
-  v2_parseStyleSectionKey,
 } from "./model/style-section-utils";
 import {
   v2_applyTemplatePreset,
@@ -80,16 +76,10 @@ import TemplateAutoResizeAlignmentEditor from "./components/template-auto-resize
 import TemplateSelectedPropertiesPanelRouter from "./components/template-selected-properties-panel-router";
 import TemplateStylePresetControls from "./components/template-style-preset-controls";
 import TemplateStyleSectionEditor from "./components/template-style-section-editor";
-import TemplateAssetsTab from "./panels/template-assets-tab";
-import TemplateBuilderTabContentRouter, {
-  type V2BuilderTabId,
-} from "./panels/template-builder-tab-content-router";
 import TemplateBuilderTabs from "./panels/template-builder-tabs";
-import TemplateCanvasTab from "./panels/template-canvas-tab";
-import TemplateDataTab from "./panels/template-data-tab";
-import TemplateExportTab from "./panels/template-export-tab";
+import TemplatePropertiesTabsRenderer from "./panels/properties-tabs-renderer";
+import { type V2BuilderTabId } from "./panels/template-builder-tab-content-router";
 import TemplatePropertiesTab from "./panels/template-properties-tab";
-import TemplateSchemaTab from "./panels/template-schema-tab";
 import TemplateStyleTab from "./panels/template-style-tab";
 import TemplateStyleThemeSettings from "./panels/template-style-theme-settings";
 import useTemplateStyleEditorActions from "./hooks/use-template-style-editor-actions";
@@ -99,6 +89,7 @@ import useTemplateBoilerplateUiEffects from "./hooks/use-template-boilerplate-ui
 import useTemplateCardNodeActions from "./hooks/use-template-card-node-actions";
 import useTemplateFormSchemaActions from "./hooks/use-template-form-schema-actions";
 import useTemplatePropertiesFocusEffects from "./hooks/use-template-properties-focus-effects";
+import useTemplatePropertiesSelectionContext from "./hooks/use-template-properties-selection-context";
 import useTemplateSceneNodeActions from "./hooks/use-template-scene-node-actions";
 import useTemplateSceneNodePropertyPanels from "./hooks/use-template-scene-node-property-panels";
 import useTemplateSimplePropertiesPanel from "./hooks/use-template-simple-properties-panel";
@@ -172,12 +163,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   );
   const [formSchemaError, setFormSchemaError] = useState<string | null>(null);
   const inspectorTabRef = useRef<HTMLDivElement | null>(null);
-  const [selectedPropertiesTarget, setSelectedPropertiesTarget] =
-    useState<V2TemplateHighlightTarget>("grid");
-  const [selectedPropertiesLayerId, setSelectedPropertiesLayerId] =
-    useState<string>("grid");
-  const [selectedPropertiesEditorMode, setSelectedPropertiesEditorMode] =
-    useState<"instance" | "master">("instance");
   const runtimeCardStructuresByComponentId = useMemo(() => {
     const next: Record<
       string,
@@ -201,44 +186,26 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
   );
+  const {
+    selectedPropertiesTarget,
+    setSelectedPropertiesTarget,
+    selectedPropertiesLayerId,
+    setSelectedPropertiesLayerId,
+    selectedPropertiesEditorMode,
+    setSelectedPropertiesEditorMode,
+    structurePropertiesMaps,
+    selectedPropertiesLayerNode,
+    selectedPropertiesSection,
+    selectedPropertiesLabel,
+  } = useTemplatePropertiesSelectionContext({
+    runtimeLayerTree,
+    styleSectionLabels: v2_STYLE_SECTION_LABELS,
+    highlightTargetLabels: v2_HIGHLIGHT_TARGET_LABELS,
+  });
   const runtimeSceneNodes = useMemo(
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
   );
-  const structurePropertiesMaps = useMemo(
-    () => v2_collectStructureTargetSectionMaps(runtimeLayerTree),
-    [runtimeLayerTree]
-  );
-  const selectedPropertiesLayerNode = useMemo(
-    () => structurePropertiesMaps.layerIdToNode[selectedPropertiesLayerId] ?? null,
-    [selectedPropertiesLayerId, structurePropertiesMaps.layerIdToNode]
-  );
-  const selectedPropertiesSection = useMemo(() => {
-    const rawSection = selectedPropertiesLayerNode?.sectionKey;
-    return v2_parseStyleSectionKey(rawSection) ?? null;
-  }, [selectedPropertiesLayerNode]);
-  const selectedPropertiesLabel = useMemo(() => {
-    if (selectedPropertiesLayerNode?.label) {
-      return selectedPropertiesLayerNode.label;
-    }
-    if (!selectedPropertiesSection) {
-      return v2_HIGHLIGHT_TARGET_LABELS[selectedPropertiesTarget];
-    }
-    const knownSection = v2_isKnownStyleSectionKey(selectedPropertiesSection, v2_STYLE_SECTION_LABELS)
-      ? selectedPropertiesSection
-      : null;
-    return (
-      structurePropertiesMaps.sectionToLabel[selectedPropertiesSection] ??
-      (knownSection
-        ? v2_STYLE_SECTION_LABELS[knownSection]
-        : selectedPropertiesSection)
-    );
-  }, [
-    selectedPropertiesLayerNode,
-    selectedPropertiesSection,
-    selectedPropertiesTarget,
-    structurePropertiesMaps.sectionToLabel,
-  ]);
   const cardNodeByLayerId = useMemo(() => {
     const map = new Map<string, V2TemplateCardNode>();
     Object.values(runtimeCardStructuresByComponentId).forEach((structure) => {
@@ -869,50 +836,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     />
   );
 
-  const renderCanvasTab = () => (
-    <TemplateCanvasTab
-      templateWidth={renderConfig.templateSize.width}
-      templateHeight={renderConfig.templateSize.height}
-      defaultTheme={renderConfig.defaultTheme}
-      previewTheme={currentTheme}
-      themeOptions={themeOptions}
-      onUpdateTemplateSize={updateTemplateSize}
-      onChangeDefaultTheme={(nextTheme) => {
-        safeUpdateConfig((prev) => ({
-          ...prev,
-          defaultTheme: nextTheme,
-        }));
-        if (!themeOptions.includes(assetTheme)) {
-          setAssetTheme(nextTheme);
-        }
-      }}
-      onChangePreviewTheme={(nextTheme) =>
-        updateTheme(nextTheme as typeof currentTheme)
-      }
-    />
-  );
-
-  const renderSchemaTab = () => (
-    <TemplateSchemaTab
-      formSchemaError={formSchemaError}
-      diagnostics={formSchemaDiagnostics}
-      fields={renderConfig.formSchema.fields}
-      computedKeys={v2_BINDING_COMPUTED_OPTIONS}
-      scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
-      typeOptions={v2_FORM_FIELD_TYPE_OPTIONS}
-      onAppendField={() =>
-        appendFormField({
-          key: "",
-          scope: "entry",
-          type: "text",
-          placeholder: "새 필드",
-        })
-      }
-      onRemoveField={removeFormFieldAt}
-      onUpdateField={updateFormFieldAt}
-    />
-  );
-
   const renderStyleTab = () => (
     <TemplateStyleTab
       inspectorRef={inspectorTabRef}
@@ -1083,57 +1006,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     </TemplatePropertiesTab>
   );
 
-  const renderAssetsTab = () => (
-    <TemplateAssetsTab
-      assetTheme={assetTheme}
-      themeOptions={themeOptions}
-      renderConfig={renderConfig}
-      preferProfileDummyImage={preferProfileDummyImage}
-      assetKeys={v2_ASSET_KEYS}
-      assetLabels={v2_ASSET_LABELS}
-      setAssetTheme={setAssetTheme}
-      onTogglePreferProfileDummyImage={updatePreferProfileDummyImage}
-      onUploadFile={handleAssetFileUpload}
-      onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
-    />
-  );
-
-  const renderDataTab = () => (
-    <TemplateDataTab
-      fields={renderConfig.formSchema.fields}
-      entryValues={(firstEntry ?? {}) as Record<string, unknown>}
-      cardValues={(firstCard ?? {}) as Record<string, unknown>}
-      globalValues={globalData as Record<string, unknown>}
-      isOffline={Boolean(firstCard?.isOffline)}
-      onChangeField={(scope, key, value) => {
-        if (scope === "entry") {
-          updateFirstEntryField(key, value);
-          return;
-        }
-        if (scope === "card") {
-          updateFirstCardField(key, value);
-          return;
-        }
-        updateGlobalSampleField(key, value);
-      }}
-      onToggleOffline={updateFirstDayOffline}
-    />
-  );
-
-  const renderExportTab = () => (
-    <TemplateExportTab
-      copyState={copyState}
-      onCopyJson={handleCopyJson}
-      onDownloadPreview={() =>
-        downloadImage(
-          renderConfig.templateSize.width,
-          renderConfig.templateSize.height
-        )
-      }
-      onResetData={resetData}
-    />
-  );
-
   return (
     <div className="h-full min-h-0 w-full">
       <div className="v2-dark-form-theme h-full min-h-0 shrink-0 flex flex-col border-l border-[#303848] bg-gray-100 w-full">
@@ -1143,15 +1015,75 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           onSelectTab={setActiveTab}
         />
         <div className="flex-1 overflow-y-auto p-4 h-full bg-timetable-form-bg">
-          <TemplateBuilderTabContentRouter
+          <TemplatePropertiesTabsRenderer
             activeTab={activeTab}
-            renderCanvasTab={renderCanvasTab}
-            renderSchemaTab={renderSchemaTab}
+            renderConfig={renderConfig}
+            currentTheme={currentTheme}
+            themeOptions={themeOptions}
+            assetTheme={assetTheme}
+            setAssetTheme={setAssetTheme}
+            preferProfileDummyImage={preferProfileDummyImage}
+            formSchemaError={formSchemaError}
+            formSchemaDiagnostics={formSchemaDiagnostics}
+            copyState={copyState}
+            entryValues={(firstEntry ?? {}) as Record<string, unknown>}
+            cardValues={(firstCard ?? {}) as Record<string, unknown>}
+            globalValues={globalData as Record<string, unknown>}
+            isOffline={Boolean(firstCard?.isOffline)}
+            fields={renderConfig.formSchema.fields}
+            computedKeys={v2_BINDING_COMPUTED_OPTIONS}
+            scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
+            typeOptions={v2_FORM_FIELD_TYPE_OPTIONS}
+            assetKeys={v2_ASSET_KEYS}
+            assetLabels={v2_ASSET_LABELS}
             renderPropertiesTab={renderPropertiesTab}
             renderStyleTab={renderStyleTab}
-            renderAssetsTab={renderAssetsTab}
-            renderDataTab={renderDataTab}
-            renderExportTab={renderExportTab}
+            onUpdateTemplateSize={updateTemplateSize}
+            onChangeDefaultTheme={(nextTheme) => {
+              safeUpdateConfig((prev) => ({
+                ...prev,
+                defaultTheme: nextTheme,
+              }));
+              if (!themeOptions.includes(assetTheme)) {
+                setAssetTheme(nextTheme);
+              }
+            }}
+            onChangePreviewTheme={(nextTheme) =>
+              updateTheme(nextTheme as typeof currentTheme)
+            }
+            onAppendSchemaField={() =>
+              appendFormField({
+                key: "",
+                scope: "entry",
+                type: "text",
+                placeholder: "새 필드",
+              })
+            }
+            onRemoveSchemaField={removeFormFieldAt}
+            onUpdateSchemaField={updateFormFieldAt}
+            onTogglePreferProfileDummyImage={updatePreferProfileDummyImage}
+            onUploadAssetFile={handleAssetFileUpload}
+            onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
+            onChangeDataField={(scope, key, value) => {
+              if (scope === "entry") {
+                updateFirstEntryField(key, value);
+                return;
+              }
+              if (scope === "card") {
+                updateFirstCardField(key, value);
+                return;
+              }
+              updateGlobalSampleField(key, value);
+            }}
+            onToggleOffline={updateFirstDayOffline}
+            onCopyJson={handleCopyJson}
+            onDownloadPreview={() =>
+              downloadImage(
+                renderConfig.templateSize.width,
+                renderConfig.templateSize.height
+              )
+            }
+            onResetData={resetData}
           />
         </div>
       </div>
