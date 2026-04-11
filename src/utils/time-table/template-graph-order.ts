@@ -78,16 +78,16 @@ export const v2_normalizeGraphSiblingOrder = (
     ids.forEach((id) => alreadyPlacedIds.add(id));
   });
 
-  const fallbackIdsByParent = new Map<string, string[]>();
+  const orphanIdsByParent = new Map<string, string[]>();
   Object.values(graph.nodes).forEach((node) => {
     if (alreadyPlacedIds.has(node.id)) return;
     const parentKey = v2_toParentKey(node.parentId);
-    const current = fallbackIdsByParent.get(parentKey) ?? [];
+    const current = orphanIdsByParent.get(parentKey) ?? [];
     current.push(node.id);
-    fallbackIdsByParent.set(parentKey, current);
+    orphanIdsByParent.set(parentKey, current);
   });
 
-  fallbackIdsByParent.forEach((ids, parentKey) => {
+  orphanIdsByParent.forEach((ids, parentKey) => {
     pushSequence(parentKey === v2_ROOT_PARENT_KEY ? null : parentKey, [...ids].sort());
   });
 
