@@ -524,6 +524,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateSceneComponentInstanceDayKey,
     updateSceneComponentInstanceInstanceId,
     updateSceneComponentInstanceComponentId,
+    updateSceneComponentInstanceBindingOverride,
+    removeSceneComponentInstanceBindingOverride,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,
@@ -919,11 +921,25 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onUpdateSceneCardCollectionComponentId: updateSceneCardCollectionComponentId,
     onSyncSceneCardCollectionChildComponentIds:
       syncSceneCardCollectionChildComponentIds,
+    formFields: renderConfig.formSchema.fields,
+    computedOptions: v2_BINDING_COMPUTED_OPTIONS,
+    parseBindingFromSelectValue: v2_parseNodeBindingFromSelectValue,
+    getComponentBindableNodes: (componentId) => {
+      const structure = runtimeCardStructuresByComponentId[componentId];
+      if (!structure) return [];
+      return structure.nodeOrder
+        .map((nodeId) => structure.nodes[nodeId])
+        .filter((node): node is V2TemplateCardNode => Boolean(node));
+    },
     onUpdateSceneComponentInstanceDayKey: updateSceneComponentInstanceDayKey,
     onUpdateSceneComponentInstanceInstanceId:
       updateSceneComponentInstanceInstanceId,
     onUpdateSceneComponentInstanceComponentId:
       updateSceneComponentInstanceComponentId,
+    onUpdateSceneComponentInstanceBindingOverride:
+      updateSceneComponentInstanceBindingOverride,
+    onRemoveSceneComponentInstanceBindingOverride:
+      removeSceneComponentInstanceBindingOverride,
     onExtractSceneComponentInstanceCopy: ({ nodeId }) =>
       extractSceneComponentInstanceCopy({ nodeId }),
     onMoveSceneComponentInstanceToRoot: (nodeId) =>

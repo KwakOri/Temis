@@ -76,6 +76,8 @@ const useTemplateSceneNodeActions = ({
     updateSceneComponentInstanceDayKey,
     updateSceneComponentInstanceInstanceId,
     updateSceneComponentInstanceComponentId,
+    updateSceneComponentInstanceBindingOverride,
+    removeSceneComponentInstanceBindingOverride,
   } = useTemplateSceneComponentInstanceActions({
     safeUpdateConfig,
   });
@@ -388,6 +390,8 @@ const useTemplateSceneNodeActions = ({
     updateSceneComponentInstanceDayKey,
     updateSceneComponentInstanceInstanceId,
     updateSceneComponentInstanceComponentId,
+    updateSceneComponentInstanceBindingOverride,
+    removeSceneComponentInstanceBindingOverride,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,

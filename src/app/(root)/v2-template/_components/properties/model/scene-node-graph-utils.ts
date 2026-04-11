@@ -147,6 +147,9 @@ export const v2_sceneNodeToGraphNode = (
         componentId: sceneNode.componentId,
         instanceId: sceneNode.instanceId,
         dayKey: sceneNode.dayKey,
+        ...(sceneNode.bindingOverrides
+          ? { bindingOverrides: sceneNode.bindingOverrides }
+          : {}),
         layerTarget: sceneNode.styleKey
           ? `sceneNode:${sceneNode.id}`
           : `cardInstance:${sceneNode.instanceId}`,

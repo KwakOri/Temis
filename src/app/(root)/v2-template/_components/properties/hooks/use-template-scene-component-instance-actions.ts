@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  V2TemplateCardNodeBinding,
   V2TemplateDayKey,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
@@ -205,12 +206,115 @@ const useTemplateSceneComponentInstanceActions = ({
     });
   };
 
+  const updateSceneComponentInstanceBindingOverride = ({
+    nodeId,
+    cardNodeId,
+    binding,
+  }: {
+    nodeId: string;
+    cardNodeId: string;
+    binding: V2TemplateCardNodeBinding;
+  }) => {
+    const normalizedCardNodeId = cardNodeId.trim();
+    if (!normalizedCardNodeId) return;
+
+    safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!nodeContext || nodeContext.node.kind !== "componentInstance") {
+        return prev;
+      }
+
+      const prevGraphNode = prev.graph.nodes[nodeId];
+      if (!prevGraphNode || prevGraphNode.type !== "componentInstance") {
+        return prev;
+      }
+
+      const prevBindingOverrides = prevGraphNode.meta?.bindingOverrides ?? {};
+      const nextBindingOverrides = {
+        ...prevBindingOverrides,
+        [normalizedCardNodeId]: binding,
+      };
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          bindingOverrides: nextBindingOverrides,
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
+  const removeSceneComponentInstanceBindingOverride = ({
+    nodeId,
+    cardNodeId,
+  }: {
+    nodeId: string;
+    cardNodeId: string;
+  }) => {
+    const normalizedCardNodeId = cardNodeId.trim();
+    if (!normalizedCardNodeId) return;
+
+    safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!nodeContext || nodeContext.node.kind !== "componentInstance") {
+        return prev;
+      }
+
+      const prevGraphNode = prev.graph.nodes[nodeId];
+      if (!prevGraphNode || prevGraphNode.type !== "componentInstance") {
+        return prev;
+      }
+      const prevBindingOverrides = prevGraphNode.meta?.bindingOverrides;
+      if (!prevBindingOverrides || !prevBindingOverrides[normalizedCardNodeId]) {
+        return prev;
+      }
+
+      const nextBindingOverrides = {
+        ...prevBindingOverrides,
+      };
+      delete nextBindingOverrides[normalizedCardNodeId];
+
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => {
+        const nextMeta = {
+          ...(node.meta ?? {}),
+        };
+        if (Object.keys(nextBindingOverrides).length > 0) {
+          nextMeta.bindingOverrides = nextBindingOverrides;
+        } else {
+          delete nextMeta.bindingOverrides;
+        }
+        return {
+          ...node,
+          meta: nextMeta,
+        };
+      });
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
   return {
     updateSceneCardCollectionComponentId,
     syncSceneCardCollectionChildComponentIds,
     updateSceneComponentInstanceDayKey,
     updateSceneComponentInstanceInstanceId,
     updateSceneComponentInstanceComponentId,
+    updateSceneComponentInstanceBindingOverride,
+    removeSceneComponentInstanceBindingOverride,
   };
 };
 

@@ -165,6 +165,11 @@ export type V2TemplateNodeBindingRef =
       value: string;
     };
 
+export type V2TemplateComponentInstanceBindingOverrides = Record<
+  string,
+  V2TemplateNodeBindingRef
+>;
+
 export type V2TemplateLayerIconKey =
   | "group"
   | "grid"
@@ -263,6 +268,7 @@ export interface V2TemplateSceneComponentInstanceNode
   instanceId: string;
   dayKey: V2TemplateDayKey;
   styleKey?: V2TemplateSceneStyleKey;
+  bindingOverrides?: V2TemplateComponentInstanceBindingOverrides;
 }
 
 export type V2TemplateSceneNode =
@@ -310,6 +316,7 @@ export interface V2TemplateGraphNodeMeta {
   isTemplateComponent?: boolean;
   containerClassName?: string;
   textClassName?: string;
+  bindingOverrides?: V2TemplateComponentInstanceBindingOverrides;
 }
 
 export interface V2TemplateGraphNode {

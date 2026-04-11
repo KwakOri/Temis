@@ -358,13 +358,28 @@ const V2SceneStructureRenderer = ({
   };
 
   const renderCardCollectionNode = (node: V2TemplateSceneCardCollectionNode) => {
-    if (!node.componentId) return null;
-    const runtimeCardStructure = runtimeCardStructureByComponentId[node.componentId];
+    const preferredComponentId = node.componentId?.trim();
+    const fallbackComponentId =
+      (preferredComponentId &&
+      runtimeCardStructureByComponentId[preferredComponentId]
+        ? preferredComponentId
+        : undefined) ??
+      (node.children ?? [])
+        .map((child) => child.componentId?.trim() ?? "")
+        .find(
+          (componentId) =>
+            componentId.length > 0 &&
+            Boolean(runtimeCardStructureByComponentId[componentId])
+        );
+    if (!fallbackComponentId) return null;
+    const runtimeCardStructure =
+      runtimeCardStructureByComponentId[fallbackComponentId];
     if (!runtimeCardStructure) return null;
     return (
       <V2TimeTableGrid
         key={node.id}
         cardStructure={runtimeCardStructure}
+        cardStructureByComponentId={runtimeCardStructureByComponentId}
         instances={node.children}
       />
     );
@@ -414,6 +429,7 @@ const V2SceneStructureRenderer = ({
           weekDate={weekDate}
           index={dataIndex}
           cardStructure={runtimeCardStructure}
+          bindingOverrides={node.bindingOverrides}
         />
       </div>
     );

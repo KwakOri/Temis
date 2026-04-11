@@ -9,6 +9,7 @@ import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import {
   V2TemplateCardNode,
+  V2TemplateComponentInstanceBindingOverrides,
   V2TemplateCardStructure,
   V2TemplateDayKey,
   V2TemplateCardStyleKey,
@@ -37,6 +38,7 @@ interface TimeTableCellProps {
   dayKeyOverride?: V2TemplateDayKey;
   currentTheme: TTheme;
   cardStructure: V2TemplateCardStructure;
+  bindingOverrides?: V2TemplateComponentInstanceBindingOverrides;
 }
 
 interface OfflineCardProps {
@@ -220,6 +222,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   index,
   currentTheme,
   cardStructure,
+  bindingOverrides,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden, globalData } =
@@ -295,8 +298,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           v2_toCardStyleMap(cardLayoutRecord, node.wrapperStyleKey)
         )
       : {};
+    const effectiveBinding = bindingOverrides?.[node.id] ?? node.binding;
     const nodeText = v2_getCardNodeTextValue({
-      node,
+      node: {
+        ...node,
+        binding: effectiveBinding,
+      },
       dayLabel,
       weekDate,
       isGuerrilla: Boolean(primaryEntry.isGuerrilla),
@@ -325,7 +332,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         typeof nodeOptions.maxFontSize === "number"
           ? nodeOptions.maxFontSize
           : v2_getDefaultMaxFontSizeByBinding({
-              binding: node.binding,
+              binding: effectiveBinding,
               mainTitleMax: renderConfig.maxFontSizes.MAIN_TITLE,
               subTitleMax: renderConfig.maxFontSizes.SUB_TITLE,
             });

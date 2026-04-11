@@ -3,9 +3,13 @@
 import React from "react";
 
 import {
+  V2TemplateCardNode,
+  V2TemplateCardNodeBinding,
+  V2TemplateComputedBindingKey,
   v2_TEMPLATE_DAY_KEYS,
   V2TemplateAssetMap,
   V2TemplateDayKey,
+  V2TemplateFormField,
   V2TemplateSceneAssetNode,
   V2TemplateSceneCardCollectionNode,
   V2TemplateSceneComponentInstanceNode,
@@ -17,6 +21,10 @@ import TemplateSceneAssetProperties from "../components/template-scene-asset-pro
 import TemplateSceneCardCollectionProperties from "../components/template-scene-card-collection-properties";
 import TemplateSceneGroupProperties from "../components/template-scene-group-properties";
 import TemplateSceneNodeStructureControls from "../components/template-scene-node-structure-controls";
+import {
+  v2_getNodeBindingSelectValue,
+  v2_hasNodeBindingField,
+} from "../model/binding-utils";
 import { v2_parseStyleSectionKey } from "../model/style-section-utils";
 
 type V2SceneNodeSectionId = string;
@@ -81,6 +89,13 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     componentId: string
   ) => void;
   onSyncSceneCardCollectionChildComponentIds: (nodeId: string) => void;
+  formFields: V2TemplateFormField[];
+  computedOptions: readonly V2TemplateComputedBindingKey[];
+  parseBindingFromSelectValue: (
+    value: string,
+    currentBinding: V2TemplateCardNodeBinding
+  ) => V2TemplateCardNodeBinding | null;
+  getComponentBindableNodes: (componentId: string) => V2TemplateCardNode[];
   dayKeyOptions: Array<{ value: V2TemplateDayKey; label: string }>;
   onUpdateSceneComponentInstanceDayKey: (
     nodeId: string,
@@ -94,6 +109,15 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     nodeId: string,
     componentId: string
   ) => void;
+  onUpdateSceneComponentInstanceBindingOverride: (params: {
+    nodeId: string;
+    cardNodeId: string;
+    binding: V2TemplateCardNodeBinding;
+  }) => void;
+  onRemoveSceneComponentInstanceBindingOverride: (params: {
+    nodeId: string;
+    cardNodeId: string;
+  }) => void;
   onExtractSceneComponentInstanceCopy: (params: {
     nodeId: string;
     targetParentId?: string | null;
@@ -101,6 +125,23 @@ interface UseTemplateSceneNodePropertyPanelsParams {
   }) => void;
   onMoveSceneComponentInstanceToRoot: (nodeId: string) => void;
 }
+
+const v2_isSameBinding = (
+  left: V2TemplateCardNodeBinding,
+  right: V2TemplateCardNodeBinding
+): boolean => {
+  if (left.mode !== right.mode) return false;
+  if (left.mode === "field" && right.mode === "field") {
+    return left.scope === right.scope && left.key === right.key;
+  }
+  if (left.mode === "computed" && right.mode === "computed") {
+    return left.key === right.key;
+  }
+  if (left.mode === "literal" && right.mode === "literal") {
+    return left.value === right.value;
+  }
+  return false;
+};
 
 const useTemplateSceneNodePropertyPanels = ({
   assetKeys,
@@ -121,10 +162,16 @@ const useTemplateSceneNodePropertyPanels = ({
   onUpdateSceneNodeVisibilityMode,
   onUpdateSceneCardCollectionComponentId,
   onSyncSceneCardCollectionChildComponentIds,
+  formFields,
+  computedOptions,
+  parseBindingFromSelectValue,
+  getComponentBindableNodes,
   dayKeyOptions,
   onUpdateSceneComponentInstanceDayKey,
   onUpdateSceneComponentInstanceInstanceId,
   onUpdateSceneComponentInstanceComponentId,
+  onUpdateSceneComponentInstanceBindingOverride,
+  onRemoveSceneComponentInstanceBindingOverride,
   onExtractSceneComponentInstanceCopy,
   onMoveSceneComponentInstanceToRoot,
 }: UseTemplateSceneNodePropertyPanelsParams) => {
@@ -322,6 +369,10 @@ const useTemplateSceneNodePropertyPanels = ({
       ? node.componentId
       : "";
     const hasComponentOptions = sceneCardCollectionComponentOptions.length > 0;
+    const bindableNodes =
+      selectedComponentId.length > 0
+        ? getComponentBindableNodes(selectedComponentId)
+        : [];
 
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
@@ -416,6 +467,141 @@ const useTemplateSceneNodePropertyPanels = ({
           <p className="text-xs text-amber-300">
             연결된 컴포넌트가 없어 인스턴스를 렌더할 수 없습니다.
           </p>
+        ) : null}
+        {selectedComponentId.length > 0 ? (
+          <div className="rounded border border-[#334154] bg-[#141c28] p-2.5 space-y-2">
+            <p className="text-[11px] font-semibold text-[#c3d7ff]">
+              인스턴스 바인딩 오버라이드
+            </p>
+            <p className="text-[11px] text-[#8fa6cf]">
+              아래 텍스트 오브젝트는 마스터 바인딩을 유지하며, 필요한 항목만
+              인스턴스 단위로 덮어쓸 수 있습니다.
+            </p>
+            <div className="space-y-2">
+              {bindableNodes.map((bindableNode) => {
+                const overrideBinding = node.bindingOverrides?.[bindableNode.id];
+                const effectiveBinding = overrideBinding ?? bindableNode.binding;
+                const bindingSelectValue =
+                  v2_getNodeBindingSelectValue(effectiveBinding);
+                const fieldBindingExists = v2_hasNodeBindingField(
+                  effectiveBinding,
+                  formFields
+                );
+                const hasOverride = Boolean(overrideBinding);
+                return (
+                  <div
+                    key={`component-instance-binding-${node.id}-${bindableNode.id}`}
+                    className="rounded border border-[#2f3a4c] bg-[#101722] p-2 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-[#d9e5ff]">
+                        {bindableNode.label}
+                      </span>
+                      {hasOverride ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onRemoveSceneComponentInstanceBindingOverride({
+                              nodeId: node.id,
+                              cardNodeId: bindableNode.id,
+                            })
+                          }
+                          className="rounded border border-[#48608f] bg-[#1a2a45] px-1.5 py-0.5 text-[10px] font-semibold text-[#c3d7ff] hover:bg-[#22365a]"
+                        >
+                          override 해제
+                        </button>
+                      ) : null}
+                    </div>
+                    <select
+                      value={bindingSelectValue}
+                      onChange={(event) => {
+                        const nextBinding = parseBindingFromSelectValue(
+                          event.target.value,
+                          effectiveBinding
+                        );
+                        if (!nextBinding) return;
+                        if (v2_isSameBinding(nextBinding, bindableNode.binding)) {
+                          onRemoveSceneComponentInstanceBindingOverride({
+                            nodeId: node.id,
+                            cardNodeId: bindableNode.id,
+                          });
+                          return;
+                        }
+                        onUpdateSceneComponentInstanceBindingOverride({
+                          nodeId: node.id,
+                          cardNodeId: bindableNode.id,
+                          binding: nextBinding,
+                        });
+                      }}
+                      className="w-full px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                    >
+                      {computedOptions.map((option) => (
+                        <option
+                          key={`scene-component-instance-computed-${bindableNode.id}-${option}`}
+                          value={`computed:${option}`}
+                        >
+                          computed / {option}
+                        </option>
+                      ))}
+                      {formFields.map((field) => (
+                        <option
+                          key={`scene-component-instance-field-${bindableNode.id}-${field.scope}:${field.key}`}
+                          value={`field:${field.scope}:${field.key}`}
+                        >
+                          field / {field.scope}.{field.key}
+                        </option>
+                      ))}
+                      {effectiveBinding.mode === "field" && !fieldBindingExists ? (
+                        <option
+                          value={`field:${effectiveBinding.scope}:${effectiveBinding.key}`}
+                        >
+                          field / {effectiveBinding.scope}.{effectiveBinding.key}{" "}
+                          (missing)
+                        </option>
+                      ) : null}
+                      <option value="literal">literal (직접 텍스트)</option>
+                    </select>
+                    {effectiveBinding.mode === "literal" ? (
+                      <input
+                        value={effectiveBinding.value}
+                        onChange={(event) => {
+                          const nextBinding: V2TemplateCardNodeBinding = {
+                            mode: "literal",
+                            value: event.target.value,
+                          };
+                          if (v2_isSameBinding(nextBinding, bindableNode.binding)) {
+                            onRemoveSceneComponentInstanceBindingOverride({
+                              nodeId: node.id,
+                              cardNodeId: bindableNode.id,
+                            });
+                            return;
+                          }
+                          onUpdateSceneComponentInstanceBindingOverride({
+                            nodeId: node.id,
+                            cardNodeId: bindableNode.id,
+                            binding: nextBinding,
+                          });
+                        }}
+                        className="w-full px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                        placeholder="표시할 고정 텍스트"
+                      />
+                    ) : null}
+                    {effectiveBinding.mode === "field" && !fieldBindingExists ? (
+                      <p className="text-[11px] text-red-300">
+                        현재 바인딩된 필드가 입력 스키마에 없습니다.
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+              {bindableNodes.length === 0 ? (
+                <div className="rounded border border-[#2f3a4c] bg-[#101722] px-2 py-1.5 text-[11px] text-[#8fa6cf]">
+                  선택된 컴포넌트에서 바인딩 가능한 텍스트 오브젝트를 찾지
+                  못했습니다.
+                </div>
+              ) : null}
+            </div>
+          </div>
         ) : null}
         <button
           type="button"

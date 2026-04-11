@@ -1,8 +1,10 @@
 import {
+  V2TemplateComponentInstanceBindingOverrides,
   v2_TEMPLATE_COLOR_KEYS,
   V2TemplateCardNode,
   V2TemplateCardStructure,
   V2TemplateGraphNode,
+  V2TemplateNodeBindingRef,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetFit,
   V2TemplateSceneNode,
@@ -33,6 +35,76 @@ const v2_toBinding = (node: V2TemplateGraphNode): V2TemplateCardNode["binding"] 
     mode: "literal",
     value: "",
   };
+};
+
+const v2_toBindingRef = (candidate: unknown): V2TemplateNodeBindingRef => {
+  if (!candidate || typeof candidate !== "object") {
+    return {
+      mode: "literal",
+      value: "",
+    };
+  }
+  const record = candidate as Record<string, unknown>;
+  const mode = typeof record.mode === "string" ? record.mode : "";
+
+  if (mode === "field") {
+    const key = typeof record.key === "string" ? record.key.trim() : "";
+    if (!key) {
+      return {
+        mode: "literal",
+        value: "",
+      };
+    }
+    const scope =
+      record.scope === "card" || record.scope === "global"
+        ? record.scope
+        : "entry";
+    return {
+      mode: "field",
+      scope,
+      key,
+    };
+  }
+
+  if (
+    mode === "computed" &&
+    (record.key === "streamingDay" ||
+      record.key === "streamingDate" ||
+      record.key === "streamingTime")
+  ) {
+    return {
+      mode: "computed",
+      key: record.key,
+    };
+  }
+
+  if (mode === "literal") {
+    return {
+      mode: "literal",
+      value: typeof record.value === "string" ? record.value : "",
+    };
+  }
+
+  return {
+    mode: "literal",
+    value: "",
+  };
+};
+
+const v2_toComponentInstanceBindingOverrides = (
+  candidate: unknown
+): V2TemplateComponentInstanceBindingOverrides | undefined => {
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const record = candidate as Record<string, unknown>;
+  const next: V2TemplateComponentInstanceBindingOverrides = {};
+
+  Object.entries(record).forEach(([nodeId, rawBinding]) => {
+    const trimmedNodeId = nodeId.trim();
+    if (!trimmedNodeId) return;
+    next[trimmedNodeId] = v2_toBindingRef(rawBinding);
+  });
+
+  return Object.keys(next).length > 0 ? next : undefined;
 };
 
 const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | null => {
@@ -166,6 +238,9 @@ const v2_buildSceneNodeFromGraph = ({
             : String(index);
         const dayKey =
           v2_parseDayKey(childNode.meta?.dayKey) ?? v2_dayKeyFromIndex(index);
+        const bindingOverrides = v2_toComponentInstanceBindingOverrides(
+          childNode.meta?.bindingOverrides
+        );
         return {
           id: childNode.id,
           label: childNode.label || `Card ${index + 1}`,
@@ -180,6 +255,7 @@ const v2_buildSceneNodeFromGraph = ({
           ...(childNode.styles?.styleKey
             ? { styleKey: childNode.styles.styleKey }
             : {}),
+          ...(bindingOverrides ? { bindingOverrides } : {}),
         };
       });
 
@@ -200,6 +276,9 @@ const v2_buildSceneNodeFromGraph = ({
       componentIdCandidate && validComponentIdSet.has(componentIdCandidate)
         ? componentIdCandidate
         : componentIdCandidate || v2_INVALID_COMPONENT_ID;
+    const bindingOverrides = v2_toComponentInstanceBindingOverrides(
+      graphNode.meta?.bindingOverrides
+    );
     return {
       ...base,
       kind: "componentInstance",
@@ -214,6 +293,7 @@ const v2_buildSceneNodeFromGraph = ({
       ...(graphNode.styles?.styleKey
         ? { styleKey: graphNode.styles.styleKey }
         : {}),
+      ...(bindingOverrides ? { bindingOverrides } : {}),
     };
   }
 

@@ -989,6 +989,9 @@ const v2_createDefaultNodeGraph = ({
           : `cardInstance:${sceneNode.instanceId}`,
         layerSectionKey: sceneNode.styleKey ?? "grid",
         layerIcon: "layers",
+        ...(sceneNode.bindingOverrides
+          ? { bindingOverrides: sceneNode.bindingOverrides }
+          : {}),
       };
     } else if (sceneNode.kind === "text" || sceneNode.kind === "flexibleText") {
       nextNode.binding = sceneNode.binding;
@@ -1754,6 +1757,19 @@ const v2_normalizeGraphNodeMeta = (
   }
   if (typeof candidate.textClassName === "string") {
     next.textClassName = candidate.textClassName;
+  }
+  if (v2_isRecord(candidate.bindingOverrides)) {
+    const normalizedBindingOverrides: NonNullable<
+      NonNullable<V2TemplateGraphNode["meta"]>["bindingOverrides"]
+    > = {};
+    Object.entries(candidate.bindingOverrides).forEach(([nodeId, rawBinding]) => {
+      const trimmedNodeId = nodeId.trim();
+      if (!trimmedNodeId) return;
+      normalizedBindingOverrides[trimmedNodeId] = v2_normalizeBindingRef(rawBinding);
+    });
+    if (Object.keys(normalizedBindingOverrides).length > 0) {
+      next.bindingOverrides = normalizedBindingOverrides;
+    }
   }
 
   return Object.keys(next).length > 0 ? next : undefined;
