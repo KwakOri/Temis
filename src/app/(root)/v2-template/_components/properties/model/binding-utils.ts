@@ -43,7 +43,13 @@ export const v2_getNodeBindingLabel = (
     const exists = fields.some(
       (field) => field.scope === binding.scope && field.key === binding.key
     );
-    return `field / ${binding.scope}.${binding.key}${exists ? "" : " (missing)"}`;
+    const entryIndexSuffix =
+      binding.scope === "entry" && binding.entrySelector?.mode === "index"
+        ? ` [entry ${binding.entrySelector.index + 1}]`
+        : "";
+    return `field / ${binding.scope}.${binding.key}${entryIndexSuffix}${
+      exists ? "" : " (missing)"
+    }`;
   }
 
   return "literal (직접 텍스트)";
@@ -110,10 +116,18 @@ export const v2_parseNodeBindingFromSelectValue = (
     if (scope !== "entry" && scope !== "card" && scope !== "global") {
       return null;
     }
+    const entrySelector =
+      scope === "entry" &&
+      currentBinding.mode === "field" &&
+      currentBinding.scope === "entry" &&
+      currentBinding.entrySelector?.mode === "index"
+        ? currentBinding.entrySelector
+        : undefined;
     return {
       mode: "field",
       scope,
       key,
+      ...(entrySelector ? { entrySelector } : {}),
     };
   }
 

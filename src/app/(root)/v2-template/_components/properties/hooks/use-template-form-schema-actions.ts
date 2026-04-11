@@ -38,11 +38,24 @@ const useTemplateFormSchemaActions = ({
           node.binding.scope === scope &&
           node.binding.key === key;
         if (!shouldRewrite) return [nodeId, node];
+        const entrySelector =
+          replaceWith.mode === "field" &&
+          replaceWith.scope === "entry" &&
+          node.binding?.mode === "field" &&
+          node.binding.scope === "entry"
+            ? node.binding.entrySelector
+            : undefined;
         return [
           nodeId,
           {
             ...node,
-            binding: replaceWith,
+            binding:
+              replaceWith.mode === "field"
+                ? {
+                    ...replaceWith,
+                    ...(entrySelector ? { entrySelector } : {}),
+                  }
+                : replaceWith,
           },
         ];
       })

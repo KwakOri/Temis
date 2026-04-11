@@ -96,16 +96,33 @@ const v2_toTextValue = (value: unknown): string | null => {
   return null;
 };
 
+const v2_resolveEntryFromBinding = ({
+  binding,
+  entries,
+}: {
+  binding: V2TemplateCardNode["binding"];
+  entries: Array<Record<string, unknown>>;
+}): Record<string, unknown> => {
+  if (binding.mode !== "field" || binding.scope !== "entry") {
+    return entries[0] ?? {};
+  }
+  const preferredIndex =
+    binding.entrySelector?.mode === "index" ? binding.entrySelector.index : 0;
+  if (!Number.isFinite(preferredIndex)) {
+    return entries[0] ?? {};
+  }
+  const safeIndex = Math.max(0, Math.floor(preferredIndex));
+  return entries[safeIndex] ?? entries[0] ?? {};
+};
+
 const v2_getCardNodeTextValue = ({
   node,
   dayLabel,
   weekDate,
   isGuerrilla,
-  primaryEntry,
+  selectedEntry,
   cardData,
   entryTime,
-  entryMainTitle,
-  entrySubTitle,
   placeholdersByScope,
   globalData,
 }: {
@@ -113,11 +130,9 @@ const v2_getCardNodeTextValue = ({
   dayLabel: string;
   weekDate: Date;
   isGuerrilla: boolean;
-  primaryEntry: Record<string, unknown>;
+  selectedEntry: Record<string, unknown>;
   cardData: Record<string, unknown>;
   entryTime: string;
-  entryMainTitle: string;
-  entrySubTitle: string;
   placeholdersByScope: Record<string, Record<string, string>>;
   globalData: Record<string, unknown>;
 }): string => {
@@ -132,6 +147,7 @@ const v2_getCardNodeTextValue = ({
   }
 
   if (node.binding.key === "mainTitle") {
+    const entryMainTitle = v2_toTextValue(selectedEntry.mainTitle) ?? "";
     const knownMainTitle =
       entryMainTitle ||
       placeholdersByScope.entry.mainTitle ||
@@ -141,6 +157,7 @@ const v2_getCardNodeTextValue = ({
   }
 
   if (node.binding.key === "subTitle") {
+    const entrySubTitle = v2_toTextValue(selectedEntry.subTitle) ?? "";
     const knownSubTitle =
       entrySubTitle ||
       placeholdersByScope.entry.subTitle ||
@@ -151,7 +168,7 @@ const v2_getCardNodeTextValue = ({
 
   const source =
     node.binding.scope === "entry"
-      ? primaryEntry
+      ? selectedEntry
       : node.binding.scope === "card"
         ? cardData
         : node.binding.scope === "global"
@@ -267,8 +284,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   const primaryEntry = time.entries?.[0] || {};
   const entryTime = (primaryEntry.time as string) || "09:00";
-  const entryMainTitle = (primaryEntry.mainTitle as string) || "";
-  const entrySubTitle = (primaryEntry.subTitle as string) || "";
 
   const renderCardNode = (nodeId: string) => {
     const node = cardStructure.nodes[nodeId];
@@ -299,6 +314,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         )
       : {};
     const effectiveBinding = bindingOverrides?.[node.id] ?? node.binding;
+    const selectedEntry = v2_resolveEntryFromBinding({
+      binding: effectiveBinding,
+      entries: (time.entries ?? []) as Array<Record<string, unknown>>,
+    });
     const nodeText = v2_getCardNodeTextValue({
       node: {
         ...node,
@@ -307,11 +326,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       dayLabel,
       weekDate,
       isGuerrilla: Boolean(primaryEntry.isGuerrilla),
-      primaryEntry: primaryEntry as Record<string, unknown>,
+      selectedEntry,
       cardData: time as Record<string, unknown>,
       entryTime,
-      entryMainTitle,
-      entrySubTitle,
       placeholdersByScope,
       globalData: globalData as Record<string, unknown>,
     });

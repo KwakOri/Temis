@@ -2047,6 +2047,20 @@ const v2_parseFieldScope = (
   return fallback;
 };
 
+const v2_normalizeEntrySelector = (
+  candidate: unknown
+): { mode: "index"; index: number } | undefined => {
+  if (!v2_isRecord(candidate)) return undefined;
+  if (candidate.mode !== "index") return undefined;
+  const parsedIndex = Number(candidate.index);
+  if (!Number.isFinite(parsedIndex)) return undefined;
+  const index = Math.max(0, Math.floor(parsedIndex));
+  return {
+    mode: "index",
+    index,
+  };
+};
+
 const v2_normalizeBindingRef = (
   candidate: unknown
 ): V2TemplateCardNodeBinding => {
@@ -2067,10 +2081,16 @@ const v2_normalizeBindingRef = (
   if (mode === "field") {
     const key = v2_asString(candidate.key, "").trim();
     if (!key) return defaultBinding;
+    const scope = v2_parseFieldScope(candidate.scope, "entry");
+    const entrySelector =
+      scope === "entry"
+        ? v2_normalizeEntrySelector(candidate.entrySelector)
+        : undefined;
     return {
       mode: "field",
-      scope: v2_parseFieldScope(candidate.scope, "entry"),
+      scope,
       key,
+      ...(entrySelector ? { entrySelector } : {}),
     };
   }
 

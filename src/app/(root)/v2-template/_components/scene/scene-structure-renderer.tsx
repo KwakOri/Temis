@@ -203,6 +203,7 @@ const V2SceneStructureRenderer = ({
         streamingTime: firstTimeLabel,
       },
       entrySource: firstEntry,
+      entrySources: (firstCard?.entries as Record<string, unknown>[] | undefined) ?? [],
       cardSource: firstCard,
       globalSource: globalData as Record<string, unknown>,
     });

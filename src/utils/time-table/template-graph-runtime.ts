@@ -59,10 +59,25 @@ const v2_toBindingRef = (candidate: unknown): V2TemplateNodeBindingRef => {
       record.scope === "card" || record.scope === "global"
         ? record.scope
         : "entry";
+    const entrySelector =
+      scope === "entry" &&
+      record.entrySelector &&
+      typeof record.entrySelector === "object" &&
+      (record.entrySelector as Record<string, unknown>).mode === "index" &&
+      Number.isFinite(Number((record.entrySelector as Record<string, unknown>).index))
+        ? {
+            mode: "index" as const,
+            index: Math.max(
+              0,
+              Math.floor(Number((record.entrySelector as Record<string, unknown>).index))
+            ),
+          }
+        : undefined;
     return {
       mode: "field",
       scope,
       key,
+      ...(entrySelector ? { entrySelector } : {}),
     };
   }
 

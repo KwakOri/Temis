@@ -50,6 +50,7 @@ export const v2_resolveSceneTextNodeValue = ({
   fallbackValue,
   computedValues,
   entrySource,
+  entrySources,
   cardSource,
   globalSource,
 }: {
@@ -57,6 +58,7 @@ export const v2_resolveSceneTextNodeValue = ({
   fallbackValue: string;
   computedValues?: Partial<Record<V2TemplateComputedBindingKey, string>>;
   entrySource?: Record<string, unknown>;
+  entrySources?: Array<Record<string, unknown>>;
   cardSource?: Record<string, unknown>;
   globalSource?: Record<string, unknown>;
 }): string => {
@@ -69,9 +71,23 @@ export const v2_resolveSceneTextNodeValue = ({
     return typeof computed === "string" ? computed : fallbackValue;
   }
 
+  const resolvedEntrySource = (() => {
+    if (node.binding.mode !== "field" || node.binding.scope !== "entry") {
+      return entrySource;
+    }
+    const preferredIndex =
+      node.binding.entrySelector?.mode === "index"
+        ? node.binding.entrySelector.index
+        : 0;
+    const normalizedIndex = Number.isFinite(preferredIndex)
+      ? Math.max(0, Math.floor(preferredIndex))
+      : 0;
+    return entrySources?.[normalizedIndex] ?? entrySource;
+  })();
+
   const source =
     node.binding.scope === "entry"
-      ? entrySource
+      ? resolvedEntrySource
       : node.binding.scope === "card"
         ? cardSource
         : globalSource;

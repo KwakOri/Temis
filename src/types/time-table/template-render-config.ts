@@ -150,11 +150,17 @@ export type V2TemplateComputedBindingKey =
   | "streamingDate"
   | "streamingTime";
 
+export interface V2TemplateEntrySelector {
+  mode: "index";
+  index: number;
+}
+
 export type V2TemplateNodeBindingRef =
   | {
       mode: "field";
       scope: V2TemplateFieldScope;
       key: string;
+      entrySelector?: V2TemplateEntrySelector;
     }
   | {
       mode: "computed";

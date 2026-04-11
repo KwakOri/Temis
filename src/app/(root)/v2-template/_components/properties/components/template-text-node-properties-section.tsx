@@ -45,6 +45,7 @@ interface TemplateTextNodePropertiesSectionProps {
   onClickVisibility?: () => void;
   onSelectBinding: (value: string) => void;
   onChangeLiteral: (value: string) => void;
+  onChangeEntrySelectorIndex: (index: number) => void;
   onChangeDraftKey: (value: string) => void;
   onChangeDraftScope: (scope: V2TemplateFieldScope) => void;
   onCreateField: () => void;
@@ -83,6 +84,7 @@ const TemplateTextNodePropertiesSection: React.FC<
   onClickVisibility,
   onSelectBinding,
   onChangeLiteral,
+  onChangeEntrySelectorIndex,
   onChangeDraftKey,
   onChangeDraftScope,
   onCreateField,
@@ -119,6 +121,7 @@ const TemplateTextNodePropertiesSection: React.FC<
         fieldBindingExists={fieldBindingExists}
         onSelectBinding={onSelectBinding}
         onChangeLiteral={onChangeLiteral}
+        onChangeEntrySelectorIndex={onChangeEntrySelectorIndex}
         onChangeDraftKey={onChangeDraftKey}
         onChangeDraftScope={onChangeDraftScope}
         onCreateField={onCreateField}

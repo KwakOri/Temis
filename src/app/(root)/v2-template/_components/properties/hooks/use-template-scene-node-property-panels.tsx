@@ -133,7 +133,19 @@ const v2_isSameBinding = (
 ): boolean => {
   if (left.mode !== right.mode) return false;
   if (left.mode === "field" && right.mode === "field") {
-    return left.scope === right.scope && left.key === right.key;
+    const leftEntryIndex =
+      left.scope === "entry" && left.entrySelector?.mode === "index"
+        ? left.entrySelector.index
+        : undefined;
+    const rightEntryIndex =
+      right.scope === "entry" && right.entrySelector?.mode === "index"
+        ? right.entrySelector.index
+        : undefined;
+    return (
+      left.scope === right.scope &&
+      left.key === right.key &&
+      leftEntryIndex === rightEntryIndex
+    );
   }
   if (left.mode === "computed" && right.mode === "computed") {
     return left.key === right.key;
@@ -565,6 +577,48 @@ const useTemplateSceneNodePropertyPanels = ({
                         className="w-full px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
                         placeholder="표시할 고정 텍스트"
                       />
+                    ) : null}
+                    {effectiveBinding.mode === "field" &&
+                    effectiveBinding.scope === "entry" ? (
+                      <div className="grid grid-cols-2 items-center gap-2">
+                        <label className="text-[11px] text-[#8fa6cf]">Entry 인덱스</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={
+                            effectiveBinding.entrySelector?.mode === "index"
+                              ? effectiveBinding.entrySelector.index
+                              : 0
+                          }
+                          onChange={(event) => {
+                            const index = Math.max(
+                              0,
+                              Math.floor(Number(event.target.value || "0"))
+                            );
+                            const nextBinding: V2TemplateCardNodeBinding = {
+                              ...effectiveBinding,
+                              entrySelector: {
+                                mode: "index",
+                                index,
+                              },
+                            };
+                            if (v2_isSameBinding(nextBinding, bindableNode.binding)) {
+                              onRemoveSceneComponentInstanceBindingOverride({
+                                nodeId: node.id,
+                                cardNodeId: bindableNode.id,
+                              });
+                              return;
+                            }
+                            onUpdateSceneComponentInstanceBindingOverride({
+                              nodeId: node.id,
+                              cardNodeId: bindableNode.id,
+                              binding: nextBinding,
+                            });
+                          }}
+                          className="w-full rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs text-gray-100"
+                        />
+                      </div>
                     ) : null}
                     {effectiveBinding.mode === "field" && !fieldBindingExists ? (
                       <p className="text-[11px] text-red-300">

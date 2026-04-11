@@ -281,6 +281,18 @@ const useTemplateBoundTextNodePropertyPanels = ({
             value,
           })
         }
+        onChangeEntrySelectorIndex={(index) => {
+          if (node.binding.mode !== "field" || node.binding.scope !== "entry") {
+            return;
+          }
+          onUpdateCardNodeBinding(node.id, {
+            ...node.binding,
+            entrySelector: {
+              mode: "index",
+              index: Math.max(0, Math.floor(index)),
+            },
+          });
+        }}
         onChangeDraftKey={(value) => onUpdateNodeNewFieldDraft(node.id, { key: value })}
         onChangeDraftScope={(scope) =>
           onUpdateNodeNewFieldDraft(node.id, { scope })
@@ -377,6 +389,18 @@ const useTemplateBoundTextNodePropertyPanels = ({
             value,
           })
         }
+        onChangeEntrySelectorIndex={(index) => {
+          if (node.binding.mode !== "field" || node.binding.scope !== "entry") {
+            return;
+          }
+          onUpdateSceneTextNodeBinding(node.id, {
+            ...node.binding,
+            entrySelector: {
+              mode: "index",
+              index: Math.max(0, Math.floor(index)),
+            },
+          });
+        }}
         onChangeDraftKey={(value) => onUpdateNodeNewFieldDraft(node.id, { key: value })}
         onChangeDraftScope={(scope) =>
           onUpdateNodeNewFieldDraft(node.id, { scope })
