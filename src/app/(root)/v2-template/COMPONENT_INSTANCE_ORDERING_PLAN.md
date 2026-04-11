@@ -277,8 +277,8 @@
    - `layers-dnd.ts` (완료)
    - `components-tab.tsx`
 3. `template-properties-panel.tsx` 분해
-   - `properties-selection-context.ts`
-   - `properties-tabs-renderer.tsx`
+   - `properties-selection-context.ts` (완료)
+   - `properties-tabs-renderer.tsx` (완료)
    - `properties-aggregators.ts` (완료)
 
 영향 파일(예상):
