@@ -647,6 +647,8 @@ const v2_toUniqueStringList = (values: string[]): string[] => {
   return Array.from(new Set(values.filter((value) => value.trim().length > 0)));
 };
 
+const v2_DEFAULT_CARD_COLLECTION_INSTANCE_COUNT = 7;
+
 const v2_pickComponentIdForCardCollection = ({
   collectionNode,
   componentDefinitions,
@@ -698,6 +700,67 @@ const v2_createCardInstanceNode = ({
       layerSectionKey: "grid",
     },
   };
+};
+
+const v2_seedDefaultCardCollectionInstances = ({
+  nodes,
+  componentDefinitions,
+  instanceCount = v2_DEFAULT_CARD_COLLECTION_INSTANCE_COUNT,
+}: {
+  nodes: Record<string, V2TemplateGraphNode>;
+  componentDefinitions: Record<string, V2TemplateGraphComponentDefinition>;
+  instanceCount?: number;
+}): Record<string, V2TemplateGraphNode> => {
+  const nextNodes: Record<string, V2TemplateGraphNode> = {
+    ...nodes,
+  };
+  const usedIds = new Set(Object.keys(nextNodes));
+  let hasChanges = false;
+
+  Object.values(nodes).forEach((node) => {
+    if (node.type !== "cardCollection") return;
+
+    const componentId = v2_pickComponentIdForCardCollection({
+      collectionNode: node,
+      componentDefinitions,
+    });
+    if (!componentId) return;
+
+    const existingInstanceIds = node.childIds.filter((childId) => {
+      const childNode = nextNodes[childId];
+      return Boolean(childNode && childNode.type === "componentInstance");
+    });
+    if (existingInstanceIds.length > 0) return;
+
+    const seededIds: string[] = [];
+    for (let index = 0; index < instanceCount; index += 1) {
+      const instanceId = String(index);
+      let graphNodeId = `${node.id}:instance:${instanceId}`;
+      let suffix = 1;
+      while (usedIds.has(graphNodeId)) {
+        graphNodeId = `${node.id}:instance:${instanceId}:${suffix}`;
+        suffix += 1;
+      }
+      usedIds.add(graphNodeId);
+      seededIds.push(graphNodeId);
+      nextNodes[graphNodeId] = v2_createCardInstanceNode({
+        nodeId: graphNodeId,
+        collectionNode: node,
+        componentId,
+        instanceId,
+        dayKey: v2_dayKeyFromIndex(index),
+      });
+      hasChanges = true;
+    }
+
+    nextNodes[node.id] = {
+      ...node,
+      childIds: seededIds,
+    };
+    hasChanges = true;
+  });
+
+  return hasChanges ? nextNodes : nodes;
 };
 
 const v2_ensureCardCollectionComponentInstances = ({
@@ -1052,8 +1115,12 @@ const v2_createDefaultNodeGraph = ({
       instanceTransforms: card.instanceTransforms,
     },
   };
-  const nextNodes = v2_ensureCardCollectionComponentInstances({
+  const seededNodes = v2_seedDefaultCardCollectionInstances({
     nodes,
+    componentDefinitions,
+  });
+  const nextNodes = v2_ensureCardCollectionComponentInstances({
+    nodes: seededNodes,
     componentDefinitions,
   });
 
