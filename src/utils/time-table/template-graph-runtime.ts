@@ -158,12 +158,7 @@ const v2_buildSceneNodeFromGraph = ({
             ? childNode.meta.componentId.trim()
             : "";
         const resolvedComponentId =
-          childComponentId && validComponentIdSet.has(childComponentId)
-            ? childComponentId
-            : componentId;
-        if (!resolvedComponentId) {
-          return null;
-        }
+          childComponentId || componentId || v2_INVALID_COMPONENT_ID;
         visited.add(childNode.id);
         const instanceId =
           typeof childNode.meta?.instanceId === "string"
@@ -186,10 +181,7 @@ const v2_buildSceneNodeFromGraph = ({
             ? { styleKey: childNode.styles.styleKey }
             : {}),
         };
-      })
-      .filter((childNode): childNode is NonNullable<typeof childNode> =>
-        childNode !== null
-      );
+      });
 
     return {
       ...base,
