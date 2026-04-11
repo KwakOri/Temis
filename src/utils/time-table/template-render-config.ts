@@ -819,8 +819,7 @@ const v2_ensureCardCollectionComponentInstances = ({
         collectionNode: node,
         componentId:
           typeof currentNode.meta?.componentId === "string" &&
-          currentNode.meta.componentId.trim().length > 0 &&
-          componentDefinitions[currentNode.meta.componentId.trim()]
+          currentNode.meta.componentId.trim().length > 0
             ? currentNode.meta.componentId.trim()
             : componentId,
         instanceId,
