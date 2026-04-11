@@ -86,6 +86,11 @@ const TemplateSceneCardCollectionProperties: React.FC<
           ))}
         </select>
       </div>
+      {selectedComponentId.length === 0 ? (
+        <p className="text-xs text-amber-300">
+          연결된 컴포넌트가 없어 컬렉션이 렌더되지 않습니다. 컴포넌트를 선택해 주세요.
+        </p>
+      ) : null}
       {layoutStyleEditor}
     </div>
   );
