@@ -1563,7 +1563,7 @@ const v2_GRAPH_NODE_TYPE_SET = new Set([
   "cardCollection",
   "componentInstance",
 ]);
-const v2_ORDER_MODEL_SET = new Set(["pointer", "orderKey"]);
+const v2_ORDER_MODEL_SET = new Set(["orderKey"]);
 
 const v2_normalizeGraphNodeType = (
   value: unknown
@@ -1607,6 +1607,7 @@ const v2_normalizeGraphNodeOrder = (
 
   if (
     typeof candidate.model === "string" &&
+    candidate.model !== "pointer" &&
     !v2_ORDER_MODEL_SET.has(candidate.model)
   ) {
     return undefined;
