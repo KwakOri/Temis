@@ -1,214 +1,295 @@
-# v2-template 구조 전환 실행 계획 (Component / Instance / Ordering)
+# v2-template 프로젝트 점검 및 로드맵 (2026-04-11)
 
-## 0) 배경과 목표
+## 0) 목적
 
-이 문서는 v2-template를 **포토샵/피그마식 편집 경험**으로 확장하기 위한 구조 전환 실행안이다.
+이 문서는 `v2-template`의 현재 구현 상태를 점검하고,
+다음 개발 사이클에서 기능 중심으로 진행할 로드맵을 재정의한다.
 
-핵심 목표:
-- Layer 탭은 **인스턴스 편집 전용**
-- Components 탭은 **마스터(원본) 편집 전용**
-- 인스턴스 편집은 항상 **override-only**
-- 정렬은 우선 pointer 기반으로 진행하되, 추후 **orderKey(lexo/fractional)** 로 무중단 이행 가능하게 설계
-- 그룹 밖 이동 / 그룹 간 이동(re-parent) / Card -> Scene 루트 이동 규칙 명확화
+핵심 방향:
+- graph-first 구조 유지
+- 정렬 모델은 `orderKey` 단일 쓰기 경로로 고정
+- Layer/Component/Property의 역할 분리 강화
+- 카드 중심 예외를 줄이고 일반 컴포넌트 모델로 수렴
 
-## 1) 비기능 원칙
+## 1) 점검 결과
 
-- 하위호환은 이번 브랜치(`temis-template-system-v2-dev`)에서 우선순위 아님
-- 기존 레거시 경로 의존성은 단계적으로 축소 후 제거
-- 로컬 저장소는 당분간 localStorage 유지
-- 저장소 추상화(Supabase 전환 대비)는 현재 단계에서 포함하지 않음
+### 1.1 코드/브랜치 상태
 
-## 2) 데이터 모델 원칙
+- 브랜치: `features/template-system`
+- 워크트리: clean
+- 최근 변경은 `orderKey` 중심 정렬, graph normalize 강화, scene component 편집/복구 UX 보강에 집중됨
 
-### 2.1 마스터/인스턴스 분리
+### 1.2 검증 결과
 
-- `graph.componentDefinitions`: 마스터 정의
-- `graph.nodes`: 노드 그래프(구조 데이터)
-- Layer에서 편집되는 값은 기본적으로 노드 본문 변경이 아니라 override로 저장
+- `npx tsc --noEmit` 통과
+- `npm run check:v2-orderkey` 통과
 
-### 2.2 정렬 모델 추상화
+### 1.3 현재 아키텍처 상태 (요약)
 
-정렬 로직은 반드시 `OrderAdapter`를 통해 접근:
+- 데이터의 source of truth는 `renderConfig.graph`
+- normalize에서 `pointer`는 읽기 호환 파싱만 허용하고, 정상화 결과는 `orderKey`로 저장
+- cardCollection 기본 7개 인스턴스는 정규화 자동보정이 아니라 기본 그래프 시드 단계에서 생성
+- child component id는 런타임/정규화 모두에서 명시값을 보존
+- Layers/Components 탭 분리는 존재하며, 마스터 편집 진입은 Components 탭 중심으로 이동 중
 
-- `PointerOrderAdapter` (현재 활성)
-- `OrderKeyAdapter` (후속)
+### 1.4 현재 병목/부채
 
-확장 슬롯:
-- `order.model: "pointer" | "orderKey"`
-- `order.prevSiblingId?: string | null`
-- `order.orderKey?: string`
+- 대형 파일 잔존
+  - `use-template-scene-node-actions.ts` (~1389 lines)
+  - `layers-panel.tsx` (~1270 lines)
+  - `template-properties-panel.tsx` (~1190 lines)
+- Components 탭은 아직 "카탈로그/진입" 중심이며, 컴포넌트 CRUD가 약함
+- 카드 인스턴스 조정 UI에 `1~7` 하드코딩이 일부 잔존
+- override를 체계적으로 관리/리셋하는 모델이 아직 약함
 
-## 3) UX/편집 규칙
+## 2) 현재 기능 상태
 
-- Layer 탭에서는 인스턴스 선택/가시성/순서/부모 이동/override 편집
-- Components 탭에서는 마스터 구조(추가/삭제/기본 스타일/기본 바인딩) 편집
-- Layer에서 "마스터 편집"을 누르면 Components 탭으로 포커스 이동
-- 인스턴스에서 override reset 지원
+### 2.1 완료
 
-## 4) Card 관련 정책
+- orderKey 기반 정렬/재정렬/검증 경로
+- scene 노드 re-parent(루트/그룹/카드 컬렉션 제약 포함)
+- component instance의 `Move To Root` / `Extract Copy To Root` 분리
+- scene component instance의 `componentId`, `dayKey`, `instanceId` 속성 편집
+- 카드 컬렉션의 자식 componentId 불일치 감지 + 동기화 액션
+- 입력 스키마와 그래프 바인딩의 기본 일관성 관리(필드 수정/삭제 시 그래프 바인딩 반영)
 
-Card는 현재 "컴포넌트" 개념이 명확히 드러나는 대표 케이스다.
+### 2.2 부분 완료
 
-- Card 인스턴스 이동/정렬은 Layer에서 가능
-- Card 내부 구조 변경은 Components에서만 가능
-- "인스턴스 분리(detach)"는 단방향 동작으로 정의 (되돌리기 없음)
+- Layers는 인스턴스 중심으로 정리됐지만, "완전 인스턴스 전용 뷰" 규칙은 추가 정리가 필요
+- Components는 마스터 편집 진입점은 있으나 마스터 라이프사이클 관리(CRUD) 기능 부족
+- Card 일반화는 진행됐지만 일부 UX가 여전히 주간 7카드 전제에 묶여 있음
 
-Move / Extract Copy 분리:
-- Move: 마스터 노드에서 제거 + 대상 부모로 재부모화
-- Extract Copy: 마스터는 유지 + 대상 부모에 새 노드 생성
+## 3) 재작성 로드맵
 
-## 5) 단계별 구현 계획
+## Phase 1 - Layer/Component 역할 경계 완성
 
-## Phase A (현재 착수) - 정렬 어댑터 실사용 연결
+목표:
+- Layers는 인스턴스 운용(순서/가시성/구조 이동) 전용
+- Components는 마스터 구조 편집 전용
 
-- `OrderAdapter`/pointer 구현 정리
-- 기존 layer 순서 계산 경로를 adapter 경유로 통일
-- 기존 zIndex 기반 결과와 동등 동작 보장
-
-완료 조건:
-- Layers 패널 렌더 순서 계산에 adapter가 실제 사용됨
-- 드래그 정렬 후 순서가 기존과 동일하게 반영됨
-
-## Phase B - 정렬 데이터 슬롯 확장
-
-- graph 노드에 order 확장 슬롯 타입 추가
-- normalize 단계에서 order 값의 안전한 보정(sanitize)
+작업:
+- Layers에서 마스터 의미를 주는 표시/동선 최소화
+- Components에서 마스터 선택/편집 컨텍스트를 더 명확히 표준화
+- 선택 상태가 Properties 패널 모드와 항상 일치하도록 동기화
 
 완료 조건:
-- 타입/정규화가 `pointer/orderKey` 모두 수용 가능
-- 기존 데이터 로딩 시 회귀 없음
+- 사용자가 "지금 인스턴스를 편집 중인지 마스터를 편집 중인지"를 탭/패널에서 혼동하지 않음
 
-## Phase C - Re-parent DnD
+세부 태스크:
+1. Layers 탭에서 마스터 편집 액션 완전 제거 및 안내 문구 표준화
+2. Components 탭에서 마스터 편집 진입 버튼/선택 상태를 단일 패턴으로 통일
+3. 좌측 탭 선택과 우측 Properties `editorMode(instance|master)`를 강결합
+4. 인스턴스 선택 상태에서 마스터 전용 패널 노출 시 안내 UI로 대체
 
-- Drop mode를 before/inside/after로 확장
-- 부모 변경(re-parent) 지원
-- 자기 자신/자식 하위 이동 금지
+영향 파일(예상):
+- `_components/editor/layers-panel.tsx`
+- `_components/editor/template-editor-shell.tsx`
+- `_components/properties/template-properties-panel.tsx`
+- `_components/properties/hooks/use-template-simple-properties-panel.tsx`
+
+검증:
+- Layers 탭에서 마스터 편집 진입 버튼이 보이지 않음
+- Components 탭에서만 master 모드 진입 가능
+- 동일 레이어 선택 시 포커스 모드가 흔들리지 않음
+
+커밋 분할:
+- P1-1: Layers/Components UX 경계
+- P1-2: Properties 편집 모드 동기화
+
+## Phase 2 - Component 라이프사이클 CRUD
+
+목표:
+- Card 외의 일반 컴포넌트도 생성/복제/삭제 가능한 구조 확립
+
+작업:
+- Components 탭에서 컴포넌트 생성/복제/삭제 액션 제공
+- 생성 시 root node/layer/기본 스타일 키 자동 생성
+- 삭제 시 참조 인스턴스 처리 정책(차단 또는 다른 컴포넌트로 치환) 명시
 
 완료 조건:
-- 그룹 밖 이동/그룹 간 이동이 UI + 데이터에 일관 반영
+- 컴포넌트를 데이터 단위로 관리하는 전체 흐름이 UI에서 완결됨
 
-## Phase D - Components 탭 분리 강화
+세부 태스크:
+1. Components 탭에 `+ New Component` 추가
+2. 선택 컴포넌트 `Duplicate Component` 지원
+3. `Delete Component` 지원(사용 중 인스턴스 존재 시 차단/치환 옵션)
+4. 생성/복제 시 `componentDefinitions + graph.nodes + layer` 동시 생성
+5. 기본 style key/label 네이밍 규칙 확정
 
-- Layer/Properties와 독립된 Components 패널 구성
-- 마스터 편집 진입 동선 확정
+영향 파일(예상):
+- `_components/editor/layers-panel.tsx`
+- `_components/editor/template-editor-shell.tsx`
+- `utils/time-table/template-graph-editor.ts`
+- `utils/time-table/template-graph-runtime.ts`
+- `_components/properties/model/structure-utils.ts`
+
+검증:
+- 신규 컴포넌트 생성 후 Components 탭/Properties에서 바로 편집 가능
+- 복제 시 원본과 분리된 rootNodeId/styleKey가 생성됨
+- 삭제 시 참조 무결성 깨지지 않음
+
+커밋 분할:
+- P2-1: Create/Duplicate
+- P2-2: Delete + 참조 보호 정책
+
+## Phase 3 - Re-parent/분해 정책 최종화
+
+목표:
+- Move(원본 이동)와 Extract Copy(복제 분리) 동작을 모든 경로에서 일관화
+
+작업:
+- Layers/Properties 양쪽에서 동일 정책 적용
+- 카드 컬렉션 내부/외부 이동 제약 문서화 및 메시지 통일
+- 이동 후 styleKey/layerTarget/layerSectionKey 정합성 자동 보정 강화
 
 완료 조건:
-- "인스턴스 편집 vs 마스터 편집" 경계가 UI에서 명확
+- 어떤 경로로 이동해도 결과 그래프와 시각 결과가 동일
 
-## Phase E - Card 예외 흐름 축소
+세부 태스크:
+1. `Move To Root` / `Extract Copy` 공통 action 유틸로 통합
+2. Layers 드래그 이동과 Properties 버튼 이동의 후처리(스타일/타깃) 일치화
+3. cardCollection 내부 이동 제약 메시지/실패 피드백 통일
+4. re-parent 후 sanitize/normalize 1회 통과 시 결과 변형 없는지 보장
 
-- Card 전용 하드코딩 경로 제거
-- 일반 컴포넌트 규칙으로 수렴
+영향 파일(예상):
+- `_components/editor/template-editor-shell.tsx`
+- `_components/properties/hooks/use-template-scene-node-actions.ts`
+- `utils/time-table/template-render-config.ts`
+- `utils/time-table/template-graph-order.ts`
+
+검증:
+- 동일 노드에 대해 Layers 이동 결과와 Properties 이동 결과가 동일
+- 이동 전/후 `v2_validateOrderKeyGraph`가 항상 valid
+- 실패 케이스에서 사용자 메시지가 일관됨
+
+커밋 분할:
+- P3-1: move/extract 공통화
+- P3-2: 제약/피드백/정합성 마감
+
+## Phase 4 - Card 7인스턴스의 데이터 주도화
+
+목표:
+- "7개"는 유지하되, 고정 인덱스 UI/로직 의존 축소
+
+작업:
+- 카드 인스턴스 편집 UI에서 하드코딩 `1..7` 표시 대신 런타임 인스턴스 목록 기반 렌더
+- `instanceId`/`dayKey` 바인딩 규칙을 명시하고 중복/누락 진단 강화
+- card scope 입력 데이터와 인스턴스 매핑을 구조적으로 노출
 
 완료 조건:
-- Card도 동일한 컴포넌트/인스턴스 규칙으로 동작
+- 카드 인스턴스 제어가 인덱스 하드코딩이 아니라 그래프 데이터 기준으로 동작
 
-## Phase F - orderKey 이행 준비 완료
+세부 태스크:
+1. `Card Component` 패널의 인스턴스 보정 UI를 `Array.from({length:7})`에서 runtime instances 기반으로 전환
+2. instance row에 `instanceId/dayKey/componentId`를 함께 노출
+3. 중복 `instanceId` / 중복 `dayKey` / 누락 `dayKey` 진단 배지 제공
+4. 데이터 탭(card scope)과 인스턴스 목록 간 매핑 안내 추가
 
-- `OrderKeyAdapter` 초안 + 시뮬레이터
-- pointer -> orderKey 변환 유틸 준비
+영향 파일(예상):
+- `_components/properties/components/template-card-component-properties.tsx`
+- `_components/properties/template-properties-panel.tsx`
+- `utils/time-table/template-graph-runtime.ts`
+- `_components/properties/model/form-schema-diagnostics.ts`
+
+검증:
+- 카드 개수 변경 없이도 인스턴스 편집 UI가 그래프 목록 기준으로 렌더됨
+- 진단 상태가 카드 컬렉션/인스턴스 편집 UI에 동일하게 표시됨
+
+커밋 분할:
+- P4-1: runtime 기반 렌더
+- P4-2: 진단/매핑 안내
+
+## Phase 5 - 입력 스키마/바인딩 워크플로우 완결
+
+목표:
+- 오브젝트 생성 -> 필드 정의 -> 바인딩 연결이 한 흐름에서 닫히도록 개선
+
+작업:
+- 바인딩 에디터에서 필드 즉시 생성/연결 UX 강화
+- field rename/scope 변경 시 영향 범위 안내 개선
+- 미사용/누락/타입 경고를 패널 상단에서 우선 노출
 
 완료 조건:
-- 런타임에 adapter 교체가 가능
-- 전환 실험이 코드 변경 최소로 가능
+- 템플릿 제작자가 "데이터가 어디에 들어가는지"를 설정 화면 내에서 즉시 추적 가능
 
-## 6) 리스크와 완충 전략
+세부 태스크:
+1. 바인딩 에디터에서 `새 필드 생성 + 즉시 바인딩` UX 강화
+2. 필드 rename/scope 변경 시 영향 노드 목록 즉시 노출
+3. 필드 삭제 시 `사용 중 노드 목록` 명시 + 대체 전략 선택(빈 literal / 다른 필드로 치환)
+4. Schema 탭 상단에 `missing/duplicate/unused/invalid` 요약을 고정 배치
 
-- pointer 체인 손상
-  - sanitize에서 부모 단위 재연결 + 안정 정렬 fallback
-- 마스터/인스턴스 경계 혼선
-  - 패널 분리 + 편집 진입점 강제
-- 대규모 리팩토링 중 회귀
-  - phase 단위 점진 적용 + 단계별 타입/린트 검증
+영향 파일(예상):
+- `_components/properties/components/template-node-binding-editor.tsx`
+- `_components/properties/hooks/use-template-form-schema-actions.ts`
+- `_components/properties/panels/template-schema-tab.tsx`
+- `_components/properties/model/form-schema-diagnostics.ts`
 
-## 7) 즉시 실행 항목 (이번 작업)
+검증:
+- 새 오브젝트 생성 후 3클릭 이내 필드 생성/연결 가능
+- 필드 변경 시 영향을 받는 노드가 즉시 보임
+- 삭제 시 무음 손실 없이 명시적 확인 과정을 거침
 
-1. 계획 문서 최신화 (완료)
-2. Phase A 구현 시작:
-   - `layer-z-index`를 adapter 경유 경로로 리팩토링
-   - 기존 UI 동작 동일성 확인
-3. 타입체크/린트 최소 검증 후 커밋
+커밋 분할:
+- P5-1: create/bind UX
+- P5-2: rename/delete 영향 분석 UX
 
-## 8) 진행 현황 (2026-04-10)
+## Phase 6 - 대형 파일 분해(기능 단위)
 
-- 완료
-  - Phase A: `OrderAdapter`(pointer) 도입 및 실제 정렬 경로 연결
-  - Phase B(기반): graph node `order` 슬롯(`model/prevSiblingId/orderKey`) 타입/정규화 추가
-  - pointer 정합성 보정 유틸(`v2_normalizePointerOrderInGraph`) 추가 및 editor/render-config 경로 연결
-  - re-parent primitive(`v2_graphMoveNode`) 추가
-  - Scene 노드 구조 패널에서 부모 이동 UI 연결
-  - Layers 패널 `before/inside/after` 드롭 및 re-parent relay 연결
-  - 왼쪽 패널 `Layers / Components` 분리 탭 추가
-  - Components 탭 `Detach (one-way)` 동작 추가
-  - Scene/Properties 주요 액션(`reorder`, `relocate`, `add/remove`, `binding/meta`)을 graph-first sync로 통일
-  - Card 노드 액션(`visibility`, `binding`, `meta`, `append/remove`, `instance`)을 graph-first sync로 통일
-  - Form schema 바인딩 재작성 흐름을 graph 기준으로 통일하고 runtime 구조 재생성으로 연결
-  - normalize 단계에서 graph payload 우선 처리:
-    - graph가 존재하면 structure 기반 fallback 주입 최소화
-    - 최종 structure를 normalized graph에서 runtime 재생성
-  - normalize의 structure->graph fallback 제거로 graph-only 입력 경로 확정
-  - `renderConfig` 저장 포맷에서 파생 필드 `structure` 제거:
-    - 기본 config/normalize 결과에서 structure를 생성/저장하지 않음
-    - `V2TemplateRenderConfig` 타입에서도 `structure` 필드 제거
-  - default graph seed의 `v2_DEFAULT_STRUCTURE` 의존 제거:
-    - 기본 graph를 `layers/sceneNodes/card` seed에서 직접 생성
-  - graph 갱신 후 structure 수동 동기화 래퍼(no-op) 경로 제거
-  - `order-adapter` 조회 타입을 모델별 overload로 정리해 `tsc` 안정화
-  - v2 훅 경로를 `formSchema` 중심으로 정리:
-    - `useTemplateData/useTemplateEditor/useTemplatePersistence`에서 v2 전용 데이터/영속성 브릿지 사용
-    - v2 전용 persistence를 `formSchema` 기반 저장/로드로 전환해 `CardInputConfig` adapter 의존 제거
-    - 레거시 호환 함수 `v2-form-schema-adapter` 제거
-    - `useTemplatePersistence/useTemplateEditor` 반환 API에서 미사용 persistence 핸들 제거
-  - cardCollection의 기본 `componentId` 해석을 그래프 기반으로 정리:
-    - `"card"` 하드코딩 fallback 축소
-    - 런타임/레이어/속성 패널에서 공통 기본 컴포넌트 해석 사용
-  - pointer -> orderKey 전환 유틸 초안 추가:
-    - `v2_convertPointerOrderToOrderKeyInGraph`
-    - 추후 adapter 실사용 전환 실험 기반 마련
-  - 레이어 정렬 실경로를 orderKey 기반으로 전환:
-    - layer 패널 reorder 시 graph `orderKey/prevSiblingId` 갱신
-    - layer 읽기 순서 계산 시 graph orderKey 우선 사용
-    - normalize/finalize에서 pointer -> orderKey 승격 연결
-  - 형제 집합 단위 orderKey 재균등화(rebalance) 적용:
-    - 중복/누락/순서 꼬임 시 deterministic 재정렬
-    - rootNodeIds/childIds 동기화 강화
-  - layer 런타임 정렬에서 pointer rebuild 의존 제거
-  - dev 진단 추가:
-    - graph orderKey 무결성 검증기(`v2_validateOrderKeyGraph`)
-    - 에디터 런타임에서 무결성 이슈 콘솔 경고
-    - 검증 범위를 parent/child 참조 정합성까지 확장 (re-parent 회귀 조기 탐지)
-    - 개발 모드에서 무결성 이슈 발견 시 1회 자동 정규화 복구 시도
-  - Properties의 카드 편집 흐름을 활성 컴포넌트 기준으로 일반화:
-    - `use-template-card-node-actions`에서 `componentDefinitions.card` 하드코딩 제거
-    - 선택 레이어/카드 컬렉션 기준 `activeCardComponentId` 해석 후 append/remove/instance 설정 적용
-    - 카드 노드/바인딩 진단 수집 범위를 기본 컴포넌트 단일에서 전체 컴포넌트 집합으로 확장
-    - 카드 컴포넌트 속성 패널 노출 조건을 `cardContainer` 상수 대신 활성 컴포넌트의 `containerStyleKey`로 전환
-    - 속성 패널의 카드 구조 해석에서 기본 `runtimeCardStructure` fallback 의존 제거(컴포넌트 맵 기반 고정)
-  - Components 탭 정보 강화:
-    - scene의 `cardCollection` 사용처를 집계해 컴포넌트별 instance count 표시
-    - 컴포넌트 카드에서 `첫 인스턴스 이동` 액션 제공 (Master -> Instance 왕복)
-    - 컴포넌트 선택 하이라이트/선택 상태 유지로 편집 컨텍스트 가시성 강화
-    - Layers 행에서 `Master` 바로가기 액션 제공 (Instance -> Master 단축 진입)
-  - Layers/Components 선택 컨텍스트를 속성 패널로 전달:
-    - Layers 선택 시 `Instance`, Components 선택 시 `Master` 편집 모드 배지 표시
-    - Instance 모드에서는 카드 마스터 구조 편집 UI를 안내 메시지로 대체해 경계 강화
-  - Layers DnD UX 보강:
-    - drop target이 blocked일 때 inline 사유 메시지 표시
-    - 드롭 피드백 배너와 타깃 지점 메시지를 함께 제공해 실패 원인 즉시 확인 가능
-    - 레이어 다중 선택(Cmd/Ctrl+클릭, Shift 범위 선택) 및 키보드 순서 이동(Alt+↑/↓) 지원
-    - 다중 선택 레이어의 블록 드래그 reorder 및 그룹 이동(re-parent) 지원
-    - 단일 선택 레이어의 키보드 re-parent(Alt+Shift+←/→) 지원
-    - 다중 선택 레이어의 키보드 re-parent(Alt+Shift+←/→) 지원
-  - orderKey 회귀 검증 실행 경로 추가:
-    - `scripts/check-v2-orderkey.ts` + `npm run check:v2-orderkey`
-    - 로컬/CI에서 동일한 회귀 검증 엔트리 사용 가능
-    - GitHub Actions 워크플로우(`.github/workflows/v2-template-orderkey-check.yml`) 연결
+목표:
+- 유지보수 난이도와 회귀 리스크 축소
 
-- 부분 완료
-  - Phase C: DnD re-parent가 scene 기반 노드에서 동작 (edge-case UX 추가 다듬기 필요)
-  - Phase D: Components 탭 최소 분리 완료 (마스터 편집 동선은 강화했으며 추가 단축 UX 여지 존재)
-  - Phase E(진행): `cardCollection`에 `componentId`를 도입해 카드 렌더/레이어 생성 경로를 컴포넌트 기반으로 일반화
-  - graph-only 전환(마무리): 저장/정규화 경로는 graph 중심으로 정리됨. 기본 그래프 부트스트랩(기존 default structure 상수 기반) 분리 여부만 남음
+작업:
+- `use-template-scene-node-actions.ts`를 "구조 이동/메타 편집/컴포넌트 인스턴스" 하위 훅으로 분해
+- `layers-panel.tsx`를 "트리 렌더/드래그앤드롭/컴포넌트 탭"으로 분해
+- `template-properties-panel.tsx`를 선택/집계/탭 렌더 경계로 재분리
 
-- 남은 핵심
-  - 없음(현 시점 핵심 항목 완료). 이후는 편의성 개선(도움말 문구/튜토리얼) 레벨의 선택 과제.
+완료 조건:
+- 핵심 파일 3개의 책임이 명확하고 파일당 복잡도가 현저히 감소
+
+세부 태스크:
+1. `use-template-scene-node-actions.ts` 분해
+   - `use-scene-structure-actions`
+   - `use-scene-component-instance-actions`
+   - `use-scene-binding-actions`
+2. `layers-panel.tsx` 분해
+   - `layers-tree.tsx`
+   - `layers-dnd.ts`
+   - `components-tab.tsx`
+3. `template-properties-panel.tsx` 분해
+   - `properties-selection-context.ts`
+   - `properties-tabs-renderer.tsx`
+   - `properties-aggregators.ts`
+
+영향 파일(예상):
+- `_components/editor/layers-panel.tsx`
+- `_components/properties/template-properties-panel.tsx`
+- `_components/properties/hooks/use-template-scene-node-actions.ts`
+
+검증:
+- 분해 전/후 기능 스냅샷(선택, 이동, 바인딩, 스타일 수정)이 동일
+- 타입체크/정렬체크 통과
+
+커밋 분할:
+- P6-1: scene actions 분해
+- P6-2: layers panel 분해
+- P6-3: properties panel 분해
+
+## 4) 다음 실행 우선순위
+
+1. Phase 1 완료 (역할 경계 고정)
+2. Phase 2 착수 (컴포넌트 CRUD)
+3. Phase 3 동작 정합성 마감
+4. Phase 4/5로 데이터 바인딩 완성도 상승
+5. Phase 6으로 유지보수성 확보
+
+## 5) 실행 규칙
+
+1. 각 Phase는 `작업 -> 타입체크/정렬체크 -> 커밋` 단위로 완료한다.
+2. 커밋 메시지는 `feat/refactor/fix(v2-template): ...` 규칙을 사용한다.
+3. 각 Phase 완료 후 문서의 상태를 `진행중/완료`로 갱신한다.
+4. 구조 변경은 항상 graph 무결성(`v2_validateOrderKeyGraph`) 보존을 우선한다.
+
+## 6) 비고
+
+- 저장소(localStorage -> Supabase 추상화)는 별도 트랙으로 유지한다.
+- 본 로드맵은 기능 구조 완성에 집중하며, 배포/운영 최적화 항목은 분리한다.

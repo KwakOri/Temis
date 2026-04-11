@@ -244,6 +244,19 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     tone: "info" | "error";
     message: string;
   } | null>(null);
+  const selectComponentMaster = (
+    componentItem: (typeof componentCatalog)[number]
+  ) => {
+    if (!componentItem.rootLayerId) return;
+    setSelectedComponentId(componentItem.id);
+    setSelectedLayerIds([componentItem.rootLayerId]);
+    setLastSelectedLayerId(componentItem.rootLayerId);
+    setSelectedLayerId(componentItem.rootLayerId);
+    onSelectLayer?.({
+      layerId: componentItem.rootLayerId,
+      editorMode: "master",
+    });
+  };
   useEffect(() => {
     if (!dragFeedback) return;
     const timeout = setTimeout(() => setDragFeedback(null), 1800);
@@ -933,6 +946,18 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               setLastSelectedLayerId(node.id);
               setSelectedLayerId(node.id);
               setActiveHighlightTarget(resolvedTarget ?? null);
+              if (node.isTemplateComponent) {
+                const componentItem = componentCatalog.find(
+                  (item) => item.rootLayerId === node.id
+                );
+                if (componentItem) {
+                  setSelectedComponentId(componentItem.id);
+                  setDragFeedback({
+                    tone: "info",
+                    message: "마스터 편집은 Components 탭에서 진행해 주세요.",
+                  });
+                }
+              }
               onSelectLayer?.({
                 ...(resolvedTarget ? { target: resolvedTarget } : {}),
                 sectionKey: node.sectionKey,
@@ -949,6 +974,18 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               setLastSelectedLayerId(node.id);
               setSelectedLayerId(node.id);
               setActiveHighlightTarget(resolvedTarget ?? null);
+              if (node.isTemplateComponent) {
+                const componentItem = componentCatalog.find(
+                  (item) => item.rootLayerId === node.id
+                );
+                if (componentItem) {
+                  setSelectedComponentId(componentItem.id);
+                  setDragFeedback({
+                    tone: "info",
+                    message: "마스터 편집은 Components 탭에서 진행해 주세요.",
+                  });
+                }
+              }
               onSelectLayer?.({
                 ...(resolvedTarget ? { target: resolvedTarget } : {}),
                 sectionKey: node.sectionKey,
@@ -1095,7 +1132,6 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               type="button"
               onClick={() => {
                 setActiveTab("layers");
-                setSelectedComponentId(null);
                 if (selectedLayerId) {
                   setSelectedLayerIds([selectedLayerId]);
                 }
@@ -1110,7 +1146,22 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab("components")}
+              onClick={() => {
+                setActiveTab("components");
+                const selectedComponent = componentCatalog.find(
+                  (item) => item.id === selectedComponentId
+                );
+                if (selectedComponent) {
+                  selectComponentMaster(selectedComponent);
+                  return;
+                }
+                const firstComponent = componentCatalog.find(
+                  (item) => item.rootLayerId !== null
+                );
+                if (firstComponent) {
+                  selectComponentMaster(firstComponent);
+                }
+              }}
               className={`rounded border px-2 py-1.5 text-xs font-semibold ${
                 activeTab === "components"
                   ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
@@ -1131,6 +1182,12 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               다중 선택: `Cmd/Ctrl + 클릭` / 범위 선택: `Shift + 클릭` / 이동:
               `Alt + ↑/↓` / 그룹 이동: `Alt + Shift + ←/→` / 동일 부모 다중
               선택 드래그 지원
+            </div>
+          ) : null}
+          {activeTab === "layers" ? (
+            <div className="mb-2 rounded border border-[#3b5b8b] bg-[#14233d] px-2 py-1.5 text-[10px] text-[#9ec1ff]">
+              Layers 탭은 인스턴스 편집 전용입니다. 마스터 편집은 Components 탭에서
+              진행해 주세요.
             </div>
           ) : null}
           {dragFeedback ? (
@@ -1172,17 +1229,9 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                         : "hover:bg-[#1d2636]"
                     }`}
                     onClick={() => {
-                      if (!componentItem.rootLayerId) return;
-                      setSelectedComponentId(componentItem.id);
-                      setSelectedLayerIds([componentItem.rootLayerId]);
-                      setLastSelectedLayerId(componentItem.rootLayerId);
-                      setSelectedLayerId(componentItem.rootLayerId);
-                      onSelectLayer?.({
-                        layerId: componentItem.rootLayerId,
-                          editorMode: "master",
-                        });
-                      }}
-                    >
+                      selectComponentMaster(componentItem);
+                    }}
+                  >
                       <Component className="h-3.5 w-3.5 shrink-0 text-[#9ab3dd]" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-xs font-semibold text-[#d3e2ff]">
@@ -1220,15 +1269,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                       className="w-full rounded border border-[#3f6ad8] bg-[#1a2b57] px-2 py-1 text-[11px] font-semibold text-[#b9ccff] hover:bg-[#22376f]"
                       onClick={(event) => {
                         event.stopPropagation();
-                        if (!componentItem.rootLayerId) return;
-                        setSelectedComponentId(componentItem.id);
-                        setSelectedLayerIds([componentItem.rootLayerId]);
-                        setLastSelectedLayerId(componentItem.rootLayerId);
-                        setSelectedLayerId(componentItem.rootLayerId);
-                        onSelectLayer?.({
-                          layerId: componentItem.rootLayerId,
-                          editorMode: "master",
-                        });
+                        selectComponentMaster(componentItem);
                       }}
                     >
                       마스터 편집 열기
