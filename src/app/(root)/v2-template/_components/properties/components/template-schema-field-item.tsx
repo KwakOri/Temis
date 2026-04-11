@@ -27,13 +27,13 @@ const TemplateSchemaFieldItem: React.FC<TemplateSchemaFieldItemProps> = ({
 }) => {
   return (
     <div className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 space-y-2">
-      <div className="grid grid-cols-[1fr_96px_120px_auto] gap-2 items-center">
+      <div className="grid grid-cols-[minmax(0,1fr)_88px_102px_56px] gap-2 items-center">
         <input
           value={field.key}
           onChange={(event) =>
             onUpdateField(index, { key: event.target.value })
           }
-          className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+          className="min-w-0 px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
           placeholder="field key"
         />
         <select
@@ -47,7 +47,7 @@ const TemplateSchemaFieldItem: React.FC<TemplateSchemaFieldItemProps> = ({
                   : "entry",
             })
           }
-          className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+          className="min-w-0 px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
         >
           {scopeOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -62,7 +62,7 @@ const TemplateSchemaFieldItem: React.FC<TemplateSchemaFieldItemProps> = ({
               type: event.target.value as V2TemplateFormField["type"],
             })
           }
-          className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+          className="min-w-0 px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
         >
           {typeOptions.map((option) => (
             <option key={option.value} value={option.value}>
@@ -73,7 +73,7 @@ const TemplateSchemaFieldItem: React.FC<TemplateSchemaFieldItemProps> = ({
         <button
           type="button"
           onClick={() => onRemoveField(index)}
-          className="rounded border border-red-500/40 px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10"
+          className="min-w-0 whitespace-nowrap rounded border border-red-500/40 px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10"
         >
           삭제
         </button>
