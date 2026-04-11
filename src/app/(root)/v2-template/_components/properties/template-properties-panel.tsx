@@ -32,6 +32,13 @@ import {
   v2_parseNodeBindingFromSelectValue,
 } from "./model/binding-utils";
 import {
+  v2_collectCardComponentInstanceDiagnostics,
+  v2_collectCardComponentInstances,
+  v2_collectSceneGroupParentOptions,
+  v2_collectSceneNodeDescendantIdsById,
+  v2_collectSceneNodeParentIdById,
+} from "./model/properties-aggregators";
+import {
   v2_createStyleKeyToSectionKeyMap,
   v2_isKnownStyleSectionKey,
   v2_parseStyleSectionKey,
@@ -303,106 +310,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     [activeCardComponentId, runtimeCardStructuresByComponentId]
   );
   const activeCardComponentInstances = useMemo(() => {
-    if (!activeCardComponentId) return [] as Array<{
-      instanceId: string;
-      label: string;
-      dayKey?: V2TemplateDayKey;
-    }>;
-
-    const collected: Array<{
-      instanceId: string;
-      label: string;
-      dayKey?: V2TemplateDayKey;
-    }> = [];
-    const seenInstanceIds = new Set<string>();
-    const pushInstance = ({
-      instanceId,
-      dayKey,
-      fallbackLabel,
-    }: {
-      instanceId: string;
-      dayKey?: V2TemplateDayKey;
-      fallbackLabel: string;
-    }) => {
-      const key = instanceId.trim();
-      if (!key || seenInstanceIds.has(key)) return;
-      seenInstanceIds.add(key);
-      const dayLabel =
-        dayKey &&
-        v2_resolveDayLabelByKey({
-          dayKey,
-          dayLabelFormat: renderConfig.dayLabelFormat,
-          fallbackWeekdayOption: renderConfig.weekdayOption,
-        });
-      collected.push({
-        instanceId: key,
-        dayKey,
-        label: dayLabel ? `${dayLabel} (${key})` : fallbackLabel,
-      });
-    };
-
-    const visit = (nodes: typeof runtimeSceneNodes) => {
-      nodes.forEach((node) => {
-        if (node.kind === "componentInstance") {
-          if (node.componentId === activeCardComponentId) {
-            pushInstance({
-              instanceId: node.instanceId,
-              dayKey: node.dayKey,
-              fallbackLabel: node.label || `Card ${node.instanceId}`,
-            });
-          }
-          return;
-        }
-        if (node.kind === "cardCollection") {
-          (node.children ?? []).forEach((instanceNode) => {
-            if (instanceNode.componentId !== activeCardComponentId) return;
-            pushInstance({
-              instanceId: instanceNode.instanceId,
-              dayKey: instanceNode.dayKey,
-              fallbackLabel:
-                instanceNode.label || `Card ${instanceNode.instanceId}`,
-            });
-          });
-          return;
-        }
-        if (node.kind === "group") {
-          visit(node.children);
-        }
-      });
-    };
-    visit(runtimeSceneNodes);
-
-    const transformKeys = Object.keys(activeCardStructure?.instanceTransforms ?? {});
-    transformKeys.forEach((instanceId) => {
-      pushInstance({
-        instanceId,
-        fallbackLabel: `Card ${instanceId}`,
-      });
-    });
-
-    const dayKeyOrder = new Map(
-      v2_TEMPLATE_DAY_KEYS.map((dayKey, index) => [dayKey, index] as const)
-    );
-    return [...collected].sort((left, right) => {
-      const leftDayOrder =
-        typeof left.dayKey === "string" ? dayKeyOrder.get(left.dayKey) : undefined;
-      const rightDayOrder =
-        typeof right.dayKey === "string"
-          ? dayKeyOrder.get(right.dayKey)
-          : undefined;
-      if (
-        typeof leftDayOrder === "number" &&
-        typeof rightDayOrder === "number" &&
-        leftDayOrder !== rightDayOrder
-      ) {
-        return leftDayOrder - rightDayOrder;
-      }
-      const leftNumeric = Number.parseInt(left.instanceId, 10);
-      const rightNumeric = Number.parseInt(right.instanceId, 10);
-      if (Number.isFinite(leftNumeric) && Number.isFinite(rightNumeric)) {
-        return leftNumeric - rightNumeric;
-      }
-      return left.instanceId.localeCompare(right.instanceId);
+    return v2_collectCardComponentInstances({
+      componentId: activeCardComponentId,
+      sceneNodes: runtimeSceneNodes,
+      dayLabelFormat: renderConfig.dayLabelFormat,
+      weekdayOption: renderConfig.weekdayOption,
+      additionalInstanceIds: Object.keys(
+        activeCardStructure?.instanceTransforms ?? {}
+      ),
     });
   }, [
     activeCardComponentId,
@@ -412,76 +327,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     runtimeSceneNodes,
   ]);
   const activeCardComponentInstanceDiagnostics = useMemo(() => {
-    if (!activeCardComponentId) {
-      return {
-        duplicateInstanceIds: [] as string[],
-        duplicateDayKeys: [] as V2TemplateDayKey[],
-        missingDayKeys: [] as V2TemplateDayKey[],
-      };
-    }
-
-    const instanceIdCounter = new Map<string, number>();
-    const dayKeyCounter = new Map<V2TemplateDayKey, number>();
-    const collect = (nodes: typeof runtimeSceneNodes) => {
-      nodes.forEach((node) => {
-        if (node.kind === "componentInstance") {
-          if (node.componentId !== activeCardComponentId) return;
-          const instanceId = node.instanceId.trim();
-          if (instanceId) {
-            instanceIdCounter.set(
-              instanceId,
-              (instanceIdCounter.get(instanceId) ?? 0) + 1
-            );
-          }
-          dayKeyCounter.set(node.dayKey, (dayKeyCounter.get(node.dayKey) ?? 0) + 1);
-          return;
-        }
-        if (node.kind === "cardCollection") {
-          (node.children ?? []).forEach((instanceNode) => {
-            if (instanceNode.componentId !== activeCardComponentId) return;
-            const instanceId = instanceNode.instanceId.trim();
-            if (instanceId) {
-              instanceIdCounter.set(
-                instanceId,
-                (instanceIdCounter.get(instanceId) ?? 0) + 1
-              );
-            }
-            dayKeyCounter.set(
-              instanceNode.dayKey,
-              (dayKeyCounter.get(instanceNode.dayKey) ?? 0) + 1
-            );
-          });
-          return;
-        }
-        if (node.kind === "group") {
-          collect(node.children);
-        }
-      });
-    };
-
-    collect(runtimeSceneNodes);
-
-    const duplicateInstanceIds = Array.from(instanceIdCounter.entries())
-      .filter(([, count]) => count > 1)
-      .map(([instanceId]) => instanceId)
-      .sort();
-    const duplicateDayKeys = Array.from(dayKeyCounter.entries())
-      .filter(([, count]) => count > 1)
-      .map(([dayKey]) => dayKey)
-      .sort((left, right) => {
-        const leftIndex = v2_TEMPLATE_DAY_KEYS.indexOf(left);
-        const rightIndex = v2_TEMPLATE_DAY_KEYS.indexOf(right);
-        return leftIndex - rightIndex;
-      });
-    const missingDayKeys = v2_TEMPLATE_DAY_KEYS.filter(
-      (dayKey) => !dayKeyCounter.has(dayKey)
-    );
-
-    return {
-      duplicateInstanceIds,
-      duplicateDayKeys,
-      missingDayKeys,
-    };
+    return v2_collectCardComponentInstanceDiagnostics({
+      componentId: activeCardComponentId,
+      sceneNodes: runtimeSceneNodes,
+    });
   }, [activeCardComponentId, runtimeSceneNodes]);
   const allRuntimeCardNodes = useMemo(() => {
     return Object.values(runtimeCardStructuresByComponentId).flatMap((structure) =>
@@ -505,72 +354,13 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     [runtimeSceneNodes]
   );
   const sceneNodeParentIdById = useMemo(() => {
-    const next: Record<string, string | null> = {};
-    const visit = (
-      nodes: typeof runtimeSceneNodes,
-      parentId: string | null
-    ) => {
-      nodes.forEach((node) => {
-        next[node.id] = parentId;
-        if (node.kind === "group") {
-          visit(node.children, node.id);
-        }
-      });
-    };
-    visit(runtimeSceneNodes, null);
-    return next;
+    return v2_collectSceneNodeParentIdById(runtimeSceneNodes);
   }, [runtimeSceneNodes]);
   const sceneNodeDescendantIdsById = useMemo(() => {
-    const next: Record<string, Set<string>> = {};
-
-    const collectDescendants = (node: (typeof runtimeSceneNodes)[number]): Set<string> => {
-      if (
-        (node.kind !== "group" && node.kind !== "cardCollection") ||
-        !node.children
-      ) {
-        next[node.id] = new Set();
-        return next[node.id];
-      }
-
-      const descendants = new Set<string>();
-      node.children.forEach((child) => {
-        descendants.add(child.id);
-        const childDescendants = collectDescendants(child);
-        childDescendants.forEach((id) => descendants.add(id));
-      });
-      next[node.id] = descendants;
-      return descendants;
-    };
-
-    runtimeSceneNodes.forEach((rootNode) => {
-      collectDescendants(rootNode);
-    });
-
-    return next;
+    return v2_collectSceneNodeDescendantIdsById(runtimeSceneNodes);
   }, [runtimeSceneNodes]);
   const sceneGroupParentOptions = useMemo(() => {
-    const options: Array<{ value: string | null; label: string }> = [
-      { value: null, label: "(루트)" },
-    ];
-
-    const visit = (nodes: typeof runtimeSceneNodes, depth: number) => {
-      nodes.forEach((node) => {
-        if (
-          (node.kind !== "group" && node.kind !== "cardCollection") ||
-          !node.children
-        ) {
-          return;
-        }
-        options.push({
-          value: node.id,
-          label: `${"  ".repeat(depth)}${node.label}`,
-        });
-        visit(node.children, depth + 1);
-      });
-    };
-
-    visit(runtimeSceneNodes, 0);
-    return options;
+    return v2_collectSceneGroupParentOptions(runtimeSceneNodes);
   }, [runtimeSceneNodes]);
   const bindableSceneTextNodeLabels = useMemo(() => {
     return runtimeSceneTextNodes.map((node) => node.label);
