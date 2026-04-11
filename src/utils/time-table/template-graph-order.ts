@@ -378,15 +378,6 @@ const v2_cloneGraph = (graph: V2TemplateNodeGraph): V2TemplateNodeGraph => {
   return JSON.parse(JSON.stringify(graph)) as V2TemplateNodeGraph;
 };
 
-const v2_asLegacyPointerOrder = (
-  prevSiblingId: string | null
-): V2TemplateGraphNodeOrder => {
-  return {
-    model: "pointer",
-    prevSiblingId,
-  } as unknown as V2TemplateGraphNodeOrder;
-};
-
 export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResult => {
   const cases: Array<{
     name: string;
@@ -406,7 +397,6 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
             label: "A",
             parentId: null,
             childIds: [],
-            order: v2_asLegacyPointerOrder(null),
           },
           b: {
             id: "b",
@@ -414,7 +404,6 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
             label: "B",
             parentId: null,
             childIds: [],
-            order: v2_asLegacyPointerOrder("a"),
           },
           c: {
             id: "c",
@@ -422,7 +411,6 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
             label: "C",
             parentId: null,
             childIds: [],
-            order: v2_asLegacyPointerOrder("b"),
           },
         },
       },
@@ -440,7 +428,6 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
             label: "Parent",
             parentId: null,
             childIds: ["z", "x", "y"],
-            order: v2_asLegacyPointerOrder(null),
           },
           x: {
             id: "x",
@@ -448,7 +435,6 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
             label: "X",
             parentId: "p",
             childIds: [],
-            order: v2_asLegacyPointerOrder(null),
           },
           y: {
             id: "y",
@@ -456,7 +442,6 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
             label: "Y",
             parentId: "p",
             childIds: [],
-            order: v2_asLegacyPointerOrder("x"),
           },
           z: {
             id: "z",
@@ -464,7 +449,6 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
             label: "Z",
             parentId: "p",
             childIds: [],
-            order: v2_asLegacyPointerOrder("y"),
           },
         },
       },
