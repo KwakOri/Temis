@@ -78,9 +78,10 @@
   - 입력 스키마에 필드별 사용 개수/연결 노드 라벨 표시
   - 필드 삭제 confirm에 실제 영향 노드 목록 표시
   - 남은 작업: rename/scope 변경 영향 목록 실시간 고정 패널화
-- Phase 6: 진행 중
-  - `layers-panel.tsx`에서 Components 탭 렌더를 `layers-components-tab.tsx`로 분리
-  - 남은 작업: Layers Tree / DnD / Selection 단위 추가 분리
+- Phase 6: 완료
+  - `layers-panel.tsx` -> `layers-tree.tsx` / `layers-dnd.ts` / `layers-components-tab.tsx` 분리
+  - `template-properties-panel.tsx` -> selection/tabs/aggregator 단위 분리
+  - `use-template-scene-node-actions.ts` -> structure/component-instance/binding 하위 훅 분리
 
 ## Phase 1 - Layer/Component 역할 경계 완성
 
@@ -269,7 +270,7 @@
 
 세부 태스크:
 1. `use-template-scene-node-actions.ts` 분해
-   - `use-scene-structure-actions`
+   - `use-scene-structure-actions` (완료)
    - `use-scene-component-instance-actions` (완료)
    - `use-scene-binding-actions` (완료)
 2. `layers-panel.tsx` 분해
