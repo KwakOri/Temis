@@ -61,6 +61,27 @@
 
 ## 3) 재작성 로드맵
 
+### 3.0 진행 현황 (2026-04-11 업데이트)
+
+- Phase 1: 완료
+  - Layers 인스턴스 편집 전용 안내 강화, Components 탭 중심 마스터 진입 정리
+- Phase 2: 완료(1차)
+  - Components 탭에서 `New / Duplicate / Delete` 지원
+  - 삭제 시 사용 중 인스턴스 존재하면 차단
+- Phase 3: 진행 중(핵심 완료)
+  - scene component instance `Move / Extract Copy` 후처리 공통 유틸화
+  - 남은 작업: 실패 메시지/제약 문구를 Layers/Properties에서 완전 단일화
+- Phase 4: 진행 중
+  - Card 인스턴스 보정 UI를 하드코딩 인덱스(1~7)에서 runtime `instanceId` 기반으로 전환
+  - 남은 작업: dayKey 중복/누락 진단 배지 및 Data 탭 매핑 안내
+- Phase 5: 진행 중
+  - 입력 스키마에 필드별 사용 개수/연결 노드 라벨 표시
+  - 필드 삭제 confirm에 실제 영향 노드 목록 표시
+  - 남은 작업: rename/scope 변경 영향 목록 실시간 고정 패널화
+- Phase 6: 진행 중
+  - `layers-panel.tsx`에서 Components 탭 렌더를 `layers-components-tab.tsx`로 분리
+  - 남은 작업: Layers Tree / DnD / Selection 단위 추가 분리
+
 ## Phase 1 - Layer/Component 역할 경계 완성
 
 목표:
