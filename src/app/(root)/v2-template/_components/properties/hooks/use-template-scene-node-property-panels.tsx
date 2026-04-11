@@ -80,6 +80,7 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     nodeId: string,
     componentId: string
   ) => void;
+  onSyncSceneCardCollectionChildComponentIds: (nodeId: string) => void;
   dayKeyOptions: Array<{ value: V2TemplateDayKey; label: string }>;
   onUpdateSceneComponentInstanceDayKey: (
     nodeId: string,
@@ -114,6 +115,7 @@ const useTemplateSceneNodePropertyPanels = ({
   onUpdateSceneAssetNodeMeta,
   onUpdateSceneNodeVisibilityMode,
   onUpdateSceneCardCollectionComponentId,
+  onSyncSceneCardCollectionChildComponentIds,
   dayKeyOptions,
   onUpdateSceneComponentInstanceDayKey,
   onUpdateSceneComponentInstanceComponentId,
@@ -253,6 +255,11 @@ const useTemplateSceneNodePropertyPanels = ({
     const missingDayKeys = v2_TEMPLATE_DAY_KEYS.filter(
       (dayKey) => !dayKeys.includes(dayKey)
     );
+    const mismatchedChildComponentCount =
+      typeof node.componentId === "string" && node.componentId.length > 0
+        ? (node.children ?? []).filter((child) => child.componentId !== node.componentId)
+            .length
+        : 0;
 
     return (
       <div className="space-y-2">
@@ -260,6 +267,7 @@ const useTemplateSceneNodePropertyPanels = ({
           node={node}
           componentOptions={sceneCardCollectionComponentOptions}
           visibilityOptions={visibilityOptions}
+          mismatchedChildComponentCount={mismatchedChildComponentCount}
           structureControls={renderSceneNodeStructureControls({
             node,
             allowChildren: false,
@@ -271,6 +279,9 @@ const useTemplateSceneNodePropertyPanels = ({
           }
           onChangeVisibilityMode={(value) =>
             onUpdateSceneNodeVisibilityMode(node.id, value)
+          }
+          onSyncChildComponentIds={() =>
+            onSyncSceneCardCollectionChildComponentIds(node.id)
           }
         />
         {duplicateDayKeys.length > 0 || missingDayKeys.length > 0 ? (

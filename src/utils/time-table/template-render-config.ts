@@ -64,8 +64,6 @@ const v2_ASSET_KEYS = [
 ] as const;
 
 const v2_ASSET_KEY_SET = new Set<string>(v2_ASSET_KEYS);
-const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
-
 const v2_defaultBindingRefFromInputKey = (
   rawKey: string
 ): V2TemplateCardNodeBinding => {
@@ -705,11 +703,9 @@ const v2_createCardInstanceNode = ({
 const v2_ensureCardCollectionComponentInstances = ({
   nodes,
   componentDefinitions,
-  instanceCount = v2_DEFAULT_CARD_INSTANCE_COUNT,
 }: {
   nodes: Record<string, V2TemplateGraphNode>;
   componentDefinitions: Record<string, V2TemplateGraphComponentDefinition>;
-  instanceCount?: number;
 }): Record<string, V2TemplateGraphNode> => {
   const nodeList = Object.values(nodes);
   if (nodeList.length === 0) return nodes;
@@ -717,7 +713,6 @@ const v2_ensureCardCollectionComponentInstances = ({
   const nextNodes: Record<string, V2TemplateGraphNode> = {
     ...nodes,
   };
-  const usedIds = new Set(Object.keys(nextNodes));
   let hasChanges = false;
 
   nodeList.forEach((node) => {
@@ -744,30 +739,6 @@ const v2_ensureCardCollectionComponentInstances = ({
     ]);
 
     const desiredInstanceIds = [...orderedInstanceIds];
-
-    for (
-      let instanceIndex = desiredInstanceIds.length;
-      instanceIndex < instanceCount;
-      instanceIndex += 1
-    ) {
-      const instanceId = String(instanceIndex);
-      let graphNodeId = `${node.id}:instance:${instanceId}`;
-      let suffix = 1;
-      while (usedIds.has(graphNodeId)) {
-        graphNodeId = `${node.id}:instance:${instanceId}:${suffix}`;
-        suffix += 1;
-      }
-      usedIds.add(graphNodeId);
-      desiredInstanceIds.push(graphNodeId);
-      nextNodes[graphNodeId] = v2_createCardInstanceNode({
-        nodeId: graphNodeId,
-        collectionNode: node,
-        componentId,
-        instanceId,
-        dayKey: v2_dayKeyFromIndex(instanceIndex),
-      });
-      hasChanges = true;
-    }
 
     desiredInstanceIds.forEach((instanceGraphNodeId, index) => {
       const currentNode = nextNodes[instanceGraphNodeId];

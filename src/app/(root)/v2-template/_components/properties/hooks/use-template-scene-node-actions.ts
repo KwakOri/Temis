@@ -389,6 +389,55 @@ const useTemplateSceneNodeActions = ({
     });
   };
 
+  const syncSceneCardCollectionChildComponentIds = (nodeId: string) => {
+    safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!nodeContext || nodeContext.node.kind !== "cardCollection") {
+        return prev;
+      }
+
+      const componentId = nodeContext.node.componentId?.trim();
+      if (!componentId) return prev;
+      if (!prev.graph.componentDefinitions[componentId]) {
+        return prev;
+      }
+
+      let hasChanges = false;
+      const nextGraph = {
+        ...prev.graph,
+        nodes: {
+          ...prev.graph.nodes,
+        },
+      };
+
+      Object.values(prev.graph.nodes).forEach((graphNode) => {
+        if (graphNode.type !== "componentInstance" || graphNode.parentId !== nodeId) {
+          return;
+        }
+        if (graphNode.meta?.componentId === componentId) return;
+
+        nextGraph.nodes[graphNode.id] = {
+          ...graphNode,
+          meta: {
+            ...(graphNode.meta ?? {}),
+            componentId,
+          },
+        };
+        hasChanges = true;
+      });
+
+      if (!hasChanges) return prev;
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
   const updateSceneComponentInstanceDayKey = (
     nodeId: string,
     dayKey: V2TemplateDayKey
@@ -1273,6 +1322,7 @@ const useTemplateSceneNodeActions = ({
     updateSceneNodeLabel,
     updateSceneAssetNodeMeta,
     updateSceneCardCollectionComponentId,
+    syncSceneCardCollectionChildComponentIds,
     updateSceneComponentInstanceDayKey,
     updateSceneComponentInstanceComponentId,
     isSceneCustomNode,
