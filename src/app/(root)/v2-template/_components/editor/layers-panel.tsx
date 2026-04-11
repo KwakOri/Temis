@@ -3,7 +3,6 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
-  Component,
   Copy,
   Eye,
   EyeOff,
@@ -12,8 +11,6 @@ import {
   Grid3X3,
   ImageIcon,
   Layers,
-  Plus,
-  Trash2,
   Type,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
@@ -24,6 +21,9 @@ import {
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
 } from "@/types/time-table/template-render-config";
+import V2LayersComponentsTab, {
+  V2LayersComponentItem,
+} from "./layers-components-tab";
 
 type V2LayerNode = V2TemplateLayerNode;
 type V2ComponentMutationResult = {
@@ -48,16 +48,7 @@ const v2_LAYER_ICON_MAP: Record<
 
 interface V2TimeTableLayersPanelProps {
   layerTree?: V2LayerNode[];
-  componentCatalog?: Array<{
-    id: string;
-    label: string;
-    rootNodeId: string;
-    rootLayerId: string | null;
-    firstInstanceLayerId: string | null;
-    kind: "template" | "custom";
-    instanceMode: "component" | "detached";
-    instanceCount: number;
-  }>;
+  componentCatalog?: V2LayersComponentItem[];
   onSelectLayer?: (payload: {
     target?: V2TemplateHighlightTarget;
     sectionKey?: string;
@@ -1247,146 +1238,39 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               (node) => renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID, false)
             )
           ) : (
-            <div className="space-y-2">
-              <button
-                type="button"
-                className="flex w-full items-center justify-center gap-1 rounded border border-[#3f6ad8] bg-[#1a2b57] px-2 py-1.5 text-[11px] font-semibold text-[#b9ccff] hover:bg-[#22376f]"
-                onClick={() => {
-                  applyComponentMutationResult(onCreateComponent?.());
-                }}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                New Component
-              </button>
-              {componentCatalog.length === 0 ? (
-                <div className="rounded border border-[#2f394d] bg-[#151c28] px-2 py-2 text-[11px] text-[#8ca2c8]">
-                  등록된 컴포넌트가 없습니다.
-                </div>
-              ) : (
-              componentCatalog.map((componentItem) => (
-                <div
-                  key={componentItem.id}
-                  className={`space-y-2 rounded border px-2 py-2 transition ${
-                    selectedComponentId === componentItem.id
-                      ? "border-[#4f8cff] bg-[#18243a]"
-                      : "border-[#2f394d] bg-[#151c28]"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left transition ${
-                      selectedComponentId === componentItem.id
-                        ? "bg-[#1d2d49]"
-                        : "hover:bg-[#1d2636]"
-                    }`}
-                    onClick={() => {
-                      selectComponentMaster(componentItem);
-                    }}
-                  >
-                      <Component className="h-3.5 w-3.5 shrink-0 text-[#9ab3dd]" />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-xs font-semibold text-[#d3e2ff]">
-                          {componentItem.label}
-                        </p>
-                        <p className="truncate text-[10px] text-[#7f92b5]">
-                          {componentItem.kind} / {componentItem.instanceMode}
-                        </p>
-                        <p className="truncate text-[10px] text-[#7f92b5]">
-                          instances: {componentItem.instanceCount}
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
-                        Master
-                      </span>
-                    </button>
-                    {componentItem.instanceMode !== "detached" ? (
-                      <button
-                        type="button"
-                        className="w-full rounded border border-[#8a4f4f] bg-[#2a1b1b] px-2 py-1 text-[11px] font-semibold text-[#f2b7b7] hover:bg-[#352020]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDetachComponent?.(componentItem.id);
-                        }}
-                      >
-                        Detach (되돌릴 수 없음)
-                      </button>
-                    ) : (
-                      <div className="w-full rounded border border-[#3b5b8b] bg-[#14233d] px-2 py-1 text-[11px] font-semibold text-[#9ec1ff]">
-                        Detached
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className="w-full rounded border border-[#3f6ad8] bg-[#1a2b57] px-2 py-1 text-[11px] font-semibold text-[#b9ccff] hover:bg-[#22376f]"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        selectComponentMaster(componentItem);
-                      }}
-                    >
-                      마스터 편집 열기
-                    </button>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center gap-1 rounded border border-[#3a5f9e] bg-[#182643] px-2 py-1 text-[11px] font-semibold text-[#a8c7ff] hover:bg-[#1d2e51]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          applyComponentMutationResult(
-                            onDuplicateComponent?.(componentItem.id)
-                          );
-                        }}
-                      >
-                        <Copy className="h-3 w-3" />
-                        Duplicate
-                      </button>
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center gap-1 rounded border border-[#8a4f4f] bg-[#2a1b1b] px-2 py-1 text-[11px] font-semibold text-[#f2b7b7] hover:bg-[#352020]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (
-                            !window.confirm(
-                              `${componentItem.label} 컴포넌트를 삭제할까요?`
-                            )
-                          ) {
-                            return;
-                          }
-                          applyComponentMutationResult(
-                            onDeleteComponent?.(componentItem.id)
-                          );
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        Delete
-                      </button>
-                    </div>
-                    {componentItem.firstInstanceLayerId ? (
-                      <button
-                        type="button"
-                        className="w-full rounded border border-[#3a5f9e] bg-[#182643] px-2 py-1 text-[11px] font-semibold text-[#a8c7ff] hover:bg-[#1d2e51]"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          const firstInstanceLayerId =
-                            componentItem.firstInstanceLayerId;
-                          if (!firstInstanceLayerId) return;
-                          setActiveTab("layers");
-                          setSelectedComponentId(componentItem.id);
-                          setSelectedLayerIds([firstInstanceLayerId]);
-                          setLastSelectedLayerId(firstInstanceLayerId);
-                          setSelectedLayerId(firstInstanceLayerId);
-                          onSelectLayer?.({
-                            layerId: firstInstanceLayerId,
-                            editorMode: "instance",
-                          });
-                        }}
-                      >
-                        첫 인스턴스 이동
-                      </button>
-                    ) : null}
-                  </div>
-                ))
-              )}
-            </div>
+            <V2LayersComponentsTab
+              componentCatalog={componentCatalog}
+              selectedComponentId={selectedComponentId}
+              onCreateComponent={() => {
+                applyComponentMutationResult(onCreateComponent?.());
+              }}
+              onSelectComponentMaster={selectComponentMaster}
+              onDetachComponent={(componentId) => {
+                onDetachComponent?.(componentId);
+              }}
+              onDuplicateComponent={(componentId) => {
+                applyComponentMutationResult(onDuplicateComponent?.(componentId));
+              }}
+              onDeleteComponent={(componentItem) => {
+                if (!window.confirm(`${componentItem.label} 컴포넌트를 삭제할까요?`)) {
+                  return;
+                }
+                applyComponentMutationResult(onDeleteComponent?.(componentItem.id));
+              }}
+              onJumpToFirstInstance={(componentItem) => {
+                const firstInstanceLayerId = componentItem.firstInstanceLayerId;
+                if (!firstInstanceLayerId) return;
+                setActiveTab("layers");
+                setSelectedComponentId(componentItem.id);
+                setSelectedLayerIds([firstInstanceLayerId]);
+                setLastSelectedLayerId(firstInstanceLayerId);
+                setSelectedLayerId(firstInstanceLayerId);
+                onSelectLayer?.({
+                  layerId: firstInstanceLayerId,
+                  editorMode: "instance",
+                });
+              }}
+            />
           )}
         </div>
       </div>
