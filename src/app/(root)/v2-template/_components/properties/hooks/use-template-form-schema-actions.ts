@@ -119,6 +119,31 @@ const useTemplateFormSchemaActions = ({
         return prev;
       }
 
+      const isFieldIdentityChanged =
+        prevField.scope !== nextScope || prevField.key !== nextKey;
+      if (isFieldIdentityChanged) {
+        const linkedNodeLabels = collectLinkedGraphBindingNodeLabels({
+          nodes: prev.graph.nodes,
+          scope: prevField.scope,
+          key: prevField.key,
+        });
+        if (linkedNodeLabels.length > 0) {
+          const previewLabels = linkedNodeLabels.slice(0, 4).join(", ");
+          const remainingCount =
+            linkedNodeLabels.length > 4 ? linkedNodeLabels.length - 4 : 0;
+          const confirmed = window.confirm(
+            [
+              `현재 ${linkedNodeLabels.length}개 오브젝트가 ${prevField.scope}.${prevField.key}를 사용 중입니다.`,
+              `연결 대상: ${previewLabels}${
+                remainingCount > 0 ? ` 외 ${remainingCount}개` : ""
+              }`,
+              `변경 후 바인딩 키가 ${nextScope}.${nextKey}로 일괄 교체됩니다. 계속할까요?`,
+            ].join("\n")
+          );
+          if (!confirmed) return prev;
+        }
+      }
+
       setFormSchemaError(null);
 
       const nextField: V2TemplateFormField = {

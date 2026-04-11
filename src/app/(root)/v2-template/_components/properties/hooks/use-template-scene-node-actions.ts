@@ -31,6 +31,7 @@ import {
   v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX,
   v2_createSceneComponentInstanceCloneNode,
 } from "@/utils/time-table/template-scene-component-instance";
+import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/time-table/template-scene-structure-messages";
 import { v2_dayKeyFromIndex } from "@/utils/time-table/template-render-config";
 import {
   v2_collectLayerNodeIds,
@@ -956,7 +957,10 @@ const useTemplateSceneNodeActions = ({
       });
       if (!sourceContext) return prev;
 
-      if (targetParentId === nodeId) return prev;
+      if (targetParentId === nodeId) {
+        window.alert(v2_SCENE_STRUCTURE_MESSAGES.DESCENDANT_BLOCKED);
+        return prev;
+      }
 
       const targetParentContext =
         targetParentId === null
@@ -976,12 +980,16 @@ const useTemplateSceneNodeActions = ({
           (targetParentContext.node.kind !== "group" &&
             targetParentContext.node.kind !== "cardCollection")
         ) {
+          window.alert(v2_SCENE_STRUCTURE_MESSAGES.INVALID_PARENT_KIND);
           return prev;
         }
         if (
           targetParentContext.node.kind === "cardCollection" &&
           !sourceIsComponentInstance
         ) {
+          window.alert(
+            v2_SCENE_STRUCTURE_MESSAGES.CARD_COLLECTION_ACCEPTS_COMPONENT_INSTANCE_ONLY
+          );
           return prev;
         }
         if (
@@ -990,6 +998,7 @@ const useTemplateSceneNodeActions = ({
             targetNodeId: targetParentId,
           })
         ) {
+          window.alert(v2_SCENE_STRUCTURE_MESSAGES.DESCENDANT_BLOCKED);
           return prev;
         }
       }

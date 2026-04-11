@@ -21,6 +21,7 @@ import {
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
 } from "@/types/time-table/template-render-config";
+import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/time-table/template-scene-structure-messages";
 import V2LayersComponentsTab, {
   V2LayersComponentItem,
 } from "./layers-components-tab";
@@ -583,7 +584,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       ) {
         setDragFeedback({
           tone: "error",
-          message: "자기 하위 레이어 안으로는 이동할 수 없습니다.",
+          message: v2_SCENE_STRUCTURE_MESSAGES.DESCENDANT_BLOCKED,
         });
         return;
       }
@@ -759,7 +760,8 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 (draggedId) => !canRelocateLayer?.(draggedId)
               )
             ) {
-              blockedReason = "이 레이어는 다른 그룹으로 이동할 수 없습니다.";
+              blockedReason =
+                v2_SCENE_STRUCTURE_MESSAGES.RELOCATE_CROSS_GROUP_LOCKED;
             } else if (
               dragState.draggedNodeIds.some((draggedId) =>
                 v2_isDescendantLayer({
@@ -769,7 +771,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                 })
               )
             ) {
-              blockedReason = "자기 하위 레이어 안으로는 이동할 수 없습니다.";
+              blockedReason = v2_SCENE_STRUCTURE_MESSAGES.DESCENDANT_BLOCKED;
             }
 
             event.preventDefault();
@@ -865,7 +867,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
             ) {
               setDragFeedback({
                 tone: "error",
-                message: "이 레이어는 그룹 이동이 잠겨 있습니다.",
+                message: v2_SCENE_STRUCTURE_MESSAGES.RELOCATE_LOCKED,
               });
               setDropState(null);
               setDragState(null);
