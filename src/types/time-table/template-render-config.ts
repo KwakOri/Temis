@@ -280,7 +280,7 @@ export type V2TemplateGraphNodeType =
   | "cardCollection"
   | "componentInstance";
 
-export type V2TemplateOrderModel = "pointer" | "orderKey";
+export type V2TemplateOrderModel = "orderKey";
 
 export interface V2TemplateGraphNodeOrder {
   model: V2TemplateOrderModel;
