@@ -411,6 +411,78 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     renderConfig.weekdayOption,
     runtimeSceneNodes,
   ]);
+  const activeCardComponentInstanceDiagnostics = useMemo(() => {
+    if (!activeCardComponentId) {
+      return {
+        duplicateInstanceIds: [] as string[],
+        duplicateDayKeys: [] as V2TemplateDayKey[],
+        missingDayKeys: [] as V2TemplateDayKey[],
+      };
+    }
+
+    const instanceIdCounter = new Map<string, number>();
+    const dayKeyCounter = new Map<V2TemplateDayKey, number>();
+    const collect = (nodes: typeof runtimeSceneNodes) => {
+      nodes.forEach((node) => {
+        if (node.kind === "componentInstance") {
+          if (node.componentId !== activeCardComponentId) return;
+          const instanceId = node.instanceId.trim();
+          if (instanceId) {
+            instanceIdCounter.set(
+              instanceId,
+              (instanceIdCounter.get(instanceId) ?? 0) + 1
+            );
+          }
+          dayKeyCounter.set(node.dayKey, (dayKeyCounter.get(node.dayKey) ?? 0) + 1);
+          return;
+        }
+        if (node.kind === "cardCollection") {
+          (node.children ?? []).forEach((instanceNode) => {
+            if (instanceNode.componentId !== activeCardComponentId) return;
+            const instanceId = instanceNode.instanceId.trim();
+            if (instanceId) {
+              instanceIdCounter.set(
+                instanceId,
+                (instanceIdCounter.get(instanceId) ?? 0) + 1
+              );
+            }
+            dayKeyCounter.set(
+              instanceNode.dayKey,
+              (dayKeyCounter.get(instanceNode.dayKey) ?? 0) + 1
+            );
+          });
+          return;
+        }
+        if (node.kind === "group") {
+          collect(node.children);
+        }
+      });
+    };
+
+    collect(runtimeSceneNodes);
+
+    const duplicateInstanceIds = Array.from(instanceIdCounter.entries())
+      .filter(([, count]) => count > 1)
+      .map(([instanceId]) => instanceId)
+      .sort();
+    const duplicateDayKeys = Array.from(dayKeyCounter.entries())
+      .filter(([, count]) => count > 1)
+      .map(([dayKey]) => dayKey)
+      .sort((left, right) => {
+        const leftIndex = v2_TEMPLATE_DAY_KEYS.indexOf(left);
+        const rightIndex = v2_TEMPLATE_DAY_KEYS.indexOf(right);
+        return leftIndex - rightIndex;
+      });
+    const missingDayKeys = v2_TEMPLATE_DAY_KEYS.filter(
+      (dayKey) => !dayKeyCounter.has(dayKey)
+    );
+
+    return {
+      duplicateInstanceIds,
+      duplicateDayKeys,
+      missingDayKeys,
+    };
+  }, [activeCardComponentId, runtimeSceneNodes]);
   const allRuntimeCardNodes = useMemo(() => {
     return Object.values(runtimeCardStructuresByComponentId).flatMap((structure) =>
       structure.nodeOrder
@@ -1189,6 +1261,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     cardInstanceMode: activeCardStructure?.instanceMode ?? "component",
     cardInstanceTransforms: activeCardStructure?.instanceTransforms ?? {},
     cardComponentInstances: activeCardComponentInstances,
+    cardComponentInstanceDiagnostics: activeCardComponentInstanceDiagnostics,
     onChangeCardInstanceMode: updateCardInstanceMode,
     onAppendCardTextNode: () => appendCardNode("text"),
     onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),

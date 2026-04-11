@@ -15,6 +15,11 @@ interface TemplateCardComponentPropertiesProps {
     label: string;
     dayKey?: V2TemplateDayKey;
   }>;
+  diagnostics?: {
+    duplicateInstanceIds: string[];
+    duplicateDayKeys: V2TemplateDayKey[];
+    missingDayKeys: V2TemplateDayKey[];
+  };
   onChangeInstanceMode: (value: "component" | "detached") => void;
   onAppendTextNode: () => void;
   onAppendFlexibleTextNode: () => void;
@@ -29,6 +34,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
   instanceMode,
   instanceTransforms,
   instances,
+  diagnostics,
   onChangeInstanceMode,
   onAppendTextNode,
   onAppendFlexibleTextNode,
@@ -98,6 +104,24 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
 
       {instanceMode === "detached" ? (
         <div className="space-y-2">
+          {diagnostics &&
+          (diagnostics.duplicateInstanceIds.length > 0 ||
+            diagnostics.duplicateDayKeys.length > 0 ||
+            diagnostics.missingDayKeys.length > 0) ? (
+            <div className="rounded border border-[#5e4a26] bg-[#2b2418] px-2 py-1.5 text-[11px] text-[#f5d58d] space-y-1">
+              {diagnostics.duplicateInstanceIds.length > 0 ? (
+                <p>
+                  중복 instanceId: {diagnostics.duplicateInstanceIds.join(", ")}
+                </p>
+              ) : null}
+              {diagnostics.duplicateDayKeys.length > 0 ? (
+                <p>중복 dayKey: {diagnostics.duplicateDayKeys.join(", ")}</p>
+              ) : null}
+              {diagnostics.missingDayKeys.length > 0 ? (
+                <p>누락 dayKey: {diagnostics.missingDayKeys.join(", ")}</p>
+              ) : null}
+            </div>
+          ) : null}
           <p className="text-[11px] text-gray-400">
             카드 1~7 각각의 개별 보정값(X/Y/회전/스케일/불투명도)을 조정합니다.
           </p>
