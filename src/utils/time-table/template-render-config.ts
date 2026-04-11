@@ -1563,7 +1563,8 @@ const v2_GRAPH_NODE_TYPE_SET = new Set([
   "cardCollection",
   "componentInstance",
 ]);
-const v2_ORDER_MODEL_SET = new Set(["orderKey"]);
+const v2_ORDER_KEY_MODEL = "orderKey" as const;
+const v2_LEGACY_POINTER_MODEL = "pointer" as const;
 
 const v2_normalizeGraphNodeType = (
   value: unknown
@@ -1607,15 +1608,15 @@ const v2_normalizeGraphNodeOrder = (
 
   if (
     typeof candidate.model === "string" &&
-    candidate.model !== "pointer" &&
-    !v2_ORDER_MODEL_SET.has(candidate.model)
+    candidate.model !== v2_LEGACY_POINTER_MODEL &&
+    candidate.model !== v2_ORDER_KEY_MODEL
   ) {
     return undefined;
   }
   const next: V2TemplateGraphNodeOrder = {
     // Pointer model is accepted only for read-compat input.
     // Normalized graph state should always write orderKey model.
-    model: "orderKey",
+    model: v2_ORDER_KEY_MODEL,
   };
 
   if (candidate.prevSiblingId === null) {
