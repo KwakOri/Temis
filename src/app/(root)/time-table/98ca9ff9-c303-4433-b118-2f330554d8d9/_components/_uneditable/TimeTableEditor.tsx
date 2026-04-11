@@ -15,9 +15,8 @@ import { isGuideEnabled } from '@/utils/time-table/data';
 import { placeholders } from '../../_settings/general';
 import {
   CARD_INPUT_CONFIG,
+  CARD_SIZES,
   defaultTheme,
-  profileImageHeight,
-  profileImageWidth,
   templateSize,
   weekdayOption,
 } from '../../_settings/settings';
@@ -54,14 +53,14 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
+          isArtist={true}
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
-          cropWidth={profileImageWidth}
-          cropHeight={profileImageHeight}
+          cropWidth={CARD_SIZES.PROFILE.width}
+          cropHeight={CARD_SIZES.PROFILE.height}
         >
           <TimeTableInputList
-            isMultiple
-            maxStreamingTimeByDay={2}
+            isOfflineMemo
             cardInputConfig={CARD_INPUT_CONFIG}
             placeholders={placeholders}
             data={data}

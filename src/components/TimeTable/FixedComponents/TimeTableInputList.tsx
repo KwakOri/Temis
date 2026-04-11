@@ -701,6 +701,7 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 showDeleteButton={isMultiple && day.entries.length > 1}
                 onDelete={() => handleRemoveEntry(dayIndex, entryIndex)}
                 variant="default"
+                size={size}
               >
                 {entryFieldConfigs.map((fieldConfig) => {
                   const isDefaultField =
