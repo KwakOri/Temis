@@ -1,9 +1,6 @@
-import type { V2TemplateOrderModel } from "@/types/time-table/template-render-config";
 import { v2_orderKeyOrderAdapter } from "./order-key-adapter";
 
-// `pointer` is supported only at graph normalization(read-compat) boundary.
-// Editor runtime adapters should write `orderKey` only.
-export type V2OrderModel = Extract<V2TemplateOrderModel, "orderKey">;
+export type V2OrderModel = "orderKey";
 
 export interface V2OrderNode {
   id: string;
