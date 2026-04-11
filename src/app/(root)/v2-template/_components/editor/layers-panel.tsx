@@ -29,6 +29,7 @@ type V2ComponentMutationResult = {
 interface V2TimeTableLayersPanelProps {
   layerTree?: V2LayerNode[];
   componentCatalog?: V2LayersComponentItem[];
+  componentLayerTreeByComponentId?: Record<string, V2LayerNode | null>;
   onSelectLayer?: (payload: {
     target?: V2TemplateHighlightTarget;
     sectionKey?: string;
@@ -59,6 +60,7 @@ interface V2TimeTableLayersPanelProps {
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   layerTree: layerTreeProp,
   componentCatalog = [],
+  componentLayerTreeByComponentId = {},
   onSelectLayer,
   orderedIdsByParent,
   onReorderLayers,
@@ -122,13 +124,24 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const selectComponentMaster = (
     componentItem: (typeof componentCatalog)[number]
   ) => {
-    if (!componentItem.rootLayerId) return;
+    const resolvedRootLayerId =
+      componentItem.rootLayerId ??
+      componentLayerTreeByComponentId[componentItem.id]?.id ??
+      null;
+    if (!resolvedRootLayerId) {
+      setDragFeedback({
+        tone: "error",
+        message:
+          "이 컴포넌트는 master layer를 찾을 수 없습니다. 구성 데이터를 확인해 주세요.",
+      });
+      return;
+    }
     setSelectedComponentId(componentItem.id);
-    setSelectedLayerIds([componentItem.rootLayerId]);
-    setLastSelectedLayerId(componentItem.rootLayerId);
-    setSelectedLayerId(componentItem.rootLayerId);
+    setSelectedLayerIds([resolvedRootLayerId]);
+    setLastSelectedLayerId(resolvedRootLayerId);
+    setSelectedLayerId(resolvedRootLayerId);
     onSelectLayer?.({
-      layerId: componentItem.rootLayerId,
+      layerId: resolvedRootLayerId,
       editorMode: "master",
     });
   };
@@ -615,11 +628,23 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           ) : (
             <V2LayersComponentsTab
               componentCatalog={componentCatalog}
+              componentLayerTreeByComponentId={componentLayerTreeByComponentId}
               selectedComponentId={selectedComponentId}
+              selectedLayerId={selectedLayerId}
               onCreateComponent={() => {
                 applyComponentMutationResult(onCreateComponent?.());
               }}
               onSelectComponentMaster={selectComponentMaster}
+              onSelectComponentLayer={({ componentItem, layerId }) => {
+                setSelectedComponentId(componentItem.id);
+                setSelectedLayerIds([layerId]);
+                setLastSelectedLayerId(layerId);
+                setSelectedLayerId(layerId);
+                onSelectLayer?.({
+                  layerId,
+                  editorMode: "master",
+                });
+              }}
               onDetachComponent={(componentId) => {
                 onDetachComponent?.(componentId);
               }}

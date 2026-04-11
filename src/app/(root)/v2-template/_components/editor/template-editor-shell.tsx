@@ -14,6 +14,7 @@ import {
 } from '@/types/time-table/template-render-config';
 import { TTheme } from '@/types/time-table/theme';
 import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
+import { v2_getRuntimeComponentLayerTreeByComponentId } from '@/utils/time-table/template-graph-component-layers-runtime';
 import {
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
@@ -275,7 +276,7 @@ const V2TimeTableEditor: React.FC = () => {
             ? node.children.length
             : 0;
           const firstInstanceLayerId = Array.isArray(node.children)
-            ? (node.children[0]?.layerId ?? null)
+            ? (node.children[0]?.layerId ?? node.children[0]?.id ?? null)
             : null;
           instanceStatsByComponentId[componentId] = {
             count: previous.count + instanceCount,
@@ -300,7 +301,7 @@ const V2TimeTableEditor: React.FC = () => {
         id: definition.id,
         label: definition.label || definition.id,
         rootNodeId: definition.rootNodeId,
-        rootLayerId: rootNode?.layerId ?? null,
+        rootLayerId: rootNode?.layerId ?? rootNode?.id ?? null,
         kind: definition.kind ?? "custom",
         instanceMode: definition.instanceMode ?? "component",
         instanceCount: instanceStatsByComponentId[definition.id]?.count ?? 0,
@@ -313,6 +314,10 @@ const V2TimeTableEditor: React.FC = () => {
     renderConfig.graph.nodes,
     runtimeSceneNodes,
   ]);
+  const runtimeComponentLayerTreeByComponentId = useMemo(
+    () => v2_getRuntimeComponentLayerTreeByComponentId(renderConfig),
+    [renderConfig]
+  );
   const runtimeCardStructures = useMemo(
     () =>
       Object.keys(renderConfig.graph.componentDefinitions ?? {}).map((componentId) =>
@@ -1183,6 +1188,9 @@ const V2TimeTableEditor: React.FC = () => {
                     <V2TimeTableLayersPanel
                       layerTree={runtimeLayerTree}
                       componentCatalog={runtimeComponentCatalog}
+                      componentLayerTreeByComponentId={
+                        runtimeComponentLayerTreeByComponentId
+                      }
                       extractableComponentInstanceLayerIdSet={
                         extractableComponentInstanceLayerIdSet
                       }

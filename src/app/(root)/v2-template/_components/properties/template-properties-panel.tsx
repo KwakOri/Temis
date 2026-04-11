@@ -14,6 +14,7 @@ import {
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
+import { v2_getRuntimeComponentLayerTreeNodes } from "@/utils/time-table/template-graph-component-layers-runtime";
 import {
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
@@ -186,6 +187,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
   );
+  const runtimeComponentLayerTreeNodes = useMemo(
+    () => v2_getRuntimeComponentLayerTreeNodes(renderConfig),
+    [renderConfig]
+  );
   const {
     selectedPropertiesTarget,
     setSelectedPropertiesTarget,
@@ -199,6 +204,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     selectedPropertiesLabel,
   } = useTemplatePropertiesSelectionContext({
     runtimeLayerTree,
+    runtimeComponentLayerTrees: runtimeComponentLayerTreeNodes,
     styleSectionLabels: v2_STYLE_SECTION_LABELS,
     highlightTargetLabels: v2_HIGHLIGHT_TARGET_LABELS,
   });

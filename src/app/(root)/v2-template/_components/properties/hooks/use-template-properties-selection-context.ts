@@ -11,12 +11,14 @@ import { V2StyleSectionKey } from "../model/template-properties-constants";
 
 interface UseTemplatePropertiesSelectionContextParams {
   runtimeLayerTree: V2TemplateLayerNode[];
+  runtimeComponentLayerTrees?: V2TemplateLayerNode[];
   styleSectionLabels: Record<V2StyleSectionKey, string>;
   highlightTargetLabels: Record<V2TemplateHighlightTarget, string>;
 }
 
 const useTemplatePropertiesSelectionContext = ({
   runtimeLayerTree,
+  runtimeComponentLayerTrees = [],
   styleSectionLabels,
   highlightTargetLabels,
 }: UseTemplatePropertiesSelectionContextParams) => {
@@ -28,8 +30,12 @@ const useTemplatePropertiesSelectionContext = ({
     useState<"instance" | "master">("instance");
 
   const structurePropertiesMaps = useMemo(
-    () => v2_collectStructureTargetSectionMaps(runtimeLayerTree),
-    [runtimeLayerTree]
+    () =>
+      v2_collectStructureTargetSectionMaps([
+        ...runtimeLayerTree,
+        ...runtimeComponentLayerTrees,
+      ]),
+    [runtimeComponentLayerTrees, runtimeLayerTree]
   );
 
   const selectedPropertiesLayerNode = useMemo(
