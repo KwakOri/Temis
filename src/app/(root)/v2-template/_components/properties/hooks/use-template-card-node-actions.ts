@@ -336,11 +336,13 @@ const useTemplateCardNodeActions = ({
   };
 
   const updateCardInstanceTransform = (
-    index: number,
+    rawInstanceId: string,
     key: keyof V2TemplateCardInstanceTransform,
     value: number
   ) => {
     if (!Number.isFinite(value)) return;
+    const instanceId = rawInstanceId.trim();
+    if (!instanceId) return;
 
     safeUpdateConfig((prev) => {
       const componentIdCandidate = resolveActiveComponentId?.(prev);
@@ -349,12 +351,11 @@ const useTemplateCardNodeActions = ({
       const graphCardDefinition = prev.graph.componentDefinitions[componentId];
       if (!graphCardDefinition) return prev;
       const runtimeCard = v2_getRuntimeCardStructureByComponentId(prev, componentId);
-      const transformKey = String(index);
       const prevTransforms =
         graphCardDefinition.instanceTransforms ??
         runtimeCard.instanceTransforms ??
         {};
-      const prevTransform = prevTransforms[transformKey] ?? {};
+      const prevTransform = prevTransforms[instanceId] ?? {};
       const nextTransform: V2TemplateCardInstanceTransform = {
         ...prevTransform,
       };
@@ -401,9 +402,9 @@ const useTemplateCardNodeActions = ({
       };
 
       if (Object.keys(nextTransform).length === 0) {
-        delete nextTransforms[transformKey];
+        delete nextTransforms[instanceId];
       } else {
-        nextTransforms[transformKey] = nextTransform;
+        nextTransforms[instanceId] = nextTransform;
       }
 
       const nextGraph = {

@@ -2,7 +2,10 @@
 
 import React from "react";
 
-import { V2TemplateCardInstanceTransform } from "@/types/time-table/template-render-config";
+import {
+  V2TemplateCardInstanceTransform,
+  V2TemplateDayKey,
+} from "@/types/time-table/template-render-config";
 import TemplateCardComponentProperties from "../components/template-card-component-properties";
 import TemplateSimplePropertiesSection from "../components/template-simple-properties-section";
 import { v2_getPropertiesStyleEditorTitle } from "../model/style-section-title-utils";
@@ -18,11 +21,16 @@ interface UseTemplateSimplePropertiesPanelParams {
   cardContainerSectionKey: string;
   cardInstanceMode: "component" | "detached";
   cardInstanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
+  cardComponentInstances: Array<{
+    instanceId: string;
+    label: string;
+    dayKey?: V2TemplateDayKey;
+  }>;
   onChangeCardInstanceMode: (mode: "component" | "detached") => void;
   onAppendCardTextNode: () => void;
   onAppendCardFlexibleTextNode: () => void;
   onUpdateCardInstanceTransform: (
-    cardIndex: number,
+    instanceId: string,
     key: "offsetX" | "offsetY" | "rotateDeg" | "scale" | "opacity",
     value: number
   ) => void;
@@ -40,6 +48,7 @@ const useTemplateSimplePropertiesPanel = ({
   cardContainerSectionKey,
   cardInstanceMode,
   cardInstanceTransforms,
+  cardComponentInstances,
   onChangeCardInstanceMode,
   onAppendCardTextNode,
   onAppendCardFlexibleTextNode,
@@ -61,6 +70,7 @@ const useTemplateSimplePropertiesPanel = ({
       <TemplateCardComponentProperties
         instanceMode={cardInstanceMode}
         instanceTransforms={cardInstanceTransforms}
+        instances={cardComponentInstances}
         onChangeInstanceMode={onChangeCardInstanceMode}
         onAppendTextNode={onAppendCardTextNode}
         onAppendFlexibleTextNode={onAppendCardFlexibleTextNode}

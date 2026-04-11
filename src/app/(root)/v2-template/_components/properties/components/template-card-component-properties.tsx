@@ -2,16 +2,24 @@
 
 import React from "react";
 
-import { V2TemplateCardInstanceTransform } from "@/types/time-table/template-render-config";
+import {
+  V2TemplateCardInstanceTransform,
+  V2TemplateDayKey,
+} from "@/types/time-table/template-render-config";
 
 interface TemplateCardComponentPropertiesProps {
   instanceMode: "component" | "detached";
   instanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
+  instances: Array<{
+    instanceId: string;
+    label: string;
+    dayKey?: V2TemplateDayKey;
+  }>;
   onChangeInstanceMode: (value: "component" | "detached") => void;
   onAppendTextNode: () => void;
   onAppendFlexibleTextNode: () => void;
   onUpdateInstanceTransform: (
-    cardIndex: number,
+    instanceId: string,
     key: "offsetX" | "offsetY" | "rotateDeg" | "scale" | "opacity",
     value: number
   ) => void;
@@ -20,11 +28,25 @@ interface TemplateCardComponentPropertiesProps {
 const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesProps> = ({
   instanceMode,
   instanceTransforms,
+  instances,
   onChangeInstanceMode,
   onAppendTextNode,
   onAppendFlexibleTextNode,
   onUpdateInstanceTransform,
 }) => {
+  const uniqueInstances = React.useMemo(() => {
+    const map = new Map<
+      string,
+      { instanceId: string; label: string; dayKey?: V2TemplateDayKey }
+    >();
+    instances.forEach((instance) => {
+      if (!instance.instanceId) return;
+      if (map.has(instance.instanceId)) return;
+      map.set(instance.instanceId, instance);
+    });
+    return Array.from(map.values());
+  }, [instances]);
+
   return (
     <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -87,8 +109,13 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
             <span>S</span>
             <span>O</span>
           </div>
-          {Array.from({ length: 7 }).map((_, index) => {
-            const key = String(index);
+          {uniqueInstances.length === 0 ? (
+            <div className="rounded border border-[#3a3d44] bg-[#22252b] px-2 py-2 text-[11px] text-gray-400">
+              현재 연결된 Card 인스턴스가 없어 개별 보정을 표시할 수 없습니다.
+            </div>
+          ) : null}
+          {uniqueInstances.map((instance, index) => {
+            const key = instance.instanceId;
             const transform = instanceTransforms[key] ?? {};
             const offsetX =
               typeof transform.offsetX === "number" ? transform.offsetX : 0;
@@ -105,13 +132,13 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
                 key={key}
                 className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_1fr] gap-2 items-center"
               >
-                <span className="text-xs text-gray-300">Card {index + 1}</span>
+                <span className="text-xs text-gray-300">{instance.label}</span>
                 <input
                   type="number"
                   value={offsetX}
                   onChange={(event) =>
                     onUpdateInstanceTransform(
-                      index,
+                      key,
                       "offsetX",
                       Number(event.target.value)
                     )
@@ -124,7 +151,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
                   value={offsetY}
                   onChange={(event) =>
                     onUpdateInstanceTransform(
-                      index,
+                      key,
                       "offsetY",
                       Number(event.target.value)
                     )
@@ -138,7 +165,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
                   value={rotateDeg}
                   onChange={(event) =>
                     onUpdateInstanceTransform(
-                      index,
+                      key,
                       "rotateDeg",
                       Number(event.target.value)
                     )
@@ -153,7 +180,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
                   value={scale}
                   onChange={(event) =>
                     onUpdateInstanceTransform(
-                      index,
+                      key,
                       "scale",
                       Number(event.target.value)
                     )
@@ -169,7 +196,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
                   value={opacity}
                   onChange={(event) =>
                     onUpdateInstanceTransform(
-                      index,
+                      key,
                       "opacity",
                       Number(event.target.value)
                     )

@@ -302,6 +302,115 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         : null,
     [activeCardComponentId, runtimeCardStructuresByComponentId]
   );
+  const activeCardComponentInstances = useMemo(() => {
+    if (!activeCardComponentId) return [] as Array<{
+      instanceId: string;
+      label: string;
+      dayKey?: V2TemplateDayKey;
+    }>;
+
+    const collected: Array<{
+      instanceId: string;
+      label: string;
+      dayKey?: V2TemplateDayKey;
+    }> = [];
+    const seenInstanceIds = new Set<string>();
+    const pushInstance = ({
+      instanceId,
+      dayKey,
+      fallbackLabel,
+    }: {
+      instanceId: string;
+      dayKey?: V2TemplateDayKey;
+      fallbackLabel: string;
+    }) => {
+      const key = instanceId.trim();
+      if (!key || seenInstanceIds.has(key)) return;
+      seenInstanceIds.add(key);
+      const dayLabel =
+        dayKey &&
+        v2_resolveDayLabelByKey({
+          dayKey,
+          dayLabelFormat: renderConfig.dayLabelFormat,
+          fallbackWeekdayOption: renderConfig.weekdayOption,
+        });
+      collected.push({
+        instanceId: key,
+        dayKey,
+        label: dayLabel ? `${dayLabel} (${key})` : fallbackLabel,
+      });
+    };
+
+    const visit = (nodes: typeof runtimeSceneNodes) => {
+      nodes.forEach((node) => {
+        if (node.kind === "componentInstance") {
+          if (node.componentId === activeCardComponentId) {
+            pushInstance({
+              instanceId: node.instanceId,
+              dayKey: node.dayKey,
+              fallbackLabel: node.label || `Card ${node.instanceId}`,
+            });
+          }
+          return;
+        }
+        if (node.kind === "cardCollection") {
+          (node.children ?? []).forEach((instanceNode) => {
+            if (instanceNode.componentId !== activeCardComponentId) return;
+            pushInstance({
+              instanceId: instanceNode.instanceId,
+              dayKey: instanceNode.dayKey,
+              fallbackLabel:
+                instanceNode.label || `Card ${instanceNode.instanceId}`,
+            });
+          });
+          return;
+        }
+        if (node.kind === "group") {
+          visit(node.children);
+        }
+      });
+    };
+    visit(runtimeSceneNodes);
+
+    const transformKeys = Object.keys(activeCardStructure?.instanceTransforms ?? {});
+    transformKeys.forEach((instanceId) => {
+      pushInstance({
+        instanceId,
+        fallbackLabel: `Card ${instanceId}`,
+      });
+    });
+
+    const dayKeyOrder = new Map(
+      v2_TEMPLATE_DAY_KEYS.map((dayKey, index) => [dayKey, index] as const)
+    );
+    return [...collected].sort((left, right) => {
+      const leftDayOrder =
+        typeof left.dayKey === "string" ? dayKeyOrder.get(left.dayKey) : undefined;
+      const rightDayOrder =
+        typeof right.dayKey === "string"
+          ? dayKeyOrder.get(right.dayKey)
+          : undefined;
+      if (
+        typeof leftDayOrder === "number" &&
+        typeof rightDayOrder === "number" &&
+        leftDayOrder !== rightDayOrder
+      ) {
+        return leftDayOrder - rightDayOrder;
+      }
+      const leftNumeric = Number.parseInt(left.instanceId, 10);
+      const rightNumeric = Number.parseInt(right.instanceId, 10);
+      if (Number.isFinite(leftNumeric) && Number.isFinite(rightNumeric)) {
+        return leftNumeric - rightNumeric;
+      }
+      return left.instanceId.localeCompare(right.instanceId);
+    });
+  }, [
+    activeCardComponentId,
+    activeCardStructure?.instanceTransforms,
+    renderConfig.dayLabelFormat,
+    renderConfig.weekdayOption,
+    runtimeSceneNodes,
+  ]);
   const allRuntimeCardNodes = useMemo(() => {
     return Object.values(runtimeCardStructuresByComponentId).flatMap((structure) =>
       structure.nodeOrder
@@ -1079,6 +1188,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       activeCardStructure?.containerStyleKey ?? "cardContainer",
     cardInstanceMode: activeCardStructure?.instanceMode ?? "component",
     cardInstanceTransforms: activeCardStructure?.instanceTransforms ?? {},
+    cardComponentInstances: activeCardComponentInstances,
     onChangeCardInstanceMode: updateCardInstanceMode,
     onAppendCardTextNode: () => appendCardNode("text"),
     onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),
