@@ -25,6 +25,12 @@ import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers
 import {
   v2_getRuntimeSceneNodes,
 } from "@/utils/time-table/template-graph-runtime";
+import {
+  v2_applyRelocatedComponentInstancePatch,
+  v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX,
+  v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX,
+  v2_createSceneComponentInstanceCloneNode,
+} from "@/utils/time-table/template-scene-component-instance";
 import { v2_dayKeyFromIndex } from "@/utils/time-table/template-render-config";
 import {
   v2_collectLayerNodeIds,
@@ -53,11 +59,6 @@ interface UseTemplateSceneNodeActionsParams {
 }
 
 const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
-const v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX = "scene-component-instance-";
-const v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX = "scene-component-instance-layer-";
-
-const v2_createComponentInstanceStyleKey = (nodeId: string) =>
-  `sceneNode:${nodeId}:style`;
 
 const v2_getPreferredCardCollectionComponentId = (
   config: V2TemplateRenderConfig
@@ -1010,109 +1011,17 @@ const useTemplateSceneNodeActions = ({
           ? effectiveTargetIndex
           : undefined,
       });
-      const movedNode = nextGraph.nodes[nodeId];
-      if (!movedNode) {
-        return {
-          ...prev,
-          graph: nextGraph,
-        };
-      }
-      if (sourceIsComponentInstance && targetParentKind !== "cardCollection") {
-        const styleKey =
-          typeof movedNode.styles?.styleKey === "string" &&
-          movedNode.styles.styleKey.trim().length > 0
-            ? movedNode.styles.styleKey
-            : v2_createComponentInstanceStyleKey(nodeId);
-        const nextGraphWithStyle = v2_graphUpdateNode(nextGraph, nodeId, (node) => ({
-          ...node,
-          styles: {
-            ...(node.styles ?? {}),
-            styleKey,
-          },
-          meta: {
-            ...(node.meta ?? {}),
-            layerTarget: `sceneNode:${node.id}`,
-            layerSectionKey: styleKey,
-            layerIcon: "layers",
-          },
-        }));
-        const existingStyle = prev.layout.scene[styleKey];
-        return {
-          ...prev,
-          graph: nextGraphWithStyle,
-          layout: {
-            ...prev.layout,
-            scene: {
-              ...prev.layout.scene,
-              ...(existingStyle
-                ? {}
-                : {
-                    [styleKey]: {
-                      position: "absolute",
-                      top: 120,
-                      left: 120,
-                    },
-                  }),
-            },
-          },
-        };
-      }
-      if (sourceIsComponentInstance && targetParentKind === "cardCollection") {
-        const staleStyleKey =
-          typeof movedNode.styles?.styleKey === "string" &&
-          movedNode.styles.styleKey.trim().length > 0
-            ? movedNode.styles.styleKey
-            : null;
-        const instanceId =
-          typeof movedNode.meta?.instanceId === "string" &&
-          movedNode.meta.instanceId.trim().length > 0
-            ? movedNode.meta.instanceId
-            : sourceContext.node.kind === "componentInstance"
-              ? sourceContext.node.instanceId
-              : movedNode.id;
-        const nextGraphWithoutStyle = v2_graphUpdateNode(nextGraph, nodeId, (node) => {
-          const nextStyles = {
-            ...(node.styles ?? {}),
-          };
-          delete nextStyles.styleKey;
-
-          return {
-            ...node,
-            ...(Object.keys(nextStyles).length > 0
-              ? { styles: nextStyles }
-              : { styles: undefined }),
-            meta: {
-              ...(node.meta ?? {}),
-              layerTarget: `cardInstance:${instanceId}`,
-              layerSectionKey: "grid",
-              layerIcon: "layers",
-            },
-          };
-        });
-        if (!staleStyleKey) {
-          return {
-            ...prev,
-            graph: nextGraphWithoutStyle,
-          };
-        }
-
-        const nextSceneLayout = {
-          ...prev.layout.scene,
-        };
-        delete nextSceneLayout[staleStyleKey];
-        return {
-          ...prev,
-          graph: nextGraphWithoutStyle,
-          layout: {
-            ...prev.layout,
-            scene: nextSceneLayout,
-          },
-        };
-      }
-      return {
-        ...prev,
-        graph: nextGraph,
-      };
+      return v2_applyRelocatedComponentInstancePatch({
+        prev,
+        nextGraph,
+        nodeId,
+        sourceIsComponentInstance,
+        targetParentKind,
+        fallbackInstanceId:
+          sourceContext.node.kind === "componentInstance"
+            ? sourceContext.node.instanceId
+            : nodeId,
+      });
     });
   };
 
@@ -1156,31 +1065,16 @@ const useTemplateSceneNodeActions = ({
         v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX,
         existingLayerIds
       );
-      const styleKey = v2_createComponentInstanceStyleKey(cloneNodeId);
-
       const sourceGraphNode = prev.graph.nodes[nodeId];
       if (!sourceGraphNode || sourceGraphNode.type !== "componentInstance") {
         return prev;
       }
 
-      const cloneNode: V2TemplateGraphNode = {
-        ...sourceGraphNode,
-        id: cloneNodeId,
-        label: `${sourceGraphNode.label} Copy`,
-        layerId: cloneLayerId,
-        parentId: sourceGraphNode.parentId,
-        childIds: [],
-        styles: {
-          ...(sourceGraphNode.styles ?? {}),
-          styleKey,
-        },
-        meta: {
-          ...(sourceGraphNode.meta ?? {}),
-          layerTarget: `sceneNode:${cloneNodeId}`,
-          layerSectionKey: styleKey,
-          layerIcon: "layers",
-        },
-      };
+      const { cloneNode, styleKey } = v2_createSceneComponentInstanceCloneNode({
+        sourceNode: sourceGraphNode,
+        cloneNodeId,
+        cloneLayerId,
+      });
 
       let nextGraph = v2_graphInsertSiblingAfter({
         graph: prev.graph,
