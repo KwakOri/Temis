@@ -257,16 +257,6 @@ export const v2_normalizeGraphOrderKeys = (
   };
 };
 
-/**
- * @deprecated Use `v2_normalizeGraphSiblingOrder` instead.
- */
-export const v2_normalizePointerOrderInGraph = v2_normalizeGraphSiblingOrder;
-
-/**
- * @deprecated Use `v2_normalizeGraphOrderKeys` instead.
- */
-export const v2_convertPointerOrderToOrderKeyInGraph = v2_normalizeGraphOrderKeys;
-
 export interface V2OrderKeyGraphValidationResult {
   valid: boolean;
   issues: string[];
