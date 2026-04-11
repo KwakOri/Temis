@@ -15,6 +15,7 @@ import {
 
 const v2_COLOR_KEY_SET = new Set(v2_TEMPLATE_COLOR_KEYS);
 const v2_VISIBILITY_MODE_SET = new Set(["always", "onlineOnly", "offlineOnly"]);
+const v2_INVALID_COMPONENT_ID = "__invalid_component__";
 
 const v2_toVisibilityMode = (value: unknown): V2TemplateVisibilityMode | undefined => {
   if (typeof value !== "string") return undefined;
@@ -203,13 +204,14 @@ const v2_buildSceneNodeFromGraph = ({
       typeof graphNode.meta?.componentId === "string"
         ? graphNode.meta.componentId.trim()
         : "";
-    if (!componentIdCandidate || !validComponentIdSet.has(componentIdCandidate)) {
-      return null;
-    }
+    const componentId =
+      componentIdCandidate && validComponentIdSet.has(componentIdCandidate)
+        ? componentIdCandidate
+        : componentIdCandidate || v2_INVALID_COMPONENT_ID;
     return {
       ...base,
       kind: "componentInstance",
-      componentId: componentIdCandidate,
+      componentId,
       instanceId:
         typeof graphNode.meta?.instanceId === "string"
           ? graphNode.meta.instanceId
