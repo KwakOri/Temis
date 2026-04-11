@@ -1646,11 +1646,23 @@ const v2_normalizeGraphNodeOrder = (
 ): V2TemplateGraphNodeOrder | undefined => {
   if (!v2_isRecord(candidate)) return undefined;
 
+  const candidateModel =
+    typeof candidate.model === "string" ? candidate.model : undefined;
   if (
-    typeof candidate.model === "string" &&
-    candidate.model !== v2_LEGACY_POINTER_MODEL &&
-    candidate.model !== v2_ORDER_KEY_MODEL
+    candidateModel !== undefined &&
+    candidateModel !== v2_LEGACY_POINTER_MODEL &&
+    candidateModel !== v2_ORDER_KEY_MODEL
   ) {
+    return undefined;
+  }
+
+  const parsedOrderKey =
+    typeof candidate.orderKey === "string" && candidate.orderKey.trim().length > 0
+      ? candidate.orderKey
+      : undefined;
+  if (candidateModel === v2_LEGACY_POINTER_MODEL && !parsedOrderKey) {
+    // Legacy pointer-only ordering is read-compat only.
+    // Without orderKey we intentionally drop it and rebuild in normalize.
     return undefined;
   }
   const next: V2TemplateGraphNodeOrder = {
@@ -1659,14 +1671,16 @@ const v2_normalizeGraphNodeOrder = (
     model: v2_ORDER_KEY_MODEL,
   };
 
-  if (candidate.prevSiblingId === null) {
-    next.prevSiblingId = null;
-  } else if (typeof candidate.prevSiblingId === "string") {
-    next.prevSiblingId = candidate.prevSiblingId;
+  if (candidateModel !== v2_LEGACY_POINTER_MODEL) {
+    if (candidate.prevSiblingId === null) {
+      next.prevSiblingId = null;
+    } else if (typeof candidate.prevSiblingId === "string") {
+      next.prevSiblingId = candidate.prevSiblingId;
+    }
   }
 
-  if (typeof candidate.orderKey === "string" && candidate.orderKey.trim().length > 0) {
-    next.orderKey = candidate.orderKey;
+  if (parsedOrderKey) {
+    next.orderKey = parsedOrderKey;
   }
 
   return next;
