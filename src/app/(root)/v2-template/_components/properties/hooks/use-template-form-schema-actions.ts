@@ -63,7 +63,7 @@ const useTemplateFormSchemaActions = ({
     });
   };
 
-  const countLinkedGraphBindingNodes = ({
+  const collectLinkedGraphBindingNodeLabels = ({
     nodes,
     scope,
     key,
@@ -71,14 +71,16 @@ const useTemplateFormSchemaActions = ({
     nodes: V2TemplateRenderConfig["graph"]["nodes"];
     scope: V2TemplateFormField["scope"];
     key: string;
-  }): number => {
-    return Object.values(nodes).filter((node) => {
-      return (
-        node.binding?.mode === "field" &&
-        node.binding.scope === scope &&
-        node.binding.key === key
-      );
-    }).length;
+  }): string[] => {
+    return Object.values(nodes)
+      .filter((node) => {
+        return (
+          node.binding?.mode === "field" &&
+          node.binding.scope === scope &&
+          node.binding.key === key
+        );
+      })
+      .map((node) => node.label || node.id);
   };
 
   const hasDuplicatedFormFieldKey = (
@@ -193,15 +195,25 @@ const useTemplateFormSchemaActions = ({
     const targetField = renderConfig.formSchema.fields[index];
     if (!targetField) return;
 
-    const linkedNodeCount = countLinkedGraphBindingNodes({
+    const linkedNodeLabels = collectLinkedGraphBindingNodeLabels({
       nodes: renderConfig.graph.nodes,
       scope: targetField.scope,
       key: targetField.key,
     });
+    const linkedNodeCount = linkedNodeLabels.length;
 
     if (linkedNodeCount > 0) {
+      const previewLabels = linkedNodeLabels.slice(0, 4).join(", ");
+      const remainingCount =
+        linkedNodeLabels.length > 4 ? linkedNodeLabels.length - 4 : 0;
       const confirmed = window.confirm(
-        `이 필드는 ${linkedNodeCount}개 오브젝트에서 사용 중입니다. 삭제하면 해당 바인딩이 비워집니다. 계속할까요?`
+        [
+          `이 필드는 ${linkedNodeCount}개 오브젝트에서 사용 중입니다.`,
+          `연결 대상: ${previewLabels}${
+            remainingCount > 0 ? ` 외 ${remainingCount}개` : ""
+          }`,
+          "삭제하면 해당 바인딩이 literal(빈 값)으로 대체됩니다. 계속할까요?",
+        ].join("\n")
       );
       if (!confirmed) return;
     }

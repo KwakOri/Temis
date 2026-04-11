@@ -12,6 +12,13 @@ export interface V2FormSchemaDiagnostics {
   missingBindings: Array<{ nodeLabel: string; scope: string; key: string }>;
   duplicateFields: Array<{ scope: string; key: string; count: number }>;
   invalidFields: Array<{ scope: string; key: string; reason: string }>;
+  fieldUsageByFieldId: Record<
+    string,
+    {
+      count: number;
+      nodeLabels: string[];
+    }
+  >;
 }
 
 export const v2_collectFormSchemaDiagnostics = ({
@@ -25,12 +32,14 @@ export const v2_collectFormSchemaDiagnostics = ({
 }): V2FormSchemaDiagnostics => {
   const fieldIdSet = new Set<string>();
   const fieldUsageMap = new Map<string, number>();
+  const fieldUsageNodeLabelsMap = new Map<string, Set<string>>();
   const duplicateCounter = new Map<string, number>();
 
   fields.forEach((field) => {
     const fieldId = `${field.scope}:${field.key}`;
     fieldIdSet.add(fieldId);
     fieldUsageMap.set(fieldId, 0);
+    fieldUsageNodeLabelsMap.set(fieldId, new Set<string>());
     duplicateCounter.set(fieldId, (duplicateCounter.get(fieldId) ?? 0) + 1);
   });
 
@@ -48,6 +57,7 @@ export const v2_collectFormSchemaDiagnostics = ({
       return;
     }
     fieldUsageMap.set(fieldId, (fieldUsageMap.get(fieldId) ?? 0) + 1);
+    fieldUsageNodeLabelsMap.get(fieldId)?.add(node.label);
   });
 
   const duplicateFields = Array.from(duplicateCounter.entries())
@@ -90,11 +100,22 @@ export const v2_collectFormSchemaDiagnostics = ({
     return (fieldUsageMap.get(fieldId) ?? 0) === 0;
   });
 
+  const fieldUsageByFieldId = Object.fromEntries(
+    Array.from(fieldIdSet.values()).map((fieldId) => [
+      fieldId,
+      {
+        count: fieldUsageMap.get(fieldId) ?? 0,
+        nodeLabels: Array.from(fieldUsageNodeLabelsMap.get(fieldId) ?? []),
+      },
+    ])
+  );
+
   return {
     totalFields: fields.length,
     missingBindings,
     unusedFields,
     duplicateFields,
     invalidFields,
+    fieldUsageByFieldId,
   };
 };

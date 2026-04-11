@@ -15,6 +15,13 @@ interface TemplateSchemaTabProps {
       scope: string;
       key: string;
     }>;
+    fieldUsageByFieldId: Record<
+      string,
+      {
+        count: number;
+        nodeLabels: string[];
+      }
+    >;
   };
   fields: V2TemplateFormField[];
   computedKeys: readonly string[];
@@ -96,11 +103,17 @@ const TemplateSchemaTab: React.FC<TemplateSchemaTabProps> = ({
       </div>
 
       <div className="space-y-2">
-        {fields.map((field, index) => (
-          <div
-            key={`${field.scope}:${field.key}:${index}`}
-            className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 space-y-2"
-          >
+        {fields.map((field, index) => {
+          const fieldId = `${field.scope}:${field.key}`;
+          const usage = diagnostics.fieldUsageByFieldId[fieldId] ?? {
+            count: 0,
+            nodeLabels: [],
+          };
+          return (
+            <div
+              key={`${field.scope}:${field.key}:${index}`}
+              className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 space-y-2"
+            >
             <div className="grid grid-cols-[1fr_96px_120px_auto] gap-2 items-center">
               <input
                 value={field.key}
@@ -152,6 +165,12 @@ const TemplateSchemaTab: React.FC<TemplateSchemaTabProps> = ({
                 삭제
               </button>
             </div>
+            <div className="rounded border border-[#2f3440] bg-[#171a20] px-2 py-1 text-[11px] text-[#9fb0cc]">
+              사용 중: {usage.count}개
+              {usage.nodeLabels.length > 0
+                ? ` (${usage.nodeLabels.join(", ")})`
+                : " (연결된 오브젝트 없음)"}
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={field.label ?? ""}
@@ -191,7 +210,8 @@ const TemplateSchemaTab: React.FC<TemplateSchemaTabProps> = ({
               </label>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 text-xs text-gray-400">
