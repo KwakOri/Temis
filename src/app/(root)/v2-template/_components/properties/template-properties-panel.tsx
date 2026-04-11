@@ -583,6 +583,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateSceneAssetNodeMeta,
     updateSceneCardCollectionComponentId,
     updateSceneComponentInstanceDayKey,
+    updateSceneComponentInstanceComponentId,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,
@@ -1021,6 +1022,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onUpdateSceneNodeVisibilityMode: updateSceneNodeVisibilityMode,
     onUpdateSceneCardCollectionComponentId: updateSceneCardCollectionComponentId,
     onUpdateSceneComponentInstanceDayKey: updateSceneComponentInstanceDayKey,
+    onUpdateSceneComponentInstanceComponentId:
+      updateSceneComponentInstanceComponentId,
     onExtractSceneComponentInstanceCopy: ({ nodeId }) =>
       extractSceneComponentInstanceCopy({ nodeId }),
   });

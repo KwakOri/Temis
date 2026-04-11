@@ -414,6 +414,41 @@ const useTemplateSceneNodeActions = ({
     });
   };
 
+  const updateSceneComponentInstanceComponentId = (
+    nodeId: string,
+    rawComponentId: string
+  ) => {
+    const componentId = rawComponentId.trim();
+    if (!componentId) return;
+
+    safeUpdateConfig((prev) => {
+      if (!prev.graph.componentDefinitions[componentId]) {
+        return prev;
+      }
+
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!nodeContext || nodeContext.node.kind !== "componentInstance") {
+        return prev;
+      }
+
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          componentId,
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
   const isSceneCustomNode = (nodeId: string) =>
     nodeId.startsWith(sceneCustomNodeIdPrefix);
 
@@ -1239,6 +1274,7 @@ const useTemplateSceneNodeActions = ({
     updateSceneAssetNodeMeta,
     updateSceneCardCollectionComponentId,
     updateSceneComponentInstanceDayKey,
+    updateSceneComponentInstanceComponentId,
     isSceneCustomNode,
     addSceneSiblingNode,
     addSceneChildNode,
