@@ -273,13 +273,13 @@
    - `use-scene-component-instance-actions`
    - `use-scene-binding-actions`
 2. `layers-panel.tsx` 분해
-   - `layers-tree.tsx`
-   - `layers-dnd.ts`
+   - `layers-tree.tsx` (완료)
+   - `layers-dnd.ts` (완료)
    - `components-tab.tsx`
 3. `template-properties-panel.tsx` 분해
    - `properties-selection-context.ts`
    - `properties-tabs-renderer.tsx`
-   - `properties-aggregators.ts`
+   - `properties-aggregators.ts` (완료)
 
 영향 파일(예상):
 - `_components/editor/layers-panel.tsx`
