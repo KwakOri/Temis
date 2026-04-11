@@ -82,6 +82,7 @@ const useTemplateFormSchemaActions = ({
   };
 
   const hasDuplicatedFormFieldKey = (
+    scope: V2TemplateFormField["scope"],
     key: string,
     excludeIndex?: number,
     fields = renderConfig.formSchema.fields
@@ -89,7 +90,8 @@ const useTemplateFormSchemaActions = ({
     const normalized = key.trim();
     if (!normalized) return false;
     return fields.some(
-      (field, index) => field.key === normalized && index !== excludeIndex
+      (field, index) =>
+        field.scope === scope && field.key === normalized && index !== excludeIndex
     );
   };
 
@@ -102,13 +104,16 @@ const useTemplateFormSchemaActions = ({
       if (!prevField) return prev;
 
       const nextKey = (patch.key ?? prevField.key).trim();
+      const nextScope = patch.scope ?? prevField.scope;
       if (!nextKey) {
         setFormSchemaError("필드 키는 비워둘 수 없습니다.");
         return prev;
       }
 
-      if (hasDuplicatedFormFieldKey(nextKey, index, prev.formSchema.fields)) {
-        setFormSchemaError(`중복된 필드 키입니다: ${nextKey}`);
+      if (
+        hasDuplicatedFormFieldKey(nextScope, nextKey, index, prev.formSchema.fields)
+      ) {
+        setFormSchemaError(`중복된 필드 키입니다: ${nextScope}.${nextKey}`);
         return prev;
       }
 
@@ -155,15 +160,16 @@ const useTemplateFormSchemaActions = ({
       rawKey.length > 0
         ? rawKey
         : `field${renderConfig.formSchema.fields.length + 1}`;
+    const scope = seed?.scope ?? "entry";
 
-    if (hasDuplicatedFormFieldKey(key)) {
-      setFormSchemaError(`중복된 필드 키입니다: ${key}`);
+    if (hasDuplicatedFormFieldKey(scope, key)) {
+      setFormSchemaError(`중복된 필드 키입니다: ${scope}.${key}`);
       return null;
     }
 
     const newField: V2TemplateFormField = {
       key,
-      scope: seed?.scope ?? "entry",
+      scope,
       type: seed?.type ?? "text",
       placeholder: seed?.placeholder ?? key,
       ...(seed?.label ? { label: seed.label } : {}),

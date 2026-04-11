@@ -584,6 +584,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateSceneCardCollectionComponentId,
     syncSceneCardCollectionChildComponentIds,
     updateSceneComponentInstanceDayKey,
+    updateSceneComponentInstanceInstanceId,
     updateSceneComponentInstanceComponentId,
     isSceneCustomNode,
     addSceneSiblingNode,
@@ -1025,10 +1026,17 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onSyncSceneCardCollectionChildComponentIds:
       syncSceneCardCollectionChildComponentIds,
     onUpdateSceneComponentInstanceDayKey: updateSceneComponentInstanceDayKey,
+    onUpdateSceneComponentInstanceInstanceId:
+      updateSceneComponentInstanceInstanceId,
     onUpdateSceneComponentInstanceComponentId:
       updateSceneComponentInstanceComponentId,
     onExtractSceneComponentInstanceCopy: ({ nodeId }) =>
       extractSceneComponentInstanceCopy({ nodeId }),
+    onMoveSceneComponentInstanceToRoot: (nodeId) =>
+      relocateSceneNode({
+        nodeId,
+        targetParentId: null,
+      }),
   });
 
   const { renderCardNodeProperties, renderSceneTextNodeProperties } =

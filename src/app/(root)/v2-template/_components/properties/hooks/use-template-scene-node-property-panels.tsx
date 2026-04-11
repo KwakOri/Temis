@@ -86,6 +86,10 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     nodeId: string,
     dayKey: V2TemplateDayKey
   ) => void;
+  onUpdateSceneComponentInstanceInstanceId: (
+    nodeId: string,
+    instanceId: string
+  ) => void;
   onUpdateSceneComponentInstanceComponentId: (
     nodeId: string,
     componentId: string
@@ -95,6 +99,7 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     targetParentId?: string | null;
     targetIndex?: number;
   }) => void;
+  onMoveSceneComponentInstanceToRoot: (nodeId: string) => void;
 }
 
 const useTemplateSceneNodePropertyPanels = ({
@@ -118,8 +123,10 @@ const useTemplateSceneNodePropertyPanels = ({
   onSyncSceneCardCollectionChildComponentIds,
   dayKeyOptions,
   onUpdateSceneComponentInstanceDayKey,
+  onUpdateSceneComponentInstanceInstanceId,
   onUpdateSceneComponentInstanceComponentId,
   onExtractSceneComponentInstanceCopy,
+  onMoveSceneComponentInstanceToRoot,
 }: UseTemplateSceneNodePropertyPanelsParams) => {
   const renderSceneNodeStructureControls = ({
     node,
@@ -366,6 +373,18 @@ const useTemplateSceneNodePropertyPanels = ({
             </option>
           ))}
         </select>
+          <label className="text-xs text-gray-400">instance key</label>
+          <input
+            value={node.instanceId}
+            onChange={(event) =>
+              onUpdateSceneComponentInstanceInstanceId(
+                node.id,
+                event.target.value
+              )
+            }
+            className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+            placeholder="instance key"
+          />
           <label className="text-xs text-gray-400">컴포넌트</label>
           <select
             value={selectedComponentId}
@@ -398,6 +417,13 @@ const useTemplateSceneNodePropertyPanels = ({
             연결된 컴포넌트가 없어 인스턴스를 렌더할 수 없습니다.
           </p>
         ) : null}
+        <button
+          type="button"
+          onClick={() => onMoveSceneComponentInstanceToRoot(node.id)}
+          className="w-full rounded border border-[#3a5f9e] bg-[#182643] px-2 py-1.5 text-xs font-semibold text-[#a8c7ff] hover:bg-[#1d2e51]"
+        >
+          Move To Root
+        </button>
         <button
           type="button"
           onClick={() =>

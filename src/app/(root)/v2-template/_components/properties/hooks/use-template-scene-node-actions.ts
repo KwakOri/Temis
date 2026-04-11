@@ -463,6 +463,53 @@ const useTemplateSceneNodeActions = ({
     });
   };
 
+  const updateSceneComponentInstanceInstanceId = (
+    nodeId: string,
+    rawInstanceId: string
+  ) => {
+    const instanceId = rawInstanceId.trim();
+    if (!instanceId) return;
+
+    safeUpdateConfig((prev) => {
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const nodeContext = v2_findSceneNodeContextById({
+        nodes: runtimeSceneNodes,
+        nodeId,
+      });
+      if (!nodeContext || nodeContext.node.kind !== "componentInstance") return prev;
+
+      const prevGraphNode = prev.graph.nodes[nodeId];
+      if (!prevGraphNode || prevGraphNode.type !== "componentInstance") return prev;
+      const prevInstanceId =
+        typeof prevGraphNode.meta?.instanceId === "string"
+          ? prevGraphNode.meta.instanceId
+          : nodeContext.node.instanceId;
+      if (prevInstanceId === instanceId) return prev;
+
+      const currentStyleKey = prevGraphNode.styles?.styleKey;
+      const currentLayerTarget = prevGraphNode.meta?.layerTarget;
+      const shouldUseCardInstanceTarget =
+        typeof currentStyleKey !== "string" &&
+        (typeof currentLayerTarget !== "string" ||
+          currentLayerTarget.startsWith("cardInstance:"));
+
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          instanceId,
+          ...(shouldUseCardInstanceTarget
+            ? { layerTarget: `cardInstance:${instanceId}` }
+            : {}),
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
   const updateSceneComponentInstanceComponentId = (
     nodeId: string,
     rawComponentId: string
@@ -1324,6 +1371,7 @@ const useTemplateSceneNodeActions = ({
     updateSceneCardCollectionComponentId,
     syncSceneCardCollectionChildComponentIds,
     updateSceneComponentInstanceDayKey,
+    updateSceneComponentInstanceInstanceId,
     updateSceneComponentInstanceComponentId,
     isSceneCustomNode,
     addSceneSiblingNode,
