@@ -32,7 +32,7 @@ const v2_createOrderKey = (index: number): string => {
   return String((index + 1) * v2_ORDER_KEY_STEP).padStart(10, "0");
 };
 
-export const v2_normalizePointerOrderInGraph = (
+export const v2_normalizeGraphSiblingOrder = (
   graph: V2TemplateNodeGraph
 ): V2TemplateNodeGraph => {
   const validNodeIds = new Set(Object.keys(graph.nodes));
@@ -178,10 +178,10 @@ export const v2_getSiblingIdsByParentFromGraph = (
   return byParent;
 };
 
-export const v2_convertPointerOrderToOrderKeyInGraph = (
+export const v2_normalizeGraphOrderKeys = (
   graph: V2TemplateNodeGraph
 ): V2TemplateNodeGraph => {
-  const normalizedGraph = v2_normalizePointerOrderInGraph(graph);
+  const normalizedGraph = v2_normalizeGraphSiblingOrder(graph);
   const siblingIdsByParent = v2_getSiblingIdsByParentFromGraph(normalizedGraph);
   const nextNodes: Record<string, V2TemplateGraphNode> = {
     ...normalizedGraph.nodes,
@@ -256,6 +256,16 @@ export const v2_convertPointerOrderToOrderKeyInGraph = (
     rootNodeIds: nextRootNodeIds,
   };
 };
+
+/**
+ * @deprecated Use `v2_normalizeGraphSiblingOrder` instead.
+ */
+export const v2_normalizePointerOrderInGraph = v2_normalizeGraphSiblingOrder;
+
+/**
+ * @deprecated Use `v2_normalizeGraphOrderKeys` instead.
+ */
+export const v2_convertPointerOrderToOrderKeyInGraph = v2_normalizeGraphOrderKeys;
 
 export interface V2OrderKeyGraphValidationResult {
   valid: boolean;
@@ -502,7 +512,7 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
   const issues: string[] = [];
 
   cases.forEach((testCase) => {
-    const converted = v2_convertPointerOrderToOrderKeyInGraph(
+    const converted = v2_normalizeGraphOrderKeys(
       v2_cloneGraph(testCase.graph)
     );
     const validation = v2_validateOrderKeyGraph(converted);

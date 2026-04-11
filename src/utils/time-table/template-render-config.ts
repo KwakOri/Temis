@@ -38,7 +38,7 @@ import {
   V2TemplateStyleRecord,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
-import { v2_convertPointerOrderToOrderKeyInGraph } from "@/utils/time-table/template-graph-order";
+import { v2_normalizeGraphOrderKeys } from "@/utils/time-table/template-graph-order";
 import { weekdays } from "@/utils/time-table/data";
 
 const v2_DEFAULT_THEME = "first";
@@ -1083,7 +1083,7 @@ const v2_createDefaultNodeGraph = ({
     componentDefinitions,
   });
 
-  return v2_convertPointerOrderToOrderKeyInGraph({
+  return v2_normalizeGraphOrderKeys({
     rootNodeIds,
     nodes: nextNodes,
     componentDefinitions,
@@ -1841,7 +1841,7 @@ const v2_sanitizeNodeGraph = ({
     return acc;
   }, {});
 
-  return v2_convertPointerOrderToOrderKeyInGraph({
+  return v2_normalizeGraphOrderKeys({
     rootNodeIds:
       prioritizedRootNodeIds.length > 0
         ? prioritizedRootNodeIds
