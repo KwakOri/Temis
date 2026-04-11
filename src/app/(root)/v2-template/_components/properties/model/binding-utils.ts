@@ -31,6 +31,24 @@ export const v2_getNodeFieldBinding = (binding: V2TemplateNodeBindingRef) => {
   return binding.mode === "field" ? binding : null;
 };
 
+export const v2_getNodeBindingLabel = (
+  binding: V2TemplateNodeBindingRef,
+  fields: V2TemplateFormField[] = []
+): string => {
+  if (binding.mode === "computed") {
+    return `computed / ${binding.key}`;
+  }
+
+  if (binding.mode === "field") {
+    const exists = fields.some(
+      (field) => field.scope === binding.scope && field.key === binding.key
+    );
+    return `field / ${binding.scope}.${binding.key}${exists ? "" : " (missing)"}`;
+  }
+
+  return "literal (직접 텍스트)";
+};
+
 export const v2_hasNodeBindingField = (
   binding: V2TemplateNodeBindingRef,
   fields: V2TemplateFormField[]

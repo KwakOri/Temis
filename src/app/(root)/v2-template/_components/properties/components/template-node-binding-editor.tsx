@@ -9,6 +9,7 @@ import {
   V2TemplateNodeBindingRef,
 } from "@/types/time-table/template-render-config";
 import { V2NodeNewFieldDraft } from "../model/binding-utils";
+import TemplateBindingPicker from "./template-binding-picker";
 
 interface TemplateNodeBindingEditorProps {
   binding: V2TemplateNodeBindingRef;
@@ -43,31 +44,15 @@ const TemplateNodeBindingEditor: React.FC<TemplateNodeBindingEditorProps> = ({
     <>
       <div className="grid grid-cols-2 gap-2 items-center">
         <label className="text-xs text-gray-400">바인딩 키</label>
-        <select
-          value={bindingSelectValue}
-          onChange={(event) => onSelectBinding(event.target.value)}
-          className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-        >
-          {computedOptions.map((option) => (
-            <option key={`computed-option-${option}`} value={`computed:${option}`}>
-              computed / {option}
-            </option>
-          ))}
-          {fields.map((field) => (
-            <option
-              key={`${field.scope}:${field.key}`}
-              value={`field:${field.scope}:${field.key}`}
-            >
-              field / {field.scope}.{field.key}
-            </option>
-          ))}
-          {binding.mode === "field" && !fieldBindingExists ? (
-            <option value={`field:${binding.scope}:${binding.key}`}>
-              field / {binding.scope}.{binding.key} (missing)
-            </option>
-          ) : null}
-          <option value="literal">literal (직접 텍스트)</option>
-        </select>
+        <TemplateBindingPicker
+          binding={binding}
+          bindingSelectValue={bindingSelectValue}
+          fields={fields}
+          computedOptions={computedOptions}
+          onSelectBinding={onSelectBinding}
+          modalTitle="텍스트 바인딩 선택"
+          modalDescription="Computed/Field/Literal을 계층 구조로 선택합니다."
+        />
       </div>
       {binding.mode === "literal" ? (
         <div className="grid grid-cols-2 gap-2 items-center">

@@ -18,6 +18,7 @@ import {
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import TemplateSceneAssetProperties from "../components/template-scene-asset-properties";
+import TemplateBindingPicker from "../components/template-binding-picker";
 import TemplateSceneCardCollectionProperties from "../components/template-scene-card-collection-properties";
 import TemplateSceneGroupProperties from "../components/template-scene-group-properties";
 import TemplateSceneNodeStructureControls from "../components/template-scene-node-structure-controls";
@@ -512,11 +513,14 @@ const useTemplateSceneNodePropertyPanels = ({
                         </button>
                       ) : null}
                     </div>
-                    <select
-                      value={bindingSelectValue}
-                      onChange={(event) => {
+                    <TemplateBindingPicker
+                      binding={effectiveBinding}
+                      bindingSelectValue={bindingSelectValue}
+                      fields={formFields}
+                      computedOptions={computedOptions}
+                      onSelectBinding={(value) => {
                         const nextBinding = parseBindingFromSelectValue(
-                          event.target.value,
+                          value,
                           effectiveBinding
                         );
                         if (!nextBinding) return;
@@ -533,34 +537,10 @@ const useTemplateSceneNodePropertyPanels = ({
                           binding: nextBinding,
                         });
                       }}
-                      className="w-full px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                    >
-                      {computedOptions.map((option) => (
-                        <option
-                          key={`scene-component-instance-computed-${bindableNode.id}-${option}`}
-                          value={`computed:${option}`}
-                        >
-                          computed / {option}
-                        </option>
-                      ))}
-                      {formFields.map((field) => (
-                        <option
-                          key={`scene-component-instance-field-${bindableNode.id}-${field.scope}:${field.key}`}
-                          value={`field:${field.scope}:${field.key}`}
-                        >
-                          field / {field.scope}.{field.key}
-                        </option>
-                      ))}
-                      {effectiveBinding.mode === "field" && !fieldBindingExists ? (
-                        <option
-                          value={`field:${effectiveBinding.scope}:${effectiveBinding.key}`}
-                        >
-                          field / {effectiveBinding.scope}.{effectiveBinding.key}{" "}
-                          (missing)
-                        </option>
-                      ) : null}
-                      <option value="literal">literal (직접 텍스트)</option>
-                    </select>
+                      triggerClassName="w-full rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-left text-xs text-gray-100 hover:bg-[#323640]"
+                      modalTitle={`${bindableNode.label} 바인딩 선택`}
+                      modalDescription="마스터 바인딩을 유지하거나 인스턴스 전용 오버라이드를 선택합니다."
+                    />
                     {effectiveBinding.mode === "literal" ? (
                       <input
                         value={effectiveBinding.value}
