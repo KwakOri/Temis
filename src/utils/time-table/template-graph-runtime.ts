@@ -141,10 +141,10 @@ const v2_buildSceneNodeFromGraph = ({
       typeof graphNode.meta?.componentId === "string"
         ? graphNode.meta.componentId.trim()
         : "";
-    if (!componentIdCandidate || !validComponentIdSet.has(componentIdCandidate)) {
-      return null;
-    }
-    const componentId = componentIdCandidate;
+    const componentId =
+      componentIdCandidate && validComponentIdSet.has(componentIdCandidate)
+        ? componentIdCandidate
+        : undefined;
     const children = graphNode.childIds
       .map((childId) => graphNodes[childId])
       .filter(
@@ -156,7 +156,11 @@ const v2_buildSceneNodeFromGraph = ({
           typeof childNode.meta?.componentId === "string"
             ? childNode.meta.componentId.trim()
             : "";
-        if (!childComponentId || !validComponentIdSet.has(childComponentId)) {
+        const resolvedComponentId =
+          childComponentId && validComponentIdSet.has(childComponentId)
+            ? childComponentId
+            : componentId;
+        if (!resolvedComponentId) {
           return null;
         }
         visited.add(childNode.id);
@@ -174,7 +178,7 @@ const v2_buildSceneNodeFromGraph = ({
           ...(v2_toVisibilityMode(childNode.visibilityMode)
             ? { visibilityMode: v2_toVisibilityMode(childNode.visibilityMode) }
             : {}),
-          componentId: childComponentId,
+          componentId: resolvedComponentId,
           instanceId,
           dayKey,
           ...(childNode.styles?.styleKey
@@ -189,7 +193,7 @@ const v2_buildSceneNodeFromGraph = ({
     return {
       ...base,
       kind: "cardCollection",
-      componentId,
+      ...(componentId ? { componentId } : {}),
       children,
     };
   }
