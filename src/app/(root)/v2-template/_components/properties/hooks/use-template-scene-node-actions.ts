@@ -1,15 +1,11 @@
 "use client";
 
 import {
-  V2TemplateAssetMap,
   V2TemplateColorKey,
   V2TemplateDayKey,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
-  V2TemplateSceneAssetNode,
   V2TemplateSceneNode,
-  V2TemplateSceneTextNode,
-  V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
@@ -50,6 +46,7 @@ import {
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
   v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
 } from "../model/text-node-defaults";
+import useTemplateSceneBindingActions from "./use-template-scene-binding-actions";
 
 interface UseTemplateSceneNodeActionsParams {
   safeUpdateConfig: (
@@ -74,84 +71,17 @@ const useTemplateSceneNodeActions = ({
   sceneCustomLayerIdPrefix,
   templateColorKeys,
 }: UseTemplateSceneNodeActionsParams) => {
-  const updateSceneNodeVisibilityMode = (
-    nodeId: string,
-    visibilityMode: V2TemplateVisibilityMode
-  ) => {
-    safeUpdateConfig((prev) => {
-      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
-      const nodeContext = v2_findSceneNodeContextById({
-        nodes: runtimeSceneNodes,
-        nodeId,
-      });
-      if (!nodeContext) return prev;
-      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-        ...node,
-        visibilityMode,
-      }));
-      return {
-        ...prev,
-        graph: nextGraph,
-      };
-    });
-  };
-
-  const updateSceneNodeLabel = (nodeId: string, rawLabel: string) => {
-    const nextLabel = rawLabel.trim();
-    if (!nextLabel) return;
-
-    safeUpdateConfig((prev) => {
-      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
-      const nodeContext = v2_findSceneNodeContextById({
-        nodes: runtimeSceneNodes,
-        nodeId,
-      });
-      if (!nodeContext) return prev;
-      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-        ...node,
-        label: nextLabel,
-      }));
-      return {
-        ...prev,
-        graph: nextGraph,
-      };
-    });
-  };
-
-  const updateSceneAssetNodeMeta = ({
-    nodeId,
-    assetKey,
-    fit,
-    alt,
-  }: {
-    nodeId: string;
-    assetKey?: keyof V2TemplateAssetMap;
-    fit?: V2TemplateSceneAssetNode["fit"];
-    alt?: string;
-  }) => {
-    safeUpdateConfig((prev) => {
-      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
-      const nodeContext = v2_findSceneNodeContextById({
-        nodes: runtimeSceneNodes,
-        nodeId,
-      });
-      if (!nodeContext || nodeContext.node.kind !== "asset") return prev;
-      const nextAlt = typeof alt === "string" ? alt.trim() : undefined;
-      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-        ...node,
-        meta: {
-          ...(node.meta ?? {}),
-          ...(assetKey ? { assetKey } : {}),
-          ...(fit ? { fit } : {}),
-          ...(nextAlt !== undefined ? { alt: nextAlt } : {}),
-        },
-      }));
-      return {
-        ...prev,
-        graph: nextGraph,
-      };
-    });
-  };
+  const {
+    updateSceneNodeVisibilityMode,
+    updateSceneNodeLabel,
+    updateSceneAssetNodeMeta,
+    updateSceneTextNodeBinding,
+    updateSceneTextNodeVisibilityMode,
+    updateSceneTextNodeMeta,
+  } = useTemplateSceneBindingActions({
+    safeUpdateConfig,
+    templateColorKeys,
+  });
 
   const updateSceneCardCollectionComponentId = (
     nodeId: string,
@@ -972,93 +902,6 @@ const useTemplateSceneNodeActions = ({
       setSelectedPropertiesTarget(nextFocusTarget);
       setActiveHighlightTarget(nextFocusTarget);
     }
-  };
-
-  const updateSceneTextNodeBinding = (
-    nodeId: string,
-    binding: V2TemplateSceneTextNode["binding"]
-  ) => {
-    safeUpdateConfig((prev) => {
-      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
-      const nodeContext = v2_findSceneNodeContextById({
-        nodes: runtimeSceneNodes,
-        nodeId,
-      });
-      if (
-        !nodeContext ||
-        (nodeContext.node.kind !== "text" && nodeContext.node.kind !== "flexibleText")
-      ) {
-        return prev;
-      }
-      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-        ...node,
-        binding,
-        meta: {
-          ...(node.meta ?? {}),
-          layerIcon: binding.mode === "computed" ? "calendar" : "text",
-        },
-      }));
-      return {
-        ...prev,
-        graph: nextGraph,
-      };
-    });
-  };
-
-  const updateSceneTextNodeVisibilityMode = (
-    nodeId: string,
-    visibilityMode: V2TemplateVisibilityMode
-  ) => {
-    updateSceneNodeVisibilityMode(nodeId, visibilityMode);
-  };
-
-  const updateSceneTextNodeMeta = ({
-    nodeId,
-    label,
-    colorKey,
-    fontKey,
-  }: {
-    nodeId: string;
-    label?: string;
-    colorKey?: V2TemplateSceneTextNode["colorKey"];
-    fontKey?: V2TemplateSceneTextNode["fontKey"];
-  }) => {
-    safeUpdateConfig((prev) => {
-      const nextLabel = typeof label === "string" ? label.trim() : undefined;
-      const nextColorKey =
-        typeof colorKey === "string" && templateColorKeys.includes(colorKey)
-          ? colorKey
-          : undefined;
-      const nextFontKey =
-        typeof fontKey === "string" && templateColorKeys.includes(fontKey)
-          ? fontKey
-          : undefined;
-      if (!nextLabel && !nextColorKey && !nextFontKey) return prev;
-      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
-      const nodeContext = v2_findSceneNodeContextById({
-        nodes: runtimeSceneNodes,
-        nodeId,
-      });
-      if (
-        !nodeContext ||
-        (nodeContext.node.kind !== "text" && nodeContext.node.kind !== "flexibleText")
-      ) {
-        return prev;
-      }
-      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-        ...node,
-        ...(nextLabel && nextLabel.length > 0 ? { label: nextLabel } : {}),
-        meta: {
-          ...(node.meta ?? {}),
-          ...(nextColorKey ? { colorKey: nextColorKey } : {}),
-          ...(nextFontKey ? { fontKey: nextFontKey } : {}),
-        },
-      }));
-      return {
-        ...prev,
-        graph: nextGraph,
-      };
-    });
   };
 
   return {
