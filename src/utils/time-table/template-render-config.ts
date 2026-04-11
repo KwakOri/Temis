@@ -1854,21 +1854,16 @@ const v2_sanitizeNodeGraph = ({
 };
 
 const v2_normalizeNodeGraph = (
-  candidate: unknown,
-  fallback: V2TemplateNodeGraph,
-  options?: {
-    forceGraphPayload?: boolean;
-  }
+  candidate: unknown
 ): V2TemplateNodeGraph => {
+  const emptyGraph: V2TemplateNodeGraph = {
+    rootNodeIds: [],
+    nodes: {},
+    componentDefinitions: {},
+  };
+
   if (!v2_isRecord(candidate)) {
-    if (options?.forceGraphPayload) {
-      return {
-        rootNodeIds: [],
-        nodes: {},
-        componentDefinitions: {},
-      };
-    }
-    return fallback;
+    return emptyGraph;
   }
 
   const hasCandidateNodes =
@@ -1892,7 +1887,7 @@ const v2_normalizeNodeGraph = (
     hasCandidateNodes ||
     hasCandidateComponentDefinitions ||
     hasCandidateRootNodeIds;
-  if (!hasGraphPayload && !options?.forceGraphPayload) return fallback;
+  if (!hasGraphPayload) return emptyGraph;
   const nextComponentDefinitions: Record<
     string,
     V2TemplateGraphComponentDefinition
@@ -2810,10 +2805,9 @@ export const v2_normalizeTemplateRenderConfig = (
     }
   }
 
-  const hasRawGraphField = Object.prototype.hasOwnProperty.call(raw, "graph");
-  normalized.graph = v2_normalizeNodeGraph(raw.graph, normalized.graph, {
-    forceGraphPayload: hasRawGraphField,
-  });
+  if (Object.prototype.hasOwnProperty.call(raw, "graph")) {
+    normalized.graph = v2_normalizeNodeGraph(raw.graph);
+  }
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
   return normalized;
