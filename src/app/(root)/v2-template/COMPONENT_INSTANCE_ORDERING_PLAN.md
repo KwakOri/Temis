@@ -271,7 +271,7 @@
 1. `use-template-scene-node-actions.ts` 분해
    - `use-scene-structure-actions`
    - `use-scene-component-instance-actions`
-   - `use-scene-binding-actions`
+   - `use-scene-binding-actions` (완료)
 2. `layers-panel.tsx` 분해
    - `layers-tree.tsx` (완료)
    - `layers-dnd.ts` (완료)
