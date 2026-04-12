@@ -8,7 +8,12 @@ import {
   UpdateTemplatePlanData,
   UpdateShopTemplateData,
 } from "@/types/admin";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 const invalidateAdminTemplateRelatedQueries = (
   queryClient: ReturnType<typeof useQueryClient>
@@ -36,6 +41,7 @@ export const useAdminTemplates = (params?: {
   return useQuery({
     queryKey: [...queryKeys.admin.templates(), params],
     queryFn: () => AdminTemplateService.getTemplates(params),
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });

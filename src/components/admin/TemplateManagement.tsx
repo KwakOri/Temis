@@ -73,6 +73,7 @@ export default function TemplateManagement() {
   const {
     data: templatesData,
     isLoading: loading,
+    isFetching,
     error: templatesError,
   } = useAdminTemplates({
     limit: ITEMS_PER_PAGE,
@@ -97,6 +98,8 @@ export default function TemplateManagement() {
   const { data: artists = [] } = useAdminArtists({ isActive: true });
 
   const error = templatesError ? (templatesError as Error).message : "";
+  const isInitialLoading = loading && !templatesData;
+  const hasTemplatesError = !!templatesError && !templatesData;
   const createLoading = createTemplateMutation.isPending;
   const createError = createTemplateMutation.error
     ? (createTemplateMutation.error as Error).message
@@ -631,22 +634,6 @@ export default function TemplateManagement() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4">
-        <div className="text-red-800">{error}</div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4 sm:space-y-6">
       <AdminTabHeader
@@ -712,6 +699,7 @@ export default function TemplateManagement() {
               type="text"
               placeholder="템플릿 검색 (이름 또는 설명)..."
               value={searchTerm}
+              aria-busy={isFetching}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
             />
@@ -751,6 +739,11 @@ export default function TemplateManagement() {
               </button>
             )}
           </div>
+          {isFetching && !isInitialLoading && (
+            <p className="mt-2 text-xs text-gray-500">
+              검색 결과를 업데이트하는 중...
+            </p>
+          )}
         </div>
       ) : null}
 
@@ -784,6 +777,26 @@ export default function TemplateManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {(() => {
+                if (isInitialLoading) {
+                  return (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                        템플릿 목록을 불러오는 중...
+                      </td>
+                    </tr>
+                  );
+                }
+
+                if (hasTemplatesError) {
+                  return (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-red-700">
+                        {error}
+                      </td>
+                    </tr>
+                  );
+                }
+
                 if (filteredTemplates.length === 0) {
                   return (
                     <tr>
@@ -971,6 +984,24 @@ export default function TemplateManagement() {
         {/* 모바일 카드 뷰 */}
         <div className="lg:hidden divide-y divide-gray-200">
           {(() => {
+            if (isInitialLoading) {
+              return (
+                <div className="px-4 py-12 text-center">
+                  <p className="text-gray-500 text-sm">
+                    템플릿 목록을 불러오는 중...
+                  </p>
+                </div>
+              );
+            }
+
+            if (hasTemplatesError) {
+              return (
+                <div className="px-4 py-12 text-center">
+                  <p className="text-red-700 text-sm">{error}</p>
+                </div>
+              );
+            }
+
             if (filteredTemplates.length === 0) {
               return (
                 <div className="px-4 py-12 text-center">

@@ -328,10 +328,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const entrySubTitle = (primaryEntry.subTitle as string) || '';
   const isMultiple = time.entries.length > 1;
 
-  if (time.isOffline) {
-    return;
-  }
-
   return (
     <>
       {time.isOffline ? (

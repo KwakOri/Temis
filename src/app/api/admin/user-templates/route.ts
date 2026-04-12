@@ -26,16 +26,22 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         template_id,
+        template_plan_id,
         user_id,
         access_level,
         granted_at,
         granted_by,
-        templates:template_id (
+        template:template_id (
           id,
           name,
           description,
           is_public,
           created_at
+        ),
+        template_plan:template_plan_id (
+          id,
+          plan,
+          price
         )
       `)
       .eq("user_id", Number(userId))
