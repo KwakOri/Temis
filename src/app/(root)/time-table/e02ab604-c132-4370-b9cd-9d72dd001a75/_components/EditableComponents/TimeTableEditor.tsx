@@ -1,26 +1,26 @@
-import React from "react";
+import React from 'react';
 
-import Loading from "@/components/Loading";
-import MobileHeader from "@/components/TimeTable/MobileHeader";
-import TimeTableControls from "@/components/TimeTable/TimeTableControls";
-import TimeTableForm from "@/components/TimeTable/TimeTableForm";
-import TimeTablePreview from "@/components/TimeTable/TimeTablePreview";
-import { TimeTableProvider } from "@/contexts/TimeTableContext";
-import { TimeTableDesignGuideProvider } from "@/contexts/TimeTableDesignGuideContext";
-import { useTimeTableEditor } from "@/hooks";
+import Loading from '@/components/Loading';
+import MobileHeader from '@/components/TimeTable/MobileHeader';
+import TimeTableControls from '@/components/TimeTable/TimeTableControls';
+import TimeTableForm from '@/components/TimeTable/TimeTableForm';
+import TimeTablePreview from '@/components/TimeTable/TimeTablePreview';
+import { TimeTableProvider } from '@/contexts/TimeTableContext';
+import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
+import { useTimeTableEditor } from '@/hooks';
 
-import ThemeTabs from "@/components/TimeTable/FixedComponents/ThemeTabs";
-import TimeTableInputList from "@/components/TimeTable/FixedComponents/TimeTableInputList";
-import { placeholders } from "../../_settings/general";
+import ThemeTabs from '@/components/TimeTable/FixedComponents/ThemeTabs';
+import TimeTableInputList from '@/components/TimeTable/FixedComponents/TimeTableInputList';
+import { placeholders } from '../../_settings/general';
 import {
   buttonThemes,
   CARD_INPUT_CONFIG,
   defaultTheme,
-  profileImageWidth,
   profileImageHeight,
+  profileImageWidth,
   weekdayOption,
-} from "../../_settings/settings";
-import TimeTableContent from "./TimeTableContent";
+} from '../../_settings/settings';
+import TimeTableContent from './TimeTableContent';
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
@@ -58,6 +58,7 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
+          teamData={data}
           onReset={resetData}
           addons={
             <ThemeTabs
