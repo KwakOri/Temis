@@ -4,6 +4,7 @@ import {
 } from "@/types/time-table/data";
 import {
   v2_DEFAULT_CARD_COMPONENT_ID,
+  v2_TEMPLATE_COMPUTED_BINDING_KEYS,
   v2_TEMPLATE_DAY_KEYS,
   v2_TEMPLATE_COLOR_KEYS,
   v2_TEMPLATE_RENDER_CONFIG_VERSION,
@@ -35,19 +36,18 @@ import {
   V2TemplateRenderConfig,
   V2TemplateSceneAssetFit,
   V2TemplateSceneNode,
+  V2TemplateStreamingDayFormat,
+  V2TemplateStreamingTimeFormat,
   V2TemplateStyleRecord,
   V2TemplateVisibilityMode,
+  V2TemplateWeekDateFormat,
 } from "@/types/time-table/template-render-config";
 import { v2_normalizeGraphOrderKeys } from "@/utils/time-table/template-graph-order";
-import { weekdays } from "@/utils/time-table/data";
+import { v2_resolveStreamingDayLabelByKey } from "@/utils/time-table/text-formatting";
 
 const v2_DEFAULT_THEME = "first";
 
-const v2_COMPUTED_BINDING_KEYS = [
-  "streamingDay",
-  "streamingDate",
-  "streamingTime",
-] as const;
+const v2_COMPUTED_BINDING_KEYS = v2_TEMPLATE_COMPUTED_BINDING_KEYS;
 
 const v2_COMPUTED_BINDING_KEY_SET = new Set(v2_COMPUTED_BINDING_KEYS);
 
@@ -64,31 +64,6 @@ const v2_ASSET_KEYS = [
 ] as const;
 
 const v2_ASSET_KEY_SET = new Set<string>(v2_ASSET_KEYS);
-const v2_defaultBindingRefFromInputKey = (
-  rawKey: string
-): V2TemplateCardNodeBinding => {
-  const key = rawKey.trim();
-  if (!key) {
-    return {
-      mode: "literal",
-      value: "",
-    };
-  }
-
-  if (v2_COMPUTED_BINDING_KEY_SET.has(key as V2TemplateComputedBindingKey)) {
-    return {
-      mode: "computed",
-      key: key as V2TemplateComputedBindingKey,
-    };
-  }
-
-  return {
-    mode: "field",
-    scope: "entry",
-    key,
-  };
-};
-
 export const v2_isEntryFieldBindingKey = (
   binding: V2TemplateCardNodeBinding,
   key: string
@@ -177,31 +152,58 @@ const v2_createDefaultDayLabelFormat = (
   custom: {},
 });
 
+const v2_createDefaultStreamingDayFormat = (
+  locale: TLanOpt = "en"
+): V2TemplateStreamingDayFormat => ({
+  locale,
+  width: "short",
+  caseStyle: "original",
+  custom: {},
+});
+
+const v2_createDefaultStreamingTimeFormat =
+  (): V2TemplateStreamingTimeFormat => ({
+    hourCycle: "h12",
+    padHour: true,
+    showMeridiem: true,
+    meridiemStyle: "upper",
+    meridiemPosition: "prefix",
+    meridiemSeparator: " ",
+    timeSeparator: ":",
+  });
+
+const v2_createDefaultWeekDateFormat = (
+  locale: TLanOpt = "en"
+): V2TemplateWeekDateFormat => ({
+  locale,
+  dateOrder: "ymd",
+  includeYear: true,
+  yearStyle: "numeric",
+  monthStyle: "2-digit",
+  dateStyle: "2-digit",
+  caseStyle: "original",
+  dateSeparator: ".",
+  monthDateSeparator: " ",
+  rangeSeparator: " - ",
+});
+
 export const v2_resolveDayLabelByKey = ({
   dayKey,
   dayLabelFormat,
+  streamingDayFormat,
   fallbackWeekdayOption = "en",
 }: {
   dayKey: V2TemplateDayKey;
   dayLabelFormat?: V2TemplateDayLabelFormat;
+  streamingDayFormat?: V2TemplateStreamingDayFormat;
   fallbackWeekdayOption?: TLanOpt;
 }): string => {
-  const preset = dayLabelFormat?.preset ?? fallbackWeekdayOption;
-  const labels = weekdays[preset] ?? weekdays.en;
-  const presetLabel = labels[v2_dayIndexFromKey(dayKey)];
-  const defaultLabel =
-    typeof presetLabel === "string" || typeof presetLabel === "number"
-      ? String(presetLabel)
-      : "";
-
-  if (dayLabelFormat?.mode === "custom") {
-    const custom = dayLabelFormat.custom?.[dayKey];
-    if (typeof custom === "string" && custom.trim().length > 0) {
-      return custom;
-    }
-  }
-
-  return defaultLabel;
+  return v2_resolveStreamingDayLabelByKey({
+    dayKey,
+    dayLabelFormat,
+    streamingDayFormat,
+    fallbackWeekdayOption,
+  });
 };
 
 const v2_DEFAULT_COLOR_PALETTE: V2TemplateColorPalette = {
@@ -222,6 +224,15 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   isArtist: true,
   isMultiple: false,
   maxStreamingTimeByDay: 1,
+};
+
+const v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD: V2TemplateFormField = {
+  key: "memoText",
+  scope: "global",
+  type: "textarea",
+  placeholder: "메모 적는 곳",
+  defaultValue: "메모 적는 곳",
+  maxLength: 200,
 };
 
 const v2_DEFAULT_FORM_SCHEMA: V2TemplateFormSchema = {
@@ -250,6 +261,7 @@ const v2_DEFAULT_FORM_SCHEMA: V2TemplateFormSchema = {
       defaultValue: "",
       maxLength: 50,
     },
+    v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD,
   ],
   showLabels: false,
   offlineToggle: {
@@ -386,6 +398,15 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
       },
     ],
   },
+  {
+    id: "memo",
+    label: "Memo",
+    kind: "component",
+    visibilityMode: "always",
+    icon: "text",
+    target: "memoText",
+    sectionKey: "memoContainer",
+  },
 ];
 
 const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
@@ -487,6 +508,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       },
       visibilityMode: "onlineOnly",
       containerStyleKey: "subTitleContainer",
+      wrapperStyleKey: "subTitleWrapperStyle",
       textStyleKey: "subTitleTextStyle",
       optionsKey: "subTitleOptions",
       colorKey: "SUB_TITLE",
@@ -592,6 +614,26 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
         visibilityMode: "always",
       },
     ],
+  },
+  {
+    id: "scene-memo-text",
+    label: "MemoText",
+    kind: "flexibleText",
+    layerId: "memo",
+    binding: {
+      mode: "field",
+      scope: "global",
+      key: "memoText",
+    },
+    containerStyleKey: "memoContainer",
+    wrapperStyleKey: "memoTextContainer",
+    textStyleKey: "memoTextStyle",
+    colorKey: "ARTIST",
+    fontKey: "ARTIST",
+    highlightTarget: "memoText",
+    containerClassName: "absolute flex justify-center items-center",
+    textClassName: "text-center",
+    visibilityMode: "always",
   },
   {
     id: "scene-guide-overlay",
@@ -1210,6 +1252,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   weekdayOption: "en",
   dayLabelFormat: v2_createDefaultDayLabelFormat("en"),
   monthOption: "en",
+  streamingDayFormat: v2_createDefaultStreamingDayFormat("en"),
+  streamingTimeFormat: v2_createDefaultStreamingTimeFormat(),
+  weekDateFormat: v2_createDefaultWeekDateFormat("en"),
   themes: [v2_DEFAULT_THEME],
   defaultTheme: v2_DEFAULT_THEME,
   buttonThemes: [{ value: v2_DEFAULT_THEME, label: v2_DEFAULT_THEME }],
@@ -1405,11 +1450,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       },
       mainTitleContainer: {
         height: 280,
-        widthPercent: 100,
         top: 132,
       },
       subTitleContainer: {
-        widthPercent: 100,
         height: 64,
         top: 440,
       },
@@ -1453,6 +1496,11 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
         lineHeight: 1,
       },
       mainTitleWrapperStyle: {
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      },
+      subTitleWrapperStyle: {
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -1609,7 +1657,6 @@ const v2_GRAPH_NODE_TYPE_SET = new Set([
   "componentInstance",
 ]);
 const v2_ORDER_KEY_MODEL = "orderKey" as const;
-const v2_LEGACY_POINTER_MODEL = "pointer" as const;
 
 const v2_normalizeGraphNodeType = (
   value: unknown
@@ -1653,11 +1700,7 @@ const v2_normalizeGraphNodeOrder = (
 
   const candidateModel =
     typeof candidate.model === "string" ? candidate.model : undefined;
-  if (
-    candidateModel !== undefined &&
-    candidateModel !== v2_LEGACY_POINTER_MODEL &&
-    candidateModel !== v2_ORDER_KEY_MODEL
-  ) {
+  if (candidateModel !== undefined && candidateModel !== v2_ORDER_KEY_MODEL) {
     return undefined;
   }
 
@@ -1665,23 +1708,14 @@ const v2_normalizeGraphNodeOrder = (
     typeof candidate.orderKey === "string" && candidate.orderKey.trim().length > 0
       ? candidate.orderKey
       : undefined;
-  if (candidateModel === v2_LEGACY_POINTER_MODEL && !parsedOrderKey) {
-    // Legacy pointer-only ordering is read-compat only.
-    // Without orderKey we intentionally drop it and rebuild in normalize.
-    return undefined;
-  }
   const next: V2TemplateGraphNodeOrder = {
-    // Pointer model is accepted only for read-compat input.
-    // Normalized graph state should always write orderKey model.
     model: v2_ORDER_KEY_MODEL,
   };
 
-  if (candidateModel !== v2_LEGACY_POINTER_MODEL) {
-    if (candidate.prevSiblingId === null) {
-      next.prevSiblingId = null;
-    } else if (typeof candidate.prevSiblingId === "string") {
-      next.prevSiblingId = candidate.prevSiblingId;
-    }
+  if (candidate.prevSiblingId === null) {
+    next.prevSiblingId = null;
+  } else if (typeof candidate.prevSiblingId === "string") {
+    next.prevSiblingId = candidate.prevSiblingId;
   }
 
   if (parsedOrderKey) {
@@ -2070,10 +2104,6 @@ const v2_normalizeBindingRef = (
     mode: "literal",
     value: "",
   };
-
-  if (typeof candidate === "string") {
-    return v2_defaultBindingRefFromInputKey(candidate);
-  }
 
   if (!v2_isRecord(candidate)) {
     return defaultBinding;
@@ -2470,6 +2500,165 @@ const v2_normalizeDayLabelFormat = (
   return next;
 };
 
+const v2_normalizeStreamingDayFormat = (
+  value: unknown,
+  fallbackLocale: TLanOpt,
+  fallbackDayLabelFormat: V2TemplateDayLabelFormat
+): V2TemplateStreamingDayFormat => {
+  const next = v2_createDefaultStreamingDayFormat(fallbackLocale);
+  next.custom = {
+    ...(fallbackDayLabelFormat.custom ?? {}),
+  };
+
+  if (!v2_isRecord(value)) {
+    return next;
+  }
+
+  if (value.locale === "kr" || value.locale === "en" || value.locale === "jp") {
+    next.locale = value.locale;
+  }
+
+  if (value.width === "narrow" || value.width === "short" || value.width === "long") {
+    next.width = value.width;
+  }
+
+  if (
+    value.caseStyle === "original" ||
+    value.caseStyle === "upper" ||
+    value.caseStyle === "lower" ||
+    value.caseStyle === "capitalize"
+  ) {
+    next.caseStyle = value.caseStyle;
+  }
+
+  if (v2_isRecord(value.custom)) {
+    const customEntries = Object.entries(value.custom).reduce<
+      Partial<Record<V2TemplateDayKey, string>>
+    >((acc, [rawKey, rawLabel]) => {
+      const dayKey = v2_parseDayKey(rawKey);
+      if (!dayKey) return acc;
+      if (typeof rawLabel !== "string") return acc;
+      const label = rawLabel.trim();
+      if (!label) return acc;
+      acc[dayKey] = label;
+      return acc;
+    }, {});
+    next.custom = customEntries;
+  }
+
+  return next;
+};
+
+const v2_normalizeStreamingTimeFormat = (
+  value: unknown
+): V2TemplateStreamingTimeFormat => {
+  const next = v2_createDefaultStreamingTimeFormat();
+  if (!v2_isRecord(value)) {
+    return next;
+  }
+
+  if (value.hourCycle === "h12" || value.hourCycle === "h24") {
+    next.hourCycle = value.hourCycle;
+  }
+
+  if (typeof value.padHour === "boolean") {
+    next.padHour = value.padHour;
+  }
+
+  if (typeof value.showMeridiem === "boolean") {
+    next.showMeridiem = value.showMeridiem;
+  }
+
+  if (
+    value.meridiemStyle === "upper" ||
+    value.meridiemStyle === "lower" ||
+    value.meridiemStyle === "kr"
+  ) {
+    next.meridiemStyle = value.meridiemStyle;
+  }
+
+  if (value.meridiemPosition === "prefix" || value.meridiemPosition === "suffix") {
+    next.meridiemPosition = value.meridiemPosition;
+  }
+
+  if (typeof value.meridiemSeparator === "string") {
+    next.meridiemSeparator = value.meridiemSeparator;
+  }
+
+  if (typeof value.timeSeparator === "string") {
+    next.timeSeparator = value.timeSeparator;
+  }
+
+  return next;
+};
+
+const v2_normalizeWeekDateFormat = (
+  value: unknown,
+  fallbackLocale: TLanOpt
+): V2TemplateWeekDateFormat => {
+  const next = v2_createDefaultWeekDateFormat(fallbackLocale);
+  if (!v2_isRecord(value)) {
+    return next;
+  }
+
+  if (value.locale === "kr" || value.locale === "en" || value.locale === "jp") {
+    next.locale = value.locale;
+  }
+
+  if (
+    value.dateOrder === "locale" ||
+    value.dateOrder === "ymd" ||
+    value.dateOrder === "mdy" ||
+    value.dateOrder === "dmy"
+  ) {
+    next.dateOrder = value.dateOrder;
+  }
+
+  if (typeof value.includeYear === "boolean") {
+    next.includeYear = value.includeYear;
+  }
+
+  if (value.yearStyle === "numeric" || value.yearStyle === "2-digit") {
+    next.yearStyle = value.yearStyle;
+  }
+
+  if (
+    value.monthStyle === "numeric" ||
+    value.monthStyle === "2-digit" ||
+    value.monthStyle === "short" ||
+    value.monthStyle === "long"
+  ) {
+    next.monthStyle = value.monthStyle;
+  }
+
+  if (value.dateStyle === "numeric" || value.dateStyle === "2-digit") {
+    next.dateStyle = value.dateStyle;
+  }
+
+  if (
+    value.caseStyle === "original" ||
+    value.caseStyle === "upper" ||
+    value.caseStyle === "lower" ||
+    value.caseStyle === "capitalize"
+  ) {
+    next.caseStyle = value.caseStyle;
+  }
+
+  if (typeof value.dateSeparator === "string") {
+    next.dateSeparator = value.dateSeparator;
+  }
+
+  if (typeof value.monthDateSeparator === "string") {
+    next.monthDateSeparator = value.monthDateSeparator;
+  }
+
+  if (typeof value.rangeSeparator === "string") {
+    next.rangeSeparator = value.rangeSeparator;
+  }
+
+  return next;
+};
+
 export const v2_createDefaultTemplateRenderConfig = (): V2TemplateRenderConfig => {
   return v2_clone(v2_DEFAULT_TEMPLATE_RENDER_CONFIG);
 };
@@ -2527,6 +2716,37 @@ export const v2_normalizeTemplateRenderConfig = (
     raw.monthOption === "jp"
   ) {
     normalized.monthOption = raw.monthOption;
+  }
+
+  normalized.streamingDayFormat = v2_createDefaultStreamingDayFormat(
+    normalized.dayLabelFormat.preset
+  );
+  normalized.streamingDayFormat.custom = {
+    ...normalized.dayLabelFormat.custom,
+  };
+  if (raw.streamingDayFormat !== undefined) {
+    normalized.streamingDayFormat = v2_normalizeStreamingDayFormat(
+      raw.streamingDayFormat,
+      normalized.dayLabelFormat.preset,
+      normalized.dayLabelFormat
+    );
+  }
+
+  normalized.streamingTimeFormat = v2_createDefaultStreamingTimeFormat();
+  if (raw.streamingTimeFormat !== undefined) {
+    normalized.streamingTimeFormat = v2_normalizeStreamingTimeFormat(
+      raw.streamingTimeFormat
+    );
+  }
+
+  normalized.weekDateFormat = v2_createDefaultWeekDateFormat(
+    normalized.monthOption
+  );
+  if (raw.weekDateFormat !== undefined) {
+    normalized.weekDateFormat = v2_normalizeWeekDateFormat(
+      raw.weekDateFormat,
+      normalized.monthOption
+    );
   }
 
   normalized.themes = v2_asStringArray(raw.themes, normalized.themes);
@@ -2859,6 +3079,10 @@ export const v2_normalizeTemplateRenderConfig = (
       normalized.layout.card.mainTitleWrapperStyle = v2_mergeStyleRecord(
         normalized.layout.card.mainTitleWrapperStyle,
         cardLayoutSource.mainTitleWrapperStyle
+      );
+      normalized.layout.card.subTitleWrapperStyle = v2_mergeStyleRecord(
+        normalized.layout.card.subTitleWrapperStyle,
+        cardLayoutSource.subTitleWrapperStyle
       );
 
       if (v2_isRecord(cardLayoutSource.mainTitleOptions)) {
