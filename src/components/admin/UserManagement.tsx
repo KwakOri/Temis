@@ -7,12 +7,14 @@ import {
 } from "@/hooks/query/useAdminUsers";
 import type { User } from "@/types/admin";
 import { Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function UserManagement() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(0);
   const pageSize = 10;
+  const normalizedSearchTerm = debouncedSearchTerm.trim();
 
   // Modal states
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -23,16 +25,20 @@ export default function UserManagement() {
   const {
     data: usersData,
     isLoading: loading,
+    isFetching,
     error: usersError,
   } = useAdminUsers({
     limit: pageSize,
     offset: currentPage * pageSize,
+    search: normalizedSearchTerm || undefined,
   });
 
-  const { data: userTemplatesData, isLoading: templatesLoading } =
-    useAdminUserTemplates(selectedUser?.id || 0, {
+  const { data: userTemplatesData } = useAdminUserTemplates(
+    selectedUser?.id || 0,
+    {
       enabled: !!selectedUser && showPermissionModal,
-    });
+    }
+  );
 
   const userTemplates = userTemplatesData?.templates || [];
 
@@ -40,16 +46,20 @@ export default function UserManagement() {
   const totalUsers =
     usersData?.pagination?.total || usersData?.users?.length || 0;
   const error = usersError ? (usersError as Error).message : "";
+  const isInitialLoading = loading && !usersData;
+  const hasUserQueryError = !!usersError && !usersData;
 
-  const filteredUsers = useMemo(
-    () =>
-      users.filter(
-        (user) =>
-          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      ),
-    [users, searchTerm]
-  );
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 300);
+
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [debouncedSearchTerm]);
 
   const openUserModal = (user: User) => {
     setSelectedUser(user);
@@ -68,22 +78,6 @@ export default function UserManagement() {
   };
 
   const totalPages = Math.ceil(totalUsers / pageSize);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-md p-4">
-        <div className="text-red-800">{error}</div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -110,6 +104,7 @@ export default function UserManagement() {
             <input
               type="text"
               id="search"
+              aria-busy={isFetching}
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
               placeholder="이메일 또는 이름으로 검색..."
               value={searchTerm}
@@ -131,11 +126,14 @@ export default function UserManagement() {
               </svg>
             </div>
           </div>
+          {isFetching && !isInitialLoading && (
+            <p className="mt-2 text-xs text-gray-500">검색 결과를 업데이트하는 중...</p>
+          )}
         </div>
       </div>
 
       {/* Users List */}
-      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden relative">
         {/* 데스크톱 테이블 뷰 */}
         <div className="hidden lg:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -159,73 +157,105 @@ export default function UserManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center">
-                          <span className="text-sm font-medium text-white">
-                            {user.name?.charAt(0).toUpperCase() || "?"}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name || "이름 없음"}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          ID: {String(user.id).substring(0, 8)}...
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {user.email || "이메일 없음"}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(user.created_at).toLocaleDateString("ko-KR")}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.updated_at
-                      ? new Date(user.updated_at).toLocaleDateString("ko-KR")
-                      : "활동 없음"}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                    <button
-                      className="text-indigo-600 hover:text-indigo-900 font-medium"
-                      onClick={() => openUserModal(user)}
-                    >
-                      상세보기
-                    </button>
-                    <span className="text-gray-300">|</span>
-                    <button
-                      className="text-green-600 hover:text-green-900 font-medium"
-                      onClick={() => openPermissionModal(user)}
-                    >
-                      권한관리
-                    </button>
+              {isInitialLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    사용자 목록을 불러오는 중...
                   </td>
                 </tr>
-              ))}
+              ) : hasUserQueryError ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-red-700">
+                    {error}
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                    {normalizedSearchTerm
+                      ? "검색 결과가 없습니다."
+                      : "등록된 사용자가 없습니다."}
+                  </td>
+                </tr>
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10">
+                          <div className="h-10 w-10 rounded-full bg-indigo-500 flex items-center justify-center">
+                            <span className="text-sm font-medium text-white">
+                              {user.name?.charAt(0).toUpperCase() || "?"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            {user.name || "이름 없음"}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            ID: {String(user.id).substring(0, 8)}...
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {user.email || "이메일 없음"}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(user.created_at).toLocaleDateString("ko-KR")}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {user.updated_at
+                        ? new Date(user.updated_at).toLocaleDateString("ko-KR")
+                        : "활동 없음"}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
+                      <button
+                        className="text-indigo-600 hover:text-indigo-900 font-medium"
+                        onClick={() => openUserModal(user)}
+                      >
+                        상세보기
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        className="text-green-600 hover:text-green-900 font-medium"
+                        onClick={() => openPermissionModal(user)}
+                      >
+                        권한관리
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
         {/* 모바일 카드 뷰 */}
         <div className="lg:hidden divide-y divide-gray-200">
-          {filteredUsers.length === 0 ? (
+          {isInitialLoading ? (
             <div className="text-center py-12">
               <div className="text-gray-500 text-sm">
-                {searchTerm
+                사용자 목록을 불러오는 중...
+              </div>
+            </div>
+          ) : hasUserQueryError ? (
+            <div className="text-center py-12">
+              <div className="text-red-700 text-sm">{error}</div>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-gray-500 text-sm">
+                {normalizedSearchTerm
                   ? "검색 결과가 없습니다."
                   : "등록된 사용자가 없습니다."}
               </div>
             </div>
           ) : (
-            filteredUsers.map((user) => (
+            users.map((user) => (
               <div key={user.id} className="p-4">
                 <div className="space-y-3">
                   {/* 사용자 정보 */}
@@ -567,15 +597,17 @@ export default function UserManagement() {
                   <div className="space-y-3">
                     {userTemplates.map((template) => (
                       <div
-                        key={template.template_id}
+                        key={template.id}
                         className="flex items-center justify-between p-3 border border-gray-200 rounded-lg"
                       >
                         <div className="flex-1">
                           <h5 className="font-medium text-gray-900">
-                            {template.template?.name || "알 수 없는 템플릿"}
+                            {template.template?.name ||
+                              `연결되지 않은 템플릿 (${template.template_id})`}
                           </h5>
                           <p className="text-sm text-gray-500">
-                            {template.template?.description || "설명 없음"}
+                            {template.template?.description ||
+                              "템플릿 정보를 불러올 수 없습니다."}
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
                             권한 부여일:{" "}
