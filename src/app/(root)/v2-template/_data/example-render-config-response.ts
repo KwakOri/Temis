@@ -29,6 +29,9 @@ export const v2_createExampleRenderConfigResponse =
           custom: {},
         },
         monthOption: "en",
+        streamingDayFormat: fallbackConfig.streamingDayFormat,
+        streamingTimeFormat: fallbackConfig.streamingTimeFormat,
+        weekDateFormat: fallbackConfig.weekDateFormat,
         themes: ["first", "second", "third"],
         defaultTheme: "first",
         buttonThemes: [
@@ -155,6 +158,11 @@ export const v2_createExampleRenderConfigResponse =
             second: Imgs.first.topObject.src,
             third: Imgs.first.topObject.src,
           },
+          memoByTheme: {
+            first: Imgs.first.memo.src,
+            second: Imgs.first.memo.src,
+            third: Imgs.first.memo.src,
+          },
           onlineByTheme: {
             first: Imgs.first.online.src,
             second: Imgs.first.online.src,
@@ -188,6 +196,11 @@ export const v2_createExampleRenderConfigResponse =
             third: null,
           },
           topObjectByTheme: {
+            first: null,
+            second: null,
+            third: null,
+          },
+          memoByTheme: {
             first: null,
             second: null,
             third: null,
@@ -294,11 +307,9 @@ export const v2_createExampleRenderConfigResponse =
             },
             mainTitleContainer: {
               height: 280,
-              widthPercent: 100,
               top: 132,
             },
             subTitleContainer: {
-              widthPercent: 100,
               height: 64,
               top: 440,
             },
@@ -342,6 +353,11 @@ export const v2_createExampleRenderConfigResponse =
               lineHeight: 1,
             },
             mainTitleWrapperStyle: {
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            },
+            subTitleWrapperStyle: {
               display: "flex",
               justifyContent: "center",
               alignItems: "center",

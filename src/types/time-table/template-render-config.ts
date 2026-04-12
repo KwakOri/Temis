@@ -37,6 +37,42 @@ export interface V2TemplateDayLabelFormat {
   custom: Partial<Record<V2TemplateDayKey, string>>;
 }
 
+export type V2TemplateTextCaseStyle =
+  | "original"
+  | "upper"
+  | "lower"
+  | "capitalize";
+
+export interface V2TemplateStreamingDayFormat {
+  locale: TLanOpt;
+  width: "narrow" | "short" | "long";
+  caseStyle: V2TemplateTextCaseStyle;
+  custom: Partial<Record<V2TemplateDayKey, string>>;
+}
+
+export interface V2TemplateStreamingTimeFormat {
+  hourCycle: "h12" | "h24";
+  padHour: boolean;
+  showMeridiem: boolean;
+  meridiemStyle: "upper" | "lower" | "kr";
+  meridiemPosition: "prefix" | "suffix";
+  meridiemSeparator: string;
+  timeSeparator: string;
+}
+
+export interface V2TemplateWeekDateFormat {
+  locale: TLanOpt;
+  dateOrder: "locale" | "ymd" | "mdy" | "dmy";
+  includeYear: boolean;
+  yearStyle: "numeric" | "2-digit";
+  monthStyle: "numeric" | "2-digit" | "short" | "long";
+  dateStyle: "numeric" | "2-digit";
+  caseStyle: V2TemplateTextCaseStyle;
+  dateSeparator: string;
+  monthDateSeparator: string;
+  rangeSeparator: string;
+}
+
 export interface V2TemplateSize {
   width: number;
   height: number;
@@ -116,6 +152,7 @@ export interface V2TemplateMaxFontSizes {
 export interface V2TemplateAssetMap {
   bgByTheme: Record<string, string | null>;
   topObjectByTheme: Record<string, string | null>;
+  memoByTheme: Record<string, string | null>;
   onlineByTheme: Record<string, string | null>;
   offlineByTheme: Record<string, string | null>;
   profileFrameByTheme: Record<string, string | null>;
@@ -147,10 +184,28 @@ export type V2TemplateComponentInstanceMode = "component" | "detached";
 
 export type V2TemplateFieldScope = "entry" | "card" | "global";
 
+export const v2_TEMPLATE_COMPUTED_BINDING_KEYS = [
+  "streamingDay",
+  "streamingDate",
+  "streamingTime",
+  "streamingTimeHour",
+  "streamingTimeMinute",
+  "streamingTimeMeridiem",
+  "weekDateRange",
+  "weekStartYear",
+  "weekStartMonth",
+  "weekStartDate",
+  "weekStartMonthDate",
+  "weekStartFullDate",
+  "weekEndYear",
+  "weekEndMonth",
+  "weekEndDate",
+  "weekEndMonthDate",
+  "weekEndFullDate",
+] as const;
+
 export type V2TemplateComputedBindingKey =
-  | "streamingDay"
-  | "streamingDate"
-  | "streamingTime";
+  (typeof v2_TEMPLATE_COMPUTED_BINDING_KEYS)[number];
 
 export interface V2TemplateEntrySelector {
   mode: "index";
@@ -448,6 +503,7 @@ export interface V2TemplateLayoutConfig {
     streamingDateStyle?: V2TemplateStyleRecord;
     streamingTimeStyle?: V2TemplateStyleRecord;
     mainTitleWrapperStyle?: V2TemplateStyleRecord;
+    subTitleWrapperStyle?: V2TemplateStyleRecord;
     [key: string]: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined;
   };
   scene: {
@@ -466,6 +522,9 @@ export interface V2TemplateRenderConfig {
   weekdayOption: TLanOpt;
   dayLabelFormat: V2TemplateDayLabelFormat;
   monthOption: TLanOpt;
+  streamingDayFormat: V2TemplateStreamingDayFormat;
+  streamingTimeFormat: V2TemplateStreamingTimeFormat;
+  weekDateFormat: V2TemplateWeekDateFormat;
   themes: string[];
   defaultTheme: string;
   buttonThemes: Array<{ value: string; label: string }>;

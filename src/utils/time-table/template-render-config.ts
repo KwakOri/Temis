@@ -56,6 +56,7 @@ const v2_FIELD_SCOPE_SET = new Set(["entry", "card", "global"]);
 const v2_ASSET_KEYS = [
   "bgByTheme",
   "topObjectByTheme",
+  "memoByTheme",
   "onlineByTheme",
   "offlineByTheme",
   "profileFrameByTheme",
@@ -401,11 +402,29 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
   {
     id: "memo",
     label: "Memo",
-    kind: "component",
+    kind: "group",
     visibilityMode: "always",
-    icon: "text",
-    target: "memoText",
-    sectionKey: "memoContainer",
+    icon: "group",
+    children: [
+      {
+        id: "memo-object",
+        label: "Object",
+        kind: "component",
+        visibilityMode: "always",
+        icon: "image",
+        target: "memoObject",
+        sectionKey: "memoContainer",
+      },
+      {
+        id: "memo-text",
+        label: "Text",
+        kind: "component",
+        visibilityMode: "always",
+        icon: "text",
+        target: "memoText",
+        sectionKey: "memoTextContainer",
+      },
+    ],
   },
 ];
 
@@ -616,17 +635,27 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     ],
   },
   {
+    id: "scene-memo-object",
+    label: "MemoObject",
+    kind: "asset",
+    layerId: "memo-object",
+    assetKey: "memoByTheme",
+    styleKey: "memoContainer",
+    fit: "fill",
+    alt: "memo-object",
+    visibilityMode: "always",
+  },
+  {
     id: "scene-memo-text",
     label: "MemoText",
     kind: "flexibleText",
-    layerId: "memo",
+    layerId: "memo-text",
     binding: {
       mode: "field",
       scope: "global",
       key: "memoText",
     },
-    containerStyleKey: "memoContainer",
-    wrapperStyleKey: "memoTextContainer",
+    containerStyleKey: "memoTextContainer",
     textStyleKey: "memoTextStyle",
     colorKey: "ARTIST",
     fontKey: "ARTIST",
@@ -1335,6 +1364,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     topObjectByTheme: {
       first: null,
     },
+    memoByTheme: {
+      first: null,
+    },
     onlineByTheme: {
       first: null,
     },
@@ -1356,6 +1388,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
     topObjectByTheme: {
+      first: null,
+    },
+    memoByTheme: {
       first: null,
     },
     onlineByTheme: {
@@ -2927,6 +2962,10 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assets.topObjectByTheme,
         raw.assets.topObjectByTheme
       ),
+      memoByTheme: v2_mergeThemeStringMap(
+        normalized.assets.memoByTheme,
+        raw.assets.memoByTheme
+      ),
       onlineByTheme: v2_mergeThemeStringMap(
         normalized.assets.onlineByTheme,
         raw.assets.onlineByTheme
@@ -2959,6 +2998,10 @@ export const v2_normalizeTemplateRenderConfig = (
       topObjectByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.topObjectByTheme,
         raw.assetDimensions.topObjectByTheme
+      ),
+      memoByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.memoByTheme,
+        raw.assetDimensions.memoByTheme
       ),
       onlineByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.onlineByTheme,

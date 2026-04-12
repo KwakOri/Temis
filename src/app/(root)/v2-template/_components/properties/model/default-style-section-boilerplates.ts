@@ -85,11 +85,9 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
   },
   cardMainTitleContainer: {
     height: 280,
-    widthPercent: 100,
     top: 132,
   },
   cardSubTitleContainer: {
-    widthPercent: 100,
     height: 64,
     top: 440,
   },
@@ -120,6 +118,11 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     textAlign: "center",
   },
   mainTitleWrapperStyle: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  subTitleWrapperStyle: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",

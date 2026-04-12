@@ -151,7 +151,6 @@ const useTemplateBoilerplateActions = ({
     if (field.key === "opacity") return "0.01";
     if (field.key === "lineHeight" || field.key === "letterSpacing") return "0.1";
     if (field.key === "rotateDeg") return "0.1";
-    if (field.key === "widthPercent") return "0.1";
     return "1";
   };
 
@@ -171,9 +170,9 @@ const useTemplateBoilerplateActions = ({
         textSection: "mainTitleTextStyle",
       };
     }
-    if (section === "cardSubTitleContainer" || section === "subTitleTextStyle") {
+    if (section === "subTitleWrapperStyle" || section === "subTitleTextStyle") {
       return {
-        wrapperSection: "cardSubTitleContainer",
+        wrapperSection: "subTitleWrapperStyle",
         textSection: "subTitleTextStyle",
       };
     }

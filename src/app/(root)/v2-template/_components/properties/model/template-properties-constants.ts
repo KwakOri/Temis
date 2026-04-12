@@ -1,4 +1,5 @@
 import {
+  v2_TEMPLATE_COMPUTED_BINDING_KEYS,
   V2TemplateAssetMap,
   V2TemplateFieldScope,
   V2TemplateFontFaceSource,
@@ -35,11 +36,7 @@ export const v2_FORM_FIELD_TYPE_OPTIONS: Array<{
   { value: "number", label: "number" },
 ];
 
-export const v2_BINDING_COMPUTED_OPTIONS = [
-  "streamingDay",
-  "streamingDate",
-  "streamingTime",
-] as const;
+export const v2_BINDING_COMPUTED_OPTIONS = v2_TEMPLATE_COMPUTED_BINDING_KEYS;
 
 export const v2_BASE_FONT_TOKEN_KEYS = [
   "primary",
@@ -65,6 +62,7 @@ export const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
   "guideByTheme",
   "bgByTheme",
   "topObjectByTheme",
+  "memoByTheme",
   "onlineByTheme",
   "offlineByTheme",
   "profileFrameByTheme",
@@ -73,6 +71,7 @@ export const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
 export const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
   bgByTheme: "배경",
   topObjectByTheme: "상단 오브젝트",
+  memoByTheme: "메모 오브젝트",
   onlineByTheme: "온라인 카드",
   offlineByTheme: "오프라인 카드",
   profileFrameByTheme: "프로필 프레임",
@@ -175,6 +174,7 @@ export type V2StyleSectionKey =
   | "streamingDateStyle"
   | "streamingTimeStyle"
   | "mainTitleWrapperStyle"
+  | "subTitleWrapperStyle"
   | "mainTitleTextStyle"
   | "subTitleTextStyle";
 
@@ -200,6 +200,7 @@ export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   streamingDateStyle: "StreamingDate.TextStyle",
   streamingTimeStyle: "StreamingTime.TextStyle",
   mainTitleWrapperStyle: "MainTitle.WrapperStyle",
+  subTitleWrapperStyle: "SubTitle.WrapperStyle",
   mainTitleTextStyle: "MainTitle.TextStyle",
   subTitleTextStyle: "SubTitle.TextStyle",
 };
@@ -224,6 +225,7 @@ export const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "mainTitleWrapperStyle",
   "mainTitleTextStyle",
   "cardSubTitleContainer",
+  "subTitleWrapperStyle",
   "subTitleTextStyle",
   "cardContainer",
 ];
@@ -252,6 +254,7 @@ export const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   streamingTimeStyle: "cardStreamingTime",
   mainTitleWrapperStyle: "cardMainTitleContainer",
   mainTitleTextStyle: "cardMainTitleContainer",
+  subTitleWrapperStyle: "cardSubTitleContainer",
   subTitleTextStyle: "cardSubTitleContainer",
 };
 
@@ -285,6 +288,7 @@ export const v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
   streamingDateStyle: "streamingDateStyle",
   streamingTimeStyle: "streamingTimeStyle",
   mainTitleWrapperStyle: "mainTitleWrapperStyle",
+  subTitleWrapperStyle: "subTitleWrapperStyle",
   mainTitleTextStyle: "mainTitleTextStyle",
   subTitleTextStyle: "subTitleTextStyle",
 };
@@ -298,7 +302,9 @@ export const v2_HIGHLIGHT_TARGET_LABELS: Record<
   topObjectContainer: "TopObject",
   profileImage: "Profile Image",
   profileFrame: "Profile Frame",
+  memoObject: "Memo Object",
   profileText: "Profile Text",
+  memoText: "Memo Text",
   cardStreamingDay: "Card / StreamingDay",
   cardStreamingDate: "Card / StreamingDate",
   cardStreamingTime: "Card / StreamingTime",

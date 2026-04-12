@@ -75,24 +75,31 @@ export const V2FlexibleTextNodeRenderer: React.FC<
       style={{
         ...containerStyle,
         ...(width !== undefined ? { width } : {}),
-        ...(wrapperStyle ?? {}),
         ...highlightStyle,
       }}
       className={containerClassName ?? "absolute flex items-center justify-center"}
     >
       {/* AutoResizeText depends on parent box dimensions, so wrapper div is mandatory. */}
-      <AutoResizeText
+      <div
         style={{
-          fontFamily,
-          color,
-          ...textStyle,
+          width: "100%",
+          height: "100%",
+          ...(wrapperStyle ?? {}),
         }}
-        className={textClassName ?? "leading-none text-center"}
-        multiline={multiline}
-        maxFontSize={maxFontSize}
       >
-        {text}
-      </AutoResizeText>
+        <AutoResizeText
+          style={{
+            fontFamily,
+            color,
+            ...textStyle,
+          }}
+          className={textClassName ?? "leading-none text-center"}
+          multiline={multiline}
+          maxFontSize={maxFontSize}
+        >
+          {text}
+        </AutoResizeText>
+      </div>
     </div>
   );
 };

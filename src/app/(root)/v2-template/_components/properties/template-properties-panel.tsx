@@ -291,6 +291,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       componentId: activeCardComponentId,
       sceneNodes: runtimeSceneNodes,
       dayLabelFormat: renderConfig.dayLabelFormat,
+      streamingDayFormat: renderConfig.streamingDayFormat,
       weekdayOption: renderConfig.weekdayOption,
       additionalInstanceIds: Object.keys(
         activeCardStructure?.instanceTransforms ?? {}
@@ -300,6 +301,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     activeCardComponentId,
     activeCardStructure?.instanceTransforms,
     renderConfig.dayLabelFormat,
+    renderConfig.streamingDayFormat,
     renderConfig.weekdayOption,
     runtimeSceneNodes,
   ]);
@@ -937,10 +939,15 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         label: `${dayKey.toUpperCase()} · ${v2_resolveDayLabelByKey({
           dayKey,
           dayLabelFormat: renderConfig.dayLabelFormat,
+          streamingDayFormat: renderConfig.streamingDayFormat,
           fallbackWeekdayOption: renderConfig.weekdayOption,
         })}`,
       })),
-    [renderConfig.dayLabelFormat, renderConfig.weekdayOption]
+    [
+      renderConfig.dayLabelFormat,
+      renderConfig.streamingDayFormat,
+      renderConfig.weekdayOption,
+    ]
   );
 
   const {
@@ -963,31 +970,32 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     safeUpdateConfig,
   });
 
-  const updateDayLabelFormatMode = (mode: "preset" | "custom") => {
-    safeUpdateConfig((prev) => ({
-      ...prev,
-      dayLabelFormat: {
-        ...prev.dayLabelFormat,
-        mode,
-      },
-    }));
+  const updateStreamingDayFormat = (
+    patch: Partial<V2TemplateRenderConfig["streamingDayFormat"]>
+  ) => {
+    safeUpdateConfig((prev) => {
+      const nextStreamingDayFormat = {
+        ...prev.streamingDayFormat,
+        ...patch,
+      };
+      const nextWeekdayOption = patch.locale ?? prev.weekdayOption;
+      return {
+        ...prev,
+        weekdayOption: nextWeekdayOption,
+        dayLabelFormat: {
+          ...prev.dayLabelFormat,
+          preset: nextWeekdayOption,
+          custom: nextStreamingDayFormat.custom,
+        },
+        streamingDayFormat: nextStreamingDayFormat,
+      };
+    });
   };
 
-  const updateDayLabelFormatPreset = (preset: "kr" | "en" | "jp") => {
-    safeUpdateConfig((prev) => ({
-      ...prev,
-      weekdayOption: preset,
-      dayLabelFormat: {
-        ...prev.dayLabelFormat,
-        preset,
-      },
-    }));
-  };
-
-  const updateDayLabelCustomLabel = (dayKey: V2TemplateDayKey, value: string) => {
+  const updateStreamingDayCustomLabel = (dayKey: V2TemplateDayKey, value: string) => {
     safeUpdateConfig((prev) => {
       const nextCustom: Partial<Record<V2TemplateDayKey, string>> = {
-        ...prev.dayLabelFormat.custom,
+        ...prev.streamingDayFormat.custom,
       };
       const trimmed = value.trim();
       if (trimmed.length === 0) {
@@ -1001,6 +1009,39 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           ...prev.dayLabelFormat,
           custom: nextCustom,
         },
+        streamingDayFormat: {
+          ...prev.streamingDayFormat,
+          custom: nextCustom,
+        },
+      };
+    });
+  };
+
+  const updateStreamingTimeFormat = (
+    patch: Partial<V2TemplateRenderConfig["streamingTimeFormat"]>
+  ) => {
+    safeUpdateConfig((prev) => ({
+      ...prev,
+      streamingTimeFormat: {
+        ...prev.streamingTimeFormat,
+        ...patch,
+      },
+    }));
+  };
+
+  const updateWeekDateFormat = (
+    patch: Partial<V2TemplateRenderConfig["weekDateFormat"]>
+  ) => {
+    safeUpdateConfig((prev) => {
+      const nextWeekDateFormat = {
+        ...prev.weekDateFormat,
+        ...patch,
+      };
+      const nextMonthOption = patch.locale ?? prev.monthOption;
+      return {
+        ...prev,
+        monthOption: nextMonthOption,
+        weekDateFormat: nextWeekDateFormat,
       };
     });
   };
@@ -1264,9 +1305,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         onUpdateFontFace={updateFontFace}
         onRemoveFontFace={removeFontFace}
         parseFontWeightInput={parseFontWeightInput}
-        onUpdateDayLabelMode={updateDayLabelFormatMode}
-        onUpdateDayLabelPreset={updateDayLabelFormatPreset}
-        onUpdateDayLabelCustomLabel={updateDayLabelCustomLabel}
+        onUpdateStreamingDayFormat={updateStreamingDayFormat}
+        onUpdateStreamingDayCustomLabel={updateStreamingDayCustomLabel}
+        onUpdateStreamingTimeFormat={updateStreamingTimeFormat}
+        onUpdateWeekDateFormat={updateWeekDateFormat}
       />
     </TemplateStyleTab>
   );

@@ -16,12 +16,14 @@ export const v2_collectCardComponentInstances = ({
   componentId,
   sceneNodes,
   dayLabelFormat,
+  streamingDayFormat,
   weekdayOption,
   additionalInstanceIds = [],
 }: {
   componentId: string | null;
   sceneNodes: V2TemplateSceneNode[];
   dayLabelFormat: V2TemplateRenderConfig["dayLabelFormat"];
+  streamingDayFormat: V2TemplateRenderConfig["streamingDayFormat"];
   weekdayOption: V2TemplateRenderConfig["weekdayOption"];
   additionalInstanceIds?: string[];
 }): V2CardComponentInstanceSummary[] => {
@@ -46,6 +48,7 @@ export const v2_collectCardComponentInstances = ({
       v2_resolveDayLabelByKey({
         dayKey,
         dayLabelFormat,
+        streamingDayFormat,
         fallbackWeekdayOption: weekdayOption,
       });
     collected.push({

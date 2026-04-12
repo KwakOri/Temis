@@ -14,8 +14,6 @@ import {
   V2TemplateSceneNode,
   V2TemplateSceneTextNode,
 } from "@/types/time-table/template-render-config";
-import { getWeekDateRange, padZero } from "@/utils/date-formatter";
-import { formatTime } from "@/utils/time-formatter";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import {
   v2_getRuntimeCardStructureByComponentId,
@@ -25,8 +23,8 @@ import {
   v2_getComponentFontFamily,
   v2_isVisibleByMode,
   v2_parseDayKey,
-  v2_resolveDayLabelByKey,
 } from "@/utils/time-table/template-render-config";
+import { v2_buildComputedValues } from "@/utils/time-table/text-formatting";
 import { v2_resolveSceneTextNodeValue } from "@/utils/time-table/scene-nodes";
 import {
   V2FlexibleTextNodeRenderer,
@@ -64,15 +62,8 @@ const v2_toRenderableLayout = (
   width?: string | number;
 } => {
   if (!value || typeof value !== "object") return { style: {} };
-  const raw = value as Record<string, unknown>;
-  const { widthPercent, ...layoutRaw } = raw;
-  const style = v2_toRenderableLayoutStyle(layoutRaw);
-  const width =
-    typeof widthPercent === "number"
-      ? `${widthPercent}%`
-      : typeof widthPercent === "string"
-        ? widthPercent
-        : style.width;
+  const style = v2_toRenderableLayoutStyle(value as Record<string, unknown>);
+  const width = style.width;
 
   return {
     style,
@@ -94,7 +85,7 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateEditorRuntimeContext();
-  const { weekDates, profileText, imageSrc, preferProfileDummyImage } =
+  const { weekDates, profileText, memoText, imageSrc, preferProfileDummyImage } =
     useTemplateEditorData();
   const runtimeLayerTree = useMemo(
     () => v2_getRuntimeLayerTree(renderConfig),
@@ -165,7 +156,7 @@ const V2SceneStructureRenderer = ({
     const textStyle = v2_toRenderableStyle(
       resolveStyleRecordByKey(node.textStyleKey)
     );
-    const wrapperStyle = v2_toRenderableStyle(
+    const wrapperStyle = v2_toRenderableLayoutStyle(
       resolveStyleRecordByKey(node.wrapperStyleKey)
     );
     const optionsRaw = node.optionsKey
@@ -174,46 +165,31 @@ const V2SceneStructureRenderer = ({
 
     const firstDayKey =
       v2_parseDayKey(firstCard?.day) ?? v2_dayKeyFromIndex(0);
-    const firstDayLabel = v2_resolveDayLabelByKey({
-      dayKey: firstDayKey,
-      dayLabelFormat: renderConfig.dayLabelFormat,
-      fallbackWeekdayOption: renderConfig.weekdayOption,
-    });
     const firstWeekDate = weekDates[0];
-    const firstDateLabel =
-      firstWeekDate instanceof Date && !Number.isNaN(firstWeekDate.getTime())
-        ? padZero(firstWeekDate.getDate())
-        : "";
     const entryTime =
       typeof firstEntry?.time === "string" ? firstEntry.time : "10:00";
-    const firstTimeLabel =
-      typeof firstEntry?.isGuerrilla === "boolean" && firstEntry.isGuerrilla
-        ? "게릴라"
-        : formatTime(entryTime, "half");
-
-    const hasWeekDates = weekDates.length > 0;
-    const fallbackWeekFlag = hasWeekDates
-      ? (() => {
-          const { start, end } = getWeekDateRange(weekDates);
-          return `${start.year}.${padZero(start.month)}.${padZero(
-            start.date
-          )} - ${end.year}.${padZero(end.month)}.${padZero(end.date)}`;
-        })()
-      : "";
+    const computedValues = v2_buildComputedValues({
+      dayKey: firstDayKey,
+      weekDate: firstWeekDate,
+      weekDates,
+      entryTime,
+      isGuerrilla:
+        typeof firstEntry?.isGuerrilla === "boolean" ? firstEntry.isGuerrilla : false,
+      renderConfig,
+    });
+    const fallbackWeekFlag = computedValues.weekDateRange ?? "";
     const fallbackValue =
       node.id === "scene-week-flag"
         ? fallbackWeekFlag
         : node.id === "scene-profile-text"
           ? profileText || renderConfig.profileTextPlaceholder || ""
+          : node.id === "scene-memo-text"
+            ? memoText || renderConfig.profileTextPlaceholder || ""
           : "";
     const text = v2_resolveSceneTextNodeValue({
       node,
       fallbackValue,
-      computedValues: {
-        streamingDay: firstDayLabel,
-        streamingDate: firstDateLabel,
-        streamingTime: firstTimeLabel,
-      },
+      computedValues,
       entrySource: firstEntry,
       entrySources: (firstCard?.entries as Record<string, unknown>[] | undefined) ?? [],
       cardSource: firstCard,
@@ -240,7 +216,7 @@ const V2SceneStructureRenderer = ({
       const maxFontSize =
         typeof optionsRaw.maxFontSize === "number" && Number.isFinite(optionsRaw.maxFontSize)
           ? optionsRaw.maxFontSize
-          : node.id === "scene-profile-text"
+          : node.id === "scene-profile-text" || node.id === "scene-memo-text"
             ? renderConfig.maxFontSizes.ARTIST
             : renderConfig.maxFontSizes.MAIN_TITLE;
 

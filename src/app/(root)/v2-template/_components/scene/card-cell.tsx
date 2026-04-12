@@ -1,6 +1,7 @@
 import React from "react";
 
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
 import {
   useTemplateRenderConfigContext,
   getAssetUrlFromConfig,
@@ -13,17 +14,16 @@ import {
   V2TemplateCardStructure,
   V2TemplateDayKey,
   V2TemplateCardStyleKey,
+  V2TemplateComputedBindingKey,
 } from "@/types/time-table/template-render-config";
-import { padZero } from "@/utils/date-formatter";
-import { formatTime } from "@/utils/time-formatter";
 import {
   v2_dayKeyFromIndex,
   v2_getComponentFontFamily,
   v2_isEntryFieldBindingKey,
   v2_parseDayKey,
-  v2_resolveDayLabelByKey,
   v2_isVisibleByMode,
 } from "@/utils/time-table/template-render-config";
+import { v2_buildComputedValues } from "@/utils/time-table/text-formatting";
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
@@ -61,14 +61,8 @@ const v2_toCardStyleMap = (
 const v2_resolveRenderableCardLayout = (
   styleMap: Record<string, string | number>
 ): { style: React.CSSProperties; width?: string | number } => {
-  const { widthPercent, ...layoutRaw } = styleMap;
-  const style = v2_toRenderableLayoutStyle(layoutRaw);
-  const width =
-    typeof widthPercent === "number"
-      ? `${widthPercent}%`
-      : typeof widthPercent === "string"
-        ? widthPercent
-        : style.width;
+  const style = v2_toRenderableLayoutStyle(styleMap);
+  const width = style.width;
 
   return {
     style,
@@ -117,22 +111,16 @@ const v2_resolveEntryFromBinding = ({
 
 const v2_getCardNodeTextValue = ({
   node,
-  dayLabel,
-  weekDate,
-  isGuerrilla,
+  computedValues,
   selectedEntry,
   cardData,
-  entryTime,
   placeholdersByScope,
   globalData,
 }: {
   node: V2TemplateCardNode;
-  dayLabel: string;
-  weekDate: Date;
-  isGuerrilla: boolean;
+  computedValues: Partial<Record<V2TemplateComputedBindingKey, string>>;
   selectedEntry: Record<string, unknown>;
   cardData: Record<string, unknown>;
-  entryTime: string;
   placeholdersByScope: Record<string, Record<string, string>>;
   globalData: Record<string, unknown>;
 }): string => {
@@ -141,9 +129,7 @@ const v2_getCardNodeTextValue = ({
   }
 
   if (node.binding.mode === "computed") {
-    if (node.binding.key === "streamingDay") return dayLabel;
-    if (node.binding.key === "streamingDate") return padZero(weekDate.getDate());
-    return isGuerrilla ? "게릴라" : formatTime(entryTime, "half");
+    return computedValues[node.binding.key] ?? "";
   }
 
   if (node.binding.key === "mainTitle") {
@@ -242,6 +228,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   bindingOverrides,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
+  const { weekDates } = useTemplateEditorData();
   const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden, globalData } =
     useTemplateEditorRuntimeContext();
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
@@ -258,11 +245,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const cardContainerLayout = v2_toRenderableStyle(cardContainerStyleMap);
   const dayKey =
     dayKeyOverride ?? v2_parseDayKey(time.day) ?? v2_dayKeyFromIndex(index);
-  const dayLabel = v2_resolveDayLabelByKey({
-    dayKey,
-    dayLabelFormat: renderConfig.dayLabelFormat,
-    fallbackWeekdayOption: renderConfig.weekdayOption,
-  });
   const placeholdersByScope = renderConfig.formSchema.fields.reduce(
     (
       acc: Record<string, Record<string, string>>,
@@ -290,6 +272,14 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     Array.isArray(time.entries) ? time.entries.length : 0
   );
   const entryTime = (primaryEntry.time as string) || "09:00";
+  const computedValues = v2_buildComputedValues({
+    dayKey,
+    weekDate,
+    weekDates,
+    entryTime,
+    isGuerrilla: Boolean(primaryEntry.isGuerrilla),
+    renderConfig,
+  });
 
   const renderCardNode = (nodeId: string) => {
     const node = cardStructure.nodes[nodeId];
@@ -330,12 +320,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         ...node,
         binding: effectiveBinding,
       },
-      dayLabel,
-      weekDate,
-      isGuerrilla: Boolean(primaryEntry.isGuerrilla),
+      computedValues,
       selectedEntry,
       cardData: time as Record<string, unknown>,
-      entryTime,
       placeholdersByScope,
       globalData: globalData as Record<string, unknown>,
     });

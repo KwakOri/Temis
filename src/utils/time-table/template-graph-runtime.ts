@@ -1,8 +1,10 @@
 import {
+  v2_TEMPLATE_COMPUTED_BINDING_KEYS,
   V2TemplateComponentInstanceBindingOverrides,
   v2_TEMPLATE_COLOR_KEYS,
   V2TemplateCardNode,
   V2TemplateCardStructure,
+  V2TemplateComputedBindingKey,
   V2TemplateGraphNode,
   V2TemplateNodeBindingRef,
   V2TemplateRenderConfig,
@@ -17,6 +19,7 @@ import {
 
 const v2_COLOR_KEY_SET = new Set(v2_TEMPLATE_COLOR_KEYS);
 const v2_VISIBILITY_MODE_SET = new Set(["always", "onlineOnly", "offlineOnly"]);
+const v2_COMPUTED_KEY_SET = new Set<string>(v2_TEMPLATE_COMPUTED_BINDING_KEYS);
 const v2_INVALID_COMPONENT_ID = "__invalid_component__";
 
 const v2_stripTailwindZClasses = (
@@ -94,15 +97,10 @@ const v2_toBindingRef = (candidate: unknown): V2TemplateNodeBindingRef => {
     };
   }
 
-  if (
-    mode === "computed" &&
-    (record.key === "streamingDay" ||
-      record.key === "streamingDate" ||
-      record.key === "streamingTime")
-  ) {
+  if (mode === "computed" && typeof record.key === "string" && v2_COMPUTED_KEY_SET.has(record.key)) {
     return {
       mode: "computed",
-      key: record.key,
+      key: record.key as V2TemplateComputedBindingKey,
     };
   }
 

@@ -287,7 +287,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "bottom", label: "Bottom" },
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
         { key: "width", label: "Width" },
-        { key: "widthPercent", label: "Width (%)", step: "0.1" },
         { key: "height", label: "Height" },
       ],
     },
@@ -313,7 +312,6 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "bottom", label: "Bottom" },
         { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
         { key: "width", label: "Width" },
-        { key: "widthPercent", label: "Width (%)", step: "0.1" },
         { key: "height", label: "Height" },
       ],
     },
@@ -407,6 +405,22 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
     },
   ],
   mainTitleWrapperStyle: [
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+        { key: "gap", label: "Gap" },
+        { key: "paddingTop", label: "Padding Top" },
+        { key: "paddingRight", label: "Padding Right" },
+        { key: "paddingBottom", label: "Padding Bottom" },
+        { key: "paddingLeft", label: "Padding Left" },
+      ],
+    },
+  ],
+  subTitleWrapperStyle: [
     {
       id: "layout",
       label: "Layout",

@@ -89,7 +89,6 @@ export const v2_BOILERPLATE_NUMERIC_KEYS = new Set([
   "columns",
   "borderWidth",
   "borderRadius",
-  "widthPercent",
   "opacity",
   "zIndex",
   "rotateDeg",

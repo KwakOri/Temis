@@ -1,9 +1,12 @@
-import type {
-  V2TemplateCardNodeBinding,
-  V2TemplateFieldScope,
-  V2TemplateFormField,
-  V2TemplateNodeBindingRef,
+import {
+  v2_TEMPLATE_COMPUTED_BINDING_KEYS,
+  type V2TemplateCardNodeBinding,
+  type V2TemplateFieldScope,
+  type V2TemplateFormField,
+  type V2TemplateNodeBindingRef,
 } from "@/types/time-table/template-render-config";
+
+const v2_COMPUTED_KEY_SET = new Set<string>(v2_TEMPLATE_COMPUTED_BINDING_KEYS);
 
 export interface V2NodeNewFieldDraft {
   key: string;
@@ -96,14 +99,10 @@ export const v2_parseNodeBindingFromSelectValue = (
 
   if (value.startsWith("computed:")) {
     const computedKey = value.replace("computed:", "");
-    if (
-      computedKey === "streamingDay" ||
-      computedKey === "streamingDate" ||
-      computedKey === "streamingTime"
-    ) {
+    if (v2_COMPUTED_KEY_SET.has(computedKey)) {
       return {
         mode: "computed",
-        key: computedKey,
+        key: computedKey as (typeof v2_TEMPLATE_COMPUTED_BINDING_KEYS)[number],
       };
     }
     return null;

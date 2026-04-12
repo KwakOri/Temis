@@ -14,7 +14,6 @@ import {
   LucideIcon,
   Move,
   Palette,
-  Percent,
   RotateCw,
   Rows3,
   Ruler,
@@ -63,7 +62,6 @@ const v2_BOILERPLATE_FIELD_ICON_MAP: Record<string, LucideIcon> = {
   bottom: ArrowDown,
   left: ArrowLeft,
   width: Ruler,
-  widthPercent: Percent,
   minWidth: Ruler,
   maxWidth: Ruler,
   height: Ruler,
@@ -160,7 +158,6 @@ const v2_FIELD_CATEGORY_ORDER = {
   position: ["position", "top", "bottom", "left", "right", "rotateDeg"],
   size: [
     "width",
-    "widthPercent",
     "height",
     "minWidth",
     "maxWidth",

@@ -46,9 +46,16 @@ interface TemplateStyleThemeSettingsProps {
   ) => void;
   onRemoveFontFace: (registryKey: string, faceIndex: number) => void;
   parseFontWeightInput: (rawValue: string) => number | string;
-  onUpdateDayLabelMode: (mode: "preset" | "custom") => void;
-  onUpdateDayLabelPreset: (preset: "kr" | "en" | "jp") => void;
-  onUpdateDayLabelCustomLabel: (dayKey: V2TemplateDayKey, value: string) => void;
+  onUpdateStreamingDayFormat: (
+    patch: Partial<V2TemplateRenderConfig["streamingDayFormat"]>
+  ) => void;
+  onUpdateStreamingDayCustomLabel: (dayKey: V2TemplateDayKey, value: string) => void;
+  onUpdateStreamingTimeFormat: (
+    patch: Partial<V2TemplateRenderConfig["streamingTimeFormat"]>
+  ) => void;
+  onUpdateWeekDateFormat: (
+    patch: Partial<V2TemplateRenderConfig["weekDateFormat"]>
+  ) => void;
 }
 
 const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
@@ -74,9 +81,10 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
   onUpdateFontFace,
   onRemoveFontFace,
   parseFontWeightInput,
-  onUpdateDayLabelMode,
-  onUpdateDayLabelPreset,
-  onUpdateDayLabelCustomLabel,
+  onUpdateStreamingDayFormat,
+  onUpdateStreamingDayCustomLabel,
+  onUpdateStreamingTimeFormat,
+  onUpdateWeekDateFormat,
 }) => {
   const [fontFaceCssDraftByKey, setFontFaceCssDraftByKey] = React.useState<
     Record<string, string>
@@ -180,44 +188,73 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
       </div>
 
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
-        <h4 className="font-semibold text-sm text-gray-200">요일 라벨 포맷</h4>
-        <div className="grid grid-cols-2 gap-2 items-center">
-          <label className="text-xs text-gray-400">모드</label>
-          <select
-            value={renderConfig.dayLabelFormat.mode}
-            onChange={(event) =>
-              onUpdateDayLabelMode(event.target.value as "preset" | "custom")
-            }
-            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-          >
-            <option value="preset">preset</option>
-            <option value="custom">custom</option>
-          </select>
-          <label className="text-xs text-gray-400">프리셋</label>
-          <select
-            value={renderConfig.dayLabelFormat.preset}
-            onChange={(event) =>
-              onUpdateDayLabelPreset(event.target.value as "kr" | "en" | "jp")
-            }
-            className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-          >
-            <option value="kr">kr</option>
-            <option value="en">en</option>
-            <option value="jp">jp</option>
-          </select>
-        </div>
-        {renderConfig.dayLabelFormat.mode === "custom" ? (
+        <h4 className="font-semibold text-sm text-gray-200">포맷 설정</h4>
+
+        <div className="space-y-2 rounded border border-[#2e3138] bg-[#15171b] p-2">
+          <p className="text-xs font-semibold text-gray-300">Streaming Day</p>
+          <div className="grid grid-cols-2 gap-2 items-center">
+            <label className="text-xs text-gray-400">언어</label>
+            <select
+              value={renderConfig.streamingDayFormat.locale}
+              onChange={(event) =>
+                onUpdateStreamingDayFormat({
+                  locale: event.target.value as "kr" | "en" | "jp",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="kr">kr</option>
+              <option value="en">en</option>
+              <option value="jp">jp</option>
+            </select>
+            <label className="text-xs text-gray-400">표기 길이</label>
+            <select
+              value={renderConfig.streamingDayFormat.width}
+              onChange={(event) =>
+                onUpdateStreamingDayFormat({
+                  width: event.target.value as "narrow" | "short" | "long",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="narrow">narrow</option>
+              <option value="short">short</option>
+              <option value="long">long</option>
+            </select>
+            <label className="text-xs text-gray-400">문자 케이스</label>
+            <select
+              value={renderConfig.streamingDayFormat.caseStyle}
+              onChange={(event) =>
+                onUpdateStreamingDayFormat({
+                  caseStyle: event.target.value as
+                    | "original"
+                    | "upper"
+                    | "lower"
+                    | "capitalize",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="original">original</option>
+              <option value="upper">upper</option>
+              <option value="lower">lower</option>
+              <option value="capitalize">capitalize</option>
+            </select>
+          </div>
+          <p className="text-[11px] text-gray-500">
+            요일별 커스텀 텍스트를 입력하면 locale/길이/케이스 설정보다 우선 적용됩니다.
+          </p>
           <div className="space-y-2">
             {dayKeyOptions.map((option) => (
               <label
-                key={`day-label-custom-${option.value}`}
+                key={`day-format-custom-${option.value}`}
                 className="flex items-center justify-between gap-2"
               >
                 <span className="text-xs text-gray-400 min-w-20">{option.value}</span>
                 <input
-                  value={renderConfig.dayLabelFormat.custom[option.value] ?? ""}
+                  value={renderConfig.streamingDayFormat.custom[option.value] ?? ""}
                   onChange={(event) =>
-                    onUpdateDayLabelCustomLabel(option.value, event.target.value)
+                    onUpdateStreamingDayCustomLabel(option.value, event.target.value)
                   }
                   placeholder={option.label}
                   className="min-w-0 flex-1 px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
@@ -225,11 +262,250 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
               </label>
             ))}
           </div>
-        ) : (
-          <p className="text-xs text-gray-500">
-            custom 모드에서 요일별 라벨을 직접 입력할 수 있습니다.
-          </p>
-        )}
+        </div>
+
+        <div className="space-y-2 rounded border border-[#2e3138] bg-[#15171b] p-2">
+          <p className="text-xs font-semibold text-gray-300">Streaming Time</p>
+          <div className="grid grid-cols-2 gap-2 items-center">
+            <label className="text-xs text-gray-400">시간제</label>
+            <select
+              value={renderConfig.streamingTimeFormat.hourCycle}
+              onChange={(event) =>
+                onUpdateStreamingTimeFormat({
+                  hourCycle: event.target.value as "h12" | "h24",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="h12">12-hour</option>
+              <option value="h24">24-hour</option>
+            </select>
+            <label className="text-xs text-gray-400">시 0패딩</label>
+            <select
+              value={renderConfig.streamingTimeFormat.padHour ? "yes" : "no"}
+              onChange={(event) =>
+                onUpdateStreamingTimeFormat({
+                  padHour: event.target.value === "yes",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="yes">yes</option>
+              <option value="no">no</option>
+            </select>
+            <label className="text-xs text-gray-400">AM/PM 표시</label>
+            <select
+              value={renderConfig.streamingTimeFormat.showMeridiem ? "yes" : "no"}
+              onChange={(event) =>
+                onUpdateStreamingTimeFormat({
+                  showMeridiem: event.target.value === "yes",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="yes">yes</option>
+              <option value="no">no</option>
+            </select>
+            <label className="text-xs text-gray-400">AM/PM 스타일</label>
+            <select
+              value={renderConfig.streamingTimeFormat.meridiemStyle}
+              onChange={(event) =>
+                onUpdateStreamingTimeFormat({
+                  meridiemStyle: event.target.value as "upper" | "lower" | "kr",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="upper">AM/PM</option>
+              <option value="lower">am/pm</option>
+              <option value="kr">오전/오후</option>
+            </select>
+            <label className="text-xs text-gray-400">AM/PM 위치</label>
+            <select
+              value={renderConfig.streamingTimeFormat.meridiemPosition}
+              onChange={(event) =>
+                onUpdateStreamingTimeFormat({
+                  meridiemPosition: event.target.value as "prefix" | "suffix",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="prefix">앞</option>
+              <option value="suffix">뒤</option>
+            </select>
+            <label className="text-xs text-gray-400">시/분 구분자</label>
+            <input
+              value={renderConfig.streamingTimeFormat.timeSeparator}
+              onChange={(event) =>
+                onUpdateStreamingTimeFormat({
+                  timeSeparator: event.target.value,
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              placeholder=":"
+            />
+            <label className="text-xs text-gray-400">AM/PM 구분자</label>
+            <input
+              value={renderConfig.streamingTimeFormat.meridiemSeparator}
+              onChange={(event) =>
+                onUpdateStreamingTimeFormat({
+                  meridiemSeparator: event.target.value,
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              placeholder="공백"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded border border-[#2e3138] bg-[#15171b] p-2">
+          <p className="text-xs font-semibold text-gray-300">Week Date</p>
+          <div className="grid grid-cols-2 gap-2 items-center">
+            <label className="text-xs text-gray-400">언어</label>
+            <select
+              value={renderConfig.weekDateFormat.locale}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  locale: event.target.value as "kr" | "en" | "jp",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="kr">kr</option>
+              <option value="en">en</option>
+              <option value="jp">jp</option>
+            </select>
+            <label className="text-xs text-gray-400">날짜 순서</label>
+            <select
+              value={renderConfig.weekDateFormat.dateOrder}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  dateOrder: event.target.value as
+                    | "locale"
+                    | "ymd"
+                    | "mdy"
+                    | "dmy",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="locale">locale</option>
+              <option value="ymd">ymd</option>
+              <option value="mdy">mdy</option>
+              <option value="dmy">dmy</option>
+            </select>
+            <label className="text-xs text-gray-400">연도 포함</label>
+            <select
+              value={renderConfig.weekDateFormat.includeYear ? "yes" : "no"}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  includeYear: event.target.value === "yes",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="yes">yes</option>
+              <option value="no">no</option>
+            </select>
+            <label className="text-xs text-gray-400">연도 스타일</label>
+            <select
+              value={renderConfig.weekDateFormat.yearStyle}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  yearStyle: event.target.value as "numeric" | "2-digit",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="numeric">numeric</option>
+              <option value="2-digit">2-digit</option>
+            </select>
+            <label className="text-xs text-gray-400">월 스타일</label>
+            <select
+              value={renderConfig.weekDateFormat.monthStyle}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  monthStyle: event.target.value as
+                    | "numeric"
+                    | "2-digit"
+                    | "short"
+                    | "long",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="numeric">numeric</option>
+              <option value="2-digit">2-digit</option>
+              <option value="short">short</option>
+              <option value="long">long</option>
+            </select>
+            <label className="text-xs text-gray-400">일 스타일</label>
+            <select
+              value={renderConfig.weekDateFormat.dateStyle}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  dateStyle: event.target.value as "numeric" | "2-digit",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="numeric">numeric</option>
+              <option value="2-digit">2-digit</option>
+            </select>
+            <label className="text-xs text-gray-400">문자 케이스</label>
+            <select
+              value={renderConfig.weekDateFormat.caseStyle}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  caseStyle: event.target.value as
+                    | "original"
+                    | "upper"
+                    | "lower"
+                    | "capitalize",
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+            >
+              <option value="original">original</option>
+              <option value="upper">upper</option>
+              <option value="lower">lower</option>
+              <option value="capitalize">capitalize</option>
+            </select>
+            <label className="text-xs text-gray-400">날짜 구분자</label>
+            <input
+              value={renderConfig.weekDateFormat.dateSeparator}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  dateSeparator: event.target.value,
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              placeholder="."
+            />
+            <label className="text-xs text-gray-400">월/일 구분자</label>
+            <input
+              value={renderConfig.weekDateFormat.monthDateSeparator}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  monthDateSeparator: event.target.value,
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              placeholder="공백"
+            />
+            <label className="text-xs text-gray-400">범위 구분자</label>
+            <input
+              value={renderConfig.weekDateFormat.rangeSeparator}
+              onChange={(event) =>
+                onUpdateWeekDateFormat({
+                  rangeSeparator: event.target.value,
+                })
+              }
+              className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+              placeholder=" - "
+            />
+          </div>
+        </div>
       </div>
 
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
