@@ -27,7 +27,7 @@ const TemplateSchemaFieldItem: React.FC<TemplateSchemaFieldItemProps> = ({
 }) => {
   return (
     <div className="rounded border border-[#3a3d44] bg-[#1a1c20] p-2 space-y-2">
-      <div className="grid grid-cols-[minmax(0,1fr)_88px_102px_56px] gap-2 items-center">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_88px_102px_64px] md:items-center">
         <input
           value={field.key}
           onChange={(event) =>
@@ -84,7 +84,7 @@ const TemplateSchemaFieldItem: React.FC<TemplateSchemaFieldItemProps> = ({
           ? ` (${usage.nodeLabels.join(", ")})`
           : " (연결된 오브젝트 없음)"}
       </div>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         <input
           value={field.label ?? ""}
           onChange={(event) =>
@@ -102,7 +102,7 @@ const TemplateSchemaFieldItem: React.FC<TemplateSchemaFieldItemProps> = ({
           placeholder="placeholder"
         />
       </div>
-      <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-[1fr_auto] md:items-center">
         <input
           value={field.defaultValue === undefined ? "" : String(field.defaultValue)}
           onChange={(event) =>

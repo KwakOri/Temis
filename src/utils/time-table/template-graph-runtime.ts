@@ -19,6 +19,19 @@ const v2_COLOR_KEY_SET = new Set(v2_TEMPLATE_COLOR_KEYS);
 const v2_VISIBILITY_MODE_SET = new Set(["always", "onlineOnly", "offlineOnly"]);
 const v2_INVALID_COMPONENT_ID = "__invalid_component__";
 
+const v2_stripTailwindZClasses = (
+  className: unknown
+): string | undefined => {
+  if (typeof className !== "string") return undefined;
+  const sanitized = className
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => !/^(-?z-\d+|z-\[[^\]]+\])$/.test(token))
+    .join(" ");
+  return sanitized.length > 0 ? sanitized : undefined;
+};
+
 const v2_toVisibilityMode = (value: unknown): V2TemplateVisibilityMode | undefined => {
   if (typeof value !== "string") return undefined;
   return v2_VISIBILITY_MODE_SET.has(value) ? (value as V2TemplateVisibilityMode) : undefined;
@@ -136,6 +149,9 @@ const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | nul
     graphNode.meta?.fontKey && v2_COLOR_KEY_SET.has(graphNode.meta.fontKey)
       ? graphNode.meta.fontKey
       : "SUB_TITLE";
+  const sanitizedContainerClassName = v2_stripTailwindZClasses(
+    graphNode.meta?.containerClassName
+  );
 
   return {
     id: graphNode.id,
@@ -158,8 +174,10 @@ const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | nul
     ...(graphNode.styles?.optionsKey ? { optionsKey: graphNode.styles.optionsKey } : {}),
     colorKey,
     fontKey,
-    ...(typeof graphNode.meta?.containerClassName === "string"
-      ? { containerClassName: graphNode.meta.containerClassName }
+    ...(sanitizedContainerClassName
+      ? {
+          containerClassName: sanitizedContainerClassName,
+        }
       : {}),
     ...(typeof graphNode.meta?.textClassName === "string"
       ? { textClassName: graphNode.meta.textClassName }
@@ -322,6 +340,9 @@ const v2_buildSceneNodeFromGraph = ({
       graphNode.meta?.fontKey && v2_COLOR_KEY_SET.has(graphNode.meta.fontKey)
         ? graphNode.meta.fontKey
         : "SUB_TITLE";
+    const sanitizedContainerClassName = v2_stripTailwindZClasses(
+      graphNode.meta?.containerClassName
+    );
 
     return {
       ...base,
@@ -342,8 +363,10 @@ const v2_buildSceneNodeFromGraph = ({
         : {}),
       colorKey,
       fontKey,
-      ...(typeof graphNode.meta?.containerClassName === "string"
-        ? { containerClassName: graphNode.meta.containerClassName }
+      ...(sanitizedContainerClassName
+        ? {
+            containerClassName: sanitizedContainerClassName,
+          }
         : {}),
       ...(typeof graphNode.meta?.textClassName === "string"
         ? { textClassName: graphNode.meta.textClassName }

@@ -15,6 +15,7 @@ import {
 } from "@/types/time-table/template-render-config";
 import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
 import { v2_getRuntimeComponentLayerTreeNodes } from "@/utils/time-table/template-graph-component-layers-runtime";
+import { v2_graphInsertSiblingAfter, v2_graphUpdateNode } from "@/utils/time-table/template-graph-editor";
 import {
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
@@ -104,6 +105,7 @@ interface V2TemplateBuilderFormProps {
   focusStyleSection?: string | null;
   focusStyleSectionNonce?: number;
   focusEditorMode?: "instance" | "master";
+  onRequestClose?: () => void;
 }
 
 type V2CardLayoutStyleKey = Extract<
@@ -124,6 +126,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   focusStyleSection = null,
   focusStyleSectionNonce = 0,
   focusEditorMode = "instance",
+  onRequestClose,
 }) => {
   const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
   const {
@@ -141,7 +144,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const { preferProfileDummyImage, updatePreferProfileDummyImage } =
     useTemplateEditorData();
 
-  const [activeTab, setActiveTab] = useState<V2BuilderTabId>("canvas");
+  const [activeTab, setActiveTab] = useState<V2BuilderTabId>("properties");
+  const [sampleEntryIndex, setSampleEntryIndex] = useState(0);
   const [copyState, setCopyState] = useState<"idle" | "success" | "error">(
     "idle"
   );
@@ -163,7 +167,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     v2_TEMPLATE_PRESET_DEFINITIONS[0]?.id ?? "default_boilerplate"
   );
   const [formSchemaError, setFormSchemaError] = useState<string | null>(null);
-  const inspectorTabRef = useRef<HTMLDivElement | null>(null);
+  const styleInspectorRef = useRef<HTMLDivElement | null>(null);
+  const propertiesInspectorRef = useRef<HTMLDivElement | null>(null);
   const runtimeCardStructuresByComponentId = useMemo(() => {
     const next: Record<
       string,
@@ -192,7 +197,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     [renderConfig]
   );
   const {
-    selectedPropertiesTarget,
     setSelectedPropertiesTarget,
     selectedPropertiesLayerId,
     setSelectedPropertiesLayerId,
@@ -366,7 +370,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   useTemplatePropertiesFocusEffects({
     activeTab,
-    inspectorTabRef,
+    inspectorRefs: [styleInspectorRef, propertiesInspectorRef],
     setHoverHighlightTarget,
     setActiveHighlightTarget,
     focusLayerId,
@@ -380,12 +384,18 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     styleSectionHighlightTargetMap: v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP,
     setSelectedPropertiesLayerId,
     setSelectedPropertiesTarget,
-    activatePropertiesTab: () => setActiveTab("properties"),
   });
   useEffect(() => {
     if (!focusLayerId) return;
+    setActiveTab("properties");
     setSelectedPropertiesEditorMode(focusEditorMode);
-  }, [focusEditorMode, focusLayerId, focusLayerNonce]);
+  }, [
+    setActiveTab,
+    focusEditorMode,
+    focusLayerId,
+    focusLayerNonce,
+    setSelectedPropertiesEditorMode,
+  ]);
 
   const safeUpdateConfig = (
     updater: (prev: typeof renderConfig) => typeof renderConfig
@@ -481,6 +491,363 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         },
       },
     }));
+  };
+
+  const maxSampleEntryCount = useMemo(() => {
+    const configured = Math.max(
+      1,
+      Math.min(2, Number(renderConfig.editorOptions?.maxStreamingTimeByDay ?? 1))
+    );
+    return renderConfig.editorOptions?.isMultiple ? configured : 1;
+  }, [
+    renderConfig.editorOptions?.isMultiple,
+    renderConfig.editorOptions?.maxStreamingTimeByDay,
+  ]);
+
+  const clampDataEntriesByMaxCount = (maxEntries: number) => {
+    const safeMax = Math.max(1, maxEntries);
+    let hasChanges = false;
+    const nextData = data.map((card) => {
+      const sourceEntries = Array.isArray(card.entries) ? card.entries : [];
+      let nextEntries = sourceEntries;
+      if (sourceEntries.length === 0) {
+        nextEntries = [
+          {
+            time: "10:00",
+            mainTitle: "",
+            subTitle: "",
+            isGuerrilla: false,
+          },
+        ];
+      } else if (sourceEntries.length > safeMax) {
+        nextEntries = sourceEntries.slice(0, safeMax);
+      }
+
+      if (nextEntries !== sourceEntries) {
+        hasChanges = true;
+        return {
+          ...card,
+          entries: nextEntries,
+        };
+      }
+
+      return card;
+    });
+
+    if (hasChanges) {
+      updateData(nextData);
+    }
+  };
+
+  const updateIsMultiple = (enabled: boolean) => {
+    safeUpdateConfig((prev) => {
+      const currentMax = Math.max(
+        1,
+        Math.min(2, Number(prev.editorOptions?.maxStreamingTimeByDay ?? 1))
+      );
+      return {
+        ...prev,
+        editorOptions: {
+          ...prev.editorOptions,
+          isMultiple: enabled,
+          maxStreamingTimeByDay: enabled ? (currentMax > 1 ? currentMax : 2) : 1,
+        },
+      };
+    });
+    if (!enabled) {
+      clampDataEntriesByMaxCount(1);
+    }
+  };
+
+  const updateMaxStreamingTimeByDay = (value: number) => {
+    const normalized = value >= 2 ? 2 : 1;
+    safeUpdateConfig((prev) => ({
+      ...prev,
+      editorOptions: {
+        ...prev.editorOptions,
+        maxStreamingTimeByDay: normalized,
+        isMultiple: normalized > 1,
+      },
+    }));
+    clampDataEntriesByMaxCount(normalized);
+  };
+
+  const applyEntryCountVisibilityPreset = () => {
+    safeUpdateConfig((prev) => {
+      const nextNodes = {
+        ...prev.graph.nodes,
+      };
+      let hasChanges = false;
+
+      const updateNode = (
+        nodeId: string,
+        patch: Partial<(typeof nextNodes)[string]>
+      ) => {
+        const currentNode = nextNodes[nodeId];
+        if (!currentNode) return;
+        const nextNode = {
+          ...currentNode,
+          ...patch,
+        };
+        if (JSON.stringify(currentNode) === JSON.stringify(nextNode)) return;
+        nextNodes[nodeId] = nextNode;
+        hasChanges = true;
+      };
+
+      Object.keys(prev.graph.componentDefinitions ?? {}).forEach((componentId) => {
+        const structure = v2_getRuntimeCardStructureByComponentId(prev, componentId);
+        const groupedByFieldKey = new Map<string, V2TemplateCardNode[]>();
+
+        structure.nodeOrder.forEach((nodeId) => {
+          const node = structure.nodes[nodeId];
+          if (!node) return;
+          if (node.binding.mode !== "field" || node.binding.scope !== "entry") return;
+          const groupKey = `${node.binding.scope}:${node.binding.key}:${node.kind}`;
+          const prevGroup = groupedByFieldKey.get(groupKey) ?? [];
+          prevGroup.push(node);
+          groupedByFieldKey.set(groupKey, prevGroup);
+        });
+
+        groupedByFieldKey.forEach((nodes) => {
+          if (nodes.length < 2) return;
+          nodes.forEach((node, index) => {
+            const sourceGraphNode = nextNodes[node.id];
+            if (!sourceGraphNode) return;
+            if (!sourceGraphNode.binding || sourceGraphNode.binding.mode !== "field") {
+              return;
+            }
+            const entrySelectorIndex = index === 0 ? 0 : 1;
+            updateNode(node.id, {
+              visibilityMode: index === 0 ? "onlineSingleOnly" : "onlineMultipleOnly",
+              binding: {
+                ...sourceGraphNode.binding,
+                entrySelector: {
+                  mode: "index",
+                  index: entrySelectorIndex,
+                },
+              },
+            });
+          });
+        });
+      });
+
+      if (!hasChanges) return prev;
+      return {
+        ...prev,
+        graph: {
+          ...prev.graph,
+          nodes: nextNodes,
+        },
+      };
+    });
+  };
+
+  const autoGenerateEntryCountNodes = () => {
+    safeUpdateConfig((prev) => {
+      const activeComponentIdCandidate = activeCardComponentId?.trim();
+      if (!activeComponentIdCandidate) return prev;
+      const activeComponentDefinition =
+        prev.graph.componentDefinitions[activeComponentIdCandidate];
+      if (!activeComponentDefinition) return prev;
+
+      const runtimeCardStructure = v2_getRuntimeCardStructureByComponentId(
+        prev,
+        activeComponentIdCandidate
+      );
+      const groupedByFieldKey = new Map<string, V2TemplateCardNode[]>();
+      runtimeCardStructure.nodeOrder.forEach((nodeId) => {
+        const node = runtimeCardStructure.nodes[nodeId];
+        if (!node) return;
+        if (node.binding.mode !== "field" || node.binding.scope !== "entry") return;
+        const groupKey = `${node.binding.scope}:${node.binding.key}:${node.kind}`;
+        const prevGroup = groupedByFieldKey.get(groupKey) ?? [];
+        prevGroup.push(node);
+        groupedByFieldKey.set(groupKey, prevGroup);
+      });
+
+      let nextGraph = prev.graph;
+      const nextCardLayout = {
+        ...prev.layout.card,
+      };
+      const usedNodeIds = new Set(Object.keys(nextGraph.nodes));
+      const usedLayerIds = new Set(
+        Object.values(nextGraph.nodes)
+          .map((node) => node.layerId)
+          .filter((value): value is string => typeof value === "string")
+      );
+      const usedStyleKeys = new Set(Object.keys(nextCardLayout));
+      const usedHighlightTargets = new Set(
+        Object.values(nextGraph.nodes)
+          .map((node) => node.highlightTarget)
+          .filter((value): value is string => typeof value === "string")
+      );
+      let hasChanges = false;
+
+      const makeUnique = (base: string, used: Set<string>): string => {
+        const safeBase = base.trim().length > 0 ? base.trim() : "node";
+        if (!used.has(safeBase)) {
+          used.add(safeBase);
+          return safeBase;
+        }
+        let suffix = 2;
+        let next = `${safeBase}-${suffix}`;
+        while (used.has(next)) {
+          suffix += 1;
+          next = `${safeBase}-${suffix}`;
+        }
+        used.add(next);
+        return next;
+      };
+
+      const cloneStyleKey = (sourceStyleKey?: string): string | undefined => {
+        if (!sourceStyleKey || !sourceStyleKey.trim()) return undefined;
+        const nextStyleKey = makeUnique(`${sourceStyleKey}:multi`, usedStyleKeys);
+        const sourceStyle = nextCardLayout[sourceStyleKey];
+        if (sourceStyle && typeof sourceStyle === "object") {
+          nextCardLayout[nextStyleKey] = {
+            ...(sourceStyle as Record<string, unknown>),
+          } as (typeof nextCardLayout)[string];
+        } else {
+          nextCardLayout[nextStyleKey] = {} as (typeof nextCardLayout)[string];
+        }
+        return nextStyleKey;
+      };
+
+      const updateEntryNodeMode = ({
+        nodeId,
+        visibilityMode,
+        entryIndex,
+      }: {
+        nodeId: string;
+        visibilityMode: "onlineSingleOnly" | "onlineMultipleOnly";
+        entryIndex: number;
+      }) => {
+        const currentNode = nextGraph.nodes[nodeId];
+        if (!currentNode || currentNode.binding?.mode !== "field") return;
+        if (currentNode.binding.scope !== "entry") return;
+        const currentEntryIndex =
+          currentNode.binding.entrySelector?.mode === "index"
+            ? currentNode.binding.entrySelector.index
+            : 0;
+        if (
+          currentNode.visibilityMode === visibilityMode &&
+          currentEntryIndex === entryIndex
+        ) {
+          return;
+        }
+        nextGraph = v2_graphUpdateNode(nextGraph, nodeId, (node) => {
+          if (!node.binding || node.binding.mode !== "field") return node;
+          if (node.binding.scope !== "entry") return node;
+          return {
+            ...node,
+            visibilityMode,
+            binding: {
+              ...node.binding,
+              entrySelector: {
+                mode: "index",
+                index: entryIndex,
+              },
+            },
+          };
+        });
+        hasChanges = true;
+      };
+
+      groupedByFieldKey.forEach((nodes) => {
+        if (nodes.length === 0) return;
+
+        const sourceNode = nodes[0];
+        updateEntryNodeMode({
+          nodeId: sourceNode.id,
+          visibilityMode: "onlineSingleOnly",
+          entryIndex: 0,
+        });
+
+        if (nodes.length >= 2) {
+          nodes.slice(1).forEach((node) => {
+            updateEntryNodeMode({
+              nodeId: node.id,
+              visibilityMode: "onlineMultipleOnly",
+              entryIndex: 1,
+            });
+          });
+          return;
+        }
+
+        const sourceGraphNode = nextGraph.nodes[sourceNode.id];
+        if (!sourceGraphNode || sourceGraphNode.parentId === null) return;
+        if (!sourceGraphNode.binding || sourceGraphNode.binding.mode !== "field") return;
+        if (sourceGraphNode.binding.scope !== "entry") return;
+
+        const nextNodeId = makeUnique(`${sourceGraphNode.id}-multi`, usedNodeIds);
+        const nextLayerId = makeUnique(
+          `${sourceGraphNode.layerId ?? sourceGraphNode.id}-multi`,
+          usedLayerIds
+        );
+        const nextContainerStyleKey = cloneStyleKey(
+          sourceGraphNode.styles?.containerStyleKey
+        );
+        const nextTextStyleKey = cloneStyleKey(sourceGraphNode.styles?.textStyleKey);
+        const nextWrapperStyleKey = cloneStyleKey(
+          sourceGraphNode.styles?.wrapperStyleKey
+        );
+        const nextOptionsKey = cloneStyleKey(sourceGraphNode.styles?.optionsKey);
+        const nextHighlightTarget = makeUnique(
+          `${sourceGraphNode.highlightTarget ?? `cardNode:${nextNodeId}`}:multi`,
+          usedHighlightTargets
+        );
+
+        const nextNode = {
+          ...sourceGraphNode,
+          id: nextNodeId,
+          label: `${sourceGraphNode.label} (2)`,
+          layerId: nextLayerId,
+          highlightTarget: nextHighlightTarget,
+          visibilityMode: "onlineMultipleOnly" as const,
+          binding: {
+            ...sourceGraphNode.binding,
+            entrySelector: {
+              mode: "index" as const,
+              index: 1,
+            },
+          },
+          childIds: [],
+          styles: {
+            ...(sourceGraphNode.styles ?? {}),
+            ...(nextContainerStyleKey
+              ? { containerStyleKey: nextContainerStyleKey }
+              : {}),
+            ...(nextTextStyleKey ? { textStyleKey: nextTextStyleKey } : {}),
+            ...(nextWrapperStyleKey ? { wrapperStyleKey: nextWrapperStyleKey } : {}),
+            ...(nextOptionsKey ? { optionsKey: nextOptionsKey } : {}),
+          },
+          meta: {
+            ...(sourceGraphNode.meta ?? {}),
+            layerTarget: nextHighlightTarget,
+            ...(nextContainerStyleKey
+              ? { layerSectionKey: nextContainerStyleKey }
+              : {}),
+          },
+        };
+
+        nextGraph = v2_graphInsertSiblingAfter({
+          graph: nextGraph,
+          anchorNodeId: sourceGraphNode.id,
+          newNode: nextNode,
+        });
+        hasChanges = true;
+      });
+
+      if (!hasChanges) return prev;
+      return {
+        ...prev,
+        graph: nextGraph,
+        layout: {
+          ...prev.layout,
+          card: nextCardLayout,
+        },
+      };
+    });
   };
 
   const {
@@ -580,6 +947,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     parseFontWeightInput,
     addFontRegistryItem,
     removeFontRegistryItem,
+    syncFontRegistryKeyWithFamily,
+    applyFontFaceCssSnippet,
     updateBaseFontToken,
     updateFontRegistryMeta,
     addFontFace,
@@ -591,7 +960,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateAssetUrl,
     handleAssetFileUpload,
   } = useTemplateThemeAssetActions({
-    renderConfig,
     safeUpdateConfig,
   });
 
@@ -663,8 +1031,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const {
     firstCard,
+    firstEntries,
     firstEntry,
     updateFirstEntryField,
+    addFirstEntry,
+    removeFirstEntry,
     updateFirstCardField,
     updateGlobalSampleField,
     updateFirstDayOffline,
@@ -674,6 +1045,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     globalData,
     updateGlobalData,
   });
+
+  useEffect(() => {
+    setSampleEntryIndex((prev) => {
+      const entryCount = Math.max(1, firstEntries.length);
+      const maxIndex = Math.max(0, Math.min(entryCount, maxSampleEntryCount) - 1);
+      if (prev > maxIndex) return maxIndex;
+      if (prev < 0) return 0;
+      return prev;
+    });
+  }, [firstEntries.length, maxSampleEntryCount]);
 
   const handleCopyJson = async () => {
     try {
@@ -846,7 +1227,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const renderStyleTab = () => (
     <TemplateStyleTab
-      inspectorRef={inspectorTabRef}
+      inspectorRef={styleInspectorRef}
       onMouseLeave={clearSectionHoverHighlight}
       onBlurOutside={() => setActiveHighlightTarget(null)}
     >
@@ -876,6 +1257,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         onUpdateComponentFont={updateComponentFont}
         onAddFontRegistryItem={addFontRegistryItem}
         onRemoveFontRegistryItem={removeFontRegistryItem}
+        onSyncFontRegistryKeyWithFamily={syncFontRegistryKeyWithFamily}
+        onApplyFontFaceCssSnippet={applyFontFaceCssSnippet}
         onUpdateFontRegistryMeta={updateFontRegistryMeta}
         onAddFontFace={addFontFace}
         onUpdateFontFace={updateFontFace}
@@ -1006,7 +1389,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const renderPropertiesTab = () => (
     <TemplatePropertiesTab
-      inspectorRef={inspectorTabRef}
+      inspectorRef={propertiesInspectorRef}
       selectedLabel={selectedPropertiesLabel}
       editorMode={selectedPropertiesEditorMode}
       onMouseLeave={clearSectionHoverHighlight}
@@ -1031,82 +1414,128 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   return (
     <div className="h-full min-h-0 w-full">
       <div className="v2-dark-form-theme h-full min-h-0 shrink-0 flex flex-col border-l border-[#303848] bg-gray-100 w-full">
-        <TemplateBuilderTabs
-          tabs={v2_BUILDER_TABS.map((tab) => ({ ...tab }))}
-          activeTab={activeTab}
-          onSelectTab={setActiveTab}
-        />
-        <div className="flex-1 overflow-y-auto p-4 h-full bg-timetable-form-bg">
-          <TemplatePropertiesTabsRenderer
+        <div className="relative">
+          <TemplateBuilderTabs
+            tabs={v2_BUILDER_TABS.map((tab) => ({ ...tab }))}
             activeTab={activeTab}
-            renderConfig={renderConfig}
-            currentTheme={currentTheme}
-            themeOptions={themeOptions}
-            assetTheme={assetTheme}
-            setAssetTheme={setAssetTheme}
-            preferProfileDummyImage={preferProfileDummyImage}
-            formSchemaError={formSchemaError}
-            formSchemaDiagnostics={formSchemaDiagnostics}
-            copyState={copyState}
-            entryValues={(firstEntry ?? {}) as Record<string, unknown>}
-            cardValues={(firstCard ?? {}) as Record<string, unknown>}
-            globalValues={globalData as Record<string, unknown>}
-            isOffline={Boolean(firstCard?.isOffline)}
-            fields={renderConfig.formSchema.fields}
-            computedKeys={v2_BINDING_COMPUTED_OPTIONS}
-            scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
-            typeOptions={v2_FORM_FIELD_TYPE_OPTIONS}
-            assetKeys={v2_ASSET_KEYS}
-            assetLabels={v2_ASSET_LABELS}
-            renderPropertiesTab={renderPropertiesTab}
-            renderStyleTab={renderStyleTab}
-            onUpdateTemplateSize={updateTemplateSize}
-            onChangeDefaultTheme={(nextTheme) => {
-              safeUpdateConfig((prev) => ({
-                ...prev,
-                defaultTheme: nextTheme,
-              }));
-              if (!themeOptions.includes(assetTheme)) {
-                setAssetTheme(nextTheme);
-              }
-            }}
-            onChangePreviewTheme={(nextTheme) =>
-              updateTheme(nextTheme as typeof currentTheme)
-            }
-            onAppendSchemaField={() =>
-              appendFormField({
-                key: "",
-                scope: "entry",
-                type: "text",
-                placeholder: "새 필드",
-              })
-            }
-            onRemoveSchemaField={removeFormFieldAt}
-            onUpdateSchemaField={updateFormFieldAt}
-            onTogglePreferProfileDummyImage={updatePreferProfileDummyImage}
-            onUploadAssetFile={handleAssetFileUpload}
-            onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
-            onChangeDataField={(scope, key, value) => {
-              if (scope === "entry") {
-                updateFirstEntryField(key, value);
-                return;
-              }
-              if (scope === "card") {
-                updateFirstCardField(key, value);
-                return;
-              }
-              updateGlobalSampleField(key, value);
-            }}
-            onToggleOffline={updateFirstDayOffline}
-            onCopyJson={handleCopyJson}
-            onDownloadPreview={() =>
-              downloadImage(
-                renderConfig.templateSize.width,
-                renderConfig.templateSize.height
-              )
-            }
-            onResetData={resetData}
+            onSelectTab={setActiveTab}
           />
+          {onRequestClose ? (
+            <button
+              type="button"
+              onClick={onRequestClose}
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-[#3c465e] bg-[#151a24] px-2 py-1 text-xs font-semibold text-[#c9d8f8] hover:bg-[#1c2533]"
+              aria-label="프로퍼티 패널 닫기"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+        <div className="flex-1 min-h-0 h-full bg-timetable-form-bg overflow-y-auto p-4">
+            <TemplatePropertiesTabsRenderer
+              activeTab={activeTab}
+              renderConfig={renderConfig}
+              currentTheme={currentTheme}
+              isMultiple={Boolean(renderConfig.editorOptions?.isMultiple)}
+              maxStreamingTimeByDay={Math.max(
+                1,
+                Math.min(
+                  2,
+                  Number(renderConfig.editorOptions?.maxStreamingTimeByDay ?? 1)
+                )
+              )}
+              themeOptions={themeOptions}
+              assetTheme={assetTheme}
+              setAssetTheme={setAssetTheme}
+              preferProfileDummyImage={preferProfileDummyImage}
+              formSchemaError={formSchemaError}
+              formSchemaDiagnostics={formSchemaDiagnostics}
+              copyState={copyState}
+              entryValues={
+                ((firstEntries[sampleEntryIndex] ?? firstEntry) ?? {}) as Record<
+                  string,
+                  unknown
+                >
+              }
+              entryCount={Math.max(1, firstEntries.length)}
+              selectedEntryIndex={sampleEntryIndex}
+              maxEntryCount={maxSampleEntryCount}
+              cardValues={(firstCard ?? {}) as Record<string, unknown>}
+              globalValues={globalData as Record<string, unknown>}
+              isOffline={Boolean(firstCard?.isOffline)}
+              fields={renderConfig.formSchema.fields}
+              computedKeys={v2_BINDING_COMPUTED_OPTIONS}
+              scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
+              typeOptions={v2_FORM_FIELD_TYPE_OPTIONS}
+              assetKeys={v2_ASSET_KEYS}
+              assetLabels={v2_ASSET_LABELS}
+              renderStyleTab={renderStyleTab}
+              renderPropertiesTab={renderPropertiesTab}
+              onUpdateTemplateSize={updateTemplateSize}
+              onChangeDefaultTheme={(nextTheme) => {
+                safeUpdateConfig((prev) => ({
+                  ...prev,
+                  defaultTheme: nextTheme,
+                }));
+                if (!themeOptions.includes(assetTheme)) {
+                  setAssetTheme(nextTheme);
+                }
+              }}
+              onChangePreviewTheme={(nextTheme) =>
+                updateTheme(nextTheme as typeof currentTheme)
+              }
+              onToggleMultiple={updateIsMultiple}
+              onChangeMaxStreamingTimeByDay={updateMaxStreamingTimeByDay}
+              onApplyEntryCountVisibilityPreset={applyEntryCountVisibilityPreset}
+              onAutoGenerateEntryCountNodes={autoGenerateEntryCountNodes}
+              onAppendSchemaField={() =>
+                appendFormField({
+                  key: "",
+                  scope: "entry",
+                  type: "text",
+                  placeholder: "새 필드",
+                })
+              }
+              onRemoveSchemaField={removeFormFieldAt}
+              onUpdateSchemaField={updateFormFieldAt}
+              onTogglePreferProfileDummyImage={updatePreferProfileDummyImage}
+              onUploadAssetFile={handleAssetFileUpload}
+              onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
+              onChangeDataField={(scope, key, value) => {
+                if (scope === "entry") {
+                  updateFirstEntryField(sampleEntryIndex, key, value);
+                  return;
+                }
+                if (scope === "card") {
+                  updateFirstCardField(key, value);
+                  return;
+                }
+                updateGlobalSampleField(key, value);
+              }}
+              onToggleOffline={updateFirstDayOffline}
+              onSelectEntryIndex={setSampleEntryIndex}
+              onAddEntry={() => {
+                const currentCount = Math.max(1, firstEntries.length);
+                if (currentCount >= maxSampleEntryCount) return;
+                addFirstEntry(maxSampleEntryCount);
+                setSampleEntryIndex(currentCount);
+              }}
+              onRemoveEntry={(entryIndex) => {
+                if (firstEntries.length <= 1) return;
+                removeFirstEntry(entryIndex);
+                setSampleEntryIndex((prev) =>
+                  Math.max(0, prev >= entryIndex ? prev - 1 : prev)
+                );
+              }}
+              onCopyJson={handleCopyJson}
+              onDownloadPreview={() =>
+                downloadImage(
+                  renderConfig.templateSize.width,
+                  renderConfig.templateSize.height
+                )
+              }
+              onResetData={resetData}
+            />
         </div>
       </div>
       {renderBoilerplateSettingsModal()}

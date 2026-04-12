@@ -68,10 +68,10 @@ const TemplateSchemaTab: React.FC<TemplateSchemaTabProps> = ({
         </div>
       ) : null}
       <div className="rounded border border-[#3a3d44] bg-[#1a1c20] px-2 py-1.5 text-xs text-gray-300 space-y-1">
-        <p>
-          총 필드: {diagnostics.totalFields}개 / 미사용 필드:{" "}
-          {diagnostics.unusedFields.length}개
-        </p>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+          <p>총 필드: {diagnostics.totalFields}개</p>
+          <p>미사용 필드: {diagnostics.unusedFields.length}개</p>
+        </div>
         {diagnostics.duplicateFields.length > 0 ? (
           <p className="text-amber-300">
             중복 필드 {diagnostics.duplicateFields.length}개 (
@@ -94,8 +94,10 @@ const TemplateSchemaTab: React.FC<TemplateSchemaTabProps> = ({
           <p className="text-red-300">
             누락 바인딩 {diagnostics.missingBindings.length}개 (
             {diagnostics.missingBindings
+              .slice(0, 5)
               .map((binding) => `${binding.nodeLabel} -> ${binding.scope}.${binding.key}`)
               .join(", ")}
+            {diagnostics.missingBindings.length > 5 ? ", ..." : ""}
             )
           </p>
         ) : (

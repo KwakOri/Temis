@@ -29,6 +29,11 @@ interface TemplateStyleThemeSettingsProps {
   onUpdateComponentFont: (key: V2TemplateColorKey, value: string) => void;
   onAddFontRegistryItem: () => void;
   onRemoveFontRegistryItem: (registryKey: string) => void;
+  onSyncFontRegistryKeyWithFamily: (registryKey: string) => string | null;
+  onApplyFontFaceCssSnippet: (
+    registryKey: string,
+    cssText: string
+  ) => string | null;
   onUpdateFontRegistryMeta: (
     registryKey: string,
     patch: Partial<Pick<V2TemplateFontRegistryItem, "family" | "display">>
@@ -62,6 +67,8 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
   onUpdateComponentFont,
   onAddFontRegistryItem,
   onRemoveFontRegistryItem,
+  onSyncFontRegistryKeyWithFamily,
+  onApplyFontFaceCssSnippet,
   onUpdateFontRegistryMeta,
   onAddFontFace,
   onUpdateFontFace,
@@ -71,6 +78,85 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
   onUpdateDayLabelPreset,
   onUpdateDayLabelCustomLabel,
 }) => {
+  const [fontFaceCssDraftByKey, setFontFaceCssDraftByKey] = React.useState<
+    Record<string, string>
+  >({});
+  const [fontFaceCssEditorOpenByKey, setFontFaceCssEditorOpenByKey] =
+    React.useState<Record<string, boolean>>({});
+  const previousFontRegistryKeysRef = React.useRef<string[]>(fontRegistryKeys);
+
+  React.useEffect(() => {
+    const previousKeySet = new Set(previousFontRegistryKeysRef.current);
+
+    setFontFaceCssDraftByKey((prev) => {
+      const next: Record<string, string> = {};
+      fontRegistryKeys.forEach((registryKey) => {
+        next[registryKey] = prev[registryKey] ?? "";
+      });
+      return next;
+    });
+    setFontFaceCssEditorOpenByKey((prev) => {
+      const next: Record<string, boolean> = {};
+      fontRegistryKeys.forEach((registryKey) => {
+        if (prev[registryKey] !== undefined) {
+          next[registryKey] = prev[registryKey];
+          return;
+        }
+        next[registryKey] = !previousKeySet.has(registryKey);
+      });
+      return next;
+    });
+    previousFontRegistryKeysRef.current = [...fontRegistryKeys];
+  }, [fontRegistryKeys]);
+
+  const remapFontFaceEditorState = React.useCallback(
+    (fromKey: string, toKey: string) => {
+      if (!toKey || fromKey === toKey) return;
+      setFontFaceCssDraftByKey((prev) => {
+        if (!(fromKey in prev)) return prev;
+        const next = { ...prev };
+        next[toKey] = prev[fromKey] ?? "";
+        delete next[fromKey];
+        return next;
+      });
+      setFontFaceCssEditorOpenByKey((prev) => {
+        if (!(fromKey in prev)) return prev;
+        const next = { ...prev };
+        next[toKey] = prev[fromKey] ?? false;
+        delete next[fromKey];
+        return next;
+      });
+    },
+    []
+  );
+
+  const commitFontFamilyKeySync = React.useCallback(
+    (registryKey: string) => {
+      const nextRegistryKey = onSyncFontRegistryKeyWithFamily(registryKey);
+      if (!nextRegistryKey || nextRegistryKey === registryKey) return;
+      remapFontFaceEditorState(registryKey, nextRegistryKey);
+    },
+    [onSyncFontRegistryKeyWithFamily, remapFontFaceEditorState]
+  );
+
+  const applyFontFaceCssInput = (registryKey: string) => {
+    const cssText = fontFaceCssDraftByKey[registryKey] ?? "";
+    const nextRegistryKey = onApplyFontFaceCssSnippet(registryKey, cssText);
+    if (!nextRegistryKey) return;
+    setFontFaceCssDraftByKey((prev) => {
+      const next = { ...prev };
+      delete next[registryKey];
+      next[nextRegistryKey] = "";
+      return next;
+    });
+    setFontFaceCssEditorOpenByKey((prev) => {
+      const next = { ...prev };
+      delete next[registryKey];
+      next[nextRegistryKey] = false;
+      return next;
+    });
+  };
+
   return (
     <>
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3">
@@ -253,17 +339,37 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
                   className="rounded border border-[#3a3d44] bg-[#111317] p-2 space-y-2"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-200">{registryKey}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-200">
+                        {item.family || registryKey}
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveFontRegistryItem(registryKey)}
-                      className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
-                    >
-                      폰트 삭제
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFontFaceCssEditorOpenByKey((prev) => ({
+                            ...prev,
+                            [registryKey]: !prev[registryKey],
+                          }))
+                        }
+                        className="rounded border border-[#4f8cff] bg-[#1f355f] px-2 py-1 text-[11px] font-semibold text-[#d6e6ff] hover:bg-[#27457a]"
+                      >
+                        {fontFaceCssEditorOpenByKey[registryKey] ? "수정 닫기" : "수정"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveFontRegistryItem(registryKey)}
+                        className="rounded border border-red-500/40 px-2 py-1 text-[11px] font-semibold text-red-300 hover:bg-red-500/10"
+                      >
+                        폰트 삭제
+                      </button>
+                    </div>
                   </div>
+
+                  <p className="text-[11px] text-gray-500">
+                    font key는 `font-family`와 동일하게 자동 동기화됩니다.
+                  </p>
 
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -273,6 +379,12 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
                           family: event.target.value,
                         })
                       }
+                      onBlur={() => commitFontFamilyKeySync(registryKey)}
+                      onKeyDown={(event) => {
+                        if (event.key !== "Enter") return;
+                        event.preventDefault();
+                        commitFontFamilyKeySync(registryKey);
+                      }}
                       className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
                       placeholder="font-family"
                     />
@@ -292,6 +404,50 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
                       ))}
                     </select>
                   </div>
+
+                  {fontFaceCssEditorOpenByKey[registryKey] ? (
+                    <div className="rounded border border-[#2f3239] bg-[#171a22] p-2 space-y-2">
+                      <textarea
+                        rows={4}
+                        value={fontFaceCssDraftByKey[registryKey] ?? ""}
+                        onChange={(event) =>
+                          setFontFaceCssDraftByKey((prev) => ({
+                            ...prev,
+                            [registryKey]: event.target.value,
+                          }))
+                        }
+                        onKeyDown={(event) => {
+                          if (!(event.metaKey || event.ctrlKey)) return;
+                          if (event.key !== "Enter") return;
+                          event.preventDefault();
+                          applyFontFaceCssInput(registryKey);
+                        }}
+                        className="w-full px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                        placeholder={`@font-face {\n  font-family: 'MyFont';\n  src: url('https://.../font.woff2') format('woff2');\n  font-weight: 400;\n  font-style: normal;\n  font-display: swap;\n}`}
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyFontFaceCssInput(registryKey)}
+                          className="rounded border border-[#4f8cff] bg-[#1f355f] px-2 py-1 text-[11px] font-semibold text-[#d6e6ff] hover:bg-[#27457a]"
+                        >
+                          적용
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFontFaceCssEditorOpenByKey((prev) => ({
+                              ...prev,
+                              [registryKey]: false,
+                            }))
+                          }
+                          className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1 text-[11px] font-semibold text-gray-200 hover:bg-[#323640]"
+                        >
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="space-y-2">
                     {item.faces.map((face, faceIndex) => (

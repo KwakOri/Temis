@@ -35,3 +35,33 @@ export const v2_toRenderableStyle = (value: unknown): CSSProperties => {
   };
 };
 
+const v2_hasOffsetProperty = (style: CSSProperties): boolean => {
+  return (
+    style.top !== undefined ||
+    style.right !== undefined ||
+    style.bottom !== undefined ||
+    style.left !== undefined ||
+    style.inset !== undefined ||
+    style.insetInline !== undefined ||
+    style.insetBlock !== undefined ||
+    style.insetInlineStart !== undefined ||
+    style.insetInlineEnd !== undefined ||
+    style.insetBlockStart !== undefined ||
+    style.insetBlockEnd !== undefined
+  );
+};
+
+export const v2_toRenderableLayoutStyle = (value: unknown): CSSProperties => {
+  const style = v2_toRenderableStyle(value);
+  if (style.position !== undefined) return style;
+  if (v2_hasOffsetProperty(style)) {
+    return {
+      ...style,
+      position: "absolute",
+    };
+  }
+  return {
+    ...style,
+    position: "relative",
+  };
+};

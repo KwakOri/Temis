@@ -539,7 +539,7 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     colorKey: "WEEKLY_FLAG",
     fontKey: "WEEKLY_FLAG",
     highlightTarget: "weekFlag",
-    containerClassName: "absolute flex justify-center items-center z-40",
+    containerClassName: "absolute flex justify-center items-center",
     visibilityMode: "always",
   },
   {
@@ -587,7 +587,7 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
         colorKey: "ARTIST",
         fontKey: "ARTIST",
         highlightTarget: "profileText",
-        containerClassName: "absolute z-50 flex justify-end items-center",
+        containerClassName: "absolute flex justify-end items-center",
         textClassName: "text-center",
         visibilityMode: "always",
       },
@@ -1414,8 +1414,8 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
         top: 440,
       },
       container: {
-        width: 600,
-        height: 504,
+        width: 800,
+        height: 617,
         top: 68,
         left: 10,
       },
@@ -1588,6 +1588,8 @@ const v2_VISIBILITY_MODE_SET = new Set([
   "always",
   "onlineOnly",
   "offlineOnly",
+  "onlineSingleOnly",
+  "onlineMultipleOnly",
 ]);
 
 const v2_COMPONENT_INSTANCE_MODE_SET = new Set(["component", "detached"]);
@@ -2908,13 +2910,17 @@ export const v2_normalizeTemplateRenderConfig = (
 export const v2_isVisibleByMode = ({
   mode,
   isOffline,
+  entryCount = 1,
 }: {
   mode?: V2TemplateVisibilityMode;
   isOffline: boolean;
+  entryCount?: number;
 }): boolean => {
   const resolvedMode = mode ?? "always";
   if (resolvedMode === "onlineOnly") return !isOffline;
   if (resolvedMode === "offlineOnly") return isOffline;
+  if (resolvedMode === "onlineSingleOnly") return !isOffline && entryCount <= 1;
+  if (resolvedMode === "onlineMultipleOnly") return !isOffline && entryCount >= 2;
   return true;
 };
 

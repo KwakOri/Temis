@@ -10,13 +10,8 @@ import {
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 
 export const v2_BUILDER_TABS = [
-  { id: "canvas", label: "캔버스" },
-  { id: "schema", label: "입력 스키마" },
   { id: "properties", label: "속성" },
-  { id: "style", label: "스타일" },
-  { id: "assets", label: "에셋" },
-  { id: "data", label: "샘플 데이터" },
-  { id: "export", label: "내보내기" },
+  { id: "settings", label: "설정" },
 ] as const;
 
 export const v2_FORM_FIELD_SCOPE_OPTIONS: Array<{
@@ -66,13 +61,13 @@ export const v2_FONT_FORMAT_OPTIONS: Array<
 > = ["woff2", "woff", "truetype", "opentype"];
 
 export const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
+  "profileBgByTheme",
+  "guideByTheme",
   "bgByTheme",
   "topObjectByTheme",
   "onlineByTheme",
   "offlineByTheme",
   "profileFrameByTheme",
-  "profileBgByTheme",
-  "guideByTheme",
 ];
 
 export const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
@@ -145,6 +140,8 @@ export const v2_CARD_NODE_VISIBILITY_OPTIONS: Array<{
   { value: "always", label: "항상 표시" },
   { value: "onlineOnly", label: "온라인만" },
   { value: "offlineOnly", label: "오프라인만" },
+  { value: "onlineSingleOnly", label: "온라인 · 단회차만" },
+  { value: "onlineMultipleOnly", label: "온라인 · 다회차만" },
 ];
 
 export const v2_FIXED_CARD_NODE_IDS = new Set([

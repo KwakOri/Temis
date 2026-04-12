@@ -14,7 +14,7 @@ import {
 } from "@/utils/time-table/template-render-config";
 import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
-import { v2_toRenderableStyle } from "./render-style";
+import { v2_toRenderableLayoutStyle } from "./render-style";
 
 type V2GridLayoutMode = "grid3x3" | "flex4x2";
 type V2Flex42Align = "left" | "center" | "right";
@@ -138,7 +138,7 @@ const TimeTableGrid: React.FC<{
   const flex42ThreeRow = v2_parseFlex42ThreeRow(flex42ThreeRowRaw);
   const flex42Align = v2_parseFlex42Align(flex42AlignRaw);
   const emptySlots = v2_parseGridEmptySlots(gridEmptySlotA, gridEmptySlotB);
-  const gridStyle = v2_toRenderableStyle(gridStyleRaw);
+  const gridStyle = v2_toRenderableLayoutStyle(gridStyleRaw);
   const baseLayoutStyle: React.CSSProperties = {
     ...gridStyle,
   };
@@ -255,7 +255,7 @@ const TimeTableGrid: React.FC<{
             activeTarget: activeHighlightTarget,
           }),
         }}
-        className="absolute z-20"
+        className="absolute"
       >
         <div
           className={`flex ${isTopRowThree ? threeRowAlignClass : "justify-start"}`}
@@ -394,7 +394,7 @@ const TimeTableGrid: React.FC<{
           activeTarget: activeHighlightTarget,
         }),
       }}
-      className="absolute grid z-20"
+      className="absolute grid"
     >
       {slotNodes}
     </div>

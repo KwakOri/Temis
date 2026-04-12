@@ -10,7 +10,7 @@ import {
 
 interface UseTemplatePropertiesFocusEffectsParams {
   activeTab: string;
-  inspectorTabRef: React.RefObject<HTMLDivElement | null>;
+  inspectorRefs: Array<React.RefObject<HTMLDivElement | null>>;
   setHoverHighlightTarget: (target: V2TemplateHighlightTarget | null) => void;
   setActiveHighlightTarget: (target: V2TemplateHighlightTarget | null) => void;
   focusLayerId: string | null;
@@ -27,12 +27,11 @@ interface UseTemplatePropertiesFocusEffectsParams {
   styleSectionHighlightTargetMap: Record<string, V2TemplateHighlightTarget>;
   setSelectedPropertiesLayerId: (layerId: string) => void;
   setSelectedPropertiesTarget: (target: V2TemplateHighlightTarget) => void;
-  activatePropertiesTab: () => void;
 }
 
 const useTemplatePropertiesFocusEffects = ({
   activeTab,
-  inspectorTabRef,
+  inspectorRefs,
   setHoverHighlightTarget,
   setActiveHighlightTarget,
   focusLayerId,
@@ -46,22 +45,24 @@ const useTemplatePropertiesFocusEffects = ({
   styleSectionHighlightTargetMap,
   setSelectedPropertiesLayerId,
   setSelectedPropertiesTarget,
-  activatePropertiesTab,
 }: UseTemplatePropertiesFocusEffectsParams) => {
   useEffect(() => {
-    if (activeTab !== "style" && activeTab !== "properties") {
+    if (activeTab !== "style") {
       setHoverHighlightTarget(null);
-      setActiveHighlightTarget(null);
     }
-  }, [activeTab, setActiveHighlightTarget, setHoverHighlightTarget]);
+  }, [activeTab, setHoverHighlightTarget]);
 
   useEffect(() => {
-    if (activeTab !== "style" && activeTab !== "properties") return;
-
     const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
-      if (inspectorTabRef.current?.contains(target)) return;
+      if (
+        inspectorRefs.some(
+          (inspectorRef) => inspectorRef.current?.contains(target) ?? false
+        )
+      ) {
+        return;
+      }
       setActiveHighlightTarget(null);
     };
 
@@ -74,7 +75,7 @@ const useTemplatePropertiesFocusEffects = ({
       document.removeEventListener("mousedown", handlePointerDownOutside);
       document.removeEventListener("touchstart", handlePointerDownOutside);
     };
-  }, [activeTab, inspectorTabRef, setActiveHighlightTarget]);
+  }, [inspectorRefs, setActiveHighlightTarget]);
 
   useEffect(() => {
     if (!focusLayerId) return;
@@ -86,9 +87,7 @@ const useTemplatePropertiesFocusEffects = ({
       setSelectedPropertiesTarget(layerNode.target);
       setActiveHighlightTarget(layerNode.target);
     }
-    activatePropertiesTab();
   }, [
-    activatePropertiesTab,
     focusLayerId,
     focusLayerNonce,
     layerIdToNode,
@@ -115,9 +114,7 @@ const useTemplatePropertiesFocusEffects = ({
     }
     setSelectedPropertiesTarget(nextTarget);
     setActiveHighlightTarget(nextTarget);
-    activatePropertiesTab();
   }, [
-    activatePropertiesTab,
     focusStyleSection,
     focusStyleSectionNonce,
     sectionToLayerId,

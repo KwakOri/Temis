@@ -139,7 +139,9 @@ export type V2TemplateStyleRecord = CSSProperties &
 export type V2TemplateVisibilityMode =
   | "always"
   | "onlineOnly"
-  | "offlineOnly";
+  | "offlineOnly"
+  | "onlineSingleOnly"
+  | "onlineMultipleOnly";
 
 export type V2TemplateComponentInstanceMode = "component" | "detached";
 

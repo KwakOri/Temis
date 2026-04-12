@@ -35,7 +35,7 @@ import {
 import V2TimeTableCell from "./card-cell";
 import V2TimeTableGrid from "./card-grid";
 import { v2_getHighlightStyle } from "./highlight-style";
-import { v2_toRenderableStyle } from "./render-style";
+import { v2_toRenderableLayoutStyle, v2_toRenderableStyle } from "./render-style";
 
 const v2_collectLayerTargetById = (
   nodes: V2TemplateLayerNode[]
@@ -66,7 +66,7 @@ const v2_toRenderableLayout = (
   if (!value || typeof value !== "object") return { style: {} };
   const raw = value as Record<string, unknown>;
   const { widthPercent, ...layoutRaw } = raw;
-  const style = v2_toRenderableStyle(layoutRaw);
+  const style = v2_toRenderableLayoutStyle(layoutRaw);
   const width =
     typeof widthPercent === "number"
       ? `${widthPercent}%`
@@ -104,6 +104,14 @@ const V2SceneStructureRenderer = ({
     () => v2_collectLayerTargetById(runtimeLayerTree),
     [runtimeLayerTree]
   );
+  const rootLayerZIndexById = useMemo(() => {
+    const next: Record<string, number> = {};
+    const total = runtimeLayerTree.length;
+    runtimeLayerTree.forEach((node, index) => {
+      next[node.id] = (total - index) * 10;
+    });
+    return next;
+  }, [runtimeLayerTree]);
 
   const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
@@ -121,6 +129,10 @@ const V2SceneStructureRenderer = ({
   const firstCard = data[0] as Record<string, unknown> | undefined;
   const firstEntry = (firstCard?.entries as Record<string, unknown>[] | undefined)?.[0];
   const firstCardOffline = Boolean(firstCard?.isOffline);
+  const firstCardEntryCount = Math.max(
+    1,
+    Array.isArray(firstCard?.entries) ? firstCard.entries.length : 0
+  );
   const dataIndexByDayKey = useMemo(() => {
     const map: Record<string, number> = {};
     data.forEach((card, index) => {
@@ -291,7 +303,9 @@ const V2SceneStructureRenderer = ({
       : configuredAssetUrl;
     if (!assetUrl) return null;
 
-    const style = v2_toRenderableStyle(resolveStyleRecordByKey(node.styleKey));
+    const style = node.styleKey
+      ? v2_toRenderableLayoutStyle(resolveStyleRecordByKey(node.styleKey))
+      : {};
     const resolvedTarget = node.layerId ? layerTargetMap[node.layerId] : undefined;
     const highlightStyle = resolvedTarget
       ? v2_getHighlightStyle({
@@ -404,7 +418,9 @@ const V2SceneStructureRenderer = ({
     const weekDate = weekDates[dataIndex];
     if (!cardData || !weekDate) return null;
 
-    const style = v2_toRenderableStyle(resolveStyleRecordByKey(node.styleKey));
+    const style = node.styleKey
+      ? v2_toRenderableLayoutStyle(resolveStyleRecordByKey(node.styleKey))
+      : {};
     const resolvedTarget =
       (node.layerId ? layerTargetMap[node.layerId] : undefined) ??
       `sceneNode:${node.id}`;
@@ -445,14 +461,38 @@ const V2SceneStructureRenderer = ({
     const visibleByMode = v2_isVisibleByMode({
       mode: node.visibilityMode,
       isOffline: firstCardOffline,
+      entryCount: firstCardEntryCount,
     });
     if (hiddenByLayer || !visibleByMode) return null;
 
     if (node.kind === "group") {
+      const childCount = node.children.length;
       return (
-        <React.Fragment key={node.id}>
-          {node.children.map((childNode) => renderSceneNode(childNode, false))}
-        </React.Fragment>
+        <div
+          key={node.id}
+          style={{
+            position: "absolute",
+            inset: 0,
+            isolation: "isolate",
+          }}
+        >
+          {node.children.map((childNode, index) => {
+            const renderedChild = renderSceneNode(childNode, false);
+            if (!renderedChild) return null;
+            return (
+              <div
+                key={`${node.id}::${childNode.id}`}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: (childCount - index) * 10,
+                }}
+              >
+                {renderedChild}
+              </div>
+            );
+          })}
+        </div>
       );
     }
     if (node.kind === "asset") return renderAssetNode(node);
@@ -464,7 +504,34 @@ const V2SceneStructureRenderer = ({
     return null;
   };
 
-  return <>{sceneNodes.map((node) => renderSceneNode(node, false))}</>;
+  return (
+    <>
+      {sceneNodes.map((node) => {
+        const rendered = renderSceneNode(node, false);
+        if (!rendered) return null;
+        const layerId = node.layerId ?? node.id;
+        const rootZIndex =
+          node.kind === "asset" && node.assetKey === "bgByTheme"
+            ? -1000
+            : node.kind === "asset" && node.assetKey === "guideByTheme"
+              ? 1000
+              : rootLayerZIndexById[layerId];
+        if (rootZIndex === undefined) return rendered;
+        return (
+          <div
+            key={`root-layer-${node.id}`}
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: rootZIndex,
+            }}
+          >
+            {rendered}
+          </div>
+        );
+      })}
+    </>
+  );
 };
 
 export default V2SceneStructureRenderer;

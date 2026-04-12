@@ -176,26 +176,9 @@ export const buildOrderedLayerIdsByParent = ({
       const remaining = defaultIds.filter((id) => !orderedSet.has(id));
       return [...orderedByOrderKey, ...remaining];
     }
-
-    const siblingSequence =
-      parentGraphId === null
-        ? graph.rootNodeIds
-        : parentGraphId
-          ? (graph.nodes[parentGraphId]?.childIds ?? [])
-          : [];
-    const orderedByGraphSequence = [...entries]
-      .sort((a, b) => {
-        const indexA = siblingSequence.indexOf(a.graphNode.id);
-        const indexB = siblingSequence.indexOf(b.graphNode.id);
-        const normalizedA = indexA >= 0 ? indexA : Number.MAX_SAFE_INTEGER;
-        const normalizedB = indexB >= 0 ? indexB : Number.MAX_SAFE_INTEGER;
-        if (normalizedA === normalizedB) return a.index - b.index;
-        return normalizedA - normalizedB;
-      })
-      .map((entry) => entry.layerId);
-    const orderedSet = new Set(orderedByGraphSequence);
-    const remaining = defaultIds.filter((id) => !orderedSet.has(id));
-    return [...orderedByGraphSequence, ...remaining];
+    // If siblings don't have explicit orderKey yet, fall back to z-index sort
+    // so the layer panel reflects current visual stacking.
+    return null;
   };
 
   const orderedMap: Record<string, string[]> = {};
@@ -365,6 +348,12 @@ export const applyReorderedLayerZIndex = ({
       ? layers
       : (parentNode?.children ?? []);
   const siblingIdSet = new Set(siblings.map((sibling) => sibling.id));
+  const siblingSectionKeyCount = siblings.reduce((acc, sibling) => {
+    const sectionKey = sibling.sectionKey?.trim();
+    if (!sectionKey) return acc;
+    acc.set(sectionKey, (acc.get(sectionKey) ?? 0) + 1);
+    return acc;
+  }, new Map<string, number>());
 
   const setStyleZIndex = (
     style: V2TemplateStyleRecord | undefined,
@@ -391,9 +380,37 @@ export const applyReorderedLayerZIndex = ({
       setSectionZIndex(node.sectionKey, zIndex);
       return;
     }
-    if (node.children?.length) {
-      node.children.forEach((child) => applyNodeZIndex(child, zIndex));
-    }
+    if (!node.children?.length) return;
+
+    const descendantSectionKeys = new Set<string>();
+    const collectDescendantSections = (current: V2TemplateLayerNode) => {
+      if (current.sectionKey) {
+        descendantSectionKeys.add(current.sectionKey);
+      }
+      current.children?.forEach((child) => collectDescendantSections(child));
+    };
+    node.children.forEach((child) => collectDescendantSections(child));
+    if (descendantSectionKeys.size === 0) return;
+
+    const currentZIndexBySection = new Map<string, number>();
+    let currentMaxZIndex = Number.NEGATIVE_INFINITY;
+    descendantSectionKeys.forEach((sectionKey) => {
+      const style = getStyleRecordBySectionKey(nextLayout, sectionKey, resolverMap);
+      const resolved = parseZIndex(style?.zIndex);
+      const normalized = Number.isFinite(resolved) ? (resolved as number) : 0;
+      currentZIndexBySection.set(sectionKey, normalized);
+      if (normalized > currentMaxZIndex) {
+        currentMaxZIndex = normalized;
+      }
+    });
+
+    const normalizedCurrentMax = Number.isFinite(currentMaxZIndex)
+      ? currentMaxZIndex
+      : 0;
+    const delta = zIndex - normalizedCurrentMax;
+    currentZIndexBySection.forEach((currentValue, sectionKey) => {
+      setSectionZIndex(sectionKey, Math.round(currentValue + delta));
+    });
   };
 
   normalizedOrderedIds.forEach((nodeId) => {
@@ -402,6 +419,10 @@ export const applyReorderedLayerZIndex = ({
     if (zIndex === undefined) return;
     const node = layerNodeMap.get(nodeId);
     if (!node) return;
+    const sectionKey = node.sectionKey?.trim();
+    if (sectionKey && (siblingSectionKeyCount.get(sectionKey) ?? 0) > 1) {
+      return;
+    }
     applyNodeZIndex(node, zIndex);
   });
 

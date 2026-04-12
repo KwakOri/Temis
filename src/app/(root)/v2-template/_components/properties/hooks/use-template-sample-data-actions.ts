@@ -17,26 +17,71 @@ const useTemplateSampleDataActions = ({
   updateGlobalData,
 }: UseTemplateSampleDataActionsParams) => {
   const firstCard = useMemo(() => data[0], [data]);
-  const firstEntry = useMemo(() => firstCard?.entries?.[0], [firstCard]);
+  const firstEntries = useMemo(() => firstCard?.entries ?? [], [firstCard]);
+  const firstEntry = useMemo(() => firstEntries[0], [firstEntries]);
+
+  const createDefaultEntry = () => {
+    const seed = firstEntries[0] ?? {};
+    return {
+      time: typeof seed.time === "string" ? seed.time : "10:00",
+      mainTitle: typeof seed.mainTitle === "string" ? seed.mainTitle : "",
+      subTitle: typeof seed.subTitle === "string" ? seed.subTitle : "",
+      isGuerrilla:
+        typeof seed.isGuerrilla === "boolean" ? seed.isGuerrilla : false,
+    };
+  };
 
   const updateFirstEntryField = (
+    entryIndex: number,
     key: string,
     value: string | number | boolean
   ) => {
     const next = [...data];
-    if (!next[0] || !next[0].entries?.[0]) return;
+    if (!next[0] || !next[0].entries?.length) return;
+    if (entryIndex < 0 || entryIndex >= next[0].entries.length) return;
 
     next[0] = {
       ...next[0],
-      entries: [
-        {
-          ...next[0].entries[0],
+      entries: next[0].entries.map((entry, index) => {
+        if (index !== entryIndex) return entry;
+        return {
+          ...entry,
           [key]: value,
-        },
-        ...next[0].entries.slice(1),
-      ],
+        };
+      }),
     };
 
+    updateData(next);
+  };
+
+  const addFirstEntry = (maxEntries: number) => {
+    const next = [...data];
+    if (!next[0]) return;
+    const safeMaxEntries = Math.max(1, maxEntries);
+    const entries = Array.isArray(next[0].entries) ? [...next[0].entries] : [];
+    if (entries.length >= safeMaxEntries) return;
+    entries.push(createDefaultEntry());
+    next[0] = {
+      ...next[0],
+      entries,
+    };
+    updateData(next);
+  };
+
+  const removeFirstEntry = (entryIndex: number) => {
+    const next = [...data];
+    if (!next[0]) return;
+    const entries = Array.isArray(next[0].entries) ? [...next[0].entries] : [];
+    if (entries.length <= 1) return;
+    if (entryIndex < 0 || entryIndex >= entries.length) return;
+    entries.splice(entryIndex, 1);
+    if (entries.length === 0) {
+      entries.push(createDefaultEntry());
+    }
+    next[0] = {
+      ...next[0],
+      entries,
+    };
     updateData(next);
   };
 
@@ -72,8 +117,11 @@ const useTemplateSampleDataActions = ({
 
   return {
     firstCard,
+    firstEntries,
     firstEntry,
     updateFirstEntryField,
+    addFirstEntry,
+    removeFirstEntry,
     updateFirstCardField,
     updateGlobalSampleField,
     updateFirstDayOffline,

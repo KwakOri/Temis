@@ -29,7 +29,7 @@ import {
   V2PlainTextNodeRenderer,
 } from "./card-node-renderers";
 import { v2_getHighlightStyle } from "./highlight-style";
-import { v2_toRenderableStyle } from "./render-style";
+import { v2_toRenderableLayoutStyle, v2_toRenderableStyle } from "./render-style";
 
 interface TimeTableCellProps {
   time: TDefaultCard;
@@ -62,7 +62,7 @@ const v2_resolveRenderableCardLayout = (
   styleMap: Record<string, string | number>
 ): { style: React.CSSProperties; width?: string | number } => {
   const { widthPercent, ...layoutRaw } = styleMap;
-  const style = v2_toRenderableStyle(layoutRaw);
+  const style = v2_toRenderableLayoutStyle(layoutRaw);
   const width =
     typeof widthPercent === "number"
       ? `${widthPercent}%`
@@ -253,6 +253,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     cardLayoutRecord,
     cardStructure.containerStyleKey
   );
+  // Card root must stay in normal grid/flex flow unless position is explicitly set.
+  // Auto-injecting absolute from offset props makes all cards overlap at one point.
   const cardContainerLayout = v2_toRenderableStyle(cardContainerStyleMap);
   const dayKey =
     dayKeyOverride ?? v2_parseDayKey(time.day) ?? v2_dayKeyFromIndex(index);
@@ -283,6 +285,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   if (isLayerHidden(cardStructure.containerLayerId)) return null;
 
   const primaryEntry = time.entries?.[0] || {};
+  const entryCount = Math.max(
+    1,
+    Array.isArray(time.entries) ? time.entries.length : 0
+  );
   const entryTime = (primaryEntry.time as string) || "09:00";
 
   const renderCardNode = (nodeId: string) => {
@@ -293,6 +299,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       !v2_isVisibleByMode({
         mode: node.visibilityMode,
         isOffline: cardIsOffline,
+        entryCount,
       })
     ) {
       return null;
@@ -309,7 +316,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       : {};
     const textStyle = v2_toRenderableStyle(textStyleMap);
     const wrapperStyle = node.wrapperStyleKey
-      ? v2_toRenderableStyle(
+      ? v2_toRenderableLayoutStyle(
           v2_toCardStyleMap(cardLayoutRecord, node.wrapperStyleKey)
         )
       : {};
@@ -411,10 +418,18 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       className="relative flex justify-center"
     >
       {cardStructure.nodeOrder.map((nodeId) => renderCardNode(nodeId))}
-      {v2_isVisibleByMode({ mode: "onlineOnly", isOffline: cardIsOffline }) ? (
+      {v2_isVisibleByMode({
+        mode: "onlineOnly",
+        isOffline: cardIsOffline,
+        entryCount,
+      }) ? (
         <OnlineCardBG currentTheme={currentTheme} />
       ) : null}
-      {v2_isVisibleByMode({ mode: "offlineOnly", isOffline: cardIsOffline }) ? (
+      {v2_isVisibleByMode({
+        mode: "offlineOnly",
+        isOffline: cardIsOffline,
+        entryCount,
+      }) ? (
         <OfflineCardBG currentTheme={currentTheme} />
       ) : null}
     </div>

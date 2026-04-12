@@ -21,11 +21,13 @@ const v2_sceneHasVisibleAssetKey = ({
   assetKey,
   isLayerHidden,
   isOffline,
+  entryCount,
 }: {
   nodes: V2TemplateSceneNode[] | undefined;
   assetKey: string;
   isLayerHidden: (layerId: string) => boolean;
   isOffline: boolean;
+  entryCount: number;
 }): boolean => {
   if (!Array.isArray(nodes) || nodes.length === 0) return false;
   const stack: Array<{ node: V2TemplateSceneNode; parentHidden: boolean }> = nodes.map(
@@ -44,6 +46,7 @@ const v2_sceneHasVisibleAssetKey = ({
     const visibleByMode = v2_isVisibleByMode({
       mode: node.visibilityMode,
       isOffline,
+      entryCount,
     });
     if (hiddenByLayer || !visibleByMode) continue;
 
@@ -74,19 +77,27 @@ const V2TimeTableContent: React.FC = () => {
   );
 
   if (weekDates.length === 0) return null;
-  const firstCard = data[0] as { isOffline?: boolean } | undefined;
+  const firstCard = data[0] as
+    | { isOffline?: boolean; entries?: unknown[] }
+    | undefined;
   const firstCardOffline = Boolean(firstCard?.isOffline);
+  const firstCardEntryCount = Math.max(
+    1,
+    Array.isArray(firstCard?.entries) ? firstCard.entries.length : 0
+  );
   const hasSceneBackgroundAsset = v2_sceneHasVisibleAssetKey({
     nodes: runtimeSceneNodes,
     assetKey: "bgByTheme",
     isLayerHidden,
     isOffline: firstCardOffline,
+    entryCount: firstCardEntryCount,
   });
   const hasSceneGuideAsset = v2_sceneHasVisibleAssetKey({
     nodes: runtimeSceneNodes,
     assetKey: "guideByTheme",
     isLayerHidden,
     isOffline: firstCardOffline,
+    entryCount: firstCardEntryCount,
   });
 
   const backgroundImage =

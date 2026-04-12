@@ -264,25 +264,27 @@ export const useTemplateState = (captureSize?: {
   useEffect(() => {
     const handleResize = () => {
       const isCurrentlyMobile = window.innerWidth < 768;
+      if (isCurrentlyMobile === isMobile) {
+        return;
+      }
+
       setIsMobile(isCurrentlyMobile);
 
       const newOptimalScale = getInitialScale(
         captureSize?.width,
         captureSize?.height
       );
-
-      const defaultScales = [0.3, 0.5, 1.0];
-      if (
-        defaultScales.some((s) => Math.abs(scale - s) < 0.05) ||
-        scale > 1.0
-      ) {
-        setScale(Math.min(newOptimalScale, isCurrentlyMobile ? 1.0 : 2.0));
-      }
+      setScale((prevScale) => {
+        if (isCurrentlyMobile) {
+          return Math.min(newOptimalScale, 1.0);
+        }
+        return Math.max(0.1, Math.min(prevScale, 2.0));
+      });
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [scale, captureSize]);
+  }, [captureSize, isMobile]);
 
   const actions: TemplateEditorUIActions = {
     updateProfileText: (text: string) => setProfileText(text),

@@ -112,6 +112,39 @@ const v2_collectStyleKeysFromRefs = (
   return keys;
 };
 
+const v2_syncLayoutZIndexWithLayerOrder = ({
+  layout,
+  layers,
+  resolverMap,
+  graph,
+}: {
+  layout: ReturnType<typeof v2_normalizeTemplateRenderConfig>["layout"];
+  layers: ReturnType<typeof v2_getRuntimeLayerTree>;
+  resolverMap: ReturnType<typeof collectStyleSectionResolverMapFromRuntime>;
+  graph: V2TemplateNodeGraph;
+}) => {
+  const orderedMap = buildOrderedLayerIdsByParent({
+    layers,
+    layout,
+    resolverMap,
+    graph,
+  });
+
+  let nextLayout = layout;
+  Object.entries(orderedMap).forEach(([parentId, orderedIds]) => {
+    if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+    nextLayout = applyReorderedLayerZIndex({
+      layout: nextLayout,
+      layers,
+      resolverMap,
+      parentId,
+      orderedIds,
+    });
+  });
+
+  return nextLayout;
+};
+
 const v2_collectSubtreeNodeIds = ({
   graph,
   rootNodeId,
@@ -392,6 +425,37 @@ const V2TimeTableEditor: React.FC = () => {
     );
     if (!setRenderConfig) return;
     setRenderConfig((prev) => v2_normalizeTemplateRenderConfig(prev));
+  }, [renderConfig.graph, setRenderConfig]);
+
+  useEffect(() => {
+    if (!setRenderConfig) return;
+    setRenderConfig((prev) => {
+      const prevRuntimeLayerTree = v2_getRuntimeLayerTree(prev);
+      const prevRuntimeCards = Object.keys(
+        prev.graph.componentDefinitions ?? {}
+      ).map((componentId) =>
+        v2_getRuntimeCardStructureByComponentId(prev, componentId)
+      );
+      const prevRuntimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const prevRuntimeResolverMap = collectStyleSectionResolverMapFromRuntime({
+        layers: prevRuntimeLayerTree,
+        cards: prevRuntimeCards,
+        sceneNodes: prevRuntimeSceneNodes,
+      });
+      const syncedLayout = v2_syncLayoutZIndexWithLayerOrder({
+        layout: prev.layout,
+        layers: prevRuntimeLayerTree,
+        resolverMap: prevRuntimeResolverMap,
+        graph: prev.graph,
+      });
+      if (JSON.stringify(syncedLayout) === JSON.stringify(prev.layout)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        layout: syncedLayout,
+      };
+    });
   }, [renderConfig.graph, setRenderConfig]);
 
   const applyLayerZIndex = ({
@@ -1234,6 +1298,7 @@ const V2TimeTableEditor: React.FC = () => {
                     }`}
                   >
                     <V2TemplateBuilderForm
+                      onRequestClose={() => setIsRightPanelOpen(false)}
                       focusLayerId={propertiesFocusRequest?.layerId ?? null}
                       focusLayerNonce={propertiesFocusRequest?.nonce ?? 0}
                       focusEditorMode={

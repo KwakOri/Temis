@@ -9,10 +9,16 @@ interface TemplateDataTabProps {
   fields: V2TemplateFormField[];
   isOffline: boolean;
   entryValues: Record<string, unknown>;
+  entryCount: number;
+  selectedEntryIndex: number;
+  maxEntryCount: number;
   cardValues: Record<string, unknown>;
   globalValues: Record<string, unknown>;
   onChangeField: (scope: V2FieldScope, key: string, value: string | number) => void;
   onToggleOffline: (value: boolean) => void;
+  onSelectEntryIndex: (index: number) => void;
+  onAddEntry: () => void;
+  onRemoveEntry: (index: number) => void;
 }
 
 const v2_toFieldInputValue = (
@@ -24,19 +30,31 @@ const v2_toFieldInputValue = (
 };
 
 const v2_SCOPE_LABELS: Record<V2FieldScope, string> = {
-  entry: "Entry (월요일 첫 카드의 첫 엔트리)",
-  card: "Card (월요일 첫 카드 공통)",
-  global: "Global (템플릿 전역)",
+  entry: "Entry",
+  card: "Card",
+  global: "Global",
+};
+
+const v2_SCOPE_DESCRIPTIONS: Record<V2FieldScope, string> = {
+  entry: "월요일 첫 카드의 선택된 회차 데이터",
+  card: "월요일 첫 카드 공통 데이터",
+  global: "템플릿 전역 데이터",
 };
 
 const TemplateDataTab: React.FC<TemplateDataTabProps> = ({
   fields,
   isOffline,
   entryValues,
+  entryCount,
+  selectedEntryIndex,
+  maxEntryCount,
   cardValues,
   globalValues,
   onChangeField,
   onToggleOffline,
+  onSelectEntryIndex,
+  onAddEntry,
+  onRemoveEntry,
 }) => {
   const grouped = React.useMemo(() => {
     return {
@@ -56,7 +74,6 @@ const TemplateDataTab: React.FC<TemplateDataTabProps> = ({
     const value = v2_toFieldInputValue(getValueByScope(field.scope, field.key));
     const commonClassName =
       "w-full rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2 text-sm text-gray-100";
-    const label = field.label?.trim() || field.key;
 
     if (field.type === "textarea") {
       return (
@@ -134,6 +151,9 @@ const TemplateDataTab: React.FC<TemplateDataTabProps> = ({
         <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
           {v2_SCOPE_LABELS[scope]}
         </h4>
+        <p className="text-[11px] text-gray-500">
+          {v2_SCOPE_DESCRIPTIONS[scope]}
+        </p>
         {scopeFields.map((field) => {
           const label = field.label?.trim() || field.key;
           return (
@@ -155,13 +175,59 @@ const TemplateDataTab: React.FC<TemplateDataTabProps> = ({
       </p>
 
       <label className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#1a1c20] px-3 py-2">
-        <span className="text-sm text-gray-300">monday isOffline</span>
+        <span className="text-sm text-gray-300">월요일 카드 오프라인 표시</span>
         <input
           type="checkbox"
           checked={isOffline}
           onChange={(event) => onToggleOffline(event.target.checked)}
         />
       </label>
+
+      <section className="space-y-2 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
+          Entry 선택
+        </h4>
+        <div className="flex flex-wrap items-center gap-2">
+          {Array.from({ length: entryCount }).map((_, index) => {
+            const selected = selectedEntryIndex === index;
+            return (
+              <button
+                key={`entry-tab-${index}`}
+                type="button"
+                onClick={() => onSelectEntryIndex(index)}
+                className={`rounded border px-2.5 py-1 text-xs font-semibold ${
+                  selected
+                    ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
+                    : "border-[#3a3d44] bg-[#2a2d33] text-gray-300 hover:bg-[#323640]"
+                }`}
+              >
+                회차 {index + 1}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onAddEntry}
+            disabled={entryCount >= maxEntryCount}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2.5 py-1 text-xs font-semibold text-gray-200 hover:bg-[#323640] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            + 회차 추가
+          </button>
+          <button
+            type="button"
+            onClick={() => onRemoveEntry(selectedEntryIndex)}
+            disabled={entryCount <= 1}
+            className="rounded border border-red-500/40 bg-red-500/10 px-2.5 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            현재 회차 삭제
+          </button>
+          <span className="text-[11px] text-gray-400">
+            {entryCount}/{maxEntryCount}
+          </span>
+        </div>
+      </section>
 
       {renderScopeSection("entry")}
       {renderScopeSection("card")}
