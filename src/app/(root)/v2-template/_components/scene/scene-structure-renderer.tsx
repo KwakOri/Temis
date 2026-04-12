@@ -124,6 +124,19 @@ const V2SceneStructureRenderer = ({
     1,
     Array.isArray(firstCard?.entries) ? firstCard.entries.length : 0
   );
+  const memoTextFallback = useMemo(() => {
+    const memoField = renderConfig.formSchema.fields.find((field) => {
+      return field.scope === "global" && field.key === "memoText";
+    });
+    if (!memoField) return "";
+    if (
+      typeof memoField.defaultValue === "string" &&
+      memoField.defaultValue.trim().length > 0
+    ) {
+      return memoField.defaultValue;
+    }
+    return memoField.placeholder ?? "";
+  }, [renderConfig.formSchema.fields]);
   const dataIndexByDayKey = useMemo(() => {
     const map: Record<string, number> = {};
     data.forEach((card, index) => {
@@ -184,8 +197,8 @@ const V2SceneStructureRenderer = ({
         : node.id === "scene-profile-text"
           ? profileText || renderConfig.profileTextPlaceholder || ""
           : node.id === "scene-memo-text"
-            ? memoText || renderConfig.profileTextPlaceholder || ""
-          : "";
+            ? memoText || memoTextFallback || ""
+            : "";
     const text = v2_resolveSceneTextNodeValue({
       node,
       fallbackValue,

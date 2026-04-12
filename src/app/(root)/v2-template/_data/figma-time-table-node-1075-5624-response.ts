@@ -73,7 +73,7 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
           SUB_TITLE: 48,
           ARTIST: 48,
         },
-        profileTextPlaceholder: "메모 적는 곳",
+        profileTextPlaceholder: "아티스트 명",
         formSchema: {
           ...fallbackConfig.formSchema,
           fields: v2_overrideFieldPlaceholder({
