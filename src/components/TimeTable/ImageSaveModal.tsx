@@ -229,44 +229,46 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
     return "이번주";
   }
 
-  // 16:9 비율 표준 크기 옵션 생성
+  // 원본 비율 유지 옵션 생성 (높이 기준)
   const getSizeOptions = (): SizeOption[] => {
     const options: SizeOption[] = [];
+    const originalAspectRatio = originalWidth / originalHeight;
 
-    // 1280 옵션 (항상 표시)
-    options.push({
-      width: 1280,
-      height: 720, // 16:9 비율
-      label: "HD",
-      key: "1280",
-    });
+    const addHeightBasedOption = (
+      targetHeight: number,
+      label: string,
+      key: string
+    ) => {
+      if (originalHeight <= targetHeight) return;
 
-    // 1920 옵션 (원본이 1920보다 클 때만 표시)
-    if (originalWidth > 1920) {
       options.push({
-        width: 1920,
-        height: 1080, // 16:9 비율
-        label: "Full HD",
-        key: "1920",
+        width: Math.round(targetHeight * originalAspectRatio),
+        height: targetHeight,
+        label,
+        key,
       });
-    }
+    };
 
-    // 4K 옵션 (원본이 3840보다 클 때만 표시)
-    if (originalWidth > 3840) {
-      options.push({
-        width: 3840,
-        height: 2160, // 16:9 비율
-        label: "4K",
-        key: "4k",
-      });
-    }
+    // 높이 기준 리사이즈 옵션 (원본 비율 유지)
+    addHeightBasedOption(720, "HD", "720");
+    addHeightBasedOption(1080, "Full HD", "1080");
+    addHeightBasedOption(2160, "4K", "2160");
 
-    // 원본 크기 옵션 (1280과 다를 때만 표시)
-    if (originalWidth !== 1280) {
-      const originalAspectRatio = originalHeight / originalWidth;
+    // 리사이즈 옵션이 하나도 없으면 원본 비율의 720 높이 옵션 제공 (업스케일 방지)
+    if (options.length === 0) {
       options.push({
         width: originalWidth,
-        height: Math.round(originalWidth * originalAspectRatio),
+        height: originalHeight,
+        label: "원본",
+        key: "original",
+      });
+    }
+
+    // 원본 크기 옵션 (항상 제공, 중복이면 제외)
+    if (!options.some((option) => option.width === originalWidth && option.height === originalHeight)) {
+      options.push({
+        width: originalWidth,
+        height: originalHeight,
         label: `원본`,
         key: "original",
       });
@@ -529,8 +531,8 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
               </div>
 
               <p className="text-xs text-[#3E4A82]">
-                저장할 이미지의 해상도를 선택하세요. 모든 크기는 16:9 비율로
-                표준화됩니다.
+                저장할 이미지의 해상도를 선택하세요. 모든 크기는 원본 비율을
+                유지하여 저장됩니다.
               </p>
             </div>
             <div className="flex-1 overflow-y-auto p-6">

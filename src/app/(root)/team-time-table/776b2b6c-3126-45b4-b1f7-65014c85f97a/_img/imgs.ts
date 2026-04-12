@@ -6,14 +6,13 @@ import TopObject from './main/top_object.png';
 
 // Online/Offline images
 
-import {
-  default as ProfileCosmo,
-  default as ProfileEra,
-} from './main/cosmo.png';
+import ProfileCosmo from './main/cosmo.png';
+import ProfileIra from './main/era.png';
 import ProfileRubit from './main/rubit.png';
 import ProfileSaebaek from './main/saebaek.png';
 import ProfileSaeon from './main/saeon.png';
 import ProfileSua from './main/sua.png';
+
 // Profile images
 
 export const Imgs: ImgsType = {
@@ -21,17 +20,10 @@ export const Imgs: ImgsType = {
     bg: MainBG,
     topObject: TopObject,
     members_cosmo: ProfileCosmo,
-    members_era: ProfileEra,
+    members_ira: ProfileIra,
     members_rubit: ProfileRubit,
     members_saebaek: ProfileSaebaek,
-    members_saeon: ProfileSaeon,
+    members_seon: ProfileSaeon,
     members_sua: ProfileSua,
   },
 };
-
-export const memberIdsMap = new Map([
-  [275, 'saeback'],
-  [22, 'rubit'],
-  [280, 'sua'],
-  [277, 'cosmo'],
-]);
