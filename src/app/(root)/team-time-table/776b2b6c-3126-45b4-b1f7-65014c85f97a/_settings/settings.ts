@@ -6,7 +6,7 @@ import { CSSProperties } from 'react';
 
 export const templateSize = {
   width: 4000,
-  height: 2250,
+  height: 2750,
 };
 
 /** Fonts 설정 */
@@ -76,8 +76,6 @@ export const colors = {
 
 /** ---------------------------------------------- */
 
-export const TEAM_MEMBER_IDS = [1, 2, 3, 4];
-
 // 개발자 전용: 카드 입력 필드 구성
 // 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
 export const CARD_INPUT_CONFIG: CardInputConfig = {
@@ -134,7 +132,7 @@ type SettingsType = {
 export const Settings: SettingsType = {
   canvas_size: {
     width: 4000,
-    height: 2250,
+    height: 2750,
   },
 
   profile_frame: {
@@ -162,40 +160,23 @@ export const Settings: SettingsType = {
   },
 };
 
-export const team_ids = [22, 275, 277, 280];
+export const team_ids = [22, 248, 275, 276, 277, 280];
 
-export interface Palette {
-  primary: string;
-  secondary: string;
-  tertiary: string;
-  quaternary: string;
-}
+export const memberIdsMap = new Map([
+  [22, 'rubit'],
+  [248, 'seon'],
+  [275, 'saebaek'],
 
-export type MemberColorPallettes = Record<number, Palette>;
+  [276, 'ira'],
+  [277, 'cosmo'],
+  [280, 'sua'],
+]);
 
-export const member_colors: MemberColorPallettes = {
-  75: {
-    primary: '#E38431',
-    secondary: '#E38431',
-    tertiary: '',
-    quaternary: '',
-  },
-  74: {
-    primary: '#3D94B5',
-    secondary: '#3D94B5',
-    tertiary: '',
-    quaternary: '',
-  },
-  77: {
-    primary: '#1E2629',
-    secondary: '#EDF8F7',
-    tertiary: '',
-    quaternary: '',
-  },
-  62: {
-    primary: '#F4B224',
-    secondary: '#F4B224',
-    tertiary: '',
-    quaternary: '',
-  },
-};
+export const memberNamesMap = new Map([
+  [22, '루빗'],
+  [248, '세온'],
+  [275, '류새백'],
+  [276, '이라'],
+  [277, '코스모'],
+  [280, '최수아'],
+]);

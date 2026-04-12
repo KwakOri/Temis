@@ -1,18 +1,18 @@
-import { Imgs } from "../_img/imgs";
+import { Imgs } from '../_img/imgs';
 
 const TeamTimeTableTopObject = () => {
   return (
     <div
       style={{
         width: 4000,
-        height: 2250,
-        position: "absolute",
+        height: 2750,
+        position: 'absolute',
         zIndex: 30,
       }}
     >
       <img
-        src={Imgs["first"]["topObject"].src}
-        alt={"top-object"}
+        src={Imgs['first']['topObject'].src}
+        alt={'top-object'}
         draggable={false}
       />
     </div>

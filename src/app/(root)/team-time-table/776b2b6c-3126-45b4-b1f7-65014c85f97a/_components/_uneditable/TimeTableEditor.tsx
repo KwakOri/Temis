@@ -2,8 +2,8 @@ import React from 'react';
 
 import Loading from '@/components/Loading';
 import MobileHeader from '@/components/TimeTable/MobileHeader';
+import TeamTimeTableForm from '@/components/TimeTable/TeamTimeTableForm';
 import TimeTableControls from '@/components/TimeTable/TimeTableControls';
-import TimeTableForm from '@/components/TimeTable/TimeTableForm';
 import TimeTablePreview from '@/components/TimeTable/TimeTablePreview';
 import { TimeTableProvider, useTimeTable } from '@/contexts/TimeTableContext';
 import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
@@ -11,12 +11,13 @@ import { useTimeTableEditor } from '@/hooks';
 
 import TimeTableDesignGuideController from '@/components/tools/TimeTableDesignGuideController';
 import { useTeamBatchSchedules } from '@/hooks/query/useTeamSchedules';
+import { useUserNicknames } from '@/hooks/query/useUserNicknames';
 import { isGuideEnabled } from '@/utils/time-table/data';
 import { placeholders } from '../../_settings/general';
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
-  Settings,
+  memberNamesMap,
   team_ids,
   templateSize,
 } from '../../_settings/settings';
@@ -51,6 +52,31 @@ const TimeTableEditorContent: React.FC = () => {
       .filter((item) => item.success && item.schedule !== null)
       .map((item) => item.schedule!);
   }, [teamSchedulesData]);
+
+  const { data: userNicknamesData } = useUserNicknames(
+    team_ids,
+    !!teamSchedulesData?.schedules
+  );
+
+  const nicknameMap = React.useMemo(
+    () =>
+      new Map((userNicknamesData?.users || []).map((user) => [user.id, user.name])),
+    [userNicknamesData]
+  );
+
+  const unregisteredMembers = React.useMemo(() => {
+    if (!teamSchedulesData?.schedules) return [];
+
+    return teamSchedulesData.schedules
+      .filter((item) => !item.success || item.schedule === null)
+      .map((item) => ({
+        userId: item.user_id,
+        label:
+          nicknameMap.get(item.user_id) ??
+          memberNamesMap.get(item.user_id) ??
+          `ID ${item.user_id}`,
+      }));
+  }, [teamSchedulesData, nicknameMap]);
 
   // 팀 데이터 리셋 함수
   const resetData = () => {
@@ -93,17 +119,15 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTablePreview>
           <TeamTimeTableContent
             currentTheme={currentTheme}
-            data={teamSchedulesData?.schedules}
+            data={teamSchedulesData.schedules}
             placeholders={placeholders}
           />
         </TimeTablePreview>
-        <TimeTableForm
-          isArtist={false}
+        <TeamTimeTableForm
           onReset={resetData}
+          unregisteredMembers={unregisteredMembers}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
-          cropWidth={Settings.profile_image.width as number}
-          cropHeight={Settings.profile_image.height as number}
-        ></TimeTableForm>
+        ></TeamTimeTableForm>
       </div>
     </div>
   );
