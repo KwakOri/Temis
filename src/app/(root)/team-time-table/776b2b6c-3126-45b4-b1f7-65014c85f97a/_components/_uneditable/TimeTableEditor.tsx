@@ -5,36 +5,81 @@ import MobileHeader from '@/components/TimeTable/MobileHeader';
 import TimeTableControls from '@/components/TimeTable/TimeTableControls';
 import TimeTableForm from '@/components/TimeTable/TimeTableForm';
 import TimeTablePreview from '@/components/TimeTable/TimeTablePreview';
-import { TimeTableProvider } from '@/contexts/TimeTableContext';
+import { TimeTableProvider, useTimeTable } from '@/contexts/TimeTableContext';
 import { TimeTableDesignGuideProvider } from '@/contexts/TimeTableDesignGuideContext';
 import { useTimeTableEditor } from '@/hooks';
 
-import TimeTableInputList from '@/components/TimeTable/FixedComponents/TimeTableInputList';
 import TimeTableDesignGuideController from '@/components/tools/TimeTableDesignGuideController';
+import { useTeamBatchSchedules } from '@/hooks/query/useTeamSchedules';
 import { isGuideEnabled } from '@/utils/time-table/data';
 import { placeholders } from '../../_settings/general';
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
   Settings,
+  team_ids,
   templateSize,
-  weekdayOption,
 } from '../../_settings/settings';
-import TimeTableContent from './TimeTableContent';
+import TeamTimeTableContent from './TeamTimeTableContent';
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
-  // 통합 상태 관리 훅 사용 - CardInputConfig 주입
+  // Context에서 상태 가져오기
+  const { state } = useTimeTable();
 
-  const { state, data, updateData, currentTheme, resetData, isInitialized } =
-    useTimeTableEditor({
-      cardInputConfig: CARD_INPUT_CONFIG,
-      defaultTheme: defaultTheme,
-      captureSize: templateSize,
-    });
+  // 기존 로컬 에디터 상태 (UI 상태만 사용)
+  const { currentTheme, isInitialized } = useTimeTableEditor({
+    cardInputConfig: CARD_INPUT_CONFIG,
+    defaultTheme: defaultTheme,
+    captureSize: templateSize,
+  });
 
-  // 초기화되지 않았거나 주간 날짜가 로드되지 않았으면 로딩 표시
-  if (!isInitialized || state.weekDates.length === 0) return <Loading />;
+  // 팀 멤버들의 스케줄 데이터 로드
+  const {
+    data: teamSchedulesData,
+    isLoading: teamSchedulesLoading,
+    error: teamSchedulesError,
+    refetch,
+  } = useTeamBatchSchedules(team_ids, state.mondayDateStr);
+
+  // 래핑된 데이터를 TeamSchedule[] 형식으로 변환
+  // Hook은 조건부 반환 이전에 호출되어야 함
+  const scheduleData = React.useMemo(() => {
+    if (!teamSchedulesData?.schedules) return [];
+
+    return teamSchedulesData.schedules
+      .filter((item) => item.success && item.schedule !== null)
+      .map((item) => item.schedule!);
+  }, [teamSchedulesData]);
+
+  // 팀 데이터 리셋 함수
+  const resetData = () => {
+    refetch();
+  };
+
+  // 로딩 상태 체크
+  if (
+    !isInitialized ||
+    !teamSchedulesData?.schedules ||
+    teamSchedulesLoading ||
+    state.weekDates.length === 0
+  ) {
+    return <Loading />;
+  }
+
+  // 에러 상태 표시
+  if (teamSchedulesError) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-red-600 mb-2">
+            팀 시간표를 불러오는데 실패했습니다.
+          </p>
+          <p className="text-gray-500 text-sm">{teamSchedulesError.message}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col">
@@ -46,32 +91,19 @@ const TimeTableEditorContent: React.FC = () => {
 
       <div className="flex flex-col md:flex-row md:items-center min-h-0 gap-0 h-full">
         <TimeTablePreview>
-          <TimeTableContent
+          <TeamTimeTableContent
             currentTheme={currentTheme}
-            data={data}
+            data={teamSchedulesData?.schedules}
             placeholders={placeholders}
           />
         </TimeTablePreview>
         <TimeTableForm
-          teamData={data}
-          multiSelect
-          isMemo
-          isArtist
+          isArtist={false}
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
-          cropWidth={Settings.profile.image.width}
-          cropHeight={Settings.profile.image.height}
-        >
-          <TimeTableInputList
-            isMultiple
-            maxStreamingTimeByDay={2}
-            cardInputConfig={CARD_INPUT_CONFIG}
-            placeholders={placeholders}
-            data={data}
-            onDataChange={updateData}
-            weekdayOption={weekdayOption}
-          />
-        </TimeTableForm>
+          cropWidth={Settings.profile_image.width as number}
+          cropHeight={Settings.profile_image.height as number}
+        ></TimeTableForm>
       </div>
     </div>
   );
