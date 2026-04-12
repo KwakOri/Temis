@@ -111,14 +111,18 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
     <div
       className="absolute flex z-20"
       style={{
-        top: 350,
-        left: 214,
+        top: 352,
+        left: 108,
         gap: 18,
         rotate: '-8.5deg',
       }}
     >
       {dataByDay.map((dayGroup) => (
-        <div key={`day-${dayGroup.day}`} className="flex flex-col gap-7">
+        <div
+          style={{ width: 440 }}
+          key={`day-${dayGroup.day}`}
+          className="flex flex-col gap-7"
+        >
           {dayGroup.members.map((member, i) => (
             <TeamTimeTableCell
               key={`day-${dayGroup.day}-member-${member.user_id}`}
