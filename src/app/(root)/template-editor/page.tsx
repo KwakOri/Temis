@@ -4,6 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { v2_createFigmaTimeTableNode1075_5624RenderConfigResponse } from '@/app/(root)/v2-template/_data/figma-time-table-node-1075-5624-response';
+import type {
+  V2TemplateGraphNode,
+  V2TemplateNodeGraph,
+} from '@/types/time-table/template-render-config';
 import {
   v2_createDefaultTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
@@ -17,6 +21,8 @@ type V2TemplateEditorListItem = {
   name: string;
   createdAt: number;
   isArtist: boolean;
+  isProfile: boolean;
+  isMemo: boolean;
   isMultiple: boolean;
   maxStreamingTimeByDay: number;
 };
@@ -40,7 +46,13 @@ const v2_readTemplateList = (): V2TemplateEditorListItem[] => {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(v2_isListItem);
+    return parsed
+      .filter(v2_isListItem)
+      .map((item) => ({
+        ...item,
+        isProfile: typeof item.isProfile === 'boolean' ? item.isProfile : true,
+        isMemo: typeof item.isMemo === 'boolean' ? item.isMemo : true,
+      }));
   } catch {
     return [];
   }
@@ -52,6 +64,166 @@ const v2_writeTemplateList = (list: V2TemplateEditorListItem[]) => {
 
 const v2_buildStorageKey = (templateId: string) =>
   `${v2_RENDER_CONFIG_STORAGE_PREFIX}:${templateId}`;
+
+const v2_OPTIONAL_SCENE_ROOT_IDS = {
+  artist: ['scene-artist'],
+  profile: ['scene-profile'],
+  memo: ['scene-memo-object', 'scene-memo-text'],
+} as const;
+
+const v2_OPTIONAL_SCENE_ROOT_ID_SET = new Set<string>(
+  Object.values(v2_OPTIONAL_SCENE_ROOT_IDS).flat()
+);
+
+const v2_cloneGraphNode = (node: V2TemplateGraphNode): V2TemplateGraphNode => ({
+  ...node,
+  childIds: [...node.childIds],
+  ...(node.order ? { order: { ...node.order } } : {}),
+  ...(node.styles ? { styles: { ...node.styles } } : {}),
+  ...(node.meta ? { meta: { ...node.meta } } : {}),
+  ...(node.binding ? { binding: { ...node.binding } } : {}),
+});
+
+const v2_collectSubtreeNodeIds = ({
+  graph,
+  startNodeId,
+  bucket,
+}: {
+  graph: V2TemplateNodeGraph;
+  startNodeId: string;
+  bucket: Set<string>;
+}) => {
+  const queue = [startNodeId];
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId) continue;
+    if (bucket.has(currentId)) continue;
+
+    const currentNode = graph.nodes[currentId];
+    if (!currentNode) continue;
+
+    bucket.add(currentId);
+    queue.push(...currentNode.childIds);
+  }
+};
+
+const v2_collectReferencedComponentIds = ({
+  graph,
+  nodeIds,
+}: {
+  graph: V2TemplateNodeGraph;
+  nodeIds: Set<string>;
+}) => {
+  const componentIds = new Set<string>();
+  nodeIds.forEach((nodeId) => {
+    const node = graph.nodes[nodeId];
+    if (!node) return;
+    const componentId = node.meta?.componentId;
+    if (typeof componentId === 'string' && componentId.trim().length > 0) {
+      componentIds.add(componentId);
+    }
+  });
+  return componentIds;
+};
+
+const v2_buildGraphForTemplateCreate = ({
+  sourceGraph,
+  includeArtist,
+  includeProfile,
+  includeMemo,
+}: {
+  sourceGraph: V2TemplateNodeGraph;
+  includeArtist: boolean;
+  includeProfile: boolean;
+  includeMemo: boolean;
+}): V2TemplateNodeGraph => {
+  const selectedOptionalRootIds = new Set<string>();
+  if (includeArtist) {
+    v2_OPTIONAL_SCENE_ROOT_IDS.artist.forEach((rootId) =>
+      selectedOptionalRootIds.add(rootId)
+    );
+  }
+  if (includeProfile) {
+    v2_OPTIONAL_SCENE_ROOT_IDS.profile.forEach((rootId) =>
+      selectedOptionalRootIds.add(rootId)
+    );
+  }
+  if (includeMemo) {
+    v2_OPTIONAL_SCENE_ROOT_IDS.memo.forEach((rootId) =>
+      selectedOptionalRootIds.add(rootId)
+    );
+  }
+
+  const nextRootNodeIds = sourceGraph.rootNodeIds.filter((rootId) => {
+    if (!v2_OPTIONAL_SCENE_ROOT_ID_SET.has(rootId)) return true;
+    return selectedOptionalRootIds.has(rootId);
+  });
+
+  const nodeIdsToKeep = new Set<string>();
+  nextRootNodeIds.forEach((rootId) => {
+    v2_collectSubtreeNodeIds({ graph: sourceGraph, startNodeId: rootId, bucket: nodeIdsToKeep });
+  });
+
+  const nextComponentDefinitions: V2TemplateNodeGraph['componentDefinitions'] = {};
+  const queuedComponentIds = Array.from(
+    v2_collectReferencedComponentIds({
+      graph: sourceGraph,
+      nodeIds: nodeIdsToKeep,
+    })
+  );
+
+  while (queuedComponentIds.length > 0) {
+    const componentId = queuedComponentIds.shift();
+    if (!componentId) continue;
+    if (nextComponentDefinitions[componentId]) continue;
+
+    const definition = sourceGraph.componentDefinitions[componentId];
+    if (!definition) continue;
+    nextComponentDefinitions[componentId] = {
+      ...definition,
+      ...(definition.instanceTransforms
+        ? { instanceTransforms: { ...definition.instanceTransforms } }
+        : {}),
+    };
+    v2_collectSubtreeNodeIds({
+      graph: sourceGraph,
+      startNodeId: definition.rootNodeId,
+      bucket: nodeIdsToKeep,
+    });
+
+    const nestedRefs = v2_collectReferencedComponentIds({
+      graph: sourceGraph,
+      nodeIds: nodeIdsToKeep,
+    });
+    nestedRefs.forEach((nestedComponentId) => {
+      if (!nextComponentDefinitions[nestedComponentId]) {
+        queuedComponentIds.push(nestedComponentId);
+      }
+    });
+  }
+
+  const nextNodes: V2TemplateNodeGraph['nodes'] = {};
+  nodeIdsToKeep.forEach((nodeId) => {
+    const sourceNode = sourceGraph.nodes[nodeId];
+    if (!sourceNode) return;
+    nextNodes[nodeId] = v2_cloneGraphNode(sourceNode);
+  });
+
+  Object.values(nextNodes).forEach((node) => {
+    node.childIds = node.childIds.filter((childId) => Boolean(nextNodes[childId]));
+    if (node.parentId && !nextNodes[node.parentId]) {
+      node.parentId = null;
+    }
+  });
+
+  const sanitizedRootNodeIds = nextRootNodeIds.filter((rootId) => Boolean(nextNodes[rootId]));
+
+  return {
+    rootNodeIds: sanitizedRootNodeIds,
+    nodes: nextNodes,
+    componentDefinitions: nextComponentDefinitions,
+  };
+};
 
 const v2_formatDateTime = (timestamp: number) => {
   try {
@@ -65,6 +237,8 @@ const TemplateEditorMainPage = () => {
   const router = useRouter();
   const [templateName, setTemplateName] = useState('새 템플릿');
   const [isArtist, setIsArtist] = useState(true);
+  const [isProfile, setIsProfile] = useState(true);
+  const [isMemo, setIsMemo] = useState(true);
   const [isMultiple, setIsMultiple] = useState(true);
   const [maxStreamingTimeByDay, setMaxStreamingTimeByDay] = useState(3);
   const [list, setList] = useState<V2TemplateEditorListItem[]>([]);
@@ -89,6 +263,12 @@ const TemplateEditorMainPage = () => {
         v2_createDefaultTemplateRenderConfig();
       const normalized = v2_normalizeTemplateRenderConfig(base);
       const finalName = templateName.trim() || `template_${templateId.slice(0, 8)}`;
+      const nextGraph = v2_buildGraphForTemplateCreate({
+        sourceGraph: normalized.graph,
+        includeArtist: isArtist,
+        includeProfile: isProfile,
+        includeMemo: isMemo,
+      });
       const nextConfig = v2_normalizeTemplateRenderConfig({
         ...normalized,
         metadata: {
@@ -96,6 +276,7 @@ const TemplateEditorMainPage = () => {
           name: finalName,
           description: `${finalName} (local draft)`,
         },
+        graph: nextGraph,
         editorOptions: {
           ...normalized.editorOptions,
           isArtist,
@@ -114,6 +295,8 @@ const TemplateEditorMainPage = () => {
         name: finalName,
         createdAt: now,
         isArtist,
+        isProfile,
+        isMemo,
         isMultiple,
         maxStreamingTimeByDay: Math.max(1, Math.floor(maxStreamingTimeByDay)),
       };
@@ -160,6 +343,24 @@ const TemplateEditorMainPage = () => {
             onChange={(event) => setIsArtist(event.target.checked)}
           />
           아티스트 영역 사용
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={isProfile}
+            onChange={(event) => setIsProfile(event.target.checked)}
+          />
+          프로필 영역 사용
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={isMemo}
+            onChange={(event) => setIsMemo(event.target.checked)}
+          />
+          메모 영역 사용
         </label>
 
         <label className="flex items-center gap-2 text-sm text-slate-700">
