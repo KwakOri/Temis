@@ -24,3 +24,35 @@
 
 - 운영/스테이징 DB에 영향이 있는 명령은 목적과 대상(ref)을 먼저 확인한다.
 - 비밀정보(PAT, DB URL, service role key)는 코드/문서/로그에 남기지 않는다.
+
+## Figma 좌표 보정 규칙 (수동 변환용, 임시)
+
+- 이 섹션은 "자동화 로직 구현 전"에 Codex가 Figma 값을 수동으로 프리셋에 옮길 때 참고하는 기준이다.
+- 현재 프로젝트 런타임 렌더는 CSS 기준(`left/top + transform: rotate`)을 사용하므로, Figma에서 읽은 좌표는 필요 시 CSS 좌표로 보정해서 기록한다.
+- 보정은 **코드 로직이 아니라 수동 변환 단계에서만 1회 적용**한다.
+
+### 적용 조건
+
+- `rotateDeg`가 존재하고, `transform-origin`이 center 기준(기본값 포함)이며, `width/height`가 모두 있는 경우에만 적용한다.
+- 위 조건이 아니면 좌표 보정을 하지 않고 원본 값을 사용한다.
+
+### 보정 공식 (Figma -> CSS)
+
+- `theta = rotateDeg * Math.PI / 180`
+- `bw = abs(w * cos(theta)) + abs(h * sin(theta))`
+- `bh = abs(w * sin(theta)) + abs(h * cos(theta))`
+- `left_css = x_figma + (bw - w) / 2`
+- `top_css = y_figma + (bh - h) / 2`
+
+### 계산 예시
+
+- `w=160`, `h=100`, `rotateDeg=-13.5`일 때:
+  - `x` 보정량: `+9.46px`
+  - `y` 보정량: `+16.52px`
+- 예: Figma `(x=31, y=3)` -> CSS `(x=40.46, y=19.52)` (필요 시 소수 1자리 또는 정수 반올림)
+
+### 기록 원칙
+
+- 프리셋 데이터에는 보정된 최종 CSS 좌표만 저장한다.
+- `origin/adjust` 분리 저장은 하지 않는다.
+- 동일 노드에 보정을 중복 적용하지 않도록, 같은 소스에 대해 재계산 시 기존 값과 차이를 확인한다.
