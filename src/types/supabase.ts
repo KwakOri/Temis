@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.12 (cd3cf9e)"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -1069,7 +1089,7 @@ export type Database = {
           {
             foreignKeyName: "template_render_configs_template_id_fkey"
             columns: ["template_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "templates"
             referencedColumns: ["id"]
           },
@@ -1138,7 +1158,7 @@ export type Database = {
           {
             foreignKeyName: "template_sales_purchase_request_id_fkey"
             columns: ["purchase_request_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "template_purchase_requests"
             referencedColumns: ["id"]
           },
@@ -1147,13 +1167,6 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "template_sales_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1319,9 +1332,198 @@ export type Database = {
         }
         Relationships: []
       }
+      v2_template_render_config_drafts: {
+        Row: {
+          base_revision_no: number | null
+          config_version: number
+          created_at: string
+          id: string
+          is_autosave: boolean
+          render_config: Json
+          template_id: string
+          updated_at: string
+          user_id: number
+        }
+        Insert: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config: Json
+          template_id: string
+          updated_at?: string
+          user_id: number
+        }
+        Update: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_template_render_config_drafts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "v2_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "v2_template_render_config_drafts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_template_render_config_revisions: {
+        Row: {
+          config_version: number
+          created_at: string
+          created_by: number | null
+          id: string
+          render_config: Json
+          revision_no: number
+          source: string
+          template_id: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config: Json
+          revision_no: number
+          source?: string
+          template_id: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config?: Json
+          revision_no?: number
+          source?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_template_render_config_revisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "v2_template_render_config_revisions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "v2_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_template_render_configs: {
+        Row: {
+          config_version: number
+          created_at: string
+          id: string
+          render_config: Json
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config: Json
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_template_render_configs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: true
+            referencedRelation: "v2_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_templates: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_public: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_public?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_public?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      template_sales_daily_stats: {
+        Row: {
+          completed_count: number | null
+          gross_revenue: number | null
+          issue_count: number | null
+          net_revenue: number | null
+          sale_date: string | null
+        }
+        Relationships: []
+      }
+      template_sales_template_stats: {
+        Row: {
+          completed_count: number | null
+          gross_revenue: number | null
+          last_paid_at: string | null
+          net_revenue: number | null
+          template_id: string | null
+          template_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_sales_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       cleanup_expired_tokens: { Args: never; Returns: undefined }
@@ -1459,7 +1661,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+

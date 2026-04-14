@@ -21,7 +21,7 @@ const v2_parseTemplateId = async ({
 
 const v2_assertTemplateExists = async (templateId: string) => {
   const { data: template, error: templateError } = await supabase
-    .from("templates")
+    .from("v2_templates")
     .select("id")
     .eq("id", templateId)
     .single();
@@ -37,7 +37,7 @@ const v2_assertTemplateExists = async (templateId: string) => {
 
 const v2_getLatestRevisionNo = async (templateId: string): Promise<number> => {
   const { data: latestRevision, error: latestRevisionError } = await supabase
-    .from("template_render_config_revisions")
+    .from("v2_template_render_config_revisions")
     .select("revision_no")
     .eq("template_id", templateId)
     .order("revision_no", { ascending: false })
@@ -112,7 +112,7 @@ export async function POST(
     const nextRevisionNo = latestRevisionNo + 1;
 
     const { data: upsertedConfig, error: upsertError } = await supabase
-      .from("template_render_configs")
+      .from("v2_template_render_configs")
       .upsert(
         {
           template_id: templateId,
@@ -130,7 +130,7 @@ export async function POST(
     }
 
     const { error: insertRevisionError } = await supabase
-      .from("template_render_config_revisions")
+      .from("v2_template_render_config_revisions")
       .insert({
         template_id: templateId,
         revision_no: nextRevisionNo,
@@ -144,7 +144,7 @@ export async function POST(
     }
 
     const { error: deleteDraftError } = await supabase
-      .from("template_render_config_drafts")
+      .from("v2_template_render_config_drafts")
       .delete()
       .eq("template_id", templateId)
       .eq("user_id", userId);
@@ -170,4 +170,3 @@ export async function POST(
     );
   }
 }
-

@@ -31,7 +31,7 @@ export async function GET(
     }
 
     const { data: template, error: templateError } = await supabase
-      .from("templates")
+      .from("v2_templates")
       .select("id")
       .eq("id", id)
       .single();
@@ -48,7 +48,7 @@ export async function GET(
     }
 
     const { data: storedConfig, error: configError } = await supabase
-      .from("template_render_configs")
+      .from("v2_template_render_configs")
       .select("id, config_version, render_config, created_at, updated_at")
       .eq("template_id", id)
       .single();
@@ -59,7 +59,7 @@ export async function GET(
 
     const hasStoredConfig = Boolean(storedConfig);
     const { data: latestRevision, error: latestRevisionError } = await supabase
-      .from("template_render_config_revisions")
+      .from("v2_template_render_config_revisions")
       .select("revision_no")
       .eq("template_id", id)
       .order("revision_no", { ascending: false })
@@ -112,7 +112,7 @@ export async function PUT(
     }
 
     const { data: template, error: templateError } = await supabase
-      .from("templates")
+      .from("v2_templates")
       .select("id")
       .eq("id", id)
       .single();
@@ -155,7 +155,7 @@ export async function PUT(
         : normalizedConfig.version;
 
     const { data: upsertedConfig, error: upsertError } = await supabase
-      .from("template_render_configs")
+      .from("v2_template_render_configs")
       .upsert(
         {
           template_id: id,
@@ -174,7 +174,7 @@ export async function PUT(
     }
 
     const { data: latestRevision, error: latestRevisionError } = await supabase
-      .from("template_render_config_revisions")
+      .from("v2_template_render_config_revisions")
       .select("revision_no")
       .eq("template_id", id)
       .order("revision_no", { ascending: false })

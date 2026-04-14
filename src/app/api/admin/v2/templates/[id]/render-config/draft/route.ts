@@ -24,7 +24,7 @@ const v2_parseTemplateId = async ({
 
 const v2_assertTemplateExists = async (templateId: string) => {
   const { data: template, error: templateError } = await supabase
-    .from("templates")
+    .from("v2_templates")
     .select("id")
     .eq("id", templateId)
     .single();
@@ -74,7 +74,7 @@ export async function GET(
     }
 
     const { data: draft, error: draftError } = await supabase
-      .from("template_render_config_drafts")
+      .from("v2_template_render_config_drafts")
       .select(
         "id, config_version, render_config, base_revision_no, is_autosave, created_at, updated_at"
       )
@@ -189,7 +189,7 @@ export async function PUT(
     const isAutosave = (body as { isAutosave?: unknown }).isAutosave !== false;
 
     const { data: upsertedDraft, error: upsertError } = await supabase
-      .from("template_render_config_drafts")
+      .from("v2_template_render_config_drafts")
       .upsert(
         {
           template_id: templateId,
@@ -234,4 +234,3 @@ export async function PUT(
     );
   }
 }
-
