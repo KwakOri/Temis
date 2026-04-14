@@ -41,16 +41,6 @@ interface TimeTableCellProps {
   bindingOverrides?: V2TemplateComponentInstanceBindingOverrides;
 }
 
-interface OfflineCardProps {
-  currentTheme?: TTheme;
-  cardStructure: V2TemplateCardStructure;
-}
-
-interface OnlineCardBGProps {
-  currentTheme?: TTheme;
-  cardStructure: V2TemplateCardStructure;
-}
-
 const v2_toCardStyleMap = (
   cardLayoutRecord: Record<string, unknown>,
   styleKey: V2TemplateCardStyleKey
@@ -175,49 +165,15 @@ const v2_getCardNodeTextValue = ({
   return "";
 };
 
-const OnlineCardBG = ({ currentTheme, cardStructure }: OnlineCardBGProps) => {
-  const { renderConfig } = useTemplateRenderConfigContext();
-  const cardSize = renderConfig.cardSizes.online;
-  const onlineUrl = resolveAssetUrlFromConfig({
-    renderConfig,
-    assetRef: cardStructure.onlineBackgroundAssetRef,
-    currentTheme: currentTheme || renderConfig.defaultTheme,
-  });
-  if (!onlineUrl) return null;
-
-  return (
-    <div
-      style={{
-        ...cardSize,
-      }}
-      className="absolute -z-10"
-    >
-      <img className="h-full w-full object-cover" src={onlineUrl} alt="online" />
-    </div>
-  );
-};
-
-const OfflineCardBG = ({ currentTheme, cardStructure }: OfflineCardProps) => {
-  const { renderConfig } = useTemplateRenderConfigContext();
-  const cardSize = renderConfig.cardSizes.offline;
-  const offlineUrl = resolveAssetUrlFromConfig({
-    renderConfig,
-    assetRef: cardStructure.offlineBackgroundAssetRef,
-    currentTheme: currentTheme || renderConfig.defaultTheme,
-  });
-  if (!offlineUrl) return null;
-
-  return (
-    <div style={{ ...cardSize }} className="absolute -z-10">
-      <img
-        src={offlineUrl}
-        alt="offline"
-        style={{
-          ...cardSize,
-        }}
-      />
-    </div>
-  );
+const v2_resolveCardImageAssetRef = ({
+  node,
+  dayKey,
+}: {
+  node: V2TemplateCardNode;
+  dayKey: V2TemplateDayKey;
+}) => {
+  if (node.kind !== "image") return undefined;
+  return node.assetRefByDayKey?.[dayKey] ?? node.assetRef;
 };
 
 const TimeTableCell: React.FC<TimeTableCellProps> = ({
@@ -303,6 +259,40 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     );
     const { style: renderableContainerStyle, width } =
       v2_resolveRenderableCardLayout(containerStyleMap);
+    const highlightStyle = v2_getHighlightStyle({
+      target: node.highlightTarget,
+      hoverTarget: hoverHighlightTarget,
+      activeTarget: activeHighlightTarget,
+    });
+
+    if (node.kind === "image") {
+      const assetRef = v2_resolveCardImageAssetRef({ node, dayKey });
+      const imageUrl = resolveAssetUrlFromConfig({
+        renderConfig,
+        assetRef,
+        currentTheme: currentTheme || renderConfig.defaultTheme,
+      });
+      if (!imageUrl) return null;
+
+      return (
+        <div
+          key={node.id}
+          style={{
+            ...renderableContainerStyle,
+            ...highlightStyle,
+          }}
+          className={node.containerClassName ?? "absolute"}
+        >
+          <img
+            src={imageUrl}
+            alt={node.alt ?? node.label}
+            className="h-full w-full"
+            style={{ objectFit: node.fit ?? "cover" }}
+          />
+        </div>
+      );
+    }
+
     const textStyleMap = node.textStyleKey
       ? v2_toCardStyleMap(cardLayoutRecord, node.textStyleKey)
       : {};
@@ -328,12 +318,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       placeholdersByScope,
       globalData: globalData as Record<string, unknown>,
     });
-    const highlightStyle = v2_getHighlightStyle({
-      target: node.highlightTarget,
-      hoverTarget: hoverHighlightTarget,
-      activeTarget: activeHighlightTarget,
-    });
-
     const fontFamily = v2_getComponentFontFamily(renderConfig, node.fontKey);
     const color = renderConfig.componentColors[node.colorKey];
 
@@ -407,20 +391,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       className="relative flex justify-center"
     >
       {cardStructure.nodeOrder.map((nodeId) => renderCardNode(nodeId))}
-      {v2_isVisibleByMode({
-        mode: "onlineOnly",
-        isOffline: cardIsOffline,
-        entryCount,
-      }) ? (
-        <OnlineCardBG currentTheme={currentTheme} cardStructure={cardStructure} />
-      ) : null}
-      {v2_isVisibleByMode({
-        mode: "offlineOnly",
-        isOffline: cardIsOffline,
-        entryCount,
-      }) ? (
-        <OfflineCardBG currentTheme={currentTheme} cardStructure={cardStructure} />
-      ) : null}
     </div>
   );
 };

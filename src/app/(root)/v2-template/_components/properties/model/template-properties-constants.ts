@@ -169,6 +169,8 @@ export type V2StyleSectionKey =
   | "profileTextStyle"
   | "profileTextArtistImageStyle"
   | "cardStreamingDay"
+  | "cardOnlineBackgroundContainer"
+  | "cardOfflineBackgroundContainer"
   | "cardStreamingDate"
   | "cardStreamingTime"
   | "cardMainTitleContainer"
@@ -199,6 +201,8 @@ export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   profileTextStyle: "ProfileText.TextStyle",
   profileTextArtistImageStyle: "Artist.ObjectStyle",
   cardStreamingDay: "Card.StreamingDay",
+  cardOnlineBackgroundContainer: "Card.OnlineBackground",
+  cardOfflineBackgroundContainer: "Card.OfflineBackground",
   cardStreamingDate: "Card.StreamingDate",
   cardStreamingTime: "Card.StreamingTime",
   cardMainTitleContainer: "Card.MainTitleContainer",
@@ -227,6 +231,8 @@ export const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "profileTextWrapperStyle",
   "profileTextStyle",
   "profileTextArtistImageStyle",
+  "cardOnlineBackgroundContainer",
+  "cardOfflineBackgroundContainer",
   "cardStreamingDay",
   "streamingDayStyle",
   "cardStreamingDate",
@@ -259,6 +265,8 @@ export const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   profileTextWrapperStyle: "profileText",
   profileTextStyle: "profileText",
   profileTextArtistImageStyle: "profileText",
+  cardOnlineBackgroundContainer: "cardNode:online-background",
+  cardOfflineBackgroundContainer: "cardNode:offline-background",
   cardStreamingDay: "cardStreamingDay",
   cardStreamingDate: "cardStreamingDate",
   cardStreamingTime: "cardStreamingTime",
@@ -294,6 +302,8 @@ export const v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
     Extract<keyof V2TemplateRenderConfig["layout"]["card"], string>
   >
 > = {
+  cardOnlineBackgroundContainer: "onlineBackgroundContainer",
+  cardOfflineBackgroundContainer: "offlineBackgroundContainer",
   cardStreamingDay: "streamingDay",
   cardStreamingDate: "streamingDate",
   cardStreamingTime: "streamingTime",

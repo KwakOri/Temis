@@ -34,6 +34,7 @@ interface UseTemplateSimplePropertiesPanelParams {
   onChangeCardInstanceMode: (mode: "component" | "detached") => void;
   onAppendCardTextNode: () => void;
   onAppendCardFlexibleTextNode: () => void;
+  onAppendCardImageNode: () => void;
   onUpdateCardInstanceTransform: (
     instanceId: string,
     key: "offsetX" | "offsetY" | "rotateDeg" | "scale" | "opacity",
@@ -58,6 +59,7 @@ const useTemplateSimplePropertiesPanel = ({
   onChangeCardInstanceMode,
   onAppendCardTextNode,
   onAppendCardFlexibleTextNode,
+  onAppendCardImageNode,
   onUpdateCardInstanceTransform,
   renderStyleSectionEditor,
 }: UseTemplateSimplePropertiesPanelParams) => {
@@ -81,6 +83,7 @@ const useTemplateSimplePropertiesPanel = ({
         onChangeInstanceMode={onChangeCardInstanceMode}
         onAppendTextNode={onAppendCardTextNode}
         onAppendFlexibleTextNode={onAppendCardFlexibleTextNode}
+        onAppendImageNode={onAppendCardImageNode}
         onUpdateInstanceTransform={onUpdateCardInstanceTransform}
       />
     );

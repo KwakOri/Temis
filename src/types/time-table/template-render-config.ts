@@ -290,7 +290,11 @@ export type V2TemplateCardOptionsKey = string;
 
 export type V2TemplateSceneStyleKey = string;
 
-export type V2TemplateCardNodeKind = "text" | "flexibleText";
+export type V2TemplateCardImageAssetByDayKey = Partial<
+  Record<V2TemplateDayKey, V2TemplateAssetRef>
+>;
+
+export type V2TemplateCardNodeKind = "text" | "flexibleText" | "image";
 
 export type V2TemplateCardNodeBinding = V2TemplateNodeBindingRef;
 
@@ -394,6 +398,7 @@ export interface V2TemplateGraphNodeStyleRefs {
 
 export interface V2TemplateGraphNodeMeta {
   assetRef?: V2TemplateAssetRef;
+  assetRefByDayKey?: V2TemplateCardImageAssetByDayKey;
   assetRole?: V2TemplateSceneAssetRole;
   fit?: V2TemplateSceneAssetFit;
   alt?: string;
@@ -435,8 +440,6 @@ export interface V2TemplateGraphComponentDefinition {
   kind?: "template" | "custom";
   instanceMode?: V2TemplateComponentInstanceMode;
   instanceTransforms?: Record<string, V2TemplateCardInstanceTransform>;
-  onlineBackgroundAssetRef?: V2TemplateAssetRef;
-  offlineBackgroundAssetRef?: V2TemplateAssetRef;
   detachedAt?: string;
 }
 
@@ -482,6 +485,10 @@ export interface V2TemplateCardNode {
   optionsKey?: V2TemplateCardOptionsKey;
   colorKey: V2TemplateColorKey;
   fontKey: V2TemplateFontKey;
+  assetRef?: V2TemplateAssetRef;
+  assetRefByDayKey?: V2TemplateCardImageAssetByDayKey;
+  fit?: V2TemplateSceneAssetFit;
+  alt?: string;
   containerClassName?: string;
   textClassName?: string;
 }
@@ -498,8 +505,6 @@ export interface V2TemplateCardStructure {
   containerLayerId: string;
   containerHighlightTarget: V2TemplateHighlightTarget;
   containerStyleKey: V2TemplateCardStyleKey;
-  onlineBackgroundAssetRef?: V2TemplateAssetRef;
-  offlineBackgroundAssetRef?: V2TemplateAssetRef;
   instanceMode: V2TemplateComponentInstanceMode;
   instanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
   nodeOrder: string[];
@@ -523,6 +528,8 @@ export interface V2TemplateLayoutConfig {
   profileTextStyle?: V2TemplateStyleRecord;
   profileTextArtistImageStyle?: V2TemplateStyleRecord;
   card: {
+    onlineBackgroundContainer?: V2TemplateStyleRecord;
+    offlineBackgroundContainer?: V2TemplateStyleRecord;
     streamingDay: V2TemplateStyleRecord;
     streamingDate: V2TemplateStyleRecord;
     streamingTime: V2TemplateStyleRecord;

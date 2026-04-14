@@ -326,7 +326,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     return next;
   }, [runtimeSceneNodes]);
   const bindableCardNodeLabels = useMemo(() => {
-    return allRuntimeCardNodes.map((node) => node.label);
+    return allRuntimeCardNodes
+      .filter((node) => node.kind !== "image")
+      .map((node) => node.label);
   }, [allRuntimeCardNodes]);
   const runtimeSceneTextNodes = useMemo(
     () => v2_collectSceneTextNodes(runtimeSceneNodes),
@@ -879,6 +881,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateCardNodeVisibilityMode,
     updateCardNodeBinding,
     updateCardNodeMeta,
+    updateCardImageNodeAssetRef,
+    updateCardImageNodeAssetRefByDayKey,
+    updateCardImageNodeFit,
+    updateCardImageNodeAlt,
     appendCardNode,
     removeCardNode,
     updateCardInstanceMode,
@@ -902,8 +908,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateSceneComponentInstanceBindingOverride,
     removeSceneComponentInstanceBindingOverride,
     isSceneCustomNode,
-    addSceneSiblingNode,
-    addSceneChildNode,
     moveSceneNode,
     relocateSceneNode,
     extractSceneComponentInstanceCopy,
@@ -1349,8 +1353,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       });
     },
     onRemoveSceneNode: removeSceneNode,
-    onAddSceneSiblingNode: addSceneSiblingNode,
-    onAddSceneChildNode: addSceneChildNode,
     onUpdateSceneNodeLabel: updateSceneNodeLabel,
     onUpdateSceneAssetNodeMeta: updateSceneAssetNodeMeta,
     onUpdateSceneNodeVisibilityMode: updateSceneNodeVisibilityMode,
@@ -1365,7 +1367,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       if (!structure) return [];
       return structure.nodeOrder
         .map((nodeId) => structure.nodes[nodeId])
-        .filter((node): node is V2TemplateCardNode => Boolean(node));
+        .filter(
+          (node): node is V2TemplateCardNode =>
+            Boolean(node) && node.kind !== "image"
+        );
     },
     onUpdateSceneComponentInstanceDayKey: updateSceneComponentInstanceDayKey,
     onUpdateSceneComponentInstanceInstanceId:
@@ -1406,10 +1411,20 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       onUpdateMaxFontSize: updateMaxFontSize,
       onRemoveCardNode: removeCardNode,
       onUpdateCardNodeMeta: updateCardNodeMeta,
+      onUpdateCardImageNodeAssetRef: updateCardImageNodeAssetRef,
+      onUpdateCardImageNodeAssetRefByDayKey: updateCardImageNodeAssetRefByDayKey,
+      onUpdateCardImageNodeFit: updateCardImageNodeFit,
+      onUpdateCardImageNodeAlt: updateCardImageNodeAlt,
       onUpdateCardNodeVisibilityMode: updateCardNodeVisibilityMode,
       onUpdateCardNodeBinding: updateCardNodeBinding,
       onUpdateNodeNewFieldDraft: updateNodeNewFieldDraft,
       onCreateFieldForCardNodeBinding: createFieldForCardNodeBinding,
+      assetKeys: v2_ASSET_KEYS,
+      assetLabels: v2_ASSET_LABELS,
+      extraAssetKeys: Object.keys(renderConfig.extraAssets).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+      dayKeyOptions,
       onUpdateSceneTextNodeMeta: updateSceneTextNodeMeta,
       onUpdateSceneTextNodeVisibilityMode: updateSceneTextNodeVisibilityMode,
       onUpdateSceneTextNodeBinding: updateSceneTextNodeBinding,
@@ -1430,6 +1445,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     onChangeCardInstanceMode: updateCardInstanceMode,
     onAppendCardTextNode: () => appendCardNode("text"),
     onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),
+    onAppendCardImageNode: () => appendCardNode("image"),
     onUpdateCardInstanceTransform: updateCardInstanceTransform,
     renderStyleSectionEditor,
   });
@@ -1454,6 +1470,12 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         renderSceneCardCollectionProperties={renderSceneCardCollectionProperties}
         renderSceneComponentInstanceProperties={renderSceneComponentInstanceProperties}
         renderSimplePropertiesSection={renderSimplePropertiesSection}
+        renderEmptyPropertiesPanel={() => (
+          <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 text-xs text-gray-400">
+            Layers 탭에서 오브젝트를 선택하거나, 레이어 영역을 우클릭해 새 오브젝트를
+            추가하세요.
+          </div>
+        )}
       />
     </TemplatePropertiesTab>
   );
@@ -1478,7 +1500,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             </button>
           ) : null}
         </div>
-        <div className="flex-1 min-h-0 h-full bg-timetable-form-bg overflow-y-auto p-4">
+        <div className="flex-1 min-h-0 h-full bg-timetable-form-bg overflow-y-auto p-4 pb-[60px]">
             <TemplatePropertiesTabsRenderer
               activeTab={activeTab}
               renderConfig={renderConfig}

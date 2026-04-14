@@ -735,8 +735,39 @@ const useTemplateThemeAssetActions = ({
         const assetRef = node.meta?.assetRef;
         const isTargetExtraAssetRef =
           assetRef?.source === "extra" && assetRef.key === normalizedKey;
+        const prevAssetRefByDayKey = node.meta?.assetRefByDayKey ?? {};
+        const nextAssetRefByDayKey = Object.entries(prevAssetRefByDayKey).reduce<
+          typeof prevAssetRefByDayKey
+        >((acc, [dayKey, dayAssetRef]) => {
+          if (
+            dayAssetRef?.source === "extra" &&
+            dayAssetRef.key === normalizedKey
+          ) {
+            return acc;
+          }
+          acc[dayKey as keyof typeof prevAssetRefByDayKey] = dayAssetRef;
+          return acc;
+        }, {});
+        const hasDayRefRemoval =
+          Object.keys(nextAssetRefByDayKey).length !==
+          Object.keys(prevAssetRefByDayKey).length;
+
         if (!isTargetExtraAssetRef) {
-          nextGraphNodes[nodeId] = node;
+          if (!hasDayRefRemoval) {
+            nextGraphNodes[nodeId] = node;
+            return;
+          }
+          const nextMeta = {
+            ...(node.meta ?? {}),
+            ...(Object.keys(nextAssetRefByDayKey).length > 0
+              ? { assetRefByDayKey: nextAssetRefByDayKey }
+              : { assetRefByDayKey: undefined }),
+          };
+          nextGraphNodes[nodeId] = {
+            ...node,
+            meta: nextMeta,
+          };
+          graphNodesChanged = true;
           return;
         }
 
@@ -744,6 +775,11 @@ const useTemplateThemeAssetActions = ({
           ...(node.meta ?? {}),
         };
         delete nextMeta.assetRef;
+        if (Object.keys(nextAssetRefByDayKey).length > 0) {
+          nextMeta.assetRefByDayKey = nextAssetRefByDayKey;
+        } else {
+          delete nextMeta.assetRefByDayKey;
+        }
         nextGraphNodes[nodeId] = {
           ...node,
           meta: nextMeta,
@@ -751,47 +787,15 @@ const useTemplateThemeAssetActions = ({
         graphNodesChanged = true;
       });
 
-      let componentDefinitionsChanged = false;
-      const nextComponentDefinitions: typeof prev.graph.componentDefinitions = {};
-      Object.entries(prev.graph.componentDefinitions).forEach(
-        ([componentId, definition]) => {
-          const onlineRef = definition.onlineBackgroundAssetRef;
-          const offlineRef = definition.offlineBackgroundAssetRef;
-          const shouldClearOnline =
-            onlineRef?.source === "extra" && onlineRef.key === normalizedKey;
-          const shouldClearOffline =
-            offlineRef?.source === "extra" && offlineRef.key === normalizedKey;
-
-          if (!shouldClearOnline && !shouldClearOffline) {
-            nextComponentDefinitions[componentId] = definition;
-            return;
-          }
-
-          componentDefinitionsChanged = true;
-          nextComponentDefinitions[componentId] = {
-            ...definition,
-            ...(shouldClearOnline
-              ? { onlineBackgroundAssetRef: undefined }
-              : {}),
-            ...(shouldClearOffline
-              ? { offlineBackgroundAssetRef: undefined }
-              : {}),
-          };
-        }
-      );
-
       return {
         ...prev,
         extraAssets: nextExtraAssets,
         extraAssetDimensions: nextExtraAssetDimensions,
-        ...(graphNodesChanged || componentDefinitionsChanged
+        ...(graphNodesChanged
           ? {
               graph: {
                 ...prev.graph,
                 ...(graphNodesChanged ? { nodes: nextGraphNodes } : {}),
-                ...(componentDefinitionsChanged
-                  ? { componentDefinitions: nextComponentDefinitions }
-                  : {}),
               },
             }
           : {}),

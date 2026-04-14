@@ -23,6 +23,7 @@ interface TemplateCardComponentPropertiesProps {
   onChangeInstanceMode: (value: "component" | "detached") => void;
   onAppendTextNode: () => void;
   onAppendFlexibleTextNode: () => void;
+  onAppendImageNode: () => void;
   onUpdateInstanceTransform: (
     instanceId: string,
     key: "offsetX" | "offsetY" | "rotateDeg" | "scale" | "opacity",
@@ -38,6 +39,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
   onChangeInstanceMode,
   onAppendTextNode,
   onAppendFlexibleTextNode,
+  onAppendImageNode,
   onUpdateInstanceTransform,
 }) => {
   const uniqueInstances = React.useMemo(() => {
@@ -85,7 +87,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
         </p>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         <button
           type="button"
           onClick={onAppendTextNode}
@@ -99,6 +101,13 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
           className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
         >
           + FlexibleText
+        </button>
+        <button
+          type="button"
+          onClick={onAppendImageNode}
+          className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-xs font-semibold text-gray-100 hover:bg-[#323640]"
+        >
+          + 이미지 오브젝트
         </button>
       </div>
 
@@ -138,7 +147,7 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
               현재 연결된 Card 인스턴스가 없어 개별 보정을 표시할 수 없습니다.
             </div>
           ) : null}
-          {uniqueInstances.map((instance, index) => {
+          {uniqueInstances.map((instance) => {
             const key = instance.instanceId;
             const transform = instanceTransforms[key] ?? {};
             const offsetX =

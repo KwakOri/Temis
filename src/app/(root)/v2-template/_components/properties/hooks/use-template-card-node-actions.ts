@@ -1,13 +1,17 @@
 "use client";
 
 import {
+  V2TemplateAssetRef,
   V2TemplateCardInstanceTransform,
   V2TemplateCardNode,
   V2TemplateCardNodeKind,
+  V2TemplateDayKey,
   V2TemplateGraphNode,
   V2TemplateCardOptionsKey,
   V2TemplateColorKey,
   V2TemplateRenderConfig,
+  V2TemplateSceneAssetFit,
+  V2TemplateStyleRecord,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import {
@@ -40,6 +44,35 @@ const useTemplateCardNodeActions = ({
   resolveActiveComponentId,
 }: UseTemplateCardNodeActionsParams) => {
   const v2_cardNodeToGraphNode = (node: V2TemplateCardNode): V2TemplateGraphNode => {
+    if (node.kind === "image") {
+      return {
+        id: node.id,
+        type: "image",
+        label: node.label,
+        parentId: null,
+        childIds: [],
+        layerId: node.layerId,
+        highlightTarget: node.highlightTarget,
+        visibilityMode: node.visibilityMode,
+        binding: node.binding,
+        styles: {
+          containerStyleKey: node.containerStyleKey,
+        },
+        meta: {
+          layerTarget: node.highlightTarget,
+          layerSectionKey: node.containerStyleKey,
+          layerIcon: "image",
+          ...(node.assetRef ? { assetRef: node.assetRef } : {}),
+          ...(node.assetRefByDayKey ? { assetRefByDayKey: node.assetRefByDayKey } : {}),
+          ...(node.fit ? { fit: node.fit } : {}),
+          ...(node.alt ? { alt: node.alt } : {}),
+          ...(node.containerClassName
+            ? { containerClassName: node.containerClassName }
+            : {}),
+        },
+      };
+    }
+
     return {
       id: node.id,
       type: node.kind === "flexibleText" ? "flexibleText" : "text",
@@ -114,6 +147,7 @@ const useTemplateCardNodeActions = ({
     safeUpdateConfig((prev) => {
       const graphNode = prev.graph.nodes[nodeId];
       if (!graphNode) return prev;
+      if (graphNode.type === "image") return prev;
       const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
         ...node,
         binding,
@@ -171,6 +205,117 @@ const useTemplateCardNodeActions = ({
     });
   };
 
+  const updateCardImageNodeAssetRef = ({
+    nodeId,
+    assetRef,
+  }: {
+    nodeId: string;
+    assetRef: V2TemplateAssetRef | null;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode || graphNode.type !== "image") return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          ...(assetRef ? { assetRef } : { assetRef: undefined }),
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
+  const updateCardImageNodeAssetRefByDayKey = ({
+    nodeId,
+    dayKey,
+    assetRef,
+  }: {
+    nodeId: string;
+    dayKey: V2TemplateDayKey;
+    assetRef: V2TemplateAssetRef | null;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode || graphNode.type !== "image") return prev;
+      const prevByDay = graphNode.meta?.assetRefByDayKey ?? {};
+      const nextByDay = {
+        ...prevByDay,
+      };
+      if (assetRef) {
+        nextByDay[dayKey] = assetRef;
+      } else {
+        delete nextByDay[dayKey];
+      }
+      const hasByDay = Object.keys(nextByDay).length > 0;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          ...(hasByDay
+            ? { assetRefByDayKey: nextByDay }
+            : { assetRefByDayKey: undefined }),
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
+  const updateCardImageNodeFit = ({
+    nodeId,
+    fit,
+  }: {
+    nodeId: string;
+    fit: V2TemplateSceneAssetFit;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode || graphNode.type !== "image") return prev;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          fit,
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
+  const updateCardImageNodeAlt = ({
+    nodeId,
+    alt,
+  }: {
+    nodeId: string;
+    alt: string;
+  }) => {
+    safeUpdateConfig((prev) => {
+      const graphNode = prev.graph.nodes[nodeId];
+      if (!graphNode || graphNode.type !== "image") return prev;
+      const normalizedAlt = alt.trim();
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
+        ...node,
+        meta: {
+          ...(node.meta ?? {}),
+          ...(normalizedAlt.length > 0 ? { alt: normalizedAlt } : { alt: undefined }),
+        },
+      }));
+      return {
+        ...prev,
+        graph: nextGraph,
+      };
+    });
+  };
+
   const appendCardNode = (kind: V2TemplateCardNodeKind) => {
     safeUpdateConfig((prev) => {
       const componentIdCandidate = resolveActiveComponentId?.(prev);
@@ -207,11 +352,18 @@ const useTemplateCardNodeActions = ({
         },
         visibilityMode: "always",
         containerStyleKey,
-        textStyleKey,
+        ...(kind !== "image" ? { textStyleKey } : {}),
         ...(kind === "flexibleText" ? { wrapperStyleKey, optionsKey } : {}),
         colorKey: "SUB_TITLE",
         fontKey: "SUB_TITLE",
-        containerClassName: v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+        ...(kind === "image"
+          ? {
+              fit: "cover" as const,
+              containerClassName: "absolute",
+            }
+          : {
+              containerClassName: v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+            }),
         ...(kind === "flexibleText"
           ? { textClassName: v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME }
           : {}),
@@ -219,13 +371,23 @@ const useTemplateCardNodeActions = ({
 
       const nextCardLayout = {
         ...prev.layout.card,
-        ...v2_createDefaultTextNodeLayoutPatch({
-          containerStyleKey,
-          textStyleKey,
-          wrapperStyleKey,
-          optionsKey,
-          isFlexibleText: kind === "flexibleText",
-        }),
+        ...(kind === "image"
+          ? {
+              [containerStyleKey]: {
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: 720,
+                height: 560,
+              } as V2TemplateStyleRecord,
+            }
+          : v2_createDefaultTextNodeLayoutPatch({
+              containerStyleKey,
+              textStyleKey,
+              wrapperStyleKey,
+              optionsKey,
+              isFlexibleText: kind === "flexibleText",
+            })),
       };
 
       const nextGraphNode = v2_cardNodeToGraphNode(nextNode);
@@ -429,6 +591,10 @@ const useTemplateCardNodeActions = ({
     updateCardNodeVisibilityMode,
     updateCardNodeBinding,
     updateCardNodeMeta,
+    updateCardImageNodeAssetRef,
+    updateCardImageNodeAssetRefByDayKey,
+    updateCardImageNodeFit,
+    updateCardImageNodeAlt,
     appendCardNode,
     removeCardNode,
     updateCardInstanceMode,

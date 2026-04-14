@@ -98,6 +98,21 @@ const v2_normalizeAssetRef = (candidate: unknown): V2TemplateAssetRef | undefine
   return undefined;
 };
 
+const v2_normalizeAssetRefByDayKey = (
+  candidate: unknown
+): Partial<Record<V2TemplateDayKey, V2TemplateAssetRef>> | undefined => {
+  if (!v2_isRecord(candidate)) return undefined;
+  const next: Partial<Record<V2TemplateDayKey, V2TemplateAssetRef>> = {};
+  Object.entries(candidate).forEach(([rawDayKey, rawAssetRef]) => {
+    const dayKey = v2_parseDayKey(rawDayKey);
+    if (!dayKey) return;
+    const normalizedAssetRef = v2_normalizeAssetRef(rawAssetRef);
+    if (!normalizedAssetRef) return;
+    next[dayKey] = normalizedAssetRef;
+  });
+  return Object.keys(next).length > 0 ? next : undefined;
+};
+
 export const v2_isEntryFieldBindingKey = (
   binding: V2TemplateCardNodeBinding,
   key: string
@@ -327,6 +342,24 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
         sectionKey: "cardContainer",
         children: [
           {
+            id: "online-background",
+            label: "OnlineBackground",
+            kind: "component",
+            visibilityMode: "always",
+            icon: "image",
+            target: "cardNode:online-background",
+            sectionKey: "onlineBackgroundContainer",
+          },
+          {
+            id: "offline-background",
+            label: "OfflineBackground",
+            kind: "component",
+            visibilityMode: "always",
+            icon: "image",
+            target: "cardNode:offline-background",
+            sectionKey: "offlineBackgroundContainer",
+          },
+          {
             id: "streaming-day",
             label: "StreamingDay",
             kind: "component",
@@ -483,17 +516,11 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
   containerStyleKey: "container",
-  onlineBackgroundAssetRef: {
-    source: "builtin",
-    key: "onlineByTheme",
-  },
-  offlineBackgroundAssetRef: {
-    source: "builtin",
-    key: "offlineByTheme",
-  },
   instanceMode: "component",
   instanceTransforms: {},
   nodeOrder: [
+    "online-background",
+    "offline-background",
     "streaming-day",
     "streaming-date",
     "sub-title",
@@ -501,6 +528,50 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
     "streaming-time",
   ],
   nodes: {
+    "online-background": {
+      id: "online-background",
+      label: "OnlineBackground",
+      kind: "image",
+      layerId: "online-background",
+      highlightTarget: "cardNode:online-background",
+      binding: {
+        mode: "literal",
+        value: "",
+      },
+      visibilityMode: "onlineOnly",
+      containerStyleKey: "onlineBackgroundContainer",
+      colorKey: "SUB_TITLE",
+      fontKey: "SUB_TITLE",
+      assetRef: {
+        source: "builtin",
+        key: "onlineByTheme",
+      },
+      fit: "cover",
+      alt: "online-card-bg",
+      containerClassName: "absolute pointer-events-none",
+    },
+    "offline-background": {
+      id: "offline-background",
+      label: "OfflineBackground",
+      kind: "image",
+      layerId: "offline-background",
+      highlightTarget: "cardNode:offline-background",
+      binding: {
+        mode: "literal",
+        value: "",
+      },
+      visibilityMode: "offlineOnly",
+      containerStyleKey: "offlineBackgroundContainer",
+      colorKey: "SUB_TITLE",
+      fontKey: "SUB_TITLE",
+      assetRef: {
+        source: "builtin",
+        key: "offlineByTheme",
+      },
+      fit: "cover",
+      alt: "offline-card-bg",
+      containerClassName: "absolute pointer-events-none",
+    },
     "streaming-day": {
       id: "streaming-day",
       label: "StreamingDay",
@@ -797,6 +868,7 @@ const v2_mapSceneNodeKindToGraphType = (
 const v2_mapCardNodeKindToGraphType = (
   kind: V2TemplateCardNode["kind"]
 ): V2TemplateGraphNodeType => {
+  if (kind === "image") return "image";
   if (kind === "flexibleText") return "flexibleText";
   return "text";
 };
@@ -1263,20 +1335,36 @@ const v2_createDefaultNodeGraph = ({
       binding: cardNode.binding,
       styles: {
         containerStyleKey: cardNode.containerStyleKey,
-        ...(cardNode.textStyleKey ? { textStyleKey: cardNode.textStyleKey } : {}),
-        ...(cardNode.wrapperStyleKey
+        ...(cardNode.kind !== "image" && cardNode.textStyleKey
+          ? { textStyleKey: cardNode.textStyleKey }
+          : {}),
+        ...(cardNode.kind !== "image" && cardNode.wrapperStyleKey
           ? { wrapperStyleKey: cardNode.wrapperStyleKey }
           : {}),
-        ...(cardNode.optionsKey ? { optionsKey: cardNode.optionsKey } : {}),
+        ...(cardNode.kind !== "image" && cardNode.optionsKey
+          ? { optionsKey: cardNode.optionsKey }
+          : {}),
       },
       meta: {
         ...(layerMeta ?? {}),
-        colorKey: cardNode.colorKey,
-        fontKey: cardNode.fontKey,
+        ...(cardNode.kind !== "image"
+          ? {
+              colorKey: cardNode.colorKey,
+              fontKey: cardNode.fontKey,
+            }
+          : {}),
+        ...(cardNode.kind === "image" && cardNode.assetRef
+          ? { assetRef: cardNode.assetRef }
+          : {}),
+        ...(cardNode.kind === "image" && cardNode.assetRefByDayKey
+          ? { assetRefByDayKey: cardNode.assetRefByDayKey }
+          : {}),
+        ...(cardNode.kind === "image" && cardNode.fit ? { fit: cardNode.fit } : {}),
+        ...(cardNode.kind === "image" && cardNode.alt ? { alt: cardNode.alt } : {}),
         ...(typeof cardNode.containerClassName === "string"
           ? { containerClassName: cardNode.containerClassName }
           : {}),
-        ...(typeof cardNode.textClassName === "string"
+        ...(cardNode.kind !== "image" && typeof cardNode.textClassName === "string"
           ? { textClassName: cardNode.textClassName }
           : {}),
       },
@@ -1295,12 +1383,6 @@ const v2_createDefaultNodeGraph = ({
       kind: "template",
       instanceMode: card.instanceMode,
       instanceTransforms: card.instanceTransforms,
-      ...(card.onlineBackgroundAssetRef
-        ? { onlineBackgroundAssetRef: card.onlineBackgroundAssetRef }
-        : {}),
-      ...(card.offlineBackgroundAssetRef
-        ? { offlineBackgroundAssetRef: card.offlineBackgroundAssetRef }
-        : {}),
     },
   };
   const seededNodes = v2_seedDefaultCardCollectionInstances({
@@ -1594,6 +1676,18 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       height: 2250,
     },
     card: {
+      onlineBackgroundContainer: {
+        width: 720,
+        height: 560,
+        top: 0,
+        left: 0,
+      },
+      offlineBackgroundContainer: {
+        width: 720,
+        height: 560,
+        top: 0,
+        left: 0,
+      },
       streamingDay: {
         position: "absolute",
         top: 0,
@@ -1953,6 +2047,12 @@ const v2_normalizeGraphNodeMeta = (
   if (normalizedAssetRef) {
     next.assetRef = normalizedAssetRef;
   }
+  const normalizedAssetRefByDayKey = v2_normalizeAssetRefByDayKey(
+    candidate.assetRefByDayKey
+  );
+  if (normalizedAssetRefByDayKey) {
+    next.assetRefByDayKey = normalizedAssetRefByDayKey;
+  }
   if (
     typeof candidate.assetRole === "string" &&
     v2_SCENE_ASSET_ROLE_SET.has(candidate.assetRole)
@@ -2242,12 +2342,6 @@ const v2_normalizeNodeGraph = (
           rawDefinition.instanceTransforms,
           {}
         );
-        const normalizedOnlineBackgroundAssetRef = v2_normalizeAssetRef(
-          rawDefinition.onlineBackgroundAssetRef
-        );
-        const normalizedOfflineBackgroundAssetRef = v2_normalizeAssetRef(
-          rawDefinition.offlineBackgroundAssetRef
-        );
         nextComponentDefinitions[id] = {
           id,
           label: v2_asString(rawDefinition.label, id),
@@ -2267,12 +2361,6 @@ const v2_normalizeNodeGraph = (
             : {}),
           ...(Object.keys(instanceTransforms).length > 0
             ? { instanceTransforms }
-            : {}),
-          ...(normalizedOnlineBackgroundAssetRef
-            ? { onlineBackgroundAssetRef: normalizedOnlineBackgroundAssetRef }
-            : {}),
-          ...(normalizedOfflineBackgroundAssetRef
-            ? { offlineBackgroundAssetRef: normalizedOfflineBackgroundAssetRef }
             : {}),
           ...(typeof rawDefinition.detachedAt === "string"
             ? { detachedAt: rawDefinition.detachedAt }
@@ -2941,6 +3029,22 @@ export const v2_createDefaultTemplateRenderConfig = (): V2TemplateRenderConfig =
   return v2_clone(v2_DEFAULT_TEMPLATE_RENDER_CONFIG);
 };
 
+export const v2_createEmptyTemplateNodeGraph = (): V2TemplateNodeGraph => {
+  return {
+    rootNodeIds: [],
+    nodes: {},
+    componentDefinitions: {},
+  };
+};
+
+export const v2_createEmptyTemplateRenderConfig = (): V2TemplateRenderConfig => {
+  const normalized = v2_createDefaultTemplateRenderConfig();
+  return {
+    ...normalized,
+    graph: v2_createEmptyTemplateNodeGraph(),
+  };
+};
+
 export const v2_normalizeTemplateRenderConfig = (
   raw: unknown
 ): V2TemplateRenderConfig => {
@@ -3326,6 +3430,14 @@ export const v2_normalizeTemplateRenderConfig = (
     const cardLayoutSource = v2_isRecord(layout.card) ? layout.card : null;
 
     if (cardLayoutSource) {
+      normalized.layout.card.onlineBackgroundContainer = v2_mergeStyleRecord(
+        normalized.layout.card.onlineBackgroundContainer,
+        cardLayoutSource.onlineBackgroundContainer
+      );
+      normalized.layout.card.offlineBackgroundContainer = v2_mergeStyleRecord(
+        normalized.layout.card.offlineBackgroundContainer,
+        cardLayoutSource.offlineBackgroundContainer
+      );
       normalized.layout.card.streamingDay = v2_mergeStyleRecord(
         normalized.layout.card.streamingDay,
         cardLayoutSource.streamingDay

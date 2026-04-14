@@ -170,10 +170,54 @@ const v2_toComponentInstanceBindingOverrides = (
 };
 
 const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | null => {
-  if (graphNode.type !== "text" && graphNode.type !== "flexibleText") return null;
+  if (
+    graphNode.type !== "text" &&
+    graphNode.type !== "flexibleText" &&
+    graphNode.type !== "image"
+  ) {
+    return null;
+  }
 
   const containerStyleKey = graphNode.styles?.containerStyleKey;
   if (!containerStyleKey) return null;
+
+  if (graphNode.type === "image") {
+    const sanitizedContainerClassName = v2_stripTailwindZClasses(
+      graphNode.meta?.containerClassName
+    );
+    const assetRef = v2_toAssetRef(graphNode);
+    const fit = v2_toSceneAssetFit(graphNode.meta?.fit);
+
+    return {
+      id: graphNode.id,
+      label: graphNode.label || graphNode.id,
+      kind: "image",
+      layerId: graphNode.layerId ?? graphNode.id,
+      highlightTarget:
+        (graphNode.highlightTarget ??
+          graphNode.meta?.layerTarget ??
+          "cardContainer") as V2TemplateCardNode["highlightTarget"],
+      binding: {
+        mode: "literal",
+        value: "",
+      },
+      visibilityMode: v2_toVisibilityMode(graphNode.visibilityMode) ?? "always",
+      containerStyleKey,
+      colorKey: "SUB_TITLE",
+      fontKey: "SUB_TITLE",
+      ...(assetRef ? { assetRef } : {}),
+      ...(graphNode.meta?.assetRefByDayKey
+        ? { assetRefByDayKey: graphNode.meta.assetRefByDayKey }
+        : {}),
+      ...(fit ? { fit } : {}),
+      ...(typeof graphNode.meta?.alt === "string" ? { alt: graphNode.meta.alt } : {}),
+      ...(sanitizedContainerClassName
+        ? {
+            containerClassName: sanitizedContainerClassName,
+          }
+        : {}),
+    };
+  }
 
   const colorKey =
     graphNode.meta?.colorKey && v2_COLOR_KEY_SET.has(graphNode.meta.colorKey)
@@ -454,15 +498,7 @@ export const v2_getRuntimeSceneNodes = (
 const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
-  containerStyleKey: "cardContainer",
-  onlineBackgroundAssetRef: {
-    source: "builtin",
-    key: "onlineByTheme",
-  },
-  offlineBackgroundAssetRef: {
-    source: "builtin",
-    key: "offlineByTheme",
-  },
+  containerStyleKey: "container",
   instanceMode: "component",
   instanceTransforms: {},
   nodeOrder: [],
@@ -481,12 +517,6 @@ export const v2_getRuntimeCardStructureByComponentId = (
   if (!cardRootNode) {
     return {
       ...v2_EMPTY_CARD_STRUCTURE,
-      ...(componentDefinition.onlineBackgroundAssetRef
-        ? { onlineBackgroundAssetRef: componentDefinition.onlineBackgroundAssetRef }
-        : {}),
-      ...(componentDefinition.offlineBackgroundAssetRef
-        ? { offlineBackgroundAssetRef: componentDefinition.offlineBackgroundAssetRef }
-        : {}),
       instanceMode: componentDefinition.instanceMode ?? "component",
       instanceTransforms: componentDefinition.instanceTransforms ?? {},
     };
@@ -514,12 +544,6 @@ export const v2_getRuntimeCardStructureByComponentId = (
       cardRootNode.styles?.containerStyleKey ??
       cardRootNode.meta?.layerSectionKey ??
       "cardContainer",
-    ...(componentDefinition.onlineBackgroundAssetRef
-      ? { onlineBackgroundAssetRef: componentDefinition.onlineBackgroundAssetRef }
-      : {}),
-    ...(componentDefinition.offlineBackgroundAssetRef
-      ? { offlineBackgroundAssetRef: componentDefinition.offlineBackgroundAssetRef }
-      : {}),
     instanceMode: componentDefinition.instanceMode ?? "component",
     instanceTransforms: componentDefinition.instanceTransforms ?? {},
     nodeOrder: nextNodeOrder,
