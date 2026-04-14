@@ -2,7 +2,7 @@
 
 import {
   V2TemplateAssetDimension,
-  V2TemplateAssetMap,
+  V2TemplateBuiltinAssetKey,
   V2TemplateColorKey,
   V2TemplateFontFaceSource,
   V2TemplateFontRegistryItem,
@@ -628,7 +628,7 @@ const useTemplateThemeAssetActions = ({
   };
 
   const updateAssetUrl = (
-    key: keyof V2TemplateAssetMap,
+    key: V2TemplateBuiltinAssetKey,
     theme: string,
     value: string,
     dimension: V2TemplateAssetDimension | null = null
@@ -650,6 +650,153 @@ const useTemplateThemeAssetActions = ({
         },
       },
     }));
+  };
+
+  const updateExtraAssetUrl = (
+    key: string,
+    theme: string,
+    value: string,
+    dimension: V2TemplateAssetDimension | null = null
+  ) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) return;
+
+    safeUpdateConfig((prev) => ({
+      ...prev,
+      extraAssets: {
+        ...prev.extraAssets,
+        [normalizedKey]: {
+          ...(prev.extraAssets[normalizedKey] ?? {}),
+          [theme]: value.trim() === "" ? null : value,
+        },
+      },
+      extraAssetDimensions: {
+        ...prev.extraAssetDimensions,
+        [normalizedKey]: {
+          ...(prev.extraAssetDimensions[normalizedKey] ?? {}),
+          [theme]: value.trim() === "" ? null : dimension,
+        },
+      },
+    }));
+  };
+
+  const addExtraAssetKey = (key: string, themes: string[]) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) return;
+
+    safeUpdateConfig((prev) => {
+      if (normalizedKey in prev.assets) return prev;
+      if (prev.extraAssets[normalizedKey]) return prev;
+
+      const seededThemeMap: Record<string, string | null> = {};
+      const seededDimensionThemeMap: Record<string, V2TemplateAssetDimension | null> = {};
+
+      themes.forEach((theme) => {
+        const normalizedTheme = theme.trim();
+        if (!normalizedTheme) return;
+        seededThemeMap[normalizedTheme] = null;
+        seededDimensionThemeMap[normalizedTheme] = null;
+      });
+
+      if (Object.keys(seededThemeMap).length === 0) {
+        seededThemeMap.first = null;
+        seededDimensionThemeMap.first = null;
+      }
+
+      return {
+        ...prev,
+        extraAssets: {
+          ...prev.extraAssets,
+          [normalizedKey]: seededThemeMap,
+        },
+        extraAssetDimensions: {
+          ...prev.extraAssetDimensions,
+          [normalizedKey]: seededDimensionThemeMap,
+        },
+      };
+    });
+  };
+
+  const removeExtraAssetKey = (key: string) => {
+    const normalizedKey = key.trim();
+    if (!normalizedKey) return;
+
+    safeUpdateConfig((prev) => {
+      if (!prev.extraAssets[normalizedKey]) return prev;
+
+      const nextExtraAssets = { ...prev.extraAssets };
+      const nextExtraAssetDimensions = { ...prev.extraAssetDimensions };
+      delete nextExtraAssets[normalizedKey];
+      delete nextExtraAssetDimensions[normalizedKey];
+
+      let graphNodesChanged = false;
+      const nextGraphNodes: typeof prev.graph.nodes = {};
+      Object.entries(prev.graph.nodes).forEach(([nodeId, node]) => {
+        const assetRef = node.meta?.assetRef;
+        const isTargetExtraAssetRef =
+          assetRef?.source === "extra" && assetRef.key === normalizedKey;
+        if (!isTargetExtraAssetRef) {
+          nextGraphNodes[nodeId] = node;
+          return;
+        }
+
+        const nextMeta = {
+          ...(node.meta ?? {}),
+        };
+        delete nextMeta.assetRef;
+        nextGraphNodes[nodeId] = {
+          ...node,
+          meta: nextMeta,
+        };
+        graphNodesChanged = true;
+      });
+
+      let componentDefinitionsChanged = false;
+      const nextComponentDefinitions: typeof prev.graph.componentDefinitions = {};
+      Object.entries(prev.graph.componentDefinitions).forEach(
+        ([componentId, definition]) => {
+          const onlineRef = definition.onlineBackgroundAssetRef;
+          const offlineRef = definition.offlineBackgroundAssetRef;
+          const shouldClearOnline =
+            onlineRef?.source === "extra" && onlineRef.key === normalizedKey;
+          const shouldClearOffline =
+            offlineRef?.source === "extra" && offlineRef.key === normalizedKey;
+
+          if (!shouldClearOnline && !shouldClearOffline) {
+            nextComponentDefinitions[componentId] = definition;
+            return;
+          }
+
+          componentDefinitionsChanged = true;
+          nextComponentDefinitions[componentId] = {
+            ...definition,
+            ...(shouldClearOnline
+              ? { onlineBackgroundAssetRef: undefined }
+              : {}),
+            ...(shouldClearOffline
+              ? { offlineBackgroundAssetRef: undefined }
+              : {}),
+          };
+        }
+      );
+
+      return {
+        ...prev,
+        extraAssets: nextExtraAssets,
+        extraAssetDimensions: nextExtraAssetDimensions,
+        ...(graphNodesChanged || componentDefinitionsChanged
+          ? {
+              graph: {
+                ...prev.graph,
+                ...(graphNodesChanged ? { nodes: nextGraphNodes } : {}),
+                ...(componentDefinitionsChanged
+                  ? { componentDefinitions: nextComponentDefinitions }
+                  : {}),
+              },
+            }
+          : {}),
+      };
+    });
   };
 
   const readImageFileAsDataUrl = (
@@ -688,7 +835,7 @@ const useTemplateThemeAssetActions = ({
   };
 
   const handleAssetFileUpload = async (
-    key: keyof V2TemplateAssetMap,
+    key: V2TemplateBuiltinAssetKey,
     theme: string,
     file: File | null
   ) => {
@@ -702,6 +849,24 @@ const useTemplateThemeAssetActions = ({
       });
     } catch (error) {
       console.error("Failed to upload asset image", error);
+    }
+  };
+
+  const handleExtraAssetFileUpload = async (
+    key: string,
+    theme: string,
+    file: File | null
+  ) => {
+    if (!file) return;
+
+    try {
+      const result = await readImageFileAsDataUrl(file);
+      updateExtraAssetUrl(key, theme, result.dataUrl, {
+        width: result.width,
+        height: result.height,
+      });
+    } catch (error) {
+      console.error("Failed to upload extra asset image", error);
     }
   };
 
@@ -720,8 +885,12 @@ const useTemplateThemeAssetActions = ({
     updateComponentFont,
     updateMaxFontSize,
     updateAssetUrl,
+    updateExtraAssetUrl,
+    addExtraAssetKey,
+    removeExtraAssetKey,
     readImageFileAsDataUrl,
     handleAssetFileUpload,
+    handleExtraAssetFileUpload,
   };
 };
 

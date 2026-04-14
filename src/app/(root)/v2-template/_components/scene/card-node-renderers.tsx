@@ -34,6 +34,11 @@ export const V2PlainTextNodeRenderer: React.FC<V2PlainTextNodeRendererProps> = (
   fontFamily,
   color,
 }) => {
+  const nextTextStyle = { ...textStyle } as React.CSSProperties &
+    Record<string, unknown>;
+  // PlainText는 containerStyle에서 위치/회전을 관리하므로 textStyle transform은 무시한다.
+  delete nextTextStyle.transform;
+
   return (
     <p
       key={nodeId}
@@ -42,7 +47,7 @@ export const V2PlainTextNodeRenderer: React.FC<V2PlainTextNodeRendererProps> = (
         fontFamily,
         ...containerStyle,
         ...(width !== undefined ? { width } : {}),
-        ...textStyle,
+        ...nextTextStyle,
         ...highlightStyle,
       }}
       className={containerClassName ?? "absolute flex items-center justify-center"}

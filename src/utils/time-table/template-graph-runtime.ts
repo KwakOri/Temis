@@ -1,5 +1,6 @@
 import {
   v2_TEMPLATE_COMPUTED_BINDING_KEYS,
+  V2TemplateAssetRef,
   V2TemplateComponentInstanceBindingOverrides,
   v2_TEMPLATE_COLOR_KEYS,
   V2TemplateCardNode,
@@ -9,6 +10,7 @@ import {
   V2TemplateNodeBindingRef,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetFit,
+  V2TemplateSceneAssetRole,
   V2TemplateSceneNode,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
@@ -42,6 +44,40 @@ const v2_toVisibilityMode = (value: unknown): V2TemplateVisibilityMode | undefin
 
 const v2_toSceneAssetFit = (value: unknown): V2TemplateSceneAssetFit | undefined => {
   if (value === "cover" || value === "contain" || value === "fill") return value;
+  return undefined;
+};
+
+const v2_toSceneAssetRole = (value: unknown): V2TemplateSceneAssetRole | undefined => {
+  if (
+    value === "general" ||
+    value === "background" ||
+    value === "guideOverlay" ||
+    value === "profileImage" ||
+    value === "profileFrame"
+  ) {
+    return value;
+  }
+  return undefined;
+};
+
+const v2_toAssetRef = (graphNode: V2TemplateGraphNode): V2TemplateAssetRef | undefined => {
+  const metaAssetRef = graphNode.meta?.assetRef;
+  if (metaAssetRef?.source === "builtin" && typeof metaAssetRef.key === "string") {
+    return {
+      source: "builtin",
+      key: metaAssetRef.key,
+    };
+  }
+  if (
+    metaAssetRef?.source === "extra" &&
+    typeof metaAssetRef.key === "string" &&
+    metaAssetRef.key.trim().length > 0
+  ) {
+    return {
+      source: "extra",
+      key: metaAssetRef.key.trim(),
+    };
+  }
   return undefined;
 };
 
@@ -228,15 +264,19 @@ const v2_buildSceneNodeFromGraph = ({
   }
 
   if (graphNode.type === "image") {
-    if (!graphNode.meta?.assetKey) return null;
+    const assetRef = v2_toAssetRef(graphNode);
+    const fit = v2_toSceneAssetFit(graphNode.meta?.fit);
+    const assetRole = v2_toSceneAssetRole(graphNode.meta?.assetRole);
+    const alt = typeof graphNode.meta?.alt === "string" ? graphNode.meta.alt : undefined;
 
     return {
       ...base,
       kind: "asset",
-      assetKey: graphNode.meta.assetKey,
+      ...(assetRef ? { assetRef } : {}),
+      ...(assetRole ? { assetRole } : {}),
       ...(graphNode.styles?.styleKey ? { styleKey: graphNode.styles.styleKey } : {}),
-      ...(v2_toSceneAssetFit(graphNode.meta.fit) ? { fit: graphNode.meta.fit } : {}),
-      ...(typeof graphNode.meta.alt === "string" ? { alt: graphNode.meta.alt } : {}),
+      ...(fit ? { fit } : {}),
+      ...(alt ? { alt } : {}),
     };
   }
 
@@ -415,6 +455,14 @@ const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
   containerStyleKey: "cardContainer",
+  onlineBackgroundAssetRef: {
+    source: "builtin",
+    key: "onlineByTheme",
+  },
+  offlineBackgroundAssetRef: {
+    source: "builtin",
+    key: "offlineByTheme",
+  },
   instanceMode: "component",
   instanceTransforms: {},
   nodeOrder: [],
@@ -433,6 +481,12 @@ export const v2_getRuntimeCardStructureByComponentId = (
   if (!cardRootNode) {
     return {
       ...v2_EMPTY_CARD_STRUCTURE,
+      ...(componentDefinition.onlineBackgroundAssetRef
+        ? { onlineBackgroundAssetRef: componentDefinition.onlineBackgroundAssetRef }
+        : {}),
+      ...(componentDefinition.offlineBackgroundAssetRef
+        ? { offlineBackgroundAssetRef: componentDefinition.offlineBackgroundAssetRef }
+        : {}),
       instanceMode: componentDefinition.instanceMode ?? "component",
       instanceTransforms: componentDefinition.instanceTransforms ?? {},
     };
@@ -460,6 +514,12 @@ export const v2_getRuntimeCardStructureByComponentId = (
       cardRootNode.styles?.containerStyleKey ??
       cardRootNode.meta?.layerSectionKey ??
       "cardContainer",
+    ...(componentDefinition.onlineBackgroundAssetRef
+      ? { onlineBackgroundAssetRef: componentDefinition.onlineBackgroundAssetRef }
+      : {}),
+    ...(componentDefinition.offlineBackgroundAssetRef
+      ? { offlineBackgroundAssetRef: componentDefinition.offlineBackgroundAssetRef }
+      : {}),
     instanceMode: componentDefinition.instanceMode ?? "component",
     instanceTransforms: componentDefinition.instanceTransforms ?? {},
     nodeOrder: nextNodeOrder,

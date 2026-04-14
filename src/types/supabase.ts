@@ -941,6 +941,105 @@ export type Database = {
           },
         ]
       }
+      template_render_config_drafts: {
+        Row: {
+          base_revision_no: number | null
+          config_version: number
+          created_at: string
+          id: string
+          is_autosave: boolean
+          render_config: Json
+          template_id: string
+          updated_at: string
+          user_id: number
+        }
+        Insert: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config: Json
+          template_id: string
+          updated_at?: string
+          user_id: number
+        }
+        Update: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_render_config_drafts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_render_config_drafts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_render_config_revisions: {
+        Row: {
+          config_version: number
+          created_at: string
+          created_by: number | null
+          id: string
+          render_config: Json
+          revision_no: number
+          source: string
+          template_id: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config: Json
+          revision_no: number
+          source?: string
+          template_id: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config?: Json
+          revision_no?: number
+          source?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_render_config_revisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_render_config_revisions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_render_configs: {
         Row: {
           config_version: number

@@ -82,6 +82,90 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
       ],
     },
   ],
+  memoContainer: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+      ],
+    },
+  ],
+  memoContentContainer: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  memoTextContainer: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+      ],
+    },
+    {
+      id: "layout",
+      label: "Layout",
+      fields: [
+        { key: "display", label: "Display", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.display },
+        { key: "justifyContent", label: "Justify", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent },
+        { key: "alignItems", label: "Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems },
+      ],
+    },
+  ],
+  memoTextStyle: [
+    {
+      id: "typography",
+      label: "Typography",
+      fields: [
+        { key: "fontFamily", label: "Font Family", type: "text" },
+        { key: "fontSize", label: "Font Size" },
+        { key: "fontWeight", label: "Font Weight" },
+        { key: "lineHeight", label: "Line Height", step: "0.1" },
+        { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+        { key: "textAlign", label: "Text Align", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign },
+        { key: "color", label: "Color", type: "text", placeholder: "#A7A7A7" },
+        { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
+        { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
+      ],
+    },
+  ],
   profileImage: [
     {
       id: "transform",

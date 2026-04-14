@@ -8,6 +8,7 @@ export interface V2TemplateRenderConfigResponse {
   renderConfig: V2TemplateRenderConfig;
   createdAt: string | null;
   updatedAt: string | null;
+  latestRevisionNo?: number | null;
 }
 
 export class V2TemplateRenderConfigService {

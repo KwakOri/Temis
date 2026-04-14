@@ -133,7 +133,7 @@ const useTemplateSceneStructureActions = ({
           label: `Asset ${ordinal}`,
           kind: "asset",
           layerId,
-          assetKey: "topObjectByTheme",
+          assetRole: "general",
           styleKey,
           fit: "cover",
           alt: `asset-${ordinal}`,

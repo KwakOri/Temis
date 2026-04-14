@@ -2,13 +2,14 @@ import React, { useMemo } from "react";
 
 import {
   useTemplateRenderConfigContext,
-  getAssetUrlFromConfig,
+  resolveAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
 import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import {
   V2TemplateSceneAssetNode,
+  V2TemplateSceneAssetRole,
   V2TemplateSceneCardCollectionNode,
   V2TemplateSceneComponentInstanceNode,
   V2TemplateSceneNode,
@@ -71,6 +72,17 @@ const v2_toRenderableLayout = (
   };
 };
 
+const v2_resolveSceneAssetRole = (
+  node: Pick<V2TemplateSceneAssetNode, "id" | "layerId" | "assetRole">
+): V2TemplateSceneAssetRole => {
+  if (node.assetRole) return node.assetRole;
+  if (node.layerId === "profile-image") return "profileImage";
+  if (node.layerId === "profile-frame") return "profileFrame";
+  if (node.id === "scene-background") return "background";
+  if (node.id === "scene-guide-overlay") return "guideOverlay";
+  return "general";
+};
+
 const V2SceneStructureRenderer = ({
   sceneNodes,
 }: {
@@ -85,7 +97,7 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateEditorRuntimeContext();
-  const { weekDates, profileText, memoText, imageSrc, preferProfileDummyImage } =
+  const { weekDates, profileText, memoText, imageSrc } =
     useTemplateEditorData();
   const runtimeLayerTree = useMemo(
     () => v2_getRuntimeLayerTree(renderConfig),
@@ -271,26 +283,22 @@ const V2SceneStructureRenderer = ({
   };
 
   const renderAssetNode = (node: V2TemplateSceneAssetNode) => {
-    const isProfileImage = node.layerId === "profile-image";
-    const isProfileFrame = node.layerId === "profile-frame";
-    const isBackground = node.assetKey === "bgByTheme";
-    const isGuideOverlay = node.assetKey === "guideByTheme";
+    const assetRole = v2_resolveSceneAssetRole(node);
+    const isProfileImage = assetRole === "profileImage";
+    const isProfileFrame = assetRole === "profileFrame";
+    const isBackground = assetRole === "background";
+    const isGuideOverlay = assetRole === "guideOverlay";
 
-    const configuredAssetUrl = getAssetUrlFromConfig({
+    const configuredAssetUrl = resolveAssetUrlFromConfig({
       renderConfig,
-      key: node.assetKey,
+      assetRef: node.assetRef,
       currentTheme,
     });
     const uploadedProfileImage =
       isProfileImage && typeof imageSrc === "string" && imageSrc.trim()
         ? imageSrc
         : null;
-    const assetUrl = isProfileImage
-      ? preferProfileDummyImage
-        ? configuredAssetUrl ?? uploadedProfileImage
-        : uploadedProfileImage ?? configuredAssetUrl
-      : configuredAssetUrl;
-    if (!assetUrl) return null;
+    const assetUrl = isProfileImage ? uploadedProfileImage : configuredAssetUrl;
 
     const style = node.styleKey
       ? v2_toRenderableLayoutStyle(resolveStyleRecordByKey(node.styleKey))
@@ -336,6 +344,21 @@ const V2SceneStructureRenderer = ({
               };
 
     const fit = node.fit ?? "cover";
+
+    if (!assetUrl) {
+      if (!isProfileImage) return null;
+
+      return (
+        <div
+          key={node.id}
+          style={{
+            ...baseStyle,
+            ...style,
+            ...highlightStyle,
+          }}
+        />
+      );
+    }
 
     return (
       <div
@@ -435,7 +458,6 @@ const V2SceneStructureRenderer = ({
           weekDate={weekDate}
           index={dataIndex}
           cardStructure={runtimeCardStructure}
-          bindingOverrides={node.bindingOverrides}
         />
       </div>
     );
@@ -499,10 +521,11 @@ const V2SceneStructureRenderer = ({
         const rendered = renderSceneNode(node, false);
         if (!rendered) return null;
         const layerId = node.layerId ?? node.id;
+        const rootAssetRole = node.kind === "asset" ? v2_resolveSceneAssetRole(node) : null;
         const rootZIndex =
-          node.kind === "asset" && node.assetKey === "bgByTheme"
+          rootAssetRole === "background"
             ? -1000
-            : node.kind === "asset" && node.assetKey === "guideByTheme"
+            : rootAssetRole === "guideOverlay"
               ? 1000
               : rootLayerZIndexById[layerId];
         if (rootZIndex === undefined) return rendered;

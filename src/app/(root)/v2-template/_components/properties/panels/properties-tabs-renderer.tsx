@@ -4,7 +4,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 
 import {
-  V2TemplateAssetMap,
+  V2TemplateBuiltinAssetKey,
   V2TemplateFieldScope,
   V2TemplateFormField,
   V2TemplateRenderConfig,
@@ -42,8 +42,9 @@ interface TemplatePropertiesTabsRendererProps {
   computedKeys: readonly string[];
   scopeOptions: Array<{ value: V2TemplateFieldScope; label: string }>;
   typeOptions: Array<{ value: V2TemplateFormField["type"]; label: string }>;
-  assetKeys: Array<keyof V2TemplateAssetMap>;
-  assetLabels: Record<keyof V2TemplateAssetMap, string>;
+  assetKeys: V2TemplateBuiltinAssetKey[];
+  assetLabels: Record<V2TemplateBuiltinAssetKey, string>;
+  extraAssetKeys: string[];
   renderStyleTab: () => React.ReactNode;
   renderPropertiesTab: () => React.ReactNode;
   onUpdateTemplateSize: (key: "width" | "height", value: number) => void;
@@ -61,11 +62,15 @@ interface TemplatePropertiesTabsRendererProps {
   ) => void;
   onTogglePreferProfileDummyImage: (value: boolean) => void;
   onUploadAssetFile: (
-    key: keyof V2TemplateAssetMap,
+    key: V2TemplateBuiltinAssetKey,
     theme: string,
     file: File | null
   ) => void;
-  onResetAsset: (key: keyof V2TemplateAssetMap, theme: string) => void;
+  onResetAsset: (key: V2TemplateBuiltinAssetKey, theme: string) => void;
+  onCreateExtraAssetKey: (key: string) => void;
+  onRemoveExtraAssetKey: (key: string) => void;
+  onUploadExtraAssetFile: (key: string, theme: string, file: File | null) => void;
+  onResetExtraAsset: (key: string, theme: string) => void;
   onChangeDataField: (
     scope: "entry" | "card" | "global",
     key: string,
@@ -153,6 +158,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
   typeOptions,
   assetKeys,
   assetLabels,
+  extraAssetKeys,
   renderStyleTab,
   renderPropertiesTab,
   onUpdateTemplateSize,
@@ -168,6 +174,10 @@ const TemplatePropertiesTabsRenderer: React.FC<
   onTogglePreferProfileDummyImage,
   onUploadAssetFile,
   onResetAsset,
+  onCreateExtraAssetKey,
+  onRemoveExtraAssetKey,
+  onUploadExtraAssetFile,
+  onResetExtraAsset,
   onChangeDataField,
   onToggleOffline,
   onSelectEntryIndex,
@@ -226,10 +236,15 @@ const TemplatePropertiesTabsRenderer: React.FC<
       preferProfileDummyImage={preferProfileDummyImage}
       assetKeys={assetKeys}
       assetLabels={assetLabels}
+      extraAssetKeys={extraAssetKeys}
       setAssetTheme={setAssetTheme}
       onTogglePreferProfileDummyImage={onTogglePreferProfileDummyImage}
-      onUploadFile={onUploadAssetFile}
-      onResetAsset={onResetAsset}
+      onUploadBuiltinFile={onUploadAssetFile}
+      onResetBuiltinAsset={onResetAsset}
+      onCreateExtraAssetKey={onCreateExtraAssetKey}
+      onRemoveExtraAssetKey={onRemoveExtraAssetKey}
+      onUploadExtraFile={onUploadExtraAssetFile}
+      onResetExtraAsset={onResetExtraAsset}
     />
   );
 

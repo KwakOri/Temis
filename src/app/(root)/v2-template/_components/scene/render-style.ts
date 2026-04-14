@@ -22,17 +22,31 @@ export const v2_toRenderableStyle = (value: unknown): CSSProperties => {
 
   const raw = value as Record<string, unknown>;
   const { rotateDeg, ...rest } = raw;
-  const style = rest as CSSProperties;
-
-  if (style.rotate !== undefined) return style;
+  const nextRest = { ...rest };
+  delete nextRest.rotate;
+  const style = { ...(nextRest as CSSProperties) } as CSSProperties &
+    Record<string, unknown>;
 
   const rotate = v2_parseRotateDeg(rotateDeg);
   if (!rotate) return style;
 
-  return {
-    ...style,
-    rotate,
-  };
+  const nextStyle: CSSProperties & Record<string, unknown> = { ...style };
+
+  const transform =
+    typeof nextStyle.transform === "string" ? nextStyle.transform.trim() : "";
+  if (transform.length === 0) {
+    nextStyle.transform = `rotate(${rotate})`;
+    return nextStyle;
+  }
+
+  const rotatePattern = /rotate\(([^)]*)\)/i;
+  if (rotatePattern.test(transform)) {
+    nextStyle.transform = transform.replace(rotatePattern, `rotate(${rotate})`);
+    return nextStyle;
+  }
+
+  nextStyle.transform = `${transform} rotate(${rotate})`;
+  return nextStyle;
 };
 
 const v2_hasOffsetProperty = (style: CSSProperties): boolean => {

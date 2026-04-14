@@ -100,7 +100,8 @@ export const v2_sceneNodeToGraphNode = (
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       ...(sceneNode.styleKey ? { styles: { styleKey: sceneNode.styleKey } } : {}),
       meta: {
-        assetKey: sceneNode.assetKey,
+        ...(sceneNode.assetRef ? { assetRef: sceneNode.assetRef } : {}),
+        ...(sceneNode.assetRole ? { assetRole: sceneNode.assetRole } : {}),
         ...(sceneNode.fit ? { fit: sceneNode.fit } : {}),
         ...(sceneNode.alt ? { alt: sceneNode.alt } : {}),
         ...(sceneNode.styleKey ? { layerSectionKey: sceneNode.styleKey } : {}),

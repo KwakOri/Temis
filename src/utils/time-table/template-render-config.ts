@@ -15,6 +15,8 @@ import {
   V2TemplateComponentInstanceMode,
   V2TemplateComputedBindingKey,
   V2TemplateCardStructure,
+  V2TemplateAssetRef,
+  V2TemplateBuiltinAssetKey,
   V2TemplateColorPalette,
   V2TemplateColorKey,
   V2TemplateEditorOptions,
@@ -35,6 +37,7 @@ import {
   V2TemplateNodeGraph,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetFit,
+  V2TemplateSceneAssetRole,
   V2TemplateSceneNode,
   V2TemplateStreamingDayFormat,
   V2TemplateStreamingTimeFormat,
@@ -65,6 +68,36 @@ const v2_ASSET_KEYS = [
 ] as const;
 
 const v2_ASSET_KEY_SET = new Set<string>(v2_ASSET_KEYS);
+
+const v2_isBuiltinAssetKey = (value: unknown): value is V2TemplateBuiltinAssetKey => {
+  return typeof value === "string" && v2_ASSET_KEY_SET.has(value);
+};
+
+const v2_toBuiltinAssetRef = (
+  value: V2TemplateBuiltinAssetKey
+): V2TemplateAssetRef => ({
+  source: "builtin",
+  key: value,
+});
+
+const v2_normalizeAssetRef = (candidate: unknown): V2TemplateAssetRef | undefined => {
+  if (!v2_isRecord(candidate)) return undefined;
+  if (candidate.source === "builtin" && v2_isBuiltinAssetKey(candidate.key)) {
+    return v2_toBuiltinAssetRef(candidate.key);
+  }
+  if (
+    candidate.source === "extra" &&
+    typeof candidate.key === "string" &&
+    candidate.key.trim().length > 0
+  ) {
+    return {
+      source: "extra",
+      key: candidate.key.trim(),
+    };
+  }
+  return undefined;
+};
+
 export const v2_isEntryFieldBindingKey = (
   binding: V2TemplateCardNodeBinding,
   key: string
@@ -388,9 +421,27 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
         target: "profileFrame",
         sectionKey: "profileFrame",
       },
+    ],
+  },
+  {
+    id: "artist",
+    label: "Artist",
+    kind: "group",
+    visibilityMode: "always",
+    icon: "group",
+    children: [
+      {
+        id: "artist-object",
+        label: "Object",
+        kind: "component",
+        visibilityMode: "always",
+        icon: "image",
+        target: "profileText",
+        sectionKey: "profileTextArtistImageStyle",
+      },
       {
         id: "profile-text",
-        label: "ProfileText",
+        label: "Text",
         kind: "component",
         visibilityMode: "always",
         icon: "text",
@@ -422,7 +473,7 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
         visibilityMode: "always",
         icon: "text",
         target: "memoText",
-        sectionKey: "memoTextContainer",
+        sectionKey: "memoContentContainer",
       },
     ],
   },
@@ -432,6 +483,14 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
   containerStyleKey: "container",
+  onlineBackgroundAssetRef: {
+    source: "builtin",
+    key: "onlineByTheme",
+  },
+  offlineBackgroundAssetRef: {
+    source: "builtin",
+    key: "offlineByTheme",
+  },
   instanceMode: "component",
   instanceTransforms: {},
   nodeOrder: [
@@ -540,20 +599,15 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
 
 const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
   {
-    id: "scene-background",
-    label: "Background",
-    kind: "asset",
-    assetKey: "bgByTheme",
-    fit: "cover",
-    alt: "background",
-    visibilityMode: "always",
-  },
-  {
     id: "scene-top-object",
     label: "TopObject",
     kind: "asset",
     layerId: "top-object",
-    assetKey: "topObjectByTheme",
+    assetRef: {
+      source: "builtin",
+      key: "topObjectByTheme",
+    },
+    assetRole: "general",
     styleKey: "topObjectContainer",
     fit: "fill",
     alt: "top-object",
@@ -584,34 +638,47 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     visibilityMode: "always",
   },
   {
-    id: "scene-profile",
-    label: "Profile",
+    id: "scene-memo-object",
+    label: "MemoObject",
+    kind: "asset",
+    layerId: "memo-object",
+    assetRef: {
+      source: "builtin",
+      key: "memoByTheme",
+    },
+    assetRole: "general",
+    styleKey: "memoContainer",
+    fit: "fill",
+    alt: "memo-object",
+    visibilityMode: "always",
+  },
+  {
+    id: "scene-memo-text",
+    label: "MemoText",
+    kind: "flexibleText",
+    layerId: "memo-text",
+    binding: {
+      mode: "field",
+      scope: "global",
+      key: "memoText",
+    },
+    containerStyleKey: "memoContentContainer",
+    wrapperStyleKey: "memoTextContainer",
+    textStyleKey: "memoTextStyle",
+    colorKey: "ARTIST",
+    fontKey: "ARTIST",
+    highlightTarget: "memoText",
+    containerClassName: "absolute flex justify-center items-center",
+    textClassName: "text-center",
+    visibilityMode: "always",
+  },
+  {
+    id: "scene-artist",
+    label: "Artist",
     kind: "group",
-    layerId: "profile",
+    layerId: "artist",
     visibilityMode: "always",
     children: [
-      {
-        id: "scene-profile-image",
-        label: "ProfileImage",
-        kind: "asset",
-        layerId: "profile-image",
-        assetKey: "profileBgByTheme",
-        styleKey: "profileImage",
-        fit: "cover",
-        alt: "profile",
-        visibilityMode: "always",
-      },
-      {
-        id: "scene-profile-frame",
-        label: "ProfileFrame",
-        kind: "asset",
-        layerId: "profile-frame",
-        assetKey: "profileFrameByTheme",
-        styleKey: "profileFrame",
-        fit: "fill",
-        alt: "profile-frame",
-        visibilityMode: "always",
-      },
       {
         id: "scene-profile-text",
         label: "ProfileText",
@@ -632,43 +699,84 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
         textClassName: "text-center",
         visibilityMode: "always",
       },
+      {
+        id: "scene-artist-object",
+        label: "ArtistObject",
+        kind: "asset",
+        layerId: "artist-object",
+        assetRef: {
+          source: "builtin",
+          key: "profileBgByTheme",
+        },
+        assetRole: "general",
+        styleKey: "profileTextArtistImageStyle",
+        fit: "fill",
+        alt: "artist-object",
+        visibilityMode: "always",
+      },
     ],
   },
   {
-    id: "scene-memo-object",
-    label: "MemoObject",
-    kind: "asset",
-    layerId: "memo-object",
-    assetKey: "memoByTheme",
-    styleKey: "memoContainer",
-    fit: "fill",
-    alt: "memo-object",
+    id: "scene-profile",
+    label: "Profile",
+    kind: "group",
+    layerId: "profile",
     visibilityMode: "always",
+    children: [
+      {
+        id: "scene-profile-image",
+        label: "ProfileImage",
+        kind: "asset",
+        layerId: "profile-image",
+        assetRef: {
+          source: "builtin",
+          key: "profileBgByTheme",
+        },
+        assetRole: "profileImage",
+        styleKey: "profileImage",
+        fit: "cover",
+        alt: "profile",
+        visibilityMode: "always",
+      },
+      {
+        id: "scene-profile-frame",
+        label: "ProfileFrame",
+        kind: "asset",
+        layerId: "profile-frame",
+        assetRef: {
+          source: "builtin",
+          key: "profileFrameByTheme",
+        },
+        assetRole: "profileFrame",
+        styleKey: "profileFrame",
+        fit: "fill",
+        alt: "profile-frame",
+        visibilityMode: "always",
+      },
+    ],
   },
   {
-    id: "scene-memo-text",
-    label: "MemoText",
-    kind: "flexibleText",
-    layerId: "memo-text",
-    binding: {
-      mode: "field",
-      scope: "global",
-      key: "memoText",
+    id: "scene-background",
+    label: "Background",
+    kind: "asset",
+    assetRef: {
+      source: "builtin",
+      key: "bgByTheme",
     },
-    containerStyleKey: "memoTextContainer",
-    textStyleKey: "memoTextStyle",
-    colorKey: "ARTIST",
-    fontKey: "ARTIST",
-    highlightTarget: "memoText",
-    containerClassName: "absolute flex justify-center items-center",
-    textClassName: "text-center",
+    assetRole: "background",
+    fit: "cover",
+    alt: "background",
     visibilityMode: "always",
   },
   {
     id: "scene-guide-overlay",
     label: "GuideOverlay",
     kind: "asset",
-    assetKey: "guideByTheme",
+    assetRef: {
+      source: "builtin",
+      key: "guideByTheme",
+    },
+    assetRole: "guideOverlay",
     fit: "cover",
     alt: "guide-overlay",
     visibilityMode: "always",
@@ -1035,7 +1143,8 @@ const v2_createDefaultNodeGraph = ({
       nextNode.styles = sceneNode.styleKey ? { styleKey: sceneNode.styleKey } : {};
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
-        assetKey: sceneNode.assetKey,
+        ...(sceneNode.assetRef ? { assetRef: sceneNode.assetRef } : {}),
+        ...(sceneNode.assetRole ? { assetRole: sceneNode.assetRole } : {}),
         ...(sceneNode.fit ? { fit: sceneNode.fit } : {}),
         ...(sceneNode.alt ? { alt: sceneNode.alt } : {}),
       };
@@ -1186,6 +1295,12 @@ const v2_createDefaultNodeGraph = ({
       kind: "template",
       instanceMode: card.instanceMode,
       instanceTransforms: card.instanceTransforms,
+      ...(card.onlineBackgroundAssetRef
+        ? { onlineBackgroundAssetRef: card.onlineBackgroundAssetRef }
+        : {}),
+      ...(card.offlineBackgroundAssetRef
+        ? { offlineBackgroundAssetRef: card.offlineBackgroundAssetRef }
+        : {}),
     },
   };
   const seededNodes = v2_seedDefaultCardCollectionInstances({
@@ -1210,59 +1325,36 @@ const v2_DEFAULT_GRAPH = v2_createDefaultNodeGraph({
   card: v2_DEFAULT_CARD_STRUCTURE,
 });
 
-const v2_DEFAULT_ESCRODREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
-  {
-    weight: 100,
-    style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-1Thin.woff",
-    format: "woff",
-  },
-  {
-    weight: 200,
-    style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-2ExtraLight.woff",
-    format: "woff",
-  },
-  {
-    weight: 300,
-    style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-3Light.woff",
-    format: "woff",
-  },
+const v2_DEFAULT_SCHOOL_SAFETY_NOTIFICATION_FACES: V2TemplateFontRegistryItem["faces"] =
+  [
+    {
+      weight: 400,
+      style: "normal",
+      src: "https://cdn.jsdelivr.net/gh/projectnoonnu/2408-5@1.0/HakgyoansimAllimjangTTF-R.woff2",
+      format: "woff2",
+    },
+    {
+      weight: 700,
+      style: "normal",
+      src: "https://cdn.jsdelivr.net/gh/projectnoonnu/2408-5@1.0/HakgyoansimAllimjangTTF-B.woff2",
+      format: "woff2",
+    },
+  ];
+
+const v2_DEFAULT_BAGEL_FAT_FACES: V2TemplateFontRegistryItem["faces"] = [
   {
     weight: 400,
     style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-4Regular.woff",
-    format: "woff",
+    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_JAMO@1.0/BagelFatOne-Regular.woff2",
+    format: "woff2",
   },
-  {
-    weight: 500,
-    style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-5Medium.woff",
-    format: "woff",
-  },
+];
+
+const v2_DEFAULT_ESCOREDREAM_FACES: V2TemplateFontRegistryItem["faces"] = [
   {
     weight: 600,
     style: "normal",
     src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-6Bold.woff",
-    format: "woff",
-  },
-  {
-    weight: 700,
-    style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-7ExtraBold.woff",
-    format: "woff",
-  },
-  {
-    weight: 800,
-    style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-8Heavy.woff",
-    format: "woff",
-  },
-  {
-    weight: 900,
-    style: "normal",
-    src: "https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_six@1.2/S-CoreDream-9Black.woff",
     format: "woff",
   },
 ];
@@ -1283,25 +1375,44 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   monthOption: "en",
   streamingDayFormat: v2_createDefaultStreamingDayFormat("en"),
   streamingTimeFormat: v2_createDefaultStreamingTimeFormat(),
-  weekDateFormat: v2_createDefaultWeekDateFormat("en"),
+  weekDateFormat: {
+    ...v2_createDefaultWeekDateFormat("en"),
+    dateOrder: "mdy",
+    includeYear: false,
+    monthStyle: "numeric",
+    dateStyle: "numeric",
+    dateSeparator: "/",
+    monthDateSeparator: "/",
+    rangeSeparator: " - ",
+  },
   themes: [v2_DEFAULT_THEME],
   defaultTheme: v2_DEFAULT_THEME,
   buttonThemes: [{ value: v2_DEFAULT_THEME, label: v2_DEFAULT_THEME }],
   fonts: {
     fontFaceDefaults: { ...v2_DEFAULT_FONT_FACE_METRICS },
     registry: {
+      schoolSafetyNotification: {
+        family: "SchoolSafetyNotification",
+        display: "swap",
+        faces: v2_DEFAULT_SCHOOL_SAFETY_NOTIFICATION_FACES,
+      },
+      bagelFat: {
+        family: "BagelFat",
+        display: "swap",
+        faces: v2_DEFAULT_BAGEL_FAT_FACES,
+      },
       escoredream: {
         family: "Escoredream",
         display: "swap",
-        faces: v2_DEFAULT_ESCRODREAM_FACES,
+        faces: v2_DEFAULT_ESCOREDREAM_FACES,
       },
     },
   },
   baseFonts: {
-    primary: "escoredream",
-    secondary: "escoredream",
-    tertiary: "escoredream",
-    quaternary: "escoredream",
+    primary: "schoolSafetyNotification",
+    secondary: "bagelFat",
+    tertiary: "schoolSafetyNotification",
+    quaternary: "schoolSafetyNotification",
   },
   baseColors: {
     first: {
@@ -1315,35 +1426,35 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   },
   componentColors: {
     MAIN_TITLE: "#EC7363",
-    SUB_TITLE: "#FFF6E5",
-    STREAMING_TIME: "#FFF6E5",
+    SUB_TITLE: "#FFF4E0",
+    STREAMING_TIME: "#FFF4E0",
     STREAMING_DATE: "#FFF6E5",
-    STREAMING_DAY: "#FFF6E5",
-    ARTIST: "#FFF6E5",
+    STREAMING_DAY: "#FFF4E0",
+    ARTIST: "#FFF4DF",
     WEEKLY_FLAG: "#FFF6E5",
   },
   componentFonts: {
     MAIN_TITLE: "primary",
     SUB_TITLE: "primary",
     STREAMING_TIME: "primary",
-    STREAMING_DATE: "primary",
+    STREAMING_DATE: "secondary",
     STREAMING_DAY: "primary",
     ARTIST: "primary",
     WEEKLY_FLAG: "primary",
   },
   maxFontSizes: {
     MAIN_TITLE: 82,
-    SUB_TITLE: 57,
-    ARTIST: 84,
+    SUB_TITLE: 58,
+    ARTIST: 76,
   },
   cardSizes: {
     online: {
-      width: 800,
-      height: 617,
+      width: 720,
+      height: 560,
     },
     offline: {
-      width: 800,
-      height: 617,
+      width: 720,
+      height: 560,
     },
     profile: {
       width: 1540,
@@ -1409,126 +1520,160 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
   },
+  extraAssets: {},
+  extraAssetDimensions: {},
   layout: {
     grid: {
       layoutMode: "grid3x3",
       flex42ThreeRow: "bottom",
       flex42Align: "center",
-      left: 32,
-      top: 96,
-      rowGap: 8,
+      left: 33,
+      top: 121,
+      rowGap: 68,
       columnGap: 20,
       columns: 3,
+      width: 2201,
+      height: 1816,
+      gridEmptySlotA: 3,
+      gridEmptySlotB: 6,
     },
     weekFlag: {
       fontSize: 76,
       fontWeight: 700,
       width: 580,
-      height: 120,
-      top: 564,
-      left: 1556,
+      height: 114,
+      top: 568,
+      left: 1557,
     },
     topObjectContainer: {
       position: "absolute",
       width: 4000,
       height: 2250,
-      zIndex: 30,
+      zIndex: 50,
     },
     profileImage: {
-      top: 516,
+      top: 496,
       left: 2400,
-      zIndex: 10,
+      zIndex: 20,
     },
     profileFrame: {
       position: "absolute",
       width: 4000,
       height: 2250,
-      zIndex: 20,
+      zIndex: 10,
     },
     profileTextRootStyle: {
-      left: 4,
+      position: "absolute",
+      left: 2630,
+      top: 1820,
+      width: 1000,
+      height: 120,
       zIndex: 30,
-      justifyContent: "flex-start",
+      justifyContent: "center",
       alignItems: "center",
     },
     profileTextWrapperStyle: {
       position: "absolute",
-      width: 1318,
-      height: 160,
-      bottom: 268,
-      right: 200,
-      rotate: "1.6deg",
+      left: 0,
+      top: 0,
+      width: 1000,
+      height: 120,
+      rotateDeg: 1.8,
+    },
+    profileTextStyle: {
+      fontSize: 76,
+      fontWeight: 700,
+      lineHeight: 1,
+      textAlign: "center",
+    },
+    profileTextArtistImageStyle: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: 4000,
+      height: 2250,
     },
     card: {
       streamingDay: {
+        position: "absolute",
         top: 0,
         left: 0,
-        width: 160,
-        height: 100,
-        display: "flex",
-        justifyContent: "flex-start",
-        alignItems: "center",
-        paddingLeft: 8,
+        width: 0,
+        height: 0,
+        opacity: 0,
+        pointerEvents: "none",
       },
       streamingDate: {
         width: 160,
         height: 100,
         position: "absolute",
-        top: -16,
-        left: -24,
+        top: 3,
+        left: 31,
+        rotateDeg: -13.5,
         zIndex: 10,
       },
       streamingTime: {
-        width: 252,
+        width: 540,
         height: 40,
-        top: 508,
+        left: 98,
+        top: 476,
       },
       mainTitleContainer: {
-        height: 280,
-        top: 132,
+        width: 540,
+        height: 240,
+        left: 98,
+        top: 123,
       },
       subTitleContainer: {
-        height: 64,
-        top: 440,
+        width: 540,
+        height: 76,
+        left: 98,
+        top: 404,
       },
       container: {
-        width: 800,
-        height: 617,
-        top: 68,
-        left: 10,
+        width: 720,
+        height: 560,
+        top: 0,
+        left: 0,
       },
       mainTitleTextStyle: {
-        lineHeight: 1.2,
+        fontSize: 82,
+        lineHeight: 1,
         fontWeight: 700,
+        textAlign: "center",
       },
       subTitleTextStyle: {
+        fontSize: 58,
         lineHeight: 1,
         fontWeight: 400,
+        letterSpacing: -1.16,
+        textAlign: "center",
       },
       mainTitleOptions: {
         maxFontSize: 82,
         multiline: true,
       },
       subTitleOptions: {
-        maxFontSize: 57,
-        multiline: true,
+        maxFontSize: 58,
+        multiline: false,
       },
       streamingDayStyle: {
-        fontSize: 56,
-        fontWeight: 700,
+        fontSize: 1,
+        fontWeight: 400,
         lineHeight: 1,
+        opacity: 0,
       },
       streamingDateStyle: {
         fontSize: 68,
         fontWeight: 400,
         lineHeight: 1,
-        letterSpacing: 3,
-        rotate: "-14deg",
+        letterSpacing: 0,
       },
       streamingTimeStyle: {
-        fontSize: 31,
+        fontSize: 32,
         fontWeight: 400,
         lineHeight: 1,
+        textAlign: "center",
       },
       mainTitleWrapperStyle: {
         display: "flex",
@@ -1541,7 +1686,38 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
         alignItems: "center",
       },
     },
-    scene: {},
+    scene: {
+      memoContainer: {
+        position: "absolute",
+        left: 1513,
+        top: 749,
+        width: 720,
+        height: 560,
+        zIndex: 60,
+      },
+      memoContentContainer: {
+        position: "absolute",
+        left: 1513,
+        top: 749,
+        width: 720,
+        height: 560,
+      },
+      memoTextContainer: {
+        position: "absolute",
+        left: 100,
+        top: 160,
+        width: 520,
+        height: 300,
+      },
+      memoTextStyle: {
+        fontFamily: "Escoredream",
+        color: "#EC6F62",
+        fontSize: 56,
+        fontWeight: 600,
+        lineHeight: 1,
+        textAlign: "center",
+      },
+    },
   },
   graph: v2_DEFAULT_GRAPH,
 };
@@ -1678,6 +1854,13 @@ const v2_VISIBILITY_MODE_SET = new Set([
 const v2_COMPONENT_INSTANCE_MODE_SET = new Set(["component", "detached"]);
 
 const v2_SCENE_ASSET_FIT_SET = new Set(["cover", "contain", "fill"]);
+const v2_SCENE_ASSET_ROLE_SET = new Set([
+  "general",
+  "background",
+  "guideOverlay",
+  "profileImage",
+  "profileFrame",
+]);
 
 const v2_isNonEmptyString = (value: unknown): value is string => {
   return typeof value === "string" && value.trim().length > 0;
@@ -1766,9 +1949,15 @@ const v2_normalizeGraphNodeMeta = (
   if (!v2_isRecord(candidate)) return undefined;
 
   const next: NonNullable<V2TemplateGraphNode["meta"]> = {};
-
-  if (typeof candidate.assetKey === "string" && v2_ASSET_KEY_SET.has(candidate.assetKey)) {
-    next.assetKey = candidate.assetKey as keyof V2TemplateRenderConfig["assets"];
+  const normalizedAssetRef = v2_normalizeAssetRef(candidate.assetRef);
+  if (normalizedAssetRef) {
+    next.assetRef = normalizedAssetRef;
+  }
+  if (
+    typeof candidate.assetRole === "string" &&
+    v2_SCENE_ASSET_ROLE_SET.has(candidate.assetRole)
+  ) {
+    next.assetRole = candidate.assetRole as V2TemplateSceneAssetRole;
   }
   if (
     typeof candidate.fit === "string" &&
@@ -2053,6 +2242,12 @@ const v2_normalizeNodeGraph = (
           rawDefinition.instanceTransforms,
           {}
         );
+        const normalizedOnlineBackgroundAssetRef = v2_normalizeAssetRef(
+          rawDefinition.onlineBackgroundAssetRef
+        );
+        const normalizedOfflineBackgroundAssetRef = v2_normalizeAssetRef(
+          rawDefinition.offlineBackgroundAssetRef
+        );
         nextComponentDefinitions[id] = {
           id,
           label: v2_asString(rawDefinition.label, id),
@@ -2072,6 +2267,12 @@ const v2_normalizeNodeGraph = (
             : {}),
           ...(Object.keys(instanceTransforms).length > 0
             ? { instanceTransforms }
+            : {}),
+          ...(normalizedOnlineBackgroundAssetRef
+            ? { onlineBackgroundAssetRef: normalizedOnlineBackgroundAssetRef }
+            : {}),
+          ...(normalizedOfflineBackgroundAssetRef
+            ? { offlineBackgroundAssetRef: normalizedOfflineBackgroundAssetRef }
             : {}),
           ...(typeof rawDefinition.detachedAt === "string"
             ? { detachedAt: rawDefinition.detachedAt }
@@ -2364,6 +2565,48 @@ const v2_mergeThemeAssetDimensionMap = (
   });
 
   return merged;
+};
+
+const v2_normalizeExtraAssetMap = (
+  candidate: unknown,
+  fallback: Record<string, Record<string, string | null>> = {}
+): Record<string, Record<string, string | null>> => {
+  const normalized: Record<string, Record<string, string | null>> = {
+    ...fallback,
+  };
+  if (!v2_isRecord(candidate)) return normalized;
+
+  Object.entries(candidate).forEach(([rawKey, value]) => {
+    const key = rawKey.trim();
+    if (key.length === 0) return;
+    normalized[key] = v2_mergeThemeStringMap(normalized[key] ?? {}, value);
+  });
+
+  return normalized;
+};
+
+const v2_normalizeExtraAssetDimensionMap = (
+  candidate: unknown,
+  fallback: Record<string, Record<string, { width: number; height: number } | null>> = {}
+): Record<string, Record<string, { width: number; height: number } | null>> => {
+  const normalized: Record<
+    string,
+    Record<string, { width: number; height: number } | null>
+  > = {
+    ...fallback,
+  };
+  if (!v2_isRecord(candidate)) return normalized;
+
+  Object.entries(candidate).forEach(([rawKey, value]) => {
+    const key = rawKey.trim();
+    if (key.length === 0) return;
+    normalized[key] = v2_mergeThemeAssetDimensionMap(
+      normalized[key] ?? {},
+      value
+    );
+  });
+
+  return normalized;
 };
 
 const v2_mergePaletteMap = (
@@ -3025,6 +3268,15 @@ export const v2_normalizeTemplateRenderConfig = (
       ),
     };
   }
+
+  normalized.extraAssets = v2_normalizeExtraAssetMap(
+    raw.extraAssets,
+    normalized.extraAssets
+  );
+  normalized.extraAssetDimensions = v2_normalizeExtraAssetDimensionMap(
+    raw.extraAssetDimensions,
+    normalized.extraAssetDimensions
+  );
 
   if (v2_isRecord(raw.layout)) {
     const layout = raw.layout;

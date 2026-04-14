@@ -7,7 +7,9 @@ import {
   V2TemplateCardNodeBinding,
   V2TemplateComputedBindingKey,
   v2_TEMPLATE_DAY_KEYS,
-  V2TemplateAssetMap,
+  V2TemplateAssetRef,
+  V2TemplateSceneAssetRole,
+  V2TemplateBuiltinAssetKey,
   V2TemplateDayKey,
   V2TemplateFormField,
   V2TemplateSceneAssetNode,
@@ -44,8 +46,9 @@ type V2StructureControlNode =
   | V2TemplateSceneComponentInstanceNode;
 
 interface UseTemplateSceneNodePropertyPanelsParams {
-  assetKeys: Array<keyof V2TemplateAssetMap>;
-  assetLabels: Record<keyof V2TemplateAssetMap, string>;
+  assetKeys: V2TemplateBuiltinAssetKey[];
+  assetLabels: Record<V2TemplateBuiltinAssetKey, string>;
+  extraAssetKeys: string[];
   sceneCardCollectionComponentOptions: Array<{ value: string; label: string }>;
   visibilityOptions: Array<{ value: V2TemplateVisibilityMode; label: string }>;
   isSceneCustomNode: (nodeId: string) => boolean;
@@ -77,7 +80,8 @@ interface UseTemplateSceneNodePropertyPanelsParams {
   onUpdateSceneNodeLabel: (nodeId: string, label: string) => void;
   onUpdateSceneAssetNodeMeta: (params: {
     nodeId: string;
-    assetKey?: keyof V2TemplateAssetMap;
+    assetRef?: V2TemplateAssetRef | null;
+    assetRole?: V2TemplateSceneAssetRole | null;
     fit?: V2TemplateSceneAssetNode["fit"];
     alt?: string;
   }) => void;
@@ -156,9 +160,12 @@ const v2_isSameBinding = (
   return false;
 };
 
+const v2_SCENE_COMPONENT_INSTANCE_ALLOW_BINDING_OVERRIDE = false;
+
 const useTemplateSceneNodePropertyPanels = ({
   assetKeys,
   assetLabels,
+  extraAssetKeys,
   sceneCardCollectionComponentOptions,
   visibilityOptions,
   isSceneCustomNode,
@@ -252,6 +259,7 @@ const useTemplateSceneNodePropertyPanels = ({
         node={node}
         assetKeys={assetKeys}
         assetLabels={assetLabels}
+        extraAssetKeys={extraAssetKeys}
         visibilityOptions={visibilityOptions}
         structureControls={renderSceneNodeStructureControls({
           node,
@@ -259,10 +267,16 @@ const useTemplateSceneNodePropertyPanels = ({
         })}
         styleEditor={styleEditor}
         onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
-        onChangeAssetKey={(value) =>
+        onChangeAssetRef={(value) =>
           onUpdateSceneAssetNodeMeta({
             nodeId: node.id,
-            assetKey: value,
+            assetRef: value,
+          })
+        }
+        onChangeAssetRole={(value) =>
+          onUpdateSceneAssetNodeMeta({
+            nodeId: node.id,
+            assetRole: value,
           })
         }
         onChangeFit={(value) =>
@@ -383,6 +397,7 @@ const useTemplateSceneNodePropertyPanels = ({
       : "";
     const hasComponentOptions = sceneCardCollectionComponentOptions.length > 0;
     const bindableNodes =
+      v2_SCENE_COMPONENT_INSTANCE_ALLOW_BINDING_OVERRIDE &&
       selectedComponentId.length > 0
         ? getComponentBindableNodes(selectedComponentId)
         : [];
@@ -481,7 +496,8 @@ const useTemplateSceneNodePropertyPanels = ({
             연결된 컴포넌트가 없어 인스턴스를 렌더할 수 없습니다.
           </p>
         ) : null}
-        {selectedComponentId.length > 0 ? (
+        {v2_SCENE_COMPONENT_INSTANCE_ALLOW_BINDING_OVERRIDE &&
+        selectedComponentId.length > 0 ? (
           <div className="rounded border border-[#334154] bg-[#141c28] p-2.5 space-y-2">
             <p className="text-[11px] font-semibold text-[#c3d7ff]">
               인스턴스 바인딩 오버라이드

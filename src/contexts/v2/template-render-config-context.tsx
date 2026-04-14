@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  V2TemplateAssetRef,
   V2TemplateAssetMap,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
@@ -58,6 +59,32 @@ export const getAssetUrlFromConfig = ({
 }): string | null => {
   return v2_getThemedAssetUrl(
     renderConfig.assets[key],
+    currentTheme,
+    renderConfig.defaultTheme
+  );
+};
+
+export const resolveAssetUrlFromConfig = ({
+  renderConfig,
+  assetRef,
+  currentTheme,
+}: {
+  renderConfig: V2TemplateRenderConfig;
+  assetRef?: V2TemplateAssetRef;
+  currentTheme: string;
+}): string | null => {
+  if (!assetRef) return null;
+  if (assetRef.source === "builtin") {
+    return getAssetUrlFromConfig({
+      renderConfig,
+      key: assetRef.key,
+      currentTheme,
+    });
+  }
+  const extraAssetMap = renderConfig.extraAssets[assetRef.key];
+  if (!extraAssetMap) return null;
+  return v2_getThemedAssetUrl(
+    extraAssetMap,
     currentTheme,
     renderConfig.defaultTheme
   );

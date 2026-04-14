@@ -58,6 +58,16 @@ export async function GET(
     }
 
     const hasStoredConfig = Boolean(storedConfig);
+    const { data: latestRevision, error: latestRevisionError } = await supabase
+      .from("template_render_config_revisions")
+      .select("revision_no")
+      .eq("template_id", id)
+      .order("revision_no", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestRevisionError) {
+      throw latestRevisionError;
+    }
     const normalizedConfig = hasStoredConfig
       ? v2_normalizeTemplateRenderConfig(storedConfig?.render_config)
       : v2_createDefaultTemplateRenderConfig();
@@ -70,6 +80,7 @@ export async function GET(
       renderConfig: normalizedConfig,
       createdAt: storedConfig?.created_at ?? null,
       updatedAt: storedConfig?.updated_at ?? null,
+      latestRevisionNo: latestRevision?.revision_no ?? null,
     });
   } catch (error) {
     console.error("Admin v2 template render config fetch error:", error);
@@ -162,6 +173,17 @@ export async function PUT(
       throw upsertError;
     }
 
+    const { data: latestRevision, error: latestRevisionError } = await supabase
+      .from("template_render_config_revisions")
+      .select("revision_no")
+      .eq("template_id", id)
+      .order("revision_no", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestRevisionError) {
+      throw latestRevisionError;
+    }
+
     return NextResponse.json({
       success: true,
       message: "템플릿 렌더링 설정이 저장되었습니다.",
@@ -170,6 +192,7 @@ export async function PUT(
       renderConfig: v2_normalizeTemplateRenderConfig(upsertedConfig.render_config),
       createdAt: upsertedConfig.created_at,
       updatedAt: upsertedConfig.updated_at,
+      latestRevisionNo: latestRevision?.revision_no ?? null,
     });
   } catch (error) {
     console.error("Admin v2 template render config save error:", error);

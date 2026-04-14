@@ -231,6 +231,8 @@ export const v2_createExampleRenderConfigResponse =
             third: null,
           },
         },
+        extraAssets: {},
+        extraAssetDimensions: {},
         layout: {
           grid: {
             layoutMode: "grid3x3",
@@ -279,7 +281,14 @@ export const v2_createExampleRenderConfigResponse =
             height: 160,
             bottom: 268,
             right: 200,
-            rotate: "1.6deg",
+            rotateDeg: 1.6,
+          },
+          profileTextArtistImageStyle: {
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: 4000,
+            height: 2250,
           },
           card: {
             streamingDay: {
@@ -345,7 +354,6 @@ export const v2_createExampleRenderConfigResponse =
               fontWeight: 400,
               lineHeight: 1,
               letterSpacing: 3,
-              rotate: "-14deg",
             },
             streamingTimeStyle: {
               fontSize: 31,

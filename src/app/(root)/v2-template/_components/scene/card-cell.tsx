@@ -4,7 +4,7 @@ import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-r
 import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
 import {
   useTemplateRenderConfigContext,
-  getAssetUrlFromConfig,
+  resolveAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
 import { TDefaultCard } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
@@ -43,10 +43,12 @@ interface TimeTableCellProps {
 
 interface OfflineCardProps {
   currentTheme?: TTheme;
+  cardStructure: V2TemplateCardStructure;
 }
 
 interface OnlineCardBGProps {
   currentTheme?: TTheme;
+  cardStructure: V2TemplateCardStructure;
 }
 
 const v2_toCardStyleMap = (
@@ -173,12 +175,12 @@ const v2_getCardNodeTextValue = ({
   return "";
 };
 
-const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
+const OnlineCardBG = ({ currentTheme, cardStructure }: OnlineCardBGProps) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.online;
-  const onlineUrl = getAssetUrlFromConfig({
+  const onlineUrl = resolveAssetUrlFromConfig({
     renderConfig,
-    key: "onlineByTheme",
+    assetRef: cardStructure.onlineBackgroundAssetRef,
     currentTheme: currentTheme || renderConfig.defaultTheme,
   });
   if (!onlineUrl) return null;
@@ -195,12 +197,12 @@ const OnlineCardBG = ({ currentTheme }: OnlineCardBGProps) => {
   );
 };
 
-const OfflineCardBG = ({ currentTheme }: OfflineCardProps) => {
+const OfflineCardBG = ({ currentTheme, cardStructure }: OfflineCardProps) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const cardSize = renderConfig.cardSizes.offline;
-  const offlineUrl = getAssetUrlFromConfig({
+  const offlineUrl = resolveAssetUrlFromConfig({
     renderConfig,
-    key: "offlineByTheme",
+    assetRef: cardStructure.offlineBackgroundAssetRef,
     currentTheme: currentTheme || renderConfig.defaultTheme,
   });
   if (!offlineUrl) return null;
@@ -410,14 +412,14 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         isOffline: cardIsOffline,
         entryCount,
       }) ? (
-        <OnlineCardBG currentTheme={currentTheme} />
+        <OnlineCardBG currentTheme={currentTheme} cardStructure={cardStructure} />
       ) : null}
       {v2_isVisibleByMode({
         mode: "offlineOnly",
         isOffline: cardIsOffline,
         entryCount,
       }) ? (
-        <OfflineCardBG currentTheme={currentTheme} />
+        <OfflineCardBG currentTheme={currentTheme} cardStructure={cardStructure} />
       ) : null}
     </div>
   );

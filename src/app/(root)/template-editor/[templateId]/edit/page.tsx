@@ -1,14 +1,12 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import TemplateEditorClient from '@/app/(root)/template-editor/_components/template-editor-client';
-import { useParams } from 'next/navigation';
-import '../../../v2-template/_styles/index.css';
-
-const TemplateEditorEditPage = () => {
-  const params = useParams<{ templateId?: string }>();
-  const templateId = typeof params?.templateId === 'string' ? params.templateId : undefined;
-
-  return <TemplateEditorClient forcedTemplateId={templateId} />;
+const LegacyTemplateEditorEditPage = async ({
+  params,
+}: {
+  params: Promise<{ templateId: string }>;
+}) => {
+  const { templateId } = await params;
+  redirect(`/admin/template-editor/${templateId}/edit`);
 };
 
-export default TemplateEditorEditPage;
+export default LegacyTemplateEditorEditPage;

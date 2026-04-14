@@ -1,6 +1,9 @@
 "use client";
 
-import { V2TemplateAssetMap, V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
+import {
+  V2TemplateBuiltinAssetKey,
+  V2TemplateRenderConfig,
+} from "@/types/time-table/template-render-config";
 import React from "react";
 
 interface TemplateAssetsTabProps {
@@ -8,16 +11,21 @@ interface TemplateAssetsTabProps {
   themeOptions: string[];
   renderConfig: V2TemplateRenderConfig;
   preferProfileDummyImage: boolean;
-  assetKeys: Array<keyof V2TemplateAssetMap>;
-  assetLabels: Record<keyof V2TemplateAssetMap, string>;
+  assetKeys: V2TemplateBuiltinAssetKey[];
+  assetLabels: Record<V2TemplateBuiltinAssetKey, string>;
+  extraAssetKeys: string[];
   setAssetTheme: (theme: string) => void;
   onTogglePreferProfileDummyImage: (value: boolean) => void;
-  onUploadFile: (
-    key: keyof V2TemplateAssetMap,
+  onUploadBuiltinFile: (
+    key: V2TemplateBuiltinAssetKey,
     theme: string,
     file: File | null
   ) => void;
-  onResetAsset: (key: keyof V2TemplateAssetMap, theme: string) => void;
+  onResetBuiltinAsset: (key: V2TemplateBuiltinAssetKey, theme: string) => void;
+  onCreateExtraAssetKey: (key: string) => void;
+  onRemoveExtraAssetKey: (key: string) => void;
+  onUploadExtraFile: (key: string, theme: string, file: File | null) => void;
+  onResetExtraAsset: (key: string, theme: string) => void;
 }
 
 const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
@@ -27,14 +35,34 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   preferProfileDummyImage,
   assetKeys,
   assetLabels,
+  extraAssetKeys,
   setAssetTheme,
   onTogglePreferProfileDummyImage,
-  onUploadFile,
-  onResetAsset,
+  onUploadBuiltinFile,
+  onResetBuiltinAsset,
+  onCreateExtraAssetKey,
+  onRemoveExtraAssetKey,
+  onUploadExtraFile,
+  onResetExtraAsset,
 }) => {
   const fileInputRefs = React.useRef<
-    Partial<Record<keyof V2TemplateAssetMap, HTMLInputElement | null>>
+    Partial<Record<V2TemplateBuiltinAssetKey, HTMLInputElement | null>>
   >({});
+  const extraFileInputRefs = React.useRef<Record<string, HTMLInputElement | null>>(
+    {}
+  );
+  const [newExtraAssetKey, setNewExtraAssetKey] = React.useState("");
+  const sortedExtraAssetKeys = React.useMemo(
+    () => [...extraAssetKeys].sort((a, b) => a.localeCompare(b)),
+    [extraAssetKeys]
+  );
+
+  const submitExtraAssetKey = () => {
+    const key = newExtraAssetKey.trim();
+    if (!key) return;
+    onCreateExtraAssetKey(key);
+    setNewExtraAssetKey("");
+  };
 
   return (
     <div className="space-y-4 rounded-xl border border-[#2f3239] bg-[#111317] p-3 text-gray-100">
@@ -73,6 +101,7 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
       </label>
 
       <div className="space-y-3">
+        <h4 className="text-sm font-semibold text-gray-200">기본 에셋</h4>
         {assetKeys.map((key) => {
           const inputId = `v2-asset-upload-${key}-${assetTheme}`;
           const assetUrl = renderConfig.assets[key][assetTheme];
@@ -107,7 +136,7 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
                   fileInputRefs.current[key] = element;
                 }}
                 onChange={(event) =>
-                  onUploadFile(
+                  onUploadBuiltinFile(
                     key,
                     assetTheme,
                     event.target.files?.[0] ?? null
@@ -125,7 +154,7 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onResetAsset(key, assetTheme)}
+                  onClick={() => onResetBuiltinAsset(key, assetTheme)}
                   className="inline-flex items-center justify-center rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-[#323640]"
                 >
                   초기화
@@ -157,6 +186,111 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
             </div>
           );
         })}
+      </div>
+
+      <div className="space-y-3 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">
+        <h4 className="text-sm font-semibold text-gray-200">추가 요소 에셋</h4>
+        <p className="text-[11px] text-gray-400">
+          고정 스키마 외에 자유 오브젝트용 이미지 키를 추가하고 테마별 파일을 관리합니다.
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            value={newExtraAssetKey}
+            onChange={(event) => setNewExtraAssetKey(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              submitExtraAssetKey();
+            }}
+            placeholder="예: stickerHeart"
+            className="min-w-0 flex-1 rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2 text-sm text-gray-100"
+          />
+          <button
+            type="button"
+            onClick={submitExtraAssetKey}
+            className="shrink-0 rounded border border-[#4f8cff] bg-[#1f355f] px-3 py-2 text-xs font-semibold text-[#d6e6ff] hover:bg-[#27457a]"
+          >
+            키 추가
+          </button>
+        </div>
+
+        {sortedExtraAssetKeys.length === 0 ? (
+          <p className="rounded border border-[#3a3d44] bg-[#111317] px-3 py-2 text-[11px] text-gray-400">
+            아직 추가 요소 에셋 키가 없습니다.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {sortedExtraAssetKeys.map((key) => {
+              const inputId = `v2-extra-asset-upload-${key}-${assetTheme}`;
+              const assetUrl = renderConfig.extraAssets[key]?.[assetTheme] ?? null;
+              const assetSize =
+                renderConfig.extraAssetDimensions[key]?.[assetTheme] ?? null;
+
+              return (
+                <div
+                  key={`extra-asset-${key}`}
+                  className="rounded border border-[#3a3d44] bg-[#14161c] p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-gray-200 break-all">{key}</p>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveExtraAssetKey(key)}
+                      className="shrink-0 rounded border border-rose-500/50 bg-rose-500/10 px-2 py-1 text-[11px] font-semibold text-rose-200 hover:bg-rose-500/20"
+                    >
+                      키 삭제
+                    </button>
+                  </div>
+
+                  <input
+                    id={inputId}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    ref={(element) => {
+                      extraFileInputRefs.current[key] = element;
+                    }}
+                    onChange={(event) =>
+                      onUploadExtraFile(
+                        key,
+                        assetTheme,
+                        event.target.files?.[0] ?? null
+                      )
+                    }
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => extraFileInputRefs.current[key]?.click()}
+                      className="rounded border border-[#4f8cff] bg-[#1f355f] px-3 py-2 text-xs font-semibold text-[#d6e6ff] hover:bg-[#27457a]"
+                    >
+                      파일 선택
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onResetExtraAsset(key, assetTheme)}
+                      className="rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-[#323640]"
+                    >
+                      초기화
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
+                    <p className="text-gray-400 break-all">
+                      {assetUrl ? "테마 에셋이 저장되었습니다." : "선택된 파일 없음"}
+                    </p>
+                    {assetSize ? (
+                      <p className="text-emerald-300">
+                        size: {assetSize.width} x {assetSize.height}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

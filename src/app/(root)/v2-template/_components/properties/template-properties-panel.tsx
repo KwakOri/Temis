@@ -965,7 +965,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateComponentFont,
     updateMaxFontSize,
     updateAssetUrl,
+    updateExtraAssetUrl,
+    addExtraAssetKey,
+    removeExtraAssetKey,
     handleAssetFileUpload,
+    handleExtraAssetFileUpload,
   } = useTemplateThemeAssetActions({
     safeUpdateConfig,
   });
@@ -1322,6 +1326,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   } = useTemplateSceneNodePropertyPanels({
     assetKeys: v2_ASSET_KEYS,
     assetLabels: v2_ASSET_LABELS,
+    extraAssetKeys: Object.keys(renderConfig.extraAssets ?? {}),
     sceneCardCollectionComponentOptions,
     dayKeyOptions,
     visibilityOptions: v2_CARD_NODE_VISIBILITY_OPTIONS,
@@ -1511,6 +1516,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               typeOptions={v2_FORM_FIELD_TYPE_OPTIONS}
               assetKeys={v2_ASSET_KEYS}
               assetLabels={v2_ASSET_LABELS}
+              extraAssetKeys={Object.keys(renderConfig.extraAssets ?? {})}
               renderStyleTab={renderStyleTab}
               renderPropertiesTab={renderPropertiesTab}
               onUpdateTemplateSize={updateTemplateSize}
@@ -1543,6 +1549,14 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               onTogglePreferProfileDummyImage={updatePreferProfileDummyImage}
               onUploadAssetFile={handleAssetFileUpload}
               onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
+              onCreateExtraAssetKey={(key) =>
+                addExtraAssetKey(key, renderConfig.themes)
+              }
+              onRemoveExtraAssetKey={removeExtraAssetKey}
+              onUploadExtraAssetFile={handleExtraAssetFileUpload}
+              onResetExtraAsset={(key, theme) =>
+                updateExtraAssetUrl(key, theme, "", null)
+              }
               onChangeDataField={(scope, key, value) => {
                 if (scope === "entry") {
                   updateFirstEntryField(sampleEntryIndex, key, value);

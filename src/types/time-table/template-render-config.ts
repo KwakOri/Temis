@@ -160,15 +160,37 @@ export interface V2TemplateAssetMap {
   guideByTheme: Record<string, string | null>;
 }
 
+export type V2TemplateBuiltinAssetKey = keyof V2TemplateAssetMap;
+
 export interface V2TemplateAssetDimension {
   width: number;
   height: number;
 }
 
 export type V2TemplateAssetDimensionMap = Record<
-  keyof V2TemplateAssetMap,
+  V2TemplateBuiltinAssetKey,
   Record<string, V2TemplateAssetDimension | null>
 >;
+
+export type V2TemplateExtraAssetMap = Record<
+  string,
+  Record<string, string | null>
+>;
+
+export type V2TemplateExtraAssetDimensionMap = Record<
+  string,
+  Record<string, V2TemplateAssetDimension | null>
+>;
+
+export type V2TemplateAssetRef =
+  | {
+      source: "builtin";
+      key: V2TemplateBuiltinAssetKey;
+    }
+  | {
+      source: "extra";
+      key: string;
+    };
 
 export type V2TemplateStyleRecord = CSSProperties &
   Record<string, string | number>;
@@ -281,6 +303,12 @@ export type V2TemplateSceneNodeKind =
   | "componentInstance";
 
 export type V2TemplateSceneAssetFit = "cover" | "contain" | "fill";
+export type V2TemplateSceneAssetRole =
+  | "general"
+  | "background"
+  | "guideOverlay"
+  | "profileImage"
+  | "profileFrame";
 
 export interface V2TemplateSceneNodeBase {
   id: string;
@@ -297,7 +325,8 @@ export interface V2TemplateSceneGroupNode extends V2TemplateSceneNodeBase {
 
 export interface V2TemplateSceneAssetNode extends V2TemplateSceneNodeBase {
   kind: "asset";
-  assetKey: keyof V2TemplateAssetMap;
+  assetRef?: V2TemplateAssetRef;
+  assetRole?: V2TemplateSceneAssetRole;
   styleKey?: V2TemplateSceneStyleKey;
   fit?: V2TemplateSceneAssetFit;
   alt?: string;
@@ -364,7 +393,8 @@ export interface V2TemplateGraphNodeStyleRefs {
 }
 
 export interface V2TemplateGraphNodeMeta {
-  assetKey?: keyof V2TemplateAssetMap;
+  assetRef?: V2TemplateAssetRef;
+  assetRole?: V2TemplateSceneAssetRole;
   fit?: V2TemplateSceneAssetFit;
   alt?: string;
   componentId?: string;
@@ -405,6 +435,8 @@ export interface V2TemplateGraphComponentDefinition {
   kind?: "template" | "custom";
   instanceMode?: V2TemplateComponentInstanceMode;
   instanceTransforms?: Record<string, V2TemplateCardInstanceTransform>;
+  onlineBackgroundAssetRef?: V2TemplateAssetRef;
+  offlineBackgroundAssetRef?: V2TemplateAssetRef;
   detachedAt?: string;
 }
 
@@ -466,6 +498,8 @@ export interface V2TemplateCardStructure {
   containerLayerId: string;
   containerHighlightTarget: V2TemplateHighlightTarget;
   containerStyleKey: V2TemplateCardStyleKey;
+  onlineBackgroundAssetRef?: V2TemplateAssetRef;
+  offlineBackgroundAssetRef?: V2TemplateAssetRef;
   instanceMode: V2TemplateComponentInstanceMode;
   instanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
   nodeOrder: string[];
@@ -540,6 +574,8 @@ export interface V2TemplateRenderConfig {
   formSchema: V2TemplateFormSchema;
   assets: V2TemplateAssetMap;
   assetDimensions: V2TemplateAssetDimensionMap;
+  extraAssets: V2TemplateExtraAssetMap;
+  extraAssetDimensions: V2TemplateExtraAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
   graph: V2TemplateNodeGraph;
 }

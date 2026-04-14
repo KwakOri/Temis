@@ -1,10 +1,11 @@
 "use client";
 
 import {
-  V2TemplateAssetMap,
+  V2TemplateAssetRef,
   V2TemplateColorKey,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetNode,
+  V2TemplateSceneAssetRole,
   V2TemplateSceneTextNode,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
@@ -69,12 +70,14 @@ const useTemplateSceneBindingActions = ({
 
   const updateSceneAssetNodeMeta = ({
     nodeId,
-    assetKey,
+    assetRef,
+    assetRole,
     fit,
     alt,
   }: {
     nodeId: string;
-    assetKey?: keyof V2TemplateAssetMap;
+    assetRef?: V2TemplateAssetRef | null;
+    assetRole?: V2TemplateSceneAssetRole | null;
     fit?: V2TemplateSceneAssetNode["fit"];
     alt?: string;
   }) => {
@@ -86,15 +89,48 @@ const useTemplateSceneBindingActions = ({
       });
       if (!nodeContext || nodeContext.node.kind !== "asset") return prev;
       const nextAlt = typeof alt === "string" ? alt.trim() : undefined;
-      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => ({
-        ...node,
-        meta: {
+      const shouldUpdateAssetRef = assetRef !== undefined;
+      const shouldUpdateAssetRole = assetRole !== undefined;
+      const nextAssetRef = assetRef
+        ? assetRef.source === "builtin"
+          ? ({
+              source: "builtin",
+              key: assetRef.key,
+            } as const)
+          : ({
+              source: "extra",
+              key: assetRef.key.trim(),
+            } as const)
+        : undefined;
+      const nextGraph = v2_graphUpdateNode(prev.graph, nodeId, (node) => {
+        const nextMeta = {
           ...(node.meta ?? {}),
-          ...(assetKey ? { assetKey } : {}),
-          ...(fit ? { fit } : {}),
-          ...(nextAlt !== undefined ? { alt: nextAlt } : {}),
-        },
-      }));
+        };
+        if (shouldUpdateAssetRef) {
+          if (nextAssetRef) {
+            nextMeta.assetRef = nextAssetRef;
+          } else {
+            delete nextMeta.assetRef;
+          }
+        }
+        if (shouldUpdateAssetRole) {
+          if (assetRole) {
+            nextMeta.assetRole = assetRole;
+          } else {
+            delete nextMeta.assetRole;
+          }
+        }
+        if (fit) {
+          nextMeta.fit = fit;
+        }
+        if (nextAlt !== undefined) {
+          nextMeta.alt = nextAlt;
+        }
+        return {
+          ...node,
+          meta: nextMeta,
+        };
+      });
       return {
         ...prev,
         graph: nextGraph,

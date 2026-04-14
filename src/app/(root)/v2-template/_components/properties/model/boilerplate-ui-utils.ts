@@ -165,7 +165,7 @@ const v2_FIELD_CATEGORY_ORDER = {
     "maxHeight",
   ],
   layer: ["opacity"],
-  motion: ["rotate", "transformOrigin", "transform"],
+  motion: ["rotateDeg", "transformOrigin", "transform"],
   layout: [
     "display",
     "columns",

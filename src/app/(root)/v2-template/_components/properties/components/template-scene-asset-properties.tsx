@@ -3,20 +3,24 @@
 import React from "react";
 
 import {
-  V2TemplateAssetMap,
+  V2TemplateAssetRef,
+  V2TemplateBuiltinAssetKey,
   V2TemplateSceneAssetNode,
+  V2TemplateSceneAssetRole,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 
 interface TemplateSceneAssetPropertiesProps {
   node: V2TemplateSceneAssetNode;
-  assetKeys: Array<keyof V2TemplateAssetMap>;
-  assetLabels: Record<keyof V2TemplateAssetMap, string>;
+  assetKeys: V2TemplateBuiltinAssetKey[];
+  assetLabels: Record<V2TemplateBuiltinAssetKey, string>;
+  extraAssetKeys: string[];
   visibilityOptions: Array<{ value: V2TemplateVisibilityMode; label: string }>;
   structureControls: React.ReactNode;
   styleEditor: React.ReactNode;
   onChangeLabel: (value: string) => void;
-  onChangeAssetKey: (value: keyof V2TemplateAssetMap) => void;
+  onChangeAssetRef: (value: V2TemplateAssetRef | null) => void;
+  onChangeAssetRole: (value: V2TemplateSceneAssetRole) => void;
   onChangeFit: (value: NonNullable<V2TemplateSceneAssetNode["fit"]>) => void;
   onChangeVisibilityMode: (value: V2TemplateVisibilityMode) => void;
   onChangeAlt: (value: string) => void;
@@ -26,15 +30,23 @@ const TemplateSceneAssetProperties: React.FC<TemplateSceneAssetPropertiesProps> 
   node,
   assetKeys,
   assetLabels,
+  extraAssetKeys,
   visibilityOptions,
   structureControls,
   styleEditor,
   onChangeLabel,
-  onChangeAssetKey,
+  onChangeAssetRef,
+  onChangeAssetRole,
   onChangeFit,
   onChangeVisibilityMode,
   onChangeAlt,
 }) => {
+  const selectedAssetValue = node.assetRef
+    ? node.assetRef.source === "extra"
+      ? `extra:${node.assetRef.key}`
+      : `builtin:${node.assetRef.key}`
+    : "__none__";
+
   return (
     <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
       <h4 className="font-semibold text-sm text-gray-200">Scene Asset / {node.label}</h4>
@@ -48,17 +60,68 @@ const TemplateSceneAssetProperties: React.FC<TemplateSceneAssetPropertiesProps> 
         />
         <label className="text-xs text-gray-400">에셋 키</label>
         <select
-          value={node.assetKey}
+          value={selectedAssetValue}
+          onChange={(event) => {
+            const rawValue = event.target.value;
+            if (rawValue === "__none__") {
+              onChangeAssetRef(null);
+              return;
+            }
+            if (rawValue.startsWith("extra:")) {
+              const key = rawValue.slice("extra:".length).trim();
+              if (!key) return;
+              onChangeAssetRef({
+                source: "extra",
+                key,
+              });
+              return;
+            }
+
+            const key = rawValue.replace(/^builtin:/, "") as V2TemplateBuiltinAssetKey;
+            onChangeAssetRef({
+              source: "builtin",
+              key,
+            });
+          }}
+          className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
+        >
+          <option value="__none__">선택 안함</option>
+          <optgroup label="Built-in">
+            {assetKeys.map((assetKey) => (
+              <option
+                key={`scene-asset-key-${assetKey}`}
+                value={`builtin:${assetKey}`}
+              >
+                {assetLabels[assetKey]}
+              </option>
+            ))}
+          </optgroup>
+          {extraAssetKeys.length > 0 ? (
+            <optgroup label="추가 요소">
+              {extraAssetKeys.map((assetKey) => (
+                <option
+                  key={`scene-extra-asset-key-${assetKey}`}
+                  value={`extra:${assetKey}`}
+                >
+                  {assetKey}
+                </option>
+              ))}
+            </optgroup>
+          ) : null}
+        </select>
+        <label className="text-xs text-gray-400">역할</label>
+        <select
+          value={node.assetRole ?? "general"}
           onChange={(event) =>
-            onChangeAssetKey(event.target.value as keyof V2TemplateAssetMap)
+            onChangeAssetRole(event.target.value as V2TemplateSceneAssetRole)
           }
           className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
         >
-          {assetKeys.map((assetKey) => (
-            <option key={`scene-asset-key-${assetKey}`} value={assetKey}>
-              {assetLabels[assetKey]}
-            </option>
-          ))}
+          <option value="general">general</option>
+          <option value="background">background</option>
+          <option value="guideOverlay">guideOverlay</option>
+          <option value="profileImage">profileImage</option>
+          <option value="profileFrame">profileFrame</option>
         </select>
         <label className="text-xs text-gray-400">Fit</label>
         <select

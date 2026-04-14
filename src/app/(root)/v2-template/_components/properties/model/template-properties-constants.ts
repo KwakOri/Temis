@@ -75,7 +75,7 @@ export const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
   onlineByTheme: "온라인 카드",
   offlineByTheme: "오프라인 카드",
   profileFrameByTheme: "프로필 프레임",
-  profileBgByTheme: "프로필 더미 이미지(편집용)",
+  profileBgByTheme: "아티스트 배경 오브젝트",
   guideByTheme: "가이드 레이어(상단 오버레이)",
 };
 
@@ -125,7 +125,7 @@ export const v2_STYLE_PROPERTY_CATALOG = [
   "alignItems",
   "transform",
   "transformOrigin",
-  "rotate",
+  "rotateDeg",
   "whiteSpace",
   "wordBreak",
 ] as const;
@@ -158,6 +158,10 @@ export type V2StyleSectionKey =
   | "grid"
   | "weekFlag"
   | "topObjectContainer"
+  | "memoContainer"
+  | "memoContentContainer"
+  | "memoTextContainer"
+  | "memoTextStyle"
   | "profileImage"
   | "profileFrame"
   | "profileTextRootStyle"
@@ -184,12 +188,16 @@ export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   grid: "Grid",
   weekFlag: "WeekFlag",
   topObjectContainer: "TopObject",
+  memoContainer: "Memo.Container",
+  memoContentContainer: "Memo.ContentContainer",
+  memoTextContainer: "Memo.ContentWrapper",
+  memoTextStyle: "Memo.ContentStyle",
   profileImage: "ProfileImage",
   profileFrame: "ProfileFrame",
   profileTextRootStyle: "ProfileText.RootStyle",
   profileTextWrapperStyle: "ProfileText.WrapperStyle",
   profileTextStyle: "ProfileText.TextStyle",
-  profileTextArtistImageStyle: "ProfileText.ImageStyle",
+  profileTextArtistImageStyle: "Artist.ObjectStyle",
   cardStreamingDay: "Card.StreamingDay",
   cardStreamingDate: "Card.StreamingDate",
   cardStreamingTime: "Card.StreamingTime",
@@ -209,6 +217,10 @@ export const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "grid",
   "weekFlag",
   "topObjectContainer",
+  "memoContainer",
+  "memoContentContainer",
+  "memoTextContainer",
+  "memoTextStyle",
   "profileImage",
   "profileFrame",
   "profileTextRootStyle",
@@ -237,6 +249,10 @@ export const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   grid: "grid",
   weekFlag: "weekFlag",
   topObjectContainer: "topObjectContainer",
+  memoContainer: "memoObject",
+  memoContentContainer: "memoText",
+  memoTextContainer: "memoText",
+  memoTextStyle: "memoText",
   profileImage: "profileImage",
   profileFrame: "profileFrame",
   profileTextRootStyle: "profileText",
