@@ -52,6 +52,7 @@ export const useTemplateEditorData = () => {
     mondayDateStr: state.mondayDateStr,
     weekDates: state.weekDates,
     updateProfileText: actions.updateProfileText,
+    updateMemoText: actions.updateMemoText,
     updateImageSrc: actions.updateImageSrc,
     updatePreferProfileDummyImage: actions.updatePreferProfileDummyImage,
     updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
