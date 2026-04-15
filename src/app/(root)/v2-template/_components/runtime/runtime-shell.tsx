@@ -2,6 +2,7 @@
 
 import { TemplateRuntimeProvider } from "@/contexts/v2/template-runtime-context";
 import { TemplateRuntimeUIProvider } from "@/contexts/v2/template-runtime-ui-context";
+import { TemplateDesignGuideProvider } from "@/contexts/v2/template-design-guide-context";
 import {
   TemplateRenderConfigProvider,
   TemplateRenderConfigContextValue,
@@ -12,6 +13,7 @@ import { V2TemplateRenderConfig } from "@/types/time-table/template-render-confi
 import { TTheme } from "@/types/time-table/theme";
 import React from "react";
 import V2Loading from "../shared/loading-screen";
+import V2TemplateFontFaceStyle from "../style/template-font-face-style";
 import V2RuntimeForm from "./runtime-form";
 import V2RuntimePreview from "./runtime-preview";
 import V2RuntimeToolbar from "./runtime-toolbar";
@@ -157,27 +159,30 @@ const V2RuntimeShell = ({
 
   return (
     <TemplateRenderConfigProvider value={providerValue}>
-      <TemplateRuntimeUIProvider value={uiContextValue}>
-        <TemplateRuntimeProvider value={runtimeValue}>
-          {!isInitialized || state.weekDates.length === 0 ? (
-            <V2Loading />
-          ) : (
-            <div className="v2-template-theme flex h-screen w-full flex-col overflow-hidden bg-[#0d1117]">
-              <V2RuntimeToolbar
-                templateId={templateId}
-                source={source}
-                onReset={handleReset}
-              />
-              <main className="flex min-h-0 flex-1 flex-col md:flex-row">
-                <V2RuntimePreview />
-                <div className="h-[44vh] min-h-[300px] w-full md:h-full md:min-h-0 md:w-[420px] md:max-w-[40vw]">
-                  <V2RuntimeForm />
-                </div>
-              </main>
-            </div>
-          )}
-        </TemplateRuntimeProvider>
-      </TemplateRuntimeUIProvider>
+      <V2TemplateFontFaceStyle />
+      <TemplateDesignGuideProvider>
+        <TemplateRuntimeUIProvider value={uiContextValue}>
+          <TemplateRuntimeProvider value={runtimeValue}>
+            {!isInitialized || state.weekDates.length === 0 ? (
+              <V2Loading />
+            ) : (
+              <div className="v2-template-theme flex h-screen w-full flex-col overflow-hidden bg-[#0d1117]">
+                <V2RuntimeToolbar
+                  templateId={templateId}
+                  source={source}
+                  onReset={handleReset}
+                />
+                <main className="flex min-h-0 flex-1 flex-col md:flex-row">
+                  <V2RuntimePreview />
+                  <div className="h-[44vh] min-h-[300px] w-full md:h-full md:min-h-0 md:w-[420px] md:max-w-[40vw]">
+                    <V2RuntimeForm />
+                  </div>
+                </main>
+              </div>
+            )}
+          </TemplateRuntimeProvider>
+        </TemplateRuntimeUIProvider>
+      </TemplateDesignGuideProvider>
     </TemplateRenderConfigProvider>
   );
 };
