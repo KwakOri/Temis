@@ -4,8 +4,8 @@ import {
   useTemplateRenderConfigContext,
   resolveAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
-import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
-import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
+import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
+import { useTemplateRuntimeData } from "@/contexts/v2/template-runtime-ui-context";
 import {
   V2TemplateSceneAssetNode,
   V2TemplateSceneCardCollectionNode,
@@ -65,9 +65,9 @@ const V2SceneStructureRenderer = ({
     hoverHighlightTarget,
     activeHighlightTarget,
     isLayerHidden,
-  } = useTemplateEditorRuntimeContext();
+  } = useTemplateRuntimeContext();
   const { weekDates, profileText, memoText, imageSrc } =
-    useTemplateEditorData();
+    useTemplateRuntimeData();
   const {
     layerTargetMap,
     rootLayerZIndexById,

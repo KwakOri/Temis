@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/v2/template-scene-structure-messages";
@@ -85,7 +85,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     setHoverHighlightTarget,
     isLayerHidden,
     toggleLayerHidden,
-  } = useTemplateEditorRuntimeContext();
+  } = useTemplateRuntimeContext();
   const layerTree = useMemo(() => {
     return layerTreeProp ?? [];
   }, [layerTreeProp]);

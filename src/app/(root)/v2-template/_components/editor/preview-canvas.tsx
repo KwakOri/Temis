@@ -1,4 +1,4 @@
-import { useTemplateEditorUIContext } from "@/contexts/v2/template-editor-ui-context";
+import { useTemplateRuntimeUIContext } from "@/contexts/v2/template-runtime-ui-context";
 import { useGesture } from "@use-gesture/react";
 import { useEffect, useMemo, useState } from "react";
 import V2TimeTableContent from "../scene/preview-scene";
@@ -9,7 +9,7 @@ import {
 } from "../shared/preview-scale";
 
 const V2TimeTablePreview = () => {
-  const { state, actions } = useTemplateEditorUIContext();
+  const { state, actions } = useTemplateRuntimeUIContext();
   const { scale, isMobile, captureSize } = state;
   const { updateScale } = actions;
   const [position, setPosition] = useState({ x: 0, y: 0 });

@@ -1,7 +1,7 @@
 import {
-  useTemplateEditorData,
-  useTemplateEditorUI,
-} from "@/contexts/v2/template-editor-ui-context";
+  useTemplateRuntimeData,
+  useTemplateRuntimeUI,
+} from "@/contexts/v2/template-runtime-ui-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import React from "react";
 
@@ -11,8 +11,8 @@ import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
 import V2SceneRenderer from "./scene-renderer";
 
 const V2TimeTableContent: React.FC = () => {
-  const { weekDates } = useTemplateEditorData();
-  const { scale } = useTemplateEditorUI();
+  const { weekDates } = useTemplateRuntimeData();
+  const { scale } = useTemplateRuntimeUI();
   const { renderConfig } = useTemplateRenderConfigContext();
   const runtimeSceneNodes = React.useMemo(
     () => v2_getRuntimeSceneNodes(renderConfig),

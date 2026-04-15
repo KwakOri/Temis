@@ -1,7 +1,7 @@
 import React from "react";
 
-import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
-import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
+import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
+import { useTemplateRuntimeData } from "@/contexts/v2/template-runtime-ui-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import {
   V2TemplateCardStructure,
@@ -119,8 +119,8 @@ const TimeTableGrid: React.FC<{
     hoverHighlightTarget,
     activeHighlightTarget,
     isLayerHidden,
-  } = useTemplateEditorRuntimeContext();
-  const { weekDates } = useTemplateEditorData();
+  } = useTemplateRuntimeContext();
+  const { weekDates } = useTemplateRuntimeData();
   const { renderConfig } = useTemplateRenderConfigContext();
   const gridLayout =
     (renderConfig.layout.grid as Record<string, string | number>) ?? {};

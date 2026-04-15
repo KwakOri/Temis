@@ -1,7 +1,7 @@
 import React from "react";
 
-import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
-import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
+import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
+import { useTemplateRuntimeData } from "@/contexts/v2/template-runtime-ui-context";
 import {
   useTemplateRenderConfigContext,
   resolveAssetUrlFromConfig,
@@ -186,9 +186,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   bindingOverrides,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
-  const { weekDates } = useTemplateEditorData();
+  const { weekDates } = useTemplateRuntimeData();
   const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden, globalData } =
-    useTemplateEditorRuntimeContext();
+    useTemplateRuntimeContext();
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const cardIsOffline = Boolean(time.isOffline);
   const cardSize = cardIsOffline

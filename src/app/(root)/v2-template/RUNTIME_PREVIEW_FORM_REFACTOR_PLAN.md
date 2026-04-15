@@ -16,8 +16,9 @@
   - runtime 전용 검증 스크립트 추가(`npm run check:v2-runtime`)
   - Phase 4 cleanup 완료(런타임 경로 기준)
   - runtime core 구현본을 runtime 네이밍으로 정리(`template-runtime-*`, `useTemplateRuntime`, `template-runtime-ui`)
+  - v2-template component 영역의 context/hook import를 runtime 네이밍(`useTemplateRuntime*`)으로 치환
 - 진행 중
-  - 선택 과제: scene/editor 내부의 `useTemplateEditor*` import를 `useTemplateRuntime*`로 단계적 치환할지 검토
+  - 선택 과제: editor 전용 타입(`template-editor-ui`)의 물리 파일명도 runtime naming으로 정리할지 검토
 - 현재 검증 메모
   - `npm run lint:v2-runtime` 통과(Next `no-img-element` 경고 2건 존재)
   - `npm run typecheck:v2-runtime` 통과

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
+import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import {
-  useTemplateEditorActions,
-  useTemplateEditorData,
-} from "@/contexts/v2/template-editor-ui-context";
+  useTemplateRuntimeActions,
+  useTemplateRuntimeData,
+} from "@/contexts/v2/template-runtime-ui-context";
 import {
   V2TemplateCardNode,
   V2TemplateDayKey,
@@ -139,10 +139,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     resetData,
     setHoverHighlightTarget,
     setActiveHighlightTarget,
-  } = useTemplateEditorRuntimeContext();
-  const { downloadImage } = useTemplateEditorActions();
+  } = useTemplateRuntimeContext();
+  const { downloadImage } = useTemplateRuntimeActions();
   const { preferProfileDummyImage, updatePreferProfileDummyImage } =
-    useTemplateEditorData();
+    useTemplateRuntimeData();
 
   const [activeTab, setActiveTab] = useState<V2BuilderTabId>("properties");
   const [sampleEntryIndex, setSampleEntryIndex] = useState(0);
