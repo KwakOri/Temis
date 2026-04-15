@@ -5,6 +5,19 @@
 - `/v2-template/[templateId]`는 "작성 화면" 역할에 집중하고, 에디터(`admin/template-editor`)와 책임을 분리한다.
 - 입력(Form)과 렌더(Preview)를 분리 가능한 구조로 리팩토링해 유지보수성과 확장성을 높인다.
 
+## Progress (2026-04-16)
+- 완료
+  - Phase 0: `/v2-template/[templateId]` 라우트 baseline 구성
+  - Phase 1: `runtime-shell`/`runtime-toolbar` 도입
+  - Phase 2: `runtime-form` 구현 + `fields/*` 분리
+  - Phase 3: scene/card/text/asset resolver 분리(`src/utils/v2/runtime-resolver/*`)
+  - runtime preview가 editor 전용 `preview-scale` 파일 의존하지 않도록 shared로 분리
+- 진행 중
+  - Phase 4 cleanup (editor 의존 import 점검, 문서/검증 정리)
+- 현재 검증 메모
+  - 변경 파일 eslint 통과
+  - 전체 `npx tsc --noEmit`은 `.next/types`의 기존 누락 경로 이슈로 실패(이번 리팩터링과 무관)
+
 ## 2. Scope
 - 포함
   - Runtime 전용 Shell/Preview/Form 신규 구조 설계 및 구현
