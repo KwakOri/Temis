@@ -150,8 +150,8 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     },
     {
       key: 'mainTitle',
-      type: 'textarea',
-      placeholder: '메인 타이틀\n적는 곳',
+      type: 'text',
+      placeholder: '메인 타이틀 적는 곳',
       defaultValue: '',
       maxLength: 200,
     },
