@@ -3,7 +3,7 @@ import { V2TemplateRenderConfig } from "@/types/time-table/template-render-confi
 export interface V2TemplateRenderConfigResponse {
   success: boolean;
   templateId: string;
-  source: "db" | "default";
+  source: "db" | "empty";
   configVersion: number;
   renderConfig: V2TemplateRenderConfig;
   createdAt: string | null;

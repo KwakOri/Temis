@@ -37,7 +37,7 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
     return {
       success: true,
       templateId: "00000000-0000-0000-0000-000000000000",
-      source: "default",
+      source: "empty",
       configVersion: 1,
       renderConfig: {
         ...fallbackConfig,

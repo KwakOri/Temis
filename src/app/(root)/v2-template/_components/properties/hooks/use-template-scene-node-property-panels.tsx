@@ -31,12 +31,6 @@ import {
 import { v2_parseStyleSectionKey } from "../model/style-section-utils";
 
 type V2SceneNodeSectionId = string;
-type V2SceneNodeInsertKind =
-  | "text"
-  | "flexibleText"
-  | "asset"
-  | "group"
-  | "cardCollection";
 
 type V2StructureControlNode =
   | V2TemplateSceneTextNode
@@ -69,14 +63,6 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     nodeId: string
   ) => Array<{ value: string | null; label: string }>;
   onRemoveSceneNode: (nodeId: string) => void;
-  onAddSceneSiblingNode: (params: {
-    anchorNodeId: string;
-    kind: V2SceneNodeInsertKind;
-  }) => void;
-  onAddSceneChildNode: (params: {
-    parentNodeId: string;
-    kind: V2SceneNodeInsertKind;
-  }) => void;
   onUpdateSceneNodeLabel: (nodeId: string, label: string) => void;
   onUpdateSceneAssetNodeMeta: (params: {
     nodeId: string;
@@ -175,8 +161,6 @@ const useTemplateSceneNodePropertyPanels = ({
   getSceneNodeParentId,
   getSceneGroupParentOptions,
   onRemoveSceneNode,
-  onAddSceneSiblingNode,
-  onAddSceneChildNode,
   onUpdateSceneNodeLabel,
   onUpdateSceneAssetNodeMeta,
   onUpdateSceneNodeVisibilityMode,
@@ -197,17 +181,14 @@ const useTemplateSceneNodePropertyPanels = ({
 }: UseTemplateSceneNodePropertyPanelsParams) => {
   const renderSceneNodeStructureControls = ({
     node,
-    allowChildren,
   }: {
     node: V2StructureControlNode;
-    allowChildren: boolean;
   }) => {
     const canDelete = isSceneCustomNode(node.id);
 
     return (
       <TemplateSceneNodeStructureControls
         nodeId={node.id}
-        allowChildren={allowChildren}
         canDelete={canDelete}
         currentParentId={getSceneNodeParentId(node.id)}
         parentOptions={getSceneGroupParentOptions(node.id)}
@@ -222,18 +203,6 @@ const useTemplateSceneNodePropertyPanels = ({
           })
         }
         onDelete={() => onRemoveSceneNode(node.id)}
-        onAddSibling={(kind) =>
-          onAddSceneSiblingNode({
-            anchorNodeId: node.id,
-            kind,
-          })
-        }
-        onAddChild={(kind) =>
-          onAddSceneChildNode({
-            parentNodeId: node.id,
-            kind,
-          })
-        }
       />
     );
   };
@@ -263,7 +232,6 @@ const useTemplateSceneNodePropertyPanels = ({
         visibilityOptions={visibilityOptions}
         structureControls={renderSceneNodeStructureControls({
           node,
-          allowChildren: false,
         })}
         styleEditor={styleEditor}
         onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
@@ -308,7 +276,6 @@ const useTemplateSceneNodePropertyPanels = ({
         visibilityOptions={visibilityOptions}
         structureControls={renderSceneNodeStructureControls({
           node,
-          allowChildren: true,
         })}
         onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
         onChangeVisibilityMode={(value) =>
@@ -351,7 +318,6 @@ const useTemplateSceneNodePropertyPanels = ({
           mismatchedChildComponentCount={mismatchedChildComponentCount}
           structureControls={renderSceneNodeStructureControls({
             node,
-            allowChildren: false,
           })}
           layoutStyleEditor={layoutStyleEditor}
           onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
@@ -409,7 +375,6 @@ const useTemplateSceneNodePropertyPanels = ({
         </h4>
         {renderSceneNodeStructureControls({
           node,
-          allowChildren: false,
         })}
         <div className="grid grid-cols-2 gap-2 items-center">
           <label className="text-xs text-gray-400">오브젝트 이름</label>

@@ -1,8 +1,9 @@
 import { requireAdmin } from "@/lib/auth/middleware";
+import { resolveAdminActorUserId } from "@/lib/auth/resolve-admin-actor-user-id";
 import { supabase } from "@/lib/supabase";
 import { Json } from "@/types/supabase";
 import {
-  v2_createDefaultTemplateRenderConfig,
+  v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
 } from "@/utils/time-table/template-render-config";
 import { NextRequest, NextResponse } from "next/server";
@@ -65,13 +66,19 @@ export async function GET(
       );
     }
 
-    const userId = Number(adminCheck.user.userId);
-    if (!Number.isFinite(userId)) {
+    const resolvedActor = await resolveAdminActorUserId(adminCheck.user);
+    if (!resolvedActor.ok) {
       return NextResponse.json(
-        { error: "유효한 사용자 정보가 필요합니다." },
-        { status: 400 }
+        {
+          error:
+            resolvedActor.reason === "invalid-token-user-id"
+              ? "유효한 사용자 정보가 필요합니다."
+              : "세션 사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.",
+        },
+        { status: 401 }
       );
     }
+    const userId = resolvedActor.userId;
 
     const { data: draft, error: draftError } = await supabase
       .from("v2_template_render_config_drafts")
@@ -145,13 +152,19 @@ export async function PUT(
       );
     }
 
-    const userId = Number(adminCheck.user.userId);
-    if (!Number.isFinite(userId)) {
+    const resolvedActor = await resolveAdminActorUserId(adminCheck.user);
+    if (!resolvedActor.ok) {
       return NextResponse.json(
-        { error: "유효한 사용자 정보가 필요합니다." },
-        { status: 400 }
+        {
+          error:
+            resolvedActor.reason === "invalid-token-user-id"
+              ? "유효한 사용자 정보가 필요합니다."
+              : "세션 사용자 정보를 찾을 수 없습니다. 다시 로그인해 주세요.",
+        },
+        { status: 401 }
       );
     }
+    const userId = resolvedActor.userId;
 
     const body = await request.json();
     if (!body || typeof body !== "object") {
@@ -167,7 +180,7 @@ export async function PUT(
         : body;
 
     const normalizedConfig = v2_normalizeTemplateRenderConfig(
-      rawRenderConfig ?? v2_createDefaultTemplateRenderConfig()
+      rawRenderConfig ?? v2_createEmptyTemplateRenderConfig()
     );
 
     const parsedVersion =

@@ -2,10 +2,9 @@
 
 import { TemplateRenderConfigProvider } from '@/contexts/v2/template-render-config-context';
 import { V2TemplateFontFaceStyle, V2TimeTableEditor } from '@/app/(root)/v2-template/_components';
-import { v2_createFigmaTimeTableNode1075_5624RenderConfigResponse } from '@/app/(root)/v2-template/_data/figma-time-table-node-1075-5624-response';
 import type { V2TemplateRenderConfig } from '@/types/time-table/template-render-config';
 import {
-  v2_createDefaultTemplateRenderConfig,
+  v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
 } from '@/utils/time-table/template-render-config';
 import { useSearchParams } from 'next/navigation';
@@ -27,7 +26,7 @@ type TemplateEditorClientProps = {
 type V2AdminRenderConfigResponse = {
   success: boolean;
   templateId: string;
-  source?: 'db' | 'default';
+  source: 'db' | 'empty';
   configVersion: number;
   renderConfig: V2TemplateRenderConfig;
   createdAt: string | null;
@@ -224,16 +223,9 @@ const TemplateEditorClient = ({
       v2_resolveValidTemplateId(queryTemplateId)
     );
   }, [forcedTemplateId, queryTemplateId]);
-
-  const exampleData = useMemo(
-    () => v2_createFigmaTimeTableNode1075_5624RenderConfigResponse(),
-    []
-  );
-
-  const fallbackConfig = useMemo(() => v2_createDefaultTemplateRenderConfig(), []);
   const defaultRenderConfig = useMemo<V2TemplateRenderConfig>(
-    () => exampleData.renderConfig ?? fallbackConfig,
-    [exampleData.renderConfig, fallbackConfig]
+    () => v2_createEmptyTemplateRenderConfig(),
+    []
   );
 
   const [renderConfig, setRenderConfig] =
@@ -241,7 +233,7 @@ const TemplateEditorClient = ({
   const [isLoading, setIsLoading] = useState(true);
   const [dbSyncStatus, setDbSyncStatus] = useState<V2DbSyncStatus>('idle');
   const [dbSyncMessage, setDbSyncMessage] = useState<string>('초기화 중');
-  const [dbSource, setDbSource] = useState<'db' | 'default'>('default');
+  const [dbSource, setDbSource] = useState<'db' | 'empty'>('empty');
   const [latestRevisionNo, setLatestRevisionNo] = useState<number | null>(null);
   const [lastDraftSavedSerialized, setLastDraftSavedSerialized] =
     useState<string | null>(null);
@@ -277,7 +269,7 @@ const TemplateEditorClient = ({
       setIsLoading(false);
       setDbSyncStatus('error');
       setDbSyncMessage('유효한 templateId가 필요합니다.');
-      setDbSource('default');
+      setDbSource('empty');
       setLatestRevisionNo(null);
       setLastDraftSavedSerialized(null);
       setPublishError(null);
@@ -301,10 +293,6 @@ const TemplateEditorClient = ({
 
         if (isDisposed) return;
 
-        if (renderConfigResponse.source === 'default') {
-          throw new Error('DB render-config가 설정되지 않은 템플릿입니다.');
-        }
-
         const draft = draftResponse.hasDraft ? draftResponse.draft : null;
         const resolvedConfig = v2_normalizeTemplateRenderConfig(
           draft?.renderConfig ?? renderConfigResponse.renderConfig
@@ -317,10 +305,14 @@ const TemplateEditorClient = ({
         setRenderConfig(resolvedConfig);
         setLastDraftSavedSerialized(resolvedSerialized);
         setLatestRevisionNo(resolvedLatestRevisionNo);
-        setDbSource('db');
+        setDbSource(renderConfigResponse.source);
         setDbSyncStatus('ready');
         setDbSyncMessage(
-          draft ? 'DB draft를 불러왔습니다.' : 'DB 렌더링 설정을 불러왔습니다.'
+          draft
+            ? 'DB draft를 불러왔습니다.'
+            : renderConfigResponse.source === 'db'
+              ? 'DB 렌더링 설정을 불러왔습니다.'
+              : '빈 렌더링 설정으로 시작합니다.'
         );
         isDbHydratedRef.current = true;
       } catch (error) {
@@ -338,7 +330,7 @@ const TemplateEditorClient = ({
 
         setDbSyncStatus('error');
         setDbSyncMessage(v2_toErrorMessage(error, defaultMessage));
-        setDbSource('default');
+        setDbSource('empty');
         setLatestRevisionNo(null);
         setLastDraftSavedSerialized(null);
         baseRevisionNoRef.current = null;
@@ -454,6 +446,37 @@ const TemplateEditorClient = ({
     }
   }, [dbSyncStatus, isPublishing, renderConfig, templateId]);
 
+  useEffect(() => {
+    const handleSaveShortcut = (event: KeyboardEvent) => {
+      const isSaveShortcut =
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        event.key.toLowerCase() === "s";
+      if (!isSaveShortcut) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (event.repeat) return;
+
+      if (dbSyncStatus !== "ready") {
+        setDbSyncMessage("아직 저장할 수 없습니다. DB 동기화 상태를 확인해 주세요.");
+        return;
+      }
+      if (isPublishing || isDraftAutosaving) {
+        setDbSyncMessage("이미 저장 중입니다.");
+        return;
+      }
+
+      void handlePublish();
+    };
+
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => {
+      window.removeEventListener("keydown", handleSaveShortcut);
+    };
+  }, [dbSyncStatus, handlePublish, isDraftAutosaving, isPublishing]);
+
   const dbSyncBadgeTone = useMemo(() => {
     if (dbSyncStatus === 'error') return 'text-rose-300';
     if (dbSyncStatus === 'checking') return 'text-sky-300';
@@ -484,7 +507,7 @@ const TemplateEditorClient = ({
   return (
     <TemplateRenderConfigProvider value={providerValue}>
       <V2TemplateFontFaceStyle />
-      <div className="fixed top-3 right-3 z-[250] flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-950/85 px-3 py-2 text-xs text-slate-100 shadow-lg backdrop-blur">
+      <div className="fixed bottom-3 left-3 z-[250] flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-950/85 px-3 py-2 text-xs text-slate-100 shadow-lg backdrop-blur">
         <span className={dbSyncBadgeTone}>{dbSyncBadgeLabel}</span>
         {dbSyncStatus === 'ready' && templateId ? (
           <button

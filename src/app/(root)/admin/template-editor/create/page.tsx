@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useState } from 'react';
-import { v2_createFigmaTimeTableNode1075_5624RenderConfigResponse } from '@/app/(root)/v2-template/_data/figma-time-table-node-1075-5624-response';
 import type {
   V2TemplateGraphNode,
   V2TemplateNodeGraph,
@@ -11,8 +10,9 @@ import type {
   V2TemplateWeekDateFormat,
 } from '@/types/time-table/template-render-config';
 import {
-  v2_createDefaultTemplateRenderConfig,
-  v2_normalizeTemplateRenderConfig,
+  v2_createEmptyTemplateNodeGraph,
+  v2_createEmptyTemplateRenderConfig,
+  v2_normalizeTemplateRenderConfig
 } from '@/utils/time-table/template-render-config';
 
 const v2_isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -34,13 +34,9 @@ const v2_toErrorMessage = (error: unknown, fallback: string): string => {
 type V2TemplateLocalePreset = 'kr' | 'en' | 'jp';
 type V2TemplateTimePreset = 'h12Prefix' | 'h12Suffix' | 'h24';
 type V2TemplateWeekDatePreset = 'locale' | 'ymdSlash' | 'mdySlash' | 'dmyDot';
-type V2TemplateStartMode = 'figmaPreset' | 'empty';
 
 const v2_createTemplateBaseConfig = (): V2TemplateRenderConfig => {
-  const base =
-    v2_createFigmaTimeTableNode1075_5624RenderConfigResponse().renderConfig ??
-    v2_createDefaultTemplateRenderConfig();
-  return v2_normalizeTemplateRenderConfig(base);
+  return v2_createEmptyTemplateRenderConfig();
 };
 
 const v2_resolveThemeOptions = (config: V2TemplateRenderConfig): string[] => {
@@ -299,12 +295,6 @@ const v2_buildGraphForTemplateCreate = ({
   };
 };
 
-const v2_createEmptyTemplateGraph = (): V2TemplateNodeGraph => ({
-  rootNodeIds: [],
-  nodes: {},
-  componentDefinitions: {},
-});
-
 const TemplateEditorMainPage = () => {
   const router = useRouter();
   const baseConfig = useMemo(() => v2_createTemplateBaseConfig(), []);
@@ -326,7 +316,6 @@ const TemplateEditorMainPage = () => {
   const [timePreset, setTimePreset] = useState<V2TemplateTimePreset>('h12Prefix');
   const [weekDatePreset, setWeekDatePreset] =
     useState<V2TemplateWeekDatePreset>('mdySlash');
-  const [startMode, setStartMode] = useState<V2TemplateStartMode>('figmaPreset');
   const [defaultTheme, setDefaultTheme] = useState(baseConfig.defaultTheme);
   const [profileTextPlaceholder, setProfileTextPlaceholder] = useState(
     baseConfig.profileTextPlaceholder
@@ -371,15 +360,7 @@ const TemplateEditorMainPage = () => {
         : baseThemeOptions;
       const nextProfileTextPlaceholder =
         profileTextPlaceholder.trim() || normalized.profileTextPlaceholder;
-      const nextGraph =
-        startMode === 'empty'
-          ? v2_createEmptyTemplateGraph()
-          : v2_buildGraphForTemplateCreate({
-              sourceGraph: normalized.graph,
-              includeArtist: isArtist,
-              includeProfile: isProfile,
-              includeMemo: isMemo,
-            });
+      const nextGraph = v2_createEmptyTemplateNodeGraph();
       const nextConfig = v2_normalizeTemplateRenderConfig({
         ...normalized,
         metadata: {
@@ -602,23 +583,9 @@ const TemplateEditorMainPage = () => {
             다회차 시간표 사용
           </label>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="start-mode">
-              시작 구조
-            </label>
-            <select
-              id="start-mode"
-              value={startMode}
-              onChange={(event) => setStartMode(event.target.value as V2TemplateStartMode)}
-              className="w-60 rounded-md border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="figmaPreset">기본 프리셋으로 시작</option>
-              <option value="empty">빈 구조로 시작</option>
-            </select>
-            <p className="mt-1 text-xs text-slate-500">
-              빈 구조를 선택하면 루트 노드 없이 생성되며, 이후 에디터에서 노드를 직접 추가합니다.
-            </p>
-          </div>
+          <p className="text-xs text-slate-500">
+            신규 템플릿은 항상 빈 구조로 생성됩니다. 필요한 오브젝트/그룹은 에디터에서 직접 추가해 주세요.
+          </p>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="max-time">

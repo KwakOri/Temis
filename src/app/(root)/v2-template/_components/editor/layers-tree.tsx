@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  Boxes,
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
   Type,
 } from "lucide-react";
 import React from "react";
+import { createPortal } from "react-dom";
 
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
@@ -110,6 +112,10 @@ interface V2LayersTreeProps {
   }) => void;
   onExtractComponentInstanceLayerCopy?: (layerId: string) => void;
   onMoveComponentInstanceLayerToRoot?: (layerId: string) => void;
+  onCreateSceneNodeFromLayerMenu?: (payload: {
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
+    layerId?: string | null;
+  }) => void;
 }
 
 const V2LayersTree: React.FC<V2LayersTreeProps> = ({
@@ -141,7 +147,145 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
   onSelectLayer,
   onExtractComponentInstanceLayerCopy,
   onMoveComponentInstanceLayerToRoot,
+  onCreateSceneNodeFromLayerMenu,
 }) => {
+  const [contextMenu, setContextMenu] = React.useState<{
+    x: number;
+    y: number;
+    layerId: string | null;
+    layerLabel: string | null;
+    layerKind: V2LayerNode["kind"] | "root";
+  } | null>(null);
+  const contextMenuRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!contextMenu) return;
+
+    const closeContextMenu = () => setContextMenu(null);
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (
+        contextMenuRef.current &&
+        target &&
+        contextMenuRef.current.contains(target)
+      ) {
+        return;
+      }
+      closeContextMenu();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeContextMenu();
+    };
+
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", closeContextMenu);
+    window.addEventListener("scroll", closeContextMenu, true);
+
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", closeContextMenu);
+      window.removeEventListener("scroll", closeContextMenu, true);
+    };
+  }, [contextMenu]);
+
+  const openNodeContextMenu = ({
+    event,
+    node,
+  }: {
+    event: React.MouseEvent;
+    node: V2LayerNode;
+  }) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const resolvedTarget = node.target;
+    onSetSelectedComponentId(null);
+    onSetSelectedLayerIds([node.id]);
+    onSetLastSelectedLayerId(node.id);
+    onSetSelectedLayerId(node.id);
+    onSetActiveHighlightTarget(resolvedTarget ?? null);
+    onSelectLayer?.({
+      ...(resolvedTarget ? { target: resolvedTarget } : {}),
+      sectionKey: node.sectionKey,
+      layerId: node.id,
+      editorMode: "instance",
+    });
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      layerId: node.id,
+      layerLabel: node.label,
+      layerKind: node.kind,
+    });
+  };
+
+  const openRootContextMenu = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      layerId: null,
+      layerLabel: null,
+      layerKind: "root",
+    });
+  };
+
+  const handleContextCreateNode = (
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection"
+  ) => {
+    if (!contextMenu) return;
+    onCreateSceneNodeFromLayerMenu?.({
+      kind,
+      layerId: contextMenu.layerId,
+    });
+    setContextMenu(null);
+  };
+
+  const contextMenuLabel =
+    contextMenu?.layerKind === "root"
+      ? "루트 레이어"
+      : contextMenu?.layerLabel ?? "선택 레이어";
+
+  const contextMenuCreateOptions: Array<{
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
+    label: string;
+  }> = [
+    { kind: "text", label: "텍스트 생성" },
+    { kind: "flexibleText", label: "적응형 텍스트 생성" },
+    { kind: "asset", label: "에셋 생성" },
+    { kind: "group", label: "그룹 생성" },
+    { kind: "cardCollection", label: "카드 컬렉션 생성" },
+  ];
+  const contextMenuElement = contextMenu ? (
+    <div
+      ref={contextMenuRef}
+      className="fixed z-[220] min-w-[220px] rounded border border-[#354056] bg-[#161d2a] p-1.5 shadow-2xl"
+      style={{ left: contextMenu.x, top: contextMenu.y }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+    >
+      <div className="mb-1 flex items-center gap-2 border-b border-[#2b3446] px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#90a6cc]">
+        <Boxes className="h-3 w-3" />
+        <span>{contextMenuLabel}</span>
+      </div>
+      <div className="space-y-1">
+        {contextMenuCreateOptions.map((option) => (
+          <button
+            key={`context-create-${option.kind}`}
+            type="button"
+            className="flex w-full items-center justify-start rounded px-2 py-1.5 text-left text-[11px] text-[#d7e4ff] hover:bg-[#24344f]"
+            onClick={() => handleContextCreateNode(option.kind)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
   const getOrderedChildren = (
     parentId: V2LayerParentId,
     nodes: V2LayerNode[]
@@ -424,6 +568,9 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
             onSetDragState(null);
           }}
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
+          onContextMenu={(event) => {
+            openNodeContextMenu({ event, node });
+          }}
           onMouseEnter={() => {
             if (node.target) onSetHoverHighlightTarget(node.target);
           }}
@@ -656,11 +803,17 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
   };
 
   return (
-    <>
+    <div
+      className="relative min-h-[220px] space-y-1 pb-[60px]"
+      onContextMenu={openRootContextMenu}
+    >
       {getOrderedChildren(v2_ROOT_LAYER_PARENT_ID, layerTree).map((node) =>
         renderNode(node, 0, v2_ROOT_LAYER_PARENT_ID, false)
       )}
-    </>
+      {typeof window !== "undefined" && contextMenuElement
+        ? createPortal(contextMenuElement, document.body)
+        : null}
+    </div>
   );
 };
 

@@ -16,7 +16,7 @@ import {
 
 export interface TemplateRenderConfigContextValue {
   templateId: string | null;
-  source: "db" | "default";
+  source: "db" | "empty";
   isLoading: boolean;
   renderConfig: V2TemplateRenderConfig;
   setRenderConfig?: Dispatch<SetStateAction<V2TemplateRenderConfig>>;

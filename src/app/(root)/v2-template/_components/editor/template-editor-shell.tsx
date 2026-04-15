@@ -10,7 +10,10 @@ import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui
 import {
   V2TemplateGraphNode,
   V2TemplateGraphNodeStyleRefs,
+  V2TemplateLayerNode,
   V2TemplateNodeGraph,
+  V2TemplateRenderConfig,
+  V2TemplateSceneNode,
 } from '@/types/time-table/template-render-config';
 import { TTheme } from '@/types/time-table/theme';
 import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
@@ -35,6 +38,8 @@ import V2TimeTableLayersPanel from './layers-panel';
 import V2TimeTableControls from './preview-toolbar';
 import V2TimeTablePreview from './preview-canvas';
 import {
+  v2_graphAppendChild,
+  v2_graphAppendRoot,
   v2_graphInsertSiblingAfter,
   v2_graphMoveNode,
   v2_graphRemoveNodeSubtree,
@@ -52,10 +57,21 @@ import {
 import { v2_normalizeTemplateRenderConfig } from '@/utils/time-table/template-render-config';
 import {
   v2_collectSceneNodesByLayerId,
+  v2_collectSceneNodeIds,
   v2_collectLayerNodeIds,
   v2_createUniqueNodeId,
   v2_findSceneNodeContextById,
 } from '../properties/model/structure-utils';
+import {
+  v2_createCardCollectionInstanceGraphNode,
+  v2_getPreferredCardCollectionComponentId,
+  v2_sceneNodeToGraphNode,
+} from '../properties/model/scene-node-graph-utils';
+import {
+  v2_createDefaultTextNodeLayoutPatch,
+  v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
+  v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+} from '../properties/model/text-node-defaults';
 
 const useV2TemplateEditorSettings = () => {
   const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
@@ -200,6 +216,208 @@ const v2_createUniqueStyleKey = ({
   }
   existingKeys.add(nextKey);
   return nextKey;
+};
+
+const v2_SCENE_CUSTOM_NODE_ID_PREFIX = "scene-custom-";
+const v2_SCENE_CUSTOM_LAYER_ID_PREFIX = "scene-custom-layer-";
+const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
+
+type V2LayerMenuCreateKind =
+  | "text"
+  | "flexibleText"
+  | "asset"
+  | "group"
+  | "cardCollection";
+
+const v2_createSceneNodePayloadForLayerMenu = ({
+  config,
+  kind,
+}: {
+  config: V2TemplateRenderConfig;
+  kind: V2LayerMenuCreateKind;
+}): {
+  sceneNode: V2TemplateSceneNode;
+  layerNode: V2TemplateLayerNode;
+  dynamicSceneLayoutPatch: Record<
+    string,
+    NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>
+  >;
+} | null => {
+  const runtimeSceneNodes = v2_getRuntimeSceneNodes(config);
+  const runtimeLayerTree = v2_getRuntimeLayerTree(config);
+  const existingSceneNodeIds = v2_collectSceneNodeIds(runtimeSceneNodes);
+  const existingLayerNodeIds = v2_collectLayerNodeIds(runtimeLayerTree);
+  const baseSceneNodeId = v2_createUniqueNodeId(
+    v2_SCENE_CUSTOM_NODE_ID_PREFIX,
+    existingSceneNodeIds
+  );
+  const layerId = v2_createUniqueNodeId(
+    v2_SCENE_CUSTOM_LAYER_ID_PREFIX,
+    existingLayerNodeIds
+  );
+  const ordinal = baseSceneNodeId.replace(v2_SCENE_CUSTOM_NODE_ID_PREFIX, "");
+
+  if (kind === "group") {
+    return {
+      sceneNode: {
+        id: baseSceneNodeId,
+        label: `Group ${ordinal}`,
+        kind: "group",
+        layerId,
+        visibilityMode: "always",
+        children: [],
+      },
+      layerNode: {
+        id: layerId,
+        label: `Group ${ordinal}`,
+        kind: "group",
+        icon: "group",
+        target: `sceneNode:${baseSceneNodeId}`,
+        visibilityMode: "always",
+        children: [],
+      },
+      dynamicSceneLayoutPatch: {},
+    };
+  }
+
+  if (kind === "cardCollection") {
+    const componentId = v2_getPreferredCardCollectionComponentId(config);
+    if (!componentId) return null;
+    return {
+      sceneNode: {
+        id: baseSceneNodeId,
+        label: `CardCollection ${ordinal}`,
+        kind: "cardCollection",
+        layerId,
+        componentId,
+        visibilityMode: "always",
+      },
+      layerNode: {
+        id: layerId,
+        label: `CardCollection ${ordinal}`,
+        kind: "component",
+        icon: "grid",
+        target: `sceneNode:${baseSceneNodeId}`,
+        visibilityMode: "always",
+      },
+      dynamicSceneLayoutPatch: {},
+    };
+  }
+
+  if (kind === "asset") {
+    const styleKey = `sceneNode:${baseSceneNodeId}:style`;
+    return {
+      sceneNode: {
+        id: baseSceneNodeId,
+        label: `Asset ${ordinal}`,
+        kind: "asset",
+        layerId,
+        assetRole: "general",
+        styleKey,
+        fit: "cover",
+        alt: `asset-${ordinal}`,
+        visibilityMode: "always",
+      },
+      layerNode: {
+        id: layerId,
+        label: `Asset ${ordinal}`,
+        kind: "component",
+        icon: "image",
+        target: `sceneNode:${baseSceneNodeId}`,
+        sectionKey: styleKey,
+        visibilityMode: "always",
+      },
+      dynamicSceneLayoutPatch: {
+        [styleKey]: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: 240,
+          height: 240,
+        },
+      },
+    };
+  }
+
+  const containerStyleKey = `sceneNode:${baseSceneNodeId}:container`;
+  const textStyleKey = `sceneNode:${baseSceneNodeId}:text`;
+  if (kind === "text") {
+    return {
+      sceneNode: {
+        id: baseSceneNodeId,
+        label: `Text ${ordinal}`,
+        kind: "text",
+        layerId,
+        binding: {
+          mode: "literal",
+          value: `Text ${ordinal}`,
+        },
+        containerStyleKey,
+        textStyleKey,
+        colorKey: "SUB_TITLE",
+        fontKey: "SUB_TITLE",
+        highlightTarget: `sceneNode:${baseSceneNodeId}`,
+        containerClassName: v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+        textClassName: "text-center",
+        visibilityMode: "always",
+      },
+      layerNode: {
+        id: layerId,
+        label: `Text ${ordinal}`,
+        kind: "component",
+        icon: "text",
+        target: `sceneNode:${baseSceneNodeId}`,
+        sectionKey: containerStyleKey,
+        visibilityMode: "always",
+      },
+      dynamicSceneLayoutPatch: v2_createDefaultTextNodeLayoutPatch({
+        containerStyleKey,
+        textStyleKey,
+        isFlexibleText: false,
+      }),
+    };
+  }
+
+  const wrapperStyleKey = `sceneNode:${baseSceneNodeId}:wrapper`;
+  const optionsKey = `sceneNode:${baseSceneNodeId}:options`;
+  return {
+    sceneNode: {
+      id: baseSceneNodeId,
+      label: `FlexibleText ${ordinal}`,
+      kind: "flexibleText",
+      layerId,
+      binding: {
+        mode: "literal",
+        value: `FlexibleText ${ordinal}`,
+      },
+      containerStyleKey,
+      wrapperStyleKey,
+      textStyleKey,
+      optionsKey,
+      colorKey: "SUB_TITLE",
+      fontKey: "SUB_TITLE",
+      highlightTarget: `sceneNode:${baseSceneNodeId}`,
+      containerClassName: v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
+      textClassName: v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
+      visibilityMode: "always",
+    },
+    layerNode: {
+      id: layerId,
+      label: `FlexibleText ${ordinal}`,
+      kind: "component",
+      icon: "text",
+      target: `sceneNode:${baseSceneNodeId}`,
+      sectionKey: containerStyleKey,
+      visibilityMode: "always",
+    },
+    dynamicSceneLayoutPatch: v2_createDefaultTextNodeLayoutPatch({
+      containerStyleKey,
+      textStyleKey,
+      wrapperStyleKey,
+      optionsKey,
+      isFlexibleText: true,
+    }),
+  };
 };
 
 const V2TimeTableEditor: React.FC = () => {
@@ -574,6 +792,122 @@ const V2TimeTableEditor: React.FC = () => {
             : sourceSceneNode.id,
       });
     });
+  };
+  const createSceneNodeFromLayerMenu = ({
+    kind,
+    layerId,
+  }: {
+    kind: V2LayerMenuCreateKind;
+    layerId?: string | null;
+  }) => {
+    if (!setRenderConfig) return;
+
+    let nextFocusLayerId: string | null = null;
+    let nextFocusTarget: V2TemplateHighlightTarget | null = null;
+
+    setRenderConfig((prev) => {
+      const payload = v2_createSceneNodePayloadForLayerMenu({
+        config: prev,
+        kind,
+      });
+      if (!payload) return prev;
+
+      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
+      nextFocusLayerId = layerNode.id;
+      nextFocusTarget =
+        typeof layerNode.target === "string"
+          ? (layerNode.target as V2TemplateHighlightTarget)
+          : null;
+
+      const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+      const sceneNodeByLayerId = v2_collectSceneNodesByLayerId(runtimeSceneNodes);
+      const anchorSceneNode =
+        typeof layerId === "string" && layerId.trim().length > 0
+          ? sceneNodeByLayerId.get(layerId) ?? null
+          : null;
+      let nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
+      nextGraphNode = {
+        ...nextGraphNode,
+        childIds: [],
+      };
+
+      let nextGraph = prev.graph;
+      if (!anchorSceneNode) {
+        nextGraph = v2_graphAppendRoot({
+          graph: nextGraph,
+          newNode: nextGraphNode,
+        });
+      } else if (anchorSceneNode.kind === "group") {
+        nextGraph = v2_graphAppendChild({
+          graph: nextGraph,
+          parentId: anchorSceneNode.id,
+          newNode: {
+            ...nextGraphNode,
+            parentId: anchorSceneNode.id,
+          },
+        });
+      } else {
+        nextGraph = v2_graphInsertSiblingAfter({
+          graph: nextGraph,
+          anchorNodeId: anchorSceneNode.id,
+          newNode: {
+            ...nextGraphNode,
+            parentId: nextGraphNode.parentId ?? null,
+          },
+        });
+      }
+
+      if (sceneNode.kind === "cardCollection") {
+        const componentId = sceneNode.componentId;
+        if (!componentId) return prev;
+        const existingIds = new Set(Object.keys(nextGraph.nodes));
+        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
+          const instanceId = String(index);
+          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
+          let suffix = 1;
+          while (existingIds.has(instanceNodeId)) {
+            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
+            suffix += 1;
+          }
+          existingIds.add(instanceNodeId);
+          nextGraph = v2_graphAppendChild({
+            graph: nextGraph,
+            parentId: sceneNode.id,
+            newNode: v2_createCardCollectionInstanceGraphNode({
+              nodeId: instanceNodeId,
+              collectionNodeId: sceneNode.id,
+              collectionLayerId: sceneNode.layerId,
+              componentId,
+              instanceId,
+            }),
+          });
+        }
+      }
+
+      return {
+        ...prev,
+        graph: nextGraph,
+        layout: {
+          ...prev.layout,
+          scene: {
+            ...prev.layout.scene,
+            ...dynamicSceneLayoutPatch,
+          },
+        },
+      };
+    });
+
+    if (nextFocusLayerId) {
+      setIsRightPanelOpen(true);
+      setPropertiesFocusRequest({
+        layerId: nextFocusLayerId,
+        nonce: Date.now(),
+        editorMode: "instance",
+      });
+    }
+    if (nextFocusTarget) {
+      setActiveHighlightTarget(nextFocusTarget);
+    }
   };
   const createComponentMaster = (): V2ComponentMutationResult => {
     if (!setRenderConfig) {
@@ -1281,6 +1615,7 @@ const V2TimeTableEditor: React.FC = () => {
                       onMoveComponentInstanceLayerToRoot={
                         moveComponentInstanceLayerToRoot
                       }
+                      onCreateSceneNodeFromLayerMenu={createSceneNodeFromLayerMenu}
                       onSelectLayer={({ layerId, editorMode }) => {
                         setIsRightPanelOpen(true);
                         setPropertiesFocusRequest({

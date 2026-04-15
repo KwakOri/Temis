@@ -193,6 +193,38 @@ export const v2_graphAppendChild = ({
   });
 };
 
+export const v2_graphAppendRoot = ({
+  graph,
+  newNode,
+  targetIndex,
+}: {
+  graph: V2TemplateNodeGraph;
+  newNode: V2TemplateGraphNode;
+  targetIndex?: number;
+}): V2TemplateNodeGraph => {
+  if (graph.nodes[newNode.id]) return graph;
+
+  const nextRootNodeIds = [...graph.rootNodeIds];
+  const insertIndex = v2_clampIndex(
+    targetIndex ?? nextRootNodeIds.length,
+    nextRootNodeIds.length
+  );
+  nextRootNodeIds.splice(insertIndex, 0, newNode.id);
+
+  return v2_finalizeGraph({
+    ...graph,
+    rootNodeIds: nextRootNodeIds,
+    nodes: {
+      ...graph.nodes,
+      [newNode.id]: {
+        ...newNode,
+        parentId: null,
+        childIds: [...newNode.childIds],
+      },
+    },
+  });
+};
+
 export const v2_graphReorderNodeWithinParent = ({
   graph,
   nodeId,

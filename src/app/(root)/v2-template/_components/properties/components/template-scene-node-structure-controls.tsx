@@ -2,24 +2,14 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
-type TemplateSceneNodeInsertKind =
-  | "text"
-  | "flexibleText"
-  | "asset"
-  | "group"
-  | "cardCollection";
-
 interface TemplateSceneNodeStructureControlsProps {
   nodeId: string;
-  allowChildren: boolean;
   canDelete: boolean;
   currentParentId?: string | null;
   parentOptions?: Array<{ value: string | null; label: string }>;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDelete: () => void;
-  onAddSibling: (kind: TemplateSceneNodeInsertKind) => void;
-  onAddChild: (kind: TemplateSceneNodeInsertKind) => void;
   onRelocate?: (parentId: string | null) => void;
 }
 
@@ -29,24 +19,14 @@ const TemplateSceneNodeStructureControls: React.FC<
   TemplateSceneNodeStructureControlsProps
 > = ({
   nodeId,
-  allowChildren,
   canDelete,
   currentParentId = null,
   parentOptions = [],
   onMoveUp,
   onMoveDown,
   onDelete,
-  onAddSibling,
-  onAddChild,
   onRelocate,
 }) => {
-  const addButtons: Array<{ label: string; kind: TemplateSceneNodeInsertKind }> = [
-    { label: "+ Text", kind: "text" },
-    { label: "+ Flexible", kind: "flexibleText" },
-    { label: "+ Asset", kind: "asset" },
-    { label: "+ Group", kind: "group" },
-    { label: "+ Cards", kind: "cardCollection" },
-  ];
   const [selectedParentValue, setSelectedParentValue] = useState<string>(
     currentParentId ?? v2_ROOT_PARENT_OPTION_VALUE
   );
@@ -149,38 +129,6 @@ const TemplateSceneNodeStructureControls: React.FC<
             >
               이동
             </button>
-          </div>
-        </div>
-      ) : null}
-      <div className="space-y-1.5">
-        <p className="text-[11px] text-gray-500">동일 레벨 추가</p>
-        <div className="grid grid-cols-3 gap-2">
-          {addButtons.map((button) => (
-            <button
-              key={`${nodeId}-sibling-${button.kind}`}
-              type="button"
-              onClick={() => onAddSibling(button.kind)}
-              className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
-            >
-              {button.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {allowChildren ? (
-        <div className="space-y-1.5">
-          <p className="text-[11px] text-gray-500">하위 추가</p>
-          <div className="grid grid-cols-3 gap-2">
-            {addButtons.map((button) => (
-              <button
-                key={`${nodeId}-child-${button.kind}`}
-                type="button"
-                onClick={() => onAddChild(button.kind)}
-                className="rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-[11px] font-semibold text-gray-100 hover:bg-[#323640]"
-              >
-                {button.label}
-              </button>
-            ))}
           </div>
         </div>
       ) : null}

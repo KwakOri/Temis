@@ -55,6 +55,10 @@ interface V2TimeTableLayersPanelProps {
   extractableComponentInstanceLayerIdSet?: Set<string>;
   onExtractComponentInstanceLayerCopy?: (layerId: string) => void;
   onMoveComponentInstanceLayerToRoot?: (layerId: string) => void;
+  onCreateSceneNodeFromLayerMenu?: (payload: {
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
+    layerId?: string | null;
+  }) => void;
 }
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
@@ -73,6 +77,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   extractableComponentInstanceLayerIdSet,
   onExtractComponentInstanceLayerCopy,
   onMoveComponentInstanceLayerToRoot,
+  onCreateSceneNodeFromLayerMenu,
 }) => {
   const {
     activeHighlightTarget,
@@ -189,13 +194,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const selectedNodeIds = useMemo(() => {
     const ids = new Set<string>();
 
-    const visit = (node: V2LayerNode): boolean => {
-      const childMatched = (node.children ?? []).some((child) => visit(child));
+    const visit = (node: V2LayerNode) => {
       const selfMatched = node.target !== undefined && node.target === activeTarget;
-      if (selfMatched || childMatched) {
+      if (selfMatched) {
         ids.add(node.id);
       }
-      return selfMatched || childMatched;
+      (node.children ?? []).forEach((child) => {
+        visit(child);
+      });
     };
 
     layerTree.forEach((node) => {
@@ -560,7 +566,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           </div>
         </div>
         <div
-          className="flex-1 overflow-y-auto p-2"
+          className="flex-1 overflow-y-auto p-2 pb-[60px]"
           tabIndex={0}
           onKeyDown={handleLayersKeyDown}
         >
@@ -624,6 +630,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               onMoveComponentInstanceLayerToRoot={
                 onMoveComponentInstanceLayerToRoot
               }
+              onCreateSceneNodeFromLayerMenu={onCreateSceneNodeFromLayerMenu}
             />
           ) : (
             <V2LayersComponentsTab

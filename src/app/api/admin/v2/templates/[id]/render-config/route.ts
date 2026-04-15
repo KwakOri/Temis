@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth/middleware";
 import { supabase } from "@/lib/supabase";
 import { Json } from "@/types/supabase";
 import {
-  v2_createDefaultTemplateRenderConfig,
+  v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
 } from "@/utils/time-table/template-render-config";
 import { NextRequest, NextResponse } from "next/server";
@@ -70,12 +70,12 @@ export async function GET(
     }
     const normalizedConfig = hasStoredConfig
       ? v2_normalizeTemplateRenderConfig(storedConfig?.render_config)
-      : v2_createDefaultTemplateRenderConfig();
+      : v2_createEmptyTemplateRenderConfig();
 
     return NextResponse.json({
       success: true,
       templateId: id,
-      source: hasStoredConfig ? "db" : "default",
+      source: hasStoredConfig ? "db" : "empty",
       configVersion: storedConfig?.config_version ?? normalizedConfig.version,
       renderConfig: normalizedConfig,
       createdAt: storedConfig?.created_at ?? null,
@@ -142,7 +142,9 @@ export async function PUT(
         ? (body as { renderConfig?: unknown }).renderConfig
         : body;
 
-    const normalizedConfig = v2_normalizeTemplateRenderConfig(rawRenderConfig);
+    const normalizedConfig = v2_normalizeTemplateRenderConfig(
+      rawRenderConfig ?? v2_createEmptyTemplateRenderConfig()
+    );
 
     const parsedVersion =
       typeof (body as { configVersion?: unknown }).configVersion === "number"

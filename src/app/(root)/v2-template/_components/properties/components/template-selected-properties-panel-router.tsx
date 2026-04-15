@@ -46,6 +46,7 @@ interface TemplateSelectedPropertiesPanelRouterProps {
     node: V2TemplateSceneComponentInstanceNode
   ) => React.ReactNode;
   renderSimplePropertiesSection: (section: string) => React.ReactNode;
+  renderEmptyPropertiesPanel?: () => React.ReactNode;
 }
 
 const TemplateSelectedPropertiesPanelRouter: React.FC<
@@ -62,8 +63,11 @@ const TemplateSelectedPropertiesPanelRouter: React.FC<
   renderSceneCardCollectionProperties,
   renderSceneComponentInstanceProperties,
   renderSimplePropertiesSection,
+  renderEmptyPropertiesPanel,
 }) => {
-  if (!selectedLayerNode) return null;
+  if (!selectedLayerNode) {
+    return renderEmptyPropertiesPanel ? <>{renderEmptyPropertiesPanel()}</> : null;
+  }
 
   const cardNode = cardNodeByLayerId.get(selectedLayerNode.id);
   if (cardNode) {

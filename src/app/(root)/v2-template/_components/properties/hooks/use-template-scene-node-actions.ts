@@ -84,6 +84,7 @@ const useTemplateSceneNodeActions = ({
 
   const {
     isSceneCustomNode,
+    addSceneRootNode,
     addSceneSiblingNode,
     addSceneChildNode,
   } = useTemplateSceneStructureActions({
@@ -393,6 +394,7 @@ const useTemplateSceneNodeActions = ({
     updateSceneComponentInstanceBindingOverride,
     removeSceneComponentInstanceBindingOverride,
     isSceneCustomNode,
+    addSceneRootNode,
     addSceneSiblingNode,
     addSceneChildNode,
     moveSceneNode,

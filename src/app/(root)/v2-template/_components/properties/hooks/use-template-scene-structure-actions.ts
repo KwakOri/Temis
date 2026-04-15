@@ -7,6 +7,7 @@ import {
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
+  v2_graphAppendRoot,
   v2_graphAppendChild,
   v2_graphInsertSiblingAfter,
 } from "@/utils/time-table/template-graph-editor";
@@ -319,6 +320,74 @@ const useTemplateSceneStructureActions = ({
     }
   };
 
+  const addSceneRootNode = ({
+    kind,
+  }: {
+    kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
+  }) => {
+    let nextFocusLayerId: string | null = null;
+    let nextFocusTarget: V2TemplateHighlightTarget | null = null;
+
+    safeUpdateConfig((prev) => {
+      const payload = createCustomSceneNodePayload(prev, kind);
+      if (!payload) return prev;
+      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
+      nextFocusLayerId = layerNode.id;
+      nextFocusTarget = layerNode.target ?? null;
+
+      const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
+      let nextGraph = v2_graphAppendRoot({
+        graph: prev.graph,
+        newNode: nextGraphNode,
+      });
+      if (sceneNode.kind === "cardCollection") {
+        const componentId = sceneNode.componentId;
+        if (!componentId) return prev;
+        const existingIds = new Set(Object.keys(nextGraph.nodes));
+        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
+          const instanceId = String(index);
+          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
+          let suffix = 1;
+          while (existingIds.has(instanceNodeId)) {
+            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
+            suffix += 1;
+          }
+          existingIds.add(instanceNodeId);
+          nextGraph = v2_graphAppendChild({
+            graph: nextGraph,
+            parentId: sceneNode.id,
+            newNode: v2_createCardCollectionInstanceGraphNode({
+              nodeId: instanceNodeId,
+              collectionNodeId: sceneNode.id,
+              collectionLayerId: sceneNode.layerId,
+              componentId,
+              instanceId,
+            }),
+          });
+        }
+      }
+      return {
+        ...prev,
+        graph: nextGraph,
+        layout: {
+          ...prev.layout,
+          scene: {
+            ...prev.layout.scene,
+            ...dynamicSceneLayoutPatch,
+          },
+        },
+      };
+    });
+
+    if (nextFocusLayerId) {
+      setSelectedPropertiesLayerId(nextFocusLayerId);
+    }
+    if (nextFocusTarget) {
+      setSelectedPropertiesTarget(nextFocusTarget);
+      setActiveHighlightTarget(nextFocusTarget);
+    }
+  };
+
   const addSceneChildNode = ({
     parentNodeId,
     kind,
@@ -399,6 +468,7 @@ const useTemplateSceneStructureActions = ({
 
   return {
     isSceneCustomNode,
+    addSceneRootNode,
     addSceneSiblingNode,
     addSceneChildNode,
   };

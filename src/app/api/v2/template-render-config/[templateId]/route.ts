@@ -2,7 +2,7 @@ import { optionalAuth } from "@/lib/auth/middleware";
 import { supabase } from "@/lib/supabase";
 import { TemplateService } from "@/lib/templates";
 import {
-  v2_createDefaultTemplateRenderConfig,
+  v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
 } from "@/utils/time-table/template-render-config";
 import { NextRequest, NextResponse } from "next/server";
@@ -74,12 +74,12 @@ export async function GET(
     const hasStoredConfig = Boolean(storedConfig);
     const normalizedConfig = hasStoredConfig
       ? v2_normalizeTemplateRenderConfig(storedConfig?.render_config)
-      : v2_createDefaultTemplateRenderConfig();
+      : v2_createEmptyTemplateRenderConfig();
 
     return NextResponse.json({
       success: true,
       templateId,
-      source: hasStoredConfig ? "db" : "default",
+      source: hasStoredConfig ? "db" : "empty",
       configVersion: storedConfig?.config_version ?? normalizedConfig.version,
       renderConfig: normalizedConfig,
       createdAt: storedConfig?.created_at ?? null,
