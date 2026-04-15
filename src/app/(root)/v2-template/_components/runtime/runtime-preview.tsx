@@ -1,9 +1,9 @@
-import { useTemplateEditorUIContext } from "@/contexts/v2/template-editor-ui-context";
+import { useTemplateRuntimeUIContext } from "@/contexts/v2/template-runtime-ui-context";
 import { v2_clampPreviewScale } from "../shared/preview-scale";
 import V2TimeTableContent from "../scene/preview-scene";
 
 const V2RuntimePreview = () => {
-  const { state, actions } = useTemplateEditorUIContext();
+  const { state, actions } = useTemplateRuntimeUIContext();
   const { scale, captureSize, isMobile } = state;
   const { updateScale } = actions;
 

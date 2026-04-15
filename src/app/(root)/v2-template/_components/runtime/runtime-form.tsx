@@ -1,5 +1,5 @@
-import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
-import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
+import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
+import { useTemplateRuntimeData } from "@/contexts/v2/template-runtime-ui-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import { TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
@@ -29,7 +29,7 @@ const V2RuntimeForm = () => {
     updateGlobalData,
     currentTheme,
     updateTheme,
-  } = useTemplateEditorRuntimeContext();
+  } = useTemplateRuntimeContext();
   const {
     profileText,
     memoText,
@@ -40,7 +40,7 @@ const V2RuntimeForm = () => {
     handleImageChange,
     mondayDateStr,
     updateMondayDate,
-  } = useTemplateEditorData();
+  } = useTemplateRuntimeData();
 
   const [selectedDayIndex, setSelectedDayIndex] = React.useState(0);
   const [selectedEntryIndex, setSelectedEntryIndex] = React.useState(0);

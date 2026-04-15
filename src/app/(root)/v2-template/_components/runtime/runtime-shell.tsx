@@ -1,12 +1,12 @@
 "use client";
 
-import { TemplateEditorRuntimeProvider } from "@/contexts/v2/template-editor-runtime-context";
-import { TemplateEditorUIProvider } from "@/contexts/v2/template-editor-ui-context";
+import { TemplateRuntimeProvider } from "@/contexts/v2/template-runtime-context";
+import { TemplateRuntimeUIProvider } from "@/contexts/v2/template-runtime-ui-context";
 import {
   TemplateRenderConfigProvider,
   TemplateRenderConfigContextValue,
 } from "@/contexts/v2/template-render-config-context";
-import { useTemplateEditor } from "@/hooks/v2/useTemplateEditor";
+import { useTemplateRuntime } from "@/hooks/v2/useTemplateRuntime";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
 import { TTheme } from "@/types/time-table/theme";
@@ -46,7 +46,7 @@ const V2RuntimeShell = ({
     resetData,
     resetAll,
     isInitialized,
-  } = useTemplateEditor({
+  } = useTemplateRuntime({
     inputSchema,
     defaultTheme,
     captureSize,
@@ -157,8 +157,8 @@ const V2RuntimeShell = ({
 
   return (
     <TemplateRenderConfigProvider value={providerValue}>
-      <TemplateEditorUIProvider value={uiContextValue}>
-        <TemplateEditorRuntimeProvider value={runtimeValue}>
+      <TemplateRuntimeUIProvider value={uiContextValue}>
+        <TemplateRuntimeProvider value={runtimeValue}>
           {!isInitialized || state.weekDates.length === 0 ? (
             <V2Loading />
           ) : (
@@ -176,8 +176,8 @@ const V2RuntimeShell = ({
               </main>
             </div>
           )}
-        </TemplateEditorRuntimeProvider>
-      </TemplateEditorUIProvider>
+        </TemplateRuntimeProvider>
+      </TemplateRuntimeUIProvider>
     </TemplateRenderConfigProvider>
   );
 };
