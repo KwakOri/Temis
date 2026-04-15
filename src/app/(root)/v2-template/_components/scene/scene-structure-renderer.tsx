@@ -6,7 +6,6 @@ import {
 } from "@/contexts/v2/template-render-config-context";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
-import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
 import {
   V2TemplateSceneAssetNode,
   V2TemplateSceneAssetRole,
@@ -15,18 +14,18 @@ import {
   V2TemplateSceneNode,
   V2TemplateSceneTextNode,
 } from "@/types/time-table/template-render-config";
-import { v2_getRuntimeLayerTree } from "@/utils/v2/template-graph-layers-runtime";
 import {
   v2_getRuntimeCardStructureByComponentId,
 } from "@/utils/v2/template-graph-runtime";
 import {
-  v2_dayKeyFromIndex,
   v2_getComponentFontFamily,
   v2_isVisibleByMode,
-  v2_parseDayKey,
 } from "@/utils/v2/template-render-config";
-import { v2_buildComputedValues } from "@/utils/v2/text-formatting";
-import { v2_resolveSceneTextNodeValue } from "@/utils/v2/scene-nodes";
+import {
+  v2_resolveRuntimeCardInstance,
+  v2_resolveRuntimeSceneModel,
+  v2_resolveRuntimeTextNodeValue,
+} from "@/utils/v2/runtime-resolver";
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,
@@ -35,26 +34,6 @@ import V2TimeTableCell from "./card-cell";
 import V2TimeTableGrid from "./card-grid";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableLayoutStyle, v2_toRenderableStyle } from "./render-style";
-
-const v2_collectLayerTargetById = (
-  nodes: V2TemplateLayerNode[]
-): Record<string, string> => {
-  const next: Record<string, string> = {};
-  const stack = [...nodes];
-
-  while (stack.length > 0) {
-    const node = stack.shift();
-    if (!node) continue;
-    if (node.target) {
-      next[node.id] = node.target;
-    }
-    if (node.children?.length) {
-      stack.unshift(...node.children);
-    }
-  }
-
-  return next;
-};
 
 const v2_toRenderableLayout = (
   value: unknown
@@ -99,26 +78,21 @@ const V2SceneStructureRenderer = ({
   } = useTemplateEditorRuntimeContext();
   const { weekDates, profileText, memoText, imageSrc } =
     useTemplateEditorData();
-  const runtimeLayerTree = useMemo(
-    () => v2_getRuntimeLayerTree(renderConfig),
-    [renderConfig]
+  const {
+    runtimeLayerTree,
+    layerTargetMap,
+    rootLayerZIndexById,
+    memoTextFallback,
+    dataIndexByDayKey,
+    firstCard,
+    firstEntry,
+    firstCardOffline,
+    firstCardEntryCount,
+    resolveStyleRecordByKey,
+  } = useMemo(
+    () => v2_resolveRuntimeSceneModel({ renderConfig, data }),
+    [data, renderConfig]
   );
-  const layerTargetMap = useMemo(
-    () => v2_collectLayerTargetById(runtimeLayerTree),
-    [runtimeLayerTree]
-  );
-  const rootLayerZIndexById = useMemo(() => {
-    const next: Record<string, number> = {};
-    const total = runtimeLayerTree.length;
-    runtimeLayerTree.forEach((node, index) => {
-      next[node.id] = (total - index) * 10;
-    });
-    return next;
-  }, [runtimeLayerTree]);
-
-  const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
-  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
-  const sceneLayoutRecord = renderConfig.layout.scene as Record<string, unknown>;
   const runtimeCardStructureByComponentId = useMemo(() => {
     const next: Record<string, ReturnType<typeof v2_getRuntimeCardStructureByComponentId>> = {};
     Object.keys(renderConfig.graph.componentDefinitions ?? {}).forEach((componentId) => {
@@ -129,51 +103,6 @@ const V2SceneStructureRenderer = ({
     });
     return next;
   }, [renderConfig]);
-  const firstCard = data[0] as Record<string, unknown> | undefined;
-  const firstEntry = (firstCard?.entries as Record<string, unknown>[] | undefined)?.[0];
-  const firstCardOffline = Boolean(firstCard?.isOffline);
-  const firstCardEntryCount = Math.max(
-    1,
-    Array.isArray(firstCard?.entries) ? firstCard.entries.length : 0
-  );
-  const memoTextFallback = useMemo(() => {
-    const memoField = renderConfig.formSchema.fields.find((field) => {
-      return field.scope === "global" && field.key === "memoText";
-    });
-    if (!memoField) return "";
-    if (
-      typeof memoField.defaultValue === "string" &&
-      memoField.defaultValue.trim().length > 0
-    ) {
-      return memoField.defaultValue;
-    }
-    return memoField.placeholder ?? "";
-  }, [renderConfig.formSchema.fields]);
-  const dataIndexByDayKey = useMemo(() => {
-    const map: Record<string, number> = {};
-    data.forEach((card, index) => {
-      const dayKey = v2_parseDayKey(card.day);
-      if (!dayKey) return;
-      if (map[dayKey] !== undefined) return;
-      map[dayKey] = index;
-    });
-    return map;
-  }, [data]);
-
-  const resolveStyleRecordByKey = (key?: string): unknown => {
-    if (!key) return {};
-    if (sceneLayoutRecord[key] && typeof sceneLayoutRecord[key] === "object") {
-      return sceneLayoutRecord[key];
-    }
-    if (cardLayoutRecord[key] && typeof cardLayoutRecord[key] === "object") {
-      return cardLayoutRecord[key];
-    }
-    if (layoutRecord[key] && typeof layoutRecord[key] === "object") {
-      return layoutRecord[key];
-    }
-    return {};
-  };
-
   const renderTextNode = (node: V2TemplateSceneTextNode) => {
     const layout = v2_toRenderableLayout(
       resolveStyleRecordByKey(node.containerStyleKey)
@@ -184,41 +113,18 @@ const V2SceneStructureRenderer = ({
     const wrapperStyle = v2_toRenderableLayoutStyle(
       resolveStyleRecordByKey(node.wrapperStyleKey)
     );
-    const optionsRaw = node.optionsKey
-      ? (resolveStyleRecordByKey(node.optionsKey) as Record<string, unknown>)
-      : {};
 
-    const firstDayKey =
-      v2_parseDayKey(firstCard?.day) ?? v2_dayKeyFromIndex(0);
-    const firstWeekDate = weekDates[0];
-    const entryTime =
-      typeof firstEntry?.time === "string" ? firstEntry.time : "10:00";
-    const computedValues = v2_buildComputedValues({
-      dayKey: firstDayKey,
-      weekDate: firstWeekDate,
-      weekDates,
-      entryTime,
-      isGuerrilla:
-        typeof firstEntry?.isGuerrilla === "boolean" ? firstEntry.isGuerrilla : false,
-      renderConfig,
-    });
-    const fallbackWeekFlag = computedValues.weekDateRange ?? "";
-    const fallbackValue =
-      node.id === "scene-week-flag"
-        ? fallbackWeekFlag
-        : node.id === "scene-profile-text"
-          ? profileText || renderConfig.profileTextPlaceholder || ""
-          : node.id === "scene-memo-text"
-            ? memoText || memoTextFallback || ""
-            : "";
-    const text = v2_resolveSceneTextNodeValue({
+    const { text, multiline, maxFontSize } = v2_resolveRuntimeTextNodeValue({
       node,
-      fallbackValue,
-      computedValues,
-      entrySource: firstEntry,
-      entrySources: (firstCard?.entries as Record<string, unknown>[] | undefined) ?? [],
-      cardSource: firstCard,
-      globalSource: globalData as Record<string, unknown>,
+      renderConfig,
+      weekDates,
+      firstCard,
+      firstEntry,
+      profileText,
+      memoText,
+      memoTextFallback,
+      globalData: globalData as Record<string, unknown>,
+      resolveStyleRecordByKey,
     });
 
     const resolvedTarget =
@@ -236,13 +142,6 @@ const V2SceneStructureRenderer = ({
     const color = renderConfig.componentColors[node.colorKey];
 
     if (node.kind === "flexibleText") {
-      const multiline =
-        typeof optionsRaw.multiline === "boolean" ? optionsRaw.multiline : true;
-      const maxFontSize =
-        node.id === "scene-profile-text" || node.id === "scene-memo-text"
-          ? renderConfig.maxFontSizes.ARTIST
-          : renderConfig.maxFontSizes.MAIN_TITLE;
-
       return (
         <V2FlexibleTextNodeRenderer
           key={node.id}
@@ -415,18 +314,14 @@ const V2SceneStructureRenderer = ({
   ) => {
     const runtimeCardStructure = runtimeCardStructureByComponentId[node.componentId];
     if (!runtimeCardStructure) return null;
-
-    const dayIndex = dataIndexByDayKey[node.dayKey];
-    const parsedInstanceIndex = Number.parseInt(node.instanceId, 10);
-    const dataIndex =
-      dayIndex !== undefined
-        ? dayIndex
-        : Number.isFinite(parsedInstanceIndex) && parsedInstanceIndex >= 0
-          ? parsedInstanceIndex
-          : 0;
-    const cardData = data[dataIndex];
-    const weekDate = weekDates[dataIndex];
-    if (!cardData || !weekDate) return null;
+    const resolvedInstance = v2_resolveRuntimeCardInstance({
+      node,
+      data,
+      weekDates,
+      dataIndexByDayKey,
+    });
+    if (!resolvedInstance) return null;
+    const { dataIndex, cardData, weekDate } = resolvedInstance;
 
     const style = node.styleKey
       ? v2_toRenderableLayoutStyle(resolveStyleRecordByKey(node.styleKey))
