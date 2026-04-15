@@ -12,10 +12,14 @@
   - Phase 2: `runtime-form` 구현 + `fields/*` 분리
   - Phase 3: scene/card/text/asset resolver 분리(`src/utils/v2/runtime-resolver/*`)
   - runtime preview가 editor 전용 `preview-scale` 파일 의존하지 않도록 shared로 분리
+  - runtime 경로에서 runtime alias(`template-runtime-*`, `useTemplateRuntime`) 사용 정리
+  - runtime 전용 검증 스크립트 추가(`npm run check:v2-runtime`)
+  - Phase 4 cleanup 완료(런타임 경로 기준)
 - 진행 중
-  - Phase 4 cleanup (editor 의존 import 점검, 문서/검증 정리)
+  - 선택 과제: 내부 core 파일(`template-editor-*`)의 물리 파일명 변경 여부 검토
 - 현재 검증 메모
-  - 변경 파일 eslint 통과
+  - `npm run lint:v2-runtime` 통과(Next `no-img-element` 경고 2건 존재)
+  - `npm run typecheck:v2-runtime` 통과
   - 전체 `npx tsc --noEmit`은 `.next/types`의 기존 누락 경로 이슈로 실패(이번 리팩터링과 무관)
 
 ## 2. Scope
@@ -51,6 +55,7 @@
   - `resolve-runtime-scene-model.ts`
   - `resolve-runtime-card-model.ts`
   - `resolve-runtime-text-value.ts`
+  - `resolve-runtime-asset-model.ts`
 - 역할
   - `renderConfig + runtimeData` -> `resolved model`
   - 컴포넌트는 resolved model만 렌더
@@ -131,7 +136,8 @@
   - 대응: v2 page-id 규칙 강제, 경로별 e2e 확인
 
 ## 10. Validation checklist
-- `npx tsc --noEmit`
+- `npm run check:v2-runtime`
+- `npx tsc --noEmit` (legacy `.next/types` 이슈 분리 후)
 - `/v2-template/[templateId]` 진입/새로고침 후 값 복원
 - 요일/회차 변경 시 preview 즉시 반영
 - `offline/online` 표시 모드 반영

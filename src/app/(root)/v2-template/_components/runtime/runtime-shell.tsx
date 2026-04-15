@@ -7,7 +7,7 @@ import {
   TemplateRenderConfigContextValue,
 } from "@/contexts/v2/template-render-config-context";
 import { useTemplateRuntime } from "@/hooks/v2/useTemplateRuntime";
-import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
+import { V2RuntimeHighlightTarget } from "@/types/time-table/template-runtime-ui";
 import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
 import { TTheme } from "@/types/time-table/theme";
 import React from "react";
@@ -56,9 +56,9 @@ const V2RuntimeShell = ({
     Record<string, boolean>
   >({});
   const [hoverHighlightTarget, setHoverHighlightTarget] =
-    React.useState<V2TemplateHighlightTarget | null>(null);
+    React.useState<V2RuntimeHighlightTarget | null>(null);
   const [activeHighlightTarget, setActiveHighlightTarget] =
-    React.useState<V2TemplateHighlightTarget | null>(null);
+    React.useState<V2RuntimeHighlightTarget | null>(null);
 
   const isLayerHidden = React.useCallback(
     (layerId: string): boolean => {

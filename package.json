@@ -9,6 +9,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:v2-runtime": "eslint 'src/app/(root)/v2-template/[templateId]/page.tsx' 'src/app/(root)/v2-template/_components/runtime/**/*.tsx' 'src/app/(root)/v2-template/_components/scene/**/*.ts' 'src/app/(root)/v2-template/_components/scene/**/*.tsx' 'src/app/(root)/v2-template/_components/shared/preview-scale.ts' 'src/contexts/v2/template-runtime-context.tsx' 'src/contexts/v2/template-runtime-ui-context.tsx' 'src/hooks/v2/useTemplateRuntime.ts' 'src/utils/v2/runtime-resolver/**/*.ts'",
+    "typecheck:v2-runtime": "tsc -p tsconfig.v2-runtime.json --noEmit",
+    "check:v2-runtime": "npm run lint:v2-runtime && npm run typecheck:v2-runtime",
     "check:v2-orderkey": "tsx scripts/check-v2-orderkey.ts",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"
   },

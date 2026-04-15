@@ -1,0 +1,47 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "src/app/(root)/v2-template/[templateId]/page.tsx",
+    "src/app/(root)/v2-template/_components/runtime/**/*.ts",
+    "src/app/(root)/v2-template/_components/runtime/**/*.tsx",
+    "src/app/(root)/v2-template/_components/shared/preview-scale.ts",
+    "src/app/(root)/v2-template/_components/scene/**/*.ts",
+    "src/app/(root)/v2-template/_components/scene/**/*.tsx",
+    "src/contexts/v2/template-render-config-context.tsx",
+    "src/contexts/v2/template-runtime-context.tsx",
+    "src/contexts/v2/template-runtime-ui-context.tsx",
+    "src/contexts/v2/template-editor-runtime-context.tsx",
+    "src/contexts/v2/template-editor-ui-context.tsx",
+    "src/hooks/query/useV2TemplateRenderConfig.ts",
+    "src/hooks/v2/useTemplateRuntime.ts",
+    "src/hooks/v2/useTemplateEditor.ts",
+    "src/hooks/v2/useTemplateData.ts",
+    "src/hooks/v2/useTemplatePersistence.ts",
+    "src/hooks/v2/useTemplateState.ts",
+    "src/hooks/v2/useTemplateTheme.ts",
+    "src/services/v2_template_render_config_service.ts",
+    "src/types/time-table/data.ts",
+    "src/types/time-table/theme.ts",
+    "src/types/time-table/template-render-config.ts",
+    "src/types/time-table/template-editor-ui.ts",
+    "src/types/time-table/template-runtime-ui.ts",
+    "src/utils/v2/runtime-resolver/**/*.ts",
+    "src/utils/v2/localStorage.ts",
+    "src/utils/v2/scene-nodes.ts",
+    "src/utils/v2/template-graph-layers-runtime.ts",
+    "src/utils/v2/template-graph-runtime.ts",
+    "src/utils/v2/template-render-config.ts",
+    "src/utils/v2/text-formatting.ts",
+    "src/utils/v2/v2-form-data.ts",
+    "src/utils/v2/v2-form-persistence.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    ".next"
+  ]
+}

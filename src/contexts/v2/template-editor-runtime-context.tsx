@@ -1,7 +1,7 @@
 "use client";
 
 import { TDefaultCard, TGlobalData } from "@/types/time-table/data";
-import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
+import { V2RuntimeHighlightTarget } from "@/types/time-table/template-runtime-ui";
 import { TTheme } from "@/types/time-table/theme";
 import { createContext, PropsWithChildren, useContext } from "react";
 
@@ -17,13 +17,13 @@ export interface TemplateEditorRuntimeContextValue {
   isLayerHidden: (layerId: string) => boolean;
   toggleLayerHidden: (layerId: string) => void;
   setLayerHidden: (layerId: string, hidden: boolean) => void;
-  hoverHighlightTarget: V2TemplateHighlightTarget | null;
+  hoverHighlightTarget: V2RuntimeHighlightTarget | null;
   setHoverHighlightTarget: (
-    target: V2TemplateHighlightTarget | null
+    target: V2RuntimeHighlightTarget | null
   ) => void;
-  activeHighlightTarget: V2TemplateHighlightTarget | null;
+  activeHighlightTarget: V2RuntimeHighlightTarget | null;
   setActiveHighlightTarget: (
-    target: V2TemplateHighlightTarget | null
+    target: V2RuntimeHighlightTarget | null
   ) => void;
 }
 
