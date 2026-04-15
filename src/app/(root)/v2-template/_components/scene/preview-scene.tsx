@@ -7,7 +7,7 @@ import React from "react";
 
 import TimeTableDesignGuide from "@/components/tools/TimeTableDesignGuide";
 import { isGuideEnabled } from "@/utils/time-table/data";
-import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
+import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
 import V2SceneRenderer from "./scene-renderer";
 
 const V2TimeTableContent: React.FC = () => {

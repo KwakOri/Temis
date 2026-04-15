@@ -5,7 +5,7 @@ import {
   V2TemplateAssetMap,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
-import { v2_getThemedAssetUrl } from "@/utils/time-table/template-render-config";
+import { v2_getThemedAssetUrl } from "@/utils/v2/template-render-config";
 import {
   createContext,
   Dispatch,

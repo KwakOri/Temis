@@ -13,14 +13,14 @@ import {
   v2_TEMPLATE_DAY_KEYS,
   v2_TEMPLATE_COLOR_KEYS,
 } from "@/types/time-table/template-render-config";
-import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
-import { v2_getRuntimeComponentLayerTreeNodes } from "@/utils/time-table/template-graph-component-layers-runtime";
-import { v2_graphInsertSiblingAfter, v2_graphUpdateNode } from "@/utils/time-table/template-graph-editor";
+import { v2_getRuntimeLayerTree } from "@/utils/v2/template-graph-layers-runtime";
+import { v2_getRuntimeComponentLayerTreeNodes } from "@/utils/v2/template-graph-component-layers-runtime";
+import { v2_graphInsertSiblingAfter, v2_graphUpdateNode } from "@/utils/v2/template-graph-editor";
 import {
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
-} from "@/utils/time-table/template-graph-runtime";
-import { v2_resolveDayLabelByKey } from "@/utils/time-table/template-render-config";
+} from "@/utils/v2/template-graph-runtime";
+import { v2_resolveDayLabelByKey } from "@/utils/v2/template-render-config";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import {
   v2_collectSceneNodeStyleKeys,

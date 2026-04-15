@@ -9,7 +9,7 @@ import {
   useV2AutoSavePersistence,
   useV2BeforeUnloadSave,
   useV2FormPersistence,
-} from "@/utils/time-table/v2-form-persistence";
+} from "@/utils/v2/v2-form-persistence";
 
 export interface UseTemplatePersistenceOptions {
   data: TDefaultCard[];

@@ -4,7 +4,7 @@ import {
   V2TemplateSceneNode,
   v2_TEMPLATE_DAY_KEYS,
 } from "@/types/time-table/template-render-config";
-import { v2_resolveDayLabelByKey } from "@/utils/time-table/template-render-config";
+import { v2_resolveDayLabelByKey } from "@/utils/v2/template-render-config";
 
 type V2CardComponentInstanceSummary = {
   instanceId: string;

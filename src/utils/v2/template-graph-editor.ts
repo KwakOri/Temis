@@ -4,7 +4,7 @@ import {
 } from "@/types/time-table/template-render-config";
 import {
   v2_normalizeGraphOrderKeys,
-} from "@/utils/time-table/template-graph-order";
+} from "@/utils/v2/template-graph-order";
 
 const v2_cloneGraphNodes = (
   nodes: Record<string, V2TemplateGraphNode>

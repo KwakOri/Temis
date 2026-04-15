@@ -18,10 +18,10 @@ import {
   v2_graphAppendChild,
   v2_graphRemoveNodeSubtree,
   v2_graphUpdateNode,
-} from "@/utils/time-table/template-graph-editor";
+} from "@/utils/v2/template-graph-editor";
 import {
   v2_getRuntimeCardStructureByComponentId,
-} from "@/utils/time-table/template-graph-runtime";
+} from "@/utils/v2/template-graph-runtime";
 import {
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,

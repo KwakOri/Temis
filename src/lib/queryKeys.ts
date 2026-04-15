@@ -12,6 +12,8 @@ export const queryKeys = {
       [...queryKeys.template.all, "detail", id] as const,
     shopDetail: (id: string | number) =>
       [...queryKeys.template.all, "shopDetail", id] as const,
+    v2Templates: (params?: { limit?: number; offset?: number; search?: string }) =>
+      [...queryKeys.template.all, "v2Templates", params] as const,
     renderConfig: (id: string | number) =>
       [...queryKeys.template.all, "renderConfig", id] as const,
   },

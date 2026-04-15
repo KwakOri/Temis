@@ -3,7 +3,7 @@ import {
   V2TemplateRenderConfig,
   V2TemplateSceneNodeKind,
 } from "@/types/time-table/template-render-config";
-import { v2_graphUpdateNode } from "@/utils/time-table/template-graph-editor";
+import { v2_graphUpdateNode } from "@/utils/v2/template-graph-editor";
 
 export const v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX =
   "scene-component-instance-";

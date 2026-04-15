@@ -13,7 +13,7 @@ import {
   v2_createEmptyTemplateNodeGraph,
   v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig
-} from '@/utils/time-table/template-render-config';
+} from '@/utils/v2/template-render-config';
 
 const v2_isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

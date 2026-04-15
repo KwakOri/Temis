@@ -9,8 +9,8 @@ import {
   V2TemplateSceneTextNode,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
-import { v2_graphUpdateNode } from "@/utils/time-table/template-graph-editor";
-import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
+import { v2_graphUpdateNode } from "@/utils/v2/template-graph-editor";
+import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
 import { v2_findSceneNodeContextById } from "../model/structure-utils";
 
 interface UseTemplateSceneBindingActionsParams {

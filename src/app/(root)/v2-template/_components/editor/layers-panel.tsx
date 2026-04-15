@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-runtime-context";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import { V2TemplateLayerNode } from "@/types/time-table/template-render-config";
-import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/time-table/template-scene-structure-messages";
+import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/v2/template-scene-structure-messages";
 import {
   V2DropPosition,
   V2LayerParentId,

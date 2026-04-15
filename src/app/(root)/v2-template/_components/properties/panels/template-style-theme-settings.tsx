@@ -13,7 +13,7 @@ import {
   v2_buildStreamingTimeComputedValues,
   v2_buildWeekDateComputedValues,
   v2_resolveStreamingDayLabelByKey,
-} from "@/utils/time-table/text-formatting";
+} from "@/utils/v2/text-formatting";
 
 interface TemplateStyleThemeSettingsProps {
   renderConfig: V2TemplateRenderConfig;

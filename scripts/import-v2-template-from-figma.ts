@@ -2,8 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { v2_createDefaultTemplateRenderConfig, v2_createEmptyTemplateRenderConfig, v2_normalizeTemplateRenderConfig } from "../src/utils/time-table/template-render-config";
-import { v2_graphRemoveNodeSubtree } from "../src/utils/time-table/template-graph-editor";
+import { v2_createDefaultTemplateRenderConfig, v2_createEmptyTemplateRenderConfig, v2_normalizeTemplateRenderConfig } from "../src/utils/v2/template-render-config";
+import { v2_graphRemoveNodeSubtree } from "../src/utils/v2/template-graph-editor";
 
 type CliOptions = {
   figmaUrl: string;

@@ -1,5 +1,5 @@
 import type { V2TemplateRenderConfigResponse } from "@/services/v2_template_render_config_service";
-import { v2_createDefaultTemplateRenderConfig } from "@/utils/time-table/template-render-config";
+import { v2_createDefaultTemplateRenderConfig } from "@/utils/v2/template-render-config";
 import { Imgs } from "../_img/imgs";
 
 export const v2_createExampleRenderConfigResponse =

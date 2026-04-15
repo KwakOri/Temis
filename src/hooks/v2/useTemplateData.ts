@@ -10,7 +10,7 @@ import {
   v2_createInitialGlobalDataFromFormSchema,
   v2_getDefaultCardsFromFormSchema,
   v2_WEEK,
-} from "@/utils/time-table/v2-form-data";
+} from "@/utils/v2/v2-form-data";
 import { useCallback, useState } from "react";
 
 export interface UseTemplateDataOptions {

@@ -3,8 +3,8 @@ import {
   V2TemplateRenderConfig,
   V2TemplateSceneNode,
 } from "@/types/time-table/template-render-config";
-import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
-import { v2_dayKeyFromIndex } from "@/utils/time-table/template-render-config";
+import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
+import { v2_dayKeyFromIndex } from "@/utils/v2/template-render-config";
 
 export const v2_getPreferredCardCollectionComponentId = (
   config: V2TemplateRenderConfig

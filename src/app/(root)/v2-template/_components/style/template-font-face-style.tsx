@@ -1,7 +1,7 @@
 "use client";
 
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
-import { v2_buildFontFaceStyleText } from "@/utils/time-table/template-render-config";
+import { v2_buildFontFaceStyleText } from "@/utils/v2/template-render-config";
 import { useMemo } from "react";
 
 const V2TemplateFontFaceStyle = () => {

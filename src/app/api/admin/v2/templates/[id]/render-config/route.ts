@@ -4,7 +4,7 @@ import { Json } from "@/types/supabase";
 import {
   v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
-} from "@/utils/time-table/template-render-config";
+} from "@/utils/v2/template-render-config";
 import { NextRequest, NextResponse } from "next/server";
 
 const v2_TEMPLATE_ID_REGEX =

@@ -1,7 +1,7 @@
 "use client";
 
 import { CroppedAreaPixels, ImageEditData } from "@/types/image-edit";
-import { pageAwareStorage } from "@/utils/pageAwareLocalStorage";
+import { v2StateStorage } from "@/utils/v2/localStorage";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
 
@@ -110,26 +110,26 @@ export const useTemplateState = (captureSize?: {
 }) => {
   const [profileText, setProfileText] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return pageAwareStorage.getItem("profileText", "");
+      return v2StateStorage.getItem("profileText", "");
     }
     return "";
   });
   const [memoText, setMemoText] = useState<string>(() => {
     if (typeof window !== "undefined") {
-      return pageAwareStorage.getItem("memoText", "");
+      return v2StateStorage.getItem("memoText", "");
     }
     return "";
   });
   const [imageSrc, setImageSrc] = useState<string | null>(() => {
     if (typeof window !== "undefined") {
-      return pageAwareStorage.getItem("imageSrc", null);
+      return v2StateStorage.getItem("imageSrc", null);
     }
     return null;
   });
   const [preferProfileDummyImage, setPreferProfileDummyImage] = useState<boolean>(
     () => {
       if (typeof window !== "undefined") {
-        return pageAwareStorage.getItem("preferProfileDummyImage", false);
+        return v2StateStorage.getItem("preferProfileDummyImage", false);
       }
       return false;
     }
@@ -137,20 +137,20 @@ export const useTemplateState = (captureSize?: {
   const [isProfileTextVisible, setIsProfileTextVisible] = useState<boolean>(
     () => {
       if (typeof window !== "undefined") {
-        return pageAwareStorage.getItem("isProfileTextVisible", true);
+        return v2StateStorage.getItem("isProfileTextVisible", true);
       }
       return true;
     }
   );
   const [isMemoTextVisible, setIsMemoTextVisible] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
-      return pageAwareStorage.getItem("isMemoTextVisible", true);
+      return v2StateStorage.getItem("isMemoTextVisible", true);
     }
     return true;
   });
   const [selectedOptions, setSelectedOptions] = useState<V2OptionType[]>(() => {
     if (typeof window !== "undefined") {
-      return pageAwareStorage.getItem("selectedOptions", ["none"]);
+      return v2StateStorage.getItem("selectedOptions", ["none"]);
     }
     return ["none"];
   });
@@ -158,7 +158,7 @@ export const useTemplateState = (captureSize?: {
   const [imageEditData, setImageEditData] = useState<ImageEditData | null>(
     () => {
       if (typeof window !== "undefined") {
-        return pageAwareStorage.getItem("imageEditData", null);
+        return v2StateStorage.getItem("imageEditData", null);
       }
       return null;
     }
@@ -182,29 +182,29 @@ export const useTemplateState = (captureSize?: {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      pageAwareStorage.setItem("profileText", profileText);
+      v2StateStorage.setItem("profileText", profileText);
     }
   }, [profileText]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      pageAwareStorage.setItem("memoText", memoText);
+      v2StateStorage.setItem("memoText", memoText);
     }
   }, [memoText]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (imageSrc) {
-        pageAwareStorage.setItem("imageSrc", imageSrc);
+        v2StateStorage.setItem("imageSrc", imageSrc);
       } else {
-        pageAwareStorage.removeItem("imageSrc");
+        v2StateStorage.removeItem("imageSrc");
       }
     }
   }, [imageSrc]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      pageAwareStorage.setItem(
+      v2StateStorage.setItem(
         "preferProfileDummyImage",
         preferProfileDummyImage
       );
@@ -213,19 +213,19 @@ export const useTemplateState = (captureSize?: {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      pageAwareStorage.setItem("isProfileTextVisible", isProfileTextVisible);
+      v2StateStorage.setItem("isProfileTextVisible", isProfileTextVisible);
     }
   }, [isProfileTextVisible]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      pageAwareStorage.setItem("isMemoTextVisible", isMemoTextVisible);
+      v2StateStorage.setItem("isMemoTextVisible", isMemoTextVisible);
     }
   }, [isMemoTextVisible]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      pageAwareStorage.setItem("selectedOptions", selectedOptions);
+      v2StateStorage.setItem("selectedOptions", selectedOptions);
     }
   }, [selectedOptions]);
 
@@ -240,9 +240,9 @@ export const useTemplateState = (captureSize?: {
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (imageEditData) {
-        pageAwareStorage.setItem("imageEditData", imageEditData);
+        v2StateStorage.setItem("imageEditData", imageEditData);
       } else {
-        pageAwareStorage.removeItem("imageEditData");
+        v2StateStorage.removeItem("imageEditData");
       }
     }
   }, [imageEditData]);

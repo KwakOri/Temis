@@ -11,7 +11,7 @@ import {
 } from "@/types/time-table/template-render-config";
 import {
   v2_parseDayKey,
-} from "@/utils/time-table/template-render-config";
+} from "@/utils/v2/template-render-config";
 import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableLayoutStyle } from "./render-style";

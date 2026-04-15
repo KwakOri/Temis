@@ -6,7 +6,7 @@ import type { V2TemplateRenderConfig } from '@/types/time-table/template-render-
 import {
   v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
-} from '@/utils/time-table/template-render-config';
+} from '@/utils/v2/template-render-config';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 

@@ -22,7 +22,7 @@ import {
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
 } from "@/types/time-table/template-render-config";
-import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/time-table/template-scene-structure-messages";
+import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/v2/template-scene-structure-messages";
 import {
   v2_findNodeById,
   v2_getOrderedChildren,

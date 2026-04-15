@@ -22,8 +22,8 @@ import {
   v2_isEntryFieldBindingKey,
   v2_parseDayKey,
   v2_isVisibleByMode,
-} from "@/utils/time-table/template-render-config";
-import { v2_buildComputedValues } from "@/utils/time-table/text-formatting";
+} from "@/utils/v2/template-render-config";
+import { v2_buildComputedValues } from "@/utils/v2/text-formatting";
 import {
   V2FlexibleTextNodeRenderer,
   V2PlainTextNodeRenderer,

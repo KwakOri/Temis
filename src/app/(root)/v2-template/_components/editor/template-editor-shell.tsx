@@ -16,12 +16,12 @@ import {
   V2TemplateSceneNode,
 } from '@/types/time-table/template-render-config';
 import { TTheme } from '@/types/time-table/theme';
-import { v2_getRuntimeLayerTree } from '@/utils/time-table/template-graph-layers-runtime';
-import { v2_getRuntimeComponentLayerTreeByComponentId } from '@/utils/time-table/template-graph-component-layers-runtime';
+import { v2_getRuntimeLayerTree } from '@/utils/v2/template-graph-layers-runtime';
+import { v2_getRuntimeComponentLayerTreeByComponentId } from '@/utils/v2/template-graph-component-layers-runtime';
 import {
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
-} from '@/utils/time-table/template-graph-runtime';
+} from '@/utils/v2/template-graph-runtime';
 import V2TemplateBuilderForm from '../properties/template-properties-panel';
 import V2Loading from '../shared/loading-screen';
 import {
@@ -43,18 +43,18 @@ import {
   v2_graphInsertSiblingAfter,
   v2_graphMoveNode,
   v2_graphRemoveNodeSubtree,
-} from '@/utils/time-table/template-graph-editor';
+} from '@/utils/v2/template-graph-editor';
 import {
   v2_runOrderKeyRegressionChecks,
   v2_validateOrderKeyGraph,
-} from '@/utils/time-table/template-graph-order';
+} from '@/utils/v2/template-graph-order';
 import {
   v2_applyRelocatedComponentInstancePatch,
   v2_COMPONENT_INSTANCE_CLONE_LAYER_PREFIX,
   v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX,
   v2_createSceneComponentInstanceCloneNode,
-} from '@/utils/time-table/template-scene-component-instance';
-import { v2_normalizeTemplateRenderConfig } from '@/utils/time-table/template-render-config';
+} from '@/utils/v2/template-scene-component-instance';
+import { v2_normalizeTemplateRenderConfig } from '@/utils/v2/template-render-config';
 import {
   v2_collectSceneNodesByLayerId,
   v2_collectSceneNodeIds,

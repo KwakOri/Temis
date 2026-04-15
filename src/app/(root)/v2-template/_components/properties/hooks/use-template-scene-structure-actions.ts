@@ -10,9 +10,9 @@ import {
   v2_graphAppendRoot,
   v2_graphAppendChild,
   v2_graphInsertSiblingAfter,
-} from "@/utils/time-table/template-graph-editor";
-import { v2_getRuntimeLayerTree } from "@/utils/time-table/template-graph-layers-runtime";
-import { v2_getRuntimeSceneNodes } from "@/utils/time-table/template-graph-runtime";
+} from "@/utils/v2/template-graph-editor";
+import { v2_getRuntimeLayerTree } from "@/utils/v2/template-graph-layers-runtime";
+import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
 import {
   v2_createCardCollectionInstanceGraphNode,
   v2_getPreferredCardCollectionComponentId,

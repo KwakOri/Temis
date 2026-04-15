@@ -4,7 +4,7 @@ import {
   v2_createInitialGlobalDataFromFormSchema,
   v2_hydrateCardsFromFormSchema,
   v2_hydrateGlobalDataFromFormSchema,
-} from "@/utils/time-table/v2-form-data";
+} from "@/utils/v2/v2-form-data";
 import { useEffect, useState } from "react";
 import { useTemplateData } from "./useTemplateData";
 import { useTemplatePersistence } from "./useTemplatePersistence";

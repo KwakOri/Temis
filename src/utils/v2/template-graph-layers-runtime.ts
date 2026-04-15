@@ -6,7 +6,7 @@ import {
 } from "@/types/time-table/template-render-config";
 import {
   v2_getRuntimeSceneNodes,
-} from "@/utils/time-table/template-graph-runtime";
+} from "@/utils/v2/template-graph-runtime";
 
 const v2_inferLayerIcon = (kind: string): V2TemplateLayerIconKey => {
   if (kind === "group") return "group";

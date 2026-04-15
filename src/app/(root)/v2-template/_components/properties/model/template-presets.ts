@@ -1,7 +1,7 @@
 "use client";
 
 import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
-import { v2_createDefaultTemplateRenderConfig } from "@/utils/time-table/template-render-config";
+import { v2_createDefaultTemplateRenderConfig } from "@/utils/v2/template-render-config";
 
 export interface V2TemplatePresetDefinition {
   id: string;

@@ -45,8 +45,8 @@ import {
   V2TemplateVisibilityMode,
   V2TemplateWeekDateFormat,
 } from "@/types/time-table/template-render-config";
-import { v2_normalizeGraphOrderKeys } from "@/utils/time-table/template-graph-order";
-import { v2_resolveStreamingDayLabelByKey } from "@/utils/time-table/text-formatting";
+import { v2_normalizeGraphOrderKeys } from "@/utils/v2/template-graph-order";
+import { v2_resolveStreamingDayLabelByKey } from "@/utils/v2/text-formatting";
 
 const v2_DEFAULT_THEME = "first";
 

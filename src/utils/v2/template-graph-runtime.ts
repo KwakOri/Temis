@@ -17,7 +17,7 @@ import {
 import {
   v2_dayKeyFromIndex,
   v2_parseDayKey,
-} from "@/utils/time-table/template-render-config";
+} from "@/utils/v2/template-render-config";
 
 const v2_COLOR_KEY_SET = new Set(v2_TEMPLATE_COLOR_KEYS);
 const v2_VISIBILITY_MODE_SET = new Set(["always", "onlineOnly", "offlineOnly"]);

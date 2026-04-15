@@ -1,17 +1,15 @@
-import { optionalAuth } from "@/lib/auth/middleware";
 import { supabase } from "@/lib/supabase";
-import { TemplateService } from "@/lib/templates";
 import {
   v2_createEmptyTemplateRenderConfig,
   v2_normalizeTemplateRenderConfig,
-} from "@/utils/time-table/template-render-config";
+} from "@/utils/v2/template-render-config";
 import { NextRequest, NextResponse } from "next/server";
 
 const v2_TEMPLATE_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ templateId: string }> }
 ) {
   try {
@@ -25,8 +23,8 @@ export async function GET(
     }
 
     const { data: template, error: templateError } = await supabase
-      .from("templates")
-      .select("id, is_public")
+      .from("v2_templates")
+      .select("id")
       .eq("id", templateId)
       .single();
 
@@ -41,28 +39,8 @@ export async function GET(
       throw templateError;
     }
 
-    const { user } = await optionalAuth(request);
-    const adminEmails =
-      process.env.ADMIN_EMAILS?.split(",").map((email) => email.trim()) || [];
-    const isAdminByRole = user?.role === "admin";
-    const isAdminByEmail = Boolean(user?.email && adminEmails.includes(user.email));
-    const isAdmin = isAdminByRole || isAdminByEmail;
-
-    let hasAccess = template.is_public || isAdmin;
-
-    if (!hasAccess && user?.userId) {
-      hasAccess = await TemplateService.hasAccess(templateId, String(user.userId));
-    }
-
-    if (!hasAccess) {
-      return NextResponse.json(
-        { error: "템플릿 접근 권한이 없습니다." },
-        { status: 403 }
-      );
-    }
-
     const { data: storedConfig, error: configError } = await supabase
-      .from("template_render_configs")
+      .from("v2_template_render_configs")
       .select("config_version, render_config, created_at, updated_at")
       .eq("template_id", templateId)
       .single();

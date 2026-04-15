@@ -1,4 +1,4 @@
-import { v2_runOrderKeyRegressionChecks } from "../src/utils/time-table/template-graph-order";
+import { v2_runOrderKeyRegressionChecks } from "../src/utils/v2/template-graph-order";
 
 const result = v2_runOrderKeyRegressionChecks();
 
