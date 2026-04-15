@@ -5,20 +5,14 @@ import { TEntry } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
 import {
   V2TemplateFieldScope,
-  V2TemplateFormField,
   v2_TEMPLATE_DAY_KEYS,
 } from "@/types/time-table/template-render-config";
 import { v2_createInitialEntryFromFormSchema } from "@/utils/v2/v2-form-data";
 import { v2_resolveDayLabelByKey } from "@/utils/v2/template-render-config";
 import React from "react";
+import V2RuntimeScopeSection from "./fields/scope-section";
 
 type V2RuntimeFieldScope = V2TemplateFieldScope;
-
-const v2_toFieldInputValue = (value: unknown): string | number => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") return value;
-  return "";
-};
 
 const v2_SCOPE_LABELS: Record<V2RuntimeFieldScope, string> = {
   entry: "회차(Entry)",
@@ -178,119 +172,6 @@ const V2RuntimeForm = () => {
     );
   };
 
-  const renderFieldInput = (
-    field: V2TemplateFormField,
-    value: unknown,
-    onChange: (nextValue: string | number) => void
-  ) => {
-    const commonClassName =
-      "w-full rounded border border-[#3a3d44] bg-[#1a1d23] px-3 py-2 text-sm text-gray-100";
-    const inputValue = v2_toFieldInputValue(value);
-
-    if (field.type === "textarea") {
-      return (
-        <textarea
-          rows={3}
-          value={String(inputValue)}
-          onChange={(event) => onChange(event.target.value)}
-          className={commonClassName}
-          placeholder={field.placeholder}
-        />
-      );
-    }
-
-    if (field.type === "select") {
-      return (
-        <select
-          value={String(inputValue)}
-          onChange={(event) => onChange(event.target.value)}
-          className={commonClassName}
-        >
-          <option value="">{field.placeholder || "선택"}</option>
-          {(field.options ?? []).map((option) => (
-            <option key={`${field.key}:${option.value}`} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      );
-    }
-
-    if (field.type === "number") {
-      return (
-        <input
-          type="number"
-          value={inputValue}
-          onChange={(event) => {
-            const raw = event.target.value;
-            onChange(raw === "" ? "" : Number(raw));
-          }}
-          className={commonClassName}
-          placeholder={field.placeholder}
-        />
-      );
-    }
-
-    const inputType =
-      field.type === "time"
-        ? "time"
-        : field.type === "date"
-          ? "date"
-          : "text";
-
-    return (
-      <input
-        type={inputType}
-        value={String(inputValue)}
-        onChange={(event) => onChange(event.target.value)}
-        className={commonClassName}
-        placeholder={field.placeholder}
-      />
-    );
-  };
-
-  const renderScopeSection = (
-    scope: V2RuntimeFieldScope,
-    fields: V2TemplateFormField[]
-  ) => {
-    if (fields.length === 0) return null;
-
-    return (
-      <section className="space-y-3 rounded border border-[#2f3239] bg-[#111317] p-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
-          {v2_SCOPE_LABELS[scope]}
-        </h3>
-        {fields.map((field) => {
-          const label = field.label?.trim() || field.key;
-          const value =
-            scope === "entry"
-              ? selectedEntry[field.key]
-              : scope === "card"
-                ? (selectedCard as Record<string, unknown>)?.[field.key]
-                : globalData[field.key];
-          const handleChange = (nextValue: string | number) => {
-            if (scope === "entry") {
-              updateEntryField(field.key, nextValue);
-              return;
-            }
-            if (scope === "card") {
-              updateCardField(field.key, nextValue);
-              return;
-            }
-            updateGlobalField(field.key, nextValue);
-          };
-
-          return (
-            <div key={`${scope}:${field.key}`} className="space-y-1.5">
-              <label className="block text-xs text-gray-400">{label}</label>
-              {renderFieldInput(field, value, handleChange)}
-            </div>
-          );
-        })}
-      </section>
-    );
-  };
-
   return (
     <aside className="h-full overflow-y-auto border-l border-slate-800 bg-[#0d1117] p-4 text-gray-100">
       <div className="space-y-4">
@@ -413,9 +294,35 @@ const V2RuntimeForm = () => {
           </section>
         ) : null}
 
-        {renderScopeSection("entry", groupedFields.entry)}
-        {renderScopeSection("card", groupedFields.card)}
-        {renderScopeSection("global", groupedFields.global)}
+        <V2RuntimeScopeSection
+          scope="entry"
+          scopeLabel={v2_SCOPE_LABELS.entry}
+          fields={groupedFields.entry}
+          getValue={(field) => selectedEntry[field.key]}
+          onChange={(fieldKey, nextValue) =>
+            updateEntryField(fieldKey, nextValue)
+          }
+        />
+        <V2RuntimeScopeSection
+          scope="card"
+          scopeLabel={v2_SCOPE_LABELS.card}
+          fields={groupedFields.card}
+          getValue={(field) =>
+            (selectedCard as Record<string, unknown>)?.[field.key]
+          }
+          onChange={(fieldKey, nextValue) =>
+            updateCardField(fieldKey, nextValue)
+          }
+        />
+        <V2RuntimeScopeSection
+          scope="global"
+          scopeLabel={v2_SCOPE_LABELS.global}
+          fields={groupedFields.global}
+          getValue={(field) => globalData[field.key]}
+          onChange={(fieldKey, nextValue) =>
+            updateGlobalField(fieldKey, nextValue)
+          }
+        />
 
         <section className="space-y-2 rounded border border-[#2f3239] bg-[#111317] p-3">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
