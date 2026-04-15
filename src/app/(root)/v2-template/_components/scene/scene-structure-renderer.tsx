@@ -8,7 +8,6 @@ import { useTemplateEditorRuntimeContext } from "@/contexts/v2/template-editor-r
 import { useTemplateEditorData } from "@/contexts/v2/template-editor-ui-context";
 import {
   V2TemplateSceneAssetNode,
-  V2TemplateSceneAssetRole,
   V2TemplateSceneCardCollectionNode,
   V2TemplateSceneComponentInstanceNode,
   V2TemplateSceneNode,
@@ -22,7 +21,9 @@ import {
   v2_isVisibleByMode,
 } from "@/utils/v2/template-render-config";
 import {
+  v2_resolveRuntimeAssetModel,
   v2_resolveRuntimeCardInstance,
+  v2_resolveSceneAssetRole,
   v2_resolveRuntimeSceneModel,
   v2_resolveRuntimeTextNodeValue,
 } from "@/utils/v2/runtime-resolver";
@@ -51,17 +52,6 @@ const v2_toRenderableLayout = (
   };
 };
 
-const v2_resolveSceneAssetRole = (
-  node: Pick<V2TemplateSceneAssetNode, "id" | "layerId" | "assetRole">
-): V2TemplateSceneAssetRole => {
-  if (node.assetRole) return node.assetRole;
-  if (node.layerId === "profile-image") return "profileImage";
-  if (node.layerId === "profile-frame") return "profileFrame";
-  if (node.id === "scene-background") return "background";
-  if (node.id === "scene-guide-overlay") return "guideOverlay";
-  return "general";
-};
-
 const V2SceneStructureRenderer = ({
   sceneNodes,
 }: {
@@ -79,7 +69,6 @@ const V2SceneStructureRenderer = ({
   const { weekDates, profileText, memoText, imageSrc } =
     useTemplateEditorData();
   const {
-    runtimeLayerTree,
     layerTargetMap,
     rootLayerZIndexById,
     memoTextFallback,
@@ -180,22 +169,19 @@ const V2SceneStructureRenderer = ({
   };
 
   const renderAssetNode = (node: V2TemplateSceneAssetNode) => {
-    const assetRole = v2_resolveSceneAssetRole(node);
-    const isProfileImage = assetRole === "profileImage";
-    const isProfileFrame = assetRole === "profileFrame";
-    const isBackground = assetRole === "background";
-    const isGuideOverlay = assetRole === "guideOverlay";
-
     const configuredAssetUrl = resolveAssetUrlFromConfig({
       renderConfig,
       assetRef: node.assetRef,
       currentTheme,
     });
-    const uploadedProfileImage =
-      isProfileImage && typeof imageSrc === "string" && imageSrc.trim()
-        ? imageSrc
-        : null;
-    const assetUrl = isProfileImage ? uploadedProfileImage : configuredAssetUrl;
+    const { assetRole, assetUrl, isProfileImage, baseStyle, fit } =
+      v2_resolveRuntimeAssetModel({
+        node,
+        renderConfig,
+        configuredAssetUrl,
+        imageSrc,
+      });
+    const isGuideOverlay = assetRole === "guideOverlay";
 
     const style = node.styleKey
       ? v2_toRenderableLayoutStyle(resolveStyleRecordByKey(node.styleKey))
@@ -208,39 +194,6 @@ const V2SceneStructureRenderer = ({
           activeTarget: activeHighlightTarget,
         })
       : {};
-
-    const baseStyle: React.CSSProperties = isBackground
-      ? {
-          position: "absolute",
-          inset: 0,
-          width: renderConfig.templateSize.width,
-          height: renderConfig.templateSize.height,
-          zIndex: 0,
-        }
-      : isGuideOverlay
-        ? {
-            position: "absolute",
-            inset: 0,
-            width: renderConfig.templateSize.width,
-            height: renderConfig.templateSize.height,
-            zIndex: 999,
-            pointerEvents: "none",
-          }
-        : isProfileImage
-          ? {
-              ...renderConfig.cardSizes.profile,
-              position: "absolute",
-            }
-          : isProfileFrame
-            ? {
-                ...renderConfig.cardSizes.frame,
-                position: "absolute",
-              }
-            : {
-                position: "absolute",
-              };
-
-    const fit = node.fit ?? "cover";
 
     if (!assetUrl) {
       if (!isProfileImage) return null;

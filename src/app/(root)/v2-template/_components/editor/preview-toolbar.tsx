@@ -5,7 +5,7 @@ import {
   v2_PREVIEW_SCALE_MAX_DESKTOP,
   v2_PREVIEW_SCALE_MIN,
   v2_clampPreviewScale,
-} from "./preview-scale";
+} from "../shared/preview-scale";
 
 const TimeTableControls: React.FC = () => {
   const { scale, updateScale } = useTemplateEditorUI();

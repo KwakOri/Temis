@@ -9,6 +9,8 @@ export const v2_clampPreviewScale = ({
   value: number;
   isMobile: boolean;
 }) => {
-  const max = isMobile ? v2_PREVIEW_SCALE_MAX_MOBILE : v2_PREVIEW_SCALE_MAX_DESKTOP;
+  const max = isMobile
+    ? v2_PREVIEW_SCALE_MAX_MOBILE
+    : v2_PREVIEW_SCALE_MAX_DESKTOP;
   return Math.min(Math.max(value, v2_PREVIEW_SCALE_MIN), max);
 };

@@ -5,7 +5,7 @@ import {
   v2_PREVIEW_SCALE_MAX_MOBILE,
   v2_PREVIEW_SCALE_MIN,
   v2_clampPreviewScale,
-} from "./preview-scale";
+} from "../shared/preview-scale";
 
 const MobileHeader: React.FC = () => {
   const { state, actions } = useTemplateEditorUIContext();
