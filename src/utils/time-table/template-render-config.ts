@@ -60,8 +60,23 @@ const v2_ASSET_KEYS = [
   "bgByTheme",
   "topObjectByTheme",
   "memoByTheme",
+  "artist",
   "onlineByTheme",
+  "online_mon",
+  "online_tue",
+  "online_wed",
+  "online_thu",
+  "online_fri",
+  "online_sat",
+  "online_sun",
   "offlineByTheme",
+  "offline_mon",
+  "offline_tue",
+  "offline_wed",
+  "offline_thu",
+  "offline_fri",
+  "offline_sat",
+  "offline_sun",
   "profileFrameByTheme",
   "profileBgByTheme",
   "guideByTheme",
@@ -273,6 +288,8 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   isArtist: true,
   isMultiple: false,
   maxStreamingTimeByDay: 1,
+  useOnlineAssetsByDay: false,
+  useOfflineAssetsByDay: false,
 };
 
 const v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD: V2TemplateFormField = {
@@ -457,31 +474,22 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
     ],
   },
   {
-    id: "artist",
+    id: "profile-text",
     label: "Artist",
-    kind: "group",
+    kind: "component",
     visibilityMode: "always",
-    icon: "group",
-    children: [
-      {
-        id: "artist-object",
-        label: "Object",
-        kind: "component",
-        visibilityMode: "always",
-        icon: "image",
-        target: "profileText",
-        sectionKey: "profileTextArtistImageStyle",
-      },
-      {
-        id: "profile-text",
-        label: "Text",
-        kind: "component",
-        visibilityMode: "always",
-        icon: "text",
-        target: "profileText",
-        sectionKey: "profileTextRootStyle",
-      },
-    ],
+    icon: "text",
+    target: "profileText",
+    sectionKey: "profileTextRootStyle",
+  },
+  {
+    id: "artist-object",
+    label: "Artist",
+    kind: "component",
+    visibilityMode: "always",
+    icon: "image",
+    target: "artistObject",
+    sectionKey: "profileTextArtistImageStyle",
   },
   {
     id: "memo",
@@ -744,48 +752,39 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     visibilityMode: "always",
   },
   {
-    id: "scene-artist",
+    id: "scene-profile-text",
     label: "Artist",
-    kind: "group",
-    layerId: "artist",
+    kind: "flexibleText",
+    layerId: "profile-text",
+    binding: {
+      mode: "field",
+      scope: "global",
+      key: "profileText",
+    },
+    containerStyleKey: "profileTextRootStyle",
+    wrapperStyleKey: "profileTextWrapperStyle",
+    textStyleKey: "profileTextStyle",
+    colorKey: "ARTIST",
+    fontKey: "ARTIST",
+    highlightTarget: "profileText",
+    containerClassName: "absolute flex justify-end items-center",
+    textClassName: "text-center",
     visibilityMode: "always",
-    children: [
-      {
-        id: "scene-profile-text",
-        label: "ProfileText",
-        kind: "flexibleText",
-        layerId: "profile-text",
-        binding: {
-          mode: "field",
-          scope: "global",
-          key: "profileText",
-        },
-        containerStyleKey: "profileTextRootStyle",
-        wrapperStyleKey: "profileTextWrapperStyle",
-        textStyleKey: "profileTextStyle",
-        colorKey: "ARTIST",
-        fontKey: "ARTIST",
-        highlightTarget: "profileText",
-        containerClassName: "absolute flex justify-end items-center",
-        textClassName: "text-center",
-        visibilityMode: "always",
-      },
-      {
-        id: "scene-artist-object",
-        label: "ArtistObject",
-        kind: "asset",
-        layerId: "artist-object",
-        assetRef: {
-          source: "builtin",
-          key: "profileBgByTheme",
-        },
-        assetRole: "general",
-        styleKey: "profileTextArtistImageStyle",
-        fit: "fill",
-        alt: "artist-object",
-        visibilityMode: "always",
-      },
-    ],
+  },
+  {
+    id: "scene-artist-object",
+    label: "Artist",
+    kind: "asset",
+    layerId: "artist-object",
+    assetRef: {
+      source: "builtin",
+      key: "artist",
+    },
+    assetRole: "general",
+    styleKey: "profileTextArtistImageStyle",
+    fit: "fill",
+    alt: "artist-object",
+    visibilityMode: "always",
   },
   {
     id: "scene-profile",
@@ -1560,10 +1559,55 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     memoByTheme: {
       first: null,
     },
+    artist: {
+      first: null,
+    },
     onlineByTheme: {
       first: null,
     },
+    online_mon: {
+      first: null,
+    },
+    online_tue: {
+      first: null,
+    },
+    online_wed: {
+      first: null,
+    },
+    online_thu: {
+      first: null,
+    },
+    online_fri: {
+      first: null,
+    },
+    online_sat: {
+      first: null,
+    },
+    online_sun: {
+      first: null,
+    },
     offlineByTheme: {
+      first: null,
+    },
+    offline_mon: {
+      first: null,
+    },
+    offline_tue: {
+      first: null,
+    },
+    offline_wed: {
+      first: null,
+    },
+    offline_thu: {
+      first: null,
+    },
+    offline_fri: {
+      first: null,
+    },
+    offline_sat: {
+      first: null,
+    },
+    offline_sun: {
       first: null,
     },
     profileFrameByTheme: {
@@ -1586,10 +1630,55 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     memoByTheme: {
       first: null,
     },
+    artist: {
+      first: null,
+    },
     onlineByTheme: {
       first: null,
     },
+    online_mon: {
+      first: null,
+    },
+    online_tue: {
+      first: null,
+    },
+    online_wed: {
+      first: null,
+    },
+    online_thu: {
+      first: null,
+    },
+    online_fri: {
+      first: null,
+    },
+    online_sat: {
+      first: null,
+    },
+    online_sun: {
+      first: null,
+    },
     offlineByTheme: {
+      first: null,
+    },
+    offline_mon: {
+      first: null,
+    },
+    offline_tue: {
+      first: null,
+    },
+    offline_wed: {
+      first: null,
+    },
+    offline_thu: {
+      first: null,
+    },
+    offline_fri: {
+      first: null,
+    },
+    offline_sat: {
+      first: null,
+    },
+    offline_sun: {
       first: null,
     },
     profileFrameByTheme: {
@@ -2180,22 +2269,51 @@ const v2_normalizeGraphNode = (
   const normalizedMeta = v2_normalizeGraphNodeMeta(nodeRecord.meta);
   const normalizedOrder = v2_normalizeGraphNodeOrder(nodeRecord.order);
 
+  const nextLabel =
+    nodeId === "scene-profile-text"
+      ? "Artist"
+      : v2_asString(nodeRecord.label, id);
+  const isArtistObjectNode =
+    id === "scene-artist-object" || nodeRecord.layerId === "artist-object";
+
+  const nextMeta =
+    isArtistObjectNode
+      ? {
+          ...(normalizedMeta ?? {}),
+          ...(normalizedMeta?.assetRef?.source === "builtin" &&
+          normalizedMeta.assetRef.key === "profileBgByTheme"
+            ? {
+                assetRef: v2_toBuiltinAssetRef("artist"),
+              }
+            : {}),
+          ...(normalizedMeta?.layerTarget === "profileText"
+            ? {
+                layerTarget: "artistObject" as V2TemplateGraphNode["highlightTarget"],
+              }
+            : {}),
+        }
+      : normalizedMeta;
+  const nextHighlightTarget =
+    typeof nodeRecord.highlightTarget === "string"
+      ? isArtistObjectNode && nodeRecord.highlightTarget === "profileText"
+        ? ("artistObject" as V2TemplateGraphNode["highlightTarget"])
+        : (nodeRecord.highlightTarget as V2TemplateGraphNode["highlightTarget"])
+      : undefined;
+
   return {
     id,
     type,
-    label: v2_asString(nodeRecord.label, id),
+    label: nextLabel,
     parentId,
     childIds,
     ...(typeof nodeRecord.layerId === "string"
       ? { layerId: nodeRecord.layerId }
       : {}),
-    ...(typeof nodeRecord.highlightTarget === "string"
-      ? { highlightTarget: nodeRecord.highlightTarget as V2TemplateGraphNode["highlightTarget"] }
-      : {}),
+    ...(nextHighlightTarget ? { highlightTarget: nextHighlightTarget } : {}),
     ...(visibilityMode ? { visibilityMode } : {}),
     ...(binding ? { binding } : {}),
     ...(normalizedStyles ? { styles: normalizedStyles } : {}),
-    ...(normalizedMeta ? { meta: normalizedMeta } : {}),
+    ...(nextMeta ? { meta: nextMeta } : {}),
     ...(normalizedOrder ? { order: normalizedOrder } : {}),
   };
 };
@@ -2387,13 +2505,77 @@ const v2_normalizeNodeGraph = (
     componentDefinitions: nextComponentDefinitions,
   });
 
+  const v2_splitLegacyArtistGroupNodeGraph = (
+    graph: V2TemplateNodeGraph
+  ): V2TemplateNodeGraph => {
+    const legacyGroup = graph.nodes["scene-artist"];
+    if (!legacyGroup || legacyGroup.type !== "group") return graph;
+
+    const nextNodes: Record<string, V2TemplateGraphNode> = {
+      ...graph.nodes,
+    };
+    const rawChildIds = legacyGroup.childIds.filter((childId) => nextNodes[childId]);
+    const preferredOrder = ["scene-profile-text", "scene-artist-object"];
+    const orderedChildIds = [
+      ...preferredOrder.filter((childId) => rawChildIds.includes(childId)),
+      ...rawChildIds.filter((childId) => !preferredOrder.includes(childId)),
+    ];
+
+    if (orderedChildIds.length === 0) {
+      delete nextNodes["scene-artist"];
+      return {
+        ...graph,
+        nodes: nextNodes,
+        rootNodeIds: graph.rootNodeIds.filter((nodeId) => nodeId !== "scene-artist"),
+      };
+    }
+
+    orderedChildIds.forEach((childId) => {
+      const childNode = nextNodes[childId];
+      if (!childNode) return;
+      nextNodes[childId] = {
+        ...childNode,
+        parentId: null,
+      };
+    });
+
+    Object.entries(nextNodes).forEach(([nodeId, node]) => {
+      if (nodeId === "scene-artist") return;
+      if (!node.childIds.includes("scene-artist")) return;
+      nextNodes[nodeId] = {
+        ...node,
+        childIds: node.childIds.filter((childId) => childId !== "scene-artist"),
+      };
+    });
+
+    const insertionIndex = graph.rootNodeIds.indexOf("scene-artist");
+    const rootWithoutLegacy = graph.rootNodeIds
+      .filter((nodeId) => nodeId !== "scene-artist")
+      .filter((nodeId) => !orderedChildIds.includes(nodeId));
+    const safeInsertionIndex =
+      insertionIndex >= 0
+        ? Math.min(insertionIndex, rootWithoutLegacy.length)
+        : rootWithoutLegacy.length;
+    const nextRootNodeIds = [...rootWithoutLegacy];
+    nextRootNodeIds.splice(safeInsertionIndex, 0, ...orderedChildIds);
+
+    delete nextNodes["scene-artist"];
+
+    return {
+      ...graph,
+      nodes: nextNodes,
+      rootNodeIds: nextRootNodeIds,
+    };
+  };
+
+  const migratedGraph = v2_splitLegacyArtistGroupNodeGraph({
+    rootNodeIds: candidateRootNodeIds.length > 0 ? candidateRootNodeIds : [],
+    nodes: upgradedNodes,
+    componentDefinitions: nextComponentDefinitions,
+  });
+
   return v2_sanitizeNodeGraph({
-    graph: {
-      rootNodeIds:
-        candidateRootNodeIds.length > 0 ? candidateRootNodeIds : [],
-      nodes: upgradedNodes,
-      componentDefinitions: nextComponentDefinitions,
-    },
+    graph: migratedGraph,
   });
 };
 
@@ -3284,6 +3466,14 @@ export const v2_normalizeTemplateRenderConfig = (
           )
         )
       ),
+      useOnlineAssetsByDay: v2_asBoolean(
+        raw.editorOptions.useOnlineAssetsByDay,
+        normalized.editorOptions.useOnlineAssetsByDay
+      ),
+      useOfflineAssetsByDay: v2_asBoolean(
+        raw.editorOptions.useOfflineAssetsByDay,
+        normalized.editorOptions.useOfflineAssetsByDay
+      ),
     };
   }
 
@@ -3313,13 +3503,73 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assets.memoByTheme,
         raw.assets.memoByTheme
       ),
+      artist: v2_mergeThemeStringMap(
+        normalized.assets.artist,
+        raw.assets.artist
+      ),
       onlineByTheme: v2_mergeThemeStringMap(
         normalized.assets.onlineByTheme,
         raw.assets.onlineByTheme
       ),
+      online_mon: v2_mergeThemeStringMap(
+        normalized.assets.online_mon,
+        raw.assets.online_mon
+      ),
+      online_tue: v2_mergeThemeStringMap(
+        normalized.assets.online_tue,
+        raw.assets.online_tue
+      ),
+      online_wed: v2_mergeThemeStringMap(
+        normalized.assets.online_wed,
+        raw.assets.online_wed
+      ),
+      online_thu: v2_mergeThemeStringMap(
+        normalized.assets.online_thu,
+        raw.assets.online_thu
+      ),
+      online_fri: v2_mergeThemeStringMap(
+        normalized.assets.online_fri,
+        raw.assets.online_fri
+      ),
+      online_sat: v2_mergeThemeStringMap(
+        normalized.assets.online_sat,
+        raw.assets.online_sat
+      ),
+      online_sun: v2_mergeThemeStringMap(
+        normalized.assets.online_sun,
+        raw.assets.online_sun
+      ),
       offlineByTheme: v2_mergeThemeStringMap(
         normalized.assets.offlineByTheme,
         raw.assets.offlineByTheme
+      ),
+      offline_mon: v2_mergeThemeStringMap(
+        normalized.assets.offline_mon,
+        raw.assets.offline_mon
+      ),
+      offline_tue: v2_mergeThemeStringMap(
+        normalized.assets.offline_tue,
+        raw.assets.offline_tue
+      ),
+      offline_wed: v2_mergeThemeStringMap(
+        normalized.assets.offline_wed,
+        raw.assets.offline_wed
+      ),
+      offline_thu: v2_mergeThemeStringMap(
+        normalized.assets.offline_thu,
+        raw.assets.offline_thu
+      ),
+      offline_fri: v2_mergeThemeStringMap(
+        normalized.assets.offline_fri,
+        raw.assets.offline_fri
+      ),
+      offline_sat: v2_mergeThemeStringMap(
+        normalized.assets.offline_sat,
+        raw.assets.offline_sat
+      ),
+      offline_sun: v2_mergeThemeStringMap(
+        normalized.assets.offline_sun,
+        raw.assets.offline_sun
       ),
       profileFrameByTheme: v2_mergeThemeStringMap(
         normalized.assets.profileFrameByTheme,
@@ -3350,13 +3600,73 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assetDimensions.memoByTheme,
         raw.assetDimensions.memoByTheme
       ),
+      artist: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.artist,
+        raw.assetDimensions.artist
+      ),
       onlineByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.onlineByTheme,
         raw.assetDimensions.onlineByTheme
       ),
+      online_mon: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.online_mon,
+        raw.assetDimensions.online_mon
+      ),
+      online_tue: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.online_tue,
+        raw.assetDimensions.online_tue
+      ),
+      online_wed: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.online_wed,
+        raw.assetDimensions.online_wed
+      ),
+      online_thu: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.online_thu,
+        raw.assetDimensions.online_thu
+      ),
+      online_fri: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.online_fri,
+        raw.assetDimensions.online_fri
+      ),
+      online_sat: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.online_sat,
+        raw.assetDimensions.online_sat
+      ),
+      online_sun: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.online_sun,
+        raw.assetDimensions.online_sun
+      ),
       offlineByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.offlineByTheme,
         raw.assetDimensions.offlineByTheme
+      ),
+      offline_mon: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offline_mon,
+        raw.assetDimensions.offline_mon
+      ),
+      offline_tue: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offline_tue,
+        raw.assetDimensions.offline_tue
+      ),
+      offline_wed: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offline_wed,
+        raw.assetDimensions.offline_wed
+      ),
+      offline_thu: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offline_thu,
+        raw.assetDimensions.offline_thu
+      ),
+      offline_fri: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offline_fri,
+        raw.assetDimensions.offline_fri
+      ),
+      offline_sat: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offline_sat,
+        raw.assetDimensions.offline_sat
+      ),
+      offline_sun: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offline_sun,
+        raw.assetDimensions.offline_sun
       ),
       profileFrameByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.profileFrameByTheme,

@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/auth/middleware";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer } from "@/lib/supabase-admin-server";
 import { Json } from "@/types/supabase";
 import {
   v2_createEmptyTemplateRenderConfig,
@@ -30,7 +30,7 @@ export async function GET(
       );
     }
 
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await supabaseAdminServer
       .from("v2_templates")
       .select("id")
       .eq("id", id)
@@ -47,7 +47,7 @@ export async function GET(
       throw templateError;
     }
 
-    const { data: storedConfig, error: configError } = await supabase
+    const { data: storedConfig, error: configError } = await supabaseAdminServer
       .from("v2_template_render_configs")
       .select("id, config_version, render_config, created_at, updated_at")
       .eq("template_id", id)
@@ -58,7 +58,7 @@ export async function GET(
     }
 
     const hasStoredConfig = Boolean(storedConfig);
-    const { data: latestRevision, error: latestRevisionError } = await supabase
+    const { data: latestRevision, error: latestRevisionError } = await supabaseAdminServer
       .from("v2_template_render_config_revisions")
       .select("revision_no")
       .eq("template_id", id)
@@ -111,7 +111,7 @@ export async function PUT(
       );
     }
 
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await supabaseAdminServer
       .from("v2_templates")
       .select("id")
       .eq("id", id)
@@ -156,7 +156,7 @@ export async function PUT(
         ? Math.floor(parsedVersion)
         : normalizedConfig.version;
 
-    const { data: upsertedConfig, error: upsertError } = await supabase
+    const { data: upsertedConfig, error: upsertError } = await supabaseAdminServer
       .from("v2_template_render_configs")
       .upsert(
         {
@@ -175,7 +175,7 @@ export async function PUT(
       throw upsertError;
     }
 
-    const { data: latestRevision, error: latestRevisionError } = await supabase
+    const { data: latestRevision, error: latestRevisionError } = await supabaseAdminServer
       .from("v2_template_render_config_revisions")
       .select("revision_no")
       .eq("template_id", id)

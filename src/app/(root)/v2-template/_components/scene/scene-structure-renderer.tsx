@@ -239,11 +239,9 @@ const V2SceneStructureRenderer = ({
       const multiline =
         typeof optionsRaw.multiline === "boolean" ? optionsRaw.multiline : true;
       const maxFontSize =
-        typeof optionsRaw.maxFontSize === "number" && Number.isFinite(optionsRaw.maxFontSize)
-          ? optionsRaw.maxFontSize
-          : node.id === "scene-profile-text" || node.id === "scene-memo-text"
-            ? renderConfig.maxFontSizes.ARTIST
-            : renderConfig.maxFontSizes.MAIN_TITLE;
+        node.id === "scene-profile-text" || node.id === "scene-memo-text"
+          ? renderConfig.maxFontSizes.ARTIST
+          : renderConfig.maxFontSizes.MAIN_TITLE;
 
       return (
         <V2FlexibleTextNodeRenderer

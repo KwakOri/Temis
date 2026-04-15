@@ -214,6 +214,7 @@ const useTemplateBoilerplateActions = ({
 
     updateBoilerplateSection(wrapperSection, {
       ...wrapperMap,
+      display: "flex",
       justifyContent: v2_HORIZONTAL_ALIGN_TO_JUSTIFY[align],
     });
 
@@ -233,6 +234,7 @@ const useTemplateBoilerplateActions = ({
     const wrapperMap = getBoilerplateSectionMap(wrapperSection);
     updateBoilerplateSection(wrapperSection, {
       ...wrapperMap,
+      display: "flex",
       alignItems: v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS[align],
     });
   };

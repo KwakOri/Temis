@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth/middleware";
 import { resolveAdminActorUserId } from "@/lib/auth/resolve-admin-actor-user-id";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer } from "@/lib/supabase-admin-server";
 import { Json } from "@/types/supabase";
 import {
   v2_createEmptyTemplateRenderConfig,
@@ -24,7 +24,7 @@ const v2_parseTemplateId = async ({
 };
 
 const v2_assertTemplateExists = async (templateId: string) => {
-  const { data: template, error: templateError } = await supabase
+  const { data: template, error: templateError } = await supabaseAdminServer
     .from("v2_templates")
     .select("id")
     .eq("id", templateId)
@@ -37,6 +37,18 @@ const v2_assertTemplateExists = async (templateId: string) => {
     throw templateError;
   }
   return template;
+};
+
+const v2_isRetryableLockError = (error: unknown): boolean => {
+  const code = typeof (error as { code?: unknown })?.code === "string"
+    ? (error as { code: string }).code
+    : null;
+
+  return code === "57014" || code === "55P03" || code === "40P01";
+};
+
+const v2_serializeConfig = (value: unknown): string => {
+  return JSON.stringify(v2_normalizeTemplateRenderConfig(value));
 };
 
 export async function GET(
@@ -80,7 +92,7 @@ export async function GET(
     }
     const userId = resolvedActor.userId;
 
-    const { data: draft, error: draftError } = await supabase
+    const { data: draft, error: draftError } = await supabaseAdminServer
       .from("v2_template_render_config_drafts")
       .select(
         "id, config_version, render_config, base_revision_no, is_autosave, created_at, updated_at"
@@ -201,7 +213,46 @@ export async function PUT(
         : null;
     const isAutosave = (body as { isAutosave?: unknown }).isAutosave !== false;
 
-    const { data: upsertedDraft, error: upsertError } = await supabase
+    const { data: existingDraft, error: existingDraftError } = await supabaseAdminServer
+      .from("v2_template_render_config_drafts")
+      .select(
+        "id, config_version, render_config, base_revision_no, is_autosave, created_at, updated_at"
+      )
+      .eq("template_id", templateId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (existingDraftError) {
+      throw existingDraftError;
+    }
+
+    if (existingDraft) {
+      const isSamePayload =
+        existingDraft.config_version === configVersion &&
+        (existingDraft.base_revision_no ?? null) === baseRevisionNo &&
+        Boolean(existingDraft.is_autosave) === Boolean(isAutosave) &&
+        v2_serializeConfig(existingDraft.render_config) ===
+          v2_serializeConfig(normalizedConfig);
+
+      if (isSamePayload) {
+        return NextResponse.json({
+          success: true,
+          templateId,
+          hasDraft: true,
+          draft: {
+            id: existingDraft.id,
+            configVersion: existingDraft.config_version,
+            renderConfig: v2_normalizeTemplateRenderConfig(existingDraft.render_config),
+            baseRevisionNo: existingDraft.base_revision_no ?? null,
+            isAutosave: Boolean(existingDraft.is_autosave),
+            createdAt: existingDraft.created_at,
+            updatedAt: existingDraft.updated_at,
+          },
+        });
+      }
+    }
+
+    const { data: upsertedDraft, error: upsertError } = await supabaseAdminServer
       .from("v2_template_render_config_drafts")
       .upsert(
         {
@@ -240,6 +291,14 @@ export async function PUT(
       },
     });
   } catch (error) {
+    if (v2_isRetryableLockError(error)) {
+      console.warn("Admin v2 template render config draft save retryable lock:", error);
+      return NextResponse.json(
+        { error: "동시 저장 처리 중입니다. 잠시 후 자동으로 다시 시도해 주세요." },
+        { status: 409 }
+      );
+    }
+
     console.error("Admin v2 template render config draft save error:", error);
     return NextResponse.json(
       { error: "템플릿 렌더링 draft 저장 중 오류가 발생했습니다." },

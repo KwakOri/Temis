@@ -4,6 +4,7 @@ export const v2_TEMPLATE_HIGHLIGHT_TARGETS = [
   "topObjectContainer",
   "profileImage",
   "profileFrame",
+  "artistObject",
   "memoObject",
   "profileText",
   "memoText",

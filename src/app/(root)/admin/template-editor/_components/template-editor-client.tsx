@@ -12,11 +12,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const v2_TEMPLATE_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const v2_DRAFT_AUTOSAVE_DEBOUNCE_MS = 1500;
+const v2_DRAFT_AUTOSAVE_DEBOUNCE_MS = 2500;
+const v2_DRAFT_AUTOSAVE_RETRY_DELAY_MS = 1200;
 
 type V2DbSyncStatus = 'idle' | 'checking' | 'ready' | 'error';
 
 type V2HttpError = Error & { status?: number };
+
+type V2DraftAutosavePayload = {
+  templateId: string;
+  renderConfig: V2TemplateRenderConfig;
+  serialized: string;
+  baseRevisionNo: number | null;
+};
 
 type TemplateEditorClientProps = {
   forcedTemplateId?: string;
@@ -143,17 +151,20 @@ const v2_saveAdminRenderConfigDraft = async ({
   renderConfig,
   baseRevisionNo,
   isAutosave,
+  signal,
 }: {
   templateId: string;
   renderConfig: V2TemplateRenderConfig;
   baseRevisionNo?: number | null;
   isAutosave: boolean;
+  signal?: AbortSignal;
 }): Promise<V2AdminRenderConfigDraftResponse> => {
   const response = await fetch(`/api/admin/v2/templates/${templateId}/render-config/draft`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
+    signal,
     body: JSON.stringify({
       configVersion: renderConfig.version,
       renderConfig,
@@ -244,6 +255,12 @@ const TemplateEditorClient = ({
   const baseRevisionNoRef = useRef<number | null>(null);
   const isDbHydratedRef = useRef(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autosaveRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  const autosaveInFlightRef = useRef<Promise<void> | null>(null);
+  const autosaveAbortControllerRef = useRef<AbortController | null>(null);
+  const pendingAutosavePayloadRef = useRef<V2DraftAutosavePayload | null>(null);
 
   const renderConfigSerialized = useMemo(
     () => JSON.stringify(renderConfig),
@@ -257,6 +274,108 @@ const TemplateEditorClient = ({
     [dbSyncStatus, lastDraftSavedSerialized, renderConfigSerialized]
   );
 
+  const flushPendingAutosave = useCallback(async (): Promise<void> => {
+    if (autosaveInFlightRef.current) {
+      await autosaveInFlightRef.current;
+      return;
+    }
+
+    const payload = pendingAutosavePayloadRef.current;
+    if (!payload) {
+      return;
+    }
+
+    pendingAutosavePayloadRef.current = null;
+    const abortController = new AbortController();
+    autosaveAbortControllerRef.current = abortController;
+    setIsDraftAutosaving(true);
+
+    const runSave = async () => {
+      try {
+        const response = await v2_saveAdminRenderConfigDraft({
+          templateId: payload.templateId,
+          renderConfig: payload.renderConfig,
+          baseRevisionNo: payload.baseRevisionNo,
+          isAutosave: true,
+          signal: abortController.signal,
+        });
+
+        if (!response.hasDraft || !response.draft) {
+          throw new Error('DB draft 응답이 비어 있습니다.');
+        }
+
+        baseRevisionNoRef.current =
+          response.draft.baseRevisionNo ?? baseRevisionNoRef.current;
+        setLastDraftSavedSerialized(payload.serialized);
+        setDbSyncMessage('DB draft 자동 저장 완료');
+      } catch (error) {
+        if (abortController.signal.aborted) return;
+
+        const status =
+          typeof (error as { status?: unknown })?.status === 'number'
+            ? (error as { status: number }).status
+            : null;
+
+        if (status === 409 || status === 429) {
+          if (
+            pendingAutosavePayloadRef.current === null ||
+            pendingAutosavePayloadRef.current.serialized === payload.serialized
+          ) {
+            pendingAutosavePayloadRef.current = payload;
+          }
+
+          setDbSyncMessage('DB 저장 대기 중입니다. 자동으로 재시도합니다.');
+
+          if (autosaveRetryTimerRef.current) {
+            clearTimeout(autosaveRetryTimerRef.current);
+          }
+
+          autosaveRetryTimerRef.current = setTimeout(() => {
+            autosaveRetryTimerRef.current = null;
+            void flushPendingAutosave();
+          }, v2_DRAFT_AUTOSAVE_RETRY_DELAY_MS);
+
+          return;
+        }
+
+        setDbSyncMessage(v2_toErrorMessage(error, 'DB draft 자동 저장에 실패했습니다.'));
+      } finally {
+        if (autosaveAbortControllerRef.current === abortController) {
+          autosaveAbortControllerRef.current = null;
+        }
+        autosaveInFlightRef.current = null;
+        setIsDraftAutosaving(false);
+      }
+
+      if (pendingAutosavePayloadRef.current && !autosaveRetryTimerRef.current) {
+        void flushPendingAutosave();
+      }
+    };
+
+    const savePromise = runSave();
+    autosaveInFlightRef.current = savePromise;
+    await savePromise;
+  }, []);
+
+  const flushAutosaveBeforePublish = useCallback(async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (autosaveRetryTimerRef.current) {
+      clearTimeout(autosaveRetryTimerRef.current);
+      autosaveRetryTimerRef.current = null;
+    }
+
+    if (pendingAutosavePayloadRef.current) {
+      await flushPendingAutosave();
+    }
+
+    if (autosaveInFlightRef.current) {
+      await autosaveInFlightRef.current;
+    }
+  }, [flushPendingAutosave]);
+
   useEffect(() => {
     let isDisposed = false;
 
@@ -264,6 +383,16 @@ const TemplateEditorClient = ({
       clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
+    if (autosaveRetryTimerRef.current) {
+      clearTimeout(autosaveRetryTimerRef.current);
+      autosaveRetryTimerRef.current = null;
+    }
+    if (autosaveAbortControllerRef.current) {
+      autosaveAbortControllerRef.current.abort();
+      autosaveAbortControllerRef.current = null;
+    }
+    autosaveInFlightRef.current = null;
+    pendingAutosavePayloadRef.current = null;
 
     if (!templateId) {
       setIsLoading(false);
@@ -346,6 +475,20 @@ const TemplateEditorClient = ({
 
     return () => {
       isDisposed = true;
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = null;
+      }
+      if (autosaveRetryTimerRef.current) {
+        clearTimeout(autosaveRetryTimerRef.current);
+        autosaveRetryTimerRef.current = null;
+      }
+      if (autosaveAbortControllerRef.current) {
+        autosaveAbortControllerRef.current.abort();
+        autosaveAbortControllerRef.current = null;
+      }
+      autosaveInFlightRef.current = null;
+      pendingAutosavePayloadRef.current = null;
     };
   }, [templateId]);
 
@@ -355,8 +498,14 @@ const TemplateEditorClient = ({
       autosaveTimerRef.current = null;
     }
 
-    if (dbSyncStatus !== 'ready') return;
-    if (!templateId) return;
+    if (dbSyncStatus !== 'ready') {
+      pendingAutosavePayloadRef.current = null;
+      return;
+    }
+    if (!templateId) {
+      pendingAutosavePayloadRef.current = null;
+      return;
+    }
     if (isLoading) return;
     if (!isDbHydratedRef.current) return;
     if (
@@ -366,37 +515,16 @@ const TemplateEditorClient = ({
       return;
     }
 
+    pendingAutosavePayloadRef.current = {
+      templateId,
+      renderConfig,
+      serialized: renderConfigSerialized,
+      baseRevisionNo: baseRevisionNoRef.current ?? null,
+    };
+
     autosaveTimerRef.current = setTimeout(() => {
-      const activeTemplateId = templateId;
-      const currentRenderConfig = renderConfig;
-      const currentSerialized = renderConfigSerialized;
-
-      void (async () => {
-        setIsDraftAutosaving(true);
-        try {
-          const response = await v2_saveAdminRenderConfigDraft({
-            templateId: activeTemplateId,
-            renderConfig: currentRenderConfig,
-            baseRevisionNo: baseRevisionNoRef.current,
-            isAutosave: true,
-          });
-
-          if (!response.hasDraft || !response.draft) {
-            throw new Error('DB draft 응답이 비어 있습니다.');
-          }
-
-          baseRevisionNoRef.current =
-            response.draft.baseRevisionNo ?? baseRevisionNoRef.current;
-          setLastDraftSavedSerialized(currentSerialized);
-          setDbSyncMessage('DB draft 자동 저장 완료');
-        } catch (error) {
-          setDbSyncMessage(
-            v2_toErrorMessage(error, 'DB draft 자동 저장에 실패했습니다.')
-          );
-        } finally {
-          setIsDraftAutosaving(false);
-        }
-      })();
+      autosaveTimerRef.current = null;
+      void flushPendingAutosave();
     }, v2_DRAFT_AUTOSAVE_DEBOUNCE_MS);
 
     return () => {
@@ -407,6 +535,7 @@ const TemplateEditorClient = ({
     };
   }, [
     dbSyncStatus,
+    flushPendingAutosave,
     isLoading,
     lastDraftSavedSerialized,
     renderConfig,
@@ -423,6 +552,13 @@ const TemplateEditorClient = ({
     setPublishError(null);
 
     try {
+      await flushAutosaveBeforePublish();
+      if (autosaveRetryTimerRef.current) {
+        clearTimeout(autosaveRetryTimerRef.current);
+        autosaveRetryTimerRef.current = null;
+      }
+      pendingAutosavePayloadRef.current = null;
+
       const publishResult = await v2_publishAdminRenderConfig({
         templateId,
         renderConfig,
@@ -444,7 +580,7 @@ const TemplateEditorClient = ({
     } finally {
       setIsPublishing(false);
     }
-  }, [dbSyncStatus, isPublishing, renderConfig, templateId]);
+  }, [dbSyncStatus, flushAutosaveBeforePublish, isPublishing, renderConfig, templateId]);
 
   useEffect(() => {
     const handleSaveShortcut = (event: KeyboardEvent) => {

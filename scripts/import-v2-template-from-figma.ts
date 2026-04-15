@@ -24,6 +24,16 @@ type FigmaNode = {
   id?: string;
   name?: string;
   type?: string;
+  layoutMode?: string;
+  layoutWrap?: string;
+  itemSpacing?: number;
+  counterAxisSpacing?: number;
+  gridColumnCount?: number;
+  gridColumnGap?: number;
+  gridColumnsSizing?: string;
+  gridRowCount?: number;
+  gridRowGap?: number;
+  gridRowsSizing?: string;
   children?: FigmaNode[];
   absoluteBoundingBox?: {
     x?: number;
@@ -356,7 +366,11 @@ const getBounds = (
 const getRotationDeg = (node: FigmaNode | undefined): number | undefined => {
   if (!node) return undefined;
   if (Number.isFinite(node.rotation)) {
-    return round(Number(node.rotation), 2);
+    // Figma payload can return either degrees or radians depending on node shape/source.
+    // Heuristic: values within ±2π are treated as radians.
+    const raw = Number(node.rotation);
+    const inRadians = Math.abs(raw) <= Math.PI * 2 + 0.0001;
+    return round(inRadians ? (raw * 180) / Math.PI : raw, 2);
   }
 
   const matrix = node.relativeTransform;
@@ -449,6 +463,35 @@ const textAlignMap: Record<string, "left" | "center" | "right"> = {
   JUSTIFIED: "left",
 };
 
+type TextFigmaNode = FigmaNode & { type: "TEXT" };
+
+const isTextNode = (node: FigmaNode | undefined): node is TextFigmaNode => {
+  return Boolean(node && node.type === "TEXT");
+};
+
+const findContentTextNode = (containerNode: FigmaNode | undefined): FigmaNode | undefined => {
+  if (!containerNode) return undefined;
+  if (isTextNode(containerNode)) return containerNode;
+
+  const children = Array.isArray(containerNode.children) ? containerNode.children : [];
+  const directContent = children.find((child) => {
+    if (!isTextNode(child) || !child.name) return false;
+    return canonicalName(child.name) === "content";
+  });
+  if (directContent) return directContent;
+
+  const directText = children.find((child) => isTextNode(child));
+  if (directText) return directText;
+
+  const descendants = flattenNodes(containerNode);
+  for (let index = 1; index < descendants.length; index += 1) {
+    const candidate = descendants[index];
+    if (isTextNode(candidate)) return candidate;
+  }
+
+  return undefined;
+};
+
 const colorChannelToHex = (value: number): string => {
   const normalized = Math.max(0, Math.min(255, Math.round(value)));
   return normalized.toString(16).padStart(2, "0");
@@ -519,22 +562,105 @@ const applyTextStyleFromFigmaNode = ({
   }
 };
 
+const applyTextStyleFromContentNode = ({
+  containerNode,
+  target,
+}: {
+  containerNode: FigmaNode | undefined;
+  target: Record<string, unknown>;
+}): boolean => {
+  const contentNode = findContentTextNode(containerNode);
+  if (!contentNode) return false;
+  applyTextStyleFromFigmaNode({
+    node: contentNode,
+    target,
+  });
+  return true;
+};
+
 const applyRectToLayoutObject = ({
   rect,
   target,
+  includeRotation = true,
 }: {
   rect: Rect | null;
   target: Record<string, unknown>;
+  includeRotation?: boolean;
 }) => {
   if (!rect) return;
   target.left = rect.left;
   target.top = rect.top;
   target.width = rect.width;
   target.height = rect.height;
-  if (rect.rotateDeg !== undefined) {
+  if (includeRotation && rect.rotateDeg !== undefined) {
     target.rotateDeg = rect.rotateDeg;
   } else if ("rotateDeg" in target) {
     delete target.rotateDeg;
+  }
+};
+
+const applyFlexibleLayoutToTargets = ({
+  rect,
+  containerTarget,
+  wrapperTarget,
+}: {
+  rect: Rect | null;
+  containerTarget: Record<string, unknown>;
+  wrapperTarget: Record<string, unknown>;
+}) => {
+  if (!rect) return;
+
+  applyRectToLayoutObject({
+    rect,
+    target: containerTarget,
+    includeRotation: false,
+  });
+
+  wrapperTarget.left = 0;
+  wrapperTarget.top = 0;
+  wrapperTarget.width = rect.width;
+  wrapperTarget.height = rect.height;
+  if (rect.rotateDeg !== undefined) {
+    wrapperTarget.rotateDeg = rect.rotateDeg;
+  } else if ("rotateDeg" in wrapperTarget) {
+    delete wrapperTarget.rotateDeg;
+  }
+};
+
+const applyGridStyleFromFigmaNode = ({
+  node,
+  target,
+}: {
+  node: FigmaNode | undefined;
+  target: Record<string, unknown>;
+}) => {
+  if (!node) return;
+
+  const toFiniteNumber = (value: unknown): number | undefined => {
+    if (!Number.isFinite(value)) return undefined;
+    return round(Number(value), 2);
+  };
+
+  const rowGap = toFiniteNumber(node.gridRowGap);
+  if (rowGap !== undefined) {
+    target.rowGap = rowGap;
+  }
+
+  const columnGap = toFiniteNumber(node.gridColumnGap);
+  if (columnGap !== undefined) {
+    target.columnGap = columnGap;
+  }
+
+  const columns = toFiniteNumber(node.gridColumnCount);
+  if (columns !== undefined) {
+    target.columns = Math.max(1, Math.round(columns));
+  }
+
+  if (typeof node.gridColumnsSizing === "string") {
+    const sizing = node.gridColumnsSizing.trim();
+    if (sizing.length > 0) {
+      target.gridTemplateColumns = sizing;
+    }
   }
 };
 
@@ -847,6 +973,8 @@ const applyLayoutMappingsFromFigma = ({
     ],
     profileText: [
       "profiletext",
+      "artistname",
+      "flexibletextartistname",
       "flexibletextprofiletext",
       "artist",
       "artist text",
@@ -878,7 +1006,87 @@ const applyLayoutMappingsFromFigma = ({
     streamingTime: ["streamingtime", "texttime", "시간"],
     streamingDate: ["streamingdate", "textdate", "날짜"],
     streamingDay: ["streamingday", "textday", "요일"],
+    cardOnlineBackground: [
+      "onlinebackground",
+      "imageonlinebackground",
+      "cardonlinebackground",
+      "online",
+    ],
+    cardOfflineBackground: [
+      "offlinebackground",
+      "imageofflinebackground",
+      "cardofflinebackground",
+      "offline",
+    ],
+    cardSharedBackground: [
+      "cardbackground",
+      "componentinstancecardbackground",
+      "imagecardbackground",
+      "background",
+    ],
   } as const;
+
+  const scoreCardContainerCandidate = (candidate: FigmaNode): number => {
+    const nodes = flattenNodes(candidate);
+    let score = 0;
+    if (findFirstByNames(nodes, alias.mainTitleContainer)) score += 4;
+    if (findFirstByNames(nodes, alias.subTitleContainer)) score += 4;
+    if (findFirstByNames(nodes, alias.streamingTime)) score += 3;
+    if (findFirstByNames(nodes, alias.streamingDate)) score += 2;
+    if (findFirstByNames(nodes, alias.streamingDay)) score += 2;
+    if (
+      findFirstByNames(nodes, alias.cardOnlineBackground) ||
+      findFirstByNames(nodes, alias.cardOfflineBackground) ||
+      findFirstByNames(nodes, alias.cardSharedBackground)
+    ) {
+      score += 2;
+    }
+    return score;
+  };
+
+  const selectBestCardContainerCandidate = ({
+    candidates,
+    source,
+  }: {
+    candidates: FigmaNode[];
+    source: "grid descendants" | "global";
+  }): FigmaNode | undefined => {
+    if (candidates.length === 0) return undefined;
+    if (candidates.length === 1) return candidates[0];
+
+    const ranked = candidates
+      .map((candidate, index) => {
+        const score = scoreCardContainerCandidate(candidate);
+        const bounds = getBounds(candidate);
+        return {
+          candidate,
+          score,
+          index,
+          x: bounds?.x ?? Number.POSITIVE_INFINITY,
+          y: bounds?.y ?? Number.POSITIVE_INFINITY,
+        };
+      })
+      .sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score;
+        if (left.y !== right.y) return left.y - right.y;
+        if (left.x !== right.x) return left.x - right.x;
+        return left.index - right.index;
+      });
+
+    const top = ranked[0];
+    const sameScoreCount = ranked.filter((entry) => entry.score === top.score).length;
+    if (sameScoreCount > 1) {
+      summary.warnings.push(
+        `Card container alias matched ${candidates.length} nodes in ${source}; ${sameScoreCount} candidates tied with score=${top.score}, selected top-left candidate.`
+      );
+    } else {
+      summary.warnings.push(
+        `Card container alias matched ${candidates.length} nodes in ${source}; selected highest score=${top.score} candidate.`
+      );
+    }
+
+    return top.candidate;
+  };
 
   const rootBounds = getBounds(rootNode);
   if (!rootBounds) {
@@ -901,6 +1109,10 @@ const applyLayoutMappingsFromFigma = ({
     target: config.layout.grid as unknown as Record<string, unknown>,
   });
   if (gridNode) {
+    applyGridStyleFromFigmaNode({
+      node: gridNode,
+      target: config.layout.grid as unknown as Record<string, unknown>,
+    });
     summary.applied.push("layout.grid");
   }
 
@@ -909,12 +1121,16 @@ const applyLayoutMappingsFromFigma = ({
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: weekFlagNode }),
     target: config.layout.weekFlag as unknown as Record<string, unknown>,
+    includeRotation: false,
   });
   if (weekFlagNode) {
-    applyTextStyleFromFigmaNode({
-      node: weekFlagNode,
+    const appliedWeekFlagTextStyle = applyTextStyleFromContentNode({
+      containerNode: weekFlagNode,
       target: config.layout.weekFlag as unknown as Record<string, unknown>,
     });
+    if (!appliedWeekFlagTextStyle) {
+      summary.warnings.push("WeekFlag Content(TEXT) not found; text style skipped.");
+    }
     summary.applied.push("layout.weekFlag");
   }
 
@@ -960,11 +1176,15 @@ const applyLayoutMappingsFromFigma = ({
   summary.presence.memoText = Boolean(
     memoTextNode || memoTextContainerNode || memoContentNode
   );
-  if (memoTextNode) {
-    applyTextStyleFromFigmaNode({
-      node: memoTextNode,
+  const memoTextStyleSourceNode = memoTextNode ?? memoTextContainerNode ?? memoContentNode;
+  if (memoTextStyleSourceNode) {
+    const appliedMemoTextStyle = applyTextStyleFromContentNode({
+      containerNode: memoTextStyleSourceNode,
       target: config.layout.scene.memoTextStyle as unknown as Record<string, unknown>,
     });
+    if (!appliedMemoTextStyle) {
+      summary.warnings.push("Memo Content(TEXT) not found; text style skipped.");
+    }
     summary.applied.push("layout.scene.memoTextStyle");
   }
 
@@ -994,10 +1214,25 @@ const applyLayoutMappingsFromFigma = ({
   const profileTextNode = findFirstByNames(allNodes, alias.profileText);
   summary.presence.profileText = Boolean(profileTextNode);
   if (profileTextNode) {
-    applyTextStyleFromFigmaNode({
-      node: profileTextNode,
+    const profileTextRect = toRelativeRect({
+      rootNode,
+      targetNode: profileTextNode,
+    });
+    applyFlexibleLayoutToTargets({
+      rect: profileTextRect,
+      containerTarget: config.layout.profileTextRootStyle as unknown as Record<string, unknown>,
+      wrapperTarget: config.layout.profileTextWrapperStyle as unknown as Record<string, unknown>,
+    });
+    summary.applied.push("layout.profileTextRootStyle");
+    summary.applied.push("layout.profileTextWrapperStyle");
+
+    const appliedProfileTextStyle = applyTextStyleFromContentNode({
+      containerNode: profileTextNode,
       target: config.layout.profileTextStyle as unknown as Record<string, unknown>,
     });
+    if (!appliedProfileTextStyle) {
+      summary.warnings.push("ProfileText Content(TEXT) not found; text style skipped.");
+    }
     summary.applied.push("layout.profileTextStyle");
   }
 
@@ -1005,21 +1240,17 @@ const applyLayoutMappingsFromFigma = ({
   if (gridNode) {
     const gridDescendants = flattenNodes(gridNode);
     const cardMatchesInGrid = findMatchesByNames(gridDescendants, alias.cardContainer);
-    if (cardMatchesInGrid.length > 1) {
-      summary.warnings.push(
-        `Card container alias matched multiple nodes in grid descendants (${cardMatchesInGrid.length}); using first match.`
-      );
-    }
-    cardContainerNode = cardMatchesInGrid[0];
+    cardContainerNode = selectBestCardContainerCandidate({
+      candidates: cardMatchesInGrid,
+      source: "grid descendants",
+    });
   }
   if (!cardContainerNode) {
     const cardMatchesGlobal = findMatchesByNames(allNodes, alias.cardContainer);
-    if (cardMatchesGlobal.length > 1) {
-      summary.warnings.push(
-        `Card container alias matched multiple nodes globally (${cardMatchesGlobal.length}); using first match.`
-      );
-    }
-    cardContainerNode = cardMatchesGlobal[0];
+    cardContainerNode = selectBestCardContainerCandidate({
+      candidates: cardMatchesGlobal,
+      source: "global",
+    });
     if (cardContainerNode && gridNode) {
       summary.warnings.push(
         "Card container matched from global nodes (grid-descendant lookup did not resolve)."
@@ -1037,6 +1268,41 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.card.container");
 
     const cardNodes = flattenNodes(cardContainerNode);
+    const onlineBackgroundNode =
+      findFirstByNames(cardNodes, alias.cardOnlineBackground) ??
+      findFirstByNames(cardNodes, alias.cardSharedBackground);
+    const offlineBackgroundNode =
+      findFirstByNames(cardNodes, alias.cardOfflineBackground) ??
+      findFirstByNames(cardNodes, alias.cardSharedBackground);
+
+    applyRectToLayoutObject({
+      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: onlineBackgroundNode }),
+      target: config.layout.card.onlineBackgroundContainer as unknown as Record<
+        string,
+        unknown
+      >,
+      includeRotation: false,
+    });
+    if (onlineBackgroundNode) {
+      summary.applied.push("layout.card.onlineBackgroundContainer");
+    } else {
+      summary.warnings.push("Online background container not found in card structure.");
+    }
+
+    applyRectToLayoutObject({
+      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: offlineBackgroundNode }),
+      target: config.layout.card.offlineBackgroundContainer as unknown as Record<
+        string,
+        unknown
+      >,
+      includeRotation: false,
+    });
+    if (offlineBackgroundNode) {
+      summary.applied.push("layout.card.offlineBackgroundContainer");
+    } else {
+      summary.warnings.push("Offline background container not found in card structure.");
+    }
+
     const mainTitleContainerNode = findFirstByNames(cardNodes, alias.mainTitleContainer);
     const subTitleContainerNode = findFirstByNames(cardNodes, alias.subTitleContainer);
     const streamingTimeNode = findFirstByNames(cardNodes, alias.streamingTime);
@@ -1048,29 +1314,59 @@ const applyLayoutMappingsFromFigma = ({
     summary.presence.cardStreamingDate = Boolean(streamingDateNode);
     summary.presence.cardStreamingDay = Boolean(streamingDayNode);
 
-    applyRectToLayoutObject({
-      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: mainTitleContainerNode }),
-      target: config.layout.card.mainTitleContainer as unknown as Record<string, unknown>,
+    const mainTitleRect = toRelativeRect({
+      rootNode: cardContainerNode,
+      targetNode: mainTitleContainerNode,
+    });
+    applyFlexibleLayoutToTargets({
+      rect: mainTitleRect,
+      containerTarget: config.layout.card.mainTitleContainer as unknown as Record<
+        string,
+        unknown
+      >,
+      wrapperTarget: config.layout.card.mainTitleWrapperStyle as unknown as Record<
+        string,
+        unknown
+      >,
     });
     if (mainTitleContainerNode) {
       summary.applied.push("layout.card.mainTitleContainer");
-      applyTextStyleFromFigmaNode({
-        node: mainTitleContainerNode,
+      summary.applied.push("layout.card.mainTitleWrapperStyle");
+      const appliedMainTitleStyle = applyTextStyleFromContentNode({
+        containerNode: mainTitleContainerNode,
         target: config.layout.card.mainTitleTextStyle as unknown as Record<string, unknown>,
       });
+      if (!appliedMainTitleStyle) {
+        summary.warnings.push("MainTitle Content(TEXT) not found; text style skipped.");
+      }
       summary.applied.push("layout.card.mainTitleTextStyle");
     }
 
-    applyRectToLayoutObject({
-      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: subTitleContainerNode }),
-      target: config.layout.card.subTitleContainer as unknown as Record<string, unknown>,
+    const subTitleRect = toRelativeRect({
+      rootNode: cardContainerNode,
+      targetNode: subTitleContainerNode,
+    });
+    applyFlexibleLayoutToTargets({
+      rect: subTitleRect,
+      containerTarget: config.layout.card.subTitleContainer as unknown as Record<
+        string,
+        unknown
+      >,
+      wrapperTarget: config.layout.card.subTitleWrapperStyle as unknown as Record<
+        string,
+        unknown
+      >,
     });
     if (subTitleContainerNode) {
       summary.applied.push("layout.card.subTitleContainer");
-      applyTextStyleFromFigmaNode({
-        node: subTitleContainerNode,
+      summary.applied.push("layout.card.subTitleWrapperStyle");
+      const appliedSubTitleStyle = applyTextStyleFromContentNode({
+        containerNode: subTitleContainerNode,
         target: config.layout.card.subTitleTextStyle as unknown as Record<string, unknown>,
       });
+      if (!appliedSubTitleStyle) {
+        summary.warnings.push("SubTitle Content(TEXT) not found; text style skipped.");
+      }
       summary.applied.push("layout.card.subTitleTextStyle");
     }
 
@@ -1080,10 +1376,13 @@ const applyLayoutMappingsFromFigma = ({
     });
     if (streamingTimeNode) {
       summary.applied.push("layout.card.streamingTime");
-      applyTextStyleFromFigmaNode({
-        node: streamingTimeNode,
+      const appliedStreamingTimeStyle = applyTextStyleFromContentNode({
+        containerNode: streamingTimeNode,
         target: config.layout.card.streamingTimeStyle as unknown as Record<string, unknown>,
       });
+      if (!appliedStreamingTimeStyle) {
+        summary.warnings.push("StreamingTime Content(TEXT) not found; text style skipped.");
+      }
       summary.applied.push("layout.card.streamingTimeStyle");
     }
 
@@ -1093,10 +1392,13 @@ const applyLayoutMappingsFromFigma = ({
     });
     if (streamingDateNode) {
       summary.applied.push("layout.card.streamingDate");
-      applyTextStyleFromFigmaNode({
-        node: streamingDateNode,
+      const appliedStreamingDateStyle = applyTextStyleFromContentNode({
+        containerNode: streamingDateNode,
         target: config.layout.card.streamingDateStyle as unknown as Record<string, unknown>,
       });
+      if (!appliedStreamingDateStyle) {
+        summary.warnings.push("StreamingDate Content(TEXT) not found; text style skipped.");
+      }
       summary.applied.push("layout.card.streamingDateStyle");
     }
 
@@ -1106,10 +1408,13 @@ const applyLayoutMappingsFromFigma = ({
     });
     if (streamingDayNode) {
       summary.applied.push("layout.card.streamingDay");
-      applyTextStyleFromFigmaNode({
-        node: streamingDayNode,
+      const appliedStreamingDayStyle = applyTextStyleFromContentNode({
+        containerNode: streamingDayNode,
         target: config.layout.card.streamingDayStyle as unknown as Record<string, unknown>,
       });
+      if (!appliedStreamingDayStyle) {
+        summary.warnings.push("StreamingDay Content(TEXT) not found; text style skipped.");
+      }
       summary.applied.push("layout.card.streamingDayStyle");
     }
   } else {

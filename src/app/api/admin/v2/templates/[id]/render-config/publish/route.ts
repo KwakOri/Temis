@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth/middleware";
 import { resolveAdminActorUserId } from "@/lib/auth/resolve-admin-actor-user-id";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer } from "@/lib/supabase-admin-server";
 import { Json } from "@/types/supabase";
 import {
   v2_createEmptyTemplateRenderConfig,
@@ -24,7 +24,7 @@ const v2_parseTemplateId = async ({
 };
 
 const v2_assertTemplateExists = async (templateId: string) => {
-  const { data: template, error: templateError } = await supabase
+  const { data: template, error: templateError } = await supabaseAdminServer
     .from("v2_templates")
     .select("id")
     .eq("id", templateId)
@@ -40,7 +40,7 @@ const v2_assertTemplateExists = async (templateId: string) => {
 };
 
 const v2_getLatestRevisionNo = async (templateId: string): Promise<number> => {
-  const { data: latestRevision, error: latestRevisionError } = await supabase
+  const { data: latestRevision, error: latestRevisionError } = await supabaseAdminServer
     .from("v2_template_render_config_revisions")
     .select("revision_no")
     .eq("template_id", templateId)
@@ -123,7 +123,7 @@ export async function POST(
     const latestRevisionNo = await v2_getLatestRevisionNo(templateId);
     const nextRevisionNo = latestRevisionNo + 1;
 
-    const { data: upsertedConfig, error: upsertError } = await supabase
+    const { data: upsertedConfig, error: upsertError } = await supabaseAdminServer
       .from("v2_template_render_configs")
       .upsert(
         {
@@ -141,7 +141,7 @@ export async function POST(
       throw upsertError;
     }
 
-    const { error: insertRevisionError } = await supabase
+    const { error: insertRevisionError } = await supabaseAdminServer
       .from("v2_template_render_config_revisions")
       .insert({
         template_id: templateId,
@@ -155,7 +155,7 @@ export async function POST(
       throw insertRevisionError;
     }
 
-    const { error: deleteDraftError } = await supabase
+    const { error: deleteDraftError } = await supabaseAdminServer
       .from("v2_template_render_config_drafts")
       .delete()
       .eq("template_id", templateId)

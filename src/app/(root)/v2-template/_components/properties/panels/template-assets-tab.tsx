@@ -11,11 +11,15 @@ interface TemplateAssetsTabProps {
   themeOptions: string[];
   renderConfig: V2TemplateRenderConfig;
   preferProfileDummyImage: boolean;
+  useOnlineAssetsByDay: boolean;
+  useOfflineAssetsByDay: boolean;
   assetKeys: V2TemplateBuiltinAssetKey[];
   assetLabels: Record<V2TemplateBuiltinAssetKey, string>;
   extraAssetKeys: string[];
   setAssetTheme: (theme: string) => void;
   onTogglePreferProfileDummyImage: (value: boolean) => void;
+  onToggleOnlineAssetsByDay: (value: boolean) => void;
+  onToggleOfflineAssetsByDay: (value: boolean) => void;
   onUploadBuiltinFile: (
     key: V2TemplateBuiltinAssetKey,
     theme: string,
@@ -28,16 +32,201 @@ interface TemplateAssetsTabProps {
   onResetExtraAsset: (key: string, theme: string) => void;
 }
 
+type V2BulkMatchSource = "rule" | "ai" | "none";
+
+type V2BulkMatchRow = {
+  id: string;
+  file: File;
+  fileName: string;
+  selectedKey: string;
+  source: V2BulkMatchSource;
+  confidence: number;
+  reason: string;
+};
+
+type V2BulkAiSuggestionResponse = {
+  success: boolean;
+  suggestions?: Array<{
+    fileName?: string;
+    key?: string | null;
+    confidence?: number;
+    reason?: string;
+    source?: "ai" | "fallback";
+  }>;
+};
+
+const v2_CARD_DAY_ASSET_KEYS = {
+  online: [
+    "online_mon",
+    "online_tue",
+    "online_wed",
+    "online_thu",
+    "online_fri",
+    "online_sat",
+    "online_sun",
+  ] as const satisfies ReadonlyArray<V2TemplateBuiltinAssetKey>,
+  offline: [
+    "offline_mon",
+    "offline_tue",
+    "offline_wed",
+    "offline_thu",
+    "offline_fri",
+    "offline_sat",
+    "offline_sun",
+  ] as const satisfies ReadonlyArray<V2TemplateBuiltinAssetKey>,
+};
+
+const v2_DAY_ALIAS_TO_KEY = {
+  mon: "mon",
+  monday: "mon",
+  월: "mon",
+  tue: "tue",
+  tues: "tue",
+  tuesday: "tue",
+  화: "tue",
+  wed: "wed",
+  weds: "wed",
+  wednesday: "wed",
+  수: "wed",
+  thu: "thu",
+  thur: "thu",
+  thurs: "thu",
+  thursday: "thu",
+  목: "thu",
+  fri: "fri",
+  friday: "fri",
+  금: "fri",
+  sat: "sat",
+  saturday: "sat",
+  토: "sat",
+  sun: "sun",
+  sunday: "sun",
+  일: "sun",
+} as const;
+
+const v2_BUILTIN_ALIAS_RULES: Array<{
+  key: V2TemplateBuiltinAssetKey;
+  aliases: string[];
+}> = [
+  { key: "bgByTheme", aliases: ["bg", "background", "scene_bg", "base_bg"] },
+  { key: "topObjectByTheme", aliases: ["top", "topobject", "top_object"] },
+  { key: "memoByTheme", aliases: ["memo", "note", "postit"] },
+  {
+    key: "artist",
+    aliases: ["artist_object", "artistobject", "artist", "artist_image", "artist_bg"],
+  },
+  { key: "onlineByTheme", aliases: ["online", "card_online", "on"] },
+  { key: "offlineByTheme", aliases: ["offline", "card_offline", "off"] },
+  { key: "profileFrameByTheme", aliases: ["profile_frame", "frame", "artist_frame"] },
+  {
+    key: "profileBgByTheme",
+    aliases: ["profile_bg", "profile_dummy", "profile_image", "dummy_profile"],
+  },
+  { key: "guideByTheme", aliases: ["guide", "overlay", "guide_overlay"] },
+];
+
+const v2_normalizeToken = (value: string): string => {
+  return value
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[^a-z0-9가-힣]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+};
+
+const v2_extractDayKeyFromNormalizedName = (normalizedName: string): string | null => {
+  const tokens = normalizedName.split("_").filter(Boolean);
+  for (const token of tokens) {
+    const normalized = token.trim().toLowerCase();
+    if (!normalized) continue;
+    const dayKey =
+      v2_DAY_ALIAS_TO_KEY[normalized as keyof typeof v2_DAY_ALIAS_TO_KEY];
+    if (dayKey) return dayKey;
+  }
+  return null;
+};
+
+const v2_suggestKeyByRule = ({
+  fileName,
+  candidateKeys,
+}: {
+  fileName: string;
+  candidateKeys: string[];
+}): { key: string; confidence: number; reason: string } | null => {
+  const normalizedName = v2_normalizeToken(fileName);
+  if (!normalizedName) return null;
+
+  const candidateByNormalized = new Map<string, string>();
+  candidateKeys.forEach((candidateKey) => {
+    const normalizedCandidate = v2_normalizeToken(candidateKey);
+    if (!normalizedCandidate) return;
+    if (!candidateByNormalized.has(normalizedCandidate)) {
+      candidateByNormalized.set(normalizedCandidate, candidateKey);
+    }
+  });
+
+  const exactKey = candidateByNormalized.get(normalizedName);
+  if (exactKey) {
+    return {
+      key: exactKey,
+      confidence: 1,
+      reason: "파일명과 키가 정확히 일치합니다.",
+    };
+  }
+
+  const dayKey = v2_extractDayKeyFromNormalizedName(normalizedName);
+  if (dayKey && normalizedName.includes("online")) {
+    const matched = candidateByNormalized.get(`online_${dayKey}`);
+    if (matched) {
+      return {
+        key: matched,
+        confidence: 0.94,
+        reason: "online + 요일 토큰 규칙으로 매칭했습니다.",
+      };
+    }
+  }
+  if (dayKey && normalizedName.includes("offline")) {
+    const matched = candidateByNormalized.get(`offline_${dayKey}`);
+    if (matched) {
+      return {
+        key: matched,
+        confidence: 0.94,
+        reason: "offline + 요일 토큰 규칙으로 매칭했습니다.",
+      };
+    }
+  }
+
+  for (const rule of v2_BUILTIN_ALIAS_RULES) {
+    if (
+      rule.aliases.some((alias) =>
+        normalizedName === alias || normalizedName.includes(alias)
+      ) &&
+      candidateKeys.includes(rule.key)
+    ) {
+      return {
+        key: rule.key,
+        confidence: 0.88,
+        reason: `기본 이름 규칙(${rule.aliases[0]})으로 매칭했습니다.`,
+      };
+    }
+  }
+
+  return null;
+};
+
 const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   assetTheme,
   themeOptions,
   renderConfig,
   preferProfileDummyImage,
+  useOnlineAssetsByDay,
+  useOfflineAssetsByDay,
   assetKeys,
   assetLabels,
   extraAssetKeys,
   setAssetTheme,
   onTogglePreferProfileDummyImage,
+  onToggleOnlineAssetsByDay,
+  onToggleOfflineAssetsByDay,
   onUploadBuiltinFile,
   onResetBuiltinAsset,
   onCreateExtraAssetKey,
@@ -51,10 +240,41 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   const extraFileInputRefs = React.useRef<Record<string, HTMLInputElement | null>>(
     {}
   );
+  const bulkFileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [newExtraAssetKey, setNewExtraAssetKey] = React.useState("");
+  const [bulkMatchRows, setBulkMatchRows] = React.useState<V2BulkMatchRow[]>([]);
+  const [isSuggestingBulkMatches, setIsSuggestingBulkMatches] =
+    React.useState(false);
+  const [isApplyingBulkMatches, setIsApplyingBulkMatches] = React.useState(false);
+  const [bulkMatchError, setBulkMatchError] = React.useState<string | null>(null);
   const sortedExtraAssetKeys = React.useMemo(
     () => [...extraAssetKeys].sort((a, b) => a.localeCompare(b)),
     [extraAssetKeys]
+  );
+  const resolvedBuiltinAssetKeys = React.useMemo(
+    () =>
+      assetKeys.flatMap((key) => {
+        if (key === "onlineByTheme") {
+          return useOnlineAssetsByDay
+            ? [...v2_CARD_DAY_ASSET_KEYS.online]
+            : [key];
+        }
+        if (key === "offlineByTheme") {
+          return useOfflineAssetsByDay
+            ? [...v2_CARD_DAY_ASSET_KEYS.offline]
+            : [key];
+        }
+        return [key];
+      }),
+    [assetKeys, useOnlineAssetsByDay, useOfflineAssetsByDay]
+  );
+  const allAssetKeys = React.useMemo(
+    () => [...resolvedBuiltinAssetKeys, ...sortedExtraAssetKeys],
+    [resolvedBuiltinAssetKeys, sortedExtraAssetKeys]
+  );
+  const builtinAssetKeySet = React.useMemo(
+    () => new Set(Object.keys(renderConfig.assets)),
+    [renderConfig.assets]
   );
 
   const submitExtraAssetKey = () => {
@@ -62,6 +282,120 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
     if (!key) return;
     onCreateExtraAssetKey(key);
     setNewExtraAssetKey("");
+  };
+
+  const handleBulkFilesSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const selectedFiles = Array.from(files);
+    setIsSuggestingBulkMatches(true);
+    setBulkMatchError(null);
+
+    try {
+      const draftRows: V2BulkMatchRow[] = selectedFiles.map((file, index) => {
+        const ruleMatch = v2_suggestKeyByRule({
+          fileName: file.name,
+          candidateKeys: allAssetKeys,
+        });
+        return {
+          id: `${file.name}-${index}`,
+          file,
+          fileName: file.name,
+          selectedKey: ruleMatch?.key ?? "",
+          source: ruleMatch ? "rule" : "none",
+          confidence: ruleMatch?.confidence ?? 0,
+          reason: ruleMatch?.reason ?? "규칙 매칭 실패",
+        };
+      });
+
+      const unresolvedRows = draftRows.filter((row) => !row.selectedKey);
+      if (unresolvedRows.length > 0) {
+        const response = await fetch(
+          "/api/admin/v2/templates/assets/suggest-mapping",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              fileNames: unresolvedRows.map((row) => row.fileName),
+              candidateKeys: allAssetKeys,
+            }),
+          }
+        );
+
+        const result = (await response.json().catch(() => null)) as
+          | V2BulkAiSuggestionResponse
+          | null;
+        if (!response.ok) {
+          throw new Error("AI 매칭 제안 요청에 실패했습니다.");
+        }
+
+        const aiSuggestionByFileName = new Map(
+          (result?.suggestions ?? []).map((item) => [item.fileName, item])
+        );
+        const mergedRows = draftRows.map((row) => {
+          if (row.selectedKey) return row;
+          const aiSuggestion = aiSuggestionByFileName.get(row.fileName);
+          if (
+            !aiSuggestion ||
+            typeof aiSuggestion.key !== "string" ||
+            !allAssetKeys.includes(aiSuggestion.key)
+          ) {
+            return row;
+          }
+          return {
+            ...row,
+            selectedKey: aiSuggestion.key,
+            source: "ai" as const,
+            confidence:
+              typeof aiSuggestion.confidence === "number"
+                ? Math.max(0, Math.min(1, aiSuggestion.confidence))
+                : 0.5,
+            reason:
+              typeof aiSuggestion.reason === "string"
+                ? aiSuggestion.reason
+                : "AI 매칭 제안",
+          };
+        });
+        setBulkMatchRows(mergedRows);
+      } else {
+        setBulkMatchRows(draftRows);
+      }
+    } catch (error) {
+      console.error("Failed to suggest bulk asset matches", error);
+      setBulkMatchError("일괄 매칭 제안 중 오류가 발생했습니다.");
+      setBulkMatchRows([]);
+    } finally {
+      setIsSuggestingBulkMatches(false);
+    }
+  };
+
+  const applyBulkMatches = async () => {
+    if (bulkMatchRows.length === 0) return;
+    setIsApplyingBulkMatches(true);
+    setBulkMatchError(null);
+
+    try {
+      bulkMatchRows.forEach((row) => {
+        if (!row.selectedKey) return;
+        if (builtinAssetKeySet.has(row.selectedKey)) {
+          onUploadBuiltinFile(
+            row.selectedKey as V2TemplateBuiltinAssetKey,
+            assetTheme,
+            row.file
+          );
+          return;
+        }
+        onUploadExtraFile(row.selectedKey, assetTheme, row.file);
+      });
+      setBulkMatchRows([]);
+    } catch (error) {
+      console.error("Failed to apply bulk asset matches", error);
+      setBulkMatchError("일괄 적용 중 오류가 발생했습니다.");
+    } finally {
+      setIsApplyingBulkMatches(false);
+    }
   };
 
   return (
@@ -100,9 +434,175 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
         />
       </label>
 
+      <div className="space-y-2 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">
+        <h4 className="text-sm font-semibold text-gray-200">요일별 카드 배경 설정</h4>
+        <p className="text-[11px] text-gray-400">
+          OFF면 기본 에셋(`온라인 카드`/`오프라인 카드`)이 7일에 공통 적용됩니다.
+          ON이면 `online_mon~sun`, `offline_mon~sun` 키를 사용합니다.
+        </p>
+        <label className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#14161c] px-3 py-2">
+          <span className="text-xs text-gray-200">online assets 개별 설정</span>
+          <input
+            type="checkbox"
+            checked={useOnlineAssetsByDay}
+            onChange={(event) => onToggleOnlineAssetsByDay(event.target.checked)}
+          />
+        </label>
+        <label className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#14161c] px-3 py-2">
+          <span className="text-xs text-gray-200">offline assets 개별 설정</span>
+          <input
+            type="checkbox"
+            checked={useOfflineAssetsByDay}
+            onChange={(event) => onToggleOfflineAssetsByDay(event.target.checked)}
+          />
+        </label>
+      </div>
+
+      <div className="space-y-2 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">
+        <h4 className="text-sm font-semibold text-gray-200">
+          일괄 업로드 · 자동 매칭(검토 후 적용)
+        </h4>
+        <p className="text-[11px] text-gray-400">
+          파일명을 기준으로 먼저 규칙 매칭하고, 실패한 항목은 AI 추천을 받아
+          사람이 확인 후 적용합니다. 현재 선택된 테마(`{assetTheme}`)에만
+          업로드됩니다.
+        </p>
+
+        <input
+          ref={bulkFileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="sr-only"
+          onChange={(event) => {
+            void handleBulkFilesSelected(event.target.files);
+            event.currentTarget.value = "";
+          }}
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={isSuggestingBulkMatches}
+            onClick={() => bulkFileInputRef.current?.click()}
+            className="rounded border border-[#4f8cff] bg-[#1f355f] px-3 py-2 text-xs font-semibold text-[#d6e6ff] hover:bg-[#27457a] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isSuggestingBulkMatches ? "분석 중..." : "이미지 여러개 선택"}
+          </button>
+          <button
+            type="button"
+            disabled={bulkMatchRows.length === 0 || isApplyingBulkMatches}
+            onClick={() => void applyBulkMatches()}
+            className="rounded border border-emerald-500/50 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isApplyingBulkMatches ? "적용 중..." : "검토한 매칭 일괄 적용"}
+          </button>
+          <button
+            type="button"
+            disabled={bulkMatchRows.length === 0 || isApplyingBulkMatches}
+            onClick={() => {
+              setBulkMatchRows([]);
+              setBulkMatchError(null);
+            }}
+            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-[#323640] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            목록 지우기
+          </button>
+        </div>
+
+        {bulkMatchError ? (
+          <p className="rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[11px] text-rose-200">
+            {bulkMatchError}
+          </p>
+        ) : null}
+
+        {bulkMatchRows.length > 0 ? (
+          <div className="max-h-[320px] overflow-auto rounded border border-[#3a3d44]">
+            <table className="w-full border-collapse text-[11px]">
+              <thead className="sticky top-0 bg-[#131722] text-gray-300">
+                <tr>
+                  <th className="border-b border-[#3a3d44] px-2 py-2 text-left">
+                    파일명
+                  </th>
+                  <th className="border-b border-[#3a3d44] px-2 py-2 text-left">
+                    추천 소스
+                  </th>
+                  <th className="border-b border-[#3a3d44] px-2 py-2 text-left">
+                    매칭 키(검토)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {bulkMatchRows.map((row, index) => (
+                  <tr key={row.id} className="bg-[#11151f] text-gray-200">
+                    <td className="border-b border-[#2c3140] px-2 py-2 align-top">
+                      <p className="break-all">{row.fileName}</p>
+                      <p className="mt-1 text-[10px] text-gray-400">
+                        {row.reason}
+                        {row.confidence > 0
+                          ? ` (confidence ${(row.confidence * 100).toFixed(0)}%)`
+                          : ""}
+                      </p>
+                    </td>
+                    <td className="border-b border-[#2c3140] px-2 py-2 align-top">
+                      <span
+                        className={`inline-flex rounded border px-1.5 py-0.5 ${
+                          row.source === "rule"
+                            ? "border-blue-400/50 bg-blue-500/15 text-blue-200"
+                            : row.source === "ai"
+                              ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
+                              : "border-gray-500/40 bg-gray-500/15 text-gray-300"
+                        }`}
+                      >
+                        {row.source === "rule"
+                          ? "규칙"
+                          : row.source === "ai"
+                            ? "AI"
+                            : "미매칭"}
+                      </span>
+                    </td>
+                    <td className="border-b border-[#2c3140] px-2 py-2 align-top">
+                      <select
+                        value={row.selectedKey}
+                        onChange={(event) => {
+                          const nextKey = event.target.value;
+                          setBulkMatchRows((prev) =>
+                            prev.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    selectedKey: nextKey,
+                                    source: nextKey ? item.source : "none",
+                                  }
+                                : item
+                            )
+                          );
+                        }}
+                        className="w-full rounded border border-[#3a3d44] bg-[#2a2d33] px-2 py-1.5 text-[11px] text-gray-100"
+                      >
+                        <option value="">(수동 선택 필요)</option>
+                        {allAssetKeys.map((key) => (
+                          <option key={`${row.id}-${key}`} value={key}>
+                            {key}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="rounded border border-[#3a3d44] bg-[#111317] px-3 py-2 text-[11px] text-gray-400">
+            여러 이미지를 선택하면 자동 매칭 결과가 여기에 표시됩니다.
+          </p>
+        )}
+      </div>
+
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-gray-200">기본 에셋</h4>
-        {assetKeys.map((key) => {
+        {resolvedBuiltinAssetKeys.map((key) => {
           const inputId = `v2-asset-upload-${key}-${assetTheme}`;
           const assetUrl = renderConfig.assets[key][assetTheme];
           const assetSize = renderConfig.assetDimensions[key][assetTheme];
@@ -170,6 +670,11 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
                 <p className="text-[11px] text-blue-300">
                   사용자 프로필 이미지를 업로드하지 않은 상태에서 프리뷰에 표시될
                   더미 이미지입니다.
+                </p>
+              ) : null}
+              {key === "artist" ? (
+                <p className="text-[11px] text-blue-300">
+                  Artist 그룹의 `ArtistObject` 노드에 연결되는 배경 에셋입니다.
                 </p>
               ) : null}
 

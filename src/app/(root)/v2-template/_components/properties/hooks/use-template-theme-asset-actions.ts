@@ -2,11 +2,14 @@
 
 import {
   V2TemplateAssetDimension,
+  V2TemplateAssetRef,
   V2TemplateBuiltinAssetKey,
   V2TemplateColorKey,
+  V2TemplateDayKey,
   V2TemplateFontFaceSource,
   V2TemplateFontRegistryItem,
   V2TemplateRenderConfig,
+  v2_TEMPLATE_DAY_KEYS,
 } from "@/types/time-table/template-render-config";
 
 interface UseTemplateThemeAssetActionsParams {
@@ -277,6 +280,81 @@ const v2_applyRegistryKeyRenameToConfig = ({
     baseFonts: nextBaseFonts,
     componentFonts: nextComponentFonts,
   };
+};
+
+const v2_CARD_BACKGROUND_VARIANTS = {
+  online: {
+    builtinAssetKey: "onlineByTheme" as const,
+    layerTarget: "cardNode:online-background",
+    dayAssetKeyByDay: {
+      mon: "online_mon",
+      tue: "online_tue",
+      wed: "online_wed",
+      thu: "online_thu",
+      fri: "online_fri",
+      sat: "online_sat",
+      sun: "online_sun",
+    } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
+  },
+  offline: {
+    builtinAssetKey: "offlineByTheme" as const,
+    layerTarget: "cardNode:offline-background",
+    dayAssetKeyByDay: {
+      mon: "offline_mon",
+      tue: "offline_tue",
+      wed: "offline_wed",
+      thu: "offline_thu",
+      fri: "offline_fri",
+      sat: "offline_sat",
+      sun: "offline_sun",
+    } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
+  },
+};
+
+type V2CardBackgroundVariantMode = keyof typeof v2_CARD_BACKGROUND_VARIANTS;
+
+const v2_buildCardBackgroundDayAssetRefMap = (
+  mode: V2CardBackgroundVariantMode
+): Record<V2TemplateDayKey, V2TemplateAssetRef> => {
+  const dayAssetKeyByDay = v2_CARD_BACKGROUND_VARIANTS[mode].dayAssetKeyByDay;
+  return v2_TEMPLATE_DAY_KEYS.reduce<
+    Record<V2TemplateDayKey, V2TemplateAssetRef>
+  >((acc, dayKey) => {
+    acc[dayKey] = {
+      source: "builtin",
+      key: dayAssetKeyByDay[dayKey],
+    };
+    return acc;
+  }, {} as Record<V2TemplateDayKey, V2TemplateAssetRef>);
+};
+
+const v2_isSameAssetRef = (
+  left: V2TemplateAssetRef | undefined,
+  right: V2TemplateAssetRef | undefined
+): boolean => {
+  if (!left || !right) return left === right;
+  return left.source === right.source && left.key === right.key;
+};
+
+const v2_isCardBackgroundNodeForVariant = (
+  node: V2TemplateRenderConfig["graph"]["nodes"][string],
+  mode: V2CardBackgroundVariantMode
+): boolean => {
+  if (node.type !== "image") return false;
+  const variant = v2_CARD_BACKGROUND_VARIANTS[mode];
+  if (
+    node.highlightTarget === variant.layerTarget ||
+    node.meta?.layerTarget === variant.layerTarget
+  ) {
+    return true;
+  }
+  const assetRef = node.meta?.assetRef;
+  const expectedVisibility = mode === "online" ? "onlineOnly" : "offlineOnly";
+  return (
+    assetRef?.source === "builtin" &&
+    assetRef.key === variant.builtinAssetKey &&
+    node.visibilityMode === expectedVisibility
+  );
 };
 
 const useTemplateThemeAssetActions = ({
@@ -803,6 +881,80 @@ const useTemplateThemeAssetActions = ({
     });
   };
 
+  const toggleCardBackgroundAssetsByDay = (
+    mode: V2CardBackgroundVariantMode,
+    enabled: boolean
+  ) => {
+    safeUpdateConfig((prev) => {
+      const expectedAssetRefByDayKey = enabled
+        ? v2_buildCardBackgroundDayAssetRefMap(mode)
+        : null;
+
+      let graphNodesChanged = false;
+      const nextGraphNodes = { ...prev.graph.nodes };
+      Object.entries(prev.graph.nodes).forEach(([nodeId, node]) => {
+        if (!v2_isCardBackgroundNodeForVariant(node, mode)) return;
+
+        const nextMeta = {
+          ...(node.meta ?? {}),
+        };
+
+        if (enabled && expectedAssetRefByDayKey) {
+          const prevByDay = nextMeta.assetRefByDayKey ?? {};
+          const isAlreadyApplied = v2_TEMPLATE_DAY_KEYS.every((dayKey) =>
+            v2_isSameAssetRef(prevByDay[dayKey], expectedAssetRefByDayKey[dayKey])
+          );
+          if (isAlreadyApplied) {
+            return;
+          }
+          nextMeta.assetRefByDayKey = expectedAssetRefByDayKey;
+        } else {
+          if (!nextMeta.assetRefByDayKey) {
+            return;
+          }
+          delete nextMeta.assetRefByDayKey;
+        }
+
+        nextGraphNodes[nodeId] = {
+          ...node,
+          meta: nextMeta,
+        };
+        graphNodesChanged = true;
+      });
+
+      const editorOptionsChanged =
+        mode === "online"
+          ? Boolean(prev.editorOptions.useOnlineAssetsByDay) !== enabled
+          : Boolean(prev.editorOptions.useOfflineAssetsByDay) !== enabled;
+
+      if (!graphNodesChanged && !editorOptionsChanged) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        editorOptions:
+          mode === "online"
+            ? {
+                ...prev.editorOptions,
+                useOnlineAssetsByDay: enabled,
+              }
+            : {
+                ...prev.editorOptions,
+                useOfflineAssetsByDay: enabled,
+              },
+        ...(graphNodesChanged
+          ? {
+              graph: {
+                ...prev.graph,
+                nodes: nextGraphNodes,
+              },
+            }
+          : {}),
+      };
+    });
+  };
+
   const readImageFileAsDataUrl = (
     file: File
   ): Promise<{ dataUrl: string; width: number; height: number }> => {
@@ -892,6 +1044,7 @@ const useTemplateThemeAssetActions = ({
     updateExtraAssetUrl,
     addExtraAssetKey,
     removeExtraAssetKey,
+    toggleCardBackgroundAssetsByDay,
     readImageFileAsDataUrl,
     handleAssetFileUpload,
     handleExtraAssetFileUpload,

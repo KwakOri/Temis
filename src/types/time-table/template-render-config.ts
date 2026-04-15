@@ -136,6 +136,8 @@ export interface V2TemplateEditorOptions {
   isArtist: boolean;
   isMultiple: boolean;
   maxStreamingTimeByDay: number;
+  useOnlineAssetsByDay: boolean;
+  useOfflineAssetsByDay: boolean;
 }
 
 export interface V2TemplateAutoResizeOptions {
@@ -153,8 +155,23 @@ export interface V2TemplateAssetMap {
   bgByTheme: Record<string, string | null>;
   topObjectByTheme: Record<string, string | null>;
   memoByTheme: Record<string, string | null>;
+  artist: Record<string, string | null>;
   onlineByTheme: Record<string, string | null>;
+  online_mon: Record<string, string | null>;
+  online_tue: Record<string, string | null>;
+  online_wed: Record<string, string | null>;
+  online_thu: Record<string, string | null>;
+  online_fri: Record<string, string | null>;
+  online_sat: Record<string, string | null>;
+  online_sun: Record<string, string | null>;
   offlineByTheme: Record<string, string | null>;
+  offline_mon: Record<string, string | null>;
+  offline_tue: Record<string, string | null>;
+  offline_wed: Record<string, string | null>;
+  offline_thu: Record<string, string | null>;
+  offline_fri: Record<string, string | null>;
+  offline_sat: Record<string, string | null>;
+  offline_sun: Record<string, string | null>;
   profileFrameByTheme: Record<string, string | null>;
   profileBgByTheme: Record<string, string | null>;
   guideByTheme: Record<string, string | null>;

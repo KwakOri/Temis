@@ -27,7 +27,6 @@ import {
 } from "../model/style-section-utils";
 import TemplateCardAutoResizeOptions from "../components/template-card-auto-resize-options";
 import TemplateBoundTextNodePropertiesPanel from "../components/template-bound-text-node-properties-panel";
-import { v2_isEntryFieldBindingKey } from "@/utils/time-table/template-render-config";
 
 type V2StyleSectionId = string;
 
@@ -67,10 +66,6 @@ interface UseTemplateBoundTextNodePropertyPanelsParams {
   onUpdateCardOptions: (
     optionsKey: string,
     patch: Partial<{ maxFontSize: number; multiline: boolean }>
-  ) => void;
-  onUpdateMaxFontSize: (
-    key: keyof V2TemplateRenderConfig["maxFontSizes"],
-    value: number
   ) => void;
   onRemoveCardNode: (nodeId: string) => void;
   onUpdateCardNodeMeta: (params: {
@@ -144,7 +139,6 @@ const useTemplateBoundTextNodePropertyPanels = ({
   onClearSectionHoverHighlight,
   onSetSectionActiveHighlight,
   onUpdateCardOptions,
-  onUpdateMaxFontSize,
   onRemoveCardNode,
   onUpdateCardNodeMeta,
   onUpdateCardImageNodeAssetRef,
@@ -170,14 +164,6 @@ const useTemplateBoundTextNodePropertyPanels = ({
     if (!node.optionsKey) return null;
 
     const options = renderConfig.layout.card[node.optionsKey];
-    const maxFontSizeFallback = v2_isEntryFieldBindingKey(node.binding, "subTitle")
-      ? renderConfig.maxFontSizes.SUB_TITLE
-      : renderConfig.maxFontSizes.MAIN_TITLE;
-    const maxFontSizeCandidate = Number(options?.maxFontSize);
-    const maxFontSize =
-      Number.isFinite(maxFontSizeCandidate) && maxFontSizeCandidate > 0
-        ? maxFontSizeCandidate
-        : maxFontSizeFallback;
     const multiline =
       typeof options?.multiline === "boolean"
         ? options.multiline
@@ -187,20 +173,10 @@ const useTemplateBoundTextNodePropertyPanels = ({
 
     return (
       <TemplateCardAutoResizeOptions
-        maxFontSize={maxFontSize}
         multiline={multiline}
         onHoverContainer={() => onSetSectionHoverHighlight(containerSection)}
         onLeaveContainer={onClearSectionHoverHighlight}
         onActivateContainer={() => onSetSectionActiveHighlight(containerSection)}
-        onChangeMaxFontSize={(value) => {
-          onUpdateCardOptions(node.optionsKey!, { maxFontSize: value });
-          if (v2_isEntryFieldBindingKey(node.binding, "mainTitle")) {
-            onUpdateMaxFontSize("MAIN_TITLE", value);
-          }
-          if (v2_isEntryFieldBindingKey(node.binding, "subTitle")) {
-            onUpdateMaxFontSize("SUB_TITLE", value);
-          }
-        }}
         onChangeMultiline={(value) =>
           onUpdateCardOptions(node.optionsKey!, {
             multiline: value,

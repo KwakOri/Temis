@@ -144,10 +144,13 @@ export const v2_createExampleRenderConfigResponse =
           isArtist: true,
           isMultiple: false,
           maxStreamingTimeByDay: 1,
+          useOnlineAssetsByDay: false,
+          useOfflineAssetsByDay: false,
         },
         profileTextPlaceholder: "아티스트 명",
         formSchema: fallbackConfig.formSchema,
         assets: {
+          ...fallbackConfig.assets,
           bgByTheme: {
             first: Imgs.first.bg.src,
             second: Imgs.first.bg.src,
@@ -162,6 +165,11 @@ export const v2_createExampleRenderConfigResponse =
             first: Imgs.first.memo.src,
             second: Imgs.first.memo.src,
             third: Imgs.first.memo.src,
+          },
+          artist: {
+            first: Imgs.first.artist.src,
+            second: Imgs.first.artist.src,
+            third: Imgs.first.artist.src,
           },
           onlineByTheme: {
             first: Imgs.first.online.src,
@@ -190,6 +198,7 @@ export const v2_createExampleRenderConfigResponse =
           },
         },
         assetDimensions: {
+          ...fallbackConfig.assetDimensions,
           bgByTheme: {
             first: null,
             second: null,
@@ -201,6 +210,11 @@ export const v2_createExampleRenderConfigResponse =
             third: null,
           },
           memoByTheme: {
+            first: null,
+            second: null,
+            third: null,
+          },
+          artist: {
             first: null,
             second: null,
             third: null,

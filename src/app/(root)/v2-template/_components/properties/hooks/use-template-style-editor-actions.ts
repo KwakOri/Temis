@@ -488,6 +488,7 @@ const useTemplateStyleEditorActions = ({
 
       updateStyleSection(wrapperSection, {
         ...wrapperMap,
+        display: "flex",
         justifyContent: v2_HORIZONTAL_ALIGN_TO_JUSTIFY[align],
       });
 
@@ -511,6 +512,7 @@ const useTemplateStyleEditorActions = ({
 
       updateStyleSection(wrapperSection, {
         ...wrapperMap,
+        display: "flex",
         alignItems: v2_VERTICAL_ALIGN_TO_ALIGN_ITEMS[align],
       });
     },

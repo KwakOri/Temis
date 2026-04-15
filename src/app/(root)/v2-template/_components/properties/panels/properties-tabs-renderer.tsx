@@ -28,6 +28,8 @@ interface TemplatePropertiesTabsRendererProps {
   assetTheme: string;
   setAssetTheme: (theme: string) => void;
   preferProfileDummyImage: boolean;
+  useOnlineAssetsByDay: boolean;
+  useOfflineAssetsByDay: boolean;
   formSchemaError: string | null;
   formSchemaDiagnostics: React.ComponentProps<typeof TemplateSchemaTab>["diagnostics"];
   copyState: "idle" | "success" | "error";
@@ -61,6 +63,8 @@ interface TemplatePropertiesTabsRendererProps {
     patch: Partial<V2TemplateFormField>
   ) => void;
   onTogglePreferProfileDummyImage: (value: boolean) => void;
+  onToggleOnlineAssetsByDay: (value: boolean) => void;
+  onToggleOfflineAssetsByDay: (value: boolean) => void;
   onUploadAssetFile: (
     key: V2TemplateBuiltinAssetKey,
     theme: string,
@@ -142,6 +146,8 @@ const TemplatePropertiesTabsRenderer: React.FC<
   assetTheme,
   setAssetTheme,
   preferProfileDummyImage,
+  useOnlineAssetsByDay,
+  useOfflineAssetsByDay,
   formSchemaError,
   formSchemaDiagnostics,
   copyState,
@@ -172,6 +178,8 @@ const TemplatePropertiesTabsRenderer: React.FC<
   onRemoveSchemaField,
   onUpdateSchemaField,
   onTogglePreferProfileDummyImage,
+  onToggleOnlineAssetsByDay,
+  onToggleOfflineAssetsByDay,
   onUploadAssetFile,
   onResetAsset,
   onCreateExtraAssetKey,
@@ -234,11 +242,15 @@ const TemplatePropertiesTabsRenderer: React.FC<
       themeOptions={themeOptions}
       renderConfig={renderConfig}
       preferProfileDummyImage={preferProfileDummyImage}
+      useOnlineAssetsByDay={useOnlineAssetsByDay}
+      useOfflineAssetsByDay={useOfflineAssetsByDay}
       assetKeys={assetKeys}
       assetLabels={assetLabels}
       extraAssetKeys={extraAssetKeys}
       setAssetTheme={setAssetTheme}
       onTogglePreferProfileDummyImage={onTogglePreferProfileDummyImage}
+      onToggleOnlineAssetsByDay={onToggleOnlineAssetsByDay}
+      onToggleOfflineAssetsByDay={onToggleOfflineAssetsByDay}
       onUploadBuiltinFile={onUploadAssetFile}
       onResetBuiltinAsset={onResetAsset}
       onCreateExtraAssetKey={onCreateExtraAssetKey}

@@ -9,6 +9,11 @@ import {
   V2TemplateFontRegistryItem,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
+import {
+  v2_buildStreamingTimeComputedValues,
+  v2_buildWeekDateComputedValues,
+  v2_resolveStreamingDayLabelByKey,
+} from "@/utils/time-table/text-formatting";
 
 interface TemplateStyleThemeSettingsProps {
   renderConfig: V2TemplateRenderConfig;
@@ -86,6 +91,65 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
   onUpdateStreamingTimeFormat,
   onUpdateWeekDateFormat,
 }) => {
+  const previewWeekDates = React.useMemo(
+    () => [new Date(2026, 3, 13), new Date(2026, 3, 19)],
+    []
+  );
+  const streamingDayPreviewByKey = React.useMemo(() => {
+    const next: Record<V2TemplateDayKey, string> = {
+      mon: "",
+      tue: "",
+      wed: "",
+      thu: "",
+      fri: "",
+      sat: "",
+      sun: "",
+    };
+    dayKeyOptions.forEach((option) => {
+      next[option.value] = v2_resolveStreamingDayLabelByKey({
+        dayKey: option.value,
+        streamingDayFormat: renderConfig.streamingDayFormat,
+        dayLabelFormat: renderConfig.dayLabelFormat,
+        fallbackWeekdayOption: renderConfig.weekdayOption,
+      });
+    });
+    return next;
+  }, [
+    dayKeyOptions,
+    renderConfig.dayLabelFormat,
+    renderConfig.streamingDayFormat,
+    renderConfig.weekdayOption,
+  ]);
+  const streamingTimePreview = React.useMemo(() => {
+    const morning = v2_buildStreamingTimeComputedValues({
+      time: "09:05",
+      isGuerrilla: false,
+      streamingTimeFormat: renderConfig.streamingTimeFormat,
+    }).streamingTime;
+    const evening = v2_buildStreamingTimeComputedValues({
+      time: "18:30",
+      isGuerrilla: false,
+      streamingTimeFormat: renderConfig.streamingTimeFormat,
+    }).streamingTime;
+    const guerrilla = v2_buildStreamingTimeComputedValues({
+      time: "00:00",
+      isGuerrilla: true,
+      streamingTimeFormat: renderConfig.streamingTimeFormat,
+    }).streamingTime;
+    return {
+      morning,
+      evening,
+      guerrilla,
+    };
+  }, [renderConfig.streamingTimeFormat]);
+  const weekDatePreview = React.useMemo(
+    () =>
+      v2_buildWeekDateComputedValues({
+        weekDates: previewWeekDates,
+        weekDateFormat: renderConfig.weekDateFormat,
+      }),
+    [previewWeekDates, renderConfig.weekDateFormat]
+  );
   const [fontFaceCssDraftByKey, setFontFaceCssDraftByKey] = React.useState<
     Record<string, string>
   >({});
@@ -262,6 +326,24 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
               </label>
             ))}
           </div>
+          <div className="rounded border border-[#3a3d44] bg-[#101217] p-2 space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Preview
+            </p>
+            <div className="grid grid-cols-7 gap-1">
+              {dayKeyOptions.map((option) => (
+                <div
+                  key={`streaming-day-preview-${option.value}`}
+                  className="rounded border border-[#2f333b] bg-[#191c22] px-2 py-1 text-center"
+                >
+                  <p className="text-[10px] text-gray-500">{option.value}</p>
+                  <p className="text-xs font-semibold text-gray-100 truncate">
+                    {streamingDayPreviewByKey[option.value]}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-2 rounded border border-[#2e3138] bg-[#15171b] p-2">
@@ -355,6 +437,31 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
               className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
               placeholder="공백"
             />
+          </div>
+          <div className="rounded border border-[#3a3d44] bg-[#101217] p-2 space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Preview
+            </p>
+            <div className="grid grid-cols-3 gap-1">
+              <div className="rounded border border-[#2f333b] bg-[#191c22] px-2 py-1">
+                <p className="text-[10px] text-gray-500">09:05</p>
+                <p className="text-xs font-semibold text-gray-100">
+                  {streamingTimePreview.morning}
+                </p>
+              </div>
+              <div className="rounded border border-[#2f333b] bg-[#191c22] px-2 py-1">
+                <p className="text-[10px] text-gray-500">18:30</p>
+                <p className="text-xs font-semibold text-gray-100">
+                  {streamingTimePreview.evening}
+                </p>
+              </div>
+              <div className="rounded border border-[#2f333b] bg-[#191c22] px-2 py-1">
+                <p className="text-[10px] text-gray-500">게릴라</p>
+                <p className="text-xs font-semibold text-gray-100">
+                  {streamingTimePreview.guerrilla}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -504,6 +611,28 @@ const TemplateStyleThemeSettings: React.FC<TemplateStyleThemeSettingsProps> = ({
               className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
               placeholder=" - "
             />
+          </div>
+          <div className="rounded border border-[#3a3d44] bg-[#101217] p-2 space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Preview
+            </p>
+            <p className="text-sm font-semibold text-gray-100">
+              {weekDatePreview.weekDateRange || "-"}
+            </p>
+            <div className="grid grid-cols-2 gap-1 text-[11px] text-gray-400">
+              <p>
+                start:{" "}
+                <span className="text-gray-200">
+                  {weekDatePreview.weekStartFullDate || "-"}
+                </span>
+              </p>
+              <p>
+                end:{" "}
+                <span className="text-gray-200">
+                  {weekDatePreview.weekEndFullDate || "-"}
+                </span>
+              </p>
+            </div>
           </div>
         </div>
       </div>
