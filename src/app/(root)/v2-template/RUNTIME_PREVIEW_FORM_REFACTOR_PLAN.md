@@ -15,8 +15,9 @@
   - runtime 경로에서 runtime alias(`template-runtime-*`, `useTemplateRuntime`) 사용 정리
   - runtime 전용 검증 스크립트 추가(`npm run check:v2-runtime`)
   - Phase 4 cleanup 완료(런타임 경로 기준)
+  - runtime core 구현본을 runtime 네이밍으로 정리(`template-runtime-*`, `useTemplateRuntime`, `template-runtime-ui`)
 - 진행 중
-  - 선택 과제: 내부 core 파일(`template-editor-*`)의 물리 파일명 변경 여부 검토
+  - 선택 과제: scene/editor 내부의 `useTemplateEditor*` import를 `useTemplateRuntime*`로 단계적 치환할지 검토
 - 현재 검증 메모
   - `npm run lint:v2-runtime` 통과(Next `no-img-element` 경고 2건 존재)
   - `npm run typecheck:v2-runtime` 통과

@@ -1,88 +1,11 @@
-"use client";
+export {
+  TemplateRuntimeUIProvider as TemplateEditorUIProvider,
+  useTemplateRuntimeActions as useTemplateEditorActions,
+  useTemplateRuntimeData as useTemplateEditorData,
+  useTemplateRuntimeUI as useTemplateEditorUI,
+  useTemplateRuntimeUIContext as useTemplateEditorUIContext,
+} from "./template-runtime-ui-context";
 
-import {
-  TemplateEditorUIActions,
-  TemplateEditorUIState,
-} from "@/hooks/v2/useTemplateState";
-import { createContext, PropsWithChildren, useContext } from "react";
-
-export interface TemplateEditorUIContextValue {
-  state: TemplateEditorUIState;
-  actions: TemplateEditorUIActions;
-}
-
-const TemplateEditorUIContext = createContext<TemplateEditorUIContextValue | null>(
-  null
-);
-
-export const TemplateEditorUIProvider = ({
-  children,
-  value,
-}: PropsWithChildren<{ value: TemplateEditorUIContextValue }>) => {
-  return (
-    <TemplateEditorUIContext.Provider value={value}>
-      {children}
-    </TemplateEditorUIContext.Provider>
-  );
-};
-
-export const useTemplateEditorUIContext = () => {
-  const context = useContext(TemplateEditorUIContext);
-
-  if (!context) {
-    throw new Error(
-      "useTemplateEditorUIContext must be used within TemplateEditorUIProvider"
-    );
-  }
-
-  return context;
-};
-
-export const useTemplateEditorData = () => {
-  const { state, actions } = useTemplateEditorUIContext();
-
-  return {
-    profileText: state.profileText,
-    memoText: state.memoText,
-    imageSrc: state.imageSrc,
-    preferProfileDummyImage: state.preferProfileDummyImage,
-    isProfileTextVisible: state.isProfileTextVisible,
-    isMemoTextVisible: state.isMemoTextVisible,
-    selectedOptions: state.selectedOptions,
-    mondayDateStr: state.mondayDateStr,
-    weekDates: state.weekDates,
-    updateProfileText: actions.updateProfileText,
-    updateMemoText: actions.updateMemoText,
-    updateImageSrc: actions.updateImageSrc,
-    updatePreferProfileDummyImage: actions.updatePreferProfileDummyImage,
-    updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
-    updateMondayDate: actions.updateMondayDate,
-    handleImageChange: actions.handleImageChange,
-    handleProfileTextChange: actions.handleProfileTextChange,
-    handleDateChange: actions.handleDateChange,
-    handleOptionClick: actions.handleOptionClick,
-  };
-};
-
-export const useTemplateEditorUI = () => {
-  const { state, actions } = useTemplateEditorUIContext();
-
-  return {
-    scale: state.scale,
-    isMobile: state.isMobile,
-    isProfileTextVisible: state.isProfileTextVisible,
-    isMemoTextVisible: state.isMemoTextVisible,
-    selectedOptions: state.selectedOptions,
-    updateScale: actions.updateScale,
-    updateIsMobile: actions.updateIsMobile,
-    updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
-    handleOptionClick: actions.handleOptionClick,
-  };
-};
-
-export const useTemplateEditorActions = () => {
-  const { actions } = useTemplateEditorUIContext();
-  return {
-    downloadImage: actions.downloadImage,
-  };
-};
+export type {
+  TemplateRuntimeUIContextValue as TemplateEditorUIContextValue,
+} from "./template-runtime-ui-context";

@@ -1,21 +1,4 @@
-export const v2_TEMPLATE_HIGHLIGHT_TARGETS = [
-  "grid",
-  "weekFlag",
-  "topObjectContainer",
-  "profileImage",
-  "profileFrame",
-  "artistObject",
-  "memoObject",
-  "profileText",
-  "memoText",
-  "cardStreamingDay",
-  "cardStreamingDate",
-  "cardStreamingTime",
-  "cardMainTitleContainer",
-  "cardSubTitleContainer",
-  "cardContainer",
-] as const;
-
-export type V2TemplateHighlightTarget =
-  | (typeof v2_TEMPLATE_HIGHLIGHT_TARGETS)[number]
-  | string;
+export {
+  v2_RUNTIME_HIGHLIGHT_TARGETS as v2_TEMPLATE_HIGHLIGHT_TARGETS,
+  type V2RuntimeHighlightTarget as V2TemplateHighlightTarget,
+} from "./template-runtime-ui";
