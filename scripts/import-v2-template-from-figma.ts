@@ -1914,15 +1914,6 @@ const applyLayoutMappingsFromFigma = ({
       return false;
     }
 
-    const containerWidth =
-      Number(
-        (config.layout.card.container as Record<string, unknown>).width
-      ) || 0;
-    const containerHeight =
-      Number(
-        (config.layout.card.container as Record<string, unknown>).height
-      ) || 0;
-
     const nextTransforms: NonNullable<
       (typeof cardComponent)["instanceTransforms"]
     > = {};
@@ -1950,22 +1941,17 @@ const applyLayoutMappingsFromFigma = ({
       const transform: {
         offsetX?: number;
         offsetY?: number;
+        width?: number;
+        height?: number;
         rotateDeg?: number;
-        scale?: number;
       } = {
         offsetX: rect.left,
         offsetY: rect.top,
+        ...(rect.width > 0 ? { width: rect.width } : {}),
+        ...(rect.height > 0 ? { height: rect.height } : {}),
       };
       if (rect.rotateDeg !== undefined) {
         transform.rotateDeg = rect.rotateDeg;
-      }
-      if (containerWidth > 0 && containerHeight > 0 && rect.width > 0 && rect.height > 0) {
-        const ratioW = rect.width / containerWidth;
-        const ratioH = rect.height / containerHeight;
-        const scale = round((ratioW + ratioH) / 2, 4);
-        if (Math.abs(scale - 1) > 0.01) {
-          transform.scale = scale;
-        }
       }
       nextTransforms[instanceId] = transform;
     });

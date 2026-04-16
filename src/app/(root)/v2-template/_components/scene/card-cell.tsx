@@ -39,6 +39,10 @@ interface TimeTableCellProps {
   currentTheme: TTheme;
   cardStructure: V2TemplateCardStructure;
   bindingOverrides?: V2TemplateComponentInstanceBindingOverrides;
+  cardContainerSizeOverride?: {
+    width?: number;
+    height?: number;
+  };
 }
 
 const v2_toCardStyleMap = (
@@ -184,6 +188,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   currentTheme,
   cardStructure,
   bindingOverrides,
+  cardContainerSizeOverride,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const { weekDates } = useTemplateRuntimeData();
@@ -204,6 +209,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const cardContainerStyle: React.CSSProperties = {
     ...cardSize,
     ...cardContainerLayout,
+    ...cardContainerSizeOverride,
     ...v2_getHighlightStyle({
       target: cardStructure.containerHighlightTarget,
       hoverTarget: hoverHighlightTarget,

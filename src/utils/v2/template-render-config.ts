@@ -2753,6 +2753,20 @@ const v2_normalizeCardInstanceTransforms = (
         nextTransform.offsetY = rawTransform.offsetY;
       }
       if (
+        typeof rawTransform.width === "number" &&
+        Number.isFinite(rawTransform.width) &&
+        rawTransform.width > 0
+      ) {
+        nextTransform.width = rawTransform.width;
+      }
+      if (
+        typeof rawTransform.height === "number" &&
+        Number.isFinite(rawTransform.height) &&
+        rawTransform.height > 0
+      ) {
+        nextTransform.height = rawTransform.height;
+      }
+      if (
         typeof rawTransform.rotateDeg === "number" &&
         Number.isFinite(rawTransform.rotateDeg)
       ) {

@@ -33,6 +33,8 @@ const v2_getCardInstanceTransform = (
         {
           offsetX?: number;
           offsetY?: number;
+          width?: number;
+          height?: number;
           rotateDeg?: number;
           scale?: number;
           opacity?: number;
@@ -41,7 +43,15 @@ const v2_getCardInstanceTransform = (
     | undefined,
   index: number,
   instanceKey?: string
-): { x: number; y: number; rotateDeg: number; scale: number; opacity: number } => {
+): {
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  rotateDeg: number;
+  scale: number;
+  opacity: number;
+} => {
   const transform =
     (typeof instanceKey === "string" ? transforms?.[instanceKey] : undefined) ??
     transforms?.[String(index)];
@@ -53,6 +63,18 @@ const v2_getCardInstanceTransform = (
     typeof transform?.offsetY === "number" && Number.isFinite(transform.offsetY)
       ? transform.offsetY
       : 0;
+  const width =
+    typeof transform?.width === "number" &&
+    Number.isFinite(transform.width) &&
+    transform.width > 0
+      ? transform.width
+      : undefined;
+  const height =
+    typeof transform?.height === "number" &&
+    Number.isFinite(transform.height) &&
+    transform.height > 0
+      ? transform.height
+      : undefined;
   const rotateDeg =
     typeof transform?.rotateDeg === "number" &&
     Number.isFinite(transform.rotateDeg)
@@ -66,7 +88,7 @@ const v2_getCardInstanceTransform = (
     typeof transform?.opacity === "number" && Number.isFinite(transform.opacity)
       ? Math.min(1, Math.max(0, transform.opacity))
       : 1;
-  return { x, y, rotateDeg, scale, opacity };
+  return { x, y, width, height, rotateDeg, scale, opacity };
 };
 
 const v2_parseGridLayoutMode = (value: unknown): V2GridLayoutMode => {
@@ -222,9 +244,6 @@ const TimeTableGrid: React.FC<{
     if (transform.rotateDeg !== 0) {
       transformParts.push(`rotate(${transform.rotateDeg}deg)`);
     }
-    if (transform.scale !== 1) {
-      transformParts.push(`scale(${transform.scale})`);
-    }
     return {
       position: "absolute",
       left: transform.x,
@@ -236,6 +255,21 @@ const TimeTableGrid: React.FC<{
           }
         : {}),
       ...(transform.opacity !== 1 ? { opacity: transform.opacity } : {}),
+    };
+  };
+  const getCardInstanceSizeOverride = (
+    instance: V2TemplateSceneComponentInstanceNode,
+    fallbackIndex: number,
+    instanceCardStructure: V2TemplateCardStructure
+  ): { width?: number; height?: number } => {
+    const transform = v2_getCardInstanceTransform(
+      instanceCardStructure.instanceTransforms,
+      fallbackIndex,
+      instance.instanceId
+    );
+    return {
+      ...(typeof transform.width === "number" ? { width: transform.width } : {}),
+      ...(typeof transform.height === "number" ? { height: transform.height } : {}),
     };
   };
   const resolveDataIndex = (
@@ -294,6 +328,11 @@ const TimeTableGrid: React.FC<{
                 index={dataIndex}
                 cardStructure={instanceCardStructure}
                 bindingOverrides={instance.bindingOverrides}
+                cardContainerSizeOverride={getCardInstanceSizeOverride(
+                  instance,
+                  dataIndex,
+                  instanceCardStructure
+                )}
               />
             </div>
           );
