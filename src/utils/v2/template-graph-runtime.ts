@@ -20,7 +20,15 @@ import {
 } from "@/utils/v2/template-render-config";
 
 const v2_COLOR_KEY_SET = new Set(v2_TEMPLATE_COLOR_KEYS);
-const v2_VISIBILITY_MODE_SET = new Set(["always", "onlineOnly", "offlineOnly"]);
+const v2_VISIBILITY_MODE_SET = new Set([
+  "always",
+  "onlineOnly",
+  "offlineOnly",
+  "onlineSingleOnly",
+  "onlineMultipleOnly",
+  "offlineMemoOnly",
+  "offlineNoMemoOnly",
+]);
 const v2_COMPUTED_KEY_SET = new Set<string>(v2_TEMPLATE_COMPUTED_BINDING_KEYS);
 const v2_INVALID_COMPONENT_ID = "__invalid_component__";
 

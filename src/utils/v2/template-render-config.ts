@@ -2033,6 +2033,8 @@ const v2_VISIBILITY_MODE_SET = new Set([
   "offlineOnly",
   "onlineSingleOnly",
   "onlineMultipleOnly",
+  "offlineMemoOnly",
+  "offlineNoMemoOnly",
 ]);
 
 const v2_COMPONENT_INSTANCE_MODE_SET = new Set(["component", "detached"]);
@@ -3871,16 +3873,20 @@ export const v2_isVisibleByMode = ({
   mode,
   isOffline,
   entryCount = 1,
+  hasOfflineMemo = false,
 }: {
   mode?: V2TemplateVisibilityMode;
   isOffline: boolean;
   entryCount?: number;
+  hasOfflineMemo?: boolean;
 }): boolean => {
   const resolvedMode = mode ?? "always";
   if (resolvedMode === "onlineOnly") return !isOffline;
   if (resolvedMode === "offlineOnly") return isOffline;
   if (resolvedMode === "onlineSingleOnly") return !isOffline && entryCount <= 1;
   if (resolvedMode === "onlineMultipleOnly") return !isOffline && entryCount >= 2;
+  if (resolvedMode === "offlineMemoOnly") return isOffline && hasOfflineMemo;
+  if (resolvedMode === "offlineNoMemoOnly") return isOffline && !hasOfflineMemo;
   return true;
 };
 

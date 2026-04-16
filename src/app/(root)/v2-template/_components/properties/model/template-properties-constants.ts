@@ -157,6 +157,8 @@ export const v2_CARD_NODE_VISIBILITY_OPTIONS: Array<{
   { value: "offlineOnly", label: "오프라인만" },
   { value: "onlineSingleOnly", label: "온라인 · 단회차만" },
   { value: "onlineMultipleOnly", label: "온라인 · 다회차만" },
+  { value: "offlineMemoOnly", label: "오프라인 · 메모 있음" },
+  { value: "offlineNoMemoOnly", label: "오프라인 · 메모 없음" },
 ];
 
 export const v2_FIXED_CARD_NODE_IDS = new Set([

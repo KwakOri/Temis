@@ -218,7 +218,9 @@ export type V2TemplateVisibilityMode =
   | "onlineOnly"
   | "offlineOnly"
   | "onlineSingleOnly"
-  | "onlineMultipleOnly";
+  | "onlineMultipleOnly"
+  | "offlineMemoOnly"
+  | "offlineNoMemoOnly";
 
 export type V2TemplateComponentInstanceMode = "component" | "detached";
 

@@ -92,6 +92,9 @@ const V2SceneStructureRenderer = ({
     });
     return next;
   }, [renderConfig]);
+  const firstCardHasOfflineMemo =
+    typeof firstCard?.offlineMemo === "string" &&
+    firstCard.offlineMemo.trim().length > 0;
   const renderTextNode = (node: V2TemplateSceneTextNode) => {
     const layout = v2_toRenderableLayout(
       resolveStyleRecordByKey(node.containerStyleKey)
@@ -319,6 +322,7 @@ const V2SceneStructureRenderer = ({
       mode: node.visibilityMode,
       isOffline: firstCardOffline,
       entryCount: firstCardEntryCount,
+      hasOfflineMemo: firstCardHasOfflineMemo,
     });
     if (hiddenByLayer || !visibleByMode) return null;
 

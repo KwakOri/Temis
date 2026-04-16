@@ -250,6 +250,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     1,
     Array.isArray(time.entries) ? time.entries.length : 0
   );
+  const hasOfflineMemo =
+    typeof time.offlineMemo === "string" && time.offlineMemo.trim().length > 0;
   const entryTime = (primaryEntry.time as string) || "09:00";
   const computedValues = v2_buildComputedValues({
     dayKey,
@@ -269,6 +271,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         mode: node.visibilityMode,
         isOffline: cardIsOffline,
         entryCount,
+        hasOfflineMemo,
       })
     ) {
       return null;
