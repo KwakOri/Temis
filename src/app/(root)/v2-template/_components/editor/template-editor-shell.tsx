@@ -3,8 +3,8 @@ import { ChevronLeft, ChevronRight, Layers, SlidersHorizontal } from "lucide-rea
 
 import { TemplateDesignGuideProvider } from '@/contexts/v2/template-design-guide-context';
 import { useTemplateRenderConfigContext } from '@/contexts/v2/template-render-config-context';
-import { TemplateEditorRuntimeProvider } from '@/contexts/v2/template-runtime-context';
-import { TemplateEditorUIProvider } from '@/contexts/v2/template-runtime-ui-context';
+import { TemplateEditorRuntimeProvider } from '@/contexts/v2/template-editor-runtime-context';
+import { TemplateEditorUIProvider } from '@/contexts/v2/template-editor-ui-context';
 import { useTemplateEditor } from '@/hooks/v2/useTemplateEditor';
 import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui';
 import {
