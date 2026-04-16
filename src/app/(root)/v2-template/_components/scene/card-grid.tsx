@@ -16,7 +16,7 @@ import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableLayoutStyle } from "./render-style";
 
-type V2GridLayoutMode = "grid3x3" | "flex4x2";
+type V2GridLayoutMode = "grid3x3" | "flex4x2" | "free";
 type V2Flex42Align = "left" | "center" | "right";
 type V2Flex42ThreeRow = "top" | "bottom";
 
@@ -70,7 +70,9 @@ const v2_getCardInstanceTransform = (
 };
 
 const v2_parseGridLayoutMode = (value: unknown): V2GridLayoutMode => {
-  return value === "flex4x2" ? "flex4x2" : "grid3x3";
+  if (value === "flex4x2") return "flex4x2";
+  if (value === "free") return "free";
+  return "grid3x3";
 };
 
 const v2_parseFlex42Align = (value: unknown): V2Flex42Align => {
@@ -206,8 +208,99 @@ const TimeTableGrid: React.FC<{
     }
     return style;
   };
+  const getCardInstanceFreeStyle = (
+    instance: V2TemplateSceneComponentInstanceNode,
+    fallbackIndex: number,
+    instanceCardStructure: V2TemplateCardStructure
+  ): React.CSSProperties => {
+    const transform = v2_getCardInstanceTransform(
+      instanceCardStructure.instanceTransforms,
+      fallbackIndex,
+      instance.instanceId
+    );
+    const transformParts: string[] = [];
+    if (transform.rotateDeg !== 0) {
+      transformParts.push(`rotate(${transform.rotateDeg}deg)`);
+    }
+    if (transform.scale !== 1) {
+      transformParts.push(`scale(${transform.scale})`);
+    }
+    return {
+      position: "absolute",
+      left: transform.x,
+      top: transform.y,
+      ...(transformParts.length > 0
+        ? {
+            transform: transformParts.join(" "),
+            transformOrigin: "center center",
+          }
+        : {}),
+      ...(transform.opacity !== 1 ? { opacity: transform.opacity } : {}),
+    };
+  };
+  const resolveDataIndex = (
+    instance: V2TemplateSceneComponentInstanceNode,
+    fallbackIndex: number
+  ) => {
+    if (dataIndexByDayKey[instance.dayKey] !== undefined) {
+      return dataIndexByDayKey[instance.dayKey] as number;
+    }
+    const parsedIndex = Number.parseInt(instance.instanceId, 10);
+    if (
+      Number.isFinite(parsedIndex) &&
+      parsedIndex >= 0 &&
+      parsedIndex < data.length
+    ) {
+      return parsedIndex;
+    }
+    return fallbackIndex;
+  };
 
   if (isLayerHidden("grid")) return null;
+
+  if (layoutMode === "free") {
+    return (
+      <div
+        style={{
+          ...baseLayoutStyle,
+          ...v2_getHighlightStyle({
+            target: "grid",
+            hoverTarget: hoverHighlightTarget,
+            activeTarget: activeHighlightTarget,
+          }),
+        }}
+        className="absolute"
+      >
+        {runtimeInstances.map((instance, index) => {
+          const dataIndex = resolveDataIndex(instance, index);
+          const time = data[dataIndex];
+          const weekDate = weekDates[dataIndex];
+          const instanceCardStructure = resolveCardStructureForInstance(instance);
+          if (!time || !weekDate) return null;
+          return (
+            <div
+              key={instance.id}
+              style={getCardInstanceFreeStyle(
+                instance,
+                dataIndex,
+                instanceCardStructure
+              )}
+            >
+              <V2TimeTableCell
+                time={time}
+                dayKeyOverride={instance.dayKey}
+                currentTheme={currentTheme}
+                weekDate={weekDate}
+                index={dataIndex}
+                cardStructure={instanceCardStructure}
+                bindingOverrides={instance.bindingOverrides}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   if (layoutMode === "flex4x2") {
     const threeRowAlignClass =
@@ -224,24 +317,6 @@ const TimeTableGrid: React.FC<{
       ? runtimeInstances.slice(3, 7)
       : runtimeInstances.slice(4, 7);
     const bottomRowIndexOffset = isTopRowThree ? 3 : 4;
-    const resolveDataIndex = (
-      instance: V2TemplateSceneComponentInstanceNode,
-      fallbackIndex: number
-    ) => {
-      if (dataIndexByDayKey[instance.dayKey] !== undefined) {
-        return dataIndexByDayKey[instance.dayKey] as number;
-      }
-      const parsedIndex = Number.parseInt(instance.instanceId, 10);
-      if (
-        Number.isFinite(parsedIndex) &&
-        parsedIndex >= 0 &&
-        parsedIndex < data.length
-      ) {
-        return parsedIndex;
-      }
-      return fallbackIndex;
-    };
-
     return (
       <div
         style={{

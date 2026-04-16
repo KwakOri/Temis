@@ -24,7 +24,7 @@ import {
   v2_parseGridLayoutMode,
 } from "../model/layout-utils";
 
-type V2GridLayoutMode = "grid3x3" | "flex4x2";
+type V2GridLayoutMode = "grid3x3" | "flex4x2" | "free";
 type V2Flex42Align = "left" | "center" | "right";
 type V2Flex42ThreeRow = "top" | "bottom";
 
@@ -127,7 +127,7 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
             Layout Mode
           </h6>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => onUpdateGridLayoutMode("grid3x3")}
@@ -149,6 +149,17 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
               }`}
             >
               4 x 2 (Flex)
+            </button>
+            <button
+              type="button"
+              onClick={() => onUpdateGridLayoutMode("free")}
+              className={`rounded border px-2 py-1 text-xs ${
+                gridLayoutMode === "free"
+                  ? "border-blue-400 bg-blue-500/20 text-blue-200"
+                  : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
+              }`}
+            >
+              Free
             </button>
           </div>
 
@@ -176,7 +187,7 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
                 })}
               </div>
             </div>
-          ) : (
+          ) : gridLayoutMode === "flex4x2" ? (
             <div className="space-y-2">
               <span className="text-[11px] text-gray-400">3칸 줄 위치</span>
               <div className="grid grid-cols-2 gap-2">
@@ -222,6 +233,10 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
                 ))}
               </div>
             </div>
+          ) : (
+            <p className="text-[11px] text-gray-400">
+              Free 모드에서는 카드 인스턴스의 개별 좌표(instanceTransforms)로 배치됩니다.
+            </p>
           )}
         </div>
       )}

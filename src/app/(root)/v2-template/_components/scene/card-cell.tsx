@@ -201,6 +201,21 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   // Card root must stay in normal grid/flex flow unless position is explicitly set.
   // Auto-injecting absolute from offset props makes all cards overlap at one point.
   const cardContainerLayout = v2_toRenderableStyle(cardContainerStyleMap);
+  const cardContainerStyle: React.CSSProperties = {
+    ...cardSize,
+    ...cardContainerLayout,
+    ...v2_getHighlightStyle({
+      target: cardStructure.containerHighlightTarget,
+      hoverTarget: hoverHighlightTarget,
+      activeTarget: activeHighlightTarget,
+    }),
+  };
+  if (cardContainerStyle.position === undefined) {
+    cardContainerStyle.position = "relative";
+  }
+  if (cardContainerStyle.overflow === undefined) {
+    cardContainerStyle.overflow = "hidden";
+  }
   const dayKey =
     dayKeyOverride ?? v2_parseDayKey(time.day) ?? v2_dayKeyFromIndex(index);
   const placeholdersByScope = renderConfig.formSchema.fields.reduce(
@@ -375,15 +390,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
   return (
     <div
-      style={{
-        ...cardSize,
-        ...cardContainerLayout,
-        ...v2_getHighlightStyle({
-          target: cardStructure.containerHighlightTarget,
-          hoverTarget: hoverHighlightTarget,
-          activeTarget: activeHighlightTarget,
-        }),
-      }}
+      style={cardContainerStyle}
       key={time.day}
       className="relative flex justify-center"
     >

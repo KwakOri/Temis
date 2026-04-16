@@ -2,8 +2,25 @@ import { createClient } from "@supabase/supabase-js";
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { v2_createDefaultTemplateRenderConfig, v2_createEmptyTemplateRenderConfig, v2_normalizeTemplateRenderConfig } from "../src/utils/v2/template-render-config";
+import { deleteFileFromR2, uploadFileToR2 } from "../src/lib/r2";
+import {
+  v2_normalizeAssetToken,
+  v2_suggestAssetKeyByRule,
+} from "../src/utils/v2/asset-mapping";
+import { buildV2AssetUploadFolder } from "../src/utils/v2/r2-upload-prefix";
+import {
+  v2_createDefaultTemplateRenderConfig,
+  v2_createEmptyTemplateRenderConfig,
+  v2_normalizeTemplateRenderConfig,
+} from "../src/utils/v2/template-render-config";
 import { v2_graphRemoveNodeSubtree } from "../src/utils/v2/template-graph-editor";
+import {
+  V2TemplateAssetRef,
+  V2TemplateBuiltinAssetKey,
+  V2TemplateDayKey,
+  V2TemplateExtraAssetDimensionMap,
+  V2TemplateExtraAssetMap,
+} from "../src/types/time-table/template-render-config";
 
 type CliOptions = {
   figmaUrl: string;
@@ -18,12 +35,17 @@ type CliOptions = {
   supabaseUrl?: string;
   supabaseServiceRoleKey?: string;
   figmaToken?: string;
+  withAssets: boolean;
+  assetTheme: string;
+  assetFormat: "png" | "jpg" | "svg" | "pdf";
+  noAiAssetMatch: boolean;
 };
 
 type FigmaNode = {
   id?: string;
   name?: string;
   type?: string;
+  visible?: boolean;
   layoutMode?: string;
   layoutWrap?: string;
   itemSpacing?: number;
@@ -73,6 +95,44 @@ type FigmaNodesResponse = {
       document?: FigmaNode;
     }
   >;
+};
+
+type FigmaImagesResponse = {
+  images?: Record<string, string | null>;
+  err?: string;
+  status?: number;
+};
+
+type FigmaNodeRecord = {
+  node: FigmaNode;
+  ancestors: FigmaNode[];
+};
+
+type AssetTarget = {
+  targetType: "builtin" | "extra";
+  targetKey: string;
+  score: number;
+  reason: string;
+};
+
+type AssetCandidate = {
+  nodeId: string;
+  nodeName: string;
+  targetType: "builtin" | "extra";
+  targetKey: string;
+  width: number;
+  height: number;
+  score: number;
+  reason: string;
+};
+
+type AssetImportSummary = {
+  discovered: number;
+  mapped: number;
+  uploaded: number;
+  applied: number;
+  warnings: string[];
+  unresolved: string[];
 };
 
 type FigmaParseResult = {
@@ -133,9 +193,15 @@ const printHelp = () => {
       "  --supabase-url <url>             Supabase REST URL override",
       "  --supabase-service-role-key <key> Supabase service role key override",
       "  --figma-token <token>            FIGMA_ACCESS_TOKEN override",
+      "  --without-assets                 Disable Figma image export/upload step",
+      "  --asset-theme <theme>            Target theme key for imported assets (default: first)",
+      "  --asset-format <png|jpg|svg|pdf> Figma export format for asset nodes (default: png)",
+      "  --no-ai-asset-match              Disable AI fallback when asset key matching is uncertain",
       "",
       "Environment fallback:",
       "  FIGMA_ACCESS_TOKEN",
+      "  OPENAI_ACCESS_TOKEN / OPENAI_API_KEY",
+      "  V2_R2_UPLOAD_BASE_PREFIX",
       "  NEXT_PUBLIC_SUPABASE_URL / SUPABASE_URL",
       "  SUPABASE_SERVICE_ROLE_KEY",
       "  (.env, .env.local, .envrc are loaded automatically)",
@@ -186,6 +252,21 @@ const parseCliOptions = (): CliOptions => {
       ? sourceRaw
       : "system";
 
+  const assetFormatRaw = argMap.get("asset-format");
+  const assetFormat =
+    assetFormatRaw === "png" ||
+    assetFormatRaw === "jpg" ||
+    assetFormatRaw === "svg" ||
+    assetFormatRaw === "pdf"
+      ? assetFormatRaw
+      : "png";
+
+  const assetThemeRaw = argMap.get("asset-theme");
+  const assetTheme =
+    typeof assetThemeRaw === "string" && assetThemeRaw.trim().length > 0
+      ? assetThemeRaw.trim()
+      : "first";
+
   const createdByRaw = argMap.get("created-by");
   let createdBy: number | undefined;
   if (typeof createdByRaw === "string") {
@@ -227,6 +308,10 @@ const parseCliOptions = (): CliOptions => {
       typeof argMap.get("figma-token") === "string"
         ? String(argMap.get("figma-token")).trim()
         : undefined,
+    withAssets: !argMap.has("without-assets"),
+    assetTheme,
+    assetFormat,
+    noAiAssetMatch: argMap.has("no-ai-asset-match"),
   };
 };
 
@@ -304,6 +389,21 @@ const resolveLocalSupabaseStatusEnv = (): Record<string, string> => {
   }
 };
 
+const hydrateProcessEnvFromLoaded = (
+  loadedEnv: Record<string, string>,
+  keys: string[]
+) => {
+  keys.forEach((key) => {
+    if (typeof process.env[key] === "string" && process.env[key]!.length > 0) {
+      return;
+    }
+    const candidate = loadedEnv[key];
+    if (typeof candidate === "string" && candidate.length > 0) {
+      process.env[key] = candidate;
+    }
+  });
+};
+
 const parseFigmaUrl = (rawUrl: string): FigmaParseResult => {
   let parsed: URL;
   try {
@@ -339,8 +439,278 @@ const round = (value: number, digits = 2): number => {
   return Math.round(value * base) / base;
 };
 
+type NodeNameMetadata = {
+  baseName: string;
+  tags: Record<string, string>;
+};
+
+const stripNodeNameMetadata = (value: string): string =>
+  value.replace(/\[[^\]]*]/g, " ").replace(/\s+/g, " ").trim();
+
+const parseNodeNameMetadata = (value: string): NodeNameMetadata => {
+  const tags: Record<string, string> = {};
+  const tagRegex = /\[([a-zA-Z0-9_.-]+)\s*=\s*([^\]]+)\]/g;
+  let matched = tagRegex.exec(value);
+  while (matched) {
+    const key = matched[1]?.trim().toLowerCase();
+    const rawValue = matched[2]?.trim();
+    if (key && rawValue) {
+      tags[key] = rawValue;
+    }
+    matched = tagRegex.exec(value);
+  }
+
+  return {
+    baseName: stripNodeNameMetadata(value),
+    tags,
+  };
+};
+
+const getNodeNameMetadata = (node: FigmaNode | undefined): NodeNameMetadata => {
+  if (!node?.name) {
+    return {
+      baseName: "",
+      tags: {},
+    };
+  }
+  return parseNodeNameMetadata(node.name);
+};
+
+const getNodeTagValue = (node: FigmaNode | undefined, key: string): string | undefined => {
+  if (!node?.name) return undefined;
+  const normalizedKey = key.trim().toLowerCase();
+  if (!normalizedKey) return undefined;
+  const metadata = getNodeNameMetadata(node);
+  return metadata.tags[normalizedKey];
+};
+
+const normalizeTagValue = (value: string): string => value.trim().toLowerCase();
+
+const hasNodeTagValue = ({
+  node,
+  key,
+  values,
+}: {
+  node: FigmaNode | undefined;
+  key: string;
+  values: readonly string[];
+}): boolean => {
+  const tagValue = getNodeTagValue(node, key);
+  if (!tagValue) return false;
+  const normalizedTagValue = normalizeTagValue(tagValue);
+  return values.some((value) => normalizedTagValue === normalizeTagValue(value));
+};
+
+const findFirstByTagValues = (
+  nodes: FigmaNode[],
+  key: string,
+  values: readonly string[]
+): FigmaNode | undefined => {
+  if (values.length === 0) return undefined;
+  return nodes.find((node) =>
+    hasNodeTagValue({
+      node,
+      key,
+      values,
+    })
+  );
+};
+
+const findMatchesByTagValues = (
+  nodes: FigmaNode[],
+  key: string,
+  values: readonly string[]
+): FigmaNode[] => {
+  if (values.length === 0) return [];
+  return nodes.filter((node) =>
+    hasNodeTagValue({
+      node,
+      key,
+      values,
+    })
+  );
+};
+
+const findFirstByTagCriteria = (
+  nodes: FigmaNode[],
+  criteria: Record<string, readonly string[]>
+): FigmaNode | undefined => {
+  const entries = Object.entries(criteria).filter((entry) => entry[1].length > 0);
+  if (entries.length === 0) return undefined;
+  return nodes.find((node) =>
+    entries.every(([key, values]) =>
+      hasNodeTagValue({
+        node,
+        key,
+        values,
+      })
+    )
+  );
+};
+
+const findNodeByTagOrAlias = ({
+  nodes,
+  tagValues,
+  aliases,
+}: {
+  nodes: FigmaNode[];
+  tagValues: readonly string[];
+  aliases: readonly string[];
+}): FigmaNode | undefined => {
+  return (
+    findFirstByTagValues(nodes, "slot", tagValues) ??
+    findFirstByNames(nodes, aliases)
+  );
+};
+
 const canonicalName = (value: string): string =>
-  value.toLowerCase().replace(/[^a-z0-9가-힣]/g, "");
+  stripNodeNameMetadata(value).toLowerCase().replace(/[^a-z0-9가-힣]/g, "");
+
+const sanitizePathSegment = (value: string, fallback: string): string => {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized.length > 0 ? normalized : fallback;
+};
+
+const ASSET_STATUS_ALIASES: Record<string, "online" | "offline"> = {
+  online: "online",
+  on: "online",
+  live: "online",
+  offline: "offline",
+  off: "offline",
+  rest: "offline",
+};
+
+const ASSET_SLOT_TO_BUILTIN_KEY: Record<string, V2TemplateBuiltinAssetKey> = {
+  "scene.bg": "bgByTheme",
+  "scene.topobject": "topObjectByTheme",
+  "scene.top": "topObjectByTheme",
+  "scene.memo": "memoByTheme",
+  "memo.container": "memoByTheme",
+  "artist.background": "artist",
+  "artist.object": "artist",
+  "profile.image": "profileBgByTheme",
+  "profile.frame": "profileFrameByTheme",
+  "scene.guide": "guideByTheme",
+  "scene.overlay": "guideByTheme",
+};
+
+const IMPORT_DAY_KEYS: V2TemplateDayKey[] = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+];
+
+const CARD_BACKGROUND_VARIANTS = {
+  online: {
+    builtinAssetKey: "onlineByTheme" as const,
+    layerTarget: "cardNode:online-background",
+    dayAssetKeyByDay: {
+      mon: "online_mon",
+      tue: "online_tue",
+      wed: "online_wed",
+      thu: "online_thu",
+      fri: "online_fri",
+      sat: "online_sat",
+      sun: "online_sun",
+    } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
+  },
+  offline: {
+    builtinAssetKey: "offlineByTheme" as const,
+    layerTarget: "cardNode:offline-background",
+    dayAssetKeyByDay: {
+      mon: "offline_mon",
+      tue: "offline_tue",
+      wed: "offline_wed",
+      thu: "offline_thu",
+      fri: "offline_fri",
+      sat: "offline_sat",
+      sun: "offline_sun",
+    } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
+  },
+};
+
+type CardBackgroundVariantMode = keyof typeof CARD_BACKGROUND_VARIANTS;
+
+const buildCardBackgroundDayAssetRefMap = (
+  mode: CardBackgroundVariantMode
+): Record<V2TemplateDayKey, V2TemplateAssetRef> => {
+  const dayAssetKeyByDay = CARD_BACKGROUND_VARIANTS[mode].dayAssetKeyByDay;
+  return IMPORT_DAY_KEYS.reduce<Record<V2TemplateDayKey, V2TemplateAssetRef>>(
+    (acc, dayKey) => {
+      acc[dayKey] = {
+        source: "builtin",
+        key: dayAssetKeyByDay[dayKey],
+      };
+      return acc;
+    },
+    {} as Record<V2TemplateDayKey, V2TemplateAssetRef>
+  );
+};
+
+const isCardBackgroundNodeForVariant = ({
+  node,
+  mode,
+}: {
+  node: ReturnType<typeof v2_createDefaultTemplateRenderConfig>["graph"]["nodes"][string];
+  mode: CardBackgroundVariantMode;
+}): boolean => {
+  if (node.type !== "image") return false;
+  const variant = CARD_BACKGROUND_VARIANTS[mode];
+  if (
+    node.highlightTarget === variant.layerTarget ||
+    node.meta?.layerTarget === variant.layerTarget
+  ) {
+    return true;
+  }
+  const assetRef = node.meta?.assetRef;
+  const expectedVisibility = mode === "online" ? "onlineOnly" : "offlineOnly";
+  return (
+    assetRef?.source === "builtin" &&
+    assetRef.key === variant.builtinAssetKey &&
+    node.visibilityMode === expectedVisibility
+  );
+};
+
+const applyCardBackgroundAssetsByDayToConfig = ({
+  config,
+  mode,
+  enabled,
+}: {
+  config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
+  mode: CardBackgroundVariantMode;
+  enabled: boolean;
+}) => {
+  const dayMap = enabled ? buildCardBackgroundDayAssetRefMap(mode) : null;
+  Object.entries(config.graph.nodes).forEach(([nodeId, node]) => {
+    if (!isCardBackgroundNodeForVariant({ node, mode })) return;
+    const nextMeta = {
+      ...(node.meta ?? {}),
+    };
+    if (enabled && dayMap) {
+      nextMeta.assetRefByDayKey = dayMap;
+    } else {
+      delete nextMeta.assetRefByDayKey;
+    }
+    config.graph.nodes[nodeId] = {
+      ...node,
+      meta: nextMeta,
+    };
+  });
+  if (mode === "online") {
+    config.editorOptions.useOnlineAssetsByDay = enabled;
+  } else {
+    config.editorOptions.useOfflineAssetsByDay = enabled;
+  }
+};
 
 const getBounds = (
   node: FigmaNode | undefined
@@ -456,6 +826,259 @@ const findMatchesByNames = (
   });
 };
 
+const collectNodeRecords = (
+  rootNode: FigmaNode,
+  ancestors: FigmaNode[] = []
+): FigmaNodeRecord[] => {
+  const records: FigmaNodeRecord[] = [
+    {
+      node: rootNode,
+      ancestors,
+    },
+  ];
+
+  const children = Array.isArray(rootNode.children) ? rootNode.children : [];
+  for (const child of children) {
+    records.push(...collectNodeRecords(child, [rootNode, ...ancestors]));
+  }
+  return records;
+};
+
+const getTagValueFromRecord = (
+  record: FigmaNodeRecord,
+  key: string
+): string | undefined => {
+  const normalizedKey = key.trim().toLowerCase();
+  if (!normalizedKey) return undefined;
+
+  const fromNode = getNodeTagValue(record.node, normalizedKey);
+  if (fromNode) return fromNode;
+  for (const ancestor of record.ancestors) {
+    const value = getNodeTagValue(ancestor, normalizedKey);
+    if (value) return value;
+  }
+  return undefined;
+};
+
+const normalizeAssetSlot = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .replace(/_/g, ".");
+};
+
+const normalizeAssetStatus = (
+  value: string | undefined
+): "online" | "offline" | undefined => {
+  if (!value) return undefined;
+  return ASSET_STATUS_ALIASES[value.trim().toLowerCase()];
+};
+
+const hasDirectNodeTag = (node: FigmaNode | undefined, key: string): boolean => {
+  return Boolean(getNodeTagValue(node, key));
+};
+
+const isPotentialAssetNode = (node: FigmaNode): boolean => {
+  if (!node.name) return false;
+
+  if (
+    hasDirectNodeTag(node, "asset") ||
+    hasDirectNodeTag(node, "slot") ||
+    hasDirectNodeTag(node, "role")
+  ) {
+    return true;
+  }
+
+  if (Array.isArray(node.fills)) {
+    const hasImageFill = node.fills.some(
+      (fill) => fill?.type === "IMAGE" && fill.visible !== false
+    );
+    if (hasImageFill) return true;
+  }
+
+  const lowered = stripNodeNameMetadata(node.name).toLowerCase();
+  return (
+    lowered.includes("image") ||
+    lowered.includes("bg") ||
+    lowered.includes("background") ||
+    lowered.includes("frame") ||
+    lowered.includes("overlay") ||
+    lowered.includes("memo")
+  );
+};
+
+const resolveAssetTargetByExplicitTag = ({
+  assetTagValue,
+  builtinAssetKeySet,
+  builtinAssetKeyLookup,
+}: {
+  assetTagValue: string;
+  builtinAssetKeySet: Set<string>;
+  builtinAssetKeyLookup: Map<string, string>;
+}): AssetTarget => {
+  const trimmed = assetTagValue.trim();
+  const exactLookup =
+    builtinAssetKeyLookup.get(trimmed) ??
+    builtinAssetKeyLookup.get(trimmed.toLowerCase()) ??
+    builtinAssetKeyLookup.get(v2_normalizeAssetToken(trimmed));
+  if (exactLookup && builtinAssetKeySet.has(exactLookup)) {
+    return {
+      targetType: "builtin",
+      targetKey: exactLookup,
+      score: 100,
+      reason: `[asset=${assetTagValue}] explicit builtin`,
+    };
+  }
+
+  const normalized = v2_normalizeAssetToken(trimmed);
+  return {
+    targetType: "extra",
+    targetKey: normalized || trimmed,
+    score: 90,
+    reason: `[asset=${assetTagValue}] explicit extra`,
+  };
+};
+
+const resolveAssetTargetFromRecord = ({
+  record,
+  builtinAssetKeys,
+  builtinAssetKeySet,
+  builtinAssetKeyLookup,
+}: {
+  record: FigmaNodeRecord;
+  builtinAssetKeys: string[];
+  builtinAssetKeySet: Set<string>;
+  builtinAssetKeyLookup: Map<string, string>;
+}): AssetTarget | null => {
+  const nodeName = record.node.name ?? "";
+  if (!record.node.id || !nodeName.trim()) return null;
+  if (record.node.visible === false) return null;
+  if (record.node.type === "TEXT") return null;
+
+  const explicitAssetTag = getTagValueFromRecord(record, "asset");
+  if (explicitAssetTag && explicitAssetTag.trim().length > 0) {
+    return resolveAssetTargetByExplicitTag({
+      assetTagValue: explicitAssetTag.trim(),
+      builtinAssetKeySet,
+      builtinAssetKeyLookup,
+    });
+  }
+
+  const roleTag = normalizeTagValue(getTagValueFromRecord(record, "role") ?? "");
+  if (roleTag === "overlay") {
+    return null;
+  }
+
+  const slotTag = normalizeAssetSlot(getTagValueFromRecord(record, "slot"));
+  const statusTag =
+    normalizeAssetStatus(getTagValueFromRecord(record, "status")) ??
+    normalizeAssetStatus(getTagValueFromRecord(record, "mode"));
+  const dayTag = toDayTagKey(getTagValueFromRecord(record, "day"));
+
+  if (slotTag && ASSET_SLOT_TO_BUILTIN_KEY[slotTag]) {
+    const targetKey = ASSET_SLOT_TO_BUILTIN_KEY[slotTag];
+    return {
+      targetType: "builtin",
+      targetKey,
+      score: 80,
+      reason: `slot(${slotTag})`,
+    };
+  }
+
+  if (slotTag === "card.background" || slotTag === "card.bg") {
+    if (statusTag === "online" && dayTag) {
+      const dayKey = `online_${dayTag}`;
+      if (builtinAssetKeySet.has(dayKey)) {
+        return {
+          targetType: "builtin",
+          targetKey: dayKey,
+          score: 85,
+          reason: `slot(${slotTag}) + status(${statusTag}) + day(${dayTag})`,
+        };
+      }
+    }
+
+    if (statusTag === "offline" && dayTag) {
+      const dayKey = `offline_${dayTag}`;
+      if (builtinAssetKeySet.has(dayKey)) {
+        return {
+          targetType: "builtin",
+          targetKey: dayKey,
+          score: 85,
+          reason: `slot(${slotTag}) + status(${statusTag}) + day(${dayTag})`,
+        };
+      }
+    }
+
+    if (statusTag === "online") {
+      return {
+        targetType: "builtin",
+        targetKey: "onlineByTheme",
+        score: 72,
+        reason: `slot(${slotTag}) + status(online)`,
+      };
+    }
+
+    if (statusTag === "offline") {
+      return {
+        targetType: "builtin",
+        targetKey: "offlineByTheme",
+        score: 72,
+        reason: `slot(${slotTag}) + status(offline)`,
+      };
+    }
+  }
+
+  const inferredByName = v2_suggestAssetKeyByRule({
+    fileName: nodeName,
+    candidateKeys: builtinAssetKeys,
+  });
+  if (inferredByName) {
+    return {
+      targetType: "builtin",
+      targetKey: inferredByName.key,
+      score: Math.round(inferredByName.confidence * 100),
+      reason: `name-rule(${inferredByName.reason})`,
+    };
+  }
+
+  return null;
+};
+
+const dedupeAssetCandidates = (candidates: AssetCandidate[]): AssetCandidate[] => {
+  const selected = new Map<string, AssetCandidate>();
+
+  for (const candidate of candidates) {
+    const current = selected.get(candidate.targetKey);
+    if (!current) {
+      selected.set(candidate.targetKey, candidate);
+      continue;
+    }
+    const currentArea = current.width * current.height;
+    const nextArea = candidate.width * candidate.height;
+
+    if (
+      candidate.score > current.score ||
+      (candidate.score === current.score && nextArea > currentArea)
+    ) {
+      selected.set(candidate.targetKey, candidate);
+    }
+  }
+
+  return Array.from(selected.values());
+};
+
+const chunkArray = <T>(items: T[], chunkSize: number): T[][] => {
+  if (chunkSize <= 0) return [items];
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+};
+
 const textAlignMap: Record<string, "left" | "center" | "right"> = {
   LEFT: "left",
   CENTER: "center",
@@ -467,6 +1090,72 @@ type TextFigmaNode = FigmaNode & { type: "TEXT" };
 
 const isTextNode = (node: FigmaNode | undefined): node is TextFigmaNode => {
   return Boolean(node && node.type === "TEXT");
+};
+
+const DAY_TAG_MAP: Record<string, string> = {
+  mon: "mon",
+  monday: "mon",
+  tue: "tue",
+  tues: "tue",
+  tuesday: "tue",
+  wed: "wed",
+  weds: "wed",
+  wednesday: "wed",
+  thu: "thu",
+  thur: "thu",
+  thurs: "thu",
+  thursday: "thu",
+  fri: "fri",
+  friday: "fri",
+  sat: "sat",
+  saturday: "sat",
+  sun: "sun",
+  sunday: "sun",
+};
+
+const toDayTagKey = (raw: string | undefined): string | undefined => {
+  if (!raw) return undefined;
+  return DAY_TAG_MAP[normalizeTagValue(raw)];
+};
+
+const findContainerNodeByTextBind = ({
+  rootNode,
+  bindValues,
+}: {
+  rootNode: FigmaNode | undefined;
+  bindValues: readonly string[];
+}): FigmaNode | undefined => {
+  if (!rootNode || bindValues.length === 0) return undefined;
+  const normalizedBindValues = bindValues.map(normalizeTagValue);
+  const isMatchedBindingToken = (rawToken: string | undefined): boolean => {
+    if (!rawToken) return false;
+    const token = normalizeTagValue(rawToken);
+    if (!token) return false;
+    if (normalizedBindValues.includes(token)) return true;
+    return normalizedBindValues.some((bindValue) => token.endsWith(bindValue));
+  };
+  const visit = (currentNode: FigmaNode, parentNode?: FigmaNode): FigmaNode | undefined => {
+    if (
+      isMatchedBindingToken(getNodeTagValue(currentNode, "bind")) ||
+      isMatchedBindingToken(getNodeTagValue(currentNode, "key"))
+    ) {
+      return currentNode;
+    }
+    if (isTextNode(currentNode)) {
+      const bindValue = getNodeTagValue(currentNode, "bind");
+      const keyValue = getNodeTagValue(currentNode, "key");
+      if (isMatchedBindingToken(bindValue) || isMatchedBindingToken(keyValue)) {
+        return parentNode ?? currentNode;
+      }
+    }
+    const children = Array.isArray(currentNode.children) ? currentNode.children : [];
+    for (const child of children) {
+      const found = visit(child, currentNode);
+      if (found) return found;
+    }
+    return undefined;
+  };
+  return visit(rootNode);
 };
 
 const findContentTextNode = (containerNode: FigmaNode | undefined): FigmaNode | undefined => {
@@ -1026,14 +1715,49 @@ const applyLayoutMappingsFromFigma = ({
     ],
   } as const;
 
+  const slot = {
+    grid: ["grid", "scene.grid"],
+    weekFlag: ["weekFlag", "week.flag", "scene.weekFlag"],
+    topObject: ["scene.topObject", "topObject", "top.object"],
+    memoContainer: ["memo", "scene.memo", "memo.container"],
+    memoContentContainer: ["memo.text", "memo.content"],
+    memoTextContainer: ["memo.text"],
+    memoText: ["memo.text.content"],
+    profileImage: ["profile.image"],
+    profileFrame: ["profile.frame", "profile"],
+    profileText: ["artist.text", "profile.text"],
+    artistObject: ["artist.background", "artist.object"],
+    cardContainer: ["card"],
+    cardBackground: ["card.background"],
+    cardMainTitle: ["card.mainTitle", "card.main_title"],
+    cardSubTitle: ["card.subTitle", "card.sub_title"],
+    cardTime: ["card.time", "card.streamingTime"],
+    cardDate: ["card.date", "card.streamingDate"],
+    cardDay: ["card.day", "card.streamingDay"],
+  } as const;
+
   const scoreCardContainerCandidate = (candidate: FigmaNode): number => {
     const nodes = flattenNodes(candidate);
     let score = 0;
+    const dayTag = toDayTagKey(getNodeTagValue(candidate, "day"));
+    if (dayTag) score += 10;
     if (findFirstByNames(nodes, alias.mainTitleContainer)) score += 4;
     if (findFirstByNames(nodes, alias.subTitleContainer)) score += 4;
     if (findFirstByNames(nodes, alias.streamingTime)) score += 3;
     if (findFirstByNames(nodes, alias.streamingDate)) score += 2;
     if (findFirstByNames(nodes, alias.streamingDay)) score += 2;
+    if (findContainerNodeByTextBind({ rootNode: candidate, bindValues: ["entry.mainTitle"] })) {
+      score += 4;
+    }
+    if (findContainerNodeByTextBind({ rootNode: candidate, bindValues: ["entry.subTitle"] })) {
+      score += 4;
+    }
+    if (findContainerNodeByTextBind({ rootNode: candidate, bindValues: ["entry.time"] })) {
+      score += 3;
+    }
+    if (findContainerNodeByTextBind({ rootNode: candidate, bindValues: ["entry.date"] })) {
+      score += 2;
+    }
     if (
       findFirstByNames(nodes, alias.cardOnlineBackground) ||
       findFirstByNames(nodes, alias.cardOfflineBackground) ||
@@ -1053,6 +1777,16 @@ const applyLayoutMappingsFromFigma = ({
   }): FigmaNode | undefined => {
     if (candidates.length === 0) return undefined;
     if (candidates.length === 1) return candidates[0];
+
+    const monCandidate = candidates.find(
+      (candidate) => toDayTagKey(getNodeTagValue(candidate, "day")) === "mon"
+    );
+    if (monCandidate) {
+      summary.warnings.push(
+        `Card container matched ${candidates.length} nodes in ${source}; selected [day=mon] metadata candidate as baseline card layout.`
+      );
+      return monCandidate;
+    }
 
     const ranked = candidates
       .map((candidate, index) => {
@@ -1088,6 +1822,176 @@ const applyLayoutMappingsFromFigma = ({
     return top.candidate;
   };
 
+  const collectCardCandidatesByDay = (
+    candidates: FigmaNode[]
+  ): Partial<Record<V2TemplateDayKey, FigmaNode>> => {
+    const next: Partial<Record<V2TemplateDayKey, FigmaNode>> = {};
+    const rankedByDay: Partial<
+      Record<V2TemplateDayKey, { score: number; x: number; y: number }>
+    > = {};
+
+    candidates.forEach((candidate) => {
+      const dayTag = toDayTagKey(getNodeTagValue(candidate, "day"));
+      if (!dayTag) return;
+      const dayKey = dayTag as V2TemplateDayKey;
+      const score = scoreCardContainerCandidate(candidate);
+      const bounds = getBounds(candidate);
+      const x = bounds?.x ?? Number.POSITIVE_INFINITY;
+      const y = bounds?.y ?? Number.POSITIVE_INFINITY;
+      const prevRank = rankedByDay[dayKey];
+      if (!prevRank) {
+        next[dayKey] = candidate;
+        rankedByDay[dayKey] = { score, x, y };
+        return;
+      }
+      if (score > prevRank.score) {
+        next[dayKey] = candidate;
+        rankedByDay[dayKey] = { score, x, y };
+        return;
+      }
+      if (score === prevRank.score) {
+        const isMoreTopLeft = y < prevRank.y || (y === prevRank.y && x < prevRank.x);
+        if (isMoreTopLeft) {
+          next[dayKey] = candidate;
+          rankedByDay[dayKey] = { score, x, y };
+        }
+      }
+    });
+
+    return next;
+  };
+
+  const applyFreeLayoutFromCardCandidates = ({
+    candidates,
+    positionRootNode,
+  }: {
+    candidates: FigmaNode[];
+    positionRootNode: FigmaNode;
+  }): boolean => {
+    const candidateByDay = collectCardCandidatesByDay(candidates);
+    const candidateDayCount = IMPORT_DAY_KEYS.filter(
+      (dayKey) => candidateByDay[dayKey]
+    ).length;
+    if (candidateDayCount < 2) return false;
+
+    const cardCollectionNode = Object.values(config.graph.nodes).find(
+      (node) => node.type === "cardCollection"
+    );
+    if (!cardCollectionNode) {
+      summary.warnings.push(
+        "Free card layout candidate detected, but cardCollection graph node is missing."
+      );
+      return false;
+    }
+
+    const componentId =
+      (typeof cardCollectionNode.meta?.componentId === "string" &&
+      config.graph.componentDefinitions[cardCollectionNode.meta.componentId]
+        ? cardCollectionNode.meta.componentId
+        : undefined) ??
+      Object.keys(config.graph.componentDefinitions)[0];
+
+    if (!componentId) {
+      summary.warnings.push(
+        "Free card layout candidate detected, but card component definition is missing."
+      );
+      return false;
+    }
+
+    const cardComponent = config.graph.componentDefinitions[componentId];
+    if (!cardComponent) return false;
+
+    const instanceNodes = cardCollectionNode.childIds
+      .map((childId) => config.graph.nodes[childId])
+      .filter(
+        (node): node is (typeof config.graph.nodes)[string] =>
+          Boolean(node && node.type === "componentInstance")
+      );
+    if (instanceNodes.length === 0) {
+      summary.warnings.push(
+        "Free card layout candidate detected, but card instances are missing."
+      );
+      return false;
+    }
+
+    const containerWidth =
+      Number(
+        (config.layout.card.container as Record<string, unknown>).width
+      ) || 0;
+    const containerHeight =
+      Number(
+        (config.layout.card.container as Record<string, unknown>).height
+      ) || 0;
+
+    const nextTransforms: NonNullable<
+      (typeof cardComponent)["instanceTransforms"]
+    > = {};
+
+    instanceNodes.forEach((instanceNode, fallbackIndex) => {
+      const dayKey = toDayTagKey(
+        typeof instanceNode.meta?.dayKey === "string"
+          ? instanceNode.meta.dayKey
+          : undefined
+      ) as V2TemplateDayKey | undefined;
+      if (!dayKey) return;
+      const sourceNode = candidateByDay[dayKey];
+      if (!sourceNode) return;
+
+      const rect = toRelativeRect({
+        rootNode: positionRootNode,
+        targetNode: sourceNode,
+      });
+      if (!rect) return;
+
+      const instanceId =
+        typeof instanceNode.meta?.instanceId === "string"
+          ? instanceNode.meta.instanceId
+          : String(fallbackIndex);
+      const transform: {
+        offsetX?: number;
+        offsetY?: number;
+        rotateDeg?: number;
+        scale?: number;
+      } = {
+        offsetX: rect.left,
+        offsetY: rect.top,
+      };
+      if (rect.rotateDeg !== undefined) {
+        transform.rotateDeg = rect.rotateDeg;
+      }
+      if (containerWidth > 0 && containerHeight > 0 && rect.width > 0 && rect.height > 0) {
+        const ratioW = rect.width / containerWidth;
+        const ratioH = rect.height / containerHeight;
+        const scale = round((ratioW + ratioH) / 2, 4);
+        if (Math.abs(scale - 1) > 0.01) {
+          transform.scale = scale;
+        }
+      }
+      nextTransforms[instanceId] = transform;
+    });
+
+    const appliedCount = Object.keys(nextTransforms).length;
+    if (appliedCount < 2) {
+      summary.warnings.push(
+        `Free card layout candidate detected (${candidateDayCount} day-tagged cards), but only ${appliedCount} card instances were matched.`
+      );
+      return false;
+    }
+
+    cardComponent.instanceMode = "detached";
+    cardComponent.instanceTransforms = nextTransforms;
+    (config.layout.grid as Record<string, unknown>).layoutMode = "free";
+    summary.applied.push("layout.grid.layoutMode=free");
+    summary.applied.push(`graph.componentDefinitions.${componentId}.instanceMode=detached`);
+    summary.applied.push(`graph.componentDefinitions.${componentId}.instanceTransforms`);
+    if (appliedCount < IMPORT_DAY_KEYS.length) {
+      summary.warnings.push(
+        `Free card layout applied with ${appliedCount}/${IMPORT_DAY_KEYS.length} matched day instances.`
+      );
+    }
+    return true;
+  };
+
   const rootBounds = getBounds(rootNode);
   if (!rootBounds) {
     summary.warnings.push("Root absoluteBoundingBox is missing.");
@@ -1102,7 +2006,11 @@ const applyLayoutMappingsFromFigma = ({
     `templateSize(${config.templateSize.width}x${config.templateSize.height})`
   );
 
-  const gridNode = findFirstByNames(allNodes, alias.grid);
+  const gridNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.grid,
+    aliases: alias.grid,
+  });
   summary.presence.grid = Boolean(gridNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: gridNode }),
@@ -1116,7 +2024,11 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.grid");
   }
 
-  const weekFlagNode = findFirstByNames(allNodes, alias.weekFlag);
+  const weekFlagNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.weekFlag,
+    aliases: alias.weekFlag,
+  });
   summary.presence.weekFlag = Boolean(weekFlagNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: weekFlagNode }),
@@ -1134,7 +2046,11 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.weekFlag");
   }
 
-  const topObjectNode = findFirstByNames(allNodes, alias.topObject);
+  const topObjectNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.topObject,
+    aliases: alias.topObject,
+  });
   summary.presence.topObject = Boolean(topObjectNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: topObjectNode }),
@@ -1144,7 +2060,11 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.topObjectContainer");
   }
 
-  const memoContainerNode = findFirstByNames(allNodes, alias.memoContainer);
+  const memoContainerNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.memoContainer,
+    aliases: alias.memoContainer,
+  });
   summary.presence.memoObject = Boolean(memoContainerNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: memoContainerNode }),
@@ -1154,7 +2074,11 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.scene.memoContainer");
   }
 
-  const memoContentNode = findFirstByNames(allNodes, alias.memoContentContainer);
+  const memoContentNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.memoContentContainer,
+    aliases: alias.memoContentContainer,
+  });
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: memoContentNode }),
     target: config.layout.scene.memoContentContainer as unknown as Record<string, unknown>,
@@ -1163,7 +2087,11 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.scene.memoContentContainer");
   }
 
-  const memoTextContainerNode = findFirstByNames(allNodes, alias.memoTextContainer);
+  const memoTextContainerNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.memoTextContainer,
+    aliases: alias.memoTextContainer,
+  });
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: memoTextContainerNode }),
     target: config.layout.scene.memoTextContainer as unknown as Record<string, unknown>,
@@ -1172,7 +2100,10 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.scene.memoTextContainer");
   }
 
-  const memoTextNode = findFirstByNames(allNodes, alias.memoText);
+  const memoTextNode =
+    findFirstByTagValues(allNodes, "slot", slot.memoText) ??
+    findFirstByTagCriteria(allNodes, { bind: ["memo.text"] }) ??
+    findFirstByNames(allNodes, alias.memoText);
   summary.presence.memoText = Boolean(
     memoTextNode || memoTextContainerNode || memoContentNode
   );
@@ -1188,7 +2119,11 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.scene.memoTextStyle");
   }
 
-  const profileImageNode = findFirstByNames(allNodes, alias.profileImage);
+  const profileImageNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.profileImage,
+    aliases: alias.profileImage,
+  });
   summary.presence.profileImage = Boolean(profileImageNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: profileImageNode }),
@@ -1198,7 +2133,16 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.profileImage");
   }
 
-  const profileFrameNode = findFirstByNames(allNodes, alias.profileFrame);
+  const profileFrameNode =
+    findFirstByTagCriteria(allNodes, {
+      slot: slot.profileFrame,
+      role: ["frame"],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.profileFrame,
+      aliases: alias.profileFrame,
+    });
   summary.presence.profileFrame = Boolean(profileFrameNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: profileFrameNode }),
@@ -1208,10 +2152,18 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.profileFrame");
   }
 
-  const artistObjectNode = findFirstByNames(allNodes, alias.artistObject);
+  const artistObjectNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.artistObject,
+    aliases: alias.artistObject,
+  });
   summary.presence.artistObject = Boolean(artistObjectNode);
 
-  const profileTextNode = findFirstByNames(allNodes, alias.profileText);
+  const profileTextNode = findNodeByTagOrAlias({
+    nodes: allNodes,
+    tagValues: slot.profileText,
+    aliases: alias.profileText,
+  });
   summary.presence.profileText = Boolean(profileTextNode);
   if (profileTextNode) {
     const profileTextRect = toRelativeRect({
@@ -1237,16 +2189,35 @@ const applyLayoutMappingsFromFigma = ({
   }
 
   let cardContainerNode: FigmaNode | undefined;
+  let cardContainerCandidates: FigmaNode[] = [];
   if (gridNode) {
     const gridDescendants = flattenNodes(gridNode);
-    const cardMatchesInGrid = findMatchesByNames(gridDescendants, alias.cardContainer);
+    const cardMatchesByMetadata = findMatchesByTagValues(
+      gridDescendants,
+      "slot",
+      slot.cardContainer
+    );
+    const cardMatchesInGrid =
+      cardMatchesByMetadata.length > 0
+        ? cardMatchesByMetadata
+        : findMatchesByNames(gridDescendants, alias.cardContainer);
+    cardContainerCandidates = cardMatchesInGrid;
     cardContainerNode = selectBestCardContainerCandidate({
       candidates: cardMatchesInGrid,
       source: "grid descendants",
     });
   }
   if (!cardContainerNode) {
-    const cardMatchesGlobal = findMatchesByNames(allNodes, alias.cardContainer);
+    const cardMatchesByMetadata = findMatchesByTagValues(
+      allNodes,
+      "slot",
+      slot.cardContainer
+    );
+    const cardMatchesGlobal =
+      cardMatchesByMetadata.length > 0
+        ? cardMatchesByMetadata
+        : findMatchesByNames(allNodes, alias.cardContainer);
+    cardContainerCandidates = cardMatchesGlobal;
     cardContainerNode = selectBestCardContainerCandidate({
       candidates: cardMatchesGlobal,
       source: "global",
@@ -1269,10 +2240,21 @@ const applyLayoutMappingsFromFigma = ({
 
     const cardNodes = flattenNodes(cardContainerNode);
     const onlineBackgroundNode =
+      findFirstByTagCriteria(cardNodes, {
+        slot: slot.cardBackground,
+        state: ["online"],
+      }) ??
       findFirstByNames(cardNodes, alias.cardOnlineBackground) ??
+      findFirstByNames(cardNodes, ["imagebg"]) ??
+      findFirstByTagValues(cardNodes, "slot", slot.cardBackground) ??
       findFirstByNames(cardNodes, alias.cardSharedBackground);
     const offlineBackgroundNode =
+      findFirstByTagCriteria(cardNodes, {
+        slot: slot.cardBackground,
+        state: ["offline", "offlineMemo"],
+      }) ??
       findFirstByNames(cardNodes, alias.cardOfflineBackground) ??
+      findFirstByTagValues(cardNodes, "slot", slot.cardBackground) ??
       findFirstByNames(cardNodes, alias.cardSharedBackground);
 
     applyRectToLayoutObject({
@@ -1303,11 +2285,41 @@ const applyLayoutMappingsFromFigma = ({
       summary.warnings.push("Offline background container not found in card structure.");
     }
 
-    const mainTitleContainerNode = findFirstByNames(cardNodes, alias.mainTitleContainer);
-    const subTitleContainerNode = findFirstByNames(cardNodes, alias.subTitleContainer);
-    const streamingTimeNode = findFirstByNames(cardNodes, alias.streamingTime);
-    const streamingDateNode = findFirstByNames(cardNodes, alias.streamingDate);
-    const streamingDayNode = findFirstByNames(cardNodes, alias.streamingDay);
+    const mainTitleContainerNode =
+      findContainerNodeByTextBind({
+        rootNode: cardContainerNode,
+        bindValues: ["entry.mainTitle"],
+      }) ??
+      findFirstByTagValues(cardNodes, "slot", slot.cardMainTitle) ??
+      findFirstByNames(cardNodes, alias.mainTitleContainer);
+    const subTitleContainerNode =
+      findContainerNodeByTextBind({
+        rootNode: cardContainerNode,
+        bindValues: ["entry.subTitle"],
+      }) ??
+      findFirstByTagValues(cardNodes, "slot", slot.cardSubTitle) ??
+      findFirstByNames(cardNodes, alias.subTitleContainer);
+    const streamingTimeNode =
+      findContainerNodeByTextBind({
+        rootNode: cardContainerNode,
+        bindValues: ["entry.time"],
+      }) ??
+      findFirstByTagValues(cardNodes, "slot", slot.cardTime) ??
+      findFirstByNames(cardNodes, alias.streamingTime);
+    const streamingDateNode =
+      findContainerNodeByTextBind({
+        rootNode: cardContainerNode,
+        bindValues: ["entry.date"],
+      }) ??
+      findFirstByTagValues(cardNodes, "slot", slot.cardDate) ??
+      findFirstByNames(cardNodes, alias.streamingDate);
+    const streamingDayNode =
+      findContainerNodeByTextBind({
+        rootNode: cardContainerNode,
+        bindValues: ["entry.day"],
+      }) ??
+      findFirstByTagValues(cardNodes, "slot", slot.cardDay) ??
+      findFirstByNames(cardNodes, alias.streamingDay);
     summary.presence.cardMainTitle = Boolean(mainTitleContainerNode);
     summary.presence.cardSubTitle = Boolean(subTitleContainerNode);
     summary.presence.cardStreamingTime = Boolean(streamingTimeNode);
@@ -1417,6 +2429,13 @@ const applyLayoutMappingsFromFigma = ({
       }
       summary.applied.push("layout.card.streamingDayStyle");
     }
+
+    if (cardContainerCandidates.length > 0) {
+      applyFreeLayoutFromCardCandidates({
+        candidates: cardContainerCandidates,
+        positionRootNode: gridNode ?? rootNode,
+      });
+    }
   } else {
     summary.warnings.push("Card container node not found by alias mapping.");
   }
@@ -1459,6 +2478,423 @@ const fetchFigmaNode = async ({
     fileName: payload.name ?? "Untitled",
     rootNode,
   };
+};
+
+const fetchFigmaImageUrls = async ({
+  fileKey,
+  nodeIds,
+  figmaToken,
+  format,
+}: {
+  fileKey: string;
+  nodeIds: string[];
+  figmaToken: string;
+  format: "png" | "jpg" | "svg" | "pdf";
+}): Promise<Record<string, string | null>> => {
+  if (nodeIds.length === 0) return {};
+
+  const chunks = chunkArray(nodeIds, 50);
+  const result: Record<string, string | null> = {};
+
+  for (const chunk of chunks) {
+    const requestUrl = `https://api.figma.com/v1/images/${fileKey}?ids=${encodeURIComponent(
+      chunk.join(",")
+    )}&format=${format}&scale=1`;
+
+    const response = await fetch(requestUrl, {
+      method: "GET",
+      headers: {
+        "X-Figma-Token": figmaToken,
+      },
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text();
+      throw new Error(`Figma images API failed (${response.status}): ${bodyText}`);
+    }
+
+    const payload = (await response.json()) as FigmaImagesResponse;
+    if (payload.err) {
+      throw new Error(`Figma images API returned error: ${payload.err}`);
+    }
+
+    const images = payload.images ?? {};
+    Object.entries(images).forEach(([nodeId, url]) => {
+      result[nodeId] = typeof url === "string" ? url : null;
+    });
+  }
+
+  return result;
+};
+
+const downloadImageBufferFromUrl = async (url: string): Promise<{
+  buffer: Buffer;
+  contentType: string;
+}> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    const bodyText = await response.text();
+    throw new Error(`Failed to download image (${response.status}): ${bodyText}`);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const contentType =
+    response.headers.get("content-type") || "application/octet-stream";
+  return {
+    buffer,
+    contentType,
+  };
+};
+
+const applyAssetToConfig = ({
+  config,
+  candidate,
+  theme,
+  url,
+}: {
+  config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
+  candidate: AssetCandidate;
+  theme: string;
+  url: string;
+}) => {
+  if (candidate.targetType === "builtin") {
+    const builtinKey = candidate.targetKey as V2TemplateBuiltinAssetKey;
+    if (!config.assets[builtinKey]) return;
+
+    config.assets[builtinKey][theme] = url;
+    if (!config.assetDimensions[builtinKey]) {
+      config.assetDimensions[builtinKey] = {};
+    }
+    config.assetDimensions[builtinKey][theme] = {
+      width: round(candidate.width),
+      height: round(candidate.height),
+    };
+    return;
+  }
+
+  const extraAssets = config.extraAssets as V2TemplateExtraAssetMap;
+  const extraAssetDimensions =
+    config.extraAssetDimensions as V2TemplateExtraAssetDimensionMap;
+  if (!extraAssets[candidate.targetKey]) {
+    extraAssets[candidate.targetKey] = {};
+  }
+  extraAssets[candidate.targetKey][theme] = url;
+  if (!extraAssetDimensions[candidate.targetKey]) {
+    extraAssetDimensions[candidate.targetKey] = {};
+  }
+  extraAssetDimensions[candidate.targetKey][theme] = {
+    width: round(candidate.width),
+    height: round(candidate.height),
+  };
+};
+
+const tryAiMatchAssetTargets = async ({
+  unresolvedCandidates,
+  builtinAssetKeys,
+  apiKey,
+}: {
+  unresolvedCandidates: Array<{ nodeId: string; nodeName: string }>;
+  builtinAssetKeys: string[];
+  apiKey: string;
+}): Promise<Record<string, string | null> | null> => {
+  if (unresolvedCandidates.length === 0) return {};
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content:
+              "Map Figma asset nodes to builtin asset keys. Return strict JSON only: {\"matches\":[{\"nodeId\":string,\"key\":string|null,\"reason\":string}]}. key must be one of provided builtinAssetKeys or null.",
+          },
+          {
+            role: "user",
+            content: JSON.stringify({
+              unresolvedCandidates,
+              builtinAssetKeys,
+            }),
+          },
+        ],
+      }),
+    });
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = payload.choices?.[0]?.message?.content;
+    if (!content) return null;
+
+    const parsed = JSON.parse(content) as {
+      matches?: Array<{ nodeId?: string; key?: string | null }>;
+    };
+
+    const keySet = new Set(builtinAssetKeys);
+    const mapped: Record<string, string | null> = {};
+    (parsed.matches ?? []).forEach((item) => {
+      if (!item || typeof item.nodeId !== "string") return;
+      if (typeof item.key === "string" && keySet.has(item.key)) {
+        mapped[item.nodeId] = item.key;
+        return;
+      }
+      mapped[item.nodeId] = null;
+    });
+    return mapped;
+  } catch {
+    return null;
+  }
+};
+
+const importFigmaAssetsToConfig = async ({
+  config,
+  rootNode,
+  fileKey,
+  figmaToken,
+  templateId,
+  write,
+  theme,
+  format,
+  enableAiMatch,
+  openAiKey,
+}: {
+  config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
+  rootNode: FigmaNode;
+  fileKey: string;
+  figmaToken: string;
+  templateId: string;
+  write: boolean;
+  theme: string;
+  format: "png" | "jpg" | "svg" | "pdf";
+  enableAiMatch: boolean;
+  openAiKey?: string;
+}): Promise<AssetImportSummary> => {
+  const summary: AssetImportSummary = {
+    discovered: 0,
+    mapped: 0,
+    uploaded: 0,
+    applied: 0,
+    warnings: [],
+    unresolved: [],
+  };
+
+  const builtinAssetKeys = Object.keys(config.assets);
+  const builtinAssetKeySet = new Set(builtinAssetKeys);
+  const builtinAssetKeyLookup = new Map<string, string>();
+  builtinAssetKeys.forEach((key) => {
+    builtinAssetKeyLookup.set(key, key);
+    builtinAssetKeyLookup.set(key.toLowerCase(), key);
+    builtinAssetKeyLookup.set(v2_normalizeAssetToken(key), key);
+  });
+
+  const records = collectNodeRecords(rootNode);
+  const candidates: AssetCandidate[] = [];
+  const unresolvedForAi: Array<{ nodeId: string; nodeName: string }> = [];
+  const ignoredStructuralSlots = new Set([
+    "grid",
+    "scene.grid",
+    "scene.root",
+    "card",
+    "profile",
+    "artist",
+  ]);
+
+  for (const record of records) {
+    const nodeId = record.node.id;
+    const nodeName = record.node.name ?? "";
+    if (!nodeId || !nodeName.trim()) continue;
+    if (record.node.visible === false) continue;
+    if (record.node.type === "TEXT") continue;
+    if (record.node === rootNode) continue;
+    if (!isPotentialAssetNode(record.node)) continue;
+
+    const bounds = getBounds(record.node);
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) continue;
+
+    summary.discovered += 1;
+
+    const target = resolveAssetTargetFromRecord({
+      record,
+      builtinAssetKeys,
+      builtinAssetKeySet,
+      builtinAssetKeyLookup,
+    });
+
+    if (!target) {
+      const directSlot = normalizeAssetSlot(getNodeTagValue(record.node, "slot"));
+      if (directSlot && ignoredStructuralSlots.has(directSlot)) {
+        continue;
+      }
+      unresolvedForAi.push({ nodeId, nodeName });
+      continue;
+    }
+
+    candidates.push({
+      nodeId,
+      nodeName,
+      targetType: target.targetType,
+      targetKey: target.targetKey,
+      width: bounds.width,
+      height: bounds.height,
+      score: target.score,
+      reason: target.reason,
+    });
+  }
+
+  if (
+    unresolvedForAi.length > 0 &&
+    enableAiMatch &&
+    typeof openAiKey === "string" &&
+    openAiKey.trim().length > 0
+  ) {
+    const matchedByAi = await tryAiMatchAssetTargets({
+      unresolvedCandidates: unresolvedForAi,
+      builtinAssetKeys,
+      apiKey: openAiKey.trim(),
+    });
+    if (matchedByAi) {
+      for (const unresolved of unresolvedForAi) {
+        const matchedKey = matchedByAi[unresolved.nodeId];
+        if (!matchedKey) continue;
+        const node = records.find((entry) => entry.node.id === unresolved.nodeId)?.node;
+        const bounds = getBounds(node);
+        if (!node || !bounds) continue;
+        candidates.push({
+          nodeId: unresolved.nodeId,
+          nodeName: unresolved.nodeName,
+          targetType: "builtin",
+          targetKey: matchedKey,
+          width: bounds.width,
+          height: bounds.height,
+          score: 60,
+          reason: "ai-match",
+        });
+      }
+    }
+  }
+
+  const dedupedCandidates = dedupeAssetCandidates(candidates);
+  summary.mapped = dedupedCandidates.length;
+  const unresolvedNodes = unresolvedForAi.filter(
+    (unresolved) =>
+      !dedupedCandidates.some((candidate) => candidate.nodeId === unresolved.nodeId)
+  );
+  summary.unresolved = unresolvedNodes.map(
+    (item) => `${item.nodeName} (${item.nodeId})`
+  );
+
+  const mappedBuiltinTargetKeys = new Set(
+    dedupedCandidates
+      .filter((candidate) => candidate.targetType === "builtin")
+      .map((candidate) => candidate.targetKey)
+  );
+  const hasOnlineDayAssets = IMPORT_DAY_KEYS.some((dayKey) =>
+    mappedBuiltinTargetKeys.has(
+      CARD_BACKGROUND_VARIANTS.online.dayAssetKeyByDay[dayKey]
+    )
+  );
+  const hasOfflineDayAssets = IMPORT_DAY_KEYS.some((dayKey) =>
+    mappedBuiltinTargetKeys.has(
+      CARD_BACKGROUND_VARIANTS.offline.dayAssetKeyByDay[dayKey]
+    )
+  );
+  if (hasOnlineDayAssets) {
+    applyCardBackgroundAssetsByDayToConfig({
+      config,
+      mode: "online",
+      enabled: true,
+    });
+  }
+  if (hasOfflineDayAssets) {
+    applyCardBackgroundAssetsByDayToConfig({
+      config,
+      mode: "offline",
+      enabled: true,
+    });
+  }
+
+  if (dedupedCandidates.length === 0) {
+    return summary;
+  }
+
+  const imageUrlsByNodeId = await fetchFigmaImageUrls({
+    fileKey,
+    nodeIds: dedupedCandidates.map((candidate) => candidate.nodeId),
+    figmaToken,
+    format,
+  });
+
+  if (!write) {
+    for (const candidate of dedupedCandidates) {
+      const url = imageUrlsByNodeId[candidate.nodeId];
+      if (!url) {
+        summary.warnings.push(
+          `image export url missing: ${candidate.nodeName} -> ${candidate.targetKey}`
+        );
+      }
+    }
+    return summary;
+  }
+
+  const safeTemplateId = sanitizePathSegment(templateId, "local");
+  const safeTheme = sanitizePathSegment(theme, "first");
+  const folder = buildV2AssetUploadFolder({
+    templateId: safeTemplateId,
+    theme: safeTheme,
+    basePrefix: process.env.V2_R2_UPLOAD_BASE_PREFIX,
+  });
+  const uploadedFileKeys: string[] = [];
+
+  try {
+    for (const candidate of dedupedCandidates) {
+      const exportUrl = imageUrlsByNodeId[candidate.nodeId];
+      if (!exportUrl) {
+        summary.warnings.push(
+          `export url missing: ${candidate.nodeName} (${candidate.nodeId})`
+        );
+        continue;
+      }
+
+      const downloaded = await downloadImageBufferFromUrl(exportUrl);
+      const uploadFileName = `${sanitizePathSegment(candidate.targetKey, "asset")}.${format}`;
+      const uploaded = await uploadFileToR2(
+        downloaded.buffer,
+        uploadFileName,
+        downloaded.contentType,
+        folder
+      );
+      uploadedFileKeys.push(uploaded.fileKey);
+      summary.uploaded += 1;
+
+      applyAssetToConfig({
+        config,
+        candidate,
+        theme,
+        url: uploaded.url,
+      });
+      summary.applied += 1;
+    }
+
+    return summary;
+  } catch (error) {
+    await Promise.all(
+      uploadedFileKeys.map(async (fileKey) => {
+        try {
+          await deleteFileFromR2(fileKey);
+        } catch {
+          // ignore rollback failures
+        }
+      })
+    );
+    throw error;
+  }
 };
 
 const resolveSupabaseConnection = ({
@@ -1628,6 +3064,16 @@ const run = async () => {
     ),
   };
 
+  hydrateProcessEnvFromLoaded(loadedEnv, [
+    "CLOUDFLARE_R2_ENDPOINT",
+    "CLOUDFLARE_R2_ACCESS_KEY_ID",
+    "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+    "CLOUDFLARE_R2_BUCKET_NAME",
+    "CLOUDFLARE_R2_PUBLIC_URL",
+    "NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL",
+    "V2_R2_UPLOAD_BASE_PREFIX",
+  ]);
+
   const figmaToken =
     options.figmaToken || process.env.FIGMA_ACCESS_TOKEN || loadedEnv.FIGMA_ACCESS_TOKEN;
   if (!figmaToken) {
@@ -1676,7 +3122,6 @@ const run = async () => {
     description: `Figma node import source=${options.figmaUrl}`,
   };
 
-  const normalizedConfig = v2_normalizeTemplateRenderConfig(baseConfig);
   const { supabaseUrl, supabaseServiceRoleKey } = resolveSupabaseConnection({
     options,
     mergedEnv,
@@ -1700,6 +3145,34 @@ const run = async () => {
     resolvedTemplateDescription,
   });
 
+  let assetImportSummary: AssetImportSummary | null = null;
+  if (options.withAssets) {
+    const templateIdForAssets =
+      ensuredTemplate.templateId && ensuredTemplate.templateId !== "(to-be-created)"
+        ? ensuredTemplate.templateId
+        : "local";
+    const openAiKey =
+      process.env.OPENAI_ACCESS_TOKEN ||
+      process.env.OPENAI_API_KEY ||
+      loadedEnv.OPENAI_ACCESS_TOKEN ||
+      loadedEnv.OPENAI_API_KEY;
+
+    assetImportSummary = await importFigmaAssetsToConfig({
+      config: baseConfig,
+      rootNode,
+      fileKey,
+      figmaToken,
+      templateId: templateIdForAssets,
+      write: options.write,
+      theme: options.assetTheme,
+      format: options.assetFormat,
+      enableAiMatch: !options.noAiAssetMatch,
+      openAiKey,
+    });
+  }
+
+  const normalizedConfig = v2_normalizeTemplateRenderConfig(baseConfig);
+
   let existingDraftCount = 0;
   if (
     ensuredTemplate.templateId &&
@@ -1721,7 +3194,13 @@ const run = async () => {
     `[import:v2:figma] target template name="${resolvedTemplateName}" id=${ensuredTemplate.templateId}`,
     `[import:v2:figma] config preset=${options.configPreset}, configVersion=${normalizedConfig.version}`,
     `[import:v2:figma] applied mappings=${mappingSummary.applied.length}`,
+    `[import:v2:figma] assets=${options.withAssets ? "enabled" : "disabled"} theme=${options.assetTheme} format=${options.assetFormat}`,
   ];
+  if (assetImportSummary) {
+    summaryLines.push(
+      `[import:v2:figma] assets discovered=${assetImportSummary.discovered}, mapped=${assetImportSummary.mapped}, uploaded=${assetImportSummary.uploaded}, applied=${assetImportSummary.applied}, unresolved=${assetImportSummary.unresolved.length}`
+    );
+  }
   summaryLines.forEach((line) => console.log(line));
 
   if (mappingSummary.applied.length > 0) {
@@ -1735,6 +3214,16 @@ const run = async () => {
   if (mappingSummary.notApplicable.length > 0) {
     console.log(
       `[import:v2:figma] not-applicable: ${mappingSummary.notApplicable.join(", ")}`
+    );
+  }
+  if (assetImportSummary?.warnings.length) {
+    assetImportSummary.warnings.forEach((warning) => {
+      console.warn(`[import:v2:figma] asset warning: ${warning}`);
+    });
+  }
+  if (assetImportSummary?.unresolved.length) {
+    console.warn(
+      `[import:v2:figma] unresolved asset nodes: ${assetImportSummary.unresolved.join(", ")}`
     );
   }
   if (existingDraftCount > 0) {

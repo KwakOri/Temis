@@ -265,7 +265,7 @@ const useTemplateStyleEditorActions = ({
   );
 
   const updateGridLayoutMode = useCallback(
-    (mode: "grid3x3" | "flex4x2") => {
+    (mode: "grid3x3" | "flex4x2" | "free") => {
       const currentMap = getStyleSectionMap("grid");
       updateStyleSection("grid", {
         ...currentMap,

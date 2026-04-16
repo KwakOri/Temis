@@ -1,7 +1,9 @@
 export const v2_parseGridLayoutMode = (
   value: unknown
-): "grid3x3" | "flex4x2" => {
-  return value === "flex4x2" ? "flex4x2" : "grid3x3";
+): "grid3x3" | "flex4x2" | "free" => {
+  if (value === "flex4x2") return "flex4x2";
+  if (value === "free") return "free";
+  return "grid3x3";
 };
 
 export const v2_parseFlex42Align = (
