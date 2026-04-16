@@ -1,4 +1,9 @@
 import { requireAdmin } from "@/lib/auth/middleware";
+import {
+  v2_normalizeAssetToken,
+  v2_scoreAssetTokenOverlap,
+  v2_suggestAssetKeyByRule,
+} from "@/utils/v2/asset-mapping";
 import { NextRequest, NextResponse } from "next/server";
 
 type SuggestionItem = {
@@ -17,39 +22,6 @@ type SuggestResponse = {
 
 const OPENAI_SUGGEST_MODEL = "gpt-4o-mini";
 
-const normalizeToken = (value: string): string =>
-  value
-    .toLowerCase()
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/[^a-z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-
-const buildCandidateIndex = (candidateKeys: string[]) => {
-  const normalizedToKey = new Map<string, string>();
-  candidateKeys.forEach((key) => {
-    const normalized = normalizeToken(key);
-    if (!normalized) return;
-    if (!normalizedToKey.has(normalized)) {
-      normalizedToKey.set(normalized, key);
-    }
-  });
-  return normalizedToKey;
-};
-
-const scoreByTokenOverlap = (input: string, candidate: string): number => {
-  const inputTokens = new Set(input.split("_").filter(Boolean));
-  const candidateTokens = new Set(candidate.split("_").filter(Boolean));
-  if (inputTokens.size === 0 || candidateTokens.size === 0) return 0;
-
-  let overlap = 0;
-  inputTokens.forEach((token) => {
-    if (candidateTokens.has(token)) overlap += 1;
-  });
-
-  const union = new Set([...inputTokens, ...candidateTokens]).size;
-  return union > 0 ? overlap / union : 0;
-};
-
 const fallbackSuggest = ({
   fileNames,
   candidateKeys,
@@ -57,14 +29,35 @@ const fallbackSuggest = ({
   fileNames: string[];
   candidateKeys: string[];
 }): SuggestResponse => {
-  const normalizedIndex = buildCandidateIndex(candidateKeys);
+  const normalizedIndex = new Map<string, string>();
+  candidateKeys.forEach((key) => {
+    const normalized = v2_normalizeAssetToken(key);
+    if (!normalized) return;
+    if (!normalizedIndex.has(normalized)) {
+      normalizedIndex.set(normalized, key);
+    }
+  });
   const normalizedCandidates = candidateKeys.map((key) => ({
     key,
-    normalized: normalizeToken(key),
+    normalized: v2_normalizeAssetToken(key),
   }));
 
   const suggestions = fileNames.map<SuggestionItem>((fileName) => {
-    const normalizedFileName = normalizeToken(fileName);
+    const ruleMatch = v2_suggestAssetKeyByRule({
+      fileName,
+      candidateKeys,
+    });
+    if (ruleMatch) {
+      return {
+        fileName,
+        key: ruleMatch.key,
+        confidence: Number(Math.max(0, Math.min(1, ruleMatch.confidence)).toFixed(2)),
+        reason: ruleMatch.reason,
+        source: "fallback",
+      };
+    }
+
+    const normalizedFileName = v2_normalizeAssetToken(fileName);
     const exactKey = normalizedIndex.get(normalizedFileName);
     if (exactKey) {
       return {
@@ -79,7 +72,7 @@ const fallbackSuggest = ({
     let bestKey: string | null = null;
     let bestScore = -1;
     for (const { key, normalized } of normalizedCandidates) {
-      const score = scoreByTokenOverlap(normalizedFileName, normalized);
+      const score = v2_scoreAssetTokenOverlap(normalizedFileName, normalized);
       if (score > bestScore) {
         bestScore = score;
         bestKey = key;

@@ -4,6 +4,7 @@ import {
   V2TemplateBuiltinAssetKey,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
+import { v2_suggestAssetKeyByRule } from "@/utils/v2/asset-mapping";
 import React from "react";
 
 interface TemplateAssetsTabProps {
@@ -30,6 +31,15 @@ interface TemplateAssetsTabProps {
   onRemoveExtraAssetKey: (key: string) => void;
   onUploadExtraFile: (key: string, theme: string, file: File | null) => void;
   onResetExtraAsset: (key: string, theme: string) => void;
+  onUploadBulkFiles?: (params: {
+    theme: string;
+    items: Array<{
+      clientId: string;
+      file: File;
+      targetType: "builtin" | "extra";
+      targetKey: string;
+    }>;
+  }) => Promise<void>;
 }
 
 type V2BulkMatchSource = "rule" | "ai" | "none";
@@ -76,143 +86,6 @@ const v2_CARD_DAY_ASSET_KEYS = {
   ] as const satisfies ReadonlyArray<V2TemplateBuiltinAssetKey>,
 };
 
-const v2_DAY_ALIAS_TO_KEY = {
-  mon: "mon",
-  monday: "mon",
-  월: "mon",
-  tue: "tue",
-  tues: "tue",
-  tuesday: "tue",
-  화: "tue",
-  wed: "wed",
-  weds: "wed",
-  wednesday: "wed",
-  수: "wed",
-  thu: "thu",
-  thur: "thu",
-  thurs: "thu",
-  thursday: "thu",
-  목: "thu",
-  fri: "fri",
-  friday: "fri",
-  금: "fri",
-  sat: "sat",
-  saturday: "sat",
-  토: "sat",
-  sun: "sun",
-  sunday: "sun",
-  일: "sun",
-} as const;
-
-const v2_BUILTIN_ALIAS_RULES: Array<{
-  key: V2TemplateBuiltinAssetKey;
-  aliases: string[];
-}> = [
-  { key: "bgByTheme", aliases: ["bg", "background", "scene_bg", "base_bg"] },
-  { key: "topObjectByTheme", aliases: ["top", "topobject", "top_object"] },
-  { key: "memoByTheme", aliases: ["memo", "note", "postit"] },
-  {
-    key: "artist",
-    aliases: ["artist_object", "artistobject", "artist", "artist_image", "artist_bg"],
-  },
-  { key: "onlineByTheme", aliases: ["online", "card_online", "on"] },
-  { key: "offlineByTheme", aliases: ["offline", "card_offline", "off"] },
-  { key: "profileFrameByTheme", aliases: ["profile_frame", "frame", "artist_frame"] },
-  {
-    key: "profileBgByTheme",
-    aliases: ["profile_bg", "profile_dummy", "profile_image", "dummy_profile"],
-  },
-  { key: "guideByTheme", aliases: ["guide", "overlay", "guide_overlay"] },
-];
-
-const v2_normalizeToken = (value: string): string => {
-  return value
-    .toLowerCase()
-    .replace(/\.[a-z0-9]+$/i, "")
-    .replace(/[^a-z0-9가-힣]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-};
-
-const v2_extractDayKeyFromNormalizedName = (normalizedName: string): string | null => {
-  const tokens = normalizedName.split("_").filter(Boolean);
-  for (const token of tokens) {
-    const normalized = token.trim().toLowerCase();
-    if (!normalized) continue;
-    const dayKey =
-      v2_DAY_ALIAS_TO_KEY[normalized as keyof typeof v2_DAY_ALIAS_TO_KEY];
-    if (dayKey) return dayKey;
-  }
-  return null;
-};
-
-const v2_suggestKeyByRule = ({
-  fileName,
-  candidateKeys,
-}: {
-  fileName: string;
-  candidateKeys: string[];
-}): { key: string; confidence: number; reason: string } | null => {
-  const normalizedName = v2_normalizeToken(fileName);
-  if (!normalizedName) return null;
-
-  const candidateByNormalized = new Map<string, string>();
-  candidateKeys.forEach((candidateKey) => {
-    const normalizedCandidate = v2_normalizeToken(candidateKey);
-    if (!normalizedCandidate) return;
-    if (!candidateByNormalized.has(normalizedCandidate)) {
-      candidateByNormalized.set(normalizedCandidate, candidateKey);
-    }
-  });
-
-  const exactKey = candidateByNormalized.get(normalizedName);
-  if (exactKey) {
-    return {
-      key: exactKey,
-      confidence: 1,
-      reason: "파일명과 키가 정확히 일치합니다.",
-    };
-  }
-
-  const dayKey = v2_extractDayKeyFromNormalizedName(normalizedName);
-  if (dayKey && normalizedName.includes("online")) {
-    const matched = candidateByNormalized.get(`online_${dayKey}`);
-    if (matched) {
-      return {
-        key: matched,
-        confidence: 0.94,
-        reason: "online + 요일 토큰 규칙으로 매칭했습니다.",
-      };
-    }
-  }
-  if (dayKey && normalizedName.includes("offline")) {
-    const matched = candidateByNormalized.get(`offline_${dayKey}`);
-    if (matched) {
-      return {
-        key: matched,
-        confidence: 0.94,
-        reason: "offline + 요일 토큰 규칙으로 매칭했습니다.",
-      };
-    }
-  }
-
-  for (const rule of v2_BUILTIN_ALIAS_RULES) {
-    if (
-      rule.aliases.some((alias) =>
-        normalizedName === alias || normalizedName.includes(alias)
-      ) &&
-      candidateKeys.includes(rule.key)
-    ) {
-      return {
-        key: rule.key,
-        confidence: 0.88,
-        reason: `기본 이름 규칙(${rule.aliases[0]})으로 매칭했습니다.`,
-      };
-    }
-  }
-
-  return null;
-};
-
 const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   assetTheme,
   themeOptions,
@@ -233,6 +106,7 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   onRemoveExtraAssetKey,
   onUploadExtraFile,
   onResetExtraAsset,
+  onUploadBulkFiles,
 }) => {
   const fileInputRefs = React.useRef<
     Partial<Record<V2TemplateBuiltinAssetKey, HTMLInputElement | null>>
@@ -293,7 +167,7 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
 
     try {
       const draftRows: V2BulkMatchRow[] = selectedFiles.map((file, index) => {
-        const ruleMatch = v2_suggestKeyByRule({
+        const ruleMatch = v2_suggestAssetKeyByRule({
           fileName: file.name,
           candidateKeys: allAssetKeys,
         });
@@ -377,18 +251,36 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
     setBulkMatchError(null);
 
     try {
-      bulkMatchRows.forEach((row) => {
-        if (!row.selectedKey) return;
-        if (builtinAssetKeySet.has(row.selectedKey)) {
-          onUploadBuiltinFile(
-            row.selectedKey as V2TemplateBuiltinAssetKey,
-            assetTheme,
-            row.file
-          );
-          return;
-        }
-        onUploadExtraFile(row.selectedKey, assetTheme, row.file);
-      });
+      const selectedRows = bulkMatchRows.filter((row) => row.selectedKey);
+      if (selectedRows.length === 0) {
+        setBulkMatchError("선택된 매칭 키가 없어 적용할 항목이 없습니다.");
+        return;
+      }
+      if (onUploadBulkFiles) {
+        await onUploadBulkFiles({
+          theme: assetTheme,
+          items: selectedRows.map((row) => ({
+            clientId: row.id,
+            file: row.file,
+            targetType: builtinAssetKeySet.has(row.selectedKey)
+              ? "builtin"
+              : "extra",
+            targetKey: row.selectedKey,
+          })),
+        });
+      } else {
+        selectedRows.forEach((row) => {
+          if (builtinAssetKeySet.has(row.selectedKey)) {
+            onUploadBuiltinFile(
+              row.selectedKey as V2TemplateBuiltinAssetKey,
+              assetTheme,
+              row.file
+            );
+            return;
+          }
+          onUploadExtraFile(row.selectedKey, assetTheme, row.file);
+        });
+      }
       setBulkMatchRows([]);
     } catch (error) {
       console.error("Failed to apply bulk asset matches", error);

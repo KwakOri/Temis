@@ -128,7 +128,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   focusEditorMode = "instance",
   onRequestClose,
 }) => {
-  const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
+  const { templateId, renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
   const {
     data,
     updateData,
@@ -974,8 +974,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     toggleCardBackgroundAssetsByDay,
     handleAssetFileUpload,
     handleExtraAssetFileUpload,
+    uploadBulkAssetFiles,
   } = useTemplateThemeAssetActions({
     safeUpdateConfig,
+    templateId: templateId ?? null,
   });
 
   const updateStreamingDayFormat = (
@@ -1590,6 +1592,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               onResetExtraAsset={(key, theme) =>
                 updateExtraAssetUrl(key, theme, "", null)
               }
+              onUploadBulkAssetFiles={uploadBulkAssetFiles}
               onChangeDataField={(scope, key, value) => {
                 if (scope === "entry") {
                   updateFirstEntryField(sampleEntryIndex, key, value);

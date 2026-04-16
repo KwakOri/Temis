@@ -5,15 +5,32 @@ import {
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
-// Cloudflare R2 클라이언트 설정
-const r2Client = new S3Client({
-  region: "auto",
-  endpoint: process.env.CLOUDFLARE_R2_ENDPOINT!,
-  credentials: {
-    accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY!,
-  },
-});
+let cachedR2Client: S3Client | null = null;
+
+const getRequiredEnv = (key: string): string => {
+  const value = process.env[key];
+  if (!value || value.trim().length === 0) {
+    throw new Error(`${key} env is required.`);
+  }
+  return value.trim();
+};
+
+const getR2Client = (): S3Client => {
+  if (cachedR2Client) return cachedR2Client;
+
+  cachedR2Client = new S3Client({
+    region: "auto",
+    endpoint: getRequiredEnv("CLOUDFLARE_R2_ENDPOINT"),
+    credentials: {
+      accessKeyId: getRequiredEnv("CLOUDFLARE_R2_ACCESS_KEY_ID"),
+      secretAccessKey: getRequiredEnv("CLOUDFLARE_R2_SECRET_ACCESS_KEY"),
+    },
+  });
+
+  return cachedR2Client;
+};
+
+const getR2BucketName = (): string => getRequiredEnv("CLOUDFLARE_R2_BUCKET_NAME");
 
 export interface UploadFileResult {
   fileKey: string;
@@ -36,9 +53,9 @@ export async function uploadFileToR2(
 
   try {
     const upload = new Upload({
-      client: r2Client,
+      client: getR2Client(),
       params: {
-        Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+        Bucket: getR2BucketName(),
         Key: fileKey,
         Body: file,
         ContentType: mimeType,
@@ -67,11 +84,11 @@ export async function uploadFileToR2(
 export async function deleteFileFromR2(fileKey: string): Promise<void> {
   try {
     const command = new DeleteObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+      Bucket: getR2BucketName(),
       Key: fileKey,
     });
 
-    await r2Client.send(command);
+    await getR2Client().send(command);
   } catch (error) {
     console.error("R2 삭제 실패:", error);
     throw new Error("파일 삭제에 실패했습니다.");
@@ -98,11 +115,11 @@ export async function downloadFileFromR2(fileKey: string): Promise<{
 }> {
   try {
     const command = new GetObjectCommand({
-      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
+      Bucket: getR2BucketName(),
       Key: fileKey,
     });
 
-    const response = await r2Client.send(command);
+    const response = await getR2Client().send(command);
 
     if (!response.Body) {
       throw new Error("파일을 찾을 수 없습니다.");

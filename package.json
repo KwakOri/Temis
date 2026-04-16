@@ -6,6 +6,7 @@
     "dev": "next dev",
     "dev:local": "node scripts/dev-local.cjs",
     "import:v2:figma": "tsx scripts/import-v2-template-from-figma.ts",
+    "cleanup:v2:r2-orphans": "tsx scripts/cleanup-v2-r2-orphans.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

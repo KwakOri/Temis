@@ -75,6 +75,15 @@ interface TemplatePropertiesTabsRendererProps {
   onRemoveExtraAssetKey: (key: string) => void;
   onUploadExtraAssetFile: (key: string, theme: string, file: File | null) => void;
   onResetExtraAsset: (key: string, theme: string) => void;
+  onUploadBulkAssetFiles: (params: {
+    theme: string;
+    items: Array<{
+      clientId: string;
+      file: File;
+      targetType: "builtin" | "extra";
+      targetKey: string;
+    }>;
+  }) => Promise<void>;
   onChangeDataField: (
     scope: "entry" | "card" | "global",
     key: string,
@@ -186,6 +195,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
   onRemoveExtraAssetKey,
   onUploadExtraAssetFile,
   onResetExtraAsset,
+  onUploadBulkAssetFiles,
   onChangeDataField,
   onToggleOffline,
   onSelectEntryIndex,
@@ -257,6 +267,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
       onRemoveExtraAssetKey={onRemoveExtraAssetKey}
       onUploadExtraFile={onUploadExtraAssetFile}
       onResetExtraAsset={onResetExtraAsset}
+      onUploadBulkFiles={onUploadBulkAssetFiles}
     />
   );
 

@@ -13,6 +13,7 @@ import {
 } from "@/types/time-table/template-render-config";
 
 interface UseTemplateThemeAssetActionsParams {
+  templateId?: string | null;
   safeUpdateConfig: (
     updater: (prev: V2TemplateRenderConfig) => V2TemplateRenderConfig
   ) => void;
@@ -313,6 +314,37 @@ const v2_CARD_BACKGROUND_VARIANTS = {
 
 type V2CardBackgroundVariantMode = keyof typeof v2_CARD_BACKGROUND_VARIANTS;
 
+type V2AssetUploadTargetType = "builtin" | "extra";
+
+type V2AssetUploadBatchItem = {
+  clientId: string;
+  file: File;
+  targetType: V2AssetUploadTargetType;
+  targetKey: string;
+  theme: string;
+};
+
+type V2AssetUploadMapping = {
+  clientId: string;
+  fileName: string;
+  targetType: V2AssetUploadTargetType;
+  targetKey: string;
+  theme: string;
+};
+
+type V2AssetUploadResponse = {
+  success?: boolean;
+  uploaded?: Array<{
+    clientId?: string;
+    fileName?: string;
+    targetType?: V2AssetUploadTargetType;
+    targetKey?: string;
+    theme?: string;
+    url?: string;
+  }>;
+  error?: string;
+};
+
 const v2_buildCardBackgroundDayAssetRefMap = (
   mode: V2CardBackgroundVariantMode
 ): Record<V2TemplateDayKey, V2TemplateAssetRef> => {
@@ -358,6 +390,7 @@ const v2_isCardBackgroundNodeForVariant = (
 };
 
 const useTemplateThemeAssetActions = ({
+  templateId,
   safeUpdateConfig,
 }: UseTemplateThemeAssetActionsParams) => {
   const parseFontWeightInput = (rawValue: string): number | string =>
@@ -955,38 +988,228 @@ const useTemplateThemeAssetActions = ({
     });
   };
 
-  const readImageFileAsDataUrl = (
+  const readImageFileDimensions = (
     file: File
-  ): Promise<{ dataUrl: string; width: number; height: number }> => {
+  ): Promise<{ width: number; height: number }> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve({
+          width: img.naturalWidth,
+          height: img.naturalHeight,
+        });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("이미지 크기 확인에 실패했습니다."));
+      };
+      img.src = objectUrl;
+    });
+  };
 
-      reader.onerror = () => {
-        reject(new Error("파일을 읽지 못했습니다."));
+  const uploadAssetMappings = async (
+    items: V2AssetUploadBatchItem[]
+  ): Promise<V2AssetUploadResponse["uploaded"]> => {
+    if (items.length === 0) return [];
+
+    const formData = new FormData();
+    formData.append("templateId", templateId?.trim() || "local");
+    formData.append(
+      "mappingJson",
+      JSON.stringify(
+        items.map(
+          (item): V2AssetUploadMapping => ({
+            clientId: item.clientId,
+            fileName: item.file.name,
+            targetType: item.targetType,
+            targetKey: item.targetKey,
+            theme: item.theme,
+          })
+        )
+      )
+    );
+    items.forEach((item) => {
+      formData.append("files", item.file);
+    });
+
+    const response = await fetch("/api/admin/v2/templates/assets/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const payload = (await response.json().catch(() => null)) as
+      | V2AssetUploadResponse
+      | null;
+    if (!response.ok) {
+      const errorMessage =
+        payload && typeof payload.error === "string"
+          ? payload.error
+          : "에셋 업로드에 실패했습니다.";
+      throw new Error(errorMessage);
+    }
+
+    return payload?.uploaded ?? [];
+  };
+
+  const applyUploadedAssetRecords = ({
+    uploadedRecords,
+    dimensionsByClientId,
+  }: {
+    uploadedRecords: V2AssetUploadResponse["uploaded"];
+    dimensionsByClientId: Map<string, V2TemplateAssetDimension | null>;
+  }) => {
+    if (!uploadedRecords || uploadedRecords.length === 0) return;
+
+    safeUpdateConfig((prev) => {
+      let hasChanges = false;
+      const nextAssets: V2TemplateRenderConfig["assets"] = {
+        ...prev.assets,
+      };
+      const nextAssetDimensions: V2TemplateRenderConfig["assetDimensions"] = {
+        ...prev.assetDimensions,
+      };
+      const nextExtraAssets: V2TemplateRenderConfig["extraAssets"] = {
+        ...prev.extraAssets,
+      };
+      const nextExtraAssetDimensions: V2TemplateRenderConfig["extraAssetDimensions"] = {
+        ...prev.extraAssetDimensions,
       };
 
-      reader.onload = () => {
-        const result = reader.result;
-        if (typeof result !== "string") {
-          reject(new Error("이미지 데이터 변환에 실패했습니다."));
+      uploadedRecords.forEach((uploaded) => {
+        if (!uploaded) return;
+        const clientId =
+          typeof uploaded.clientId === "string" ? uploaded.clientId : null;
+        const targetType = uploaded.targetType;
+        const targetKey = uploaded.targetKey;
+        const url = uploaded.url;
+        const theme = uploaded.theme;
+        if (
+          !clientId ||
+          (targetType !== "builtin" && targetType !== "extra") ||
+          typeof targetKey !== "string" ||
+          targetKey.trim().length === 0 ||
+          typeof url !== "string" ||
+          url.trim().length === 0 ||
+          typeof theme !== "string" ||
+          theme.trim().length === 0
+        ) {
           return;
         }
 
-        const img = new Image();
-        img.onload = () => {
-          resolve({
-            dataUrl: result,
-            width: img.naturalWidth,
-            height: img.naturalHeight,
-          });
-        };
-        img.onerror = () => {
-          reject(new Error("이미지 크기 확인에 실패했습니다."));
-        };
-        img.src = result;
-      };
+        const normalizedTheme = theme.trim();
+        const nextDimension = dimensionsByClientId.get(clientId) ?? null;
 
-      reader.readAsDataURL(file);
+        if (targetType === "builtin" && targetKey in prev.assets) {
+          const builtinKey = targetKey as V2TemplateBuiltinAssetKey;
+          const prevThemeMap = nextAssets[builtinKey];
+          const prevDimensionMap = nextAssetDimensions[builtinKey];
+          const prevUrl = prevThemeMap[normalizedTheme] ?? null;
+          const prevDimension = prevDimensionMap[normalizedTheme] ?? null;
+          const nextUrl = url.trim();
+          const dimensionChanged =
+            (prevDimension?.width ?? null) !== (nextDimension?.width ?? null) ||
+            (prevDimension?.height ?? null) !== (nextDimension?.height ?? null);
+
+          if (prevUrl === nextUrl && !dimensionChanged) {
+            return;
+          }
+
+          nextAssets[builtinKey] = {
+            ...prevThemeMap,
+            [normalizedTheme]: nextUrl,
+          };
+          nextAssetDimensions[builtinKey] = {
+            ...prevDimensionMap,
+            [normalizedTheme]: nextDimension,
+          };
+          hasChanges = true;
+          return;
+        }
+
+        const normalizedExtraKey = targetKey.trim();
+        const prevThemeMap = nextExtraAssets[normalizedExtraKey] ?? {};
+        const prevDimensionMap = nextExtraAssetDimensions[normalizedExtraKey] ?? {};
+        const prevUrl = prevThemeMap[normalizedTheme] ?? null;
+        const prevDimension = prevDimensionMap[normalizedTheme] ?? null;
+        const nextUrl = url.trim();
+        const dimensionChanged =
+          (prevDimension?.width ?? null) !== (nextDimension?.width ?? null) ||
+          (prevDimension?.height ?? null) !== (nextDimension?.height ?? null);
+
+        if (prevUrl === nextUrl && !dimensionChanged) {
+          return;
+        }
+
+        nextExtraAssets[normalizedExtraKey] = {
+          ...prevThemeMap,
+          [normalizedTheme]: nextUrl,
+        };
+        nextExtraAssetDimensions[normalizedExtraKey] = {
+          ...prevDimensionMap,
+          [normalizedTheme]: nextDimension,
+        };
+        hasChanges = true;
+      });
+
+      if (!hasChanges) return prev;
+      return {
+        ...prev,
+        assets: nextAssets,
+        assetDimensions: nextAssetDimensions,
+        extraAssets: nextExtraAssets,
+        extraAssetDimensions: nextExtraAssetDimensions,
+      };
+    });
+  };
+
+  const uploadBulkAssetFiles = async ({
+    theme,
+    items,
+  }: {
+    theme: string;
+    items: Array<{
+      clientId: string;
+      file: File;
+      targetType: V2AssetUploadTargetType;
+      targetKey: string;
+    }>;
+  }) => {
+    const normalizedTheme = theme.trim();
+    if (!normalizedTheme) return;
+    const validItems = items.filter(
+      (item) =>
+        typeof item.clientId === "string" &&
+        item.clientId.trim().length > 0 &&
+        item.file instanceof File &&
+        (item.targetType === "builtin" || item.targetType === "extra") &&
+        typeof item.targetKey === "string" &&
+        item.targetKey.trim().length > 0
+    );
+    if (validItems.length === 0) return;
+
+    const dimensions = await Promise.all(
+      validItems.map(async (item) => {
+        const dimension = await readImageFileDimensions(item.file);
+        return {
+          clientId: item.clientId,
+          dimension,
+        };
+      })
+    );
+    const dimensionsByClientId = new Map<string, V2TemplateAssetDimension | null>(
+      dimensions.map((entry) => [entry.clientId, entry.dimension])
+    );
+    const uploadedRecords = await uploadAssetMappings(
+      validItems.map((item) => ({
+        ...item,
+        theme: normalizedTheme,
+      }))
+    );
+    applyUploadedAssetRecords({
+      uploadedRecords,
+      dimensionsByClientId,
     });
   };
 
@@ -998,10 +1221,16 @@ const useTemplateThemeAssetActions = ({
     if (!file) return;
 
     try {
-      const result = await readImageFileAsDataUrl(file);
-      updateAssetUrl(key, theme, result.dataUrl, {
-        width: result.width,
-        height: result.height,
+      await uploadBulkAssetFiles({
+        theme,
+        items: [
+          {
+            clientId: `${key}-${theme}-${Date.now()}`,
+            file,
+            targetType: "builtin",
+            targetKey: key,
+          },
+        ],
       });
     } catch (error) {
       console.error("Failed to upload asset image", error);
@@ -1016,10 +1245,16 @@ const useTemplateThemeAssetActions = ({
     if (!file) return;
 
     try {
-      const result = await readImageFileAsDataUrl(file);
-      updateExtraAssetUrl(key, theme, result.dataUrl, {
-        width: result.width,
-        height: result.height,
+      await uploadBulkAssetFiles({
+        theme,
+        items: [
+          {
+            clientId: `${key}-${theme}-${Date.now()}`,
+            file,
+            targetType: "extra",
+            targetKey: key,
+          },
+        ],
       });
     } catch (error) {
       console.error("Failed to upload extra asset image", error);
@@ -1045,7 +1280,8 @@ const useTemplateThemeAssetActions = ({
     addExtraAssetKey,
     removeExtraAssetKey,
     toggleCardBackgroundAssetsByDay,
-    readImageFileAsDataUrl,
+    readImageFileDimensions,
+    uploadBulkAssetFiles,
     handleAssetFileUpload,
     handleExtraAssetFileUpload,
   };
