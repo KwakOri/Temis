@@ -136,6 +136,7 @@ export interface V2TemplateEditorOptions {
   isArtist: boolean;
   isMultiple: boolean;
   maxStreamingTimeByDay: number;
+  enableThemeSelection: boolean;
   useOnlineAssetsByDay: boolean;
   useOfflineAssetsByDay: boolean;
 }

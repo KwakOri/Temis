@@ -93,17 +93,17 @@ const V2RuntimePreview = () => {
 
   return (
     <section
-      className="relative flex-1 overflow-hidden"
+      className="relative flex-1 min-h-0 overflow-hidden"
       style={{
-        backgroundColor: "#0f141c",
+        backgroundColor: "#f5ece5",
         backgroundImage:
-          "linear-gradient(45deg, #1c2330 25%, transparent 25%), linear-gradient(-45deg, #1c2330 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1c2330 75%), linear-gradient(-45deg, transparent 75%, #1c2330 75%)",
+          "linear-gradient(45deg, #e8d9cd 25%, transparent 25%), linear-gradient(-45deg, #e8d9cd 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e8d9cd 75%), linear-gradient(-45deg, transparent 75%, #e8d9cd 75%)",
         backgroundSize: "24px 24px",
         backgroundPosition: "0 0, 0 12px, 12px -12px, -12px 0",
       }}
     >
-      <div className="sticky left-0 top-0 z-10 flex justify-end p-3">
-        <label className="inline-flex items-center gap-2 rounded border border-slate-600/80 bg-slate-900/90 px-3 py-2 text-xs text-slate-100">
+      <div className="pointer-events-none absolute right-3 top-3 z-20">
+        <label className="pointer-events-auto inline-flex items-center gap-2 rounded border border-timetable-card-border bg-timetable-card-bg/95 px-3 py-2 text-xs text-gray-700 shadow-[0_2px_3.4px_rgba(0,0,0,0.08)]">
           <span>배율 {scale.toFixed(2)}x</span>
           <input
             type="range"
@@ -111,6 +111,7 @@ const V2RuntimePreview = () => {
             max={1.2}
             step={0.01}
             value={scale}
+            className="accent-timetable-primary"
             onChange={(event) => {
               const nextScale = Number(event.target.value);
               updateScale(
@@ -120,7 +121,7 @@ const V2RuntimePreview = () => {
           />
         </label>
       </div>
-      <div className="flex h-full items-center justify-center overflow-hidden p-6">
+      <div className="h-full min-h-0 flex items-center justify-center overflow-hidden p-6">
         <div
           className="relative rounded-sm shadow-lg"
           style={draggableStyle}

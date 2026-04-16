@@ -288,6 +288,7 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   isArtist: true,
   isMultiple: false,
   maxStreamingTimeByDay: 1,
+  enableThemeSelection: false,
   useOnlineAssetsByDay: false,
   useOfflineAssetsByDay: false,
 };
@@ -3465,6 +3466,10 @@ export const v2_normalizeTemplateRenderConfig = (
             normalized.editorOptions.maxStreamingTimeByDay
           )
         )
+      ),
+      enableThemeSelection: v2_asBoolean(
+        raw.editorOptions.enableThemeSelection,
+        normalized.editorOptions.enableThemeSelection
       ),
       useOnlineAssetsByDay: v2_asBoolean(
         raw.editorOptions.useOnlineAssetsByDay,

@@ -309,6 +309,7 @@ const TemplateEditorMainPage = () => {
   const [isProfile, setIsProfile] = useState(true);
   const [isMemo, setIsMemo] = useState(true);
   const [isMultiple, setIsMultiple] = useState(true);
+  const [enableThemeSelection, setEnableThemeSelection] = useState(false);
   const [maxStreamingTimeByDay, setMaxStreamingTimeByDay] = useState(2);
   const [templateWidth, setTemplateWidth] = useState(baseConfig.templateSize.width);
   const [templateHeight, setTemplateHeight] = useState(baseConfig.templateSize.height);
@@ -433,6 +434,7 @@ const TemplateEditorMainPage = () => {
           isArtist,
           isMultiple,
           maxStreamingTimeByDay: normalizedMaxSlot,
+          enableThemeSelection,
         },
       });
 
@@ -581,6 +583,15 @@ const TemplateEditorMainPage = () => {
               onChange={(event) => setIsMultiple(event.target.checked)}
             />
             다회차 시간표 사용
+          </label>
+
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={enableThemeSelection}
+              onChange={(event) => setEnableThemeSelection(event.target.checked)}
+            />
+            테마 설정 노출 (테마 2개 이상일 때만 표시)
           </label>
 
           <p className="text-xs text-slate-500">

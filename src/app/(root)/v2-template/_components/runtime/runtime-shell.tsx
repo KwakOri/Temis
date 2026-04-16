@@ -166,7 +166,7 @@ const V2RuntimeShell = ({
             {!isInitialized || state.weekDates.length === 0 ? (
               <V2Loading />
             ) : (
-              <div className="v2-template-theme flex h-screen w-full flex-col overflow-hidden bg-[#0d1117]">
+              <div className="flex h-screen w-full flex-col overflow-hidden bg-timetable-form-bg">
                 <V2RuntimeToolbar
                   templateId={templateId}
                   source={source}

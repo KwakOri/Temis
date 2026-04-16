@@ -144,6 +144,7 @@ export const v2_createExampleRenderConfigResponse =
           isArtist: true,
           isMultiple: false,
           maxStreamingTimeByDay: 1,
+          enableThemeSelection: false,
           useOnlineAssetsByDay: false,
           useOfflineAssetsByDay: false,
         },

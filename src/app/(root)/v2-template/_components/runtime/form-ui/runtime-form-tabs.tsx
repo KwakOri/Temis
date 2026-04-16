@@ -22,9 +22,9 @@ export const RuntimeFormTabs = ({
           <button
             key={tab.id}
             onClick={() => onChangeActiveTab(tab.id)}
-            className={`flex-1 py-3 px-2 text-sm font-bold text-center transition-all duration-200 border-b-2 ${
+            className={`flex-1 py-3 px-2 text-sm font-bold text-center transition-all duration-200 border-b-2 focus:outline-none ${
               isActive
-                ? "text-timetable-primary border-timetable-primary"
+                ? "text-[#FC712B] border-[#FC712B]"
                 : "text-gray-500 border-transparent hover:bg-timetable-input-bg hover:text-gray-700"
             }`}
           >
