@@ -1,20 +1,99 @@
 import { useTemplateRuntimeUIContext } from "@/contexts/v2/template-runtime-ui-context";
-import { v2_clampPreviewScale } from "../shared/preview-scale";
+import { useGesture } from "@use-gesture/react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  v2_PREVIEW_SCALE_MAX_MOBILE,
+  v2_PREVIEW_SCALE_MIN,
+  v2_clampPreviewScale,
+} from "../shared/preview-scale";
 import V2TimeTableContent from "../scene/preview-scene";
 
 const V2RuntimePreview = () => {
   const { state, actions } = useTemplateRuntimeUIContext();
   const { scale, captureSize, isMobile } = state;
   const { updateScale } = actions;
+  const [position, setPosition] = useState({ x: 0, y: 0 });
 
   const templateWidth = captureSize?.width || 1280;
   const templateHeight = captureSize?.height || 720;
-  const viewportWidth = templateWidth * scale;
-  const viewportHeight = templateHeight * scale;
+  const containerWidth = templateWidth * scale;
+  const containerHeight = templateHeight * scale;
+
+  const bind = useGesture(
+    {
+      onDrag: ({ movement: [mx, my], first, memo, touches }) => {
+        if (touches > 1) return memo;
+
+        if (first || !memo) {
+          memo = [position.x, position.y];
+        }
+
+        const newX = memo[0] + mx;
+        const newY = memo[1] + my;
+
+        setPosition({ x: newX, y: newY });
+        return memo;
+      },
+      onPinch: ({ offset: [scaleOffset], first, memo, touches }) => {
+        if (!isMobile || touches < 2) return memo;
+
+        if (first || !memo) {
+          memo = {
+            scale,
+            position: { x: position.x, y: position.y },
+          };
+        }
+
+        if (Math.abs(scaleOffset) > 0.001) {
+          const nextScale = v2_clampPreviewScale({
+            value: memo.scale + scaleOffset * 0.01,
+            isMobile: true,
+          });
+          updateScale(nextScale);
+        }
+
+        return memo;
+      },
+    },
+    {
+      drag: {
+        filterTaps: true,
+        threshold: 1,
+        pointer: { touch: true },
+      },
+      pinch: {
+        scaleBounds: {
+          min: v2_PREVIEW_SCALE_MIN,
+          max: v2_PREVIEW_SCALE_MAX_MOBILE,
+        },
+        rubberband: true,
+        threshold: 0.1,
+        pointer: { touch: true },
+      },
+    }
+  );
+
+  useEffect(() => {
+    if (!isMobile) {
+      setPosition({ x: 0, y: 0 });
+    }
+  }, [isMobile]);
+
+  const draggableStyle = useMemo(
+    () => ({
+      width: containerWidth,
+      height: containerHeight,
+      transform: `translate(${position.x}px, ${position.y}px)`,
+      cursor: "grab",
+      transition: "width 0.1s ease, height 0.1s ease",
+      touchAction: "none" as const,
+    }),
+    [containerHeight, containerWidth, position.x, position.y]
+  );
 
   return (
     <section
-      className="relative flex-1 overflow-auto"
+      className="relative flex-1 overflow-hidden"
       style={{
         backgroundColor: "#0f141c",
         backgroundImage:
@@ -41,13 +120,11 @@ const V2RuntimePreview = () => {
           />
         </label>
       </div>
-      <div className="flex min-h-full items-center justify-center p-6">
+      <div className="flex h-full items-center justify-center overflow-hidden p-6">
         <div
-          className="relative shadow-lg"
-          style={{
-            width: viewportWidth,
-            height: viewportHeight,
-          }}
+          className="relative rounded-sm shadow-lg"
+          style={draggableStyle}
+          {...bind()}
         >
           <V2TimeTableContent />
         </div>

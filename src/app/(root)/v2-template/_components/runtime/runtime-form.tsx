@@ -1,24 +1,14 @@
 import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
 import { useTemplateRuntimeData } from "@/contexts/v2/template-runtime-ui-context";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
-import { TEntry } from "@/types/time-table/data";
+import { CardInputConfig, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
-import {
-  V2TemplateFieldScope,
-  v2_TEMPLATE_DAY_KEYS,
-} from "@/types/time-table/template-render-config";
-import { v2_createInitialEntryFromFormSchema } from "@/utils/v2/v2-form-data";
-import { v2_resolveDayLabelByKey } from "@/utils/v2/template-render-config";
 import React from "react";
-import V2RuntimeScopeSection from "./fields/scope-section";
-
-type V2RuntimeFieldScope = V2TemplateFieldScope;
-
-const v2_SCOPE_LABELS: Record<V2RuntimeFieldScope, string> = {
-  entry: "회차(Entry)",
-  card: "요일 카드(Card)",
-  global: "전역(Global)",
-};
+import RuntimeInputList from "./form-ui/runtime-input-list";
+import RuntimeFormTabs from "./form-ui/runtime-form-tabs";
+import RuntimeWeekSelector from "./form-ui/runtime-week-selector";
+import TextRenderer from "./form-ui/field-renderers/text-renderer";
+import TextareaRenderer from "./form-ui/field-renderers/textarea-renderer";
 
 const V2RuntimeForm = () => {
   const { renderConfig } = useTemplateRenderConfigContext();
@@ -41,37 +31,7 @@ const V2RuntimeForm = () => {
     mondayDateStr,
     updateMondayDate,
   } = useTemplateRuntimeData();
-
-  const [selectedDayIndex, setSelectedDayIndex] = React.useState(0);
-  const [selectedEntryIndex, setSelectedEntryIndex] = React.useState(0);
-
-  const selectedCard = data[selectedDayIndex] ?? data[0];
-  const selectedEntries = selectedCard?.entries ?? [];
-  const safeSelectedEntryIndex = Math.min(
-    selectedEntryIndex,
-    Math.max(0, selectedEntries.length - 1)
-  );
-  const selectedEntry = selectedEntries[safeSelectedEntryIndex] ?? ({} as TEntry);
-  const maxEntryCount = Math.max(1, renderConfig.editorOptions.maxStreamingTimeByDay);
-  const allowMultipleEntries = renderConfig.editorOptions.isMultiple;
-
-  React.useEffect(() => {
-    setSelectedEntryIndex((prev) =>
-      Math.min(prev, Math.max(0, (selectedCard?.entries?.length ?? 1) - 1))
-    );
-  }, [selectedCard?.entries?.length]);
-
-  const groupedFields = React.useMemo(() => {
-    return {
-      entry: renderConfig.formSchema.fields.filter(
-        (field) => field.scope === "entry"
-      ),
-      card: renderConfig.formSchema.fields.filter((field) => field.scope === "card"),
-      global: renderConfig.formSchema.fields.filter(
-        (field) => field.scope === "global"
-      ),
-    };
-  }, [renderConfig.formSchema.fields]);
+  const [activeTab, setActiveTab] = React.useState("main");
 
   const themes = React.useMemo(() => {
     const baseThemes = Array.isArray(renderConfig.themes)
@@ -84,109 +44,66 @@ const V2RuntimeForm = () => {
     return baseThemes;
   }, [renderConfig.defaultTheme, renderConfig.themes]);
 
-  const updateEntryField = (fieldKey: string, value: string | number) => {
-    updateData(
-      data.map((card, dayIndex) => {
-        if (dayIndex !== selectedDayIndex) return card;
-        const nextEntries = card.entries.map((entry, entryIndex) => {
-          if (entryIndex !== safeSelectedEntryIndex) return entry;
-          return {
-            ...entry,
-            [fieldKey]: value,
-          };
-        });
-        return {
-          ...card,
-          entries: nextEntries,
-        };
-      })
-    );
-  };
+  const cardInputConfig = React.useMemo<CardInputConfig>(() => {
+    return {
+      fields: renderConfig.formSchema.fields.map((field) => ({
+        key: field.key,
+        scope: field.scope,
+        type: field.type,
+        label: field.label,
+        placeholder: field.placeholder || "",
+        required: field.required,
+        maxLength: field.maxLength,
+        options: field.options?.map((option) => ({
+          value: option.value,
+          label: option.label,
+        })),
+        defaultValue: field.defaultValue,
+      })),
+      showLabels: renderConfig.formSchema.showLabels ?? true,
+      offlineToggle: renderConfig.formSchema.offlineToggle,
+    };
+  }, [renderConfig.formSchema]);
 
-  const updateCardField = (fieldKey: string, value: string | number) => {
-    updateData(
-      data.map((card, dayIndex) => {
-        if (dayIndex !== selectedDayIndex) return card;
-        return {
-          ...card,
-          [fieldKey]: value,
-        };
-      })
-    );
-  };
-
-  const updateGlobalField = (fieldKey: string, value: string | number) => {
-    updateGlobalData({
-      ...globalData,
-      [fieldKey]: value,
-    });
-  };
-
-  const addEntry = () => {
-    if (!allowMultipleEntries) return;
-    if ((selectedCard?.entries?.length ?? 0) >= maxEntryCount) return;
-
-    const nextEntry = v2_createInitialEntryFromFormSchema({
-      formSchema: renderConfig.formSchema,
+  const placeholders = React.useMemo<TPlaceholders>(() => {
+    const fieldPlaceholders: Record<string, string> = {};
+    renderConfig.formSchema.fields.forEach((field) => {
+      fieldPlaceholders[field.key] = field.placeholder || "";
     });
 
-    updateData(
-      data.map((card, dayIndex) => {
-        if (dayIndex !== selectedDayIndex) return card;
-        return {
-          ...card,
-          entries: [...card.entries, nextEntry],
-        };
-      })
-    );
-    setSelectedEntryIndex((selectedCard?.entries?.length ?? 1));
-  };
-
-  const removeEntry = () => {
-    if (!allowMultipleEntries) return;
-    if ((selectedCard?.entries?.length ?? 0) <= 1) return;
-
-    updateData(
-      data.map((card, dayIndex) => {
-        if (dayIndex !== selectedDayIndex) return card;
-        return {
-          ...card,
-          entries: card.entries.filter(
-            (_, entryIndex) => entryIndex !== safeSelectedEntryIndex
-          ),
-        };
-      })
-    );
-    setSelectedEntryIndex((prev) => Math.max(0, prev - 1));
-  };
-
-  const updateOffline = (value: boolean) => {
-    updateData(
-      data.map((card, dayIndex) => {
-        if (dayIndex !== selectedDayIndex) return card;
-        return {
-          ...card,
-          isOffline: value,
-        };
-      })
-    );
-  };
+    return {
+      ...fieldPlaceholders,
+      profileText:
+        renderConfig.profileTextPlaceholder || "아티스트명을 입력해 주세요",
+    };
+  }, [renderConfig.formSchema.fields, renderConfig.profileTextPlaceholder]);
 
   return (
-    <aside className="h-full overflow-y-auto border-l border-slate-800 bg-[#0d1117] p-4 text-gray-100">
+    <aside className="h-full overflow-y-auto border-l border-[#d9cec4] bg-timetable-form-bg p-4 text-gray-800">
       <div className="space-y-4">
-        <section className="space-y-3 rounded border border-[#2f3239] bg-[#111317] p-3">
-          <h2 className="text-sm font-semibold text-slate-100">런타임 작성</h2>
-          <p className="text-xs text-slate-400">
-            선택한 요일/회차의 데이터를 편집하면 프리뷰에 즉시 반영됩니다.
+        <section className="rounded-[16px] border-2 border-timetable-card-border bg-timetable-card-bg p-3 shadow-[0_2px_3.4px_rgba(0,0,0,0.08)]">
+          <h2 className="text-base font-bold text-gray-800">v2 Runtime 작성</h2>
+          <p className="mt-1 text-xs text-gray-500">
+            기존 폼 UI 기준으로 시간표 데이터를 편집합니다.
           </p>
-          <div className="grid grid-cols-1 gap-2">
-            <label className="space-y-1 text-xs text-slate-400">
-              <span>테마</span>
+        </section>
+
+        <RuntimeFormTabs
+          activeTab={activeTab}
+          onChangeActiveTab={setActiveTab}
+          isAddons={true}
+        />
+
+        {activeTab === "main" ? (
+          <div className="space-y-4">
+            <section className="rounded-[16px] border-2 border-timetable-card-border bg-timetable-card-bg p-3 shadow-[0_2px_3.4px_rgba(0,0,0,0.08)]">
+              <label className="block text-xs font-semibold text-gray-600">
+                테마 선택
+              </label>
               <select
                 value={currentTheme}
                 onChange={(event) => updateTheme(event.target.value as TTheme)}
-                className="w-full rounded border border-[#3a3d44] bg-[#1a1d23] px-2.5 py-2 text-sm text-gray-100"
+                className="mt-2 h-10 w-full rounded-lg bg-timetable-input-bg px-3 text-sm text-gray-800 outline-none focus:shadow-[inset_0_0_0_2px_#FF9F45]"
               >
                 {themes.map((theme) => (
                   <option key={theme} value={theme}>
@@ -194,178 +111,85 @@ const V2RuntimeForm = () => {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="space-y-1 text-xs text-slate-400">
-              <span>주 시작일(월)</span>
-              <input
-                type="date"
-                value={mondayDateStr}
-                onChange={(event) => updateMondayDate(event.target.value)}
-                className="w-full rounded border border-[#3a3d44] bg-[#1a1d23] px-2.5 py-2 text-sm text-gray-100"
-              />
-            </label>
-          </div>
-        </section>
+            </section>
 
-        <section className="space-y-2 rounded border border-[#2f3239] bg-[#111317] p-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
-            요일 선택
-          </h3>
-          <div className="grid grid-cols-4 gap-2">
-            {v2_TEMPLATE_DAY_KEYS.map((dayKey, index) => {
-              const label = v2_resolveDayLabelByKey({
-                dayKey,
-                dayLabelFormat: renderConfig.dayLabelFormat,
-                streamingDayFormat: renderConfig.streamingDayFormat,
-                fallbackWeekdayOption: renderConfig.weekdayOption,
-              });
-              const isSelected = selectedDayIndex === index;
-              return (
-                <button
-                  key={dayKey}
-                  type="button"
-                  onClick={() => setSelectedDayIndex(index)}
-                  className={`rounded border px-2 py-1.5 text-xs font-semibold ${
-                    isSelected
-                      ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
-                      : "border-[#3a3d44] bg-[#1a1d23] text-slate-300"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-          <label className="mt-2 flex items-center justify-between rounded border border-[#3a3d44] bg-[#1a1d23] px-2.5 py-2 text-xs text-slate-300">
-            <span>오프라인 표시</span>
-            <input
-              type="checkbox"
-              checked={Boolean(selectedCard?.isOffline)}
-              onChange={(event) => updateOffline(event.target.checked)}
+            <RuntimeWeekSelector
+              mondayDateStr={mondayDateStr}
+              onDateChange={updateMondayDate}
             />
-          </label>
-        </section>
 
-        {allowMultipleEntries ? (
-          <section className="space-y-2 rounded border border-[#2f3239] bg-[#111317] p-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
-              회차(Entry)
-            </h3>
-            <div className="flex flex-wrap items-center gap-2">
-              {selectedEntries.map((_, index) => {
-                const isSelected = safeSelectedEntryIndex === index;
-                return (
-                  <button
-                    key={`entry-${index}`}
-                    type="button"
-                    onClick={() => setSelectedEntryIndex(index)}
-                    className={`rounded border px-2 py-1 text-xs font-semibold ${
-                      isSelected
-                        ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
-                        : "border-[#3a3d44] bg-[#1a1d23] text-slate-300"
-                    }`}
-                  >
-                    {index + 1}
-                  </button>
-                );
-              })}
+            <RuntimeInputList
+              data={data}
+              onDataChange={updateData}
+              globalData={globalData}
+              onGlobalDataChange={updateGlobalData}
+              weekdayOption={renderConfig.weekdayOption}
+              cardInputConfig={cardInputConfig}
+              placeholders={placeholders}
+              isMultiple={renderConfig.editorOptions.isMultiple}
+              maxStreamingTimeByDay={Math.max(
+                1,
+                renderConfig.editorOptions.maxStreamingTimeByDay
+              )}
+              isOfflineMemo={true}
+              size="sm"
+            />
+          </div>
+        ) : (
+          <section className="space-y-3 rounded-[16px] border-2 border-timetable-card-border bg-timetable-card-bg p-3 shadow-[0_2px_3.4px_rgba(0,0,0,0.08)]">
+            <h3 className="text-sm font-bold text-gray-800">추가 기능</h3>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-gray-600">
+                Artist 텍스트
+              </label>
+              <TextRenderer
+                height="sm"
+                value={profileText}
+                handleTextChange={updateProfileText}
+                placeholder={renderConfig.profileTextPlaceholder}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={addEntry}
-                disabled={(selectedEntries.length ?? 0) >= maxEntryCount}
-                className="rounded border border-[#3a3d44] bg-[#1a1d23] px-2 py-1 text-xs text-slate-200 disabled:opacity-50"
-              >
-                + 회차
-              </button>
-              <button
-                type="button"
-                onClick={removeEntry}
-                disabled={(selectedEntries.length ?? 0) <= 1}
-                className="rounded border border-rose-500/60 bg-rose-500/10 px-2 py-1 text-xs text-rose-200 disabled:opacity-40"
-              >
-                - 회차
-              </button>
-              <span className="text-[11px] text-slate-400">
-                {selectedEntries.length}/{maxEntryCount}
-              </span>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-gray-600">
+                Memo 텍스트
+              </label>
+              <TextareaRenderer
+                value={memoText}
+                handleTextareaChange={updateMemoText}
+                placeholder="메모를 입력하세요"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-gray-600">
+                프로필 이미지
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block w-full text-xs text-gray-700 file:mr-2 file:rounded-lg file:border file:border-[#d3c8be] file:bg-white file:px-2 file:py-1 file:text-gray-700"
+              />
+              {imageSrc ? (
+                <button
+                  type="button"
+                  onClick={() => updateImageSrc(null)}
+                  className="mt-2 rounded-lg border border-[#d3c8be] bg-white px-2 py-1 text-xs text-gray-700 hover:bg-[#f7efe8]"
+                >
+                  이미지 초기화
+                </button>
+              ) : null}
             </div>
           </section>
-        ) : null}
+        )}
 
-        <V2RuntimeScopeSection
-          scope="entry"
-          scopeLabel={v2_SCOPE_LABELS.entry}
-          fields={groupedFields.entry}
-          getValue={(field) => selectedEntry[field.key]}
-          onChange={(fieldKey, nextValue) =>
-            updateEntryField(fieldKey, nextValue)
-          }
-        />
-        <V2RuntimeScopeSection
-          scope="card"
-          scopeLabel={v2_SCOPE_LABELS.card}
-          fields={groupedFields.card}
-          getValue={(field) =>
-            (selectedCard as Record<string, unknown>)?.[field.key]
-          }
-          onChange={(fieldKey, nextValue) =>
-            updateCardField(fieldKey, nextValue)
-          }
-        />
-        <V2RuntimeScopeSection
-          scope="global"
-          scopeLabel={v2_SCOPE_LABELS.global}
-          fields={groupedFields.global}
-          getValue={(field) => globalData[field.key]}
-          onChange={(fieldKey, nextValue) =>
-            updateGlobalField(fieldKey, nextValue)
-          }
-        />
-
-        <section className="space-y-2 rounded border border-[#2f3239] bg-[#111317] p-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-300">
-            추가 텍스트/이미지
-          </h3>
-          <label className="space-y-1 text-xs text-slate-400">
-            <span>Artist 텍스트</span>
-            <input
-              type="text"
-              value={profileText}
-              onChange={(event) => updateProfileText(event.target.value)}
-              className="w-full rounded border border-[#3a3d44] bg-[#1a1d23] px-2.5 py-2 text-sm text-gray-100"
-              placeholder={renderConfig.profileTextPlaceholder}
-            />
-          </label>
-          <label className="space-y-1 text-xs text-slate-400">
-            <span>Memo 텍스트</span>
-            <textarea
-              rows={3}
-              value={memoText}
-              onChange={(event) => updateMemoText(event.target.value)}
-              className="w-full rounded border border-[#3a3d44] bg-[#1a1d23] px-2.5 py-2 text-sm text-gray-100"
-              placeholder="메모를 입력하세요"
-            />
-          </label>
-          <div className="space-y-1 text-xs text-slate-400">
-            <span>프로필 이미지</span>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              className="block w-full text-xs text-slate-300 file:mr-2 file:rounded file:border file:border-slate-500 file:bg-slate-800 file:px-2 file:py-1 file:text-slate-100"
-            />
-            {imageSrc ? (
-              <button
-                type="button"
-                onClick={() => updateImageSrc(null)}
-                className="rounded border border-slate-500 bg-slate-800 px-2 py-1 text-xs text-slate-200"
-              >
-                이미지 초기화
-              </button>
-            ) : null}
-          </div>
+        <section className="rounded-[16px] border-2 border-timetable-card-border bg-timetable-card-bg p-3 shadow-[0_2px_3.4px_rgba(0,0,0,0.08)]">
+          <p className="text-xs text-gray-500">
+            작성한 값은 자동 저장되며, 즉시 프리뷰에 반영됩니다.
+          </p>
         </section>
       </div>
     </aside>
