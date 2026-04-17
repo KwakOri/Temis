@@ -297,14 +297,28 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         currentTheme: currentTheme || renderConfig.defaultTheme,
       });
       if (!imageUrl) return null;
+      const isBackgroundNode = node.id.toLowerCase().includes("background");
+      const imageContainerStyle: React.CSSProperties = {
+        ...renderableContainerStyle,
+        ...highlightStyle,
+      };
+      if (isBackgroundNode) {
+        imageContainerStyle.left = 0;
+        imageContainerStyle.top = 0;
+        imageContainerStyle.width =
+          cardContainerSizeOverride?.width ??
+          imageContainerStyle.width ??
+          "100%";
+        imageContainerStyle.height =
+          cardContainerSizeOverride?.height ??
+          imageContainerStyle.height ??
+          "100%";
+      }
 
       return (
         <div
           key={node.id}
-          style={{
-            ...renderableContainerStyle,
-            ...highlightStyle,
-          }}
+          style={imageContainerStyle}
           className={node.containerClassName ?? "absolute"}
         >
           <img

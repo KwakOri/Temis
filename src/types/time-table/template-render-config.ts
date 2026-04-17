@@ -165,6 +165,13 @@ export interface V2TemplateAssetMap {
   online_fri: Record<string, string | null>;
   online_sat: Record<string, string | null>;
   online_sun: Record<string, string | null>;
+  multi_mon: Record<string, string | null>;
+  multi_tue: Record<string, string | null>;
+  multi_wed: Record<string, string | null>;
+  multi_thu: Record<string, string | null>;
+  multi_fri: Record<string, string | null>;
+  multi_sat: Record<string, string | null>;
+  multi_sun: Record<string, string | null>;
   offlineByTheme: Record<string, string | null>;
   offline_mon: Record<string, string | null>;
   offline_tue: Record<string, string | null>;
@@ -173,6 +180,13 @@ export interface V2TemplateAssetMap {
   offline_fri: Record<string, string | null>;
   offline_sat: Record<string, string | null>;
   offline_sun: Record<string, string | null>;
+  offlineMemo_mon: Record<string, string | null>;
+  offlineMemo_tue: Record<string, string | null>;
+  offlineMemo_wed: Record<string, string | null>;
+  offlineMemo_thu: Record<string, string | null>;
+  offlineMemo_fri: Record<string, string | null>;
+  offlineMemo_sat: Record<string, string | null>;
+  offlineMemo_sun: Record<string, string | null>;
   profileFrameByTheme: Record<string, string | null>;
   profileBgByTheme: Record<string, string | null>;
   guideByTheme: Record<string, string | null>;
@@ -301,6 +315,7 @@ export interface V2TemplateLayerNode {
   sectionKey?: string;
   visibilityMode?: V2TemplateVisibilityMode;
   isTemplateComponent?: boolean;
+  isVirtual?: boolean;
   children?: V2TemplateLayerNode[];
 }
 
@@ -551,7 +566,9 @@ export interface V2TemplateLayoutConfig {
   profileTextArtistImageStyle?: V2TemplateStyleRecord;
   card: {
     onlineBackgroundContainer?: V2TemplateStyleRecord;
+    multiBackgroundContainer?: V2TemplateStyleRecord;
     offlineBackgroundContainer?: V2TemplateStyleRecord;
+    offlineMemoBackgroundContainer?: V2TemplateStyleRecord;
     streamingDay: V2TemplateStyleRecord;
     streamingDate: V2TemplateStyleRecord;
     streamingTime: V2TemplateStyleRecord;

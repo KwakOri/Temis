@@ -971,7 +971,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateExtraAssetUrl,
     addExtraAssetKey,
     removeExtraAssetKey,
-    toggleCardBackgroundAssetsByDay,
     handleAssetFileUpload,
     handleExtraAssetFileUpload,
     uploadBulkAssetFiles,
@@ -1518,12 +1517,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               assetTheme={assetTheme}
               setAssetTheme={setAssetTheme}
               preferProfileDummyImage={preferProfileDummyImage}
-              useOnlineAssetsByDay={Boolean(
-                renderConfig.editorOptions?.useOnlineAssetsByDay
-              )}
-              useOfflineAssetsByDay={Boolean(
-                renderConfig.editorOptions?.useOfflineAssetsByDay
-              )}
               formSchemaError={formSchemaError}
               formSchemaDiagnostics={formSchemaDiagnostics}
               copyState={copyState}
@@ -1576,12 +1569,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               onRemoveSchemaField={removeFormFieldAt}
               onUpdateSchemaField={updateFormFieldAt}
               onTogglePreferProfileDummyImage={updatePreferProfileDummyImage}
-              onToggleOnlineAssetsByDay={(value) =>
-                toggleCardBackgroundAssetsByDay("online", value)
-              }
-              onToggleOfflineAssetsByDay={(value) =>
-                toggleCardBackgroundAssetsByDay("offline", value)
-              }
               onUploadAssetFile={handleAssetFileUpload}
               onResetAsset={(key, theme) => updateAssetUrl(key, theme, "", null)}
               onCreateExtraAssetKey={(key) =>

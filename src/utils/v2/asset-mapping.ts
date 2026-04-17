@@ -128,6 +128,28 @@ export const v2_suggestAssetKeyByRule = ({
   }
 
   const dayKey = v2_extractDayKeyFromAssetToken(normalizedName);
+  const hasToken = (...tokens: string[]) =>
+    tokens.some((token) => normalizedName.includes(token));
+  if (dayKey && hasToken("offline_memo", "offlinememo", "memo_offline", "memooffline")) {
+    const matched = candidateByNormalized.get(`offlinememo_${dayKey}`);
+    if (matched) {
+      return {
+        key: matched,
+        confidence: 0.95,
+        reason: "offlineMemo + 요일 토큰 규칙으로 매칭했습니다.",
+      };
+    }
+  }
+  if (dayKey && hasToken("multi", "multiple", "online_multi", "onlinemulti")) {
+    const matched = candidateByNormalized.get(`multi_${dayKey}`);
+    if (matched) {
+      return {
+        key: matched,
+        confidence: 0.95,
+        reason: "multi + 요일 토큰 규칙으로 매칭했습니다.",
+      };
+    }
+  }
   if (dayKey && normalizedName.includes("online")) {
     const matched = candidateByNormalized.get(`online_${dayKey}`);
     if (matched) {

@@ -24,6 +24,7 @@ interface DayCardProps {
   offlineToggleInactiveColor?: string;
   children: React.ReactNode;
   offlineMemoContent?: React.ReactNode;
+  statusControls?: React.ReactNode;
   className?: string;
   expandAnimation?: {
     duration?: number;
@@ -39,6 +40,7 @@ export const DayCard: React.FC<DayCardProps> = ({
   offlineToggleLabel = "휴방",
   children,
   offlineMemoContent,
+  statusControls,
   className,
   expandAnimation = {
     duration: 300,
@@ -64,6 +66,8 @@ export const DayCard: React.FC<DayCardProps> = ({
           size={size}
         />
       </div>
+
+      {statusControls ? <div className="pb-2">{statusControls}</div> : null}
 
       {/* 확장 가능한 콘텐츠 영역 */}
       <div

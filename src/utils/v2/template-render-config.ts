@@ -69,6 +69,13 @@ const v2_ASSET_KEYS = [
   "online_fri",
   "online_sat",
   "online_sun",
+  "multi_mon",
+  "multi_tue",
+  "multi_wed",
+  "multi_thu",
+  "multi_fri",
+  "multi_sat",
+  "multi_sun",
   "offlineByTheme",
   "offline_mon",
   "offline_tue",
@@ -77,6 +84,13 @@ const v2_ASSET_KEYS = [
   "offline_fri",
   "offline_sat",
   "offline_sun",
+  "offlineMemo_mon",
+  "offlineMemo_tue",
+  "offlineMemo_wed",
+  "offlineMemo_thu",
+  "offlineMemo_fri",
+  "offlineMemo_sat",
+  "offlineMemo_sun",
   "profileFrameByTheme",
   "profileBgByTheme",
   "guideByTheme",
@@ -369,6 +383,15 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
             sectionKey: "onlineBackgroundContainer",
           },
           {
+            id: "multi-background",
+            label: "MultiBackground",
+            kind: "component",
+            visibilityMode: "always",
+            icon: "image",
+            target: "cardNode:multi-background",
+            sectionKey: "multiBackgroundContainer",
+          },
+          {
             id: "offline-background",
             label: "OfflineBackground",
             kind: "component",
@@ -376,6 +399,15 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
             icon: "image",
             target: "cardNode:offline-background",
             sectionKey: "offlineBackgroundContainer",
+          },
+          {
+            id: "offline-memo-background",
+            label: "OfflineMemoBackground",
+            kind: "component",
+            visibilityMode: "always",
+            icon: "image",
+            target: "cardNode:offline-memo-background",
+            sectionKey: "offlineMemoBackgroundContainer",
           },
           {
             id: "streaming-day",
@@ -529,7 +561,9 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
   instanceTransforms: {},
   nodeOrder: [
     "online-background",
+    "multi-background",
     "offline-background",
+    "offline-memo-background",
     "streaming-day",
     "streaming-date",
     "sub-title",
@@ -547,7 +581,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
         mode: "literal",
         value: "",
       },
-      visibilityMode: "onlineOnly",
+      visibilityMode: "onlineSingleOnly",
       containerStyleKey: "onlineBackgroundContainer",
       colorKey: "SUB_TITLE",
       fontKey: "SUB_TITLE",
@@ -557,6 +591,28 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       },
       fit: "cover",
       alt: "online-card-bg",
+      containerClassName: "absolute pointer-events-none",
+    },
+    "multi-background": {
+      id: "multi-background",
+      label: "MultiBackground",
+      kind: "image",
+      layerId: "multi-background",
+      highlightTarget: "cardNode:multi-background",
+      binding: {
+        mode: "literal",
+        value: "",
+      },
+      visibilityMode: "onlineMultipleOnly",
+      containerStyleKey: "multiBackgroundContainer",
+      colorKey: "SUB_TITLE",
+      fontKey: "SUB_TITLE",
+      assetRef: {
+        source: "builtin",
+        key: "multi_mon",
+      },
+      fit: "cover",
+      alt: "multi-card-bg",
       containerClassName: "absolute pointer-events-none",
     },
     "offline-background": {
@@ -569,7 +625,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
         mode: "literal",
         value: "",
       },
-      visibilityMode: "offlineOnly",
+      visibilityMode: "offlineNoMemoOnly",
       containerStyleKey: "offlineBackgroundContainer",
       colorKey: "SUB_TITLE",
       fontKey: "SUB_TITLE",
@@ -579,6 +635,28 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       },
       fit: "cover",
       alt: "offline-card-bg",
+      containerClassName: "absolute pointer-events-none",
+    },
+    "offline-memo-background": {
+      id: "offline-memo-background",
+      label: "OfflineMemoBackground",
+      kind: "image",
+      layerId: "offline-memo-background",
+      highlightTarget: "cardNode:offline-memo-background",
+      binding: {
+        mode: "literal",
+        value: "",
+      },
+      visibilityMode: "offlineMemoOnly",
+      containerStyleKey: "offlineMemoBackgroundContainer",
+      colorKey: "SUB_TITLE",
+      fontKey: "SUB_TITLE",
+      assetRef: {
+        source: "builtin",
+        key: "offlineMemo_mon",
+      },
+      fit: "cover",
+      alt: "offline-memo-card-bg",
       containerClassName: "absolute pointer-events-none",
     },
     "streaming-day": {
@@ -1587,6 +1665,27 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     online_sun: {
       first: null,
     },
+    multi_mon: {
+      first: null,
+    },
+    multi_tue: {
+      first: null,
+    },
+    multi_wed: {
+      first: null,
+    },
+    multi_thu: {
+      first: null,
+    },
+    multi_fri: {
+      first: null,
+    },
+    multi_sat: {
+      first: null,
+    },
+    multi_sun: {
+      first: null,
+    },
     offlineByTheme: {
       first: null,
     },
@@ -1609,6 +1708,27 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
     offline_sun: {
+      first: null,
+    },
+    offlineMemo_mon: {
+      first: null,
+    },
+    offlineMemo_tue: {
+      first: null,
+    },
+    offlineMemo_wed: {
+      first: null,
+    },
+    offlineMemo_thu: {
+      first: null,
+    },
+    offlineMemo_fri: {
+      first: null,
+    },
+    offlineMemo_sat: {
+      first: null,
+    },
+    offlineMemo_sun: {
       first: null,
     },
     profileFrameByTheme: {
@@ -1658,6 +1778,27 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     online_sun: {
       first: null,
     },
+    multi_mon: {
+      first: null,
+    },
+    multi_tue: {
+      first: null,
+    },
+    multi_wed: {
+      first: null,
+    },
+    multi_thu: {
+      first: null,
+    },
+    multi_fri: {
+      first: null,
+    },
+    multi_sat: {
+      first: null,
+    },
+    multi_sun: {
+      first: null,
+    },
     offlineByTheme: {
       first: null,
     },
@@ -1680,6 +1821,27 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
     offline_sun: {
+      first: null,
+    },
+    offlineMemo_mon: {
+      first: null,
+    },
+    offlineMemo_tue: {
+      first: null,
+    },
+    offlineMemo_wed: {
+      first: null,
+    },
+    offlineMemo_thu: {
+      first: null,
+    },
+    offlineMemo_fri: {
+      first: null,
+    },
+    offlineMemo_sat: {
+      first: null,
+    },
+    offlineMemo_sun: {
       first: null,
     },
     profileFrameByTheme: {
@@ -1772,7 +1934,19 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
         top: 0,
         left: 0,
       },
+      multiBackgroundContainer: {
+        width: 720,
+        height: 560,
+        top: 0,
+        left: 0,
+      },
       offlineBackgroundContainer: {
+        width: 720,
+        height: 560,
+        top: 0,
+        left: 0,
+      },
+      offlineMemoBackgroundContainer: {
         width: 720,
         height: 560,
         top: 0,
@@ -3560,6 +3734,34 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assets.online_sun,
         raw.assets.online_sun
       ),
+      multi_mon: v2_mergeThemeStringMap(
+        normalized.assets.multi_mon,
+        raw.assets.multi_mon
+      ),
+      multi_tue: v2_mergeThemeStringMap(
+        normalized.assets.multi_tue,
+        raw.assets.multi_tue
+      ),
+      multi_wed: v2_mergeThemeStringMap(
+        normalized.assets.multi_wed,
+        raw.assets.multi_wed
+      ),
+      multi_thu: v2_mergeThemeStringMap(
+        normalized.assets.multi_thu,
+        raw.assets.multi_thu
+      ),
+      multi_fri: v2_mergeThemeStringMap(
+        normalized.assets.multi_fri,
+        raw.assets.multi_fri
+      ),
+      multi_sat: v2_mergeThemeStringMap(
+        normalized.assets.multi_sat,
+        raw.assets.multi_sat
+      ),
+      multi_sun: v2_mergeThemeStringMap(
+        normalized.assets.multi_sun,
+        raw.assets.multi_sun
+      ),
       offlineByTheme: v2_mergeThemeStringMap(
         normalized.assets.offlineByTheme,
         raw.assets.offlineByTheme
@@ -3591,6 +3793,34 @@ export const v2_normalizeTemplateRenderConfig = (
       offline_sun: v2_mergeThemeStringMap(
         normalized.assets.offline_sun,
         raw.assets.offline_sun
+      ),
+      offlineMemo_mon: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemo_mon,
+        raw.assets.offlineMemo_mon
+      ),
+      offlineMemo_tue: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemo_tue,
+        raw.assets.offlineMemo_tue
+      ),
+      offlineMemo_wed: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemo_wed,
+        raw.assets.offlineMemo_wed
+      ),
+      offlineMemo_thu: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemo_thu,
+        raw.assets.offlineMemo_thu
+      ),
+      offlineMemo_fri: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemo_fri,
+        raw.assets.offlineMemo_fri
+      ),
+      offlineMemo_sat: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemo_sat,
+        raw.assets.offlineMemo_sat
+      ),
+      offlineMemo_sun: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemo_sun,
+        raw.assets.offlineMemo_sun
       ),
       profileFrameByTheme: v2_mergeThemeStringMap(
         normalized.assets.profileFrameByTheme,
@@ -3657,6 +3887,34 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assetDimensions.online_sun,
         raw.assetDimensions.online_sun
       ),
+      multi_mon: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multi_mon,
+        raw.assetDimensions.multi_mon
+      ),
+      multi_tue: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multi_tue,
+        raw.assetDimensions.multi_tue
+      ),
+      multi_wed: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multi_wed,
+        raw.assetDimensions.multi_wed
+      ),
+      multi_thu: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multi_thu,
+        raw.assetDimensions.multi_thu
+      ),
+      multi_fri: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multi_fri,
+        raw.assetDimensions.multi_fri
+      ),
+      multi_sat: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multi_sat,
+        raw.assetDimensions.multi_sat
+      ),
+      multi_sun: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multi_sun,
+        raw.assetDimensions.multi_sun
+      ),
       offlineByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.offlineByTheme,
         raw.assetDimensions.offlineByTheme
@@ -3688,6 +3946,34 @@ export const v2_normalizeTemplateRenderConfig = (
       offline_sun: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.offline_sun,
         raw.assetDimensions.offline_sun
+      ),
+      offlineMemo_mon: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemo_mon,
+        raw.assetDimensions.offlineMemo_mon
+      ),
+      offlineMemo_tue: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemo_tue,
+        raw.assetDimensions.offlineMemo_tue
+      ),
+      offlineMemo_wed: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemo_wed,
+        raw.assetDimensions.offlineMemo_wed
+      ),
+      offlineMemo_thu: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemo_thu,
+        raw.assetDimensions.offlineMemo_thu
+      ),
+      offlineMemo_fri: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemo_fri,
+        raw.assetDimensions.offlineMemo_fri
+      ),
+      offlineMemo_sat: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemo_sat,
+        raw.assetDimensions.offlineMemo_sat
+      ),
+      offlineMemo_sun: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemo_sun,
+        raw.assetDimensions.offlineMemo_sun
       ),
       profileFrameByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.profileFrameByTheme,
@@ -3765,9 +4051,17 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.layout.card.onlineBackgroundContainer,
         cardLayoutSource.onlineBackgroundContainer
       );
+      normalized.layout.card.multiBackgroundContainer = v2_mergeStyleRecord(
+        normalized.layout.card.multiBackgroundContainer,
+        cardLayoutSource.multiBackgroundContainer
+      );
       normalized.layout.card.offlineBackgroundContainer = v2_mergeStyleRecord(
         normalized.layout.card.offlineBackgroundContainer,
         cardLayoutSource.offlineBackgroundContainer
+      );
+      normalized.layout.card.offlineMemoBackgroundContainer = v2_mergeStyleRecord(
+        normalized.layout.card.offlineMemoBackgroundContainer,
+        cardLayoutSource.offlineMemoBackgroundContainer
       );
       normalized.layout.card.streamingDay = v2_mergeStyleRecord(
         normalized.layout.card.streamingDay,

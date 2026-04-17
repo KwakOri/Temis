@@ -537,6 +537,66 @@ const RuntimeInputList: React.FC<RuntimeInputListProps> = ({
     onDataChange(newData);
   };
 
+  const handleMultipleStatusToggle = (dayIndex: number) => {
+    const newData = [...data];
+    const targetDay = newData[dayIndex];
+    if (!targetDay) return;
+
+    const currentEntries = Array.isArray(targetDay.entries)
+      ? [...targetDay.entries]
+      : [];
+    const isMultipleActive = currentEntries.length > 1;
+
+    if (isMultipleActive) {
+      const primaryEntry =
+        currentEntries[0] ?? createInitialEntryFromConfig({ cardInputConfig });
+      newData[dayIndex] = {
+        ...targetDay,
+        entries: [primaryEntry],
+      };
+      onDataChange(newData);
+      return;
+    }
+
+    const primaryEntry =
+      currentEntries[0] ?? createInitialEntryFromConfig({ cardInputConfig });
+    const secondaryEntry = { ...primaryEntry };
+    newData[dayIndex] = {
+      ...targetDay,
+      // 다회차는 온라인 상태에서만 유효한 status라서 자동으로 온라인으로 맞춘다.
+      isOffline: false,
+      entries: [primaryEntry, secondaryEntry],
+    };
+    onDataChange(newData);
+  };
+
+  const handleOfflineMemoStatusToggle = (dayIndex: number) => {
+    const newData = [...data];
+    const targetDay = newData[dayIndex];
+    if (!targetDay) return;
+
+    const hasOfflineMemo =
+      typeof targetDay.offlineMemo === "string" &&
+      targetDay.offlineMemo.trim().length > 0;
+
+    if (hasOfflineMemo) {
+      newData[dayIndex] = {
+        ...targetDay,
+        offlineMemo: "",
+      };
+      onDataChange(newData);
+      return;
+    }
+
+    newData[dayIndex] = {
+      ...targetDay,
+      // 오프라인 메모 status는 오프라인 상태를 전제로 한다.
+      isOffline: true,
+      offlineMemo: "휴방 메모",
+    };
+    onDataChange(newData);
+  };
+
   // 엔트리 추가 핸들러 (최대 개수 제한 포함)
   const handleAddEntry = (dayIndex: number) => {
     const currentEntries = data[dayIndex].entries;
@@ -649,6 +709,42 @@ const RuntimeInputList: React.FC<RuntimeInputListProps> = ({
           onOfflineToggle={() => handleOfflineToggle(dayIndex)}
           offlineToggleLabel={offlineToggleConfig.label}
           expandAnimation={expandAnimation}
+          statusControls={
+            <div className="flex items-center justify-end gap-2">
+              <SubToggle
+                active={!day.isOffline && day.entries.length > 1}
+                onToggle={() => handleMultipleStatusToggle(dayIndex)}
+                label="다회차"
+                variant="primary"
+                size="sm"
+                ariaLabel="다회차 상태 토글"
+                title={
+                  !day.isOffline && day.entries.length > 1
+                    ? "다회차 ON"
+                    : "다회차 OFF"
+                }
+              />
+              <SubToggle
+                active={
+                  day.isOffline &&
+                  typeof day.offlineMemo === "string" &&
+                  day.offlineMemo.trim().length > 0
+                }
+                onToggle={() => handleOfflineMemoStatusToggle(dayIndex)}
+                label="오프메모"
+                variant="offline"
+                size="sm"
+                ariaLabel="오프라인 메모 상태 토글"
+                title={
+                  day.isOffline &&
+                  typeof day.offlineMemo === "string" &&
+                  day.offlineMemo.trim().length > 0
+                    ? "오프라인 메모 ON"
+                    : "오프라인 메모 OFF"
+                }
+              />
+            </div>
+          }
           offlineMemoContent={
             isOfflineMemo && day.isOffline ? (
               <OfflineMemoCard

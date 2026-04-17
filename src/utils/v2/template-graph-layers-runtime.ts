@@ -1,11 +1,14 @@
 import {
+  V2TemplateCardNode,
   V2TemplateLayerComponentKey,
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
+  V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import {
   v2_getRuntimeSceneNodes,
+  v2_getRuntimeCardStructureByComponentId,
 } from "@/utils/v2/template-graph-runtime";
 
 const v2_inferLayerIcon = (kind: string): V2TemplateLayerIconKey => {
@@ -33,6 +36,125 @@ const v2_inferComponentKeyFromLayerId = (
   if (layerId === "top-object") return "topObject";
   if (layerId === "profile") return "profile";
   return undefined;
+};
+
+const v2_cardNodeLayerId = (node: V2TemplateCardNode): string =>
+  typeof node.layerId === "string" && node.layerId.trim().length > 0
+    ? node.layerId
+    : node.id;
+
+const v2_getCardNodeLayerIcon = (
+  node: V2TemplateCardNode
+): V2TemplateLayerIconKey => {
+  if (node.kind === "image") return "image";
+  if (node.binding.mode === "computed") return "calendar";
+  return "text";
+};
+
+const v2_getVisibilityLabel = (
+  visibilityMode: V2TemplateVisibilityMode | undefined
+): string | null => {
+  if (!visibilityMode || visibilityMode === "always") return null;
+  if (visibilityMode === "onlineOnly") return "온라인";
+  if (visibilityMode === "offlineOnly") return "오프라인";
+  if (visibilityMode === "onlineSingleOnly") return "온라인/단회차";
+  if (visibilityMode === "onlineMultipleOnly") return "온라인/다회차";
+  if (visibilityMode === "offlineMemoOnly") return "오프라인/메모";
+  if (visibilityMode === "offlineNoMemoOnly") return "오프라인/메모없음";
+  return visibilityMode;
+};
+
+type V2CardStatusGroupKey =
+  | "always"
+  | "online"
+  | "multi"
+  | "offline"
+  | "offlineMemo";
+
+const v2_CARD_STATUS_GROUP_ORDER: V2CardStatusGroupKey[] = [
+  "always",
+  "online",
+  "multi",
+  "offline",
+  "offlineMemo",
+];
+
+const v2_CARD_STATUS_GROUP_LABEL: Record<V2CardStatusGroupKey, string> = {
+  always: "공통",
+  online: "온라인",
+  multi: "다회차",
+  offline: "오프라인",
+  offlineMemo: "오프라인 메모",
+};
+
+const v2_resolveCardStatusGroupKey = (
+  visibilityMode: V2TemplateVisibilityMode | undefined
+): V2CardStatusGroupKey => {
+  if (!visibilityMode || visibilityMode === "always") return "always";
+  if (visibilityMode === "onlineOnly" || visibilityMode === "onlineSingleOnly") {
+    return "online";
+  }
+  if (visibilityMode === "onlineMultipleOnly") return "multi";
+  if (visibilityMode === "offlineMemoOnly") return "offlineMemo";
+  if (visibilityMode === "offlineOnly" || visibilityMode === "offlineNoMemoOnly") {
+    return "offline";
+  }
+  return "always";
+};
+
+const v2_buildCardInstanceChildLayerNodes = ({
+  renderConfig,
+  instanceLayerId,
+  componentId,
+}: {
+  renderConfig: V2TemplateRenderConfig;
+  instanceLayerId: string;
+  componentId: string;
+}): V2TemplateLayerNode[] => {
+  const cardStructure = v2_getRuntimeCardStructureByComponentId(
+    renderConfig,
+    componentId
+  );
+  if (!cardStructure || cardStructure.nodeOrder.length === 0) return [];
+
+  const groupedNodes = new Map<V2CardStatusGroupKey, V2TemplateLayerNode[]>();
+  v2_CARD_STATUS_GROUP_ORDER.forEach((groupKey) => {
+    groupedNodes.set(groupKey, []);
+  });
+
+  cardStructure.nodeOrder
+    .map((nodeId) => cardStructure.nodes[nodeId])
+    .filter((node): node is V2TemplateCardNode => Boolean(node))
+    .forEach((node) => {
+      const groupKey = v2_resolveCardStatusGroupKey(node.visibilityMode);
+      const groupNodes = groupedNodes.get(groupKey);
+      if (!groupNodes) return;
+      const baseLayerId = v2_cardNodeLayerId(node);
+      const visibilityLabel = v2_getVisibilityLabel(node.visibilityMode);
+      groupNodes.push({
+        id: `${instanceLayerId}::status:${groupKey}::${baseLayerId}`,
+        label: visibilityLabel ? `${node.label} (${visibilityLabel})` : node.label,
+        kind: "component",
+        icon: v2_getCardNodeLayerIcon(node),
+        ...(node.highlightTarget ? { target: node.highlightTarget } : {}),
+        sectionKey: node.containerStyleKey,
+        visibilityMode: node.visibilityMode,
+        isVirtual: true,
+      });
+    });
+
+  return v2_CARD_STATUS_GROUP_ORDER.map((groupKey) => {
+    const children = groupedNodes.get(groupKey) ?? [];
+    return {
+      id: `${instanceLayerId}::status:${groupKey}`,
+      label: v2_CARD_STATUS_GROUP_LABEL[groupKey],
+      kind: "group" as const,
+      icon: "group" as const,
+      visibilityMode: "always" as const,
+      isVirtual: true,
+      children,
+    };
+  }).filter((groupNode) => groupNode.children.length > 0);
 };
 
 export const v2_getRuntimeLayerTree = (
@@ -72,6 +194,11 @@ export const v2_getRuntimeLayerTree = (
             ? instanceNode.instanceId
             : String(index);
         const layerId = instanceNode.layerId ?? instanceNode.id;
+        const instanceChildLayerNodes = v2_buildCardInstanceChildLayerNodes({
+          renderConfig,
+          instanceLayerId: layerId,
+          componentId: instanceNode.componentId,
+        });
         return {
           id: layerId,
           label: instanceNode.label,
@@ -80,6 +207,9 @@ export const v2_getRuntimeLayerTree = (
           target: `cardInstance:${instanceId}`,
           sectionKey: "grid",
           visibilityMode: instanceNode.visibilityMode ?? "always",
+          ...(instanceChildLayerNodes.length > 0
+            ? { children: instanceChildLayerNodes }
+            : {}),
         };
       });
       return {

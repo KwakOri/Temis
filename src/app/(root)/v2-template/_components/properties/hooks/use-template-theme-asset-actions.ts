@@ -287,6 +287,8 @@ const v2_CARD_BACKGROUND_VARIANTS = {
   online: {
     builtinAssetKey: "onlineByTheme" as const,
     layerTarget: "cardNode:online-background",
+    expectedVisibilityModes: ["onlineOnly", "onlineSingleOnly"] as const,
+    editorOptionByDayKey: "useOnlineAssetsByDay" as const,
     dayAssetKeyByDay: {
       mon: "online_mon",
       tue: "online_tue",
@@ -297,9 +299,26 @@ const v2_CARD_BACKGROUND_VARIANTS = {
       sun: "online_sun",
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
+  multi: {
+    builtinAssetKey: null,
+    layerTarget: "cardNode:multi-background",
+    expectedVisibilityModes: ["onlineMultipleOnly"] as const,
+    editorOptionByDayKey: null,
+    dayAssetKeyByDay: {
+      mon: "multi_mon",
+      tue: "multi_tue",
+      wed: "multi_wed",
+      thu: "multi_thu",
+      fri: "multi_fri",
+      sat: "multi_sat",
+      sun: "multi_sun",
+    } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
+  },
   offline: {
     builtinAssetKey: "offlineByTheme" as const,
     layerTarget: "cardNode:offline-background",
+    expectedVisibilityModes: ["offlineOnly", "offlineNoMemoOnly"] as const,
+    editorOptionByDayKey: "useOfflineAssetsByDay" as const,
     dayAssetKeyByDay: {
       mon: "offline_mon",
       tue: "offline_tue",
@@ -308,6 +327,21 @@ const v2_CARD_BACKGROUND_VARIANTS = {
       fri: "offline_fri",
       sat: "offline_sat",
       sun: "offline_sun",
+    } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
+  },
+  offlineMemo: {
+    builtinAssetKey: null,
+    layerTarget: "cardNode:offline-memo-background",
+    expectedVisibilityModes: ["offlineMemoOnly"] as const,
+    editorOptionByDayKey: null,
+    dayAssetKeyByDay: {
+      mon: "offlineMemo_mon",
+      tue: "offlineMemo_tue",
+      wed: "offlineMemo_wed",
+      thu: "offlineMemo_thu",
+      fri: "offlineMemo_fri",
+      sat: "offlineMemo_sat",
+      sun: "offlineMemo_sun",
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
 };
@@ -381,12 +415,22 @@ const v2_isCardBackgroundNodeForVariant = (
     return true;
   }
   const assetRef = node.meta?.assetRef;
-  const expectedVisibility = mode === "online" ? "onlineOnly" : "offlineOnly";
-  return (
-    assetRef?.source === "builtin" &&
-    assetRef.key === variant.builtinAssetKey &&
-    node.visibilityMode === expectedVisibility
-  );
+  if (assetRef?.source === "builtin" && variant.builtinAssetKey) {
+    if (
+      assetRef.key === variant.builtinAssetKey &&
+      variant.expectedVisibilityModes.includes(
+        (node.visibilityMode ?? "always") as
+          (typeof variant.expectedVisibilityModes)[number]
+      )
+    ) {
+      return true;
+    }
+  }
+  if (assetRef?.source === "builtin") {
+    const keyPrefix = mode === "offlineMemo" ? "offlineMemo_" : `${mode}_`;
+    return assetRef.key.startsWith(keyPrefix);
+  }
+  return false;
 };
 
 const useTemplateThemeAssetActions = ({
@@ -955,10 +999,10 @@ const useTemplateThemeAssetActions = ({
         graphNodesChanged = true;
       });
 
-      const editorOptionsChanged =
-        mode === "online"
-          ? Boolean(prev.editorOptions.useOnlineAssetsByDay) !== enabled
-          : Boolean(prev.editorOptions.useOfflineAssetsByDay) !== enabled;
+      const optionKey = v2_CARD_BACKGROUND_VARIANTS[mode].editorOptionByDayKey;
+      const editorOptionsChanged = optionKey
+        ? Boolean(prev.editorOptions[optionKey]) !== enabled
+        : false;
 
       if (!graphNodesChanged && !editorOptionsChanged) {
         return prev;
@@ -966,16 +1010,14 @@ const useTemplateThemeAssetActions = ({
 
       return {
         ...prev,
-        editorOptions:
-          mode === "online"
-            ? {
+        ...(optionKey
+          ? {
+              editorOptions: {
                 ...prev.editorOptions,
-                useOnlineAssetsByDay: enabled,
-              }
-            : {
-                ...prev.editorOptions,
-                useOfflineAssetsByDay: enabled,
+                [optionKey]: enabled,
               },
+            }
+          : {}),
         ...(graphNodesChanged
           ? {
               graph: {

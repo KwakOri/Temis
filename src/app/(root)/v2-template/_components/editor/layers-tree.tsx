@@ -302,6 +302,7 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
     parentId: V2LayerParentId,
     ancestorHidden = false
   ): React.ReactNode => {
+    const isVirtualNode = node.isVirtual === true;
     const hasChildren = Boolean(node.children?.length);
     const isOpen = expanded[node.id] ?? false;
     const ChevronIcon = isOpen ? ChevronDown : ChevronRight;
@@ -348,7 +349,7 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
     const childOrderedIds = getOrderedChildren(node.id, node.children ?? []).map(
       (layerNode) => layerNode.id
     );
-    const isReorderable = node.target !== undefined || hasChildren;
+    const isReorderable = !isVirtualNode && (node.target !== undefined || hasChildren);
     const canDropInside = node.kind === "group";
     const isExtractableComponentInstance =
       Boolean(extractableComponentInstanceLayerIdSet?.has(node.id)) &&
@@ -569,6 +570,7 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
           }}
           style={{ paddingLeft: `${depth * 14 + 8}px` }}
           onContextMenu={(event) => {
+            if (isVirtualNode) return;
             openNodeContextMenu({ event, node });
           }}
           onMouseEnter={() => {
@@ -744,24 +746,32 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
           >
             <ArrowUpRight className="h-3 w-3" />
           </button>
-          <button
-            type="button"
-            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-[#2a2f3a] ${
-              isInheritedHidden ? "text-[#5d6473]" : "text-[#99a8c9]"
-            }`}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onToggleLayerHidden(node.id);
-            }}
-            draggable={false}
-            aria-label={isLayerHidden(node.id) ? `${node.label} 보이기` : `${node.label} 숨기기`}
-            title={isLayerHidden(node.id) ? "보이기" : "숨기기"}
-          >
-            <VisibilityIcon className="h-3.5 w-3.5" />
-          </button>
+          {isVirtualNode ? (
+            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[#5d6473]">
+              <VisibilityIcon className="h-3.5 w-3.5" />
+            </span>
+          ) : (
+            <button
+              type="button"
+              className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-[#2a2f3a] ${
+                isInheritedHidden ? "text-[#5d6473]" : "text-[#99a8c9]"
+              }`}
+              onMouseDown={(event) => {
+                event.stopPropagation();
+              }}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleLayerHidden(node.id);
+              }}
+              draggable={false}
+              aria-label={
+                isLayerHidden(node.id) ? `${node.label} 보이기` : `${node.label} 숨기기`
+              }
+              title={isLayerHidden(node.id) ? "보이기" : "숨기기"}
+            >
+              <VisibilityIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
         {isDropTargetInside && (
           <div

@@ -12,15 +12,11 @@ interface TemplateAssetsTabProps {
   themeOptions: string[];
   renderConfig: V2TemplateRenderConfig;
   preferProfileDummyImage: boolean;
-  useOnlineAssetsByDay: boolean;
-  useOfflineAssetsByDay: boolean;
   assetKeys: V2TemplateBuiltinAssetKey[];
   assetLabels: Record<V2TemplateBuiltinAssetKey, string>;
   extraAssetKeys: string[];
   setAssetTheme: (theme: string) => void;
   onTogglePreferProfileDummyImage: (value: boolean) => void;
-  onToggleOnlineAssetsByDay: (value: boolean) => void;
-  onToggleOfflineAssetsByDay: (value: boolean) => void;
   onUploadBuiltinFile: (
     key: V2TemplateBuiltinAssetKey,
     theme: string,
@@ -65,41 +61,16 @@ type V2BulkAiSuggestionResponse = {
   }>;
 };
 
-const v2_CARD_DAY_ASSET_KEYS = {
-  online: [
-    "online_mon",
-    "online_tue",
-    "online_wed",
-    "online_thu",
-    "online_fri",
-    "online_sat",
-    "online_sun",
-  ] as const satisfies ReadonlyArray<V2TemplateBuiltinAssetKey>,
-  offline: [
-    "offline_mon",
-    "offline_tue",
-    "offline_wed",
-    "offline_thu",
-    "offline_fri",
-    "offline_sat",
-    "offline_sun",
-  ] as const satisfies ReadonlyArray<V2TemplateBuiltinAssetKey>,
-};
-
 const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   assetTheme,
   themeOptions,
   renderConfig,
   preferProfileDummyImage,
-  useOnlineAssetsByDay,
-  useOfflineAssetsByDay,
   assetKeys,
   assetLabels,
   extraAssetKeys,
   setAssetTheme,
   onTogglePreferProfileDummyImage,
-  onToggleOnlineAssetsByDay,
-  onToggleOfflineAssetsByDay,
   onUploadBuiltinFile,
   onResetBuiltinAsset,
   onCreateExtraAssetKey,
@@ -125,23 +96,7 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
     () => [...extraAssetKeys].sort((a, b) => a.localeCompare(b)),
     [extraAssetKeys]
   );
-  const resolvedBuiltinAssetKeys = React.useMemo(
-    () =>
-      assetKeys.flatMap((key) => {
-        if (key === "onlineByTheme") {
-          return useOnlineAssetsByDay
-            ? [...v2_CARD_DAY_ASSET_KEYS.online]
-            : [key];
-        }
-        if (key === "offlineByTheme") {
-          return useOfflineAssetsByDay
-            ? [...v2_CARD_DAY_ASSET_KEYS.offline]
-            : [key];
-        }
-        return [key];
-      }),
-    [assetKeys, useOnlineAssetsByDay, useOfflineAssetsByDay]
-  );
+  const resolvedBuiltinAssetKeys = React.useMemo(() => [...assetKeys], [assetKeys]);
   const allAssetKeys = React.useMemo(
     () => [...resolvedBuiltinAssetKeys, ...sortedExtraAssetKeys],
     [resolvedBuiltinAssetKeys, sortedExtraAssetKeys]
@@ -327,27 +282,11 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
       </label>
 
       <div className="space-y-2 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">
-        <h4 className="text-sm font-semibold text-gray-200">요일별 카드 배경 설정</h4>
+        <h4 className="text-sm font-semibold text-gray-200">카드 배경 상태 저장 구조</h4>
         <p className="text-[11px] text-gray-400">
-          OFF면 기본 에셋(`온라인 카드`/`오프라인 카드`)이 7일에 공통 적용됩니다.
-          ON이면 `online_mon~sun`, `offline_mon~sun` 키를 사용합니다.
+          카드 배경은 `online/multi/offline/offlineMemo x 7요일`(총 28개)로 개별 저장됩니다.
+          런타임 UI는 온라인/오프라인 기본 흐름을 유지하되, 자산 데이터는 상태별로 분리 관리됩니다.
         </p>
-        <label className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#14161c] px-3 py-2">
-          <span className="text-xs text-gray-200">online assets 개별 설정</span>
-          <input
-            type="checkbox"
-            checked={useOnlineAssetsByDay}
-            onChange={(event) => onToggleOnlineAssetsByDay(event.target.checked)}
-          />
-        </label>
-        <label className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#14161c] px-3 py-2">
-          <span className="text-xs text-gray-200">offline assets 개별 설정</span>
-          <input
-            type="checkbox"
-            checked={useOfflineAssetsByDay}
-            onChange={(event) => onToggleOfflineAssetsByDay(event.target.checked)}
-          />
-        </label>
       </div>
 
       <div className="space-y-2 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">

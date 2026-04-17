@@ -136,7 +136,7 @@ const tryOpenAiSuggest = async ({
               fileNames,
               candidateKeys,
               instruction:
-                "Prefer exact or day-specific matches (online_mon..sun/offline_mon..sun). Use null when uncertain.",
+                "Prefer exact or day-specific matches (online_*/multi_*/offline_*/offlineMemo_*). Use null when uncertain.",
             }),
           },
         ],

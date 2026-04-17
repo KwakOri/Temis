@@ -289,6 +289,13 @@ const TimeTableGrid: React.FC<{
     }
     return fallbackIndex;
   };
+  const isCardInstanceHidden = (instance: V2TemplateSceneComponentInstanceNode) => {
+    const instanceLayerId =
+      typeof instance.layerId === "string" && instance.layerId.trim().length > 0
+        ? instance.layerId
+        : instance.id;
+    return isLayerHidden(instanceLayerId);
+  };
 
   if (isLayerHidden("grid")) return null;
 
@@ -306,6 +313,7 @@ const TimeTableGrid: React.FC<{
         className="absolute"
       >
         {runtimeInstances.map((instance, index) => {
+          if (isCardInstanceHidden(instance)) return null;
           const dataIndex = resolveDataIndex(instance, index);
           const time = data[dataIndex];
           const weekDate = weekDates[dataIndex];
@@ -376,6 +384,7 @@ const TimeTableGrid: React.FC<{
           style={{ columnGap }}
         >
           {topRowInstances.map((instance, localIndex) => {
+            if (isCardInstanceHidden(instance)) return null;
             const index = localIndex;
             const dataIndex = resolveDataIndex(instance, index);
             const time = data[dataIndex];
@@ -409,6 +418,7 @@ const TimeTableGrid: React.FC<{
           style={{ columnGap }}
         >
           {bottomRowInstances.map((instance, localIndex) => {
+            if (isCardInstanceHidden(instance)) return null;
             const index = bottomRowIndexOffset + localIndex;
             const dataIndex = resolveDataIndex(instance, index);
             const time = data[dataIndex];
@@ -453,6 +463,11 @@ const TimeTableGrid: React.FC<{
     const instance = runtimeInstances[itemIndex];
     if (!instance) {
       slotNodes.push(<div key={`grid3x3-missing-${slot}`} />);
+      continue;
+    }
+    if (isCardInstanceHidden(instance)) {
+      slotNodes.push(<div key={`grid3x3-hidden-${slot}`} />);
+      itemIndex += 1;
       continue;
     }
 
