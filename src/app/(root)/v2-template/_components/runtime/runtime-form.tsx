@@ -3,6 +3,7 @@ import {
   useTemplateRuntimeData,
   useTemplateRuntimeUIContext,
 } from "@/contexts/v2/template-runtime-ui-context";
+import { cn } from "@/lib/utils";
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import { CardInputConfig, TPlaceholders } from "@/types/time-table/data";
 import { TTheme } from "@/types/time-table/theme";
@@ -17,7 +18,11 @@ import TextareaRenderer from "./form-ui/field-renderers/textarea-renderer";
 import RuntimeFormCard from "./form-ui/ui/form-card";
 import RuntimeProfileImageSelector from "./form-ui/ui/profile-image-selector";
 
-const V2RuntimeForm = () => {
+interface V2RuntimeFormProps {
+  embedded?: boolean;
+}
+
+const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const {
     data,
@@ -171,7 +176,12 @@ const V2RuntimeForm = () => {
 
   return (
     <>
-      <aside className="h-full overflow-y-auto border-l border-[#d9cec4] bg-timetable-form-bg text-gray-800">
+      <aside
+        className={cn(
+          "h-full overflow-y-auto bg-timetable-form-bg text-gray-800",
+          embedded ? "border-0" : "border-l border-[#d9cec4]"
+        )}
+      >
         <RuntimeFormTabs
           activeTab={activeTab}
           onChangeActiveTab={setActiveTab}

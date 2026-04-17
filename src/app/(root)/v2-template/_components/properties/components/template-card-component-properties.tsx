@@ -8,7 +8,6 @@ import {
 } from "@/types/time-table/template-render-config";
 
 interface TemplateCardComponentPropertiesProps {
-  instanceMode: "component" | "detached";
   instanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
   instances: Array<{
     instanceId: string;
@@ -20,7 +19,6 @@ interface TemplateCardComponentPropertiesProps {
     duplicateDayKeys: V2TemplateDayKey[];
     missingDayKeys: V2TemplateDayKey[];
   };
-  onChangeInstanceMode: (value: "component" | "detached") => void;
   onAppendTextNode: () => void;
   onAppendFlexibleTextNode: () => void;
   onAppendImageNode: () => void;
@@ -32,11 +30,9 @@ interface TemplateCardComponentPropertiesProps {
 }
 
 const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesProps> = ({
-  instanceMode,
   instanceTransforms,
   instances,
   diagnostics,
-  onChangeInstanceMode,
   onAppendTextNode,
   onAppendFlexibleTextNode,
   onAppendImageNode,
@@ -60,32 +56,13 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
       <div className="flex items-center justify-between gap-2">
         <h5 className="text-xs font-semibold text-gray-200">Card Component</h5>
         <span className="rounded border border-[#3f6ad8] bg-[#1a2b57] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#b9ccff]">
-          Component
+          Detached
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 items-center">
-        <label className="text-xs text-gray-400">인스턴스 모드</label>
-        <select
-          value={instanceMode}
-          onChange={(event) =>
-            onChangeInstanceMode(
-              event.target.value === "detached" ? "detached" : "component"
-            )
-          }
-          className="px-2 py-2 rounded border border-[#3a3d44] bg-[#2a2d33] text-sm text-gray-100"
-        >
-          <option value="component" disabled={instanceMode === "detached"}>
-            공통 컴포넌트
-          </option>
-          <option value="detached">개별 인스턴스</option>
-        </select>
-      </div>
-      {instanceMode === "detached" ? (
-        <p className="text-[11px] text-amber-300">
-          개별 인스턴스 분해 상태입니다. 이 모드는 되돌릴 수 없습니다.
-        </p>
-      ) : null}
+      <p className="text-[11px] text-[#9ec1ff]">
+        v2 카드 컴포넌트는 항상 개별 인스턴스(28개 분리) 기준으로 동작합니다.
+      </p>
 
       <div className="grid grid-cols-3 gap-2">
         <button
@@ -111,137 +88,135 @@ const TemplateCardComponentProperties: React.FC<TemplateCardComponentPropertiesP
         </button>
       </div>
 
-      {instanceMode === "detached" ? (
-        <div className="space-y-2">
-          {diagnostics &&
-          (diagnostics.duplicateInstanceIds.length > 0 ||
-            diagnostics.duplicateDayKeys.length > 0 ||
-            diagnostics.missingDayKeys.length > 0) ? (
-            <div className="rounded border border-[#5e4a26] bg-[#2b2418] px-2 py-1.5 text-[11px] text-[#f5d58d] space-y-1">
-              {diagnostics.duplicateInstanceIds.length > 0 ? (
-                <p>
-                  중복 instanceId: {diagnostics.duplicateInstanceIds.join(", ")}
-                </p>
-              ) : null}
-              {diagnostics.duplicateDayKeys.length > 0 ? (
-                <p>중복 dayKey: {diagnostics.duplicateDayKeys.join(", ")}</p>
-              ) : null}
-              {diagnostics.missingDayKeys.length > 0 ? (
-                <p>누락 dayKey: {diagnostics.missingDayKeys.join(", ")}</p>
-              ) : null}
-            </div>
-          ) : null}
-          <p className="text-[11px] text-gray-400">
-            카드 1~7 각각의 개별 보정값(X/Y/회전/스케일/불투명도)을 조정합니다.
-          </p>
-          <div className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_1fr] gap-2 items-center text-[11px] text-gray-500">
-            <span />
-            <span>X</span>
-            <span>Y</span>
-            <span>R</span>
-            <span>S</span>
-            <span>O</span>
+      <div className="space-y-2">
+        {diagnostics &&
+        (diagnostics.duplicateInstanceIds.length > 0 ||
+          diagnostics.duplicateDayKeys.length > 0 ||
+          diagnostics.missingDayKeys.length > 0) ? (
+          <div className="rounded border border-[#5e4a26] bg-[#2b2418] px-2 py-1.5 text-[11px] text-[#f5d58d] space-y-1">
+            {diagnostics.duplicateInstanceIds.length > 0 ? (
+              <p>
+                중복 instanceId: {diagnostics.duplicateInstanceIds.join(", ")}
+              </p>
+            ) : null}
+            {diagnostics.duplicateDayKeys.length > 0 ? (
+              <p>중복 dayKey: {diagnostics.duplicateDayKeys.join(", ")}</p>
+            ) : null}
+            {diagnostics.missingDayKeys.length > 0 ? (
+              <p>누락 dayKey: {diagnostics.missingDayKeys.join(", ")}</p>
+            ) : null}
           </div>
-          {uniqueInstances.length === 0 ? (
-            <div className="rounded border border-[#3a3d44] bg-[#22252b] px-2 py-2 text-[11px] text-gray-400">
-              현재 연결된 Card 인스턴스가 없어 개별 보정을 표시할 수 없습니다.
-            </div>
-          ) : null}
-          {uniqueInstances.map((instance) => {
-            const key = instance.instanceId;
-            const transform = instanceTransforms[key] ?? {};
-            const offsetX =
-              typeof transform.offsetX === "number" ? transform.offsetX : 0;
-            const offsetY =
-              typeof transform.offsetY === "number" ? transform.offsetY : 0;
-            const rotateDeg =
-              typeof transform.rotateDeg === "number" ? transform.rotateDeg : 0;
-            const scale = typeof transform.scale === "number" ? transform.scale : 1;
-            const opacity =
-              typeof transform.opacity === "number" ? transform.opacity : 1;
-
-            return (
-              <div
-                key={key}
-                className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_1fr] gap-2 items-center"
-              >
-                <span className="text-xs text-gray-300">{instance.label}</span>
-                <input
-                  type="number"
-                  value={offsetX}
-                  onChange={(event) =>
-                    onUpdateInstanceTransform(
-                      key,
-                      "offsetX",
-                      Number(event.target.value)
-                    )
-                  }
-                  className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                  placeholder="X"
-                />
-                <input
-                  type="number"
-                  value={offsetY}
-                  onChange={(event) =>
-                    onUpdateInstanceTransform(
-                      key,
-                      "offsetY",
-                      Number(event.target.value)
-                    )
-                  }
-                  className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                  placeholder="Y"
-                />
-                <input
-                  type="number"
-                  step="0.1"
-                  value={rotateDeg}
-                  onChange={(event) =>
-                    onUpdateInstanceTransform(
-                      key,
-                      "rotateDeg",
-                      Number(event.target.value)
-                    )
-                  }
-                  className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                  placeholder="deg"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.1"
-                  value={scale}
-                  onChange={(event) =>
-                    onUpdateInstanceTransform(
-                      key,
-                      "scale",
-                      Number(event.target.value)
-                    )
-                  }
-                  className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                  placeholder="1"
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max="1"
-                  value={opacity}
-                  onChange={(event) =>
-                    onUpdateInstanceTransform(
-                      key,
-                      "opacity",
-                      Number(event.target.value)
-                    )
-                  }
-                  className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
-                  placeholder="1"
-                />
-              </div>
-            );
-          })}
+        ) : null}
+        <p className="text-[11px] text-gray-400">
+          카드 1~7 각각의 개별 보정값(X/Y/회전/스케일/불투명도)을 조정합니다.
+        </p>
+        <div className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_1fr] gap-2 items-center text-[11px] text-gray-500">
+          <span />
+          <span>X</span>
+          <span>Y</span>
+          <span>R</span>
+          <span>S</span>
+          <span>O</span>
         </div>
-      ) : null}
+        {uniqueInstances.length === 0 ? (
+          <div className="rounded border border-[#3a3d44] bg-[#22252b] px-2 py-2 text-[11px] text-gray-400">
+            현재 연결된 Card 인스턴스가 없어 개별 보정을 표시할 수 없습니다.
+          </div>
+        ) : null}
+        {uniqueInstances.map((instance) => {
+          const key = instance.instanceId;
+          const transform = instanceTransforms[key] ?? {};
+          const offsetX =
+            typeof transform.offsetX === "number" ? transform.offsetX : 0;
+          const offsetY =
+            typeof transform.offsetY === "number" ? transform.offsetY : 0;
+          const rotateDeg =
+            typeof transform.rotateDeg === "number" ? transform.rotateDeg : 0;
+          const scale = typeof transform.scale === "number" ? transform.scale : 1;
+          const opacity =
+            typeof transform.opacity === "number" ? transform.opacity : 1;
+
+          return (
+            <div
+              key={key}
+              className="grid grid-cols-[56px_1fr_1fr_1fr_1fr_1fr] gap-2 items-center"
+            >
+              <span className="text-xs text-gray-300">{instance.label}</span>
+              <input
+                type="number"
+                value={offsetX}
+                onChange={(event) =>
+                  onUpdateInstanceTransform(
+                    key,
+                    "offsetX",
+                    Number(event.target.value)
+                  )
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="X"
+              />
+              <input
+                type="number"
+                value={offsetY}
+                onChange={(event) =>
+                  onUpdateInstanceTransform(
+                    key,
+                    "offsetY",
+                    Number(event.target.value)
+                  )
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="Y"
+              />
+              <input
+                type="number"
+                step="0.1"
+                value={rotateDeg}
+                onChange={(event) =>
+                  onUpdateInstanceTransform(
+                    key,
+                    "rotateDeg",
+                    Number(event.target.value)
+                  )
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="deg"
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0.1"
+                value={scale}
+                onChange={(event) =>
+                  onUpdateInstanceTransform(
+                    key,
+                    "scale",
+                    Number(event.target.value)
+                  )
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="1"
+              />
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                max="1"
+                value={opacity}
+                onChange={(event) =>
+                  onUpdateInstanceTransform(
+                    key,
+                    "opacity",
+                    Number(event.target.value)
+                  )
+                }
+                className="px-2 py-1.5 rounded border border-[#3a3d44] bg-[#2a2d33] text-xs text-gray-100"
+                placeholder="1"
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 };

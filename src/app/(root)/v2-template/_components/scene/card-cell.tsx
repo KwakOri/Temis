@@ -23,6 +23,11 @@ import {
   v2_parseDayKey,
   v2_isVisibleByMode,
 } from "@/utils/v2/template-render-config";
+import {
+  v2_buildCardInstanceHighlightTarget,
+  v2_buildCardInstanceNodeHighlightTarget,
+  v2_resolveCardStatusGroupKey,
+} from "@/utils/v2/card-instance-highlight-target";
 import { v2_buildComputedValues } from "@/utils/v2/text-formatting";
 import {
   V2FlexibleTextNodeRenderer,
@@ -40,9 +45,10 @@ interface TimeTableCellProps {
   cardStructure: V2TemplateCardStructure;
   bindingOverrides?: V2TemplateComponentInstanceBindingOverrides;
   cardContainerSizeOverride?: {
-    width?: number;
-    height?: number;
+    width?: string | number;
+    height?: string | number;
   };
+  cardInstanceId?: string;
 }
 
 const v2_toCardStyleMap = (
@@ -58,10 +64,21 @@ const v2_resolveRenderableCardLayout = (
   styleMap: Record<string, string | number>
 ): { style: React.CSSProperties; width?: string | number } => {
   const style = v2_toRenderableLayoutStyle(styleMap);
-  const width = style.width;
+  const hasExplicitPosition = Object.prototype.hasOwnProperty.call(
+    styleMap,
+    "position"
+  );
+  const normalizedStyle =
+    !hasExplicitPosition && style.position === "relative"
+      ? {
+          ...style,
+          position: "absolute" as const,
+        }
+      : style;
+  const width = normalizedStyle.width;
 
   return {
-    style,
+    style: normalizedStyle,
     ...(width !== undefined ? { width } : {}),
   };
 };
@@ -93,11 +110,13 @@ const v2_resolveEntryFromBinding = ({
   binding: V2TemplateCardNode["binding"];
   entries: Array<Record<string, unknown>>;
 }): Record<string, unknown> => {
-  if (binding.mode !== "field" || binding.scope !== "entry") {
-    return entries[0] ?? {};
+  let preferredIndex: number | null = null;
+  if (binding.mode === "field" && binding.scope === "entry" && binding.entrySelector?.mode === "index") {
+    preferredIndex = binding.entrySelector.index;
+  } else if (binding.mode === "computed" && binding.entrySelector?.mode === "index") {
+    preferredIndex = binding.entrySelector.index;
   }
-  const preferredIndex =
-    binding.entrySelector?.mode === "index" ? binding.entrySelector.index : 0;
+  if (preferredIndex === null) return entries[0] ?? {};
   if (!Number.isFinite(preferredIndex)) {
     return entries[0] ?? {};
   }
@@ -189,6 +208,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   cardStructure,
   bindingOverrides,
   cardContainerSizeOverride,
+  cardInstanceId,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const { weekDates } = useTemplateRuntimeData();
@@ -211,7 +231,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     ...cardContainerLayout,
     ...cardContainerSizeOverride,
     ...v2_getHighlightStyle({
-      target: cardStructure.containerHighlightTarget,
+      target:
+        typeof cardInstanceId === "string" && cardInstanceId.trim().length > 0
+          ? v2_buildCardInstanceHighlightTarget(cardInstanceId)
+          : cardStructure.containerHighlightTarget,
       hoverTarget: hoverHighlightTarget,
       activeTarget: activeHighlightTarget,
     }),
@@ -283,8 +306,21 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     );
     const { style: renderableContainerStyle, width } =
       v2_resolveRenderableCardLayout(containerStyleMap);
+    const nodeLayerId =
+      typeof node.layerId === "string" && node.layerId.trim().length > 0
+        ? node.layerId
+        : node.id;
+    const nodeStatusGroup = v2_resolveCardStatusGroupKey(node.visibilityMode);
+    const nodeHighlightTarget =
+      typeof cardInstanceId === "string" && cardInstanceId.trim().length > 0
+        ? v2_buildCardInstanceNodeHighlightTarget({
+            instanceId: cardInstanceId,
+            statusGroupKey: nodeStatusGroup,
+            nodeLayerId,
+          })
+        : node.highlightTarget;
     const highlightStyle = v2_getHighlightStyle({
-      target: node.highlightTarget,
+      target: nodeHighlightTarget,
       hoverTarget: hoverHighlightTarget,
       activeTarget: activeHighlightTarget,
     });
@@ -345,12 +381,23 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       binding: effectiveBinding,
       entries: (time.entries ?? []) as Array<Record<string, unknown>>,
     });
+    const nodeComputedValues =
+      effectiveBinding.mode === "computed"
+        ? v2_buildComputedValues({
+            dayKey,
+            weekDate,
+            weekDates,
+            entryTime: (selectedEntry.time as string) || entryTime,
+            isGuerrilla: Boolean(selectedEntry.isGuerrilla),
+            renderConfig,
+          })
+        : computedValues;
     const nodeText = v2_getCardNodeTextValue({
       node: {
         ...node,
         binding: effectiveBinding,
       },
-      computedValues,
+      computedValues: nodeComputedValues,
       selectedEntry,
       cardData: time as Record<string, unknown>,
       placeholdersByScope,

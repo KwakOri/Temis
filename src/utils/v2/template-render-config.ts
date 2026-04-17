@@ -28,7 +28,9 @@ import {
   V2TemplateGraphComponentDefinition,
   V2TemplateGraphNode,
   V2TemplateGraphNodeOrder,
+  V2TemplateGraphNodeStyleRefs,
   V2TemplateGraphNodeType,
+  V2TemplateLayoutConfig,
   V2TemplateDayKey,
   V2TemplateDayLabelFormat,
   V2TemplateLayerComponentKey,
@@ -303,8 +305,10 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   isMultiple: false,
   maxStreamingTimeByDay: 1,
   enableThemeSelection: false,
-  useOnlineAssetsByDay: false,
-  useOfflineAssetsByDay: false,
+  useOnlineAssetsByDay: true,
+  useMultiAssetsByDay: true,
+  useOfflineAssetsByDay: true,
+  useOfflineMemoAssetsByDay: true,
 };
 
 const v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD: V2TemplateFormField = {
@@ -557,7 +561,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
   containerStyleKey: "container",
-  instanceMode: "component",
+  instanceMode: "detached",
   instanceTransforms: {},
   nodeOrder: [
     "online-background",
@@ -587,7 +591,16 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       fontKey: "SUB_TITLE",
       assetRef: {
         source: "builtin",
-        key: "onlineByTheme",
+        key: "online_mon",
+      },
+      assetRefByDayKey: {
+        mon: { source: "builtin", key: "online_mon" },
+        tue: { source: "builtin", key: "online_tue" },
+        wed: { source: "builtin", key: "online_wed" },
+        thu: { source: "builtin", key: "online_thu" },
+        fri: { source: "builtin", key: "online_fri" },
+        sat: { source: "builtin", key: "online_sat" },
+        sun: { source: "builtin", key: "online_sun" },
       },
       fit: "cover",
       alt: "online-card-bg",
@@ -611,6 +624,15 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
         source: "builtin",
         key: "multi_mon",
       },
+      assetRefByDayKey: {
+        mon: { source: "builtin", key: "multi_mon" },
+        tue: { source: "builtin", key: "multi_tue" },
+        wed: { source: "builtin", key: "multi_wed" },
+        thu: { source: "builtin", key: "multi_thu" },
+        fri: { source: "builtin", key: "multi_fri" },
+        sat: { source: "builtin", key: "multi_sat" },
+        sun: { source: "builtin", key: "multi_sun" },
+      },
       fit: "cover",
       alt: "multi-card-bg",
       containerClassName: "absolute pointer-events-none",
@@ -631,7 +653,16 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       fontKey: "SUB_TITLE",
       assetRef: {
         source: "builtin",
-        key: "offlineByTheme",
+        key: "offline_mon",
+      },
+      assetRefByDayKey: {
+        mon: { source: "builtin", key: "offline_mon" },
+        tue: { source: "builtin", key: "offline_tue" },
+        wed: { source: "builtin", key: "offline_wed" },
+        thu: { source: "builtin", key: "offline_thu" },
+        fri: { source: "builtin", key: "offline_fri" },
+        sat: { source: "builtin", key: "offline_sat" },
+        sun: { source: "builtin", key: "offline_sun" },
       },
       fit: "cover",
       alt: "offline-card-bg",
@@ -654,6 +685,15 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       assetRef: {
         source: "builtin",
         key: "offlineMemo_mon",
+      },
+      assetRefByDayKey: {
+        mon: { source: "builtin", key: "offlineMemo_mon" },
+        tue: { source: "builtin", key: "offlineMemo_tue" },
+        wed: { source: "builtin", key: "offlineMemo_wed" },
+        thu: { source: "builtin", key: "offlineMemo_thu" },
+        fri: { source: "builtin", key: "offlineMemo_fri" },
+        sat: { source: "builtin", key: "offlineMemo_sat" },
+        sun: { source: "builtin", key: "offlineMemo_sun" },
       },
       fit: "cover",
       alt: "offline-memo-card-bg",
@@ -1211,6 +1251,566 @@ const v2_ensureCardCollectionComponentInstances = ({
   return hasChanges ? nextNodes : nodes;
 };
 
+const v2_CARD_INSTANCE_COMPONENT_ID_MARKER = "__inst__";
+
+const v2_CARD_STYLE_REF_KEYS: Array<keyof V2TemplateGraphNodeStyleRefs> = [
+  "styleKey",
+  "containerStyleKey",
+  "textStyleKey",
+  "wrapperStyleKey",
+  "optionsKey",
+];
+
+const v2_makeUniqueId = (base: string, used: Set<string>): string => {
+  let candidate = base;
+  let suffix = 1;
+  while (used.has(candidate)) {
+    candidate = `${base}:${suffix}`;
+    suffix += 1;
+  }
+  used.add(candidate);
+  return candidate;
+};
+
+const v2_makeUniqueStyleKey = (base: string, used: Set<string>): string => {
+  let candidate = base;
+  let suffix = 1;
+  while (used.has(candidate)) {
+    candidate = `${base}_${suffix}`;
+    suffix += 1;
+  }
+  used.add(candidate);
+  return candidate;
+};
+
+const v2_collectComponentSubtreeNodeIds = ({
+  rootNodeId,
+  nodes,
+}: {
+  rootNodeId: string;
+  nodes: Record<string, V2TemplateGraphNode>;
+}): string[] => {
+  const visited = new Set<string>();
+  const queue = [rootNodeId];
+  const collected: string[] = [];
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+    if (!nodeId || visited.has(nodeId)) continue;
+    visited.add(nodeId);
+    const node = nodes[nodeId];
+    if (!node) continue;
+    collected.push(nodeId);
+    queue.push(...node.childIds);
+  }
+
+  return collected;
+};
+
+const v2_detachCardCollectionComponentsPerInstance = ({
+  graph,
+  cardLayout,
+}: {
+  graph: V2TemplateNodeGraph;
+  cardLayout: V2TemplateLayoutConfig["card"];
+}): V2TemplateNodeGraph => {
+  const nextNodes: Record<string, V2TemplateGraphNode> = {
+    ...graph.nodes,
+  };
+  const nextComponentDefinitions: Record<string, V2TemplateGraphComponentDefinition> =
+    {
+      ...graph.componentDefinitions,
+    };
+
+  const usedNodeIds = new Set(Object.keys(nextNodes));
+  const usedComponentIds = new Set(Object.keys(nextComponentDefinitions));
+  const usedStyleKeys = new Set(Object.keys(cardLayout));
+  let hasChanges = false;
+
+  Object.values(nextNodes).forEach((collectionNode) => {
+    if (collectionNode.type !== "cardCollection") return;
+
+    const instanceIds = collectionNode.childIds.filter((childId) => {
+      const childNode = nextNodes[childId];
+      return Boolean(childNode && childNode.type === "componentInstance");
+    });
+    if (instanceIds.length === 0) return;
+
+    const currentComponentIds = instanceIds
+      .map((instanceNodeId) => {
+        const instanceNode = nextNodes[instanceNodeId];
+        const componentId =
+          typeof instanceNode?.meta?.componentId === "string"
+            ? instanceNode.meta.componentId.trim()
+            : "";
+        return componentId;
+      })
+      .filter((componentId) => componentId.length > 0);
+    const hasSharedComponents =
+      new Set(currentComponentIds).size < instanceIds.length;
+    if (!hasSharedComponents) return;
+
+    let firstDetachedComponentId: string | null = null;
+
+    instanceIds.forEach((instanceNodeId, instanceIndex) => {
+      const instanceNode = nextNodes[instanceNodeId];
+      if (!instanceNode || instanceNode.type !== "componentInstance") return;
+
+      const sourceComponentId =
+        typeof instanceNode.meta?.componentId === "string" &&
+        instanceNode.meta.componentId.trim().length > 0
+          ? instanceNode.meta.componentId.trim()
+          : typeof collectionNode.meta?.componentId === "string" &&
+              collectionNode.meta.componentId.trim().length > 0
+            ? collectionNode.meta.componentId.trim()
+            : null;
+      if (!sourceComponentId) return;
+
+      const sourceDefinition = nextComponentDefinitions[sourceComponentId];
+      if (!sourceDefinition) return;
+      const sourceRootNode = nextNodes[sourceDefinition.rootNodeId];
+      if (!sourceRootNode) return;
+
+      const instanceIdToken =
+        typeof instanceNode.meta?.instanceId === "string" &&
+        instanceNode.meta.instanceId.trim().length > 0
+          ? instanceNode.meta.instanceId.trim()
+          : String(instanceIndex);
+      const dayKeyToken =
+        typeof instanceNode.meta?.dayKey === "string" &&
+        instanceNode.meta.dayKey.trim().length > 0
+          ? instanceNode.meta.dayKey.trim()
+          : `index_${instanceIndex}`;
+      const instanceKeyToken = `${dayKeyToken}_${instanceIdToken}`
+        .replace(/[^a-zA-Z0-9_-]+/g, "_")
+        .toLowerCase();
+
+      const detachedComponentId = v2_makeUniqueId(
+        `${sourceComponentId}${v2_CARD_INSTANCE_COMPONENT_ID_MARKER}${instanceKeyToken}`,
+        usedComponentIds
+      );
+      const detachedNodeIds = v2_collectComponentSubtreeNodeIds({
+        rootNodeId: sourceDefinition.rootNodeId,
+        nodes: nextNodes,
+      });
+      if (detachedNodeIds.length === 0) return;
+
+      const oldToNewNodeId = new Map<string, string>();
+      detachedNodeIds.forEach((oldNodeId) => {
+        const detachedNodeId = v2_makeUniqueId(
+          `${oldNodeId}${v2_CARD_INSTANCE_COMPONENT_ID_MARKER}${instanceKeyToken}`,
+          usedNodeIds
+        );
+        oldToNewNodeId.set(oldNodeId, detachedNodeId);
+      });
+
+      const styleKeyMap = new Map<string, string>();
+      detachedNodeIds.forEach((oldNodeId) => {
+        const sourceNode = nextNodes[oldNodeId];
+        if (!sourceNode?.styles) return;
+        v2_CARD_STYLE_REF_KEYS.forEach((styleRefKey) => {
+          const sourceStyleKey = sourceNode.styles?.[styleRefKey];
+          if (typeof sourceStyleKey !== "string" || sourceStyleKey.trim() === "") {
+            return;
+          }
+          if (styleKeyMap.has(sourceStyleKey)) return;
+          const nextStyleKey = v2_makeUniqueStyleKey(
+            `${sourceStyleKey}${v2_CARD_INSTANCE_COMPONENT_ID_MARKER}${instanceKeyToken}`,
+            usedStyleKeys
+          );
+          styleKeyMap.set(sourceStyleKey, nextStyleKey);
+          if (cardLayout[sourceStyleKey] !== undefined) {
+            cardLayout[nextStyleKey] = v2_clone(cardLayout[sourceStyleKey]);
+          }
+        });
+      });
+
+      detachedNodeIds.forEach((oldNodeId) => {
+        const sourceNode = nextNodes[oldNodeId];
+        if (!sourceNode) return;
+        const newNodeId = oldToNewNodeId.get(oldNodeId);
+        if (!newNodeId) return;
+
+        const clonedStyles = sourceNode.styles
+          ? ({
+              ...sourceNode.styles,
+            } as V2TemplateGraphNodeStyleRefs)
+          : undefined;
+        if (clonedStyles) {
+          v2_CARD_STYLE_REF_KEYS.forEach((styleRefKey) => {
+            const sourceStyleKey = clonedStyles[styleRefKey];
+            if (
+              typeof sourceStyleKey === "string" &&
+              styleKeyMap.has(sourceStyleKey)
+            ) {
+              clonedStyles[styleRefKey] = styleKeyMap.get(sourceStyleKey);
+            }
+          });
+        }
+
+        const sourceParentId =
+          typeof sourceNode.parentId === "string" ? sourceNode.parentId : null;
+        const newParentId =
+          sourceParentId && oldToNewNodeId.has(sourceParentId)
+            ? (oldToNewNodeId.get(sourceParentId) ?? null)
+            : null;
+        const clonedLayerIdBase = sourceNode.layerId ?? sourceNode.id;
+        const clonedLayerId = `${clonedLayerIdBase}${v2_CARD_INSTANCE_COMPONENT_ID_MARKER}${instanceKeyToken}`;
+        const clonedMeta = sourceNode.meta
+          ? {
+              ...sourceNode.meta,
+            }
+          : undefined;
+        if (
+          clonedMeta?.layerSectionKey &&
+          styleKeyMap.has(clonedMeta.layerSectionKey)
+        ) {
+          clonedMeta.layerSectionKey = styleKeyMap.get(clonedMeta.layerSectionKey);
+        }
+
+        nextNodes[newNodeId] = {
+          ...sourceNode,
+          id: newNodeId,
+          parentId: newParentId,
+          childIds: sourceNode.childIds
+            .map((childId) => oldToNewNodeId.get(childId) ?? null)
+            .filter((childId): childId is string => Boolean(childId)),
+          layerId: clonedLayerId,
+          ...(clonedStyles ? { styles: clonedStyles } : {}),
+          ...(clonedMeta ? { meta: clonedMeta } : {}),
+        };
+      });
+
+      const detachedRootNodeId = oldToNewNodeId.get(sourceDefinition.rootNodeId);
+      if (!detachedRootNodeId) return;
+
+      const detachedTransforms = v2_normalizeCardInstanceTransforms(
+        sourceDefinition.instanceTransforms,
+        {}
+      );
+      nextComponentDefinitions[detachedComponentId] = {
+        ...sourceDefinition,
+        id: detachedComponentId,
+        rootNodeId: detachedRootNodeId,
+        instanceMode: "detached",
+        ...(Object.keys(detachedTransforms).length > 0
+          ? { instanceTransforms: detachedTransforms }
+          : {}),
+      };
+
+      const nextInstanceMeta = {
+        ...(instanceNode.meta ?? {}),
+        componentId: detachedComponentId,
+      };
+      nextNodes[instanceNodeId] = {
+        ...instanceNode,
+        meta: nextInstanceMeta,
+      };
+
+      if (!firstDetachedComponentId) {
+        firstDetachedComponentId = detachedComponentId;
+      }
+      hasChanges = true;
+    });
+
+    if (firstDetachedComponentId) {
+      nextNodes[collectionNode.id] = {
+        ...collectionNode,
+        meta: {
+          ...(collectionNode.meta ?? {}),
+          componentId: firstDetachedComponentId,
+        },
+      };
+      hasChanges = true;
+    }
+  });
+
+  if (!hasChanges) return graph;
+
+  const referencedComponentIds = new Set<string>();
+  Object.values(nextNodes).forEach((node) => {
+    if (node.type !== "componentInstance") return;
+    const componentId =
+      typeof node.meta?.componentId === "string"
+        ? node.meta.componentId.trim()
+        : "";
+    if (!componentId) return;
+    if (!nextComponentDefinitions[componentId]) return;
+    referencedComponentIds.add(componentId);
+  });
+
+  const compactedComponentDefinitions: Record<
+    string,
+    V2TemplateGraphComponentDefinition
+  > = {};
+  Object.entries(nextComponentDefinitions).forEach(([componentId, definition]) => {
+    if (!referencedComponentIds.has(componentId)) return;
+    compactedComponentDefinitions[componentId] = definition;
+  });
+
+  return {
+    ...graph,
+    nodes: nextNodes,
+    componentDefinitions: compactedComponentDefinitions,
+  };
+};
+
+const v2_createSceneStyleKeyForComponentInstance = (nodeId: string): string =>
+  `sceneNode:${nodeId}:style`;
+
+const v2_resolveCardInstanceTransform = ({
+  instanceNode,
+  componentDefinitions,
+}: {
+  instanceNode: V2TemplateGraphNode;
+  componentDefinitions: Record<string, V2TemplateGraphComponentDefinition>;
+}): V2TemplateCardInstanceTransform | null => {
+  if (instanceNode.type !== "componentInstance") return null;
+  const componentId =
+    typeof instanceNode.meta?.componentId === "string"
+      ? instanceNode.meta.componentId.trim()
+      : "";
+  if (!componentId) return null;
+  const definition = componentDefinitions[componentId];
+  const transforms = definition?.instanceTransforms;
+  if (!transforms || typeof transforms !== "object") return null;
+  const instanceId =
+    typeof instanceNode.meta?.instanceId === "string"
+      ? instanceNode.meta.instanceId.trim()
+      : "";
+  const parsedDayKey = v2_parseDayKey(instanceNode.meta?.dayKey);
+  const dayIndex =
+    parsedDayKey !== null ? String(v2_dayIndexFromKey(parsedDayKey)) : "";
+  const direct =
+    (instanceId ? transforms[instanceId] : undefined) ??
+    (dayIndex ? transforms[dayIndex] : undefined);
+  if (!direct || typeof direct !== "object") return null;
+
+  const next: V2TemplateCardInstanceTransform = {};
+  if (typeof direct.offsetX === "number" && Number.isFinite(direct.offsetX)) {
+    next.offsetX = direct.offsetX;
+  }
+  if (typeof direct.offsetY === "number" && Number.isFinite(direct.offsetY)) {
+    next.offsetY = direct.offsetY;
+  }
+  if (
+    typeof direct.width === "number" &&
+    Number.isFinite(direct.width) &&
+    direct.width > 0
+  ) {
+    next.width = direct.width;
+  }
+  if (
+    typeof direct.height === "number" &&
+    Number.isFinite(direct.height) &&
+    direct.height > 0
+  ) {
+    next.height = direct.height;
+  }
+  if (typeof direct.rotateDeg === "number" && Number.isFinite(direct.rotateDeg)) {
+    next.rotateDeg = direct.rotateDeg;
+  }
+  if (typeof direct.scale === "number" && Number.isFinite(direct.scale)) {
+    next.scale = direct.scale;
+  }
+  if (typeof direct.opacity === "number" && Number.isFinite(direct.opacity)) {
+    next.opacity = direct.opacity;
+  }
+  return Object.keys(next).length > 0 ? next : null;
+};
+
+const v2_applySceneStyleFromCardInstanceTransform = ({
+  transform,
+  existingStyle,
+}: {
+  transform: V2TemplateCardInstanceTransform | null;
+  existingStyle: V2TemplateStyleRecord | undefined;
+}): V2TemplateStyleRecord => {
+  const base: V2TemplateStyleRecord = {
+    ...(existingStyle ?? {}),
+  };
+  if (!transform) {
+    return {
+      ...base,
+      position: "absolute",
+    };
+  }
+
+  const next: V2TemplateStyleRecord = {
+    ...base,
+    position: "absolute",
+    left:
+      typeof transform.offsetX === "number" && Number.isFinite(transform.offsetX)
+        ? transform.offsetX
+        : (base.left as string | number | undefined) ?? 0,
+    top:
+      typeof transform.offsetY === "number" && Number.isFinite(transform.offsetY)
+        ? transform.offsetY
+        : (base.top as string | number | undefined) ?? 0,
+  };
+
+  if (typeof transform.width === "number") {
+    next.width = transform.width;
+  }
+  if (typeof transform.height === "number") {
+    next.height = transform.height;
+  }
+  if (typeof transform.rotateDeg === "number") {
+    next.rotateDeg = transform.rotateDeg;
+  }
+  if (typeof transform.opacity === "number") {
+    next.opacity = transform.opacity;
+  }
+  if (typeof transform.scale === "number" && Number.isFinite(transform.scale)) {
+    const scaleValue = Math.max(0.1, transform.scale);
+    const existingTransform =
+      typeof next.transform === "string" ? next.transform.trim() : "";
+    const scaleTransform = `scale(${scaleValue})`;
+    next.transform =
+      existingTransform.length > 0
+        ? `${existingTransform} ${scaleTransform}`
+        : scaleTransform;
+    next.transformOrigin = "center center";
+  }
+  return next;
+};
+
+const v2_flattenCardCollectionGraphNodes = ({
+  graph,
+  sceneLayout,
+}: {
+  graph: V2TemplateNodeGraph;
+  sceneLayout: Record<string, V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined>;
+}): {
+  graph: V2TemplateNodeGraph;
+  sceneLayout: Record<string, V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined>;
+} => {
+  const collectionNodes = Object.values(graph.nodes).filter(
+    (node) => node.type === "cardCollection"
+  );
+  if (collectionNodes.length === 0) {
+    return { graph, sceneLayout };
+  }
+
+  const nextNodes: Record<string, V2TemplateGraphNode> = {
+    ...graph.nodes,
+  };
+  const nextRootNodeIds = [...graph.rootNodeIds];
+  const nextSceneLayout = {
+    ...sceneLayout,
+  };
+  let hasChanges = false;
+
+  collectionNodes.forEach((collectionNode) => {
+    const collectionId = collectionNode.id;
+    const orderedInstanceIds = collectionNode.childIds.filter((childId) => {
+      const childNode = nextNodes[childId];
+      return Boolean(childNode && childNode.type === "componentInstance");
+    });
+
+    const reparentedInstanceIds: string[] = [];
+
+    orderedInstanceIds.forEach((instanceId) => {
+      const instanceNode = nextNodes[instanceId];
+      if (!instanceNode || instanceNode.type !== "componentInstance") return;
+      reparentedInstanceIds.push(instanceId);
+
+      const styleKey =
+        typeof instanceNode.styles?.styleKey === "string" &&
+        instanceNode.styles.styleKey.trim().length > 0
+          ? instanceNode.styles.styleKey.trim()
+          : v2_createSceneStyleKeyForComponentInstance(instanceNode.id);
+      const transform = v2_resolveCardInstanceTransform({
+        instanceNode,
+        componentDefinitions: graph.componentDefinitions,
+      });
+      const existingSceneStyle = nextSceneLayout[styleKey];
+      nextSceneLayout[styleKey] = v2_applySceneStyleFromCardInstanceTransform({
+        transform,
+        existingStyle:
+          existingSceneStyle && typeof existingSceneStyle === "object"
+            ? (existingSceneStyle as V2TemplateStyleRecord)
+            : undefined,
+      });
+
+      const nextParentId =
+        typeof collectionNode.parentId === "string" ? collectionNode.parentId : null;
+      nextNodes[instanceId] = {
+        ...instanceNode,
+        parentId: nextParentId,
+        styles: {
+          ...(instanceNode.styles ?? {}),
+          styleKey,
+        },
+        meta: {
+          ...(instanceNode.meta ?? {}),
+          layerTarget: `sceneNode:${instanceNode.id}`,
+          layerSectionKey: styleKey,
+          layerIcon: "layers",
+        },
+      };
+      hasChanges = true;
+    });
+
+    if (typeof collectionNode.parentId === "string") {
+      const parentNode = nextNodes[collectionNode.parentId];
+      if (parentNode) {
+        const collectionIndex = parentNode.childIds.indexOf(collectionId);
+        const withoutCollection = parentNode.childIds.filter(
+          (childId) => childId !== collectionId
+        );
+        const insertIndex =
+          collectionIndex >= 0 ? collectionIndex : withoutCollection.length;
+        withoutCollection.splice(insertIndex, 0, ...reparentedInstanceIds);
+        nextNodes[parentNode.id] = {
+          ...parentNode,
+          childIds: withoutCollection,
+        };
+        hasChanges = true;
+      }
+    } else {
+      const collectionIndex = nextRootNodeIds.indexOf(collectionId);
+      const filteredRootIds = nextRootNodeIds.filter((nodeId) => nodeId !== collectionId);
+      const insertIndex =
+        collectionIndex >= 0 ? collectionIndex : filteredRootIds.length;
+      filteredRootIds.splice(insertIndex, 0, ...reparentedInstanceIds);
+      nextRootNodeIds.length = 0;
+      nextRootNodeIds.push(...filteredRootIds);
+      hasChanges = true;
+    }
+
+    delete nextNodes[collectionId];
+    hasChanges = true;
+  });
+
+  if (!hasChanges) {
+    return { graph, sceneLayout };
+  }
+
+  const componentRootNodeIdSet = new Set(
+    Object.values(graph.componentDefinitions).map((definition) => definition.rootNodeId)
+  );
+  const sanitizedGraph = v2_sanitizeNodeGraph({
+    graph: {
+      rootNodeIds: nextRootNodeIds,
+      nodes: nextNodes,
+      componentDefinitions: graph.componentDefinitions,
+    },
+  });
+  const filteredRootNodeIds = sanitizedGraph.rootNodeIds.filter(
+    (nodeId) =>
+      !componentRootNodeIdSet.has(nodeId) && !nodeId.startsWith("component-")
+  );
+
+  return {
+    graph: {
+      ...sanitizedGraph,
+      rootNodeIds: filteredRootNodeIds,
+    },
+    sceneLayout: nextSceneLayout,
+  };
+};
+
 const v2_toLayerGraphMeta = (layerNode?: V2TemplateLayerNode) => {
   if (!layerNode) return undefined;
 
@@ -1459,7 +2059,7 @@ const v2_createDefaultNodeGraph = ({
       rootNodeId: cardRootId,
       description: "Default card component",
       kind: "template",
-      instanceMode: card.instanceMode,
+      instanceMode: "detached",
       instanceTransforms: card.instanceTransforms,
     },
   };
@@ -2650,10 +3250,13 @@ const v2_normalizeNodeGraph = (
           ...(typeof rawDefinition.instanceMode === "string" &&
           v2_COMPONENT_INSTANCE_MODE_SET.has(rawDefinition.instanceMode)
             ? {
-                instanceMode:
-                  rawDefinition.instanceMode as V2TemplateComponentInstanceMode,
+                // v2 card rendering is detached-first. keep field for compatibility,
+                // but normalize legacy "component" into "detached".
+                instanceMode: "detached" as V2TemplateComponentInstanceMode,
               }
-            : {}),
+            : {
+                instanceMode: "detached" as V2TemplateComponentInstanceMode,
+              }),
           ...(Object.keys(instanceTransforms).length > 0
             ? { instanceTransforms }
             : {}),
@@ -2811,6 +3414,7 @@ const v2_normalizeBindingRef = (
 
   if (mode === "computed") {
     const key = v2_asString(candidate.key, "").trim();
+    const entrySelector = v2_normalizeEntrySelector(candidate.entrySelector);
     if (
       key &&
       v2_COMPUTED_BINDING_KEY_SET.has(key as V2TemplateComputedBindingKey)
@@ -2818,6 +3422,7 @@ const v2_normalizeBindingRef = (
       return {
         mode: "computed",
         key: key as V2TemplateComputedBindingKey,
+        ...(entrySelector ? { entrySelector } : {}),
       };
     }
     return defaultBinding;
@@ -3399,7 +4004,23 @@ const v2_normalizeWeekDateFormat = (
 };
 
 export const v2_createDefaultTemplateRenderConfig = (): V2TemplateRenderConfig => {
-  return v2_clone(v2_DEFAULT_TEMPLATE_RENDER_CONFIG);
+  const cloned = v2_clone(v2_DEFAULT_TEMPLATE_RENDER_CONFIG);
+  const detachedGraph = v2_detachCardCollectionComponentsPerInstance({
+    graph: cloned.graph,
+    cardLayout: cloned.layout.card,
+  });
+  const flattened = v2_flattenCardCollectionGraphNodes({
+    graph: detachedGraph,
+    sceneLayout: cloned.layout.scene,
+  });
+  return {
+    ...cloned,
+    graph: flattened.graph,
+    layout: {
+      ...cloned.layout,
+      scene: flattened.sceneLayout,
+    },
+  };
 };
 
 export const v2_createEmptyTemplateNodeGraph = (): V2TemplateNodeGraph => {
@@ -3665,9 +4286,17 @@ export const v2_normalizeTemplateRenderConfig = (
         raw.editorOptions.useOnlineAssetsByDay,
         normalized.editorOptions.useOnlineAssetsByDay
       ),
+      useMultiAssetsByDay: v2_asBoolean(
+        raw.editorOptions.useMultiAssetsByDay,
+        normalized.editorOptions.useMultiAssetsByDay
+      ),
       useOfflineAssetsByDay: v2_asBoolean(
         raw.editorOptions.useOfflineAssetsByDay,
         normalized.editorOptions.useOfflineAssetsByDay
+      ),
+      useOfflineMemoAssetsByDay: v2_asBoolean(
+        raw.editorOptions.useOfflineMemoAssetsByDay,
+        normalized.editorOptions.useOfflineMemoAssetsByDay
       ),
     };
   }
@@ -4158,6 +4787,16 @@ export const v2_normalizeTemplateRenderConfig = (
   if (Object.prototype.hasOwnProperty.call(raw, "graph")) {
     normalized.graph = v2_normalizeNodeGraph(raw.graph);
   }
+  normalized.graph = v2_detachCardCollectionComponentsPerInstance({
+    graph: normalized.graph,
+    cardLayout: normalized.layout.card,
+  });
+  const flattenedGraphResult = v2_flattenCardCollectionGraphNodes({
+    graph: normalized.graph,
+    sceneLayout: normalized.layout.scene,
+  });
+  normalized.graph = flattenedGraphResult.graph;
+  normalized.layout.scene = flattenedGraphResult.sceneLayout;
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
   return normalized;

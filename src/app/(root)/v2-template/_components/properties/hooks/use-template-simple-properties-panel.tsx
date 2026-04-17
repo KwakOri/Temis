@@ -19,7 +19,6 @@ interface UseTemplateSimplePropertiesPanelParams {
   bindableNodeLabels: string[];
   editorMode: "instance" | "master";
   cardContainerSectionKey: string;
-  cardInstanceMode: "component" | "detached";
   cardInstanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
   cardComponentInstances: Array<{
     instanceId: string;
@@ -31,7 +30,6 @@ interface UseTemplateSimplePropertiesPanelParams {
     duplicateDayKeys: V2TemplateDayKey[];
     missingDayKeys: V2TemplateDayKey[];
   };
-  onChangeCardInstanceMode: (mode: "component" | "detached") => void;
   onAppendCardTextNode: () => void;
   onAppendCardFlexibleTextNode: () => void;
   onAppendCardImageNode: () => void;
@@ -52,11 +50,9 @@ const useTemplateSimplePropertiesPanel = ({
   bindableNodeLabels,
   editorMode,
   cardContainerSectionKey,
-  cardInstanceMode,
   cardInstanceTransforms,
   cardComponentInstances,
   cardComponentInstanceDiagnostics,
-  onChangeCardInstanceMode,
   onAppendCardTextNode,
   onAppendCardFlexibleTextNode,
   onAppendCardImageNode,
@@ -76,11 +72,9 @@ const useTemplateSimplePropertiesPanel = ({
 
     return (
       <TemplateCardComponentProperties
-        instanceMode={cardInstanceMode}
         instanceTransforms={cardInstanceTransforms}
         instances={cardComponentInstances}
         diagnostics={cardComponentInstanceDiagnostics}
-        onChangeInstanceMode={onChangeCardInstanceMode}
         onAppendTextNode={onAppendCardTextNode}
         onAppendFlexibleTextNode={onAppendCardFlexibleTextNode}
         onAppendImageNode={onAppendCardImageNode}

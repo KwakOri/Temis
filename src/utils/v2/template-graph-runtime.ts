@@ -142,9 +142,23 @@ const v2_toBindingRef = (candidate: unknown): V2TemplateNodeBindingRef => {
   }
 
   if (mode === "computed" && typeof record.key === "string" && v2_COMPUTED_KEY_SET.has(record.key)) {
+    const entrySelector =
+      record.entrySelector &&
+      typeof record.entrySelector === "object" &&
+      (record.entrySelector as Record<string, unknown>).mode === "index" &&
+      Number.isFinite(Number((record.entrySelector as Record<string, unknown>).index))
+        ? {
+            mode: "index" as const,
+            index: Math.max(
+              0,
+              Math.floor(Number((record.entrySelector as Record<string, unknown>).index))
+            ),
+          }
+        : undefined;
     return {
       mode: "computed",
       key: record.key as V2TemplateComputedBindingKey,
+      ...(entrySelector ? { entrySelector } : {}),
     };
   }
 
@@ -507,7 +521,7 @@ const v2_EMPTY_CARD_STRUCTURE: V2TemplateCardStructure = {
   containerLayerId: "card",
   containerHighlightTarget: "cardContainer",
   containerStyleKey: "container",
-  instanceMode: "component",
+  instanceMode: "detached",
   instanceTransforms: {},
   nodeOrder: [],
   nodes: {},
@@ -525,7 +539,7 @@ export const v2_getRuntimeCardStructureByComponentId = (
   if (!cardRootNode) {
     return {
       ...v2_EMPTY_CARD_STRUCTURE,
-      instanceMode: componentDefinition.instanceMode ?? "component",
+      instanceMode: "detached",
       instanceTransforms: componentDefinition.instanceTransforms ?? {},
     };
   }
@@ -552,7 +566,7 @@ export const v2_getRuntimeCardStructureByComponentId = (
       cardRootNode.styles?.containerStyleKey ??
       cardRootNode.meta?.layerSectionKey ??
       "cardContainer",
-    instanceMode: componentDefinition.instanceMode ?? "component",
+    instanceMode: "detached",
     instanceTransforms: componentDefinition.instanceTransforms ?? {},
     nodeOrder: nextNodeOrder,
     nodes: nextNodes,

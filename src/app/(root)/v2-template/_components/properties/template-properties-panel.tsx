@@ -20,6 +20,10 @@ import {
   v2_getRuntimeCardStructureByComponentId,
   v2_getRuntimeSceneNodes,
 } from "@/utils/v2/template-graph-runtime";
+import {
+  v2_buildCardInstanceNodeLayerId,
+  v2_resolveCardStatusGroupKey,
+} from "@/utils/v2/card-instance-highlight-target";
 import { v2_resolveDayLabelByKey } from "@/utils/v2/template-render-config";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import {
@@ -216,6 +220,36 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
   );
+  const sceneComponentInstanceByLayerId = useMemo(() => {
+    const map = new Map<string, { componentId: string; layerId: string }>();
+    const stack = [...runtimeSceneNodes];
+    while (stack.length > 0) {
+      const node = stack.shift();
+      if (!node) continue;
+      if (node.kind === "cardCollection") {
+        const children = node.children ?? [];
+        children.forEach((child) => {
+          if (child.kind !== "componentInstance") return;
+          const layerId =
+            typeof child.layerId === "string" && child.layerId.trim().length > 0
+              ? child.layerId
+              : child.id;
+          map.set(layerId, {
+            componentId: child.componentId,
+            layerId,
+          });
+        });
+        if (children.length > 0) {
+          stack.unshift(...children);
+        }
+        continue;
+      }
+      if (node.kind === "group" && node.children?.length) {
+        stack.unshift(...node.children);
+      }
+    }
+    return map;
+  }, [runtimeSceneNodes]);
   const cardNodeByLayerId = useMemo(() => {
     const map = new Map<string, V2TemplateCardNode>();
     Object.values(runtimeCardStructuresByComponentId).forEach((structure) => {
@@ -223,8 +257,21 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         map.set(node.layerId, node);
       });
     });
+    sceneComponentInstanceByLayerId.forEach((instanceInfo) => {
+      const structure = runtimeCardStructuresByComponentId[instanceInfo.componentId];
+      if (!structure) return;
+      Object.values(structure.nodes).forEach((node) => {
+        const statusGroupKey = v2_resolveCardStatusGroupKey(node.visibilityMode);
+        const virtualLayerId = v2_buildCardInstanceNodeLayerId({
+          instanceLayerId: instanceInfo.layerId,
+          statusGroupKey,
+          nodeLayerId: node.layerId,
+        });
+        map.set(virtualLayerId, node);
+      });
+    });
     return map;
-  }, [runtimeCardStructuresByComponentId]);
+  }, [runtimeCardStructuresByComponentId, sceneComponentInstanceByLayerId]);
   const cardNodeComponentIdByLayerId = useMemo(() => {
     const map = new Map<string, string>();
     Object.entries(runtimeCardStructuresByComponentId).forEach(
@@ -234,8 +281,21 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         });
       }
     );
+    sceneComponentInstanceByLayerId.forEach((instanceInfo) => {
+      const structure = runtimeCardStructuresByComponentId[instanceInfo.componentId];
+      if (!structure) return;
+      Object.values(structure.nodes).forEach((node) => {
+        const statusGroupKey = v2_resolveCardStatusGroupKey(node.visibilityMode);
+        const virtualLayerId = v2_buildCardInstanceNodeLayerId({
+          instanceLayerId: instanceInfo.layerId,
+          statusGroupKey,
+          nodeLayerId: node.layerId,
+        });
+        map.set(virtualLayerId, instanceInfo.componentId);
+      });
+    });
     return map;
-  }, [runtimeCardStructuresByComponentId]);
+  }, [runtimeCardStructuresByComponentId, sceneComponentInstanceByLayerId]);
   const componentIdByRootLayerId = useMemo(() => {
     const map = new Map<string, string>();
     Object.entries(runtimeCardStructuresByComponentId).forEach(
@@ -887,7 +947,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateCardImageNodeAlt,
     appendCardNode,
     removeCardNode,
-    updateCardInstanceMode,
     updateCardInstanceTransform,
   } = useTemplateCardNodeActions({
     safeUpdateConfig,
@@ -971,6 +1030,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateExtraAssetUrl,
     addExtraAssetKey,
     removeExtraAssetKey,
+    toggleCardBackgroundAssetsByDay,
+    applyMondayCardCommonStructure,
     handleAssetFileUpload,
     handleExtraAssetFileUpload,
     uploadBulkAssetFiles,
@@ -1438,11 +1499,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     editorMode: selectedPropertiesEditorMode,
     cardContainerSectionKey:
       activeCardStructure?.containerStyleKey ?? "cardContainer",
-    cardInstanceMode: activeCardStructure?.instanceMode ?? "component",
     cardInstanceTransforms: activeCardStructure?.instanceTransforms ?? {},
     cardComponentInstances: activeCardComponentInstances,
     cardComponentInstanceDiagnostics: activeCardComponentInstanceDiagnostics,
-    onChangeCardInstanceMode: updateCardInstanceMode,
     onAppendCardTextNode: () => appendCardNode("text"),
     onAppendCardFlexibleTextNode: () => appendCardNode("flexibleText"),
     onAppendCardImageNode: () => appendCardNode("image"),
@@ -1579,6 +1638,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               onResetExtraAsset={(key, theme) =>
                 updateExtraAssetUrl(key, theme, "", null)
               }
+              cardBackgroundByDay={{
+                online: Boolean(renderConfig.editorOptions?.useOnlineAssetsByDay),
+                multi: Boolean(renderConfig.editorOptions?.useMultiAssetsByDay),
+                offline: Boolean(renderConfig.editorOptions?.useOfflineAssetsByDay),
+                offlineMemo: Boolean(
+                  renderConfig.editorOptions?.useOfflineMemoAssetsByDay
+                ),
+              }}
+              onToggleCardBackgroundByDay={toggleCardBackgroundAssetsByDay}
+              onApplyMondayCardCommonStructure={applyMondayCardCommonStructure}
               onUploadBulkAssetFiles={uploadBulkAssetFiles}
               onChangeDataField={(scope, key, value) => {
                 if (scope === "entry") {

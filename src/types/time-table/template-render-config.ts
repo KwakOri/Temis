@@ -138,7 +138,9 @@ export interface V2TemplateEditorOptions {
   maxStreamingTimeByDay: number;
   enableThemeSelection: boolean;
   useOnlineAssetsByDay: boolean;
+  useMultiAssetsByDay: boolean;
   useOfflineAssetsByDay: boolean;
+  useOfflineMemoAssetsByDay: boolean;
 }
 
 export interface V2TemplateAutoResizeOptions {
@@ -236,7 +238,7 @@ export type V2TemplateVisibilityMode =
   | "offlineMemoOnly"
   | "offlineNoMemoOnly";
 
-export type V2TemplateComponentInstanceMode = "component" | "detached";
+export type V2TemplateComponentInstanceMode = "detached";
 
 export type V2TemplateFieldScope = "entry" | "card" | "global";
 
@@ -278,6 +280,7 @@ export type V2TemplateNodeBindingRef =
   | {
       mode: "computed";
       key: V2TemplateComputedBindingKey;
+      entrySelector?: V2TemplateEntrySelector;
     }
   | {
       mode: "literal";

@@ -285,7 +285,7 @@ const v2_applyRegistryKeyRenameToConfig = ({
 
 const v2_CARD_BACKGROUND_VARIANTS = {
   online: {
-    builtinAssetKey: "onlineByTheme" as const,
+    builtinAssetKey: "online_mon" as const,
     layerTarget: "cardNode:online-background",
     expectedVisibilityModes: ["onlineOnly", "onlineSingleOnly"] as const,
     editorOptionByDayKey: "useOnlineAssetsByDay" as const,
@@ -300,10 +300,10 @@ const v2_CARD_BACKGROUND_VARIANTS = {
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
   multi: {
-    builtinAssetKey: null,
+    builtinAssetKey: "multi_mon" as const,
     layerTarget: "cardNode:multi-background",
     expectedVisibilityModes: ["onlineMultipleOnly"] as const,
-    editorOptionByDayKey: null,
+    editorOptionByDayKey: "useMultiAssetsByDay" as const,
     dayAssetKeyByDay: {
       mon: "multi_mon",
       tue: "multi_tue",
@@ -315,7 +315,7 @@ const v2_CARD_BACKGROUND_VARIANTS = {
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
   offline: {
-    builtinAssetKey: "offlineByTheme" as const,
+    builtinAssetKey: "offline_mon" as const,
     layerTarget: "cardNode:offline-background",
     expectedVisibilityModes: ["offlineOnly", "offlineNoMemoOnly"] as const,
     editorOptionByDayKey: "useOfflineAssetsByDay" as const,
@@ -330,10 +330,10 @@ const v2_CARD_BACKGROUND_VARIANTS = {
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
   offlineMemo: {
-    builtinAssetKey: null,
+    builtinAssetKey: "offlineMemo_mon" as const,
     layerTarget: "cardNode:offline-memo-background",
     expectedVisibilityModes: ["offlineMemoOnly"] as const,
-    editorOptionByDayKey: null,
+    editorOptionByDayKey: "useOfflineMemoAssetsByDay" as const,
     dayAssetKeyByDay: {
       mon: "offlineMemo_mon",
       tue: "offlineMemo_tue",
@@ -416,12 +416,11 @@ const v2_isCardBackgroundNodeForVariant = (
   }
   const assetRef = node.meta?.assetRef;
   if (assetRef?.source === "builtin" && variant.builtinAssetKey) {
+    const expectedVisibilityModes = variant.expectedVisibilityModes as readonly string[];
+    const currentVisibilityMode = node.visibilityMode ?? "always";
     if (
       assetRef.key === variant.builtinAssetKey &&
-      variant.expectedVisibilityModes.includes(
-        (node.visibilityMode ?? "always") as
-          (typeof variant.expectedVisibilityModes)[number]
-      )
+      expectedVisibilityModes.includes(currentVisibilityMode)
     ) {
       return true;
     }
@@ -432,6 +431,8 @@ const v2_isCardBackgroundNodeForVariant = (
   }
   return false;
 };
+
+const v2_DAY_KEY_SET = new Set(v2_TEMPLATE_DAY_KEYS);
 
 const useTemplateThemeAssetActions = ({
   templateId,
@@ -963,6 +964,7 @@ const useTemplateThemeAssetActions = ({
     enabled: boolean
   ) => {
     safeUpdateConfig((prev) => {
+      const variant = v2_CARD_BACKGROUND_VARIANTS[mode];
       const expectedAssetRefByDayKey = enabled
         ? v2_buildCardBackgroundDayAssetRefMap(mode)
         : null;
@@ -986,10 +988,20 @@ const useTemplateThemeAssetActions = ({
           }
           nextMeta.assetRefByDayKey = expectedAssetRefByDayKey;
         } else {
-          if (!nextMeta.assetRefByDayKey) {
+          const hasByDayMap = Boolean(nextMeta.assetRefByDayKey);
+          const expectedMonAssetRef: V2TemplateAssetRef = {
+            source: "builtin",
+            key: variant.builtinAssetKey,
+          };
+          const hasExpectedMonAssetRef = v2_isSameAssetRef(
+            nextMeta.assetRef,
+            expectedMonAssetRef
+          );
+          if (!hasByDayMap && hasExpectedMonAssetRef) {
             return;
           }
           delete nextMeta.assetRefByDayKey;
+          nextMeta.assetRef = expectedMonAssetRef;
         }
 
         nextGraphNodes[nodeId] = {
@@ -1026,6 +1038,130 @@ const useTemplateThemeAssetActions = ({
               },
             }
           : {}),
+      };
+    });
+  };
+
+  const applyMondayCardCommonStructure = () => {
+    safeUpdateConfig((prev) => {
+      const instanceRefs: Array<{
+        nodeId: string;
+        componentId: string;
+        instanceId: string;
+        dayKey: V2TemplateDayKey;
+      }> = [];
+      let mondayComponentId: string | null = null;
+
+      Object.values(prev.graph.nodes).forEach((node) => {
+        if (node.type !== "componentInstance") return;
+        const rawDayKey =
+          typeof node.meta?.dayKey === "string" ? node.meta.dayKey.trim() : "";
+        if (!v2_DAY_KEY_SET.has(rawDayKey as V2TemplateDayKey)) return;
+        const dayKey = rawDayKey as V2TemplateDayKey;
+
+        const componentId =
+          typeof node.meta?.componentId === "string"
+            ? node.meta.componentId.trim()
+            : "";
+        if (!componentId || !prev.graph.componentDefinitions[componentId]) return;
+
+        const instanceId =
+          typeof node.meta?.instanceId === "string" &&
+          node.meta.instanceId.trim().length > 0
+            ? node.meta.instanceId.trim()
+            : node.id;
+
+        instanceRefs.push({
+          nodeId: node.id,
+          componentId,
+          instanceId,
+          dayKey,
+        });
+
+        if (dayKey === "mon" && !mondayComponentId) {
+          mondayComponentId = componentId;
+        }
+      });
+
+      if (!mondayComponentId) return prev;
+      const mondayComponentIdResolved = mondayComponentId;
+      const mondayDefinition =
+        prev.graph.componentDefinitions[mondayComponentIdResolved];
+      if (!mondayDefinition) return prev;
+
+      let nodesChanged = false;
+      const nextNodes = {
+        ...prev.graph.nodes,
+      };
+
+      instanceRefs.forEach((ref) => {
+        if (ref.componentId === mondayComponentIdResolved) return;
+        const currentNode = nextNodes[ref.nodeId];
+        if (!currentNode || currentNode.type !== "componentInstance") return;
+        nextNodes[ref.nodeId] = {
+          ...currentNode,
+          meta: {
+            ...(currentNode.meta ?? {}),
+            componentId: mondayComponentIdResolved,
+          },
+        };
+        nodesChanged = true;
+      });
+
+      Object.entries(nextNodes).forEach(([nodeId, node]) => {
+        if (node.type !== "cardCollection") return;
+        const currentComponentId =
+          typeof node.meta?.componentId === "string"
+            ? node.meta.componentId.trim()
+            : "";
+        if (
+          !currentComponentId ||
+          currentComponentId === mondayComponentIdResolved ||
+          !prev.graph.componentDefinitions[currentComponentId]
+        ) {
+          return;
+        }
+        nextNodes[nodeId] = {
+          ...node,
+          meta: {
+            ...(node.meta ?? {}),
+            componentId: mondayComponentIdResolved,
+          },
+        };
+        nodesChanged = true;
+      });
+
+      const nextMondayTransforms = {
+        ...(mondayDefinition.instanceTransforms ?? {}),
+      };
+      let transformsChanged = false;
+      instanceRefs.forEach((ref) => {
+        const sourceDefinition = prev.graph.componentDefinitions[ref.componentId];
+        const sourceTransform = sourceDefinition?.instanceTransforms?.[ref.instanceId];
+        if (!sourceTransform) return;
+        if (nextMondayTransforms[ref.instanceId]) return;
+        nextMondayTransforms[ref.instanceId] = {
+          ...sourceTransform,
+        };
+        transformsChanged = true;
+      });
+
+      if (!nodesChanged && !transformsChanged) return prev;
+
+      return {
+        ...prev,
+        graph: {
+          ...prev.graph,
+          nodes: nextNodes,
+          componentDefinitions: {
+            ...prev.graph.componentDefinitions,
+            [mondayComponentIdResolved]: {
+              ...mondayDefinition,
+              instanceMode: "detached",
+              instanceTransforms: nextMondayTransforms,
+            },
+          },
+        },
       };
     });
   };
@@ -1322,6 +1458,7 @@ const useTemplateThemeAssetActions = ({
     addExtraAssetKey,
     removeExtraAssetKey,
     toggleCardBackgroundAssetsByDay,
+    applyMondayCardCommonStructure,
     readImageFileDimensions,
     uploadBulkAssetFiles,
     handleAssetFileUpload,

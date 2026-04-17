@@ -26,7 +26,6 @@ export type V2LayersComponentItem = {
   rootLayerId: string | null;
   firstInstanceLayerId: string | null;
   kind: "template" | "custom";
-  instanceMode: "component" | "detached";
   instanceCount: number;
 };
 
@@ -41,7 +40,6 @@ interface V2LayersComponentsTabProps {
     componentItem: V2LayersComponentItem;
     layerId: string;
   }) => void;
-  onDetachComponent: (componentId: string) => void;
   onDuplicateComponent: (componentId: string) => void;
   onDeleteComponent: (componentItem: V2LayersComponentItem) => void;
   onJumpToFirstInstance: (componentItem: V2LayersComponentItem) => void;
@@ -67,7 +65,6 @@ const V2LayersComponentsTab: React.FC<V2LayersComponentsTabProps> = ({
   onCreateComponent,
   onSelectComponentMaster,
   onSelectComponentLayer,
-  onDetachComponent,
   onDuplicateComponent,
   onDeleteComponent,
   onJumpToFirstInstance,
@@ -194,7 +191,7 @@ const V2LayersComponentsTab: React.FC<V2LayersComponentsTabProps> = ({
                   {componentItem.label}
                 </p>
                 <p className="truncate text-[10px] text-[#7f92b5]">
-                  {componentItem.kind} / {componentItem.instanceMode}
+                  {componentItem.kind}
                 </p>
                 <p className="truncate text-[10px] text-[#7f92b5]">
                   instances: {componentItem.instanceCount}
@@ -204,22 +201,9 @@ const V2LayersComponentsTab: React.FC<V2LayersComponentsTabProps> = ({
                 Master
               </span>
             </button>
-            {componentItem.instanceMode !== "detached" ? (
-              <button
-                type="button"
-                className="w-full rounded border border-[#8a4f4f] bg-[#2a1b1b] px-2 py-1 text-[11px] font-semibold text-[#f2b7b7] hover:bg-[#352020]"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onDetachComponent(componentItem.id);
-                }}
-              >
-                Detach (되돌릴 수 없음)
-              </button>
-            ) : (
-              <div className="w-full rounded border border-[#3b5b8b] bg-[#14233d] px-2 py-1 text-[11px] font-semibold text-[#9ec1ff]">
-                Detached
-              </div>
-            )}
+            <div className="w-full rounded border border-[#3b5b8b] bg-[#14233d] px-2 py-1 text-[11px] font-semibold text-[#9ec1ff]">
+              Detached
+            </div>
             <button
               type="button"
               className="w-full rounded border border-[#3f6ad8] bg-[#1a2b57] px-2 py-1 text-[11px] font-semibold text-[#b9ccff] hover:bg-[#22376f]"

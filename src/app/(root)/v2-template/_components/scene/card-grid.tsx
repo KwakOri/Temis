@@ -5,7 +5,6 @@ import { useTemplateRuntimeData } from "@/contexts/v2/template-runtime-ui-contex
 import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import {
   V2TemplateCardStructure,
-  V2TemplateComponentInstanceMode,
   V2TemplateDayKey,
   V2TemplateSceneComponentInstanceNode,
 } from "@/types/time-table/template-render-config";
@@ -19,12 +18,6 @@ import { v2_toRenderableLayoutStyle } from "./render-style";
 type V2GridLayoutMode = "grid3x3" | "flex4x2" | "free";
 type V2Flex42Align = "left" | "center" | "right";
 type V2Flex42ThreeRow = "top" | "bottom";
-
-const v2_parseCardInstanceMode = (
-  value: unknown
-): V2TemplateComponentInstanceMode => {
-  return value === "detached" ? "detached" : "component";
-};
 
 const v2_getCardInstanceTransform = (
   transforms:
@@ -201,10 +194,6 @@ const TimeTableGrid: React.FC<{
     fallbackIndex: number,
     instanceCardStructure: V2TemplateCardStructure
   ): React.CSSProperties => {
-    const cardInstanceMode = v2_parseCardInstanceMode(
-      instanceCardStructure.instanceMode
-    );
-    if (cardInstanceMode !== "detached") return {};
     const cardInstanceTransforms = instanceCardStructure.instanceTransforms;
     const transform =
       v2_getCardInstanceTransform(cardInstanceTransforms, fallbackIndex, instanceId);
@@ -331,6 +320,7 @@ const TimeTableGrid: React.FC<{
               <V2TimeTableCell
                 time={time}
                 dayKeyOverride={instance.dayKey}
+                cardInstanceId={instance.instanceId}
                 currentTheme={currentTheme}
                 weekDate={weekDate}
                 index={dataIndex}
@@ -403,6 +393,7 @@ const TimeTableGrid: React.FC<{
                 <V2TimeTableCell
                   time={time}
                   dayKeyOverride={instance.dayKey}
+                  cardInstanceId={instance.instanceId}
                   currentTheme={currentTheme}
                   weekDate={weekDate}
                   index={dataIndex}
@@ -437,6 +428,7 @@ const TimeTableGrid: React.FC<{
                 <V2TimeTableCell
                   time={time}
                   dayKeyOverride={instance.dayKey}
+                  cardInstanceId={instance.instanceId}
                   currentTheme={currentTheme}
                   weekDate={weekDate}
                   index={dataIndex}
@@ -500,6 +492,7 @@ const TimeTableGrid: React.FC<{
         <V2TimeTableCell
           time={time}
           dayKeyOverride={instance.dayKey}
+          cardInstanceId={instance.instanceId}
           currentTheme={currentTheme}
           weekDate={weekDate}
           index={dataIndex}

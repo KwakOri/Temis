@@ -48,7 +48,6 @@ interface V2TimeTableLayersPanelProps {
     targetParentId: string;
     targetIndex: number;
   }) => void;
-  onDetachComponent?: (componentId: string) => void;
   onCreateComponent?: () => V2ComponentMutationResult;
   onDuplicateComponent?: (componentId: string) => V2ComponentMutationResult;
   onDeleteComponent?: (componentId: string) => V2ComponentMutationResult;
@@ -70,7 +69,6 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   onReorderLayers,
   canRelocateLayer,
   onRelocateLayers,
-  onDetachComponent,
   onCreateComponent,
   onDuplicateComponent,
   onDeleteComponent,
@@ -651,9 +649,6 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
                   layerId,
                   editorMode: "master",
                 });
-              }}
-              onDetachComponent={(componentId) => {
-                onDetachComponent?.(componentId);
               }}
               onDuplicateComponent={(componentId) => {
                 applyComponentMutationResult(onDuplicateComponent?.(componentId));

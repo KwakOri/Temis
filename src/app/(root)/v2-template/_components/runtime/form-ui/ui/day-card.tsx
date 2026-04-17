@@ -59,7 +59,7 @@ export const DayCard: React.FC<DayCardProps> = ({
       <div className={cn(cardHeaderVariants({ size }))}>
         <RuntimeCardTitle size={size} label={weekdayLabel as string} />
         <Toggle
-          active={!isOffline}
+          active={isOffline}
           onToggle={onOfflineToggle}
           label={offlineToggleLabel}
           variant="offline"

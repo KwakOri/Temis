@@ -43,11 +43,23 @@ const v2_toRenderableLayout = (
   width?: string | number;
 } => {
   if (!value || typeof value !== "object") return { style: {} };
-  const style = v2_toRenderableLayoutStyle(value as Record<string, unknown>);
-  const width = style.width;
+  const rawRecord = value as Record<string, unknown>;
+  const style = v2_toRenderableLayoutStyle(rawRecord);
+  const hasExplicitPosition = Object.prototype.hasOwnProperty.call(
+    rawRecord,
+    "position"
+  );
+  const normalizedStyle =
+    !hasExplicitPosition && style.position === "relative"
+      ? {
+          ...style,
+          position: "absolute" as const,
+        }
+      : style;
+  const width = normalizedStyle.width;
 
   return {
-    style,
+    style: normalizedStyle,
     ...(width !== undefined ? { width } : {}),
   };
 };
@@ -187,7 +199,7 @@ const V2SceneStructureRenderer = ({
     const isGuideOverlay = assetRole === "guideOverlay";
 
     const style = node.styleKey
-      ? v2_toRenderableLayoutStyle(resolveStyleRecordByKey(node.styleKey))
+      ? v2_toRenderableLayout(resolveStyleRecordByKey(node.styleKey)).style
       : {};
     const resolvedTarget = node.layerId ? layerTargetMap[node.layerId] : undefined;
     const highlightStyle = resolvedTarget
@@ -282,6 +294,14 @@ const V2SceneStructureRenderer = ({
     const style = node.styleKey
       ? v2_toRenderableLayoutStyle(resolveStyleRecordByKey(node.styleKey))
       : {};
+    const cardContainerSizeOverride = {
+      ...(typeof style.width === "number" || typeof style.width === "string"
+        ? { width: style.width as string | number }
+        : {}),
+      ...(typeof style.height === "number" || typeof style.height === "string"
+        ? { height: style.height as string | number }
+        : {}),
+    };
     const resolvedTarget =
       (node.layerId ? layerTargetMap[node.layerId] : undefined) ??
       `sceneNode:${node.id}`;
@@ -307,6 +327,9 @@ const V2SceneStructureRenderer = ({
           weekDate={weekDate}
           index={dataIndex}
           cardStructure={runtimeCardStructure}
+          bindingOverrides={node.bindingOverrides}
+          cardContainerSizeOverride={cardContainerSizeOverride}
+          cardInstanceId={node.instanceId}
         />
       </div>
     );

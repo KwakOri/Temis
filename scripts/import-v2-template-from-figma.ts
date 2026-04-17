@@ -611,13 +611,29 @@ const sanitizePathSegment = (value: string, fallback: string): string => {
   return normalized.length > 0 ? normalized : fallback;
 };
 
-const ASSET_STATUS_ALIASES: Record<string, "online" | "offline"> = {
+type AssetStatus = "online" | "multi" | "offline" | "offlineMemo";
+
+const ASSET_STATUS_ALIASES: Record<string, AssetStatus> = {
   online: "online",
   on: "online",
   live: "online",
+  single: "online",
+  multi: "multi",
+  multiple: "multi",
+  "online-multi": "multi",
+  online_multi: "multi",
+  "online-multiple": "multi",
+  online_multiple: "multi",
+  onlinemulti: "multi",
+  onlinemultiple: "multi",
   offline: "offline",
   off: "offline",
   rest: "offline",
+  offlinememo: "offlineMemo",
+  "offline-memo": "offlineMemo",
+  offline_memo: "offlineMemo",
+  memooffline: "offlineMemo",
+  memo_offline: "offlineMemo",
 };
 
 const ASSET_SLOT_TO_BUILTIN_KEY: Record<string, V2TemplateBuiltinAssetKey> = {
@@ -691,7 +707,7 @@ const CARD_BACKGROUND_VARIANTS = {
     builtinAssetKey: null,
     layerTarget: "cardNode:multi-background",
     expectedVisibilityModes: ["onlineMultipleOnly"] as const,
-    editorOptionByDayKey: null,
+    editorOptionByDayKey: "useMultiAssetsByDay" as const,
     dayAssetKeyByDay: {
       mon: "multi_mon",
       tue: "multi_tue",
@@ -721,7 +737,7 @@ const CARD_BACKGROUND_VARIANTS = {
     builtinAssetKey: null,
     layerTarget: "cardNode:offline-memo-background",
     expectedVisibilityModes: ["offlineMemoOnly"] as const,
-    editorOptionByDayKey: null,
+    editorOptionByDayKey: "useOfflineMemoAssetsByDay" as const,
     dayAssetKeyByDay: {
       mon: "offlineMemo_mon",
       tue: "offlineMemo_tue",
@@ -769,12 +785,11 @@ const isCardBackgroundNodeForVariant = ({
   }
   const assetRef = node.meta?.assetRef;
   if (assetRef?.source === "builtin" && variant.builtinAssetKey) {
+    const expectedVisibilityModes = variant.expectedVisibilityModes as readonly string[];
+    const currentVisibilityMode = node.visibilityMode ?? "always";
     if (
       assetRef.key === variant.builtinAssetKey &&
-      variant.expectedVisibilityModes.includes(
-        (node.visibilityMode ?? "always") as
-          (typeof variant.expectedVisibilityModes)[number]
-      )
+      expectedVisibilityModes.includes(currentVisibilityMode)
     ) {
       return true;
     }
@@ -976,7 +991,7 @@ const normalizeAssetSlot = (value: string | undefined): string | undefined => {
 
 const normalizeAssetStatus = (
   value: string | undefined
-): "online" | "offline" | undefined => {
+): AssetStatus | undefined => {
   if (!value) return undefined;
   return ASSET_STATUS_ALIASES[value.trim().toLowerCase()];
 };
@@ -1974,6 +1989,7 @@ const applyLayoutMappingsFromFigma = ({
     cardContainer: ["card"],
     cardBackground: ["card.background"],
     cardMainTitle: ["card.mainTitle", "card.main_title"],
+    cardOfflineMemo: ["card.offlineMemo", "card.offline_memo"],
     cardSubTitle: ["card.subTitle", "card.sub_title"],
     cardTime: ["card.time", "card.streamingTime"],
     cardDate: ["card.date", "card.streamingDate"],
@@ -2073,9 +2089,6 @@ const applyLayoutMappingsFromFigma = ({
       (candidate) => resolveCandidateDayKey(candidate) === "mon"
     );
     if (monCandidate) {
-      summary.warnings.push(
-        `Card container matched ${candidates.length} nodes in ${source}; selected [day=mon] metadata candidate as baseline card layout.`
-      );
       return monCandidate;
     }
 
@@ -2152,6 +2165,59 @@ const applyLayoutMappingsFromFigma = ({
     return next;
   };
 
+  const collectCardCandidatesByDayStatus = (
+    candidates: FigmaNode[]
+  ): Partial<Record<V2TemplateDayKey, Partial<Record<CardTextStatus, FigmaNode>>>> => {
+    const next: Partial<Record<V2TemplateDayKey, Partial<Record<CardTextStatus, FigmaNode>>>> = {};
+    const ranked: Partial<
+      Record<
+        V2TemplateDayKey,
+        Partial<Record<CardTextStatus, { score: number; x: number; y: number }>>
+      >
+    > = {};
+
+    candidates.forEach((candidate) => {
+      const dayKey = resolveCandidateDayKey(candidate);
+      const status = resolveCandidateStatus(candidate);
+      if (!dayKey || !status) return;
+      const score = scoreCardContainerCandidate(candidate);
+      const bounds = getBounds(candidate);
+      const x = bounds?.x ?? Number.POSITIVE_INFINITY;
+      const y = bounds?.y ?? Number.POSITIVE_INFINITY;
+
+      const dayCandidates = next[dayKey] ?? {};
+      const dayRanks = ranked[dayKey] ?? {};
+      const prevRank = dayRanks[status];
+      if (!prevRank) {
+        dayCandidates[status] = candidate;
+        dayRanks[status] = { score, x, y };
+        next[dayKey] = dayCandidates;
+        ranked[dayKey] = dayRanks;
+        return;
+      }
+
+      if (score > prevRank.score) {
+        dayCandidates[status] = candidate;
+        dayRanks[status] = { score, x, y };
+        next[dayKey] = dayCandidates;
+        ranked[dayKey] = dayRanks;
+        return;
+      }
+
+      if (score === prevRank.score) {
+        const isMoreTopLeft = y < prevRank.y || (y === prevRank.y && x < prevRank.x);
+        if (isMoreTopLeft) {
+          dayCandidates[status] = candidate;
+          dayRanks[status] = { score, x, y };
+          next[dayKey] = dayCandidates;
+          ranked[dayKey] = dayRanks;
+        }
+      }
+    });
+
+    return next;
+  };
+
   const applyFreeLayoutFromCardCandidates = ({
     candidates,
     positionRootNode,
@@ -2164,6 +2230,95 @@ const applyLayoutMappingsFromFigma = ({
       (dayKey) => candidateByDay[dayKey]
     ).length;
     if (candidateDayCount < 2) return false;
+
+    const fallbackInstanceNodes = Object.values(config.graph.nodes).filter(
+      (node): node is (typeof config.graph.nodes)[string] =>
+        Boolean(node && node.type === "componentInstance")
+    );
+
+    if (fallbackInstanceNodes.length > 0) {
+      const nextSceneStyles: Array<{ styleKey: string; style: Record<string, unknown> }> = [];
+      fallbackInstanceNodes.forEach((instanceNode, fallbackIndex) => {
+        const dayKey = toDayTagKey(
+          typeof instanceNode.meta?.dayKey === "string"
+            ? instanceNode.meta.dayKey
+            : undefined
+        ) as V2TemplateDayKey | undefined;
+        if (!dayKey) return;
+        const sourceNode = candidateByDay[dayKey];
+        if (!sourceNode) return;
+        const rect = toRelativeRect({
+          rootNode: positionRootNode,
+          targetNode: sourceNode,
+        });
+        if (!rect) return;
+        const styleKey =
+          (typeof instanceNode.styles?.styleKey === "string" &&
+          instanceNode.styles.styleKey.trim().length > 0
+            ? instanceNode.styles.styleKey.trim()
+            : undefined) ??
+          (typeof instanceNode.meta?.layerSectionKey === "string" &&
+          instanceNode.meta.layerSectionKey.trim().length > 0
+            ? instanceNode.meta.layerSectionKey.trim()
+            : undefined);
+        if (!styleKey) return;
+        const style: Record<string, unknown> = {
+          position: "absolute",
+          left: rect.left,
+          top: rect.top,
+          ...(rect.width > 0 ? { width: rect.width } : {}),
+          ...(rect.height > 0 ? { height: rect.height } : {}),
+          ...(rect.rotateDeg !== undefined ? { rotateDeg: rect.rotateDeg } : {}),
+        };
+        nextSceneStyles.push({ styleKey, style });
+
+        const componentId =
+          typeof instanceNode.meta?.componentId === "string"
+            ? instanceNode.meta.componentId.trim()
+            : "";
+        const componentDefinition =
+          componentId.length > 0 ? config.graph.componentDefinitions[componentId] : undefined;
+        if (componentDefinition) {
+          const instanceId =
+            typeof instanceNode.meta?.instanceId === "string" &&
+            instanceNode.meta.instanceId.trim().length > 0
+              ? instanceNode.meta.instanceId.trim()
+              : String(fallbackIndex);
+          componentDefinition.instanceMode = "detached";
+          componentDefinition.instanceTransforms = {
+            ...(componentDefinition.instanceTransforms ?? {}),
+            [instanceId]: {
+              offsetX: rect.left,
+              offsetY: rect.top,
+              ...(rect.width > 0 ? { width: rect.width } : {}),
+              ...(rect.height > 0 ? { height: rect.height } : {}),
+              ...(rect.rotateDeg !== undefined ? { rotateDeg: rect.rotateDeg } : {}),
+            },
+          };
+        }
+      });
+
+      if (nextSceneStyles.length >= 2) {
+        nextSceneStyles.forEach(({ styleKey, style }) => {
+          const current = config.layout.scene[
+            styleKey
+          ] as Record<string, unknown> | undefined;
+          config.layout.scene[styleKey] = {
+            ...(current ?? {}),
+            ...style,
+          };
+        });
+        (config.layout.grid as Record<string, unknown>).layoutMode = "free";
+        summary.applied.push("layout.grid.layoutMode=free");
+        summary.applied.push("layout.scene.[cardInstanceStyle].position");
+        if (nextSceneStyles.length < IMPORT_DAY_KEYS.length) {
+          summary.warnings.push(
+            `Free card layout applied with ${nextSceneStyles.length}/${IMPORT_DAY_KEYS.length} matched day instances.`
+          );
+        }
+        return true;
+      }
+    }
 
     const cardCollectionNode = Object.values(config.graph.nodes).find(
       (node) => node.type === "cardCollection"
@@ -2578,9 +2733,9 @@ const applyLayoutMappingsFromFigma = ({
         statusCandidateById.set(candidateId, candidate);
       }
     });
-    const candidateByStatus = collectCardCandidatesByStatus(
-      Array.from(statusCandidateById.values())
-    );
+    const dedupedStatusCandidates = Array.from(statusCandidateById.values());
+    const candidateByStatus = collectCardCandidatesByStatus(dedupedStatusCandidates);
+    const candidateByDayStatus = collectCardCandidatesByDayStatus(dedupedStatusCandidates);
     if (!candidateByStatus.online) {
       candidateByStatus.online = cardContainerNode;
     }
@@ -2789,40 +2944,99 @@ const applyLayoutMappingsFromFigma = ({
       summary.applied.push("layout.card.offlineMemoBackgroundContainer");
     }
 
-    const resolveCardTextNodesFromCandidate = (candidate: FigmaNode) => {
-      const candidateNodes = flattenNodes(candidate);
+    const parseEntryIndexFromNode = (node: FigmaNode): number | undefined => {
+      const rawIndex = getNodeTagValue(node, "index");
+      if (!rawIndex) return undefined;
+      const parsed = Number.parseInt(rawIndex, 10);
+      if (!Number.isFinite(parsed) || parsed < 0) return undefined;
+      return parsed;
+    };
+
+    const collectCardEntrySources = ({
+      candidate,
+      status,
+    }: {
+      candidate: FigmaNode;
+      status: CardTextStatus;
+    }): Array<{ index: number; node: FigmaNode }> => {
+      const normalizedStatus = normalizeTagValue(status);
+      const nodes = flattenNodes(candidate)
+        .filter((node) => {
+          const slotTag = getNodeTagValue(node, "slot");
+          if (!slotTag || normalizeAssetSlot(slotTag) !== "card.entry") return false;
+          const index = parseEntryIndexFromNode(node);
+          if (index === undefined) return false;
+          const statusTag =
+            getNodeTagValue(node, "status") ??
+            getNodeTagValue(node, "mode") ??
+            getNodeTagValue(node, "state");
+          if (!statusTag) return true;
+          return normalizeTagValue(statusTag) === normalizedStatus;
+        })
+        .map((node) => ({
+          index: parseEntryIndexFromNode(node) as number,
+          node,
+        }))
+        .sort((left, right) => left.index - right.index);
+
+      if (nodes.length > 0) {
+        return nodes;
+      }
+      return [{ index: 0, node: candidate }];
+    };
+
+    const resolveCardTextNodesFromCandidate = ({
+      candidate,
+      sourceNode,
+      status,
+    }: {
+      candidate: FigmaNode;
+      sourceNode?: FigmaNode;
+      status: CardTextStatus;
+    }) => {
+      const searchRoot = sourceNode ?? candidate;
+      const candidateNodes = flattenNodes(searchRoot);
+      const offlineMemoMainTitleNode =
+        status === "offlineMemo"
+          ? findContainerNodeByTextBind({
+              rootNode: searchRoot,
+              bindValues: ["entry.offlineMemo"],
+            }) ??
+            findFirstByTagValues(candidateNodes, "slot", slot.cardOfflineMemo)
+          : undefined;
       return {
         mainTitleContainerNode:
+          offlineMemoMainTitleNode ??
           findContainerNodeByTextBind({
-            rootNode: candidate,
+            rootNode: searchRoot,
             bindValues: ["entry.mainTitle"],
           }) ??
           findFirstByTagValues(candidateNodes, "slot", slot.cardMainTitle) ??
           findFirstByNames(candidateNodes, alias.mainTitleContainer),
         subTitleContainerNode:
           findContainerNodeByTextBind({
-            rootNode: candidate,
+            rootNode: searchRoot,
             bindValues: ["entry.subTitle"],
           }) ??
           findFirstByTagValues(candidateNodes, "slot", slot.cardSubTitle) ??
           findFirstByNames(candidateNodes, alias.subTitleContainer),
         streamingTimeNode:
           findContainerNodeByTextBind({
-            rootNode: candidate,
+            rootNode: searchRoot,
             bindValues: ["entry.time"],
           }) ??
           findFirstByTagValues(candidateNodes, "slot", slot.cardTime) ??
           findFirstByNames(candidateNodes, alias.streamingTime),
         streamingDateNode:
           findContainerNodeByTextBind({
-            rootNode: candidate,
+            rootNode: searchRoot,
             bindValues: ["entry.date"],
           }) ??
           findFirstByTagValues(candidateNodes, "slot", slot.cardDate) ??
           findFirstByNames(candidateNodes, alias.streamingDate),
         streamingDayNode:
           findContainerNodeByTextBind({
-            rootNode: candidate,
+            rootNode: searchRoot,
             bindValues: ["entry.day"],
           }) ??
           findFirstByTagValues(candidateNodes, "slot", slot.cardDay) ??
@@ -2830,19 +3044,51 @@ const applyLayoutMappingsFromFigma = ({
       } as const;
     };
 
-    const baseCardTextNodes = resolveCardTextNodesFromCandidate(cardContainerNode);
+    const onlineVariantSourceNode = candidateByStatus.online ?? cardContainerNode;
+    const multiVariantSourceNode =
+      candidateByStatus.multi ?? onlineVariantSourceNode;
+    const offlineVariantSourceNode =
+      candidateByStatus.offline ??
+      candidateByStatus.offlineMemo ??
+      onlineVariantSourceNode;
+    const offlineMemoVariantSourceNode =
+      candidateByStatus.offlineMemo ??
+      candidateByStatus.offline ??
+      onlineVariantSourceNode;
+
+    const onlineEntrySources = collectCardEntrySources({
+      candidate: onlineVariantSourceNode,
+      status: "online",
+    });
+    const onlinePrimaryEntrySource =
+      onlineEntrySources.find((entry) => entry.index === 0) ?? onlineEntrySources[0];
+
+    const baseCardTextNodes = resolveCardTextNodesFromCandidate({
+      candidate: onlineVariantSourceNode,
+      sourceNode: onlinePrimaryEntrySource?.node,
+      status: "online",
+    });
     const mainTitleContainerNode = baseCardTextNodes.mainTitleContainerNode;
     const subTitleContainerNode = baseCardTextNodes.subTitleContainerNode;
     const streamingTimeNode = baseCardTextNodes.streamingTimeNode;
     const streamingDateNode = baseCardTextNodes.streamingDateNode;
     const streamingDayNode = baseCardTextNodes.streamingDayNode;
 
-    const statusTextSourceNodes = [
-      candidateByStatus.online,
-      candidateByStatus.multi,
-      candidateByStatus.offline,
-      candidateByStatus.offlineMemo,
-    ].filter((candidate): candidate is FigmaNode => Boolean(candidate));
+    const statusTextSourceNodes: Array<{
+      status: CardTextStatus;
+      candidate: FigmaNode;
+    }> = [
+      { status: "online", candidate: onlineVariantSourceNode },
+      ...(candidateByStatus.multi
+        ? [{ status: "multi" as const, candidate: multiVariantSourceNode }]
+        : []),
+      ...(candidateByStatus.offline
+        ? [{ status: "offline" as const, candidate: offlineVariantSourceNode }]
+        : []),
+      ...(candidateByStatus.offlineMemo
+        ? [{ status: "offlineMemo" as const, candidate: offlineMemoVariantSourceNode }]
+        : []),
+    ];
 
     const hasCardTextByRole = {
       mainTitle: Boolean(mainTitleContainerNode),
@@ -2852,8 +3098,18 @@ const applyLayoutMappingsFromFigma = ({
       streamingDay: Boolean(streamingDayNode),
     };
 
-    statusTextSourceNodes.forEach((candidate) => {
-      const resolved = resolveCardTextNodesFromCandidate(candidate);
+    statusTextSourceNodes.forEach(({ status, candidate }) => {
+      const entrySources = collectCardEntrySources({
+        candidate,
+        status,
+      });
+      const primaryEntrySource =
+        entrySources.find((entry) => entry.index === 0) ?? entrySources[0];
+      const resolved = resolveCardTextNodesFromCandidate({
+        candidate,
+        sourceNode: primaryEntrySource?.node,
+        status,
+      });
       hasCardTextByRole.mainTitle =
         hasCardTextByRole.mainTitle || Boolean(resolved.mainTitleContainerNode);
       hasCardTextByRole.subTitle =
@@ -3016,18 +3272,6 @@ const applyLayoutMappingsFromFigma = ({
     };
 
     if (cardRootGraphNode && cardRootGraphNode.type === "group") {
-      const onlineVariantSourceNode = candidateByStatus.online ?? cardContainerNode;
-      const multiVariantSourceNode =
-        candidateByStatus.multi ?? onlineVariantSourceNode;
-      const offlineVariantSourceNode =
-        candidateByStatus.offline ??
-        candidateByStatus.offlineMemo ??
-        onlineVariantSourceNode;
-      const offlineMemoVariantSourceNode =
-        candidateByStatus.offlineMemo ??
-        candidateByStatus.offline ??
-        onlineVariantSourceNode;
-
       const hasMultiStatus = Boolean(candidateByStatus.multi || multiBackgroundNode);
       const hasOfflineStatus = Boolean(
         candidateByStatus.offline || offlineBackgroundNode
@@ -3039,14 +3283,40 @@ const applyLayoutMappingsFromFigma = ({
         hasMultiStatus || hasOfflineStatus || hasOfflineMemoStatus
       );
 
+      const roleIsOptionalByStatus = (
+        status: CardTextStatus,
+        role: "mainTitle" | "subTitle" | "streamingTime" | "streamingDate" | "streamingDay"
+      ): boolean => {
+        if (status === "online") {
+          return role === "streamingDay";
+        }
+        if (status === "multi") {
+          return role === "streamingDate" || role === "streamingDay";
+        }
+        if (status === "offline") {
+          return (
+            role === "mainTitle" ||
+            role === "subTitle" ||
+            role === "streamingTime" ||
+            role === "streamingDay"
+          );
+        }
+        if (status === "offlineMemo") {
+          return role === "subTitle" || role === "streamingTime" || role === "streamingDay";
+        }
+        return false;
+      };
+
       const statusSlotAuditPlans: Array<{
         status: CardTextStatus;
         sourceNode: FigmaNode;
+        textSourceNode: FigmaNode;
         backgroundNode: FigmaNode | undefined;
       }> = [
         {
           status: "online",
           sourceNode: onlineVariantSourceNode,
+          textSourceNode: onlinePrimaryEntrySource?.node ?? onlineVariantSourceNode,
           backgroundNode: onlineBackgroundNode,
         },
         ...(hasMultiStatus
@@ -3054,6 +3324,11 @@ const applyLayoutMappingsFromFigma = ({
               {
                 status: "multi" as const,
                 sourceNode: multiVariantSourceNode,
+                textSourceNode:
+                  collectCardEntrySources({
+                    candidate: multiVariantSourceNode,
+                    status: "multi",
+                  }).find((entry) => entry.index === 0)?.node ?? multiVariantSourceNode,
                 backgroundNode: multiBackgroundNode,
               },
             ]
@@ -3063,6 +3338,11 @@ const applyLayoutMappingsFromFigma = ({
               {
                 status: "offline" as const,
                 sourceNode: offlineVariantSourceNode,
+                textSourceNode:
+                  collectCardEntrySources({
+                    candidate: offlineVariantSourceNode,
+                    status: "offline",
+                  }).find((entry) => entry.index === 0)?.node ?? offlineVariantSourceNode,
                 backgroundNode: offlineBackgroundNode,
               },
             ]
@@ -3072,6 +3352,11 @@ const applyLayoutMappingsFromFigma = ({
               {
                 status: "offlineMemo" as const,
                 sourceNode: offlineMemoVariantSourceNode,
+                textSourceNode:
+                  collectCardEntrySources({
+                    candidate: offlineMemoVariantSourceNode,
+                    status: "offlineMemo",
+                  }).find((entry) => entry.index === 0)?.node ?? offlineMemoVariantSourceNode,
                 backgroundNode: offlineMemoBackgroundNode,
               },
             ]
@@ -3079,17 +3364,32 @@ const applyLayoutMappingsFromFigma = ({
       ];
 
       statusSlotAuditPlans.forEach((plan) => {
-        const statusNodes = resolveCardTextNodesFromCandidate(plan.sourceNode);
+        const statusNodes = resolveCardTextNodesFromCandidate({
+          candidate: plan.sourceNode,
+          sourceNode: plan.textSourceNode,
+          status: plan.status,
+        });
         const missing: string[] = [];
         if (!plan.backgroundNode) missing.push("background");
-        if (!statusNodes.mainTitleContainerNode) missing.push("main");
-        if (!statusNodes.subTitleContainerNode) missing.push("sub");
-        if (!statusNodes.streamingTimeNode) missing.push("time");
-        if (!statusNodes.streamingDateNode) missing.push("date");
-        if (!statusNodes.streamingDayNode) missing.push("day");
+        if (!statusNodes.mainTitleContainerNode && !roleIsOptionalByStatus(plan.status, "mainTitle")) {
+          missing.push("main");
+        }
+        if (!statusNodes.subTitleContainerNode && !roleIsOptionalByStatus(plan.status, "subTitle")) {
+          missing.push("sub");
+        }
+        if (!statusNodes.streamingTimeNode && !roleIsOptionalByStatus(plan.status, "streamingTime")) {
+          missing.push("time");
+        }
+        if (!statusNodes.streamingDateNode && !roleIsOptionalByStatus(plan.status, "streamingDate")) {
+          missing.push("date");
+        }
+        if (!statusNodes.streamingDayNode && !roleIsOptionalByStatus(plan.status, "streamingDay")) {
+          missing.push("day");
+        }
         summary.statusSlotAuditRows.push({
           status: plan.status,
-          source: plan.sourceNode.name || plan.sourceNode.id || "(unknown)",
+          source:
+            `${plan.sourceNode.name || plan.sourceNode.id || "(unknown)"} -> ${plan.textSourceNode.name || plan.textSourceNode.id || "(unknown)"}`,
           background: Boolean(plan.backgroundNode),
           main: Boolean(statusNodes.mainTitleContainerNode),
           sub: Boolean(statusNodes.subTitleContainerNode),
@@ -3112,6 +3412,8 @@ const applyLayoutMappingsFromFigma = ({
           | "offlineNoMemoOnly"
           | "offlineMemoOnly";
         sourceNode: FigmaNode;
+        textSourceNode: FigmaNode;
+        entryIndex: number;
       }> = hasStatusSpecificCardTextSets
         ? [
             {
@@ -3120,17 +3422,22 @@ const applyLayoutMappingsFromFigma = ({
               styleSuffix: "",
               visibilityMode: hasMultiStatus ? "onlineSingleOnly" : "onlineOnly",
               sourceNode: onlineVariantSourceNode,
+              textSourceNode: onlinePrimaryEntrySource?.node ?? onlineVariantSourceNode,
+              entryIndex: onlinePrimaryEntrySource?.index ?? 0,
             },
             ...(hasMultiStatus
-              ? [
-                  {
-                    status: "multi" as const,
-                    nodeIdSuffix: "-multi",
-                    styleSuffix: "Multi",
-                    visibilityMode: "onlineMultipleOnly" as const,
-                    sourceNode: multiVariantSourceNode,
-                  },
-                ]
+              ? collectCardEntrySources({
+                  candidate: multiVariantSourceNode,
+                  status: "multi",
+                }).map((entrySource) => ({
+                  status: "multi" as const,
+                  nodeIdSuffix: `-multi-e${entrySource.index}`,
+                  styleSuffix: `MultiE${entrySource.index}`,
+                  visibilityMode: "onlineMultipleOnly" as const,
+                  sourceNode: multiVariantSourceNode,
+                  textSourceNode: entrySource.node,
+                  entryIndex: entrySource.index,
+                }))
               : []),
             ...(hasOfflineStatus
               ? [
@@ -3142,6 +3449,13 @@ const applyLayoutMappingsFromFigma = ({
                       ? ("offlineNoMemoOnly" as const)
                       : ("offlineOnly" as const),
                     sourceNode: offlineVariantSourceNode,
+                    textSourceNode:
+                      collectCardEntrySources({
+                        candidate: offlineVariantSourceNode,
+                        status: "offline",
+                      }).find((entry) => entry.index === 0)?.node ??
+                      offlineVariantSourceNode,
+                    entryIndex: 0,
                   },
                 ]
               : []),
@@ -3153,6 +3467,13 @@ const applyLayoutMappingsFromFigma = ({
                     styleSuffix: "OfflineMemo",
                     visibilityMode: "offlineMemoOnly" as const,
                     sourceNode: offlineMemoVariantSourceNode,
+                    textSourceNode:
+                      collectCardEntrySources({
+                        candidate: offlineMemoVariantSourceNode,
+                        status: "offlineMemo",
+                      }).find((entry) => entry.index === 0)?.node ??
+                      offlineMemoVariantSourceNode,
+                    entryIndex: 0,
                   },
                 ]
               : []),
@@ -3164,6 +3485,8 @@ const applyLayoutMappingsFromFigma = ({
         nodeIdSuffix,
         styleSuffix,
         visibilityMode,
+        entryIndex,
+        bindingKeyOverride,
       }: {
         baseNodeId: string;
         nodeIdSuffix: string;
@@ -3175,6 +3498,8 @@ const applyLayoutMappingsFromFigma = ({
           | "offlineOnly"
           | "offlineNoMemoOnly"
           | "offlineMemoOnly";
+        entryIndex: number;
+        bindingKeyOverride?: string;
       }): string | null => {
         const baseNode = config.graph.nodes[baseNodeId];
         if (!baseNode || (baseNode.type !== "text" && baseNode.type !== "flexibleText")) {
@@ -3214,7 +3539,33 @@ const applyLayoutMappingsFromFigma = ({
           childIds: [],
           layerId: targetLayerId,
           visibilityMode,
-          ...(baseNode.binding ? { binding: { ...baseNode.binding } } : {}),
+          ...(baseNode.binding
+            ? {
+                binding:
+                  baseNode.binding.mode === "field"
+                    ? {
+                        ...baseNode.binding,
+                        ...(bindingKeyOverride ? { key: bindingKeyOverride } : {}),
+                        ...(baseNode.binding.scope === "entry"
+                          ? {
+                              entrySelector: {
+                                mode: "index" as const,
+                                index: entryIndex,
+                              },
+                            }
+                          : {}),
+                      }
+                    : baseNode.binding.mode === "computed"
+                      ? {
+                          ...baseNode.binding,
+                          entrySelector: {
+                            mode: "index" as const,
+                            index: entryIndex,
+                          },
+                        }
+                      : { ...baseNode.binding },
+              }
+            : {}),
           styles: {
             ...(baseNode.styles ?? {}),
             ...(containerStyleKey ? { containerStyleKey } : {}),
@@ -3258,12 +3609,15 @@ const applyLayoutMappingsFromFigma = ({
           baseNodeId: "main-title",
           getSourceNode: (nodes: ReturnType<typeof resolveCardTextNodesFromCandidate>) =>
             nodes.mainTitleContainerNode,
+          getBindingKey: (status: CardTextStatus) =>
+            status === "offlineMemo" ? "offlineMemo" : "mainTitle",
         },
         {
           key: "subTitle" as const,
           baseNodeId: "sub-title",
           getSourceNode: (nodes: ReturnType<typeof resolveCardTextNodesFromCandidate>) =>
             nodes.subTitleContainerNode,
+          getBindingKey: () => "subTitle",
         },
         {
           key: "streamingTime" as const,
@@ -3286,34 +3640,42 @@ const applyLayoutMappingsFromFigma = ({
       ];
 
       variantPlans.forEach((variantPlan) => {
-        const sourceNodes = resolveCardTextNodesFromCandidate(variantPlan.sourceNode);
-        const baselineSourceNodes = resolveCardTextNodesFromCandidate(
-          candidateByStatus.online ?? cardContainerNode
-        );
+        const sourceNodes = resolveCardTextNodesFromCandidate({
+          candidate: variantPlan.sourceNode,
+          sourceNode: variantPlan.textSourceNode,
+          status: variantPlan.status,
+        });
         roleDefinitions.forEach((roleDefinition) => {
+          const isOptionalRole = roleIsOptionalByStatus(
+            variantPlan.status,
+            roleDefinition.key
+          );
           const targetNodeId = ensureCardTextVariantNode({
             baseNodeId: roleDefinition.baseNodeId,
             nodeIdSuffix: variantPlan.nodeIdSuffix,
             styleSuffix: variantPlan.styleSuffix,
             visibilityMode: variantPlan.visibilityMode,
+            entryIndex: variantPlan.entryIndex,
+            bindingKeyOverride: roleDefinition.getBindingKey?.(variantPlan.status),
           });
           if (!targetNodeId) return;
           const targetGraphNode = config.graph.nodes[targetNodeId];
           if (!targetGraphNode) return;
           const primarySourceNode = roleDefinition.getSourceNode(sourceNodes);
-          const sourceNode =
-            primarySourceNode ??
-            roleDefinition.getSourceNode(baselineSourceNodes);
+          if (!primarySourceNode) {
+            if (!isOptionalRole) {
+              summary.warnings.push(
+                `Card text source missing: status=${variantPlan.status}, role=${roleDefinition.key}`
+              );
+            }
+            return;
+          }
+          const sourceNode = primarySourceNode;
           if (!sourceNode) {
             summary.warnings.push(
               `Card text source missing: status=${variantPlan.status}, role=${roleDefinition.key}`
             );
             return;
-          }
-          if (!primarySourceNode) {
-            summary.warnings.push(
-              `Card text source fallback used: status=${variantPlan.status}, role=${roleDefinition.key} -> online baseline`
-            );
           }
 
           const rect = toRelativeRect({
@@ -3321,9 +3683,11 @@ const applyLayoutMappingsFromFigma = ({
             targetNode: sourceNode,
           });
           if (!rect) {
-            summary.warnings.push(
-              `Card text rect unavailable: status=${variantPlan.status}, role=${roleDefinition.key}`
-            );
+            if (!isOptionalRole) {
+              summary.warnings.push(
+                `Card text rect unavailable: status=${variantPlan.status}, role=${roleDefinition.key}`
+              );
+            }
             return;
           }
 
@@ -3355,7 +3719,7 @@ const applyLayoutMappingsFromFigma = ({
               containerNode: sourceNode,
               target: textTarget,
             });
-            if (!appliedTextStyle) {
+            if (!appliedTextStyle && !isOptionalRole) {
               summary.warnings.push(
                 `Card text style source missing: status=${variantPlan.status}, role=${roleDefinition.key}`
               );
@@ -3372,6 +3736,555 @@ const applyLayoutMappingsFromFigma = ({
         "Card root graph node not found; skipped status-based card text variant mapping."
       );
     }
+
+    const applyPerDayCardOverrides = () => {
+      const instanceNodes = Object.values(config.graph.nodes).filter((node) => {
+        if (node.type !== "componentInstance") return false;
+        return Boolean(toDayTagKey(node.meta?.dayKey));
+      });
+      if (instanceNodes.length === 0) return;
+
+      const getBaseNodeId = (nodeId: string): string => {
+        const markerIndex = nodeId.indexOf("__inst__");
+        if (markerIndex < 0) return nodeId;
+        const beforeMarker = nodeId.slice(0, markerIndex);
+        const afterMarker = nodeId.slice(markerIndex + "__inst__".length);
+        const suffixParts = afterMarker.split("__");
+        if (suffixParts.length > 1) {
+          return suffixParts.slice(1).join("__");
+        }
+        return beforeMarker;
+      };
+      const findNodeByBaseId = ({
+        root,
+        baseId,
+      }: {
+        root: (typeof config.graph.nodes)[string];
+        baseId: string;
+      }): (typeof config.graph.nodes)[string] | undefined => {
+        return root.childIds
+          .map((childId) => config.graph.nodes[childId])
+          .find((childNode) => Boolean(childNode) && getBaseNodeId(childNode.id) === baseId);
+      };
+      const styleRefKeys = [
+        "containerStyleKey",
+        "textStyleKey",
+        "wrapperStyleKey",
+        "optionsKey",
+      ] as const;
+
+      const cloneCardLayoutRecordWithSuffix = ({
+        sourceKey,
+        suffix,
+      }: {
+        sourceKey?: string;
+        suffix: string;
+      }): string | undefined => {
+        if (!sourceKey || sourceKey.trim().length === 0) return undefined;
+        const normalizedSuffix = suffix.replace(/[^a-zA-Z0-9_-]+/g, "_");
+        let targetKey = `${sourceKey}__${normalizedSuffix}`;
+        if (!(targetKey in config.layout.card)) {
+          const sourceValue = config.layout.card[sourceKey];
+          if (sourceValue && typeof sourceValue === "object") {
+            config.layout.card[targetKey] = {
+              ...(sourceValue as Record<string, unknown>),
+            };
+          } else {
+            config.layout.card[targetKey] = {};
+          }
+        }
+        return targetKey;
+      };
+
+      const ensureStatusTextVariantNode = ({
+        root,
+        baseNode,
+        variantBaseId,
+        visibilityMode,
+        entryIndex,
+        bindingKeyOverride,
+        labelSuffix,
+      }: {
+        root: (typeof config.graph.nodes)[string];
+        baseNode: (typeof config.graph.nodes)[string];
+        variantBaseId: string;
+        visibilityMode:
+          | "onlineOnly"
+          | "onlineSingleOnly"
+          | "onlineMultipleOnly"
+          | "offlineOnly"
+          | "offlineNoMemoOnly"
+          | "offlineMemoOnly";
+        entryIndex: number;
+        bindingKeyOverride?: string;
+        labelSuffix: string;
+      }): (typeof config.graph.nodes)[string] => {
+        const existingNode = findNodeByBaseId({
+          root,
+          baseId: variantBaseId,
+        });
+        const applyBinding = (
+          node: (typeof config.graph.nodes)[string]
+        ): (typeof config.graph.nodes)[string]["binding"] => {
+          if (!node.binding) return node.binding;
+          if (node.binding.mode === "field") {
+            return {
+              ...node.binding,
+              ...(bindingKeyOverride ? { key: bindingKeyOverride } : {}),
+              ...(node.binding.scope === "entry"
+                ? {
+                    entrySelector: {
+                      mode: "index" as const,
+                      index: entryIndex,
+                    },
+                  }
+                : {}),
+            };
+          }
+          if (node.binding.mode === "computed") {
+            return {
+              ...node.binding,
+              entrySelector: {
+                mode: "index" as const,
+                index: entryIndex,
+              },
+            };
+          }
+          return { ...node.binding };
+        };
+
+        if (existingNode) {
+          const updatedNode = {
+            ...existingNode,
+            visibilityMode,
+            binding: applyBinding(existingNode),
+          };
+          config.graph.nodes[existingNode.id] = updatedNode;
+          return updatedNode;
+        }
+
+        const baseNodeIdToken = baseNode.id.replace(/[^a-zA-Z0-9_-]+/g, "_");
+        const variantToken = variantBaseId.replace(/[^a-zA-Z0-9_-]+/g, "_");
+        let nextNodeId = `${baseNode.id}__${variantToken}`;
+        let idAttempt = 1;
+        while (config.graph.nodes[nextNodeId]) {
+          nextNodeId = `${baseNode.id}__${variantToken}_${idAttempt}`;
+          idAttempt += 1;
+        }
+        const nextLayerIdBase =
+          (baseNode.layerId ?? baseNodeIdToken).replace(/[^a-zA-Z0-9_-]+/g, "_");
+        const nextLayerId = `${nextLayerIdBase}__${variantToken}`;
+
+        const clonedStyles = baseNode.styles
+          ? ({
+              ...baseNode.styles,
+            } as Record<string, string | undefined>)
+          : {};
+        styleRefKeys.forEach((styleRefKey) => {
+          const sourceStyleKey =
+            typeof clonedStyles[styleRefKey] === "string"
+              ? (clonedStyles[styleRefKey] as string)
+              : undefined;
+          if (!sourceStyleKey) return;
+          const targetStyleKey = cloneCardLayoutRecordWithSuffix({
+            sourceKey: sourceStyleKey,
+            suffix: `${variantToken}`,
+          });
+          if (targetStyleKey) {
+            clonedStyles[styleRefKey] = targetStyleKey;
+          }
+        });
+
+        const createdNode: (typeof config.graph.nodes)[string] = {
+          ...baseNode,
+          id: nextNodeId,
+          label: `${baseNode.label} (${labelSuffix})`,
+          parentId: root.id,
+          childIds: [],
+          layerId: nextLayerId,
+          visibilityMode,
+          binding: applyBinding(baseNode),
+          styles: clonedStyles,
+          meta: {
+            ...(baseNode.meta ?? {}),
+            ...(typeof clonedStyles.containerStyleKey === "string"
+              ? { layerSectionKey: clonedStyles.containerStyleKey }
+              : {}),
+          },
+        };
+        config.graph.nodes[nextNodeId] = createdNode;
+        if (!root.childIds.includes(nextNodeId)) {
+          root.childIds.push(nextNodeId);
+        }
+        return createdNode;
+      };
+
+      const roleIsOptionalByStatus = (
+        status: CardTextStatus,
+        role: "mainTitle" | "subTitle" | "streamingTime" | "streamingDate" | "streamingDay"
+      ): boolean => {
+        if (status === "online") return role === "streamingDay";
+        if (status === "multi") return role === "streamingDate" || role === "streamingDay";
+        if (status === "offline") {
+          return (
+            role === "mainTitle" ||
+            role === "subTitle" ||
+            role === "streamingTime" ||
+            role === "streamingDay"
+          );
+        }
+        if (status === "offlineMemo") {
+          return role === "subTitle" || role === "streamingTime" || role === "streamingDay";
+        }
+        return false;
+      };
+
+      const pushStatusAuditRow = ({
+        dayKey,
+        status,
+        sourceNode,
+        background,
+        main,
+        sub,
+        time,
+        date,
+        day,
+      }: {
+        dayKey: V2TemplateDayKey;
+        status: CardTextStatus;
+        sourceNode: FigmaNode;
+        background: boolean;
+        main: boolean;
+        sub: boolean;
+        time: boolean;
+        date: boolean;
+        day: boolean;
+      }) => {
+        const missing: string[] = [];
+        if (!background) missing.push("background");
+        if (!main && !roleIsOptionalByStatus(status, "mainTitle")) missing.push("main");
+        if (!sub && !roleIsOptionalByStatus(status, "subTitle")) missing.push("sub");
+        if (!time && !roleIsOptionalByStatus(status, "streamingTime")) missing.push("time");
+        if (!date && !roleIsOptionalByStatus(status, "streamingDate")) missing.push("date");
+        if (!day && !roleIsOptionalByStatus(status, "streamingDay")) missing.push("day");
+        summary.statusSlotAuditRows.push({
+          status,
+          source: `${dayKey}:${sourceNode.name || sourceNode.id || "(unknown)"}`,
+          background,
+          main,
+          sub,
+          time,
+          date,
+          day,
+          missing,
+        });
+      };
+
+      const statusPlans: Array<{
+        status: CardTextStatus;
+        mode: "online" | "multi" | "offline" | "offlineMemo";
+        statusValues: readonly string[];
+        variantNodeSuffix: string;
+      }> = [
+        {
+          status: "online",
+          mode: "online",
+          statusValues: ["online"],
+          variantNodeSuffix: "",
+        },
+        {
+          status: "multi",
+          mode: "multi",
+          statusValues: ["multi", "multiple", "online_multi", "onlinemultiple"],
+          variantNodeSuffix: "-multi-e0",
+        },
+        {
+          status: "offline",
+          mode: "offline",
+          statusValues: ["offline", "offlinememo", "offlineMemo"],
+          variantNodeSuffix: "-offline",
+        },
+        {
+          status: "offlineMemo",
+          mode: "offlineMemo",
+          statusValues: ["offlineMemo", "offlinememo", "offline_memo", "memooffline"],
+          variantNodeSuffix: "-offline-memo",
+        },
+      ];
+
+      const visibilityModeByStatus = ({
+        status,
+        hasMulti,
+        hasOfflineMemo,
+      }: {
+        status: CardTextStatus;
+        hasMulti: boolean;
+        hasOfflineMemo: boolean;
+      }):
+        | "onlineOnly"
+        | "onlineSingleOnly"
+        | "onlineMultipleOnly"
+        | "offlineOnly"
+        | "offlineNoMemoOnly"
+        | "offlineMemoOnly" => {
+        if (status === "online") return hasMulti ? "onlineSingleOnly" : "onlineOnly";
+        if (status === "multi") return "onlineMultipleOnly";
+        if (status === "offline") return hasOfflineMemo ? "offlineNoMemoOnly" : "offlineOnly";
+        return "offlineMemoOnly";
+      };
+
+      instanceNodes.forEach((instanceNode) => {
+        const dayKey = toDayTagKey(
+          typeof instanceNode.meta?.dayKey === "string"
+            ? instanceNode.meta.dayKey
+            : undefined
+        ) as V2TemplateDayKey | undefined;
+        if (!dayKey) return;
+        const componentId =
+          typeof instanceNode.meta?.componentId === "string"
+            ? instanceNode.meta.componentId.trim()
+            : "";
+        if (!componentId) return;
+        const componentDefinition = config.graph.componentDefinitions[componentId];
+        if (!componentDefinition) return;
+        const componentRootNode = config.graph.nodes[componentDefinition.rootNodeId];
+        if (!componentRootNode || componentRootNode.type !== "group") return;
+
+        const dayStatusSources = candidateByDayStatus[dayKey] ?? {};
+        const onlineVariantSourceNode =
+          dayStatusSources.online ??
+          dayStatusSources.multi ??
+          dayStatusSources.offline ??
+          dayStatusSources.offlineMemo;
+        if (!onlineVariantSourceNode) return;
+        const multiVariantSourceNode =
+          dayStatusSources.multi ?? dayStatusSources.online ?? onlineVariantSourceNode;
+        const offlineVariantSourceNode =
+          dayStatusSources.offline ??
+          dayStatusSources.offlineMemo ??
+          dayStatusSources.online ??
+          onlineVariantSourceNode;
+        const offlineMemoVariantSourceNode =
+          dayStatusSources.offlineMemo ??
+          dayStatusSources.offline ??
+          dayStatusSources.online ??
+          onlineVariantSourceNode;
+
+        const hasMultiStatus = Boolean(dayStatusSources.multi);
+        const hasOfflineMemoStatus = Boolean(dayStatusSources.offlineMemo);
+
+        const roleBaseNodes = {
+          mainTitle: findNodeByBaseId({ root: componentRootNode, baseId: "main-title" }),
+          subTitle: findNodeByBaseId({ root: componentRootNode, baseId: "sub-title" }),
+          streamingTime: findNodeByBaseId({
+            root: componentRootNode,
+            baseId: "streaming-time",
+          }),
+          streamingDate: findNodeByBaseId({
+            root: componentRootNode,
+            baseId: "streaming-date",
+          }),
+          streamingDay: findNodeByBaseId({ root: componentRootNode, baseId: "streaming-day" }),
+        };
+
+        const backgroundTargetNodes = {
+          online: findNodeByBaseId({ root: componentRootNode, baseId: "online-background" }),
+          multi: findNodeByBaseId({ root: componentRootNode, baseId: "multi-background" }),
+          offline: findNodeByBaseId({ root: componentRootNode, baseId: "offline-background" }),
+          offlineMemo: findNodeByBaseId({
+            root: componentRootNode,
+            baseId: "offline-memo-background",
+          }),
+        } as const;
+
+        const sourceByStatus: Record<CardTextStatus, FigmaNode> = {
+          online: onlineVariantSourceNode,
+          multi: multiVariantSourceNode,
+          offline: offlineVariantSourceNode,
+          offlineMemo: offlineMemoVariantSourceNode,
+        };
+
+        statusPlans.forEach((plan) => {
+          const sourceCandidate = sourceByStatus[plan.status];
+          const backgroundNode = resolveCardBackgroundNode({
+            candidate: sourceCandidate,
+            statusValues: plan.statusValues,
+            mode: plan.mode,
+          });
+          const targetBackgroundNode = backgroundTargetNodes[plan.status];
+          if (
+            targetBackgroundNode &&
+            targetBackgroundNode.type === "image" &&
+            typeof targetBackgroundNode.styles?.containerStyleKey === "string"
+          ) {
+            const backgroundRect = toRelativeRect({
+              rootNode: sourceCandidate,
+              targetNode: backgroundNode,
+            });
+            applyRectToLayoutObject({
+              rect: backgroundRect,
+              target: ensureCardStyleRecord(
+                targetBackgroundNode.styles.containerStyleKey
+              ) as Record<string, unknown>,
+              includeRotation: false,
+            });
+          }
+
+          const entrySources = collectCardEntrySources({
+            candidate: sourceCandidate,
+            status: plan.status,
+          });
+          const primaryEntrySource =
+            entrySources.find((entry) => entry.index === 0) ?? entrySources[0];
+          const sourceNodes = resolveCardTextNodesFromCandidate({
+            candidate: sourceCandidate,
+            sourceNode: primaryEntrySource?.node,
+            status: plan.status,
+          });
+          const entryIndex = primaryEntrySource?.index ?? 0;
+          const visibilityMode = visibilityModeByStatus({
+            status: plan.status,
+            hasMulti: hasMultiStatus,
+            hasOfflineMemo: hasOfflineMemoStatus,
+          });
+
+          const resolveTargetTextNode = ({
+            role,
+            bindingKeyOverride,
+          }: {
+            role: "mainTitle" | "subTitle" | "streamingTime" | "streamingDate" | "streamingDay";
+            bindingKeyOverride?: string;
+          }): (typeof config.graph.nodes)[string] | undefined => {
+            const baseNode = roleBaseNodes[role];
+            if (!baseNode) return undefined;
+            if (plan.status === "online") {
+              const updatedNode = {
+                ...baseNode,
+                visibilityMode,
+              };
+              config.graph.nodes[baseNode.id] = updatedNode;
+              return updatedNode;
+            }
+            return ensureStatusTextVariantNode({
+              root: componentRootNode,
+              baseNode,
+              variantBaseId: `${getBaseNodeId(baseNode.id)}${plan.variantNodeSuffix}`,
+              visibilityMode,
+              entryIndex,
+              bindingKeyOverride,
+              labelSuffix: plan.status,
+            });
+          };
+
+          const targetMainTitleNode = resolveTargetTextNode({
+            role: "mainTitle",
+            bindingKeyOverride: plan.status === "offlineMemo" ? "offlineMemo" : "mainTitle",
+          });
+          const targetSubTitleNode = resolveTargetTextNode({
+            role: "subTitle",
+            bindingKeyOverride: "subTitle",
+          });
+          const targetStreamingTimeNode = resolveTargetTextNode({ role: "streamingTime" });
+          const targetStreamingDateNode = resolveTargetTextNode({ role: "streamingDate" });
+          const targetStreamingDayNode = resolveTargetTextNode({ role: "streamingDay" });
+
+          const applyTextSourceToTarget = ({
+            sourceNode,
+            targetNode,
+          }: {
+            sourceNode?: FigmaNode;
+            targetNode?: (typeof config.graph.nodes)[string];
+          }) => {
+            if (!sourceNode || !targetNode) return;
+            const targetContainerStyleKey =
+              typeof targetNode.styles?.containerStyleKey === "string"
+                ? targetNode.styles.containerStyleKey
+                : undefined;
+            const targetTextStyleKey =
+              typeof targetNode.styles?.textStyleKey === "string"
+                ? targetNode.styles.textStyleKey
+                : undefined;
+            if (!targetContainerStyleKey) return;
+            const rect = toRelativeRect({
+              rootNode: sourceCandidate,
+              targetNode: sourceNode,
+            });
+            const containerTarget = ensureCardStyleRecord(targetContainerStyleKey);
+            if (!containerTarget) return;
+            if (targetNode.type === "flexibleText") {
+              const wrapperStyleKey =
+                typeof targetNode.styles?.wrapperStyleKey === "string"
+                  ? targetNode.styles.wrapperStyleKey
+                  : undefined;
+              if (!wrapperStyleKey) return;
+              const wrapperTarget = ensureCardStyleRecord(wrapperStyleKey);
+              if (!wrapperTarget) return;
+              applyFlexibleLayoutToTargets({
+                rect,
+                containerTarget,
+                wrapperTarget,
+              });
+            } else {
+              applyRectToLayoutObject({
+                rect,
+                target: containerTarget,
+              });
+            }
+            if (targetTextStyleKey) {
+              const textTarget = ensureCardStyleRecord(targetTextStyleKey);
+              if (textTarget) {
+                applyTextStyleFromContentNode({
+                  containerNode: sourceNode,
+                  target: textTarget,
+                });
+              }
+            }
+          };
+
+          applyTextSourceToTarget({
+            sourceNode: sourceNodes.mainTitleContainerNode,
+            targetNode: targetMainTitleNode,
+          });
+          applyTextSourceToTarget({
+            sourceNode: sourceNodes.subTitleContainerNode,
+            targetNode: targetSubTitleNode,
+          });
+          applyTextSourceToTarget({
+            sourceNode: sourceNodes.streamingTimeNode,
+            targetNode: targetStreamingTimeNode,
+          });
+          applyTextSourceToTarget({
+            sourceNode: sourceNodes.streamingDateNode,
+            targetNode: targetStreamingDateNode,
+          });
+          applyTextSourceToTarget({
+            sourceNode: sourceNodes.streamingDayNode,
+            targetNode: targetStreamingDayNode,
+          });
+
+          pushStatusAuditRow({
+            dayKey,
+            status: plan.status,
+            sourceNode: sourceCandidate,
+            background: Boolean(backgroundNode && targetBackgroundNode),
+            main: Boolean(sourceNodes.mainTitleContainerNode && targetMainTitleNode),
+            sub: Boolean(sourceNodes.subTitleContainerNode && targetSubTitleNode),
+            time: Boolean(sourceNodes.streamingTimeNode && targetStreamingTimeNode),
+            date: Boolean(sourceNodes.streamingDateNode && targetStreamingDateNode),
+            day: Boolean(sourceNodes.streamingDayNode && targetStreamingDayNode),
+          });
+        });
+      });
+      summary.applied.push("graph.card.dayStatusIndependentMapping");
+    };
+
+    applyPerDayCardOverrides();
+
+    summary.warnings = summary.warnings.filter(
+      (warning) =>
+        !warning.includes("Card container alias matched") &&
+        !warning.includes("Card root graph node not found; skipped status-based card text variant mapping.")
+    );
 
     if (cardContainerCandidates.length > 0) {
       applyFreeLayoutFromCardCandidates({

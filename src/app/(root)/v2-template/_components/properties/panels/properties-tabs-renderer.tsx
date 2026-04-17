@@ -71,6 +71,17 @@ interface TemplatePropertiesTabsRendererProps {
   onRemoveExtraAssetKey: (key: string) => void;
   onUploadExtraAssetFile: (key: string, theme: string, file: File | null) => void;
   onResetExtraAsset: (key: string, theme: string) => void;
+  cardBackgroundByDay: {
+    online: boolean;
+    multi: boolean;
+    offline: boolean;
+    offlineMemo: boolean;
+  };
+  onToggleCardBackgroundByDay: (
+    mode: "online" | "multi" | "offline" | "offlineMemo",
+    enabled: boolean
+  ) => void;
+  onApplyMondayCardCommonStructure: () => void;
   onUploadBulkAssetFiles: (params: {
     theme: string;
     items: Array<{
@@ -187,6 +198,9 @@ const TemplatePropertiesTabsRenderer: React.FC<
   onRemoveExtraAssetKey,
   onUploadExtraAssetFile,
   onResetExtraAsset,
+  cardBackgroundByDay,
+  onToggleCardBackgroundByDay,
+  onApplyMondayCardCommonStructure,
   onUploadBulkAssetFiles,
   onChangeDataField,
   onToggleOffline,
@@ -255,6 +269,9 @@ const TemplatePropertiesTabsRenderer: React.FC<
       onRemoveExtraAssetKey={onRemoveExtraAssetKey}
       onUploadExtraFile={onUploadExtraAssetFile}
       onResetExtraAsset={onResetExtraAsset}
+      cardBackgroundByDay={cardBackgroundByDay}
+      onToggleCardBackgroundByDay={onToggleCardBackgroundByDay}
+      onApplyMondayCardCommonStructure={onApplyMondayCardCommonStructure}
       onUploadBulkFiles={onUploadBulkAssetFiles}
     />
   );

@@ -10,6 +10,12 @@ import {
   v2_getRuntimeSceneNodes,
   v2_getRuntimeCardStructureByComponentId,
 } from "@/utils/v2/template-graph-runtime";
+import {
+  v2_buildCardInstanceHighlightTarget,
+  v2_buildCardInstanceNodeHighlightTarget,
+  type V2CardStatusGroupKey,
+  v2_resolveCardStatusGroupKey,
+} from "@/utils/v2/card-instance-highlight-target";
 
 const v2_inferLayerIcon = (kind: string): V2TemplateLayerIconKey => {
   if (kind === "group") return "group";
@@ -64,13 +70,6 @@ const v2_getVisibilityLabel = (
   return visibilityMode;
 };
 
-type V2CardStatusGroupKey =
-  | "always"
-  | "online"
-  | "multi"
-  | "offline"
-  | "offlineMemo";
-
 const v2_CARD_STATUS_GROUP_ORDER: V2CardStatusGroupKey[] = [
   "always",
   "online",
@@ -87,28 +86,15 @@ const v2_CARD_STATUS_GROUP_LABEL: Record<V2CardStatusGroupKey, string> = {
   offlineMemo: "오프라인 메모",
 };
 
-const v2_resolveCardStatusGroupKey = (
-  visibilityMode: V2TemplateVisibilityMode | undefined
-): V2CardStatusGroupKey => {
-  if (!visibilityMode || visibilityMode === "always") return "always";
-  if (visibilityMode === "onlineOnly" || visibilityMode === "onlineSingleOnly") {
-    return "online";
-  }
-  if (visibilityMode === "onlineMultipleOnly") return "multi";
-  if (visibilityMode === "offlineMemoOnly") return "offlineMemo";
-  if (visibilityMode === "offlineOnly" || visibilityMode === "offlineNoMemoOnly") {
-    return "offline";
-  }
-  return "always";
-};
-
 const v2_buildCardInstanceChildLayerNodes = ({
   renderConfig,
   instanceLayerId,
+  instanceId,
   componentId,
 }: {
   renderConfig: V2TemplateRenderConfig;
   instanceLayerId: string;
+  instanceId: string;
   componentId: string;
 }): V2TemplateLayerNode[] => {
   const cardStructure = v2_getRuntimeCardStructureByComponentId(
@@ -136,7 +122,11 @@ const v2_buildCardInstanceChildLayerNodes = ({
         label: visibilityLabel ? `${node.label} (${visibilityLabel})` : node.label,
         kind: "component",
         icon: v2_getCardNodeLayerIcon(node),
-        ...(node.highlightTarget ? { target: node.highlightTarget } : {}),
+        target: v2_buildCardInstanceNodeHighlightTarget({
+          instanceId,
+          statusGroupKey: groupKey,
+          nodeLayerId: baseLayerId,
+        }),
         sectionKey: node.containerStyleKey,
         visibilityMode: node.visibilityMode,
         isVirtual: true,
@@ -197,6 +187,7 @@ export const v2_getRuntimeLayerTree = (
         const instanceChildLayerNodes = v2_buildCardInstanceChildLayerNodes({
           renderConfig,
           instanceLayerId: layerId,
+          instanceId,
           componentId: instanceNode.componentId,
         });
         return {
@@ -204,7 +195,7 @@ export const v2_getRuntimeLayerTree = (
           label: instanceNode.label,
           kind: "component" as const,
           icon: "layers" as const,
-          target: `cardInstance:${instanceId}`,
+          target: v2_buildCardInstanceHighlightTarget(instanceId),
           sectionKey: "grid",
           visibilityMode: instanceNode.visibilityMode ?? "always",
           ...(instanceChildLayerNodes.length > 0
@@ -228,8 +219,15 @@ export const v2_getRuntimeLayerTree = (
 
     if (node.kind === "componentInstance") {
       const sectionKey = node.styleKey ?? graphNode?.meta?.layerSectionKey ?? "grid";
+      const instanceLayerId = node.layerId ?? node.id;
+      const instanceChildLayerNodes = v2_buildCardInstanceChildLayerNodes({
+        renderConfig,
+        instanceLayerId,
+        instanceId: node.instanceId,
+        componentId: node.componentId,
+      });
       return {
-        id: layerId,
+        id: instanceLayerId,
         label: node.label,
         kind: "component",
         icon: "layers",
@@ -238,6 +236,9 @@ export const v2_getRuntimeLayerTree = (
           (node.styleKey ? `sceneNode:${node.id}` : `cardInstance:${node.instanceId}`),
         sectionKey,
         visibilityMode: node.visibilityMode ?? "always",
+        ...(instanceChildLayerNodes.length > 0
+          ? { children: instanceChildLayerNodes }
+          : {}),
       };
     }
 

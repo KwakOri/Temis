@@ -20,9 +20,6 @@ import {
   v2_graphUpdateNode,
 } from "@/utils/v2/template-graph-editor";
 import {
-  v2_getRuntimeCardStructureByComponentId,
-} from "@/utils/v2/template-graph-runtime";
-import {
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
   v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
@@ -442,61 +439,6 @@ const useTemplateCardNodeActions = ({
     });
   };
 
-  const updateCardInstanceMode = (instanceMode: "component" | "detached") => {
-    safeUpdateConfig((prev) => {
-      const componentIdCandidate = resolveActiveComponentId?.(prev);
-      const componentId = componentIdCandidate?.trim();
-      if (!componentId) return prev;
-      const graphCardDefinition = prev.graph.componentDefinitions[componentId];
-      if (!graphCardDefinition) return prev;
-      const runtimeCard = v2_getRuntimeCardStructureByComponentId(prev, componentId);
-      const currentMode =
-        graphCardDefinition?.instanceMode ?? runtimeCard.instanceMode ?? "component";
-      if (currentMode === instanceMode) return prev;
-
-      if (currentMode === "detached" && instanceMode === "component") {
-        window.alert(
-          "개별 인스턴스로 분해한 Card 컴포넌트는 다시 공통 컴포넌트 모드로 되돌릴 수 없습니다."
-        );
-        return prev;
-      }
-
-      if (currentMode === "component" && instanceMode === "detached") {
-        const confirmed = window.confirm(
-          "Card 컴포넌트를 개별 인스턴스로 분해하면 되돌릴 수 없습니다. 계속할까요?"
-        );
-        if (!confirmed) return prev;
-      }
-
-      const nextGraph = {
-        ...prev.graph,
-        componentDefinitions: {
-          ...prev.graph.componentDefinitions,
-          [componentId]: {
-            ...graphCardDefinition,
-            ...(instanceMode === "detached"
-              ? {
-                  instanceMode: "detached" as const,
-                  detachedAt:
-                    graphCardDefinition.detachedAt ??
-                    new Date().toISOString(),
-                }
-              : {
-                  instanceMode: "component" as const,
-                }),
-            instanceTransforms:
-              graphCardDefinition.instanceTransforms ??
-              runtimeCard.instanceTransforms,
-          },
-        },
-      };
-      return {
-        ...prev,
-        graph: nextGraph,
-      };
-    });
-  };
-
   const updateCardInstanceTransform = (
     rawInstanceId: string,
     key: keyof V2TemplateCardInstanceTransform,
@@ -512,11 +454,8 @@ const useTemplateCardNodeActions = ({
       if (!componentId) return prev;
       const graphCardDefinition = prev.graph.componentDefinitions[componentId];
       if (!graphCardDefinition) return prev;
-      const runtimeCard = v2_getRuntimeCardStructureByComponentId(prev, componentId);
       const prevTransforms =
-        graphCardDefinition.instanceTransforms ??
-        runtimeCard.instanceTransforms ??
-        {};
+        graphCardDefinition.instanceTransforms ?? {};
       const prevTransform = prevTransforms[instanceId] ?? {};
       const nextTransform: V2TemplateCardInstanceTransform = {
         ...prevTransform,
@@ -597,7 +536,6 @@ const useTemplateCardNodeActions = ({
     updateCardImageNodeAlt,
     appendCardNode,
     removeCardNode,
-    updateCardInstanceMode,
     updateCardInstanceTransform,
   };
 };

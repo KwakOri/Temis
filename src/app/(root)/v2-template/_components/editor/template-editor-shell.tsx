@@ -23,6 +23,7 @@ import {
   v2_getRuntimeSceneNodes,
 } from '@/utils/v2/template-graph-runtime';
 import V2TemplateBuilderForm from '../properties/template-properties-panel';
+import V2RuntimeForm from '../runtime/runtime-form';
 import V2Loading from '../shared/loading-screen';
 import {
   applyReorderedLayerOrderKey,
@@ -446,6 +447,9 @@ const V2TimeTableEditor: React.FC = () => {
     useState<V2TemplateHighlightTarget | null>(null);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [rightPanelMode, setRightPanelMode] = useState<
+    "properties" | "runtime"
+  >("properties");
   const orderKeyRepairAttemptRef = useRef<string | null>(null);
   const orderKeyRegressionCheckedRef = useRef(false);
   const [propertiesFocusRequest, setPropertiesFocusRequest] = useState<{
@@ -514,36 +518,27 @@ const V2TimeTableEditor: React.FC = () => {
       string,
       { count: number; firstLayerId: string | null }
     > = {};
-    const collectCardCollectionCounts = (nodes: typeof runtimeSceneNodes) => {
+    const collectComponentInstanceCounts = (nodes: typeof runtimeSceneNodes) => {
       nodes.forEach((node) => {
-        if (node.kind === "cardCollection") {
+        if (node.kind === "componentInstance") {
           const componentId = node.componentId?.trim();
           if (!componentId) return;
           const previous = instanceStatsByComponentId[componentId] ?? {
             count: 0,
             firstLayerId: null,
           };
-          const instanceCount = Array.isArray(node.children)
-            ? node.children.length
-            : 0;
-          const firstInstanceLayerId = Array.isArray(node.children)
-            ? (node.children[0]?.layerId ?? node.children[0]?.id ?? null)
-            : null;
           instanceStatsByComponentId[componentId] = {
-            count: previous.count + instanceCount,
-            firstLayerId:
-              previous.firstLayerId ??
-              firstInstanceLayerId ??
-              node.layerId ??
-              null,
+            count: previous.count + 1,
+            firstLayerId: previous.firstLayerId ?? node.layerId ?? node.id ?? null,
           };
+          return;
         }
         if (node.kind === "group") {
-          collectCardCollectionCounts(node.children);
+          collectComponentInstanceCounts(node.children);
         }
       });
     };
-    collectCardCollectionCounts(runtimeSceneNodes);
+    collectComponentInstanceCounts(runtimeSceneNodes);
 
     const definitions = Object.values(renderConfig.graph.componentDefinitions ?? {});
     return definitions.map((definition) => {
@@ -554,7 +549,6 @@ const V2TimeTableEditor: React.FC = () => {
         rootNodeId: definition.rootNodeId,
         rootLayerId: rootNode?.layerId ?? rootNode?.id ?? null,
         kind: definition.kind ?? "custom",
-        instanceMode: definition.instanceMode ?? "component",
         instanceCount: instanceStatsByComponentId[definition.id]?.count ?? 0,
         firstInstanceLayerId:
           instanceStatsByComponentId[definition.id]?.firstLayerId ?? null,
@@ -986,7 +980,7 @@ const V2TimeTableEditor: React.FC = () => {
               label: componentLabel,
               rootNodeId,
               kind: "custom",
-              instanceMode: "component",
+              instanceMode: "detached",
               instanceTransforms: {},
             },
           },
@@ -1228,7 +1222,7 @@ const V2TimeTableEditor: React.FC = () => {
               label: duplicatedLabel,
               rootNodeId,
               kind: sourceDefinition.kind ?? "custom",
-              instanceMode: sourceDefinition.instanceMode ?? "component",
+              instanceMode: "detached",
               instanceTransforms: {
                 ...(sourceDefinition.instanceTransforms ?? {}),
               },
@@ -1348,29 +1342,6 @@ const V2TimeTableEditor: React.FC = () => {
       selectedComponentId: nextSelected?.id ?? null,
       selectedLayerId: nextSelected?.rootLayerId ?? null,
     };
-  };
-  const detachComponentMaster = (componentId: string) => {
-    if (!setRenderConfig) return;
-    setRenderConfig((prev) => {
-      const definition = prev.graph.componentDefinitions[componentId];
-      if (!definition) return prev;
-      if (definition.instanceMode === "detached") return prev;
-
-      return {
-        ...prev,
-        graph: {
-          ...prev.graph,
-          componentDefinitions: {
-            ...prev.graph.componentDefinitions,
-            [componentId]: {
-              ...definition,
-              instanceMode: "detached",
-              detachedAt: new Date().toISOString(),
-            },
-          },
-        },
-      };
-    });
   };
   const extractComponentInstanceLayerCopy = (layerId: string) => {
     const sourceMeta = componentInstanceMetaByLayerId.get(layerId);
@@ -1569,7 +1540,7 @@ const V2TimeTableEditor: React.FC = () => {
                     className={`absolute right-3 top-1/2 z-40 -translate-y-1/2 rounded border border-[#364156] bg-[#121722]/90 p-2 text-[#c8d6f2] shadow-lg transition hover:bg-[#1a2230] ${
                       isRightPanelOpen ? "-translate-x-[420px]" : "translate-x-0"
                     }`}
-                    aria-label={isRightPanelOpen ? "프로퍼티 패널 닫기" : "프로퍼티 패널 열기"}
+                    aria-label={isRightPanelOpen ? "우측 패널 닫기" : "우측 패널 열기"}
                   >
                     {isRightPanelOpen ? (
                       <ChevronRight className="h-4 w-4" />
@@ -1605,7 +1576,6 @@ const V2TimeTableEditor: React.FC = () => {
                       onRelocateLayers={(payload) => {
                         applyLayerRelocation(payload);
                       }}
-                      onDetachComponent={detachComponentMaster}
                       onCreateComponent={createComponentMaster}
                       onDuplicateComponent={duplicateComponentMaster}
                       onDeleteComponent={deleteComponentMaster}
@@ -1618,6 +1588,7 @@ const V2TimeTableEditor: React.FC = () => {
                       onCreateSceneNodeFromLayerMenu={createSceneNodeFromLayerMenu}
                       onSelectLayer={({ layerId, editorMode }) => {
                         setIsRightPanelOpen(true);
+                        setRightPanelMode("properties");
                         setPropertiesFocusRequest({
                           layerId,
                           nonce: Date.now(),
@@ -1632,21 +1603,89 @@ const V2TimeTableEditor: React.FC = () => {
                       isRightPanelOpen ? "translate-x-0" : "translate-x-full"
                     }`}
                   >
-                    <V2TemplateBuilderForm
-                      onRequestClose={() => setIsRightPanelOpen(false)}
-                      focusLayerId={propertiesFocusRequest?.layerId ?? null}
-                      focusLayerNonce={propertiesFocusRequest?.nonce ?? 0}
-                      focusEditorMode={
-                        propertiesFocusRequest?.editorMode ?? "instance"
-                      }
-                    />
+                    <div className="flex h-full min-h-0 flex-col bg-[#0f1724]">
+                      <div className="border-b border-[#303848] bg-[#151a24] p-2">
+                        <div className="grid grid-cols-2 gap-2 rounded-md border border-[#2f374b] bg-[#0f1420] p-1">
+                          <button
+                            type="button"
+                            onClick={() => setRightPanelMode("properties")}
+                            className={`rounded px-3 py-2 text-xs font-semibold transition ${
+                              rightPanelMode === "properties"
+                                ? "bg-[#22314a] text-[#d7e5ff]"
+                                : "text-[#98a5bf] hover:bg-[#182131] hover:text-[#c8d6f2]"
+                            }`}
+                          >
+                            속성
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRightPanelMode("runtime")}
+                            className={`rounded px-3 py-2 text-xs font-semibold transition ${
+                              rightPanelMode === "runtime"
+                                ? "bg-[#22314a] text-[#d7e5ff]"
+                                : "text-[#98a5bf] hover:bg-[#182131] hover:text-[#c8d6f2]"
+                            }`}
+                          >
+                            Runtime 테스트
+                          </button>
+                        </div>
+                      </div>
+                      <div className="min-h-0 flex-1">
+                        {rightPanelMode === "properties" ? (
+                          <V2TemplateBuilderForm
+                            onRequestClose={() => setIsRightPanelOpen(false)}
+                            focusLayerId={propertiesFocusRequest?.layerId ?? null}
+                            focusLayerNonce={propertiesFocusRequest?.nonce ?? 0}
+                            focusEditorMode={
+                              propertiesFocusRequest?.editorMode ?? "instance"
+                            }
+                          />
+                        ) : (
+                          <V2RuntimeForm embedded />
+                        )}
+                      </div>
+                    </div>
                   </aside>
                 </>
               )}
 
               {state.isMobile && (
                 <div className="absolute inset-x-0 bottom-0 z-20 max-h-[55vh] min-h-[240px]">
-                  <V2TemplateBuilderForm />
+                  <div className="flex h-full min-h-0 flex-col bg-[#0f1724]">
+                    <div className="border-t border-[#303848] bg-[#151a24] p-2">
+                      <div className="grid grid-cols-2 gap-2 rounded-md border border-[#2f374b] bg-[#0f1420] p-1">
+                        <button
+                          type="button"
+                          onClick={() => setRightPanelMode("properties")}
+                          className={`rounded px-3 py-2 text-xs font-semibold transition ${
+                            rightPanelMode === "properties"
+                              ? "bg-[#22314a] text-[#d7e5ff]"
+                              : "text-[#98a5bf] hover:bg-[#182131] hover:text-[#c8d6f2]"
+                          }`}
+                        >
+                          속성
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRightPanelMode("runtime")}
+                          className={`rounded px-3 py-2 text-xs font-semibold transition ${
+                            rightPanelMode === "runtime"
+                              ? "bg-[#22314a] text-[#d7e5ff]"
+                              : "text-[#98a5bf] hover:bg-[#182131] hover:text-[#c8d6f2]"
+                          }`}
+                        >
+                          Runtime 테스트
+                        </button>
+                      </div>
+                    </div>
+                    <div className="min-h-0 flex-1">
+                      {rightPanelMode === "properties" ? (
+                        <V2TemplateBuilderForm />
+                      ) : (
+                        <V2RuntimeForm embedded />
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

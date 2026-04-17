@@ -405,7 +405,7 @@ const fetchRenderConfigs = async ({
   tableName,
   templateId,
 }: {
-  supabase: ReturnType<typeof createClient>;
+  supabase: any;
   tableName:
     | "v2_template_render_configs"
     | "v2_template_render_config_drafts"
@@ -434,8 +434,8 @@ const fetchRenderConfigs = async ({
       break;
     }
 
-    data.forEach((row) => {
-      renderConfigs.push((row as { render_config: unknown }).render_config);
+    data.forEach((row: { render_config: unknown }) => {
+      renderConfigs.push(row.render_config);
     });
 
     if (data.length < pageSize) {

@@ -10,6 +10,7 @@ interface ToggleProps {
   className?: string;
   ariaLabel?: string;
   title?: string;
+  disabled?: boolean;
 }
 
 export const SubToggle: React.FC<ToggleProps> = ({
@@ -21,6 +22,7 @@ export const SubToggle: React.FC<ToggleProps> = ({
   className,
   ariaLabel,
   title,
+  disabled = false,
 }) => {
   const translateClass = {
     sm: active ? "translate-x-9" : "translate-x-1",
@@ -38,10 +40,16 @@ export const SubToggle: React.FC<ToggleProps> = ({
       <button
         type="button"
         data-active={active}
-        className={cn(toggleVariants({ size, variant }), className)}
+        className={cn(
+          toggleVariants({ size, variant }),
+          "disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
         onClick={onToggle}
         aria-label={ariaLabel}
         title={title}
+        disabled={disabled}
+        aria-disabled={disabled}
       >
         <div className={cn(toggleHandleVariants({ size }), translateClass)} />
       </button>
