@@ -4352,6 +4352,27 @@ const applyLayoutMappingsFromFigma = ({
             offlineMemoVariantSourceNode
         );
         if (!hasAnyStatusSource) {
+          statusPlans.forEach((plan) => {
+            const missing: string[] = ["background"];
+            if (!roleIsOptionalByStatus(plan.status, "mainTitle")) missing.push("main");
+            if (!roleIsOptionalByStatus(plan.status, "subTitle")) missing.push("sub");
+            if (!roleIsOptionalByStatus(plan.status, "streamingTime")) missing.push("time");
+            if (!roleIsOptionalByStatus(plan.status, "streamingDate")) missing.push("date");
+            if (!roleIsOptionalByStatus(plan.status, "streamingDay")) missing.push("day");
+            summary.statusSlotAuditRows.push({
+              dayKey,
+              status: plan.status,
+              entryIndex: 0,
+              source: `${dayKey}:(missing all statuses)`,
+              background: false,
+              main: false,
+              sub: false,
+              time: false,
+              date: false,
+              day: false,
+              missing,
+            });
+          });
           summary.warnings.push(
             `Card day/status mapping missing all statuses: day=${dayKey}`
           );
@@ -4446,6 +4467,14 @@ const applyLayoutMappingsFromFigma = ({
           const entrySources = collectCardEntrySources({
             candidate: sourceCandidate,
             status: plan.status,
+          });
+          entrySources.forEach((entrySource) => {
+            const entryType = (entrySource.node.type ?? "").toUpperCase();
+            if (entryType === "FRAME") return;
+            if (entryType.length === 0) return;
+            summary.warnings.push(
+              `Card entry should be FRAME for stable local coordinates: day=${dayKey}, status=${plan.status}, entry=${entrySource.index}, type=${entryType}`
+            );
           });
           const primaryEntrySource =
             entrySources.find((entry) => entry.index === 0) ?? entrySources[0];
@@ -4589,6 +4618,20 @@ const applyLayoutMappingsFromFigma = ({
           });
         });
       });
+      const auditedRows = summary.statusSlotAuditRows.filter((row) =>
+        typeof row.dayKey === "string" &&
+        IMPORT_DAY_KEYS.includes(row.dayKey)
+      );
+      const expectedRows = Math.max(1, instanceNodes.length) * statusPlans.length;
+      if (auditedRows.length < expectedRows) {
+        summary.warnings.push(
+          `Card status slot audit rows incomplete: expected=${expectedRows}, actual=${auditedRows.length}`
+        );
+      } else {
+        summary.applied.push(
+          `graph.card.statusSlotAuditRows(${auditedRows.length})`
+        );
+      }
       summary.applied.push("graph.card.dayStatusIndependentMapping");
     };
 
