@@ -176,7 +176,9 @@ type MappingSummary = {
   warnings: string[];
   notApplicable: string[];
   statusSlotAuditRows: Array<{
+    dayKey?: V2TemplateDayKey;
     status: CardTextStatus;
+    entryIndex?: number;
     source: string;
     background: boolean;
     main: boolean;
@@ -4226,6 +4228,7 @@ const applyLayoutMappingsFromFigma = ({
       const pushStatusAuditRow = ({
         dayKey,
         status,
+        entryIndex,
         sourceNode,
         background,
         main,
@@ -4236,6 +4239,7 @@ const applyLayoutMappingsFromFigma = ({
       }: {
         dayKey: V2TemplateDayKey;
         status: CardTextStatus;
+        entryIndex: number;
         sourceNode: FigmaNode;
         background: boolean;
         main: boolean;
@@ -4252,7 +4256,9 @@ const applyLayoutMappingsFromFigma = ({
         if (!date && !roleIsOptionalByStatus(status, "streamingDate")) missing.push("date");
         if (!day && !roleIsOptionalByStatus(status, "streamingDay")) missing.push("day");
         summary.statusSlotAuditRows.push({
+          dayKey,
           status,
+          entryIndex,
           source: `${dayKey}:${sourceNode.name || sourceNode.id || "(unknown)"}`,
           background,
           main,
@@ -4335,24 +4341,22 @@ const applyLayoutMappingsFromFigma = ({
         if (!componentRootNode || componentRootNode.type !== "group") return;
 
         const dayStatusSources = candidateByDayStatus[dayKey] ?? {};
-        const onlineVariantSourceNode =
-          dayStatusSources.online ??
-          dayStatusSources.multi ??
-          dayStatusSources.offline ??
-          dayStatusSources.offlineMemo;
-        if (!onlineVariantSourceNode) return;
-        const multiVariantSourceNode =
-          dayStatusSources.multi ?? dayStatusSources.online ?? onlineVariantSourceNode;
-        const offlineVariantSourceNode =
-          dayStatusSources.offline ??
-          dayStatusSources.offlineMemo ??
-          dayStatusSources.online ??
-          onlineVariantSourceNode;
-        const offlineMemoVariantSourceNode =
-          dayStatusSources.offlineMemo ??
-          dayStatusSources.offline ??
-          dayStatusSources.online ??
-          onlineVariantSourceNode;
+        const onlineVariantSourceNode = dayStatusSources.online;
+        const multiVariantSourceNode = dayStatusSources.multi;
+        const offlineVariantSourceNode = dayStatusSources.offline;
+        const offlineMemoVariantSourceNode = dayStatusSources.offlineMemo;
+        const hasAnyStatusSource = Boolean(
+          onlineVariantSourceNode ||
+            multiVariantSourceNode ||
+            offlineVariantSourceNode ||
+            offlineMemoVariantSourceNode
+        );
+        if (!hasAnyStatusSource) {
+          summary.warnings.push(
+            `Card day/status mapping missing all statuses: day=${dayKey}`
+          );
+          return;
+        }
 
         const hasMultiStatus = Boolean(dayStatusSources.multi);
         const hasOfflineMemoStatus = Boolean(dayStatusSources.offlineMemo);
@@ -4381,7 +4385,7 @@ const applyLayoutMappingsFromFigma = ({
           }),
         } as const;
 
-        const sourceByStatus: Record<CardTextStatus, FigmaNode> = {
+        const sourceByStatus: Partial<Record<CardTextStatus, FigmaNode>> = {
           online: onlineVariantSourceNode,
           multi: multiVariantSourceNode,
           offline: offlineVariantSourceNode,
@@ -4390,6 +4394,31 @@ const applyLayoutMappingsFromFigma = ({
 
         statusPlans.forEach((plan) => {
           const sourceCandidate = sourceByStatus[plan.status];
+          if (!sourceCandidate) {
+            const missing: string[] = ["background"];
+            if (!roleIsOptionalByStatus(plan.status, "mainTitle")) missing.push("main");
+            if (!roleIsOptionalByStatus(plan.status, "subTitle")) missing.push("sub");
+            if (!roleIsOptionalByStatus(plan.status, "streamingTime")) missing.push("time");
+            if (!roleIsOptionalByStatus(plan.status, "streamingDate")) missing.push("date");
+            if (!roleIsOptionalByStatus(plan.status, "streamingDay")) missing.push("day");
+            summary.statusSlotAuditRows.push({
+              dayKey,
+              status: plan.status,
+              entryIndex: 0,
+              source: `${dayKey}:(missing ${plan.status})`,
+              background: false,
+              main: false,
+              sub: false,
+              time: false,
+              date: false,
+              day: false,
+              missing,
+            });
+            summary.warnings.push(
+              `Card day/status source missing: day=${dayKey}, status=${plan.status}`
+            );
+            return;
+          }
           const backgroundNode = resolveCardBackgroundNode({
             candidate: sourceCandidate,
             statusValues: plan.statusValues,
@@ -4549,6 +4578,7 @@ const applyLayoutMappingsFromFigma = ({
           pushStatusAuditRow({
             dayKey,
             status: plan.status,
+            entryIndex,
             sourceNode: sourceCandidate,
             background: Boolean(backgroundNode && targetBackgroundNode),
             main: Boolean(sourceNodes.mainTitleContainerNode && targetMainTitleNode),
@@ -5682,12 +5712,16 @@ const run = async () => {
   if (mappingSummary.statusSlotAuditRows.length > 0) {
     console.log("[import:v2:figma] card status slot audit:");
     console.log(
-      "[import:v2:figma] status | source | bg | main | sub | time | date | day | missing"
+      "[import:v2:figma] day | status | entry | source | bg | main | sub | time | date | dayText | missing"
     );
     mappingSummary.statusSlotAuditRows.forEach((row) => {
       const yesNo = (value: boolean) => (value ? "Y" : "N");
+      const dayLabel = row.dayKey ?? "-";
+      const entryLabel = Number.isFinite(row.entryIndex as number)
+        ? String(row.entryIndex)
+        : "-";
       console.log(
-        `[import:v2:figma] ${row.status} | ${row.source} | ${yesNo(row.background)} | ${yesNo(row.main)} | ${yesNo(row.sub)} | ${yesNo(row.time)} | ${yesNo(row.date)} | ${yesNo(row.day)} | ${row.missing.length > 0 ? row.missing.join(",") : "-"}`
+        `[import:v2:figma] ${dayLabel} | ${row.status} | ${entryLabel} | ${row.source} | ${yesNo(row.background)} | ${yesNo(row.main)} | ${yesNo(row.sub)} | ${yesNo(row.time)} | ${yesNo(row.date)} | ${yesNo(row.day)} | ${row.missing.length > 0 ? row.missing.join(",") : "-"}`
       );
     });
   }
