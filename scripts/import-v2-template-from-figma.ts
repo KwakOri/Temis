@@ -3,6 +3,7 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { deleteFileFromR2, uploadFileToR2 } from "../src/lib/r2";
+import { v2_normalizeCardImportGraph } from "./lib/v2/v2-card-import-normalizer";
 import {
   v2_normalizeAssetToken,
   v2_suggestAssetKeyByRule,
@@ -1494,12 +1495,24 @@ const applyTextStyleFromContentNode = ({
   target: Record<string, unknown>;
 }): boolean => {
   const contentNode = findContentTextNode(containerNode);
-  if (!contentNode) return false;
-  applyTextStyleFromFigmaNode({
-    node: contentNode,
-    target,
-  });
-  return true;
+  if (contentNode) {
+    applyTextStyleFromFigmaNode({
+      node: contentNode,
+      target,
+    });
+    return true;
+  }
+
+  // Some templates place text style directly on the slot node without a nested `Content` node.
+  if (containerNode?.style) {
+    applyTextStyleFromFigmaNode({
+      node: containerNode,
+      target,
+    });
+    return true;
+  }
+
+  return false;
 };
 
 const applyRectToLayoutObject = ({
@@ -4280,6 +4293,24 @@ const applyLayoutMappingsFromFigma = ({
 
     applyPerDayCardOverrides();
 
+    const cardNormalizeSummary = v2_normalizeCardImportGraph({
+      graph: config.graph,
+      layout: config.layout,
+    });
+    if (cardNormalizeSummary.prunedLegacyNodes > 0) {
+      summary.applied.push(
+        `graph.card.prunedLegacyNodes(${cardNormalizeSummary.prunedLegacyNodes})`
+      );
+    }
+    if (cardNormalizeSummary.hydratedStyleRecords > 0) {
+      summary.applied.push(
+        `layout.card.hydratedStyleRecords(${cardNormalizeSummary.hydratedStyleRecords})`
+      );
+    }
+    if (cardNormalizeSummary.touchedRoots > 0) {
+      summary.applied.push(`graph.card.touchedRoots(${cardNormalizeSummary.touchedRoots})`);
+    }
+
     summary.warnings = summary.warnings.filter(
       (warning) =>
         !warning.includes("Card container alias matched") &&
@@ -5324,6 +5355,25 @@ const run = async () => {
   }
 
   const normalizedConfig = v2_normalizeTemplateRenderConfig(baseConfig);
+  const postNormalizeCardSummary = v2_normalizeCardImportGraph({
+    graph: normalizedConfig.graph,
+    layout: normalizedConfig.layout,
+  });
+  if (postNormalizeCardSummary.prunedLegacyNodes > 0) {
+    mappingSummary.applied.push(
+      `graph.card.postNormalizePruned(${postNormalizeCardSummary.prunedLegacyNodes})`
+    );
+  }
+  if (postNormalizeCardSummary.hydratedStyleRecords > 0) {
+    mappingSummary.applied.push(
+      `layout.card.postNormalizeHydrated(${postNormalizeCardSummary.hydratedStyleRecords})`
+    );
+  }
+  if (postNormalizeCardSummary.touchedRoots > 0) {
+    mappingSummary.applied.push(
+      `graph.card.postNormalizeTouchedRoots(${postNormalizeCardSummary.touchedRoots})`
+    );
+  }
 
   let existingDraftCount = 0;
   if (

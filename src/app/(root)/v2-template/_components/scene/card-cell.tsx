@@ -28,6 +28,7 @@ import {
   v2_buildCardInstanceNodeHighlightTarget,
   v2_resolveCardStatusGroupKey,
 } from "@/utils/v2/card-instance-highlight-target";
+import { v2_getRenderableCardNodeOrder } from "@/utils/v2/card-runtime-node-order-v2";
 import { v2_buildComputedValues } from "@/utils/v2/text-formatting";
 import {
   V2FlexibleTextNodeRenderer,
@@ -458,13 +459,15 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     );
   };
 
+  const renderableNodeOrder = v2_getRenderableCardNodeOrder(cardStructure);
+
   return (
     <div
       style={cardContainerStyle}
       key={time.day}
       className="relative flex justify-center"
     >
-      {cardStructure.nodeOrder.map((nodeId) => renderCardNode(nodeId))}
+      {renderableNodeOrder.map((nodeId) => renderCardNode(nodeId))}
     </div>
   );
 };
