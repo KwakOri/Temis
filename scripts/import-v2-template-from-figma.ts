@@ -206,6 +206,7 @@ type MappingSummary = {
 };
 
 type CardTextStatus = "online" | "multi" | "offline" | "offlineMemo";
+type ImportRenderConfig = ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
 
 const rootDir = path.resolve(__dirname, "..");
 
@@ -1317,6 +1318,269 @@ const DAY_TAG_MAP: Record<string, string> = {
 const toDayTagKey = (raw: string | undefined): string | undefined => {
   if (!raw) return undefined;
   return DAY_TAG_MAP[normalizeTagValue(raw)];
+};
+
+const CARD_INSTANCE_MARKER = "__inst__";
+const CARD_STYLE_REF_KEYS = [
+  "styleKey",
+  "containerStyleKey",
+  "textStyleKey",
+  "wrapperStyleKey",
+  "optionsKey",
+] as const;
+
+const makeUniqueGraphId = (base: string, used: Set<string>): string => {
+  let candidate = base;
+  let suffix = 1;
+  while (used.has(candidate)) {
+    candidate = `${base}:${suffix}`;
+    suffix += 1;
+  }
+  used.add(candidate);
+  return candidate;
+};
+
+const makeUniqueCardStyleKey = (base: string, used: Set<string>): string => {
+  let candidate = base;
+  let suffix = 1;
+  while (used.has(candidate)) {
+    candidate = `${base}_${suffix}`;
+    suffix += 1;
+  }
+  used.add(candidate);
+  return candidate;
+};
+
+const collectComponentSubtreeNodeIds = ({
+  rootNodeId,
+  nodes,
+}: {
+  rootNodeId: string;
+  nodes: ImportRenderConfig["graph"]["nodes"];
+}): string[] => {
+  const visited = new Set<string>();
+  const queue = [rootNodeId];
+  const collected: string[] = [];
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || visited.has(current)) continue;
+    visited.add(current);
+    const node = nodes[current];
+    if (!node) continue;
+    collected.push(current);
+    queue.push(...node.childIds);
+  }
+
+  return collected;
+};
+
+const detachCardComponentPerInstance = ({
+  config,
+}: {
+  config: ImportRenderConfig;
+}): number => {
+  const instanceNodes = Object.values(config.graph.nodes).filter((node) => {
+    if (!node || node.type !== "componentInstance") return false;
+    const dayKey = toDayTagKey(
+      typeof node.meta?.dayKey === "string" ? node.meta.dayKey : undefined
+    );
+    if (!dayKey) return false;
+    const componentId =
+      typeof node.meta?.componentId === "string" ? node.meta.componentId.trim() : "";
+    return componentId.length > 0 && Boolean(config.graph.componentDefinitions[componentId]);
+  });
+  if (instanceNodes.length === 0) return 0;
+
+  const usedNodeIds = new Set(Object.keys(config.graph.nodes));
+  const usedComponentIds = new Set(Object.keys(config.graph.componentDefinitions));
+  const usedCardStyleKeys = new Set(Object.keys(config.layout.card));
+  const clonedDefinitionBySourceAndToken = new Map<string, string>();
+  const assignedComponentIds = new Set<string>();
+
+  instanceNodes.forEach((instanceNode, instanceIndex) => {
+    const sourceComponentId =
+      typeof instanceNode.meta?.componentId === "string"
+        ? instanceNode.meta.componentId.trim()
+        : "";
+    if (!sourceComponentId) return;
+    const sourceDefinition = config.graph.componentDefinitions[sourceComponentId];
+    if (!sourceDefinition) return;
+    const sourceRootNode = config.graph.nodes[sourceDefinition.rootNodeId];
+    if (!sourceRootNode) return;
+
+    const dayKeyToken =
+      toDayTagKey(
+        typeof instanceNode.meta?.dayKey === "string" ? instanceNode.meta.dayKey : undefined
+      ) ?? `index_${instanceIndex}`;
+    const instanceIdToken =
+      typeof instanceNode.meta?.instanceId === "string" &&
+      instanceNode.meta.instanceId.trim().length > 0
+        ? instanceNode.meta.instanceId.trim()
+        : String(instanceIndex);
+    const instanceToken = `${dayKeyToken}_${instanceIdToken}`
+      .replace(/[^a-zA-Z0-9_-]+/g, "_")
+      .toLowerCase();
+    const cloneMapKey = `${sourceComponentId}::${instanceToken}`;
+    let detachedComponentId = clonedDefinitionBySourceAndToken.get(cloneMapKey);
+
+    if (!detachedComponentId) {
+      const detachedNodeIds = collectComponentSubtreeNodeIds({
+        rootNodeId: sourceDefinition.rootNodeId,
+        nodes: config.graph.nodes,
+      });
+      if (detachedNodeIds.length === 0) return;
+
+      const oldToNewNodeId = new Map<string, string>();
+      detachedNodeIds.forEach((oldNodeId) => {
+        const nextNodeId = makeUniqueGraphId(
+          `${oldNodeId}${CARD_INSTANCE_MARKER}${instanceToken}`,
+          usedNodeIds
+        );
+        oldToNewNodeId.set(oldNodeId, nextNodeId);
+      });
+
+      const styleKeyMap = new Map<string, string>();
+      detachedNodeIds.forEach((oldNodeId) => {
+        const sourceNode = config.graph.nodes[oldNodeId];
+        if (!sourceNode?.styles) return;
+        CARD_STYLE_REF_KEYS.forEach((styleRefKey) => {
+          const sourceStyleKey = sourceNode.styles?.[styleRefKey];
+          if (typeof sourceStyleKey !== "string" || sourceStyleKey.trim().length === 0) {
+            return;
+          }
+          if (!Object.prototype.hasOwnProperty.call(config.layout.card, sourceStyleKey)) return;
+          if (styleKeyMap.has(sourceStyleKey)) return;
+          const nextStyleKey = makeUniqueCardStyleKey(
+            `${sourceStyleKey}${CARD_INSTANCE_MARKER}${instanceToken}`,
+            usedCardStyleKeys
+          );
+          styleKeyMap.set(sourceStyleKey, nextStyleKey);
+          config.layout.card[nextStyleKey] = {
+            ...(config.layout.card[sourceStyleKey] as Record<string, unknown>),
+          };
+        });
+      });
+
+      detachedNodeIds.forEach((oldNodeId) => {
+        const sourceNode = config.graph.nodes[oldNodeId];
+        if (!sourceNode) return;
+        const newNodeId = oldToNewNodeId.get(oldNodeId);
+        if (!newNodeId) return;
+
+        const clonedStyles = sourceNode.styles
+          ? ({
+              ...sourceNode.styles,
+            } as Record<string, string | undefined>)
+          : undefined;
+        if (clonedStyles) {
+          CARD_STYLE_REF_KEYS.forEach((styleRefKey) => {
+            const sourceStyleKey = clonedStyles[styleRefKey];
+            if (typeof sourceStyleKey !== "string") return;
+            if (styleKeyMap.has(sourceStyleKey)) {
+              clonedStyles[styleRefKey] = styleKeyMap.get(sourceStyleKey);
+            }
+          });
+        }
+
+        const sourceParentId =
+          typeof sourceNode.parentId === "string" ? sourceNode.parentId : null;
+        const nextParentId =
+          sourceParentId && oldToNewNodeId.has(sourceParentId)
+            ? (oldToNewNodeId.get(sourceParentId) ?? null)
+            : null;
+        const clonedLayerIdBase = sourceNode.layerId ?? sourceNode.id;
+        const clonedMeta = sourceNode.meta
+          ? ({
+              ...sourceNode.meta,
+            } as Record<string, unknown>)
+          : undefined;
+        if (
+          clonedMeta &&
+          typeof clonedMeta.layerSectionKey === "string" &&
+          styleKeyMap.has(clonedMeta.layerSectionKey)
+        ) {
+          clonedMeta.layerSectionKey = styleKeyMap.get(clonedMeta.layerSectionKey);
+        }
+
+        config.graph.nodes[newNodeId] = {
+          ...sourceNode,
+          id: newNodeId,
+          parentId: nextParentId,
+          childIds: sourceNode.childIds
+            .map((childId) => oldToNewNodeId.get(childId) ?? null)
+            .filter((childId): childId is string => Boolean(childId)),
+          layerId: `${clonedLayerIdBase}${CARD_INSTANCE_MARKER}${instanceToken}`,
+          ...(clonedStyles ? { styles: clonedStyles } : {}),
+          ...(clonedMeta ? { meta: clonedMeta } : {}),
+        };
+      });
+
+      const detachedRootNodeId = oldToNewNodeId.get(sourceDefinition.rootNodeId);
+      if (!detachedRootNodeId) return;
+
+      detachedComponentId = makeUniqueGraphId(
+        `${sourceComponentId}${CARD_INSTANCE_MARKER}${instanceToken}`,
+        usedComponentIds
+      );
+      config.graph.componentDefinitions[detachedComponentId] = {
+        ...sourceDefinition,
+        id: detachedComponentId,
+        rootNodeId: detachedRootNodeId,
+        instanceMode: "detached",
+        instanceTransforms: {},
+      };
+      clonedDefinitionBySourceAndToken.set(cloneMapKey, detachedComponentId);
+    }
+
+    if (!detachedComponentId) return;
+    const nextMeta = {
+      ...(instanceNode.meta ?? {}),
+      componentId: detachedComponentId,
+    };
+    config.graph.nodes[instanceNode.id] = {
+      ...instanceNode,
+      meta: nextMeta,
+    };
+    assignedComponentIds.add(detachedComponentId);
+  });
+
+  if (assignedComponentIds.size === 0) return 0;
+
+  Object.values(config.graph.nodes).forEach((node) => {
+    if (!node || node.type !== "cardCollection") return;
+    const firstInstance = node.childIds
+      .map((childId) => config.graph.nodes[childId])
+      .find((childNode) => childNode?.type === "componentInstance");
+    const nextComponentId =
+      typeof firstInstance?.meta?.componentId === "string"
+        ? firstInstance.meta.componentId
+        : undefined;
+    if (!nextComponentId) return;
+    config.graph.nodes[node.id] = {
+      ...node,
+      meta: {
+        ...(node.meta ?? {}),
+        componentId: nextComponentId,
+      },
+    };
+  });
+
+  const referencedComponentIds = new Set<string>();
+  Object.values(config.graph.nodes).forEach((node) => {
+    if (!node || node.type !== "componentInstance") return;
+    const componentId =
+      typeof node.meta?.componentId === "string" ? node.meta.componentId.trim() : "";
+    if (!componentId) return;
+    if (!config.graph.componentDefinitions[componentId]) return;
+    referencedComponentIds.add(componentId);
+  });
+  Object.keys(config.graph.componentDefinitions).forEach((componentId) => {
+    if (referencedComponentIds.has(componentId)) return;
+    delete config.graph.componentDefinitions[componentId];
+  });
+
+  return assignedComponentIds.size;
 };
 
 const parseDayKeyFromNodeName = (
@@ -3751,6 +4015,13 @@ const applyLayoutMappingsFromFigma = ({
     }
 
     const applyPerDayCardOverrides = () => {
+      const detachedComponentCount = detachCardComponentPerInstance({ config });
+      if (detachedComponentCount > 0) {
+        summary.applied.push(
+          `graph.card.detachedPerInstance(${detachedComponentCount})`
+        );
+      }
+
       const instanceNodes = Object.values(config.graph.nodes).filter((node) => {
         if (node.type !== "componentInstance") return false;
         return Boolean(toDayTagKey(node.meta?.dayKey));
@@ -4181,11 +4452,11 @@ const applyLayoutMappingsFromFigma = ({
             return ensureStatusTextVariantNode({
               root: componentRootNode,
               baseNode,
-              variantBaseId: `${getBaseNodeId(baseNode.id)}${plan.variantNodeSuffix}`,
+              variantBaseId: `${getBaseNodeId(baseNode.id)}__${dayKey}__${plan.status}__e${entryIndex}${plan.variantNodeSuffix}`,
               visibilityMode,
               entryIndex,
               bindingKeyOverride,
-              labelSuffix: plan.status,
+              labelSuffix: `${dayKey}/${plan.status}/e${entryIndex}`,
             });
           };
 
