@@ -909,6 +909,60 @@ const toRelativeRect = ({
   };
 };
 
+const findNodePathWithin = ({
+  rootNode,
+  targetNodeId,
+}: {
+  rootNode: FigmaNode;
+  targetNodeId: string;
+}): FigmaNode[] | null => {
+  const visit = (currentNode: FigmaNode, path: FigmaNode[]): FigmaNode[] | null => {
+    const currentId = typeof currentNode.id === "string" ? currentNode.id.trim() : "";
+    const nextPath = [...path, currentNode];
+    if (currentId.length > 0 && currentId === targetNodeId) {
+      return nextPath;
+    }
+    if (!Array.isArray(currentNode.children) || currentNode.children.length === 0) {
+      return null;
+    }
+    for (const childNode of currentNode.children) {
+      const found = visit(childNode, nextPath);
+      if (found) return found;
+    }
+    return null;
+  };
+
+  return visit(rootNode, []);
+};
+
+const resolvePositionContextRootByFrame = ({
+  sourceRootNode,
+  targetNode,
+}: {
+  sourceRootNode: FigmaNode;
+  targetNode: FigmaNode | undefined;
+}): FigmaNode => {
+  const targetNodeId =
+    typeof targetNode?.id === "string" ? targetNode.id.trim() : "";
+  if (!targetNode || targetNodeId.length === 0) return sourceRootNode;
+
+  const path = findNodePathWithin({
+    rootNode: sourceRootNode,
+    targetNodeId,
+  });
+  if (!path || path.length === 0) return sourceRootNode;
+
+  // Group is a semantic wrapper (position:none).
+  // The closest FRAME ancestor becomes the local coordinate context.
+  for (let index = path.length - 2; index >= 0; index -= 1) {
+    const ancestor = path[index];
+    if ((ancestor.type ?? "").toUpperCase() === "FRAME") {
+      return ancestor;
+    }
+  }
+  return sourceRootNode;
+};
+
 const flattenNodes = (root: FigmaNode): FigmaNode[] => {
   const stack: FigmaNode[] = [root];
   const flattened: FigmaNode[] = [];
@@ -4547,8 +4601,12 @@ const applyLayoutMappingsFromFigma = ({
                 ? targetNode.styles.textStyleKey
                 : undefined;
             if (!targetContainerStyleKey) return;
+            const positionRootNode = resolvePositionContextRootByFrame({
+              sourceRootNode: sourceCandidate,
+              targetNode: sourceNode,
+            });
             const rect = toRelativeRect({
-              rootNode: sourceCandidate,
+              rootNode: positionRootNode,
               targetNode: sourceNode,
             });
             const containerTarget = ensureCardStyleRecord(targetContainerStyleKey);
