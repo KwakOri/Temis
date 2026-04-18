@@ -96,10 +96,10 @@ const CardStreamingDateAndDay = ({
         height: 100,
         lineHeight: 1,
         fontSize: 64,
-        left: 60,
-        top: 470,
+        left: 260,
+        top: 72,
       }}
-      className=" absolute flex justify-center items-center"
+      className=" absolute flex justify-center items-center "
     >
       {weekdays[weekdayOption][day].toUpperCase()}요일 {padZero(date)}
     </p>
@@ -120,8 +120,8 @@ const CardStreamingTime = ({
         height: 100,
         lineHeight: 1,
         fontSize: 70,
-        left: 436,
-        top: 468,
+        left: 264,
+        top: 460,
       }}
       className=" absolute flex justify-center items-center"
     >
@@ -136,15 +136,16 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
       style={{
         height: 240,
         width: 560,
-        top: 112,
+        top: 160,
         left: 132,
       }}
-      className="absolute flex justify-center items-center shrink-0 "
+      className="absolute flex justify-center items-center shrink-0"
     >
       <AutoResizeText
         style={{
           fontFamily: COMP_FONTS.MAIN_TITLE,
           color: COMP_COLORS.MAIN_TITLE,
+          lineHeight: 0.9,
         }}
         className="leading-none text-center"
         multiline={true}
@@ -162,7 +163,7 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
       style={{
         width: 560,
         height: 80,
-        top: 360,
+        top: 388,
         left: 132,
       }}
       className="absolute flex justify-center items-center"
@@ -172,7 +173,6 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
           fontFamily: COMP_FONTS.SUB_TITLE,
           color: COMP_COLORS.SUB_TITLE,
           fontWeight: 500,
-          letterSpacing: -2,
         }}
         className="leading-none text-center w-full"
         maxFontSize={MAX_FONT_SIZES.SUB_TITLE}
@@ -255,7 +255,15 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   return (
     <>
       {time.isOffline ? (
-        <OfflineCard day={time.day} />
+        <div
+          style={{ ...CARD_SIZES.ONLINE }}
+          key={time.day}
+          className="relative flex justify-center"
+        >
+          <CardStreamingDateAndDay day={time.day} date={weekDate.getDate()} />
+
+          <OfflineCard day={time.day} />
+        </div>
       ) : (
         <div
           style={{ ...CARD_SIZES.ONLINE }}
