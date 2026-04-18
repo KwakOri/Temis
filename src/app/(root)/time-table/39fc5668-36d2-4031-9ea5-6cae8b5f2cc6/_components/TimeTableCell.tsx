@@ -95,13 +95,13 @@ const CardStreamingDateAndDay = ({
         width: 300,
         height: 100,
         lineHeight: 1,
-        fontSize: 64,
+        fontSize: 72,
         left: 260,
-        top: 72,
+        top: 76,
       }}
       className=" absolute flex justify-center items-center "
     >
-      {weekdays[weekdayOption][day].toUpperCase()}요일 {padZero(date)}
+      {weekdays[weekdayOption][day].toUpperCase()} / {padZero(date)}
     </p>
   );
 };
@@ -145,7 +145,7 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
         style={{
           fontFamily: COMP_FONTS.MAIN_TITLE,
           color: COMP_COLORS.MAIN_TITLE,
-          lineHeight: 0.9,
+          lineHeight: 0.8,
         }}
         className="leading-none text-center"
         multiline={true}
