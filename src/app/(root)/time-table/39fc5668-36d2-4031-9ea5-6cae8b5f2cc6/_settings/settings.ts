@@ -45,7 +45,7 @@ export const BASE_FONTS = {
 
 /** kr | en | jp */
 
-export const weekdayOption: TLanOpt = 'kr';
+export const weekdayOption: TLanOpt = 'en';
 export const monthOption: TLanOpt = 'en';
 
 /** ---------------------------------------------- */
