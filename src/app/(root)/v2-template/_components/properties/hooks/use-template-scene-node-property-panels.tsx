@@ -49,9 +49,11 @@ interface UseTemplateSceneNodePropertyPanelsParams {
   renderStyleSectionEditor: ({
     title,
     section,
+    schemaSection,
   }: {
     title: string;
     section: V2SceneNodeSectionId;
+    schemaSection?: V2SceneNodeSectionId;
   }) => React.ReactNode;
   onMoveSceneNode: (params: { nodeId: string; direction: "up" | "down" }) => void;
   onRelocateSceneNode: (params: {

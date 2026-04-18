@@ -429,6 +429,7 @@ export interface V2TemplateGraphNodeOrder {
 export interface V2TemplateGraphNodeStyleRefs {
   styleKey?: string;
   containerStyleKey?: string;
+  entryStyleKey?: string;
   textStyleKey?: string;
   wrapperStyleKey?: string;
   optionsKey?: string;
@@ -518,6 +519,7 @@ export interface V2TemplateCardNode {
   binding: V2TemplateCardNodeBinding;
   visibilityMode?: V2TemplateVisibilityMode;
   containerStyleKey: V2TemplateCardStyleKey;
+  entryStyleKey?: V2TemplateCardStyleKey;
   textStyleKey?: V2TemplateCardStyleKey;
   wrapperStyleKey?: V2TemplateCardStyleKey;
   optionsKey?: V2TemplateCardOptionsKey;

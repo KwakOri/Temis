@@ -225,6 +225,9 @@ const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | nul
       },
       visibilityMode: v2_toVisibilityMode(graphNode.visibilityMode) ?? "always",
       containerStyleKey,
+      ...(graphNode.styles?.entryStyleKey
+        ? { entryStyleKey: graphNode.styles.entryStyleKey }
+        : {}),
       colorKey: "SUB_TITLE",
       fontKey: "SUB_TITLE",
       ...(assetRef ? { assetRef } : {}),
@@ -265,6 +268,9 @@ const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | nul
     binding: v2_toBinding(graphNode),
     visibilityMode: v2_toVisibilityMode(graphNode.visibilityMode) ?? "always",
     containerStyleKey,
+    ...(graphNode.styles?.entryStyleKey
+      ? { entryStyleKey: graphNode.styles.entryStyleKey }
+      : {}),
     ...(graphNode.styles?.textStyleKey
       ? { textStyleKey: graphNode.styles.textStyleKey }
       : {}),
@@ -495,9 +501,13 @@ export const v2_getRuntimeSceneNodes = (
   );
 
   const sceneRoots = graph.rootNodeIds
-    .filter((rootId) => !componentRootNodeIdSet.has(rootId))
     .map((rootId) => graph.nodes[rootId])
-    .filter((rootNode): rootNode is V2TemplateGraphNode => Boolean(rootNode));
+    .filter((rootNode): rootNode is V2TemplateGraphNode => Boolean(rootNode))
+    .filter((rootNode) => {
+      if (componentRootNodeIdSet.has(rootNode.id)) return false;
+      if (rootNode.meta?.isTemplateComponent) return false;
+      return true;
+    });
 
   if (sceneRoots.length === 0) return [];
 

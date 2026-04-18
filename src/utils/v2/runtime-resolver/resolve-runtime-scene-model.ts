@@ -26,13 +26,76 @@ const v2_collectLayerTargetById = (
   return next;
 };
 
+const v2_parseZIndex = (value: unknown): number | undefined => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+};
+
+const v2_createStyleRecordResolver = (renderConfig: V2TemplateRenderConfig) => {
+  const layoutRecord = renderConfig.layout as unknown as Record<string, unknown>;
+  const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
+  const sceneLayoutRecord = renderConfig.layout.scene as Record<string, unknown>;
+
+  return (sectionKey?: string): Record<string, unknown> | null => {
+    if (!sectionKey) return null;
+    const candidates = [
+      sceneLayoutRecord[sectionKey],
+      cardLayoutRecord[sectionKey],
+      layoutRecord[sectionKey],
+    ];
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === "object") {
+        return candidate as Record<string, unknown>;
+      }
+    }
+    return null;
+  };
+};
+
 const v2_createRootLayerZIndexById = (
-  runtimeLayerTree: V2TemplateLayerNode[]
+  runtimeLayerTree: V2TemplateLayerNode[],
+  renderConfig: V2TemplateRenderConfig
 ): Record<string, number> => {
   const next: Record<string, number> = {};
-  const total = runtimeLayerTree.length;
-  runtimeLayerTree.forEach((node, index) => {
-    next[node.id] = (total - index) * 10;
+  const resolveStyleRecordByKey = v2_createStyleRecordResolver(renderConfig);
+  const getNodeZIndex = (node: V2TemplateLayerNode): number | undefined => {
+    const own = v2_parseZIndex(resolveStyleRecordByKey(node.sectionKey)?.zIndex);
+    let value = own;
+    node.children?.forEach((child) => {
+      const childValue = getNodeZIndex(child);
+      if (childValue === undefined) return;
+      value = value === undefined ? childValue : Math.max(value, childValue);
+    });
+    return value;
+  };
+  const rootChildren =
+    runtimeLayerTree.length === 1 &&
+    runtimeLayerTree[0]?.isVirtual === true &&
+    runtimeLayerTree[0]?.children?.length
+      ? runtimeLayerTree[0].children
+      : runtimeLayerTree;
+  const total = rootChildren.length;
+  const sortedRootChildren = [...rootChildren].sort((a, b) => {
+    const aZ = getNodeZIndex(a);
+    const bZ = getNodeZIndex(b);
+    if (aZ === bZ) return rootChildren.indexOf(a) - rootChildren.indexOf(b);
+    return (bZ ?? Number.NEGATIVE_INFINITY) - (aZ ?? Number.NEGATIVE_INFINITY);
+  });
+  const assignGroupZIndex = (node: V2TemplateLayerNode, zIndex: number) => {
+    next[node.id] = zIndex;
+    node.children?.forEach((child) => {
+      assignGroupZIndex(child, zIndex);
+    });
+  };
+
+  sortedRootChildren.forEach((node, index) => {
+    const fallbackZIndex = (total - index) * 10;
+    const resolvedZIndex = getNodeZIndex(node) ?? fallbackZIndex;
+    assignGroupZIndex(node, resolvedZIndex);
   });
   return next;
 };
@@ -88,7 +151,10 @@ export const v2_resolveRuntimeSceneModel = ({
 }): V2ResolvedRuntimeSceneModel => {
   const runtimeLayerTree = v2_getRuntimeLayerTree(renderConfig);
   const layerTargetMap = v2_collectLayerTargetById(runtimeLayerTree);
-  const rootLayerZIndexById = v2_createRootLayerZIndexById(runtimeLayerTree);
+  const rootLayerZIndexById = v2_createRootLayerZIndexById(
+    runtimeLayerTree,
+    renderConfig
+  );
   const memoTextFallback = v2_resolveMemoTextFallback(renderConfig);
   const dataIndexByDayKey = v2_createDataIndexByDayKey(data);
 

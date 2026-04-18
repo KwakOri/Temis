@@ -1196,13 +1196,16 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const renderStyleSectionEditor = ({
     title,
     section,
+    schemaSection,
   }: {
     title: string;
     section: V2StyleSectionId;
+    schemaSection?: V2StyleSectionId;
   }) => (
     <TemplateStyleSectionEditor
       title={title}
       section={section}
+      schemaSection={schemaSection}
       getStyleSectionMap={getStyleSectionMap}
       lockedStylePropertyKeys={v2_LOCKED_STYLE_PROPERTY_KEYS}
       isStyleGroupOpen={isStyleGroupOpen}

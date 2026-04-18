@@ -10,6 +10,7 @@ import {
   V2TemplateSceneGroupNode,
   V2TemplateSceneTextNode,
 } from "@/types/time-table/template-render-config";
+import { v2_parseCardInstanceNodeLayerId } from "@/utils/v2/card-instance-highlight-target";
 
 interface TemplateSelectedPropertiesPanelRouterProps {
   selectedLayerNode: { id: string } | null;
@@ -65,11 +66,26 @@ const TemplateSelectedPropertiesPanelRouter: React.FC<
   renderSimplePropertiesSection,
   renderEmptyPropertiesPanel,
 }) => {
+  const resolveCardNode = (layerId: string): V2TemplateCardNode | undefined => {
+    const exactMatch = cardNodeByLayerId.get(layerId);
+    if (exactMatch) return exactMatch;
+
+    const parsedVirtualLayerId = v2_parseCardInstanceNodeLayerId(layerId);
+    if (parsedVirtualLayerId?.nodeLayerId) {
+      const parsedMatch = cardNodeByLayerId.get(parsedVirtualLayerId.nodeLayerId);
+      if (parsedMatch) return parsedMatch;
+    }
+
+    const suffixCandidate = layerId.split("::").pop()?.trim();
+    if (!suffixCandidate) return undefined;
+    return cardNodeByLayerId.get(suffixCandidate);
+  };
+
   if (!selectedLayerNode) {
     return renderEmptyPropertiesPanel ? <>{renderEmptyPropertiesPanel()}</> : null;
   }
 
-  const cardNode = cardNodeByLayerId.get(selectedLayerNode.id);
+  const cardNode = resolveCardNode(selectedLayerNode.id);
   if (cardNode) {
     return <>{renderCardNodeProperties(selectedSection ?? "cardContainer", cardNode)}</>;
   }

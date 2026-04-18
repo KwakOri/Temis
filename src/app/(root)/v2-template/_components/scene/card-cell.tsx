@@ -200,6 +200,12 @@ const v2_resolveCardImageAssetRef = ({
   return node.assetRefByDayKey?.[dayKey] ?? node.assetRef;
 };
 
+interface V2ResolvedRenderableCardNode {
+  node: V2TemplateCardNode;
+  element: React.ReactNode;
+  entryStyleKey: string | null;
+}
+
 const TimeTableCell: React.FC<TimeTableCellProps> = ({
   time,
   weekDate,
@@ -286,7 +292,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     renderConfig,
   });
 
-  const renderCardNode = (nodeId: string) => {
+  const resolveRenderableCardNode = (
+    nodeId: string
+  ): V2ResolvedRenderableCardNode | null => {
     const node = cardStructure.nodes[nodeId];
     if (!node) return null;
     if (isLayerHidden(node.layerId)) return null;
@@ -352,20 +360,24 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           "100%";
       }
 
-      return (
-        <div
-          key={node.id}
-          style={imageContainerStyle}
-          className={node.containerClassName ?? "absolute"}
-        >
-          <img
-            src={imageUrl}
-            alt={node.alt ?? node.label}
-            className="h-full w-full"
-            style={{ objectFit: node.fit ?? "cover" }}
-          />
-        </div>
-      );
+      return {
+        node,
+        entryStyleKey: null,
+        element: (
+          <div
+            key={node.id}
+            style={imageContainerStyle}
+            className={node.containerClassName ?? "absolute"}
+          >
+            <img
+              src={imageUrl}
+              alt={node.alt ?? node.label}
+              className="h-full w-full"
+              style={{ objectFit: node.fit ?? "cover" }}
+            />
+          </div>
+        ),
+      };
     }
 
     const textStyleMap = node.textStyleKey
@@ -440,26 +452,72 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     };
 
     if (node.kind === "flexibleText") {
-      return renderAutoResizeNode();
+      return {
+        node,
+        entryStyleKey: node.entryStyleKey ?? null,
+        element: renderAutoResizeNode(),
+      };
     }
 
-    return (
-      <V2PlainTextNodeRenderer
-        key={node.id}
-        nodeId={node.id}
-        text={nodeText}
-        containerStyle={renderableContainerStyle}
-        width={width}
-        textStyle={textStyle}
-        highlightStyle={highlightStyle}
-        containerClassName={node.containerClassName}
-        fontFamily={fontFamily}
-        color={color}
-      />
-    );
+    return {
+      node,
+      entryStyleKey: node.entryStyleKey ?? null,
+      element: (
+        <V2PlainTextNodeRenderer
+          key={node.id}
+          nodeId={node.id}
+          text={nodeText}
+          containerStyle={renderableContainerStyle}
+          width={width}
+          textStyle={textStyle}
+          highlightStyle={highlightStyle}
+          containerClassName={node.containerClassName}
+          fontFamily={fontFamily}
+          color={color}
+        />
+      ),
+    };
   };
 
   const renderableNodeOrder = v2_getRenderableCardNodeOrder(cardStructure);
+  const resolvedRenderableNodes = renderableNodeOrder
+    .map((nodeId) => resolveRenderableCardNode(nodeId))
+    .filter((entry): entry is V2ResolvedRenderableCardNode => Boolean(entry));
+  const entryBuckets = new Map<
+    string,
+    { style: React.CSSProperties; children: React.ReactNode[] }
+  >();
+  const rootRenderItems: Array<
+    | { kind: "node"; key: string; element: React.ReactNode }
+    | { kind: "entry"; key: string }
+  > = [];
+
+  resolvedRenderableNodes.forEach(({ node, element, entryStyleKey }) => {
+    if (entryStyleKey) {
+      let bucket = entryBuckets.get(entryStyleKey);
+      if (!bucket) {
+        bucket = {
+          style: v2_resolveRenderableCardLayout(
+            v2_toCardStyleMap(cardLayoutRecord, entryStyleKey)
+          ).style,
+          children: [],
+        };
+        entryBuckets.set(entryStyleKey, bucket);
+        rootRenderItems.push({
+          kind: "entry",
+          key: entryStyleKey,
+        });
+      }
+      bucket.children.push(element);
+      return;
+    }
+
+    rootRenderItems.push({
+      kind: "node",
+      key: node.id,
+      element,
+    });
+  });
 
   return (
     <div
@@ -467,7 +525,16 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       key={time.day}
       className="relative flex justify-center"
     >
-      {renderableNodeOrder.map((nodeId) => renderCardNode(nodeId))}
+      {rootRenderItems.map((item) => {
+        if (item.kind === "node") return item.element;
+        const bucket = entryBuckets.get(item.key);
+        if (!bucket || bucket.children.length === 0) return null;
+        return (
+          <div key={`card-entry:${item.key}`} style={bucket.style}>
+            {bucket.children}
+          </div>
+        );
+      })}
     </div>
   );
 };

@@ -29,9 +29,12 @@ interface TemplateBoundTextNodePropertiesPanelProps {
   colorKeys: readonly V2TemplateColorKey[];
   visibilityOptions: Array<{ value: V2TemplateVisibilityMode; label: string }>;
   containerSection: string;
+  containerSchemaSection?: string;
   wrapperSection: string | null;
+  wrapperSchemaSection?: string | null;
   alignmentWrapperSection: string;
   textSection: string | null;
+  textSchemaSection?: string | null;
   hasAutoResizeAlignment: boolean;
   headerAction?: React.ReactNode;
   structureControls?: React.ReactNode;
@@ -39,6 +42,7 @@ interface TemplateBoundTextNodePropertiesPanelProps {
   renderStyleSectionEditor: (params: {
     title: string;
     section: string;
+    schemaSection?: string;
   }) => React.ReactNode;
   renderAutoResizeAlignmentEditor: (params: {
     title: string;
@@ -78,9 +82,12 @@ const TemplateBoundTextNodePropertiesPanel: React.FC<
   colorKeys,
   visibilityOptions,
   containerSection,
+  containerSchemaSection,
   wrapperSection,
+  wrapperSchemaSection,
   alignmentWrapperSection,
   textSection,
+  textSchemaSection,
   hasAutoResizeAlignment,
   headerAction,
   structureControls,
@@ -122,12 +129,14 @@ const TemplateBoundTextNodePropertiesPanel: React.FC<
       containerStyleEditor={renderStyleSectionEditor({
         title: "container style",
         section: containerSection,
+        schemaSection: containerSchemaSection,
       })}
       wrapperStyleEditor={
         wrapperSection && wrapperSection !== containerSection
           ? renderStyleSectionEditor({
               title: "wrapper > style",
               section: wrapperSection,
+              schemaSection: wrapperSchemaSection ?? containerSchemaSection,
             })
           : null
       }
@@ -145,6 +154,7 @@ const TemplateBoundTextNodePropertiesPanel: React.FC<
           ? renderStyleSectionEditor({
               title: "content > style",
               section: textSection,
+              schemaSection: textSchemaSection ?? containerSchemaSection,
             })
           : null
       }

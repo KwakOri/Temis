@@ -1256,6 +1256,7 @@ const v2_CARD_INSTANCE_COMPONENT_ID_MARKER = "__inst__";
 const v2_CARD_STYLE_REF_KEYS: Array<keyof V2TemplateGraphNodeStyleRefs> = [
   "styleKey",
   "containerStyleKey",
+  "entryStyleKey",
   "textStyleKey",
   "wrapperStyleKey",
   "optionsKey",
@@ -2013,6 +2014,9 @@ const v2_createDefaultNodeGraph = ({
       binding: cardNode.binding,
       styles: {
         containerStyleKey: cardNode.containerStyleKey,
+        ...(cardNode.entryStyleKey
+          ? { entryStyleKey: cardNode.entryStyleKey }
+          : {}),
         ...(cardNode.kind !== "image" && cardNode.textStyleKey
           ? { textStyleKey: cardNode.textStyleKey }
           : {}),
@@ -2858,6 +2862,9 @@ const v2_normalizeGraphNodeStyleRefs = (
   if (typeof candidate.containerStyleKey === "string") {
     next.containerStyleKey = candidate.containerStyleKey;
   }
+  if (typeof candidate.entryStyleKey === "string") {
+    next.entryStyleKey = candidate.entryStyleKey;
+  }
   if (typeof candidate.textStyleKey === "string") {
     next.textStyleKey = candidate.textStyleKey;
   }
@@ -3132,8 +3139,21 @@ const v2_sanitizeNodeGraph = ({
     });
   });
 
+  const templateComponentRootIdSet = new Set(
+    Object.values(graph.componentDefinitions)
+      .map((definition) => definition.rootNodeId)
+      .filter((nodeId): nodeId is string => typeof nodeId === "string" && nodeId.length > 0)
+  );
+  Object.values(nextNodes).forEach((node) => {
+    if (node.meta?.isTemplateComponent) {
+      templateComponentRootIdSet.add(node.id);
+    }
+  });
+
   const requestedRootSet = new Set(
-    graph.rootNodeIds.filter((nodeId) => validNodeIds.has(nodeId))
+    graph.rootNodeIds.filter(
+      (nodeId) => validNodeIds.has(nodeId) && !templateComponentRootIdSet.has(nodeId)
+    )
   );
 
   Object.values(nextNodes).forEach((node) => {
@@ -3152,7 +3172,9 @@ const v2_sanitizeNodeGraph = ({
   });
 
   const computedRootNodeIds = Object.values(nextNodes)
-    .filter((node) => node.parentId === null)
+    .filter(
+      (node) => node.parentId === null && !templateComponentRootIdSet.has(node.id)
+    )
     .map((node) => node.id);
   const prioritizedRootNodeIds = [
     ...graph.rootNodeIds.filter((nodeId) => computedRootNodeIds.includes(nodeId)),
@@ -3178,6 +3200,31 @@ const v2_sanitizeNodeGraph = ({
         ? nextComponentDefinitions
         : {},
   });
+};
+
+const v2_filterTemplateComponentRootNodeIds = (
+  graph: V2TemplateNodeGraph
+): V2TemplateNodeGraph => {
+  const templateComponentRootIdSet = new Set(
+    Object.values(graph.componentDefinitions)
+      .map((definition) => definition.rootNodeId)
+      .filter((nodeId): nodeId is string => typeof nodeId === "string" && nodeId.length > 0)
+  );
+  Object.values(graph.nodes).forEach((node) => {
+    if (node.parentId === null && node.meta?.isTemplateComponent) {
+      templateComponentRootIdSet.add(node.id);
+    }
+  });
+  const filteredRootNodeIds = graph.rootNodeIds.filter(
+    (nodeId) => !templateComponentRootIdSet.has(nodeId)
+  );
+  if (filteredRootNodeIds.length === graph.rootNodeIds.length) {
+    return graph;
+  }
+  return {
+    ...graph,
+    rootNodeIds: filteredRootNodeIds,
+  };
 };
 
 const v2_normalizeNodeGraph = (
@@ -4048,6 +4095,11 @@ export const v2_normalizeTemplateRenderConfig = (
     return normalized;
   }
 
+  const rawLayoutSource = v2_isRecord(raw.layout) ? raw.layout : null;
+  const rawCardLayoutSource = rawLayoutSource && v2_isRecord(rawLayoutSource.card)
+    ? rawLayoutSource.card
+    : null;
+
   if (v2_isRecord(raw.metadata)) {
     normalized.metadata = {
       schema: "v2_template_render_config",
@@ -4628,8 +4680,8 @@ export const v2_normalizeTemplateRenderConfig = (
     normalized.extraAssetDimensions
   );
 
-  if (v2_isRecord(raw.layout)) {
-    const layout = raw.layout;
+  if (rawLayoutSource) {
+    const layout = rawLayoutSource;
     normalized.layout.grid = v2_mergeStyleRecord(normalized.layout.grid, layout.grid);
     normalized.layout.weekFlag = v2_mergeStyleRecord(
       normalized.layout.weekFlag,
@@ -4673,7 +4725,7 @@ export const v2_normalizeTemplateRenderConfig = (
       });
     }
 
-    const cardLayoutSource = v2_isRecord(layout.card) ? layout.card : null;
+    const cardLayoutSource = rawCardLayoutSource;
 
     if (cardLayoutSource) {
       normalized.layout.card.onlineBackgroundContainer = v2_mergeStyleRecord(
@@ -4795,8 +4847,37 @@ export const v2_normalizeTemplateRenderConfig = (
     graph: normalized.graph,
     sceneLayout: normalized.layout.scene,
   });
-  normalized.graph = flattenedGraphResult.graph;
+  normalized.graph = v2_filterTemplateComponentRootNodeIds(
+    flattenedGraphResult.graph
+  );
   normalized.layout.scene = flattenedGraphResult.sceneLayout;
+
+  if (rawCardLayoutSource) {
+    const referencedCardLayoutKeys = new Set<string>();
+    Object.values(normalized.graph.nodes ?? {}).forEach((node) => {
+      const styleRefs = node.styles;
+      if (!styleRefs) return;
+      [
+        styleRefs.styleKey,
+        styleRefs.containerStyleKey,
+        styleRefs.entryStyleKey,
+        styleRefs.textStyleKey,
+        styleRefs.wrapperStyleKey,
+        styleRefs.optionsKey,
+      ].forEach((styleKey) => {
+        if (typeof styleKey !== "string" || styleKey.trim().length === 0) return;
+        referencedCardLayoutKeys.add(styleKey);
+      });
+    });
+
+    referencedCardLayoutKeys.forEach((styleKey) => {
+      if (normalized.layout.card[styleKey] !== undefined) return;
+      const rawStyleRecord = rawCardLayoutSource[styleKey];
+      if (!v2_isRecord(rawStyleRecord)) return;
+      normalized.layout.card[styleKey] = v2_clone(rawStyleRecord);
+    });
+  }
+
   normalized.version = v2_TEMPLATE_RENDER_CONFIG_VERSION;
 
   return normalized;

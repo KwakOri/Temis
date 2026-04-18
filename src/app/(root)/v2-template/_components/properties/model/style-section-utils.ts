@@ -4,6 +4,28 @@ export const v2_parseStyleSectionKey = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const v2_getStyleSectionLookupCandidates = (styleKey: string): string[] => {
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  const pushCandidate = (candidate: string) => {
+    const trimmed = candidate.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    candidates.push(trimmed);
+  };
+
+  pushCandidate(styleKey);
+
+  let current = styleKey;
+  while (current.includes("__")) {
+    current = current.slice(0, current.lastIndexOf("__"));
+    pushCandidate(current);
+  }
+
+  return candidates;
+};
+
 export const v2_createStyleKeyToSectionKeyMap = <
   TSectionKey extends string,
   TStyleKey extends string,
@@ -26,8 +48,11 @@ export const v2_resolveCardStyleSection = <TStyleKey extends string>(
 ): string => {
   const parsed = v2_parseStyleSectionKey(styleKey);
   if (!parsed) return fallbackSection;
-  const mapped = styleKeyToSectionMap[parsed as TStyleKey];
-  return mapped ?? parsed;
+  for (const candidate of v2_getStyleSectionLookupCandidates(parsed)) {
+    const mapped = styleKeyToSectionMap[candidate as TStyleKey];
+    if (mapped) return mapped;
+  }
+  return parsed;
 };
 
 export interface V2ResolvedTextNodeSections {

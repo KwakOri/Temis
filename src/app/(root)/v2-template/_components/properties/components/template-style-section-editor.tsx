@@ -31,6 +31,7 @@ type V2Flex42ThreeRow = "top" | "bottom";
 interface TemplateStyleSectionEditorProps {
   title: string;
   section: string;
+  schemaSection?: string;
   getStyleSectionMap: (section: string) => Record<string, string | number>;
   lockedStylePropertyKeys: Set<string>;
   isStyleGroupOpen: (params: {
@@ -63,6 +64,7 @@ interface TemplateStyleSectionEditorProps {
 const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
   title,
   section,
+  schemaSection,
   getStyleSectionMap,
   lockedStylePropertyKeys,
   isStyleGroupOpen,
@@ -82,9 +84,10 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
   getBoilerplateFieldStep,
 }) => {
   const sectionMap = getStyleSectionMap(section);
-  const isGridSection = section === "grid";
+  const displaySection = schemaSection ?? section;
+  const isGridSection = displaySection === "grid";
   const groups = [
-    ...v2_expandDisplayGroups(v2_BOILERPLATE_SECTION_GROUPS[section] ?? []),
+    ...v2_expandDisplayGroups(v2_BOILERPLATE_SECTION_GROUPS[displaySection] ?? []),
     ...v2_STYLE_EXTENSION_GROUPS,
   ];
   const gridPresetKeys = isGridSection

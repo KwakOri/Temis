@@ -41,6 +41,7 @@ interface UseTemplateSimplePropertiesPanelParams {
   renderStyleSectionEditor: (params: {
     title: string;
     section: V2StyleSectionId;
+    schemaSection?: V2StyleSectionId;
   }) => React.ReactNode;
 }
 

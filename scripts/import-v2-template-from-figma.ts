@@ -5,6 +5,7 @@ import path from "node:path";
 import { deleteFileFromR2, uploadFileToR2 } from "../src/lib/r2";
 import { v2_normalizeCardImportGraph } from "./lib/v2/v2-card-import-normalizer";
 import {
+  v2_extractDayKeyFromAssetToken,
   v2_normalizeAssetToken,
   v2_suggestAssetKeyByRule,
 } from "../src/utils/v2/asset-mapping";
@@ -23,7 +24,7 @@ import {
   V2TemplateExtraAssetMap,
 } from "../src/types/time-table/template-render-config";
 
-type CliOptions = {
+export type ImportV2TemplateFromFigmaOptions = {
   figmaUrl: string;
   templateName?: string;
   templateDescription?: string;
@@ -40,14 +41,20 @@ type CliOptions = {
   assetTheme: string;
   assetFormat: "png" | "jpg" | "svg" | "pdf";
   noAiAssetMatch: boolean;
+  explicitExternalCardCandidates?: FigmaNode[];
+  explicitExternalWarnings?: string[];
+  skipExternalCardVariantAutodiscovery?: boolean;
 };
 
-type FigmaNode = {
+type CliOptions = ImportV2TemplateFromFigmaOptions;
+
+export type FigmaNode = {
   id?: string;
   name?: string;
   type?: string;
   componentId?: string;
   componentSetId?: string;
+  variantProperties?: Record<string, string>;
   visible?: boolean;
   layoutMode?: string;
   layoutWrap?: string;
@@ -1166,6 +1173,38 @@ const resolveAssetTargetByExplicitTag = ({
     };
   }
 
+  const explicitDayKey = v2_extractDayKeyFromAssetToken(normalizedTag);
+  const explicitStatus = (() => {
+    const direct = normalizeAssetStatus(trimmed) ?? normalizeAssetStatus(normalizedTag);
+    if (direct) return direct;
+    if (
+      normalizedTag.startsWith("offline_memo_") ||
+      normalizedTag.startsWith("offlinememo_") ||
+      normalizedTag.startsWith("memo_offline_") ||
+      normalizedTag.startsWith("memooffline_")
+    ) {
+      return "offlineMemo" as const;
+    }
+    if (normalizedTag.startsWith("multi_")) return "multi" as const;
+    if (normalizedTag.startsWith("online_")) return "online" as const;
+    if (normalizedTag.startsWith("offline_")) return "offline" as const;
+    return undefined;
+  })();
+  if (explicitStatus && explicitDayKey) {
+    const explicitDayAssetKey =
+      explicitStatus === "offlineMemo"
+        ? `offlineMemo_${explicitDayKey}`
+        : `${explicitStatus}_${explicitDayKey}`;
+    if (builtinAssetKeySet.has(explicitDayAssetKey)) {
+      return {
+        targetType: "builtin",
+        targetKey: explicitDayAssetKey,
+        score: 97,
+        reason: `[asset=${assetTagValue}] explicit status/day builtin`,
+      };
+    }
+  }
+
   const normalized = normalizedTag;
   return {
     targetType: "extra",
@@ -1337,6 +1376,33 @@ const chunkArray = <T>(items: T[], chunkSize: number): T[][] => {
   return chunks;
 };
 
+const DEFAULT_NETWORK_TIMEOUT_MS = 60_000;
+
+const fetchWithTimeout = async (
+  input: string,
+  init: RequestInit = {},
+  timeoutMs = DEFAULT_NETWORK_TIMEOUT_MS
+): Promise<Response> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === "AbortError" || error.message.includes("aborted"))
+    ) {
+      throw new Error(`Request timed out after ${timeoutMs}ms: ${input}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 const textAlignMap: Record<string, "left" | "center" | "right"> = {
   LEFT: "left",
   CENTER: "center",
@@ -1447,6 +1513,21 @@ const detachCardComponentPerInstance = ({
     return componentId.length > 0 && Boolean(config.graph.componentDefinitions[componentId]);
   });
   if (instanceNodes.length === 0) return 0;
+
+  const instanceComponentIds = instanceNodes
+    .map((node) =>
+      typeof node.meta?.componentId === "string" ? node.meta.componentId.trim() : ""
+    )
+    .filter((componentId) => componentId.length > 0);
+  const alreadyDetachedPerInstance =
+    instanceComponentIds.length === instanceNodes.length &&
+    new Set(instanceComponentIds).size === instanceNodes.length &&
+    instanceComponentIds.every((componentId) =>
+      componentId.includes(CARD_INSTANCE_MARKER)
+    );
+  if (alreadyDetachedPerInstance) {
+    return 0;
+  }
 
   const usedNodeIds = new Set(Object.keys(config.graph.nodes));
   const usedComponentIds = new Set(Object.keys(config.graph.componentDefinitions));
@@ -2320,7 +2401,7 @@ const applyLayoutMappingsFromFigma = ({
     profileText: ["artist.text", "profile.text"],
     artistObject: ["artist.background", "artist.object"],
     cardContainer: ["card"],
-    cardBackground: ["card.background"],
+    cardBackground: ["card.background", "card.bg"],
     cardMainTitle: ["card.mainTitle", "card.main_title"],
     cardOfflineMemo: ["card.offlineMemo", "card.offline_memo"],
     cardSubTitle: ["card.subTitle", "card.sub_title"],
@@ -2367,6 +2448,8 @@ const applyLayoutMappingsFromFigma = ({
     ]);
     return nodes.filter((node) => {
       if (node.type === "TEXT") return false;
+      const slotTag = normalizeAssetSlot(getNodeTagValue(node, "slot"));
+      if (slotTag === "card.entry") return false;
       const nodeType = typeof node.type === "string" ? node.type.toUpperCase() : "";
       if (nodeType && !allowedNodeTypes.has(nodeType)) return false;
       if (!getBounds(node)) return false;
@@ -2379,8 +2462,11 @@ const applyLayoutMappingsFromFigma = ({
   const scoreCardContainerCandidate = (candidate: FigmaNode): number => {
     const nodes = flattenNodes(candidate);
     let score = 0;
+    const candidateSlot = normalizeAssetSlot(getNodeTagValue(candidate, "slot"));
     const dayTag = resolveCandidateDayKey(candidate);
     if (dayTag) score += 10;
+    if (candidateSlot === "card") score += 6;
+    if (candidateSlot === "card.entry") score -= 12;
     if (findFirstByNames(nodes, alias.mainTitleContainer)) score += 4;
     if (findFirstByNames(nodes, alias.subTitleContainer)) score += 4;
     if (findFirstByNames(nodes, alias.streamingTime)) score += 3;
@@ -2397,6 +2483,12 @@ const applyLayoutMappingsFromFigma = ({
     }
     if (findContainerNodeByTextBind({ rootNode: candidate, bindValues: ["entry.date"] })) {
       score += 2;
+    }
+    if (findFirstByTagValues(nodes, "slot", slot.cardBackground)) {
+      score += 12;
+    }
+    if (findFirstByTagValues(nodes, "role", ["base", "background"])) {
+      score += 4;
     }
     if (
       findFirstByNames(nodes, alias.cardOnlineBackground) ||
@@ -2417,13 +2509,6 @@ const applyLayoutMappingsFromFigma = ({
   }): FigmaNode | undefined => {
     if (candidates.length === 0) return undefined;
     if (candidates.length === 1) return candidates[0];
-
-    const monCandidate = candidates.find(
-      (candidate) => resolveCandidateDayKey(candidate) === "mon"
-    );
-    if (monCandidate) {
-      return monCandidate;
-    }
 
     const ranked = candidates
       .map((candidate, index) => {
@@ -3014,39 +3099,32 @@ const applyLayoutMappingsFromFigma = ({
     ): Partial<Record<CardTextStatus, FigmaNode>> => {
       const next: Partial<Record<CardTextStatus, FigmaNode>> = {};
       const rankByStatus: Partial<
-        Record<CardTextStatus, { score: number; preferMon: number; x: number; y: number }>
+        Record<CardTextStatus, { score: number; x: number; y: number }>
       > = {};
 
       candidates.forEach((candidate) => {
         const status = resolveCandidateStatus(candidate);
         if (!status) return;
         const score = scoreCardContainerCandidate(candidate);
-        const dayKey = resolveCandidateDayKey(candidate);
         const bounds = getBounds(candidate);
         const x = bounds?.x ?? Number.POSITIVE_INFINITY;
         const y = bounds?.y ?? Number.POSITIVE_INFINITY;
-        const preferMon = dayKey === "mon" ? 1 : 0;
         const prev = rankByStatus[status];
         if (!prev) {
           next[status] = candidate;
-          rankByStatus[status] = { score, preferMon, x, y };
+          rankByStatus[status] = { score, x, y };
           return;
         }
         if (score > prev.score) {
           next[status] = candidate;
-          rankByStatus[status] = { score, preferMon, x, y };
+          rankByStatus[status] = { score, x, y };
           return;
         }
         if (score === prev.score) {
-          if (preferMon > prev.preferMon) {
-            next[status] = candidate;
-            rankByStatus[status] = { score, preferMon, x, y };
-            return;
-          }
           const isMoreTopLeft = y < prev.y || (y === prev.y && x < prev.x);
-          if (preferMon === prev.preferMon && isMoreTopLeft) {
+          if (isMoreTopLeft) {
             next[status] = candidate;
-            rankByStatus[status] = { score, preferMon, x, y };
+            rankByStatus[status] = { score, x, y };
           }
         }
       });
@@ -3054,10 +3132,12 @@ const applyLayoutMappingsFromFigma = ({
       return next;
     };
 
-    const statusCandidatePool = [
-      ...cardContainerCandidates,
-      ...externalCardCandidates,
-    ].filter((candidate): candidate is FigmaNode => Boolean(candidate));
+    const hasExplicitCardStatusSource = externalCardCandidates.length > 0;
+    const statusCandidatePool = (
+      hasExplicitCardStatusSource
+        ? externalCardCandidates
+        : [...cardContainerCandidates, ...externalCardCandidates]
+    ).filter((candidate): candidate is FigmaNode => Boolean(candidate));
     const statusCandidateById = new Map<string, FigmaNode>();
     statusCandidatePool.forEach((candidate) => {
       const candidateId = candidate.id?.trim();
@@ -3067,11 +3147,21 @@ const applyLayoutMappingsFromFigma = ({
       }
     });
     const dedupedStatusCandidates = Array.from(statusCandidateById.values());
-    const candidateByStatus = collectCardCandidatesByStatus(dedupedStatusCandidates);
     const candidateByDayStatus = collectCardCandidatesByDayStatus(dedupedStatusCandidates);
-    if (!candidateByStatus.online) {
-      candidateByStatus.online = cardContainerNode;
-    }
+    const resolveDayStatusCandidate = ({
+      dayKey,
+      status,
+    }: {
+      dayKey: V2TemplateDayKey;
+      status: CardTextStatus;
+    }): FigmaNode | undefined => {
+      return candidateByDayStatus[dayKey]?.[status];
+    };
+    summary.applied.push(
+      hasExplicitCardStatusSource
+        ? "graph.card.statusSource=componentSet"
+        : "graph.card.statusSource=rootFallback"
+    );
 
     // Card container is rendered inside each grid slot.
     // Store it in local card coordinates (0,0 + own size), not scene-root coordinates.
@@ -3178,105 +3268,6 @@ const applyLayoutMappingsFromFigma = ({
       );
     };
 
-    const onlineBackgroundSourceNode = candidateByStatus.online ?? cardContainerNode;
-    const multiBackgroundSourceNode =
-      candidateByStatus.multi ?? candidateByStatus.online ?? cardContainerNode;
-    const offlineBackgroundSourceNode =
-      candidateByStatus.offline ??
-      candidateByStatus.offlineMemo ??
-      candidateByStatus.online ??
-      cardContainerNode;
-    const offlineMemoBackgroundSourceNode =
-      candidateByStatus.offlineMemo ??
-      candidateByStatus.offline ??
-      candidateByStatus.online ??
-      cardContainerNode;
-
-    const onlineBackgroundNode = resolveCardBackgroundNode({
-      candidate: onlineBackgroundSourceNode,
-      statusValues: ["online"],
-      mode: "online",
-    });
-    const multiBackgroundNode = resolveCardBackgroundNode({
-      candidate: multiBackgroundSourceNode,
-      statusValues: ["multi", "multiple", "online_multi", "onlinemultiple"],
-      mode: "multi",
-    });
-    const offlineBackgroundNode = resolveCardBackgroundNode({
-      candidate: offlineBackgroundSourceNode,
-      statusValues: ["offline", "offlineMemo", "offlinememo"],
-      mode: "offline",
-    });
-    const offlineMemoBackgroundNode = resolveCardBackgroundNode({
-      candidate: offlineMemoBackgroundSourceNode,
-      statusValues: ["offlineMemo", "offlinememo", "offline_memo", "memooffline"],
-      mode: "offlineMemo",
-    });
-
-    applyRectToLayoutObject({
-      rect: toRelativeRect({
-        rootNode: onlineBackgroundSourceNode,
-        targetNode: onlineBackgroundNode,
-      }),
-      target: config.layout.card.onlineBackgroundContainer as unknown as Record<
-        string,
-        unknown
-      >,
-      includeRotation: false,
-    });
-    if (onlineBackgroundNode) {
-      summary.applied.push("layout.card.onlineBackgroundContainer");
-    } else {
-      summary.warnings.push("Online background container not found in card structure.");
-    }
-
-    applyRectToLayoutObject({
-      rect: toRelativeRect({
-        rootNode: multiBackgroundSourceNode,
-        targetNode: multiBackgroundNode,
-      }),
-      target: config.layout.card.multiBackgroundContainer as unknown as Record<
-        string,
-        unknown
-      >,
-      includeRotation: false,
-    });
-    if (multiBackgroundNode) {
-      summary.applied.push("layout.card.multiBackgroundContainer");
-    }
-
-    applyRectToLayoutObject({
-      rect: toRelativeRect({
-        rootNode: offlineBackgroundSourceNode,
-        targetNode: offlineBackgroundNode,
-      }),
-      target: config.layout.card.offlineBackgroundContainer as unknown as Record<
-        string,
-        unknown
-      >,
-      includeRotation: false,
-    });
-    if (offlineBackgroundNode) {
-      summary.applied.push("layout.card.offlineBackgroundContainer");
-    } else {
-      summary.warnings.push("Offline background container not found in card structure.");
-    }
-
-    applyRectToLayoutObject({
-      rect: toRelativeRect({
-        rootNode: offlineMemoBackgroundSourceNode,
-        targetNode: offlineMemoBackgroundNode,
-      }),
-      target: config.layout.card.offlineMemoBackgroundContainer as unknown as Record<
-        string,
-        unknown
-      >,
-      includeRotation: false,
-    });
-    if (offlineMemoBackgroundNode) {
-      summary.applied.push("layout.card.offlineMemoBackgroundContainer");
-    }
-
     const parseEntryIndexFromNode = (node: FigmaNode): number | undefined => {
       const rawIndex = getNodeTagValue(node, "index");
       if (!rawIndex) return undefined;
@@ -3291,7 +3282,7 @@ const applyLayoutMappingsFromFigma = ({
     }: {
       candidate: FigmaNode;
       status: CardTextStatus;
-    }): Array<{ index: number; node: FigmaNode }> => {
+    }): Array<{ index: number; node: FigmaNode; isFallbackRoot: boolean }> => {
       const normalizedStatus = normalizeTagValue(status);
       const nodes = flattenNodes(candidate)
         .filter((node) => {
@@ -3309,13 +3300,14 @@ const applyLayoutMappingsFromFigma = ({
         .map((node) => ({
           index: parseEntryIndexFromNode(node) as number,
           node,
+          isFallbackRoot: false,
         }))
         .sort((left, right) => left.index - right.index);
 
       if (nodes.length > 0) {
         return nodes;
       }
-      return [{ index: 0, node: candidate }];
+      return [{ index: 0, node: candidate, isFallbackRoot: true }];
     };
 
     const resolveCardTextNodesFromCandidate = ({
@@ -3377,223 +3369,6 @@ const applyLayoutMappingsFromFigma = ({
       } as const;
     };
 
-    const onlineVariantSourceNode = candidateByStatus.online ?? cardContainerNode;
-    const multiVariantSourceNode =
-      candidateByStatus.multi ?? onlineVariantSourceNode;
-    const offlineVariantSourceNode =
-      candidateByStatus.offline ??
-      candidateByStatus.offlineMemo ??
-      onlineVariantSourceNode;
-    const offlineMemoVariantSourceNode =
-      candidateByStatus.offlineMemo ??
-      candidateByStatus.offline ??
-      onlineVariantSourceNode;
-
-    const onlineEntrySources = collectCardEntrySources({
-      candidate: onlineVariantSourceNode,
-      status: "online",
-    });
-    const onlinePrimaryEntrySource =
-      onlineEntrySources.find((entry) => entry.index === 0) ?? onlineEntrySources[0];
-
-    const baseCardTextNodes = resolveCardTextNodesFromCandidate({
-      candidate: onlineVariantSourceNode,
-      sourceNode: onlinePrimaryEntrySource?.node,
-      status: "online",
-    });
-    const mainTitleContainerNode = baseCardTextNodes.mainTitleContainerNode;
-    const subTitleContainerNode = baseCardTextNodes.subTitleContainerNode;
-    const streamingTimeNode = baseCardTextNodes.streamingTimeNode;
-    const streamingDateNode = baseCardTextNodes.streamingDateNode;
-    const streamingDayNode = baseCardTextNodes.streamingDayNode;
-
-    const statusTextSourceNodes: Array<{
-      status: CardTextStatus;
-      candidate: FigmaNode;
-    }> = [
-      { status: "online", candidate: onlineVariantSourceNode },
-      ...(candidateByStatus.multi
-        ? [{ status: "multi" as const, candidate: multiVariantSourceNode }]
-        : []),
-      ...(candidateByStatus.offline
-        ? [{ status: "offline" as const, candidate: offlineVariantSourceNode }]
-        : []),
-      ...(candidateByStatus.offlineMemo
-        ? [{ status: "offlineMemo" as const, candidate: offlineMemoVariantSourceNode }]
-        : []),
-    ];
-
-    const hasCardTextByRole = {
-      mainTitle: Boolean(mainTitleContainerNode),
-      subTitle: Boolean(subTitleContainerNode),
-      streamingTime: Boolean(streamingTimeNode),
-      streamingDate: Boolean(streamingDateNode),
-      streamingDay: Boolean(streamingDayNode),
-    };
-
-    statusTextSourceNodes.forEach(({ status, candidate }) => {
-      const entrySources = collectCardEntrySources({
-        candidate,
-        status,
-      });
-      const primaryEntrySource =
-        entrySources.find((entry) => entry.index === 0) ?? entrySources[0];
-      const resolved = resolveCardTextNodesFromCandidate({
-        candidate,
-        sourceNode: primaryEntrySource?.node,
-        status,
-      });
-      hasCardTextByRole.mainTitle =
-        hasCardTextByRole.mainTitle || Boolean(resolved.mainTitleContainerNode);
-      hasCardTextByRole.subTitle =
-        hasCardTextByRole.subTitle || Boolean(resolved.subTitleContainerNode);
-      hasCardTextByRole.streamingTime =
-        hasCardTextByRole.streamingTime || Boolean(resolved.streamingTimeNode);
-      hasCardTextByRole.streamingDate =
-        hasCardTextByRole.streamingDate || Boolean(resolved.streamingDateNode);
-      hasCardTextByRole.streamingDay =
-        hasCardTextByRole.streamingDay || Boolean(resolved.streamingDayNode);
-    });
-
-    summary.presence.cardMainTitle = hasCardTextByRole.mainTitle;
-    summary.presence.cardSubTitle = hasCardTextByRole.subTitle;
-    summary.presence.cardStreamingTime = hasCardTextByRole.streamingTime;
-    summary.presence.cardStreamingDate = hasCardTextByRole.streamingDate;
-    summary.presence.cardStreamingDay = hasCardTextByRole.streamingDay;
-
-    const mainTitleRect = toRelativeRect({
-      rootNode: cardContainerNode,
-      targetNode: mainTitleContainerNode,
-    });
-    applyFlexibleLayoutToTargets({
-      rect: mainTitleRect,
-      containerTarget: config.layout.card.mainTitleContainer as unknown as Record<
-        string,
-        unknown
-      >,
-      wrapperTarget: config.layout.card.mainTitleWrapperStyle as unknown as Record<
-        string,
-        unknown
-      >,
-    });
-    if (mainTitleContainerNode) {
-      summary.applied.push("layout.card.mainTitleContainer");
-      summary.applied.push("layout.card.mainTitleWrapperStyle");
-      const appliedMainTitleStyle = applyTextStyleFromContentNode({
-        containerNode: mainTitleContainerNode,
-        target: config.layout.card.mainTitleTextStyle as unknown as Record<string, unknown>,
-      });
-      if (!appliedMainTitleStyle) {
-        summary.warnings.push("MainTitle Content(TEXT) not found; text style skipped.");
-      }
-      summary.applied.push("layout.card.mainTitleTextStyle");
-    }
-
-    const subTitleRect = toRelativeRect({
-      rootNode: cardContainerNode,
-      targetNode: subTitleContainerNode,
-    });
-    applyFlexibleLayoutToTargets({
-      rect: subTitleRect,
-      containerTarget: config.layout.card.subTitleContainer as unknown as Record<
-        string,
-        unknown
-      >,
-      wrapperTarget: config.layout.card.subTitleWrapperStyle as unknown as Record<
-        string,
-        unknown
-      >,
-    });
-    if (subTitleContainerNode) {
-      summary.applied.push("layout.card.subTitleContainer");
-      summary.applied.push("layout.card.subTitleWrapperStyle");
-      const appliedSubTitleStyle = applyTextStyleFromContentNode({
-        containerNode: subTitleContainerNode,
-        target: config.layout.card.subTitleTextStyle as unknown as Record<string, unknown>,
-      });
-      if (!appliedSubTitleStyle) {
-        summary.warnings.push("SubTitle Content(TEXT) not found; text style skipped.");
-      }
-      summary.applied.push("layout.card.subTitleTextStyle");
-    }
-
-    applyRectToLayoutObject({
-      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: streamingTimeNode }),
-      target: config.layout.card.streamingTime as unknown as Record<string, unknown>,
-    });
-    if (streamingTimeNode) {
-      summary.applied.push("layout.card.streamingTime");
-      const appliedStreamingTimeStyle = applyTextStyleFromContentNode({
-        containerNode: streamingTimeNode,
-        target: config.layout.card.streamingTimeStyle as unknown as Record<string, unknown>,
-      });
-      if (!appliedStreamingTimeStyle) {
-        summary.warnings.push("StreamingTime Content(TEXT) not found; text style skipped.");
-      }
-      summary.applied.push("layout.card.streamingTimeStyle");
-    }
-
-    applyRectToLayoutObject({
-      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: streamingDateNode }),
-      target: config.layout.card.streamingDate as unknown as Record<string, unknown>,
-    });
-    if (streamingDateNode) {
-      summary.applied.push("layout.card.streamingDate");
-      const appliedStreamingDateStyle = applyTextStyleFromContentNode({
-        containerNode: streamingDateNode,
-        target: config.layout.card.streamingDateStyle as unknown as Record<string, unknown>,
-      });
-      if (!appliedStreamingDateStyle) {
-        summary.warnings.push("StreamingDate Content(TEXT) not found; text style skipped.");
-      }
-      summary.applied.push("layout.card.streamingDateStyle");
-    }
-
-    applyRectToLayoutObject({
-      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: streamingDayNode }),
-      target: config.layout.card.streamingDay as unknown as Record<string, unknown>,
-    });
-    if (streamingDayNode) {
-      summary.applied.push("layout.card.streamingDay");
-      const appliedStreamingDayStyle = applyTextStyleFromContentNode({
-        containerNode: streamingDayNode,
-        target: config.layout.card.streamingDayStyle as unknown as Record<string, unknown>,
-      });
-      if (!appliedStreamingDayStyle) {
-        summary.warnings.push("StreamingDay Content(TEXT) not found; text style skipped.");
-      }
-      summary.applied.push("layout.card.streamingDayStyle");
-    }
-
-    const cardComponentId =
-      (Object.values(config.graph.nodes).find((node) => node.type === "cardCollection")
-        ?.meta?.componentId as string | undefined) ??
-      Object.keys(config.graph.componentDefinitions)[0];
-    const cardRootNodeId =
-      cardComponentId && config.graph.componentDefinitions[cardComponentId]
-        ? config.graph.componentDefinitions[cardComponentId].rootNodeId
-        : undefined;
-    const cardRootGraphNode = cardRootNodeId ? config.graph.nodes[cardRootNodeId] : undefined;
-
-    const cloneCardStyleRecord = ({
-      sourceKey,
-      targetKey,
-    }: {
-      sourceKey?: string;
-      targetKey?: string;
-    }) => {
-      if (!sourceKey || !targetKey) return;
-      if (sourceKey === targetKey) return;
-      const source = config.layout.card[sourceKey];
-      if (source && typeof source === "object") {
-        config.layout.card[targetKey] = {
-          ...(source as Record<string, unknown>),
-        };
-      } else {
-        config.layout.card[targetKey] = {};
-      }
-    };
-
     const ensureCardStyleRecord = (styleKey?: string): Record<string, unknown> | null => {
       if (!styleKey) return null;
       const current = config.layout.card[styleKey];
@@ -3603,472 +3378,6 @@ const applyLayoutMappingsFromFigma = ({
       config.layout.card[styleKey] = {};
       return config.layout.card[styleKey] as Record<string, unknown>;
     };
-
-    if (cardRootGraphNode && cardRootGraphNode.type === "group") {
-      const hasMultiStatus = Boolean(candidateByStatus.multi || multiBackgroundNode);
-      const hasOfflineStatus = Boolean(
-        candidateByStatus.offline || offlineBackgroundNode
-      );
-      const hasOfflineMemoStatus = Boolean(
-        candidateByStatus.offlineMemo || offlineMemoBackgroundNode
-      );
-      const hasStatusSpecificCardTextSets = Boolean(
-        hasMultiStatus || hasOfflineStatus || hasOfflineMemoStatus
-      );
-
-      const roleIsOptionalByStatus = (
-        status: CardTextStatus,
-        role: "mainTitle" | "subTitle" | "streamingTime" | "streamingDate" | "streamingDay"
-      ): boolean => {
-        if (status === "online") {
-          return role === "streamingDay";
-        }
-        if (status === "multi") {
-          return role === "streamingDate" || role === "streamingDay";
-        }
-        if (status === "offline") {
-          return (
-            role === "mainTitle" ||
-            role === "subTitle" ||
-            role === "streamingTime" ||
-            role === "streamingDay"
-          );
-        }
-        if (status === "offlineMemo") {
-          return role === "subTitle" || role === "streamingTime" || role === "streamingDay";
-        }
-        return false;
-      };
-
-      const statusSlotAuditPlans: Array<{
-        status: CardTextStatus;
-        sourceNode: FigmaNode;
-        textSourceNode: FigmaNode;
-        backgroundNode: FigmaNode | undefined;
-      }> = [
-        {
-          status: "online",
-          sourceNode: onlineVariantSourceNode,
-          textSourceNode: onlinePrimaryEntrySource?.node ?? onlineVariantSourceNode,
-          backgroundNode: onlineBackgroundNode,
-        },
-        ...(hasMultiStatus
-          ? [
-              {
-                status: "multi" as const,
-                sourceNode: multiVariantSourceNode,
-                textSourceNode:
-                  collectCardEntrySources({
-                    candidate: multiVariantSourceNode,
-                    status: "multi",
-                  }).find((entry) => entry.index === 0)?.node ?? multiVariantSourceNode,
-                backgroundNode: multiBackgroundNode,
-              },
-            ]
-          : []),
-        ...(hasOfflineStatus
-          ? [
-              {
-                status: "offline" as const,
-                sourceNode: offlineVariantSourceNode,
-                textSourceNode:
-                  collectCardEntrySources({
-                    candidate: offlineVariantSourceNode,
-                    status: "offline",
-                  }).find((entry) => entry.index === 0)?.node ?? offlineVariantSourceNode,
-                backgroundNode: offlineBackgroundNode,
-              },
-            ]
-          : []),
-        ...(hasOfflineMemoStatus
-          ? [
-              {
-                status: "offlineMemo" as const,
-                sourceNode: offlineMemoVariantSourceNode,
-                textSourceNode:
-                  collectCardEntrySources({
-                    candidate: offlineMemoVariantSourceNode,
-                    status: "offlineMemo",
-                  }).find((entry) => entry.index === 0)?.node ?? offlineMemoVariantSourceNode,
-                backgroundNode: offlineMemoBackgroundNode,
-              },
-            ]
-          : []),
-      ];
-
-      statusSlotAuditPlans.forEach((plan) => {
-        const statusNodes = resolveCardTextNodesFromCandidate({
-          candidate: plan.sourceNode,
-          sourceNode: plan.textSourceNode,
-          status: plan.status,
-        });
-        const missing: string[] = [];
-        if (!plan.backgroundNode) missing.push("background");
-        if (!statusNodes.mainTitleContainerNode && !roleIsOptionalByStatus(plan.status, "mainTitle")) {
-          missing.push("main");
-        }
-        if (!statusNodes.subTitleContainerNode && !roleIsOptionalByStatus(plan.status, "subTitle")) {
-          missing.push("sub");
-        }
-        if (!statusNodes.streamingTimeNode && !roleIsOptionalByStatus(plan.status, "streamingTime")) {
-          missing.push("time");
-        }
-        if (!statusNodes.streamingDateNode && !roleIsOptionalByStatus(plan.status, "streamingDate")) {
-          missing.push("date");
-        }
-        if (!statusNodes.streamingDayNode && !roleIsOptionalByStatus(plan.status, "streamingDay")) {
-          missing.push("day");
-        }
-        summary.statusSlotAuditRows.push({
-          status: plan.status,
-          source:
-            `${plan.sourceNode.name || plan.sourceNode.id || "(unknown)"} -> ${plan.textSourceNode.name || plan.textSourceNode.id || "(unknown)"}`,
-          background: Boolean(plan.backgroundNode),
-          main: Boolean(statusNodes.mainTitleContainerNode),
-          sub: Boolean(statusNodes.subTitleContainerNode),
-          time: Boolean(statusNodes.streamingTimeNode),
-          date: Boolean(statusNodes.streamingDateNode),
-          day: Boolean(statusNodes.streamingDayNode),
-          missing,
-        });
-      });
-
-      const variantPlans: Array<{
-        status: CardTextStatus;
-        nodeIdSuffix: string;
-        styleSuffix: string;
-        visibilityMode:
-          | "onlineOnly"
-          | "onlineSingleOnly"
-          | "onlineMultipleOnly"
-          | "offlineOnly"
-          | "offlineNoMemoOnly"
-          | "offlineMemoOnly";
-        sourceNode: FigmaNode;
-        textSourceNode: FigmaNode;
-        entryIndex: number;
-      }> = hasStatusSpecificCardTextSets
-        ? [
-            {
-              status: "online",
-              nodeIdSuffix: "",
-              styleSuffix: "",
-              visibilityMode: hasMultiStatus ? "onlineSingleOnly" : "onlineOnly",
-              sourceNode: onlineVariantSourceNode,
-              textSourceNode: onlinePrimaryEntrySource?.node ?? onlineVariantSourceNode,
-              entryIndex: onlinePrimaryEntrySource?.index ?? 0,
-            },
-            ...(hasMultiStatus
-              ? collectCardEntrySources({
-                  candidate: multiVariantSourceNode,
-                  status: "multi",
-                }).map((entrySource) => ({
-                  status: "multi" as const,
-                  nodeIdSuffix: `-multi-e${entrySource.index}`,
-                  styleSuffix: `MultiE${entrySource.index}`,
-                  visibilityMode: "onlineMultipleOnly" as const,
-                  sourceNode: multiVariantSourceNode,
-                  textSourceNode: entrySource.node,
-                  entryIndex: entrySource.index,
-                }))
-              : []),
-            ...(hasOfflineStatus
-              ? [
-                  {
-                    status: "offline" as const,
-                    nodeIdSuffix: "-offline",
-                    styleSuffix: "Offline",
-                    visibilityMode: hasOfflineMemoStatus
-                      ? ("offlineNoMemoOnly" as const)
-                      : ("offlineOnly" as const),
-                    sourceNode: offlineVariantSourceNode,
-                    textSourceNode:
-                      collectCardEntrySources({
-                        candidate: offlineVariantSourceNode,
-                        status: "offline",
-                      }).find((entry) => entry.index === 0)?.node ??
-                      offlineVariantSourceNode,
-                    entryIndex: 0,
-                  },
-                ]
-              : []),
-            ...(hasOfflineMemoStatus
-              ? [
-                  {
-                    status: "offlineMemo" as const,
-                    nodeIdSuffix: "-offline-memo",
-                    styleSuffix: "OfflineMemo",
-                    visibilityMode: "offlineMemoOnly" as const,
-                    sourceNode: offlineMemoVariantSourceNode,
-                    textSourceNode:
-                      collectCardEntrySources({
-                        candidate: offlineMemoVariantSourceNode,
-                        status: "offlineMemo",
-                      }).find((entry) => entry.index === 0)?.node ??
-                      offlineMemoVariantSourceNode,
-                    entryIndex: 0,
-                  },
-                ]
-              : []),
-          ]
-        : [];
-
-      const ensureCardTextVariantNode = ({
-        baseNodeId,
-        nodeIdSuffix,
-        styleSuffix,
-        visibilityMode,
-        entryIndex,
-        bindingKeyOverride,
-      }: {
-        baseNodeId: string;
-        nodeIdSuffix: string;
-        styleSuffix: string;
-        visibilityMode:
-          | "onlineOnly"
-          | "onlineSingleOnly"
-          | "onlineMultipleOnly"
-          | "offlineOnly"
-          | "offlineNoMemoOnly"
-          | "offlineMemoOnly";
-        entryIndex: number;
-        bindingKeyOverride?: string;
-      }): string | null => {
-        const baseNode = config.graph.nodes[baseNodeId];
-        if (!baseNode || (baseNode.type !== "text" && baseNode.type !== "flexibleText")) {
-          return null;
-        }
-        const targetNodeId = nodeIdSuffix ? `${baseNodeId}${nodeIdSuffix}` : baseNodeId;
-        const targetLayerId = nodeIdSuffix
-          ? `${baseNode.layerId ?? baseNode.id}${nodeIdSuffix}`
-          : (baseNode.layerId ?? baseNode.id);
-        const withSuffix = (styleKey?: string): string | undefined => {
-          if (!styleKey) return undefined;
-          if (!styleSuffix) return styleKey;
-          return `${styleKey}${styleSuffix}`;
-        };
-        const containerStyleKey = withSuffix(baseNode.styles?.containerStyleKey);
-        const textStyleKey = withSuffix(baseNode.styles?.textStyleKey);
-        const wrapperStyleKey = withSuffix(baseNode.styles?.wrapperStyleKey);
-
-        cloneCardStyleRecord({
-          sourceKey: baseNode.styles?.containerStyleKey,
-          targetKey: containerStyleKey,
-        });
-        cloneCardStyleRecord({
-          sourceKey: baseNode.styles?.textStyleKey,
-          targetKey: textStyleKey,
-        });
-        cloneCardStyleRecord({
-          sourceKey: baseNode.styles?.wrapperStyleKey,
-          targetKey: wrapperStyleKey,
-        });
-
-        const nextNode = {
-          ...baseNode,
-          id: targetNodeId,
-          label: nodeIdSuffix ? `${baseNode.label} (${styleSuffix})` : baseNode.label,
-          parentId: cardRootGraphNode.id,
-          childIds: [],
-          layerId: targetLayerId,
-          visibilityMode,
-          ...(baseNode.binding
-            ? {
-                binding:
-                  baseNode.binding.mode === "field"
-                    ? {
-                        ...baseNode.binding,
-                        ...(bindingKeyOverride ? { key: bindingKeyOverride } : {}),
-                        ...(baseNode.binding.scope === "entry"
-                          ? {
-                              entrySelector: {
-                                mode: "index" as const,
-                                index: entryIndex,
-                              },
-                            }
-                          : {}),
-                      }
-                    : baseNode.binding.mode === "computed"
-                      ? {
-                          ...baseNode.binding,
-                          entrySelector: {
-                            mode: "index" as const,
-                            index: entryIndex,
-                          },
-                        }
-                      : { ...baseNode.binding },
-              }
-            : {}),
-          styles: {
-            ...(baseNode.styles ?? {}),
-            ...(containerStyleKey ? { containerStyleKey } : {}),
-            ...(textStyleKey ? { textStyleKey } : {}),
-            ...(wrapperStyleKey ? { wrapperStyleKey } : {}),
-          },
-          meta: {
-            ...(baseNode.meta ?? {}),
-            ...(containerStyleKey ? { layerSectionKey: containerStyleKey } : {}),
-          },
-        };
-        config.graph.nodes[targetNodeId] = nextNode;
-
-        if (!cardRootGraphNode.childIds.includes(targetNodeId)) {
-          const siblingIds = cardRootGraphNode.childIds;
-          const anchorCandidates = [
-            baseNodeId,
-            `${baseNodeId}-multi`,
-            `${baseNodeId}-offline`,
-            `${baseNodeId}-offline-memo`,
-          ];
-          let anchorIndex = -1;
-          anchorCandidates.forEach((candidateId) => {
-            const currentIndex = siblingIds.indexOf(candidateId);
-            if (currentIndex > anchorIndex) {
-              anchorIndex = currentIndex;
-            }
-          });
-          const insertIndex =
-            anchorIndex >= 0
-              ? Math.min(anchorIndex + 1, cardRootGraphNode.childIds.length)
-              : cardRootGraphNode.childIds.length;
-          cardRootGraphNode.childIds.splice(insertIndex, 0, targetNodeId);
-        }
-        return targetNodeId;
-      };
-
-      const roleDefinitions = [
-        {
-          key: "mainTitle" as const,
-          baseNodeId: "main-title",
-          getSourceNode: (nodes: ReturnType<typeof resolveCardTextNodesFromCandidate>) =>
-            nodes.mainTitleContainerNode,
-          getBindingKey: (status: CardTextStatus) =>
-            status === "offlineMemo" ? "offlineMemo" : "mainTitle",
-        },
-        {
-          key: "subTitle" as const,
-          baseNodeId: "sub-title",
-          getSourceNode: (nodes: ReturnType<typeof resolveCardTextNodesFromCandidate>) =>
-            nodes.subTitleContainerNode,
-          getBindingKey: () => "subTitle",
-        },
-        {
-          key: "streamingTime" as const,
-          baseNodeId: "streaming-time",
-          getSourceNode: (nodes: ReturnType<typeof resolveCardTextNodesFromCandidate>) =>
-            nodes.streamingTimeNode,
-        },
-        {
-          key: "streamingDate" as const,
-          baseNodeId: "streaming-date",
-          getSourceNode: (nodes: ReturnType<typeof resolveCardTextNodesFromCandidate>) =>
-            nodes.streamingDateNode,
-        },
-        {
-          key: "streamingDay" as const,
-          baseNodeId: "streaming-day",
-          getSourceNode: (nodes: ReturnType<typeof resolveCardTextNodesFromCandidate>) =>
-            nodes.streamingDayNode,
-        },
-      ];
-
-      variantPlans.forEach((variantPlan) => {
-        const sourceNodes = resolveCardTextNodesFromCandidate({
-          candidate: variantPlan.sourceNode,
-          sourceNode: variantPlan.textSourceNode,
-          status: variantPlan.status,
-        });
-        roleDefinitions.forEach((roleDefinition) => {
-          const isOptionalRole = roleIsOptionalByStatus(
-            variantPlan.status,
-            roleDefinition.key
-          );
-          const targetNodeId = ensureCardTextVariantNode({
-            baseNodeId: roleDefinition.baseNodeId,
-            nodeIdSuffix: variantPlan.nodeIdSuffix,
-            styleSuffix: variantPlan.styleSuffix,
-            visibilityMode: variantPlan.visibilityMode,
-            entryIndex: variantPlan.entryIndex,
-            bindingKeyOverride: roleDefinition.getBindingKey?.(variantPlan.status),
-          });
-          if (!targetNodeId) return;
-          const targetGraphNode = config.graph.nodes[targetNodeId];
-          if (!targetGraphNode) return;
-          const primarySourceNode = roleDefinition.getSourceNode(sourceNodes);
-          if (!primarySourceNode) {
-            if (!isOptionalRole) {
-              summary.warnings.push(
-                `Card text source missing: status=${variantPlan.status}, role=${roleDefinition.key}`
-              );
-            }
-            return;
-          }
-          const sourceNode = primarySourceNode;
-          if (!sourceNode) {
-            summary.warnings.push(
-              `Card text source missing: status=${variantPlan.status}, role=${roleDefinition.key}`
-            );
-            return;
-          }
-
-          const rect = toRelativeRect({
-            rootNode: variantPlan.sourceNode,
-            targetNode: sourceNode,
-          });
-          if (!rect) {
-            if (!isOptionalRole) {
-              summary.warnings.push(
-                `Card text rect unavailable: status=${variantPlan.status}, role=${roleDefinition.key}`
-              );
-            }
-            return;
-          }
-
-          const containerTarget = ensureCardStyleRecord(
-            targetGraphNode.styles?.containerStyleKey
-          );
-          if (!containerTarget) return;
-
-          if (targetGraphNode.type === "flexibleText") {
-            const wrapperTarget = ensureCardStyleRecord(
-              targetGraphNode.styles?.wrapperStyleKey
-            );
-            if (!wrapperTarget) return;
-            applyFlexibleLayoutToTargets({
-              rect,
-              containerTarget,
-              wrapperTarget,
-            });
-          } else {
-            applyRectToLayoutObject({
-              rect,
-              target: containerTarget,
-            });
-          }
-
-          const textTarget = ensureCardStyleRecord(targetGraphNode.styles?.textStyleKey);
-          if (textTarget) {
-            const appliedTextStyle = applyTextStyleFromContentNode({
-              containerNode: sourceNode,
-              target: textTarget,
-            });
-            if (!appliedTextStyle && !isOptionalRole) {
-              summary.warnings.push(
-                `Card text style source missing: status=${variantPlan.status}, role=${roleDefinition.key}`
-              );
-            }
-          }
-        });
-      });
-
-      if (hasStatusSpecificCardTextSets) {
-        summary.applied.push("graph.card.statusTextVariants");
-      }
-    } else {
-      summary.warnings.push(
-        "Card root graph node not found; skipped status-based card text variant mapping."
-      );
-    }
 
     const applyPerDayCardOverrides = () => {
       const detachedComponentCount = detachCardComponentPerInstance({ config });
@@ -4085,15 +3394,9 @@ const applyLayoutMappingsFromFigma = ({
       if (instanceNodes.length === 0) return;
 
       const getBaseNodeId = (nodeId: string): string => {
-        const markerIndex = nodeId.indexOf("__inst__");
+        const markerIndex = nodeId.indexOf(CARD_INSTANCE_MARKER);
         if (markerIndex < 0) return nodeId;
-        const beforeMarker = nodeId.slice(0, markerIndex);
-        const afterMarker = nodeId.slice(markerIndex + "__inst__".length);
-        const suffixParts = afterMarker.split("__");
-        if (suffixParts.length > 1) {
-          return suffixParts.slice(1).join("__");
-        }
-        return beforeMarker;
+        return nodeId.slice(0, markerIndex);
       };
       const findNodeByBaseId = ({
         root,
@@ -4108,6 +3411,7 @@ const applyLayoutMappingsFromFigma = ({
       };
       const styleRefKeys = [
         "containerStyleKey",
+        "entryStyleKey",
         "textStyleKey",
         "wrapperStyleKey",
         "optionsKey",
@@ -4122,7 +3426,11 @@ const applyLayoutMappingsFromFigma = ({
       }): string | undefined => {
         if (!sourceKey || sourceKey.trim().length === 0) return undefined;
         const normalizedSuffix = suffix.replace(/[^a-zA-Z0-9_-]+/g, "_");
-        let targetKey = `${sourceKey}__${normalizedSuffix}`;
+        const suffixToken = `__${normalizedSuffix}`;
+        if (sourceKey.endsWith(suffixToken)) {
+          return sourceKey;
+        }
+        let targetKey = `${sourceKey}${suffixToken}`;
         if (!(targetKey in config.layout.card)) {
           const sourceValue = config.layout.card[sourceKey];
           if (sourceValue && typeof sourceValue === "object") {
@@ -4136,6 +3444,53 @@ const applyLayoutMappingsFromFigma = ({
         return targetKey;
       };
 
+      const cloneNodeStyleRefsWithSuffix = ({
+        node,
+        suffix,
+        entryStyleKey,
+      }: {
+        node: (typeof config.graph.nodes)[string];
+        suffix: string;
+        entryStyleKey?: string;
+      }): (typeof config.graph.nodes)[string] => {
+        const nextStyles = node.styles
+          ? ({
+              ...node.styles,
+            } as Record<string, string | undefined>)
+          : {};
+        styleRefKeys.forEach((styleRefKey) => {
+          const sourceStyleKey =
+            typeof nextStyles[styleRefKey] === "string"
+              ? (nextStyles[styleRefKey] as string)
+              : undefined;
+          if (!sourceStyleKey) return;
+          const targetStyleKey = cloneCardLayoutRecordWithSuffix({
+            sourceKey: sourceStyleKey,
+            suffix,
+          });
+          if (targetStyleKey) {
+            nextStyles[styleRefKey] = targetStyleKey;
+          }
+        });
+        if (entryStyleKey) {
+          nextStyles.entryStyleKey = entryStyleKey;
+        } else {
+          delete nextStyles.entryStyleKey;
+        }
+        const updatedNode = {
+          ...node,
+          styles: nextStyles,
+          meta: {
+            ...(node.meta ?? {}),
+            ...(typeof nextStyles.containerStyleKey === "string"
+              ? { layerSectionKey: nextStyles.containerStyleKey }
+              : {}),
+          },
+        };
+        config.graph.nodes[node.id] = updatedNode;
+        return updatedNode;
+      };
+
       const ensureStatusTextVariantNode = ({
         root,
         baseNode,
@@ -4143,6 +3498,7 @@ const applyLayoutMappingsFromFigma = ({
         visibilityMode,
         entryIndex,
         bindingKeyOverride,
+        entryStyleKey,
         labelSuffix,
       }: {
         root: (typeof config.graph.nodes)[string];
@@ -4157,6 +3513,7 @@ const applyLayoutMappingsFromFigma = ({
           | "offlineMemoOnly";
         entryIndex: number;
         bindingKeyOverride?: string;
+        entryStyleKey?: string;
         labelSuffix: string;
       }): (typeof config.graph.nodes)[string] => {
         const existingNode = findNodeByBaseId({
@@ -4194,10 +3551,19 @@ const applyLayoutMappingsFromFigma = ({
         };
 
         if (existingNode) {
+          const nextStyles = {
+            ...(existingNode.styles ?? {}),
+          } as Record<string, string | undefined>;
+          if (entryStyleKey) {
+            nextStyles.entryStyleKey = entryStyleKey;
+          } else {
+            delete nextStyles.entryStyleKey;
+          }
           const updatedNode = {
             ...existingNode,
             visibilityMode,
             binding: applyBinding(existingNode),
+            styles: nextStyles,
           };
           config.graph.nodes[existingNode.id] = updatedNode;
           return updatedNode;
@@ -4252,6 +3618,12 @@ const applyLayoutMappingsFromFigma = ({
               : {}),
           },
         };
+        if (entryStyleKey) {
+          createdNode.styles = {
+            ...(createdNode.styles ?? {}),
+            entryStyleKey,
+          };
+        }
         config.graph.nodes[nextNodeId] = createdNode;
         if (!root.childIds.includes(nextNodeId)) {
           root.childIds.push(nextNodeId);
@@ -4394,7 +3766,15 @@ const applyLayoutMappingsFromFigma = ({
         const componentRootNode = config.graph.nodes[componentDefinition.rootNodeId];
         if (!componentRootNode || componentRootNode.type !== "group") return;
 
-        const dayStatusSources = candidateByDayStatus[dayKey] ?? {};
+        const dayStatusSources: Partial<Record<CardTextStatus, FigmaNode>> = {
+          online: resolveDayStatusCandidate({ dayKey, status: "online" }),
+          multi: resolveDayStatusCandidate({ dayKey, status: "multi" }),
+          offline: resolveDayStatusCandidate({ dayKey, status: "offline" }),
+          offlineMemo: resolveDayStatusCandidate({
+            dayKey,
+            status: "offlineMemo",
+          }),
+        };
         const onlineVariantSourceNode = dayStatusSources.online;
         const multiVariantSourceNode = dayStatusSources.multi;
         const offlineVariantSourceNode = dayStatusSources.offline;
@@ -4522,14 +3902,18 @@ const applyLayoutMappingsFromFigma = ({
             candidate: sourceCandidate,
             status: plan.status,
           });
-          entrySources.forEach((entrySource) => {
-            const entryType = (entrySource.node.type ?? "").toUpperCase();
-            if (entryType === "FRAME") return;
-            if (entryType.length === 0) return;
-            summary.warnings.push(
-              `Card entry should be FRAME for stable local coordinates: day=${dayKey}, status=${plan.status}, entry=${entrySource.index}, type=${entryType}`
-            );
-          });
+          if (plan.status === "online" || plan.status === "multi") {
+            entrySources.forEach((entrySource) => {
+              const entryType = (entrySource.node.type ?? "").toUpperCase();
+              if (!entrySource.isFallbackRoot && entryType === "FRAME") return;
+              if (entryType.length === 0) return;
+              summary.warnings.push(
+                entrySource.isFallbackRoot
+                  ? `Card entry wrapper missing (fallback to status root): day=${dayKey}, status=${plan.status}, entry=${entrySource.index}, type=${entryType}`
+                  : `Card entry should be FRAME for stable local coordinates: day=${dayKey}, status=${plan.status}, entry=${entrySource.index}, type=${entryType}`
+              );
+            });
+          }
           const primaryEntrySource =
             entrySources.find((entry) => entry.index === 0) ?? entrySources[0];
           const sourceNodes = resolveCardTextNodesFromCandidate({
@@ -4538,6 +3922,23 @@ const applyLayoutMappingsFromFigma = ({
             status: plan.status,
           });
           const entryIndex = primaryEntrySource?.index ?? 0;
+          const entryContainerStyleKey = (() => {
+            const sourceNode = primaryEntrySource?.node;
+            if (!sourceNode) return undefined;
+            const targetStyleKey = `entryContainer__${dayKey}__${plan.status}__e${entryIndex}`;
+            const entryTarget = ensureCardStyleRecord(targetStyleKey);
+            if (!entryTarget) return undefined;
+            const rect = toRelativeRect({
+              rootNode: sourceCandidate,
+              targetNode: sourceNode,
+            });
+            applyRectToLayoutObject({
+              rect,
+              target: entryTarget,
+              includeRotation: false,
+            });
+            return targetStyleKey;
+          })();
           const visibilityMode = visibilityModeByStatus({
             status: plan.status,
             hasMulti: hasMultiStatus,
@@ -4547,15 +3948,21 @@ const applyLayoutMappingsFromFigma = ({
           const resolveTargetTextNode = ({
             role,
             bindingKeyOverride,
+            entryStyleKey,
           }: {
             role: "mainTitle" | "subTitle" | "streamingTime" | "streamingDate" | "streamingDay";
             bindingKeyOverride?: string;
+            entryStyleKey?: string;
           }): (typeof config.graph.nodes)[string] | undefined => {
             const baseNode = roleBaseNodes[role];
             if (!baseNode) return undefined;
             if (plan.status === "online") {
               const updatedNode = {
-                ...baseNode,
+                ...cloneNodeStyleRefsWithSuffix({
+                  node: baseNode,
+                  suffix: `${getBaseNodeId(baseNode.id)}__${dayKey}__${plan.status}__e${entryIndex}`,
+                  entryStyleKey,
+                }),
                 visibilityMode,
               };
               config.graph.nodes[baseNode.id] = updatedNode;
@@ -4568,6 +3975,7 @@ const applyLayoutMappingsFromFigma = ({
               visibilityMode,
               entryIndex,
               bindingKeyOverride,
+              entryStyleKey,
               labelSuffix: `${dayKey}/${plan.status}/e${entryIndex}`,
             });
           };
@@ -4575,14 +3983,25 @@ const applyLayoutMappingsFromFigma = ({
           const targetMainTitleNode = resolveTargetTextNode({
             role: "mainTitle",
             bindingKeyOverride: plan.status === "offlineMemo" ? "offlineMemo" : "mainTitle",
+            entryStyleKey: entryContainerStyleKey,
           });
           const targetSubTitleNode = resolveTargetTextNode({
             role: "subTitle",
             bindingKeyOverride: "subTitle",
+            entryStyleKey: entryContainerStyleKey,
           });
-          const targetStreamingTimeNode = resolveTargetTextNode({ role: "streamingTime" });
-          const targetStreamingDateNode = resolveTargetTextNode({ role: "streamingDate" });
-          const targetStreamingDayNode = resolveTargetTextNode({ role: "streamingDay" });
+          const targetStreamingTimeNode = resolveTargetTextNode({
+            role: "streamingTime",
+            entryStyleKey: entryContainerStyleKey,
+          });
+          const targetStreamingDateNode = resolveTargetTextNode({
+            role: "streamingDate",
+            entryStyleKey: entryContainerStyleKey,
+          });
+          const targetStreamingDayNode = resolveTargetTextNode({
+            role: "streamingDay",
+            entryStyleKey: entryContainerStyleKey,
+          });
 
           const applyTextSourceToTarget = ({
             sourceNode,
@@ -4680,6 +4099,11 @@ const applyLayoutMappingsFromFigma = ({
         typeof row.dayKey === "string" &&
         IMPORT_DAY_KEYS.includes(row.dayKey)
       );
+      summary.presence.cardMainTitle = auditedRows.some((row) => row.main);
+      summary.presence.cardSubTitle = auditedRows.some((row) => row.sub);
+      summary.presence.cardStreamingTime = auditedRows.some((row) => row.time);
+      summary.presence.cardStreamingDate = auditedRows.some((row) => row.date);
+      summary.presence.cardStreamingDay = auditedRows.some((row) => row.day);
       const expectedRows = Math.max(1, instanceNodes.length) * statusPlans.length;
       if (auditedRows.length < expectedRows) {
         summary.warnings.push(
@@ -4818,7 +4242,7 @@ const fetchFigmaNodesByIds = async ({
     const requestUrl = `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(
       chunk.join(",")
     )}`;
-    const response = await fetch(requestUrl, {
+    const response = await fetchWithTimeout(requestUrl, {
       method: "GET",
       headers: {
         "X-Figma-Token": figmaToken,
@@ -4968,7 +4392,9 @@ const fetchFigmaImageUrls = async ({
 }): Promise<Record<string, string | null>> => {
   if (nodeIds.length === 0) return {};
 
-  const chunks = chunkArray(nodeIds, 50);
+  // Figma images API can return render-timeout for large batches on heavy frames.
+  // Keep chunk size small to improve stability during bulk asset imports.
+  const chunks = chunkArray(nodeIds, 10);
   const result: Record<string, string | null> = {};
 
   for (const chunk of chunks) {
@@ -5006,7 +4432,7 @@ const downloadImageBufferFromUrl = async (url: string): Promise<{
   buffer: Buffer;
   contentType: string;
 }> => {
-  const response = await fetch(url);
+  const response = await fetchWithTimeout(url);
   if (!response.ok) {
     const bodyText = await response.text();
     throw new Error(`Failed to download image (${response.status}): ${bodyText}`);
@@ -5081,7 +4507,7 @@ const tryAiMatchAssetTargets = async ({
   if (candidates.length === 0) return {};
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -5378,6 +4804,9 @@ const importFigmaAssetsToConfig = async ({
     figmaToken,
     format,
   });
+  console.log(
+    `[import:v2:figma] asset export urls resolved=${Object.values(imageUrlsByNodeId).filter(Boolean).length}/${dedupedCandidates.length}`
+  );
 
   if (!write) {
     for (const candidate of dedupedCandidates) {
@@ -5401,7 +4830,7 @@ const importFigmaAssetsToConfig = async ({
   const uploadedFileKeys: string[] = [];
 
   try {
-    for (const candidate of dedupedCandidates) {
+    for (const [candidateIndex, candidate] of dedupedCandidates.entries()) {
       const exportUrl = imageUrlsByNodeId[candidate.nodeId];
       if (!exportUrl) {
         summary.warnings.push(
@@ -5409,6 +4838,10 @@ const importFigmaAssetsToConfig = async ({
         );
         continue;
       }
+
+      console.log(
+        `[import:v2:figma] asset ${candidateIndex + 1}/${dedupedCandidates.length}: target=${candidate.targetKey} node=${candidate.nodeName}`
+      );
 
       const downloaded = await downloadImageBufferFromUrl(exportUrl);
       const uploadFileName = `${sanitizePathSegment(candidate.targetKey, "asset")}.${format}`;
@@ -5600,8 +5033,35 @@ const assertCreatedByUserExists = async ({
   }
 };
 
-const run = async () => {
-  const options = parseCliOptions();
+export const runImportV2TemplateFromFigma = async (
+  rawOptions: ImportV2TemplateFromFigmaOptions
+) => {
+  const options: CliOptions = {
+    ...rawOptions,
+    configPreset: rawOptions.configPreset ?? "default",
+    source: rawOptions.source ?? "system",
+    write: Boolean(rawOptions.write),
+    public: Boolean(rawOptions.public),
+    withAssets: rawOptions.withAssets !== false,
+    assetTheme:
+      typeof rawOptions.assetTheme === "string" &&
+      rawOptions.assetTheme.trim().length > 0
+        ? rawOptions.assetTheme.trim()
+        : "first",
+    assetFormat: rawOptions.assetFormat ?? "png",
+    noAiAssetMatch: Boolean(rawOptions.noAiAssetMatch),
+    explicitExternalCardCandidates: Array.isArray(
+      rawOptions.explicitExternalCardCandidates
+    )
+      ? rawOptions.explicitExternalCardCandidates
+      : [],
+    explicitExternalWarnings: Array.isArray(rawOptions.explicitExternalWarnings)
+      ? rawOptions.explicitExternalWarnings
+      : [],
+    skipExternalCardVariantAutodiscovery:
+      rawOptions.skipExternalCardVariantAutodiscovery === true,
+  };
+
   const loadedEnv = loadEnvFiles();
   const mergedEnv = {
     ...loadedEnv,
@@ -5651,23 +5111,41 @@ const run = async () => {
     ];
   }
 
-  let externalCardCandidates: FigmaNode[] = [];
-  let externalCardWarnings: string[] = [];
-  try {
-    const externalVariantSummary = await fetchExternalCardVariantCandidates({
-      rootNode,
-      fileKey,
-      figmaToken,
-      componentMapById,
-    });
-    externalCardCandidates = externalVariantSummary.candidates;
-    externalCardWarnings = externalVariantSummary.warnings;
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "unknown component-set fallback error";
-    externalCardWarnings = [
-      `Card component-set fallback failed: ${message}`,
-    ];
+  let externalCardCandidates: FigmaNode[] = Array.isArray(
+    options.explicitExternalCardCandidates
+  )
+    ? [...options.explicitExternalCardCandidates]
+    : [];
+  let externalCardWarnings: string[] = Array.isArray(
+    options.explicitExternalWarnings
+  )
+    ? [...options.explicitExternalWarnings]
+    : [];
+
+  if (
+    externalCardCandidates.length === 0 &&
+    !options.skipExternalCardVariantAutodiscovery
+  ) {
+    try {
+      const externalVariantSummary = await fetchExternalCardVariantCandidates({
+        rootNode,
+        fileKey,
+        figmaToken,
+        componentMapById,
+      });
+      externalCardCandidates = externalVariantSummary.candidates;
+      externalCardWarnings = [
+        ...externalCardWarnings,
+        ...externalVariantSummary.warnings,
+      ];
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "unknown component-set fallback error";
+      externalCardWarnings = [
+        ...externalCardWarnings,
+        `Card component-set fallback failed: ${message}`,
+      ];
+    }
   }
 
   const baseConfig =
@@ -5706,28 +5184,45 @@ const run = async () => {
     description: `Figma node import source=${options.figmaUrl}`,
   };
 
-  const { supabaseUrl, supabaseServiceRoleKey } = resolveSupabaseConnection({
-    options,
-    mergedEnv,
-  });
+  let supabase: any = null;
+  let hasSupabaseConnection = false;
+  let ensuredTemplate: { templateId: string; created: boolean } = {
+    templateId: "(dry-run-local)",
+    created: false,
+  };
+  let supabaseConnectionWarning: string | null = null;
 
-  const supabase: any = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  if (typeof options.createdBy === "number" && Number.isFinite(options.createdBy)) {
-    await assertCreatedByUserExists({
-      supabase,
-      userId: options.createdBy,
+  try {
+    const { supabaseUrl, supabaseServiceRoleKey } = resolveSupabaseConnection({
+      options,
+      mergedEnv,
     });
-  }
 
-  const ensuredTemplate = await ensureTemplate({
-    supabase,
-    options,
-    resolvedTemplateName,
-    resolvedTemplateDescription,
-  });
+    supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    hasSupabaseConnection = true;
+
+    if (typeof options.createdBy === "number" && Number.isFinite(options.createdBy)) {
+      await assertCreatedByUserExists({
+        supabase,
+        userId: options.createdBy,
+      });
+    }
+
+    ensuredTemplate = await ensureTemplate({
+      supabase,
+      options,
+      resolvedTemplateName,
+      resolvedTemplateDescription,
+    });
+  } catch (error) {
+    if (options.write) {
+      throw error;
+    }
+    const message = error instanceof Error ? error.message : "unknown";
+    supabaseConnectionWarning = `Supabase connection unavailable in dry-run mode: ${message}`;
+  }
 
   let assetImportSummary: AssetImportSummary | null = null;
   if (options.withAssets) {
@@ -5757,6 +5252,20 @@ const run = async () => {
   }
 
   const normalizedConfig = v2_normalizeTemplateRenderConfig(baseConfig);
+  const componentRootNodeIdSet = new Set(
+    Object.values(normalizedConfig.graph.componentDefinitions ?? {}).map(
+      (definition) => definition.rootNodeId
+    )
+  );
+  const sanitizedRootNodeIds = normalizedConfig.graph.rootNodeIds.filter(
+    (nodeId) =>
+      !componentRootNodeIdSet.has(nodeId) && !nodeId.startsWith("component-")
+  );
+  if (sanitizedRootNodeIds.length !== normalizedConfig.graph.rootNodeIds.length) {
+    const prunedCount = normalizedConfig.graph.rootNodeIds.length - sanitizedRootNodeIds.length;
+    normalizedConfig.graph.rootNodeIds = sanitizedRootNodeIds;
+    mappingSummary.applied.push(`graph.rootNodeIds.prunedComponentRoots(${prunedCount})`);
+  }
   const postNormalizeCardSummary = v2_normalizeCardImportGraph({
     graph: normalizedConfig.graph,
     layout: normalizedConfig.layout,
@@ -5779,6 +5288,7 @@ const run = async () => {
 
   let existingDraftCount = 0;
   if (
+    hasSupabaseConnection &&
     ensuredTemplate.templateId &&
     ensuredTemplate.templateId !== "(to-be-created)"
   ) {
@@ -5845,6 +5355,9 @@ const run = async () => {
     console.warn(
       `[import:v2:figma] unresolved asset nodes: ${assetImportSummary.unresolved.join(", ")}`
     );
+  }
+  if (supabaseConnectionWarning) {
+    console.warn(`[import:v2:figma] warning: ${supabaseConnectionWarning}`);
   }
   if (existingDraftCount > 0) {
     console.warn(
@@ -5913,7 +5426,14 @@ const run = async () => {
   );
 };
 
-run().catch((error) => {
-  console.error("[import:v2:figma] failed:", error);
-  process.exit(1);
-});
+const runCli = async () => {
+  const options = parseCliOptions();
+  await runImportV2TemplateFromFigma(options);
+};
+
+if (require.main === module) {
+  runCli().catch((error) => {
+    console.error("[import:v2:figma] failed:", error);
+    process.exit(1);
+  });
+}

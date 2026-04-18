@@ -57,6 +57,27 @@ const v2_getCardNodeLayerIcon = (
   return "text";
 };
 
+const v2_getCardNodeEntryIndex = (node: V2TemplateCardNode): number => {
+  if (
+    node.binding.mode === "field" &&
+    node.binding.scope === "entry" &&
+    node.binding.entrySelector?.mode === "index" &&
+    Number.isFinite(node.binding.entrySelector.index)
+  ) {
+    return Math.max(0, Math.floor(node.binding.entrySelector.index));
+  }
+
+  if (
+    node.binding.mode === "computed" &&
+    node.binding.entrySelector?.mode === "index" &&
+    Number.isFinite(node.binding.entrySelector.index)
+  ) {
+    return Math.max(0, Math.floor(node.binding.entrySelector.index));
+  }
+
+  return 0;
+};
+
 const v2_getVisibilityLabel = (
   visibilityMode: V2TemplateVisibilityMode | undefined
 ): string | null => {
@@ -103,9 +124,18 @@ const v2_buildCardInstanceChildLayerNodes = ({
   );
   if (!cardStructure || cardStructure.nodeOrder.length === 0) return [];
 
-  const groupedNodes = new Map<V2CardStatusGroupKey, V2TemplateLayerNode[]>();
+  const groupedNodes = new Map<
+    V2CardStatusGroupKey,
+    {
+      children: V2TemplateLayerNode[];
+      entryGroupsByStyleKey: Map<string, V2TemplateLayerNode>;
+    }
+  >();
   v2_CARD_STATUS_GROUP_ORDER.forEach((groupKey) => {
-    groupedNodes.set(groupKey, []);
+    groupedNodes.set(groupKey, {
+      children: [],
+      entryGroupsByStyleKey: new Map<string, V2TemplateLayerNode>(),
+    });
   });
 
   cardStructure.nodeOrder
@@ -113,11 +143,11 @@ const v2_buildCardInstanceChildLayerNodes = ({
     .filter((node): node is V2TemplateCardNode => Boolean(node))
     .forEach((node) => {
       const groupKey = v2_resolveCardStatusGroupKey(node.visibilityMode);
-      const groupNodes = groupedNodes.get(groupKey);
-      if (!groupNodes) return;
+      const groupState = groupedNodes.get(groupKey);
+      if (!groupState) return;
       const baseLayerId = v2_cardNodeLayerId(node);
       const visibilityLabel = v2_getVisibilityLabel(node.visibilityMode);
-      groupNodes.push({
+      const childLayerNode: V2TemplateLayerNode = {
         id: `${instanceLayerId}::status:${groupKey}::${baseLayerId}`,
         label: visibilityLabel ? `${node.label} (${visibilityLabel})` : node.label,
         kind: "component",
@@ -130,11 +160,34 @@ const v2_buildCardInstanceChildLayerNodes = ({
         sectionKey: node.containerStyleKey,
         visibilityMode: node.visibilityMode,
         isVirtual: true,
-      });
+      };
+
+      if (node.entryStyleKey && node.kind !== "image") {
+        let entryGroupNode = groupState.entryGroupsByStyleKey.get(node.entryStyleKey);
+        if (!entryGroupNode) {
+          const entryIndex = v2_getCardNodeEntryIndex(node);
+          entryGroupNode = {
+            id: `${instanceLayerId}::status:${groupKey}::entry:${node.entryStyleKey}`,
+            label: entryIndex > 0 ? `Entry ${entryIndex + 1}` : "Entry",
+            kind: "group",
+            icon: "group",
+            sectionKey: node.entryStyleKey,
+            visibilityMode: "always",
+            isVirtual: true,
+            children: [],
+          };
+          groupState.entryGroupsByStyleKey.set(node.entryStyleKey, entryGroupNode);
+          groupState.children.push(entryGroupNode);
+        }
+        entryGroupNode.children = [...(entryGroupNode.children ?? []), childLayerNode];
+        return;
+      }
+
+      groupState.children.push(childLayerNode);
     });
 
   return v2_CARD_STATUS_GROUP_ORDER.map((groupKey) => {
-    const children = groupedNodes.get(groupKey) ?? [];
+    const children = groupedNodes.get(groupKey)?.children ?? [];
     return {
       id: `${instanceLayerId}::status:${groupKey}`,
       label: v2_CARD_STATUS_GROUP_LABEL[groupKey],
@@ -271,5 +324,53 @@ export const v2_getRuntimeLayerTree = (
     };
   };
 
-  return runtimeSceneNodes.map((node) => mapSceneNodeToLayerNode(node));
+  const sceneChildren: V2TemplateLayerNode[] = [];
+  const gridChildren = runtimeSceneNodes
+    .filter(
+      (node): node is Extract<(typeof runtimeSceneNodes)[number], { kind: "componentInstance" }> =>
+        node.kind === "componentInstance"
+    )
+    .map((node) => mapSceneNodeToLayerNode(node));
+  let hasInsertedGridGroup = false;
+
+  const createGridGroup = (): V2TemplateLayerNode => ({
+    id: "scene-grid",
+    label: "Grid",
+    kind: "component",
+    componentKey: "grid",
+    icon: "grid",
+    target: "grid",
+    sectionKey: "grid",
+    visibilityMode: "always",
+    children: [...gridChildren],
+  });
+
+  runtimeSceneNodes.forEach((node) => {
+    if (node.kind === "componentInstance") {
+      if (!hasInsertedGridGroup && gridChildren.length > 0) {
+        sceneChildren.push(createGridGroup());
+        hasInsertedGridGroup = true;
+      }
+      return;
+    }
+
+    const mappedNode = mapSceneNodeToLayerNode(node);
+    sceneChildren.push(mappedNode);
+  });
+
+  if (!hasInsertedGridGroup && gridChildren.length > 0) {
+    sceneChildren.push(createGridGroup());
+  }
+
+  return [
+    {
+      id: "scene-root",
+      label: "Scene",
+      kind: "group",
+      icon: "group",
+      visibilityMode: "always",
+      isVirtual: true,
+      children: sceneChildren,
+    },
+  ];
 };

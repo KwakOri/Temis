@@ -46,6 +46,7 @@ interface UseTemplateBoundTextNodePropertyPanelsParams {
   renderStyleSectionEditor: (params: {
     title: string;
     section: V2StyleSectionId;
+    schemaSection?: V2StyleSectionId;
   }) => React.ReactNode;
   renderAutoResizeAlignmentEditor: (params: {
     title: string;
@@ -387,7 +388,8 @@ const useTemplateBoundTextNodePropertyPanels = ({
           </div>
           {renderStyleSectionEditor({
             title: `${node.label}.ContainerStyle`,
-            section: containerSection,
+            section: node.containerStyleKey,
+            schemaSection: containerSection,
           })}
         </div>
       );
@@ -442,10 +444,13 @@ const useTemplateBoundTextNodePropertyPanels = ({
         fieldBindingExists={fieldBindingExists}
         colorKeys={colorKeys}
         visibilityOptions={visibilityOptions}
-        containerSection={containerSection}
-        wrapperSection={wrapperSection}
-        alignmentWrapperSection={alignmentWrapperSection}
-        textSection={textSection}
+        containerSection={node.containerStyleKey}
+        containerSchemaSection={containerSection}
+        wrapperSection={node.wrapperStyleKey ?? null}
+        wrapperSchemaSection={wrapperSection}
+        alignmentWrapperSection={node.wrapperStyleKey ?? node.containerStyleKey}
+        textSection={node.textStyleKey ?? null}
+        textSchemaSection={textSection}
         hasAutoResizeAlignment={hasAutoResizeAlignment}
         tailContent={
           node.kind === "flexibleText"
@@ -558,10 +563,13 @@ const useTemplateBoundTextNodePropertyPanels = ({
         fieldBindingExists={fieldBindingExists}
         colorKeys={colorKeys}
         visibilityOptions={visibilityOptions}
-        containerSection={containerSection}
-        wrapperSection={wrapperSection}
-        alignmentWrapperSection={alignmentWrapperSection}
-        textSection={textSection}
+        containerSection={node.containerStyleKey}
+        containerSchemaSection={containerSection}
+        wrapperSection={node.wrapperStyleKey ?? null}
+        wrapperSchemaSection={wrapperSection}
+        alignmentWrapperSection={node.wrapperStyleKey ?? node.containerStyleKey}
+        textSection={node.textStyleKey ?? null}
+        textSchemaSection={textSection}
         hasAutoResizeAlignment={hasAutoResizeAlignment}
         renderStyleSectionEditor={renderStyleSectionEditor}
         renderAutoResizeAlignmentEditor={renderAutoResizeAlignmentEditor}
