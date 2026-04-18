@@ -3321,13 +3321,14 @@ const applyLayoutMappingsFromFigma = ({
     }) => {
       const searchRoot = sourceNode ?? candidate;
       const candidateNodes = flattenNodes(searchRoot);
+      const statusCandidateNodes = flattenNodes(candidate);
       const offlineMemoMainTitleNode =
         status === "offlineMemo"
           ? findContainerNodeByTextBind({
-              rootNode: searchRoot,
-              bindValues: ["entry.offlineMemo"],
+              rootNode: candidate,
+              bindValues: ["card.offlineMemo", "entry.offlineMemo"],
             }) ??
-            findFirstByTagValues(candidateNodes, "slot", slot.cardOfflineMemo)
+            findFirstByTagValues(statusCandidateNodes, "slot", slot.cardOfflineMemo)
           : undefined;
       return {
         mainTitleContainerNode:
@@ -3498,6 +3499,7 @@ const applyLayoutMappingsFromFigma = ({
         visibilityMode,
         entryIndex,
         bindingKeyOverride,
+        bindingScopeOverride,
         entryStyleKey,
         labelSuffix,
         labelOverride,
@@ -3515,6 +3517,7 @@ const applyLayoutMappingsFromFigma = ({
           | "offlineMemoOnly";
         entryIndex: number;
         bindingKeyOverride?: string;
+        bindingScopeOverride?: "entry" | "card" | "global";
         entryStyleKey?: string;
         labelSuffix: string;
         labelOverride?: string;
@@ -3529,17 +3532,21 @@ const applyLayoutMappingsFromFigma = ({
         ): (typeof config.graph.nodes)[string]["binding"] => {
           if (!node.binding) return node.binding;
           if (node.binding.mode === "field") {
+            const nextScope = bindingScopeOverride ?? node.binding.scope;
             return {
               ...node.binding,
+              scope: nextScope,
               ...(bindingKeyOverride ? { key: bindingKeyOverride } : {}),
-              ...(node.binding.scope === "entry"
+              ...(nextScope === "entry"
                 ? {
                     entrySelector: {
                       mode: "index" as const,
                       index: entryIndex,
                     },
                   }
-                : {}),
+                : {
+                    entrySelector: undefined,
+                  }),
             };
           }
           if (node.binding.mode === "computed") {
@@ -3968,6 +3975,7 @@ const applyLayoutMappingsFromFigma = ({
             const resolveTargetTextNode = ({
               role,
               bindingKeyOverride,
+              bindingScopeOverride,
               entryStyleKey,
               labelOverride,
               layerIdBaseOverride,
@@ -3979,6 +3987,7 @@ const applyLayoutMappingsFromFigma = ({
                 | "streamingDate"
                 | "streamingDay";
               bindingKeyOverride?: string;
+              bindingScopeOverride?: "entry" | "card" | "global";
               entryStyleKey?: string;
               labelOverride?: string;
               layerIdBaseOverride?: string;
@@ -4004,6 +4013,7 @@ const applyLayoutMappingsFromFigma = ({
                 visibilityMode,
                 entryIndex,
                 bindingKeyOverride,
+                bindingScopeOverride,
                 entryStyleKey,
                 labelSuffix: `${dayKey}/${plan.status}/e${entryIndex}`,
                 labelOverride,
@@ -4014,7 +4024,9 @@ const applyLayoutMappingsFromFigma = ({
             const targetMainTitleNode = resolveTargetTextNode({
               role: "mainTitle",
               bindingKeyOverride: plan.status === "offlineMemo" ? "offlineMemo" : "mainTitle",
-              entryStyleKey: entryContainerStyleKey,
+              bindingScopeOverride: plan.status === "offlineMemo" ? "card" : "entry",
+              entryStyleKey:
+                plan.status === "offlineMemo" ? undefined : entryContainerStyleKey,
               labelOverride: plan.status === "offlineMemo" ? "OfflineMemo" : undefined,
               layerIdBaseOverride: plan.status === "offlineMemo" ? "offline-memo" : undefined,
             });

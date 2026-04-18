@@ -320,6 +320,15 @@ const v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD: V2TemplateFormField = {
   maxLength: 200,
 };
 
+const v2_DEFAULT_OFFLINE_MEMO_CARD_FIELD: V2TemplateFormField = {
+  key: "offlineMemo",
+  scope: "card",
+  type: "textarea",
+  placeholder: "휴방 메모",
+  defaultValue: "",
+  maxLength: 200,
+};
+
 const v2_DEFAULT_FORM_SCHEMA: V2TemplateFormSchema = {
   fields: [
     {
@@ -346,6 +355,7 @@ const v2_DEFAULT_FORM_SCHEMA: V2TemplateFormSchema = {
       defaultValue: "",
       maxLength: 50,
     },
+    v2_DEFAULT_OFFLINE_MEMO_CARD_FIELD,
     v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD,
   ],
   showLabels: false,
@@ -3543,8 +3553,15 @@ const v2_normalizeFormSchema = (
         .filter((field): field is V2TemplateFormField => field !== null)
     : [];
 
+  const nextFields = fields.length > 0 ? fields : fallback.fields;
+  const hasOfflineMemoCardField = nextFields.some(
+    (field) => field.scope === "card" && field.key === "offlineMemo"
+  );
+
   return {
-    fields: fields.length > 0 ? fields : fallback.fields,
+    fields: hasOfflineMemoCardField
+      ? nextFields
+      : [...nextFields, v2_DEFAULT_OFFLINE_MEMO_CARD_FIELD],
     showLabels: v2_asOptionalBoolean(candidate.showLabels) ?? fallback.showLabels,
     offlineToggle:
       v2_isRecord(candidate.offlineToggle) &&

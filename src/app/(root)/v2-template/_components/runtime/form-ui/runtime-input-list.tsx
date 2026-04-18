@@ -216,7 +216,9 @@ const RuntimeInputList: React.FC<RuntimeInputListProps> = ({
     (fieldConfig) => resolveFieldScope(fieldConfig) === "entry"
   );
   const cardFieldConfigs = cardInputConfig.fields.filter(
-    (fieldConfig) => resolveFieldScope(fieldConfig) === "card"
+    (fieldConfig) =>
+      resolveFieldScope(fieldConfig) === "card" &&
+      fieldConfig.key !== "offlineMemo"
   );
   const globalFieldConfigs = cardInputConfig.fields.filter(
     (fieldConfig) => resolveFieldScope(fieldConfig) === "global"
