@@ -118,7 +118,6 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     position: "absolute",
     top: 3,
     left: 31,
-    rotateDeg: -13.5,
     zIndex: 10,
   },
   cardStreamingTime: {

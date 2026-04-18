@@ -11,6 +11,7 @@ import {
 import {
   v2_parseDayKey,
 } from "@/utils/v2/template-render-config";
+import { v2_isLayerHiddenByAliases } from "@/utils/v2/layer-visibility";
 import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableLayoutStyle } from "./render-style";
@@ -129,13 +130,14 @@ const TimeTableGrid: React.FC<{
   cardStructure: V2TemplateCardStructure;
   cardStructureByComponentId?: Record<string, V2TemplateCardStructure>;
   instances?: V2TemplateSceneComponentInstanceNode[];
-}> = ({ cardStructure, cardStructureByComponentId, instances }) => {
+  gridLayerId?: string;
+}> = ({ cardStructure, cardStructureByComponentId, instances, gridLayerId }) => {
   const {
     data,
     currentTheme,
     hoverHighlightTarget,
     activeHighlightTarget,
-    isLayerHidden,
+    hiddenLayerIds,
   } = useTemplateRuntimeContext();
   const { weekDates } = useTemplateRuntimeData();
   const { renderConfig } = useTemplateRenderConfigContext();
@@ -283,10 +285,20 @@ const TimeTableGrid: React.FC<{
       typeof instance.layerId === "string" && instance.layerId.trim().length > 0
         ? instance.layerId
         : instance.id;
-    return isLayerHidden(instanceLayerId);
+    return v2_isLayerHiddenByAliases({
+      hiddenLayerIds,
+      layerIds: [instanceLayerId],
+    });
   };
 
-  if (isLayerHidden("grid")) return null;
+  if (
+    v2_isLayerHiddenByAliases({
+      hiddenLayerIds,
+      layerIds: ["grid", "scene-grid", gridLayerId],
+    })
+  ) {
+    return null;
+  }
 
   if (layoutMode === "free") {
     return (
@@ -321,6 +333,11 @@ const TimeTableGrid: React.FC<{
                 time={time}
                 dayKeyOverride={instance.dayKey}
                 cardInstanceId={instance.instanceId}
+                cardInstanceLayerId={
+                  typeof instance.layerId === "string" && instance.layerId.trim().length > 0
+                    ? instance.layerId
+                    : instance.id
+                }
                 currentTheme={currentTheme}
                 weekDate={weekDate}
                 index={dataIndex}
@@ -394,6 +411,11 @@ const TimeTableGrid: React.FC<{
                   time={time}
                   dayKeyOverride={instance.dayKey}
                   cardInstanceId={instance.instanceId}
+                  cardInstanceLayerId={
+                    typeof instance.layerId === "string" && instance.layerId.trim().length > 0
+                      ? instance.layerId
+                      : instance.id
+                  }
                   currentTheme={currentTheme}
                   weekDate={weekDate}
                   index={dataIndex}
@@ -429,6 +451,11 @@ const TimeTableGrid: React.FC<{
                   time={time}
                   dayKeyOverride={instance.dayKey}
                   cardInstanceId={instance.instanceId}
+                  cardInstanceLayerId={
+                    typeof instance.layerId === "string" && instance.layerId.trim().length > 0
+                      ? instance.layerId
+                      : instance.id
+                  }
                   currentTheme={currentTheme}
                   weekDate={weekDate}
                   index={dataIndex}
@@ -493,6 +520,11 @@ const TimeTableGrid: React.FC<{
           time={time}
           dayKeyOverride={instance.dayKey}
           cardInstanceId={instance.instanceId}
+          cardInstanceLayerId={
+            typeof instance.layerId === "string" && instance.layerId.trim().length > 0
+              ? instance.layerId
+              : instance.id
+          }
           currentTheme={currentTheme}
           weekDate={weekDate}
           index={dataIndex}

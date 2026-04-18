@@ -229,7 +229,6 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
               top: 3,
               width: 160,
               height: 100,
-              rotateDeg: -13.5,
               zIndex: 10,
             },
             streamingTime: {

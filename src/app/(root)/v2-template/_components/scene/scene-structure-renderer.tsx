@@ -273,6 +273,7 @@ const V2SceneStructureRenderer = ({
         cardStructure={runtimeCardStructure}
         cardStructureByComponentId={runtimeCardStructureByComponentId}
         instances={node.children}
+        gridLayerId={node.layerId ?? node.id}
       />
     );
   };
@@ -330,6 +331,7 @@ const V2SceneStructureRenderer = ({
           bindingOverrides={node.bindingOverrides}
           cardContainerSizeOverride={cardContainerSizeOverride}
           cardInstanceId={node.instanceId}
+          cardInstanceLayerId={node.layerId ?? node.id}
         />
       </div>
     );

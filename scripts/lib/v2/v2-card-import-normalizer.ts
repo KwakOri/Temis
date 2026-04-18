@@ -126,10 +126,14 @@ const mergeStyleRecord = ({
     layoutCard[targetKey] && typeof layoutCard[targetKey] === "object"
       ? (layoutCard[targetKey] as CardLayoutRecord)
       : (layoutCard[targetKey] = {} as CardLayoutRecord);
+  const sanitizedFallback = {
+    ...(fallback as CardLayoutRecord),
+  };
+  delete sanitizedFallback.rotateDeg;
 
   const before = JSON.stringify(target);
   layoutCard[targetKey] = {
-    ...(fallback as CardLayoutRecord),
+    ...sanitizedFallback,
     ...(target as CardLayoutRecord),
   };
   const after = JSON.stringify(layoutCard[targetKey]);

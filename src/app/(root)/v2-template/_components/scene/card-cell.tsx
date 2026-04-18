@@ -29,6 +29,7 @@ import {
   v2_resolveCardStatusGroupKey,
 } from "@/utils/v2/card-instance-highlight-target";
 import { v2_getRenderableCardNodeOrder } from "@/utils/v2/card-runtime-node-order-v2";
+import { v2_isLayerHiddenByAliases } from "@/utils/v2/layer-visibility";
 import { v2_buildComputedValues } from "@/utils/v2/text-formatting";
 import {
   V2FlexibleTextNodeRenderer,
@@ -50,6 +51,7 @@ interface TimeTableCellProps {
     height?: string | number;
   };
   cardInstanceId?: string;
+  cardInstanceLayerId?: string;
 }
 
 const v2_toCardStyleMap = (
@@ -216,11 +218,16 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   bindingOverrides,
   cardContainerSizeOverride,
   cardInstanceId,
+  cardInstanceLayerId,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const { weekDates } = useTemplateRuntimeData();
-  const { hoverHighlightTarget, activeHighlightTarget, isLayerHidden, globalData } =
-    useTemplateRuntimeContext();
+  const {
+    hoverHighlightTarget,
+    activeHighlightTarget,
+    hiddenLayerIds,
+    globalData,
+  } = useTemplateRuntimeContext();
   const cardLayoutRecord = renderConfig.layout.card as Record<string, unknown>;
   const cardIsOffline = Boolean(time.isOffline);
   const cardSize = cardIsOffline
@@ -252,6 +259,14 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   if (cardContainerStyle.overflow === undefined) {
     cardContainerStyle.overflow = "hidden";
   }
+  const isHiddenByAliases = React.useCallback(
+    (...layerIds: Array<string | null | undefined>) =>
+      v2_isLayerHiddenByAliases({
+        hiddenLayerIds,
+        layerIds,
+      }),
+    [hiddenLayerIds]
+  );
   const dayKey =
     dayKeyOverride ?? v2_parseDayKey(time.day) ?? v2_dayKeyFromIndex(index);
   const placeholdersByScope = renderConfig.formSchema.fields.reduce(
@@ -273,7 +288,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   );
 
   if (!weekDate) return "Loading";
-  if (isLayerHidden(cardStructure.containerLayerId)) return null;
+  if (isHiddenByAliases(cardStructure.containerLayerId, cardInstanceLayerId)) return null;
 
   const primaryEntry = time.entries?.[0] || {};
   const entryCount = Math.max(
@@ -297,7 +312,28 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   ): V2ResolvedRenderableCardNode | null => {
     const node = cardStructure.nodes[nodeId];
     if (!node) return null;
-    if (isLayerHidden(node.layerId)) return null;
+    const nodeLayerId =
+      typeof node.layerId === "string" && node.layerId.trim().length > 0
+        ? node.layerId
+        : node.id;
+    const nodeStatusGroup = v2_resolveCardStatusGroupKey(node.visibilityMode);
+    if (
+      isHiddenByAliases(
+        node.layerId,
+        nodeLayerId,
+        cardInstanceLayerId
+          ? `${cardInstanceLayerId}::status:${nodeStatusGroup}`
+          : undefined,
+        node.entryStyleKey && cardInstanceLayerId
+          ? `${cardInstanceLayerId}::status:${nodeStatusGroup}::entry:${node.entryStyleKey}`
+          : undefined,
+        cardInstanceLayerId
+          ? `${cardInstanceLayerId}::status:${nodeStatusGroup}::${nodeLayerId}`
+          : undefined
+      )
+    ) {
+      return null;
+    }
     if (
       !v2_isVisibleByMode({
         mode: node.visibilityMode,
@@ -315,11 +351,6 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     );
     const { style: renderableContainerStyle, width } =
       v2_resolveRenderableCardLayout(containerStyleMap);
-    const nodeLayerId =
-      typeof node.layerId === "string" && node.layerId.trim().length > 0
-        ? node.layerId
-        : node.id;
-    const nodeStatusGroup = v2_resolveCardStatusGroupKey(node.visibilityMode);
     const nodeHighlightTarget =
       typeof cardInstanceId === "string" && cardInstanceId.trim().length > 0
         ? v2_buildCardInstanceNodeHighlightTarget({

@@ -3914,184 +3914,224 @@ const applyLayoutMappingsFromFigma = ({
               );
             });
           }
-          const primaryEntrySource =
-            entrySources.find((entry) => entry.index === 0) ?? entrySources[0];
-          const sourceNodes = resolveCardTextNodesFromCandidate({
-            candidate: sourceCandidate,
-            sourceNode: primaryEntrySource?.node,
-            status: plan.status,
-          });
-          const entryIndex = primaryEntrySource?.index ?? 0;
-          const entryContainerStyleKey = (() => {
-            const sourceNode = primaryEntrySource?.node;
-            if (!sourceNode) return undefined;
-            const targetStyleKey = `entryContainer__${dayKey}__${plan.status}__e${entryIndex}`;
-            const entryTarget = ensureCardStyleRecord(targetStyleKey);
-            if (!entryTarget) return undefined;
-            const rect = toRelativeRect({
-              rootNode: sourceCandidate,
-              targetNode: sourceNode,
-            });
-            applyRectToLayoutObject({
-              rect,
-              target: entryTarget,
-              includeRotation: false,
-            });
-            return targetStyleKey;
-          })();
           const visibilityMode = visibilityModeByStatus({
             status: plan.status,
             hasMulti: hasMultiStatus,
             hasOfflineMemo: hasOfflineMemoStatus,
           });
 
-          const resolveTargetTextNode = ({
-            role,
-            bindingKeyOverride,
-            entryStyleKey,
-          }: {
-            role: "mainTitle" | "subTitle" | "streamingTime" | "streamingDate" | "streamingDay";
-            bindingKeyOverride?: string;
-            entryStyleKey?: string;
-          }): (typeof config.graph.nodes)[string] | undefined => {
-            const baseNode = roleBaseNodes[role];
-            if (!baseNode) return undefined;
-            if (plan.status === "online") {
-              const updatedNode = {
-                ...cloneNodeStyleRefsWithSuffix({
-                  node: baseNode,
-                  suffix: `${getBaseNodeId(baseNode.id)}__${dayKey}__${plan.status}__e${entryIndex}`,
-                  entryStyleKey,
-                }),
-                visibilityMode,
-              };
-              config.graph.nodes[baseNode.id] = updatedNode;
-              return updatedNode;
-            }
-            return ensureStatusTextVariantNode({
-              root: componentRootNode,
-              baseNode,
-              variantBaseId: `${getBaseNodeId(baseNode.id)}__${dayKey}__${plan.status}__e${entryIndex}${plan.variantNodeSuffix}`,
-              visibilityMode,
-              entryIndex,
-              bindingKeyOverride,
-              entryStyleKey,
-              labelSuffix: `${dayKey}/${plan.status}/e${entryIndex}`,
+          entrySources.forEach((entrySource) => {
+            const sourceNodes = resolveCardTextNodesFromCandidate({
+              candidate: sourceCandidate,
+              sourceNode: entrySource.node,
+              status: plan.status,
             });
-          };
-
-          const targetMainTitleNode = resolveTargetTextNode({
-            role: "mainTitle",
-            bindingKeyOverride: plan.status === "offlineMemo" ? "offlineMemo" : "mainTitle",
-            entryStyleKey: entryContainerStyleKey,
-          });
-          const targetSubTitleNode = resolveTargetTextNode({
-            role: "subTitle",
-            bindingKeyOverride: "subTitle",
-            entryStyleKey: entryContainerStyleKey,
-          });
-          const targetStreamingTimeNode = resolveTargetTextNode({
-            role: "streamingTime",
-            entryStyleKey: entryContainerStyleKey,
-          });
-          const targetStreamingDateNode = resolveTargetTextNode({
-            role: "streamingDate",
-            entryStyleKey: entryContainerStyleKey,
-          });
-          const targetStreamingDayNode = resolveTargetTextNode({
-            role: "streamingDay",
-            entryStyleKey: entryContainerStyleKey,
-          });
-
-          const applyTextSourceToTarget = ({
-            sourceNode,
-            targetNode,
-          }: {
-            sourceNode?: FigmaNode;
-            targetNode?: (typeof config.graph.nodes)[string];
-          }) => {
-            if (!sourceNode || !targetNode) return;
-            const targetContainerStyleKey =
-              typeof targetNode.styles?.containerStyleKey === "string"
-                ? targetNode.styles.containerStyleKey
-                : undefined;
-            const targetTextStyleKey =
-              typeof targetNode.styles?.textStyleKey === "string"
-                ? targetNode.styles.textStyleKey
-                : undefined;
-            if (!targetContainerStyleKey) return;
-            const positionRootNode = resolvePositionContextRootByFrame({
-              sourceRootNode: sourceCandidate,
-              targetNode: sourceNode,
-            });
-            const rect = toRelativeRect({
-              rootNode: positionRootNode,
-              targetNode: sourceNode,
-            });
-            const containerTarget = ensureCardStyleRecord(targetContainerStyleKey);
-            if (!containerTarget) return;
-            if (targetNode.type === "flexibleText") {
-              const wrapperStyleKey =
-                typeof targetNode.styles?.wrapperStyleKey === "string"
-                  ? targetNode.styles.wrapperStyleKey
-                  : undefined;
-              if (!wrapperStyleKey) return;
-              const wrapperTarget = ensureCardStyleRecord(wrapperStyleKey);
-              if (!wrapperTarget) return;
-              applyFlexibleLayoutToTargets({
-                rect,
-                containerTarget,
-                wrapperTarget,
+            const entryIndex = entrySource.index;
+            const entryContainerStyleKey = (() => {
+              const targetStyleKey = `entryContainer__${dayKey}__${plan.status}__e${entryIndex}`;
+              const entryTarget = ensureCardStyleRecord(targetStyleKey);
+              if (!entryTarget) return undefined;
+              const rect = toRelativeRect({
+                rootNode: sourceCandidate,
+                targetNode: entrySource.node,
               });
-            } else {
               applyRectToLayoutObject({
                 rect,
-                target: containerTarget,
+                target: entryTarget,
+                includeRotation: false,
               });
-            }
-            if (targetTextStyleKey) {
-              const textTarget = ensureCardStyleRecord(targetTextStyleKey);
-              if (textTarget) {
-                applyTextStyleFromContentNode({
-                  containerNode: sourceNode,
-                  target: textTarget,
+              return targetStyleKey;
+            })();
+
+            const resolveTargetTextNode = ({
+              role,
+              bindingKeyOverride,
+              entryStyleKey,
+            }: {
+              role:
+                | "mainTitle"
+                | "subTitle"
+                | "streamingTime"
+                | "streamingDate"
+                | "streamingDay";
+              bindingKeyOverride?: string;
+              entryStyleKey?: string;
+            }): (typeof config.graph.nodes)[string] | undefined => {
+              const baseNode = roleBaseNodes[role];
+              if (!baseNode) return undefined;
+              if (plan.status === "online") {
+                const updatedNode = {
+                  ...cloneNodeStyleRefsWithSuffix({
+                    node: baseNode,
+                    suffix: `${getBaseNodeId(baseNode.id)}__${dayKey}__${plan.status}__e${entryIndex}`,
+                    entryStyleKey,
+                  }),
+                  visibilityMode,
+                };
+                config.graph.nodes[baseNode.id] = updatedNode;
+                return updatedNode;
+              }
+              return ensureStatusTextVariantNode({
+                root: componentRootNode,
+                baseNode,
+                variantBaseId: `${getBaseNodeId(baseNode.id)}__${dayKey}__${plan.status}__e${entryIndex}${plan.variantNodeSuffix}`,
+                visibilityMode,
+                entryIndex,
+                bindingKeyOverride,
+                entryStyleKey,
+                labelSuffix: `${dayKey}/${plan.status}/e${entryIndex}`,
+              });
+            };
+
+            const targetMainTitleNode = resolveTargetTextNode({
+              role: "mainTitle",
+              bindingKeyOverride: plan.status === "offlineMemo" ? "offlineMemo" : "mainTitle",
+              entryStyleKey: entryContainerStyleKey,
+            });
+            const targetSubTitleNode = resolveTargetTextNode({
+              role: "subTitle",
+              bindingKeyOverride: "subTitle",
+              entryStyleKey: entryContainerStyleKey,
+            });
+            const targetStreamingTimeNode = resolveTargetTextNode({
+              role: "streamingTime",
+              entryStyleKey: entryContainerStyleKey,
+            });
+            const targetStreamingDateNode = resolveTargetTextNode({
+              role: "streamingDate",
+              entryStyleKey: entryContainerStyleKey,
+            });
+            const targetStreamingDayNode = resolveTargetTextNode({
+              role: "streamingDay",
+              entryStyleKey: entryContainerStyleKey,
+            });
+
+            const setTargetNodeRendered = ({
+              targetNode,
+              visible,
+            }: {
+              targetNode?: (typeof config.graph.nodes)[string];
+              visible: boolean;
+            }) => {
+              if (!targetNode) return;
+              const styleKeys = [
+                typeof targetNode.styles?.containerStyleKey === "string"
+                  ? targetNode.styles.containerStyleKey
+                  : undefined,
+                typeof targetNode.styles?.wrapperStyleKey === "string"
+                  ? targetNode.styles.wrapperStyleKey
+                  : undefined,
+              ];
+              styleKeys.forEach((styleKey) => {
+                const target = ensureCardStyleRecord(styleKey);
+                if (!target) return;
+                if (visible) {
+                  delete target.display;
+                  delete target.visibility;
+                  return;
+                }
+                delete target.rotateDeg;
+                delete target.transform;
+                delete target.transformOrigin;
+                target.display = "none";
+              });
+            };
+
+            const applyTextSourceToTarget = ({
+              sourceNode,
+              targetNode,
+            }: {
+              sourceNode?: FigmaNode;
+              targetNode?: (typeof config.graph.nodes)[string];
+            }) => {
+              if (!targetNode) return;
+              const targetContainerStyleKey =
+                typeof targetNode.styles?.containerStyleKey === "string"
+                  ? targetNode.styles.containerStyleKey
+                  : undefined;
+              const targetTextStyleKey =
+                typeof targetNode.styles?.textStyleKey === "string"
+                  ? targetNode.styles.textStyleKey
+                  : undefined;
+              if (!targetContainerStyleKey) return;
+              if (!sourceNode) {
+                setTargetNodeRendered({ targetNode, visible: false });
+                return;
+              }
+              setTargetNodeRendered({ targetNode, visible: true });
+              const positionRootNode = resolvePositionContextRootByFrame({
+                sourceRootNode: sourceCandidate,
+                targetNode: sourceNode,
+              });
+              const rect = toRelativeRect({
+                rootNode: positionRootNode,
+                targetNode: sourceNode,
+              });
+              const containerTarget = ensureCardStyleRecord(targetContainerStyleKey);
+              if (!containerTarget) return;
+              if (targetNode.type === "flexibleText") {
+                const wrapperStyleKey =
+                  typeof targetNode.styles?.wrapperStyleKey === "string"
+                    ? targetNode.styles.wrapperStyleKey
+                    : undefined;
+                if (!wrapperStyleKey) return;
+                const wrapperTarget = ensureCardStyleRecord(wrapperStyleKey);
+                if (!wrapperTarget) return;
+                applyFlexibleLayoutToTargets({
+                  rect,
+                  containerTarget,
+                  wrapperTarget,
+                });
+              } else {
+                applyRectToLayoutObject({
+                  rect,
+                  target: containerTarget,
                 });
               }
-            }
-          };
+              if (targetTextStyleKey) {
+                const textTarget = ensureCardStyleRecord(targetTextStyleKey);
+                if (textTarget) {
+                  applyTextStyleFromContentNode({
+                    containerNode: sourceNode,
+                    target: textTarget,
+                  });
+                }
+              }
+            };
 
-          applyTextSourceToTarget({
-            sourceNode: sourceNodes.mainTitleContainerNode,
-            targetNode: targetMainTitleNode,
-          });
-          applyTextSourceToTarget({
-            sourceNode: sourceNodes.subTitleContainerNode,
-            targetNode: targetSubTitleNode,
-          });
-          applyTextSourceToTarget({
-            sourceNode: sourceNodes.streamingTimeNode,
-            targetNode: targetStreamingTimeNode,
-          });
-          applyTextSourceToTarget({
-            sourceNode: sourceNodes.streamingDateNode,
-            targetNode: targetStreamingDateNode,
-          });
-          applyTextSourceToTarget({
-            sourceNode: sourceNodes.streamingDayNode,
-            targetNode: targetStreamingDayNode,
-          });
+            applyTextSourceToTarget({
+              sourceNode: sourceNodes.mainTitleContainerNode,
+              targetNode: targetMainTitleNode,
+            });
+            applyTextSourceToTarget({
+              sourceNode: sourceNodes.subTitleContainerNode,
+              targetNode: targetSubTitleNode,
+            });
+            applyTextSourceToTarget({
+              sourceNode: sourceNodes.streamingTimeNode,
+              targetNode: targetStreamingTimeNode,
+            });
+            applyTextSourceToTarget({
+              sourceNode: sourceNodes.streamingDateNode,
+              targetNode: targetStreamingDateNode,
+            });
+            applyTextSourceToTarget({
+              sourceNode: sourceNodes.streamingDayNode,
+              targetNode: targetStreamingDayNode,
+            });
 
-          pushStatusAuditRow({
-            dayKey,
-            status: plan.status,
-            entryIndex,
-            sourceNode: sourceCandidate,
-            background: Boolean(backgroundNode && targetBackgroundNode),
-            main: Boolean(sourceNodes.mainTitleContainerNode && targetMainTitleNode),
-            sub: Boolean(sourceNodes.subTitleContainerNode && targetSubTitleNode),
-            time: Boolean(sourceNodes.streamingTimeNode && targetStreamingTimeNode),
-            date: Boolean(sourceNodes.streamingDateNode && targetStreamingDateNode),
-            day: Boolean(sourceNodes.streamingDayNode && targetStreamingDayNode),
+            pushStatusAuditRow({
+              dayKey,
+              status: plan.status,
+              entryIndex,
+              sourceNode: sourceCandidate,
+              background: Boolean(backgroundNode && targetBackgroundNode),
+              main: Boolean(sourceNodes.mainTitleContainerNode && targetMainTitleNode),
+              sub: Boolean(sourceNodes.subTitleContainerNode && targetSubTitleNode),
+              time: Boolean(sourceNodes.streamingTimeNode && targetStreamingTimeNode),
+              date: Boolean(sourceNodes.streamingDateNode && targetStreamingDateNode),
+              day: Boolean(sourceNodes.streamingDayNode && targetStreamingDayNode),
+            });
           });
         });
       });
