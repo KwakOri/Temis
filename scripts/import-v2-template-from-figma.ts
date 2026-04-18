@@ -3500,6 +3500,8 @@ const applyLayoutMappingsFromFigma = ({
         bindingKeyOverride,
         entryStyleKey,
         labelSuffix,
+        labelOverride,
+        layerIdBaseOverride,
       }: {
         root: (typeof config.graph.nodes)[string];
         baseNode: (typeof config.graph.nodes)[string];
@@ -3515,6 +3517,8 @@ const applyLayoutMappingsFromFigma = ({
         bindingKeyOverride?: string;
         entryStyleKey?: string;
         labelSuffix: string;
+        labelOverride?: string;
+        layerIdBaseOverride?: string;
       }): (typeof config.graph.nodes)[string] => {
         const existingNode = findNodeByBaseId({
           root,
@@ -3554,6 +3558,14 @@ const applyLayoutMappingsFromFigma = ({
           const nextStyles = {
             ...(existingNode.styles ?? {}),
           } as Record<string, string | undefined>;
+          const nextLayerIdBase = (
+            layerIdBaseOverride ??
+            existingNode.layerId ??
+            baseNode.layerId ??
+            baseNode.id
+          ).replace(/[^a-zA-Z0-9_-]+/g, "_");
+          const variantToken = variantBaseId.replace(/[^a-zA-Z0-9_-]+/g, "_");
+          const nextLayerId = `${nextLayerIdBase}__${variantToken}`;
           if (entryStyleKey) {
             nextStyles.entryStyleKey = entryStyleKey;
           } else {
@@ -3561,9 +3573,15 @@ const applyLayoutMappingsFromFigma = ({
           }
           const updatedNode = {
             ...existingNode,
+            label: labelOverride ?? existingNode.label,
+            layerId: nextLayerId,
             visibilityMode,
             binding: applyBinding(existingNode),
             styles: nextStyles,
+            meta: {
+              ...(existingNode.meta ?? {}),
+              importOmitted: false,
+            },
           };
           config.graph.nodes[existingNode.id] = updatedNode;
           return updatedNode;
@@ -3577,8 +3595,11 @@ const applyLayoutMappingsFromFigma = ({
           nextNodeId = `${baseNode.id}__${variantToken}_${idAttempt}`;
           idAttempt += 1;
         }
-        const nextLayerIdBase =
-          (baseNode.layerId ?? baseNodeIdToken).replace(/[^a-zA-Z0-9_-]+/g, "_");
+        const nextLayerIdBase = (
+          layerIdBaseOverride ??
+          baseNode.layerId ??
+          baseNodeIdToken
+        ).replace(/[^a-zA-Z0-9_-]+/g, "_");
         const nextLayerId = `${nextLayerIdBase}__${variantToken}`;
 
         const clonedStyles = baseNode.styles
@@ -3604,7 +3625,7 @@ const applyLayoutMappingsFromFigma = ({
         const createdNode: (typeof config.graph.nodes)[string] = {
           ...baseNode,
           id: nextNodeId,
-          label: `${baseNode.label} (${labelSuffix})`,
+          label: labelOverride ?? `${baseNode.label} (${labelSuffix})`,
           parentId: root.id,
           childIds: [],
           layerId: nextLayerId,
@@ -3613,6 +3634,7 @@ const applyLayoutMappingsFromFigma = ({
           styles: clonedStyles,
           meta: {
             ...(baseNode.meta ?? {}),
+            importOmitted: false,
             ...(typeof clonedStyles.containerStyleKey === "string"
               ? { layerSectionKey: clonedStyles.containerStyleKey }
               : {}),
@@ -3947,6 +3969,8 @@ const applyLayoutMappingsFromFigma = ({
               role,
               bindingKeyOverride,
               entryStyleKey,
+              labelOverride,
+              layerIdBaseOverride,
             }: {
               role:
                 | "mainTitle"
@@ -3956,6 +3980,8 @@ const applyLayoutMappingsFromFigma = ({
                 | "streamingDay";
               bindingKeyOverride?: string;
               entryStyleKey?: string;
+              labelOverride?: string;
+              layerIdBaseOverride?: string;
             }): (typeof config.graph.nodes)[string] | undefined => {
               const baseNode = roleBaseNodes[role];
               if (!baseNode) return undefined;
@@ -3980,6 +4006,8 @@ const applyLayoutMappingsFromFigma = ({
                 bindingKeyOverride,
                 entryStyleKey,
                 labelSuffix: `${dayKey}/${plan.status}/e${entryIndex}`,
+                labelOverride,
+                layerIdBaseOverride,
               });
             };
 
@@ -3987,6 +4015,8 @@ const applyLayoutMappingsFromFigma = ({
               role: "mainTitle",
               bindingKeyOverride: plan.status === "offlineMemo" ? "offlineMemo" : "mainTitle",
               entryStyleKey: entryContainerStyleKey,
+              labelOverride: plan.status === "offlineMemo" ? "OfflineMemo" : undefined,
+              layerIdBaseOverride: plan.status === "offlineMemo" ? "offline-memo" : undefined,
             });
             const targetSubTitleNode = resolveTargetTextNode({
               role: "subTitle",
@@ -4009,11 +4039,17 @@ const applyLayoutMappingsFromFigma = ({
             const setTargetNodeRendered = ({
               targetNode,
               visible,
+              omitFromRuntime = false,
             }: {
               targetNode?: (typeof config.graph.nodes)[string];
               visible: boolean;
+              omitFromRuntime?: boolean;
             }) => {
               if (!targetNode) return;
+              targetNode.meta = {
+                ...(targetNode.meta ?? {}),
+                importOmitted: !visible && omitFromRuntime,
+              };
               const styleKeys = [
                 typeof targetNode.styles?.containerStyleKey === "string"
                   ? targetNode.styles.containerStyleKey
@@ -4038,9 +4074,16 @@ const applyLayoutMappingsFromFigma = ({
             };
 
             const applyTextSourceToTarget = ({
+              role,
               sourceNode,
               targetNode,
             }: {
+              role:
+                | "mainTitle"
+                | "subTitle"
+                | "streamingTime"
+                | "streamingDate"
+                | "streamingDay";
               sourceNode?: FigmaNode;
               targetNode?: (typeof config.graph.nodes)[string];
             }) => {
@@ -4055,7 +4098,11 @@ const applyLayoutMappingsFromFigma = ({
                   : undefined;
               if (!targetContainerStyleKey) return;
               if (!sourceNode) {
-                setTargetNodeRendered({ targetNode, visible: false });
+                setTargetNodeRendered({
+                  targetNode,
+                  visible: false,
+                  omitFromRuntime: roleIsOptionalByStatus(plan.status, role),
+                });
                 return;
               }
               setTargetNodeRendered({ targetNode, visible: true });
@@ -4100,22 +4147,27 @@ const applyLayoutMappingsFromFigma = ({
             };
 
             applyTextSourceToTarget({
+              role: "mainTitle",
               sourceNode: sourceNodes.mainTitleContainerNode,
               targetNode: targetMainTitleNode,
             });
             applyTextSourceToTarget({
+              role: "subTitle",
               sourceNode: sourceNodes.subTitleContainerNode,
               targetNode: targetSubTitleNode,
             });
             applyTextSourceToTarget({
+              role: "streamingTime",
               sourceNode: sourceNodes.streamingTimeNode,
               targetNode: targetStreamingTimeNode,
             });
             applyTextSourceToTarget({
+              role: "streamingDate",
               sourceNode: sourceNodes.streamingDateNode,
               targetNode: targetStreamingDateNode,
             });
             applyTextSourceToTarget({
+              role: "streamingDay",
               sourceNode: sourceNodes.streamingDayNode,
               targetNode: targetStreamingDayNode,
             });

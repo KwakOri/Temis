@@ -192,6 +192,10 @@ const v2_toComponentInstanceBindingOverrides = (
 };
 
 const v2_toCardNode = (graphNode: V2TemplateGraphNode): V2TemplateCardNode | null => {
+  if (graphNode.meta?.importOmitted) {
+    return null;
+  }
+
   if (
     graphNode.type !== "text" &&
     graphNode.type !== "flexibleText" &&
@@ -304,6 +308,10 @@ const v2_buildSceneNodeFromGraph = ({
 }): V2TemplateSceneNode | null => {
   if (visited.has(graphNode.id)) return null;
   visited.add(graphNode.id);
+
+  if (graphNode.meta?.importOmitted) {
+    return null;
+  }
 
   const base = {
     id: graphNode.id,

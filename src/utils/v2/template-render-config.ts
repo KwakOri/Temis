@@ -2616,7 +2616,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       },
       subTitleOptions: {
         maxFontSize: 58,
-        multiline: false,
+        multiline: true,
       },
       streamingDayStyle: {
         fontSize: 1,
@@ -2983,6 +2983,9 @@ const v2_normalizeGraphNodeMeta = (
   }
   if (typeof candidate.isTemplateComponent === "boolean") {
     next.isTemplateComponent = candidate.isTemplateComponent;
+  }
+  if (typeof candidate.importOmitted === "boolean") {
+    next.importOmitted = candidate.importOmitted;
   }
   if (typeof candidate.containerClassName === "string") {
     next.containerClassName = candidate.containerClassName;

@@ -451,6 +451,7 @@ export interface V2TemplateGraphNodeMeta {
   layerTarget?: V2TemplateHighlightTarget;
   layerSectionKey?: string;
   isTemplateComponent?: boolean;
+  importOmitted?: boolean;
   containerClassName?: string;
   textClassName?: string;
   bindingOverrides?: V2TemplateComponentInstanceBindingOverrides;
