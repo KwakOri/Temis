@@ -42,13 +42,13 @@ const TimeTableArtist = ({
         style={{
           position: 'absolute',
           height: 160,
-          width: 900,
+          width: 800,
           zIndex: 20,
           top: 1936,
-          left: 338,
+          left: 352,
           rotate: '3.1deg',
         }}
-        className="flex justify-center items-center"
+        className="flex justify-end items-center "
       >
         <AutoResizeText
           style={{
@@ -56,7 +56,7 @@ const TimeTableArtist = ({
             color: COMP_COLORS.ARTIST,
             fontFamily: COMP_FONTS.ARTIST,
           }}
-          className="text-center"
+          className="text-right"
           maxFontSize={MAX_FONT_SIZES.ARTIST}
         >
           {profileText ? profileText : profileTextPlaceholder}
