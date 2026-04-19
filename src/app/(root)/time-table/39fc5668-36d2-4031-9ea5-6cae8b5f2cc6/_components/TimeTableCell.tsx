@@ -95,7 +95,7 @@ const CardStreamingDateAndDay = ({
         width: 300,
         height: 100,
         lineHeight: 1,
-        fontSize: 72,
+        fontSize: 64,
         left: 260,
         top: 76,
       }}
@@ -119,9 +119,9 @@ const CardStreamingTime = ({
         width: 300,
         height: 100,
         lineHeight: 1,
-        fontSize: 70,
-        left: 264,
-        top: 460,
+        fontSize: 64,
+        left: 260,
+        top: 420,
       }}
       className=" absolute flex justify-center items-center"
     >
@@ -134,12 +134,12 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
   return (
     <div
       style={{
-        height: 240,
-        width: 560,
-        top: 160,
-        left: 132,
+        height: 160,
+        width: 640,
+        top: 188,
+        left: 90,
       }}
-      className="absolute flex justify-center items-center shrink-0"
+      className="absolute flex justify-center items-center shrink-0 "
     >
       <AutoResizeText
         style={{
@@ -148,7 +148,6 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
           lineHeight: 0.8,
         }}
         className="leading-none text-center"
-        multiline={true}
         maxFontSize={MAX_FONT_SIZES.MAIN_TITLE}
       >
         {content ? (content as string) : placeholders.mainTitle}
@@ -163,7 +162,7 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
       style={{
         width: 560,
         height: 80,
-        top: 388,
+        top: 340,
         left: 132,
       }}
       className="absolute flex justify-center items-center"
@@ -176,7 +175,6 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
         }}
         className="leading-none text-center w-full"
         maxFontSize={MAX_FONT_SIZES.SUB_TITLE}
-        multiline
       >
         {content ? (content as string) : placeholders.subTitle}
       </AutoResizeText>
@@ -199,6 +197,23 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
       <img
         className="object-cover w-full h-full"
         src={Imgs['first']['online'].src.replace('./', '/')}
+        alt="online"
+      />
+    </div>
+  );
+};
+
+const CardOverlay = ({ day }: OnlineCardBGProps) => {
+  return (
+    <div
+      style={{
+        ...CARD_SIZES.ONLINE,
+      }}
+      className="absolute z-50 opacity-40"
+    >
+      <img
+        className="object-cover w-full h-full"
+        src={Imgs['first']['online_overlay'].src.replace('./', '/')}
         alt="online"
       />
     </div>
@@ -271,8 +286,9 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           className="relative flex justify-center"
         >
           <CardStreamingDateAndDay day={time.day} date={weekDate.getDate()} />
-          <CardSubTitle content={entrySubTitle} day={time.day} />
           <CardMainTitle content={entryMainTitle} day={time.day} />
+          <CardSubTitle content={entrySubTitle} day={time.day} />
+
           <CardStreamingTime
             isGuerrilla={primaryEntry.isGuerrilla}
             time={entryTime}
