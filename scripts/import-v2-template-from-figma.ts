@@ -562,6 +562,19 @@ const findFirstByTagValues = (
   );
 };
 
+const findFirstDirectChildByTagValues = ({
+  rootNode,
+  key,
+  values,
+}: {
+  rootNode: FigmaNode | undefined;
+  key: string;
+  values: readonly string[];
+}): FigmaNode | undefined => {
+  if (!rootNode || !Array.isArray(rootNode.children)) return undefined;
+  return findFirstByTagValues(rootNode.children, key, values);
+};
+
 const findMatchesByTagValues = (
   nodes: FigmaNode[],
   key: string,
@@ -1795,6 +1808,26 @@ const findContainerNodeByTextBind = ({
   return visit(rootNode);
 };
 
+const findDirectChildContainerNodeByTextBind = ({
+  rootNode,
+  bindValues,
+}: {
+  rootNode: FigmaNode | undefined;
+  bindValues: readonly string[];
+}): FigmaNode | undefined => {
+  if (!rootNode || !Array.isArray(rootNode.children) || bindValues.length === 0) {
+    return undefined;
+  }
+  return rootNode.children.find((childNode) =>
+    Boolean(
+      findContainerNodeByTextBind({
+        rootNode: childNode,
+        bindValues,
+      })
+    )
+  );
+};
+
 const findContentTextNode = (containerNode: FigmaNode | undefined): FigmaNode | undefined => {
   if (!containerNode) return undefined;
   if (isTextNode(containerNode)) return containerNode;
@@ -1866,21 +1899,9 @@ const applyTextStyleFromFigmaNode = ({
     next.textAlign = textAlignMap[node.style.textAlignHorizontal];
   }
 
-  if (
-    Number.isFinite(node.style.lineHeightPx) &&
-    Number.isFinite(node.style.fontSize) &&
-    Number(node.style.fontSize) > 0
-  ) {
-    next.lineHeight = round(
-      Number(node.style.lineHeightPx) / Number(node.style.fontSize),
-      3
-    );
-  } else if (
-    Number.isFinite(node.style.lineHeightPercentFontSize) &&
-    Number(node.style.lineHeightPercentFontSize) > 0
-  ) {
-    next.lineHeight = round(Number(node.style.lineHeightPercentFontSize) / 100, 3);
-  }
+  // Figma line-height does not map cleanly to the editor/runtime model.
+  // Keep imported text at lineHeight=1 and let the editor opt into adjustments.
+  next.lineHeight = 1;
 
   const colorHex = figmaFillToHex(node);
   if (colorHex) {
@@ -3321,15 +3342,34 @@ const applyLayoutMappingsFromFigma = ({
     }) => {
       const searchRoot = sourceNode ?? candidate;
       const candidateNodes = flattenNodes(searchRoot);
-      const statusCandidateNodes = flattenNodes(candidate);
-      const offlineMemoMainTitleNode =
+      const legacyOfflineMemoNode =
         status === "offlineMemo"
           ? findContainerNodeByTextBind({
               rootNode: candidate,
-              bindValues: ["card.offlineMemo", "entry.offlineMemo"],
-            }) ??
-            findFirstByTagValues(statusCandidateNodes, "slot", slot.cardOfflineMemo)
+              bindValues: ["entry.offlineMemo"],
+            })
           : undefined;
+      const offlineMemoMainTitleNode =
+        status === "offlineMemo"
+          ? findDirectChildContainerNodeByTextBind({
+              rootNode: candidate,
+              bindValues: ["card.offlineMemo"],
+            }) ??
+            findFirstDirectChildByTagValues({
+              rootNode: candidate,
+              key: "slot",
+              values: slot.cardOfflineMemo,
+            })
+          : undefined;
+      if (
+        status === "offlineMemo" &&
+        !offlineMemoMainTitleNode &&
+        legacyOfflineMemoNode
+      ) {
+        summary.warnings.push(
+          `offlineMemo must be a direct child of the offlineMemo status root (legacy entry-scoped node found): ${candidate.name || candidate.id || "(unknown)"}`
+        );
+      }
       return {
         mainTitleContainerNode:
           offlineMemoMainTitleNode ??

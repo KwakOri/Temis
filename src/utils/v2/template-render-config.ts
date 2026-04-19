@@ -2488,6 +2488,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     weekFlag: {
       fontSize: 76,
       fontWeight: 700,
+      lineHeight: 1,
       width: 580,
       height: 114,
       top: 568,

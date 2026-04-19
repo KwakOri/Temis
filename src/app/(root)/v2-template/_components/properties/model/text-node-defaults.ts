@@ -37,7 +37,7 @@ export const v2_createDefaultTextNodeLayoutPatch = ({
     },
     [textStyleKey]: {
       fontSize: isFlexibleText ? 42 : 32,
-      lineHeight: isFlexibleText ? 1.1 : 1.2,
+      lineHeight: 1,
       textAlign: "center",
       ...(isFlexibleText ? { fontWeight: 700 } : {}),
     },

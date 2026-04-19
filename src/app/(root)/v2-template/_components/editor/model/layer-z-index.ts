@@ -112,12 +112,18 @@ export const buildOrderedLayerIdsByParent = ({
     return normalizedValue;
   };
 
+  const isVirtualOnlySiblings = (nodes: V2TemplateLayerNode[]): boolean =>
+    nodes.length > 0 && nodes.every((node) => node.isVirtual === true);
+
   const sortNodes = (nodes: V2TemplateLayerNode[]): V2TemplateLayerNode[] => {
+    const preferReverseSourceOrder = isVirtualOnlySiblings(nodes);
     return [...nodes].sort((a, b) => {
       const aZ = getNodeZIndex(a);
       const bZ = getNodeZIndex(b);
       if (aZ === bZ) {
-        return nodes.indexOf(a) - nodes.indexOf(b);
+        return preferReverseSourceOrder
+          ? nodes.indexOf(b) - nodes.indexOf(a)
+          : nodes.indexOf(a) - nodes.indexOf(b);
       }
       return bZ - aZ;
     });
@@ -128,6 +134,7 @@ export const buildOrderedLayerIdsByParent = ({
     parentId: string,
     nodes: V2TemplateLayerNode[]
   ): string[] | null => {
+    if (isVirtualOnlySiblings(nodes)) return null;
     const parentGraphId =
       parentId === ROOT_LAYER_PARENT_ID
         ? null

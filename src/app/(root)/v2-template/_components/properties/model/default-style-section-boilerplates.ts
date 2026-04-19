@@ -22,6 +22,7 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     height: 114,
     fontSize: 76,
     fontWeight: 700,
+    lineHeight: 1,
   },
   topObjectContainer: {
     position: "absolute",

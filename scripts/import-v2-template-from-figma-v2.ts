@@ -45,6 +45,7 @@ type VariantEntry = {
   nodeName: string;
   day?: DayKey;
   status?: CardStatus;
+  structureIssues: string[];
 };
 
 type MatrixValidationResult = {
@@ -327,6 +328,111 @@ const parseFigmaUrl = (url: string): FigmaParseResult => {
 const normalizeToken = (value: string): string =>
   value.trim().toLowerCase().replace(/[^a-z0-9가-힣_-]+/g, "");
 
+const parseNodeNameTags = (value: string): Record<string, string> => {
+  const tags: Record<string, string> = {};
+  const tagRegex = /\[([a-zA-Z0-9_.-]+)\s*=\s*([^\]]+)\]/g;
+  let matched = tagRegex.exec(value);
+  while (matched) {
+    const key = matched[1]?.trim().toLowerCase();
+    const rawValue = matched[2]?.trim();
+    if (key && rawValue) {
+      tags[key] = rawValue;
+    }
+    matched = tagRegex.exec(value);
+  }
+  return tags;
+};
+
+const getNodeTagValue = (node: FigmaNode | undefined, key: string): string | undefined => {
+  if (!node?.name) return undefined;
+  const normalizedKey = key.trim().toLowerCase();
+  if (!normalizedKey) return undefined;
+  return parseNodeNameTags(node.name)[normalizedKey];
+};
+
+const hasNodeTagValue = ({
+  node,
+  key,
+  values,
+}: {
+  node: FigmaNode | undefined;
+  key: string;
+  values: readonly string[];
+}): boolean => {
+  const rawValue = getNodeTagValue(node, key);
+  if (!rawValue) return false;
+  const normalizedValue = normalizeToken(rawValue);
+  return values.some((value) => normalizedValue === normalizeToken(value));
+};
+
+const subtreeHasTagValue = ({
+  rootNode,
+  key,
+  values,
+}: {
+  rootNode: FigmaNode | undefined;
+  key: string;
+  values: readonly string[];
+}): boolean => {
+  if (!rootNode) return false;
+  if (hasNodeTagValue({ node: rootNode, key, values })) return true;
+  const children = Array.isArray(rootNode.children) ? rootNode.children : [];
+  return children.some((child) =>
+    subtreeHasTagValue({
+      rootNode: child,
+      key,
+      values,
+    })
+  );
+};
+
+const collectOfflineMemoStructureIssues = (variantNode: FigmaNode): string[] => {
+  const rootChildren = Array.isArray(variantNode.children) ? variantNode.children : [];
+  const hasRootLevelOfflineMemo = rootChildren.some((child) => {
+    if (hasNodeTagValue({ node: child, key: "slot", values: ["card.entry"] })) {
+      return false;
+    }
+    return (
+      subtreeHasTagValue({
+        rootNode: child,
+        key: "bind",
+        values: ["card.offlineMemo"],
+      }) ||
+      subtreeHasTagValue({
+        rootNode: child,
+        key: "key",
+        values: ["card.offlineMemo"],
+      }) ||
+      subtreeHasTagValue({
+        rootNode: child,
+        key: "slot",
+        values: ["card.offlineMemo", "card.offline_memo"],
+      })
+    );
+  });
+
+  const hasLegacyEntryScopedOfflineMemo =
+    subtreeHasTagValue({
+      rootNode: variantNode,
+      key: "bind",
+      values: ["entry.offlineMemo"],
+    }) ||
+    subtreeHasTagValue({
+      rootNode: variantNode,
+      key: "key",
+      values: ["entry.offlineMemo"],
+    });
+
+  const issues: string[] = [];
+  if (!hasRootLevelOfflineMemo) {
+    issues.push("offlineMemo node must be a direct child of the status root with bind=card.offlineMemo");
+  }
+  if (hasLegacyEntryScopedOfflineMemo) {
+    issues.push("legacy entry.offlineMemo binding is not supported");
+  }
+  return issues;
+};
+
 const parseDay = (value: string | undefined): DayKey | undefined => {
   if (!value) return undefined;
   const normalized = normalizeToken(value);
@@ -411,6 +517,8 @@ const collectVariantEntries = ({
         nodeName: fullNode.name ?? child.name ?? "(unnamed)",
         day,
         status,
+        structureIssues:
+          status === "offlineMemo" ? collectOfflineMemoStructureIssues(fullNode) : [],
       };
     })
     .filter((entry): entry is VariantEntry => Boolean(entry));
@@ -486,6 +594,11 @@ const validateMatrix = (entries: VariantEntry[]): MatrixValidationResult => {
   if (statusCounts.offlineMemo !== 0 && statusCounts.offlineMemo !== 7) {
     critical.push(`offlineMemo must be 0 or 7 variants (actual=${statusCounts.offlineMemo})`);
   }
+  entries.forEach((entry) => {
+    entry.structureIssues.forEach((issue) => {
+      critical.push(`${entry.nodeId}: ${issue}`);
+    });
+  });
 
   return {
     entries,
