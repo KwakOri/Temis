@@ -8,6 +8,7 @@ import TopObject from './main/top_object.png';
 
 // Online images
 import OnlineImg from './main/online.png';
+import CardOverlay from './main/online_sample.png';
 
 // Offline images
 import OfflineImg from './main/offline.png';
@@ -23,6 +24,7 @@ export const Imgs: ImgsType = {
     topObject: TopObject,
     offline: OfflineImg,
     online: OnlineImg,
+    online_overlay: CardOverlay,
     profileFrame: MainProfileFrame,
   },
 };
