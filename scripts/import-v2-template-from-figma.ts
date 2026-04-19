@@ -44,6 +44,9 @@ export type ImportV2TemplateFromFigmaOptions = {
   explicitExternalCardCandidates?: FigmaNode[];
   explicitExternalWarnings?: string[];
   skipExternalCardVariantAutodiscovery?: boolean;
+  postProcessNormalizedConfig?: (
+    config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>
+  ) => ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
 };
 
 type CliOptions = ImportV2TemplateFromFigmaOptions;
@@ -5204,6 +5207,7 @@ export const runImportV2TemplateFromFigma = async (
       : [],
     skipExternalCardVariantAutodiscovery:
       rawOptions.skipExternalCardVariantAutodiscovery === true,
+    postProcessNormalizedConfig: rawOptions.postProcessNormalizedConfig,
   };
 
   const loadedEnv = loadEnvFiles();
@@ -5395,7 +5399,7 @@ export const runImportV2TemplateFromFigma = async (
     });
   }
 
-  const normalizedConfig = v2_normalizeTemplateRenderConfig(baseConfig);
+  let normalizedConfig = v2_normalizeTemplateRenderConfig(baseConfig);
   const componentRootNodeIdSet = new Set(
     Object.values(normalizedConfig.graph.componentDefinitions ?? {}).map(
       (definition) => definition.rootNodeId
@@ -5428,6 +5432,9 @@ export const runImportV2TemplateFromFigma = async (
     mappingSummary.applied.push(
       `graph.card.postNormalizeTouchedRoots(${postNormalizeCardSummary.touchedRoots})`
     );
+  }
+  if (typeof options.postProcessNormalizedConfig === "function") {
+    normalizedConfig = options.postProcessNormalizedConfig(normalizedConfig);
   }
 
   let existingDraftCount = 0;

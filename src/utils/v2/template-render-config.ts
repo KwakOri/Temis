@@ -41,6 +41,7 @@ import {
   V2TemplateSceneAssetFit,
   V2TemplateSceneAssetRole,
   V2TemplateSceneNode,
+  V2TemplateSharedStyleGroup,
   V2TemplateStreamingDayFormat,
   V2TemplateStreamingTimeFormat,
   V2TemplateStyleRecord,
@@ -2470,6 +2471,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   },
   extraAssets: {},
   extraAssetDimensions: {},
+  sharedStyleGroups: {},
   layout: {
     grid: {
       layoutMode: "grid3x3",
@@ -3742,6 +3744,38 @@ const v2_normalizeExtraAssetDimensionMap = (
   return normalized;
 };
 
+const v2_normalizeSharedStyleGroups = (
+  candidate: unknown,
+  fallback: Record<string, V2TemplateSharedStyleGroup> = {}
+): Record<string, V2TemplateSharedStyleGroup> => {
+  const normalized: Record<string, V2TemplateSharedStyleGroup> = {
+    ...fallback,
+  };
+  if (!v2_isRecord(candidate)) return normalized;
+
+  Object.entries(candidate).forEach(([rawKey, value]) => {
+    const key = rawKey.trim();
+    if (key.length === 0 || !v2_isRecord(value)) return;
+    const memberSectionKeys = Array.isArray(value.memberSectionKeys)
+      ? Array.from(
+          new Set(
+            value.memberSectionKeys.filter(
+              (sectionKey): sectionKey is string =>
+                typeof sectionKey === "string" && sectionKey.trim().length > 0
+            )
+          )
+        )
+      : [];
+    if (memberSectionKeys.length === 0) return;
+    normalized[key] = {
+      memberSectionKeys,
+      mode: "sync-all",
+    };
+  });
+
+  return normalized;
+};
+
 const v2_mergePaletteMap = (
   base: Record<string, V2TemplateColorPalette>,
   candidate: unknown
@@ -4698,6 +4732,10 @@ export const v2_normalizeTemplateRenderConfig = (
   normalized.extraAssetDimensions = v2_normalizeExtraAssetDimensionMap(
     raw.extraAssetDimensions,
     normalized.extraAssetDimensions
+  );
+  normalized.sharedStyleGroups = v2_normalizeSharedStyleGroups(
+    raw.sharedStyleGroups,
+    normalized.sharedStyleGroups
   );
 
   if (rawLayoutSource) {

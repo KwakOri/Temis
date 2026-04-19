@@ -560,6 +560,11 @@ export interface V2TemplateStructureConfig {
   sceneNodes: V2TemplateSceneNode[];
 }
 
+export interface V2TemplateSharedStyleGroup {
+  memberSectionKeys: string[];
+  mode: "sync-all";
+}
+
 export interface V2TemplateLayoutConfig {
   grid: V2TemplateStyleRecord;
   weekFlag: V2TemplateStyleRecord;
@@ -630,4 +635,5 @@ export interface V2TemplateRenderConfig {
   extraAssetDimensions: V2TemplateExtraAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
   graph: V2TemplateNodeGraph;
+  sharedStyleGroups?: Record<string, V2TemplateSharedStyleGroup>;
 }

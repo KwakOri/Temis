@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   V2TemplateRenderConfig,
@@ -66,6 +66,21 @@ const useTemplateStyleEditorActions = ({
   const [styleGroupExpanded, setStyleGroupExpanded] = useState<
     Record<string, boolean>
   >({});
+  const sharedStyleSectionTargets = useMemo(() => {
+    const next: Record<string, string[]> = {};
+    Object.values(renderConfig.sharedStyleGroups ?? {}).forEach((group) => {
+      const members = Array.from(
+        new Set(
+          Array.isArray(group.memberSectionKeys) ? group.memberSectionKeys : []
+        )
+      );
+      if (members.length <= 1) return;
+      members.forEach((sectionKey) => {
+        next[sectionKey] = members;
+      });
+    });
+    return next;
+  }, [renderConfig.sharedStyleGroups]);
 
   const getStyleSectionMap = useCallback(
     (section: string): Record<string, string | number> => {
@@ -145,61 +160,67 @@ const useTemplateStyleEditorActions = ({
   const updateStyleSection = useCallback(
     (section: string, nextMap: Record<string, string | number>) => {
       safeUpdateConfig((prev) => {
-        const knownSection = v2_isKnownStyleSectionKey(section, styleSectionLabels)
-          ? section
-          : null;
-        const rootLayoutKey = knownSection
-          ? rootLayoutStyleSectionKeyMap[knownSection]
-          : undefined;
-        if (rootLayoutKey) {
-          return {
-            ...prev,
-            layout: {
-              ...prev.layout,
-              [rootLayoutKey]: nextMap,
-            },
-          };
-        }
+        const targetSections = sharedStyleSectionTargets[section] ?? [section];
+        return targetSections.reduce((nextPrev, targetSection) => {
+          const knownSection = v2_isKnownStyleSectionKey(
+            targetSection,
+            styleSectionLabels
+          )
+            ? targetSection
+            : null;
+          const rootLayoutKey = knownSection
+            ? rootLayoutStyleSectionKeyMap[knownSection]
+            : undefined;
+          if (rootLayoutKey) {
+            return {
+              ...nextPrev,
+              layout: {
+                ...nextPrev.layout,
+                [rootLayoutKey]: nextMap,
+              },
+            };
+          }
 
-        const cardLayoutKey = knownSection
-          ? cardLayoutStyleSectionKeyMap[knownSection]
-          : undefined;
-        if (cardLayoutKey) {
+          const cardLayoutKey = knownSection
+            ? cardLayoutStyleSectionKeyMap[knownSection]
+            : undefined;
+          if (cardLayoutKey) {
+            return {
+              ...nextPrev,
+              layout: {
+                ...nextPrev.layout,
+                card: {
+                  ...nextPrev.layout.card,
+                  [cardLayoutKey]: nextMap,
+                },
+              },
+            };
+          }
+
+          if (sceneStyleSectionKeySet.has(targetSection)) {
+            return {
+              ...nextPrev,
+              layout: {
+                ...nextPrev.layout,
+                scene: {
+                  ...nextPrev.layout.scene,
+                  [targetSection]: nextMap,
+                },
+              },
+            };
+          }
+
           return {
-            ...prev,
+            ...nextPrev,
             layout: {
-              ...prev.layout,
+              ...nextPrev.layout,
               card: {
-                ...prev.layout.card,
-                [cardLayoutKey]: nextMap,
+                ...nextPrev.layout.card,
+                [targetSection]: nextMap,
               },
             },
           };
-        }
-
-        if (sceneStyleSectionKeySet.has(section)) {
-          return {
-            ...prev,
-            layout: {
-              ...prev.layout,
-              scene: {
-                ...prev.layout.scene,
-                [section]: nextMap,
-              },
-            },
-          };
-        }
-
-        return {
-          ...prev,
-          layout: {
-            ...prev.layout,
-            card: {
-              ...prev.layout.card,
-              [section]: nextMap,
-            },
-          },
-        };
+        }, prev);
       });
     },
     [
@@ -207,6 +228,7 @@ const useTemplateStyleEditorActions = ({
       rootLayoutStyleSectionKeyMap,
       safeUpdateConfig,
       sceneStyleSectionKeySet,
+      sharedStyleSectionTargets,
       styleSectionLabels,
     ]
   );

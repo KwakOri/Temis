@@ -4,10 +4,15 @@ import {
   runImportV2TemplateFromFigma,
   type FigmaNode,
 } from "./import-v2-template-from-figma";
+import type {
+  V2TemplateRenderConfig,
+  V2TemplateSharedStyleGroup,
+} from "../src/types/time-table/template-render-config";
 
 type ImportAiMode = "review" | "off" | "autofix-lite";
 type CardStatus = "online" | "multi" | "offline" | "offlineMemo";
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+type ValidationMode = "matrix" | "shared-status";
 
 type CliOptions = {
   rootFigmaUrl: string;
@@ -48,10 +53,13 @@ type VariantEntry = {
   structureIssues: string[];
 };
 
-type MatrixValidationResult = {
+type ValidationResult = {
+  mode: ValidationMode;
   entries: VariantEntry[];
   unresolved: VariantEntry[];
+  resolvedEntries: Array<VariantEntry & { status: CardStatus; day?: DayKey }>;
   duplicatePairs: Array<{ day: DayKey; status: CardStatus; count: number; nodeIds: string[] }>;
+  duplicateStatuses: Array<{ status: CardStatus; count: number; nodeIds: string[] }>;
   statusCounts: Record<CardStatus, number>;
   statusDays: Record<CardStatus, DayKey[]>;
   critical: string[];
@@ -526,10 +534,11 @@ const collectVariantEntries = ({
   return entries;
 };
 
-const validateMatrix = (entries: VariantEntry[]): MatrixValidationResult => {
+const validateMatrix = (entries: VariantEntry[]): ValidationResult => {
   const unresolved = entries.filter((entry) => !entry.day || !entry.status);
-  const resolved = entries.filter((entry): entry is VariantEntry & { day: DayKey; status: CardStatus } =>
-    Boolean(entry.day && entry.status)
+  const resolved = entries.filter(
+    (entry): entry is VariantEntry & { day: DayKey; status: CardStatus } =>
+      Boolean(entry.day && entry.status)
   );
 
   const pairMap = new Map<string, { day: DayKey; status: CardStatus; nodeIds: string[] }>();
@@ -601,13 +610,141 @@ const validateMatrix = (entries: VariantEntry[]): MatrixValidationResult => {
   });
 
   return {
+    mode: "matrix",
     entries,
     unresolved,
+    resolvedEntries: resolved,
     duplicatePairs,
+    duplicateStatuses: [],
     statusCounts,
     statusDays,
     critical,
     warnings,
+  };
+};
+
+const validateSharedStatus = (entries: VariantEntry[]): ValidationResult => {
+  const unresolved = entries.filter((entry) => !entry.status);
+  const resolved = entries.filter(
+    (entry): entry is VariantEntry & { status: CardStatus; day?: DayKey } =>
+      Boolean(entry.status)
+  );
+
+  const statusMap = new Map<CardStatus, { status: CardStatus; nodeIds: string[] }>();
+  resolved.forEach((entry) => {
+    const current = statusMap.get(entry.status) ?? {
+      status: entry.status,
+      nodeIds: [],
+    };
+    current.nodeIds.push(entry.nodeId);
+    statusMap.set(entry.status, current);
+  });
+
+  const duplicateStatuses = Array.from(statusMap.values())
+    .filter((row) => row.nodeIds.length > 1)
+    .map((row) => ({ ...row, count: row.nodeIds.length }));
+
+  const statusDays: Record<CardStatus, DayKey[]> = {
+    online: Array.from(
+      new Set(
+        resolved
+          .filter((entry) => entry.status === "online" && entry.day)
+          .map((entry) => entry.day as DayKey)
+      )
+    ).sort(),
+    multi: Array.from(
+      new Set(
+        resolved
+          .filter((entry) => entry.status === "multi" && entry.day)
+          .map((entry) => entry.day as DayKey)
+      )
+    ).sort(),
+    offline: Array.from(
+      new Set(
+        resolved
+          .filter((entry) => entry.status === "offline" && entry.day)
+          .map((entry) => entry.day as DayKey)
+      )
+    ).sort(),
+    offlineMemo: Array.from(
+      new Set(
+        resolved
+          .filter((entry) => entry.status === "offlineMemo" && entry.day)
+          .map((entry) => entry.day as DayKey)
+      )
+    ).sort(),
+  };
+
+  const statusCounts: Record<CardStatus, number> = {
+    online: resolved.filter((entry) => entry.status === "online").length,
+    multi: resolved.filter((entry) => entry.status === "multi").length,
+    offline: resolved.filter((entry) => entry.status === "offline").length,
+    offlineMemo: resolved.filter((entry) => entry.status === "offlineMemo").length,
+  };
+
+  const critical: string[] = [];
+  const warnings: string[] = [];
+  if (unresolved.length > 0) {
+    warnings.push(`Unresolved variants found: ${unresolved.length}`);
+  }
+  if (duplicateStatuses.length > 0) {
+    critical.push(`Duplicate status variants found: ${duplicateStatuses.length}`);
+  }
+  if (statusCounts.online !== 1) {
+    critical.push(`online must be exactly 1 shared variant (actual=${statusCounts.online})`);
+  }
+  if (statusCounts.offline !== 1) {
+    critical.push(`offline must be exactly 1 shared variant (actual=${statusCounts.offline})`);
+  }
+  if (statusCounts.multi !== 0 && statusCounts.multi !== 1) {
+    critical.push(`multi must be 0 or 1 shared variants (actual=${statusCounts.multi})`);
+  }
+  if (statusCounts.offlineMemo !== 0 && statusCounts.offlineMemo !== 1) {
+    critical.push(
+      `offlineMemo must be 0 or 1 shared variants (actual=${statusCounts.offlineMemo})`
+    );
+  }
+  entries.forEach((entry) => {
+    entry.structureIssues.forEach((issue) => {
+      critical.push(`${entry.nodeId}: ${issue}`);
+    });
+  });
+
+  return {
+    mode: "shared-status",
+    entries,
+    unresolved,
+    resolvedEntries: resolved,
+    duplicatePairs: [],
+    duplicateStatuses,
+    statusCounts,
+    statusDays,
+    critical,
+    warnings,
+  };
+};
+
+const validateCardComponentSet = (entries: VariantEntry[]): ValidationResult => {
+  const matrixResult = validateMatrix(entries);
+  if (matrixResult.critical.length === 0) {
+    return matrixResult;
+  }
+
+  const sharedStatusResult = validateSharedStatus(entries);
+  if (sharedStatusResult.critical.length === 0) {
+    return sharedStatusResult;
+  }
+
+  return {
+    ...matrixResult,
+    critical: [
+      ...new Set([
+        "card component set does not match matrix mode or shared-status mode",
+        ...matrixResult.critical,
+        ...sharedStatusResult.critical,
+      ]),
+    ],
+    warnings: [...new Set([...matrixResult.warnings, ...sharedStatusResult.warnings])],
   };
 };
 
@@ -619,12 +756,13 @@ const printValidationSummary = ({
 }: {
   rootInfo: FigmaParseResult;
   cardSetInfo: FigmaParseResult;
-  result: MatrixValidationResult;
+  result: ValidationResult;
   aiMode: ImportAiMode;
 }) => {
   console.log(`[import:v2:figma:v2] root=${rootInfo.fileKey}:${rootInfo.nodeId}`);
   console.log(`[import:v2:figma:v2] cardSet=${cardSetInfo.fileKey}:${cardSetInfo.nodeId}`);
   console.log(`[import:v2:figma:v2] ai-mode=${aiMode}`);
+  console.log(`[import:v2:figma:v2] mode=${result.mode}`);
   console.log("[import:v2:figma:v2] status counts:");
   STATUS_KEYS.forEach((status) => {
     console.log(
@@ -638,9 +776,15 @@ const printValidationSummary = ({
       console.log(`  - ${row.day}/${row.status}: count=${row.count}, nodes=${row.nodeIds.join(",")}`);
     });
   }
+  if (result.duplicateStatuses.length > 0) {
+    console.log("[import:v2:figma:v2] duplicate statuses:");
+    result.duplicateStatuses.forEach((row) => {
+      console.log(`  - ${row.status}: count=${row.count}, nodes=${row.nodeIds.join(",")}`);
+    });
+  }
 
   if (result.unresolved.length > 0) {
-    console.log("[import:v2:figma:v2] unresolved variants (day/status parse failed):");
+    console.log("[import:v2:figma:v2] unresolved variants:");
     result.unresolved.forEach((entry) => {
       console.log(
         `  - ${entry.nodeId}: ${entry.nodeName} (day=${entry.day ?? "?"}, status=${entry.status ?? "?"})`
@@ -654,6 +798,99 @@ const printValidationSummary = ({
   result.critical.forEach((critical) => {
     console.log(`[import:v2:figma:v2] critical: ${critical}`);
   });
+};
+
+const cloneFigmaNode = (node: FigmaNode): FigmaNode =>
+  JSON.parse(JSON.stringify(node)) as FigmaNode;
+
+const buildSyntheticSharedStatusCandidates = ({
+  validation,
+  nodesById,
+}: {
+  validation: ValidationResult;
+  nodesById: Record<string, FigmaNode>;
+}): FigmaNode[] => {
+  if (validation.mode !== "shared-status") {
+    return validation.resolvedEntries
+      .filter((entry): entry is VariantEntry & { day: DayKey; status: CardStatus } =>
+        Boolean(entry.day && entry.status)
+      )
+      .map((entry) => nodesById[entry.nodeId])
+      .filter((node): node is FigmaNode => Boolean(node));
+  }
+
+  const syntheticCandidates: FigmaNode[] = [];
+  validation.resolvedEntries.forEach((entry) => {
+    const sourceNode = nodesById[entry.nodeId];
+    if (!sourceNode || !entry.status) return;
+    DAY_KEYS.forEach((dayKey) => {
+      const clonedNode = cloneFigmaNode(sourceNode);
+      const baseName = sourceNode.name?.trim() || entry.nodeName;
+      clonedNode.id = `${entry.nodeId}::shared-status::${entry.status}::${dayKey}`;
+      clonedNode.name = `${baseName} [day=${dayKey}] [status=${entry.status}]`;
+      clonedNode.variantProperties = {
+        ...(sourceNode.variantProperties ?? {}),
+        day: dayKey,
+        Day: dayKey,
+        status: entry.status,
+        Status: entry.status,
+      };
+      syntheticCandidates.push(clonedNode);
+    });
+  });
+  return syntheticCandidates;
+};
+
+const SHARED_STATUS_SECTION_DAY_REPLACE_REGEX =
+  /(^|[_-])(mon|tue|wed|thu|fri|sat|sun)(?=([_-]|$))/gi;
+const SHARED_STATUS_SECTION_DAY_TEST_REGEX =
+  /(^|[_-])(mon|tue|wed|thu|fri|sat|sun)(?=([_-]|$))/i;
+const SHARED_STATUS_TOKEN_REGEX =
+  /(^|[_-])(online|multi|offlinememo|offline)(?=([_-]|$))/i;
+
+const normalizeSharedStatusSectionKey = (sectionKey: string): string =>
+  sectionKey.replace(
+    SHARED_STATUS_SECTION_DAY_REPLACE_REGEX,
+    (_match, prefix: string, _day: string) => `${prefix}DAY`
+  );
+
+const buildSharedStyleGroups = (
+  config: V2TemplateRenderConfig
+): Record<string, V2TemplateSharedStyleGroup> => {
+  const groupsById = new Map<string, Set<string>>();
+  Object.values(config.graph.nodes ?? {}).forEach((node) => {
+    const styleRefs = node.styles;
+    if (!styleRefs) return;
+    [
+      styleRefs.containerStyleKey,
+      styleRefs.textStyleKey,
+      styleRefs.wrapperStyleKey,
+      styleRefs.optionsKey,
+    ].forEach((sectionKey) => {
+      if (typeof sectionKey !== "string" || sectionKey.trim().length === 0) return;
+      if (!SHARED_STATUS_SECTION_DAY_TEST_REGEX.test(sectionKey)) return;
+      const statusMatch = sectionKey.match(SHARED_STATUS_TOKEN_REGEX);
+      if (!statusMatch?.[2]) return;
+      const normalizedKey = normalizeSharedStatusSectionKey(sectionKey);
+      if (normalizedKey === sectionKey) return;
+      const groupId = `shared-status:${statusMatch[2].toLowerCase()}:${normalizedKey}`;
+      const members = groupsById.get(groupId) ?? new Set<string>();
+      members.add(sectionKey);
+      groupsById.set(groupId, members);
+    });
+  });
+
+  return Object.fromEntries(
+    Array.from(groupsById.entries())
+      .map(([groupId, members]) => [
+        groupId,
+        {
+          memberSectionKeys: Array.from(members).sort(),
+          mode: "sync-all" as const,
+        },
+      ])
+      .filter(([, group]) => group.memberSectionKeys.length > 1)
+  );
 };
 
 const run = async () => {
@@ -723,7 +960,7 @@ const run = async () => {
     fetchedNodesById: childNodesById,
   });
 
-  const validation = validateMatrix(entries);
+  const validation = validateCardComponentSet(entries);
   printValidationSummary({
     rootInfo,
     cardSetInfo,
@@ -748,17 +985,10 @@ const run = async () => {
     return;
   }
 
-  const explicitExternalCardCandidates = validation.entries
-    .filter(
-      (
-        entry
-      ): entry is VariantEntry & {
-        day: DayKey;
-        status: CardStatus;
-      } => Boolean(entry.day && entry.status)
-    )
-    .map((entry) => childNodesById[entry.nodeId])
-    .filter((node): node is FigmaNode => Boolean(node));
+  const explicitExternalCardCandidates = buildSyntheticSharedStatusCandidates({
+    validation,
+    nodesById: childNodesById,
+  });
 
   console.log(
     `[import:v2:figma:v2] executing core importer with validated component-set candidates (${explicitExternalCardCandidates.length}) ...`
@@ -783,6 +1013,13 @@ const run = async () => {
     noAiAssetMatch: options.aiMode === "off",
     explicitExternalCardCandidates,
     skipExternalCardVariantAutodiscovery: true,
+    postProcessNormalizedConfig:
+      validation.mode === "shared-status"
+        ? (config) => ({
+            ...config,
+            sharedStyleGroups: buildSharedStyleGroups(config),
+          })
+        : undefined,
   });
 };
 
