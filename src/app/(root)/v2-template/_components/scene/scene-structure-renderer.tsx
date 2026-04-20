@@ -79,7 +79,7 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateRuntimeContext();
-  const { weekDates, profileText, memoText, imageSrc, isProfileTextVisible } =
+  const { weekDates, memoText, imageSrc, isArtistVisible } =
     useTemplateRuntimeData();
   const {
     layerTargetMap,
@@ -109,7 +109,7 @@ const V2SceneStructureRenderer = ({
     typeof firstCard?.offlineMemo === "string" &&
     firstCard.offlineMemo.trim().length > 0;
   const resolveArtistObjectAssetUrl = () => {
-    const candidateKeys = isProfileTextVisible
+    const candidateKeys = isArtistVisible
       ? (["artistOnByTheme", "artist", "artistOffByTheme"] as const)
       : (["artistOffByTheme", "artist", "artistOnByTheme"] as const);
 
@@ -141,7 +141,6 @@ const V2SceneStructureRenderer = ({
       weekDates,
       firstCard,
       firstEntry,
-      profileText,
       memoText,
       memoTextFallback,
       globalData: globalData as Record<string, unknown>,

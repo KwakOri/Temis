@@ -226,10 +226,10 @@ export type V2StyleSectionKey =
   | "memoTextStyle"
   | "profileImage"
   | "profileFrame"
-  | "profileTextRootStyle"
-  | "profileTextWrapperStyle"
-  | "profileTextStyle"
-  | "profileTextArtistImageStyle"
+  | "artistTextRootStyle"
+  | "artistTextWrapperStyle"
+  | "artistTextStyle"
+  | "artistObjectStyle"
   | "cardStreamingDay"
   | "cardOnlineBackgroundContainer"
   | "cardMultiBackgroundContainer"
@@ -260,10 +260,10 @@ export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   memoTextStyle: "Memo.ContentStyle",
   profileImage: "ProfileImage",
   profileFrame: "ProfileFrame",
-  profileTextRootStyle: "Artist.RootStyle",
-  profileTextWrapperStyle: "Artist.WrapperStyle",
-  profileTextStyle: "Artist.Content",
-  profileTextArtistImageStyle: "Artist.ObjectStyle",
+  artistTextRootStyle: "Artist.RootStyle",
+  artistTextWrapperStyle: "Artist.WrapperStyle",
+  artistTextStyle: "Artist.Content",
+  artistObjectStyle: "Artist.ObjectStyle",
   cardStreamingDay: "Card.StreamingDay",
   cardOnlineBackgroundContainer: "Card.OnlineBackground",
   cardMultiBackgroundContainer: "Card.MultiBackground",
@@ -293,10 +293,10 @@ export const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "memoTextStyle",
   "profileImage",
   "profileFrame",
-  "profileTextRootStyle",
-  "profileTextWrapperStyle",
-  "profileTextStyle",
-  "profileTextArtistImageStyle",
+  "artistTextRootStyle",
+  "artistTextWrapperStyle",
+  "artistTextStyle",
+  "artistObjectStyle",
   "cardOnlineBackgroundContainer",
   "cardMultiBackgroundContainer",
   "cardOfflineBackgroundContainer",
@@ -329,10 +329,10 @@ export const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   memoTextStyle: "memoText",
   profileImage: "profileImage",
   profileFrame: "profileFrame",
-  profileTextRootStyle: "profileText",
-  profileTextWrapperStyle: "profileText",
-  profileTextStyle: "profileText",
-  profileTextArtistImageStyle: "artistObject",
+  artistTextRootStyle: "artistText",
+  artistTextWrapperStyle: "artistText",
+  artistTextStyle: "artistText",
+  artistObjectStyle: "artistObject",
   cardOnlineBackgroundContainer: "cardNode:online-background",
   cardMultiBackgroundContainer: "cardNode:multi-background",
   cardOfflineBackgroundContainer: "cardNode:offline-background",
@@ -360,10 +360,10 @@ export const v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
   topObjectContainer: "topObjectContainer",
   profileImage: "profileImage",
   profileFrame: "profileFrame",
-  profileTextRootStyle: "profileTextRootStyle",
-  profileTextWrapperStyle: "profileTextWrapperStyle",
-  profileTextStyle: "profileTextStyle",
-  profileTextArtistImageStyle: "profileTextArtistImageStyle",
+  artistTextRootStyle: "artistTextRootStyle",
+  artistTextWrapperStyle: "artistTextWrapperStyle",
+  artistTextStyle: "artistTextStyle",
+  artistObjectStyle: "artistObjectStyle",
 };
 
 export const v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
@@ -400,9 +400,9 @@ export const v2_HIGHLIGHT_TARGET_LABELS: Record<
   topObjectContainer: "TopObject",
   profileImage: "Profile Image",
   profileFrame: "Profile Frame",
+  artistText: "Artist Name",
   artistObject: "Artist Object",
   memoObject: "Memo Object",
-  profileText: "Artist Name",
   memoText: "Memo Text",
   cardStreamingDay: "Card / StreamingDay",
   cardStreamingDate: "Card / StreamingDate",

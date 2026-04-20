@@ -11,6 +11,7 @@ const v2_LAYER_COMPONENT_KEY_SET = new Set<V2TemplateLayerComponentKey>([
   "weekFlag",
   "topObject",
   "profile",
+  "artist",
 ]);
 
 const v2_inferLayerIconFromGraphNode = (
@@ -138,4 +139,3 @@ export const v2_getRuntimeComponentLayerTreeNodes = (
     v2_getRuntimeComponentLayerTreeByComponentId(renderConfig)
   ).filter((node): node is V2TemplateLayerNode => Boolean(node));
 };
-

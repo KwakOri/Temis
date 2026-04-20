@@ -323,6 +323,15 @@ const v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD: V2TemplateFormField = {
   maxLength: 200,
 };
 
+const v2_DEFAULT_ARTIST_TEXT_GLOBAL_FIELD: V2TemplateFormField = {
+  key: "artistText",
+  scope: "global",
+  type: "text",
+  placeholder: "아티스트명을 입력해 주세요",
+  defaultValue: "",
+  maxLength: 80,
+};
+
 const v2_DEFAULT_OFFLINE_MEMO_CARD_FIELD: V2TemplateFormField = {
   key: "offlineMemo",
   scope: "card",
@@ -359,6 +368,7 @@ const v2_DEFAULT_FORM_SCHEMA: V2TemplateFormSchema = {
       maxLength: 50,
     },
     v2_DEFAULT_OFFLINE_MEMO_CARD_FIELD,
+    v2_DEFAULT_ARTIST_TEXT_GLOBAL_FIELD,
     v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD,
   ],
   showLabels: false,
@@ -524,22 +534,41 @@ const v2_DEFAULT_LAYER_TREE: V2TemplateLayerNode[] = [
     ],
   },
   {
-    id: "profile-text",
-    label: "Artist",
-    kind: "component",
-    visibilityMode: "always",
-    icon: "text",
-    target: "profileText",
-    sectionKey: "profileTextRootStyle",
-  },
-  {
     id: "artist-object",
     label: "Artist",
     kind: "component",
     visibilityMode: "always",
     icon: "image",
     target: "artistObject",
-    sectionKey: "profileTextArtistImageStyle",
+    sectionKey: "artistObjectStyle",
+  },
+  {
+    id: "artist",
+    label: "Artist",
+    kind: "group",
+    componentKey: "artist",
+    visibilityMode: "always",
+    icon: "group",
+    children: [
+      {
+        id: "artist-text",
+        label: "Text",
+        kind: "component",
+        visibilityMode: "always",
+        icon: "text",
+        target: "artistText",
+        sectionKey: "artistTextRootStyle",
+      },
+      {
+        id: "artist-object",
+        label: "Object",
+        kind: "component",
+        visibilityMode: "always",
+        icon: "image",
+        target: "artistObject",
+        sectionKey: "artistObjectStyle",
+      },
+    ],
   },
   {
     id: "memo",
@@ -884,21 +913,21 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     visibilityMode: "always",
   },
   {
-    id: "scene-profile-text",
+    id: "scene-artist-text",
     label: "Artist",
     kind: "flexibleText",
-    layerId: "profile-text",
+    layerId: "artist-text",
     binding: {
       mode: "field",
       scope: "global",
-      key: "profileText",
+      key: "artistText",
     },
-    containerStyleKey: "profileTextRootStyle",
-    wrapperStyleKey: "profileTextWrapperStyle",
-    textStyleKey: "profileTextStyle",
+    containerStyleKey: "artistTextRootStyle",
+    wrapperStyleKey: "artistTextWrapperStyle",
+    textStyleKey: "artistTextStyle",
     colorKey: "ARTIST",
     fontKey: "ARTIST",
-    highlightTarget: "profileText",
+    highlightTarget: "artistText",
     containerClassName: "absolute flex justify-end items-center",
     textClassName: "text-center",
     visibilityMode: "always",
@@ -913,7 +942,7 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
       key: "artistOnByTheme",
     },
     assetRole: "general",
-    styleKey: "profileTextArtistImageStyle",
+    styleKey: "artistObjectStyle",
     fit: "fill",
     alt: "artist-object",
     visibilityMode: "always",
@@ -2243,7 +2272,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     },
   },
   editorOptions: { ...v2_DEFAULT_EDITOR_OPTIONS },
-  profileTextPlaceholder: "아티스트 명",
+  artistTextPlaceholder: v2_DEFAULT_ARTIST_TEXT_GLOBAL_FIELD.placeholder ?? "",
   formSchema: v2_DEFAULT_FORM_SCHEMA,
   assets: {
     bgByTheme: {
@@ -2527,7 +2556,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       height: 2250,
       zIndex: 10,
     },
-    profileTextRootStyle: {
+    artistTextRootStyle: {
       position: "absolute",
       left: 2630,
       top: 1820,
@@ -2537,7 +2566,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       justifyContent: "center",
       alignItems: "center",
     },
-    profileTextWrapperStyle: {
+    artistTextWrapperStyle: {
       position: "absolute",
       left: 0,
       top: 0,
@@ -2545,13 +2574,13 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       height: 120,
       rotateDeg: 1.8,
     },
-    profileTextStyle: {
+    artistTextStyle: {
       fontSize: 76,
       fontWeight: 700,
       lineHeight: 1,
       textAlign: "center",
     },
-    profileTextArtistImageStyle: {
+    artistObjectStyle: {
       position: "absolute",
       left: 0,
       top: 0,
@@ -3082,10 +3111,7 @@ const v2_normalizeGraphNode = (
   const normalizedMeta = v2_normalizeGraphNodeMeta(nodeRecord.meta);
   const normalizedOrder = v2_normalizeGraphNodeOrder(nodeRecord.order);
 
-  const nextLabel =
-    nodeId === "scene-profile-text"
-      ? "Artist"
-      : v2_asString(nodeRecord.label, id);
+  const nextLabel = v2_asString(nodeRecord.label, id);
   const isArtistObjectNode =
     id === "scene-artist-object" || nodeRecord.layerId === "artist-object";
 
@@ -3099,18 +3125,11 @@ const v2_normalizeGraphNode = (
                 assetRef: v2_toBuiltinAssetRef("artistOnByTheme"),
               }
             : {}),
-          ...(normalizedMeta?.layerTarget === "profileText"
-            ? {
-                layerTarget: "artistObject" as V2TemplateGraphNode["highlightTarget"],
-              }
-            : {}),
         }
       : normalizedMeta;
   const nextHighlightTarget =
     typeof nodeRecord.highlightTarget === "string"
-      ? isArtistObjectNode && nodeRecord.highlightTarget === "profileText"
-        ? ("artistObject" as V2TemplateGraphNode["highlightTarget"])
-        : (nodeRecord.highlightTarget as V2TemplateGraphNode["highlightTarget"])
+      ? (nodeRecord.highlightTarget as V2TemplateGraphNode["highlightTarget"])
       : undefined;
 
   return {
@@ -3371,7 +3390,7 @@ const v2_normalizeNodeGraph = (
       ...graph.nodes,
     };
     const rawChildIds = legacyGroup.childIds.filter((childId) => nextNodes[childId]);
-    const preferredOrder = ["scene-profile-text", "scene-artist-object"];
+    const preferredOrder = ["scene-artist-text", "scene-artist-object"];
     const orderedChildIds = [
       ...preferredOrder.filter((childId) => rawChildIds.includes(childId)),
       ...rawChildIds.filter((childId) => !preferredOrder.includes(childId)),
@@ -4421,11 +4440,6 @@ export const v2_normalizeTemplateRenderConfig = (
     };
   }
 
-  normalized.profileTextPlaceholder = v2_asString(
-    raw.profileTextPlaceholder,
-    normalized.profileTextPlaceholder
-  );
-
   if (v2_isRecord(raw.formSchema)) {
     normalized.formSchema = v2_normalizeFormSchema(
       raw.formSchema,
@@ -4768,6 +4782,11 @@ export const v2_normalizeTemplateRenderConfig = (
     normalized.sharedStyleGroups
   );
 
+  normalized.artistTextPlaceholder = v2_asString(
+    raw.artistTextPlaceholder,
+    normalized.artistTextPlaceholder
+  );
+
   if (rawLayoutSource) {
     const layout = rawLayoutSource;
     normalized.layout.grid = v2_mergeStyleRecord(normalized.layout.grid, layout.grid);
@@ -4787,21 +4806,21 @@ export const v2_normalizeTemplateRenderConfig = (
       normalized.layout.profileFrame,
       layout.profileFrame
     );
-    normalized.layout.profileTextRootStyle = v2_mergeStyleRecord(
-      normalized.layout.profileTextRootStyle,
-      layout.profileTextRootStyle
+    normalized.layout.artistTextRootStyle = v2_mergeStyleRecord(
+      normalized.layout.artistTextRootStyle,
+      layout.artistTextRootStyle
     );
-    normalized.layout.profileTextWrapperStyle = v2_mergeStyleRecord(
-      normalized.layout.profileTextWrapperStyle,
-      layout.profileTextWrapperStyle
+    normalized.layout.artistTextWrapperStyle = v2_mergeStyleRecord(
+      normalized.layout.artistTextWrapperStyle,
+      layout.artistTextWrapperStyle
     );
-    normalized.layout.profileTextStyle = v2_mergeStyleRecord(
-      normalized.layout.profileTextStyle,
-      layout.profileTextStyle
+    normalized.layout.artistTextStyle = v2_mergeStyleRecord(
+      normalized.layout.artistTextStyle,
+      layout.artistTextStyle
     );
-    normalized.layout.profileTextArtistImageStyle = v2_mergeStyleRecord(
-      normalized.layout.profileTextArtistImageStyle,
-      layout.profileTextArtistImageStyle
+    normalized.layout.artistObjectStyle = v2_mergeStyleRecord(
+      normalized.layout.artistObjectStyle,
+      layout.artistObjectStyle
     );
     const sceneLayoutSource = v2_isRecord(layout.scene) ? layout.scene : null;
     if (sceneLayoutSource) {

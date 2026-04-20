@@ -35,10 +35,10 @@ const ROOT_LAYOUT_STYLE_SECTION_MAP: Partial<Record<string, RootLayoutStyleKey>>
   topObjectContainer: "topObjectContainer",
   profileImage: "profileImage",
   profileFrame: "profileFrame",
-  profileTextRootStyle: "profileTextRootStyle",
-  profileTextWrapperStyle: "profileTextWrapperStyle",
-  profileTextStyle: "profileTextStyle",
-  profileTextArtistImageStyle: "profileTextArtistImageStyle",
+  artistTextRootStyle: "artistTextRootStyle",
+  artistTextWrapperStyle: "artistTextWrapperStyle",
+  artistTextStyle: "artistTextStyle",
+  artistObjectStyle: "artistObjectStyle",
 };
 
 export const collectLayerNodeMap = (

@@ -73,7 +73,7 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     height: 2250,
     zIndex: 10,
   },
-  profileTextRootStyle: {
+  artistTextRootStyle: {
     position: "absolute",
     left: 2630,
     top: 1820,
@@ -83,7 +83,7 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     justifyContent: "center",
     alignItems: "center",
   },
-  profileTextWrapperStyle: {
+  artistTextWrapperStyle: {
     position: "absolute",
     left: 0,
     top: 0,
@@ -91,13 +91,13 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     height: 120,
     rotateDeg: 1.8,
   },
-  profileTextStyle: {
+  artistTextStyle: {
     fontSize: 76,
     lineHeight: 1,
     fontWeight: 700,
     textAlign: "center",
   },
-  profileTextArtistImageStyle: {
+  artistObjectStyle: {
     position: "absolute",
     left: 0,
     top: 0,

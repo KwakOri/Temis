@@ -201,7 +201,7 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
       ],
     },
   ],
-  profileTextRootStyle: [
+  artistTextRootStyle: [
     {
       id: "transform",
       label: "Transform",
@@ -225,7 +225,7 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
       ],
     },
   ],
-  profileTextWrapperStyle: [
+  artistTextWrapperStyle: [
     {
       id: "transform",
       label: "Transform",
@@ -250,7 +250,7 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
       ],
     },
   ],
-  profileTextStyle: [
+  artistTextStyle: [
     {
       id: "typography",
       label: "Typography",
@@ -266,7 +266,7 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
       ],
     },
   ],
-  profileTextArtistImageStyle: [
+  artistObjectStyle: [
     {
       id: "transform",
       label: "Transform",

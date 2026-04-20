@@ -42,6 +42,7 @@ export type ImportV2TemplateFromFigmaOptions = {
   assetFormat: "png" | "jpg" | "svg" | "pdf";
   noAiAssetMatch: boolean;
   explicitExternalCardCandidates?: FigmaNode[];
+  explicitExternalArtistVariantCandidates?: FigmaNode[];
   explicitExternalWarnings?: string[];
   skipExternalCardVariantAutodiscovery?: boolean;
   postProcessNormalizedConfig?: (
@@ -212,8 +213,8 @@ type MappingSummary = {
     topObject: boolean;
     memoObject: boolean;
     memoText: boolean;
+    artistText: boolean;
     artistObject: boolean;
-    profileText: boolean;
     profileImage: boolean;
     profileFrame: boolean;
     cardContainer: boolean;
@@ -226,6 +227,7 @@ type MappingSummary = {
 };
 
 type CardTextStatus = "online" | "multi" | "offline" | "offlineMemo";
+type ArtistVariantState = "on" | "off";
 type ImportRenderConfig = ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
 
 const rootDir = path.resolve(__dirname, "..");
@@ -959,6 +961,40 @@ const toRelativeRect = ({
   };
 };
 
+const remapRelativeRectToPlacedRoot = ({
+  templateRootNode,
+  placedRootNode,
+  sourceRootNode,
+  rect,
+}: {
+  templateRootNode: FigmaNode;
+  placedRootNode: FigmaNode | undefined;
+  sourceRootNode: FigmaNode;
+  rect: Rect | null;
+}): Rect | null => {
+  if (!placedRootNode || !rect) return null;
+
+  const templateBounds = getBounds(templateRootNode);
+  const placedBounds = getBounds(placedRootNode);
+  const sourceBounds = getBounds(sourceRootNode);
+  if (!templateBounds || !placedBounds || !sourceBounds) {
+    return null;
+  }
+
+  const scaleX =
+    sourceBounds.width > 0 ? placedBounds.width / sourceBounds.width : 1;
+  const scaleY =
+    sourceBounds.height > 0 ? placedBounds.height / sourceBounds.height : 1;
+
+  return {
+    left: round(placedBounds.x - templateBounds.x + rect.left * scaleX),
+    top: round(placedBounds.y - templateBounds.y + rect.top * scaleY),
+    width: round(rect.width * scaleX),
+    height: round(rect.height * scaleY),
+    ...(rect.rotateDeg !== undefined ? { rotateDeg: rect.rotateDeg } : {}),
+  };
+};
+
 const findNodePathWithin = ({
   rootNode,
   targetNodeId,
@@ -1106,6 +1142,18 @@ const getTagValueFromRecord = (
   return undefined;
 };
 
+const parseArtistVariantStateFromRecord = (
+  record: FigmaNodeRecord
+): ArtistVariantState | undefined => {
+  const direct = parseArtistVariantStateFromNode(record.node);
+  if (direct) return direct;
+  for (const ancestor of record.ancestors) {
+    const parsed = parseArtistVariantStateFromNode(ancestor);
+    if (parsed) return parsed;
+  }
+  return undefined;
+};
+
 const normalizeAssetSlot = (value: string | undefined): string | undefined => {
   if (!value) return undefined;
   return value
@@ -1146,6 +1194,20 @@ const CARD_TEXT_STATUS_ALIASES: Record<string, CardTextStatus> = {
   memo_offline: "offlineMemo",
 };
 
+const ARTIST_VARIANT_STATE_ALIASES: Record<string, ArtistVariantState> = {
+  on: "on",
+  artiston: "on",
+  artist_on: "on",
+  "artist-on": "on",
+  off: "off",
+  artistoff: "off",
+  artist_off: "off",
+  "artist-off": "off",
+  noartist: "off",
+  no_artist: "off",
+  noartistobject: "off",
+};
+
 const normalizeCardTextStatus = (
   value: string | undefined
 ): CardTextStatus | undefined => {
@@ -1157,6 +1219,17 @@ const normalizeCardTextStatus = (
   return CARD_TEXT_STATUS_ALIASES[normalized];
 };
 
+const normalizeArtistVariantState = (
+  value: string | undefined
+): ArtistVariantState | undefined => {
+  if (!value) return undefined;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  return ARTIST_VARIANT_STATE_ALIASES[normalized];
+};
+
 const tokenizeNodeName = (value: string | undefined): string[] => {
   if (!value) return [];
   const baseName = stripNodeNameMetadata(value).toLowerCase();
@@ -1164,6 +1237,27 @@ const tokenizeNodeName = (value: string | undefined): string[] => {
     .split(/[^a-z0-9가-힣]+/)
     .map((token) => token.trim())
     .filter(Boolean);
+};
+
+const parseArtistVariantStateFromNode = (
+  node: FigmaNode | undefined
+): ArtistVariantState | undefined => {
+  if (!node) return undefined;
+
+  const variantPropertyValues = Object.values(node.variantProperties ?? {});
+  for (const rawValue of variantPropertyValues) {
+    const normalized = normalizeArtistVariantState(rawValue);
+    if (normalized) return normalized;
+  }
+
+  const tokens = tokenizeNodeName(node.name);
+  if (tokens.includes("off") || tokens.includes("noartist")) {
+    return "off";
+  }
+  if (tokens.includes("on")) {
+    return "on";
+  }
+  return undefined;
 };
 
 const hasDirectNodeTag = (node: FigmaNode | undefined, key: string): boolean => {
@@ -1387,6 +1481,21 @@ const resolveAssetTargetFromRecord = ({
         reason: `slot(${slotTag}) + status(offline)`,
       };
     }
+  }
+
+  const nodeCanonicalName = canonicalName(nodeName);
+  const artistVariantState = parseArtistVariantStateFromRecord(record);
+  const isArtistBackgroundNode =
+    artistVariantState &&
+    ["imagebg", "bg", "background", "imagebackground"].includes(nodeCanonicalName);
+  if (isArtistBackgroundNode) {
+    return {
+      targetType: "builtin",
+      targetKey:
+        artistVariantState === "on" ? "artistOnByTheme" : "artistOffByTheme",
+      score: 84,
+      reason: `artist-variant(${artistVariantState})`,
+    };
   }
 
   const inferredByName = v2_suggestAssetKeyByRule({
@@ -2161,12 +2270,12 @@ const applyNotApplicablePruning = ({
     });
   }
 
-  if (!presence.profileText) {
+  if (!presence.artistText) {
     removeGraphSubtree({
       config,
-      nodeId: "scene-profile-text",
+      nodeId: "scene-artist-text",
       summary,
-      reason: "scene.profileText",
+      reason: "scene.artistText",
     });
   }
 
@@ -2179,7 +2288,7 @@ const applyNotApplicablePruning = ({
     });
   }
 
-  if (!presence.profileText && !presence.artistObject) {
+  if (!presence.artistText && !presence.artistObject) {
     removeGraphSubtree({
       config,
       nodeId: "scene-artist",
@@ -2217,7 +2326,7 @@ const applyNotApplicablePruning = ({
 
   // If no artist/profile nodes exist, treat artist as disabled capability.
   const hasArtistCapability =
-    presence.profileText || presence.artistObject || presence.profileImage || presence.profileFrame;
+    presence.artistText || presence.artistObject || presence.profileImage || presence.profileFrame;
   if (!hasArtistCapability) {
     config.editorOptions.isArtist = false;
     summary.notApplicable.push("editorOptions.isArtist=false");
@@ -2309,12 +2418,14 @@ const applyLayoutMappingsFromFigma = ({
   rootNode,
   config,
   externalCardCandidates = [],
+  externalArtistVariantCandidates = [],
   externalWarnings = [],
   componentMapById,
 }: {
   rootNode: FigmaNode;
   config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
   externalCardCandidates?: FigmaNode[];
+  externalArtistVariantCandidates?: FigmaNode[];
   externalWarnings?: string[];
   componentMapById?: Map<string, { name: string; componentSetId?: string }>;
 }): MappingSummary => {
@@ -2329,8 +2440,8 @@ const applyLayoutMappingsFromFigma = ({
       topObject: false,
       memoObject: false,
       memoText: false,
+      artistText: false,
       artistObject: false,
-      profileText: false,
       profileImage: false,
       profileFrame: false,
       cardContainer: false,
@@ -2391,15 +2502,14 @@ const applyLayoutMappingsFromFigma = ({
       "artistframe",
       "profile frame",
     ],
-    profileText: [
-      "profiletext",
-      "artistname",
-      "flexibletextartistname",
-      "flexibletextprofiletext",
-      "artist",
-      "artist text",
+    artistText: [
       "artisttext",
+      "artistname",
+      "textartist",
       "flexibletextartist",
+      "flexibletextartistname",
+      "artist text",
+      "artist name",
     ],
     artistObject: [
       "artistobject",
@@ -2477,7 +2587,7 @@ const applyLayoutMappingsFromFigma = ({
     memoText: ["memo.text.content"],
     profileImage: ["profile.image"],
     profileFrame: ["profile.frame", "profile"],
-    profileText: ["artist.text", "profile.text"],
+    artistText: ["artist.text", "scene.artist.text"],
     artistObject: ["artist.background", "artist.object"],
     cardContainer: ["card"],
     cardBackground: ["card.background", "card.bg"],
@@ -3129,34 +3239,69 @@ const applyLayoutMappingsFromFigma = ({
 
   const artistObjectNode = sceneArtistNode;
   summary.presence.artistObject = Boolean(artistObjectNode);
-
-  const profileTextNode = findNodeByTagOrAlias({
-    nodes: allNodes,
-    tagValues: slot.profileText,
-    aliases: alias.profileText,
+  applyRectToLayoutObject({
+    rect: toRelativeRect({ rootNode, targetNode: artistObjectNode }),
+    target: config.layout.artistObjectStyle as unknown as Record<string, unknown>,
   });
-  summary.presence.profileText = Boolean(profileTextNode);
-  if (profileTextNode) {
-    const profileTextRect = toRelativeRect({
-      rootNode,
-      targetNode: profileTextNode,
-    });
-    applyFlexibleLayoutToTargets({
-      rect: profileTextRect,
-      containerTarget: config.layout.profileTextRootStyle as unknown as Record<string, unknown>,
-      wrapperTarget: config.layout.profileTextWrapperStyle as unknown as Record<string, unknown>,
-    });
-    summary.applied.push("layout.profileTextRootStyle");
-    summary.applied.push("layout.profileTextWrapperStyle");
+  if (artistObjectNode) {
+    summary.applied.push("layout.artistObjectStyle");
+  }
 
-    const appliedProfileTextStyle = applyTextStyleFromContentNode({
-      containerNode: profileTextNode,
-      target: config.layout.profileTextStyle as unknown as Record<string, unknown>,
+  const placedArtistTextNode = sceneArtistNode
+    ? findNodeByTagOrAlias({
+        nodes: flattenNodes(sceneArtistNode).filter(
+          (candidate) => candidate.id !== sceneArtistNode.id
+        ),
+        tagValues: slot.artistText,
+        aliases: alias.artistText,
+      })
+    : undefined;
+  const artistOnVariantNode =
+    externalArtistVariantCandidates.find(
+      (candidate) => parseArtistVariantStateFromNode(candidate) === "on"
+    ) ?? externalArtistVariantCandidates[0];
+  const variantArtistTextNode = artistOnVariantNode
+    ? findNodeByTagOrAlias({
+        nodes: flattenNodes(artistOnVariantNode).filter(
+          (candidate) => candidate.id !== artistOnVariantNode.id
+        ),
+        tagValues: slot.artistText,
+        aliases: alias.artistText,
+      })
+    : undefined;
+  const artistTextNode = placedArtistTextNode ?? variantArtistTextNode;
+  summary.presence.artistText = Boolean(artistTextNode);
+  if (artistTextNode) {
+    const artistTextRect = placedArtistTextNode
+      ? toRelativeRect({
+          rootNode,
+          targetNode: placedArtistTextNode,
+        })
+      : remapRelativeRectToPlacedRoot({
+          templateRootNode: rootNode,
+          placedRootNode: artistObjectNode,
+          sourceRootNode: artistOnVariantNode ?? artistObjectNode ?? rootNode,
+          rect: toRelativeRect({
+            rootNode: artistOnVariantNode ?? rootNode,
+            targetNode: variantArtistTextNode,
+          }),
+        });
+    applyFlexibleLayoutToTargets({
+      rect: artistTextRect,
+      containerTarget: config.layout.artistTextRootStyle as unknown as Record<string, unknown>,
+      wrapperTarget: config.layout.artistTextWrapperStyle as unknown as Record<string, unknown>,
     });
-    if (!appliedProfileTextStyle) {
-      summary.warnings.push("ProfileText Content(TEXT) not found; text style skipped.");
+    summary.applied.push("layout.artistTextRootStyle");
+    summary.applied.push("layout.artistTextWrapperStyle");
+
+    const appliedArtistTextStyle = applyTextStyleFromContentNode({
+      containerNode: artistTextNode,
+      target: config.layout.artistTextStyle as unknown as Record<string, unknown>,
+    });
+    if (!appliedArtistTextStyle) {
+      summary.warnings.push("ArtistText Content(TEXT) not found; text style skipped.");
     }
-    summary.applied.push("layout.profileTextStyle");
+    summary.applied.push("layout.artistTextStyle");
   }
 
   let cardContainerNode: FigmaNode | undefined;
@@ -4576,6 +4721,78 @@ export const collectCardComponentIdsFromTemplateRoot = (
   );
 };
 
+const fetchExternalArtistVariantCandidates = async ({
+  rootNode,
+  fileKey,
+  figmaToken,
+  componentMapById,
+}: {
+  rootNode: FigmaNode;
+  fileKey: string;
+  figmaToken: string;
+  componentMapById?: Map<string, { name: string; componentSetId?: string }>;
+}): Promise<{ candidates: FigmaNode[]; warnings: string[] }> => {
+  const warnings: string[] = [];
+  const sceneArtistNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/artist", "artist", "sceneartist"]],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: flattenNodes(rootNode),
+      tagValues: ["artist.background", "artist.object"],
+      aliases: ["sceneartist", "artist"],
+    });
+
+  const artistComponentId = sceneArtistNode?.componentId?.trim();
+  if (!artistComponentId) {
+    return { candidates: [], warnings };
+  }
+
+  const componentMap =
+    componentMapById ??
+    (await fetchFigmaFileComponentMap({
+      fileKey,
+      figmaToken,
+    }));
+
+  const componentSetId = componentMap.get(artistComponentId)?.componentSetId?.trim();
+  if (!componentSetId) {
+    warnings.push("Scene/Artist componentSetId not found; artist component-set fallback skipped.");
+    return { candidates: [], warnings };
+  }
+
+  const variantComponentIds = Array.from(
+    new Set(
+      Array.from(componentMap.entries())
+        .filter(([, meta]) => meta.componentSetId?.trim() === componentSetId)
+        .map(([componentId]) => componentId)
+    )
+  );
+
+  if (variantComponentIds.length === 0) {
+    warnings.push("No artist variant components found in matched component set.");
+    return { candidates: [], warnings };
+  }
+
+  const variantNodesById = await fetchFigmaNodesByIds({
+    fileKey,
+    nodeIds: variantComponentIds,
+    figmaToken,
+  });
+
+  const candidates = Object.values(variantNodesById).filter((node) => {
+    if (!getBounds(node)) return false;
+    return Boolean(parseArtistVariantStateFromNode(node));
+  });
+
+  if (candidates.length === 0) {
+    warnings.push("Artist component-set fallback resolved no on/off variants.");
+  }
+
+  return { candidates, warnings };
+};
+
 const fetchExternalCardVariantCandidates = async ({
   rootNode,
   fileKey,
@@ -4839,6 +5056,7 @@ const importFigmaAssetsToConfig = async ({
   config,
   rootNode,
   externalCardCandidates = [],
+  externalArtistVariantCandidates = [],
   fileKey,
   figmaToken,
   templateId,
@@ -4851,6 +5069,7 @@ const importFigmaAssetsToConfig = async ({
   config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
   rootNode: FigmaNode;
   externalCardCandidates?: FigmaNode[];
+  externalArtistVariantCandidates?: FigmaNode[];
   fileKey: string;
   figmaToken: string;
   templateId: string;
@@ -4879,7 +5098,7 @@ const importFigmaAssetsToConfig = async ({
   });
 
   const recordsByNodeId = new Map<string, FigmaNodeRecord>();
-  const recordRoots = [rootNode, ...externalCardCandidates];
+  const recordRoots = [rootNode, ...externalCardCandidates, ...externalArtistVariantCandidates];
   recordRoots.forEach((recordRoot) => {
     collectNodeRecords(recordRoot).forEach((record) => {
       const nodeId = record.node.id?.trim();
@@ -5329,6 +5548,11 @@ export const runImportV2TemplateFromFigma = async (
     )
       ? rawOptions.explicitExternalCardCandidates
       : [],
+    explicitExternalArtistVariantCandidates: Array.isArray(
+      rawOptions.explicitExternalArtistVariantCandidates
+    )
+      ? rawOptions.explicitExternalArtistVariantCandidates
+      : [],
     explicitExternalWarnings: Array.isArray(rawOptions.explicitExternalWarnings)
       ? rawOptions.explicitExternalWarnings
       : [],
@@ -5396,6 +5620,12 @@ export const runImportV2TemplateFromFigma = async (
   )
     ? [...options.explicitExternalWarnings]
     : [];
+  let externalArtistVariantCandidates: FigmaNode[] = Array.isArray(
+    options.explicitExternalArtistVariantCandidates
+  )
+    ? [...options.explicitExternalArtistVariantCandidates]
+    : [];
+  let externalArtistWarnings: string[] = [];
 
   if (
     externalCardCandidates.length === 0 &&
@@ -5423,6 +5653,26 @@ export const runImportV2TemplateFromFigma = async (
     }
   }
 
+  if (externalArtistVariantCandidates.length === 0) {
+    try {
+      const externalArtistSummary = await fetchExternalArtistVariantCandidates({
+        rootNode,
+        fileKey,
+        figmaToken,
+        componentMapById,
+      });
+      externalArtistVariantCandidates = externalArtistSummary.candidates;
+      externalArtistWarnings = externalArtistSummary.warnings;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "unknown artist component-set fallback error";
+      externalArtistWarnings = [
+        ...externalArtistWarnings,
+        `Artist component-set fallback failed: ${message}`,
+      ];
+    }
+  }
+
   const baseConfig =
     options.configPreset === "empty"
       ? v2_createEmptyTemplateRenderConfig()
@@ -5432,7 +5682,12 @@ export const runImportV2TemplateFromFigma = async (
     rootNode,
     config: baseConfig,
     externalCardCandidates,
-    externalWarnings: [...componentMapWarnings, ...externalCardWarnings],
+    externalArtistVariantCandidates,
+    externalWarnings: [
+      ...componentMapWarnings,
+      ...externalCardWarnings,
+      ...externalArtistWarnings,
+    ],
     componentMapById,
   });
   applyNotApplicablePruning({
@@ -5515,6 +5770,7 @@ export const runImportV2TemplateFromFigma = async (
       config: baseConfig,
       rootNode,
       externalCardCandidates,
+      externalArtistVariantCandidates,
       fileKey,
       figmaToken,
       templateId: templateIdForAssets,

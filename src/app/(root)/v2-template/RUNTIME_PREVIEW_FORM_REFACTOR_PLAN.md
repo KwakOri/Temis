@@ -69,7 +69,7 @@
 - 내용
   - `cards(TDefaultCard[])`
   - `globalData`
-  - `profileText`, `memoText`, `imageSrc`, `selectedOptions`
+  - `memoText`, `imageSrc`, `selectedOptions`
 
 ### 4.2 Runtime UI state
 - 내용

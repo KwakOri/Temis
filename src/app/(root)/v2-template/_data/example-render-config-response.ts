@@ -150,7 +150,7 @@ export const v2_createExampleRenderConfigResponse =
           useOfflineAssetsByDay: true,
           useOfflineMemoAssetsByDay: true,
         },
-        profileTextPlaceholder: "아티스트 명",
+        artistTextPlaceholder: "아티스트 명",
         formSchema: fallbackConfig.formSchema,
         assets: {
           ...fallbackConfig.assets,
@@ -306,13 +306,13 @@ export const v2_createExampleRenderConfigResponse =
             height: 2250,
             zIndex: 20,
           },
-          profileTextRootStyle: {
+          artistTextRootStyle: {
             left: 4,
             zIndex: 30,
             justifyContent: "flex-start",
             alignItems: "center",
           },
-          profileTextWrapperStyle: {
+          artistTextWrapperStyle: {
             position: "absolute",
             width: 1318,
             height: 160,
@@ -320,7 +320,13 @@ export const v2_createExampleRenderConfigResponse =
             right: 200,
             rotateDeg: 1.6,
           },
-          profileTextArtistImageStyle: {
+          artistTextStyle: {
+            fontSize: 76,
+            fontWeight: 700,
+            lineHeight: 1,
+            textAlign: "center",
+          },
+          artistObjectStyle: {
             position: "absolute",
             left: 0,
             top: 0,

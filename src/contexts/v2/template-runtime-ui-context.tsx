@@ -41,23 +41,20 @@ export const useTemplateRuntimeData = () => {
   const { state, actions } = useTemplateRuntimeUIContext();
 
   return {
-    profileText: state.profileText,
     memoText: state.memoText,
     imageSrc: state.imageSrc,
     preferProfileDummyImage: state.preferProfileDummyImage,
-    isProfileTextVisible: state.isProfileTextVisible,
+    isArtistVisible: state.isArtistVisible,
     isMemoTextVisible: state.isMemoTextVisible,
     selectedOptions: state.selectedOptions,
     mondayDateStr: state.mondayDateStr,
     weekDates: state.weekDates,
-    updateProfileText: actions.updateProfileText,
     updateMemoText: actions.updateMemoText,
     updateImageSrc: actions.updateImageSrc,
     updatePreferProfileDummyImage: actions.updatePreferProfileDummyImage,
-    updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
+    updateIsArtistVisible: actions.updateIsArtistVisible,
     updateMondayDate: actions.updateMondayDate,
     handleImageChange: actions.handleImageChange,
-    handleProfileTextChange: actions.handleProfileTextChange,
     handleDateChange: actions.handleDateChange,
     handleOptionClick: actions.handleOptionClick,
   };
@@ -69,12 +66,12 @@ export const useTemplateRuntimeUI = () => {
   return {
     scale: state.scale,
     isMobile: state.isMobile,
-    isProfileTextVisible: state.isProfileTextVisible,
+    isArtistVisible: state.isArtistVisible,
     isMemoTextVisible: state.isMemoTextVisible,
     selectedOptions: state.selectedOptions,
     updateScale: actions.updateScale,
     updateIsMobile: actions.updateIsMobile,
-    updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
+    updateIsArtistVisible: actions.updateIsArtistVisible,
     handleOptionClick: actions.handleOptionClick,
   };
 };

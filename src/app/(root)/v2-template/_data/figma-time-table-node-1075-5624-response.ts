@@ -94,7 +94,7 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
           monthDateSeparator: "/",
           rangeSeparator: " - ",
         },
-        profileTextPlaceholder: "아티스트 명",
+        artistTextPlaceholder: "아티스트 명",
         formSchema: {
           ...fallbackConfig.formSchema,
           fields: v2_overrideFieldPlaceholder({
@@ -184,7 +184,7 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
             height: 2250,
             zIndex: 10,
           },
-          profileTextRootStyle: {
+          artistTextRootStyle: {
             position: "absolute",
             left: 2630,
             top: 1820,
@@ -194,7 +194,7 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
             justifyContent: "center",
             alignItems: "center",
           },
-          profileTextWrapperStyle: {
+          artistTextWrapperStyle: {
             position: "absolute",
             left: 0,
             top: 0,
@@ -202,13 +202,13 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
             height: 120,
             rotateDeg: 1.8,
           },
-          profileTextStyle: {
+          artistTextStyle: {
             fontSize: 76,
             fontWeight: 700,
             lineHeight: 1,
             textAlign: "center",
           },
-          profileTextArtistImageStyle: {
+          artistObjectStyle: {
             position: "absolute",
             left: 0,
             top: 0,

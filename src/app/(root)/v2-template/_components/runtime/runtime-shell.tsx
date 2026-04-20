@@ -150,7 +150,6 @@ const V2RuntimeShell = ({
 
   const handleReset = React.useCallback(() => {
     resetAll();
-    actions.updateProfileText("");
     actions.updateMemoText("");
     actions.updateImageSrc(null);
     actions.updatePreferProfileDummyImage(false);

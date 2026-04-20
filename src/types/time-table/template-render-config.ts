@@ -308,7 +308,8 @@ export type V2TemplateLayerComponentKey =
   | "grid"
   | "weekFlag"
   | "topObject"
-  | "profile";
+  | "profile"
+  | "artist";
 
 export interface V2TemplateLayerNode {
   id: string;
@@ -573,10 +574,10 @@ export interface V2TemplateLayoutConfig {
   topObjectContainer: V2TemplateStyleRecord;
   profileImage: V2TemplateStyleRecord;
   profileFrame: V2TemplateStyleRecord;
-  profileTextRootStyle?: V2TemplateStyleRecord;
-  profileTextWrapperStyle?: V2TemplateStyleRecord;
-  profileTextStyle?: V2TemplateStyleRecord;
-  profileTextArtistImageStyle?: V2TemplateStyleRecord;
+  artistTextRootStyle?: V2TemplateStyleRecord;
+  artistTextWrapperStyle?: V2TemplateStyleRecord;
+  artistTextStyle?: V2TemplateStyleRecord;
+  artistObjectStyle?: V2TemplateStyleRecord;
   card: {
     onlineBackgroundContainer?: V2TemplateStyleRecord;
     multiBackgroundContainer?: V2TemplateStyleRecord;
@@ -629,7 +630,7 @@ export interface V2TemplateRenderConfig {
   maxFontSizes: V2TemplateMaxFontSizes;
   cardSizes: V2TemplateCardSizes;
   editorOptions: V2TemplateEditorOptions;
-  profileTextPlaceholder: string;
+  artistTextPlaceholder: string;
   formSchema: V2TemplateFormSchema;
   assets: V2TemplateAssetMap;
   assetDimensions: V2TemplateAssetDimensionMap;

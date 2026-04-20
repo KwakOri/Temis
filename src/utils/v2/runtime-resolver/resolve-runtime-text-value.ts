@@ -18,7 +18,6 @@ export const v2_resolveRuntimeTextNodeValue = ({
   weekDates,
   firstCard,
   firstEntry,
-  profileText,
   memoText,
   memoTextFallback,
   globalData,
@@ -29,7 +28,6 @@ export const v2_resolveRuntimeTextNodeValue = ({
   weekDates: Date[];
   firstCard: Record<string, unknown> | undefined;
   firstEntry: Record<string, unknown> | undefined;
-  profileText: string;
   memoText: string;
   memoTextFallback: string;
   globalData: Record<string, unknown>;
@@ -53,12 +51,15 @@ export const v2_resolveRuntimeTextNodeValue = ({
   });
 
   const fallbackWeekFlag = computedValues.weekDateRange ?? "";
+  const artistTextField = renderConfig.formSchema.fields.find(
+    (field) => field.scope === "global" && field.key === "artistText"
+  );
   const fallbackValue =
     node.id === "scene-week-flag"
       ? fallbackWeekFlag
-      : node.id === "scene-profile-text"
-        ? profileText || renderConfig.profileTextPlaceholder || ""
-        : node.id === "scene-memo-text"
+      : node.id === "scene-artist-text"
+        ? artistTextField?.placeholder || renderConfig.artistTextPlaceholder || ""
+      : node.id === "scene-memo-text"
           ? memoText || memoTextFallback || ""
           : "";
 
@@ -76,7 +77,7 @@ export const v2_resolveRuntimeTextNodeValue = ({
   const multiline =
     typeof optionsRaw.multiline === "boolean" ? optionsRaw.multiline : true;
   const maxFontSize =
-    node.id === "scene-profile-text" || node.id === "scene-memo-text"
+    node.id === "scene-artist-text" || node.id === "scene-memo-text"
       ? renderConfig.maxFontSizes.ARTIST
       : renderConfig.maxFontSizes.MAIN_TITLE;
 

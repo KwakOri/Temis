@@ -51,7 +51,7 @@ export const v2_applyTemplatePreset = ({
     maxFontSizes: preset.maxFontSizes,
     cardSizes: preset.cardSizes,
     editorOptions: preset.editorOptions,
-    profileTextPlaceholder: preset.profileTextPlaceholder,
+    artistTextPlaceholder: preset.artistTextPlaceholder,
     formSchema: preset.formSchema,
     layout: preset.layout,
     graph: preset.graph,

@@ -41,6 +41,7 @@ const v2_inferComponentKeyFromLayerId = (
   if (layerId === "week-flag") return "weekFlag";
   if (layerId === "top-object") return "topObject";
   if (layerId === "profile") return "profile";
+  if (layerId === "artist") return "artist";
   return undefined;
 };
 

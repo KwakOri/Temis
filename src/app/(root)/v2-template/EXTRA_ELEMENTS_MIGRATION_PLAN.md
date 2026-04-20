@@ -92,8 +92,7 @@ type V2TemplateStructureCapabilities = {
 ## 4) Artist
 
 - `artist.enabled=false`: artist 관련 노드 optional
-- `artist.enabled=true`, `mode=textOnly`: `scene-profile-text` 필수, artist 이미지 노드 optional
-- `artist.enabled=true`, `mode=textWithImage`: `scene-profile-text` 필수 + artist 이미지 노드 필수
+- `artist.enabled=true`: `scene-artist-object` 필수, on/off asset 전환으로 표시 제어
 
 ## 5) Profile
 

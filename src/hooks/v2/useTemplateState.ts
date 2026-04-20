@@ -5,7 +5,7 @@ import { v2StateStorage } from "@/utils/v2/localStorage";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
 
-export type V2OptionType = "profile" | "memo" | "none";
+export type V2OptionType = "artist" | "memo" | "none";
 
 const getDefaultMondayString = (): string => {
   const today = new Date();
@@ -54,7 +54,6 @@ const getInitialScale = (templateWidth?: number, templateHeight?: number) => {
 };
 
 export interface TemplateEditorUIState {
-  profileText: string;
   memoText: string;
   imageSrc: string | null;
   preferProfileDummyImage: boolean;
@@ -63,24 +62,22 @@ export interface TemplateEditorUIState {
   weekDates: Date[];
   scale: number;
   isMobile: boolean;
-  isProfileTextVisible: boolean;
+  isArtistVisible: boolean;
   isMemoTextVisible: boolean;
   selectedOptions: V2OptionType[];
   captureSize: { width: number; height: number } | undefined;
 }
 
 export interface TemplateEditorUIActions {
-  updateProfileText: (text: string) => void;
   updateMemoText: (text: string) => void;
   updateImageSrc: (src: string | null) => void;
   updatePreferProfileDummyImage: (value: boolean) => void;
   updateMondayDate: (dateStr: string) => void;
   updateScale: (newScale: number) => void;
   updateIsMobile: (mobile: boolean) => void;
-  updateIsProfileTextVisible: (visible: boolean) => void;
+  updateIsArtistVisible: (visible: boolean) => void;
   updateIsMemoTextVisible: (visible: boolean) => void;
   handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleProfileTextChange: (text: string) => void;
   handleMemoTextChange: (text: string) => void;
   handleDateChange: (dateStr: string) => void;
   handleOptionClick: (option: V2OptionType, multiSelect?: boolean) => void;
@@ -108,12 +105,6 @@ export const useTemplateState = (captureSize?: {
   width: number;
   height: number;
 }) => {
-  const [profileText, setProfileText] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return v2StateStorage.getItem("profileText", "");
-    }
-    return "";
-  });
   const [memoText, setMemoText] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return v2StateStorage.getItem("memoText", "");
@@ -134,9 +125,11 @@ export const useTemplateState = (captureSize?: {
       return false;
     }
   );
-  const [isProfileTextVisible, setIsProfileTextVisible] = useState<boolean>(
+  const [isArtistVisible, setIsArtistVisible] = useState<boolean>(
     () => {
       if (typeof window !== "undefined") {
+        const nextValue = v2StateStorage.getItem("isArtistVisible", undefined);
+        if (typeof nextValue === "boolean") return nextValue;
         return v2StateStorage.getItem("isProfileTextVisible", true);
       }
       return true;
@@ -150,7 +143,11 @@ export const useTemplateState = (captureSize?: {
   });
   const [selectedOptions, setSelectedOptions] = useState<V2OptionType[]>(() => {
     if (typeof window !== "undefined") {
-      return v2StateStorage.getItem("selectedOptions", ["none"]);
+      const stored = v2StateStorage.getItem("selectedOptions", ["none"]) as string[];
+      const normalized = stored.map((option) =>
+        option === "profile" ? "artist" : option
+      );
+      return normalized as V2OptionType[];
     }
     return ["none"];
   });
@@ -182,12 +179,6 @@ export const useTemplateState = (captureSize?: {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      v2StateStorage.setItem("profileText", profileText);
-    }
-  }, [profileText]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
       v2StateStorage.setItem("memoText", memoText);
     }
   }, [memoText]);
@@ -213,9 +204,9 @@ export const useTemplateState = (captureSize?: {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      v2StateStorage.setItem("isProfileTextVisible", isProfileTextVisible);
+      v2StateStorage.setItem("isArtistVisible", isArtistVisible);
     }
-  }, [isProfileTextVisible]);
+  }, [isArtistVisible]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -230,10 +221,10 @@ export const useTemplateState = (captureSize?: {
   }, [selectedOptions]);
 
   useEffect(() => {
-    const hasProfile = selectedOptions.includes("profile");
+    const hasArtist = selectedOptions.includes("artist");
     const hasMemo = selectedOptions.includes("memo");
 
-    setIsProfileTextVisible(hasProfile);
+    setIsArtistVisible(hasArtist);
     setIsMemoTextVisible(hasMemo);
   }, [selectedOptions]);
 
@@ -287,7 +278,6 @@ export const useTemplateState = (captureSize?: {
   }, [captureSize, isMobile]);
 
   const actions: TemplateEditorUIActions = {
-    updateProfileText: (text: string) => setProfileText(text),
     updateMemoText: (text: string) => setMemoText(text),
     updateImageSrc: (src: string | null) => setImageSrc(src),
     updatePreferProfileDummyImage: (value: boolean) =>
@@ -295,8 +285,7 @@ export const useTemplateState = (captureSize?: {
     updateMondayDate: (dateStr: string) => setMondayDateStr(dateStr),
     updateScale: (newScale: number) => setScale(newScale),
     updateIsMobile: (mobile: boolean) => setIsMobile(mobile),
-    updateIsProfileTextVisible: (visible: boolean) =>
-      setIsProfileTextVisible(visible),
+    updateIsArtistVisible: (visible: boolean) => setIsArtistVisible(visible),
     updateIsMemoTextVisible: (visible: boolean) =>
       setIsMemoTextVisible(visible),
 
@@ -336,9 +325,6 @@ export const useTemplateState = (captureSize?: {
       reader.readAsDataURL(file);
     },
 
-    handleProfileTextChange: (text: string) => {
-      setProfileText(text);
-    },
     handleMemoTextChange: (text: string) => {
       setMemoText(text);
     },
@@ -517,7 +503,6 @@ export const useTemplateState = (captureSize?: {
   };
 
   const state: TemplateEditorUIState = {
-    profileText,
     memoText,
     imageSrc,
     preferProfileDummyImage,
@@ -526,7 +511,7 @@ export const useTemplateState = (captureSize?: {
     weekDates,
     scale,
     isMobile,
-    isProfileTextVisible,
+    isArtistVisible,
     isMemoTextVisible,
     selectedOptions,
     captureSize,

@@ -33,12 +33,10 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
     updateTheme,
   } = useTemplateRuntimeContext();
   const {
-    profileText,
     memoText,
     imageSrc,
-    isProfileTextVisible,
+    isArtistVisible,
     isMemoTextVisible,
-    updateProfileText,
     updateMemoText,
     updateImageSrc,
     handleOptionClick,
@@ -68,20 +66,22 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
 
   const cardInputConfig = React.useMemo<CardInputConfig>(() => {
     return {
-      fields: renderConfig.formSchema.fields.map((field) => ({
-        key: field.key,
-        scope: field.scope,
-        type: field.type,
-        label: field.label,
-        placeholder: field.placeholder || "",
-        required: field.required,
-        maxLength: field.maxLength,
-        options: field.options?.map((option) => ({
-          value: option.value,
-          label: option.label,
+      fields: renderConfig.formSchema.fields
+        .filter((field) => !(field.scope === "global" && field.key === "artistText"))
+        .map((field) => ({
+          key: field.key,
+          scope: field.scope,
+          type: field.type,
+          label: field.label,
+          placeholder: field.placeholder || "",
+          required: field.required,
+          maxLength: field.maxLength,
+          options: field.options?.map((option) => ({
+            value: option.value,
+            label: option.label,
+          })),
+          defaultValue: field.defaultValue,
         })),
-        defaultValue: field.defaultValue,
-      })),
       showLabels: renderConfig.formSchema.showLabels ?? true,
       offlineToggle: renderConfig.formSchema.offlineToggle,
     };
@@ -93,12 +93,22 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
       fieldPlaceholders[field.key] = field.placeholder || "";
     });
 
-    return {
-      ...fieldPlaceholders,
-      profileText:
-        renderConfig.profileTextPlaceholder || "아티스트명을 입력해 주세요",
-    };
-  }, [renderConfig.formSchema.fields, renderConfig.profileTextPlaceholder]);
+    return fieldPlaceholders;
+  }, [renderConfig.formSchema.fields]);
+
+  const artistField = React.useMemo(
+    () =>
+      renderConfig.formSchema.fields.find(
+        (field) => field.scope === "global" && field.key === "artistText"
+      ),
+    [renderConfig.formSchema.fields]
+  );
+  const artistTextValue =
+    typeof globalData?.artistText === "string"
+      ? globalData.artistText
+      : typeof globalData?.artistText === "number"
+        ? String(globalData.artistText)
+        : "";
 
   const handleProfileImageSelect = React.useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,16 +254,30 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
 
               <RuntimeFormCard
                 label="아티스트"
-                isActive={isProfileTextVisible}
-                toggleIsActive={() => handleOptionClick("profile", true)}
+                isActive={isArtistVisible}
+                toggleIsActive={() => handleOptionClick("artist", true)}
                 size="sm"
               >
-                <TextRenderer
-                  height="sm"
-                  value={profileText}
-                  handleTextChange={updateProfileText}
-                  placeholder={renderConfig.profileTextPlaceholder}
-                />
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-500">
+                    artist on/off 오브젝트 표시를 전환합니다.
+                  </p>
+                  <TextRenderer
+                    height="sm"
+                    value={artistTextValue}
+                    handleTextChange={(nextValue: string) =>
+                      updateGlobalData({
+                        ...globalData,
+                        artistText: nextValue,
+                      })
+                    }
+                    placeholder={
+                      artistField?.placeholder ||
+                      renderConfig.artistTextPlaceholder ||
+                      "아티스트명을 입력해 주세요"
+                    }
+                  />
+                </div>
               </RuntimeFormCard>
 
               <RuntimeFormCard

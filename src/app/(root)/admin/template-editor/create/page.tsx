@@ -340,9 +340,6 @@ const TemplateEditorMainPage = () => {
   const [weekDatePreset, setWeekDatePreset] =
     useState<V2TemplateWeekDatePreset>('mdySlash');
   const [defaultTheme, setDefaultTheme] = useState(baseConfig.defaultTheme);
-  const [profileTextPlaceholder, setProfileTextPlaceholder] = useState(
-    baseConfig.profileTextPlaceholder
-  );
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [rootFigmaUrl, setRootFigmaUrl] = useState('');
@@ -411,8 +408,6 @@ const TemplateEditorMainPage = () => {
           ? baseThemeOptions
           : [...baseThemeOptions, resolvedDefaultTheme]
         : baseThemeOptions;
-      const nextProfileTextPlaceholder =
-        profileTextPlaceholder.trim() || normalized.profileTextPlaceholder;
       const nextGraph = v2_createEmptyTemplateNodeGraph();
       const nextConfig = v2_normalizeTemplateRenderConfig({
         ...normalized,
@@ -451,14 +446,13 @@ const TemplateEditorMainPage = () => {
         themes: nextThemeOptions,
         defaultTheme: resolvedDefaultTheme || normalized.defaultTheme,
         buttonThemes: nextThemeOptions.map((theme) => ({ value: theme, label: theme })),
-        profileTextPlaceholder: nextProfileTextPlaceholder,
         formSchema: {
           ...normalized.formSchema,
           fields: normalized.formSchema.fields.filter((field) => {
             if (!isMemo && field.scope === 'global' && field.key === 'memoText') {
               return false;
             }
-            if (!isArtist && field.scope === 'global' && field.key === 'profileText') {
+            if (!isArtist && field.scope === 'global' && field.key === 'artistText') {
               return false;
             }
             return true;
@@ -1094,18 +1088,6 @@ const TemplateEditorMainPage = () => {
               </div>
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="artist-placeholder">
-                아티스트 기본 문구
-              </label>
-              <input
-                id="artist-placeholder"
-                value={profileTextPlaceholder}
-                onChange={(event) => setProfileTextPlaceholder(event.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                placeholder="예: 아티스트 명"
-              />
-            </div>
           </div>
         </details>
 
