@@ -58,6 +58,8 @@ export const v2_FONT_FORMAT_OPTIONS: Array<
 > = ["woff2", "woff", "truetype", "opentype"];
 
 export const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
+  "artistOnByTheme",
+  "artistOffByTheme",
   "artist",
   "profileBgByTheme",
   "guideByTheme",
@@ -99,7 +101,9 @@ export const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
   bgByTheme: "배경",
   topObjectByTheme: "상단 오브젝트",
   memoByTheme: "메모 오브젝트",
-  artist: "아티스트 오브젝트",
+  artistOnByTheme: "아티스트 오브젝트 (ON)",
+  artistOffByTheme: "아티스트 오브젝트 (OFF)",
+  artist: "아티스트 오브젝트 (레거시)",
   onlineByTheme: "온라인 카드",
   online_mon: "온라인 카드 (월)",
   online_tue: "온라인 카드 (화)",

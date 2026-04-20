@@ -49,6 +49,14 @@ export type ImportV2TemplateFromFigmaOptions = {
   ) => ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
 };
 
+export type ImportV2TemplateFromFigmaResult = {
+  mode: "dry-run" | "write";
+  templateId: string;
+  templateName: string;
+  normalizedConfig: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
+  latestRevisionNo: number | null;
+};
+
 type CliOptions = ImportV2TemplateFromFigmaOptions;
 
 export type FigmaNode = {
@@ -578,6 +586,17 @@ const findFirstDirectChildByTagValues = ({
   return findFirstByTagValues(rootNode.children, key, values);
 };
 
+const findFirstDirectChildByNames = ({
+  rootNode,
+  aliases,
+}: {
+  rootNode: FigmaNode | undefined;
+  aliases: readonly string[];
+}): FigmaNode | undefined => {
+  if (!rootNode || !Array.isArray(rootNode.children)) return undefined;
+  return findFirstByNames(rootNode.children, aliases);
+};
+
 const findMatchesByTagValues = (
   nodes: FigmaNode[],
   key: string,
@@ -669,8 +688,8 @@ const ASSET_SLOT_TO_BUILTIN_KEY: Record<string, V2TemplateBuiltinAssetKey> = {
   "scene.top": "topObjectByTheme",
   "scene.memo": "memoByTheme",
   "memo.container": "memoByTheme",
-  "artist.background": "artist",
-  "artist.object": "artist",
+  "artist.background": "artistOnByTheme",
+  "artist.object": "artistOnByTheme",
   "profile.image": "profileBgByTheme",
   "profile.frame": "profileFrameByTheme",
   "scene.guide": "guideByTheme",
@@ -692,7 +711,15 @@ const EXPLICIT_ASSET_TAG_TO_BUILTIN_KEY: Record<
   memo_bg: "memoByTheme",
   memoobject: "memoByTheme",
   memo_object: "memoByTheme",
-  artist: "artist",
+  artist: "artistOnByTheme",
+  artiston: "artistOnByTheme",
+  artist_on: "artistOnByTheme",
+  "artist-on": "artistOnByTheme",
+  artistoff: "artistOffByTheme",
+  artist_off: "artistOffByTheme",
+  "artist-off": "artistOffByTheme",
+  noartist: "artistOffByTheme",
+  no_artist: "artistOffByTheme",
   profileframe: "profileFrameByTheme",
   profile_frame: "profileFrameByTheme",
   profilebg: "profileBgByTheme",
@@ -1025,6 +1052,24 @@ const findMatchesByNames = (
     if (!node.name) return false;
     return aliasSet.has(canonicalName(node.name));
   });
+};
+
+const findNodeByCanonicalPath = ({
+  rootNode,
+  pathAliases,
+}: {
+  rootNode: FigmaNode;
+  pathAliases: readonly (readonly string[])[];
+}): FigmaNode | undefined => {
+  let currentNode: FigmaNode | undefined = rootNode;
+  for (const aliases of pathAliases) {
+    currentNode = findFirstDirectChildByNames({
+      rootNode: currentNode,
+      aliases,
+    });
+    if (!currentNode) return undefined;
+  }
+  return currentNode;
 };
 
 const collectNodeRecords = (
@@ -2334,12 +2379,14 @@ const applyLayoutMappingsFromFigma = ({
     memoText: ["memo text", "memo title", "메모", "메모텍스트", "memotext"],
     profileImage: [
       "profileimage",
+      "imageprofile",
       "imageprofileimage",
       "artistimage",
       "profile image",
     ],
     profileFrame: [
       "profileframe",
+      "imageframe",
       "imageprofileframe",
       "artistframe",
       "profile frame",
@@ -2354,7 +2401,15 @@ const applyLayoutMappingsFromFigma = ({
       "artisttext",
       "flexibletextartist",
     ],
-    artistObject: ["artistobject", "imageartistobject", "profiletextartistimagestyle"],
+    artistObject: [
+      "artistobject",
+      "sceneartist",
+      "imageartistobject",
+      "profiletextartistimagestyle",
+      "artiston",
+      "artistoff",
+      "noartist",
+    ],
     cardContainer: [
       "card",
       "componentcard",
@@ -2872,6 +2927,77 @@ const applyLayoutMappingsFromFigma = ({
     return summary;
   }
 
+  const sceneGridNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/grid", "grid"]],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.grid,
+      aliases: alias.grid,
+    });
+  const sceneWeekDatesNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/weekdates", "weekdates", "weekdate"]],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.weekFlag,
+      aliases: alias.weekFlag,
+    });
+  const sceneTopObjectNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/topobject", "topobject"]],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.topObject,
+      aliases: alias.topObject,
+    });
+  const sceneProfileImageNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [
+        ["scene/frame", "frame", "sceneframe"],
+        ["image/profile", "profileimage", "imageprofile"],
+      ],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.profileImage,
+      aliases: alias.profileImage,
+    });
+  const sceneProfileFrameNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [
+        ["scene/frame", "frame", "sceneframe"],
+        ["image/frame", "profileframe", "imageframe"],
+      ],
+    }) ??
+    findFirstByTagCriteria(allNodes, {
+      slot: slot.profileFrame,
+      role: ["frame"],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.profileFrame,
+      aliases: alias.profileFrame,
+    });
+  const sceneArtistNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/artist", "artist", "sceneartist"]],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.artistObject,
+      aliases: alias.artistObject,
+    });
+
   config.templateSize = {
     width: round(rootBounds.width),
     height: round(rootBounds.height),
@@ -2880,11 +3006,7 @@ const applyLayoutMappingsFromFigma = ({
     `templateSize(${config.templateSize.width}x${config.templateSize.height})`
   );
 
-  const gridNode = findNodeByTagOrAlias({
-    nodes: allNodes,
-    tagValues: slot.grid,
-    aliases: alias.grid,
-  });
+  const gridNode = sceneGridNode;
   summary.presence.grid = Boolean(gridNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: gridNode }),
@@ -2898,11 +3020,7 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.grid");
   }
 
-  const weekFlagNode = findNodeByTagOrAlias({
-    nodes: allNodes,
-    tagValues: slot.weekFlag,
-    aliases: alias.weekFlag,
-  });
+  const weekFlagNode = sceneWeekDatesNode;
   summary.presence.weekFlag = Boolean(weekFlagNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: weekFlagNode }),
@@ -2920,11 +3038,7 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.weekFlag");
   }
 
-  const topObjectNode = findNodeByTagOrAlias({
-    nodes: allNodes,
-    tagValues: slot.topObject,
-    aliases: alias.topObject,
-  });
+  const topObjectNode = sceneTopObjectNode;
   summary.presence.topObject = Boolean(topObjectNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: topObjectNode }),
@@ -2993,11 +3107,7 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.scene.memoTextStyle");
   }
 
-  const profileImageNode = findNodeByTagOrAlias({
-    nodes: allNodes,
-    tagValues: slot.profileImage,
-    aliases: alias.profileImage,
-  });
+  const profileImageNode = sceneProfileImageNode;
   summary.presence.profileImage = Boolean(profileImageNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: profileImageNode }),
@@ -3007,16 +3117,7 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.profileImage");
   }
 
-  const profileFrameNode =
-    findFirstByTagCriteria(allNodes, {
-      slot: slot.profileFrame,
-      role: ["frame"],
-    }) ??
-    findNodeByTagOrAlias({
-      nodes: allNodes,
-      tagValues: slot.profileFrame,
-      aliases: alias.profileFrame,
-    });
+  const profileFrameNode = sceneProfileFrameNode;
   summary.presence.profileFrame = Boolean(profileFrameNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: profileFrameNode }),
@@ -3026,11 +3127,7 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.profileFrame");
   }
 
-  const artistObjectNode = findNodeByTagOrAlias({
-    nodes: allNodes,
-    tagValues: slot.artistObject,
-    aliases: alias.artistObject,
-  });
+  const artistObjectNode = sceneArtistNode;
   summary.presence.artistObject = Boolean(artistObjectNode);
 
   const profileTextNode = findNodeByTagOrAlias({
@@ -3274,6 +3371,7 @@ const applyLayoutMappingsFromFigma = ({
       if (mode === "multi") {
         return (
           findFirstByNames(candidateNodes, alias.cardMultiBackground) ??
+          findFirstByNames(candidateNodes, ["imagebg"]) ??
           findFirstByTagValues(candidateNodes, "slot", slot.cardBackground) ??
           findFirstByNames(candidateNodes, alias.cardSharedBackground)
         );
@@ -3281,12 +3379,14 @@ const applyLayoutMappingsFromFigma = ({
       if (mode === "offlineMemo") {
         return (
           findFirstByNames(candidateNodes, alias.cardOfflineMemoBackground) ??
+          findFirstByNames(candidateNodes, ["imagebg"]) ??
           findFirstByTagValues(candidateNodes, "slot", slot.cardBackground) ??
           findFirstByNames(candidateNodes, alias.cardSharedBackground)
         );
       }
       return (
         findFirstByNames(candidateNodes, alias.cardOfflineBackground) ??
+        findFirstByNames(candidateNodes, ["imagebg"]) ??
         findFirstByTagValues(candidateNodes, "slot", slot.cardBackground) ??
         findFirstByNames(candidateNodes, alias.cardSharedBackground)
       );
@@ -3330,6 +3430,31 @@ const applyLayoutMappingsFromFigma = ({
 
       if (nodes.length > 0) {
         return nodes;
+      }
+      const namedEntryFrames = (candidate.children ?? [])
+        .filter((node) => {
+          const nodeType = (node.type ?? "").toUpperCase();
+          if (nodeType !== "FRAME") return false;
+          return canonicalName(node.name ?? "") === canonicalName("Entry");
+        })
+        .sort((left, right) => {
+          const leftBounds = getBounds(left);
+          const rightBounds = getBounds(right);
+          const leftY = leftBounds?.y ?? Number.POSITIVE_INFINITY;
+          const rightY = rightBounds?.y ?? Number.POSITIVE_INFINITY;
+          if (leftY !== rightY) return leftY - rightY;
+          const leftX = leftBounds?.x ?? Number.POSITIVE_INFINITY;
+          const rightX = rightBounds?.x ?? Number.POSITIVE_INFINITY;
+          return leftX - rightX;
+        })
+        .map((node, index) => ({
+          index,
+          node,
+          isFallbackRoot: false,
+        }));
+
+      if (namedEntryFrames.length > 0) {
+        return namedEntryFrames;
       }
       return [{ index: 0, node: candidate, isFallbackRoot: true }];
     };
@@ -4409,7 +4534,9 @@ const fetchFigmaNodesByIds = async ({
   return result;
 };
 
-const collectCardComponentIdsFromTemplateRoot = (rootNode: FigmaNode): string[] => {
+export const collectCardComponentIdsFromTemplateRoot = (
+  rootNode: FigmaNode
+): string[] => {
   const candidates = flattenNodes(rootNode).filter((node) => {
     if (!node.componentId) return false;
     if (hasNodeTagValue({ node, key: "slot", values: ["card"] })) return true;
@@ -5182,7 +5309,7 @@ const assertCreatedByUserExists = async ({
 
 export const runImportV2TemplateFromFigma = async (
   rawOptions: ImportV2TemplateFromFigmaOptions
-) => {
+): Promise<ImportV2TemplateFromFigmaResult> => {
   const options: CliOptions = {
     ...rawOptions,
     configPreset: rawOptions.configPreset ?? "default",
@@ -5520,7 +5647,13 @@ export const runImportV2TemplateFromFigma = async (
     console.log(
       "[import:v2:figma] dry-run complete. Add --write to persist template/render config."
     );
-    return;
+    return {
+      mode: "dry-run",
+      templateId: ensuredTemplate.templateId,
+      templateName: resolvedTemplateName,
+      normalizedConfig,
+      latestRevisionNo: null,
+    };
   }
 
   if (!ensuredTemplate.templateId || ensuredTemplate.templateId === "(to-be-created)") {
@@ -5575,6 +5708,13 @@ export const runImportV2TemplateFromFigma = async (
   console.log(
     `[import:v2:figma] write complete: templateId=${templateId}, revisionNo=${nextRevisionNo}`
   );
+  return {
+    mode: "write",
+    templateId,
+    templateName: resolvedTemplateName,
+    normalizedConfig,
+    latestRevisionNo: nextRevisionNo,
+  };
 };
 
 const runCli = async () => {

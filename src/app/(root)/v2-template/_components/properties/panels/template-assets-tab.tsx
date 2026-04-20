@@ -578,9 +578,20 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
                   더미 이미지입니다.
                 </p>
               ) : null}
+              {key === "artistOnByTheme" ? (
+                <p className="text-[11px] text-blue-300">
+                  Artist 그룹의 `ArtistObject` 노드에 연결되는 기본 ON 에셋입니다.
+                  프로필 옵션이 켜져 있을 때 우선 사용됩니다.
+                </p>
+              ) : null}
+              {key === "artistOffByTheme" ? (
+                <p className="text-[11px] text-blue-300">
+                  프로필 옵션이 꺼져 있을 때 ArtistObject에 연결되는 OFF 에셋입니다.
+                </p>
+              ) : null}
               {key === "artist" ? (
                 <p className="text-[11px] text-blue-300">
-                  Artist 그룹의 `ArtistObject` 노드에 연결되는 배경 에셋입니다.
+                  레거시 fallback 에셋입니다. ON/OFF 에셋이 없을 때만 사용됩니다.
                 </p>
               ) : null}
 

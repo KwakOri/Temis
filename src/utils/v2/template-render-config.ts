@@ -63,6 +63,8 @@ const v2_ASSET_KEYS = [
   "bgByTheme",
   "topObjectByTheme",
   "memoByTheme",
+  "artistOnByTheme",
+  "artistOffByTheme",
   "artist",
   "onlineByTheme",
   "online_mon",
@@ -908,7 +910,7 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     layerId: "artist-object",
     assetRef: {
       source: "builtin",
-      key: "artist",
+      key: "artistOnByTheme",
     },
     assetRole: "general",
     styleKey: "profileTextArtistImageStyle",
@@ -2253,6 +2255,12 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     memoByTheme: {
       first: null,
     },
+    artistOnByTheme: {
+      first: null,
+    },
+    artistOffByTheme: {
+      first: null,
+    },
     artist: {
       first: null,
     },
@@ -2364,6 +2372,12 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
     memoByTheme: {
+      first: null,
+    },
+    artistOnByTheme: {
+      first: null,
+    },
+    artistOffByTheme: {
       first: null,
     },
     artist: {
@@ -3082,7 +3096,7 @@ const v2_normalizeGraphNode = (
           ...(normalizedMeta?.assetRef?.source === "builtin" &&
           normalizedMeta.assetRef.key === "profileBgByTheme"
             ? {
-                assetRef: v2_toBuiltinAssetRef("artist"),
+                assetRef: v2_toBuiltinAssetRef("artistOnByTheme"),
               }
             : {}),
           ...(normalizedMeta?.layerTarget === "profileText"
@@ -4433,6 +4447,14 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assets.memoByTheme,
         raw.assets.memoByTheme
       ),
+      artistOnByTheme: v2_mergeThemeStringMap(
+        normalized.assets.artistOnByTheme,
+        raw.assets.artistOnByTheme
+      ),
+      artistOffByTheme: v2_mergeThemeStringMap(
+        normalized.assets.artistOffByTheme,
+        raw.assets.artistOffByTheme
+      ),
       artist: v2_mergeThemeStringMap(
         normalized.assets.artist,
         raw.assets.artist
@@ -4585,6 +4607,14 @@ export const v2_normalizeTemplateRenderConfig = (
       memoByTheme: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.memoByTheme,
         raw.assetDimensions.memoByTheme
+      ),
+      artistOnByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.artistOnByTheme,
+        raw.assetDimensions.artistOnByTheme
+      ),
+      artistOffByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.artistOffByTheme,
+        raw.assetDimensions.artistOffByTheme
       ),
       artist: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.artist,

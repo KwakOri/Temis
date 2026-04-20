@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  collectCardComponentIdsFromTemplateRoot,
   runImportV2TemplateFromFigma,
   type FigmaNode,
 } from "./import-v2-template-from-figma";
@@ -16,7 +17,7 @@ type ValidationMode = "matrix" | "shared-status";
 
 type CliOptions = {
   rootFigmaUrl: string;
-  cardComponentSetUrl: string;
+  cardComponentSetUrl?: string;
   write: boolean;
   validateOnly: boolean;
   templateName?: string;
@@ -33,11 +34,24 @@ type CliOptions = {
   assetTheme?: string;
   assetFormat?: "png" | "jpg" | "svg" | "pdf";
   aiMode: ImportAiMode;
+  postProcessNormalizedConfig?: (
+    config: V2TemplateRenderConfig
+  ) => V2TemplateRenderConfig;
 };
 
 type FigmaNodesResponse = {
   name?: string;
   nodes?: Record<string, { document?: FigmaNode }>;
+};
+
+type FigmaFileResponse = {
+  components?: Record<
+    string,
+    {
+      name?: string;
+      componentSetId?: string;
+    }
+  >;
 };
 
 type FigmaParseResult = {
@@ -64,6 +78,15 @@ type ValidationResult = {
   statusDays: Record<CardStatus, DayKey[]>;
   critical: string[];
   warnings: string[];
+};
+
+export type ImportV2FigmaAnalyzeResult = {
+  rootInfo: FigmaParseResult;
+  cardSetInfo: FigmaParseResult;
+  cardComponentSetSource: "input" | "auto-detected";
+  resolvedCardComponentSetUrl: string;
+  validation: ValidationResult;
+  explicitExternalCardCandidates: FigmaNode[];
 };
 
 const ROOT_DIR = path.resolve(__dirname, "..");
@@ -184,11 +207,11 @@ const hydrateProcessEnvFromLoaded = (
 const printHelp = () => {
   console.log(
     [
-      "Usage: npm run import:v2:figma:v2 -- --root-figma-url <URL> --card-component-set-url <URL> [options]",
+      "Usage: npm run import:v2:figma:v2 -- --root-figma-url <URL> [--card-component-set-url <URL>] [options]",
       "",
       "Required:",
       "  --root-figma-url <url>           Root scene frame URL (layout source)",
-      "  --card-component-set-url <url>   Card component set URL (card source of truth)",
+      "  --card-component-set-url <url>   Optional card component set URL override",
       "",
       "Recommended defaults:",
       "  - dry-run first (without --write)",
@@ -217,7 +240,7 @@ const printHelp = () => {
       "  (.env, .env.local, .envrc are loaded automatically)",
       "",
       "Examples:",
-      "  npm run import:v2:figma:v2 -- --root-figma-url '<root>' --card-component-set-url '<cardset>'",
+      "  npm run import:v2:figma:v2 -- --root-figma-url '<root>'",
       "  npm run import:v2:figma:v2 -- --root-figma-url '<root>' --card-component-set-url '<cardset>' --write --template-name 'My V2'",
     ].join("\n")
   );
@@ -251,10 +274,6 @@ const parseCliOptions = (): CliOptions => {
   if (typeof rootFigmaUrl !== "string" || rootFigmaUrl.trim().length === 0) {
     throw new Error("--root-figma-url is required.");
   }
-  if (typeof cardComponentSetUrl !== "string" || cardComponentSetUrl.trim().length === 0) {
-    throw new Error("--card-component-set-url is required.");
-  }
-
   const aiModeRaw = argMap.get("ai-mode");
   const aiMode =
     typeof aiModeRaw === "string" && ["review", "off", "autofix-lite"].includes(aiModeRaw)
@@ -263,7 +282,10 @@ const parseCliOptions = (): CliOptions => {
 
   return {
     rootFigmaUrl: rootFigmaUrl.trim(),
-    cardComponentSetUrl: cardComponentSetUrl.trim(),
+    cardComponentSetUrl:
+      typeof cardComponentSetUrl === "string" && cardComponentSetUrl.trim().length > 0
+        ? cardComponentSetUrl.trim()
+        : undefined,
     write: Boolean(argMap.get("write")),
     validateOnly: Boolean(argMap.get("validate-only")),
     templateName: typeof argMap.get("template-name") === "string" ? String(argMap.get("template-name")) : undefined,
@@ -331,6 +353,23 @@ const parseFigmaUrl = (url: string): FigmaParseResult => {
     fileKey,
     nodeId: nodeParam.replace(/-/g, ":"),
   };
+};
+
+const buildFigmaNodeUrl = ({
+  fileKey,
+  nodeId,
+  sampleUrl,
+}: {
+  fileKey: string;
+  nodeId: string;
+  sampleUrl: string;
+}): string => {
+  const parsed = new URL(sampleUrl);
+  const pathSegments = parsed.pathname.split("/").filter(Boolean);
+  const fileNameSegment = pathSegments[2] ?? "figma";
+  const nextUrl = new URL(`/design/${fileKey}/${fileNameSegment}`, parsed.origin);
+  nextUrl.searchParams.set("node-id", nodeId.replace(/:/g, "-"));
+  return nextUrl.toString();
 };
 
 const normalizeToken = (value: string): string =>
@@ -492,6 +531,187 @@ const fetchFigmaNodesByIds = async ({
     result[nodeId] = entry.document;
   });
   return result;
+};
+
+const fetchFigmaFileComponentMap = async ({
+  fileKey,
+  figmaToken,
+}: {
+  fileKey: string;
+  figmaToken: string;
+}): Promise<Map<string, { name: string; componentSetId?: string }>> => {
+  const requestUrl = `https://api.figma.com/v1/files/${fileKey}`;
+  const response = await fetch(requestUrl, {
+    method: "GET",
+    headers: {
+      "X-Figma-Token": figmaToken,
+    },
+  });
+  if (!response.ok) {
+    const bodyText = await response.text();
+    throw new Error(`Figma file request failed (${response.status}): ${bodyText}`);
+  }
+  const payload = (await response.json()) as FigmaFileResponse;
+  const componentMap = new Map<string, { name: string; componentSetId?: string }>();
+  Object.entries(payload.components ?? {}).forEach(([componentId, component]) => {
+    if (!componentId) return;
+    componentMap.set(componentId, {
+      name: component.name ?? "",
+      ...(typeof component.componentSetId === "string" && component.componentSetId.trim().length > 0
+        ? { componentSetId: component.componentSetId.trim() }
+        : {}),
+    });
+  });
+  return componentMap;
+};
+
+const flattenFigmaNodes = (rootNode: FigmaNode): FigmaNode[] => {
+  const queue = [rootNode];
+  const nodes: FigmaNode[] = [];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+    nodes.push(current);
+    if (Array.isArray(current.children) && current.children.length > 0) {
+      queue.push(...current.children);
+    }
+  }
+  return nodes;
+};
+
+const normalizeNodeName = (value: string | undefined): string => {
+  return (value ?? "").trim().toLowerCase();
+};
+
+const collectGridInstanceComponentIds = (rootNode: FigmaNode): string[] => {
+  const gridNode = flattenFigmaNodes(rootNode).find((node) => {
+    const normalizedName = normalizeNodeName(node.name);
+    return normalizedName === "scene/grid" || normalizedName === "grid";
+  });
+  if (!gridNode) return [];
+
+  return flattenFigmaNodes(gridNode)
+    .filter((node) => node.type === "INSTANCE")
+    .map((node) => node.componentId?.trim() ?? "")
+    .filter((componentId) => componentId.length > 0);
+};
+
+const resolveCardSetInfo = async ({
+  rootInfo,
+  rootFigmaUrl,
+  rootNode,
+  figmaToken,
+  providedCardComponentSetUrl,
+}: {
+  rootInfo: FigmaParseResult;
+  rootFigmaUrl: string;
+  rootNode: FigmaNode;
+  figmaToken: string;
+  providedCardComponentSetUrl?: string;
+}): Promise<{
+  cardSetInfo: FigmaParseResult;
+  cardComponentSetSource: "input" | "auto-detected";
+  resolvedCardComponentSetUrl: string;
+  warnings: string[];
+}> => {
+  if (
+    typeof providedCardComponentSetUrl === "string" &&
+    providedCardComponentSetUrl.trim().length > 0
+  ) {
+    const cardSetInfo = parseFigmaUrl(providedCardComponentSetUrl);
+    if (rootInfo.fileKey !== cardSetInfo.fileKey) {
+      throw new Error(
+        `root/card component set fileKey mismatch: root=${rootInfo.fileKey}, cardSet=${cardSetInfo.fileKey}`
+      );
+    }
+    return {
+      cardSetInfo,
+      cardComponentSetSource: "input",
+      resolvedCardComponentSetUrl: providedCardComponentSetUrl.trim(),
+      warnings: [],
+    };
+  }
+
+  const warnings: string[] = [];
+  const prioritizedComponentIds = collectGridInstanceComponentIds(rootNode);
+  const fallbackComponentIds = collectCardComponentIdsFromTemplateRoot(rootNode);
+  const cardComponentIds =
+    prioritizedComponentIds.length > 0 ? prioritizedComponentIds : fallbackComponentIds;
+
+  if (prioritizedComponentIds.length === 0 && fallbackComponentIds.length > 0) {
+    warnings.push(
+      "Scene/Grid card instances were not found by name, so card component-set detection used a broader root scan."
+    );
+  }
+
+  if (cardComponentIds.length === 0) {
+    throw new Error(
+      "카드 컴포넌트셋을 자동 검출하지 못했습니다. root에 Scene/Grid 카드 인스턴스를 배치하거나 카드 컴포넌트셋 링크를 직접 입력해주세요."
+    );
+  }
+
+  const componentMap = await fetchFigmaFileComponentMap({
+    fileKey: rootInfo.fileKey,
+    figmaToken,
+  });
+
+  const countsByComponentSetId = new Map<
+    string,
+    { count: number; componentIds: Set<string> }
+  >();
+  cardComponentIds.forEach((componentId) => {
+    const componentSetId = componentMap.get(componentId)?.componentSetId?.trim();
+    if (!componentSetId) return;
+    const current = countsByComponentSetId.get(componentSetId) ?? {
+      count: 0,
+      componentIds: new Set<string>(),
+    };
+    current.count += 1;
+    current.componentIds.add(componentId);
+    countsByComponentSetId.set(componentSetId, current);
+  });
+
+  const rankedCandidates = Array.from(countsByComponentSetId.entries()).sort((a, b) => {
+    if (b[1].count !== a[1].count) return b[1].count - a[1].count;
+    return a[0].localeCompare(b[0]);
+  });
+
+  if (rankedCandidates.length === 0) {
+    throw new Error(
+      "카드 인스턴스에서 componentSetId를 찾지 못했습니다. 카드 컴포넌트셋 링크를 직접 입력해주세요."
+    );
+  }
+
+  if (
+    rankedCandidates.length > 1 &&
+    rankedCandidates[0]?.[1].count === rankedCandidates[1]?.[1].count
+  ) {
+    const candidateIds = rankedCandidates.map(([componentSetId]) => componentSetId).join(", ");
+    throw new Error(
+      `카드 컴포넌트셋 후보가 여러 개라 자동 선택할 수 없습니다: ${candidateIds}. 카드 컴포넌트셋 링크를 직접 입력해주세요.`
+    );
+  }
+
+  const [componentSetId, match] = rankedCandidates[0];
+  const resolvedCardComponentSetUrl = buildFigmaNodeUrl({
+    fileKey: rootInfo.fileKey,
+    nodeId: componentSetId,
+    sampleUrl: rootFigmaUrl,
+  });
+
+  warnings.push(
+    `카드 컴포넌트셋을 root 인스턴스에서 자동 검출했습니다 (componentSetId=${componentSetId}, instances=${match.count}).`
+  );
+
+  return {
+    cardSetInfo: {
+      fileKey: rootInfo.fileKey,
+      nodeId: componentSetId,
+    },
+    cardComponentSetSource: "auto-detected",
+    resolvedCardComponentSetUrl,
+    warnings,
+  };
 };
 
 const collectVariantEntries = ({
@@ -751,16 +971,20 @@ const validateCardComponentSet = (entries: VariantEntry[]): ValidationResult => 
 const printValidationSummary = ({
   rootInfo,
   cardSetInfo,
+  cardComponentSetSource,
   result,
   aiMode,
 }: {
   rootInfo: FigmaParseResult;
   cardSetInfo: FigmaParseResult;
+  cardComponentSetSource: "input" | "auto-detected";
   result: ValidationResult;
   aiMode: ImportAiMode;
 }) => {
   console.log(`[import:v2:figma:v2] root=${rootInfo.fileKey}:${rootInfo.nodeId}`);
-  console.log(`[import:v2:figma:v2] cardSet=${cardSetInfo.fileKey}:${cardSetInfo.nodeId}`);
+  console.log(
+    `[import:v2:figma:v2] cardSet=${cardSetInfo.fileKey}:${cardSetInfo.nodeId} source=${cardComponentSetSource}`
+  );
   console.log(`[import:v2:figma:v2] ai-mode=${aiMode}`);
   console.log(`[import:v2:figma:v2] mode=${result.mode}`);
   console.log("[import:v2:figma:v2] status counts:");
@@ -880,21 +1104,25 @@ const buildSharedStyleGroups = (
     });
   });
 
-  return Object.fromEntries(
-    Array.from(groupsById.entries())
-      .map(([groupId, members]) => [
-        groupId,
-        {
-          memberSectionKeys: Array.from(members).sort(),
-          mode: "sync-all" as const,
-        },
-      ])
-      .filter(([, group]) => group.memberSectionKeys.length > 1)
-  );
+  const entries = Array.from(groupsById.entries()).reduce<
+    Array<[string, V2TemplateSharedStyleGroup]>
+  >((accumulator, [groupId, members]) => {
+    const group: V2TemplateSharedStyleGroup = {
+      memberSectionKeys: Array.from(members).sort(),
+      mode: "sync-all",
+    };
+    if (group.memberSectionKeys.length > 1) {
+      accumulator.push([groupId, group]);
+    }
+    return accumulator;
+  }, []);
+
+  return Object.fromEntries(entries);
 };
 
-const run = async () => {
-  const options = parseCliOptions();
+export const analyzeImportV2TemplateFromFigmaV2 = async (
+  options: Pick<CliOptions, "rootFigmaUrl" | "cardComponentSetUrl" | "figmaToken">
+): Promise<ImportV2FigmaAnalyzeResult> => {
   const loadedEnv = loadEnvFiles();
   hydrateProcessEnvFromLoaded(loadedEnv, [
     "FIGMA_ACCESS_TOKEN",
@@ -904,13 +1132,6 @@ const run = async () => {
   ]);
 
   const rootInfo = parseFigmaUrl(options.rootFigmaUrl);
-  const cardSetInfo = parseFigmaUrl(options.cardComponentSetUrl);
-
-  if (rootInfo.fileKey !== cardSetInfo.fileKey) {
-    throw new Error(
-      `root/card component set fileKey mismatch: root=${rootInfo.fileKey}, cardSet=${cardSetInfo.fileKey}`
-    );
-  }
 
   const figmaToken = options.figmaToken || process.env.FIGMA_ACCESS_TOKEN;
   if (!figmaToken) {
@@ -925,6 +1146,21 @@ const run = async () => {
   if (!fetchedRoot[rootInfo.nodeId]) {
     throw new Error(`Root frame not found: ${rootInfo.nodeId}`);
   }
+  const rootNode = fetchedRoot[rootInfo.nodeId];
+
+  const cardSetResolution = await resolveCardSetInfo({
+    rootInfo,
+    rootFigmaUrl: options.rootFigmaUrl,
+    rootNode,
+    figmaToken,
+    providedCardComponentSetUrl: options.cardComponentSetUrl,
+  });
+  const {
+    cardSetInfo,
+    cardComponentSetSource,
+    resolvedCardComponentSetUrl,
+    warnings: cardSetWarnings,
+  } = cardSetResolution;
 
   const fetchedSet = await fetchFigmaNodesByIds({
     fileKey: cardSetInfo.fileKey,
@@ -961,9 +1197,40 @@ const run = async () => {
   });
 
   const validation = validateCardComponentSet(entries);
+  const mergedValidation: ValidationResult = {
+    ...validation,
+    warnings: [...new Set([...cardSetWarnings, ...validation.warnings])],
+  };
+  const explicitExternalCardCandidates = buildSyntheticSharedStatusCandidates({
+    validation: mergedValidation,
+    nodesById: childNodesById,
+  });
+
+  return {
+    rootInfo,
+    cardSetInfo,
+    cardComponentSetSource,
+    resolvedCardComponentSetUrl,
+    validation: mergedValidation,
+    explicitExternalCardCandidates,
+  };
+};
+
+export const runImportV2TemplateFromFigmaV2 = async (
+  options: CliOptions
+) => {
+  const analysis = await analyzeImportV2TemplateFromFigmaV2({
+    rootFigmaUrl: options.rootFigmaUrl,
+    cardComponentSetUrl: options.cardComponentSetUrl,
+    figmaToken: options.figmaToken,
+  });
+  const { rootInfo, cardSetInfo, validation, explicitExternalCardCandidates } =
+    analysis;
+
   printValidationSummary({
     rootInfo,
     cardSetInfo,
+    cardComponentSetSource: analysis.cardComponentSetSource,
     result: validation,
     aiMode: options.aiMode,
   });
@@ -982,19 +1249,17 @@ const run = async () => {
 
   if (options.validateOnly) {
     console.log("[import:v2:figma:v2] validate-only complete. Skipping legacy importer execution.");
-    return;
+    return {
+      ...analysis,
+      importResult: null,
+    };
   }
-
-  const explicitExternalCardCandidates = buildSyntheticSharedStatusCandidates({
-    validation,
-    nodesById: childNodesById,
-  });
 
   console.log(
     `[import:v2:figma:v2] executing core importer with validated component-set candidates (${explicitExternalCardCandidates.length}) ...`
   );
 
-  await runImportV2TemplateFromFigma({
+  const importResult = await runImportV2TemplateFromFigma({
     figmaUrl: options.rootFigmaUrl,
     templateName: options.templateName,
     templateDescription: options.templateDescription,
@@ -1013,18 +1278,35 @@ const run = async () => {
     noAiAssetMatch: options.aiMode === "off",
     explicitExternalCardCandidates,
     skipExternalCardVariantAutodiscovery: true,
-    postProcessNormalizedConfig:
-      validation.mode === "shared-status"
-        ? (config) => ({
-            ...config,
-            sharedStyleGroups: buildSharedStyleGroups(config),
-          })
-        : undefined,
+    postProcessNormalizedConfig: (config) => {
+      const withSharedGroups =
+        validation.mode === "shared-status"
+          ? {
+              ...config,
+              sharedStyleGroups: buildSharedStyleGroups(config),
+            }
+          : config;
+      return typeof options.postProcessNormalizedConfig === "function"
+        ? options.postProcessNormalizedConfig(withSharedGroups)
+        : withSharedGroups;
+    },
   });
+
+  return {
+    ...analysis,
+    importResult,
+  };
 };
 
-run().catch((error) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(`[import:v2:figma:v2] failed: ${message}`);
-  process.exit(1);
-});
+const run = async () => {
+  const options = parseCliOptions();
+  await runImportV2TemplateFromFigmaV2(options);
+};
+
+if (require.main === module) {
+  run().catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[import:v2:figma:v2] failed: ${message}`);
+    process.exit(1);
+  });
+}

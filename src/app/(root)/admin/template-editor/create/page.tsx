@@ -34,6 +34,28 @@ const v2_toErrorMessage = (error: unknown, fallback: string): string => {
 type V2TemplateLocalePreset = 'kr' | 'en' | 'jp';
 type V2TemplateTimePreset = 'h12Prefix' | 'h12Suffix' | 'h24';
 type V2TemplateWeekDatePreset = 'locale' | 'ymdSlash' | 'mdySlash' | 'dmyDot';
+type V2DetectedLayoutMode = 'grid3x3' | 'flex4x2' | 'free';
+type V2LayoutOverrideMode = 'auto' | V2DetectedLayoutMode;
+
+type V2FigmaAnalyzeResponse = {
+  mode: 'matrix' | 'shared-status';
+  canImport: boolean;
+  detectedStatuses: string[];
+  statusCounts: Record<string, number>;
+  warnings: string[];
+  critical: string[];
+  templateNameSuggestion: string;
+  layoutModeCandidate: V2DetectedLayoutMode;
+  cardComponentSetSource: 'input' | 'auto-detected';
+  resolvedCardComponentSetUrl: string;
+};
+
+const v2_LAYOUT_MODE_LABEL: Record<V2LayoutOverrideMode, string> = {
+  auto: 'Auto',
+  grid3x3: '3 x 3 (Grid)',
+  flex4x2: '4 x 2 (Flex)',
+  free: 'Free',
+};
 
 const v2_createTemplateBaseConfig = (): V2TemplateRenderConfig => {
   return v2_createEmptyTemplateRenderConfig();
@@ -323,6 +345,18 @@ const TemplateEditorMainPage = () => {
   );
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [rootFigmaUrl, setRootFigmaUrl] = useState('');
+  const [cardComponentSetUrl, setCardComponentSetUrl] = useState('');
+  const [figmaTemplateName, setFigmaTemplateName] = useState('새 템플릿');
+  const [figmaTemplateDescription, setFigmaTemplateDescription] = useState('');
+  const [figmaLayoutModeOverride, setFigmaLayoutModeOverride] =
+    useState<V2LayoutOverrideMode>('auto');
+  const [figmaWithAssets, setFigmaWithAssets] = useState(true);
+  const [figmaAnalysis, setFigmaAnalysis] = useState<V2FigmaAnalyzeResponse | null>(null);
+  const [figmaAnalyzeError, setFigmaAnalyzeError] = useState<string | null>(null);
+  const [figmaImportError, setFigmaImportError] = useState<string | null>(null);
+  const [isAnalyzingFigma, setIsAnalyzingFigma] = useState(false);
+  const [isImportingFigma, setIsImportingFigma] = useState(false);
 
   const canCreate = useMemo(() => {
     const maxSlotValid = Number.isFinite(maxStreamingTimeByDay) && maxStreamingTimeByDay >= 1;
@@ -331,6 +365,24 @@ const TemplateEditorMainPage = () => {
     const themeValid = baseThemeOptions.includes(defaultTheme);
     return maxSlotValid && widthValid && heightValid && themeValid;
   }, [baseThemeOptions, defaultTheme, maxStreamingTimeByDay, templateHeight, templateWidth]);
+  const canAnalyzeFigma = useMemo(() => {
+    return rootFigmaUrl.trim().length > 0;
+  }, [rootFigmaUrl]);
+  const canImportFigma = useMemo(() => {
+    return (
+      canAnalyzeFigma &&
+      !isAnalyzingFigma &&
+      !isImportingFigma &&
+      figmaAnalysis?.canImport === true &&
+      figmaTemplateName.trim().length > 0
+    );
+  }, [
+    canAnalyzeFigma,
+    figmaAnalysis?.canImport,
+    figmaTemplateName,
+    isAnalyzingFigma,
+    isImportingFigma,
+  ]);
 
   const handleCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -501,6 +553,101 @@ const TemplateEditorMainPage = () => {
     }
   };
 
+  const handleAnalyzeFigma = async () => {
+    if (!canAnalyzeFigma) return;
+    setFigmaAnalyzeError(null);
+    setFigmaImportError(null);
+    setIsAnalyzingFigma(true);
+
+    try {
+      const response = await fetch('/api/admin/v2/templates/figma/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rootFigmaUrl: rootFigmaUrl.trim(),
+          cardComponentSetUrl: cardComponentSetUrl.trim() || undefined,
+          templateName: figmaTemplateName.trim() || undefined,
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as unknown;
+      if (!response.ok) {
+        throw new Error(
+          v2_extractApiErrorMessage(result) || 'Figma 분석에 실패했습니다.'
+        );
+      }
+      const analysis =
+        v2_isRecord(result) && v2_isRecord(result.analysis)
+          ? (result.analysis as unknown as V2FigmaAnalyzeResponse)
+          : null;
+      if (!analysis) {
+        throw new Error('Figma 분석 응답이 비어 있습니다.');
+      }
+      setFigmaAnalysis(analysis);
+      if (!cardComponentSetUrl.trim() && analysis.resolvedCardComponentSetUrl) {
+        setCardComponentSetUrl(analysis.resolvedCardComponentSetUrl);
+      }
+      if (!figmaTemplateName.trim() && analysis.templateNameSuggestion) {
+        setFigmaTemplateName(analysis.templateNameSuggestion);
+      }
+    } catch (error) {
+      setFigmaAnalysis(null);
+      setFigmaAnalyzeError(
+        v2_toErrorMessage(error, 'Figma 분석 중 오류가 발생했습니다.')
+      );
+    } finally {
+      setIsAnalyzingFigma(false);
+    }
+  };
+
+  const handleImportFromFigma = async () => {
+    if (!canImportFigma) return;
+    setFigmaImportError(null);
+    setIsImportingFigma(true);
+
+    try {
+      const response = await fetch('/api/admin/v2/templates/figma/import', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rootFigmaUrl: rootFigmaUrl.trim(),
+          cardComponentSetUrl: cardComponentSetUrl.trim() || undefined,
+          templateName: figmaTemplateName.trim(),
+          templateDescription: figmaTemplateDescription.trim() || undefined,
+          layoutModeOverride: figmaLayoutModeOverride,
+          withAssets: figmaWithAssets,
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as unknown;
+      if (!response.ok) {
+        throw new Error(
+          v2_extractApiErrorMessage(result) || 'Figma import에 실패했습니다.'
+        );
+      }
+
+      const templateId =
+        v2_isRecord(result) &&
+        v2_isRecord(result.import) &&
+        typeof result.import.templateId === 'string'
+          ? result.import.templateId
+          : null;
+      if (!templateId) {
+        throw new Error('Figma import 결과에서 templateId를 찾을 수 없습니다.');
+      }
+
+      router.push(`/admin/template-editor/${templateId}/edit`);
+    } catch (error) {
+      setFigmaImportError(
+        v2_toErrorMessage(error, 'Figma import 중 오류가 발생했습니다.')
+      );
+    } finally {
+      setIsImportingFigma(false);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-3xl px-6 py-10">
       <h1 className="text-2xl font-semibold">Template Editor Create</h1>
@@ -514,6 +661,220 @@ const TemplateEditorMainPage = () => {
       >
         목록으로 돌아가기
       </button>
+
+      <section className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">
+            Import From Figma
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            루트 프레임 링크를 기준으로 구조를 분석합니다. 카드 컴포넌트셋 링크는 자동 검출이 어려울 때만 override로 넣으면 됩니다.
+          </p>
+        </div>
+
+        <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-root-url">
+              루트 프레임 링크
+            </label>
+            <input
+              id="figma-root-url"
+              value={rootFigmaUrl}
+              onChange={(event) => setRootFigmaUrl(event.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              placeholder="https://www.figma.com/design/..."
+            />
+          </div>
+
+          <details className="rounded-md border border-slate-200 bg-white p-3">
+            <summary className="cursor-pointer text-sm font-medium text-slate-700">
+              고급 옵션: 카드 컴포넌트셋 링크 override
+            </summary>
+            <div className="mt-3">
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-card-url">
+                카드 컴포넌트셋 링크 (선택)
+              </label>
+              <input
+                id="figma-card-url"
+                value={cardComponentSetUrl}
+                onChange={(event) => setCardComponentSetUrl(event.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                placeholder="비워두면 root에서 자동 검출"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                root에서 여러 카드셋 후보가 섞였거나 자동 검출이 애매할 때만 직접 입력합니다.
+              </p>
+            </div>
+          </details>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-template-name">
+                템플릿 이름
+              </label>
+              <input
+                id="figma-template-name"
+                value={figmaTemplateName}
+                onChange={(event) => setFigmaTemplateName(event.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                placeholder="예: temis_shared_status"
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-layout-override">
+                배치 방식 override
+              </label>
+              <select
+                id="figma-layout-override"
+                value={figmaLayoutModeOverride}
+                onChange={(event) =>
+                  setFigmaLayoutModeOverride(event.target.value as V2LayoutOverrideMode)
+                }
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              >
+                {Object.entries(v2_LAYOUT_MODE_LABEL).map(([value, label]) => (
+                  <option key={`layout-mode-${value}`} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-template-description">
+              템플릿 설명
+            </label>
+            <textarea
+              id="figma-template-description"
+              rows={2}
+              value={figmaTemplateDescription}
+              onChange={(event) => setFigmaTemplateDescription(event.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              placeholder="예: Figma에서 불러온 공용 카드 템플릿"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={figmaWithAssets}
+              onChange={(event) => setFigmaWithAssets(event.target.checked)}
+            />
+            에셋도 함께 import
+          </label>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleAnalyzeFigma}
+              disabled={!canAnalyzeFigma || isAnalyzingFigma || isImportingFigma}
+              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isAnalyzingFigma ? '분석 중...' : '분석하기'}
+            </button>
+            <button
+              type="button"
+              onClick={handleImportFromFigma}
+              disabled={!canImportFigma}
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isImportingFigma ? '생성 중...' : 'Figma로 템플릿 만들기'}
+            </button>
+          </div>
+        </div>
+
+        {figmaAnalyzeError ? (
+          <p className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {figmaAnalyzeError}
+          </p>
+        ) : null}
+
+        {figmaImportError ? (
+          <p className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {figmaImportError}
+          </p>
+        ) : null}
+
+        {figmaAnalysis ? (
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Variant Mode
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {figmaAnalysis.mode}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Layout Candidate
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {v2_LAYOUT_MODE_LABEL[figmaAnalysis.layoutModeCandidate]}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Statuses
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {figmaAnalysis.detectedStatuses.join(', ') || '(none)'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Card Set Source
+                </p>
+                <p className="mt-1 text-sm font-medium text-slate-900">
+                  {figmaAnalysis.cardComponentSetSource === 'auto-detected'
+                    ? 'Auto-detected from root'
+                    : 'Manual input'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Resolved Card Set
+                </p>
+                <p className="mt-1 break-all text-sm font-medium text-slate-900">
+                  {figmaAnalysis.resolvedCardComponentSetUrl || '(none)'}
+                </p>
+              </div>
+            </div>
+
+            {figmaAnalysis.warnings.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
+                  Warnings
+                </p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-amber-700">
+                  {figmaAnalysis.warnings.map((warning) => (
+                    <li key={`figma-warning-${warning}`}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {figmaAnalysis.critical.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
+                  Critical
+                </p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-rose-700">
+                  {figmaAnalysis.critical.map((critical) => (
+                    <li key={`figma-critical-${critical}`}>{critical}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
 
       <form
         onSubmit={handleCreateTemplate}

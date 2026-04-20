@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 
 import {
+  getAssetUrlFromConfig,
   useTemplateRenderConfigContext,
   resolveAssetUrlFromConfig,
 } from "@/contexts/v2/template-render-config-context";
@@ -78,7 +79,7 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateRuntimeContext();
-  const { weekDates, profileText, memoText, imageSrc } =
+  const { weekDates, profileText, memoText, imageSrc, isProfileTextVisible } =
     useTemplateRuntimeData();
   const {
     layerTargetMap,
@@ -107,6 +108,22 @@ const V2SceneStructureRenderer = ({
   const firstCardHasOfflineMemo =
     typeof firstCard?.offlineMemo === "string" &&
     firstCard.offlineMemo.trim().length > 0;
+  const resolveArtistObjectAssetUrl = () => {
+    const candidateKeys = isProfileTextVisible
+      ? (["artistOnByTheme", "artist", "artistOffByTheme"] as const)
+      : (["artistOffByTheme", "artist", "artistOnByTheme"] as const);
+
+    for (const key of candidateKeys) {
+      const assetUrl = getAssetUrlFromConfig({
+        renderConfig,
+        key,
+        currentTheme,
+      });
+      if (assetUrl) return assetUrl;
+    }
+
+    return null;
+  };
   const renderTextNode = (node: V2TemplateSceneTextNode) => {
     const layout = v2_toRenderableLayout(
       resolveStyleRecordByKey(node.containerStyleKey)
@@ -184,11 +201,20 @@ const V2SceneStructureRenderer = ({
   };
 
   const renderAssetNode = (node: V2TemplateSceneAssetNode) => {
-    const configuredAssetUrl = resolveAssetUrlFromConfig({
-      renderConfig,
-      assetRef: node.assetRef,
-      currentTheme,
-    });
+    const usesArtistVisibilityAsset =
+      (node.id === "scene-artist-object" || node.layerId === "artist-object") &&
+      (!node.assetRef ||
+        (node.assetRef.source === "builtin" &&
+          (node.assetRef.key === "artist" ||
+            node.assetRef.key === "artistOnByTheme" ||
+            node.assetRef.key === "artistOffByTheme")));
+    const configuredAssetUrl = usesArtistVisibilityAsset
+      ? resolveArtistObjectAssetUrl()
+      : resolveAssetUrlFromConfig({
+          renderConfig,
+          assetRef: node.assetRef,
+          currentTheme,
+        });
     const { assetRole, assetUrl, isProfileImage, baseStyle, fit } =
       v2_resolveRuntimeAssetModel({
         node,

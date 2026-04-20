@@ -158,6 +158,8 @@ export interface V2TemplateAssetMap {
   bgByTheme: Record<string, string | null>;
   topObjectByTheme: Record<string, string | null>;
   memoByTheme: Record<string, string | null>;
+  artistOnByTheme: Record<string, string | null>;
+  artistOffByTheme: Record<string, string | null>;
   artist: Record<string, string | null>;
   onlineByTheme: Record<string, string | null>;
   online_mon: Record<string, string | null>;

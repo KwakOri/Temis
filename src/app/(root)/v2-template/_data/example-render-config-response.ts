@@ -169,6 +169,16 @@ export const v2_createExampleRenderConfigResponse =
             second: Imgs.first.memo.src,
             third: Imgs.first.memo.src,
           },
+          artistOnByTheme: {
+            first: Imgs.first.artist.src,
+            second: Imgs.first.artist.src,
+            third: Imgs.first.artist.src,
+          },
+          artistOffByTheme: {
+            first: null,
+            second: null,
+            third: null,
+          },
           artist: {
             first: Imgs.first.artist.src,
             second: Imgs.first.artist.src,
@@ -213,6 +223,16 @@ export const v2_createExampleRenderConfigResponse =
             third: null,
           },
           memoByTheme: {
+            first: null,
+            second: null,
+            third: null,
+          },
+          artistOnByTheme: {
+            first: null,
+            second: null,
+            third: null,
+          },
+          artistOffByTheme: {
             first: null,
             second: null,
             third: null,
