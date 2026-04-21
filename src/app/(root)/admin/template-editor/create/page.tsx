@@ -36,12 +36,14 @@ type V2TemplateTimePreset = 'h12Prefix' | 'h12Suffix' | 'h24';
 type V2TemplateWeekDatePreset = 'locale' | 'ymdSlash' | 'mdySlash' | 'dmyDot';
 type V2DetectedLayoutMode = 'grid3x3' | 'flex4x2' | 'free';
 type V2LayoutOverrideMode = 'auto' | V2DetectedLayoutMode;
+type V2StatusSourceMode = 'none' | 'shared' | 'byDay';
 
 type V2FigmaAnalyzeResponse = {
-  mode: 'matrix' | 'shared-status';
+  mode: 'matrix' | 'shared-status' | 'mixed-status';
   canImport: boolean;
   detectedStatuses: string[];
   statusCounts: Record<string, number>;
+  statusSourceModeByStatus: Record<string, V2StatusSourceMode>;
   warnings: string[];
   critical: string[];
   templateNameSuggestion: string;
@@ -816,6 +818,14 @@ const TemplateEditorMainPage = () => {
                 </p>
                 <p className="mt-1 text-sm font-medium text-slate-900">
                   {figmaAnalysis.detectedStatuses.join(', ') || '(none)'}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {figmaAnalysis.detectedStatuses
+                    .map(
+                      (status) =>
+                        `${status}:${figmaAnalysis.statusSourceModeByStatus[status] ?? 'none'}`
+                    )
+                    .join(' / ') || '(none)'}
                 </p>
               </div>
             </div>

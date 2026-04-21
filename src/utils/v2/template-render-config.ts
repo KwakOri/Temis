@@ -1601,6 +1601,16 @@ const v2_detachCardCollectionComponentsPerInstance = ({
 const v2_createSceneStyleKeyForComponentInstance = (nodeId: string): string =>
   `sceneNode:${nodeId}:style`;
 
+const v2_shouldFlattenCardCollectionGraphNodes = ({
+  gridLayout,
+}: {
+  gridLayout: Record<string, unknown> | undefined;
+}): boolean => {
+  const layoutMode =
+    typeof gridLayout?.layoutMode === "string" ? gridLayout.layoutMode : undefined;
+  return layoutMode === "free";
+};
+
 const v2_resolveCardInstanceTransform = ({
   instanceNode,
   componentDefinitions,
@@ -4143,17 +4153,9 @@ export const v2_createDefaultTemplateRenderConfig = (): V2TemplateRenderConfig =
     graph: cloned.graph,
     cardLayout: cloned.layout.card,
   });
-  const flattened = v2_flattenCardCollectionGraphNodes({
-    graph: detachedGraph,
-    sceneLayout: cloned.layout.scene,
-  });
   return {
     ...cloned,
-    graph: flattened.graph,
-    layout: {
-      ...cloned.layout,
-      scene: flattened.sceneLayout,
-    },
+    graph: detachedGraph,
   };
 };
 
@@ -4950,14 +4952,22 @@ export const v2_normalizeTemplateRenderConfig = (
     graph: normalized.graph,
     cardLayout: normalized.layout.card,
   });
-  const flattenedGraphResult = v2_flattenCardCollectionGraphNodes({
-    graph: normalized.graph,
-    sceneLayout: normalized.layout.scene,
-  });
-  normalized.graph = v2_filterTemplateComponentRootNodeIds(
-    flattenedGraphResult.graph
-  );
-  normalized.layout.scene = flattenedGraphResult.sceneLayout;
+  if (
+    v2_shouldFlattenCardCollectionGraphNodes({
+      gridLayout: normalized.layout.grid as Record<string, unknown> | undefined,
+    })
+  ) {
+    const flattenedGraphResult = v2_flattenCardCollectionGraphNodes({
+      graph: normalized.graph,
+      sceneLayout: normalized.layout.scene,
+    });
+    normalized.graph = v2_filterTemplateComponentRootNodeIds(
+      flattenedGraphResult.graph
+    );
+    normalized.layout.scene = flattenedGraphResult.sceneLayout;
+  } else {
+    normalized.graph = v2_filterTemplateComponentRootNodeIds(normalized.graph);
+  }
 
   if (rawCardLayoutSource) {
     const referencedCardLayoutKeys = new Set<string>();

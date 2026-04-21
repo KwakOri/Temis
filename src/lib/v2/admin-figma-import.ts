@@ -5,6 +5,7 @@ import {
 import type { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
 
 export type V2AdminFigmaLayoutMode = "grid3x3" | "flex4x2" | "free";
+export type V2AdminFigmaStatusSourceMode = "none" | "shared" | "byDay";
 
 export type V2AdminFigmaAnalyzeInput = {
   rootFigmaUrl: string;
@@ -81,6 +82,7 @@ export const v2_runAdminFigmaAnalyze = async (
     canImport: result.validation.critical.length === 0,
     detectedStatuses: v2_extractDetectedStatuses(result),
     statusCounts: result.validation.statusCounts,
+    statusSourceModeByStatus: result.statusSourceModeByStatus,
     warnings: result.validation.warnings,
     critical: result.validation.critical,
     templateNameSuggestion:
@@ -132,6 +134,7 @@ export const v2_runAdminFigmaImport = async (
         | undefined) ?? "grid3x3",
     mode: result.validation.mode,
     detectedStatuses: v2_extractDetectedStatuses(result),
+    statusSourceModeByStatus: result.statusSourceModeByStatus,
     cardComponentSetSource: result.cardComponentSetSource,
     resolvedCardComponentSetUrl: result.resolvedCardComponentSetUrl,
   };

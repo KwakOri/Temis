@@ -24,6 +24,8 @@ import {
   V2TemplateExtraAssetMap,
 } from "../src/types/time-table/template-render-config";
 
+type CardBackgroundAssetMode = "none" | "shared" | "byDay";
+
 export type ImportV2TemplateFromFigmaOptions = {
   figmaUrl: string;
   templateName?: string;
@@ -43,6 +45,9 @@ export type ImportV2TemplateFromFigmaOptions = {
   noAiAssetMatch: boolean;
   explicitExternalCardCandidates?: FigmaNode[];
   explicitExternalArtistVariantCandidates?: FigmaNode[];
+  cardBackgroundModeByStatus?: Partial<
+    Record<CardBackgroundVariantMode, CardBackgroundAssetMode>
+  >;
   explicitExternalWarnings?: string[];
   skipExternalCardVariantAutodiscovery?: boolean;
   postProcessNormalizedConfig?: (
@@ -857,35 +862,108 @@ const isCardBackgroundNodeForVariant = ({
   return false;
 };
 
-const applyCardBackgroundAssetsByDayToConfig = ({
+const applyCardBackgroundModeToConfig = ({
   config,
   mode,
-  enabled,
+  backgroundMode,
 }: {
   config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
   mode: CardBackgroundVariantMode;
-  enabled: boolean;
+  backgroundMode: CardBackgroundAssetMode;
 }) => {
-  const dayMap = enabled ? buildCardBackgroundDayAssetRefMap(mode) : null;
+  const variant = CARD_BACKGROUND_VARIANTS[mode];
+  const dayMap = backgroundMode === "byDay" ? buildCardBackgroundDayAssetRefMap(mode) : null;
+
   Object.entries(config.graph.nodes).forEach(([nodeId, node]) => {
     if (!isCardBackgroundNodeForVariant({ node, mode })) return;
+
     const nextMeta = {
       ...(node.meta ?? {}),
     };
-    if (enabled && dayMap) {
+
+    if (backgroundMode === "byDay" && dayMap) {
       nextMeta.assetRefByDayKey = dayMap;
     } else {
       delete nextMeta.assetRefByDayKey;
     }
+
+    if (variant.builtinAssetKey) {
+      nextMeta.assetRef = {
+        source: "builtin",
+        key: variant.builtinAssetKey,
+      };
+    }
+
     config.graph.nodes[nodeId] = {
       ...node,
       meta: nextMeta,
     };
   });
-  const optionKey = CARD_BACKGROUND_VARIANTS[mode].editorOptionByDayKey;
+
+  const optionKey = variant.editorOptionByDayKey;
   if (optionKey) {
-    config.editorOptions[optionKey] = enabled;
+    config.editorOptions[optionKey] = backgroundMode === "byDay";
   }
+};
+
+const resolveCardBackgroundModeFromMappedBuiltinKeys = ({
+  mappedBuiltinTargetKeys,
+  mode,
+}: {
+  mappedBuiltinTargetKeys: Set<V2TemplateBuiltinAssetKey>;
+  mode: CardBackgroundVariantMode;
+}): CardBackgroundAssetMode => {
+  const variant = CARD_BACKGROUND_VARIANTS[mode];
+  const hasAnyDayAsset = IMPORT_DAY_KEYS.some((dayKey) =>
+    mappedBuiltinTargetKeys.has(variant.dayAssetKeyByDay[dayKey])
+  );
+  if (hasAnyDayAsset) {
+    return "byDay";
+  }
+  if (variant.builtinAssetKey && mappedBuiltinTargetKeys.has(variant.builtinAssetKey)) {
+    return "shared";
+  }
+  return "none";
+};
+
+const promoteSharedCardBackgroundAsset = ({
+  config,
+  mode,
+  theme,
+  summary,
+}: {
+  config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
+  mode: CardBackgroundVariantMode;
+  theme: string;
+  summary: AssetImportSummary;
+}) => {
+  const variant = CARD_BACKGROUND_VARIANTS[mode];
+  if (!variant.builtinAssetKey) return;
+
+  const sharedKey = variant.builtinAssetKey;
+  if (config.assets[sharedKey]?.[theme]) return;
+
+  const sourceDayKey = IMPORT_DAY_KEYS.find(
+    (dayKey) => config.assets[variant.dayAssetKeyByDay[dayKey]]?.[theme]
+  );
+  if (!sourceDayKey) return;
+
+  const sourceKey = variant.dayAssetKeyByDay[sourceDayKey];
+  const sourceUrl = config.assets[sourceKey]?.[theme];
+  if (!sourceUrl) return;
+
+  config.assets[sharedKey][theme] = sourceUrl;
+  const sourceDimensions = config.assetDimensions[sourceKey]?.[theme];
+  if (sourceDimensions) {
+    if (!config.assetDimensions[sharedKey]) {
+      config.assetDimensions[sharedKey] = {};
+    }
+    config.assetDimensions[sharedKey][theme] = sourceDimensions;
+  }
+
+  summary.warnings.push(
+    `Promoted ${sourceKey} -> ${sharedKey} for shared ${mode} background.`
+  );
 };
 
 const getBounds = (
@@ -1154,6 +1232,42 @@ const parseArtistVariantStateFromRecord = (
   return undefined;
 };
 
+const parseCardStatusFromRecord = (
+  record: FigmaNodeRecord
+): CardTextStatus | undefined => {
+  const fromNode =
+    normalizeCardTextStatus(getNodeTagValue(record.node, "status")) ??
+    normalizeCardTextStatus(getNodeTagValue(record.node, "mode")) ??
+    normalizeCardTextStatus(getNodeTagValue(record.node, "state")) ??
+    parseCardStatusFromNodeName(record.node.name);
+  if (fromNode) return fromNode;
+  for (const ancestor of record.ancestors) {
+    const parsed =
+      normalizeCardTextStatus(getNodeTagValue(ancestor, "status")) ??
+      normalizeCardTextStatus(getNodeTagValue(ancestor, "mode")) ??
+      normalizeCardTextStatus(getNodeTagValue(ancestor, "state")) ??
+      parseCardStatusFromNodeName(ancestor.name);
+    if (parsed) return parsed;
+  }
+  return undefined;
+};
+
+const parseDayKeyFromRecord = (
+  record: FigmaNodeRecord
+): V2TemplateDayKey | undefined => {
+  const fromNode =
+    toDayTagKey(getNodeTagValue(record.node, "day")) ??
+    parseDayKeyFromNodeName(record.node.name);
+  if (fromNode) return fromNode as V2TemplateDayKey;
+  for (const ancestor of record.ancestors) {
+    const parsed =
+      toDayTagKey(getNodeTagValue(ancestor, "day")) ??
+      parseDayKeyFromNodeName(ancestor.name);
+    if (parsed) return parsed as V2TemplateDayKey;
+  }
+  return undefined;
+};
+
 const normalizeAssetSlot = (value: string | undefined): string | undefined => {
   if (!value) return undefined;
   return value
@@ -1402,8 +1516,9 @@ const resolveAssetTargetFromRecord = ({
   const slotTag = normalizeAssetSlot(getTagValueFromRecord(record, "slot"));
   const statusTag =
     normalizeAssetStatus(getTagValueFromRecord(record, "status")) ??
-    normalizeAssetStatus(getTagValueFromRecord(record, "mode"));
-  const dayTag = toDayTagKey(getTagValueFromRecord(record, "day"));
+    normalizeAssetStatus(getTagValueFromRecord(record, "mode")) ??
+    parseCardStatusFromRecord(record);
+  const dayTag = parseDayKeyFromRecord(record);
 
   if (slotTag && ASSET_SLOT_TO_BUILTIN_KEY[slotTag]) {
     const targetKey = ASSET_SLOT_TO_BUILTIN_KEY[slotTag];
@@ -1484,6 +1599,80 @@ const resolveAssetTargetFromRecord = ({
   }
 
   const nodeCanonicalName = canonicalName(nodeName);
+  const isGenericCardBackgroundNode = [
+    "imagebg",
+    "bg",
+    "background",
+    "imagebackground",
+  ].includes(nodeCanonicalName);
+  if (isGenericCardBackgroundNode && statusTag) {
+    if (statusTag === "online" && dayTag && builtinAssetKeySet.has(`online_${dayTag}`)) {
+      return {
+        targetType: "builtin",
+        targetKey: `online_${dayTag}`,
+        score: 83,
+        reason: `name(${nodeCanonicalName}) + status(${statusTag}) + day(${dayTag})`,
+      };
+    }
+    if (statusTag === "offline" && dayTag && builtinAssetKeySet.has(`offline_${dayTag}`)) {
+      return {
+        targetType: "builtin",
+        targetKey: `offline_${dayTag}`,
+        score: 83,
+        reason: `name(${nodeCanonicalName}) + status(${statusTag}) + day(${dayTag})`,
+      };
+    }
+    if (statusTag === "multi" && dayTag && builtinAssetKeySet.has(`multi_${dayTag}`)) {
+      return {
+        targetType: "builtin",
+        targetKey: `multi_${dayTag}`,
+        score: 83,
+        reason: `name(${nodeCanonicalName}) + status(${statusTag}) + day(${dayTag})`,
+      };
+    }
+    if (
+      statusTag === "offlineMemo" &&
+      dayTag &&
+      builtinAssetKeySet.has(`offlineMemo_${dayTag}`)
+    ) {
+      return {
+        targetType: "builtin",
+        targetKey: `offlineMemo_${dayTag}`,
+        score: 83,
+        reason: `name(${nodeCanonicalName}) + status(${statusTag}) + day(${dayTag})`,
+      };
+    }
+    if (statusTag === "online") {
+      if (builtinAssetKeySet.has("onlineByTheme")) {
+        return {
+          targetType: "builtin",
+          targetKey: "onlineByTheme",
+          score: 76,
+          reason: `name(${nodeCanonicalName}) + status(${statusTag})`,
+        };
+      }
+    }
+    if (statusTag === "offline") {
+      if (builtinAssetKeySet.has("offlineByTheme")) {
+        return {
+          targetType: "builtin",
+          targetKey: "offlineByTheme",
+          score: 76,
+          reason: `name(${nodeCanonicalName}) + status(${statusTag})`,
+        };
+      }
+    }
+    if (statusTag === "multi") {
+      if (builtinAssetKeySet.has("multiByTheme")) {
+        return {
+          targetType: "builtin",
+          targetKey: "multiByTheme",
+          score: 76,
+          reason: `name(${nodeCanonicalName}) + status(${statusTag})`,
+        };
+      }
+    }
+  }
   const artistVariantState = parseArtistVariantStateFromRecord(record);
   const isArtistBackgroundNode =
     artistVariantState &&
@@ -5057,6 +5246,7 @@ const importFigmaAssetsToConfig = async ({
   rootNode,
   externalCardCandidates = [],
   externalArtistVariantCandidates = [],
+  cardBackgroundModeByStatus,
   fileKey,
   figmaToken,
   templateId,
@@ -5070,6 +5260,9 @@ const importFigmaAssetsToConfig = async ({
   rootNode: FigmaNode;
   externalCardCandidates?: FigmaNode[];
   externalArtistVariantCandidates?: FigmaNode[];
+  cardBackgroundModeByStatus?: Partial<
+    Record<CardBackgroundVariantMode, CardBackgroundAssetMode>
+  >;
   fileKey: string;
   figmaToken: string;
   templateId: string;
@@ -5238,54 +5431,47 @@ const importFigmaAssetsToConfig = async ({
   const mappedBuiltinTargetKeys = new Set(
     dedupedCandidates
       .filter((candidate) => candidate.targetType === "builtin")
-      .map((candidate) => candidate.targetKey)
+      .map((candidate) => candidate.targetKey as V2TemplateBuiltinAssetKey)
   );
-  const hasOnlineDayAssets = IMPORT_DAY_KEYS.some((dayKey) =>
-    mappedBuiltinTargetKeys.has(
-      CARD_BACKGROUND_VARIANTS.online.dayAssetKeyByDay[dayKey]
-    )
+  const resolvedCardBackgroundModeByStatus: Record<
+    CardBackgroundVariantMode,
+    CardBackgroundAssetMode
+  > = {
+    online:
+      cardBackgroundModeByStatus?.online ??
+      resolveCardBackgroundModeFromMappedBuiltinKeys({
+        mappedBuiltinTargetKeys,
+        mode: "online",
+      }),
+    multi:
+      cardBackgroundModeByStatus?.multi ??
+      resolveCardBackgroundModeFromMappedBuiltinKeys({
+        mappedBuiltinTargetKeys,
+        mode: "multi",
+      }),
+    offline:
+      cardBackgroundModeByStatus?.offline ??
+      resolveCardBackgroundModeFromMappedBuiltinKeys({
+        mappedBuiltinTargetKeys,
+        mode: "offline",
+      }),
+    offlineMemo:
+      cardBackgroundModeByStatus?.offlineMemo ??
+      resolveCardBackgroundModeFromMappedBuiltinKeys({
+        mappedBuiltinTargetKeys,
+        mode: "offlineMemo",
+      }),
+  };
+
+  (Object.keys(resolvedCardBackgroundModeByStatus) as CardBackgroundVariantMode[]).forEach(
+    (mode) => {
+      applyCardBackgroundModeToConfig({
+        config,
+        mode,
+        backgroundMode: resolvedCardBackgroundModeByStatus[mode],
+      });
+    }
   );
-  const hasOfflineDayAssets = IMPORT_DAY_KEYS.some((dayKey) =>
-    mappedBuiltinTargetKeys.has(
-      CARD_BACKGROUND_VARIANTS.offline.dayAssetKeyByDay[dayKey]
-    )
-  );
-  const hasMultiDayAssets = IMPORT_DAY_KEYS.some((dayKey) =>
-    mappedBuiltinTargetKeys.has(CARD_BACKGROUND_VARIANTS.multi.dayAssetKeyByDay[dayKey])
-  );
-  const hasOfflineMemoDayAssets = IMPORT_DAY_KEYS.some((dayKey) =>
-    mappedBuiltinTargetKeys.has(
-      CARD_BACKGROUND_VARIANTS.offlineMemo.dayAssetKeyByDay[dayKey]
-    )
-  );
-  if (hasOnlineDayAssets) {
-    applyCardBackgroundAssetsByDayToConfig({
-      config,
-      mode: "online",
-      enabled: true,
-    });
-  }
-  if (hasMultiDayAssets) {
-    applyCardBackgroundAssetsByDayToConfig({
-      config,
-      mode: "multi",
-      enabled: true,
-    });
-  }
-  if (hasOfflineDayAssets) {
-    applyCardBackgroundAssetsByDayToConfig({
-      config,
-      mode: "offline",
-      enabled: true,
-    });
-  }
-  if (hasOfflineMemoDayAssets) {
-    applyCardBackgroundAssetsByDayToConfig({
-      config,
-      mode: "offlineMemo",
-      enabled: true,
-    });
-  }
 
   if (dedupedCandidates.length === 0) {
     return summary;
@@ -5355,6 +5541,18 @@ const importFigmaAssetsToConfig = async ({
       });
       summary.applied += 1;
     }
+
+    (Object.entries(resolvedCardBackgroundModeByStatus) as Array<
+      [CardBackgroundVariantMode, CardBackgroundAssetMode]
+    >).forEach(([mode, backgroundMode]) => {
+      if (backgroundMode !== "shared") return;
+      promoteSharedCardBackgroundAsset({
+        config,
+        mode,
+        theme,
+        summary,
+      });
+    });
 
     return summary;
   } catch (error) {
@@ -5553,6 +5751,7 @@ export const runImportV2TemplateFromFigma = async (
     )
       ? rawOptions.explicitExternalArtistVariantCandidates
       : [],
+    cardBackgroundModeByStatus: rawOptions.cardBackgroundModeByStatus,
     explicitExternalWarnings: Array.isArray(rawOptions.explicitExternalWarnings)
       ? rawOptions.explicitExternalWarnings
       : [],
@@ -5771,6 +5970,7 @@ export const runImportV2TemplateFromFigma = async (
       rootNode,
       externalCardCandidates,
       externalArtistVariantCandidates,
+      cardBackgroundModeByStatus: options.cardBackgroundModeByStatus,
       fileKey,
       figmaToken,
       templateId: templateIdForAssets,

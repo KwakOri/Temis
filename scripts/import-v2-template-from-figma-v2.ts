@@ -13,7 +13,11 @@ import type {
 type ImportAiMode = "review" | "off" | "autofix-lite";
 type CardStatus = "online" | "multi" | "offline" | "offlineMemo";
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
-type ValidationMode = "matrix" | "shared-status";
+type SourceDayToken = DayKey | "shared";
+type ValidationMode = "matrix" | "shared-status" | "mixed-status";
+type StatusSourceMode = "none" | "shared" | "byDay";
+type CardBackgroundMode = StatusSourceMode;
+type LayoutMode = "grid3x3" | "flex4x2" | "free";
 
 type CliOptions = {
   rootFigmaUrl: string;
@@ -34,6 +38,7 @@ type CliOptions = {
   assetTheme?: string;
   assetFormat?: "png" | "jpg" | "svg" | "pdf";
   aiMode: ImportAiMode;
+  layoutMode?: LayoutMode;
   postProcessNormalizedConfig?: (
     config: V2TemplateRenderConfig
   ) => V2TemplateRenderConfig;
@@ -62,7 +67,7 @@ type FigmaParseResult = {
 type VariantEntry = {
   nodeId: string;
   nodeName: string;
-  day?: DayKey;
+  day?: SourceDayToken;
   status?: CardStatus;
   structureIssues: string[];
 };
@@ -71,11 +76,16 @@ type ValidationResult = {
   mode: ValidationMode;
   entries: VariantEntry[];
   unresolved: VariantEntry[];
-  resolvedEntries: Array<VariantEntry & { status: CardStatus; day?: DayKey }>;
-  duplicatePairs: Array<{ day: DayKey; status: CardStatus; count: number; nodeIds: string[] }>;
-  duplicateStatuses: Array<{ status: CardStatus; count: number; nodeIds: string[] }>;
+  resolvedEntries: Array<VariantEntry & { status: CardStatus; day?: SourceDayToken }>;
+  duplicateSourceKeys: Array<{
+    status: CardStatus;
+    dayToken: string;
+    count: number;
+    nodeIds: string[];
+  }>;
   statusCounts: Record<CardStatus, number>;
-  statusDays: Record<CardStatus, DayKey[]>;
+  statusDays: Record<CardStatus, SourceDayToken[]>;
+  statusSourceModeByStatus: Record<CardStatus, StatusSourceMode>;
   critical: string[];
   warnings: string[];
 };
@@ -86,12 +96,52 @@ export type ImportV2FigmaAnalyzeResult = {
   cardComponentSetSource: "input" | "auto-detected";
   resolvedCardComponentSetUrl: string;
   validation: ValidationResult;
+  statusSourceModeByStatus: Record<CardStatus, StatusSourceMode>;
+  backgroundModeByStatus: Record<CardStatus, CardBackgroundMode>;
   explicitExternalCardCandidates: FigmaNode[];
 };
 
 const ROOT_DIR = path.resolve(__dirname, "..");
 const DAY_KEYS: DayKey[] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const STATUS_KEYS: CardStatus[] = ["online", "multi", "offline", "offlineMemo"];
+
+const createDefaultBackgroundModeByStatus = (): Record<CardStatus, CardBackgroundMode> => ({
+  online: "none",
+  multi: "none",
+  offline: "none",
+  offlineMemo: "none",
+});
+
+const createDefaultStatusSourceModeByStatus = (): Record<CardStatus, StatusSourceMode> => ({
+  online: "none",
+  multi: "none",
+  offline: "none",
+  offlineMemo: "none",
+});
+
+const isLayoutMode = (value: unknown): value is LayoutMode => {
+  return value === "grid3x3" || value === "flex4x2" || value === "free";
+};
+
+const applyLayoutModeOverride = ({
+  config,
+  layoutMode,
+}: {
+  config: V2TemplateRenderConfig;
+  layoutMode?: LayoutMode;
+}): V2TemplateRenderConfig => {
+  if (!isLayoutMode(layoutMode)) return config;
+  return {
+    ...config,
+    layout: {
+      ...config.layout,
+      grid: {
+        ...config.layout.grid,
+        layoutMode,
+      },
+    },
+  };
+};
 
 const DAY_ALIASES: Record<string, DayKey> = {
   mon: "mon",
@@ -234,6 +284,7 @@ const printHelp = () => {
       "  --asset-theme <theme>",
       "  --asset-format <png|jpg|svg|pdf>",
       "  --ai-mode <review|off|autofix-lite>",
+      "  --layout-mode <grid3x3|flex4x2|free>",
       "",
       "Environment fallback:",
       "  FIGMA_ACCESS_TOKEN",
@@ -242,6 +293,7 @@ const printHelp = () => {
       "Examples:",
       "  npm run import:v2:figma:v2 -- --root-figma-url '<root>'",
       "  npm run import:v2:figma:v2 -- --root-figma-url '<root>' --card-component-set-url '<cardset>' --write --template-name 'My V2'",
+      "  npm run import:v2:figma:v2 -- --root-figma-url '<root>' --layout-mode grid3x3 --write",
     ].join("\n")
   );
 };
@@ -279,6 +331,8 @@ const parseCliOptions = (): CliOptions => {
     typeof aiModeRaw === "string" && ["review", "off", "autofix-lite"].includes(aiModeRaw)
       ? (aiModeRaw as ImportAiMode)
       : "review";
+  const layoutModeRaw = argMap.get("layout-mode");
+  const layoutMode = isLayoutMode(layoutModeRaw) ? layoutModeRaw : undefined;
 
   return {
     rootFigmaUrl: rootFigmaUrl.trim(),
@@ -327,6 +381,7 @@ const parseCliOptions = (): CliOptions => {
         ? (argMap.get("asset-format") as "png" | "jpg" | "svg" | "pdf")
         : undefined,
     aiMode,
+    layoutMode,
   };
 };
 
@@ -480,13 +535,15 @@ const collectOfflineMemoStructureIssues = (variantNode: FigmaNode): string[] => 
   return issues;
 };
 
-const parseDay = (value: string | undefined): DayKey | undefined => {
+const parseDay = (value: string | undefined): SourceDayToken | undefined => {
   if (!value) return undefined;
   const normalized = normalizeToken(value);
+  if (normalized === "shared" || normalized === "common") return "shared";
   if (DAY_ALIASES[normalized]) return DAY_ALIASES[normalized];
   const byName = value.match(/day\s*=\s*([a-zA-Z가-힣]+)/i)?.[1];
   if (!byName) return undefined;
   const normalizedByName = normalizeToken(byName);
+  if (normalizedByName === "shared" || normalizedByName === "common") return "shared";
   return DAY_ALIASES[normalizedByName];
 };
 
@@ -754,146 +811,32 @@ const collectVariantEntries = ({
   return entries;
 };
 
-const validateMatrix = (entries: VariantEntry[]): ValidationResult => {
-  const unresolved = entries.filter((entry) => !entry.day || !entry.status);
-  const resolved = entries.filter(
-    (entry): entry is VariantEntry & { day: DayKey; status: CardStatus } =>
-      Boolean(entry.day && entry.status)
-  );
-
-  const pairMap = new Map<string, { day: DayKey; status: CardStatus; nodeIds: string[] }>();
-  for (const entry of resolved) {
-    const key = `${entry.day}::${entry.status}`;
-    const prev = pairMap.get(key);
-    if (!prev) {
-      pairMap.set(key, { day: entry.day, status: entry.status, nodeIds: [entry.nodeId] });
-    } else {
-      prev.nodeIds.push(entry.nodeId);
-      pairMap.set(key, prev);
-    }
-  }
-
-  const duplicatePairs = Array.from(pairMap.values())
-    .filter((row) => row.nodeIds.length > 1)
-    .map((row) => ({ ...row, count: row.nodeIds.length }));
-
-  const statusToDaySet: Record<CardStatus, Set<DayKey>> = {
-    online: new Set<DayKey>(),
-    multi: new Set<DayKey>(),
-    offline: new Set<DayKey>(),
-    offlineMemo: new Set<DayKey>(),
-  };
-  for (const entry of resolved) {
-    statusToDaySet[entry.status].add(entry.day);
-  }
-
-  const statusCounts: Record<CardStatus, number> = {
-    online: statusToDaySet.online.size,
-    multi: statusToDaySet.multi.size,
-    offline: statusToDaySet.offline.size,
-    offlineMemo: statusToDaySet.offlineMemo.size,
-  };
-
-  const statusDays: Record<CardStatus, DayKey[]> = {
-    online: Array.from(statusToDaySet.online.values()).sort(),
-    multi: Array.from(statusToDaySet.multi.values()).sort(),
-    offline: Array.from(statusToDaySet.offline.values()).sort(),
-    offlineMemo: Array.from(statusToDaySet.offlineMemo.values()).sort(),
-  };
-
-  const critical: string[] = [];
-  const warnings: string[] = [];
-
-  if (unresolved.length > 0) {
-    warnings.push(`Unresolved variants found: ${unresolved.length}`);
-  }
-  if (duplicatePairs.length > 0) {
-    critical.push(`Duplicate day/status variants found: ${duplicatePairs.length}`);
-  }
-
-  if (statusCounts.online !== 7) {
-    critical.push(`online must be exactly 7 variants (actual=${statusCounts.online})`);
-  }
-  if (statusCounts.offline !== 7) {
-    critical.push(`offline must be exactly 7 variants (actual=${statusCounts.offline})`);
-  }
-  if (statusCounts.multi !== 0 && statusCounts.multi !== 7) {
-    critical.push(`multi must be 0 or 7 variants (actual=${statusCounts.multi})`);
-  }
-  if (statusCounts.offlineMemo !== 0 && statusCounts.offlineMemo !== 7) {
-    critical.push(`offlineMemo must be 0 or 7 variants (actual=${statusCounts.offlineMemo})`);
-  }
-  entries.forEach((entry) => {
-    entry.structureIssues.forEach((issue) => {
-      critical.push(`${entry.nodeId}: ${issue}`);
-    });
-  });
-
-  return {
-    mode: "matrix",
-    entries,
-    unresolved,
-    resolvedEntries: resolved,
-    duplicatePairs,
-    duplicateStatuses: [],
-    statusCounts,
-    statusDays,
-    critical,
-    warnings,
-  };
-};
-
-const validateSharedStatus = (entries: VariantEntry[]): ValidationResult => {
+const validateCardComponentSet = (entries: VariantEntry[]): ValidationResult => {
   const unresolved = entries.filter((entry) => !entry.status);
   const resolved = entries.filter(
-    (entry): entry is VariantEntry & { status: CardStatus; day?: DayKey } =>
+    (entry): entry is VariantEntry & { status: CardStatus; day?: SourceDayToken } =>
       Boolean(entry.status)
   );
 
-  const statusMap = new Map<CardStatus, { status: CardStatus; nodeIds: string[] }>();
+  const duplicateMap = new Map<
+    string,
+    { status: CardStatus; dayToken: string; nodeIds: string[] }
+  >();
   resolved.forEach((entry) => {
-    const current = statusMap.get(entry.status) ?? {
+    const dayToken = entry.day ?? "(missing)";
+    const key = `${entry.status}::${dayToken}`;
+    const current = duplicateMap.get(key) ?? {
       status: entry.status,
+      dayToken,
       nodeIds: [],
     };
     current.nodeIds.push(entry.nodeId);
-    statusMap.set(entry.status, current);
+    duplicateMap.set(key, current);
   });
 
-  const duplicateStatuses = Array.from(statusMap.values())
+  const duplicateSourceKeys = Array.from(duplicateMap.values())
     .filter((row) => row.nodeIds.length > 1)
     .map((row) => ({ ...row, count: row.nodeIds.length }));
-
-  const statusDays: Record<CardStatus, DayKey[]> = {
-    online: Array.from(
-      new Set(
-        resolved
-          .filter((entry) => entry.status === "online" && entry.day)
-          .map((entry) => entry.day as DayKey)
-      )
-    ).sort(),
-    multi: Array.from(
-      new Set(
-        resolved
-          .filter((entry) => entry.status === "multi" && entry.day)
-          .map((entry) => entry.day as DayKey)
-      )
-    ).sort(),
-    offline: Array.from(
-      new Set(
-        resolved
-          .filter((entry) => entry.status === "offline" && entry.day)
-          .map((entry) => entry.day as DayKey)
-      )
-    ).sort(),
-    offlineMemo: Array.from(
-      new Set(
-        resolved
-          .filter((entry) => entry.status === "offlineMemo" && entry.day)
-          .map((entry) => entry.day as DayKey)
-      )
-    ).sort(),
-  };
 
   const statusCounts: Record<CardStatus, number> = {
     online: resolved.filter((entry) => entry.status === "online").length,
@@ -902,69 +845,130 @@ const validateSharedStatus = (entries: VariantEntry[]): ValidationResult => {
     offlineMemo: resolved.filter((entry) => entry.status === "offlineMemo").length,
   };
 
+  const statusDays: Record<CardStatus, SourceDayToken[]> = {
+    online: [],
+    multi: [],
+    offline: [],
+    offlineMemo: [],
+  };
+  const statusSourceModeByStatus = createDefaultStatusSourceModeByStatus();
   const critical: string[] = [];
   const warnings: string[] = [];
+
   if (unresolved.length > 0) {
     warnings.push(`Unresolved variants found: ${unresolved.length}`);
   }
-  if (duplicateStatuses.length > 0) {
-    critical.push(`Duplicate status variants found: ${duplicateStatuses.length}`);
+  if (duplicateSourceKeys.length > 0) {
+    critical.push(`Duplicate status/day variants found: ${duplicateSourceKeys.length}`);
   }
-  if (statusCounts.online !== 1) {
-    critical.push(`online must be exactly 1 shared variant (actual=${statusCounts.online})`);
-  }
-  if (statusCounts.offline !== 1) {
-    critical.push(`offline must be exactly 1 shared variant (actual=${statusCounts.offline})`);
-  }
-  if (statusCounts.multi !== 0 && statusCounts.multi !== 1) {
-    critical.push(`multi must be 0 or 1 shared variants (actual=${statusCounts.multi})`);
-  }
-  if (statusCounts.offlineMemo !== 0 && statusCounts.offlineMemo !== 1) {
+
+  STATUS_KEYS.forEach((status) => {
+    const statusEntries = resolved.filter((entry) => entry.status === status);
+    if (statusEntries.length === 0) {
+      statusSourceModeByStatus[status] = "none";
+      statusDays[status] = [];
+      return;
+    }
+
+    const uniqueDefinedDays = Array.from(
+      new Set(
+        statusEntries
+          .map((entry) => entry.day)
+          .filter((day): day is SourceDayToken => Boolean(day))
+      )
+    ).sort();
+    const hasSharedDay = uniqueDefinedDays.includes("shared");
+    const realDays = uniqueDefinedDays.filter((day): day is DayKey => day !== "shared");
+    const hasMissingDay = statusEntries.some((entry) => !entry.day);
+
+    if (hasSharedDay) {
+      if (statusEntries.length !== 1 || realDays.length > 0 || hasMissingDay) {
+        critical.push(
+          `${status} with day=shared must have exactly 1 variant and cannot mix with real days or missing day.`
+        );
+        return;
+      }
+      statusSourceModeByStatus[status] = "shared";
+      statusDays[status] = ["shared"];
+      return;
+    }
+
+    if (uniqueDefinedDays.length === 0) {
+      if (statusEntries.length === 1) {
+        statusSourceModeByStatus[status] = "shared";
+        statusDays[status] = ["shared"];
+        return;
+      }
+      critical.push(
+        `${status} must define day=shared for shared mode when multiple day properties exist in the component set.`
+      );
+      return;
+    }
+
+    if (hasMissingDay) {
+      critical.push(`${status} mixes day-tagged variants with missing day values.`);
+      return;
+    }
+
+    const hasAllDays = DAY_KEYS.every((dayKey) => realDays.includes(dayKey));
+    if (statusEntries.length === 7 && realDays.length === 7 && hasAllDays) {
+      statusSourceModeByStatus[status] = "byDay";
+      statusDays[status] = [...DAY_KEYS];
+      return;
+    }
+
     critical.push(
-      `offlineMemo must be 0 or 1 shared variants (actual=${statusCounts.offlineMemo})`
+      `${status} must be either 1 shared variant (day=shared) or 7 day variants (mon..sun). actual=${statusEntries.length} [${uniqueDefinedDays.join(",") || "(none)"}]`
     );
-  }
+  });
+
   entries.forEach((entry) => {
     entry.structureIssues.forEach((issue) => {
       critical.push(`${entry.nodeId}: ${issue}`);
     });
   });
 
+  const activeModes = Array.from(
+    new Set(
+      STATUS_KEYS.map((status) => statusSourceModeByStatus[status]).filter(
+        (mode): mode is Exclude<StatusSourceMode, "none"> => mode !== "none"
+      )
+    )
+  );
+  const mode: ValidationMode =
+    activeModes.length === 0 || activeModes.every((sourceMode) => sourceMode === "shared")
+      ? "shared-status"
+      : activeModes.every((sourceMode) => sourceMode === "byDay")
+        ? "matrix"
+        : "mixed-status";
+
   return {
-    mode: "shared-status",
+    mode,
     entries,
     unresolved,
     resolvedEntries: resolved,
-    duplicatePairs: [],
-    duplicateStatuses,
+    duplicateSourceKeys,
     statusCounts,
     statusDays,
+    statusSourceModeByStatus,
     critical,
     warnings,
   };
 };
 
-const validateCardComponentSet = (entries: VariantEntry[]): ValidationResult => {
-  const matrixResult = validateMatrix(entries);
-  if (matrixResult.critical.length === 0) {
-    return matrixResult;
-  }
-
-  const sharedStatusResult = validateSharedStatus(entries);
-  if (sharedStatusResult.critical.length === 0) {
-    return sharedStatusResult;
-  }
-
+const resolveCardBackgroundModeByStatus = ({
+  validation,
+}: {
+  validation: ValidationResult;
+}): {
+  backgroundModeByStatus: Record<CardStatus, CardBackgroundMode>;
+  warnings: string[];
+  critical: string[];
+} => {
   return {
-    ...matrixResult,
-    critical: [
-      ...new Set([
-        "card component set does not match matrix mode or shared-status mode",
-        ...matrixResult.critical,
-        ...sharedStatusResult.critical,
-      ]),
-    ],
-    warnings: [...new Set([...matrixResult.warnings, ...sharedStatusResult.warnings])],
+    backgroundModeByStatus: { ...validation.statusSourceModeByStatus },
+    warnings: [],
+    critical: [],
   };
 };
 
@@ -973,12 +977,14 @@ const printValidationSummary = ({
   cardSetInfo,
   cardComponentSetSource,
   result,
+  backgroundModeByStatus,
   aiMode,
 }: {
   rootInfo: FigmaParseResult;
   cardSetInfo: FigmaParseResult;
   cardComponentSetSource: "input" | "auto-detected";
   result: ValidationResult;
+  backgroundModeByStatus: Record<CardStatus, CardBackgroundMode>;
   aiMode: ImportAiMode;
 }) => {
   console.log(`[import:v2:figma:v2] root=${rootInfo.fileKey}:${rootInfo.nodeId}`);
@@ -990,20 +996,16 @@ const printValidationSummary = ({
   console.log("[import:v2:figma:v2] status counts:");
   STATUS_KEYS.forEach((status) => {
     console.log(
-      `  - ${status}: ${result.statusCounts[status]} [${result.statusDays[status].join(",") || "(none)"}]`
+      `  - ${status}: ${result.statusCounts[status]} [${result.statusDays[status].join(",") || "(none)"}] source=${result.statusSourceModeByStatus[status]} bg=${backgroundModeByStatus[status]}`
     );
   });
 
-  if (result.duplicatePairs.length > 0) {
-    console.log("[import:v2:figma:v2] duplicate day/status:");
-    result.duplicatePairs.forEach((row) => {
-      console.log(`  - ${row.day}/${row.status}: count=${row.count}, nodes=${row.nodeIds.join(",")}`);
-    });
-  }
-  if (result.duplicateStatuses.length > 0) {
-    console.log("[import:v2:figma:v2] duplicate statuses:");
-    result.duplicateStatuses.forEach((row) => {
-      console.log(`  - ${row.status}: count=${row.count}, nodes=${row.nodeIds.join(",")}`);
+  if (result.duplicateSourceKeys.length > 0) {
+    console.log("[import:v2:figma:v2] duplicate status/day:");
+    result.duplicateSourceKeys.forEach((row) => {
+      console.log(
+        `  - ${row.status}/${row.dayToken}: count=${row.count}, nodes=${row.nodeIds.join(",")}`
+      );
     });
   }
 
@@ -1034,19 +1036,18 @@ const buildSyntheticSharedStatusCandidates = ({
   validation: ValidationResult;
   nodesById: Record<string, FigmaNode>;
 }): FigmaNode[] => {
-  if (validation.mode !== "shared-status") {
-    return validation.resolvedEntries
-      .filter((entry): entry is VariantEntry & { day: DayKey; status: CardStatus } =>
-        Boolean(entry.day && entry.status)
-      )
-      .map((entry) => nodesById[entry.nodeId])
-      .filter((node): node is FigmaNode => Boolean(node));
-  }
-
   const syntheticCandidates: FigmaNode[] = [];
   validation.resolvedEntries.forEach((entry) => {
     const sourceNode = nodesById[entry.nodeId];
     if (!sourceNode || !entry.status) return;
+    const sourceMode = validation.statusSourceModeByStatus[entry.status];
+    if (sourceMode === "none") return;
+    if (sourceMode === "byDay") {
+      if (entry.day && entry.day !== "shared") {
+        syntheticCandidates.push(sourceNode);
+      }
+      return;
+    }
     DAY_KEYS.forEach((dayKey) => {
       const clonedNode = cloneFigmaNode(sourceNode);
       const baseName = sourceNode.name?.trim() || entry.nodeName;
@@ -1079,7 +1080,8 @@ const normalizeSharedStatusSectionKey = (sectionKey: string): string =>
   );
 
 const buildSharedStyleGroups = (
-  config: V2TemplateRenderConfig
+  config: V2TemplateRenderConfig,
+  statusSourceModeByStatus: Record<CardStatus, StatusSourceMode>
 ): Record<string, V2TemplateSharedStyleGroup> => {
   const groupsById = new Map<string, Set<string>>();
   Object.values(config.graph.nodes ?? {}).forEach((node) => {
@@ -1095,9 +1097,11 @@ const buildSharedStyleGroups = (
       if (!SHARED_STATUS_SECTION_DAY_TEST_REGEX.test(sectionKey)) return;
       const statusMatch = sectionKey.match(SHARED_STATUS_TOKEN_REGEX);
       if (!statusMatch?.[2]) return;
+      const normalizedStatus = statusMatch[2].toLowerCase() as CardStatus;
+      if (statusSourceModeByStatus[normalizedStatus] !== "shared") return;
       const normalizedKey = normalizeSharedStatusSectionKey(sectionKey);
       if (normalizedKey === sectionKey) return;
-      const groupId = `shared-status:${statusMatch[2].toLowerCase()}:${normalizedKey}`;
+      const groupId = `shared-status:${normalizedStatus}:${normalizedKey}`;
       const members = groupsById.get(groupId) ?? new Set<string>();
       members.add(sectionKey);
       groupsById.set(groupId, members);
@@ -1197,9 +1201,21 @@ export const analyzeImportV2TemplateFromFigmaV2 = async (
   });
 
   const validation = validateCardComponentSet(entries);
+  const backgroundModeResolution = resolveCardBackgroundModeByStatus({
+    validation,
+  });
   const mergedValidation: ValidationResult = {
     ...validation,
-    warnings: [...new Set([...cardSetWarnings, ...validation.warnings])],
+    warnings: [
+      ...new Set([
+        ...cardSetWarnings,
+        ...validation.warnings,
+        ...backgroundModeResolution.warnings,
+      ]),
+    ],
+    critical: [
+      ...new Set([...validation.critical, ...backgroundModeResolution.critical]),
+    ],
   };
   const explicitExternalCardCandidates = buildSyntheticSharedStatusCandidates({
     validation: mergedValidation,
@@ -1212,6 +1228,8 @@ export const analyzeImportV2TemplateFromFigmaV2 = async (
     cardComponentSetSource,
     resolvedCardComponentSetUrl,
     validation: mergedValidation,
+    statusSourceModeByStatus: mergedValidation.statusSourceModeByStatus,
+    backgroundModeByStatus: backgroundModeResolution.backgroundModeByStatus,
     explicitExternalCardCandidates,
   };
 };
@@ -1232,6 +1250,7 @@ export const runImportV2TemplateFromFigmaV2 = async (
     cardSetInfo,
     cardComponentSetSource: analysis.cardComponentSetSource,
     result: validation,
+    backgroundModeByStatus: analysis.backgroundModeByStatus,
     aiMode: options.aiMode,
   });
 
@@ -1277,18 +1296,26 @@ export const runImportV2TemplateFromFigmaV2 = async (
     assetFormat: options.assetFormat ?? "png",
     noAiAssetMatch: options.aiMode === "off",
     explicitExternalCardCandidates,
+    cardBackgroundModeByStatus: analysis.backgroundModeByStatus,
     skipExternalCardVariantAutodiscovery: true,
     postProcessNormalizedConfig: (config) => {
       const withSharedGroups =
-        validation.mode === "shared-status"
+        STATUS_KEYS.some((status) => validation.statusSourceModeByStatus[status] === "shared")
           ? {
               ...config,
-              sharedStyleGroups: buildSharedStyleGroups(config),
+              sharedStyleGroups: buildSharedStyleGroups(
+                config,
+                validation.statusSourceModeByStatus
+              ),
             }
           : config;
+      const withLayoutOverride = applyLayoutModeOverride({
+        config: withSharedGroups,
+        layoutMode: options.layoutMode,
+      });
       return typeof options.postProcessNormalizedConfig === "function"
-        ? options.postProcessNormalizedConfig(withSharedGroups)
-        : withSharedGroups;
+        ? options.postProcessNormalizedConfig(withLayoutOverride)
+        : withLayoutOverride;
     },
   });
 
