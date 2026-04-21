@@ -1358,17 +1358,24 @@ const parseArtistVariantStateFromNode = (
 ): ArtistVariantState | undefined => {
   if (!node) return undefined;
 
-  const variantPropertyValues = Object.values(node.variantProperties ?? {});
-  for (const rawValue of variantPropertyValues) {
+  for (const [rawKey, rawValue] of Object.entries(node.variantProperties ?? {})) {
+    const key = canonicalName(rawKey);
+    if (!key.includes("artist")) continue;
     const normalized = normalizeArtistVariantState(rawValue);
     if (normalized) return normalized;
   }
 
   const tokens = tokenizeNodeName(node.name);
-  if (tokens.includes("off") || tokens.includes("noartist")) {
+  const isArtistName =
+    tokens.includes("artist") ||
+    tokens.includes("artiston") ||
+    tokens.includes("artistoff") ||
+    tokens.includes("noartist");
+  if (!isArtistName) return undefined;
+  if (tokens.includes("off") || tokens.includes("artistoff") || tokens.includes("noartist")) {
     return "off";
   }
-  if (tokens.includes("on")) {
+  if (tokens.includes("on") || tokens.includes("artiston")) {
     return "on";
   }
   return undefined;
@@ -1519,6 +1526,24 @@ const resolveAssetTargetFromRecord = ({
     normalizeAssetStatus(getTagValueFromRecord(record, "mode")) ??
     parseCardStatusFromRecord(record);
   const dayTag = parseDayKeyFromRecord(record);
+  const nodeCanonicalName = canonicalName(nodeName);
+  const artistVariantState = parseArtistVariantStateFromRecord(record);
+  const isGenericBackgroundNode = [
+    "imagebg",
+    "bg",
+    "background",
+    "imagebackground",
+  ].includes(nodeCanonicalName);
+  const isArtistBackgroundNode = Boolean(artistVariantState && isGenericBackgroundNode);
+  if (isArtistBackgroundNode) {
+    return {
+      targetType: "builtin",
+      targetKey:
+        artistVariantState === "on" ? "artistOnByTheme" : "artistOffByTheme",
+      score: 88,
+      reason: `artist-variant(${artistVariantState})`,
+    };
+  }
 
   if (slotTag && ASSET_SLOT_TO_BUILTIN_KEY[slotTag]) {
     const targetKey = ASSET_SLOT_TO_BUILTIN_KEY[slotTag];
@@ -1598,13 +1623,7 @@ const resolveAssetTargetFromRecord = ({
     }
   }
 
-  const nodeCanonicalName = canonicalName(nodeName);
-  const isGenericCardBackgroundNode = [
-    "imagebg",
-    "bg",
-    "background",
-    "imagebackground",
-  ].includes(nodeCanonicalName);
+  const isGenericCardBackgroundNode = isGenericBackgroundNode;
   if (isGenericCardBackgroundNode && statusTag) {
     if (statusTag === "online" && dayTag && builtinAssetKeySet.has(`online_${dayTag}`)) {
       return {
@@ -1673,20 +1692,6 @@ const resolveAssetTargetFromRecord = ({
       }
     }
   }
-  const artistVariantState = parseArtistVariantStateFromRecord(record);
-  const isArtistBackgroundNode =
-    artistVariantState &&
-    ["imagebg", "bg", "background", "imagebackground"].includes(nodeCanonicalName);
-  if (isArtistBackgroundNode) {
-    return {
-      targetType: "builtin",
-      targetKey:
-        artistVariantState === "on" ? "artistOnByTheme" : "artistOffByTheme",
-      score: 84,
-      reason: `artist-variant(${artistVariantState})`,
-    };
-  }
-
   const inferredByName = v2_suggestAssetKeyByRule({
     fileName: nodeName,
     candidateKeys: builtinAssetKeys,
@@ -2105,10 +2110,10 @@ const parseCardStatusFromNodeName = (
   if (tokens.includes("multi") || tokens.includes("multiple")) {
     return "multi";
   }
-  if (tokens.includes("offline") || tokens.includes("off") || tokens.includes("rest")) {
+  if (tokens.includes("offline") || tokens.includes("rest")) {
     return "offline";
   }
-  if (tokens.includes("online") || tokens.includes("on") || tokens.includes("live")) {
+  if (tokens.includes("online") || tokens.includes("live")) {
     return "online";
   }
   return undefined;

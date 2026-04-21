@@ -614,7 +614,7 @@ const TemplateEditorMainPage = () => {
           templateName: figmaTemplateName.trim(),
           templateDescription: figmaTemplateDescription.trim() || undefined,
           layoutModeOverride: figmaLayoutModeOverride,
-          withAssets: figmaWithAssets,
+          assetImportMode: figmaWithAssets ? 'with-assets' : 'without-assets',
         }),
       });
       const result = (await response.json().catch(() => null)) as unknown;
@@ -752,14 +752,25 @@ const TemplateEditorMainPage = () => {
             />
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={figmaWithAssets}
-              onChange={(event) => setFigmaWithAssets(event.target.checked)}
-            />
-            에셋도 함께 import
-          </label>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-assets-mode">
+              에셋 import
+            </label>
+            <select
+              id="figma-assets-mode"
+              value={figmaWithAssets ? 'with-assets' : 'without-assets'}
+              onChange={(event) =>
+                setFigmaWithAssets(event.target.value === 'with-assets')
+              }
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="with-assets">포함 (R2에 업로드)</option>
+              <option value="without-assets">제외 (레이아웃만 생성)</option>
+            </select>
+            <p className="mt-1 text-xs text-slate-500">
+              포함을 선택하면 Figma 이미지 에셋을 가져와 R2 URL로 저장합니다.
+            </p>
+          </div>
 
           <div className="flex flex-wrap gap-2">
             <button

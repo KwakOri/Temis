@@ -1,7 +1,6 @@
 "use client";
 
 import { CroppedAreaPixels, ImageEditData } from "@/types/image-edit";
-import { v2StateStorage } from "@/utils/v2/localStorage";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
 
@@ -105,60 +104,17 @@ export const useTemplateState = (captureSize?: {
   width: number;
   height: number;
 }) => {
-  const [memoText, setMemoText] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return v2StateStorage.getItem("memoText", "");
-    }
-    return "";
-  });
-  const [imageSrc, setImageSrc] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return v2StateStorage.getItem("imageSrc", null);
-    }
-    return null;
-  });
+  const [memoText, setMemoText] = useState<string>("");
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [preferProfileDummyImage, setPreferProfileDummyImage] = useState<boolean>(
-    () => {
-      if (typeof window !== "undefined") {
-        return v2StateStorage.getItem("preferProfileDummyImage", false);
-      }
-      return false;
-    }
+    false
   );
-  const [isArtistVisible, setIsArtistVisible] = useState<boolean>(
-    () => {
-      if (typeof window !== "undefined") {
-        const nextValue = v2StateStorage.getItem("isArtistVisible", undefined);
-        if (typeof nextValue === "boolean") return nextValue;
-        return v2StateStorage.getItem("isProfileTextVisible", true);
-      }
-      return true;
-    }
-  );
-  const [isMemoTextVisible, setIsMemoTextVisible] = useState<boolean>(() => {
-    if (typeof window !== "undefined") {
-      return v2StateStorage.getItem("isMemoTextVisible", true);
-    }
-    return true;
-  });
-  const [selectedOptions, setSelectedOptions] = useState<V2OptionType[]>(() => {
-    if (typeof window !== "undefined") {
-      const stored = v2StateStorage.getItem("selectedOptions", ["none"]) as string[];
-      const normalized = stored.map((option) =>
-        option === "profile" ? "artist" : option
-      );
-      return normalized as V2OptionType[];
-    }
-    return ["none"];
-  });
+  const [isArtistVisible, setIsArtistVisible] = useState<boolean>(true);
+  const [isMemoTextVisible, setIsMemoTextVisible] = useState<boolean>(true);
+  const [selectedOptions, setSelectedOptions] = useState<V2OptionType[]>(["none"]);
 
   const [imageEditData, setImageEditData] = useState<ImageEditData | null>(
-    () => {
-      if (typeof window !== "undefined") {
-        return v2StateStorage.getItem("imageEditData", null);
-      }
-      return null;
-    }
+    null
   );
 
   const [mondayDateStr, setMondayDateStr] = useState<string>(
@@ -178,65 +134,12 @@ export const useTemplateState = (captureSize?: {
   }, [mondayDateStr]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      v2StateStorage.setItem("memoText", memoText);
-    }
-  }, [memoText]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (imageSrc) {
-        v2StateStorage.setItem("imageSrc", imageSrc);
-      } else {
-        v2StateStorage.removeItem("imageSrc");
-      }
-    }
-  }, [imageSrc]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      v2StateStorage.setItem(
-        "preferProfileDummyImage",
-        preferProfileDummyImage
-      );
-    }
-  }, [preferProfileDummyImage]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      v2StateStorage.setItem("isArtistVisible", isArtistVisible);
-    }
-  }, [isArtistVisible]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      v2StateStorage.setItem("isMemoTextVisible", isMemoTextVisible);
-    }
-  }, [isMemoTextVisible]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      v2StateStorage.setItem("selectedOptions", selectedOptions);
-    }
-  }, [selectedOptions]);
-
-  useEffect(() => {
     const hasArtist = selectedOptions.includes("artist");
     const hasMemo = selectedOptions.includes("memo");
 
     setIsArtistVisible(hasArtist);
     setIsMemoTextVisible(hasMemo);
   }, [selectedOptions]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (imageEditData) {
-        v2StateStorage.setItem("imageEditData", imageEditData);
-      } else {
-        v2StateStorage.removeItem("imageEditData");
-      }
-    }
-  }, [imageEditData]);
 
   useEffect(() => {
     const getDefaultMondayStringLocal = (): string => {

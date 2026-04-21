@@ -20,6 +20,13 @@ const v2_isLayoutModeOverride = (
   );
 };
 
+const v2_parseWithAssets = (body: Record<string, unknown>): boolean => {
+  const assetImportMode = body.assetImportMode;
+  if (assetImportMode === "with-assets") return true;
+  if (assetImportMode === "without-assets") return false;
+  return body.withAssets !== false;
+};
+
 export async function POST(request: NextRequest) {
   const adminCheck = await requireAdmin(request);
   if (adminCheck instanceof NextResponse) {
@@ -36,7 +43,7 @@ export async function POST(request: NextRequest) {
     const layoutModeOverride = v2_isLayoutModeOverride(body?.layoutModeOverride)
       ? body.layoutModeOverride
       : "auto";
-    const withAssets = body?.withAssets !== false;
+    const withAssets = v2_parseWithAssets(body ?? {});
 
     if (!rootFigmaUrl) {
       return NextResponse.json(

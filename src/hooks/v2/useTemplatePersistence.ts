@@ -1,15 +1,11 @@
-import { useEffect } from "react";
-import {
-  TDefaultCard,
-  TGlobalData,
-} from "@/types/time-table/data";
+import { useCallback, useEffect, useMemo } from "react";
+import { TDefaultCard, TGlobalData } from "@/types/time-table/data";
 import { V2TemplateFormSchema } from "@/types/time-table/template-render-config";
 import { TTheme } from "@/types/time-table/theme";
 import {
-  useV2AutoSavePersistence,
-  useV2BeforeUnloadSave,
-  useV2FormPersistence,
-} from "@/utils/v2/v2-form-persistence";
+  v2_createInitialGlobalDataFromFormSchema,
+  v2_getDefaultCardsFromFormSchema,
+} from "@/utils/v2/v2-form-data";
 
 export interface UseTemplatePersistenceOptions {
   data: TDefaultCard[];
@@ -26,26 +22,26 @@ export const useTemplatePersistence = ({
   currentTheme,
   inputSchema,
   defaultTheme,
-  autoSaveDelay = 1000,
 }: UseTemplatePersistenceOptions) => {
-  const formPersistence = useV2FormPersistence(inputSchema, defaultTheme);
-
-  useV2AutoSavePersistence(
-    data,
-    globalData,
-    currentTheme,
-    inputSchema,
-    defaultTheme,
-    autoSaveDelay
+  const defaultCards = useMemo(
+    () => v2_getDefaultCardsFromFormSchema({ formSchema: inputSchema }),
+    [inputSchema]
+  );
+  const defaultGlobalData = useMemo(
+    () => v2_createInitialGlobalDataFromFormSchema({ formSchema: inputSchema }),
+    [inputSchema]
   );
 
-  useV2BeforeUnloadSave(
-    data,
-    globalData,
-    currentTheme,
-    inputSchema,
-    defaultTheme
+  const loadPersistedData = useCallback(
+    () => ({
+      data: defaultCards,
+      globalData: defaultGlobalData,
+      theme: defaultTheme,
+    }),
+    [defaultCards, defaultGlobalData, defaultTheme]
   );
+
+  const clearAllData = useCallback(() => true, []);
 
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
@@ -59,7 +55,7 @@ export const useTemplatePersistence = ({
   }, [inputSchema.fields.length, currentTheme, data, globalData]);
 
   return {
-    loadPersistedData: formPersistence.loadPersistedData,
-    clearAllData: formPersistence.clearAllData,
+    loadPersistedData,
+    clearAllData,
   };
 };
