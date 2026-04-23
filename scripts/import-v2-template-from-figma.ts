@@ -90,6 +90,14 @@ export type FigmaNode = {
     width?: number;
     height?: number;
   };
+  size?: {
+    x?: number;
+    y?: number;
+  };
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
   rotation?: number;
   relativeTransform?: number[][];
   style?: {
@@ -2309,6 +2317,39 @@ const applyRectToLayoutObject = ({
   }
 };
 
+const getLocalNodeRect = (node: FigmaNode | undefined): Rect | null => {
+  if (!node) return null;
+
+  const directLeft = Number(node.x);
+  const directTop = Number(node.y);
+  const transformLeft = Number(node.relativeTransform?.[0]?.[2]);
+  const transformTop = Number(node.relativeTransform?.[1]?.[2]);
+  const width = Number(node.width ?? node.size?.x ?? node.absoluteBoundingBox?.width);
+  const height = Number(
+    node.height ?? node.size?.y ?? node.absoluteBoundingBox?.height
+  );
+  const left = Number.isFinite(directLeft) ? directLeft : transformLeft;
+  const top = Number.isFinite(directTop) ? directTop : transformTop;
+
+  if (
+    !Number.isFinite(left) ||
+    !Number.isFinite(top) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height)
+  ) {
+    return null;
+  }
+
+  const rotateDeg = getRotationDeg(node);
+  return {
+    left: round(left),
+    top: round(top),
+    width: round(width),
+    height: round(height),
+    ...(rotateDeg && Math.abs(rotateDeg) > 0.0001 ? { rotateDeg } : {}),
+  };
+};
+
 const applyFlexibleLayoutToTargets = ({
   rect,
   containerTarget,
@@ -2411,6 +2452,305 @@ const removeGraphSubtree = ({
   if (!config.graph.nodes[nodeId]) return;
   config.graph = v2_graphRemoveNodeSubtree(config.graph, nodeId);
   summary.notApplicable.push(reason);
+};
+
+const findDirectWeekDateChild = ({
+  rootNode,
+  aliases,
+}: {
+  rootNode: FigmaNode | undefined;
+  aliases: readonly string[];
+}): FigmaNode | undefined => {
+  if (!rootNode || !Array.isArray(rootNode.children)) return undefined;
+  return rootNode.children.find((child) => {
+    const childName = child.name;
+    if (!childName) return false;
+    return aliases.some((alias) => canonicalName(alias) === canonicalName(childName));
+  });
+};
+
+const getWeekDateTextPartNode = ({
+  rootNode,
+  aliases,
+}: {
+  rootNode: FigmaNode | undefined;
+  aliases: readonly string[];
+}): FigmaNode | undefined => {
+  if (!rootNode) return undefined;
+  const direct = findDirectWeekDateChild({ rootNode, aliases });
+  if (direct && isTextNode(direct)) return direct;
+  const descendants = flattenNodes(rootNode).slice(1);
+  return descendants.find(
+    (node) => {
+      const nodeName = node.name;
+      return (
+        isTextNode(node) &&
+        Boolean(
+          nodeName &&
+            aliases.some((alias) => canonicalName(alias) === canonicalName(nodeName))
+        )
+      );
+    }
+  );
+};
+
+const applyLocalRectToSceneStyle = ({
+  node,
+  parentNode,
+  target,
+}: {
+  node: FigmaNode | undefined;
+  parentNode?: FigmaNode;
+  target: Record<string, unknown>;
+}) => {
+  target.position = "absolute";
+  const fallbackRect = parentNode
+    ? toRelativeRect({
+        rootNode: parentNode,
+        targetNode: node,
+      })
+    : null;
+  applyRectToLayoutObject({
+    rect: getLocalNodeRect(node) ?? fallbackRect,
+    target,
+  });
+};
+
+const applySeparatedWeekDatesFromFigmaNode = ({
+  config,
+  rootNode,
+  weekDatesNode,
+  summary,
+}: {
+  config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
+  rootNode: FigmaNode;
+  weekDatesNode: FigmaNode | undefined;
+  summary: MappingSummary;
+}): boolean => {
+  if (!weekDatesNode) return false;
+
+  const startNode = findDirectWeekDateChild({
+    rootNode: weekDatesNode,
+    aliases: ["start", "weekStart", "week.start"],
+  });
+  const endNode = findDirectWeekDateChild({
+    rootNode: weekDatesNode,
+    aliases: ["end", "weekEnd", "week.end"],
+  });
+  const startMonthNode = getWeekDateTextPartNode({
+    rootNode: startNode,
+    aliases: ["mm", "MM", "month", "startMonth"],
+  });
+  const startDateNode = getWeekDateTextPartNode({
+    rootNode: startNode,
+    aliases: ["dd", "DD", "date", "day", "startDate"],
+  });
+  const endMonthNode = getWeekDateTextPartNode({
+    rootNode: endNode,
+    aliases: ["mm", "MM", "month", "endMonth"],
+  });
+  const endDateNode = getWeekDateTextPartNode({
+    rootNode: endNode,
+    aliases: ["dd", "DD", "date", "day", "endDate"],
+  });
+
+  const hasSeparatedStructure = Boolean(
+    startNode &&
+      endNode &&
+      startMonthNode &&
+      startDateNode &&
+      endMonthNode &&
+      endDateNode
+  );
+  if (!hasSeparatedStructure) return false;
+
+  const sceneLayout = config.layout.scene as Record<string, Record<string, unknown>>;
+  const ensureSceneStyle = (styleKey: string): Record<string, unknown> => {
+    const current = sceneLayout[styleKey];
+    const next =
+      current && typeof current === "object" && !Array.isArray(current)
+        ? current
+        : {};
+    sceneLayout[styleKey] = next;
+    return next;
+  };
+
+  const weekDatesStyle = ensureSceneStyle("weekDates");
+  weekDatesStyle.position = "absolute";
+  applyRectToLayoutObject({
+    rect: toRelativeRect({ rootNode, targetNode: weekDatesNode }),
+    target: weekDatesStyle,
+    includeRotation: false,
+  });
+
+  const startStyle = ensureSceneStyle("weekDatesStart");
+  applyLocalRectToSceneStyle({
+    node: startNode,
+    parentNode: weekDatesNode,
+    target: startStyle,
+  });
+
+  const endStyle = ensureSceneStyle("weekDatesEnd");
+  applyLocalRectToSceneStyle({
+    node: endNode,
+    parentNode: weekDatesNode,
+    target: endStyle,
+  });
+
+  const textParts = [
+    {
+      id: "scene-week-start-month",
+      label: "MM",
+      layerId: "week-start-month",
+      parentId: "scene-week-dates-start",
+      bindingKey: "weekStartMonth",
+      styleKey: "weekStartMonth",
+      node: startMonthNode,
+    },
+    {
+      id: "scene-week-start-date",
+      label: "DD",
+      layerId: "week-start-date",
+      parentId: "scene-week-dates-start",
+      bindingKey: "weekStartDate",
+      styleKey: "weekStartDate",
+      node: startDateNode,
+    },
+    {
+      id: "scene-week-end-month",
+      label: "MM",
+      layerId: "week-end-month",
+      parentId: "scene-week-dates-end",
+      bindingKey: "weekEndMonth",
+      styleKey: "weekEndMonth",
+      node: endMonthNode,
+    },
+    {
+      id: "scene-week-end-date",
+      label: "DD",
+      layerId: "week-end-date",
+      parentId: "scene-week-dates-end",
+      bindingKey: "weekEndDate",
+      styleKey: "weekEndDate",
+      node: endDateNode,
+    },
+  ] as const;
+
+  textParts.forEach((part) => {
+    const target = ensureSceneStyle(part.styleKey);
+    const parentNode = part.parentId === "scene-week-dates-start" ? startNode : endNode;
+    applyLocalRectToSceneStyle({ node: part.node, parentNode, target });
+    applyTextStyleFromContentNode({
+      containerNode: part.node,
+      target,
+    });
+  });
+
+  const weekFlagGraphNode = config.graph.nodes["scene-week-flag"];
+  if (weekFlagGraphNode) {
+    weekFlagGraphNode.type = "group";
+    weekFlagGraphNode.label = "WeekDates";
+    weekFlagGraphNode.layerId = "week-flag";
+    weekFlagGraphNode.childIds = ["scene-week-dates-end", "scene-week-dates-start"];
+    weekFlagGraphNode.styles = {
+      styleKey: "weekDates",
+    };
+    weekFlagGraphNode.meta = {
+      layerTarget: "sceneNode:scene-week-flag",
+      layerSectionKey: "weekDates",
+      layerIcon: "calendar",
+      layerComponentKey: "weekFlag",
+    };
+    delete weekFlagGraphNode.binding;
+    delete weekFlagGraphNode.highlightTarget;
+  } else {
+    config.graph.rootNodeIds.push("scene-week-flag");
+    config.graph.nodes["scene-week-flag"] = {
+      id: "scene-week-flag",
+      type: "group",
+      label: "WeekDates",
+      parentId: null,
+      childIds: ["scene-week-dates-end", "scene-week-dates-start"],
+      layerId: "week-flag",
+      visibilityMode: "always",
+      styles: {
+        styleKey: "weekDates",
+      },
+      meta: {
+        layerTarget: "sceneNode:scene-week-flag",
+        layerSectionKey: "weekDates",
+        layerIcon: "calendar",
+        layerComponentKey: "weekFlag",
+      },
+    };
+  }
+
+  config.graph.nodes["scene-week-dates-end"] = {
+    id: "scene-week-dates-end",
+    type: "group",
+    label: "end",
+    parentId: "scene-week-flag",
+    childIds: ["scene-week-end-date", "scene-week-end-month"],
+    layerId: "week-dates-end",
+    visibilityMode: "always",
+    styles: {
+      styleKey: "weekDatesEnd",
+    },
+    meta: {
+      layerTarget: "sceneNode:scene-week-dates-end",
+      layerSectionKey: "weekDatesEnd",
+      layerIcon: "group",
+    },
+  };
+  config.graph.nodes["scene-week-dates-start"] = {
+    id: "scene-week-dates-start",
+    type: "group",
+    label: "start",
+    parentId: "scene-week-flag",
+    childIds: ["scene-week-start-date", "scene-week-start-month"],
+    layerId: "week-dates-start",
+    visibilityMode: "always",
+    styles: {
+      styleKey: "weekDatesStart",
+    },
+    meta: {
+      layerTarget: "sceneNode:scene-week-dates-start",
+      layerSectionKey: "weekDatesStart",
+      layerIcon: "group",
+    },
+  };
+
+  textParts.forEach((part) => {
+    config.graph.nodes[part.id] = {
+      id: part.id,
+      type: "text",
+      label: part.label,
+      parentId: part.parentId,
+      childIds: [],
+      layerId: part.layerId,
+      visibilityMode: "always",
+      binding: {
+        mode: "computed",
+        key: part.bindingKey,
+      },
+      styles: {
+        containerStyleKey: part.styleKey,
+      },
+      highlightTarget: `sceneNode:${part.id}`,
+      meta: {
+        colorKey: "WEEKLY_FLAG",
+        fontKey: "WEEKLY_FLAG",
+        layerTarget: `sceneNode:${part.id}`,
+        layerSectionKey: part.styleKey,
+        layerIcon: "calendar",
+        containerClassName: "absolute flex items-center justify-center",
+      },
+    };
+  });
+
+  summary.applied.push("graph.weekDates.separatedParts");
+  summary.applied.push("layout.weekDates.parts");
+  return true;
 };
 
 const applyNotApplicablePruning = ({
@@ -3377,12 +3717,20 @@ const applyLayoutMappingsFromFigma = ({
     includeRotation: false,
   });
   if (weekFlagNode) {
-    const appliedWeekFlagTextStyle = applyTextStyleFromContentNode({
-      containerNode: weekFlagNode,
-      target: config.layout.weekFlag as unknown as Record<string, unknown>,
+    const appliedSeparatedWeekDates = applySeparatedWeekDatesFromFigmaNode({
+      config,
+      rootNode,
+      weekDatesNode: weekFlagNode,
+      summary,
     });
-    if (!appliedWeekFlagTextStyle) {
-      summary.warnings.push("WeekFlag Content(TEXT) not found; text style skipped.");
+    if (!appliedSeparatedWeekDates) {
+      const appliedWeekFlagTextStyle = applyTextStyleFromContentNode({
+        containerNode: weekFlagNode,
+        target: config.layout.weekFlag as unknown as Record<string, unknown>,
+      });
+      if (!appliedWeekFlagTextStyle) {
+        summary.warnings.push("WeekFlag Content(TEXT) not found; text style skipped.");
+      }
     }
     summary.applied.push("layout.weekFlag");
   }

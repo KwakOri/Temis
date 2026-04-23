@@ -1,4 +1,11 @@
 const v2_PROPERTIES_STYLE_EDITOR_TITLE_BY_SECTION: Record<string, string> = {
+  weekDates: "week dates style",
+  weekDatesStart: "start container style",
+  weekDatesEnd: "end container style",
+  weekStartMonth: "start month text style",
+  weekStartDate: "start date text style",
+  weekEndMonth: "end month text style",
+  weekEndDate: "end date text style",
   topObjectContainer: "container style",
   memoContainer: "object container style",
   memoContentContainer: "content container style",

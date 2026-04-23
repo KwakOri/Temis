@@ -219,6 +219,13 @@ export const v2_SCENE_CUSTOM_LAYER_ID_PREFIX = "scene-custom-layer-";
 export type V2StyleSectionKey =
   | "grid"
   | "weekFlag"
+  | "weekDates"
+  | "weekDatesStart"
+  | "weekDatesEnd"
+  | "weekStartMonth"
+  | "weekStartDate"
+  | "weekEndMonth"
+  | "weekEndDate"
   | "topObjectContainer"
   | "memoContainer"
   | "memoContentContainer"
@@ -253,6 +260,13 @@ export type V2StyleSectionId = V2StyleSectionKey | string;
 export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   grid: "Grid",
   weekFlag: "WeekFlag",
+  weekDates: "WeekDates",
+  weekDatesStart: "WeekDates.Start",
+  weekDatesEnd: "WeekDates.End",
+  weekStartMonth: "WeekDates.Start.MM",
+  weekStartDate: "WeekDates.Start.DD",
+  weekEndMonth: "WeekDates.End.MM",
+  weekEndDate: "WeekDates.End.DD",
   topObjectContainer: "TopObject",
   memoContainer: "Memo.Container",
   memoContentContainer: "Memo.ContentContainer",
@@ -286,6 +300,13 @@ export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
 export const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "grid",
   "weekFlag",
+  "weekDates",
+  "weekDatesStart",
+  "weekStartMonth",
+  "weekStartDate",
+  "weekDatesEnd",
+  "weekEndMonth",
+  "weekEndDate",
   "topObjectContainer",
   "memoContainer",
   "memoContentContainer",
@@ -322,6 +343,13 @@ export const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
 > = {
   grid: "grid",
   weekFlag: "weekFlag",
+  weekDates: "sceneNode:scene-week-flag",
+  weekDatesStart: "sceneNode:scene-week-dates-start",
+  weekDatesEnd: "sceneNode:scene-week-dates-end",
+  weekStartMonth: "sceneNode:scene-week-start-month",
+  weekStartDate: "sceneNode:scene-week-start-date",
+  weekEndMonth: "sceneNode:scene-week-end-month",
+  weekEndDate: "sceneNode:scene-week-end-date",
   topObjectContainer: "topObjectContainer",
   memoContainer: "memoObject",
   memoContentContainer: "memoText",
@@ -411,6 +439,3 @@ export const v2_HIGHLIGHT_TARGET_LABELS: Record<
   cardSubTitleContainer: "Card / SubTitle",
   cardContainer: "Card Container",
 };
-
-export const v2_BOILERPLATE_STORAGE_KEY =
-  "v2-template-builder-style-boilerplates-v1";

@@ -1,6 +1,84 @@
 import { V2BoilerplateGroupConfig } from "./boilerplate-ui-utils";
 import { v2_BOILERPLATE_SELECT_OPTIONS } from "./boilerplate-presets";
 
+const v2_WEEK_DATES_CONTAINER_GROUPS: V2BoilerplateGroupConfig[] = [
+  {
+    id: "transform",
+    label: "Transform",
+    fields: [
+      {
+        key: "position",
+        label: "Position",
+        type: "select",
+        options: v2_BOILERPLATE_SELECT_OPTIONS.position,
+      },
+      { key: "top", label: "Top" },
+      { key: "left", label: "Left" },
+      { key: "right", label: "Right" },
+      { key: "bottom", label: "Bottom" },
+      { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+      { key: "width", label: "Width" },
+      { key: "height", label: "Height" },
+      { key: "opacity", label: "Opacity", step: "0.01" },
+      { key: "zIndex", label: "Z Index" },
+    ],
+  },
+];
+
+const v2_WEEK_DATES_TEXT_GROUPS: V2BoilerplateGroupConfig[] = [
+  {
+    id: "transform",
+    label: "Transform",
+    fields: [
+      {
+        key: "position",
+        label: "Position",
+        type: "select",
+        options: v2_BOILERPLATE_SELECT_OPTIONS.position,
+      },
+      { key: "top", label: "Top" },
+      { key: "left", label: "Left" },
+      { key: "right", label: "Right" },
+      { key: "bottom", label: "Bottom" },
+      { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+      { key: "width", label: "Width" },
+      { key: "height", label: "Height" },
+      { key: "opacity", label: "Opacity", step: "0.01" },
+      { key: "zIndex", label: "Z Index" },
+    ],
+  },
+  {
+    id: "typography",
+    label: "Typography",
+    fields: [
+      { key: "fontFamily", label: "Font Family", type: "text" },
+      { key: "fontSize", label: "Font Size" },
+      { key: "fontWeight", label: "Font Weight" },
+      { key: "lineHeight", label: "Line Height", step: "0.1" },
+      { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+      {
+        key: "textAlign",
+        label: "Text Align",
+        type: "select",
+        options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign,
+      },
+      { key: "color", label: "Color", type: "text", placeholder: "#554945" },
+      {
+        key: "whiteSpace",
+        label: "White Space",
+        type: "select",
+        options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace,
+      },
+      {
+        key: "wordBreak",
+        label: "Word Break",
+        type: "select",
+        options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak,
+      },
+    ],
+  },
+];
+
 export const v2_BOILERPLATE_SECTION_GROUPS: Record<
   string,
   V2BoilerplateGroupConfig[]
@@ -64,6 +142,13 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
       ],
     },
   ],
+  weekDates: v2_WEEK_DATES_CONTAINER_GROUPS,
+  weekDatesStart: v2_WEEK_DATES_CONTAINER_GROUPS,
+  weekDatesEnd: v2_WEEK_DATES_CONTAINER_GROUPS,
+  weekStartMonth: v2_WEEK_DATES_TEXT_GROUPS,
+  weekStartDate: v2_WEEK_DATES_TEXT_GROUPS,
+  weekEndMonth: v2_WEEK_DATES_TEXT_GROUPS,
+  weekEndDate: v2_WEEK_DATES_TEXT_GROUPS,
   topObjectContainer: [
     {
       id: "transform",

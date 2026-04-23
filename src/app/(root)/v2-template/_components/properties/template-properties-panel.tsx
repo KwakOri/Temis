@@ -54,7 +54,6 @@ import {
   v2_ASSET_LABELS,
   v2_BASE_FONT_TOKEN_KEYS,
   v2_BINDING_COMPUTED_OPTIONS,
-  v2_BOILERPLATE_STORAGE_KEY,
   v2_BUILDER_TABS,
   v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP,
   v2_CARD_NODE_VISIBILITY_OPTIONS,
@@ -424,10 +423,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   ]);
 
   useTemplateBoilerplateUiEffects({
-    storageKey: v2_BOILERPLATE_STORAGE_KEY,
-    styleSectionLabels: v2_STYLE_SECTION_LABELS,
-    boilerplateConfig,
-    setBoilerplateConfig,
     isBoilerplateSettingsOpen,
     setIsBoilerplateSettingsOpen,
   });
