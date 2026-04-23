@@ -10,6 +10,7 @@ interface TemplateSceneGroupPropertiesProps {
   visibilityMode: V2TemplateVisibilityMode;
   visibilityOptions: Array<{ value: V2TemplateVisibilityMode; label: string }>;
   structureControls: React.ReactNode;
+  styleEditor?: React.ReactNode;
   onChangeLabel: (value: string) => void;
   onChangeVisibilityMode: (value: V2TemplateVisibilityMode) => void;
 }
@@ -20,6 +21,7 @@ const TemplateSceneGroupProperties: React.FC<TemplateSceneGroupPropertiesProps> 
   visibilityMode,
   visibilityOptions,
   structureControls,
+  styleEditor,
   onChangeLabel,
   onChangeVisibilityMode,
 }) => {
@@ -55,6 +57,7 @@ const TemplateSceneGroupProperties: React.FC<TemplateSceneGroupPropertiesProps> 
           하위 노드: {childCount}개
         </div>
       </div>
+      {styleEditor}
     </div>
   );
 };

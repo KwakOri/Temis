@@ -1400,10 +1400,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     dayKeyOptions,
     visibilityOptions: v2_CARD_NODE_VISIBILITY_OPTIONS,
     isSceneCustomNode,
-    renderStyleSectionEditor: ({ title, section }) =>
+    renderStyleSectionEditor: ({ title, section, schemaSection }) =>
       renderStyleSectionEditor({
         title,
         section: section as V2StyleSectionId,
+        schemaSection: schemaSection as V2StyleSectionId | undefined,
       }),
     onMoveSceneNode: moveSceneNode,
     onRelocateSceneNode: relocateSceneNode,
@@ -1437,6 +1438,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             Boolean(node) && node.kind !== "image"
         );
     },
+    getComponentContainerStyleKey: (componentId) =>
+      runtimeCardStructuresByComponentId[componentId]?.containerStyleKey ?? null,
     onUpdateSceneComponentInstanceDayKey: updateSceneComponentInstanceDayKey,
     onUpdateSceneComponentInstanceInstanceId:
       updateSceneComponentInstanceInstanceId,

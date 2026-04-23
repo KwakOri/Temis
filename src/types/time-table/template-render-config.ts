@@ -365,6 +365,7 @@ export interface V2TemplateSceneNodeBase {
 
 export interface V2TemplateSceneGroupNode extends V2TemplateSceneNodeBase {
   kind: "group";
+  styleKey?: V2TemplateSceneStyleKey;
   children: V2TemplateSceneNode[];
 }
 

@@ -1942,7 +1942,17 @@ const v2_createDefaultNodeGraph = ({
       };
     }
 
-    if (sceneNode.kind === "asset") {
+    if (sceneNode.kind === "group") {
+      if (sceneNode.styleKey) {
+        nextNode.styles = { styleKey: sceneNode.styleKey };
+        nextNode.meta = {
+          ...(nextNode.meta ?? {}),
+          layerTarget: `sceneNode:${sceneNode.id}`,
+          layerSectionKey: sceneNode.styleKey,
+          layerIcon: "group",
+        };
+      }
+    } else if (sceneNode.kind === "asset") {
       nextNode.styles = sceneNode.styleKey ? { styleKey: sceneNode.styleKey } : {};
       nextNode.meta = {
         ...(nextNode.meta ?? {}),
@@ -4988,10 +4998,12 @@ export const v2_normalizeTemplateRenderConfig = (
     });
 
     referencedCardLayoutKeys.forEach((styleKey) => {
-      if (normalized.layout.card[styleKey] !== undefined) return;
       const rawStyleRecord = rawCardLayoutSource[styleKey];
       if (!v2_isRecord(rawStyleRecord)) return;
-      normalized.layout.card[styleKey] = v2_clone(rawStyleRecord);
+      normalized.layout.card[styleKey] = v2_mergeStyleRecord(
+        normalized.layout.card[styleKey] as V2TemplateStyleRecord | undefined,
+        rawStyleRecord
+      );
     });
   }
 

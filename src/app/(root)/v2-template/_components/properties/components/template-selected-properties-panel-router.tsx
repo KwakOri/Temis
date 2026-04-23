@@ -37,7 +37,8 @@ interface TemplateSelectedPropertiesPanelRouterProps {
     section: string | null
   ) => React.ReactNode;
   renderSceneGroupNodeProperties: (
-    node: V2TemplateSceneGroupNode
+    node: V2TemplateSceneGroupNode,
+    section: string | null
   ) => React.ReactNode;
   renderSceneCardCollectionProperties: (
     node: V2TemplateSceneCardCollectionNode,
@@ -106,7 +107,7 @@ const TemplateSelectedPropertiesPanelRouter: React.FC<
       return <>{renderSceneAssetNodeProperties(sceneNode, selectedSection)}</>;
     }
     if (sceneNode.kind === "group") {
-      return <>{renderSceneGroupNodeProperties(sceneNode)}</>;
+      return <>{renderSceneGroupNodeProperties(sceneNode, selectedSection)}</>;
     }
     if (sceneNode.kind === "cardCollection") {
       return (

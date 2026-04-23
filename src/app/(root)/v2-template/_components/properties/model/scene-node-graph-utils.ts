@@ -83,8 +83,21 @@ export const v2_sceneNodeToGraphNode = (
       childIds: sceneNode.children.map((child) => child.id),
       ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
+      ...(sceneNode.styleKey
+        ? {
+            styles: {
+              styleKey: sceneNode.styleKey,
+            },
+          }
+        : {}),
       meta: {
         layerIcon: "group",
+        ...(sceneNode.styleKey
+          ? {
+              layerTarget: `sceneNode:${sceneNode.id}`,
+              layerSectionKey: sceneNode.styleKey,
+            }
+          : {}),
       },
     };
   }

@@ -27,6 +27,7 @@ const v2_inferLayerIcon = (kind: string): V2TemplateLayerIconKey => {
 const v2_inferSectionKeyFromSceneNode = (
   node: ReturnType<typeof v2_getRuntimeSceneNodes>[number]
 ): string | undefined => {
+  if (node.kind === "group") return node.styleKey;
   if (node.kind === "asset") return node.styleKey;
   if (node.kind === "text" || node.kind === "flexibleText") {
     return node.containerStyleKey;
@@ -225,6 +226,8 @@ export const v2_getRuntimeLayerTree = (
           : {}),
         ...(graphNode?.meta?.layerSectionKey
           ? { sectionKey: graphNode.meta.layerSectionKey }
+          : node.styleKey
+            ? { sectionKey: node.styleKey }
           : {}),
         visibilityMode: node.visibilityMode ?? "always",
         children: node.children.map((child) => mapSceneNodeToLayerNode(child)),

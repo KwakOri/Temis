@@ -111,6 +111,14 @@ export const collectStyleSectionResolverMapFromRuntime = ({
 
   const visitSceneNode = (node: V2TemplateSceneNode) => {
     if (node.kind === "group") {
+      if (node.layerId && node.styleKey) {
+        const layerNode = layerNodeMap.get(node.layerId);
+        const sectionKey = layerNode?.sectionKey ?? node.styleKey;
+        map[sectionKey] = {
+          scope: "scene",
+          key: node.styleKey as SceneLayoutStyleKey,
+        };
+      }
       node.children.forEach(visitSceneNode);
       return;
     }

@@ -259,12 +259,14 @@ const v2_createSceneNodePayloadForLayerMenu = ({
   const ordinal = baseSceneNodeId.replace(v2_SCENE_CUSTOM_NODE_ID_PREFIX, "");
 
   if (kind === "group") {
+    const styleKey = `sceneNode:${baseSceneNodeId}:frame`;
     return {
       sceneNode: {
         id: baseSceneNodeId,
         label: `Group ${ordinal}`,
         kind: "group",
         layerId,
+        styleKey,
         visibilityMode: "always",
         children: [],
       },
@@ -274,10 +276,19 @@ const v2_createSceneNodePayloadForLayerMenu = ({
         kind: "group",
         icon: "group",
         target: `sceneNode:${baseSceneNodeId}`,
+        sectionKey: styleKey,
         visibilityMode: "always",
         children: [],
       },
-      dynamicSceneLayoutPatch: {},
+      dynamicSceneLayoutPatch: {
+        [styleKey]: {
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: 400,
+          height: 300,
+        },
+      },
     };
   }
 

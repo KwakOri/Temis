@@ -3302,6 +3302,51 @@ const applyLayoutMappingsFromFigma = ({
       aliases: alias.artistObject,
     });
 
+  const assignSceneGroupFrame = ({
+    nodeId,
+    styleKey,
+    frameNode,
+    reason,
+  }: {
+    nodeId: string;
+    styleKey: string;
+    frameNode: FigmaNode | undefined;
+    reason: string;
+  }): FigmaNode => {
+    if (!frameNode || frameNode === rootNode) return rootNode;
+    const frameBounds = getBounds(frameNode);
+    if (
+      frameBounds &&
+      Math.abs(frameBounds.x - rootBounds.x) < 0.5 &&
+      Math.abs(frameBounds.y - rootBounds.y) < 0.5 &&
+      Math.abs(frameBounds.width - rootBounds.width) < 0.5 &&
+      Math.abs(frameBounds.height - rootBounds.height) < 0.5
+    ) {
+      return rootNode;
+    }
+    const groupNode = config.graph.nodes[nodeId];
+    if (!groupNode || groupNode.type !== "group") return rootNode;
+    groupNode.styles = {
+      ...(groupNode.styles ?? {}),
+      styleKey,
+    };
+    groupNode.meta = {
+      ...(groupNode.meta ?? {}),
+      layerTarget: `sceneNode:${nodeId}`,
+      layerSectionKey: styleKey,
+      layerIcon: "group",
+    };
+    const target = (config.layout.scene[styleKey] ?? {}) as Record<string, unknown>;
+    config.layout.scene[styleKey] = target as typeof config.layout.scene[string];
+    target.position = "absolute";
+    applyRectToLayoutObject({
+      rect: toRelativeRect({ rootNode, targetNode: frameNode }),
+      target,
+    });
+    summary.applied.push(reason);
+    return frameNode;
+  };
+
   config.templateSize = {
     width: round(rootBounds.width),
     height: round(rootBounds.height),
@@ -3411,10 +3456,27 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.scene.memoTextStyle");
   }
 
+  const profileFrameRootNode =
+    sceneProfileImageNode || sceneProfileFrameNode
+      ? resolvePositionContextRootByFrame({
+          sourceRootNode: rootNode,
+          targetNode: sceneProfileImageNode ?? sceneProfileFrameNode,
+        })
+      : rootNode;
+  const profilePositionRootNode = assignSceneGroupFrame({
+    nodeId: "scene-profile",
+    styleKey: "sceneProfileFrame",
+    frameNode: profileFrameRootNode,
+    reason: "layout.scene.sceneProfileFrame",
+  });
+
   const profileImageNode = sceneProfileImageNode;
   summary.presence.profileImage = Boolean(profileImageNode);
   applyRectToLayoutObject({
-    rect: toRelativeRect({ rootNode, targetNode: profileImageNode }),
+    rect: toRelativeRect({
+      rootNode: profilePositionRootNode,
+      targetNode: profileImageNode,
+    }),
     target: config.layout.profileImage as unknown as Record<string, unknown>,
   });
   if (profileImageNode) {
@@ -3424,7 +3486,10 @@ const applyLayoutMappingsFromFigma = ({
   const profileFrameNode = sceneProfileFrameNode;
   summary.presence.profileFrame = Boolean(profileFrameNode);
   applyRectToLayoutObject({
-    rect: toRelativeRect({ rootNode, targetNode: profileFrameNode }),
+    rect: toRelativeRect({
+      rootNode: profilePositionRootNode,
+      targetNode: profileFrameNode,
+    }),
     target: config.layout.profileFrame as unknown as Record<string, unknown>,
   });
   if (profileFrameNode) {
@@ -3623,12 +3688,55 @@ const applyLayoutMappingsFromFigma = ({
         : "graph.card.statusSource=rootFallback"
     );
 
+    const applyCardContainerRectToRuntimeStyles = (rect: Rect | null) => {
+      if (!rect) return;
+      Object.values(config.graph.componentDefinitions).forEach((definition) => {
+        const root = config.graph.nodes[definition.rootNodeId];
+        const styleKey =
+          typeof root?.styles?.containerStyleKey === "string"
+            ? root.styles.containerStyleKey
+            : undefined;
+        if (!styleKey) return;
+        const current = config.layout.card[styleKey];
+        const target =
+          current && typeof current === "object"
+            ? (current as Record<string, unknown>)
+            : (config.layout.card[styleKey] = {});
+        applyRectToLayoutObject({
+          rect,
+          target: target as Record<string, unknown>,
+        });
+      });
+    };
+
+    const cardContainerSizeSource =
+      (hasExplicitCardStatusSource
+        ? dedupedStatusCandidates.find(
+            (candidate) => resolveCandidateStatus(candidate) === "online"
+          ) ?? dedupedStatusCandidates[0]
+        : undefined) ?? cardContainerNode;
+
     // Card container is rendered inside each grid slot.
-    // Store it in local card coordinates (0,0 + own size), not scene-root coordinates.
+    // Prefer the component source dimensions; placed instances may be inflated by rotated parents.
+    const cardContainerRect = toRelativeRect({
+      rootNode: cardContainerSizeSource,
+      targetNode: cardContainerSizeSource,
+    });
     applyRectToLayoutObject({
-      rect: toRelativeRect({ rootNode: cardContainerNode, targetNode: cardContainerNode }),
+      rect: cardContainerRect,
       target: config.layout.card.container as unknown as Record<string, unknown>,
     });
+    if (cardContainerRect) {
+      config.cardSizes.online = {
+        width: cardContainerRect.width,
+        height: cardContainerRect.height,
+      };
+      config.cardSizes.offline = {
+        width: cardContainerRect.width,
+        height: cardContainerRect.height,
+      };
+      applyCardContainerRectToRuntimeStyles(cardContainerRect);
+    }
     summary.applied.push("layout.card.container");
 
     const resolveCardBackgroundNode = ({

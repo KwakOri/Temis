@@ -89,6 +89,7 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     currentBinding: V2TemplateCardNodeBinding
   ) => V2TemplateCardNodeBinding | null;
   getComponentBindableNodes: (componentId: string) => V2TemplateCardNode[];
+  getComponentContainerStyleKey: (componentId: string) => string | null;
   dayKeyOptions: Array<{ value: V2TemplateDayKey; label: string }>;
   onUpdateSceneComponentInstanceDayKey: (
     nodeId: string,
@@ -172,6 +173,7 @@ const useTemplateSceneNodePropertyPanels = ({
   computedOptions,
   parseBindingFromSelectValue,
   getComponentBindableNodes,
+  getComponentContainerStyleKey,
   dayKeyOptions,
   onUpdateSceneComponentInstanceDayKey,
   onUpdateSceneComponentInstanceInstanceId,
@@ -268,8 +270,19 @@ const useTemplateSceneNodePropertyPanels = ({
     );
   };
 
-  const renderSceneGroupNodeProperties = (node: V2TemplateSceneGroupNode) => {
+  const renderSceneGroupNodeProperties = (
+    node: V2TemplateSceneGroupNode,
+    section: V2SceneNodeSectionId | null
+  ) => {
     const childCount = node.children.length;
+    const styleSection = section ?? v2_parseStyleSectionKey(node.styleKey);
+    const styleEditor = styleSection
+      ? renderStyleSectionEditor({
+          title: "frame style",
+          section: styleSection,
+          schemaSection: "cardContainer",
+        })
+      : null;
     return (
       <TemplateSceneGroupProperties
         label={node.label}
@@ -279,6 +292,7 @@ const useTemplateSceneNodePropertyPanels = ({
         structureControls={renderSceneNodeStructureControls({
           node,
         })}
+        styleEditor={styleEditor}
         onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
         onChangeVisibilityMode={(value) =>
           onUpdateSceneNodeVisibilityMode(node.id, value)
@@ -369,6 +383,10 @@ const useTemplateSceneNodePropertyPanels = ({
       selectedComponentId.length > 0
         ? getComponentBindableNodes(selectedComponentId)
         : [];
+    const cardContainerStyleKey =
+      selectedComponentId.length > 0
+        ? getComponentContainerStyleKey(selectedComponentId)
+        : null;
 
     return (
       <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
@@ -462,6 +480,13 @@ const useTemplateSceneNodePropertyPanels = ({
           <p className="text-xs text-amber-300">
             연결된 컴포넌트가 없어 인스턴스를 렌더할 수 없습니다.
           </p>
+        ) : null}
+        {cardContainerStyleKey ? (
+          renderStyleSectionEditor({
+            title: "card container style",
+            section: cardContainerStyleKey,
+            schemaSection: "cardContainer",
+          })
         ) : null}
         {v2_SCENE_COMPONENT_INSTANCE_ALLOW_BINDING_OVERRIDE &&
         selectedComponentId.length > 0 ? (

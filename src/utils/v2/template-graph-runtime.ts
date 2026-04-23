@@ -339,6 +339,7 @@ const v2_buildSceneNodeFromGraph = ({
     return {
       ...base,
       kind: "group",
+      ...(graphNode.styles?.styleKey ? { styleKey: graphNode.styles.styleKey } : {}),
       children,
     };
   }

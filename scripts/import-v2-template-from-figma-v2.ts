@@ -131,14 +131,27 @@ const applyLayoutModeOverride = ({
   layoutMode?: LayoutMode;
 }): V2TemplateRenderConfig => {
   if (!isLayoutMode(layoutMode)) return config;
+  const grid = {
+    ...config.layout.grid,
+    layoutMode,
+  };
+  if (layoutMode === "free") {
+    grid.left = 0;
+    grid.top = 0;
+    grid.width = config.templateSize.width;
+    grid.height = config.templateSize.height;
+    delete (grid as Record<string, unknown>).right;
+    delete (grid as Record<string, unknown>).bottom;
+    delete (grid as Record<string, unknown>).rotateDeg;
+  } else {
+    delete (grid as Record<string, unknown>).width;
+    delete (grid as Record<string, unknown>).height;
+  }
   return {
     ...config,
     layout: {
       ...config.layout,
-      grid: {
-        ...config.layout.grid,
-        layoutMode,
-      },
+      grid,
     },
   };
 };
@@ -1072,12 +1085,25 @@ const SHARED_STATUS_SECTION_DAY_TEST_REGEX =
   /(^|[_-])(mon|tue|wed|thu|fri|sat|sun)(?=([_-]|$))/i;
 const SHARED_STATUS_TOKEN_REGEX =
   /(^|[_-])(online|multi|offlinememo|offline)(?=([_-]|$))/i;
+const SHARED_STATUS_SECTION_INSTANCE_REPLACE_REGEX =
+  /(__inst__)DAY_\d+(?=__|$)/gi;
 
 const normalizeSharedStatusSectionKey = (sectionKey: string): string =>
-  sectionKey.replace(
-    SHARED_STATUS_SECTION_DAY_REPLACE_REGEX,
-    (_match, prefix: string, _day: string) => `${prefix}DAY`
-  );
+  sectionKey
+    .replace(
+      SHARED_STATUS_SECTION_DAY_REPLACE_REGEX,
+      (_match, prefix: string, _day: string) => `${prefix}DAY`
+    )
+    .replace(
+      SHARED_STATUS_SECTION_INSTANCE_REPLACE_REGEX,
+      (_match, prefix: string) => `${prefix}DAY_INDEX`
+    );
+
+const parseSharedStatusToken = (value: string): CardStatus | undefined => {
+  const statusMatch = value.match(SHARED_STATUS_TOKEN_REGEX);
+  if (!statusMatch?.[2]) return undefined;
+  return statusMatch[2].toLowerCase() as CardStatus;
+};
 
 const buildSharedStyleGroups = (
   config: V2TemplateRenderConfig,
@@ -1088,16 +1114,22 @@ const buildSharedStyleGroups = (
     const styleRefs = node.styles;
     if (!styleRefs) return;
     [
+      styleRefs.styleKey,
       styleRefs.containerStyleKey,
+      styleRefs.entryStyleKey,
       styleRefs.textStyleKey,
       styleRefs.wrapperStyleKey,
       styleRefs.optionsKey,
     ].forEach((sectionKey) => {
       if (typeof sectionKey !== "string" || sectionKey.trim().length === 0) return;
       if (!SHARED_STATUS_SECTION_DAY_TEST_REGEX.test(sectionKey)) return;
-      const statusMatch = sectionKey.match(SHARED_STATUS_TOKEN_REGEX);
-      if (!statusMatch?.[2]) return;
-      const normalizedStatus = statusMatch[2].toLowerCase() as CardStatus;
+      const normalizedStatus =
+        parseSharedStatusToken(sectionKey) ??
+        parseSharedStatusToken(node.id) ??
+        (typeof node.layerId === "string"
+          ? parseSharedStatusToken(node.layerId)
+          : undefined);
+      if (!normalizedStatus) return;
       if (statusSourceModeByStatus[normalizedStatus] !== "shared") return;
       const normalizedKey = normalizeSharedStatusSectionKey(sectionKey);
       if (normalizedKey === sectionKey) return;

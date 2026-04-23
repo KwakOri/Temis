@@ -378,14 +378,29 @@ const V2SceneStructureRenderer = ({
 
     if (node.kind === "group") {
       const childCount = node.children.length;
+      const groupStyle = node.styleKey
+        ? v2_toRenderableLayout(resolveStyleRecordByKey(node.styleKey)).style
+        : ({
+            position: "absolute",
+            inset: 0,
+          } satisfies React.CSSProperties);
+      const groupLayerId = node.layerId ?? node.id;
+      const groupHighlightTarget =
+        (node.layerId ? layerTargetMap[node.layerId] : undefined) ??
+        `sceneNode:${node.id}`;
       return (
         <div
           key={node.id}
           style={{
-            position: "absolute",
-            inset: 0,
+            ...groupStyle,
             isolation: "isolate",
+            ...v2_getHighlightStyle({
+              target: groupHighlightTarget,
+              hoverTarget: hoverHighlightTarget,
+              activeTarget: activeHighlightTarget,
+            }),
           }}
+          data-layer-id={groupLayerId}
         >
           {node.children.map((childNode, index) => {
             const renderedChild = renderSceneNode(childNode, false);
@@ -416,7 +431,17 @@ const V2SceneStructureRenderer = ({
   };
 
   return (
-    <>
+    <div
+      data-v2-scene-root="true"
+      style={{
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: renderConfig.templateSize.width,
+        height: renderConfig.templateSize.height,
+        isolation: "isolate",
+      }}
+    >
       {sceneNodes.map((node) => {
         const rendered = renderSceneNode(node, false);
         if (!rendered) return null;
@@ -442,7 +467,7 @@ const V2SceneStructureRenderer = ({
           </div>
         );
       })}
-    </>
+    </div>
   );
 };
 

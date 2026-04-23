@@ -161,16 +161,36 @@ const TimeTableGrid: React.FC<{
   const baseLayoutStyle: React.CSSProperties = {
     ...gridStyle,
   };
+  if (layoutMode === "free") {
+    delete baseLayoutStyle.right;
+    delete baseLayoutStyle.bottom;
+    delete baseLayoutStyle.transform;
+    delete baseLayoutStyle.transformOrigin;
+    Object.assign(baseLayoutStyle, {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: renderConfig.templateSize.width,
+      height: renderConfig.templateSize.height,
+    });
+  } else {
+    delete baseLayoutStyle.width;
+    delete baseLayoutStyle.height;
+  }
   delete (baseLayoutStyle as Record<string, unknown>).display;
   delete (baseLayoutStyle as Record<string, unknown>).gridTemplateColumns;
   const columnGap = gridStyle.columnGap;
   const rowGap = gridStyle.rowGap;
+  const columnCount =
+    typeof columns === "number" && Number.isFinite(columns)
+      ? Math.max(1, Math.round(columns))
+      : 3;
   const gridTemplateColumns =
     typeof gridTemplateColumnsRaw === "string"
       ? gridTemplateColumnsRaw
-      : typeof columns === "number" && Number.isFinite(columns)
-        ? `repeat(${Math.max(1, Math.round(columns))}, minmax(0, 1fr))`
-        : "repeat(3, minmax(0, 1fr))";
+      : layoutMode === "grid3x3"
+        ? `repeat(${columnCount}, max-content)`
+        : `repeat(${columnCount}, minmax(0, 1fr))`;
   const dataIndexByDayKey = React.useMemo(() => {
     const map: Partial<Record<V2TemplateDayKey, number>> = {};
     data.forEach((card, index) => {
