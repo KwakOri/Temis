@@ -995,6 +995,23 @@ const getBounds = (
   };
 };
 
+const getNodeSize = (
+  node: FigmaNode | undefined
+): { width: number; height: number } | null => {
+  if (!node) return null;
+
+  const width = Number(node.width ?? node.size?.x);
+  const height = Number(node.height ?? node.size?.y);
+  if (!Number.isFinite(width) || !Number.isFinite(height)) {
+    return null;
+  }
+
+  return {
+    width,
+    height,
+  };
+};
+
 const getRotationDeg = (node: FigmaNode | undefined): number | undefined => {
   if (!node) return undefined;
   if (Number.isFinite(node.rotation)) {
@@ -1024,6 +1041,53 @@ const getRotationDeg = (node: FigmaNode | undefined): number | undefined => {
   return round(degrees, 2);
 };
 
+const hasRenderableRotation = (rotateDeg: number | undefined): rotateDeg is number =>
+  typeof rotateDeg === "number" &&
+  Number.isFinite(rotateDeg) &&
+  Math.abs(rotateDeg) > 0.0001;
+
+const adjustFigmaRectForCssCenterRotation = ({
+  left,
+  top,
+  width,
+  height,
+  rotateDeg,
+  rotatedWidth,
+  rotatedHeight,
+}: {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  rotateDeg: number | undefined;
+  rotatedWidth?: number;
+  rotatedHeight?: number;
+}): { left: number; top: number; width: number; height: number } => {
+  if (!hasRenderableRotation(rotateDeg)) {
+    return { left, top, width, height };
+  }
+
+  if (Number.isFinite(rotatedWidth) && Number.isFinite(rotatedHeight)) {
+    return {
+      left: left + (Number(rotatedWidth) - width) / 2,
+      top: top + (Number(rotatedHeight) - height) / 2,
+      width,
+      height,
+    };
+  }
+
+  const radians = (rotateDeg * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+
+  return {
+    left: left + (cos * width - sin * height - width) / 2,
+    top: top + (sin * width + cos * height - height) / 2,
+    width,
+    height,
+  };
+};
+
 const toRelativeRect = ({
   rootNode,
   targetNode,
@@ -1038,12 +1102,25 @@ const toRelativeRect = ({
   }
 
   const rotateDeg = getRotationDeg(targetNode);
+  const size = hasRenderableRotation(rotateDeg) ? getNodeSize(targetNode) : null;
+  const width = size?.width ?? targetBounds.width;
+  const height = size?.height ?? targetBounds.height;
+  const adjusted = adjustFigmaRectForCssCenterRotation({
+    left: targetBounds.x - rootBounds.x,
+    top: targetBounds.y - rootBounds.y,
+    width,
+    height,
+    rotateDeg,
+    rotatedWidth: targetBounds.width,
+    rotatedHeight: targetBounds.height,
+  });
+
   return {
-    left: round(targetBounds.x - rootBounds.x),
-    top: round(targetBounds.y - rootBounds.y),
-    width: round(targetBounds.width),
-    height: round(targetBounds.height),
-    ...(rotateDeg && Math.abs(rotateDeg) > 0.0001 ? { rotateDeg } : {}),
+    left: round(adjusted.left),
+    top: round(adjusted.top),
+    width: round(adjusted.width),
+    height: round(adjusted.height),
+    ...(hasRenderableRotation(rotateDeg) ? { rotateDeg } : {}),
   };
 };
 
@@ -2324,10 +2401,9 @@ const getLocalNodeRect = (node: FigmaNode | undefined): Rect | null => {
   const directTop = Number(node.y);
   const transformLeft = Number(node.relativeTransform?.[0]?.[2]);
   const transformTop = Number(node.relativeTransform?.[1]?.[2]);
-  const width = Number(node.width ?? node.size?.x ?? node.absoluteBoundingBox?.width);
-  const height = Number(
-    node.height ?? node.size?.y ?? node.absoluteBoundingBox?.height
-  );
+  const size = getNodeSize(node);
+  const width = Number(size?.width ?? node.absoluteBoundingBox?.width);
+  const height = Number(size?.height ?? node.absoluteBoundingBox?.height);
   const left = Number.isFinite(directLeft) ? directLeft : transformLeft;
   const top = Number.isFinite(directTop) ? directTop : transformTop;
 
@@ -2341,12 +2417,20 @@ const getLocalNodeRect = (node: FigmaNode | undefined): Rect | null => {
   }
 
   const rotateDeg = getRotationDeg(node);
+  const adjusted = adjustFigmaRectForCssCenterRotation({
+    left,
+    top,
+    width,
+    height,
+    rotateDeg,
+  });
+
   return {
-    left: round(left),
-    top: round(top),
-    width: round(width),
-    height: round(height),
-    ...(rotateDeg && Math.abs(rotateDeg) > 0.0001 ? { rotateDeg } : {}),
+    left: round(adjusted.left),
+    top: round(adjusted.top),
+    width: round(adjusted.width),
+    height: round(adjusted.height),
+    ...(hasRenderableRotation(rotateDeg) ? { rotateDeg } : {}),
   };
 };
 
@@ -4741,6 +4825,45 @@ const applyLayoutMappingsFromFigma = ({
         return "offlineMemoOnly";
       };
 
+      const statusFromVisibilityMode = (
+        visibilityMode: unknown
+      ): CardTextStatus | undefined => {
+        if (visibilityMode === "onlineOnly" || visibilityMode === "onlineSingleOnly") {
+          return "online";
+        }
+        if (visibilityMode === "onlineMultipleOnly") return "multi";
+        if (visibilityMode === "offlineOnly" || visibilityMode === "offlineNoMemoOnly") {
+          return "offline";
+        }
+        if (visibilityMode === "offlineMemoOnly") return "offlineMemo";
+        return undefined;
+      };
+
+      const pruneUnavailableStatusNodes = ({
+        root,
+        unavailableStatuses,
+      }: {
+        root: (typeof config.graph.nodes)[string];
+        unavailableStatuses: Set<CardTextStatus>;
+      }): number => {
+        if (unavailableStatuses.size === 0) return 0;
+        let prunedCount = 0;
+        root.childIds = root.childIds.filter((childId) => {
+          const childNode = config.graph.nodes[childId];
+          const childStatus = statusFromVisibilityMode(childNode?.visibilityMode);
+          if (!childStatus || !unavailableStatuses.has(childStatus)) {
+            return true;
+          }
+          delete config.graph.nodes[childId];
+          prunedCount += 1;
+          return false;
+        });
+        return prunedCount;
+      };
+
+      let expectedStatusAuditRowCount = 0;
+      let prunedUnavailableStatusNodeCount = 0;
+
       instanceNodes.forEach((instanceNode) => {
         const dayKey = toDayTagKey(
           typeof instanceNode.meta?.dayKey === "string"
@@ -4767,6 +4890,21 @@ const applyLayoutMappingsFromFigma = ({
             status: "offlineMemo",
           }),
         };
+        const availableStatuses = new Set<CardTextStatus>(
+          (Object.entries(dayStatusSources) as Array<[CardTextStatus, FigmaNode | undefined]>)
+            .filter((entry): entry is [CardTextStatus, FigmaNode] => Boolean(entry[1]))
+            .map(([status]) => status)
+        );
+        const unavailableStatuses = new Set<CardTextStatus>(
+          statusPlans
+            .map((plan) => plan.status)
+            .filter((status) => !availableStatuses.has(status))
+        );
+        prunedUnavailableStatusNodeCount += pruneUnavailableStatusNodes({
+          root: componentRootNode,
+          unavailableStatuses,
+        });
+
         const onlineVariantSourceNode = dayStatusSources.online;
         const multiVariantSourceNode = dayStatusSources.multi;
         const offlineVariantSourceNode = dayStatusSources.offline;
@@ -4807,6 +4945,10 @@ const applyLayoutMappingsFromFigma = ({
 
         const hasMultiStatus = Boolean(dayStatusSources.multi);
         const hasOfflineMemoStatus = Boolean(dayStatusSources.offlineMemo);
+        const activeStatusPlans = statusPlans.filter((plan) =>
+          availableStatuses.has(plan.status)
+        );
+        expectedStatusAuditRowCount += activeStatusPlans.length;
 
         const roleBaseNodes = {
           mainTitle: findNodeByBaseId({ root: componentRootNode, baseId: "main-title" }),
@@ -4839,33 +4981,14 @@ const applyLayoutMappingsFromFigma = ({
           offlineMemo: offlineMemoVariantSourceNode,
         };
 
-        statusPlans.forEach((plan) => {
+        activeStatusPlans.forEach((plan) => {
           const sourceCandidate = sourceByStatus[plan.status];
-          if (!sourceCandidate) {
-            const missing: string[] = ["background"];
-            if (!roleIsOptionalByStatus(plan.status, "mainTitle")) missing.push("main");
-            if (!roleIsOptionalByStatus(plan.status, "subTitle")) missing.push("sub");
-            if (!roleIsOptionalByStatus(plan.status, "streamingTime")) missing.push("time");
-            if (!roleIsOptionalByStatus(plan.status, "streamingDate")) missing.push("date");
-            if (!roleIsOptionalByStatus(plan.status, "streamingDay")) missing.push("day");
-            summary.statusSlotAuditRows.push({
-              dayKey,
-              status: plan.status,
-              entryIndex: 0,
-              source: `${dayKey}:(missing ${plan.status})`,
-              background: false,
-              main: false,
-              sub: false,
-              time: false,
-              date: false,
-              day: false,
-              missing,
-            });
-            summary.warnings.push(
-              `Card day/status source missing: day=${dayKey}, status=${plan.status}`
-            );
-            return;
-          }
+          if (!sourceCandidate) return;
+          const visibilityMode = visibilityModeByStatus({
+            status: plan.status,
+            hasMulti: hasMultiStatus,
+            hasOfflineMemo: hasOfflineMemoStatus,
+          });
           const backgroundNode = resolveCardBackgroundNode({
             candidate: sourceCandidate,
             statusValues: plan.statusValues,
@@ -4877,6 +5000,15 @@ const applyLayoutMappingsFromFigma = ({
             targetBackgroundNode.type === "image" &&
             typeof targetBackgroundNode.styles?.containerStyleKey === "string"
           ) {
+            const updatedBackgroundNode = {
+              ...targetBackgroundNode,
+              visibilityMode,
+              meta: {
+                ...(targetBackgroundNode.meta ?? {}),
+                importOmitted: false,
+              },
+            };
+            config.graph.nodes[targetBackgroundNode.id] = updatedBackgroundNode;
             const backgroundRect = toRelativeRect({
               rootNode: sourceCandidate,
               targetNode: backgroundNode,
@@ -4906,11 +5038,6 @@ const applyLayoutMappingsFromFigma = ({
               );
             });
           }
-          const visibilityMode = visibilityModeByStatus({
-            status: plan.status,
-            hasMulti: hasMultiStatus,
-            hasOfflineMemo: hasOfflineMemoStatus,
-          });
 
           entrySources.forEach((entrySource) => {
             const sourceNodes = resolveCardTextNodesFromCandidate({
@@ -5171,7 +5298,12 @@ const applyLayoutMappingsFromFigma = ({
       summary.presence.cardStreamingTime = auditedRows.some((row) => row.time);
       summary.presence.cardStreamingDate = auditedRows.some((row) => row.date);
       summary.presence.cardStreamingDay = auditedRows.some((row) => row.day);
-      const expectedRows = Math.max(1, instanceNodes.length) * statusPlans.length;
+      if (prunedUnavailableStatusNodeCount > 0) {
+        summary.applied.push(
+          `graph.card.prunedUnavailableStatusNodes(${prunedUnavailableStatusNodeCount})`
+        );
+      }
+      const expectedRows = expectedStatusAuditRowCount;
       if (auditedRows.length < expectedRows) {
         summary.warnings.push(
           `Card status slot audit rows incomplete: expected=${expectedRows}, actual=${auditedRows.length}`
@@ -5234,7 +5366,7 @@ const fetchFigmaNode = async ({
 }) => {
   const requestUrl = `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(
     nodeId
-  )}`;
+  )}&geometry=paths`;
   const response = await fetch(requestUrl, {
     method: "GET",
     headers: {
@@ -5308,7 +5440,7 @@ const fetchFigmaNodesByIds = async ({
   for (const chunk of chunks) {
     const requestUrl = `https://api.figma.com/v1/files/${fileKey}/nodes?ids=${encodeURIComponent(
       chunk.join(",")
-    )}`;
+    )}&geometry=paths`;
     const response = await fetchWithTimeout(requestUrl, {
       method: "GET",
       headers: {
