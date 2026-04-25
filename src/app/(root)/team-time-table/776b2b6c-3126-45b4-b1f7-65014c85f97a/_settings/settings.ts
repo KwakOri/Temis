@@ -160,16 +160,14 @@ export const Settings: SettingsType = {
   },
 };
 
-export const team_ids = [22, 248, 275, 276, 277, 280];
+export const team_ids = [22, 248, 275, 276, 277];
 
 export const memberIdsMap = new Map([
   [22, 'rubit'],
   [248, 'seon'],
   [275, 'saebaek'],
-
   [276, 'ira'],
   [277, 'cosmo'],
-  [280, 'sua'],
 ]);
 
 export const memberNamesMap = new Map([
@@ -178,5 +176,4 @@ export const memberNamesMap = new Map([
   [275, '류새백'],
   [276, '이라'],
   [277, '코스모'],
-  [280, '최수아'],
 ]);
