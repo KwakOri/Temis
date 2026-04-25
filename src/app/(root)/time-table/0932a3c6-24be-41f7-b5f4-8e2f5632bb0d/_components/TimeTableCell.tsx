@@ -26,13 +26,6 @@ interface CardStreamingTimeProps {
   currentTheme?: TTheme;
 }
 
-interface MultiCardStreamingTimeProps {
-  isGuerrilla: boolean;
-  time: string;
-
-  currentTheme?: TTheme;
-}
-
 interface CardStreamingDateProps {
   date: number;
   currentTheme?: TTheme;
@@ -44,18 +37,9 @@ interface CardMainTitleProps {
   day: number;
 }
 
-interface MultiCardMainTitleProps {
-  currentTheme?: TTheme;
-  content: string;
-}
-
 interface CardSubTitleProps {
   content: string | null;
   day: number;
-}
-
-interface MultiCardSubTitleProps {
-  content: string | null;
 }
 
 interface TimeTableCellProps {
@@ -69,6 +53,151 @@ interface OfflineCardProps {
   day: number;
   currentTheme?: TTheme;
 }
+
+interface MultiCardStreamingTimeProps {
+  isGuerrilla: boolean;
+  time: string;
+
+  currentTheme?: TTheme;
+}
+
+interface MultiCardMainTitleProps {
+  currentTheme?: TTheme;
+  content: string;
+}
+
+interface MultiCardSubTitleProps {
+  content: string | null;
+}
+
+const MultiCardStreamingTime = ({
+  time,
+  currentTheme,
+  isGuerrilla,
+}: MultiCardStreamingTimeProps) => {
+  return (
+    <div
+      style={{
+        width: 300,
+        height: 120,
+        lineHeight: 1,
+        left: 1022,
+        top: 112,
+      }}
+      className=" absolute flex justify-center items-center"
+    >
+      <p
+        className="relative z-10"
+        style={{
+          fontSize: 40,
+          fontFamily: COMP_FONTS.STREAMING_TIME,
+          color: COMP_COLORS.STREAMING_TIME,
+          fontWeight: 400,
+        }}
+      >
+        {isGuerrilla ? '게릴라' : formatTime(time, 'half')}
+      </p>
+      <img
+        className="absolute inset-0"
+        src={Imgs['first']['time'].src}
+        alt=""
+      />
+    </div>
+  );
+};
+
+const MultiCardMainTitle = ({
+  currentTheme,
+  content,
+}: MultiCardMainTitleProps) => {
+  return (
+    <div
+      style={{
+        height: 120,
+        width: 840,
+        top: 8,
+        left: 468,
+      }}
+      className="absolute flex justify-start items-center shrink-0"
+    >
+      <AutoResizeText
+        style={{
+          fontFamily: COMP_FONTS.MAIN_TITLE,
+          color: COMP_COLORS.MAIN_TITLE,
+        }}
+        className="leading-none text-left"
+        maxFontSize={76}
+      >
+        {content ? (content as string) : placeholders.mainTitle}
+      </AutoResizeText>
+    </div>
+  );
+};
+
+const MultiCardSubTitle = ({ content }: MultiCardSubTitleProps) => {
+  return (
+    <div
+      style={{
+        height: 120,
+        width: 500,
+        top: 86,
+        left: 468,
+      }}
+      className="absolute flex justify-start items-center"
+    >
+      <AutoResizeText
+        style={{
+          fontFamily: COMP_FONTS.SUB_TITLE,
+          color: COMP_COLORS.SUB_TITLE,
+          fontWeight: 500,
+        }}
+        className="leading-none text-left w-full"
+        maxFontSize={48}
+        multiline
+      >
+        {content ? (content as string) : placeholders.subTitle}
+      </AutoResizeText>
+    </div>
+  );
+};
+
+const MultiCard = () => {
+  return (
+    <div
+      style={{
+        ...CARD_SIZES.ONLINE,
+      }}
+      className="absolute -z-10"
+    >
+      <img
+        className="object-cover w-full h-full"
+        src={Imgs['first']['multi'].src.replace('./', '/')}
+        alt="multi"
+        style={{
+          ...CARD_SIZES.OFFLINE,
+        }}
+      />
+    </div>
+  );
+};
+
+interface EntryCardProps {
+  style?: CSSProperties;
+  entry: TEntry;
+}
+
+const EntryCard = ({ entry, style }: EntryCardProps) => {
+  return (
+    <div className="absolute" style={{ width: '100%', height: 220, ...style }}>
+      <MultiCardMainTitle content={entry.mainTitle as string} />
+      <MultiCardSubTitle content={entry.subTitle as string} />
+      <MultiCardStreamingTime
+        isGuerrilla={entry.isGuerrilla}
+        time={entry.time}
+      />
+    </div>
+  );
+};
 
 const CardStreamingDay = ({ currentTheme, day }: CardStreamingDayProps) => {
   const dayNames = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
@@ -149,42 +278,6 @@ const CardStreamingTime = ({
   );
 };
 
-const MultiCardStreamingTime = ({
-  time,
-  currentTheme,
-  isGuerrilla,
-}: MultiCardStreamingTimeProps) => {
-  return (
-    <div
-      style={{
-        width: 300,
-        height: 120,
-        lineHeight: 1,
-        left: 1022,
-        top: 112,
-      }}
-      className=" absolute flex justify-center items-center"
-    >
-      <p
-        className="relative z-10"
-        style={{
-          fontSize: 40,
-          fontFamily: COMP_FONTS.STREAMING_TIME,
-          color: COMP_COLORS.STREAMING_TIME,
-          fontWeight: 400,
-        }}
-      >
-        {isGuerrilla ? '게릴라' : formatTime(time, 'half')}
-      </p>
-      <img
-        className="absolute inset-0"
-        src={Imgs['first']['time'].src}
-        alt=""
-      />
-    </div>
-  );
-};
-
 const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
   return (
     <div
@@ -203,34 +296,6 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
         }}
         className="leading-none text-left"
         maxFontSize={MAX_FONT_SIZES.MAIN_TITLE}
-      >
-        {content ? (content as string) : placeholders.mainTitle}
-      </AutoResizeText>
-    </div>
-  );
-};
-
-const MultiCardMainTitle = ({
-  currentTheme,
-  content,
-}: MultiCardMainTitleProps) => {
-  return (
-    <div
-      style={{
-        height: 120,
-        width: 840,
-        top: 8,
-        left: 468,
-      }}
-      className="absolute flex justify-start items-center shrink-0"
-    >
-      <AutoResizeText
-        style={{
-          fontFamily: COMP_FONTS.MAIN_TITLE,
-          color: COMP_COLORS.MAIN_TITLE,
-        }}
-        className="leading-none text-left"
-        maxFontSize={76}
       >
         {content ? (content as string) : placeholders.mainTitle}
       </AutoResizeText>
@@ -265,33 +330,6 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
   );
 };
 
-const MultiCardSubTitle = ({ content }: MultiCardSubTitleProps) => {
-  return (
-    <div
-      style={{
-        height: 120,
-        width: 500,
-        top: 86,
-        left: 468,
-      }}
-      className="absolute flex justify-start items-center"
-    >
-      <AutoResizeText
-        style={{
-          fontFamily: COMP_FONTS.SUB_TITLE,
-          color: COMP_COLORS.SUB_TITLE,
-          fontWeight: 500,
-        }}
-        className="leading-none text-left w-full"
-        maxFontSize={48}
-        multiline
-      >
-        {content ? (content as string) : placeholders.subTitle}
-      </AutoResizeText>
-    </div>
-  );
-};
-
 interface OnlineCardBGProps {
   day: number;
 }
@@ -313,26 +351,6 @@ const OnlineCardBG = ({ day }: OnlineCardBGProps) => {
   );
 };
 
-const MultiCard = () => {
-  return (
-    <div
-      style={{
-        ...CARD_SIZES.ONLINE,
-      }}
-      className="absolute -z-10"
-    >
-      <img
-        className="object-cover w-full h-full"
-        src={Imgs['first']['multi'].src.replace('./', '/')}
-        alt="multi"
-        style={{
-          ...CARD_SIZES.OFFLINE,
-        }}
-      />
-    </div>
-  );
-};
-
 const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
   return (
     <div
@@ -349,24 +367,6 @@ const OfflineCard = ({ day, currentTheme }: OfflineCardProps) => {
         style={{
           ...CARD_SIZES.OFFLINE,
         }}
-      />
-    </div>
-  );
-};
-
-interface EntryCardProps {
-  style?: CSSProperties;
-  entry: TEntry;
-}
-
-const EntryCard = ({ entry, style }: EntryCardProps) => {
-  return (
-    <div className="absolute" style={{ width: '100%', height: 220, ...style }}>
-      <MultiCardMainTitle content={entry.mainTitle as string} />
-      <MultiCardSubTitle content={entry.subTitle as string} />
-      <MultiCardStreamingTime
-        isGuerrilla={entry.isGuerrilla}
-        time={entry.time}
       />
     </div>
   );
