@@ -11,7 +11,6 @@ import ProfileIra from './main/era.png';
 import ProfileRubit from './main/rubit.png';
 import ProfileSaebaek from './main/saebaek.png';
 import ProfileSaeon from './main/saeon.png';
-import ProfileSua from './main/sua.png';
 
 // Profile images
 
@@ -24,6 +23,5 @@ export const Imgs: ImgsType = {
     members_rubit: ProfileRubit,
     members_saebaek: ProfileSaebaek,
     members_seon: ProfileSaeon,
-    members_sua: ProfileSua,
   },
 };
