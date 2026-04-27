@@ -111,10 +111,11 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
     <div
       className="absolute flex z-20"
       style={{
-        top: 352,
-        left: 108,
+        top: 342,
+        left: 270,
         gap: 18,
         rotate: '-8.5deg',
+        height: 2500,
       }}
     >
       {dataByDay.map((dayGroup) => (
