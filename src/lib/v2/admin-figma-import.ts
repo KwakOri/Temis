@@ -7,6 +7,33 @@ import type { V2TemplateRenderConfig } from "@/types/time-table/template-render-
 export type V2AdminFigmaLayoutMode = "grid3x3" | "flex4x2" | "free";
 export type V2AdminFigmaStatusSourceMode = "none" | "shared" | "byDay";
 
+export type V2AdminFigmaAssetImportSummary = {
+  discovered: number;
+  mapped: number;
+  uploaded: number;
+  applied: number;
+  warnings: string[];
+  unresolved: string[];
+};
+
+export type V2AdminFigmaDetectedFeatures = {
+  artist: {
+    enabled: boolean;
+    on: boolean;
+    off: boolean;
+    object: boolean;
+    text: boolean;
+    profile: boolean;
+  };
+  memo: {
+    enabled: boolean;
+    on: boolean;
+    off: boolean;
+    object: boolean;
+    text: boolean;
+  };
+};
+
 export type V2AdminFigmaAnalyzeInput = {
   rootFigmaUrl: string;
   cardComponentSetUrl?: string;
@@ -22,6 +49,14 @@ export type V2AdminFigmaImportInput = {
   withAssets?: boolean;
 };
 
+export type V2AdminFigmaImportConfigInput = {
+  templateId: string;
+  rootFigmaUrl: string;
+  cardComponentSetUrl?: string;
+  layoutModeOverride?: V2AdminFigmaLayoutMode | "auto";
+  withAssets?: boolean;
+};
+
 const v2_isLayoutMode = (value: unknown): value is V2AdminFigmaLayoutMode => {
   return value === "grid3x3" || value === "flex4x2" || value === "free";
 };
@@ -31,6 +66,24 @@ const v2_extractDetectedStatuses = (analysis: ImportV2FigmaAnalyzeResult) => {
     (status) => analysis.validation.statusCounts[status] > 0
   );
 };
+
+const v2_createEmptyDetectedFeatures = (): V2AdminFigmaDetectedFeatures => ({
+  artist: {
+    enabled: false,
+    on: false,
+    off: false,
+    object: false,
+    text: false,
+    profile: false,
+  },
+  memo: {
+    enabled: false,
+    on: false,
+    off: false,
+    object: false,
+    text: false,
+  },
+});
 
 const v2_buildLayoutOverridePostProcessor = (
   layoutModeOverride?: V2AdminFigmaLayoutMode | "auto"
@@ -88,6 +141,9 @@ export const v2_runAdminFigmaAnalyze = async (
     templateNameSuggestion:
       result.importResult?.templateName ?? input.templateName ?? "새 템플릿",
     layoutModeCandidate,
+    detectedFeatures:
+      (result.importResult?.detectedFeatures as V2AdminFigmaDetectedFeatures | undefined) ??
+      v2_createEmptyDetectedFeatures(),
     cardComponentSetSource: result.cardComponentSetSource,
     resolvedCardComponentSetUrl: result.resolvedCardComponentSetUrl,
   };
@@ -134,8 +190,66 @@ export const v2_runAdminFigmaImport = async (
         | undefined) ?? "grid3x3",
     mode: result.validation.mode,
     detectedStatuses: v2_extractDetectedStatuses(result),
+    detectedFeatures:
+      (result.importResult.detectedFeatures as V2AdminFigmaDetectedFeatures | undefined) ??
+      v2_createEmptyDetectedFeatures(),
     statusSourceModeByStatus: result.statusSourceModeByStatus,
     cardComponentSetSource: result.cardComponentSetSource,
     resolvedCardComponentSetUrl: result.resolvedCardComponentSetUrl,
+  };
+};
+
+export const v2_runAdminFigmaImportConfig = async (
+  input: V2AdminFigmaImportConfigInput
+) => {
+  const result = await runImportV2TemplateFromFigmaV2({
+    rootFigmaUrl: input.rootFigmaUrl,
+    cardComponentSetUrl: input.cardComponentSetUrl,
+    templateName: undefined,
+    templateDescription: undefined,
+    templateId: input.templateId,
+    write: false,
+    validateOnly: false,
+    public: false,
+    configPreset: "default",
+    source: "system",
+    createdBy: undefined,
+    supabaseUrl: undefined,
+    supabaseServiceRoleKey: undefined,
+    figmaToken: undefined,
+    withAssets: input.withAssets === true,
+    uploadAssetsWithoutWrite: input.withAssets === true,
+    assetTheme: "first",
+    assetFormat: "png",
+    aiMode: "off",
+    postProcessNormalizedConfig: v2_buildLayoutOverridePostProcessor(
+      input.layoutModeOverride
+    ),
+  });
+
+  if (!result.importResult) {
+    throw new Error("Figma import result is empty.");
+  }
+
+  return {
+    templateId: input.templateId,
+    renderConfig: result.importResult.normalizedConfig,
+    layoutMode:
+      (result.importResult.normalizedConfig.layout.grid.layoutMode as
+        | V2AdminFigmaLayoutMode
+        | undefined) ?? "grid3x3",
+    mode: result.validation.mode,
+    detectedStatuses: v2_extractDetectedStatuses(result),
+    detectedFeatures:
+      (result.importResult.detectedFeatures as V2AdminFigmaDetectedFeatures | undefined) ??
+      v2_createEmptyDetectedFeatures(),
+    statusSourceModeByStatus: result.statusSourceModeByStatus,
+    cardComponentSetSource: result.cardComponentSetSource,
+    resolvedCardComponentSetUrl: result.resolvedCardComponentSetUrl,
+    warnings: result.validation.warnings,
+    critical: result.validation.critical,
+    assetImportSummary: result.importResult.assetImportSummary as
+      | V2AdminFigmaAssetImportSummary
+      | null,
   };
 };

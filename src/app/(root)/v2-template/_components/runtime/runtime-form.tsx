@@ -64,9 +64,54 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
     return isEnabled && themes.length >= 2;
   }, [renderConfig.editorOptions, themes.length]);
 
+  const offlineMemoEnabled = Boolean(
+    renderConfig.timetable.statusOptions.offlineMemo
+  );
+  const hasArtistCapability = React.useMemo(() => {
+    const nodes = renderConfig.graph.nodes ?? {};
+    return Boolean(
+      nodes["scene-artist-group"] ||
+        nodes["scene-artist-text"] ||
+        nodes["scene-artist-object"] ||
+        renderConfig.formSchema.fields.some(
+          (field) => field.scope === "global" && field.key === "artistText"
+        )
+    );
+  }, [renderConfig.formSchema.fields, renderConfig.graph.nodes]);
+  const hasProfileCapability = React.useMemo(() => {
+    const nodes = renderConfig.graph.nodes ?? {};
+    return Boolean(
+      nodes["scene-profile"] ||
+        nodes["scene-profile-image"] ||
+        nodes["scene-profile-frame"]
+    );
+  }, [renderConfig.graph.nodes]);
+  const hasMemoCapability = React.useMemo(() => {
+    const nodes = renderConfig.graph.nodes ?? {};
+    return Boolean(
+      nodes["scene-memo"] ||
+        nodes["scene-memo-object"] ||
+        nodes["scene-memo-text"] ||
+        renderConfig.formSchema.fields.some(
+          (field) => field.scope === "global" && field.key === "memoText"
+        )
+    );
+  }, [renderConfig.formSchema.fields, renderConfig.graph.nodes]);
+  const showArtistControls = Boolean(
+    renderConfig.editorOptions.isArtist && hasArtistCapability
+  );
+  const showMemoControls = Boolean(
+    renderConfig.editorOptions.isMemo && hasMemoCapability
+  );
+
   const cardInputConfig = React.useMemo<CardInputConfig>(() => {
     return {
       fields: renderConfig.formSchema.fields
+        .filter(
+          (field) =>
+            offlineMemoEnabled ||
+            !(field.scope === "card" && field.key === "offlineMemo")
+        )
         .filter((field) => !(field.scope === "global" && field.key === "artistText"))
         .map((field) => ({
           key: field.key,
@@ -85,7 +130,7 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
       showLabels: renderConfig.formSchema.showLabels ?? true,
       offlineToggle: renderConfig.formSchema.offlineToggle,
     };
-  }, [renderConfig.formSchema]);
+  }, [offlineMemoEnabled, renderConfig.formSchema]);
 
   const placeholders = React.useMemo<TPlaceholders>(() => {
     const fieldPlaceholders: Record<string, string> = {};
@@ -195,7 +240,7 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
         <RuntimeFormTabs
           activeTab={activeTab}
           onChangeActiveTab={setActiveTab}
-          isAddons={true}
+          isAddons={showArtistControls || showMemoControls}
         />
 
         <div className="space-y-4 p-4">
@@ -240,59 +285,65 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
                   1,
                   renderConfig.editorOptions.maxStreamingTimeByDay
                 )}
-                isOfflineMemo={true}
+                isOfflineMemo={offlineMemoEnabled}
                 size="sm"
               />
             </div>
           ) : (
             <div className="space-y-4">
-              <RuntimeProfileImageSelector
-                size="sm"
-                imageSrc={imageSrc}
-                onImageChange={handleProfileImageSelect}
-              />
-
-              <RuntimeFormCard
-                label="아티스트"
-                isActive={isArtistVisible}
-                toggleIsActive={() => handleOptionClick("artist", true)}
-                size="sm"
-              >
-                <div className="space-y-3">
-                  <p className="text-xs text-gray-500">
-                    artist on/off 오브젝트 표시를 전환합니다.
-                  </p>
-                  <TextRenderer
-                    height="sm"
-                    value={artistTextValue}
-                    handleTextChange={(nextValue: string) =>
-                      updateGlobalData({
-                        ...globalData,
-                        artistText: nextValue,
-                      })
-                    }
-                    placeholder={
-                      artistField?.placeholder ||
-                      renderConfig.artistTextPlaceholder ||
-                      "아티스트명을 입력해 주세요"
-                    }
-                  />
-                </div>
-              </RuntimeFormCard>
-
-              <RuntimeFormCard
-                label="주간 메모"
-                isActive={isMemoTextVisible}
-                toggleIsActive={() => handleOptionClick("memo", true)}
-                size="sm"
-              >
-                <TextareaRenderer
-                  value={memoText}
-                  handleTextareaChange={updateMemoText}
-                  placeholder="메모를 입력해 주세요"
-                  rows={3}
+              {hasProfileCapability ? (
+                <RuntimeProfileImageSelector
+                  size="sm"
+                  imageSrc={imageSrc}
+                  onImageChange={handleProfileImageSelect}
                 />
-              </RuntimeFormCard>
+              ) : null}
+
+              {showArtistControls ? (
+                <RuntimeFormCard
+                  label="아티스트"
+                  isActive={isArtistVisible}
+                  toggleIsActive={() => handleOptionClick("artist", true)}
+                  size="sm"
+                >
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-500">
+                      artist on/off 오브젝트 표시를 전환합니다.
+                    </p>
+                    <TextRenderer
+                      height="sm"
+                      value={artistTextValue}
+                      handleTextChange={(nextValue: string) =>
+                        updateGlobalData({
+                          ...globalData,
+                          artistText: nextValue,
+                        })
+                      }
+                      placeholder={
+                        artistField?.placeholder ||
+                        renderConfig.artistTextPlaceholder ||
+                        "아티스트명을 입력해 주세요"
+                      }
+                    />
+                  </div>
+                </RuntimeFormCard>
+              ) : null}
+
+              {showMemoControls ? (
+                <RuntimeFormCard
+                  label="주간 메모"
+                  isActive={isMemoTextVisible}
+                  toggleIsActive={() => handleOptionClick("memo", true)}
+                  size="sm"
+                >
+                  <TextareaRenderer
+                    value={memoText}
+                    handleTextareaChange={updateMemoText}
+                    placeholder="메모를 입력해 주세요"
+                    rows={3}
+                  />
+                </RuntimeFormCard>
+              ) : null}
             </div>
           )}
 

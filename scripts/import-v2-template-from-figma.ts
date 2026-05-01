@@ -19,12 +19,23 @@ import { v2_graphRemoveNodeSubtree } from "../src/utils/v2/template-graph-editor
 import {
   V2TemplateAssetRef,
   V2TemplateBuiltinAssetKey,
+  V2TemplateCardFrameNode,
+  V2TemplateCardNode,
+  V2TemplateCardStructure,
   V2TemplateDayKey,
   V2TemplateExtraAssetDimensionMap,
   V2TemplateExtraAssetMap,
+  V2TemplateTimetableCardComponent,
+  V2TemplateTimetableCardState,
 } from "../src/types/time-table/template-render-config";
 
 type CardBackgroundAssetMode = "none" | "shared" | "byDay";
+
+export type ImportV2CardComponentGroup = {
+  id: string;
+  label?: string;
+  candidates: FigmaNode[];
+};
 
 export type ImportV2TemplateFromFigmaOptions = {
   figmaUrl: string;
@@ -40,10 +51,12 @@ export type ImportV2TemplateFromFigmaOptions = {
   supabaseServiceRoleKey?: string;
   figmaToken?: string;
   withAssets: boolean;
+  uploadAssetsWithoutWrite?: boolean;
   assetTheme: string;
   assetFormat: "png" | "jpg" | "svg" | "pdf";
   noAiAssetMatch: boolean;
   explicitExternalCardCandidates?: FigmaNode[];
+  explicitExternalCardComponentGroups?: ImportV2CardComponentGroup[];
   explicitExternalArtistVariantCandidates?: FigmaNode[];
   cardBackgroundModeByStatus?: Partial<
     Record<CardBackgroundVariantMode, CardBackgroundAssetMode>
@@ -55,12 +68,29 @@ export type ImportV2TemplateFromFigmaOptions = {
   ) => ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
 };
 
+export type ImportV2DetectedFeature = {
+  enabled: boolean;
+  on: boolean;
+  off: boolean;
+  object: boolean;
+  text: boolean;
+};
+
+export type ImportV2DetectedFeatures = {
+  artist: ImportV2DetectedFeature & {
+    profile: boolean;
+  };
+  memo: ImportV2DetectedFeature;
+};
+
 export type ImportV2TemplateFromFigmaResult = {
   mode: "dry-run" | "write";
   templateId: string;
   templateName: string;
   normalizedConfig: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
   latestRevisionNo: number | null;
+  assetImportSummary: AssetImportSummary | null;
+  detectedFeatures: ImportV2DetectedFeatures;
 };
 
 type CliOptions = ImportV2TemplateFromFigmaOptions;
@@ -181,7 +211,7 @@ type AssetCandidateInput = {
   ruleTarget?: AssetTarget | null;
 };
 
-type AssetImportSummary = {
+export type AssetImportSummary = {
   discovered: number;
   mapped: number;
   uploaded: number;
@@ -221,6 +251,9 @@ type MappingSummary = {
     missing: string[];
   }>;
   presence: {
+    board: boolean;
+    frameBg: boolean;
+    gridBg: boolean;
     grid: boolean;
     weekFlag: boolean;
     topObject: boolean;
@@ -228,8 +261,8 @@ type MappingSummary = {
     memoText: boolean;
     artistText: boolean;
     artistObject: boolean;
-    profileImage: boolean;
-    profileFrame: boolean;
+    frameArtwork: boolean;
+    frameObject: boolean;
     cardContainer: boolean;
     cardMainTitle: boolean;
     cardSubTitle: boolean;
@@ -240,8 +273,13 @@ type MappingSummary = {
 };
 
 type CardTextStatus = "online" | "multi" | "offline" | "offlineMemo";
-type ArtistVariantState = "on" | "off";
+type OnOffVariantState = "on" | "off";
+type ArtistVariantState = OnOffVariantState;
+type MemoVariantState = OnOffVariantState;
 type ImportRenderConfig = ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
+// Supabase table types are not generated for this admin script.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseAdminClient = any;
 
 const rootDir = path.resolve(__dirname, "..");
 
@@ -699,12 +737,33 @@ const ASSET_STATUS_ALIASES: Record<string, AssetStatus> = {
 
 const ASSET_SLOT_TO_BUILTIN_KEY: Record<string, V2TemplateBuiltinAssetKey> = {
   "scene.bg": "bgByTheme",
+  "scene.background": "bgByTheme",
+  "board": "boardByTheme",
+  "scene.board": "boardByTheme",
+  "board.bg": "boardByTheme",
+  "scene.board.bg": "boardByTheme",
+  "frame.bg": "frameBgByTheme",
+  "scene.frame.bg": "frameBgByTheme",
+  "frame.background": "frameBgByTheme",
+  "frame.frame": "frameByTheme",
+  "scene.frame.frame": "frameByTheme",
+  "frame.object": "frameByTheme",
+  "scene.frame.object": "frameByTheme",
+  "grid.bg": "gridBgByTheme",
+  "scene.grid.bg": "gridBgByTheme",
+  "grid.background": "gridBgByTheme",
+  "scene.grid.background": "gridBgByTheme",
+  "frame.artwork": "profileBgByTheme",
+  "scene.frame.artwork": "profileBgByTheme",
+  "frame.profile": "profileBgByTheme",
   "scene.topobject": "topObjectByTheme",
   "scene.top": "topObjectByTheme",
   "scene.memo": "memoByTheme",
   "memo.container": "memoByTheme",
   "artist.background": "artistOnByTheme",
   "artist.object": "artistOnByTheme",
+  "artist.off": "artistOffByTheme",
+  "artist.off.object": "artistOffByTheme",
   "profile.image": "profileBgByTheme",
   "profile.frame": "profileFrameByTheme",
   "scene.guide": "guideByTheme",
@@ -735,6 +794,29 @@ const EXPLICIT_ASSET_TAG_TO_BUILTIN_KEY: Record<
   "artist-off": "artistOffByTheme",
   noartist: "artistOffByTheme",
   no_artist: "artistOffByTheme",
+  board: "boardByTheme",
+  boardbg: "boardByTheme",
+  board_bg: "boardByTheme",
+  sceneboard: "boardByTheme",
+  scene_board: "boardByTheme",
+  frame: "frameByTheme",
+  frameobject: "frameByTheme",
+  frame_object: "frameByTheme",
+  frameoverlay: "frameByTheme",
+  frame_overlay: "frameByTheme",
+  framebg: "frameBgByTheme",
+  frame_bg: "frameBgByTheme",
+  framebackground: "frameBgByTheme",
+  frame_background: "frameBgByTheme",
+  gridbg: "gridBgByTheme",
+  grid_bg: "gridBgByTheme",
+  gridbackground: "gridBgByTheme",
+  grid_background: "gridBgByTheme",
+  scenegridbg: "gridBgByTheme",
+  scene_grid_bg: "gridBgByTheme",
+  artwork: "profileBgByTheme",
+  frameartwork: "profileBgByTheme",
+  frame_artwork: "profileBgByTheme",
   profileframe: "profileFrameByTheme",
   profile_frame: "profileFrameByTheme",
   profilebg: "profileBgByTheme",
@@ -906,6 +988,37 @@ const applyCardBackgroundModeToConfig = ({
       ...node,
       meta: nextMeta,
     };
+  });
+
+  Object.values(config.timetable.components).forEach((component) => {
+    const state = component.states[mode];
+    if (!state) return;
+    Object.values(state.card.nodes).forEach((node) => {
+      if (node.kind !== "image") return;
+      const assetRef = node.assetRef;
+      const keyPrefix = mode === "offlineMemo" ? "offlineMemo_" : `${mode}_`;
+      const isExpectedNode =
+        node.highlightTarget === variant.layerTarget ||
+        node.id === `${mode}-background` ||
+        (mode === "offlineMemo" && node.id === "offline-memo-background") ||
+        (assetRef?.source === "builtin" &&
+          (assetRef.key === variant.builtinAssetKey ||
+            assetRef.key.startsWith(keyPrefix)));
+      if (!isExpectedNode) return;
+
+      if (backgroundMode === "byDay" && dayMap) {
+        node.assetRefByDayKey = dayMap;
+      } else {
+        node.assetRefByDayKey = undefined;
+      }
+
+      if (variant.builtinAssetKey && node.assetRef?.source !== "extra") {
+        node.assetRef = {
+          source: "builtin",
+          key: variant.builtinAssetKey,
+        };
+      }
+    });
   });
 
   const optionKey = variant.editorOptionByDayKey;
@@ -1407,6 +1520,27 @@ const ARTIST_VARIANT_STATE_ALIASES: Record<string, ArtistVariantState> = {
   noartistobject: "off",
 };
 
+const MEMO_VARIANT_STATE_ALIASES: Record<string, MemoVariantState> = {
+  on: "on",
+  memoon: "on",
+  memo_on: "on",
+  "memo-on": "on",
+  weeklymemoon: "on",
+  weekly_memo_on: "on",
+  withmemo: "on",
+  with_memo: "on",
+  off: "off",
+  memooff: "off",
+  memo_off: "off",
+  "memo-off": "off",
+  weeklymemooff: "off",
+  weekly_memo_off: "off",
+  nomemo: "off",
+  no_memo: "off",
+  noweeklymemo: "off",
+  no_weekly_memo: "off",
+};
+
 const normalizeCardTextStatus = (
   value: string | undefined
 ): CardTextStatus | undefined => {
@@ -1427,6 +1561,17 @@ const normalizeArtistVariantState = (
     .toLowerCase()
     .replace(/\s+/g, "_");
   return ARTIST_VARIANT_STATE_ALIASES[normalized];
+};
+
+const normalizeMemoVariantState = (
+  value: string | undefined
+): MemoVariantState | undefined => {
+  if (!value) return undefined;
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+  return MEMO_VARIANT_STATE_ALIASES[normalized];
 };
 
 const tokenizeNodeName = (value: string | undefined): string[] => {
@@ -1466,8 +1611,48 @@ const parseArtistVariantStateFromNode = (
   return undefined;
 };
 
-const hasDirectNodeTag = (node: FigmaNode | undefined, key: string): boolean => {
-  return Boolean(getNodeTagValue(node, key));
+const parseMemoVariantStateFromNode = (
+  node: FigmaNode | undefined
+): MemoVariantState | undefined => {
+  if (!node) return undefined;
+
+  for (const [rawKey, rawValue] of Object.entries(node.variantProperties ?? {})) {
+    const key = canonicalName(rawKey);
+    if (!key.includes("memo")) continue;
+    const normalized = normalizeMemoVariantState(rawValue);
+    if (normalized) return normalized;
+  }
+
+  const tokens = tokenizeNodeName(node.name);
+  const isMemoName =
+    tokens.includes("memo") ||
+    tokens.includes("weeklymemo") ||
+    tokens.includes("memoon") ||
+    tokens.includes("memooff") ||
+    tokens.includes("nomemo");
+  if (!isMemoName) return undefined;
+  if (tokens.includes("off") || tokens.includes("memooff") || tokens.includes("nomemo")) {
+    return "off";
+  }
+  if (tokens.includes("on") || tokens.includes("memoon")) {
+    return "on";
+  }
+  return undefined;
+};
+
+const appendFigmaNodeTag = ({
+  node,
+  key,
+  value,
+}: {
+  node: FigmaNode;
+  key: string;
+  value: string;
+}) => {
+  const currentName = node.name?.trim() ?? "";
+  const tagPattern = new RegExp(`\\[${key}\\s*=`, "i");
+  if (tagPattern.test(currentName)) return;
+  node.name = `${currentName || node.id || "node"} [${key}=${value}]`;
 };
 
 const hasVisibleImageFill = (node: FigmaNode): boolean => {
@@ -1495,6 +1680,41 @@ const isPotentialAssetNode = (node: FigmaNode): boolean => {
 
   // Asset import should only consider actual raster-backed paint nodes.
   return hasVisibleImageFill(node);
+};
+
+const isExportableAssetContainerNode = (node: FigmaNode): boolean => {
+  if (!node.name) return false;
+  const nodeType = (node.type ?? "").toUpperCase();
+  return (
+    nodeType !== "TEXT" &&
+    nodeType !== "SECTION" &&
+    nodeType !== "PAGE" &&
+    nodeType !== "DOCUMENT"
+  );
+};
+
+const isNamedAssetContainerCandidate = (nodeName: string): boolean => {
+  const canonical = canonicalName(nodeName);
+  return [
+    "imagebg",
+    "bg",
+    "background",
+    "imagebackground",
+    "topobject",
+    "imagetopobject",
+    "memoobject",
+    "imagememo",
+    "board",
+    "boardbg",
+    "sceneboard",
+    "framebg",
+    "framebackground",
+    "frameobject",
+    "frameartwork",
+    "profileimage",
+    "profileframe",
+    "guideoverlay",
+  ].includes(canonical);
 };
 
 const resolveAssetTargetByExplicitTag = ({
@@ -2434,6 +2654,40 @@ const getLocalNodeRect = (node: FigmaNode | undefined): Rect | null => {
   };
 };
 
+const cloneImportJson = <T,>(value: T): T =>
+  JSON.parse(JSON.stringify(value)) as T;
+
+const sanitizeTimetableStyleKeyPart = (value: string): string => {
+  const sanitized = value.trim().replace(/[^a-zA-Z0-9_-]+/g, "-");
+  return sanitized.replace(/^-+|-+$/g, "") || "style";
+};
+
+const buildTimetableScopedStyleKey = ({
+  componentId,
+  status,
+  nodeId,
+  part,
+  sourceKey,
+}: {
+  componentId: string;
+  status: CardTextStatus;
+  nodeId: string;
+  part: string;
+  sourceKey: string;
+}): string => {
+  const expectedPrefix = [
+    "timetable",
+    sanitizeTimetableStyleKeyPart(componentId),
+    status,
+    sanitizeTimetableStyleKeyPart(nodeId),
+    sanitizeTimetableStyleKeyPart(part),
+  ].join(":");
+  if (sourceKey.startsWith(`${expectedPrefix}:`)) {
+    return sourceKey;
+  }
+  return `${expectedPrefix}:${sanitizeTimetableStyleKeyPart(sourceKey)}`;
+};
+
 const applyFlexibleLayoutToTargets = ({
   rect,
   containerTarget,
@@ -2441,15 +2695,17 @@ const applyFlexibleLayoutToTargets = ({
 }: {
   rect: Rect | null;
   containerTarget: Record<string, unknown>;
-  wrapperTarget: Record<string, unknown>;
+  wrapperTarget?: Record<string, unknown>;
 }) => {
   if (!rect) return;
 
   applyRectToLayoutObject({
     rect,
     target: containerTarget,
-    includeRotation: false,
+    includeRotation: !wrapperTarget,
   });
+
+  if (!wrapperTarget) return;
 
   wrapperTarget.left = 0;
   wrapperTarget.top = 0;
@@ -2845,6 +3101,7 @@ const applyNotApplicablePruning = ({
   summary: MappingSummary;
 }) => {
   const { presence } = summary;
+  const hasArtistCapability = presence.artistText || presence.artistObject;
 
   if (!presence.topObject) {
     removeGraphSubtree({
@@ -2888,6 +3145,18 @@ const applyNotApplicablePruning = ({
     });
   }
 
+  const hasMemoCapability = presence.memoObject || presence.memoText;
+  config.editorOptions.isMemo = hasMemoCapability;
+  if (!hasMemoCapability) {
+    removeGraphSubtree({
+      config,
+      nodeId: "scene-memo",
+      summary,
+      reason: "scene.memoGroup",
+    });
+    summary.notApplicable.push("editorOptions.isMemo=false");
+  }
+
   if (!presence.artistText) {
     removeGraphSubtree({
       config,
@@ -2904,9 +3173,21 @@ const applyNotApplicablePruning = ({
       summary,
       reason: "scene.artistObject",
     });
+    removeGraphSubtree({
+      config,
+      nodeId: "scene-artist-object-off",
+      summary,
+      reason: "scene.artistObjectOff",
+    });
   }
 
-  if (!presence.artistText && !presence.artistObject) {
+  if (!hasArtistCapability) {
+    removeGraphSubtree({
+      config,
+      nodeId: "scene-artist-group",
+      summary,
+      reason: "scene.artistGroup",
+    });
     removeGraphSubtree({
       config,
       nodeId: "scene-artist",
@@ -2915,36 +3196,52 @@ const applyNotApplicablePruning = ({
     });
   }
 
-  if (!presence.profileImage) {
+  if (!presence.board) {
     removeGraphSubtree({
       config,
-      nodeId: "scene-profile-image",
+      nodeId: "scene-board",
       summary,
-      reason: "scene.profileImage",
+      reason: "scene.board",
     });
   }
 
-  if (!presence.profileFrame) {
+  if (!presence.frameBg) {
     removeGraphSubtree({
       config,
-      nodeId: "scene-profile-frame",
+      nodeId: "scene-frame-bg",
       summary,
-      reason: "scene.profileFrame",
+      reason: "scene.frameBg",
     });
   }
 
-  if (!presence.profileImage && !presence.profileFrame) {
+  if (!presence.frameArtwork) {
     removeGraphSubtree({
       config,
-      nodeId: "scene-profile",
+      nodeId: "scene-frame-artwork",
       summary,
-      reason: "scene.profileGroup",
+      reason: "scene.frameArtwork",
     });
   }
 
-  // If no artist/profile nodes exist, treat artist as disabled capability.
-  const hasArtistCapability =
-    presence.artistText || presence.artistObject || presence.profileImage || presence.profileFrame;
+  if (!presence.frameObject) {
+    removeGraphSubtree({
+      config,
+      nodeId: "scene-frame-frame",
+      summary,
+      reason: "scene.frameObject",
+    });
+  }
+
+  if (!presence.frameBg && !presence.frameArtwork && !presence.frameObject) {
+    removeGraphSubtree({
+      config,
+      nodeId: "scene-frame",
+      summary,
+      reason: "scene.frame",
+    });
+  }
+
+  // Frame is a separate scene area; only artist text/object controls artist status.
   if (!hasArtistCapability) {
     config.editorOptions.isArtist = false;
     summary.notApplicable.push("editorOptions.isArtist=false");
@@ -3016,6 +3313,15 @@ const applyNotApplicablePruning = ({
     }
   }
 
+  if (!presence.gridBg) {
+    removeGraphSubtree({
+      config,
+      nodeId: "scene-grid-bg",
+      summary,
+      reason: "scene.gridBg",
+    });
+  }
+
   if (!presence.grid && !presence.cardContainer) {
     removeGraphSubtree({
       config,
@@ -3036,6 +3342,7 @@ const applyLayoutMappingsFromFigma = ({
   rootNode,
   config,
   externalCardCandidates = [],
+  externalCardComponentGroups = [],
   externalArtistVariantCandidates = [],
   externalWarnings = [],
   componentMapById,
@@ -3043,6 +3350,7 @@ const applyLayoutMappingsFromFigma = ({
   rootNode: FigmaNode;
   config: ReturnType<typeof v2_createDefaultTemplateRenderConfig>;
   externalCardCandidates?: FigmaNode[];
+  externalCardComponentGroups?: ImportV2CardComponentGroup[];
   externalArtistVariantCandidates?: FigmaNode[];
   externalWarnings?: string[];
   componentMapById?: Map<string, { name: string; componentSetId?: string }>;
@@ -3053,6 +3361,9 @@ const applyLayoutMappingsFromFigma = ({
     notApplicable: [],
     statusSlotAuditRows: [],
     presence: {
+      board: false,
+      frameBg: false,
+      gridBg: false,
       grid: false,
       weekFlag: false,
       topObject: false,
@@ -3060,8 +3371,8 @@ const applyLayoutMappingsFromFigma = ({
       memoText: false,
       artistText: false,
       artistObject: false,
-      profileImage: false,
-      profileFrame: false,
+      frameArtwork: false,
+      frameObject: false,
       cardContainer: false,
       cardMainTitle: false,
       cardSubTitle: false,
@@ -3076,6 +3387,19 @@ const applyLayoutMappingsFromFigma = ({
   }
 
   const allNodes = flattenNodes(rootNode);
+  const sceneLayout = config.layout.scene as Record<
+    string,
+    Record<string, unknown> | undefined
+  >;
+  const ensureSceneLayoutObject = (styleKey: string): Record<string, unknown> => {
+    const current = sceneLayout[styleKey];
+    if (current && typeof current === "object" && !Array.isArray(current)) {
+      return current;
+    }
+    const next: Record<string, unknown> = {};
+    sceneLayout[styleKey] = next;
+    return next;
+  };
   const alias = {
     grid: [
       "grid",
@@ -3106,19 +3430,38 @@ const applyLayoutMappingsFromFigma = ({
     ],
     memoTextContainer: ["memo text", "memo text container", "메모텍스트", "memotextcontainer"],
     memoText: ["memo text", "memo title", "메모", "메모텍스트", "memotext"],
+    board: ["board", "sceneboard", "imageboard", "board bg"],
+    gridBg: [
+      "gridbg",
+      "gridbackground",
+      "scenegridbg",
+      "grid bg",
+    ],
+    frameBg: [
+      "framebg",
+      "framebackground",
+      "sceneframebg",
+      "frame bg",
+    ],
     profileImage: [
       "profileimage",
       "imageprofile",
       "imageprofileimage",
       "artistimage",
       "profile image",
+      "artwork",
+      "frameartwork",
+      "frame artwork",
     ],
     profileFrame: [
       "profileframe",
+      "frameframe",
+      "frameobject",
       "imageframe",
       "imageprofileframe",
       "artistframe",
       "profile frame",
+      "frame object",
     ],
     artistText: [
       "artisttext",
@@ -3193,9 +3536,14 @@ const applyLayoutMappingsFromFigma = ({
       "imagecardbackground",
       "background",
     ],
+    sceneBackground: ["imagebg", "bg", "background", "imagebackground"],
   } as const;
 
   const slot = {
+    sceneBackground: ["scene.bg", "scene.background"],
+    board: ["board", "scene.board", "board.bg", "scene.board.bg"],
+    gridBg: ["grid.bg", "scene.grid.bg", "grid.background"],
+    frameBg: ["frame.bg", "scene.frame.bg", "frame.background"],
     grid: ["grid", "scene.grid"],
     weekFlag: ["weekFlag", "week.flag", "scene.weekFlag"],
     topObject: ["scene.topObject", "topObject", "top.object"],
@@ -3203,8 +3551,13 @@ const applyLayoutMappingsFromFigma = ({
     memoContentContainer: ["memo.text", "memo.content"],
     memoTextContainer: ["memo.text"],
     memoText: ["memo.text.content"],
-    profileImage: ["profile.image"],
-    profileFrame: ["profile.frame", "profile"],
+    profileImage: [
+      "profile.image",
+      "frame.artwork",
+      "scene.frame.artwork",
+      "frame.profile",
+    ],
+    profileFrame: ["frame.frame", "scene.frame.frame", "profile.frame", "profile"],
     artistText: ["artist.text", "scene.artist.text"],
     artistObject: ["artist.background", "artist.object"],
     cardContainer: ["card"],
@@ -3649,12 +4002,114 @@ const applyLayoutMappingsFromFigma = ({
     return true;
   };
 
+  const countDayStatusCardDescendants = (node: FigmaNode | undefined): number => {
+    if (!node) return 0;
+    return collectDayStatusCardCandidates(flattenNodes(node)).length;
+  };
+
+  const getNodeArea = (node: FigmaNode | undefined): number => {
+    const bounds = getBounds(node);
+    if (!bounds) return Number.POSITIVE_INFINITY;
+    return bounds.width * bounds.height;
+  };
+
+  const resolveGridLayoutNode = (
+    gridWrapperNode: FigmaNode | undefined
+  ): FigmaNode | undefined => {
+    if (!gridWrapperNode) return undefined;
+
+    const explicitFrameGridNode = findFirstDirectChildByNames({
+      rootNode: gridWrapperNode,
+      aliases: ["frame/grid", "framegrid", "grid"],
+    });
+    if (explicitFrameGridNode && getBounds(explicitFrameGridNode)) {
+      summary.applied.push("layout.grid.source=Scene/Grid>Frame/Grid");
+      return explicitFrameGridNode;
+    }
+
+    const wrapperChildren = Array.isArray(gridWrapperNode.children)
+      ? gridWrapperNode.children
+      : [];
+    const rankedChildCandidates = wrapperChildren
+      .map((child, index) => ({
+        child,
+        index,
+        cardCount: countDayStatusCardDescendants(child),
+        area: getNodeArea(child),
+      }))
+      .filter((entry) => entry.cardCount >= 2 && Number.isFinite(entry.area))
+      .sort((left, right) => {
+        if (right.cardCount !== left.cardCount) return right.cardCount - left.cardCount;
+        if (left.area !== right.area) return left.area - right.area;
+        return left.index - right.index;
+      });
+
+    const bestChildCandidate = rankedChildCandidates[0]?.child;
+    if (bestChildCandidate) {
+      summary.applied.push("layout.grid.source=Scene/Grid>card-wrapper");
+      return bestChildCandidate;
+    }
+
+    summary.warnings.push(
+      "Grid layout wrapper not found; using Scene/Grid as layout root."
+    );
+    return gridWrapperNode;
+  };
+
   const rootBounds = getBounds(rootNode);
   if (!rootBounds) {
     summary.warnings.push("Root absoluteBoundingBox is missing.");
     return summary;
   }
 
+  const sceneBoardNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/board", "board", "sceneboard"]],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.board,
+      aliases: alias.board,
+    });
+  const sceneBoardBgNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [
+        ["scene/board", "board", "sceneboard"],
+        ["image/bg", "bg", "imagebg", "background"],
+      ],
+    }) ??
+    findFirstByTagCriteria(allNodes, {
+      slot: slot.board,
+      role: ["background", "bg"],
+    });
+  const sceneFrameNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/frame", "frame", "sceneframe"]],
+    }) ??
+    findFirstDirectChildByNames({
+      rootNode,
+      aliases: ["scene/frame", "frame", "sceneframe"],
+    });
+  const sceneFrameBgNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [
+        ["scene/frame", "frame", "sceneframe"],
+        ["image/bg", "bg", "imagebg", "background"],
+      ],
+    }) ??
+    findFirstByTagCriteria(allNodes, {
+      slot: slot.frameBg,
+      role: ["background", "bg"],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.frameBg,
+      aliases: alias.frameBg,
+    });
   const sceneGridNode =
     findNodeByCanonicalPath({
       rootNode,
@@ -3664,6 +4119,23 @@ const applyLayoutMappingsFromFigma = ({
       nodes: allNodes,
       tagValues: slot.grid,
       aliases: alias.grid,
+    });
+  const sceneGridBgNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [
+        ["scene/grid", "grid"],
+        ["image/bg", "bg", "imagebg", "background"],
+      ],
+    }) ??
+    findFirstByTagCriteria(allNodes, {
+      slot: slot.gridBg,
+      role: ["background", "bg"],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: allNodes,
+      tagValues: slot.gridBg,
+      aliases: alias.gridBg,
     });
   const sceneWeekDatesNode =
     findNodeByCanonicalPath({
@@ -3685,12 +4157,12 @@ const applyLayoutMappingsFromFigma = ({
       tagValues: slot.topObject,
       aliases: alias.topObject,
     });
-  const sceneProfileImageNode =
+  const sceneFrameArtworkNode =
     findNodeByCanonicalPath({
       rootNode,
       pathAliases: [
         ["scene/frame", "frame", "sceneframe"],
-        ["image/profile", "profileimage", "imageprofile"],
+        ["image/profile", "profileimage", "imageprofile", "image/artwork", "artwork"],
       ],
     }) ??
     findNodeByTagOrAlias({
@@ -3698,12 +4170,12 @@ const applyLayoutMappingsFromFigma = ({
       tagValues: slot.profileImage,
       aliases: alias.profileImage,
     });
-  const sceneProfileFrameNode =
+  const sceneFrameObjectNode =
     findNodeByCanonicalPath({
       rootNode,
       pathAliases: [
         ["scene/frame", "frame", "sceneframe"],
-        ["image/frame", "profileframe", "imageframe"],
+        ["image/frame", "profileframe", "imageframe", "frameobject"],
       ],
     }) ??
     findFirstByTagCriteria(allNodes, {
@@ -3779,7 +4251,79 @@ const applyLayoutMappingsFromFigma = ({
     `templateSize(${config.templateSize.width}x${config.templateSize.height})`
   );
 
-  const gridNode = sceneGridNode;
+  const sceneBackgroundNode =
+    findFirstDirectChildByTagValues({
+      rootNode,
+      key: "slot",
+      values: slot.sceneBackground,
+    }) ??
+    findFirstDirectChildByNames({
+      rootNode,
+      aliases: alias.sceneBackground,
+    }) ??
+    findFirstByTagValues(allNodes, "slot", slot.sceneBackground);
+  if (sceneBackgroundNode) {
+    appendFigmaNodeTag({
+      node: sceneBackgroundNode,
+      key: "asset",
+      value: "bgByTheme",
+    });
+    summary.applied.push("asset.scene.background=bgByTheme");
+  }
+
+  const boardRootNode = sceneBoardNode ?? sceneBoardBgNode;
+  const boardPositionRootNode = assignSceneGroupFrame({
+    nodeId: "scene-board",
+    styleKey: "sceneBoard",
+    frameNode: boardRootNode,
+    reason: "layout.scene.sceneBoard",
+  });
+  const boardBgNode = sceneBoardBgNode ?? sceneBoardNode;
+  summary.presence.board = Boolean(boardBgNode);
+  applyRectToLayoutObject({
+    rect: toRelativeRect({
+      rootNode: boardPositionRootNode,
+      targetNode: boardBgNode,
+    }),
+    target: ensureSceneLayoutObject("boardBg"),
+  });
+  if (boardBgNode) {
+    appendFigmaNodeTag({
+      node: boardBgNode,
+      key: "asset",
+      value: "boardByTheme",
+    });
+    summary.applied.push("layout.scene.boardBg");
+    summary.applied.push("asset.board.bg=boardByTheme");
+  }
+
+  const frameRootNode =
+    sceneFrameNode ?? sceneFrameBgNode ?? sceneFrameArtworkNode ?? sceneFrameObjectNode;
+  const framePositionRootNode = assignSceneGroupFrame({
+    nodeId: "scene-frame",
+    styleKey: "sceneFrame",
+    frameNode: frameRootNode,
+    reason: "layout.scene.sceneFrame",
+  });
+  summary.presence.frameBg = Boolean(sceneFrameBgNode);
+  applyRectToLayoutObject({
+    rect: toRelativeRect({
+      rootNode: framePositionRootNode,
+      targetNode: sceneFrameBgNode,
+    }),
+    target: ensureSceneLayoutObject("frameBg"),
+  });
+  if (sceneFrameBgNode) {
+    appendFigmaNodeTag({
+      node: sceneFrameBgNode,
+      key: "asset",
+      value: "frameBgByTheme",
+    });
+    summary.applied.push("layout.scene.frameBg");
+    summary.applied.push("asset.frame.bg=frameBgByTheme");
+  }
+
+  const gridNode = resolveGridLayoutNode(sceneGridNode);
   summary.presence.grid = Boolean(gridNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: gridNode }),
@@ -3791,6 +4335,21 @@ const applyLayoutMappingsFromFigma = ({
       target: config.layout.grid as unknown as Record<string, unknown>,
     });
     summary.applied.push("layout.grid");
+  }
+
+  summary.presence.gridBg = Boolean(sceneGridBgNode);
+  applyRectToLayoutObject({
+    rect: toRelativeRect({ rootNode, targetNode: sceneGridBgNode }),
+    target: ensureSceneLayoutObject("gridBg"),
+  });
+  if (sceneGridBgNode) {
+    appendFigmaNodeTag({
+      node: sceneGridBgNode,
+      key: "asset",
+      value: "gridBgByTheme",
+    });
+    summary.applied.push("layout.scene.gridBg");
+    summary.applied.push("asset.grid.bg=gridBgByTheme");
   }
 
   const weekFlagNode = sceneWeekDatesNode;
@@ -3837,7 +4396,7 @@ const applyLayoutMappingsFromFigma = ({
   summary.presence.memoObject = Boolean(memoContainerNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: memoContainerNode }),
-    target: config.layout.scene.memoContainer as unknown as Record<string, unknown>,
+    target: ensureSceneLayoutObject("memoContainer"),
   });
   if (memoContainerNode) {
     summary.applied.push("layout.scene.memoContainer");
@@ -3850,7 +4409,7 @@ const applyLayoutMappingsFromFigma = ({
   });
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: memoContentNode }),
-    target: config.layout.scene.memoContentContainer as unknown as Record<string, unknown>,
+    target: ensureSceneLayoutObject("memoContentContainer"),
   });
   if (memoContentNode) {
     summary.applied.push("layout.scene.memoContentContainer");
@@ -3863,7 +4422,7 @@ const applyLayoutMappingsFromFigma = ({
   });
   applyRectToLayoutObject({
     rect: toRelativeRect({ rootNode, targetNode: memoTextContainerNode }),
-    target: config.layout.scene.memoTextContainer as unknown as Record<string, unknown>,
+    target: ensureSceneLayoutObject("memoTextContainer"),
   });
   if (memoTextContainerNode) {
     summary.applied.push("layout.scene.memoTextContainer");
@@ -3880,7 +4439,7 @@ const applyLayoutMappingsFromFigma = ({
   if (memoTextStyleSourceNode) {
     const appliedMemoTextStyle = applyTextStyleFromContentNode({
       containerNode: memoTextStyleSourceNode,
-      target: config.layout.scene.memoTextStyle as unknown as Record<string, unknown>,
+      target: ensureSceneLayoutObject("memoTextStyle"),
     });
     if (!appliedMemoTextStyle) {
       summary.warnings.push("Memo Content(TEXT) not found; text style skipped.");
@@ -3888,44 +4447,44 @@ const applyLayoutMappingsFromFigma = ({
     summary.applied.push("layout.scene.memoTextStyle");
   }
 
-  const profileFrameRootNode =
-    sceneProfileImageNode || sceneProfileFrameNode
-      ? resolvePositionContextRootByFrame({
-          sourceRootNode: rootNode,
-          targetNode: sceneProfileImageNode ?? sceneProfileFrameNode,
-        })
-      : rootNode;
-  const profilePositionRootNode = assignSceneGroupFrame({
-    nodeId: "scene-profile",
-    styleKey: "sceneProfileFrame",
-    frameNode: profileFrameRootNode,
-    reason: "layout.scene.sceneProfileFrame",
-  });
-
-  const profileImageNode = sceneProfileImageNode;
-  summary.presence.profileImage = Boolean(profileImageNode);
+  const frameArtworkNode = sceneFrameArtworkNode;
+  summary.presence.frameArtwork = Boolean(frameArtworkNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({
-      rootNode: profilePositionRootNode,
-      targetNode: profileImageNode,
+      rootNode: framePositionRootNode,
+      targetNode: frameArtworkNode,
     }),
-    target: config.layout.profileImage as unknown as Record<string, unknown>,
+    target: ensureSceneLayoutObject("frameArtwork"),
   });
-  if (profileImageNode) {
-    summary.applied.push("layout.profileImage");
+  if (frameArtworkNode) {
+    ensureSceneLayoutObject("frameArtwork").zIndex = 20;
+    appendFigmaNodeTag({
+      node: frameArtworkNode,
+      key: "asset",
+      value: "profileBgByTheme",
+    });
+    summary.applied.push("layout.scene.frameArtwork");
+    summary.applied.push("asset.frame.artwork=profileBgByTheme");
   }
 
-  const profileFrameNode = sceneProfileFrameNode;
-  summary.presence.profileFrame = Boolean(profileFrameNode);
+  const frameObjectNode = sceneFrameObjectNode;
+  summary.presence.frameObject = Boolean(frameObjectNode);
   applyRectToLayoutObject({
     rect: toRelativeRect({
-      rootNode: profilePositionRootNode,
-      targetNode: profileFrameNode,
+      rootNode: framePositionRootNode,
+      targetNode: frameObjectNode,
     }),
-    target: config.layout.profileFrame as unknown as Record<string, unknown>,
+    target: ensureSceneLayoutObject("frameObject"),
   });
-  if (profileFrameNode) {
-    summary.applied.push("layout.profileFrame");
+  if (frameObjectNode) {
+    ensureSceneLayoutObject("frameObject").zIndex = 30;
+    appendFigmaNodeTag({
+      node: frameObjectNode,
+      key: "asset",
+      value: "frameByTheme",
+    });
+    summary.applied.push("layout.scene.frameObject");
+    summary.applied.push("asset.frame.frame=frameByTheme");
   }
 
   const artistObjectNode = sceneArtistNode;
@@ -3980,10 +4539,14 @@ const applyLayoutMappingsFromFigma = ({
     applyFlexibleLayoutToTargets({
       rect: artistTextRect,
       containerTarget: config.layout.artistTextRootStyle as unknown as Record<string, unknown>,
-      wrapperTarget: config.layout.artistTextWrapperStyle as unknown as Record<string, unknown>,
+      wrapperTarget: config.layout.artistTextWrapperStyle as
+        | Record<string, unknown>
+        | undefined,
     });
     summary.applied.push("layout.artistTextRootStyle");
-    summary.applied.push("layout.artistTextWrapperStyle");
+    if (config.layout.artistTextWrapperStyle) {
+      summary.applied.push("layout.artistTextWrapperStyle");
+    }
 
     const appliedArtistTextStyle = applyTextStyleFromContentNode({
       containerNode: artistTextNode,
@@ -4051,42 +4614,43 @@ const applyLayoutMappingsFromFigma = ({
   }
   summary.presence.cardContainer = Boolean(cardContainerNode);
   if (cardContainerNode) {
-    const collectCardCandidatesByStatus = (
-      candidates: FigmaNode[]
-    ): Partial<Record<CardTextStatus, FigmaNode>> => {
-      const next: Partial<Record<CardTextStatus, FigmaNode>> = {};
-      const rankByStatus: Partial<
-        Record<CardTextStatus, { score: number; x: number; y: number }>
-      > = {};
-
-      candidates.forEach((candidate) => {
-        const status = resolveCandidateStatus(candidate);
-        if (!status) return;
-        const score = scoreCardContainerCandidate(candidate);
-        const bounds = getBounds(candidate);
-        const x = bounds?.x ?? Number.POSITIVE_INFINITY;
-        const y = bounds?.y ?? Number.POSITIVE_INFINITY;
-        const prev = rankByStatus[status];
-        if (!prev) {
-          next[status] = candidate;
-          rankByStatus[status] = { score, x, y };
-          return;
-        }
-        if (score > prev.score) {
-          next[status] = candidate;
-          rankByStatus[status] = { score, x, y };
-          return;
-        }
-        if (score === prev.score) {
-          const isMoreTopLeft = y < prev.y || (y === prev.y && x < prev.x);
-          if (isMoreTopLeft) {
-            next[status] = candidate;
-            rankByStatus[status] = { score, x, y };
-          }
-        }
-      });
-
-      return next;
+    const hasExplicitCardComponentGroups = externalCardComponentGroups.length > 0;
+    const buildScopedCardBackgroundAssetKey = ({
+      componentId,
+      status,
+    }: {
+      componentId: string;
+      status: CardTextStatus;
+    }): string =>
+      v2_normalizeAssetToken(`figma_${componentId}_${status}_background`) ||
+      `figma_${componentId}_${status}_background`;
+    const getCardBackgroundAssetRef = ({
+      componentId,
+      status,
+      forceScoped,
+    }: {
+      componentId: string;
+      status: CardTextStatus;
+      forceScoped: boolean;
+    }): V2TemplateAssetRef => {
+      const sharedKeyByStatus: Partial<Record<CardTextStatus, V2TemplateBuiltinAssetKey>> = {
+        online: "onlineByTheme",
+        offline: "offlineByTheme",
+      };
+      const sharedKey = forceScoped ? undefined : sharedKeyByStatus[status];
+      if (sharedKey) {
+        return {
+          source: "builtin",
+          key: sharedKey,
+        };
+      }
+      return {
+        source: "extra",
+        key: buildScopedCardBackgroundAssetKey({
+          componentId,
+          status,
+        }),
+      };
     };
 
     const hasExplicitCardStatusSource = externalCardCandidates.length > 0;
@@ -4427,6 +4991,943 @@ const applyLayoutMappingsFromFigma = ({
       return config.layout.card[styleKey] as Record<string, unknown>;
     };
 
+    const applyTimetableCardMappingsFromFigma = () => {
+      const defaultComponentId =
+        config.timetable.componentOrder[0] ??
+        Object.keys(config.timetable.components)[0] ??
+        "card-1";
+      const baseComponent = config.timetable.components[defaultComponentId];
+      if (!baseComponent) return;
+
+      const timetableStatusPlans = [
+        { status: "online", statusValues: ["online"] as const },
+        {
+          status: "multi",
+          statusValues: ["multi", "multiple", "online_multi", "onlinemultiple"] as const,
+        },
+        {
+          status: "offline",
+          statusValues: ["offline", "offlinememo", "offlineMemo"] as const,
+        },
+        {
+          status: "offlineMemo",
+          statusValues: ["offlineMemo", "offlinememo", "offline_memo", "memooffline"] as const,
+        },
+      ] satisfies Array<{
+        status: CardTextStatus;
+        statusValues: readonly string[];
+      }>;
+
+      const statusCandidatesByStatus = timetableStatusPlans.reduce<
+        Partial<Record<CardTextStatus, FigmaNode[]>>
+      >((acc, plan) => {
+        acc[plan.status] = dedupedStatusCandidates.filter(
+          (candidate) => resolveCandidateStatus(candidate) === plan.status
+        );
+        return acc;
+      }, {});
+      const activeStatuses = timetableStatusPlans
+        .map((plan) => plan.status)
+        .filter((status) => (statusCandidatesByStatus[status]?.length ?? 0) > 0);
+      if (activeStatuses.length === 0) return;
+      config.timetable.statusOptions = {
+        ...config.timetable.statusOptions,
+        online: true,
+        offline: true,
+        multi: activeStatuses.includes("multi"),
+        offlineMemo: activeStatuses.includes("offlineMemo"),
+      };
+
+      const isSharedSyntheticStatus = (status: CardTextStatus): boolean => {
+        const candidates = statusCandidatesByStatus[status] ?? [];
+        return (
+          candidates.length > 0 &&
+          candidates.every((candidate) =>
+            (candidate.id ?? "").includes("::shared-status::")
+          )
+        );
+      };
+      const shouldCreateDayComponents = activeStatuses.some((status) => {
+        if (hasExplicitCardComponentGroups) return false;
+        if (isSharedSyntheticStatus(status)) return false;
+        return IMPORT_DAY_KEYS.some((dayKey) =>
+          Boolean(resolveDayStatusCandidate({ dayKey, status }))
+        );
+      });
+
+      const statusBackgroundNodeId: Record<CardTextStatus, string> = {
+        online: "online-background",
+        multi: "multi-background",
+        offline: "offline-background",
+        offlineMemo: "offline-memo-background",
+      };
+      const copyCardLayoutRecord = (sourceKey: string, targetKey: string) => {
+        if (sourceKey === targetKey) return;
+        if (config.layout.card[targetKey] !== undefined) return;
+        const sourceRecord = config.layout.card[sourceKey];
+        config.layout.card[targetKey] =
+          sourceRecord && typeof sourceRecord === "object"
+            ? cloneImportJson(sourceRecord)
+            : {};
+      };
+      const scopeStyleKey = ({
+        componentId,
+        status,
+        nodeId,
+        part,
+        sourceKey,
+      }: {
+        componentId: string;
+        status: CardTextStatus;
+        nodeId: string;
+        part: string;
+        sourceKey: string;
+      }): string => {
+        const targetKey = buildTimetableScopedStyleKey({
+          componentId,
+          status,
+          nodeId,
+          part,
+          sourceKey,
+        });
+        copyCardLayoutRecord(sourceKey, targetKey);
+        return targetKey;
+      };
+      const scopeNodeStyleRefs = ({
+        componentId,
+        status,
+        node,
+      }: {
+        componentId: string;
+        status: CardTextStatus;
+        node: V2TemplateCardNode;
+      }): V2TemplateCardNode => ({
+        ...node,
+        containerStyleKey: scopeStyleKey({
+          componentId,
+          status,
+          nodeId: node.id,
+          part: "container",
+          sourceKey: node.containerStyleKey,
+        }),
+        ...(node.entryStyleKey
+          ? {
+              entryStyleKey: scopeStyleKey({
+                componentId,
+                status,
+                nodeId: node.id,
+                part: "entry",
+                sourceKey: node.entryStyleKey,
+              }),
+            }
+          : {}),
+        ...(node.textStyleKey
+          ? {
+              textStyleKey: scopeStyleKey({
+                componentId,
+                status,
+                nodeId: node.id,
+                part: "text",
+                sourceKey: node.textStyleKey,
+              }),
+            }
+          : {}),
+        ...(node.wrapperStyleKey
+          ? {
+              wrapperStyleKey: scopeStyleKey({
+                componentId,
+                status,
+                nodeId: node.id,
+                part: "wrapper",
+                sourceKey: node.wrapperStyleKey,
+              }),
+            }
+          : {}),
+        ...(node.optionsKey
+          ? {
+              optionsKey: scopeStyleKey({
+                componentId,
+                status,
+                nodeId: node.id,
+                part: "options",
+                sourceKey: node.optionsKey,
+              }),
+            }
+          : {}),
+      });
+      const scopeFrameStyleRef = ({
+        componentId,
+        status,
+        frame,
+      }: {
+        componentId: string;
+        status: CardTextStatus;
+        frame: V2TemplateCardFrameNode;
+      }): V2TemplateCardFrameNode => ({
+        ...frame,
+        styleKey: scopeStyleKey({
+          componentId,
+          status,
+          nodeId: frame.id,
+          part: "frame",
+          sourceKey: frame.styleKey,
+        }),
+      });
+      const scopeCardStructure = ({
+        componentId,
+        status,
+        card,
+      }: {
+        componentId: string;
+        status: CardTextStatus;
+        card: V2TemplateCardStructure;
+      }): V2TemplateCardStructure => ({
+        ...card,
+        containerStyleKey: scopeStyleKey({
+          componentId,
+          status,
+          nodeId: "card",
+          part: "container",
+          sourceKey: card.containerStyleKey,
+        }),
+        nodes: Object.fromEntries(
+          Object.entries(card.nodes).map(([nodeId, node]) => [
+            nodeId,
+            scopeNodeStyleRefs({ componentId, status, node }),
+          ])
+        ),
+        ...(card.frameNodes
+          ? {
+              frameNodes: Object.fromEntries(
+                Object.entries(card.frameNodes).map(([frameId, frame]) => [
+                  frameId,
+                  scopeFrameStyleRef({ componentId, status, frame }),
+                ])
+              ),
+            }
+          : {}),
+      });
+      const scopeComponent = (
+        component: V2TemplateTimetableCardComponent
+      ): V2TemplateTimetableCardComponent => {
+        const nextStates = { ...component.states };
+        timetableStatusPlans.forEach((plan) => {
+          const state = nextStates[plan.status];
+          if (!state) return;
+          nextStates[plan.status] = {
+            ...state,
+            card: scopeCardStructure({
+              componentId: component.id,
+              status: plan.status,
+              card: state.card,
+            }),
+          };
+        });
+        return {
+          ...component,
+          states: nextStates,
+        };
+      };
+
+      const componentEntries = shouldCreateDayComponents
+        ? IMPORT_DAY_KEYS.map((dayKey, index) => ({
+            dayKey,
+            componentId: `card-${index + 1}`,
+            label: `${dayKey.toUpperCase()} Card`,
+            candidates: undefined as FigmaNode[] | undefined,
+          }))
+        : hasExplicitCardComponentGroups
+          ? externalCardComponentGroups.slice(0, 7).map((group, index) => ({
+              dayKey: "mon" as V2TemplateDayKey,
+              componentId: `card-${index + 1}`,
+              label: group.label ?? `Card ${index + 1}`,
+              candidates: group.candidates,
+            }))
+          : [
+              {
+                dayKey: "mon" as V2TemplateDayKey,
+                componentId: "card-1",
+                label: "Card 1",
+                candidates: undefined as FigmaNode[] | undefined,
+              },
+            ];
+
+      const components = Object.fromEntries(
+        componentEntries.map((entry) => {
+          const sourceComponent =
+            config.timetable.components[entry.componentId] ?? baseComponent;
+          const cloned = cloneImportJson(sourceComponent);
+          cloned.id = entry.componentId;
+          cloned.label = entry.label;
+          return [entry.componentId, scopeComponent(cloned)];
+        })
+      ) as Record<string, V2TemplateTimetableCardComponent>;
+
+      config.timetable.componentOrder = componentEntries.map(
+        (entry) => entry.componentId
+      );
+      config.timetable.components = components;
+      config.timetable.slots = IMPORT_DAY_KEYS.reduce(
+        (acc, dayKey, index) => {
+          acc[dayKey] = {
+            ...(config.timetable.slots[dayKey] ?? { dayKey }),
+            dayKey,
+            componentId:
+              shouldCreateDayComponents && !hasExplicitCardComponentGroups
+                ? `card-${index + 1}`
+                : componentEntries[0].componentId,
+          };
+          return acc;
+        },
+        {} as typeof config.timetable.slots
+      );
+
+      const selectRepresentativeCandidate = ({
+        candidates,
+        status,
+        dayKey,
+      }: {
+        candidates: FigmaNode[];
+        status: CardTextStatus;
+        dayKey: V2TemplateDayKey;
+      }): FigmaNode | undefined => {
+        const statusCandidates = candidates.filter(
+          (candidate) => resolveCandidateStatus(candidate) === status
+        );
+        return (
+          statusCandidates.find(
+            (candidate) => resolveCandidateDayKey(candidate) === dayKey
+          ) ??
+          statusCandidates.find((candidate) => !resolveCandidateDayKey(candidate)) ??
+          statusCandidates[0]
+        );
+      };
+      const getRepresentativeCandidate = (
+        status: CardTextStatus,
+        dayKey: V2TemplateDayKey,
+        candidates?: FigmaNode[]
+      ): FigmaNode | undefined =>
+        candidates
+          ? selectRepresentativeCandidate({ candidates, status, dayKey })
+          : resolveDayStatusCandidate({ dayKey, status }) ??
+            statusCandidatesByStatus[status]?.[0];
+
+      const ensureRootObject = (card: V2TemplateCardStructure, objectId: string) => {
+        const rootObjectIds = card.rootObjectIds ?? [...card.nodeOrder];
+        if (!rootObjectIds.includes(objectId)) {
+          rootObjectIds.push(objectId);
+        }
+        card.rootObjectIds = rootObjectIds;
+      };
+      const removeObjectFromParents = (
+        card: V2TemplateCardStructure,
+        objectId: string
+      ) => {
+        card.rootObjectIds = (card.rootObjectIds ?? []).filter(
+          (rootObjectId) => rootObjectId !== objectId
+        );
+        Object.values(card.frameNodes ?? {}).forEach((frame) => {
+          frame.childIds = frame.childIds.filter((childId) => childId !== objectId);
+        });
+      };
+      const attachObjectToFrame = ({
+        card,
+        objectId,
+        frameId,
+      }: {
+        card: V2TemplateCardStructure;
+        objectId: string;
+        frameId: string;
+      }) => {
+        const frame = card.frameNodes?.[frameId];
+        if (!frame) return;
+        removeObjectFromParents(card, objectId);
+        if (!frame.childIds.includes(objectId)) {
+          frame.childIds.push(objectId);
+        }
+        const node = card.nodes[objectId];
+        if (node) {
+          node.parentId = frameId;
+        }
+        const childFrame = card.frameNodes?.[objectId];
+        if (childFrame) {
+          childFrame.parentId = frameId;
+        }
+      };
+      const attachObjectToRoot = ({
+        card,
+        objectId,
+      }: {
+        card: V2TemplateCardStructure;
+        objectId: string;
+      }) => {
+        removeObjectFromParents(card, objectId);
+        ensureRootObject(card, objectId);
+        const node = card.nodes[objectId];
+        if (node) {
+          node.parentId = null;
+        }
+        const frame = card.frameNodes?.[objectId];
+        if (frame) {
+          frame.parentId = null;
+        }
+      };
+      const ensureFrameNode = ({
+        componentId,
+        state,
+        status,
+        frameId,
+        entryIndex,
+      }: {
+        componentId: string;
+        state: V2TemplateTimetableCardState;
+        status: CardTextStatus;
+        frameId: string;
+        entryIndex: number;
+      }): V2TemplateCardFrameNode => {
+        const card = state.card;
+        const frameNodes = card.frameNodes ?? {};
+        card.frameNodes = frameNodes;
+        const fallbackFrame =
+          frameNodes[frameId] ??
+          Object.values(frameNodes).find((frame) =>
+            frame.id.startsWith("entry-frame-")
+          );
+        const frame =
+          frameNodes[frameId] ??
+          scopeFrameStyleRef({
+            componentId,
+            status,
+            frame: {
+              ...(fallbackFrame
+                ? cloneImportJson(fallbackFrame)
+                : {
+                    id: frameId,
+                    label: `Entry Frame ${entryIndex + 1}`,
+                    kind: "frame" as const,
+                    layerId: frameId,
+                    highlightTarget: `cardFrame:${frameId}` as V2TemplateCardFrameNode["highlightTarget"],
+                    parentId: null,
+                    visibilityMode: "always" as const,
+                    styleKey: `entryFrame${entryIndex + 1}`,
+                    childIds: [],
+                    bindingContext: {
+                      scope: "entry" as const,
+                      entryIndex,
+                    },
+                    containerClassName: "absolute",
+                  }),
+              id: frameId,
+              label: `Entry Frame ${entryIndex + 1}`,
+              layerId: frameId,
+              highlightTarget: `cardFrame:${frameId}` as V2TemplateCardFrameNode["highlightTarget"],
+              parentId: null,
+              visibilityMode: "always",
+              childIds: [],
+              bindingContext: {
+                scope: "entry",
+                entryIndex,
+              },
+              containerClassName: "absolute",
+            },
+          });
+        frameNodes[frameId] = frame;
+        ensureRootObject(card, frameId);
+        return frame;
+      };
+      const findSourceNodeTemplate = ({
+        component,
+        status,
+        nodeId,
+        fallbackNodeId,
+      }: {
+        component: V2TemplateTimetableCardComponent;
+        status: CardTextStatus;
+        nodeId: string;
+        fallbackNodeId: string;
+      }): V2TemplateCardNode | undefined => {
+        const statusState = component.states[status];
+        const onlineState = component.states.online;
+        return (
+          statusState?.card.nodes[nodeId] ??
+          statusState?.card.nodes[fallbackNodeId] ??
+          onlineState.card.nodes[nodeId] ??
+          onlineState.card.nodes[fallbackNodeId]
+        );
+      };
+      const applyEntrySelector = (
+        node: V2TemplateCardNode,
+        entryIndex: number
+      ): V2TemplateCardNode => {
+        if (node.binding.mode !== "field" && node.binding.mode !== "computed") {
+          return node;
+        }
+        return {
+          ...node,
+          binding: {
+            ...node.binding,
+            entrySelector: {
+              mode: "index",
+              index: entryIndex,
+            },
+          },
+        } as V2TemplateCardNode;
+      };
+      const ensureCardNode = ({
+        component,
+        state,
+        componentId,
+        status,
+        nodeId,
+        fallbackNodeId,
+        label,
+        entryIndex,
+      }: {
+        component: V2TemplateTimetableCardComponent;
+        state: V2TemplateTimetableCardState;
+        componentId: string;
+        status: CardTextStatus;
+        nodeId: string;
+        fallbackNodeId: string;
+        label?: string;
+        entryIndex?: number;
+      }): V2TemplateCardNode | null => {
+        const existing = state.card.nodes[nodeId];
+        if (existing) return existing;
+        const templateNode = findSourceNodeTemplate({
+          component,
+          status,
+          nodeId,
+          fallbackNodeId,
+        });
+        if (!templateNode) return null;
+        const cloned = scopeNodeStyleRefs({
+          componentId,
+          status,
+          node: {
+            ...cloneImportJson(templateNode),
+            id: nodeId,
+            label: label ?? templateNode.label,
+            layerId: nodeId,
+            highlightTarget: `cardNode:${nodeId}` as V2TemplateCardNode["highlightTarget"],
+            parentId: null,
+            visibilityMode: "always",
+          },
+        });
+        state.card.nodes[nodeId] =
+          typeof entryIndex === "number" ? applyEntrySelector(cloned, entryIndex) : cloned;
+        if (!state.card.nodeOrder.includes(nodeId)) {
+          state.card.nodeOrder.push(nodeId);
+        }
+        return state.card.nodes[nodeId];
+      };
+      const applyRectToCardStyle = ({
+        root,
+        sourceNode,
+        styleKey,
+        includeRotation = true,
+      }: {
+        root: FigmaNode;
+        sourceNode: FigmaNode | undefined;
+        styleKey: string;
+        includeRotation?: boolean;
+      }) => {
+        const target = ensureCardStyleRecord(styleKey);
+        if (!target) return;
+        target.position = "absolute";
+        applyRectToLayoutObject({
+          rect: toRelativeRect({ rootNode: root, targetNode: sourceNode }),
+          target,
+          includeRotation,
+        });
+      };
+      const applyTextStyleToCardNode = ({
+        node,
+        sourceNode,
+      }: {
+        node: V2TemplateCardNode;
+        sourceNode: FigmaNode | undefined;
+      }) => {
+        if (!node.textStyleKey) return;
+        const textTarget = ensureCardStyleRecord(node.textStyleKey);
+        if (!textTarget) return;
+        applyTextStyleFromContentNode({
+          containerNode: sourceNode,
+          target: textTarget,
+        });
+        if (node.optionsKey && typeof textTarget.fontSize === "number") {
+          const optionsTarget = ensureCardStyleRecord(node.optionsKey);
+          if (optionsTarget) {
+            optionsTarget.maxFontSize = textTarget.fontSize;
+            optionsTarget.multiline = true;
+          }
+        }
+      };
+      const mapRoleNode = ({
+        component,
+        state,
+        componentId,
+        status,
+        role,
+        sourceNode,
+        positionRoot,
+        frameId,
+        entryIndex,
+      }: {
+        component: V2TemplateTimetableCardComponent;
+        state: V2TemplateTimetableCardState;
+        componentId: string;
+        status: CardTextStatus;
+        role:
+          | "mainTitle"
+          | "subTitle"
+          | "streamingTime"
+          | "streamingDate"
+          | "streamingDay";
+        sourceNode: FigmaNode | undefined;
+        positionRoot: FigmaNode;
+        frameId?: string;
+        entryIndex?: number;
+      }) => {
+        if (!sourceNode) return false;
+        const entryNumber =
+          typeof entryIndex === "number" ? Math.max(1, entryIndex + 1) : 1;
+        const roleConfig = {
+          mainTitle: {
+            fallbackNodeId: "main-title-entry-1",
+            nodeId: `main-title-entry-${entryNumber}`,
+            label: `MainTitle ${entryNumber}`,
+            presenceKey: "cardMainTitle" as const,
+          },
+          subTitle: {
+            fallbackNodeId: "sub-title-entry-1",
+            nodeId: `sub-title-entry-${entryNumber}`,
+            label: `SubTitle ${entryNumber}`,
+            presenceKey: "cardSubTitle" as const,
+          },
+          streamingTime: {
+            fallbackNodeId: "streaming-time-entry-1",
+            nodeId: `streaming-time-entry-${entryNumber}`,
+            label: `StreamingTime ${entryNumber}`,
+            presenceKey: "cardStreamingTime" as const,
+          },
+          streamingDate: {
+            fallbackNodeId: "streaming-date",
+            nodeId:
+              frameId && entryNumber > 1
+                ? `streaming-date-entry-${entryNumber}`
+                : "streaming-date",
+            label:
+              frameId && entryNumber > 1
+                ? `StreamingDate ${entryNumber}`
+                : "StreamingDate",
+            presenceKey: "cardStreamingDate" as const,
+          },
+          streamingDay: {
+            fallbackNodeId: "streaming-day",
+            nodeId:
+              frameId && entryNumber > 1
+                ? `streaming-day-entry-${entryNumber}`
+                : "streaming-day",
+            label:
+              frameId && entryNumber > 1
+                ? `StreamingDay ${entryNumber}`
+                : "StreamingDay",
+            presenceKey: "cardStreamingDay" as const,
+          },
+        }[role];
+        const node = ensureCardNode({
+          component,
+          state,
+          componentId,
+          status,
+          nodeId: roleConfig.nodeId,
+          fallbackNodeId: roleConfig.fallbackNodeId,
+          label: roleConfig.label,
+          entryIndex,
+        });
+        if (!node) return false;
+        applyRectToCardStyle({
+          root: positionRoot,
+          sourceNode,
+          styleKey: node.containerStyleKey,
+        });
+        const containerTarget = ensureCardStyleRecord(node.containerStyleKey);
+        if (containerTarget) {
+          containerTarget.opacity = 1;
+          containerTarget.pointerEvents = "auto";
+        }
+        applyTextStyleToCardNode({ node, sourceNode });
+        if (node.textStyleKey) {
+          const textTarget = ensureCardStyleRecord(node.textStyleKey);
+          if (textTarget) {
+            textTarget.opacity = 1;
+          }
+        }
+        if (frameId) {
+          attachObjectToFrame({
+            card: state.card,
+            objectId: node.id,
+            frameId,
+          });
+        } else {
+          attachObjectToRoot({
+            card: state.card,
+            objectId: node.id,
+          });
+        }
+        summary.presence[roleConfig.presenceKey] = true;
+        return true;
+      };
+      const syncRootObjectOrder = (card: V2TemplateCardStructure) => {
+        const objectIds = new Set([
+          ...Object.keys(card.nodes),
+          ...Object.keys(card.frameNodes ?? {}),
+        ]);
+        const parented = new Set<string>();
+        Object.values(card.nodes).forEach((node) => {
+          if (node.parentId) parented.add(node.id);
+        });
+        Object.values(card.frameNodes ?? {}).forEach((frame) => {
+          if (frame.parentId) parented.add(frame.id);
+        });
+        card.rootObjectIds = Array.from(
+          new Set([
+            ...(card.rootObjectIds ?? []),
+            ...card.nodeOrder,
+            ...Object.keys(card.frameNodes ?? {}),
+          ])
+        ).filter((objectId) => objectIds.has(objectId) && !parented.has(objectId));
+      };
+
+      let maxDetectedEntryCount = 1;
+      componentEntries.forEach((entry) => {
+        const component = components[entry.componentId];
+        if (!component) return;
+
+        activeStatuses.forEach((status) => {
+          const candidate = getRepresentativeCandidate(
+            status,
+            entry.dayKey,
+            entry.candidates
+          );
+          if (!candidate) return;
+          const state = component.states[status];
+          if (!state) return;
+          const card = state.card;
+          const size = getNodeSize(candidate) ?? getBounds(candidate);
+          if (size) {
+            state.size = {
+              width: round(size.width),
+              height: round(size.height),
+            };
+            const containerTarget = ensureCardStyleRecord(card.containerStyleKey);
+            if (containerTarget) {
+              containerTarget.left = 0;
+              containerTarget.top = 0;
+              containerTarget.width = round(size.width);
+              containerTarget.height = round(size.height);
+            }
+          }
+
+          const backgroundNodeId = statusBackgroundNodeId[status];
+          const backgroundNode = card.nodes[backgroundNodeId];
+          const backgroundSourceNode = resolveCardBackgroundNode({
+            candidate,
+            statusValues:
+              timetableStatusPlans.find((plan) => plan.status === status)?.statusValues ?? [
+                status,
+              ],
+            mode: status,
+          });
+          if (backgroundNode && backgroundSourceNode) {
+            applyRectToCardStyle({
+              root: candidate,
+              sourceNode: backgroundSourceNode,
+              styleKey: backgroundNode.containerStyleKey,
+              includeRotation: false,
+            });
+            const backgroundAssetRef = getCardBackgroundAssetRef({
+              componentId: component.id,
+              status,
+              forceScoped: hasExplicitCardComponentGroups,
+            });
+            appendFigmaNodeTag({
+              node: backgroundSourceNode,
+              key: "asset",
+              value: backgroundAssetRef.key,
+            });
+            backgroundNode.assetRef = backgroundAssetRef;
+            backgroundNode.assetRefByDayKey = undefined;
+            if (backgroundAssetRef.source === "extra") {
+              const scopedAssetKey = backgroundAssetRef.key;
+              if (!config.extraAssets[scopedAssetKey]) {
+                config.extraAssets[scopedAssetKey] = {};
+              }
+              if (!config.extraAssetDimensions[scopedAssetKey]) {
+                config.extraAssetDimensions[scopedAssetKey] = {};
+              }
+            }
+            if (hasExplicitCardComponentGroups) {
+              summary.applied.push(
+                `timetable.card.${component.id}.${status}.backgroundAssetRef=extra`
+              );
+            } else {
+              summary.applied.push(
+                `timetable.card.${component.id}.${status}.backgroundAssetRef=${backgroundAssetRef.key}`
+              );
+            }
+            summary.presence.cardContainer = true;
+          }
+
+          const entrySources = collectCardEntrySources({ candidate, status });
+          maxDetectedEntryCount = Math.max(maxDetectedEntryCount, entrySources.length);
+          const mappedDateOrDayInsideEntry = {
+            streamingDate: false,
+            streamingDay: false,
+          };
+
+          entrySources.forEach((entrySource) => {
+            const isFrameEntry =
+              !entrySource.isFallbackRoot &&
+              (entrySource.node.type ?? "").toUpperCase() === "FRAME";
+            const frameId = `entry-frame-${entrySource.index + 1}`;
+            const frame = isFrameEntry
+              ? ensureFrameNode({
+                  componentId: component.id,
+                  state,
+                  status,
+                  frameId,
+                  entryIndex: entrySource.index,
+                })
+              : null;
+            if (frame) {
+              const frameTarget = ensureCardStyleRecord(frame.styleKey);
+              if (frameTarget) {
+                frameTarget.position = "absolute";
+                frameTarget.overflow = "visible";
+                applyRectToLayoutObject({
+                  rect: toRelativeRect({
+                    rootNode: candidate,
+                    targetNode: entrySource.node,
+                  }),
+                  target: frameTarget,
+                });
+              }
+            }
+
+            const sourceNodes = resolveCardTextNodesFromCandidate({
+              candidate,
+              sourceNode: entrySource.node,
+              status,
+            });
+            const positionRoot = frame ? entrySource.node : candidate;
+            mapRoleNode({
+              component,
+              state,
+              componentId: component.id,
+              status,
+              role: "mainTitle",
+              sourceNode: sourceNodes.mainTitleContainerNode,
+              positionRoot,
+              frameId: frame?.id,
+              entryIndex: entrySource.index,
+            });
+            mapRoleNode({
+              component,
+              state,
+              componentId: component.id,
+              status,
+              role: "subTitle",
+              sourceNode: sourceNodes.subTitleContainerNode,
+              positionRoot,
+              frameId: frame?.id,
+              entryIndex: entrySource.index,
+            });
+            mapRoleNode({
+              component,
+              state,
+              componentId: component.id,
+              status,
+              role: "streamingTime",
+              sourceNode: sourceNodes.streamingTimeNode,
+              positionRoot,
+              frameId: frame?.id,
+              entryIndex: entrySource.index,
+            });
+            if (sourceNodes.streamingDateNode) {
+              mappedDateOrDayInsideEntry.streamingDate = true;
+              mapRoleNode({
+                component,
+                state,
+                componentId: component.id,
+                status,
+                role: "streamingDate",
+                sourceNode: sourceNodes.streamingDateNode,
+                positionRoot,
+                frameId: frame?.id,
+                entryIndex: entrySource.index,
+              });
+            }
+            if (sourceNodes.streamingDayNode) {
+              mappedDateOrDayInsideEntry.streamingDay = true;
+              mapRoleNode({
+                component,
+                state,
+                componentId: component.id,
+                status,
+                role: "streamingDay",
+                sourceNode: sourceNodes.streamingDayNode,
+                positionRoot,
+                frameId: frame?.id,
+                entryIndex: entrySource.index,
+              });
+            }
+          });
+
+          const rootSourceNodes = resolveCardTextNodesFromCandidate({
+            candidate,
+            status,
+          });
+          if (!mappedDateOrDayInsideEntry.streamingDate) {
+            mapRoleNode({
+              component,
+              state,
+              componentId: component.id,
+              status,
+              role: "streamingDate",
+              sourceNode: rootSourceNodes.streamingDateNode,
+              positionRoot: candidate,
+            });
+          }
+          if (!mappedDateOrDayInsideEntry.streamingDay) {
+            mapRoleNode({
+              component,
+              state,
+              componentId: component.id,
+              status,
+              role: "streamingDay",
+              sourceNode: rootSourceNodes.streamingDayNode,
+              positionRoot: candidate,
+            });
+          }
+
+          syncRootObjectOrder(card);
+        });
+      });
+
+      if (activeStatuses.includes("multi")) {
+        config.timetable.multiEntryCount = Math.max(2, maxDetectedEntryCount);
+      }
+
+      summary.applied.push(
+        `timetable.card.componentsFromFigma(${componentEntries.length})`
+      );
+      summary.applied.push(
+        `timetable.card.statusOptions(multi=${config.timetable.statusOptions.multi ? "on" : "off"},offlineMemo=${config.timetable.statusOptions.offlineMemo ? "on" : "off"})`
+      );
+    };
+
     const applyPerDayCardOverrides = () => {
       const detachedComponentCount = detachCardComponentPerInstance({ config });
       if (detachedComponentCount > 0) {
@@ -4478,7 +5979,7 @@ const applyLayoutMappingsFromFigma = ({
         if (sourceKey.endsWith(suffixToken)) {
           return sourceKey;
         }
-        let targetKey = `${sourceKey}${suffixToken}`;
+        const targetKey = `${sourceKey}${suffixToken}`;
         if (!(targetKey in config.layout.card)) {
           const sourceValue = config.layout.card[sourceKey];
           if (sourceValue && typeof sourceValue === "object") {
@@ -5008,6 +6509,32 @@ const applyLayoutMappingsFromFigma = ({
                 importOmitted: false,
               },
             };
+            if (backgroundNode) {
+              const backgroundAssetRef = getCardBackgroundAssetRef({
+                componentId,
+                status: plan.status,
+                forceScoped: hasExplicitCardComponentGroups,
+              });
+              appendFigmaNodeTag({
+                node: backgroundNode,
+                key: "asset",
+                value: backgroundAssetRef.key,
+              });
+              updatedBackgroundNode.meta.assetRef = backgroundAssetRef;
+              updatedBackgroundNode.meta.assetRefByDayKey = undefined;
+              if (backgroundAssetRef.source === "extra") {
+                const scopedAssetKey = backgroundAssetRef.key;
+                if (!config.extraAssets[scopedAssetKey]) {
+                  config.extraAssets[scopedAssetKey] = {};
+                }
+                if (!config.extraAssetDimensions[scopedAssetKey]) {
+                  config.extraAssetDimensions[scopedAssetKey] = {};
+                }
+              }
+              summary.applied.push(
+                `graph.card.${componentId}.${plan.status}.backgroundAssetRef=${backgroundAssetRef.key}`
+              );
+            }
             config.graph.nodes[targetBackgroundNode.id] = updatedBackgroundNode;
             const backgroundRect = toRelativeRect({
               rootNode: sourceCandidate,
@@ -5223,13 +6750,13 @@ const applyLayoutMappingsFromFigma = ({
                   typeof targetNode.styles?.wrapperStyleKey === "string"
                     ? targetNode.styles.wrapperStyleKey
                     : undefined;
-                if (!wrapperStyleKey) return;
-                const wrapperTarget = ensureCardStyleRecord(wrapperStyleKey);
-                if (!wrapperTarget) return;
+                const wrapperTarget = wrapperStyleKey
+                  ? ensureCardStyleRecord(wrapperStyleKey)
+                  : undefined;
                 applyFlexibleLayoutToTargets({
                   rect,
                   containerTarget,
-                  wrapperTarget,
+                  ...(wrapperTarget ? { wrapperTarget } : {}),
                 });
               } else {
                 applyRectToLayoutObject({
@@ -5316,6 +6843,7 @@ const applyLayoutMappingsFromFigma = ({
       summary.applied.push("graph.card.dayStatusIndependentMapping");
     };
 
+    applyTimetableCardMappingsFromFigma();
     applyPerDayCardOverrides();
 
     const cardNormalizeSummary = v2_normalizeCardImportGraph({
@@ -5575,6 +7103,78 @@ const fetchExternalArtistVariantCandidates = async ({
   return { candidates, warnings };
 };
 
+const fetchExternalMemoVariantCandidates = async ({
+  rootNode,
+  fileKey,
+  figmaToken,
+  componentMapById,
+}: {
+  rootNode: FigmaNode;
+  fileKey: string;
+  figmaToken: string;
+  componentMapById?: Map<string, { name: string; componentSetId?: string }>;
+}): Promise<{ candidates: FigmaNode[]; warnings: string[] }> => {
+  const warnings: string[] = [];
+  const sceneMemoNode =
+    findNodeByCanonicalPath({
+      rootNode,
+      pathAliases: [["scene/memo", "memo", "scenememo", "weeklymemo"]],
+    }) ??
+    findNodeByTagOrAlias({
+      nodes: flattenNodes(rootNode),
+      tagValues: ["memo.background", "memo.object", "scene.memo"],
+      aliases: ["scenememo", "weeklymemo", "memo"],
+    });
+
+  const memoComponentId = sceneMemoNode?.componentId?.trim();
+  if (!memoComponentId) {
+    return { candidates: [], warnings };
+  }
+
+  const componentMap =
+    componentMapById ??
+    (await fetchFigmaFileComponentMap({
+      fileKey,
+      figmaToken,
+    }));
+
+  const componentSetId = componentMap.get(memoComponentId)?.componentSetId?.trim();
+  if (!componentSetId) {
+    warnings.push("Scene/Memo componentSetId not found; memo component-set fallback skipped.");
+    return { candidates: [], warnings };
+  }
+
+  const variantComponentIds = Array.from(
+    new Set(
+      Array.from(componentMap.entries())
+        .filter(([, meta]) => meta.componentSetId?.trim() === componentSetId)
+        .map(([componentId]) => componentId)
+    )
+  );
+
+  if (variantComponentIds.length === 0) {
+    warnings.push("No memo variant components found in matched component set.");
+    return { candidates: [], warnings };
+  }
+
+  const variantNodesById = await fetchFigmaNodesByIds({
+    fileKey,
+    nodeIds: variantComponentIds,
+    figmaToken,
+  });
+
+  const candidates = Object.values(variantNodesById).filter((node) => {
+    if (!getBounds(node)) return false;
+    return Boolean(parseMemoVariantStateFromNode(node));
+  });
+
+  if (candidates.length === 0) {
+    warnings.push("Memo component-set fallback resolved no on/off variants.");
+  }
+
+  return { candidates, warnings };
+};
+
 const fetchExternalCardVariantCandidates = async ({
   rootNode,
   fileKey,
@@ -5650,6 +7250,49 @@ const fetchExternalCardVariantCandidates = async ({
   }
 
   return { candidates, warnings };
+};
+
+const buildDetectedFeatures = ({
+  summary,
+  externalArtistVariantCandidates,
+  externalMemoVariantCandidates,
+}: {
+  summary: MappingSummary;
+  externalArtistVariantCandidates: FigmaNode[];
+  externalMemoVariantCandidates: FigmaNode[];
+}): ImportV2DetectedFeatures => {
+  const artistStates = new Set(
+    externalArtistVariantCandidates
+      .map((candidate) => parseArtistVariantStateFromNode(candidate))
+      .filter((state): state is ArtistVariantState => Boolean(state))
+  );
+  const memoStates = new Set(
+    externalMemoVariantCandidates
+      .map((candidate) => parseMemoVariantStateFromNode(candidate))
+      .filter((state): state is MemoVariantState => Boolean(state))
+  );
+  const artistObject = summary.presence.artistObject;
+  const artistOn = summary.presence.artistText || artistObject || artistStates.has("on");
+  const memoOn =
+    summary.presence.memoObject || summary.presence.memoText || memoStates.has("on");
+
+  return {
+    artist: {
+      enabled: artistOn,
+      on: artistOn,
+      off: artistStates.has("off"),
+      object: artistObject,
+      text: summary.presence.artistText,
+      profile: false,
+    },
+    memo: {
+      enabled: memoOn,
+      on: memoOn,
+      off: memoStates.has("off"),
+      object: summary.presence.memoObject,
+      text: summary.presence.memoText,
+    },
+  };
 };
 
 const fetchFigmaImageUrls = async ({
@@ -5907,6 +7550,10 @@ const importFigmaAssetsToConfig = async ({
     "scene.root",
     "card",
     "profile",
+    "frame",
+    "scene.frame",
+    "board",
+    "scene.board",
     "artist",
   ]);
 
@@ -5917,12 +7564,10 @@ const importFigmaAssetsToConfig = async ({
     if (record.node.visible === false) continue;
     if (record.node.type === "TEXT") continue;
     if (record.node === rootNode) continue;
-    if (!isPotentialAssetNode(record.node)) continue;
 
     const bounds = getBounds(record.node);
     if (!bounds || bounds.width <= 0 || bounds.height <= 0) continue;
 
-    summary.discovered += 1;
     const explicitAssetTag = getTagValueFromRecord(record, "asset")?.trim();
 
     const ruleTarget = resolveAssetTargetFromRecord({
@@ -5932,8 +7577,27 @@ const importFigmaAssetsToConfig = async ({
       builtinAssetKeyLookup,
     });
 
+    const directSlot = normalizeAssetSlot(getNodeTagValue(record.node, "slot"));
+    const isRenderableAssetNode = isPotentialAssetNode(record.node);
+    const isExplicitAssetContainer =
+      Boolean(explicitAssetTag) ||
+      Boolean(
+        directSlot &&
+          (ASSET_SLOT_TO_BUILTIN_KEY[directSlot] ||
+            directSlot === "card.background" ||
+            directSlot === "card.bg")
+      ) ||
+      isNamedAssetContainerCandidate(nodeName);
+    if (
+      !isRenderableAssetNode &&
+      !(ruleTarget && isExplicitAssetContainer && isExportableAssetContainerNode(record.node))
+    ) {
+      continue;
+    }
+
+    summary.discovered += 1;
+
     if (!ruleTarget) {
-      const directSlot = normalizeAssetSlot(getNodeTagValue(record.node, "slot"));
       if (directSlot && ignoredStructuralSlots.has(directSlot)) {
         continue;
       }
@@ -6241,7 +7905,7 @@ const ensureTemplate = async ({
   resolvedTemplateName,
   resolvedTemplateDescription,
 }: {
-  supabase: any;
+  supabase: SupabaseAdminClient;
   options: CliOptions;
   resolvedTemplateName: string;
   resolvedTemplateDescription: string;
@@ -6298,7 +7962,7 @@ const assertCreatedByUserExists = async ({
   supabase,
   userId,
 }: {
-  supabase: any;
+  supabase: SupabaseAdminClient;
   userId: number;
 }) => {
   const { data, error } = await supabase
@@ -6327,6 +7991,7 @@ export const runImportV2TemplateFromFigma = async (
     write: Boolean(rawOptions.write),
     public: Boolean(rawOptions.public),
     withAssets: rawOptions.withAssets !== false,
+    uploadAssetsWithoutWrite: rawOptions.uploadAssetsWithoutWrite === true,
     assetTheme:
       typeof rawOptions.assetTheme === "string" &&
       rawOptions.assetTheme.trim().length > 0
@@ -6338,6 +8003,11 @@ export const runImportV2TemplateFromFigma = async (
       rawOptions.explicitExternalCardCandidates
     )
       ? rawOptions.explicitExternalCardCandidates
+      : [],
+    explicitExternalCardComponentGroups: Array.isArray(
+      rawOptions.explicitExternalCardComponentGroups
+    )
+      ? rawOptions.explicitExternalCardComponentGroups
       : [],
     explicitExternalArtistVariantCandidates: Array.isArray(
       rawOptions.explicitExternalArtistVariantCandidates
@@ -6402,11 +8072,44 @@ export const runImportV2TemplateFromFigma = async (
     ];
   }
 
+  const explicitCardComponentGroups = (
+    Array.isArray(options.explicitExternalCardComponentGroups)
+      ? options.explicitExternalCardComponentGroups
+      : []
+  )
+    .map((group, index): ImportV2CardComponentGroup | null => {
+      const candidates = Array.isArray(group.candidates)
+        ? group.candidates.filter((candidate): candidate is FigmaNode =>
+            Boolean(candidate?.id)
+          )
+        : [];
+      if (candidates.length === 0) return null;
+      const id =
+        typeof group.id === "string" && group.id.trim().length > 0
+          ? group.id.trim()
+          : `figma-card-component-${index + 1}`;
+      return {
+        id,
+        label:
+          typeof group.label === "string" && group.label.trim().length > 0
+            ? group.label.trim()
+            : `Card ${index + 1}`,
+        candidates,
+      };
+    })
+    .filter((group): group is ImportV2CardComponentGroup => Boolean(group));
+
   let externalCardCandidates: FigmaNode[] = Array.isArray(
     options.explicitExternalCardCandidates
   )
     ? [...options.explicitExternalCardCandidates]
     : [];
+  if (explicitCardComponentGroups.length > 0) {
+    externalCardCandidates = [
+      ...externalCardCandidates,
+      ...explicitCardComponentGroups.flatMap((group) => group.candidates),
+    ];
+  }
   let externalCardWarnings: string[] = Array.isArray(
     options.explicitExternalWarnings
   )
@@ -6418,6 +8121,8 @@ export const runImportV2TemplateFromFigma = async (
     ? [...options.explicitExternalArtistVariantCandidates]
     : [];
   let externalArtistWarnings: string[] = [];
+  let externalMemoVariantCandidates: FigmaNode[] = [];
+  let externalMemoWarnings: string[] = [];
 
   if (
     externalCardCandidates.length === 0 &&
@@ -6465,6 +8170,24 @@ export const runImportV2TemplateFromFigma = async (
     }
   }
 
+  try {
+    const externalMemoSummary = await fetchExternalMemoVariantCandidates({
+      rootNode,
+      fileKey,
+      figmaToken,
+      componentMapById,
+    });
+    externalMemoVariantCandidates = externalMemoSummary.candidates;
+    externalMemoWarnings = externalMemoSummary.warnings;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "unknown memo component-set fallback error";
+    externalMemoWarnings = [
+      ...externalMemoWarnings,
+      `Memo component-set fallback failed: ${message}`,
+    ];
+  }
+
   const baseConfig =
     options.configPreset === "empty"
       ? v2_createEmptyTemplateRenderConfig()
@@ -6474,17 +8197,24 @@ export const runImportV2TemplateFromFigma = async (
     rootNode,
     config: baseConfig,
     externalCardCandidates,
+    externalCardComponentGroups: explicitCardComponentGroups,
     externalArtistVariantCandidates,
     externalWarnings: [
       ...componentMapWarnings,
       ...externalCardWarnings,
       ...externalArtistWarnings,
+      ...externalMemoWarnings,
     ],
     componentMapById,
   });
   applyNotApplicablePruning({
     config: baseConfig,
     summary: mappingSummary,
+  });
+  const detectedFeatures = buildDetectedFeatures({
+    summary: mappingSummary,
+    externalArtistVariantCandidates,
+    externalMemoVariantCandidates,
   });
 
   const nodeName = rootNode.name?.trim() || nodeId;
@@ -6506,7 +8236,7 @@ export const runImportV2TemplateFromFigma = async (
     description: `Figma node import source=${options.figmaUrl}`,
   };
 
-  let supabase: any = null;
+  let supabase: SupabaseAdminClient | null = null;
   let hasSupabaseConnection = false;
   let ensuredTemplate: { templateId: string; created: boolean } = {
     templateId: "(dry-run-local)",
@@ -6520,26 +8250,27 @@ export const runImportV2TemplateFromFigma = async (
       mergedEnv,
     });
 
-    supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+    supabase = supabaseClient;
     hasSupabaseConnection = true;
 
     if (typeof options.createdBy === "number" && Number.isFinite(options.createdBy)) {
       await assertCreatedByUserExists({
-        supabase,
+        supabase: supabaseClient,
         userId: options.createdBy,
       });
     }
 
     ensuredTemplate = await ensureTemplate({
-      supabase,
+      supabase: supabaseClient,
       options,
       resolvedTemplateName,
       resolvedTemplateDescription,
     });
   } catch (error) {
-    if (options.write) {
+    if (options.write || options.uploadAssetsWithoutWrite) {
       throw error;
     }
     const message = error instanceof Error ? error.message : "unknown";
@@ -6567,7 +8298,7 @@ export const runImportV2TemplateFromFigma = async (
       fileKey,
       figmaToken,
       templateId: templateIdForAssets,
-      write: options.write,
+      write: options.write || (options.uploadAssetsWithoutWrite === true),
       theme: options.assetTheme,
       format: options.assetFormat,
       enableAiMatch: !options.noAiAssetMatch,
@@ -6616,6 +8347,7 @@ export const runImportV2TemplateFromFigma = async (
   let existingDraftCount = 0;
   if (
     hasSupabaseConnection &&
+    supabase &&
     ensuredTemplate.templateId &&
     ensuredTemplate.templateId !== "(to-be-created)"
   ) {
@@ -6702,6 +8434,8 @@ export const runImportV2TemplateFromFigma = async (
       templateName: resolvedTemplateName,
       normalizedConfig,
       latestRevisionNo: null,
+      assetImportSummary,
+      detectedFeatures,
     };
   }
 
@@ -6763,6 +8497,8 @@ export const runImportV2TemplateFromFigma = async (
     templateName: resolvedTemplateName,
     normalizedConfig,
     latestRevisionNo: nextRevisionNo,
+    assetImportSummary,
+    detectedFeatures,
   };
 };
 

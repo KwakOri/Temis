@@ -729,28 +729,30 @@ const RuntimeInputList: React.FC<RuntimeInputListProps> = ({
                       : "다회차 OFF"
                 }
               />
-              <SubToggle
-                active={
-                  day.isOffline &&
-                  typeof day.offlineMemo === "string" &&
-                  day.offlineMemo.trim().length > 0
-                }
-                onToggle={() => handleOfflineMemoStatusToggle(dayIndex)}
-                label="오프메모"
-                variant="offline"
-                size="sm"
-                disabled={!day.isOffline}
-                ariaLabel="오프라인 메모 상태 토글"
-                title={
-                  !day.isOffline
-                    ? "오프메모는 휴방 상태에서만 설정할 수 있습니다."
-                    : day.isOffline &&
-                        typeof day.offlineMemo === "string" &&
-                        day.offlineMemo.trim().length > 0
-                      ? "오프라인 메모 ON"
-                      : "오프라인 메모 OFF"
-                }
-              />
+              {isOfflineMemo ? (
+                <SubToggle
+                  active={
+                    day.isOffline &&
+                    typeof day.offlineMemo === "string" &&
+                    day.offlineMemo.trim().length > 0
+                  }
+                  onToggle={() => handleOfflineMemoStatusToggle(dayIndex)}
+                  label="오프메모"
+                  variant="offline"
+                  size="sm"
+                  disabled={!day.isOffline}
+                  ariaLabel="오프라인 메모 상태 토글"
+                  title={
+                    !day.isOffline
+                      ? "오프메모는 휴방 상태에서만 설정할 수 있습니다."
+                      : day.isOffline &&
+                          typeof day.offlineMemo === "string" &&
+                          day.offlineMemo.trim().length > 0
+                        ? "오프라인 메모 ON"
+                        : "오프라인 메모 OFF"
+                  }
+                />
+              ) : null}
             </div>
           }
           offlineMemoContent={

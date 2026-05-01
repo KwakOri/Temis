@@ -83,6 +83,7 @@ const v2_BOILERPLATE_FIELD_ICON_MAP: Record<string, LucideIcon> = {
   display: LayoutGrid,
   justifyContent: AlignHorizontalJustifyCenter,
   alignItems: AlignVerticalJustifyCenter,
+  overflow: Square,
   textAlign: AlignHorizontalJustifyCenter,
   fontFamily: Type,
   fontSize: Text,
@@ -175,6 +176,7 @@ const v2_FIELD_CATEGORY_ORDER = {
     "gap",
     "justifyContent",
     "alignItems",
+    "overflow",
   ],
   spacing: [
     "marginTop",

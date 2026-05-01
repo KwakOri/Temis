@@ -134,6 +134,7 @@ export interface V2TemplateFontConfig {
 
 export interface V2TemplateEditorOptions {
   isArtist: boolean;
+  isMemo: boolean;
   isMultiple: boolean;
   maxStreamingTimeByDay: number;
   enableThemeSelection: boolean;
@@ -156,6 +157,10 @@ export interface V2TemplateMaxFontSizes {
 
 export interface V2TemplateAssetMap {
   bgByTheme: Record<string, string | null>;
+  boardByTheme: Record<string, string | null>;
+  frameBgByTheme: Record<string, string | null>;
+  frameByTheme: Record<string, string | null>;
+  gridBgByTheme: Record<string, string | null>;
   topObjectByTheme: Record<string, string | null>;
   memoByTheme: Record<string, string | null>;
   artistOnByTheme: Record<string, string | null>;
@@ -238,7 +243,11 @@ export type V2TemplateVisibilityMode =
   | "onlineSingleOnly"
   | "onlineMultipleOnly"
   | "offlineMemoOnly"
-  | "offlineNoMemoOnly";
+  | "offlineNoMemoOnly"
+  | "artistOnOnly"
+  | "artistOffOnly"
+  | "memoOnOnly"
+  | "memoOffOnly";
 
 export type V2TemplateComponentInstanceMode = "detached";
 
@@ -305,11 +314,14 @@ export type V2TemplateLayerIconKey =
 export type V2TemplateLayerNodeKind = "group" | "component";
 
 export type V2TemplateLayerComponentKey =
+  | "board"
+  | "frame"
   | "grid"
   | "weekFlag"
   | "topObject"
   | "profile"
-  | "artist";
+  | "artist"
+  | "memo";
 
 export interface V2TemplateLayerNode {
   id: string;
@@ -352,7 +364,11 @@ export type V2TemplateSceneAssetRole =
   | "general"
   | "background"
   | "guideOverlay"
+  | "frameArtwork"
+  | "frameObject"
+  /** @deprecated Use frameArtwork. */
   | "profileImage"
+  /** @deprecated Use frameObject. */
   | "profileFrame";
 
 export interface V2TemplateSceneNodeBase {
@@ -522,6 +538,7 @@ export interface V2TemplateCardNode {
   layerId: string;
   highlightTarget: V2TemplateHighlightTarget;
   binding: V2TemplateCardNodeBinding;
+  parentId?: string | null;
   visibilityMode?: V2TemplateVisibilityMode;
   containerStyleKey: V2TemplateCardStyleKey;
   entryStyleKey?: V2TemplateCardStyleKey;
@@ -537,6 +554,31 @@ export interface V2TemplateCardNode {
   containerClassName?: string;
   textClassName?: string;
 }
+
+export interface V2TemplateCardFrameBindingContext {
+  scope: "entry";
+  entryIndex: number;
+}
+
+export interface V2TemplateCardFrameNode {
+  id: string;
+  label: string;
+  kind: "frame";
+  layerId: string;
+  highlightTarget: V2TemplateHighlightTarget;
+  parentId?: string | null;
+  visibilityMode?: V2TemplateVisibilityMode;
+  styleKey: V2TemplateCardStyleKey;
+  childIds: string[];
+  bindingContext?: V2TemplateCardFrameBindingContext;
+  containerClassName?: string;
+}
+
+export type V2TemplateCardObjectKind = "frame" | V2TemplateCardNodeKind;
+
+export type V2TemplateCardObject =
+  | V2TemplateCardFrameNode
+  | V2TemplateCardNode;
 
 export interface V2TemplateCardInstanceTransform {
   offsetX?: number;
@@ -556,6 +598,69 @@ export interface V2TemplateCardStructure {
   instanceTransforms: Record<string, V2TemplateCardInstanceTransform>;
   nodeOrder: string[];
   nodes: Record<string, V2TemplateCardNode>;
+  rootObjectIds?: string[];
+  frameNodes?: Record<string, V2TemplateCardFrameNode>;
+}
+
+export const v2_TIMETABLE_CARD_STATUS_KEYS = [
+  "online",
+  "offline",
+  "multi",
+  "offlineMemo",
+] as const;
+
+export type V2TemplateTimetableCardStatusKey =
+  (typeof v2_TIMETABLE_CARD_STATUS_KEYS)[number];
+
+export type V2TemplateTimetableGridLayoutMode =
+  | "grid3x3"
+  | "flex4x2"
+  | "free";
+
+export type V2TemplateTimetableFlex42Align = "left" | "center" | "right";
+
+export type V2TemplateTimetableFlex42ThreeRow = "top" | "bottom";
+
+export interface V2TemplateTimetableStatusOptions {
+  online: true;
+  offline: true;
+  multi: boolean;
+  offlineMemo: boolean;
+}
+
+export interface V2TemplateTimetableGridSlot {
+  dayKey: V2TemplateDayKey;
+  componentId: string;
+  transform?: V2TemplateCardInstanceTransform;
+}
+
+export interface V2TemplateTimetableCardState {
+  label?: string;
+  size?: V2TemplateSize;
+  card: V2TemplateCardStructure;
+}
+
+export type V2TemplateTimetableCardStates = {
+  online: V2TemplateTimetableCardState;
+  offline: V2TemplateTimetableCardState;
+} & Partial<Record<"multi" | "offlineMemo", V2TemplateTimetableCardState>>;
+
+export interface V2TemplateTimetableCardComponent {
+  id: string;
+  label: string;
+  states: V2TemplateTimetableCardStates;
+}
+
+export interface V2TemplateTimetableConfig {
+  layerId: string;
+  layoutMode: V2TemplateTimetableGridLayoutMode;
+  flex42Align: V2TemplateTimetableFlex42Align;
+  flex42ThreeRow: V2TemplateTimetableFlex42ThreeRow;
+  multiEntryCount: number;
+  statusOptions: V2TemplateTimetableStatusOptions;
+  slots: Record<V2TemplateDayKey, V2TemplateTimetableGridSlot>;
+  componentOrder: string[];
+  components: Record<string, V2TemplateTimetableCardComponent>;
 }
 
 export interface V2TemplateStructureConfig {
@@ -573,8 +678,10 @@ export interface V2TemplateLayoutConfig {
   grid: V2TemplateStyleRecord;
   weekFlag: V2TemplateStyleRecord;
   topObjectContainer: V2TemplateStyleRecord;
-  profileImage: V2TemplateStyleRecord;
-  profileFrame: V2TemplateStyleRecord;
+  /** @deprecated Frame artwork layout now lives in layout.scene.frameArtwork. */
+  profileImage?: V2TemplateStyleRecord;
+  /** @deprecated Frame object layout now lives in layout.scene.frameObject. */
+  profileFrame?: V2TemplateStyleRecord;
   artistTextRootStyle?: V2TemplateStyleRecord;
   artistTextWrapperStyle?: V2TemplateStyleRecord;
   artistTextStyle?: V2TemplateStyleRecord;
@@ -639,5 +746,6 @@ export interface V2TemplateRenderConfig {
   extraAssetDimensions: V2TemplateExtraAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
   graph: V2TemplateNodeGraph;
+  timetable: V2TemplateTimetableConfig;
   sharedStyleGroups?: Record<string, V2TemplateSharedStyleGroup>;
 }

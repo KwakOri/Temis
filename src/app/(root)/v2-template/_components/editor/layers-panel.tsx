@@ -12,9 +12,7 @@ import {
   v2_isDescendantLayer,
   v2_ROOT_LAYER_PARENT_ID,
 } from "./layers-dnd";
-import V2LayersComponentsTab, {
-  V2LayersComponentItem,
-} from "./layers-components-tab";
+import type { V2LayersComponentItem } from "./layers-components-tab";
 import V2LayersTree from "./layers-tree";
 
 type V2LayerNode = V2TemplateLayerNode;
@@ -58,24 +56,28 @@ interface V2TimeTableLayersPanelProps {
     kind: "text" | "flexibleText" | "asset" | "group" | "cardCollection";
     layerId?: string | null;
   }) => void;
+  scopeTitle?: string;
+  scopeDescription?: string;
+  onExitScope?: () => void;
+  exitScopeLabel?: string;
 }
 
 const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   layerTree: layerTreeProp,
   componentCatalog = [],
-  componentLayerTreeByComponentId = {},
   onSelectLayer,
   orderedIdsByParent,
   onReorderLayers,
   canRelocateLayer,
   onRelocateLayers,
-  onCreateComponent,
-  onDuplicateComponent,
-  onDeleteComponent,
   extractableComponentInstanceLayerIdSet,
   onExtractComponentInstanceLayerCopy,
   onMoveComponentInstanceLayerToRoot,
   onCreateSceneNodeFromLayerMenu,
+  scopeTitle,
+  scopeDescription,
+  onExitScope,
+  exitScopeLabel = "Scene으로",
 }) => {
   const {
     activeHighlightTarget,
@@ -83,12 +85,17 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     setHoverHighlightTarget,
     isLayerHidden,
     toggleLayerHidden,
+    isLayerLocked,
+    toggleLayerLocked,
   } = useTemplateRuntimeContext();
   const layerTree = useMemo(() => {
     return layerTreeProp ?? [];
   }, [layerTreeProp]);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
+    "scene-root": true,
     grid: true,
+    artist: true,
+    memo: true,
     profile: true,
     card: true,
   });
@@ -97,11 +104,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const [lastSelectedLayerId, setLastSelectedLayerId] = useState<string | null>(
     null
   );
-  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
-    null
-  );
   const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(true);
-  const [activeTab, setActiveTab] = useState<"layers" | "components">("layers");
   const defaultOrderMap = useMemo(
     () => v2_createInitialOrderMap(layerTree),
     [layerTree]
@@ -124,56 +127,6 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     tone: "info" | "error";
     message: string;
   } | null>(null);
-  const selectComponentMaster = (
-    componentItem: (typeof componentCatalog)[number]
-  ) => {
-    const resolvedRootLayerId =
-      componentItem.rootLayerId ??
-      componentLayerTreeByComponentId[componentItem.id]?.id ??
-      null;
-    if (!resolvedRootLayerId) {
-      setDragFeedback({
-        tone: "error",
-        message:
-          "이 컴포넌트는 master layer를 찾을 수 없습니다. 구성 데이터를 확인해 주세요.",
-      });
-      return;
-    }
-    setSelectedComponentId(componentItem.id);
-    setSelectedLayerIds([resolvedRootLayerId]);
-    setLastSelectedLayerId(resolvedRootLayerId);
-    setSelectedLayerId(resolvedRootLayerId);
-    onSelectLayer?.({
-      layerId: resolvedRootLayerId,
-      editorMode: "master",
-    });
-  };
-  const applyComponentMutationResult = (
-    result: V2ComponentMutationResult | undefined
-  ) => {
-    if (!result) return;
-    setDragFeedback({
-      tone: result.tone,
-      message: result.message,
-    });
-    if (result.selectedComponentId !== undefined) {
-      setSelectedComponentId(result.selectedComponentId);
-    }
-    if (result.selectedLayerId === undefined) return;
-    if (!result.selectedLayerId) {
-      setSelectedLayerId(null);
-      setSelectedLayerIds([]);
-      return;
-    }
-
-    setSelectedLayerId(result.selectedLayerId);
-    setSelectedLayerIds([result.selectedLayerId]);
-    setLastSelectedLayerId(result.selectedLayerId);
-    onSelectLayer?.({
-      layerId: result.selectedLayerId,
-      editorMode: "master",
-    });
-  };
   useEffect(() => {
     if (!dragFeedback) return;
     const timeout = setTimeout(() => setDragFeedback(null), 1800);
@@ -265,6 +218,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
     const selectedInOrder = siblingIds.filter((id) => selectedSet.has(id));
     if (selectedInOrder.length === 0) return;
 
+    if (selectedInOrder.some((id) => isLayerLocked(id))) {
+      setDragFeedback({
+        tone: "error",
+        message: "잠긴 레이어는 순서를 변경할 수 없습니다.",
+      });
+      return;
+    }
+
     const selectedIndices = selectedInOrder
       .map((id) => siblingIds.indexOf(id))
       .filter((index) => index >= 0);
@@ -307,8 +268,6 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
   const handleLayersKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (
     event
   ) => {
-    if (activeTab !== "layers") return;
-
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
       event.preventDefault();
       if (!selectedLayerId) return;
@@ -363,6 +322,14 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
         selectedIds.includes(id)
       );
       if (selectedInOrder.length === 0) return;
+
+      if (selectedInOrder.some((id) => isLayerLocked(id))) {
+        setDragFeedback({
+          tone: "error",
+          message: "잠긴 레이어는 이동할 수 없습니다.",
+        });
+        return;
+      }
 
       if (
         sourceParentId !== v2_ROOT_LAYER_PARENT_ID &&
@@ -506,8 +473,26 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
       <div className="flex h-full min-h-0 flex-col">
         <div className="border-b border-[#303848] px-3 py-3 space-y-2">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-100">Structure</h3>
-            {activeTab === "layers" ? (
+            <div className="min-w-0">
+              <h3 className="text-sm font-semibold text-gray-100">
+                {scopeTitle ?? "Structure"}
+              </h3>
+              {scopeDescription ? (
+                <p className="mt-0.5 truncate text-[10px] text-[#8ca2c8]">
+                  {scopeDescription}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {onExitScope ? (
+                <button
+                  type="button"
+                  className="rounded border border-[#4f8cff] bg-[#1f3f75] px-2 py-1 text-[10px] font-semibold text-[#dbe8ff] hover:bg-[#294c86]"
+                  onClick={onExitScope}
+                >
+                  {exitScopeLabel}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="rounded border border-[#354056] bg-[#171e2b] px-1.5 py-0.5 text-[10px] font-semibold text-[#9db2d8] hover:bg-[#1f2838]"
@@ -516,51 +501,7 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               >
                 {isShortcutHelpOpen ? "도움말 숨김" : "도움말 보기"}
               </button>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("layers");
-                if (selectedLayerId) {
-                  setSelectedLayerIds([selectedLayerId]);
-                }
-              }}
-              className={`rounded border px-2 py-1.5 text-xs font-semibold ${
-                activeTab === "layers"
-                  ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
-                  : "border-[#354056] bg-[#171e2b] text-[#9db2d8] hover:bg-[#1f2838]"
-              }`}
-            >
-              Layers
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab("components");
-                const selectedComponent = componentCatalog.find(
-                  (item) => item.id === selectedComponentId
-                );
-                if (selectedComponent) {
-                  selectComponentMaster(selectedComponent);
-                  return;
-                }
-                const firstComponent = componentCatalog.find(
-                  (item) => item.rootLayerId !== null
-                );
-                if (firstComponent) {
-                  selectComponentMaster(firstComponent);
-                }
-              }}
-              className={`rounded border px-2 py-1.5 text-xs font-semibold ${
-                activeTab === "components"
-                  ? "border-[#4f8cff] bg-[#1f355f] text-[#d6e6ff]"
-                  : "border-[#354056] bg-[#171e2b] text-[#9db2d8] hover:bg-[#1f2838]"
-              }`}
-            >
-              Components
-            </button>
+            </div>
           </div>
         </div>
         <div
@@ -568,17 +509,16 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
           tabIndex={0}
           onKeyDown={handleLayersKeyDown}
         >
-          {activeTab === "layers" && isShortcutHelpOpen ? (
+          {isShortcutHelpOpen ? (
             <div className="mb-2 rounded border border-[#2f394d] bg-[#151c28] px-2 py-1.5 text-[10px] text-[#8ca2c8]">
               다중 선택: `Cmd/Ctrl + 클릭` / 범위 선택: `Shift + 클릭` / 이동:
               `Alt + ↑/↓` / 그룹 이동: `Alt + Shift + ←/→` / 동일 부모 다중
               선택 드래그 지원
             </div>
           ) : null}
-          {activeTab === "layers" ? (
+          {scopeDescription ? (
             <div className="mb-2 rounded border border-[#3b5b8b] bg-[#14233d] px-2 py-1.5 text-[10px] text-[#9ec1ff]">
-              Layers 탭은 인스턴스 편집 전용입니다. 마스터 편집은 Components 탭에서
-              진행해 주세요.
+              {scopeDescription}
             </div>
           ) : null}
           {dragFeedback ? (
@@ -592,88 +532,45 @@ const V2TimeTableLayersPanel: React.FC<V2TimeTableLayersPanelProps> = ({
               {dragFeedback.message}
             </div>
           ) : null}
-          {activeTab === "layers" ? (
-            <V2LayersTree
-              layerTree={layerTree}
-              componentCatalog={componentCatalog}
-              selectedNodeIds={selectedNodeIds}
-              selectedLayerIds={selectedLayerIds}
-              lastSelectedLayerId={lastSelectedLayerId}
-              orderedNodeIdsByParent={orderedNodeIdsByParent}
-              dragState={dragState}
-              dropState={dropState}
-              extractableComponentInstanceLayerIdSet={
-                extractableComponentInstanceLayerIdSet
-              }
-              isLayerHidden={isLayerHidden}
-              canRelocateLayer={canRelocateLayer}
-              expanded={expanded}
-              onToggleNode={toggleNode}
-              onSetSelectedComponentId={setSelectedComponentId}
-              onSetSelectedLayerIds={setSelectedLayerIds}
-              onSetLastSelectedLayerId={setLastSelectedLayerId}
-              onSetSelectedLayerId={setSelectedLayerId}
-              onSetActiveHighlightTarget={setActiveHighlightTarget}
-              onSetHoverHighlightTarget={setHoverHighlightTarget}
-              onToggleLayerHidden={toggleLayerHidden}
-              onSetDragState={(nextState) => setDragState(nextState)}
-              onSetDropState={(nextState) => setDropState(nextState)}
-              onSetDragFeedback={(feedback) => setDragFeedback(feedback)}
-              onCommitLayerOrder={commitLayerOrder}
-              onRelocateLayers={onRelocateLayers}
-              onSelectLayer={onSelectLayer}
-              onExtractComponentInstanceLayerCopy={
-                onExtractComponentInstanceLayerCopy
-              }
-              onMoveComponentInstanceLayerToRoot={
-                onMoveComponentInstanceLayerToRoot
-              }
-              onCreateSceneNodeFromLayerMenu={onCreateSceneNodeFromLayerMenu}
-            />
-          ) : (
-            <V2LayersComponentsTab
-              componentCatalog={componentCatalog}
-              componentLayerTreeByComponentId={componentLayerTreeByComponentId}
-              selectedComponentId={selectedComponentId}
-              selectedLayerId={selectedLayerId}
-              onCreateComponent={() => {
-                applyComponentMutationResult(onCreateComponent?.());
-              }}
-              onSelectComponentMaster={selectComponentMaster}
-              onSelectComponentLayer={({ componentItem, layerId }) => {
-                setSelectedComponentId(componentItem.id);
-                setSelectedLayerIds([layerId]);
-                setLastSelectedLayerId(layerId);
-                setSelectedLayerId(layerId);
-                onSelectLayer?.({
-                  layerId,
-                  editorMode: "master",
-                });
-              }}
-              onDuplicateComponent={(componentId) => {
-                applyComponentMutationResult(onDuplicateComponent?.(componentId));
-              }}
-              onDeleteComponent={(componentItem) => {
-                if (!window.confirm(`${componentItem.label} 컴포넌트를 삭제할까요?`)) {
-                  return;
-                }
-                applyComponentMutationResult(onDeleteComponent?.(componentItem.id));
-              }}
-              onJumpToFirstInstance={(componentItem) => {
-                const firstInstanceLayerId = componentItem.firstInstanceLayerId;
-                if (!firstInstanceLayerId) return;
-                setActiveTab("layers");
-                setSelectedComponentId(componentItem.id);
-                setSelectedLayerIds([firstInstanceLayerId]);
-                setLastSelectedLayerId(firstInstanceLayerId);
-                setSelectedLayerId(firstInstanceLayerId);
-                onSelectLayer?.({
-                  layerId: firstInstanceLayerId,
-                  editorMode: "instance",
-                });
-              }}
-            />
-          )}
+          <V2LayersTree
+            layerTree={layerTree}
+            componentCatalog={componentCatalog}
+            selectedNodeIds={selectedNodeIds}
+            selectedLayerIds={selectedLayerIds}
+            lastSelectedLayerId={lastSelectedLayerId}
+            orderedNodeIdsByParent={orderedNodeIdsByParent}
+            dragState={dragState}
+            dropState={dropState}
+            extractableComponentInstanceLayerIdSet={
+              extractableComponentInstanceLayerIdSet
+            }
+            isLayerHidden={isLayerHidden}
+            isLayerLocked={isLayerLocked}
+            canRelocateLayer={canRelocateLayer}
+            expanded={expanded}
+            onToggleNode={toggleNode}
+            onSetSelectedComponentId={() => undefined}
+            onSetSelectedLayerIds={setSelectedLayerIds}
+            onSetLastSelectedLayerId={setLastSelectedLayerId}
+            onSetSelectedLayerId={setSelectedLayerId}
+            onSetActiveHighlightTarget={setActiveHighlightTarget}
+            onSetHoverHighlightTarget={setHoverHighlightTarget}
+            onToggleLayerHidden={toggleLayerHidden}
+            onToggleLayerLocked={toggleLayerLocked}
+            onSetDragState={(nextState) => setDragState(nextState)}
+            onSetDropState={(nextState) => setDropState(nextState)}
+            onSetDragFeedback={(feedback) => setDragFeedback(feedback)}
+            onCommitLayerOrder={commitLayerOrder}
+            onRelocateLayers={onRelocateLayers}
+            onSelectLayer={onSelectLayer}
+            onExtractComponentInstanceLayerCopy={
+              onExtractComponentInstanceLayerCopy
+            }
+            onMoveComponentInstanceLayerToRoot={
+              onMoveComponentInstanceLayerToRoot
+            }
+            onCreateSceneNodeFromLayerMenu={onCreateSceneNodeFromLayerMenu}
+          />
         </div>
       </div>
     </div>

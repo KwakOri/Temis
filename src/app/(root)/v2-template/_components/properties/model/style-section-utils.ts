@@ -90,14 +90,14 @@ export const v2_resolveTextNodeSections = <TStyleKey extends string>({
         styleKeyToSectionMap
       )
     : null;
-  const wrapperSection = wrapperStyleKey
+  const wrapperSection = !isFlexibleText && wrapperStyleKey
     ? v2_resolveCardStyleSection(
         wrapperStyleKey,
         containerSection,
         styleKeyToSectionMap
       )
     : null;
-  const alignmentWrapperSection = wrapperSection ?? containerSection;
+  const alignmentWrapperSection = containerSection;
   const hasAutoResizeAlignment = isFlexibleText && textSection !== null;
 
   return {

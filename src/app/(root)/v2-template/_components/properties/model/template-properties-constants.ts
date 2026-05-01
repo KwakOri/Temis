@@ -61,6 +61,10 @@ export const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
   "artistOnByTheme",
   "artistOffByTheme",
   "artist",
+  "boardByTheme",
+  "frameBgByTheme",
+  "frameByTheme",
+  "gridBgByTheme",
   "profileBgByTheme",
   "guideByTheme",
   "bgByTheme",
@@ -99,6 +103,10 @@ export const v2_ASSET_KEYS: Array<keyof V2TemplateAssetMap> = [
 
 export const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
   bgByTheme: "배경",
+  boardByTheme: "보드 배경",
+  frameBgByTheme: "프레임 배경",
+  frameByTheme: "프레임",
+  gridBgByTheme: "Grid 배경",
   topObjectByTheme: "상단 오브젝트",
   memoByTheme: "메모 오브젝트",
   artistOnByTheme: "아티스트 오브젝트 (ON)",
@@ -134,8 +142,8 @@ export const v2_ASSET_LABELS: Record<keyof V2TemplateAssetMap, string> = {
   offlineMemo_fri: "오프라인 메모 카드 (금)",
   offlineMemo_sat: "오프라인 메모 카드 (토)",
   offlineMemo_sun: "오프라인 메모 카드 (일)",
-  profileFrameByTheme: "프로필 프레임",
-  profileBgByTheme: "프로필 더미 이미지",
+  profileFrameByTheme: "프로필 프레임(레거시)",
+  profileBgByTheme: "프레임 아트워크 더미",
   guideByTheme: "가이드 레이어(상단 오버레이)",
 };
 
@@ -183,6 +191,7 @@ export const v2_STYLE_PROPERTY_CATALOG = [
   "display",
   "justifyContent",
   "alignItems",
+  "overflow",
   "transform",
   "transformOrigin",
   "rotateDeg",
@@ -191,6 +200,16 @@ export const v2_STYLE_PROPERTY_CATALOG = [
 ] as const;
 
 export const v2_LOCKED_STYLE_PROPERTY_KEYS = new Set<string>(["zIndex"]);
+
+export const v2_OBJECT_STYLE_SCHEMA_SECTIONS = {
+  frame: "objectFrame",
+  image: "objectImage",
+  textContainer: "objectTextContainer",
+  textStyle: "objectTextStyle",
+  flexibleTextContainer: "objectFlexibleTextContainer",
+  flexibleTextWrapper: "objectFlexibleTextWrapper",
+  flexibleTextStyle: "objectFlexibleTextStyle",
+} as const;
 
 export const v2_CARD_NODE_VISIBILITY_OPTIONS: Array<{
   value: V2TemplateVisibilityMode;
@@ -203,6 +222,10 @@ export const v2_CARD_NODE_VISIBILITY_OPTIONS: Array<{
   { value: "onlineMultipleOnly", label: "온라인 · 다회차만" },
   { value: "offlineMemoOnly", label: "오프라인 · 메모 있음" },
   { value: "offlineNoMemoOnly", label: "오프라인 · 메모 없음" },
+  { value: "artistOnOnly", label: "아티스트 ON만" },
+  { value: "artistOffOnly", label: "아티스트 OFF만" },
+  { value: "memoOnOnly", label: "메모 ON만" },
+  { value: "memoOffOnly", label: "메모 OFF만" },
 ];
 
 export const v2_FIXED_CARD_NODE_IDS = new Set([
@@ -218,6 +241,7 @@ export const v2_SCENE_CUSTOM_LAYER_ID_PREFIX = "scene-custom-layer-";
 
 export type V2StyleSectionKey =
   | "grid"
+  | "gridBg"
   | "weekFlag"
   | "weekDates"
   | "weekDatesStart"
@@ -231,6 +255,8 @@ export type V2StyleSectionKey =
   | "memoContentContainer"
   | "memoTextContainer"
   | "memoTextStyle"
+  | "frameArtwork"
+  | "frameObject"
   | "profileImage"
   | "profileFrame"
   | "artistTextRootStyle"
@@ -259,6 +285,7 @@ export type V2StyleSectionId = V2StyleSectionKey | string;
 
 export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   grid: "Grid",
+  gridBg: "Grid.BG",
   weekFlag: "WeekFlag",
   weekDates: "WeekDates",
   weekDatesStart: "WeekDates.Start",
@@ -272,8 +299,10 @@ export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
   memoContentContainer: "Memo.ContentContainer",
   memoTextContainer: "Memo.ContentWrapper",
   memoTextStyle: "Memo.ContentStyle",
-  profileImage: "ProfileImage",
-  profileFrame: "ProfileFrame",
+  frameArtwork: "Frame.Artwork",
+  frameObject: "Frame.Frame",
+  profileImage: "Frame.Artwork (Legacy)",
+  profileFrame: "Frame.Frame (Legacy)",
   artistTextRootStyle: "Artist.RootStyle",
   artistTextWrapperStyle: "Artist.WrapperStyle",
   artistTextStyle: "Artist.Content",
@@ -299,6 +328,7 @@ export const v2_STYLE_SECTION_LABELS: Record<V2StyleSectionKey, string> = {
 
 export const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "grid",
+  "gridBg",
   "weekFlag",
   "weekDates",
   "weekDatesStart",
@@ -312,8 +342,8 @@ export const v2_STYLE_SECTION_ORDER: V2StyleSectionKey[] = [
   "memoContentContainer",
   "memoTextContainer",
   "memoTextStyle",
-  "profileImage",
-  "profileFrame",
+  "frameArtwork",
+  "frameObject",
   "artistTextRootStyle",
   "artistTextWrapperStyle",
   "artistTextStyle",
@@ -342,6 +372,7 @@ export const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   V2TemplateHighlightTarget
 > = {
   grid: "grid",
+  gridBg: "sceneNode:scene-grid-bg",
   weekFlag: "weekFlag",
   weekDates: "sceneNode:scene-week-flag",
   weekDatesStart: "sceneNode:scene-week-dates-start",
@@ -355,8 +386,10 @@ export const v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP: Record<
   memoContentContainer: "memoText",
   memoTextContainer: "memoText",
   memoTextStyle: "memoText",
-  profileImage: "profileImage",
-  profileFrame: "profileFrame",
+  frameArtwork: "frameArtwork",
+  frameObject: "frameObject",
+  profileImage: "frameArtwork",
+  profileFrame: "frameObject",
   artistTextRootStyle: "artistText",
   artistTextWrapperStyle: "artistText",
   artistTextStyle: "artistText",
@@ -386,8 +419,6 @@ export const v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP: Partial<
   grid: "grid",
   weekFlag: "weekFlag",
   topObjectContainer: "topObjectContainer",
-  profileImage: "profileImage",
-  profileFrame: "profileFrame",
   artistTextRootStyle: "artistTextRootStyle",
   artistTextWrapperStyle: "artistTextWrapperStyle",
   artistTextStyle: "artistTextStyle",
@@ -426,8 +457,10 @@ export const v2_HIGHLIGHT_TARGET_LABELS: Record<
   grid: "Grid",
   weekFlag: "WeekFlag",
   topObjectContainer: "TopObject",
-  profileImage: "Profile Image",
-  profileFrame: "Profile Frame",
+  frameArtwork: "Frame Artwork",
+  frameObject: "Frame Object",
+  profileImage: "Frame Artwork",
+  profileFrame: "Frame Object",
   artistText: "Artist Name",
   artistObject: "Artist Object",
   memoObject: "Memo Object",

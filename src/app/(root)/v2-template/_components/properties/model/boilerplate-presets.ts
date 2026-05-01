@@ -49,6 +49,13 @@ export const v2_BOILERPLATE_SELECT_OPTIONS = {
     { label: "keep-all", value: "keep-all" },
     { label: "break-word", value: "break-word" },
   ],
+  overflow: [
+    { label: "visible", value: "visible" },
+    { label: "hidden", value: "hidden" },
+    { label: "clip", value: "clip" },
+    { label: "scroll", value: "scroll" },
+    { label: "auto", value: "auto" },
+  ],
   borderStyle: [
     { label: "none", value: "none" },
     { label: "solid", value: "solid" },

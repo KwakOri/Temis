@@ -334,7 +334,6 @@ const useTemplateCardNodeActions = ({
       const target = `cardNode:${nodeId}`;
       const containerStyleKey = `cardNode:${nodeId}:container`;
       const textStyleKey = `cardNode:${nodeId}:text`;
-      const wrapperStyleKey = `cardNode:${nodeId}:wrapper`;
       const optionsKey = `cardNode:${nodeId}:options`;
 
       const nextNode: V2TemplateCardNode = {
@@ -350,7 +349,7 @@ const useTemplateCardNodeActions = ({
         visibilityMode: "always",
         containerStyleKey,
         ...(kind !== "image" ? { textStyleKey } : {}),
-        ...(kind === "flexibleText" ? { wrapperStyleKey, optionsKey } : {}),
+        ...(kind === "flexibleText" ? { optionsKey } : {}),
         colorKey: "SUB_TITLE",
         fontKey: "SUB_TITLE",
         ...(kind === "image"
@@ -381,7 +380,6 @@ const useTemplateCardNodeActions = ({
           : v2_createDefaultTextNodeLayoutPatch({
               containerStyleKey,
               textStyleKey,
-              wrapperStyleKey,
               optionsKey,
               isFlexibleText: kind === "flexibleText",
             })),

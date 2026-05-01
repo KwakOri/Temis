@@ -7,8 +7,6 @@ import {
 import { v2_suggestAssetKeyByRule } from "@/utils/v2/asset-mapping";
 import React from "react";
 
-type V2CardBackgroundVariantMode = "online" | "multi" | "offline" | "offlineMemo";
-
 interface TemplateAssetsTabProps {
   assetTheme: string;
   themeOptions: string[];
@@ -29,12 +27,6 @@ interface TemplateAssetsTabProps {
   onRemoveExtraAssetKey: (key: string) => void;
   onUploadExtraFile: (key: string, theme: string, file: File | null) => void;
   onResetExtraAsset: (key: string, theme: string) => void;
-  cardBackgroundByDay: Record<V2CardBackgroundVariantMode, boolean>;
-  onToggleCardBackgroundByDay: (
-    mode: V2CardBackgroundVariantMode,
-    enabled: boolean
-  ) => void;
-  onApplyMondayCardCommonStructure: () => void;
   onUploadBulkFiles?: (params: {
     theme: string;
     items: Array<{
@@ -85,9 +77,6 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
   onRemoveExtraAssetKey,
   onUploadExtraFile,
   onResetExtraAsset,
-  cardBackgroundByDay,
-  onToggleCardBackgroundByDay,
-  onApplyMondayCardCommonStructure,
   onUploadBulkFiles,
 }) => {
   const fileInputRefs = React.useRef<
@@ -291,78 +280,6 @@ const TemplateAssetsTab: React.FC<TemplateAssetsTabProps> = ({
           }
         />
       </label>
-
-      <div className="space-y-2 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">
-        <h4 className="text-sm font-semibold text-gray-200">카드 배경 상태 저장 구조</h4>
-        <p className="text-[11px] text-gray-400">
-          카드 배경은 `online/multi/offline/offlineMemo x 7요일`(총 28개)로 개별 저장됩니다.
-          런타임 UI는 온라인/오프라인 기본 흐름을 유지하되, 자산 데이터는 상태별로 분리 관리됩니다.
-        </p>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {(
-            [
-              ["online", "온라인"],
-              ["multi", "다회차"],
-              ["offline", "오프라인"],
-              ["offlineMemo", "오프라인 메모"],
-            ] as Array<[V2CardBackgroundVariantMode, string]>
-          ).map(([mode, label]) => (
-            <label
-              key={mode}
-              className="flex items-center justify-between gap-2 rounded border border-[#3a3d44] bg-[#141922] px-3 py-2"
-            >
-              <span className="text-xs text-gray-300">{label} 요일별 개별 배경</span>
-              <input
-                type="checkbox"
-                checked={Boolean(cardBackgroundByDay[mode])}
-                onChange={(event) =>
-                  onToggleCardBackgroundByDay(mode, event.target.checked)
-                }
-              />
-            </label>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="rounded border border-emerald-500/50 bg-emerald-500/15 px-3 py-1.5 text-[11px] font-semibold text-emerald-200 hover:bg-emerald-500/25"
-            onClick={() => {
-              onToggleCardBackgroundByDay("online", true);
-              onToggleCardBackgroundByDay("multi", true);
-              onToggleCardBackgroundByDay("offline", true);
-              onToggleCardBackgroundByDay("offlineMemo", true);
-            }}
-          >
-            28개 개별 모드
-          </button>
-          <button
-            type="button"
-            className="rounded border border-[#3a3d44] bg-[#2a2d33] px-3 py-1.5 text-[11px] font-semibold text-gray-200 hover:bg-[#323640]"
-            onClick={() => {
-              onToggleCardBackgroundByDay("online", false);
-              onToggleCardBackgroundByDay("multi", false);
-              onToggleCardBackgroundByDay("offline", false);
-              onToggleCardBackgroundByDay("offlineMemo", false);
-            }}
-          >
-            요일 배경 통일 모드
-          </button>
-          <button
-            type="button"
-            className="rounded border border-[#4f8cff] bg-[#1f355f] px-3 py-1.5 text-[11px] font-semibold text-[#d6e6ff] hover:bg-[#2a4477]"
-            onClick={onApplyMondayCardCommonStructure}
-          >
-            월요일 카드 공통 적용
-          </button>
-        </div>
-        <p className="text-[11px] text-gray-500">
-          요일별 개별 배경을 끄면 Mon 자산을 공통 기본값으로 사용합니다.
-        </p>
-        <p className="text-[11px] text-gray-500">
-          `월요일 카드 공통 적용`은 Mon 컴포넌트를 기준으로 카드 구조/텍스트/내부 위치를
-          모든 요일 카드에 공통 반영합니다.
-        </p>
-      </div>
 
       <div className="space-y-2 rounded border border-[#3a3d44] bg-[#1a1c20] p-3">
         <h4 className="text-sm font-semibold text-gray-200">

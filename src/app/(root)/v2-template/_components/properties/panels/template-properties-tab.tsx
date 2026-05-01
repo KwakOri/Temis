@@ -27,7 +27,6 @@ const TemplatePropertiesTab: React.FC<TemplatePropertiesTabProps> = ({
       onBlurCapture={(event) => {
         const nextFocused = event.relatedTarget;
         if (!(nextFocused instanceof Node)) {
-          onBlurOutside();
           return;
         }
         if (!inspectorRef.current?.contains(nextFocused)) {

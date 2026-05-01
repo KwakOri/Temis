@@ -13,6 +13,7 @@ interface V2CardRendererBaseProps {
   textClassName?: string;
   fontFamily: string;
   color: string;
+  editorAttributes?: React.HTMLAttributes<HTMLElement>;
 }
 
 type V2PlainTextNodeRendererProps = V2CardRendererBaseProps;
@@ -20,7 +21,6 @@ type V2PlainTextNodeRendererProps = V2CardRendererBaseProps;
 interface V2FlexibleTextNodeRendererProps extends V2CardRendererBaseProps {
   multiline: boolean;
   maxFontSize: number;
-  wrapperStyle?: React.CSSProperties;
 }
 
 const v2_parsePositiveFontSizePx = (value: unknown): number | undefined => {
@@ -53,6 +53,7 @@ export const V2PlainTextNodeRenderer: React.FC<V2PlainTextNodeRendererProps> = (
   containerClassName,
   fontFamily,
   color,
+  editorAttributes,
 }) => {
   const nextTextStyle = { ...textStyle } as React.CSSProperties &
     Record<string, unknown>;
@@ -62,6 +63,7 @@ export const V2PlainTextNodeRenderer: React.FC<V2PlainTextNodeRendererProps> = (
   return (
     <p
       key={nodeId}
+      {...editorAttributes}
       style={{
         color,
         fontFamily,
@@ -92,7 +94,7 @@ export const V2FlexibleTextNodeRenderer: React.FC<
   color,
   multiline,
   maxFontSize,
-  wrapperStyle,
+  editorAttributes,
 }) => {
   const nextTextStyle = { ...textStyle } as React.CSSProperties &
     Record<string, unknown>;
@@ -103,68 +105,30 @@ export const V2FlexibleTextNodeRenderer: React.FC<
     delete nextTextStyle.fontSize;
   }
   const resolvedMaxFontSize = fontSizeFromTextStyle ?? maxFontSize;
-  const wrapperStyleMap = (wrapperStyle ?? {}) as React.CSSProperties &
-    Record<string, unknown>;
-  const containerStyleMap = containerStyle as React.CSSProperties &
-    Record<string, unknown>;
-  const hasWrapperJustify = wrapperStyleMap.justifyContent !== undefined;
-  const hasWrapperAlign = wrapperStyleMap.alignItems !== undefined;
-  const resolvedJustifyContent =
-    hasWrapperJustify || containerStyleMap.justifyContent === undefined
-      ? wrapperStyleMap.justifyContent
-      : containerStyleMap.justifyContent;
-  const resolvedAlignItems =
-    hasWrapperAlign || containerStyleMap.alignItems === undefined
-      ? wrapperStyleMap.alignItems
-      : containerStyleMap.alignItems;
-  const shouldEnableWrapperFlex =
-    wrapperStyleMap.display === "flex" ||
-    resolvedJustifyContent !== undefined ||
-    resolvedAlignItems !== undefined;
-
-  const nextWrapperStyle: React.CSSProperties = {
-    width: "100%",
-    height: "100%",
-    ...(wrapperStyle ?? {}),
-    ...(shouldEnableWrapperFlex && wrapperStyleMap.display === undefined
-      ? { display: "flex" }
-      : {}),
-    ...(resolvedJustifyContent !== undefined
-      ? { justifyContent: resolvedJustifyContent }
-      : {}),
-    ...(resolvedAlignItems !== undefined ? { alignItems: resolvedAlignItems } : {}),
-  };
-  const wrapperHasTransform =
-    typeof nextWrapperStyle.transform === "string" &&
-    nextWrapperStyle.transform.trim().length > 0;
-  const containerHighlightStyle = wrapperHasTransform ? {} : highlightStyle;
-  const wrapperHighlightStyle = wrapperHasTransform ? highlightStyle : {};
 
   return (
     <div
       key={nodeId}
+      {...editorAttributes}
       style={{
         ...containerStyle,
         ...(width !== undefined ? { width } : {}),
-        ...containerHighlightStyle,
+        ...highlightStyle,
       }}
       className={containerClassName ?? "absolute flex items-center justify-center"}
     >
-      {/* AutoResizeText depends on parent box dimensions, so wrapper div is mandatory. */}
-      <div style={{ ...nextWrapperStyle, ...wrapperHighlightStyle }}>
-        <AutoResizeText
-          style={{
-            fontFamily,
-            color,
-            ...nextTextStyle,
-          }}
-          className={textClassName ?? "leading-none text-center"}
-          multiline={multiline}
-          maxFontSize={resolvedMaxFontSize}
-        >
-          {text}
-        </AutoResizeText>
-      </div>
+      <AutoResizeText
+        style={{
+          fontFamily,
+          color,
+          ...nextTextStyle,
+        }}
+        className={textClassName ?? "leading-none text-center"}
+        multiline={multiline}
+        maxFontSize={resolvedMaxFontSize}
+      >
+        {text}
+      </AutoResizeText>
     </div>
   );
 };

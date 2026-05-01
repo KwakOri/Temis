@@ -3,6 +3,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 
+import { useTemplateRenderConfigContext } from "@/contexts/v2/template-render-config-context";
 import {
   V2TemplateBuiltinAssetKey,
   V2TemplateFieldScope,
@@ -71,17 +72,6 @@ interface TemplatePropertiesTabsRendererProps {
   onRemoveExtraAssetKey: (key: string) => void;
   onUploadExtraAssetFile: (key: string, theme: string, file: File | null) => void;
   onResetExtraAsset: (key: string, theme: string) => void;
-  cardBackgroundByDay: {
-    online: boolean;
-    multi: boolean;
-    offline: boolean;
-    offlineMemo: boolean;
-  };
-  onToggleCardBackgroundByDay: (
-    mode: "online" | "multi" | "offline" | "offlineMemo",
-    enabled: boolean
-  ) => void;
-  onApplyMondayCardCommonStructure: () => void;
   onUploadBulkAssetFiles: (params: {
     theme: string;
     items: Array<{
@@ -111,7 +101,8 @@ type V2SettingsModalId =
   | "schema"
   | "assets"
   | "data"
-  | "export";
+  | "export"
+  | "figmaImport";
 
 const v2_SETTINGS_MODAL_OPTIONS: Array<{
   id: V2SettingsModalId;
@@ -149,6 +140,16 @@ const v2_SETTINGS_MODAL_OPTIONS: Array<{
     description: "JSON 복사/이미지 다운로드/초기화",
   },
 ];
+
+const v2_FIGMA_IMPORT_SETTINGS_OPTION: {
+  id: V2SettingsModalId;
+  label: string;
+  description: string;
+} = {
+  id: "figmaImport",
+  label: "Figma import",
+  description: "Figma 링크로 현재 템플릿 세팅",
+};
 
 const TemplatePropertiesTabsRenderer: React.FC<
   TemplatePropertiesTabsRendererProps
@@ -198,9 +199,6 @@ const TemplatePropertiesTabsRenderer: React.FC<
   onRemoveExtraAssetKey,
   onUploadExtraAssetFile,
   onResetExtraAsset,
-  cardBackgroundByDay,
-  onToggleCardBackgroundByDay,
-  onApplyMondayCardCommonStructure,
   onUploadBulkAssetFiles,
   onChangeDataField,
   onToggleOffline,
@@ -211,9 +209,18 @@ const TemplatePropertiesTabsRenderer: React.FC<
   onDownloadPreview,
   onResetData,
 }) => {
+  const { figmaImport } = useTemplateRenderConfigContext();
   const [openSettingsModalId, setOpenSettingsModalId] =
     React.useState<V2SettingsModalId | null>(null);
   const [isClientMounted, setIsClientMounted] = React.useState(false);
+
+  const settingsModalOptions = React.useMemo(
+    () =>
+      figmaImport
+        ? [...v2_SETTINGS_MODAL_OPTIONS, v2_FIGMA_IMPORT_SETTINGS_OPTION]
+        : v2_SETTINGS_MODAL_OPTIONS,
+    [figmaImport]
+  );
 
   React.useEffect(() => {
     setIsClientMounted(true);
@@ -269,9 +276,6 @@ const TemplatePropertiesTabsRenderer: React.FC<
       onRemoveExtraAssetKey={onRemoveExtraAssetKey}
       onUploadExtraFile={onUploadExtraAssetFile}
       onResetExtraAsset={onResetExtraAsset}
-      cardBackgroundByDay={cardBackgroundByDay}
-      onToggleCardBackgroundByDay={onToggleCardBackgroundByDay}
-      onApplyMondayCardCommonStructure={onApplyMondayCardCommonStructure}
       onUploadBulkFiles={onUploadBulkAssetFiles}
     />
   );
@@ -303,6 +307,132 @@ const TemplatePropertiesTabsRenderer: React.FC<
     />
   );
 
+  const renderFigmaImportTab = () => {
+    if (!figmaImport) {
+      return (
+        <div className="rounded border border-[#303744] bg-[#171d27] p-3 text-xs text-gray-400">
+          현재 화면에서는 Figma import를 사용할 수 없습니다.
+        </div>
+      );
+    }
+
+    const isSubmitDisabled =
+      !figmaImport.canImport ||
+      figmaImport.isImporting ||
+      figmaImport.rootFigmaUrl.trim().length === 0 ||
+      figmaImport.pendingSettingChanges.length > 0;
+    const hasPendingSettingChanges = figmaImport.pendingSettingChanges.length > 0;
+
+    return (
+      <form
+        className="space-y-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          figmaImport.importToCurrentTemplate();
+        }}
+      >
+        <div className="rounded border border-[#303744] bg-[#171d27] p-3">
+          <label className="block text-xs font-semibold text-gray-200">
+            Figma 링크
+          </label>
+          <input
+            type="url"
+            value={figmaImport.rootFigmaUrl}
+            onChange={(event) => figmaImport.setRootFigmaUrl(event.target.value)}
+            placeholder="https://www.figma.com/design/..."
+            disabled={figmaImport.isImporting}
+            className="mt-2 w-full rounded border border-[#3c465e] bg-[#111722] px-3 py-2 text-xs text-gray-100 outline-none placeholder:text-gray-500 focus:border-[#4f8cff]"
+          />
+        </div>
+
+        <label className="flex cursor-pointer items-center gap-2 rounded border border-[#303744] bg-[#171d27] px-3 py-2 text-xs text-gray-200">
+          <input
+            type="checkbox"
+            checked={figmaImport.withAssets}
+            onChange={(event) => figmaImport.setWithAssets(event.target.checked)}
+            disabled={figmaImport.isImporting}
+            className="h-4 w-4 rounded border-[#3c465e] bg-[#111722]"
+          />
+          <span>이미지 에셋 포함</span>
+        </label>
+
+        {hasPendingSettingChanges ? (
+          <div className="space-y-3 rounded border border-amber-400/45 bg-amber-400/10 p-3">
+            <div>
+              <p className="text-xs font-semibold text-amber-100">
+                템플릿 설정 확인 필요
+              </p>
+              <p className="mt-1 text-xs leading-5 text-amber-50/80">
+                현재 템플릿 기능 설정과 Figma에서 감지된 구조가 다릅니다.
+              </p>
+            </div>
+            <div className="space-y-2">
+              {figmaImport.pendingSettingChanges.map((change) => (
+                <div
+                  key={change.key}
+                  className="rounded border border-amber-300/30 bg-[#141821] px-3 py-2"
+                >
+                  <p className="text-xs font-semibold text-gray-100">
+                    {change.title}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-gray-300">
+                    {change.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={figmaImport.confirmPendingImport}
+                disabled={figmaImport.isImporting}
+                className="rounded border border-amber-300/60 bg-amber-300/20 px-3 py-2 text-xs font-semibold text-amber-50 hover:bg-amber-300/30 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                설정 반영하고 적용
+              </button>
+              <button
+                type="button"
+                onClick={figmaImport.cancelPendingImport}
+                disabled={figmaImport.isImporting}
+                className="rounded border border-[#3c465e] bg-[#151a24] px-3 py-2 text-xs font-semibold text-[#c9d8f8] hover:bg-[#1c2533] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-2">
+          <button
+            type="submit"
+            disabled={isSubmitDisabled}
+            className="rounded border border-[#4f8cff] bg-[#244c92] px-3 py-2 text-xs font-semibold text-white hover:bg-[#2d5cb0] disabled:cursor-not-allowed disabled:border-[#303744] disabled:bg-[#171d27] disabled:text-gray-500"
+          >
+            {figmaImport.isImporting
+              ? "분석 중..."
+              : hasPendingSettingChanges
+                ? "확인 대기 중"
+                : "현재 템플릿에 적용"}
+          </button>
+          <button
+            type="button"
+            onClick={figmaImport.reset}
+            disabled={figmaImport.isImporting}
+            className="rounded border border-[#3c465e] bg-[#151a24] px-3 py-2 text-xs font-semibold text-[#c9d8f8] hover:bg-[#1c2533] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            초기화
+          </button>
+        </div>
+
+        {figmaImport.message ? (
+          <p className="rounded border border-[#303744] bg-[#111722] px-3 py-2 text-xs leading-5 text-gray-300">
+            {figmaImport.message}
+          </p>
+        ) : null}
+      </form>
+    );
+  };
+
   const renderSettingsModalContent = () => {
     if (openSettingsModalId === "template") return renderTemplateTab();
     if (openSettingsModalId === "style") return <>{renderStyleTab()}</>;
@@ -310,6 +440,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
     if (openSettingsModalId === "assets") return renderAssetsTab();
     if (openSettingsModalId === "data") return renderDataTab();
     if (openSettingsModalId === "export") return renderExportTab();
+    if (openSettingsModalId === "figmaImport") return renderFigmaImportTab();
     return null;
   };
 
@@ -352,7 +483,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto p-2">
                   <div className="space-y-1">
-                    {v2_SETTINGS_MODAL_OPTIONS.map((option) => {
+                    {settingsModalOptions.map((option) => {
                       const active = option.id === openSettingsModalId;
                       return (
                         <button
@@ -380,7 +511,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
                 <div className="flex items-center justify-between border-b border-[#2f3746] px-4 py-3">
                   <h4 className="text-sm font-semibold text-gray-100">
                     {
-                      v2_SETTINGS_MODAL_OPTIONS.find(
+                      settingsModalOptions.find(
                         (option) => option.id === openSettingsModalId
                       )?.label
                     }
@@ -396,7 +527,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
 
                 <div className="border-b border-[#263040] px-4 py-2 md:hidden">
                   <div className="flex items-center gap-1 overflow-x-auto pb-1">
-                    {v2_SETTINGS_MODAL_OPTIONS.map((option) => {
+                    {settingsModalOptions.map((option) => {
                       const active = option.id === openSettingsModalId;
                       return (
                         <button
@@ -419,7 +550,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
                 <div className="border-b border-[#263040] px-4 py-2">
                   <p className="text-xs text-gray-400">
                     {
-                      v2_SETTINGS_MODAL_OPTIONS.find(
+                      settingsModalOptions.find(
                         (option) => option.id === openSettingsModalId
                       )?.description
                     }
@@ -444,7 +575,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
         버튼에서 오버레이 창으로 열어 편집합니다.
       </p>
       <div className="grid grid-cols-2 gap-2">
-        {v2_SETTINGS_MODAL_OPTIONS.map((option) => (
+        {settingsModalOptions.map((option) => (
           <button
             key={option.id}
             type="button"

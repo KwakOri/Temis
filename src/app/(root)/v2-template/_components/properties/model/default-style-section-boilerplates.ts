@@ -15,6 +15,13 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     gridEmptySlotA: 3,
     gridEmptySlotB: 6,
   },
+  gridBg: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 4000,
+    height: 2250,
+  },
   weekFlag: {
     top: 568,
     left: 1557,
@@ -128,6 +135,19 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     fontWeight: 600,
     lineHeight: 1,
     textAlign: "center",
+  },
+  frameArtwork: {
+    top: 496,
+    left: 2400,
+    width: 1540,
+    height: 1540,
+    zIndex: 20,
+  },
+  frameObject: {
+    position: "absolute",
+    width: 4000,
+    height: 2250,
+    zIndex: 10,
   },
   profileImage: {
     top: 496,

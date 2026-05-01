@@ -9,11 +9,14 @@ import {
 } from '@/utils/v2/template-render-config';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { SetStateAction } from 'react';
 
 const v2_TEMPLATE_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const v2_DRAFT_AUTOSAVE_DEBOUNCE_MS = 2500;
 const v2_DRAFT_AUTOSAVE_RETRY_DELAY_MS = 1200;
+const v2_RENDER_CONFIG_HISTORY_LIMIT = 80;
+const v2_RENDER_CONFIG_HISTORY_MERGE_MS = 600;
 
 type V2DbSyncStatus = 'idle' | 'checking' | 'ready' | 'error';
 
@@ -24,6 +27,12 @@ type V2DraftAutosavePayload = {
   renderConfig: V2TemplateRenderConfig;
   serialized: string;
   baseRevisionNo: number | null;
+};
+
+type V2RenderConfigHistory = {
+  past: V2TemplateRenderConfig[];
+  future: V2TemplateRenderConfig[];
+  lastPushedAt: number;
 };
 
 type TemplateEditorClientProps = {
@@ -68,6 +77,87 @@ type V2AdminRenderConfigPublishResponse = {
   updatedAt: string;
 };
 
+type V2AdminFigmaImportIntoEditorResponse = {
+  success: boolean;
+  import: {
+    templateId: string;
+    renderConfig: V2TemplateRenderConfig;
+    layoutMode: 'grid3x3' | 'flex4x2' | 'free';
+    mode: string;
+    detectedStatuses: string[];
+    detectedFeatures: V2AdminFigmaDetectedFeatures;
+    cardComponentSetSource: 'input' | 'auto-detected';
+    resolvedCardComponentSetUrl: string;
+    warnings: string[];
+    critical: string[];
+    assetImportSummary: {
+      discovered: number;
+      mapped: number;
+      uploaded: number;
+      applied: number;
+      warnings: string[];
+      unresolved: string[];
+    } | null;
+  };
+};
+
+type V2AdminFigmaDetectedStatus = 'online' | 'offline' | 'multi' | 'offlineMemo';
+
+type V2AdminFigmaDetectedFeatures = {
+  artist: {
+    enabled: boolean;
+    on: boolean;
+    off: boolean;
+    object: boolean;
+    text: boolean;
+    profile: boolean;
+  };
+  memo: {
+    enabled: boolean;
+    on: boolean;
+    off: boolean;
+    object: boolean;
+    text: boolean;
+  };
+};
+
+type V2AdminFigmaAnalyzeResponse = {
+  success: boolean;
+  analysis: {
+    mode: string;
+    canImport: boolean;
+    detectedStatuses: V2AdminFigmaDetectedStatus[];
+    statusCounts: Record<V2AdminFigmaDetectedStatus, number>;
+    statusSourceModeByStatus: Record<
+      V2AdminFigmaDetectedStatus,
+      'none' | 'shared' | 'byDay'
+    >;
+    warnings: string[];
+    critical: string[];
+    templateNameSuggestion: string;
+    layoutModeCandidate: 'grid3x3' | 'flex4x2' | 'free';
+    detectedFeatures: V2AdminFigmaDetectedFeatures;
+    cardComponentSetSource: 'input' | 'auto-detected';
+    resolvedCardComponentSetUrl: string;
+  };
+};
+
+type V2FigmaImportSettingChange = {
+  key: 'multi' | 'offlineMemo' | 'artist' | 'memo';
+  action: 'enable' | 'disable';
+  label: string;
+  title: string;
+  description: string;
+};
+
+type V2PendingFigmaImportConfirmation = {
+  rootFigmaUrl: string;
+  withAssets: boolean;
+  changes: V2FigmaImportSettingChange[];
+  detectedStatuses: V2AdminFigmaDetectedStatus[];
+  warnings: string[];
+};
+
 const v2_isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
@@ -87,6 +177,15 @@ const v2_createHttpError = ({
   const error = new Error(message) as V2HttpError;
   error.status = status;
   return error;
+};
+
+const v2_isTemplateEditorTextEditingTarget = (
+  target: EventTarget | null
+): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  return Boolean(
+    target.closest("input, textarea, select, button, [contenteditable='true']")
+  );
 };
 
 const v2_resolveValidTemplateId = (value: unknown): string | undefined => {
@@ -219,6 +318,200 @@ const v2_publishAdminRenderConfig = async ({
   return result as V2AdminRenderConfigPublishResponse;
 };
 
+const v2_importAdminFigmaIntoEditor = async ({
+  templateId,
+  rootFigmaUrl,
+  withAssets,
+}: {
+  templateId: string;
+  rootFigmaUrl: string;
+  withAssets: boolean;
+}): Promise<V2AdminFigmaImportIntoEditorResponse> => {
+  const response = await fetch(`/api/admin/v2/templates/${templateId}/figma/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      rootFigmaUrl,
+      layoutModeOverride: 'auto',
+      assetImportMode: withAssets ? 'with-assets' : 'without-assets',
+    }),
+  });
+  const result = (await response.json().catch(() => null)) as
+    | V2AdminFigmaImportIntoEditorResponse
+    | { error?: string }
+    | null;
+
+  if (!response.ok) {
+    throw v2_createHttpError({
+      message: v2_extractApiErrorMessage(result) || 'Figma import에 실패했습니다.',
+      status: response.status,
+    });
+  }
+
+  return result as V2AdminFigmaImportIntoEditorResponse;
+};
+
+const v2_analyzeAdminFigmaForEditor = async ({
+  rootFigmaUrl,
+}: {
+  rootFigmaUrl: string;
+}): Promise<V2AdminFigmaAnalyzeResponse> => {
+  const response = await fetch('/api/admin/v2/templates/figma/analyze', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      rootFigmaUrl,
+    }),
+  });
+  const result = (await response.json().catch(() => null)) as
+    | V2AdminFigmaAnalyzeResponse
+    | { error?: string }
+    | null;
+
+  if (!response.ok) {
+    throw v2_createHttpError({
+      message: v2_extractApiErrorMessage(result) || 'Figma 분석에 실패했습니다.',
+      status: response.status,
+    });
+  }
+
+  return result as V2AdminFigmaAnalyzeResponse;
+};
+
+const v2_buildFigmaImportSettingChanges = ({
+  renderConfig,
+  detectedStatuses,
+  detectedFeatures,
+}: {
+  renderConfig: V2TemplateRenderConfig;
+  detectedStatuses: readonly V2AdminFigmaDetectedStatus[];
+  detectedFeatures: V2AdminFigmaDetectedFeatures;
+}): V2FigmaImportSettingChange[] => {
+  const statusSet = new Set(detectedStatuses);
+  const currentStatusOptions = renderConfig.timetable.statusOptions;
+  const changes: V2FigmaImportSettingChange[] = [];
+  const graphNodes = renderConfig.graph.nodes ?? {};
+  const formFields = renderConfig.formSchema.fields ?? [];
+  const currentArtistEnabled =
+    Boolean(renderConfig.editorOptions.isArtist) &&
+    Boolean(
+      graphNodes['scene-artist-group'] ||
+        graphNodes['scene-artist-text'] ||
+        graphNodes['scene-artist-object'] ||
+        formFields.some((field) => field.scope === 'global' && field.key === 'artistText')
+    );
+  const currentMemoEnabled =
+    Boolean(renderConfig.editorOptions.isMemo) &&
+    Boolean(
+      graphNodes['scene-memo'] ||
+        graphNodes['scene-memo-object'] ||
+        graphNodes['scene-memo-text'] ||
+        formFields.some((field) => field.scope === 'global' && field.key === 'memoText')
+    );
+
+  const statusOptionDefinitions = [
+    {
+      key: 'multi',
+      label: '다회차',
+      detectedDescription: 'Figma에서 다회차 카드 상태가 감지되었습니다.',
+      missingDescription: '현재 템플릿은 다회차를 사용하지만 Figma에서는 감지되지 않았습니다.',
+    },
+    {
+      key: 'offlineMemo',
+      label: '오프라인 메모',
+      detectedDescription: 'Figma에서 오프라인 메모 카드 상태가 감지되었습니다.',
+      missingDescription:
+        '현재 템플릿은 오프라인 메모를 사용하지만 Figma에서는 감지되지 않았습니다.',
+    },
+  ] satisfies Array<{
+    key: 'multi' | 'offlineMemo';
+    label: string;
+    detectedDescription: string;
+    missingDescription: string;
+  }>;
+
+  statusOptionDefinitions.forEach((option) => {
+    const isDetected = statusSet.has(option.key);
+    const isEnabled = Boolean(currentStatusOptions[option.key]);
+    if (isDetected && !isEnabled) {
+      changes.push({
+        key: option.key,
+        action: 'enable',
+        label: option.label,
+        title: `${option.label} 사용`,
+        description: option.detectedDescription,
+      });
+      return;
+    }
+    if (!isDetected && isEnabled) {
+      changes.push({
+        key: option.key,
+        action: 'disable',
+        label: option.label,
+        title: `${option.label} 미사용`,
+        description: option.missingDescription,
+      });
+    }
+  });
+
+  const featureDefinitions = [
+    {
+      key: 'artist',
+      label: '아티스트',
+      isDetected: detectedFeatures.artist.enabled,
+      isEnabled: currentArtistEnabled,
+      detectedDescription: 'Figma에서 아티스트 on 상태 오브젝트가 감지되었습니다.',
+      missingDescription:
+        '현재 템플릿은 아티스트를 사용하지만 Figma에서는 아티스트 on 상태가 감지되지 않았습니다.',
+    },
+    {
+      key: 'memo',
+      label: '메모',
+      isDetected: detectedFeatures.memo.enabled,
+      isEnabled: currentMemoEnabled,
+      detectedDescription: 'Figma에서 메모 on 상태 오브젝트가 감지되었습니다.',
+      missingDescription:
+        '현재 템플릿은 메모를 사용하지만 Figma에서는 메모 on 상태가 감지되지 않았습니다.',
+    },
+  ] satisfies Array<{
+    key: 'artist' | 'memo';
+    label: string;
+    isDetected: boolean;
+    isEnabled: boolean;
+    detectedDescription: string;
+    missingDescription: string;
+  }>;
+
+  featureDefinitions.forEach((option) => {
+    if (option.isDetected && !option.isEnabled) {
+      changes.push({
+        key: option.key,
+        action: 'enable',
+        label: option.label,
+        title: `${option.label} 사용`,
+        description: option.detectedDescription,
+      });
+      return;
+    }
+    if (!option.isDetected && option.isEnabled) {
+      changes.push({
+        key: option.key,
+        action: 'disable',
+        label: option.label,
+        title: `${option.label} 미사용`,
+        description: option.missingDescription,
+      });
+    }
+  });
+
+  return changes;
+};
+
+
 const TemplateEditorClient = ({
   forcedTemplateId,
   allowQueryTemplateId = false,
@@ -239,7 +532,7 @@ const TemplateEditorClient = ({
     []
   );
 
-  const [renderConfig, setRenderConfig] =
+  const [renderConfig, setRenderConfigState] =
     useState<V2TemplateRenderConfig>(defaultRenderConfig);
   const [isLoading, setIsLoading] = useState(true);
   const [dbSyncStatus, setDbSyncStatus] = useState<V2DbSyncStatus>('idle');
@@ -251,6 +544,12 @@ const TemplateEditorClient = ({
   const [isDraftAutosaving, setIsDraftAutosaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [figmaImportUrl, setFigmaImportUrl] = useState('');
+  const [figmaImportWithAssets, setFigmaImportWithAssets] = useState(true);
+  const [isFigmaImporting, setIsFigmaImporting] = useState(false);
+  const [figmaImportMessage, setFigmaImportMessage] = useState<string | null>(null);
+  const [pendingFigmaImportConfirmation, setPendingFigmaImportConfirmation] =
+    useState<V2PendingFigmaImportConfirmation | null>(null);
 
   const baseRevisionNoRef = useRef<number | null>(null);
   const isDbHydratedRef = useRef(false);
@@ -261,6 +560,112 @@ const TemplateEditorClient = ({
   const autosaveInFlightRef = useRef<Promise<void> | null>(null);
   const autosaveAbortControllerRef = useRef<AbortController | null>(null);
   const pendingAutosavePayloadRef = useRef<V2DraftAutosavePayload | null>(null);
+  const renderConfigHistoryRef = useRef<V2RenderConfigHistory>({
+    past: [],
+    future: [],
+    lastPushedAt: 0,
+  });
+
+  const resetRenderConfigHistory = useCallback(() => {
+    renderConfigHistoryRef.current = {
+      past: [],
+      future: [],
+      lastPushedAt: 0,
+    };
+  }, []);
+
+  const setRenderConfig = useCallback(
+    (updater: SetStateAction<V2TemplateRenderConfig>) => {
+      setRenderConfigState((prev) => {
+        const next =
+          typeof updater === 'function'
+            ? (updater as (prev: V2TemplateRenderConfig) => V2TemplateRenderConfig)(
+                prev
+              )
+            : updater;
+        if (next === prev) return prev;
+
+        const prevSerialized = JSON.stringify(prev);
+        const nextSerialized = JSON.stringify(next);
+        if (prevSerialized === nextSerialized) return prev;
+
+        const now = Date.now();
+        const history = renderConfigHistoryRef.current;
+        const shouldMerge =
+          history.past.length > 0 &&
+          now - history.lastPushedAt < v2_RENDER_CONFIG_HISTORY_MERGE_MS;
+
+        renderConfigHistoryRef.current = shouldMerge
+          ? {
+              ...history,
+              future: [],
+              lastPushedAt: now,
+            }
+          : {
+              past: [...history.past, prev].slice(-v2_RENDER_CONFIG_HISTORY_LIMIT),
+              future: [],
+              lastPushedAt: now,
+            };
+
+        return next;
+      });
+    },
+    []
+  );
+
+  const undoRenderConfig = useCallback(() => {
+    const history = renderConfigHistoryRef.current;
+    const previous = history.past[history.past.length - 1];
+    if (!previous) return;
+
+    setRenderConfigState((current) => {
+      renderConfigHistoryRef.current = {
+        past: history.past.slice(0, -1),
+        future: [current, ...history.future].slice(
+          0,
+          v2_RENDER_CONFIG_HISTORY_LIMIT
+        ),
+        lastPushedAt: 0,
+      };
+      return previous;
+    });
+    setDbSyncMessage('실행 취소했습니다.');
+  }, []);
+
+  const redoRenderConfig = useCallback(() => {
+    const history = renderConfigHistoryRef.current;
+    const next = history.future[0];
+    if (!next) return;
+
+    setRenderConfigState((current) => {
+      renderConfigHistoryRef.current = {
+        past: [...history.past, current].slice(-v2_RENDER_CONFIG_HISTORY_LIMIT),
+        future: history.future.slice(1),
+        lastPushedAt: 0,
+      };
+      return next;
+    });
+    setDbSyncMessage('다시 실행했습니다.');
+  }, []);
+
+  const cancelPendingAutosave = useCallback(async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (autosaveRetryTimerRef.current) {
+      clearTimeout(autosaveRetryTimerRef.current);
+      autosaveRetryTimerRef.current = null;
+    }
+    pendingAutosavePayloadRef.current = null;
+
+    if (autosaveAbortControllerRef.current) {
+      autosaveAbortControllerRef.current.abort();
+    }
+    if (autosaveInFlightRef.current) {
+      await autosaveInFlightRef.current.catch(() => undefined);
+    }
+  }, []);
 
   const renderConfigSerialized = useMemo(
     () => JSON.stringify(renderConfig),
@@ -402,6 +807,7 @@ const TemplateEditorClient = ({
       setLatestRevisionNo(null);
       setLastDraftSavedSerialized(null);
       setPublishError(null);
+      resetRenderConfigHistory();
       baseRevisionNoRef.current = null;
       isDbHydratedRef.current = false;
       return;
@@ -431,7 +837,8 @@ const TemplateEditorClient = ({
 
         baseRevisionNoRef.current =
           draft?.baseRevisionNo ?? resolvedLatestRevisionNo ?? null;
-        setRenderConfig(resolvedConfig);
+        setRenderConfigState(resolvedConfig);
+        resetRenderConfigHistory();
         setLastDraftSavedSerialized(resolvedSerialized);
         setLatestRevisionNo(resolvedLatestRevisionNo);
         setDbSource(renderConfigResponse.source);
@@ -490,7 +897,7 @@ const TemplateEditorClient = ({
       autosaveInFlightRef.current = null;
       pendingAutosavePayloadRef.current = null;
     };
-  }, [templateId]);
+  }, [resetRenderConfigHistory, templateId]);
 
   useEffect(() => {
     if (autosaveTimerRef.current) {
@@ -566,7 +973,7 @@ const TemplateEditorClient = ({
       const normalized = v2_normalizeTemplateRenderConfig(publishResult.renderConfig);
       const normalizedSerialized = JSON.stringify(normalized);
 
-      setRenderConfig(normalized);
+      setRenderConfigState(normalized);
       setLastDraftSavedSerialized(normalizedSerialized);
       setLatestRevisionNo(publishResult.latestRevisionNo);
       baseRevisionNoRef.current = publishResult.latestRevisionNo;
@@ -581,6 +988,194 @@ const TemplateEditorClient = ({
       setIsPublishing(false);
     }
   }, [dbSyncStatus, flushAutosaveBeforePublish, isPublishing, renderConfig, templateId]);
+
+  const executeFigmaImport = useCallback(async ({
+    rootFigmaUrl,
+    withAssets,
+    confirmedChanges = [],
+    keepImportingState = false,
+  }: {
+    rootFigmaUrl: string;
+    withAssets: boolean;
+    confirmedChanges?: V2FigmaImportSettingChange[];
+    keepImportingState?: boolean;
+  }) => {
+    if (!templateId) return;
+    if (!keepImportingState) {
+      setIsFigmaImporting(true);
+    }
+    setFigmaImportMessage(
+      withAssets
+        ? 'Figma 구조와 이미지 에셋을 가져오는 중입니다.'
+        : 'Figma 구조를 가져오는 중입니다.'
+    );
+    setDbSyncMessage(
+      withAssets
+        ? 'Figma import 진행 중 (이미지 에셋 포함)'
+        : 'Figma import 진행 중'
+    );
+
+    try {
+      await cancelPendingAutosave();
+
+      const importResult = await v2_importAdminFigmaIntoEditor({
+        templateId,
+        rootFigmaUrl,
+        withAssets,
+      });
+      const normalized = v2_normalizeTemplateRenderConfig(
+        importResult.import.renderConfig
+      );
+      const normalizedSerialized = JSON.stringify(normalized);
+
+      setFigmaImportMessage('Figma 결과를 draft에 저장하는 중입니다.');
+      const draftResponse = await v2_saveAdminRenderConfigDraft({
+        templateId,
+        renderConfig: normalized,
+        baseRevisionNo: baseRevisionNoRef.current ?? null,
+        isAutosave: false,
+      });
+      if (!draftResponse.hasDraft || !draftResponse.draft) {
+        throw new Error('DB draft 응답이 비어 있습니다.');
+      }
+
+      baseRevisionNoRef.current =
+        draftResponse.draft.baseRevisionNo ?? baseRevisionNoRef.current;
+      setRenderConfig(normalized);
+      setLastDraftSavedSerialized(normalizedSerialized);
+      setDbSyncStatus('ready');
+
+      const statusSummary =
+        importResult.import.detectedStatuses.length > 0
+          ? importResult.import.detectedStatuses.join(', ')
+          : '상태 없음';
+      const warningSuffix =
+        importResult.import.warnings.length > 0
+          ? ` / 경고 ${importResult.import.warnings.length}개`
+          : '';
+      const assetSummary = importResult.import.assetImportSummary;
+      const assetSuffix = assetSummary
+        ? ` / 에셋 ${assetSummary.applied}/${assetSummary.mapped}개 적용`
+        : '';
+      const settingSuffix =
+        confirmedChanges.length > 0
+          ? ` / 설정 ${confirmedChanges.map((change) => change.title).join(', ')}`
+          : '';
+      setFigmaImportMessage(
+        `적용 완료: ${statusSummary}${assetSuffix}${settingSuffix}${warningSuffix}`
+      );
+      setDbSyncMessage(
+        `Figma import 적용 완료 (${statusSummary}${assetSuffix}${settingSuffix})`
+      );
+    } catch (error) {
+      const message = v2_toErrorMessage(error, 'Figma import에 실패했습니다.');
+      setFigmaImportMessage(message);
+      setDbSyncMessage(message);
+    } finally {
+      if (!keepImportingState) {
+        setIsFigmaImporting(false);
+      }
+    }
+  }, [cancelPendingAutosave, setRenderConfig, templateId]);
+
+  const handleFigmaImport = useCallback(async () => {
+    if (!templateId) return;
+    if (dbSyncStatus !== 'ready' || isLoading || isPublishing || isFigmaImporting) {
+      setFigmaImportMessage('DB 동기화가 완료된 뒤 다시 시도해 주세요.');
+      return;
+    }
+
+    const rootFigmaUrl = figmaImportUrl.trim();
+    if (!rootFigmaUrl) {
+      setFigmaImportMessage('Figma 링크를 입력해 주세요.');
+      return;
+    }
+
+    setIsFigmaImporting(true);
+    setPendingFigmaImportConfirmation(null);
+    setFigmaImportMessage('Figma 구조와 템플릿 설정을 비교하는 중입니다.');
+    setDbSyncMessage('Figma import 설정 확인 중');
+
+    try {
+      const analyzeResult = await v2_analyzeAdminFigmaForEditor({
+        rootFigmaUrl,
+      });
+
+      if (!analyzeResult.analysis.canImport) {
+        const criticalSummary =
+          analyzeResult.analysis.critical[0] ??
+          'Figma 구조 검증에서 오류가 감지되었습니다.';
+        throw new Error(criticalSummary);
+      }
+
+      const settingChanges = v2_buildFigmaImportSettingChanges({
+        renderConfig,
+        detectedStatuses: analyzeResult.analysis.detectedStatuses,
+        detectedFeatures: analyzeResult.analysis.detectedFeatures,
+      });
+
+      if (settingChanges.length > 0) {
+        setPendingFigmaImportConfirmation({
+          rootFigmaUrl,
+          withAssets: figmaImportWithAssets,
+          changes: settingChanges,
+          detectedStatuses: analyzeResult.analysis.detectedStatuses,
+          warnings: analyzeResult.analysis.warnings,
+        });
+        setFigmaImportMessage(
+          `${settingChanges.map((change) => change.title).join(', ')} 설정 변경이 필요합니다. 적용 여부를 확인해 주세요.`
+        );
+        setDbSyncMessage('Figma import 설정 확인 대기 중');
+        return;
+      }
+
+      await executeFigmaImport({
+        rootFigmaUrl,
+        withAssets: figmaImportWithAssets,
+        keepImportingState: true,
+      });
+    } catch (error) {
+      const message = v2_toErrorMessage(error, 'Figma 분석에 실패했습니다.');
+      setFigmaImportMessage(message);
+      setDbSyncMessage(message);
+    } finally {
+      setIsFigmaImporting(false);
+    }
+  }, [
+    dbSyncStatus,
+    executeFigmaImport,
+    figmaImportWithAssets,
+    figmaImportUrl,
+    isFigmaImporting,
+    isLoading,
+    isPublishing,
+    renderConfig,
+    templateId,
+  ]);
+
+  const confirmPendingFigmaImport = useCallback(() => {
+    const pending = pendingFigmaImportConfirmation;
+    if (!pending || isFigmaImporting) return;
+    setPendingFigmaImportConfirmation(null);
+    void executeFigmaImport({
+      rootFigmaUrl: pending.rootFigmaUrl,
+      withAssets: pending.withAssets,
+      confirmedChanges: pending.changes,
+    });
+  }, [executeFigmaImport, isFigmaImporting, pendingFigmaImportConfirmation]);
+
+  const cancelPendingFigmaImport = useCallback(() => {
+    setPendingFigmaImportConfirmation(null);
+    setFigmaImportMessage('Figma import를 취소했습니다.');
+    setDbSyncMessage('Figma import 취소');
+  }, []);
+
+  const resetFigmaImport = useCallback(() => {
+    setFigmaImportUrl('');
+    setFigmaImportWithAssets(true);
+    setFigmaImportMessage(null);
+    setPendingFigmaImportConfirmation(null);
+  }, []);
 
   useEffect(() => {
     const handleSaveShortcut = (event: KeyboardEvent) => {
@@ -613,6 +1208,36 @@ const TemplateEditorClient = ({
     };
   }, [dbSyncStatus, handlePublish, isDraftAutosaving, isPublishing]);
 
+  useEffect(() => {
+    const handleHistoryShortcut = (event: KeyboardEvent) => {
+      if (event.altKey) return;
+      if (v2_isTemplateEditorTextEditingTarget(event.target)) return;
+
+      const key = event.key.toLowerCase();
+      const isModKey = event.metaKey || event.ctrlKey;
+      const isUndoShortcut = isModKey && key === 'z' && !event.shiftKey;
+      const isRedoShortcut =
+        (isModKey && key === 'z' && event.shiftKey) ||
+        (event.ctrlKey && !event.metaKey && key === 'y');
+      if (!isUndoShortcut && !isRedoShortcut) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.repeat) return;
+
+      if (isRedoShortcut) {
+        redoRenderConfig();
+        return;
+      }
+      undoRenderConfig();
+    };
+
+    window.addEventListener('keydown', handleHistoryShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleHistoryShortcut);
+    };
+  }, [redoRenderConfig, undoRenderConfig]);
+
   const dbSyncBadgeTone = useMemo(() => {
     if (dbSyncStatus === 'error') return 'text-rose-300';
     if (dbSyncStatus === 'checking') return 'text-sky-300';
@@ -629,6 +1254,23 @@ const TemplateEditorClient = ({
     return 'DB 동기화 준비 완료';
   }, [dbSyncStatus, hasUnpublishedChanges, isDraftAutosaving, latestRevisionNo]);
 
+  const isFigmaImportDisabled =
+    !templateId ||
+    dbSyncStatus !== 'ready' ||
+    isLoading ||
+    isPublishing ||
+    isFigmaImporting;
+
+  const updateFigmaImportUrl = useCallback((value: string) => {
+    setFigmaImportUrl(value);
+    setPendingFigmaImportConfirmation(null);
+  }, []);
+
+  const updateFigmaImportWithAssets = useCallback((value: boolean) => {
+    setFigmaImportWithAssets(value);
+    setPendingFigmaImportConfirmation(null);
+  }, []);
+
   const providerValue = useMemo(
     () => ({
       templateId: templateId ?? null,
@@ -636,8 +1278,42 @@ const TemplateEditorClient = ({
       isLoading,
       renderConfig,
       setRenderConfig,
+      figmaImport: {
+        rootFigmaUrl: figmaImportUrl,
+        setRootFigmaUrl: updateFigmaImportUrl,
+        withAssets: figmaImportWithAssets,
+        setWithAssets: updateFigmaImportWithAssets,
+        isImporting: isFigmaImporting,
+        canImport: !isFigmaImportDisabled,
+        message: figmaImportMessage,
+        pendingSettingChanges: pendingFigmaImportConfirmation?.changes ?? [],
+        confirmPendingImport: confirmPendingFigmaImport,
+        cancelPendingImport: cancelPendingFigmaImport,
+        importToCurrentTemplate: () => {
+          void handleFigmaImport();
+        },
+        reset: resetFigmaImport,
+      },
     }),
-    [dbSource, isLoading, renderConfig, templateId]
+    [
+      dbSource,
+      figmaImportMessage,
+      figmaImportUrl,
+      figmaImportWithAssets,
+      cancelPendingFigmaImport,
+      confirmPendingFigmaImport,
+      handleFigmaImport,
+      isFigmaImportDisabled,
+      isFigmaImporting,
+      isLoading,
+      pendingFigmaImportConfirmation,
+      renderConfig,
+      resetFigmaImport,
+      setRenderConfig,
+      templateId,
+      updateFigmaImportUrl,
+      updateFigmaImportWithAssets,
+    ]
   );
 
   return (

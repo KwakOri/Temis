@@ -1,7 +1,10 @@
 "use client";
 
 import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
-import { v2_createDefaultTemplateRenderConfig } from "@/utils/v2/template-render-config";
+import {
+  v2_createDefaultTemplateRenderConfig,
+  v2_createEmptyTemplateRenderConfig,
+} from "@/utils/v2/template-render-config";
 
 export interface V2TemplatePresetDefinition {
   id: string;
@@ -11,6 +14,12 @@ export interface V2TemplatePresetDefinition {
 }
 
 export const v2_TEMPLATE_PRESET_DEFINITIONS: V2TemplatePresetDefinition[] = [
+  {
+    id: "empty_canvas",
+    label: "빈 캔버스",
+    description: "Scene을 비운 상태에서 Grid와 오브젝트를 직접 구성합니다.",
+    createConfig: () => v2_createEmptyTemplateRenderConfig(),
+  },
   {
     id: "default_boilerplate",
     label: "기본 보일러플레이트",
@@ -53,6 +62,8 @@ export const v2_applyTemplatePreset = ({
     editorOptions: preset.editorOptions,
     artistTextPlaceholder: preset.artistTextPlaceholder,
     formSchema: preset.formSchema,
+    timetable: preset.timetable,
+    sharedStyleGroups: preset.sharedStyleGroups,
     layout: preset.layout,
     graph: preset.graph,
     // 에셋 URL은 작업 중 손실이 크므로 현재값을 보존한다.

@@ -5,10 +5,20 @@ import V2SceneStructureRenderer from "./scene-structure-renderer";
 
 const V2SceneRenderer = ({
   sceneNodes,
+  artistVisibleOverride,
+  memoVisibleOverride,
 }: {
   sceneNodes: V2TemplateSceneNode[];
+  artistVisibleOverride?: boolean;
+  memoVisibleOverride?: boolean;
 }) => {
-  return <V2SceneStructureRenderer sceneNodes={sceneNodes} />;
+  return (
+    <V2SceneStructureRenderer
+      sceneNodes={sceneNodes}
+      artistVisibleOverride={artistVisibleOverride}
+      memoVisibleOverride={memoVisibleOverride}
+    />
+  );
 };
 
 export default V2SceneRenderer;

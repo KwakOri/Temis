@@ -11,7 +11,6 @@ import {
   v2_getRuntimeCardStructureByComponentId,
 } from "@/utils/v2/template-graph-runtime";
 import {
-  v2_buildCardInstanceHighlightTarget,
   v2_buildCardInstanceNodeHighlightTarget,
   type V2CardStatusGroupKey,
   v2_resolveCardStatusGroupKey,
@@ -38,11 +37,15 @@ const v2_inferSectionKeyFromSceneNode = (
 const v2_inferComponentKeyFromLayerId = (
   layerId: string
 ): V2TemplateLayerComponentKey | undefined => {
+  if (layerId === "board") return "board";
+  if (layerId === "frame") return "frame";
   if (layerId === "grid") return "grid";
+  if (layerId === "grid-frame") return "grid";
   if (layerId === "week-flag") return "weekFlag";
   if (layerId === "top-object") return "topObject";
   if (layerId === "profile") return "profile";
   if (layerId === "artist") return "artist";
+  if (layerId === "memo") return "memo";
   return undefined;
 };
 
@@ -90,6 +93,10 @@ const v2_getVisibilityLabel = (
   if (visibilityMode === "onlineMultipleOnly") return "온라인/다회차";
   if (visibilityMode === "offlineMemoOnly") return "오프라인/메모";
   if (visibilityMode === "offlineNoMemoOnly") return "오프라인/메모없음";
+  if (visibilityMode === "artistOnOnly") return "아티스트 ON";
+  if (visibilityMode === "artistOffOnly") return "아티스트 OFF";
+  if (visibilityMode === "memoOnOnly") return "메모 ON";
+  if (visibilityMode === "memoOffOnly") return "메모 OFF";
   return visibilityMode;
 };
 
@@ -235,31 +242,6 @@ export const v2_getRuntimeLayerTree = (
     }
 
     if (node.kind === "cardCollection") {
-      const instanceLayerNodes = (node.children ?? []).map((instanceNode, index) => {
-        const instanceId =
-          typeof instanceNode.instanceId === "string"
-            ? instanceNode.instanceId
-            : String(index);
-        const layerId = instanceNode.layerId ?? instanceNode.id;
-        const instanceChildLayerNodes = v2_buildCardInstanceChildLayerNodes({
-          renderConfig,
-          instanceLayerId: layerId,
-          instanceId,
-          componentId: instanceNode.componentId,
-        });
-        return {
-          id: layerId,
-          label: instanceNode.label,
-          kind: "component" as const,
-          icon: "layers" as const,
-          target: v2_buildCardInstanceHighlightTarget(instanceId),
-          sectionKey: "grid",
-          visibilityMode: instanceNode.visibilityMode ?? "always",
-          ...(instanceChildLayerNodes.length > 0
-            ? { children: instanceChildLayerNodes }
-            : {}),
-        };
-      });
       return {
         id: layerId,
         label: node.label,
@@ -270,7 +252,6 @@ export const v2_getRuntimeLayerTree = (
         target: graphNode?.meta?.layerTarget ?? "grid",
         sectionKey: graphNode?.meta?.layerSectionKey ?? "grid",
         visibilityMode: node.visibilityMode ?? "always",
-        children: instanceLayerNodes,
       };
     }
 

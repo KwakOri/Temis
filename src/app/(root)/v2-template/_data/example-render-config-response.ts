@@ -142,6 +142,7 @@ export const v2_createExampleRenderConfigResponse =
         },
         editorOptions: {
           isArtist: true,
+          isMemo: true,
           isMultiple: false,
           maxStreamingTimeByDay: 1,
           enableThemeSelection: false,
@@ -417,6 +418,7 @@ export const v2_createExampleRenderConfigResponse =
           scene: {},
         },
         graph: fallbackConfig.graph,
+        timetable: fallbackConfig.timetable,
       },
       createdAt: "2026-03-29T00:00:00.000Z",
       updatedAt: "2026-03-29T00:00:00.000Z",

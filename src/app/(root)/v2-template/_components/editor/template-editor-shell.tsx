@@ -6,14 +6,25 @@ import { useTemplateRenderConfigContext } from '@/contexts/v2/template-render-co
 import { TemplateEditorRuntimeProvider } from '@/contexts/v2/template-editor-runtime-context';
 import { TemplateEditorUIProvider } from '@/contexts/v2/template-editor-ui-context';
 import { useTemplateEditor } from '@/hooks/v2/useTemplateEditor';
-import { V2TemplateHighlightTarget } from '@/types/time-table/template-editor-ui';
+import {
+  V2TemplateEditorScopedPreviewMode,
+  V2TemplateEditorSceneUnitScope,
+  V2TemplateEditorStatefulSceneScope,
+  V2TemplateEditorTimetableComponentScope,
+  V2TemplateStatefulSceneFeatureKey,
+  V2TemplateStatefulSceneStatus,
+  V2TemplateHighlightTarget,
+} from '@/types/time-table/template-editor-ui';
 import {
   V2TemplateGraphNode,
   V2TemplateGraphNodeStyleRefs,
+  V2TemplateDayKey,
   V2TemplateLayerNode,
   V2TemplateNodeGraph,
   V2TemplateRenderConfig,
   V2TemplateSceneNode,
+  V2TemplateStyleRecord,
+  V2TemplateTimetableCardStatusKey,
 } from '@/types/time-table/template-render-config';
 import { TTheme } from '@/types/time-table/theme';
 import { v2_getRuntimeLayerTree } from '@/utils/v2/template-graph-layers-runtime';
@@ -37,7 +48,9 @@ import {
 import V2MobileHeader from './mobile-toolbar';
 import V2TimeTableLayersPanel from './layers-panel';
 import V2TimeTableControls from './preview-toolbar';
-import V2TimeTablePreview from './preview-canvas';
+import V2TimeTablePreview, {
+  type V2CanvasEditorTarget,
+} from './preview-canvas';
 import {
   v2_graphAppendChild,
   v2_graphAppendRoot,
@@ -64,8 +77,6 @@ import {
   v2_findSceneNodeContextById,
 } from '../properties/model/structure-utils';
 import {
-  v2_createCardCollectionInstanceGraphNode,
-  v2_getPreferredCardCollectionComponentId,
   v2_sceneNodeToGraphNode,
 } from '../properties/model/scene-node-graph-utils';
 import {
@@ -73,6 +84,14 @@ import {
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
   v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
 } from '../properties/model/text-node-defaults';
+import {
+  v2_findTimetableCardFrameIdByLayerId,
+  v2_findTimetableCardObjectIdByLayerId,
+  v2_getTimetableComponentLayerTree,
+  v2_getTimetableComponentStateForStatus,
+  v2_relocateTimetableCardObject,
+  v2_reorderTimetableCardObjects,
+} from '@/utils/v2/timetable-component-layer-tree';
 
 const useV2TemplateEditorSettings = () => {
   const { renderConfig, setRenderConfig } = useTemplateRenderConfigContext();
@@ -114,6 +133,78 @@ const v2_GRAPH_STYLE_REF_KEYS: Array<keyof V2TemplateGraphNodeStyleRefs> = [
 const v2_cloneForStorage = <T,>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
+
+const v2_DEFAULT_LOCKED_LAYER_IDS = new Set([
+  "scene-root",
+  "scene",
+  "scene-background",
+  "background",
+  "online-background",
+  "multi-background",
+  "offline-background",
+  "offline-memo-background",
+]);
+
+const v2_isLayerLockedByDefault = (layerId: string): boolean => {
+  const normalizedLayerId = layerId.trim().toLowerCase();
+  if (v2_DEFAULT_LOCKED_LAYER_IDS.has(normalizedLayerId)) return true;
+  return normalizedLayerId.endsWith("-background");
+};
+
+const v2_parseCanvasPositionValue = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return 0;
+  const trimmed = value.trim();
+  if (!trimmed) return 0;
+  if (/^-?\d+(\.\d+)?(px)?$/i.test(trimmed)) {
+    const parsed = Number(trimmed.replace(/px$/i, ""));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const v2_roundCanvasPositionValue = (value: number): number => {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 100) / 100;
+};
+
+const v2_movePositionStyleRecord = (
+  styleRecord: V2TemplateStyleRecord | undefined,
+  deltaX: number,
+  deltaY: number
+): V2TemplateStyleRecord => {
+  const nextStyleRecord = { ...(styleRecord ?? {}) };
+  if (nextStyleRecord.position === undefined) {
+    nextStyleRecord.position = "absolute";
+  }
+  nextStyleRecord.left = v2_roundCanvasPositionValue(
+    v2_parseCanvasPositionValue(nextStyleRecord.left) + deltaX
+  );
+  nextStyleRecord.top = v2_roundCanvasPositionValue(
+    v2_parseCanvasPositionValue(nextStyleRecord.top) + deltaY
+  );
+  return nextStyleRecord;
+};
+
+const v2_getSceneNodePositionStyleKey = (
+  node: V2TemplateSceneNode
+): string | null => {
+  if (node.kind === "text" || node.kind === "flexibleText") {
+    return node.containerStyleKey;
+  }
+  if (node.kind === "asset" || node.kind === "group" || node.kind === "componentInstance") {
+    return node.styleKey ?? null;
+  }
+  if (node.kind === "cardCollection") return "grid";
+  return null;
+};
+
+const v2_ROOT_SCENE_POSITION_STYLE_KEYS = new Set([
+  "weekFlag",
+  "topObjectContainer",
+  "artistTextRootStyle",
+  "artistObjectStyle",
+]);
 
 const v2_collectStyleKeysFromRefs = (
   refs: V2TemplateGraphNodeStyleRefs | undefined
@@ -221,7 +312,6 @@ const v2_createUniqueStyleKey = ({
 
 const v2_SCENE_CUSTOM_NODE_ID_PREFIX = "scene-custom-";
 const v2_SCENE_CUSTOM_LAYER_ID_PREFIX = "scene-custom-layer-";
-const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
 
 type V2LayerMenuCreateKind =
   | "text"
@@ -229,6 +319,136 @@ type V2LayerMenuCreateKind =
   | "asset"
   | "group"
   | "cardCollection";
+
+type V2TemplateEditorScope =
+  | { mode: "scene" }
+  | { mode: "timetableGrid" }
+  | ({
+      mode: "sceneUnit";
+    } & V2TemplateEditorSceneUnitScope)
+  | ({
+      mode: "timetableComponent";
+    } & V2TemplateEditorTimetableComponentScope)
+  | ({
+      mode: "statefulScene";
+    } & V2TemplateEditorStatefulSceneScope);
+
+const v2_STATEFUL_SCENE_LAYER_ID: Record<V2TemplateStatefulSceneFeatureKey, string> = {
+  artist: "artist",
+  memo: "memo",
+};
+
+const v2_STATEFUL_SCENE_LABEL: Record<V2TemplateStatefulSceneFeatureKey, string> = {
+  artist: "Artist",
+  memo: "Memo",
+};
+
+const v2_isLayerVisibleForStatefulSceneScope = ({
+  feature,
+  status,
+  node,
+}: {
+  feature: V2TemplateStatefulSceneFeatureKey;
+  status: V2TemplateStatefulSceneStatus;
+  node: V2TemplateLayerNode;
+}) => {
+  const mode = node.visibilityMode ?? "always";
+  if (feature === "artist") {
+    if (mode === "artistOnOnly") return status === "on";
+    if (mode === "artistOffOnly") return status === "off";
+    if (mode === "memoOnOnly" || mode === "memoOffOnly") return false;
+    return true;
+  }
+  if (mode === "memoOnOnly") return status === "on";
+  if (mode === "memoOffOnly") return status === "off";
+  if (mode === "artistOnOnly" || mode === "artistOffOnly") return false;
+  return true;
+};
+
+const v2_filterLayerTreeForStatefulSceneScope = ({
+  layerTree,
+  scope,
+}: {
+  layerTree: V2TemplateLayerNode[];
+  scope: V2TemplateEditorStatefulSceneScope;
+}): V2TemplateLayerNode[] => {
+  const featureLayerId = v2_STATEFUL_SCENE_LAYER_ID[scope.feature];
+  const findNode = (nodes: V2TemplateLayerNode[]): V2TemplateLayerNode | null => {
+    for (const node of nodes) {
+      if (node.id === featureLayerId) return node;
+      const found = node.children ? findNode(node.children) : null;
+      if (found) return found;
+    }
+    return null;
+  };
+  const filterNode = (node: V2TemplateLayerNode): V2TemplateLayerNode | null => {
+    if (
+      node.id !== featureLayerId &&
+      !v2_isLayerVisibleForStatefulSceneScope({
+        feature: scope.feature,
+        status: scope.status,
+        node,
+      })
+    ) {
+      return null;
+    }
+    return {
+      ...node,
+      label:
+        node.id === featureLayerId
+          ? `${v2_STATEFUL_SCENE_LABEL[scope.feature]} / ${scope.status === "on" ? "ON" : "OFF"}`
+          : node.label,
+      children: node.children
+        ?.map((child) => filterNode(child))
+        .filter((child): child is V2TemplateLayerNode => Boolean(child)),
+    };
+  };
+  const featureNode = findNode(layerTree);
+  const filtered = featureNode ? filterNode(featureNode) : null;
+  return filtered ? [filtered] : [];
+};
+
+const v2_filterLayerTreeForLayerId = ({
+  layerTree,
+  layerId,
+}: {
+  layerTree: V2TemplateLayerNode[];
+  layerId: string;
+}): V2TemplateLayerNode[] => {
+  const findNode = (nodes: V2TemplateLayerNode[]): V2TemplateLayerNode | null => {
+    for (const node of nodes) {
+      if (node.id === layerId) return node;
+      const found = node.children ? findNode(node.children) : null;
+      if (found) return found;
+    }
+    return null;
+  };
+  const node = findNode(layerTree);
+  return node ? [node] : [];
+};
+
+const v2_stripLayerNodeChildren = (
+  node: V2TemplateLayerNode
+): V2TemplateLayerNode => {
+  if (!node.children?.length) return node;
+  return {
+    ...node,
+    children: undefined,
+  };
+};
+
+const v2_getSceneUnitLayerTree = (
+  layerTree: V2TemplateLayerNode[]
+): V2TemplateLayerNode[] =>
+  layerTree.map((node) => {
+    if (node.id !== "scene-root") {
+      return v2_stripLayerNodeChildren(node);
+    }
+    return {
+      ...node,
+      children: node.children?.map((child) => v2_stripLayerNodeChildren(child)),
+    };
+  });
 
 const v2_createSceneNodePayloadForLayerMenu = ({
   config,
@@ -293,15 +513,12 @@ const v2_createSceneNodePayloadForLayerMenu = ({
   }
 
   if (kind === "cardCollection") {
-    const componentId = v2_getPreferredCardCollectionComponentId(config);
-    if (!componentId) return null;
     return {
       sceneNode: {
         id: baseSceneNodeId,
         label: `CardCollection ${ordinal}`,
         kind: "cardCollection",
         layerId,
-        componentId,
         visibilityMode: "always",
       },
       layerNode: {
@@ -390,7 +607,6 @@ const v2_createSceneNodePayloadForLayerMenu = ({
     };
   }
 
-  const wrapperStyleKey = `sceneNode:${baseSceneNodeId}:wrapper`;
   const optionsKey = `sceneNode:${baseSceneNodeId}:options`;
   return {
     sceneNode: {
@@ -403,7 +619,6 @@ const v2_createSceneNodePayloadForLayerMenu = ({
         value: `FlexibleText ${ordinal}`,
       },
       containerStyleKey,
-      wrapperStyleKey,
       textStyleKey,
       optionsKey,
       colorKey: "SUB_TITLE",
@@ -425,7 +640,6 @@ const v2_createSceneNodePayloadForLayerMenu = ({
     dynamicSceneLayoutPatch: v2_createDefaultTextNodeLayoutPatch({
       containerStyleKey,
       textStyleKey,
-      wrapperStyleKey,
       optionsKey,
       isFlexibleText: true,
     }),
@@ -456,11 +670,18 @@ const V2TimeTableEditor: React.FC = () => {
     useState<V2TemplateHighlightTarget | null>(null);
   const [activeHighlightTarget, setActiveHighlightTarget] =
     useState<V2TemplateHighlightTarget | null>(null);
+  const [selectedCanvasTarget, setSelectedCanvasTarget] =
+    useState<V2CanvasEditorTarget | null>(null);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const [rightPanelMode, setRightPanelMode] = useState<
     "properties" | "runtime"
   >("properties");
+  const [editorScope, setEditorScope] = useState<V2TemplateEditorScope>({
+    mode: "scene",
+  });
+  const [scopedPreviewMode, setScopedPreviewMode] =
+    useState<V2TemplateEditorScopedPreviewMode>("isolated");
   const orderKeyRepairAttemptRef = useRef<string | null>(null);
   const orderKeyRegressionCheckedRef = useRef(false);
   const [propertiesFocusRequest, setPropertiesFocusRequest] = useState<{
@@ -471,10 +692,126 @@ const V2TimeTableEditor: React.FC = () => {
   const [hiddenLayerIds, setHiddenLayerIds] = useState<Record<string, boolean>>(
     {}
   );
+  const [lockedLayerIds, setLockedLayerIds] = useState<Record<string, boolean>>(
+    {}
+  );
+  const isLayerLocked = useCallback(
+    (layerId: string): boolean => {
+      return lockedLayerIds[layerId] ?? v2_isLayerLockedByDefault(layerId);
+    },
+    [lockedLayerIds]
+  );
+  const setLayerLocked = useCallback((layerId: string, locked: boolean) => {
+    setLockedLayerIds((prev) => {
+      const defaultLocked = v2_isLayerLockedByDefault(layerId);
+      if (locked === defaultLocked) {
+        if (!(layerId in prev)) return prev;
+        const next = { ...prev };
+        delete next[layerId];
+        return next;
+      }
+
+      if (prev[layerId] === locked) return prev;
+      return {
+        ...prev,
+        [layerId]: locked,
+      };
+    });
+  }, []);
+  const toggleLayerLocked = useCallback(
+    (layerId: string) => {
+      setLayerLocked(layerId, !isLayerLocked(layerId));
+    },
+    [isLayerLocked, setLayerLocked]
+  );
   const runtimeLayerTree = useMemo(
     () => v2_getRuntimeLayerTree(renderConfig),
     [renderConfig]
   );
+  const sceneUnitLayerTree = useMemo(
+    () => v2_getSceneUnitLayerTree(runtimeLayerTree),
+    [runtimeLayerTree]
+  );
+  const timetableComponentEditScope = useMemo<
+    V2TemplateEditorTimetableComponentScope | null
+  >(() => {
+    if (editorScope.mode !== "timetableComponent") return null;
+    return {
+      componentId: editorScope.componentId,
+      status: editorScope.status,
+    };
+  }, [editorScope]);
+  const timetableGridEditScope = editorScope.mode === "timetableGrid";
+  const sceneUnitEditScope = useMemo<V2TemplateEditorSceneUnitScope | null>(() => {
+    if (editorScope.mode !== "sceneUnit") return null;
+    return {
+      layerId: editorScope.layerId,
+      label: editorScope.label,
+    };
+  }, [editorScope]);
+  const statefulSceneEditScope = useMemo<
+    V2TemplateEditorStatefulSceneScope | null
+  >(() => {
+    if (editorScope.mode !== "statefulScene") return null;
+    return {
+      feature: editorScope.feature,
+      status: editorScope.status,
+    };
+  }, [editorScope]);
+  const hasScopedEditor = Boolean(
+    timetableGridEditScope ||
+      timetableComponentEditScope ||
+      sceneUnitEditScope ||
+      statefulSceneEditScope
+  );
+  const activeTimetableComponent = timetableComponentEditScope
+    ? renderConfig.timetable.components[timetableComponentEditScope.componentId] ??
+      null
+    : null;
+  const activeTimetableComponentState = useMemo(() => {
+    if (!timetableComponentEditScope) return null;
+    return v2_getTimetableComponentStateForStatus({
+      component: activeTimetableComponent,
+      status: timetableComponentEditScope.status,
+    });
+  }, [activeTimetableComponent, timetableComponentEditScope]);
+  const activeTimetableComponentLayerTree = useMemo(() => {
+    if (!timetableComponentEditScope) return runtimeLayerTree;
+    return v2_getTimetableComponentLayerTree({
+      component: activeTimetableComponent,
+      status: timetableComponentEditScope.status,
+    });
+  }, [activeTimetableComponent, runtimeLayerTree, timetableComponentEditScope]);
+  const activeTimetableGridLayerTree = useMemo(() => {
+    if (!timetableGridEditScope) return runtimeLayerTree;
+    return v2_filterLayerTreeForLayerId({
+      layerTree: runtimeLayerTree,
+      layerId: "grid",
+    });
+  }, [runtimeLayerTree, timetableGridEditScope]);
+  const activeSceneUnitLayerTree = useMemo(() => {
+    if (!sceneUnitEditScope) return runtimeLayerTree;
+    return v2_filterLayerTreeForLayerId({
+      layerTree: runtimeLayerTree,
+      layerId: sceneUnitEditScope.layerId,
+    });
+  }, [runtimeLayerTree, sceneUnitEditScope]);
+  const activeStatefulSceneLayerTree = useMemo(() => {
+    if (!statefulSceneEditScope) return runtimeLayerTree;
+    return v2_filterLayerTreeForStatefulSceneScope({
+      layerTree: runtimeLayerTree,
+      scope: statefulSceneEditScope,
+    });
+  }, [runtimeLayerTree, statefulSceneEditScope]);
+  const activeScopedLayerTree = timetableComponentEditScope
+    ? activeTimetableComponentLayerTree
+    : timetableGridEditScope
+      ? activeTimetableGridLayerTree
+      : sceneUnitEditScope
+        ? activeSceneUnitLayerTree
+        : statefulSceneEditScope
+          ? activeStatefulSceneLayerTree
+          : sceneUnitLayerTree;
   const runtimeSceneNodes = useMemo(
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
@@ -488,31 +825,28 @@ const V2TimeTableEditor: React.FC = () => {
       }
     >();
 
-    const visit = (
-      nodes: typeof runtimeSceneNodes,
-      parentKind: "root" | "group" | "cardCollection"
-    ) => {
+    const visit = (nodes: typeof runtimeSceneNodes) => {
       nodes.forEach((node) => {
         if (node.kind === "componentInstance") {
           const layerId = node.layerId ?? node.id;
           next.set(layerId, {
             nodeId: node.id,
-            canExtractCopy: parentKind === "cardCollection",
+            canExtractCopy: false,
           });
           return;
         }
 
         if (
-          (node.kind === "group" || node.kind === "cardCollection") &&
+          node.kind === "group" &&
           node.children &&
           node.children.length > 0
         ) {
-          visit(node.children, node.kind);
+          visit(node.children);
         }
       });
     };
 
-    visit(runtimeSceneNodes, "root");
+    visit(runtimeSceneNodes);
     return next;
   }, [runtimeSceneNodes]);
   const extractableComponentInstanceLayerIdSet = useMemo(() => {
@@ -575,10 +909,21 @@ const V2TimeTableEditor: React.FC = () => {
     [renderConfig]
   );
   const runtimeCardStructures = useMemo(
-    () =>
-      Object.keys(renderConfig.graph.componentDefinitions ?? {}).map((componentId) =>
+    () => {
+      const graphCardStructures = Object.keys(
+        renderConfig.graph.componentDefinitions ?? {}
+      ).map((componentId) =>
         v2_getRuntimeCardStructureByComponentId(renderConfig, componentId)
-      ),
+      );
+      const timetableCardStructures = Object.values(
+        renderConfig.timetable.components ?? {}
+      ).flatMap((component) =>
+        Object.values(component.states ?? {})
+          .map((state) => state.card)
+          .filter((card): card is NonNullable<typeof card> => Boolean(card))
+      );
+      return [...graphCardStructures, ...timetableCardStructures];
+    },
     [renderConfig]
   );
   const relocatableLayerIdSet = useMemo(() => {
@@ -588,10 +933,7 @@ const V2TimeTableEditor: React.FC = () => {
         if (node.layerId) {
           next.add(node.layerId);
         }
-        if (
-          (node.kind === "group" || node.kind === "cardCollection") &&
-          node.children
-        ) {
+        if (node.kind === "group" && node.children) {
           visit(node.children);
         }
       });
@@ -617,6 +959,336 @@ const V2TimeTableEditor: React.FC = () => {
       graph: renderConfig.graph,
     });
   }, [renderConfig.graph, renderConfig.layout, runtimeLayerTree, runtimeStyleResolverMap]);
+  const componentEditorOrderedIdsByParent = useMemo(
+    () => buildOrderedLayerIdsByParent({
+      layers: activeTimetableComponentLayerTree,
+      layout: renderConfig.layout,
+      resolverMap: runtimeStyleResolverMap,
+      graph: renderConfig.graph,
+    }),
+    [
+      activeTimetableComponentLayerTree,
+      renderConfig.graph,
+      renderConfig.layout,
+      runtimeStyleResolverMap,
+    ]
+  );
+  const openTimetableComponentEditor = (
+    scope?: Partial<V2TemplateEditorTimetableComponentScope>
+  ) => {
+    const componentIdCandidate = scope?.componentId;
+    const componentId =
+      componentIdCandidate && renderConfig.timetable.components[componentIdCandidate]
+        ? componentIdCandidate
+        : renderConfig.timetable.componentOrder.find(
+            (candidate) => renderConfig.timetable.components[candidate]
+          ) ?? Object.keys(renderConfig.timetable.components)[0];
+    if (!componentId) return;
+    const status = (scope?.status ?? "online") as V2TemplateTimetableCardStatusKey;
+    setEditorScope({
+      mode: "timetableComponent",
+      componentId,
+      status,
+    });
+    setScopedPreviewMode("isolated");
+    setIsLeftPanelOpen(true);
+    setIsRightPanelOpen(true);
+    setRightPanelMode("properties");
+    setSelectedCanvasTarget(null);
+    const component = renderConfig.timetable.components[componentId];
+    const card =
+      component?.states[status]?.card ??
+      component?.states.online?.card ??
+      component?.states.offline?.card;
+    setPropertiesFocusRequest({
+      layerId: card?.containerLayerId ?? "card",
+      nonce: Date.now(),
+      editorMode: "instance",
+    });
+  };
+  const openTimetableGridEditor = () => {
+    setEditorScope({ mode: "timetableGrid" });
+    setScopedPreviewMode("isolated");
+    setIsLeftPanelOpen(true);
+    setIsRightPanelOpen(true);
+    setRightPanelMode("properties");
+    setSelectedCanvasTarget(null);
+    setPropertiesFocusRequest({
+      layerId: "grid",
+      nonce: Date.now(),
+      editorMode: "instance",
+    });
+  };
+  const closeTimetableGridEditor = () => {
+    setEditorScope({ mode: "scene" });
+    setScopedPreviewMode("isolated");
+    setActiveHighlightTarget(null);
+    setHoverHighlightTarget(null);
+    setSelectedCanvasTarget(null);
+  };
+  const openSceneUnitEditor = (scope: V2TemplateEditorSceneUnitScope) => {
+    setEditorScope({
+      mode: "sceneUnit",
+      ...scope,
+    });
+    setScopedPreviewMode("isolated");
+    setIsLeftPanelOpen(true);
+    setIsRightPanelOpen(true);
+    setRightPanelMode("properties");
+    setSelectedCanvasTarget(null);
+    setPropertiesFocusRequest({
+      layerId: scope.layerId,
+      nonce: Date.now(),
+      editorMode: "instance",
+    });
+  };
+  const closeSceneUnitEditor = () => {
+    setEditorScope({ mode: "scene" });
+    setScopedPreviewMode("isolated");
+    setActiveHighlightTarget(null);
+    setHoverHighlightTarget(null);
+    setSelectedCanvasTarget(null);
+  };
+  const closeTimetableComponentEditor = () => {
+    setEditorScope({ mode: "timetableGrid" });
+    setScopedPreviewMode("isolated");
+    setActiveHighlightTarget(null);
+    setHoverHighlightTarget(null);
+    setSelectedCanvasTarget(null);
+    setPropertiesFocusRequest({
+      layerId: "grid",
+      nonce: Date.now(),
+      editorMode: "instance",
+    });
+  };
+  const updateTimetableComponentEditScope = (
+    scope: V2TemplateEditorTimetableComponentScope
+  ) => {
+    setEditorScope({
+      mode: "timetableComponent",
+      ...scope,
+    });
+  };
+  const openStatefulSceneEditor = (
+    scope: V2TemplateEditorStatefulSceneScope
+  ) => {
+    setEditorScope({
+      mode: "statefulScene",
+      ...scope,
+    });
+    setScopedPreviewMode("isolated");
+    setIsLeftPanelOpen(true);
+    setIsRightPanelOpen(true);
+    setRightPanelMode("properties");
+    setSelectedCanvasTarget(null);
+    setPropertiesFocusRequest({
+      layerId: v2_STATEFUL_SCENE_LAYER_ID[scope.feature],
+      nonce: Date.now(),
+      editorMode: "instance",
+    });
+  };
+  const closeStatefulSceneEditor = () => {
+    setEditorScope({ mode: "scene" });
+    setScopedPreviewMode("isolated");
+    setActiveHighlightTarget(null);
+    setHoverHighlightTarget(null);
+    setSelectedCanvasTarget(null);
+  };
+  const updateStatefulSceneEditScope = (
+    scope: V2TemplateEditorStatefulSceneScope
+  ) => {
+    setEditorScope({
+      mode: "statefulScene",
+      ...scope,
+    });
+    setSelectedCanvasTarget(null);
+  };
+  const resolveTimetableComponentParentFrameId = ({
+    card,
+    parentLayerId,
+  }: {
+    card: NonNullable<typeof activeTimetableComponentState>["card"];
+    parentLayerId: string;
+  }): string | null | undefined => {
+    if (
+      parentLayerId === ROOT_LAYER_PARENT_ID ||
+      parentLayerId === card.containerLayerId
+    ) {
+      return null;
+    }
+    const parentFrameId = v2_findTimetableCardFrameIdByLayerId({
+      card,
+      layerId: parentLayerId,
+    });
+    return parentFrameId ?? undefined;
+  };
+  const canRelocateTimetableComponentLayer = (layerId: string): boolean => {
+    if (!activeTimetableComponentState) return false;
+    return Boolean(
+      v2_findTimetableCardObjectIdByLayerId({
+        card: activeTimetableComponentState.card,
+        layerId,
+      })
+    );
+  };
+  const resolveTimetableComponentRenderInsertIndex = ({
+    card,
+    targetParentFrameId,
+    targetDisplayIndex,
+    movingObjectId,
+  }: {
+    card: NonNullable<typeof activeTimetableComponentState>["card"];
+    targetParentFrameId: string | null;
+    targetDisplayIndex: number;
+    movingObjectId?: string;
+  }): number => {
+    const targetObjectIds = targetParentFrameId
+      ? (card.frameNodes?.[targetParentFrameId]?.childIds ?? [])
+      : (card.rootObjectIds ?? card.nodeOrder);
+    const targetLength = movingObjectId
+      ? targetObjectIds.filter((objectId) => objectId !== movingObjectId).length
+      : targetObjectIds.length;
+    if (!Number.isFinite(targetDisplayIndex)) return targetLength;
+    return Math.max(
+      0,
+      Math.min(targetLength, targetLength - Math.floor(targetDisplayIndex))
+    );
+  };
+  const applyTimetableComponentLayerOrder = ({
+    parentId,
+    orderedIds,
+  }: {
+    parentId: string;
+    orderedIds: string[];
+  }) => {
+    if (!setRenderConfig || !timetableComponentEditScope) return;
+    setRenderConfig((prev) => {
+      const component =
+        prev.timetable.components[timetableComponentEditScope.componentId];
+      const state = component?.states[timetableComponentEditScope.status];
+      if (!component || !state) return prev;
+
+      const parentFrameId = resolveTimetableComponentParentFrameId({
+        card: state.card,
+        parentLayerId: parentId,
+      });
+      if (parentFrameId === undefined) return prev;
+
+      const orderedObjectIds = orderedIds
+        .map((layerId) =>
+          v2_findTimetableCardObjectIdByLayerId({
+            card: state.card,
+            layerId,
+          })
+        )
+        .filter((objectId): objectId is string => Boolean(objectId));
+      const renderOrderedObjectIds = [...orderedObjectIds].reverse();
+      const nextCard = v2_reorderTimetableCardObjects({
+        card: state.card,
+        parentFrameId,
+        orderedObjectIds: renderOrderedObjectIds,
+      });
+      if (nextCard === state.card) return prev;
+      return {
+        ...prev,
+        timetable: {
+          ...prev.timetable,
+          components: {
+            ...prev.timetable.components,
+            [component.id]: {
+              ...component,
+              states: {
+                ...component.states,
+                [timetableComponentEditScope.status]: {
+                  ...state,
+                  card: nextCard,
+                },
+              },
+            },
+          },
+        },
+      };
+    });
+  };
+  const applyTimetableComponentLayerRelocation = ({
+    layerId,
+    targetParentId,
+    targetIndex,
+  }: {
+    layerId: string;
+    targetParentId: string;
+    targetIndex: number;
+  }) => {
+    if (!setRenderConfig || !timetableComponentEditScope) return;
+    setRenderConfig((prev) => {
+      const component =
+        prev.timetable.components[timetableComponentEditScope.componentId];
+      const state = component?.states[timetableComponentEditScope.status];
+      if (!component || !state) return prev;
+
+      const objectId = v2_findTimetableCardObjectIdByLayerId({
+        card: state.card,
+        layerId,
+      });
+      if (!objectId) return prev;
+      const targetParentFrameId = resolveTimetableComponentParentFrameId({
+        card: state.card,
+        parentLayerId: targetParentId,
+      });
+      if (targetParentFrameId === undefined) return prev;
+      const renderTargetIndex = resolveTimetableComponentRenderInsertIndex({
+        card: state.card,
+        targetParentFrameId,
+        targetDisplayIndex: targetIndex,
+        movingObjectId: objectId,
+      });
+
+      const nextCard = v2_relocateTimetableCardObject({
+        card: state.card,
+        objectId,
+        targetParentFrameId,
+        targetIndex: renderTargetIndex,
+      });
+      if (nextCard === state.card) return prev;
+      return {
+        ...prev,
+        timetable: {
+          ...prev.timetable,
+          components: {
+            ...prev.timetable.components,
+            [component.id]: {
+              ...component,
+              states: {
+                ...component.states,
+                [timetableComponentEditScope.status]: {
+                  ...state,
+                  card: nextCard,
+                },
+              },
+            },
+          },
+        },
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (editorScope.mode !== "timetableComponent") return;
+    if (renderConfig.timetable.components[editorScope.componentId]) return;
+    const fallbackComponentId =
+      renderConfig.timetable.componentOrder.find(
+        (componentId) => renderConfig.timetable.components[componentId]
+      ) ?? Object.keys(renderConfig.timetable.components)[0];
+    if (!fallbackComponentId) {
+      setEditorScope({ mode: "scene" });
+      return;
+    }
+    setEditorScope({
+      mode: "timetableComponent",
+      componentId: fallbackComponentId,
+      status: "online",
+    });
+  }, [editorScope, renderConfig.timetable]);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
@@ -756,14 +1428,7 @@ const V2TimeTableEditor: React.FC = () => {
       if (
         targetLayerParentId !== null &&
         (!targetSceneParentNode ||
-          (targetSceneParentNode.kind !== "group" &&
-            targetSceneParentNode.kind !== "cardCollection"))
-      ) {
-        return prev;
-      }
-      if (
-        targetSceneParentNode?.kind === "cardCollection" &&
-        !sourceIsComponentInstance
+          targetSceneParentNode.kind !== "group")
       ) {
         return prev;
       }
@@ -798,6 +1463,207 @@ const V2TimeTableEditor: React.FC = () => {
       });
     });
   };
+  const resolveCanvasTargetFromLayerSelection = useCallback(
+    ({
+      layerId,
+      target,
+    }: {
+      layerId: string;
+      target?: V2TemplateHighlightTarget;
+    }): V2CanvasEditorTarget | null => {
+      if (!layerId) return null;
+      if (isLayerLocked(layerId)) return null;
+      if (target === "grid" || layerId === "grid") {
+        return {
+          layerId: "grid",
+          highlightTarget: "grid",
+          dragKind: "grid",
+        };
+      }
+
+      if (timetableComponentEditScope && activeTimetableComponentState) {
+        const objectId = v2_findTimetableCardObjectIdByLayerId({
+          card: activeTimetableComponentState.card,
+          layerId,
+        });
+        if (!objectId) return null;
+        return {
+          layerId,
+          highlightTarget: target,
+          dragKind: "cardObject",
+        };
+      }
+
+      const sceneNodeByLayerId = v2_collectSceneNodesByLayerId(runtimeSceneNodes);
+      if (!sceneNodeByLayerId.has(layerId)) return null;
+      return {
+        layerId,
+        highlightTarget: target,
+        dragKind: "scene",
+      };
+    },
+    [
+      activeTimetableComponentState,
+      isLayerLocked,
+      runtimeSceneNodes,
+      timetableComponentEditScope,
+    ]
+  );
+  const moveCanvasObject = useCallback(
+    ({
+      target,
+      deltaX,
+      deltaY,
+    }: {
+      target: V2CanvasEditorTarget;
+      deltaX: number;
+      deltaY: number;
+    }) => {
+      if (!setRenderConfig) return;
+      if (isLayerLocked(target.layerId)) return;
+      if (
+        !Number.isFinite(deltaX) ||
+        !Number.isFinite(deltaY) ||
+        (Math.abs(deltaX) < 0.001 && Math.abs(deltaY) < 0.001)
+      ) {
+        return;
+      }
+
+      setRenderConfig((prev) => {
+        if (
+          timetableComponentEditScope &&
+          target.dragKind === "cardObject"
+        ) {
+          const component =
+            prev.timetable.components[timetableComponentEditScope.componentId];
+          const state = component?.states[timetableComponentEditScope.status];
+          if (!component || !state) return prev;
+
+          const objectId = v2_findTimetableCardObjectIdByLayerId({
+            card: state.card,
+            layerId: target.layerId,
+          });
+          if (!objectId) return prev;
+          const frame = state.card.frameNodes?.[objectId];
+          const node = state.card.nodes[objectId];
+          const styleKey = frame?.styleKey ?? node?.containerStyleKey;
+          if (!styleKey) return prev;
+
+          return {
+            ...prev,
+            layout: {
+              ...prev.layout,
+              card: {
+                ...prev.layout.card,
+                [styleKey]: v2_movePositionStyleRecord(
+                  prev.layout.card[styleKey] as V2TemplateStyleRecord | undefined,
+                  deltaX,
+                  deltaY
+                ),
+              },
+            },
+          };
+        }
+
+        if (target.dragKind === "timetableSlot" && target.dayKey) {
+          const dayKey = target.dayKey as V2TemplateDayKey;
+          const currentSlot = prev.timetable.slots[dayKey] ?? {
+            dayKey,
+            componentId: prev.timetable.componentOrder[0] ?? "",
+          };
+          const currentTransform = currentSlot.transform ?? {};
+          const offsetX = v2_roundCanvasPositionValue(
+            v2_parseCanvasPositionValue(currentTransform.offsetX) + deltaX
+          );
+          const offsetY = v2_roundCanvasPositionValue(
+            v2_parseCanvasPositionValue(currentTransform.offsetY) + deltaY
+          );
+          return {
+            ...prev,
+            timetable: {
+              ...prev.timetable,
+              slots: {
+                ...prev.timetable.slots,
+                [dayKey]: {
+                  ...currentSlot,
+                  transform: {
+                    ...currentTransform,
+                    offsetX,
+                    offsetY,
+                  },
+                },
+              },
+            },
+          };
+        }
+
+        if (target.dragKind === "grid" || target.layerId === "grid") {
+          return {
+            ...prev,
+            layout: {
+              ...prev.layout,
+              grid: v2_movePositionStyleRecord(prev.layout.grid, deltaX, deltaY),
+            },
+          };
+        }
+
+        const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
+        const sceneNodeByLayerId = v2_collectSceneNodesByLayerId(runtimeSceneNodes);
+        const sceneNode = sceneNodeByLayerId.get(target.layerId);
+        if (!sceneNode) return prev;
+        const styleKey = v2_getSceneNodePositionStyleKey(sceneNode);
+        if (!styleKey) return prev;
+
+        if (styleKey === "grid") {
+          return {
+            ...prev,
+            layout: {
+              ...prev.layout,
+              grid: v2_movePositionStyleRecord(prev.layout.grid, deltaX, deltaY),
+            },
+          };
+        }
+
+        if (v2_ROOT_SCENE_POSITION_STYLE_KEYS.has(styleKey)) {
+          return {
+            ...prev,
+            layout: {
+              ...prev.layout,
+              [styleKey]: v2_movePositionStyleRecord(
+                prev.layout[
+                  styleKey as keyof Pick<
+                    typeof prev.layout,
+                    | "weekFlag"
+                    | "topObjectContainer"
+                    | "artistTextRootStyle"
+                    | "artistObjectStyle"
+                  >
+                ] as V2TemplateStyleRecord | undefined,
+                deltaX,
+                deltaY
+              ),
+            },
+          };
+        }
+
+        return {
+          ...prev,
+          layout: {
+            ...prev.layout,
+            scene: {
+              ...prev.layout.scene,
+              [styleKey]: v2_movePositionStyleRecord(
+                prev.layout.scene[styleKey] as V2TemplateStyleRecord | undefined,
+                deltaX,
+                deltaY
+              ),
+            },
+          },
+        };
+      });
+    },
+    [isLayerLocked, setRenderConfig, timetableComponentEditScope]
+  );
   const createSceneNodeFromLayerMenu = ({
     kind,
     layerId,
@@ -826,14 +1692,35 @@ const V2TimeTableEditor: React.FC = () => {
 
       const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
       const sceneNodeByLayerId = v2_collectSceneNodesByLayerId(runtimeSceneNodes);
-      const anchorSceneNode =
+      const resolvedLayerId =
         typeof layerId === "string" && layerId.trim().length > 0
-          ? sceneNodeByLayerId.get(layerId) ?? null
+          ? layerId
+          : sceneUnitEditScope
+            ? sceneUnitEditScope.layerId
+          : statefulSceneEditScope
+            ? v2_STATEFUL_SCENE_LAYER_ID[statefulSceneEditScope.feature]
+            : null;
+      const anchorSceneNode =
+        resolvedLayerId
+          ? sceneNodeByLayerId.get(resolvedLayerId) ?? null
           : null;
       let nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
+      const statefulVisibilityMode =
+        statefulSceneEditScope?.feature === "artist"
+          ? statefulSceneEditScope.status === "on"
+            ? "artistOnOnly"
+            : "artistOffOnly"
+          : statefulSceneEditScope?.feature === "memo"
+            ? statefulSceneEditScope.status === "on"
+              ? "memoOnOnly"
+              : "memoOffOnly"
+            : undefined;
       nextGraphNode = {
         ...nextGraphNode,
         childIds: [],
+        ...(statefulVisibilityMode
+          ? { visibilityMode: statefulVisibilityMode }
+          : {}),
       };
 
       let nextGraph = prev.graph;
@@ -860,33 +1747,6 @@ const V2TimeTableEditor: React.FC = () => {
             parentId: nextGraphNode.parentId ?? null,
           },
         });
-      }
-
-      if (sceneNode.kind === "cardCollection") {
-        const componentId = sceneNode.componentId;
-        if (!componentId) return prev;
-        const existingIds = new Set(Object.keys(nextGraph.nodes));
-        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
-          const instanceId = String(index);
-          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
-          let suffix = 1;
-          while (existingIds.has(instanceNodeId)) {
-            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
-            suffix += 1;
-          }
-          existingIds.add(instanceNodeId);
-          nextGraph = v2_graphAppendChild({
-            graph: nextGraph,
-            parentId: sceneNode.id,
-            newNode: v2_createCardCollectionInstanceGraphNode({
-              nodeId: instanceNodeId,
-              collectionNodeId: sceneNode.id,
-              collectionLayerId: sceneNode.layerId,
-              componentId,
-              instanceId,
-            }),
-          });
-        }
       }
 
       return {
@@ -1491,6 +2351,10 @@ const V2TimeTableEditor: React.FC = () => {
       isLayerHidden,
       toggleLayerHidden,
       setLayerHidden,
+      lockedLayerIds,
+      isLayerLocked,
+      toggleLayerLocked,
+      setLayerLocked,
       hoverHighlightTarget,
       setHoverHighlightTarget,
       activeHighlightTarget,
@@ -1504,14 +2368,51 @@ const V2TimeTableEditor: React.FC = () => {
       hiddenLayerIds,
       hoverHighlightTarget,
       isLayerHidden,
+      isLayerLocked,
+      lockedLayerIds,
       resetData,
       setLayerHidden,
+      setLayerLocked,
+      toggleLayerLocked,
       toggleLayerHidden,
       updateData,
       updateGlobalData,
       updateTheme,
     ]
   );
+  const scopedEditorTitle = timetableComponentEditScope
+    ? "Card Component 편집"
+    : timetableGridEditScope
+      ? "Grid 편집"
+      : sceneUnitEditScope
+        ? `${sceneUnitEditScope.label} 편집`
+      : statefulSceneEditScope
+        ? `${v2_STATEFUL_SCENE_LABEL[statefulSceneEditScope.feature]} 편집`
+        : undefined;
+  const scopedEditorExitHandler = timetableComponentEditScope
+    ? closeTimetableComponentEditor
+    : timetableGridEditScope
+      ? closeTimetableGridEditor
+      : sceneUnitEditScope
+        ? closeSceneUnitEditor
+      : statefulSceneEditScope
+        ? closeStatefulSceneEditor
+        : undefined;
+  const scopedEditorExitLabel = timetableComponentEditScope
+    ? "Grid로 돌아가기"
+    : "Scene으로 돌아가기";
+  const mobileScopedEditorExitLabel = timetableComponentEditScope
+    ? "Grid로"
+    : "Scene으로";
+  const scopedLayerDescription = timetableComponentEditScope
+    ? "선택한 카드 컴포넌트의 내부 오브젝트만 표시합니다."
+    : timetableGridEditScope
+      ? "Grid 레이어만 표시합니다. Card 내부는 Card Component 편집에서 조정합니다."
+      : sceneUnitEditScope
+        ? "선택한 scene unit의 내부 오브젝트만 표시합니다."
+      : statefulSceneEditScope
+        ? "선택한 상태의 내부 오브젝트만 표시합니다."
+        : undefined;
 
   return (
     <TemplateEditorUIProvider value={uiContextValue}>
@@ -1521,11 +2422,50 @@ const V2TimeTableEditor: React.FC = () => {
             <V2Loading />
           ) : (
             <div className="v2-template-theme relative w-full h-full overflow-hidden bg-[#0d1117]">
-              {!state.isMobile && <V2TimeTableControls />}
-              {state.isMobile && <V2MobileHeader />}
+              {!state.isMobile && (
+                <V2TimeTableControls
+                  scopeTitle={scopedEditorTitle}
+                  onExitScope={scopedEditorExitHandler}
+                  exitScopeLabel={scopedEditorExitLabel}
+                  scopePreviewMode={
+                    hasScopedEditor ? scopedPreviewMode : undefined
+                  }
+                  onChangeScopePreviewMode={
+                    hasScopedEditor ? setScopedPreviewMode : undefined
+                  }
+                />
+              )}
+              {state.isMobile && (
+                <V2MobileHeader
+                  scopeTitle={scopedEditorTitle}
+                  onExitScope={scopedEditorExitHandler}
+                  exitScopeLabel={mobileScopedEditorExitLabel}
+                  scopePreviewMode={
+                    hasScopedEditor ? scopedPreviewMode : undefined
+                  }
+                  onChangeScopePreviewMode={
+                    hasScopedEditor ? setScopedPreviewMode : undefined
+                  }
+                />
+              )}
 
               <div className="absolute inset-0">
-                <V2TimeTablePreview />
+                <V2TimeTablePreview
+                  timetableGridEditScope={timetableGridEditScope}
+                  timetableComponentEditScope={timetableComponentEditScope}
+                  sceneUnitEditScope={sceneUnitEditScope}
+                  statefulSceneEditScope={statefulSceneEditScope}
+                  scopePreviewMode={scopedPreviewMode}
+                  selectedCanvasTarget={selectedCanvasTarget}
+                  onMoveCanvasObject={moveCanvasObject}
+                  onActivateCanvasTarget={(target) => {
+                    if (target.highlightTarget) {
+                      setActiveHighlightTarget(
+                        target.highlightTarget as V2TemplateHighlightTarget
+                      );
+                    }
+                  }}
+                />
               </div>
 
               {!state.isMobile && (
@@ -1566,7 +2506,7 @@ const V2TimeTableEditor: React.FC = () => {
                     }`}
                   >
                     <V2TimeTableLayersPanel
-                      layerTree={runtimeLayerTree}
+                      layerTree={activeScopedLayerTree}
                       componentCatalog={runtimeComponentCatalog}
                       componentLayerTreeByComponentId={
                         runtimeComponentLayerTreeByComponentId
@@ -1574,17 +2514,35 @@ const V2TimeTableEditor: React.FC = () => {
                       extractableComponentInstanceLayerIdSet={
                         extractableComponentInstanceLayerIdSet
                       }
-                      orderedIdsByParent={orderedIdsByParent}
+                      orderedIdsByParent={
+                        timetableComponentEditScope
+                          ? componentEditorOrderedIdsByParent
+                          : orderedIdsByParent
+                      }
                       canRelocateLayer={(layerId) =>
-                        relocatableLayerIdSet.has(layerId)
+                        !isLayerLocked(layerId) &&
+                        (timetableComponentEditScope
+                          ? canRelocateTimetableComponentLayer(layerId)
+                          : relocatableLayerIdSet.has(layerId))
                       }
                       onReorderLayers={({ parentId, orderedIds }) => {
+                        if (timetableComponentEditScope) {
+                          applyTimetableComponentLayerOrder({
+                            parentId,
+                            orderedIds,
+                          });
+                          return;
+                        }
                         applyLayerZIndex({
                           parentId,
                           orderedIds,
                         });
                       }}
                       onRelocateLayers={(payload) => {
+                        if (timetableComponentEditScope) {
+                          applyTimetableComponentLayerRelocation(payload);
+                          return;
+                        }
                         applyLayerRelocation(payload);
                       }}
                       onCreateComponent={createComponentMaster}
@@ -1596,8 +2554,22 @@ const V2TimeTableEditor: React.FC = () => {
                       onMoveComponentInstanceLayerToRoot={
                         moveComponentInstanceLayerToRoot
                       }
-                      onCreateSceneNodeFromLayerMenu={createSceneNodeFromLayerMenu}
-                      onSelectLayer={({ layerId, editorMode }) => {
+                      onCreateSceneNodeFromLayerMenu={
+                        timetableGridEditScope || timetableComponentEditScope
+                          ? undefined
+                          : createSceneNodeFromLayerMenu
+                      }
+                      scopeTitle={scopedEditorTitle}
+                      scopeDescription={scopedLayerDescription}
+                      onExitScope={scopedEditorExitHandler}
+                      exitScopeLabel={mobileScopedEditorExitLabel}
+                      onSelectLayer={({ layerId, editorMode, target }) => {
+                        setSelectedCanvasTarget(
+                          resolveCanvasTargetFromLayerSelection({
+                            layerId,
+                            target,
+                          })
+                        );
                         setIsRightPanelOpen(true);
                         setRightPanelMode("properties");
                         setPropertiesFocusRequest({
@@ -1650,6 +2622,38 @@ const V2TimeTableEditor: React.FC = () => {
                             focusEditorMode={
                               propertiesFocusRequest?.editorMode ?? "instance"
                             }
+                            timetableComponentEditScope={
+                              timetableComponentEditScope
+                            }
+                            timetableGridEditScope={timetableGridEditScope}
+                            sceneUnitEditScope={sceneUnitEditScope}
+                            statefulSceneEditScope={statefulSceneEditScope}
+                            onEnterTimetableGridEditScope={
+                              openTimetableGridEditor
+                            }
+                            onExitTimetableGridEditScope={
+                              closeTimetableGridEditor
+                            }
+                            onEnterSceneUnitEditScope={openSceneUnitEditor}
+                            onExitSceneUnitEditScope={closeSceneUnitEditor}
+                            onEnterTimetableComponentEditScope={
+                              openTimetableComponentEditor
+                            }
+                            onChangeTimetableComponentEditScope={
+                              updateTimetableComponentEditScope
+                            }
+                            onExitTimetableComponentEditScope={
+                              closeTimetableComponentEditor
+                            }
+                            onEnterStatefulSceneEditScope={
+                              openStatefulSceneEditor
+                            }
+                            onChangeStatefulSceneEditScope={
+                              updateStatefulSceneEditScope
+                            }
+                            onExitStatefulSceneEditScope={
+                              closeStatefulSceneEditor
+                            }
                           />
                         ) : (
                           <V2RuntimeForm embedded />
@@ -1691,7 +2695,30 @@ const V2TimeTableEditor: React.FC = () => {
                     </div>
                     <div className="min-h-0 flex-1">
                       {rightPanelMode === "properties" ? (
-                        <V2TemplateBuilderForm />
+                        <V2TemplateBuilderForm
+                          timetableComponentEditScope={timetableComponentEditScope}
+                          timetableGridEditScope={timetableGridEditScope}
+                          sceneUnitEditScope={sceneUnitEditScope}
+                          statefulSceneEditScope={statefulSceneEditScope}
+                          onEnterTimetableGridEditScope={openTimetableGridEditor}
+                          onExitTimetableGridEditScope={closeTimetableGridEditor}
+                          onEnterSceneUnitEditScope={openSceneUnitEditor}
+                          onExitSceneUnitEditScope={closeSceneUnitEditor}
+                          onEnterTimetableComponentEditScope={
+                            openTimetableComponentEditor
+                          }
+                          onChangeTimetableComponentEditScope={
+                            updateTimetableComponentEditScope
+                          }
+                          onExitTimetableComponentEditScope={
+                            closeTimetableComponentEditor
+                          }
+                          onEnterStatefulSceneEditScope={openStatefulSceneEditor}
+                          onChangeStatefulSceneEditScope={
+                            updateStatefulSceneEditScope
+                          }
+                          onExitStatefulSceneEditScope={closeStatefulSceneEditor}
+                        />
                       ) : (
                         <V2RuntimeForm embedded />
                       )}

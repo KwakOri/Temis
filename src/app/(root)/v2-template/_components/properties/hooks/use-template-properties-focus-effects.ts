@@ -8,6 +8,15 @@ import {
   v2_parseStyleSectionKey,
 } from "../model/style-section-utils";
 
+const v2_isPreviewCanvasInteractionTarget = (target: Node): boolean => {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      "[data-v2-preview-canvas-root='true'], [data-v2-editor-layer-id], [data-v2-editor-highlight-target]"
+    )
+  );
+};
+
 interface UseTemplatePropertiesFocusEffectsParams {
   activeTab: string;
   inspectorRefs: Array<React.RefObject<HTMLDivElement | null>>;
@@ -56,6 +65,7 @@ const useTemplatePropertiesFocusEffects = ({
     const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
+      if (v2_isPreviewCanvasInteractionTarget(target)) return;
       if (
         inspectorRefs.some(
           (inspectorRef) => inspectorRef.current?.contains(target) ?? false

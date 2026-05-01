@@ -23,7 +23,6 @@ const TemplateStyleTab: React.FC<TemplateStyleTabProps> = ({
       onBlurCapture={(event) => {
         const nextFocused = event.relatedTarget;
         if (!(nextFocused instanceof Node)) {
-          onBlurOutside();
           return;
         }
         if (!inspectorRef.current?.contains(nextFocused)) {

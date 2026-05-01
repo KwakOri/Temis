@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React, { useMemo } from "react";
 
 import {
@@ -24,7 +25,6 @@ import {
 import {
   v2_resolveRuntimeAssetModel,
   v2_resolveRuntimeCardInstance,
-  v2_resolveSceneAssetRole,
   v2_resolveRuntimeSceneModel,
   v2_resolveRuntimeTextNodeValue,
 } from "@/utils/v2/runtime-resolver";
@@ -33,7 +33,7 @@ import {
   V2PlainTextNodeRenderer,
 } from "./card-node-renderers";
 import V2TimeTableCell from "./card-cell";
-import V2TimeTableGrid from "./card-grid";
+import V2TimetableGrid from "./timetable-grid";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableLayoutStyle, v2_toRenderableStyle } from "./render-style";
 
@@ -65,10 +65,31 @@ const v2_toRenderableLayout = (
   };
 };
 
+const v2_getSceneEditorAttributes = ({
+  layerId,
+  highlightTarget,
+  dragKind = "scene",
+}: {
+  layerId: string | undefined;
+  highlightTarget: string | undefined;
+  dragKind?: "scene" | "grid";
+}): React.HTMLAttributes<HTMLElement> | undefined => {
+  if (!layerId || !highlightTarget) return undefined;
+  return {
+    "data-v2-editor-layer-id": layerId,
+    "data-v2-editor-highlight-target": highlightTarget,
+    "data-v2-editor-drag-kind": dragKind,
+  } as React.HTMLAttributes<HTMLElement>;
+};
+
 const V2SceneStructureRenderer = ({
   sceneNodes,
+  artistVisibleOverride,
+  memoVisibleOverride,
 }: {
   sceneNodes: V2TemplateSceneNode[];
+  artistVisibleOverride?: boolean;
+  memoVisibleOverride?: boolean;
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const {
@@ -79,8 +100,10 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateRuntimeContext();
-  const { weekDates, memoText, imageSrc, isArtistVisible } =
+  const { weekDates, memoText, imageSrc, isArtistVisible, isMemoTextVisible } =
     useTemplateRuntimeData();
+  const resolvedArtistVisible = artistVisibleOverride ?? isArtistVisible;
+  const resolvedMemoVisible = memoVisibleOverride ?? isMemoTextVisible;
   const {
     layerTargetMap,
     rootLayerZIndexById,
@@ -109,7 +132,7 @@ const V2SceneStructureRenderer = ({
     typeof firstCard?.offlineMemo === "string" &&
     firstCard.offlineMemo.trim().length > 0;
   const resolveArtistObjectAssetUrl = () => {
-    const candidateKeys = isArtistVisible
+    const candidateKeys = resolvedArtistVisible
       ? (["artistOnByTheme", "artist", "artistOffByTheme"] as const)
       : (["artistOffByTheme", "artist", "artistOnByTheme"] as const);
 
@@ -131,10 +154,6 @@ const V2SceneStructureRenderer = ({
     const textStyle = v2_toRenderableStyle(
       resolveStyleRecordByKey(node.textStyleKey)
     );
-    const wrapperStyle = v2_toRenderableLayoutStyle(
-      resolveStyleRecordByKey(node.wrapperStyleKey)
-    );
-
     const { text, multiline, maxFontSize } = v2_resolveRuntimeTextNodeValue({
       node,
       renderConfig,
@@ -171,9 +190,12 @@ const V2SceneStructureRenderer = ({
           width={layout.width}
           textStyle={textStyle}
           highlightStyle={highlightStyle}
-          wrapperStyle={wrapperStyle}
           containerClassName={node.containerClassName}
           textClassName={node.textClassName}
+          editorAttributes={v2_getSceneEditorAttributes({
+            layerId: node.layerId ?? node.id,
+            highlightTarget: resolvedTarget,
+          })}
           fontFamily={fontFamily}
           color={color}
           multiline={multiline}
@@ -193,6 +215,10 @@ const V2SceneStructureRenderer = ({
         highlightStyle={highlightStyle}
         containerClassName={node.containerClassName}
         textClassName={node.textClassName}
+        editorAttributes={v2_getSceneEditorAttributes({
+          layerId: node.layerId ?? node.id,
+          highlightTarget: resolvedTarget,
+        })}
         fontFamily={fontFamily}
         color={color}
       />
@@ -214,7 +240,7 @@ const V2SceneStructureRenderer = ({
           assetRef: node.assetRef,
           currentTheme,
         });
-    const { assetRole, assetUrl, isProfileImage, baseStyle, fit } =
+    const { assetRole, assetUrl, isFrameArtwork, baseStyle, fit } =
       v2_resolveRuntimeAssetModel({
         node,
         renderConfig,
@@ -236,11 +262,15 @@ const V2SceneStructureRenderer = ({
       : {};
 
     if (!assetUrl) {
-      if (!isProfileImage) return null;
+      if (!isFrameArtwork) return null;
 
       return (
         <div
           key={node.id}
+          {...v2_getSceneEditorAttributes({
+            layerId: node.layerId ?? node.id,
+            highlightTarget: resolvedTarget,
+          })}
           style={{
             ...baseStyle,
             ...style,
@@ -253,6 +283,10 @@ const V2SceneStructureRenderer = ({
     return (
       <div
         key={node.id}
+        {...v2_getSceneEditorAttributes({
+          layerId: node.layerId ?? node.id,
+          highlightTarget: resolvedTarget,
+        })}
         style={{
           ...baseStyle,
           ...style,
@@ -275,29 +309,9 @@ const V2SceneStructureRenderer = ({
   };
 
   const renderCardCollectionNode = (node: V2TemplateSceneCardCollectionNode) => {
-    const preferredComponentId = node.componentId?.trim();
-    const fallbackComponentId =
-      (preferredComponentId &&
-      runtimeCardStructureByComponentId[preferredComponentId]
-        ? preferredComponentId
-        : undefined) ??
-      (node.children ?? [])
-        .map((child) => child.componentId?.trim() ?? "")
-        .find(
-          (componentId) =>
-            componentId.length > 0 &&
-            Boolean(runtimeCardStructureByComponentId[componentId])
-        );
-    if (!fallbackComponentId) return null;
-    const runtimeCardStructure =
-      runtimeCardStructureByComponentId[fallbackComponentId];
-    if (!runtimeCardStructure) return null;
     return (
-      <V2TimeTableGrid
+      <V2TimetableGrid
         key={node.id}
-        cardStructure={runtimeCardStructure}
-        cardStructureByComponentId={runtimeCardStructureByComponentId}
-        instances={node.children}
         gridLayerId={node.layerId ?? node.id}
       />
     );
@@ -340,6 +354,10 @@ const V2SceneStructureRenderer = ({
     return (
       <div
         key={node.id}
+        {...v2_getSceneEditorAttributes({
+          layerId: node.layerId ?? node.id,
+          highlightTarget: resolvedTarget,
+        })}
         style={{
           position: "absolute",
           ...style,
@@ -366,6 +384,15 @@ const V2SceneStructureRenderer = ({
     node: V2TemplateSceneNode,
     parentHidden: boolean
   ): React.ReactNode => {
+    const isArtistNode = node.id.startsWith("scene-artist");
+    const isMemoNode = node.id.startsWith("scene-memo");
+    if (
+      (isArtistNode && !renderConfig.editorOptions.isArtist) ||
+      (isMemoNode && !renderConfig.editorOptions.isMemo)
+    ) {
+      return null;
+    }
+
     const hiddenByLayer =
       parentHidden || (node.layerId ? isLayerHidden(node.layerId) : false);
     const visibleByMode = v2_isVisibleByMode({
@@ -373,11 +400,12 @@ const V2SceneStructureRenderer = ({
       isOffline: firstCardOffline,
       entryCount: firstCardEntryCount,
       hasOfflineMemo: firstCardHasOfflineMemo,
+      isArtistVisible: resolvedArtistVisible,
+      isMemoVisible: resolvedMemoVisible,
     });
     if (hiddenByLayer || !visibleByMode) return null;
 
     if (node.kind === "group") {
-      const childCount = node.children.length;
       const groupStyle = node.styleKey
         ? v2_toRenderableLayout(resolveStyleRecordByKey(node.styleKey)).style
         : ({
@@ -391,6 +419,10 @@ const V2SceneStructureRenderer = ({
       return (
         <div
           key={node.id}
+          {...v2_getSceneEditorAttributes({
+            layerId: groupLayerId,
+            highlightTarget: groupHighlightTarget,
+          })}
           style={{
             ...groupStyle,
             isolation: "isolate",
@@ -405,13 +437,17 @@ const V2SceneStructureRenderer = ({
           {node.children.map((childNode, index) => {
             const renderedChild = renderSceneNode(childNode, false);
             if (!renderedChild) return null;
+            const childZIndex =
+              node.id === "scene-grid"
+                ? node.children.length - index
+                : index + 1;
             return (
               <div
                 key={`${node.id}::${childNode.id}`}
                 style={{
                   position: "absolute",
                   inset: 0,
-                  zIndex: (childCount - index) * 10,
+                  zIndex: childZIndex,
                 }}
               >
                 {renderedChild}
@@ -446,13 +482,7 @@ const V2SceneStructureRenderer = ({
         const rendered = renderSceneNode(node, false);
         if (!rendered) return null;
         const layerId = node.layerId ?? node.id;
-        const rootAssetRole = node.kind === "asset" ? v2_resolveSceneAssetRole(node) : null;
-        const rootZIndex =
-          rootAssetRole === "background"
-            ? -1000
-            : rootAssetRole === "guideOverlay"
-              ? 1000
-              : rootLayerZIndexById[layerId];
+        const rootZIndex = rootLayerZIndexById[layerId];
         if (rootZIndex === undefined) return rendered;
         return (
           <div

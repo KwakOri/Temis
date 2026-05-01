@@ -120,6 +120,8 @@ const TemplateSceneAssetProperties: React.FC<TemplateSceneAssetPropertiesProps> 
           <option value="general">general</option>
           <option value="background">background</option>
           <option value="guideOverlay">guideOverlay</option>
+          <option value="frameArtwork">frameArtwork</option>
+          <option value="frameObject">frameObject</option>
           <option value="profileImage">profileImage</option>
           <option value="profileFrame">profileFrame</option>
         </select>

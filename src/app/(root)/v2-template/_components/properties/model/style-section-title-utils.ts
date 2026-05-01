@@ -1,4 +1,5 @@
 const v2_PROPERTIES_STYLE_EDITOR_TITLE_BY_SECTION: Record<string, string> = {
+  gridBg: "grid background style",
   weekDates: "week dates style",
   weekDatesStart: "start container style",
   weekDatesEnd: "end container style",
@@ -11,6 +12,8 @@ const v2_PROPERTIES_STYLE_EDITOR_TITLE_BY_SECTION: Record<string, string> = {
   memoContentContainer: "content container style",
   memoTextContainer: "content wrapper style",
   memoTextStyle: "content text style",
+  frameArtwork: "artwork style",
+  frameObject: "frame style",
   profileImage: "image style",
   profileFrame: "frame style",
   artistTextRootStyle: "root style",

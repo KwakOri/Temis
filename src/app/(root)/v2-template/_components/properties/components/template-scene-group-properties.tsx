@@ -10,6 +10,7 @@ interface TemplateSceneGroupPropertiesProps {
   visibilityMode: V2TemplateVisibilityMode;
   visibilityOptions: Array<{ value: V2TemplateVisibilityMode; label: string }>;
   structureControls: React.ReactNode;
+  extraControls?: React.ReactNode;
   styleEditor?: React.ReactNode;
   onChangeLabel: (value: string) => void;
   onChangeVisibilityMode: (value: V2TemplateVisibilityMode) => void;
@@ -21,6 +22,7 @@ const TemplateSceneGroupProperties: React.FC<TemplateSceneGroupPropertiesProps> 
   visibilityMode,
   visibilityOptions,
   structureControls,
+  extraControls,
   styleEditor,
   onChangeLabel,
   onChangeVisibilityMode,
@@ -29,6 +31,7 @@ const TemplateSceneGroupProperties: React.FC<TemplateSceneGroupPropertiesProps> 
     <div className="rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3 space-y-3">
       <h4 className="font-semibold text-sm text-gray-200">Scene Group / {label}</h4>
       {structureControls}
+      {extraControls}
       <div className="grid grid-cols-2 gap-2 items-center">
         <label className="text-xs text-gray-400">오브젝트 이름</label>
         <input

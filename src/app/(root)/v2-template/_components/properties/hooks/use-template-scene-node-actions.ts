@@ -24,7 +24,6 @@ import {
 import { v2_SCENE_STRUCTURE_MESSAGES } from "@/utils/v2/template-scene-structure-messages";
 import {
   v2_collectLayerNodeIds,
-  v2_collectSceneNodeIds,
   v2_collectSceneNodeStyleKeys,
   v2_createUniqueNodeId,
   v2_findLayerNodeContextById,
@@ -119,11 +118,7 @@ const useTemplateSceneNodeActions = ({
                 nodes: runtimeSceneNodes,
                 nodeId: context.parentId,
               });
-              if (
-                !parentContext ||
-                (parentContext.node.kind !== "group" &&
-                  parentContext.node.kind !== "cardCollection")
-              ) {
+              if (!parentContext || parentContext.node.kind !== "group") {
                 return 0;
               }
               return parentContext.node.children?.length ?? 0;
@@ -179,19 +174,9 @@ const useTemplateSceneNodeActions = ({
       if (targetParentId !== null) {
         if (
           !targetParentContext ||
-          (targetParentContext.node.kind !== "group" &&
-            targetParentContext.node.kind !== "cardCollection")
+          targetParentContext.node.kind !== "group"
         ) {
           window.alert(v2_SCENE_STRUCTURE_MESSAGES.INVALID_PARENT_KIND);
-          return prev;
-        }
-        if (
-          targetParentContext.node.kind === "cardCollection" &&
-          !sourceIsComponentInstance
-        ) {
-          window.alert(
-            v2_SCENE_STRUCTURE_MESSAGES.CARD_COLLECTION_ACCEPTS_COMPONENT_INSTANCE_ONLY
-          );
           return prev;
         }
         if (

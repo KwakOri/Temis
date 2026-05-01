@@ -1,7 +1,6 @@
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
 import {
   V2TemplateLayerNode,
-  V2TemplateSceneComponentInstanceNode,
   V2TemplateSceneNode,
   V2TemplateSceneTextNode,
 } from "@/types/time-table/template-render-config";
@@ -69,11 +68,7 @@ export const v2_collectSceneTextNodes = (
   while (stack.length > 0) {
     const node = stack.shift();
     if (!node) continue;
-    if (
-      (node.kind === "group" || node.kind === "cardCollection") &&
-      node.children &&
-      node.children.length > 0
-    ) {
+    if (node.kind === "group" && node.children && node.children.length > 0) {
       stack.unshift(...node.children);
       continue;
     }
@@ -98,11 +93,7 @@ export const v2_collectSceneNodesByLayerId = (
     if (node.layerId) {
       map.set(node.layerId, node);
     }
-    if (
-      (node.kind === "group" || node.kind === "cardCollection") &&
-      node.children &&
-      node.children.length > 0
-    ) {
+    if (node.kind === "group" && node.children && node.children.length > 0) {
       stack.unshift(...node.children);
     }
   }
@@ -117,11 +108,7 @@ export const v2_collectSceneNodeIds = (nodes: V2TemplateSceneNode[]): Set<string
     const node = stack.shift();
     if (!node) continue;
     ids.add(node.id);
-    if (
-      (node.kind === "group" || node.kind === "cardCollection") &&
-      node.children &&
-      node.children.length > 0
-    ) {
+    if (node.kind === "group" && node.children && node.children.length > 0) {
       stack.unshift(...node.children);
     }
   }
@@ -175,11 +162,7 @@ export const v2_findSceneNodeContextById = ({
       if (node.id === nodeId) {
         return { node, parentId, index };
       }
-      if (
-        (node.kind !== "group" && node.kind !== "cardCollection") ||
-        !node.children ||
-        node.children.length === 0
-      ) {
+      if (node.kind !== "group" || !node.children || node.children.length === 0) {
         continue;
       }
       const nested = visit(node.children, node.id);
@@ -237,29 +220,6 @@ export const v2_updateSceneNodeListByParentId = ({
           }
         }
         return node;
-      }
-
-      if (node.kind === "cardCollection") {
-        const currentChildren = node.children ?? [];
-        if (node.id === parentId) {
-          const nextChildrenCandidate = updater(currentChildren).filter(
-            (
-              child
-            ): child is V2TemplateSceneComponentInstanceNode =>
-              child.kind === "componentInstance"
-          );
-          const isSameChildren =
-            nextChildrenCandidate.length === currentChildren.length &&
-            nextChildrenCandidate.every((child, index) => child === currentChildren[index]);
-          if (!isSameChildren) {
-            changed = true;
-            updated = true;
-            return {
-              ...node,
-              children: nextChildrenCandidate,
-            };
-          }
-        }
       }
       return node;
     });

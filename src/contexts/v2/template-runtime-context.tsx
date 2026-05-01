@@ -17,6 +17,10 @@ export interface TemplateRuntimeContextValue {
   isLayerHidden: (layerId: string) => boolean;
   toggleLayerHidden: (layerId: string) => void;
   setLayerHidden: (layerId: string, hidden: boolean) => void;
+  lockedLayerIds: Record<string, boolean>;
+  isLayerLocked: (layerId: string) => boolean;
+  toggleLayerLocked: (layerId: string) => void;
+  setLayerLocked: (layerId: string, locked: boolean) => void;
   hoverHighlightTarget: V2RuntimeHighlightTarget | null;
   setHoverHighlightTarget: (
     target: V2RuntimeHighlightTarget | null

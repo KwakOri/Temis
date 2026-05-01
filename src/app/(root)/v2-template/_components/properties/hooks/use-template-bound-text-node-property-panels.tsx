@@ -22,9 +22,9 @@ import {
   type V2NodeNewFieldDraft,
 } from "../model/binding-utils";
 import {
-  v2_resolveCardStyleSection,
   v2_resolveTextNodeSections,
 } from "../model/style-section-utils";
+import { v2_OBJECT_STYLE_SCHEMA_SECTIONS } from "../model/template-properties-constants";
 import TemplateCardAutoResizeOptions from "../components/template-card-auto-resize-options";
 import TemplateBoundTextNodePropertiesPanel from "../components/template-bound-text-node-properties-panel";
 
@@ -216,11 +216,6 @@ const useTemplateBoundTextNodePropertyPanels = ({
     node: V2TemplateCardNode
   ) => {
     if (node.kind === "image") {
-      const containerSection = v2_resolveCardStyleSection(
-        node.containerStyleKey,
-        section,
-        styleKeyToSectionMap
-      );
       const isRemovable = !fixedCardNodeIds.has(node.id);
       const selectedAssetValue = v2_toAssetSelectValue(node.assetRef);
       const headerAction = isRemovable ? (
@@ -389,17 +384,26 @@ const useTemplateBoundTextNodePropertyPanels = ({
           {renderStyleSectionEditor({
             title: `${node.label}.ContainerStyle`,
             section: node.containerStyleKey,
-            schemaSection: containerSection,
+            schemaSection: v2_OBJECT_STYLE_SCHEMA_SECTIONS.image,
           })}
         </div>
       );
     }
 
+    const isFlexibleText = node.kind === "flexibleText";
+    const textSchemaSections = isFlexibleText
+      ? {
+          container: v2_OBJECT_STYLE_SCHEMA_SECTIONS.flexibleTextContainer,
+          wrapper: null,
+          text: v2_OBJECT_STYLE_SCHEMA_SECTIONS.flexibleTextStyle,
+        }
+      : {
+          container: v2_OBJECT_STYLE_SCHEMA_SECTIONS.textContainer,
+          wrapper: null,
+          text: v2_OBJECT_STYLE_SCHEMA_SECTIONS.textStyle,
+        };
     const {
       containerSection,
-      textSection,
-      wrapperSection,
-      alignmentWrapperSection,
       hasAutoResizeAlignment,
     } = v2_resolveTextNodeSections({
       containerStyleKey: node.containerStyleKey,
@@ -407,7 +411,7 @@ const useTemplateBoundTextNodePropertyPanels = ({
       wrapperStyleKey: node.wrapperStyleKey,
       fallbackSection: section,
       styleKeyToSectionMap,
-      isFlexibleText: node.kind === "flexibleText",
+      isFlexibleText,
     });
     const isRemovable = !fixedCardNodeIds.has(node.id);
     const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
@@ -445,15 +449,15 @@ const useTemplateBoundTextNodePropertyPanels = ({
         colorKeys={colorKeys}
         visibilityOptions={visibilityOptions}
         containerSection={node.containerStyleKey}
-        containerSchemaSection={containerSection}
-        wrapperSection={node.wrapperStyleKey ?? null}
-        wrapperSchemaSection={wrapperSection}
-        alignmentWrapperSection={node.wrapperStyleKey ?? node.containerStyleKey}
+        containerSchemaSection={textSchemaSections.container}
+        wrapperSection={null}
+        wrapperSchemaSection={textSchemaSections.wrapper}
+        alignmentWrapperSection={node.containerStyleKey}
         textSection={node.textStyleKey ?? null}
-        textSchemaSection={textSection}
+        textSchemaSection={textSchemaSections.text}
         hasAutoResizeAlignment={hasAutoResizeAlignment}
         tailContent={
-          node.kind === "flexibleText"
+          isFlexibleText
             ? renderCardNodeAutoResizeOptions({
                 node,
                 containerSection,
@@ -522,11 +526,20 @@ const useTemplateBoundTextNodePropertyPanels = ({
     section: V2StyleSectionId,
     node: V2TemplateSceneTextNode
   ) => {
+    const isFlexibleText = node.kind === "flexibleText";
+    const textSchemaSections = isFlexibleText
+      ? {
+          container: v2_OBJECT_STYLE_SCHEMA_SECTIONS.flexibleTextContainer,
+          wrapper: null,
+          text: v2_OBJECT_STYLE_SCHEMA_SECTIONS.flexibleTextStyle,
+        }
+      : {
+          container: v2_OBJECT_STYLE_SCHEMA_SECTIONS.textContainer,
+          wrapper: null,
+          text: v2_OBJECT_STYLE_SCHEMA_SECTIONS.textStyle,
+        };
     const {
       containerSection,
-      textSection,
-      wrapperSection,
-      alignmentWrapperSection,
       hasAutoResizeAlignment,
     } = v2_resolveTextNodeSections({
       containerStyleKey: node.containerStyleKey,
@@ -534,7 +547,7 @@ const useTemplateBoundTextNodePropertyPanels = ({
       wrapperStyleKey: node.wrapperStyleKey,
       fallbackSection: section,
       styleKeyToSectionMap,
-      isFlexibleText: node.kind === "flexibleText",
+      isFlexibleText,
     });
     const bindingSelectValue = v2_getNodeBindingSelectValue(node.binding);
     const fieldBindingExists = v2_hasNodeBindingField(
@@ -564,12 +577,12 @@ const useTemplateBoundTextNodePropertyPanels = ({
         colorKeys={colorKeys}
         visibilityOptions={visibilityOptions}
         containerSection={node.containerStyleKey}
-        containerSchemaSection={containerSection}
-        wrapperSection={node.wrapperStyleKey ?? null}
-        wrapperSchemaSection={wrapperSection}
-        alignmentWrapperSection={node.wrapperStyleKey ?? node.containerStyleKey}
+        containerSchemaSection={textSchemaSections.container}
+        wrapperSection={null}
+        wrapperSchemaSection={textSchemaSections.wrapper}
+        alignmentWrapperSection={node.containerStyleKey}
         textSection={node.textStyleKey ?? null}
-        textSchemaSection={textSection}
+        textSchemaSection={textSchemaSections.text}
         hasAutoResizeAlignment={hasAutoResizeAlignment}
         renderStyleSectionEditor={renderStyleSectionEditor}
         renderAutoResizeAlignmentEditor={renderAutoResizeAlignmentEditor}

@@ -7,6 +7,8 @@ import {
 } from "@/types/time-table/template-render-config";
 
 const v2_LAYER_COMPONENT_KEY_SET = new Set<V2TemplateLayerComponentKey>([
+  "board",
+  "frame",
   "grid",
   "weekFlag",
   "topObject",

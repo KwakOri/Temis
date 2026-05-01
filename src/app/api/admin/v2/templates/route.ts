@@ -99,23 +99,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: existing, error: existingError } = await supabase
-      .from("v2_templates")
-      .select("id")
-      .eq("name", name)
-      .maybeSingle();
-
-    if (existingError) {
-      throw existingError;
-    }
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "이미 존재하는 v2 템플릿 이름입니다." },
-        { status: 409 }
-      );
-    }
-
     const { data: inserted, error: insertError } = await supabase
       .from("v2_templates")
       .insert({

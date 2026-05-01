@@ -33,8 +33,6 @@ const ROOT_LAYOUT_STYLE_SECTION_MAP: Partial<Record<string, RootLayoutStyleKey>>
   grid: "grid",
   weekFlag: "weekFlag",
   topObjectContainer: "topObjectContainer",
-  profileImage: "profileImage",
-  profileFrame: "profileFrame",
   artistTextRootStyle: "artistTextRootStyle",
   artistTextWrapperStyle: "artistTextWrapperStyle",
   artistTextStyle: "artistTextStyle",
@@ -84,11 +82,44 @@ export const collectStyleSectionResolverMapFromRuntime = ({
   const cardStyleKeySet = new Set<string>();
   cards.forEach((card) => {
     cardStyleKeySet.add(card.containerStyleKey);
+    map[card.containerStyleKey] = {
+      scope: "card",
+      key: card.containerStyleKey as CardLayoutStyleKey,
+    };
+    Object.values(card.frameNodes ?? {}).forEach((frameNode) => {
+      cardStyleKeySet.add(frameNode.styleKey);
+      map[frameNode.styleKey] = {
+        scope: "card",
+        key: frameNode.styleKey as CardLayoutStyleKey,
+      };
+    });
     Object.values(card.nodes).forEach((cardNode) => {
       cardStyleKeySet.add(cardNode.containerStyleKey);
-      if (cardNode.textStyleKey) cardStyleKeySet.add(cardNode.textStyleKey);
-      if (cardNode.wrapperStyleKey) cardStyleKeySet.add(cardNode.wrapperStyleKey);
-      if (cardNode.optionsKey) cardStyleKeySet.add(cardNode.optionsKey);
+      map[cardNode.containerStyleKey] = {
+        scope: "card",
+        key: cardNode.containerStyleKey as CardLayoutStyleKey,
+      };
+      if (cardNode.textStyleKey) {
+        cardStyleKeySet.add(cardNode.textStyleKey);
+        map[cardNode.textStyleKey] = {
+          scope: "card",
+          key: cardNode.textStyleKey as CardLayoutStyleKey,
+        };
+      }
+      if (cardNode.wrapperStyleKey) {
+        cardStyleKeySet.add(cardNode.wrapperStyleKey);
+        map[cardNode.wrapperStyleKey] = {
+          scope: "card",
+          key: cardNode.wrapperStyleKey as CardLayoutStyleKey,
+        };
+      }
+      if (cardNode.optionsKey) {
+        cardStyleKeySet.add(cardNode.optionsKey);
+        map[cardNode.optionsKey] = {
+          scope: "card",
+          key: cardNode.optionsKey as CardLayoutStyleKey,
+        };
+      }
     });
 
     const cardContainerLayer = layerNodeMap.get(card.containerLayerId);

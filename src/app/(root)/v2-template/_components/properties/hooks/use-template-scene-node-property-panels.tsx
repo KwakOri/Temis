@@ -6,7 +6,6 @@ import {
   V2TemplateCardNode,
   V2TemplateCardNodeBinding,
   V2TemplateComputedBindingKey,
-  v2_TEMPLATE_DAY_KEYS,
   V2TemplateAssetRef,
   V2TemplateSceneAssetRole,
   V2TemplateBuiltinAssetKey,
@@ -29,6 +28,7 @@ import {
   v2_hasNodeBindingField,
 } from "../model/binding-utils";
 import { v2_parseStyleSectionKey } from "../model/style-section-utils";
+import { v2_OBJECT_STYLE_SCHEMA_SECTIONS } from "../model/template-properties-constants";
 
 type V2SceneNodeSectionId = string;
 
@@ -82,6 +82,12 @@ interface UseTemplateSceneNodePropertyPanelsParams {
     componentId: string
   ) => void;
   onSyncSceneCardCollectionChildComponentIds: (nodeId: string) => void;
+  renderTimetableGridControls?: (
+    node: V2TemplateSceneCardCollectionNode
+  ) => React.ReactNode;
+  renderSceneGroupExtraControls?: (
+    node: V2TemplateSceneGroupNode
+  ) => React.ReactNode;
   formFields: V2TemplateFormField[];
   computedOptions: readonly V2TemplateComputedBindingKey[];
   parseBindingFromSelectValue: (
@@ -169,6 +175,8 @@ const useTemplateSceneNodePropertyPanels = ({
   onUpdateSceneNodeVisibilityMode,
   onUpdateSceneCardCollectionComponentId,
   onSyncSceneCardCollectionChildComponentIds,
+  renderTimetableGridControls,
+  renderSceneGroupExtraControls,
   formFields,
   computedOptions,
   parseBindingFromSelectValue,
@@ -220,6 +228,7 @@ const useTemplateSceneNodePropertyPanels = ({
       renderStyleSectionEditor({
         title: "asset style",
         section: styleSection,
+        schemaSection: v2_OBJECT_STYLE_SCHEMA_SECTIONS.image,
       })
     ) : (
       <div className="rounded border border-[#3a3d44] bg-[#141821] px-2 py-1.5 text-[11px] text-gray-300">
@@ -280,7 +289,7 @@ const useTemplateSceneNodePropertyPanels = ({
       ? renderStyleSectionEditor({
           title: "frame style",
           section: styleSection,
-          schemaSection: "cardContainer",
+          schemaSection: v2_OBJECT_STYLE_SCHEMA_SECTIONS.frame,
         })
       : null;
     return (
@@ -292,6 +301,7 @@ const useTemplateSceneNodePropertyPanels = ({
         structureControls={renderSceneNodeStructureControls({
           node,
         })}
+        extraControls={renderSceneGroupExtraControls?.(node)}
         styleEditor={styleEditor}
         onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
         onChangeVisibilityMode={(value) =>
@@ -308,22 +318,6 @@ const useTemplateSceneNodePropertyPanels = ({
     const layoutStyleEditor = section
       ? renderStyleSectionEditor({ title: "layout style", section })
       : null;
-    const dayKeys = (node.children ?? []).map((child) => child.dayKey);
-    const duplicateDayKeys = Array.from(
-      new Set(
-        dayKeys.filter(
-          (dayKey, index) => dayKeys.indexOf(dayKey) !== index
-        )
-      )
-    );
-    const missingDayKeys = v2_TEMPLATE_DAY_KEYS.filter(
-      (dayKey) => !dayKeys.includes(dayKey)
-    );
-    const mismatchedChildComponentCount =
-      typeof node.componentId === "string" && node.componentId.length > 0
-        ? (node.children ?? []).filter((child) => child.componentId !== node.componentId)
-            .length
-        : 0;
 
     return (
       <div className="space-y-2">
@@ -331,11 +325,12 @@ const useTemplateSceneNodePropertyPanels = ({
           node={node}
           componentOptions={sceneCardCollectionComponentOptions}
           visibilityOptions={visibilityOptions}
-          mismatchedChildComponentCount={mismatchedChildComponentCount}
+          mismatchedChildComponentCount={0}
           structureControls={renderSceneNodeStructureControls({
             node,
           })}
           layoutStyleEditor={layoutStyleEditor}
+          timetableControls={renderTimetableGridControls?.(node)}
           onChangeLabel={(value) => onUpdateSceneNodeLabel(node.id, value)}
           onChangeComponentId={(value) =>
             onUpdateSceneCardCollectionComponentId(node.id, value)
@@ -347,24 +342,6 @@ const useTemplateSceneNodePropertyPanels = ({
             onSyncSceneCardCollectionChildComponentIds(node.id)
           }
         />
-        {duplicateDayKeys.length > 0 || missingDayKeys.length > 0 ? (
-          <div className="rounded border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-100 space-y-1">
-            {duplicateDayKeys.length > 0 ? (
-              <p>
-                중복 dayKey: {duplicateDayKeys.join(", ")}
-              </p>
-            ) : null}
-            {missingDayKeys.length > 0 ? (
-              <p>
-                미할당 dayKey: {missingDayKeys.join(", ")}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <div className="rounded border border-[#3b5b8b] bg-[#14233d] px-2.5 py-2 text-[11px] text-[#9ec1ff]">
-            7개 dayKey가 모두 유효하게 매핑되었습니다.
-          </div>
-        )}
       </div>
     );
   };

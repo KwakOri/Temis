@@ -1,75 +1,7 @@
 import {
   V2TemplateGraphNode,
-  V2TemplateRenderConfig,
   V2TemplateSceneNode,
 } from "@/types/time-table/template-render-config";
-import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
-import { v2_dayKeyFromIndex } from "@/utils/v2/template-render-config";
-
-export const v2_getPreferredCardCollectionComponentId = (
-  config: V2TemplateRenderConfig
-): string | null => {
-  const componentDefinitions = config.graph.componentDefinitions ?? {};
-  const validComponentIdSet = new Set(Object.keys(componentDefinitions));
-  if (validComponentIdSet.size === 0) return null;
-
-  const runtimeSceneNodes = v2_getRuntimeSceneNodes(config);
-  const queue = [...runtimeSceneNodes];
-  while (queue.length > 0) {
-    const node = queue.shift();
-    if (!node) continue;
-    if (node.kind === "cardCollection") {
-      const componentId = node.componentId?.trim();
-      if (componentId && validComponentIdSet.has(componentId)) {
-        return componentId;
-      }
-    }
-    if (node.kind === "group") {
-      queue.push(...node.children);
-    }
-  }
-
-  const templateComponentDefinition = Object.values(componentDefinitions).find(
-    (definition) => definition.kind === "template"
-  );
-  return templateComponentDefinition?.id ?? null;
-};
-
-export const v2_createCardCollectionInstanceGraphNode = ({
-  nodeId,
-  collectionNodeId,
-  collectionLayerId,
-  componentId,
-  instanceId,
-}: {
-  nodeId: string;
-  collectionNodeId: string;
-  collectionLayerId?: string;
-  componentId: string;
-  instanceId: string;
-}): V2TemplateGraphNode => {
-  const parsed = Number.parseInt(instanceId, 10);
-  const safeIndex = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
-  const dayKey = v2_dayKeyFromIndex(safeIndex);
-
-  return {
-    id: nodeId,
-    type: "componentInstance",
-    label: `Card ${safeIndex + 1}`,
-    parentId: collectionNodeId,
-    childIds: [],
-    layerId: `${collectionLayerId ?? collectionNodeId}-instance-${safeIndex + 1}`,
-    visibilityMode: "always",
-    meta: {
-      componentId,
-      instanceId,
-      dayKey,
-      layerTarget: `cardInstance:${instanceId}`,
-      layerSectionKey: "grid",
-      layerIcon: "layers",
-    },
-  };
-};
 
 export const v2_sceneNodeToGraphNode = (
   sceneNode: V2TemplateSceneNode
@@ -129,11 +61,11 @@ export const v2_sceneNodeToGraphNode = (
       type: "cardCollection",
       label: sceneNode.label,
       parentId: null,
-      childIds: (sceneNode.children ?? []).map((child) => child.id),
+      childIds: [],
       ...(sceneNode.layerId ? { layerId: sceneNode.layerId } : {}),
       ...(sceneNode.visibilityMode ? { visibilityMode: sceneNode.visibilityMode } : {}),
       meta: {
-        componentId: sceneNode.componentId,
+        ...(sceneNode.componentId ? { componentId: sceneNode.componentId } : {}),
         layerTarget: "grid",
         layerSectionKey: "grid",
         layerIcon: "grid",
@@ -210,10 +142,7 @@ export const v2_isSceneNodeDescendant = ({
   ancestorNode: V2TemplateSceneNode;
   targetNodeId: string;
 }): boolean => {
-  if (
-    (ancestorNode.kind !== "group" && ancestorNode.kind !== "cardCollection") ||
-    !ancestorNode.children
-  ) {
+  if (ancestorNode.kind !== "group" || !ancestorNode.children) {
     return false;
   }
   const queue = [...ancestorNode.children];
@@ -222,10 +151,7 @@ export const v2_isSceneNodeDescendant = ({
     const current = queue.shift();
     if (!current) continue;
     if (current.id === targetNodeId) return true;
-    if (
-      (current.kind === "group" || current.kind === "cardCollection") &&
-      current.children
-    ) {
+    if (current.kind === "group" && current.children) {
       queue.push(...current.children);
     }
   }

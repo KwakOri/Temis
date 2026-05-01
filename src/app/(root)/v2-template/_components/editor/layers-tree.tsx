@@ -12,7 +12,9 @@ import {
   Grid3X3,
   ImageIcon,
   Layers,
+  Lock,
   Type,
+  Unlock,
 } from "lucide-react";
 import React from "react";
 import { createPortal } from "react-dom";
@@ -74,6 +76,7 @@ interface V2LayersTreeProps {
   dropState: V2LayerTreeDropState;
   extractableComponentInstanceLayerIdSet?: Set<string>;
   isLayerHidden: (layerId: string) => boolean;
+  isLayerLocked: (layerId: string) => boolean;
   canRelocateLayer?: (layerId: string) => boolean;
   expanded: Record<string, boolean>;
   onToggleNode: (id: string) => void;
@@ -84,6 +87,7 @@ interface V2LayersTreeProps {
   onSetActiveHighlightTarget: (target: V2TemplateHighlightTarget | null) => void;
   onSetHoverHighlightTarget: (target: V2TemplateHighlightTarget | null) => void;
   onToggleLayerHidden: (layerId: string) => void;
+  onToggleLayerLocked: (layerId: string) => void;
   onSetDragState: (state: V2LayerTreeDragState) => void;
   onSetDropState: (state: V2LayerTreeDropState) => void;
   onSetDragFeedback: (
@@ -129,6 +133,7 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
   dropState,
   extractableComponentInstanceLayerIdSet,
   isLayerHidden,
+  isLayerLocked,
   canRelocateLayer,
   expanded,
   onToggleNode,
@@ -139,6 +144,7 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
   onSetActiveHighlightTarget,
   onSetHoverHighlightTarget,
   onToggleLayerHidden,
+  onToggleLayerLocked,
   onSetDragState,
   onSetDropState,
   onSetDragFeedback,
@@ -335,6 +341,8 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
     const isEffectivelyHidden = ancestorHidden || isSelfHidden;
     const isInheritedHidden = ancestorHidden && !isSelfHidden;
     const VisibilityIcon = isEffectivelyHidden ? EyeOff : Eye;
+    const isSelfLocked = isLayerLocked(node.id);
+    const LockIcon = isSelfLocked ? Lock : Unlock;
     const parentNode =
       parentId === v2_ROOT_LAYER_PARENT_ID
         ? null
@@ -349,7 +357,10 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
     const childOrderedIds = getOrderedChildren(node.id, node.children ?? []).map(
       (layerNode) => layerNode.id
     );
-    const isReorderable = !isVirtualNode && (node.target !== undefined || hasChildren);
+    const isReorderable =
+      !isVirtualNode &&
+      !isSelfLocked &&
+      (node.target !== undefined || hasChildren);
     const canDropInside = node.kind === "group";
     const isExtractableComponentInstance =
       Boolean(extractableComponentInstanceLayerIdSet?.has(node.id)) &&
@@ -379,6 +390,14 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
               selectedLayerIds.includes(node.id) && siblingSelection.length > 1
                 ? orderedSiblingIds.filter((id) => siblingSelection.includes(id))
                 : [node.id];
+            if (draggedNodeIds.some((draggedId) => isLayerLocked(draggedId))) {
+              event.preventDefault();
+              onSetDragFeedback({
+                tone: "error",
+                message: "잠긴 레이어는 이동할 수 없습니다.",
+              });
+              return;
+            }
             onSetDragState({
               parentId,
               nodeId: node.id,
@@ -648,7 +667,7 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
                   onSetSelectedComponentId(componentItem.id);
                   onSetDragFeedback({
                     tone: "info",
-                    message: "마스터 편집은 Components 탭에서 진행해 주세요.",
+                    message: "컴포넌트 구조 편집은 Grid 편집 화면에서 진행해 주세요.",
                   });
                 }
               }
@@ -676,7 +695,7 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
                   onSetSelectedComponentId(componentItem.id);
                   onSetDragFeedback({
                     tone: "info",
-                    message: "마스터 편집은 Components 탭에서 진행해 주세요.",
+                    message: "컴포넌트 구조 편집은 Grid 편집 화면에서 진행해 주세요.",
                   });
                 }
               }
@@ -745,6 +764,32 @@ const V2LayersTree: React.FC<V2LayersTreeProps> = ({
             title="Move To Root"
           >
             <ArrowUpRight className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-[#2a2f3a] ${
+              isSelfLocked ? "text-[#d9b25f]" : "text-[#7383a4]"
+            }`}
+            onMouseDown={(event) => {
+              event.stopPropagation();
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleLayerLocked(node.id);
+              onSetDragFeedback({
+                tone: "info",
+                message: isSelfLocked
+                  ? "레이어 잠금을 해제했습니다."
+                  : "레이어를 잠갔습니다.",
+              });
+            }}
+            draggable={false}
+            aria-label={
+              isSelfLocked ? `${node.label} 잠금 해제` : `${node.label} 잠금`
+            }
+            title={isSelfLocked ? "잠금 해제" : "잠금"}
+          >
+            <LockIcon className="h-3.5 w-3.5" />
           </button>
           {isVirtualNode ? (
             <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[#5d6473]">

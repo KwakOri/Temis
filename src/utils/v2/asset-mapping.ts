@@ -80,10 +80,36 @@ export const v2_BUILTIN_ASSET_ALIAS_RULES: Array<{
   },
   { key: "onlineByTheme", aliases: ["online", "card_online", "on"] },
   { key: "offlineByTheme", aliases: ["offline", "card_offline", "off"] },
-  { key: "profileFrameByTheme", aliases: ["profile_frame", "frame", "artist_frame"] },
+  {
+    key: "boardByTheme",
+    aliases: ["board", "board_bg", "scene_board", "scene_board_bg"],
+  },
+  {
+    key: "frameBgByTheme",
+    aliases: ["frame_bg", "frame_background", "scene_frame_bg"],
+  },
+  {
+    key: "frameByTheme",
+    aliases: ["frame", "frame_object", "frame_overlay", "image_frame"],
+  },
+  {
+    key: "gridBgByTheme",
+    aliases: ["grid_bg", "grid_background", "scene_grid_bg", "scene_grid_background"],
+  },
+  {
+    key: "profileFrameByTheme",
+    aliases: ["profile_frame", "profileframe", "artist_frame"],
+  },
   {
     key: "profileBgByTheme",
-    aliases: ["profile_bg", "profile_dummy", "profile_image", "dummy_profile"],
+    aliases: [
+      "profile_bg",
+      "profile_dummy",
+      "profile_image",
+      "dummy_profile",
+      "artwork",
+      "frame_artwork",
+    ],
   },
   { key: "guideByTheme", aliases: ["guide", "overlay", "guide_overlay"] },
 ];

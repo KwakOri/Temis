@@ -1,5 +1,107 @@
 import { V2BoilerplateGroupConfig } from "./boilerplate-ui-utils";
 import { v2_BOILERPLATE_SELECT_OPTIONS } from "./boilerplate-presets";
+import { v2_OBJECT_STYLE_SCHEMA_SECTIONS } from "./template-properties-constants";
+
+const v2_OBJECT_TRANSFORM_GROUP: V2BoilerplateGroupConfig = {
+  id: "transform",
+  label: "Transform",
+  fields: [
+    {
+      key: "position",
+      label: "Position",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.position,
+    },
+    { key: "top", label: "Top" },
+    { key: "left", label: "Left" },
+    { key: "right", label: "Right" },
+    { key: "bottom", label: "Bottom" },
+    { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+    {
+      key: "transformOrigin",
+      label: "Transform Origin",
+      type: "text",
+      placeholder: "center center",
+    },
+    { key: "width", label: "Width" },
+    { key: "height", label: "Height" },
+    { key: "opacity", label: "Opacity", step: "0.01" },
+  ],
+};
+
+const v2_OBJECT_CONTAINER_LAYOUT_GROUP: V2BoilerplateGroupConfig = {
+  id: "layout",
+  label: "Layout",
+  fields: [
+    {
+      key: "display",
+      label: "Display",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.display,
+    },
+    {
+      key: "justifyContent",
+      label: "Justify",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.justifyContent,
+    },
+    {
+      key: "alignItems",
+      label: "Align",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.alignItems,
+    },
+    { key: "gap", label: "Gap" },
+    { key: "paddingTop", label: "Padding Top" },
+    { key: "paddingRight", label: "Padding Right" },
+    { key: "paddingBottom", label: "Padding Bottom" },
+    { key: "paddingLeft", label: "Padding Left" },
+  ],
+};
+
+const v2_OBJECT_FRAME_LAYOUT_GROUP: V2BoilerplateGroupConfig = {
+  id: "layout",
+  label: "Layout",
+  fields: [
+    {
+      key: "overflow",
+      label: "Clip Content",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.overflow,
+    },
+  ],
+};
+
+const v2_OBJECT_TEXT_STYLE_GROUP: V2BoilerplateGroupConfig = {
+  id: "typography",
+  label: "Typography",
+  fields: [
+    { key: "fontFamily", label: "Font Family", type: "text" },
+    { key: "fontSize", label: "Font Size" },
+    { key: "fontWeight", label: "Font Weight" },
+    { key: "lineHeight", label: "Line Height", step: "0.1" },
+    { key: "letterSpacing", label: "Letter Spacing", step: "0.1" },
+    {
+      key: "textAlign",
+      label: "Text Align",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.textAlign,
+    },
+    { key: "color", label: "Color", type: "text", placeholder: "#FFFFFF" },
+    {
+      key: "whiteSpace",
+      label: "White Space",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace,
+    },
+    {
+      key: "wordBreak",
+      label: "Word Break",
+      type: "select",
+      options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak,
+    },
+  ],
+};
 
 const v2_WEEK_DATES_CONTAINER_GROUPS: V2BoilerplateGroupConfig[] = [
   {
@@ -112,6 +214,7 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
       ],
     },
   ],
+  gridBg: [v2_OBJECT_TRANSFORM_GROUP],
   weekFlag: [
     {
       id: "transform",
@@ -248,6 +351,41 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "color", label: "Color", type: "text", placeholder: "#A7A7A7" },
         { key: "whiteSpace", label: "White Space", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.whiteSpace },
         { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
+      ],
+    },
+  ],
+  frameArtwork: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
+        { key: "transformOrigin", label: "Transform Origin", type: "text", placeholder: "center center" },
+      ],
+    },
+  ],
+  frameObject: [
+    {
+      id: "transform",
+      label: "Transform",
+      fields: [
+        { key: "position", label: "Position", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.position },
+        { key: "top", label: "Top" },
+        { key: "left", label: "Left" },
+        { key: "right", label: "Right" },
+        { key: "bottom", label: "Bottom" },
+        { key: "width", label: "Width" },
+        { key: "height", label: "Height" },
+        { key: "opacity", label: "Opacity", step: "0.01" },
+        { key: "rotateDeg", label: "Rotate (deg)", step: "0.1" },
       ],
     },
   ],
@@ -638,5 +776,29 @@ export const v2_BOILERPLATE_SECTION_GROUPS: Record<
         { key: "wordBreak", label: "Word Break", type: "select", options: v2_BOILERPLATE_SELECT_OPTIONS.wordBreak },
       ],
     },
+  ],
+  [v2_OBJECT_STYLE_SCHEMA_SECTIONS.frame]: [
+    v2_OBJECT_TRANSFORM_GROUP,
+    v2_OBJECT_FRAME_LAYOUT_GROUP,
+  ],
+  [v2_OBJECT_STYLE_SCHEMA_SECTIONS.image]: [
+    v2_OBJECT_TRANSFORM_GROUP,
+  ],
+  [v2_OBJECT_STYLE_SCHEMA_SECTIONS.textContainer]: [
+    v2_OBJECT_TRANSFORM_GROUP,
+    v2_OBJECT_CONTAINER_LAYOUT_GROUP,
+  ],
+  [v2_OBJECT_STYLE_SCHEMA_SECTIONS.textStyle]: [
+    v2_OBJECT_TEXT_STYLE_GROUP,
+  ],
+  [v2_OBJECT_STYLE_SCHEMA_SECTIONS.flexibleTextContainer]: [
+    v2_OBJECT_TRANSFORM_GROUP,
+    v2_OBJECT_CONTAINER_LAYOUT_GROUP,
+  ],
+  [v2_OBJECT_STYLE_SCHEMA_SECTIONS.flexibleTextWrapper]: [
+    v2_OBJECT_CONTAINER_LAYOUT_GROUP,
+  ],
+  [v2_OBJECT_STYLE_SCHEMA_SECTIONS.flexibleTextStyle]: [
+    v2_OBJECT_TEXT_STYLE_GROUP,
   ],
 };

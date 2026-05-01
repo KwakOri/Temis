@@ -14,8 +14,6 @@ import {
 import { v2_getRuntimeLayerTree } from "@/utils/v2/template-graph-layers-runtime";
 import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
 import {
-  v2_createCardCollectionInstanceGraphNode,
-  v2_getPreferredCardCollectionComponentId,
   v2_sceneNodeToGraphNode,
 } from "../model/scene-node-graph-utils";
 import {
@@ -40,8 +38,6 @@ interface UseTemplateSceneStructureActionsParams {
   sceneCustomNodeIdPrefix: string;
   sceneCustomLayerIdPrefix: string;
 }
-
-const v2_DEFAULT_CARD_INSTANCE_COUNT = 7;
 
 const useTemplateSceneStructureActions = ({
   safeUpdateConfig,
@@ -114,15 +110,12 @@ const useTemplateSceneStructureActions = ({
     }
 
     if (kind === "cardCollection") {
-      const componentId = v2_getPreferredCardCollectionComponentId(prev);
-      if (!componentId) return null;
       return {
         sceneNode: {
           id: baseSceneNodeId,
           label: `CardCollection ${ordinal}`,
           kind: "cardCollection",
           layerId,
-          componentId,
           visibilityMode: "always",
         },
         layerNode: {
@@ -211,7 +204,6 @@ const useTemplateSceneStructureActions = ({
       };
     }
 
-    const wrapperStyleKey = `sceneNode:${baseSceneNodeId}:wrapper`;
     const optionsKey = `sceneNode:${baseSceneNodeId}:options`;
     return {
       sceneNode: {
@@ -224,7 +216,6 @@ const useTemplateSceneStructureActions = ({
           value: `FlexibleText ${ordinal}`,
         },
         containerStyleKey,
-        wrapperStyleKey,
         textStyleKey,
         optionsKey,
         colorKey: "SUB_TITLE",
@@ -246,7 +237,6 @@ const useTemplateSceneStructureActions = ({
       dynamicSceneLayoutPatch: v2_createDefaultTextNodeLayoutPatch({
         containerStyleKey,
         textStyleKey,
-        wrapperStyleKey,
         optionsKey,
         isFlexibleText: true,
       }),
@@ -278,37 +268,11 @@ const useTemplateSceneStructureActions = ({
       nextFocusTarget = layerNode.target ?? null;
 
       const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
-      let nextGraph = v2_graphInsertSiblingAfter({
+      const nextGraph = v2_graphInsertSiblingAfter({
         graph: prev.graph,
         anchorNodeId,
         newNode: nextGraphNode,
       });
-      if (sceneNode.kind === "cardCollection") {
-        const componentId = sceneNode.componentId;
-        if (!componentId) return prev;
-        const existingIds = new Set(Object.keys(nextGraph.nodes));
-        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
-          const instanceId = String(index);
-          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
-          let suffix = 1;
-          while (existingIds.has(instanceNodeId)) {
-            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
-            suffix += 1;
-          }
-          existingIds.add(instanceNodeId);
-          nextGraph = v2_graphAppendChild({
-            graph: nextGraph,
-            parentId: sceneNode.id,
-            newNode: v2_createCardCollectionInstanceGraphNode({
-              nodeId: instanceNodeId,
-              collectionNodeId: sceneNode.id,
-              collectionLayerId: sceneNode.layerId,
-              componentId,
-              instanceId,
-            }),
-          });
-        }
-      }
       return {
         ...prev,
         graph: nextGraph,
@@ -347,36 +311,10 @@ const useTemplateSceneStructureActions = ({
       nextFocusTarget = layerNode.target ?? null;
 
       const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
-      let nextGraph = v2_graphAppendRoot({
+      const nextGraph = v2_graphAppendRoot({
         graph: prev.graph,
         newNode: nextGraphNode,
       });
-      if (sceneNode.kind === "cardCollection") {
-        const componentId = sceneNode.componentId;
-        if (!componentId) return prev;
-        const existingIds = new Set(Object.keys(nextGraph.nodes));
-        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
-          const instanceId = String(index);
-          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
-          let suffix = 1;
-          while (existingIds.has(instanceNodeId)) {
-            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
-            suffix += 1;
-          }
-          existingIds.add(instanceNodeId);
-          nextGraph = v2_graphAppendChild({
-            graph: nextGraph,
-            parentId: sceneNode.id,
-            newNode: v2_createCardCollectionInstanceGraphNode({
-              nodeId: instanceNodeId,
-              collectionNodeId: sceneNode.id,
-              collectionLayerId: sceneNode.layerId,
-              componentId,
-              instanceId,
-            }),
-          });
-        }
-      }
       return {
         ...prev,
         graph: nextGraph,
@@ -424,37 +362,11 @@ const useTemplateSceneStructureActions = ({
       nextFocusTarget = layerNode.target ?? null;
 
       const nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
-      let nextGraph = v2_graphAppendChild({
+      const nextGraph = v2_graphAppendChild({
         graph: prev.graph,
         parentId: parentNodeId,
         newNode: nextGraphNode,
       });
-      if (sceneNode.kind === "cardCollection") {
-        const componentId = sceneNode.componentId;
-        if (!componentId) return prev;
-        const existingIds = new Set(Object.keys(nextGraph.nodes));
-        for (let index = 0; index < v2_DEFAULT_CARD_INSTANCE_COUNT; index += 1) {
-          const instanceId = String(index);
-          let instanceNodeId = `${sceneNode.id}:instance:${instanceId}`;
-          let suffix = 1;
-          while (existingIds.has(instanceNodeId)) {
-            instanceNodeId = `${sceneNode.id}:instance:${instanceId}:${suffix}`;
-            suffix += 1;
-          }
-          existingIds.add(instanceNodeId);
-          nextGraph = v2_graphAppendChild({
-            graph: nextGraph,
-            parentId: sceneNode.id,
-            newNode: v2_createCardCollectionInstanceGraphNode({
-              nodeId: instanceNodeId,
-              collectionNodeId: sceneNode.id,
-              collectionLayerId: sceneNode.layerId,
-              componentId,
-              instanceId,
-            }),
-          });
-        }
-      }
       return {
         ...prev,
         graph: nextGraph,

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from "react";
 
 import { useTemplateRuntimeContext } from "@/contexts/v2/template-runtime-context";
@@ -15,6 +16,7 @@ import {
   V2TemplateDayKey,
   V2TemplateCardStyleKey,
   V2TemplateComputedBindingKey,
+  V2TemplateCardFrameNode,
 } from "@/types/time-table/template-render-config";
 import {
   v2_dayKeyFromIndex,
@@ -52,6 +54,8 @@ interface TimeTableCellProps {
   };
   cardInstanceId?: string;
   cardInstanceLayerId?: string;
+  disableNodeVisibilityFilter?: boolean;
+  enableEditorObjectHandles?: boolean;
 }
 
 const v2_toCardStyleMap = (
@@ -125,6 +129,35 @@ const v2_resolveEntryFromBinding = ({
   }
   const safeIndex = Math.max(0, Math.floor(preferredIndex));
   return entries[safeIndex] ?? entries[0] ?? {};
+};
+
+const v2_applyInheritedEntryIndex = (
+  binding: V2TemplateCardNode["binding"],
+  inheritedEntryIndex?: number
+): V2TemplateCardNode["binding"] => {
+  if (typeof inheritedEntryIndex !== "number") return binding;
+  if (!Number.isFinite(inheritedEntryIndex)) return binding;
+  const entrySelector = {
+    mode: "index" as const,
+    index: Math.max(0, Math.floor(inheritedEntryIndex)),
+  };
+  if (binding.mode === "computed" && binding.entrySelector === undefined) {
+    return {
+      ...binding,
+      entrySelector,
+    };
+  }
+  if (
+    binding.mode === "field" &&
+    binding.scope === "entry" &&
+    binding.entrySelector === undefined
+  ) {
+    return {
+      ...binding,
+      entrySelector,
+    };
+  }
+  return binding;
 };
 
 const v2_getCardNodeTextValue = ({
@@ -219,6 +252,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   cardContainerSizeOverride,
   cardInstanceId,
   cardInstanceLayerId,
+  disableNodeVisibilityFilter = false,
+  enableEditorObjectHandles = false,
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const { weekDates } = useTemplateRuntimeData();
@@ -267,6 +302,19 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       }),
     [hiddenLayerIds]
   );
+  const getEditorObjectAttributes = (
+    layerId: string | undefined,
+    highlightTarget: string | undefined
+  ): React.HTMLAttributes<HTMLElement> | undefined => {
+    if (!enableEditorObjectHandles || !layerId || !highlightTarget) {
+      return undefined;
+    }
+    return {
+      "data-v2-editor-layer-id": layerId,
+      "data-v2-editor-highlight-target": highlightTarget,
+      "data-v2-editor-drag-kind": "cardObject",
+    } as React.HTMLAttributes<HTMLElement>;
+  };
   const dayKey =
     dayKeyOverride ?? v2_parseDayKey(time.day) ?? v2_dayKeyFromIndex(index);
   const placeholdersByScope = renderConfig.formSchema.fields.reduce(
@@ -308,7 +356,8 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   });
 
   const resolveRenderableCardNode = (
-    nodeId: string
+    nodeId: string,
+    inheritedEntryIndex?: number
   ): V2ResolvedRenderableCardNode | null => {
     const node = cardStructure.nodes[nodeId];
     if (!node) return null;
@@ -335,6 +384,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       return null;
     }
     if (
+      !disableNodeVisibilityFilter &&
       !v2_isVisibleByMode({
         mode: node.visibilityMode,
         isOffline: cardIsOffline,
@@ -366,12 +416,22 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     });
 
     if (node.kind === "image") {
+      const dayAssetRef = node.assetRefByDayKey?.[dayKey];
       const assetRef = v2_resolveCardImageAssetRef({ node, dayKey });
-      const imageUrl = resolveAssetUrlFromConfig({
-        renderConfig,
-        assetRef,
-        currentTheme: currentTheme || renderConfig.defaultTheme,
-      });
+      const theme = currentTheme || renderConfig.defaultTheme;
+      const imageUrl =
+        resolveAssetUrlFromConfig({
+          renderConfig,
+          assetRef,
+          currentTheme: theme,
+        }) ??
+        (dayAssetRef && node.assetRef
+          ? resolveAssetUrlFromConfig({
+              renderConfig,
+              assetRef: node.assetRef,
+              currentTheme: theme,
+            })
+          : null);
       if (!imageUrl) return null;
       const isBackgroundNode = node.id.toLowerCase().includes("background");
       const imageContainerStyle: React.CSSProperties = {
@@ -397,6 +457,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
         element: (
           <div
             key={node.id}
+            {...getEditorObjectAttributes(node.layerId, nodeHighlightTarget)}
             style={imageContainerStyle}
             className={node.containerClassName ?? "absolute"}
           >
@@ -415,12 +476,10 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       ? v2_toCardStyleMap(cardLayoutRecord, node.textStyleKey)
       : {};
     const textStyle = v2_toRenderableStyle(textStyleMap);
-    const wrapperStyle = node.wrapperStyleKey
-      ? v2_toRenderableLayoutStyle(
-          v2_toCardStyleMap(cardLayoutRecord, node.wrapperStyleKey)
-        )
-      : {};
-    const effectiveBinding = bindingOverrides?.[node.id] ?? node.binding;
+    const effectiveBinding = v2_applyInheritedEntryIndex(
+      bindingOverrides?.[node.id] ?? node.binding,
+      inheritedEntryIndex
+    );
     const selectedEntry = v2_resolveEntryFromBinding({
       binding: effectiveBinding,
       entries: (time.entries ?? []) as Array<Record<string, unknown>>,
@@ -471,9 +530,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           width={width}
           textStyle={textStyle}
           highlightStyle={highlightStyle}
-          wrapperStyle={wrapperStyle}
           containerClassName={node.containerClassName}
           textClassName={node.textClassName}
+          editorAttributes={getEditorObjectAttributes(
+            node.layerId,
+            nodeHighlightTarget
+          )}
           fontFamily={fontFamily}
           color={color}
           multiline={multiline}
@@ -503,12 +565,139 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
           textStyle={textStyle}
           highlightStyle={highlightStyle}
           containerClassName={node.containerClassName}
+          editorAttributes={getEditorObjectAttributes(
+            node.layerId,
+            nodeHighlightTarget
+          )}
           fontFamily={fontFamily}
           color={color}
         />
       ),
     };
   };
+
+  const renderFrameObject = ({
+    frame,
+    inheritedEntryIndex,
+    visiting,
+  }: {
+    frame: V2TemplateCardFrameNode;
+    inheritedEntryIndex?: number;
+    visiting: Set<string>;
+  }): React.ReactNode => {
+    if (visiting.has(frame.id)) return null;
+    if (
+      isHiddenByAliases(
+        frame.layerId,
+        cardInstanceLayerId
+          ? `${cardInstanceLayerId}::${frame.layerId}`
+          : undefined
+      )
+    ) {
+      return null;
+    }
+    if (
+      !disableNodeVisibilityFilter &&
+      !v2_isVisibleByMode({
+        mode: frame.visibilityMode,
+        isOffline: cardIsOffline,
+        entryCount,
+        hasOfflineMemo,
+      })
+    ) {
+      return null;
+    }
+
+    const frameStyle = v2_resolveRenderableCardLayout(
+      v2_toCardStyleMap(cardLayoutRecord, frame.styleKey)
+    ).style;
+    const frameEntryIndex =
+      frame.bindingContext?.scope === "entry"
+        ? frame.bindingContext.entryIndex
+        : inheritedEntryIndex;
+    const nextVisiting = new Set(visiting);
+    nextVisiting.add(frame.id);
+
+    return (
+      <div
+        key={frame.id}
+        {...getEditorObjectAttributes(frame.layerId, frame.highlightTarget)}
+        style={{
+          ...frameStyle,
+          ...v2_getHighlightStyle({
+            target: frame.highlightTarget,
+            hoverTarget: hoverHighlightTarget,
+            activeTarget: activeHighlightTarget,
+          }),
+        }}
+        className={frame.containerClassName ?? "absolute"}
+      >
+        {frame.childIds.map((childId) =>
+          renderCardObject({
+            objectId: childId,
+            inheritedEntryIndex: frameEntryIndex,
+            visiting: nextVisiting,
+          })
+        )}
+      </div>
+    );
+  };
+
+  const renderCardObject = ({
+    objectId,
+    inheritedEntryIndex,
+    visiting,
+  }: {
+    objectId: string;
+    inheritedEntryIndex?: number;
+    visiting: Set<string>;
+  }): React.ReactNode => {
+    const frame = cardStructure.frameNodes?.[objectId];
+    if (frame) {
+      return renderFrameObject({
+        frame,
+        inheritedEntryIndex,
+        visiting,
+      });
+    }
+
+    const resolved = resolveRenderableCardNode(objectId, inheritedEntryIndex);
+    if (!resolved) return null;
+    if (!resolved.entryStyleKey) return resolved.element;
+
+    return (
+      <div
+        key={`card-entry:${resolved.entryStyleKey}:${resolved.node.id}`}
+        style={
+          v2_resolveRenderableCardLayout(
+            v2_toCardStyleMap(cardLayoutRecord, resolved.entryStyleKey)
+          ).style
+        }
+      >
+        {resolved.element}
+      </div>
+    );
+  };
+
+  const rootObjectIds = cardStructure.rootObjectIds?.length
+    ? cardStructure.rootObjectIds
+    : null;
+  if (rootObjectIds) {
+    return (
+      <div
+        style={cardContainerStyle}
+        key={time.day}
+        className="relative flex justify-center"
+      >
+        {rootObjectIds.map((objectId) =>
+          renderCardObject({
+            objectId,
+            visiting: new Set(),
+          })
+        )}
+      </div>
+    );
+  }
 
   const renderableNodeOrder = v2_getRenderableCardNodeOrder(cardStructure);
   const resolvedRenderableNodes = renderableNodeOrder

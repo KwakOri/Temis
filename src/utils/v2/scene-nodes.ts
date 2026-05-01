@@ -21,11 +21,7 @@ export const v2_findSceneNodeById = (
     const node = stack.shift();
     if (!node) continue;
     if (node.id === id) return node;
-    if (
-      (node.kind === "group" || node.kind === "cardCollection") &&
-      node.children &&
-      node.children.length > 0
-    ) {
+    if (node.kind === "group" && node.children && node.children.length > 0) {
       stack.unshift(...node.children);
     }
   }

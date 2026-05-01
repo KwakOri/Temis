@@ -114,9 +114,15 @@ export const buildOrderedLayerIdsByParent = ({
 
   const isVirtualOnlySiblings = (nodes: V2TemplateLayerNode[]): boolean =>
     nodes.length > 0 && nodes.every((node) => node.isVirtual === true);
+  const hasCardLayerSibling = (nodes: V2TemplateLayerNode[]): boolean =>
+    nodes.some((node) => {
+      const sectionKey = node.sectionKey?.trim();
+      return Boolean(sectionKey && resolverMap[sectionKey]?.scope === "card");
+    });
 
   const sortNodes = (nodes: V2TemplateLayerNode[]): V2TemplateLayerNode[] => {
-    const preferReverseSourceOrder = isVirtualOnlySiblings(nodes);
+    const preferReverseSourceOrder =
+      isVirtualOnlySiblings(nodes) || hasCardLayerSibling(nodes);
     return [...nodes].sort((a, b) => {
       const aZ = getNodeZIndex(a);
       const bZ = getNodeZIndex(b);

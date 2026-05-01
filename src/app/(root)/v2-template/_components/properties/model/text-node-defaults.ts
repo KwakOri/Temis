@@ -11,13 +11,11 @@ export const v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME =
 export const v2_createDefaultTextNodeLayoutPatch = ({
   containerStyleKey,
   textStyleKey,
-  wrapperStyleKey,
   optionsKey,
   isFlexibleText,
 }: {
   containerStyleKey: string;
   textStyleKey: string;
-  wrapperStyleKey?: string;
   optionsKey?: string;
   isFlexibleText: boolean;
 }): Record<string, NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>> => {
@@ -44,13 +42,6 @@ export const v2_createDefaultTextNodeLayoutPatch = ({
   };
 
   if (!isFlexibleText) return basePatch;
-
-  if (wrapperStyleKey) {
-    basePatch[wrapperStyleKey] = {
-      justifyContent: "center",
-      alignItems: "center",
-    };
-  }
 
   if (optionsKey) {
     basePatch[optionsKey] = {

@@ -28,6 +28,10 @@ const v2_VISIBILITY_MODE_SET = new Set([
   "onlineMultipleOnly",
   "offlineMemoOnly",
   "offlineNoMemoOnly",
+  "artistOnOnly",
+  "artistOffOnly",
+  "memoOnOnly",
+  "memoOffOnly",
 ]);
 const v2_COMPUTED_KEY_SET = new Set<string>(v2_TEMPLATE_COMPUTED_BINDING_KEYS);
 const v2_INVALID_COMPONENT_ID = "__invalid_component__";
@@ -60,6 +64,8 @@ const v2_toSceneAssetRole = (value: unknown): V2TemplateSceneAssetRole | undefin
     value === "general" ||
     value === "background" ||
     value === "guideOverlay" ||
+    value === "frameArtwork" ||
+    value === "frameObject" ||
     value === "profileImage" ||
     value === "profileFrame"
   ) {
@@ -370,52 +376,12 @@ const v2_buildSceneNodeFromGraph = ({
       componentIdCandidate && validComponentIdSet.has(componentIdCandidate)
         ? componentIdCandidate
         : undefined;
-    const children = graphNode.childIds
-      .map((childId) => graphNodes[childId])
-      .filter(
-        (childNode): childNode is V2TemplateGraphNode =>
-          Boolean(childNode && childNode.type === "componentInstance")
-      )
-      .map((childNode, index) => {
-        const childComponentId =
-          typeof childNode.meta?.componentId === "string"
-            ? childNode.meta.componentId.trim()
-            : "";
-        const resolvedComponentId =
-          childComponentId || componentId || v2_INVALID_COMPONENT_ID;
-        visited.add(childNode.id);
-        const instanceId =
-          typeof childNode.meta?.instanceId === "string"
-            ? childNode.meta.instanceId
-            : String(index);
-        const dayKey =
-          v2_parseDayKey(childNode.meta?.dayKey) ?? v2_dayKeyFromIndex(index);
-        const bindingOverrides = v2_toComponentInstanceBindingOverrides(
-          childNode.meta?.bindingOverrides
-        );
-        return {
-          id: childNode.id,
-          label: childNode.label || `Card ${index + 1}`,
-          kind: "componentInstance" as const,
-          ...(childNode.layerId ? { layerId: childNode.layerId } : {}),
-          ...(v2_toVisibilityMode(childNode.visibilityMode)
-            ? { visibilityMode: v2_toVisibilityMode(childNode.visibilityMode) }
-            : {}),
-          componentId: resolvedComponentId,
-          instanceId,
-          dayKey,
-          ...(childNode.styles?.styleKey
-            ? { styleKey: childNode.styles.styleKey }
-            : {}),
-          ...(bindingOverrides ? { bindingOverrides } : {}),
-        };
-      });
 
     return {
       ...base,
       kind: "cardCollection",
       ...(componentId ? { componentId } : {}),
-      children,
+      children: [],
     };
   }
 

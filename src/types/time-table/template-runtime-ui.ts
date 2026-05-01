@@ -2,6 +2,8 @@ export const v2_RUNTIME_HIGHLIGHT_TARGETS = [
   "grid",
   "weekFlag",
   "topObjectContainer",
+  "frameArtwork",
+  "frameObject",
   "profileImage",
   "profileFrame",
   "artistText",

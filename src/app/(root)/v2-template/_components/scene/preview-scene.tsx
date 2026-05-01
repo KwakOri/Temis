@@ -10,7 +10,15 @@ import { isGuideEnabled } from "@/utils/time-table/data";
 import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
 import V2SceneRenderer from "./scene-renderer";
 
-const V2TimeTableContent: React.FC = () => {
+interface V2TimeTableContentProps {
+  artistVisibleOverride?: boolean;
+  memoVisibleOverride?: boolean;
+}
+
+const V2TimeTableContent: React.FC<V2TimeTableContentProps> = ({
+  artistVisibleOverride,
+  memoVisibleOverride,
+}) => {
   const { weekDates } = useTemplateRuntimeData();
   const { scale } = useTemplateRuntimeUI();
   const { renderConfig } = useTemplateRenderConfigContext();
@@ -34,6 +42,8 @@ const V2TimeTableContent: React.FC = () => {
       {isGuideEnabled && <TimeTableDesignGuide />}
       <V2SceneRenderer
         sceneNodes={runtimeSceneNodes}
+        artistVisibleOverride={artistVisibleOverride}
+        memoVisibleOverride={memoVisibleOverride}
       />
     </div>
   );

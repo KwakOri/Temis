@@ -3,16 +3,25 @@
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useState } from 'react';
 import type {
-  V2TemplateGraphNode,
-  V2TemplateNodeGraph,
   V2TemplateRenderConfig,
   V2TemplateStreamingTimeFormat,
+  V2TemplateTimetableFlex42Align,
+  V2TemplateTimetableFlex42ThreeRow,
+  V2TemplateTimetableGridLayoutMode,
   V2TemplateWeekDateFormat,
 } from '@/types/time-table/template-render-config';
 import {
-  v2_createEmptyTemplateNodeGraph,
+  v2_clampTimetableCardComponentCount,
+  v2_clampTimetableMultiEntryCount,
+  v2_createDefaultTimetableConfig,
+  v2_createDefaultSceneTemplateNodeGraph,
   v2_createEmptyTemplateRenderConfig,
-  v2_normalizeTemplateRenderConfig
+  v2_MAX_TIMETABLE_CARD_COMPONENT_COUNT,
+  v2_createTimetableMultiEntryFrameStyle,
+  v2_MAX_TIMETABLE_MULTI_ENTRY_COUNT,
+  v2_MIN_TIMETABLE_CARD_COMPONENT_COUNT,
+  v2_MIN_TIMETABLE_MULTI_ENTRY_COUNT,
+  v2_normalizeTemplateRenderConfig,
 } from '@/utils/v2/template-render-config';
 
 const v2_isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -34,29 +43,80 @@ const v2_toErrorMessage = (error: unknown, fallback: string): string => {
 type V2TemplateLocalePreset = 'kr' | 'en' | 'jp';
 type V2TemplateTimePreset = 'h12Prefix' | 'h12Suffix' | 'h24';
 type V2TemplateWeekDatePreset = 'locale' | 'ymdSlash' | 'mdySlash' | 'dmyDot';
-type V2DetectedLayoutMode = 'grid3x3' | 'flex4x2' | 'free';
-type V2LayoutOverrideMode = 'auto' | V2DetectedLayoutMode;
-type V2StatusSourceMode = 'none' | 'shared' | 'byDay';
 
-type V2FigmaAnalyzeResponse = {
-  mode: 'matrix' | 'shared-status' | 'mixed-status';
-  canImport: boolean;
-  detectedStatuses: string[];
-  statusCounts: Record<string, number>;
-  statusSourceModeByStatus: Record<string, V2StatusSourceMode>;
-  warnings: string[];
-  critical: string[];
-  templateNameSuggestion: string;
-  layoutModeCandidate: V2DetectedLayoutMode;
-  cardComponentSetSource: 'input' | 'auto-detected';
-  resolvedCardComponentSetUrl: string;
+const v2_MULTI_ENTRY_COUNT_OPTIONS = Array.from(
+  {
+    length:
+      v2_MAX_TIMETABLE_MULTI_ENTRY_COUNT -
+      v2_MIN_TIMETABLE_MULTI_ENTRY_COUNT +
+      1,
+  },
+  (_, index) => v2_MIN_TIMETABLE_MULTI_ENTRY_COUNT + index
+);
+
+const v2_CARD_COMPONENT_COUNT_OPTIONS = Array.from(
+  {
+    length:
+      v2_MAX_TIMETABLE_CARD_COMPONENT_COUNT -
+      v2_MIN_TIMETABLE_CARD_COMPONENT_COUNT +
+      1,
+  },
+  (_, index) => v2_MIN_TIMETABLE_CARD_COMPONENT_COUNT + index
+);
+
+const v2_LAYOUT_MODE_OPTIONS: Array<{
+  value: V2TemplateTimetableGridLayoutMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: 'grid3x3',
+    label: '3 x 3',
+    description: '고정 그리드',
+  },
+  {
+    value: 'flex4x2',
+    label: '4 x 2',
+    description: '4칸/3칸 행',
+  },
+  {
+    value: 'free',
+    label: '자유배치',
+    description: '슬롯별 위치',
+  },
+];
+
+const v2_LOCALE_PRESET_LABELS: Record<V2TemplateLocalePreset, string> = {
+  kr: '한국어',
+  en: '영어',
+  jp: '일본어',
 };
 
-const v2_LAYOUT_MODE_LABEL: Record<V2LayoutOverrideMode, string> = {
-  auto: 'Auto',
-  grid3x3: '3 x 3 (Grid)',
-  flex4x2: '4 x 2 (Flex)',
-  free: 'Free',
+const v2_TIME_PRESET_LABELS: Record<V2TemplateTimePreset, string> = {
+  h12Prefix: '12시간제 AM/PM 앞',
+  h12Suffix: '12시간제 AM/PM 뒤',
+  h24: '24시간제',
+};
+
+const v2_WEEK_DATE_PRESET_LABELS: Record<V2TemplateWeekDatePreset, string> = {
+  locale: '기본 locale',
+  ymdSlash: 'Y/M/D',
+  mdySlash: 'M/D/Y',
+  dmyDot: 'D.M.Y',
+};
+
+const v2_FLEX42_THREE_ROW_LABELS: Record<
+  V2TemplateTimetableFlex42ThreeRow,
+  string
+> = {
+  top: '위',
+  bottom: '아래',
+};
+
+const v2_FLEX42_ALIGN_LABELS: Record<V2TemplateTimetableFlex42Align, string> = {
+  left: '왼쪽',
+  center: '가운데',
+  right: '오른쪽',
 };
 
 const v2_createTemplateBaseConfig = (): V2TemplateRenderConfig => {
@@ -159,166 +219,6 @@ const v2_applyWeekDatePreset = (
   return base;
 };
 
-const v2_OPTIONAL_SCENE_ROOT_IDS = {
-  artist: ['scene-artist'],
-  profile: ['scene-profile'],
-  memo: ['scene-memo-object', 'scene-memo-text'],
-} as const;
-
-const v2_OPTIONAL_SCENE_ROOT_ID_SET = new Set<string>(
-  Object.values(v2_OPTIONAL_SCENE_ROOT_IDS).flat()
-);
-
-const v2_cloneGraphNode = (node: V2TemplateGraphNode): V2TemplateGraphNode => ({
-  ...node,
-  childIds: [...node.childIds],
-  ...(node.order ? { order: { ...node.order } } : {}),
-  ...(node.styles ? { styles: { ...node.styles } } : {}),
-  ...(node.meta ? { meta: { ...node.meta } } : {}),
-  ...(node.binding ? { binding: { ...node.binding } } : {}),
-});
-
-const v2_collectSubtreeNodeIds = ({
-  graph,
-  startNodeId,
-  bucket,
-}: {
-  graph: V2TemplateNodeGraph;
-  startNodeId: string;
-  bucket: Set<string>;
-}) => {
-  const queue = [startNodeId];
-  while (queue.length > 0) {
-    const currentId = queue.shift();
-    if (!currentId) continue;
-    if (bucket.has(currentId)) continue;
-
-    const currentNode = graph.nodes[currentId];
-    if (!currentNode) continue;
-
-    bucket.add(currentId);
-    queue.push(...currentNode.childIds);
-  }
-};
-
-const v2_collectReferencedComponentIds = ({
-  graph,
-  nodeIds,
-}: {
-  graph: V2TemplateNodeGraph;
-  nodeIds: Set<string>;
-}) => {
-  const componentIds = new Set<string>();
-  nodeIds.forEach((nodeId) => {
-    const node = graph.nodes[nodeId];
-    if (!node) return;
-    const componentId = node.meta?.componentId;
-    if (typeof componentId === 'string' && componentId.trim().length > 0) {
-      componentIds.add(componentId);
-    }
-  });
-  return componentIds;
-};
-
-const v2_buildGraphForTemplateCreate = ({
-  sourceGraph,
-  includeArtist,
-  includeProfile,
-  includeMemo,
-}: {
-  sourceGraph: V2TemplateNodeGraph;
-  includeArtist: boolean;
-  includeProfile: boolean;
-  includeMemo: boolean;
-}): V2TemplateNodeGraph => {
-  const selectedOptionalRootIds = new Set<string>();
-  if (includeArtist) {
-    v2_OPTIONAL_SCENE_ROOT_IDS.artist.forEach((rootId) =>
-      selectedOptionalRootIds.add(rootId)
-    );
-  }
-  if (includeProfile) {
-    v2_OPTIONAL_SCENE_ROOT_IDS.profile.forEach((rootId) =>
-      selectedOptionalRootIds.add(rootId)
-    );
-  }
-  if (includeMemo) {
-    v2_OPTIONAL_SCENE_ROOT_IDS.memo.forEach((rootId) =>
-      selectedOptionalRootIds.add(rootId)
-    );
-  }
-
-  const nextRootNodeIds = sourceGraph.rootNodeIds.filter((rootId) => {
-    if (!v2_OPTIONAL_SCENE_ROOT_ID_SET.has(rootId)) return true;
-    return selectedOptionalRootIds.has(rootId);
-  });
-
-  const nodeIdsToKeep = new Set<string>();
-  nextRootNodeIds.forEach((rootId) => {
-    v2_collectSubtreeNodeIds({ graph: sourceGraph, startNodeId: rootId, bucket: nodeIdsToKeep });
-  });
-
-  const nextComponentDefinitions: V2TemplateNodeGraph['componentDefinitions'] = {};
-  const queuedComponentIds = Array.from(
-    v2_collectReferencedComponentIds({
-      graph: sourceGraph,
-      nodeIds: nodeIdsToKeep,
-    })
-  );
-
-  while (queuedComponentIds.length > 0) {
-    const componentId = queuedComponentIds.shift();
-    if (!componentId) continue;
-    if (nextComponentDefinitions[componentId]) continue;
-
-    const definition = sourceGraph.componentDefinitions[componentId];
-    if (!definition) continue;
-    nextComponentDefinitions[componentId] = {
-      ...definition,
-      ...(definition.instanceTransforms
-        ? { instanceTransforms: { ...definition.instanceTransforms } }
-        : {}),
-    };
-    v2_collectSubtreeNodeIds({
-      graph: sourceGraph,
-      startNodeId: definition.rootNodeId,
-      bucket: nodeIdsToKeep,
-    });
-
-    const nestedRefs = v2_collectReferencedComponentIds({
-      graph: sourceGraph,
-      nodeIds: nodeIdsToKeep,
-    });
-    nestedRefs.forEach((nestedComponentId) => {
-      if (!nextComponentDefinitions[nestedComponentId]) {
-        queuedComponentIds.push(nestedComponentId);
-      }
-    });
-  }
-
-  const nextNodes: V2TemplateNodeGraph['nodes'] = {};
-  nodeIdsToKeep.forEach((nodeId) => {
-    const sourceNode = sourceGraph.nodes[nodeId];
-    if (!sourceNode) return;
-    nextNodes[nodeId] = v2_cloneGraphNode(sourceNode);
-  });
-
-  Object.values(nextNodes).forEach((node) => {
-    node.childIds = node.childIds.filter((childId) => Boolean(nextNodes[childId]));
-    if (node.parentId && !nextNodes[node.parentId]) {
-      node.parentId = null;
-    }
-  });
-
-  const sanitizedRootNodeIds = nextRootNodeIds.filter((rootId) => Boolean(nextNodes[rootId]));
-
-  return {
-    rootNodeIds: sanitizedRootNodeIds,
-    nodes: nextNodes,
-    componentDefinitions: nextComponentDefinitions,
-  };
-};
-
 const TemplateEditorMainPage = () => {
   const router = useRouter();
   const baseConfig = useMemo(() => v2_createTemplateBaseConfig(), []);
@@ -330,11 +230,18 @@ const TemplateEditorMainPage = () => {
   const [templateName, setTemplateName] = useState('새 템플릿');
   const [templateDescription, setTemplateDescription] = useState('');
   const [isArtist, setIsArtist] = useState(true);
-  const [isProfile, setIsProfile] = useState(true);
   const [isMemo, setIsMemo] = useState(true);
   const [isMultiple, setIsMultiple] = useState(true);
+  const [useOfflineMemo, setUseOfflineMemo] = useState(true);
   const [enableThemeSelection, setEnableThemeSelection] = useState(false);
   const [maxStreamingTimeByDay, setMaxStreamingTimeByDay] = useState(2);
+  const [cardComponentCount, setCardComponentCount] = useState(1);
+  const [layoutMode, setLayoutMode] =
+    useState<V2TemplateTimetableGridLayoutMode>('grid3x3');
+  const [flex42ThreeRow, setFlex42ThreeRow] =
+    useState<V2TemplateTimetableFlex42ThreeRow>('bottom');
+  const [flex42Align, setFlex42Align] =
+    useState<V2TemplateTimetableFlex42Align>('center');
   const [templateWidth, setTemplateWidth] = useState(baseConfig.templateSize.width);
   const [templateHeight, setTemplateHeight] = useState(baseConfig.templateSize.height);
   const [localePreset, setLocalePreset] = useState<V2TemplateLocalePreset>('en');
@@ -344,44 +251,43 @@ const TemplateEditorMainPage = () => {
   const [defaultTheme, setDefaultTheme] = useState(baseConfig.defaultTheme);
   const [createError, setCreateError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
-  const [rootFigmaUrl, setRootFigmaUrl] = useState('');
-  const [cardComponentSetUrl, setCardComponentSetUrl] = useState('');
-  const [figmaTemplateName, setFigmaTemplateName] = useState('새 템플릿');
-  const [figmaTemplateDescription, setFigmaTemplateDescription] = useState('');
-  const [figmaLayoutModeOverride, setFigmaLayoutModeOverride] =
-    useState<V2LayoutOverrideMode>('auto');
-  const [figmaWithAssets, setFigmaWithAssets] = useState(true);
-  const [figmaAnalysis, setFigmaAnalysis] = useState<V2FigmaAnalyzeResponse | null>(null);
-  const [figmaAnalyzeError, setFigmaAnalyzeError] = useState<string | null>(null);
-  const [figmaImportError, setFigmaImportError] = useState<string | null>(null);
-  const [isAnalyzingFigma, setIsAnalyzingFigma] = useState(false);
-  const [isImportingFigma, setIsImportingFigma] = useState(false);
 
   const canCreate = useMemo(() => {
-    const maxSlotValid = Number.isFinite(maxStreamingTimeByDay) && maxStreamingTimeByDay >= 1;
+    const maxSlotValid =
+      !isMultiple ||
+      (Number.isFinite(maxStreamingTimeByDay) &&
+        maxStreamingTimeByDay >= v2_MIN_TIMETABLE_MULTI_ENTRY_COUNT &&
+        maxStreamingTimeByDay <= v2_MAX_TIMETABLE_MULTI_ENTRY_COUNT);
     const widthValid = Number.isFinite(templateWidth) && templateWidth >= 1;
     const heightValid = Number.isFinite(templateHeight) && templateHeight >= 1;
+    const componentCountValid =
+      Number.isFinite(cardComponentCount) &&
+      cardComponentCount >= v2_MIN_TIMETABLE_CARD_COMPONENT_COUNT &&
+      cardComponentCount <= v2_MAX_TIMETABLE_CARD_COMPONENT_COUNT;
     const themeValid = baseThemeOptions.includes(defaultTheme);
-    return maxSlotValid && widthValid && heightValid && themeValid;
-  }, [baseThemeOptions, defaultTheme, maxStreamingTimeByDay, templateHeight, templateWidth]);
-  const canAnalyzeFigma = useMemo(() => {
-    return rootFigmaUrl.trim().length > 0;
-  }, [rootFigmaUrl]);
-  const canImportFigma = useMemo(() => {
     return (
-      canAnalyzeFigma &&
-      !isAnalyzingFigma &&
-      !isImportingFigma &&
-      figmaAnalysis?.canImport === true &&
-      figmaTemplateName.trim().length > 0
+      maxSlotValid &&
+      widthValid &&
+      heightValid &&
+      componentCountValid &&
+      themeValid
     );
   }, [
-    canAnalyzeFigma,
-    figmaAnalysis?.canImport,
-    figmaTemplateName,
-    isAnalyzingFigma,
-    isImportingFigma,
+    baseThemeOptions,
+    cardComponentCount,
+    defaultTheme,
+    isMultiple,
+    maxStreamingTimeByDay,
+    templateHeight,
+    templateWidth,
   ]);
+
+  const selectedLayoutOption = useMemo(
+    () =>
+      v2_LAYOUT_MODE_OPTIONS.find((option) => option.value === layoutMode) ??
+      v2_LAYOUT_MODE_OPTIONS[0],
+    [layoutMode]
+  );
 
   const handleCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -395,11 +301,12 @@ const TemplateEditorMainPage = () => {
       const finalName = templateName.trim() || `template_${fallbackNameSuffix}`;
       const finalDescription =
         templateDescription.trim() || `${finalName} (admin template)`;
-      const normalizedMaxSlot = isMultiple
-        ? maxStreamingTimeByDay >= 2
-          ? 2
-          : 1
-        : 1;
+      const normalizedMultiEntryCount = isMultiple
+        ? v2_clampTimetableMultiEntryCount(maxStreamingTimeByDay)
+        : v2_MIN_TIMETABLE_MULTI_ENTRY_COUNT;
+      const normalizedMaxSlot = isMultiple ? normalizedMultiEntryCount : 1;
+      const normalizedCardComponentCount =
+        v2_clampTimetableCardComponentCount(cardComponentCount);
       const width = Math.max(1, Math.round(templateWidth));
       const height = Math.max(1, Math.round(templateHeight));
       const resolvedDefaultTheme = baseThemeOptions.includes(defaultTheme)
@@ -410,7 +317,31 @@ const TemplateEditorMainPage = () => {
           ? baseThemeOptions
           : [...baseThemeOptions, resolvedDefaultTheme]
         : baseThemeOptions;
-      const nextGraph = v2_createEmptyTemplateNodeGraph();
+      const nextGraph = v2_createDefaultSceneTemplateNodeGraph({
+        includeArtist: isArtist,
+        includeMemo: isMemo,
+      });
+      const nextTimetable = v2_createDefaultTimetableConfig({
+        multiEntryCount: normalizedMultiEntryCount,
+        componentCount: normalizedCardComponentCount,
+        statusOptions: {
+          multi: isMultiple,
+          offlineMemo: useOfflineMemo,
+        },
+      });
+      nextTimetable.layoutMode = layoutMode;
+      nextTimetable.flex42Align = flex42Align;
+      nextTimetable.flex42ThreeRow = flex42ThreeRow;
+      const nextCardLayout = {
+        ...normalized.layout.card,
+      };
+      Array.from({ length: normalizedMultiEntryCount }, (_, entryIndex) => {
+        nextCardLayout[`multiEntryFrame${entryIndex + 1}`] =
+          v2_createTimetableMultiEntryFrameStyle({
+            entryIndex,
+            entryCount: normalizedMultiEntryCount,
+          });
+      });
       const nextConfig = v2_normalizeTemplateRenderConfig({
         ...normalized,
         metadata: {
@@ -457,6 +388,13 @@ const TemplateEditorMainPage = () => {
             if (!isArtist && field.scope === 'global' && field.key === 'artistText') {
               return false;
             }
+            if (
+              !useOfflineMemo &&
+              field.scope === 'card' &&
+              field.key === 'offlineMemo'
+            ) {
+              return false;
+            }
             return true;
           }),
         },
@@ -470,6 +408,7 @@ const TemplateEditorMainPage = () => {
         },
         layout: {
           ...normalized.layout,
+          card: nextCardLayout,
           topObjectContainer: {
             ...normalized.layout.topObjectContainer,
             width,
@@ -477,11 +416,14 @@ const TemplateEditorMainPage = () => {
           },
         },
         graph: nextGraph,
+        timetable: nextTimetable,
         editorOptions: {
           ...normalized.editorOptions,
           isArtist,
+          isMemo,
           isMultiple,
           maxStreamingTimeByDay: normalizedMaxSlot,
+          useOfflineMemoAssetsByDay: useOfflineMemo,
           enableThemeSelection,
         },
       });
@@ -549,584 +491,625 @@ const TemplateEditorMainPage = () => {
     }
   };
 
-  const handleAnalyzeFigma = async () => {
-    if (!canAnalyzeFigma) return;
-    setFigmaAnalyzeError(null);
-    setFigmaImportError(null);
-    setIsAnalyzingFigma(true);
-
-    try {
-      const response = await fetch('/api/admin/v2/templates/figma/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          rootFigmaUrl: rootFigmaUrl.trim(),
-          cardComponentSetUrl: cardComponentSetUrl.trim() || undefined,
-          templateName: figmaTemplateName.trim() || undefined,
-        }),
-      });
-      const result = (await response.json().catch(() => null)) as unknown;
-      if (!response.ok) {
-        throw new Error(
-          v2_extractApiErrorMessage(result) || 'Figma 분석에 실패했습니다.'
-        );
-      }
-      const analysis =
-        v2_isRecord(result) && v2_isRecord(result.analysis)
-          ? (result.analysis as unknown as V2FigmaAnalyzeResponse)
-          : null;
-      if (!analysis) {
-        throw new Error('Figma 분석 응답이 비어 있습니다.');
-      }
-      setFigmaAnalysis(analysis);
-      if (!cardComponentSetUrl.trim() && analysis.resolvedCardComponentSetUrl) {
-        setCardComponentSetUrl(analysis.resolvedCardComponentSetUrl);
-      }
-      if (!figmaTemplateName.trim() && analysis.templateNameSuggestion) {
-        setFigmaTemplateName(analysis.templateNameSuggestion);
-      }
-    } catch (error) {
-      setFigmaAnalysis(null);
-      setFigmaAnalyzeError(
-        v2_toErrorMessage(error, 'Figma 분석 중 오류가 발생했습니다.')
-      );
-    } finally {
-      setIsAnalyzingFigma(false);
-    }
-  };
-
-  const handleImportFromFigma = async () => {
-    if (!canImportFigma) return;
-    setFigmaImportError(null);
-    setIsImportingFigma(true);
-
-    try {
-      const response = await fetch('/api/admin/v2/templates/figma/import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          rootFigmaUrl: rootFigmaUrl.trim(),
-          cardComponentSetUrl: cardComponentSetUrl.trim() || undefined,
-          templateName: figmaTemplateName.trim(),
-          templateDescription: figmaTemplateDescription.trim() || undefined,
-          layoutModeOverride: figmaLayoutModeOverride,
-          assetImportMode: figmaWithAssets ? 'with-assets' : 'without-assets',
-        }),
-      });
-      const result = (await response.json().catch(() => null)) as unknown;
-      if (!response.ok) {
-        throw new Error(
-          v2_extractApiErrorMessage(result) || 'Figma import에 실패했습니다.'
-        );
-      }
-
-      const templateId =
-        v2_isRecord(result) &&
-        v2_isRecord(result.import) &&
-        typeof result.import.templateId === 'string'
-          ? result.import.templateId
-          : null;
-      if (!templateId) {
-        throw new Error('Figma import 결과에서 templateId를 찾을 수 없습니다.');
-      }
-
-      router.push(`/admin/template-editor/${templateId}/edit`);
-    } catch (error) {
-      setFigmaImportError(
-        v2_toErrorMessage(error, 'Figma import 중 오류가 발생했습니다.')
-      );
-    } finally {
-      setIsImportingFigma(false);
-    }
-  };
-
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-10">
-      <h1 className="text-2xl font-semibold">Template Editor Create</h1>
-      <p className="mt-2 text-sm text-slate-500">
-        v2 템플릿을 생성하고 바로 편집 페이지로 이동합니다.
-      </p>
-      <button
-        type="button"
-        onClick={() => router.push('/admin/template-editor')}
-        className="mt-3 rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700"
-      >
-        목록으로 돌아가기
-      </button>
-
-      <section className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+    <div className="mx-auto w-full max-w-6xl px-6 py-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-slate-900">
-            Import From Figma
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            루트 프레임 링크를 기준으로 구조를 분석합니다. 카드 컴포넌트셋 링크는 자동 검출이 어려울 때만 override로 넣으면 됩니다.
+          <p className="text-xs font-semibold uppercase text-slate-500">
+            Template Editor
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold text-slate-950">
+            새 시간표 템플릿 만들기
+          </h1>
+          <p className="mt-2 text-sm text-slate-600">
+            빈 캔버스에서 시작하고 Grid/Card 기본 구조만 생성합니다.
           </p>
         </div>
-
-        <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-root-url">
-              루트 프레임 링크
-            </label>
-            <input
-              id="figma-root-url"
-              value={rootFigmaUrl}
-              onChange={(event) => setRootFigmaUrl(event.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              placeholder="https://www.figma.com/design/..."
-            />
-          </div>
-
-          <details className="rounded-md border border-slate-200 bg-white p-3">
-            <summary className="cursor-pointer text-sm font-medium text-slate-700">
-              고급 옵션: 카드 컴포넌트셋 링크 override
-            </summary>
-            <div className="mt-3">
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-card-url">
-                카드 컴포넌트셋 링크 (선택)
-              </label>
-              <input
-                id="figma-card-url"
-                value={cardComponentSetUrl}
-                onChange={(event) => setCardComponentSetUrl(event.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                placeholder="비워두면 root에서 자동 검출"
-              />
-              <p className="mt-1 text-xs text-slate-500">
-                root에서 여러 카드셋 후보가 섞였거나 자동 검출이 애매할 때만 직접 입력합니다.
-              </p>
-            </div>
-          </details>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-template-name">
-                템플릿 이름
-              </label>
-              <input
-                id="figma-template-name"
-                value={figmaTemplateName}
-                onChange={(event) => setFigmaTemplateName(event.target.value)}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                placeholder="예: temis_shared_status"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-layout-override">
-                배치 방식 override
-              </label>
-              <select
-                id="figma-layout-override"
-                value={figmaLayoutModeOverride}
-                onChange={(event) =>
-                  setFigmaLayoutModeOverride(event.target.value as V2LayoutOverrideMode)
-                }
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              >
-                {Object.entries(v2_LAYOUT_MODE_LABEL).map(([value, label]) => (
-                  <option key={`layout-mode-${value}`} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-template-description">
-              템플릿 설명
-            </label>
-            <textarea
-              id="figma-template-description"
-              rows={2}
-              value={figmaTemplateDescription}
-              onChange={(event) => setFigmaTemplateDescription(event.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              placeholder="예: Figma에서 불러온 공용 카드 템플릿"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="figma-assets-mode">
-              에셋 import
-            </label>
-            <select
-              id="figma-assets-mode"
-              value={figmaWithAssets ? 'with-assets' : 'without-assets'}
-              onChange={(event) =>
-                setFigmaWithAssets(event.target.value === 'with-assets')
-              }
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            >
-              <option value="with-assets">포함 (R2에 업로드)</option>
-              <option value="without-assets">제외 (레이아웃만 생성)</option>
-            </select>
-            <p className="mt-1 text-xs text-slate-500">
-              포함을 선택하면 Figma 이미지 에셋을 가져와 R2 URL로 저장합니다.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleAnalyzeFigma}
-              disabled={!canAnalyzeFigma || isAnalyzingFigma || isImportingFigma}
-              className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isAnalyzingFigma ? '분석 중...' : '분석하기'}
-            </button>
-            <button
-              type="button"
-              onClick={handleImportFromFigma}
-              disabled={!canImportFigma}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isImportingFigma ? '생성 중...' : 'Figma로 템플릿 만들기'}
-            </button>
-          </div>
-        </div>
-
-        {figmaAnalyzeError ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {figmaAnalyzeError}
-          </p>
-        ) : null}
-
-        {figmaImportError ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {figmaImportError}
-          </p>
-        ) : null}
-
-        {figmaAnalysis ? (
-          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Variant Mode
-                </p>
-                <p className="mt-1 text-sm font-medium text-slate-900">
-                  {figmaAnalysis.mode}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Layout Candidate
-                </p>
-                <p className="mt-1 text-sm font-medium text-slate-900">
-                  {v2_LAYOUT_MODE_LABEL[figmaAnalysis.layoutModeCandidate]}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Statuses
-                </p>
-                <p className="mt-1 text-sm font-medium text-slate-900">
-                  {figmaAnalysis.detectedStatuses.join(', ') || '(none)'}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  {figmaAnalysis.detectedStatuses
-                    .map(
-                      (status) =>
-                        `${status}:${figmaAnalysis.statusSourceModeByStatus[status] ?? 'none'}`
-                    )
-                    .join(' / ') || '(none)'}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Card Set Source
-                </p>
-                <p className="mt-1 text-sm font-medium text-slate-900">
-                  {figmaAnalysis.cardComponentSetSource === 'auto-detected'
-                    ? 'Auto-detected from root'
-                    : 'Manual input'}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Resolved Card Set
-                </p>
-                <p className="mt-1 break-all text-sm font-medium text-slate-900">
-                  {figmaAnalysis.resolvedCardComponentSetUrl || '(none)'}
-                </p>
-              </div>
-            </div>
-
-            {figmaAnalysis.warnings.length > 0 ? (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-amber-600">
-                  Warnings
-                </p>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-amber-700">
-                  {figmaAnalysis.warnings.map((warning) => (
-                    <li key={`figma-warning-${warning}`}>{warning}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {figmaAnalysis.critical.length > 0 ? (
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-rose-600">
-                  Critical
-                </p>
-                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-rose-700">
-                  {figmaAnalysis.critical.map((critical) => (
-                    <li key={`figma-critical-${critical}`}>{critical}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
+        <button
+          type="button"
+          onClick={() => router.push('/admin/template-editor')}
+          className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        >
+          목록으로 돌아가기
+        </button>
+      </div>
 
       <form
         onSubmit={handleCreateTemplate}
-        className="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5"
+        className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]"
       >
-        <section className="space-y-3 rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-          <h2 className="text-sm font-semibold text-slate-900">필수 설정</h2>
+        <div className="rounded-xl border border-slate-200 bg-white">
+          <section className="space-y-4 p-5">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">기본 정보</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                관리 목록과 편집 화면에서 사용할 이름을 정합니다.
+              </p>
+            </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="template-name">
-              템플릿 이름
-            </label>
-            <input
-              id="template-name"
-              value={templateName}
-              onChange={(event) => setTemplateName(event.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              placeholder="예: temis_basic"
-            />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="template-description">
-              템플릿 설명
-            </label>
-            <textarea
-              id="template-description"
-              rows={2}
-              value={templateDescription}
-              onChange={(event) => setTemplateDescription(event.target.value)}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              placeholder="예: 팬카페 주간 업로드용 기본 템플릿"
-            />
-          </div>
-
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={isArtist}
-              onChange={(event) => setIsArtist(event.target.checked)}
-            />
-            아티스트 영역 사용
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={isProfile}
-              onChange={(event) => setIsProfile(event.target.checked)}
-            />
-            프로필 영역 사용
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={isMemo}
-              onChange={(event) => setIsMemo(event.target.checked)}
-            />
-            메모 영역 사용
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={isMultiple}
-              onChange={(event) => setIsMultiple(event.target.checked)}
-            />
-            다회차 시간표 사용
-          </label>
-
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={enableThemeSelection}
-              onChange={(event) => setEnableThemeSelection(event.target.checked)}
-            />
-            테마 설정 노출 (테마 2개 이상일 때만 표시)
-          </label>
-
-          <p className="text-xs text-slate-500">
-            신규 템플릿은 항상 빈 구조로 생성됩니다. 필요한 오브젝트/그룹은 에디터에서 직접 추가해 주세요.
-          </p>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="max-time">
-              요일별 최대 시간 슬롯 수
-            </label>
-            <select
-              id="max-time"
-              value={isMultiple ? maxStreamingTimeByDay : 1}
-              onChange={(event) =>
-                setMaxStreamingTimeByDay(Number.parseInt(event.target.value, 10) >= 2 ? 2 : 1)
-              }
-              disabled={!isMultiple}
-              className="w-40 rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <option value={1}>1회차</option>
-              <option value={2}>2회차</option>
-            </select>
-          </div>
-        </section>
-
-        <details className="rounded-lg border border-slate-200 bg-slate-50/60 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-900">
-            고급 설정
-          </summary>
-
-          <div className="mt-3 space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="template-width">
-                  캔버스 가로
+                <label
+                  className="mb-1 block text-sm font-medium text-slate-700"
+                  htmlFor="template-name"
+                >
+                  템플릿 이름
                 </label>
                 <input
-                  id="template-width"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={templateWidth}
-                  onChange={(event) =>
-                    setTemplateWidth(Number.parseInt(event.target.value, 10) || 1)
-                  }
+                  id="template-name"
+                  value={templateName}
+                  onChange={(event) => setTemplateName(event.target.value)}
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="예: temis_basic"
                 />
               </div>
+
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="template-height">
-                  캔버스 세로
+                <label
+                  className="mb-1 block text-sm font-medium text-slate-700"
+                  htmlFor="template-description"
+                >
+                  템플릿 설명
                 </label>
                 <input
-                  id="template-height"
-                  type="number"
-                  min={1}
-                  step={1}
-                  value={templateHeight}
-                  onChange={(event) =>
-                    setTemplateHeight(Number.parseInt(event.target.value, 10) || 1)
-                  }
+                  id="template-description"
+                  value={templateDescription}
+                  onChange={(event) => setTemplateDescription(event.target.value)}
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  placeholder="예: 팬카페 주간 업로드용 기본 템플릿"
                 />
               </div>
             </div>
+          </section>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <section className="space-y-4 border-t border-slate-200 p-5">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">시간표 구조</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                요일 슬롯 Grid와 Card 상태의 기본 구조를 설정합니다.
+              </p>
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">배치 방식</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {v2_LAYOUT_MODE_OPTIONS.map((option) => {
+                  const isSelected = layoutMode === option.value;
+                  return (
+                    <button
+                      key={`layout-mode-${option.value}`}
+                      type="button"
+                      onClick={() => setLayoutMode(option.value)}
+                      className={`rounded-md border px-3 py-2 text-left text-sm ${
+                        isSelected
+                          ? 'border-slate-900 bg-slate-900 text-white'
+                          : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="block font-semibold">{option.label}</span>
+                      <span
+                        className={`mt-1 block text-xs ${
+                          isSelected ? 'text-slate-200' : 'text-slate-500'
+                        }`}
+                      >
+                        {option.description}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {layoutMode === 'flex4x2' ? (
+                <div className="mt-3 grid gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-2">
+                  <div>
+                    <label
+                      className="mb-1 block text-sm font-medium text-slate-700"
+                      htmlFor="flex42-three-row"
+                    >
+                      3칸 줄
+                    </label>
+                    <select
+                      id="flex42-three-row"
+                      value={flex42ThreeRow}
+                      onChange={(event) =>
+                        setFlex42ThreeRow(
+                          event.target.value as V2TemplateTimetableFlex42ThreeRow
+                        )
+                      }
+                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="top">위</option>
+                      <option value="bottom">아래</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label
+                      className="mb-1 block text-sm font-medium text-slate-700"
+                      htmlFor="flex42-align"
+                    >
+                      3칸 정렬
+                    </label>
+                    <select
+                      id="flex42-align"
+                      value={flex42Align}
+                      onChange={(event) =>
+                        setFlex42Align(
+                          event.target.value as V2TemplateTimetableFlex42Align
+                        )
+                      }
+                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="left">왼쪽</option>
+                      <option value="center">가운데</option>
+                      <option value="right">오른쪽</option>
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-700">Card 상태</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  disabled
+                  aria-pressed="true"
+                  className="flex min-h-[76px] cursor-default items-start justify-between rounded-md border border-slate-900 bg-slate-900 px-3 py-3 text-left text-sm text-white"
+                >
+                  <span>
+                    <span className="block font-semibold">온라인</span>
+                    <span className="mt-1 block text-xs text-slate-200">
+                      기본 필수 상태
+                    </span>
+                  </span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-900">
+                    필수
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  aria-pressed="true"
+                  className="flex min-h-[76px] cursor-default items-start justify-between rounded-md border border-slate-900 bg-slate-900 px-3 py-3 text-left text-sm text-white"
+                >
+                  <span>
+                    <span className="block font-semibold">오프라인</span>
+                    <span className="mt-1 block text-xs text-slate-200">
+                      기본 필수 상태
+                    </span>
+                  </span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-900">
+                    필수
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={useOfflineMemo}
+                  onClick={() => setUseOfflineMemo((current) => !current)}
+                  className={`flex min-h-[76px] items-start justify-between rounded-md border px-3 py-3 text-left text-sm transition ${
+                    useOfflineMemo
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>
+                    <span className="block font-semibold">오프라인 메모</span>
+                    <span
+                      className={`mt-1 block text-xs ${
+                        useOfflineMemo ? 'text-slate-200' : 'text-slate-500'
+                      }`}
+                    >
+                      메모 전용 상태
+                    </span>
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      useOfflineMemo
+                        ? 'bg-white text-slate-900'
+                        : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    {useOfflineMemo ? '사용' : '미사용'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={isMultiple}
+                  onClick={() => setIsMultiple((current) => !current)}
+                  className={`flex min-h-[76px] items-start justify-between rounded-md border px-3 py-3 text-left text-sm transition ${
+                    isMultiple
+                      ? 'border-slate-900 bg-slate-900 text-white'
+                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>
+                    <span className="block font-semibold">다회차</span>
+                    <span
+                      className={`mt-1 block text-xs ${
+                        isMultiple ? 'text-slate-200' : 'text-slate-500'
+                      }`}
+                    >
+                      Entry Frame 생성
+                    </span>
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      isMultiple
+                        ? 'bg-white text-slate-900'
+                        : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    {isMultiple ? '사용' : '미사용'}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="locale-preset">
-                  언어 프리셋
+                <label
+                  className="mb-1 block text-sm font-medium text-slate-700"
+                  htmlFor="card-component-count"
+                >
+                  초기 Card 컴포넌트 수
                 </label>
                 <select
-                  id="locale-preset"
-                  value={localePreset}
+                  id="card-component-count"
+                  value={cardComponentCount}
                   onChange={(event) =>
-                    setLocalePreset(event.target.value as V2TemplateLocalePreset)
+                    setCardComponentCount(
+                      v2_clampTimetableCardComponentCount(event.target.value)
+                    )
                   }
                   className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
                 >
-                  <option value="kr">한국어 (kr)</option>
-                  <option value="en">영어 (en)</option>
-                  <option value="jp">일본어 (jp)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="default-theme">
-                  기본 테마
-                </label>
-                <select
-                  id="default-theme"
-                  value={defaultTheme}
-                  onChange={(event) => setDefaultTheme(event.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                >
-                  {baseThemeOptions.map((theme) => (
-                    <option key={`create-theme-${theme}`} value={theme}>
-                      {theme}
+                  {v2_CARD_COMPONENT_COUNT_OPTIONS.map((componentCount) => (
+                    <option
+                      key={`card-component-count-${componentCount}`}
+                      value={componentCount}
+                    >
+                      {componentCount}개
                     </option>
                   ))}
                 </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  요일 슬롯에 할당할 후보 Card 컴포넌트를 미리 만듭니다.
+                </p>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="time-preset">
-                  시간 포맷 프리셋
+                <label
+                  className="mb-1 block text-sm font-medium text-slate-700"
+                  htmlFor="multi-entry-count"
+                >
+                  다회차 수
                 </label>
                 <select
-                  id="time-preset"
-                  value={timePreset}
+                  id="multi-entry-count"
+                  value={maxStreamingTimeByDay}
                   onChange={(event) =>
-                    setTimePreset(event.target.value as V2TemplateTimePreset)
+                    setMaxStreamingTimeByDay(
+                      v2_clampTimetableMultiEntryCount(event.target.value)
+                    )
                   }
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  disabled={!isMultiple}
+                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <option value="h12Prefix">12시간제 (AM/PM 앞)</option>
-                  <option value="h12Suffix">12시간제 (AM/PM 뒤)</option>
-                  <option value="h24">24시간제</option>
+                  {v2_MULTI_ENTRY_COUNT_OPTIONS.map((entryCount) => (
+                    <option
+                      key={`multi-entry-count-${entryCount}`}
+                      value={entryCount}
+                    >
+                      {entryCount}회차
+                    </option>
+                  ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="week-date-preset">
-                  주간 날짜 포맷 프리셋
-                </label>
-                <select
-                  id="week-date-preset"
-                  value={weekDatePreset}
-                  onChange={(event) =>
-                    setWeekDatePreset(event.target.value as V2TemplateWeekDatePreset)
-                  }
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="locale">기본(locale)</option>
-                  <option value="ymdSlash">Y/M/D</option>
-                  <option value="mdySlash">M/D/Y</option>
-                  <option value="dmyDot">D.M.Y</option>
-                </select>
+                <p className="mt-1 text-xs text-slate-500">
+                  다회차 상태를 사용할 때 Entry Frame이 이 수만큼 생성됩니다.
+                </p>
               </div>
             </div>
+          </section>
 
-          </div>
-        </details>
+          <section className="space-y-4 border-t border-slate-200 p-5">
+            <div>
+              <h2 className="text-base font-semibold text-slate-950">입력 데이터</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                사용자 Form에서 받을 전역 입력 필드를 선택합니다.
+              </p>
+            </div>
 
-        {createError ? (
-          <p className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {createError}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                aria-pressed={isArtist}
+                onClick={() => setIsArtist((current) => !current)}
+                className={`flex min-h-[76px] items-start justify-between rounded-md border px-3 py-3 text-left text-sm transition ${
+                  isArtist
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>
+                  <span className="block font-semibold">아티스트</span>
+                  <span
+                    className={`mt-1 block text-xs ${
+                      isArtist ? 'text-slate-200' : 'text-slate-500'
+                    }`}
+                  >
+                    전역 아티스트 입력
+                  </span>
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    isArtist
+                      ? 'bg-white text-slate-900'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {isArtist ? '사용' : '미사용'}
+                </span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={isMemo}
+                onClick={() => setIsMemo((current) => !current)}
+                className={`flex min-h-[76px] items-start justify-between rounded-md border px-3 py-3 text-left text-sm transition ${
+                  isMemo
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <span>
+                  <span className="block font-semibold">메모</span>
+                  <span
+                    className={`mt-1 block text-xs ${
+                      isMemo ? 'text-slate-200' : 'text-slate-500'
+                    }`}
+                  >
+                    전역 메모 입력
+                  </span>
+                </span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    isMemo
+                      ? 'bg-white text-slate-900'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}
+                >
+                  {isMemo ? '사용' : '미사용'}
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <details className="border-t border-slate-200 p-5">
+            <summary className="cursor-pointer text-base font-semibold text-slate-950">
+              고급 설정
+            </summary>
+
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                    htmlFor="template-width"
+                  >
+                    캔버스 가로
+                  </label>
+                  <input
+                    id="template-width"
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={templateWidth}
+                    onChange={(event) =>
+                      setTemplateWidth(Number.parseInt(event.target.value, 10) || 1)
+                    }
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                    htmlFor="template-height"
+                  >
+                    캔버스 세로
+                  </label>
+                  <input
+                    id="template-height"
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={templateHeight}
+                    onChange={(event) =>
+                      setTemplateHeight(Number.parseInt(event.target.value, 10) || 1)
+                    }
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                    htmlFor="locale-preset"
+                  >
+                    언어 프리셋
+                  </label>
+                  <select
+                    id="locale-preset"
+                    value={localePreset}
+                    onChange={(event) =>
+                      setLocalePreset(event.target.value as V2TemplateLocalePreset)
+                    }
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="kr">한국어</option>
+                    <option value="en">영어</option>
+                    <option value="jp">일본어</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                    htmlFor="default-theme"
+                  >
+                    기본 테마
+                  </label>
+                  <select
+                    id="default-theme"
+                    value={defaultTheme}
+                    onChange={(event) => setDefaultTheme(event.target.value)}
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    {baseThemeOptions.map((theme) => (
+                      <option key={`create-theme-${theme}`} value={theme}>
+                        {theme}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                    htmlFor="time-preset"
+                  >
+                    시간 포맷
+                  </label>
+                  <select
+                    id="time-preset"
+                    value={timePreset}
+                    onChange={(event) =>
+                      setTimePreset(event.target.value as V2TemplateTimePreset)
+                    }
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="h12Prefix">12시간제 AM/PM 앞</option>
+                    <option value="h12Suffix">12시간제 AM/PM 뒤</option>
+                    <option value="h24">24시간제</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    className="mb-1 block text-sm font-medium text-slate-700"
+                    htmlFor="week-date-preset"
+                  >
+                    주간 날짜 포맷
+                  </label>
+                  <select
+                    id="week-date-preset"
+                    value={weekDatePreset}
+                    onChange={(event) =>
+                      setWeekDatePreset(event.target.value as V2TemplateWeekDatePreset)
+                    }
+                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                  >
+                    <option value="locale">기본 locale</option>
+                    <option value="ymdSlash">Y/M/D</option>
+                    <option value="mdySlash">M/D/Y</option>
+                    <option value="dmyDot">D.M.Y</option>
+                  </select>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={enableThemeSelection}
+                  onChange={(event) => setEnableThemeSelection(event.target.checked)}
+                  className="accent-slate-900"
+                />
+                테마 설정 노출
+              </label>
+            </div>
+          </details>
+        </div>
+
+        <aside className="h-fit rounded-xl border border-slate-200 bg-white p-5 lg:sticky lg:top-6">
+          <h2 className="text-base font-semibold text-slate-950">생성 요약</h2>
+          <dl className="mt-4 space-y-3 text-sm">
+            <div>
+              <dt className="text-slate-500">템플릿</dt>
+              <dd className="mt-1 font-medium text-slate-950">
+                {templateName.trim() || '이름 미지정'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">시작점</dt>
+              <dd className="mt-1 font-medium text-slate-950">빈 캔버스</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">배치 방식</dt>
+              <dd className="mt-1 font-medium text-slate-950">
+                {selectedLayoutOption.label}
+                {layoutMode === 'flex4x2'
+                  ? ` · 3칸 ${v2_FLEX42_THREE_ROW_LABELS[flex42ThreeRow]} · ${v2_FLEX42_ALIGN_LABELS[flex42Align]}`
+                  : ''}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Card 컴포넌트</dt>
+              <dd className="mt-1 text-slate-950">{cardComponentCount}개</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Card 상태</dt>
+              <dd className="mt-1 text-slate-950">
+                온라인, 오프라인
+                {useOfflineMemo ? ', 오프라인 메모' : ''}
+                {isMultiple ? `, 다회차 ${maxStreamingTimeByDay}회차` : ''}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">입력 필드</dt>
+              <dd className="mt-1 text-slate-950">
+                {[
+                  isArtist ? '아티스트' : null,
+                  isMemo ? '메모' : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ') || '추가 전역 필드 없음'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">캔버스</dt>
+              <dd className="mt-1 text-slate-950">
+                {templateWidth} x {templateHeight}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">포맷</dt>
+              <dd className="mt-1 text-slate-950">
+                {v2_LOCALE_PRESET_LABELS[localePreset]} ·{' '}
+                {v2_TIME_PRESET_LABELS[timePreset]} ·{' '}
+                {v2_WEEK_DATE_PRESET_LABELS[weekDatePreset]}
+              </dd>
+            </div>
+          </dl>
+
+          <p className="mt-4 border-t border-slate-200 pt-4 text-xs text-slate-500">
+            Image asset, Text, FlexibleText, Frame은 생성 후 에디터에서 추가합니다.
           </p>
-        ) : null}
 
-        <button
-          type="submit"
-          disabled={!canCreate || isCreating}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {isCreating ? '생성 중...' : '새 템플릿 만들기'}
-        </button>
+          {createError ? (
+            <p className="mt-4 rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {createError}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={!canCreate || isCreating}
+            className="mt-4 w-full rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isCreating ? '생성 중...' : '새 템플릿 만들기'}
+          </button>
+        </aside>
       </form>
-
     </div>
   );
 };

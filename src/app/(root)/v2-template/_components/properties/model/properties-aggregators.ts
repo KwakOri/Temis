@@ -225,7 +225,7 @@ export const v2_collectSceneNodeDescendantIdsById = (
   const next: Record<string, Set<string>> = {};
 
   const collectDescendants = (node: V2TemplateSceneNode): Set<string> => {
-    if ((node.kind !== "group" && node.kind !== "cardCollection") || !node.children) {
+    if (node.kind !== "group" || !node.children) {
       next[node.id] = new Set();
       return next[node.id];
     }
@@ -256,7 +256,7 @@ export const v2_collectSceneGroupParentOptions = (
 
   const visit = (nodes: V2TemplateSceneNode[], depth: number) => {
     nodes.forEach((node) => {
-      if ((node.kind !== "group" && node.kind !== "cardCollection") || !node.children) {
+      if (node.kind !== "group" || !node.children) {
         return;
       }
       options.push({

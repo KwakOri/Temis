@@ -57,6 +57,9 @@ const V2RuntimeShell = ({
   const [hiddenLayerIds, setHiddenLayerIds] = React.useState<
     Record<string, boolean>
   >({});
+  const [lockedLayerIds, setLockedLayerIds] = React.useState<
+    Record<string, boolean>
+  >({});
   const [hoverHighlightTarget, setHoverHighlightTarget] =
     React.useState<V2RuntimeHighlightTarget | null>(null);
   const [activeHighlightTarget, setActiveHighlightTarget] =
@@ -98,6 +101,42 @@ const V2RuntimeShell = ({
     });
   }, []);
 
+  const isLayerLocked = React.useCallback(
+    (layerId: string): boolean => {
+      return lockedLayerIds[layerId] === true;
+    },
+    [lockedLayerIds]
+  );
+
+  const setLayerLocked = React.useCallback((layerId: string, locked: boolean) => {
+    setLockedLayerIds((prev) => {
+      if (locked) {
+        return {
+          ...prev,
+          [layerId]: true,
+        };
+      }
+      if (!prev[layerId]) return prev;
+      const next = { ...prev };
+      delete next[layerId];
+      return next;
+    });
+  }, []);
+
+  const toggleLayerLocked = React.useCallback((layerId: string) => {
+    setLockedLayerIds((prev) => {
+      if (prev[layerId]) {
+        const next = { ...prev };
+        delete next[layerId];
+        return next;
+      }
+      return {
+        ...prev,
+        [layerId]: true,
+      };
+    });
+  }, []);
+
   const providerValue = React.useMemo<TemplateRenderConfigContextValue>(
     () => ({
       templateId,
@@ -126,6 +165,10 @@ const V2RuntimeShell = ({
       isLayerHidden,
       toggleLayerHidden,
       setLayerHidden,
+      lockedLayerIds,
+      isLayerLocked,
+      toggleLayerLocked,
+      setLayerLocked,
       hoverHighlightTarget,
       setHoverHighlightTarget,
       activeHighlightTarget,
@@ -139,8 +182,12 @@ const V2RuntimeShell = ({
       hiddenLayerIds,
       hoverHighlightTarget,
       isLayerHidden,
+      isLayerLocked,
+      lockedLayerIds,
       resetData,
       setLayerHidden,
+      setLayerLocked,
+      toggleLayerLocked,
       toggleLayerHidden,
       updateData,
       updateGlobalData,

@@ -20,6 +20,26 @@ export interface TemplateRenderConfigContextValue {
   isLoading: boolean;
   renderConfig: V2TemplateRenderConfig;
   setRenderConfig?: Dispatch<SetStateAction<V2TemplateRenderConfig>>;
+  figmaImport?: {
+    rootFigmaUrl: string;
+    setRootFigmaUrl: (value: string) => void;
+    withAssets: boolean;
+    setWithAssets: (value: boolean) => void;
+    isImporting: boolean;
+    canImport: boolean;
+    message: string | null;
+    pendingSettingChanges: Array<{
+      key: "multi" | "offlineMemo" | "artist" | "memo";
+      action: "enable" | "disable";
+      label: string;
+      title: string;
+      description: string;
+    }>;
+    confirmPendingImport: () => void;
+    cancelPendingImport: () => void;
+    importToCurrentTemplate: () => void;
+    reset: () => void;
+  };
 }
 
 const TemplateRenderConfigContext =

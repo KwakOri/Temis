@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   collectCardComponentIdsFromTemplateRoot,
+  type ImportV2CardComponentGroup,
   runImportV2TemplateFromFigma,
   type FigmaNode,
 } from "./import-v2-template-from-figma";
@@ -35,6 +36,7 @@ type CliOptions = {
   supabaseServiceRoleKey?: string;
   figmaToken?: string;
   withAssets: boolean;
+  uploadAssetsWithoutWrite?: boolean;
   assetTheme?: string;
   assetFormat?: "png" | "jpg" | "svg" | "pdf";
   aiMode: ImportAiMode;
@@ -57,6 +59,11 @@ type FigmaFileResponse = {
       componentSetId?: string;
     }
   >;
+};
+
+type FigmaComponentMapEntry = {
+  name: string;
+  componentSetId?: string;
 };
 
 type FigmaParseResult = {
@@ -93,12 +100,15 @@ type ValidationResult = {
 export type ImportV2FigmaAnalyzeResult = {
   rootInfo: FigmaParseResult;
   cardSetInfo: FigmaParseResult;
+  cardSetInfos: FigmaParseResult[];
   cardComponentSetSource: "input" | "auto-detected";
   resolvedCardComponentSetUrl: string;
+  resolvedCardComponentSetUrls: string[];
   validation: ValidationResult;
   statusSourceModeByStatus: Record<CardStatus, StatusSourceMode>;
   backgroundModeByStatus: Record<CardStatus, CardBackgroundMode>;
   explicitExternalCardCandidates: FigmaNode[];
+  explicitExternalCardComponentGroups: ImportV2CardComponentGroup[];
 };
 
 const ROOT_DIR = path.resolve(__dirname, "..");
@@ -609,7 +619,7 @@ const fetchFigmaFileComponentMap = async ({
 }: {
   fileKey: string;
   figmaToken: string;
-}): Promise<Map<string, { name: string; componentSetId?: string }>> => {
+}): Promise<Map<string, FigmaComponentMapEntry>> => {
   const requestUrl = `https://api.figma.com/v1/files/${fileKey}`;
   const response = await fetch(requestUrl, {
     method: "GET",
@@ -622,7 +632,7 @@ const fetchFigmaFileComponentMap = async ({
     throw new Error(`Figma file request failed (${response.status}): ${bodyText}`);
   }
   const payload = (await response.json()) as FigmaFileResponse;
-  const componentMap = new Map<string, { name: string; componentSetId?: string }>();
+  const componentMap = new Map<string, FigmaComponentMapEntry>();
   Object.entries(payload.components ?? {}).forEach(([componentId, component]) => {
     if (!componentId) return;
     componentMap.set(componentId, {
@@ -680,8 +690,10 @@ const resolveCardSetInfo = async ({
   providedCardComponentSetUrl?: string;
 }): Promise<{
   cardSetInfo: FigmaParseResult;
+  cardSetInfos: FigmaParseResult[];
   cardComponentSetSource: "input" | "auto-detected";
   resolvedCardComponentSetUrl: string;
+  resolvedCardComponentSetUrls: string[];
   warnings: string[];
 }> => {
   if (
@@ -696,8 +708,10 @@ const resolveCardSetInfo = async ({
     }
     return {
       cardSetInfo,
+      cardSetInfos: [cardSetInfo],
       cardComponentSetSource: "input",
       resolvedCardComponentSetUrl: providedCardComponentSetUrl.trim(),
+      resolvedCardComponentSetUrls: [providedCardComponentSetUrl.trim()],
       warnings: [],
     };
   }
@@ -752,34 +766,41 @@ const resolveCardSetInfo = async ({
     );
   }
 
-  if (
-    rankedCandidates.length > 1 &&
-    rankedCandidates[0]?.[1].count === rankedCandidates[1]?.[1].count
-  ) {
-    const candidateIds = rankedCandidates.map(([componentSetId]) => componentSetId).join(", ");
-    throw new Error(
-      `카드 컴포넌트셋 후보가 여러 개라 자동 선택할 수 없습니다: ${candidateIds}. 카드 컴포넌트셋 링크를 직접 입력해주세요.`
-    );
-  }
-
-  const [componentSetId, match] = rankedCandidates[0];
-  const resolvedCardComponentSetUrl = buildFigmaNodeUrl({
+  const cardSetInfos = rankedCandidates.map(([componentSetId]) => ({
     fileKey: rootInfo.fileKey,
     nodeId: componentSetId,
-    sampleUrl: rootFigmaUrl,
-  });
+  }));
+  const resolvedCardComponentSetUrls = cardSetInfos.map((cardSetInfo) =>
+    buildFigmaNodeUrl({
+      fileKey: cardSetInfo.fileKey,
+      nodeId: cardSetInfo.nodeId,
+      sampleUrl: rootFigmaUrl,
+    })
+  );
+  const cardSetInfo = cardSetInfos[0];
+  const resolvedCardComponentSetUrl = resolvedCardComponentSetUrls[0];
+  if (!cardSetInfo || !resolvedCardComponentSetUrl) {
+    throw new Error(
+      "카드 컴포넌트셋을 자동 검출하지 못했습니다. 카드 컴포넌트셋 링크를 직접 입력해주세요."
+    );
+  }
+  const totalInstanceCount = rankedCandidates.reduce(
+    (sum, [, match]) => sum + match.count,
+    0
+  );
 
   warnings.push(
-    `카드 컴포넌트셋을 root 인스턴스에서 자동 검출했습니다 (componentSetId=${componentSetId}, instances=${match.count}).`
+    cardSetInfos.length === 1
+      ? `카드 컴포넌트셋을 root 인스턴스에서 자동 검출했습니다 (componentSetId=${cardSetInfo.nodeId}, instances=${totalInstanceCount}).`
+      : `카드 컴포넌트셋 ${cardSetInfos.length}개를 root 인스턴스에서 자동 검출했습니다 (instances=${totalInstanceCount}).`
   );
 
   return {
-    cardSetInfo: {
-      fileKey: rootInfo.fileKey,
-      nodeId: componentSetId,
-    },
+    cardSetInfo,
+    cardSetInfos,
     cardComponentSetSource: "auto-detected",
     resolvedCardComponentSetUrl,
+    resolvedCardComponentSetUrls,
     warnings,
   };
 };
@@ -1039,44 +1060,107 @@ const printValidationSummary = ({
   });
 };
 
-const cloneFigmaNode = (node: FigmaNode): FigmaNode =>
-  JSON.parse(JSON.stringify(node)) as FigmaNode;
-
-const buildSyntheticSharedStatusCandidates = ({
+const buildCardComponentGroupCandidates = ({
   validation,
   nodesById,
 }: {
   validation: ValidationResult;
   nodesById: Record<string, FigmaNode>;
 }): FigmaNode[] => {
-  const syntheticCandidates: FigmaNode[] = [];
+  const candidates: FigmaNode[] = [];
   validation.resolvedEntries.forEach((entry) => {
     const sourceNode = nodesById[entry.nodeId];
     if (!sourceNode || !entry.status) return;
     const sourceMode = validation.statusSourceModeByStatus[entry.status];
     if (sourceMode === "none") return;
-    if (sourceMode === "byDay") {
-      if (entry.day && entry.day !== "shared") {
-        syntheticCandidates.push(sourceNode);
-      }
-      return;
-    }
-    DAY_KEYS.forEach((dayKey) => {
-      const clonedNode = cloneFigmaNode(sourceNode);
-      const baseName = sourceNode.name?.trim() || entry.nodeName;
-      clonedNode.id = `${entry.nodeId}::shared-status::${entry.status}::${dayKey}`;
-      clonedNode.name = `${baseName} [day=${dayKey}] [status=${entry.status}]`;
-      clonedNode.variantProperties = {
-        ...(sourceNode.variantProperties ?? {}),
-        day: dayKey,
-        Day: dayKey,
-        status: entry.status,
-        Status: entry.status,
-      };
-      syntheticCandidates.push(clonedNode);
-    });
+    candidates.push(sourceNode);
   });
-  return syntheticCandidates;
+  return candidates;
+};
+
+const mergeStatusSourceModes = (
+  validations: ValidationResult[]
+): Record<CardStatus, StatusSourceMode> => {
+  const merged = createDefaultStatusSourceModeByStatus();
+  STATUS_KEYS.forEach((status) => {
+    const modes = validations
+      .map((validation) => validation.statusSourceModeByStatus[status])
+      .filter((mode): mode is Exclude<StatusSourceMode, "none"> => mode !== "none");
+    if (modes.length === 0) return;
+    merged[status] = modes.includes("byDay") ? "byDay" : "shared";
+  });
+  return merged;
+};
+
+const mergeBackgroundModes = (
+  modesByGroup: Array<Record<CardStatus, CardBackgroundMode>>
+): Record<CardStatus, CardBackgroundMode> => {
+  const merged = createDefaultBackgroundModeByStatus();
+  STATUS_KEYS.forEach((status) => {
+    const modes = modesByGroup
+      .map((modeByGroup) => modeByGroup[status])
+      .filter((mode): mode is Exclude<CardBackgroundMode, "none"> => mode !== "none");
+    if (modes.length === 0) return;
+    merged[status] = modes.includes("byDay") ? "byDay" : "shared";
+  });
+  return merged;
+};
+
+const resolveMergedValidationMode = (
+  sourceModeByStatus: Record<CardStatus, StatusSourceMode>
+): ValidationMode => {
+  const activeModes = STATUS_KEYS.map((status) => sourceModeByStatus[status]).filter(
+    (mode): mode is Exclude<StatusSourceMode, "none"> => mode !== "none"
+  );
+  if (activeModes.length === 0 || activeModes.every((mode) => mode === "shared")) {
+    return "shared-status";
+  }
+  if (activeModes.every((mode) => mode === "byDay")) {
+    return "matrix";
+  }
+  return "mixed-status";
+};
+
+const mergeValidationResults = ({
+  validations,
+  warnings,
+  critical,
+}: {
+  validations: ValidationResult[];
+  warnings: string[];
+  critical: string[];
+}): ValidationResult => {
+  const statusSourceModeByStatus = mergeStatusSourceModes(validations);
+  const statusCounts = STATUS_KEYS.reduce((acc, status) => {
+    acc[status] = validations.reduce(
+      (sum, validation) => sum + validation.statusCounts[status],
+      0
+    );
+    return acc;
+  }, {} as Record<CardStatus, number>);
+  const statusDays = STATUS_KEYS.reduce((acc, status) => {
+    const daySet = new Set<SourceDayToken>();
+    validations.forEach((validation) => {
+      validation.statusDays[status].forEach((day) => daySet.add(day));
+    });
+    acc[status] = Array.from(daySet);
+    return acc;
+  }, {} as Record<CardStatus, SourceDayToken[]>);
+
+  return {
+    mode: resolveMergedValidationMode(statusSourceModeByStatus),
+    entries: validations.flatMap((validation) => validation.entries),
+    unresolved: validations.flatMap((validation) => validation.unresolved),
+    resolvedEntries: validations.flatMap((validation) => validation.resolvedEntries),
+    duplicateSourceKeys: validations.flatMap(
+      (validation) => validation.duplicateSourceKeys
+    ),
+    statusCounts,
+    statusDays,
+    statusSourceModeByStatus,
+    warnings: [...new Set([...warnings, ...validations.flatMap((validation) => validation.warnings)])],
+    critical: [...new Set([...critical, ...validations.flatMap((validation) => validation.critical)])],
+  };
 };
 
 const SHARED_STATUS_SECTION_DAY_REPLACE_REGEX =
@@ -1092,7 +1176,7 @@ const normalizeSharedStatusSectionKey = (sectionKey: string): string =>
   sectionKey
     .replace(
       SHARED_STATUS_SECTION_DAY_REPLACE_REGEX,
-      (_match, prefix: string, _day: string) => `${prefix}DAY`
+      (_match, prefix: string) => `${prefix}DAY`
     )
     .replace(
       SHARED_STATUS_SECTION_INSTANCE_REPLACE_REGEX,
@@ -1193,76 +1277,110 @@ export const analyzeImportV2TemplateFromFigmaV2 = async (
   });
   const {
     cardSetInfo,
+    cardSetInfos,
     cardComponentSetSource,
     resolvedCardComponentSetUrl,
+    resolvedCardComponentSetUrls,
     warnings: cardSetWarnings,
   } = cardSetResolution;
 
-  const fetchedSet = await fetchFigmaNodesByIds({
-    fileKey: cardSetInfo.fileKey,
-    nodeIds: [cardSetInfo.nodeId],
-    figmaToken,
-  });
+  const validations: ValidationResult[] = [];
+  const backgroundModesByGroup: Array<Record<CardStatus, CardBackgroundMode>> = [];
+  const explicitExternalCardComponentGroups: ImportV2CardComponentGroup[] = [];
 
-  const componentSetNode = fetchedSet[cardSetInfo.nodeId];
-  if (!componentSetNode) {
-    throw new Error(`Card component set node not found: ${cardSetInfo.nodeId}`);
+  for (const [index, currentCardSetInfo] of cardSetInfos.entries()) {
+    const fetchedSet = await fetchFigmaNodesByIds({
+      fileKey: currentCardSetInfo.fileKey,
+      nodeIds: [currentCardSetInfo.nodeId],
+      figmaToken,
+    });
+
+    const componentSetNode = fetchedSet[currentCardSetInfo.nodeId];
+    if (!componentSetNode) {
+      throw new Error(`Card component set node not found: ${currentCardSetInfo.nodeId}`);
+    }
+
+    if ((componentSetNode.type ?? "").toUpperCase() !== "COMPONENT_SET") {
+      throw new Error(
+        `card-component-set-url must target COMPONENT_SET (actual=${componentSetNode.type ?? "unknown"})`
+      );
+    }
+
+    const childIds = (componentSetNode.children ?? [])
+      .map((child) => child.id?.trim())
+      .filter((id): id is string => Boolean(id));
+
+    const childNodesById = childIds.length
+      ? await fetchFigmaNodesByIds({
+          fileKey: currentCardSetInfo.fileKey,
+          nodeIds: childIds,
+          figmaToken,
+        })
+      : {};
+
+    const entries = collectVariantEntries({
+      componentSetNode,
+      fetchedNodesById: childNodesById,
+    });
+
+    const validation = validateCardComponentSet(entries);
+    const backgroundModeResolution = resolveCardBackgroundModeByStatus({
+      validation,
+    });
+    const groupValidation: ValidationResult = {
+      ...validation,
+      warnings: [
+        ...new Set([
+          ...validation.warnings,
+          ...backgroundModeResolution.warnings,
+        ]),
+      ],
+      critical: [
+        ...new Set([
+          ...validation.critical,
+          ...backgroundModeResolution.critical,
+        ]),
+      ],
+    };
+    const groupCandidates = buildCardComponentGroupCandidates({
+      validation: groupValidation,
+      nodesById: childNodesById,
+    });
+    if (groupCandidates.length > 0) {
+      explicitExternalCardComponentGroups.push({
+        id: currentCardSetInfo.nodeId,
+        label: componentSetNode.name?.trim() || `Card ${index + 1}`,
+        candidates: groupCandidates,
+      });
+    }
+    validations.push(groupValidation);
+    backgroundModesByGroup.push(backgroundModeResolution.backgroundModeByStatus);
   }
 
-  if ((componentSetNode.type ?? "").toUpperCase() !== "COMPONENT_SET") {
-    throw new Error(
-      `card-component-set-url must target COMPONENT_SET (actual=${componentSetNode.type ?? "unknown"})`
-    );
-  }
-
-  const childIds = (componentSetNode.children ?? [])
-    .map((child) => child.id?.trim())
-    .filter((id): id is string => Boolean(id));
-
-  const childNodesById = childIds.length
-    ? await fetchFigmaNodesByIds({
-        fileKey: cardSetInfo.fileKey,
-        nodeIds: childIds,
-        figmaToken,
-      })
-    : {};
-
-  const entries = collectVariantEntries({
-    componentSetNode,
-    fetchedNodesById: childNodesById,
+  const mergedValidation = mergeValidationResults({
+    validations,
+    warnings: cardSetWarnings,
+    critical:
+      explicitExternalCardComponentGroups.length === 0
+        ? ["No importable card component groups were found in the detected component sets."]
+        : [],
   });
-
-  const validation = validateCardComponentSet(entries);
-  const backgroundModeResolution = resolveCardBackgroundModeByStatus({
-    validation,
-  });
-  const mergedValidation: ValidationResult = {
-    ...validation,
-    warnings: [
-      ...new Set([
-        ...cardSetWarnings,
-        ...validation.warnings,
-        ...backgroundModeResolution.warnings,
-      ]),
-    ],
-    critical: [
-      ...new Set([...validation.critical, ...backgroundModeResolution.critical]),
-    ],
-  };
-  const explicitExternalCardCandidates = buildSyntheticSharedStatusCandidates({
-    validation: mergedValidation,
-    nodesById: childNodesById,
-  });
+  const backgroundModeByStatus = mergeBackgroundModes(backgroundModesByGroup);
+  const explicitExternalCardCandidates =
+    explicitExternalCardComponentGroups.flatMap((group) => group.candidates);
 
   return {
     rootInfo,
     cardSetInfo,
+    cardSetInfos,
     cardComponentSetSource,
     resolvedCardComponentSetUrl,
+    resolvedCardComponentSetUrls,
     validation: mergedValidation,
     statusSourceModeByStatus: mergedValidation.statusSourceModeByStatus,
-    backgroundModeByStatus: backgroundModeResolution.backgroundModeByStatus,
+    backgroundModeByStatus,
     explicitExternalCardCandidates,
+    explicitExternalCardComponentGroups,
   };
 };
 
@@ -1274,8 +1392,13 @@ export const runImportV2TemplateFromFigmaV2 = async (
     cardComponentSetUrl: options.cardComponentSetUrl,
     figmaToken: options.figmaToken,
   });
-  const { rootInfo, cardSetInfo, validation, explicitExternalCardCandidates } =
-    analysis;
+  const {
+    rootInfo,
+    cardSetInfo,
+    validation,
+    explicitExternalCardCandidates,
+    explicitExternalCardComponentGroups,
+  } = analysis;
 
   printValidationSummary({
     rootInfo,
@@ -1307,7 +1430,7 @@ export const runImportV2TemplateFromFigmaV2 = async (
   }
 
   console.log(
-    `[import:v2:figma:v2] executing core importer with validated component-set candidates (${explicitExternalCardCandidates.length}) ...`
+    `[import:v2:figma:v2] executing core importer with validated card components (${explicitExternalCardComponentGroups.length} groups, ${explicitExternalCardCandidates.length} candidates) ...`
   );
 
   const importResult = await runImportV2TemplateFromFigma({
@@ -1324,10 +1447,12 @@ export const runImportV2TemplateFromFigmaV2 = async (
     supabaseServiceRoleKey: options.supabaseServiceRoleKey,
     figmaToken: options.figmaToken,
     withAssets: options.withAssets,
+    uploadAssetsWithoutWrite: options.uploadAssetsWithoutWrite,
     assetTheme: options.assetTheme ?? "first",
     assetFormat: options.assetFormat ?? "png",
     noAiAssetMatch: options.aiMode === "off",
     explicitExternalCardCandidates,
+    explicitExternalCardComponentGroups,
     cardBackgroundModeByStatus: analysis.backgroundModeByStatus,
     skipExternalCardVariantAutodiscovery: true,
     postProcessNormalizedConfig: (config) => {
