@@ -1340,6 +1340,7 @@ export const v2_createDefaultTimetableConfig = ({
     layoutMode: "grid3x3",
     flex42Align: "center",
     flex42ThreeRow: "bottom",
+    emptySlots: [3, 6],
     multiEntryCount: safeMultiEntryCount,
     statusOptions: {
       online: true,
@@ -1382,8 +1383,15 @@ const v2_createTimetableScopedStyleKey = ({
 };
 
 const v2_cloneCardLayoutEntry = (
-  entry: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined
-): V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined => {
+  entry: V2TemplateStyleRecord | undefined
+): V2TemplateStyleRecord | undefined => {
+  if (!entry || typeof entry !== "object") return undefined;
+  return v2_cloneJson(entry);
+};
+
+const v2_cloneTextOptionsEntry = (
+  entry: V2TemplateAutoResizeOptions | undefined
+): V2TemplateAutoResizeOptions | undefined => {
   if (!entry || typeof entry !== "object") return undefined;
   return v2_cloneJson(entry);
 };
@@ -1394,6 +1402,9 @@ export const v2_withScopedTimetableStyles = (
   const nextCardLayout = {
     ...config.layout.card,
   };
+  const nextTextOptions = {
+    ...config.textOptions,
+  };
 
   const copyLayoutEntry = (sourceKey: string, targetKey: string) => {
     if (sourceKey === targetKey) return;
@@ -1401,6 +1412,15 @@ export const v2_withScopedTimetableStyles = (
     const cloned = v2_cloneCardLayoutEntry(nextCardLayout[sourceKey]);
     if (cloned) {
       nextCardLayout[targetKey] = cloned;
+    }
+  };
+
+  const copyTextOptionsEntry = (sourceKey: string, targetKey: string) => {
+    if (sourceKey === targetKey) return;
+    if (nextTextOptions[targetKey] !== undefined) return;
+    const cloned = v2_cloneTextOptionsEntry(nextTextOptions[sourceKey]);
+    if (cloned) {
+      nextTextOptions[targetKey] = cloned;
     }
   };
 
@@ -1444,6 +1464,35 @@ export const v2_withScopedTimetableStyles = (
       return targetKey;
     };
 
+    const scopeOptionsKey = ({
+      nodeId,
+      sourceKey,
+    }: {
+      nodeId: string;
+      sourceKey: string;
+    }): string => {
+      const expectedPrefix = [
+        "timetable",
+        v2_sanitizeTimetableStyleKeyPart(componentId),
+        status,
+        v2_sanitizeTimetableStyleKeyPart(nodeId),
+        "options",
+      ].join(":");
+      if (sourceKey.startsWith(`${expectedPrefix}:`)) {
+        return sourceKey;
+      }
+
+      const targetKey = v2_createTimetableScopedStyleKey({
+        componentId,
+        status,
+        nodeId,
+        part: "options",
+        sourceKey,
+      });
+      copyTextOptionsEntry(sourceKey, targetKey);
+      return targetKey;
+    };
+
     const nextNodes = Object.fromEntries(
       Object.entries(card.nodes).map(([nodeId, node]) => {
         const nextNode: V2TemplateCardNode = {
@@ -1482,9 +1531,8 @@ export const v2_withScopedTimetableStyles = (
             : {}),
           ...(node.optionsKey
             ? {
-                optionsKey: scopeKey({
+                optionsKey: scopeOptionsKey({
                   nodeId,
-                  part: "options",
                   sourceKey: node.optionsKey,
                 }),
               }
@@ -1559,6 +1607,7 @@ export const v2_withScopedTimetableStyles = (
       ...config.layout,
       card: nextCardLayout,
     },
+    textOptions: nextTextOptions,
   };
 };
 
@@ -1625,14 +1674,6 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
     visibilityMode: "always",
     children: [
       {
-        id: "scene-grid-frame",
-        label: "Frame/Grid",
-        kind: "cardCollection",
-        layerId: "grid-frame",
-        componentId: v2_DEFAULT_CARD_COMPONENT_ID,
-        visibilityMode: "always",
-      },
-      {
         id: "scene-grid-bg",
         label: "Image/BG",
         kind: "asset",
@@ -1645,6 +1686,14 @@ const v2_DEFAULT_SCENE_NODES: V2TemplateSceneNode[] = [
         styleKey: "gridBg",
         fit: "fill",
         alt: "grid-bg",
+        visibilityMode: "always",
+      },
+      {
+        id: "scene-grid-frame",
+        label: "Frame/Grid",
+        kind: "cardCollection",
+        layerId: "grid-frame",
+        componentId: v2_DEFAULT_CARD_COMPONENT_ID,
         visibilityMode: "always",
       },
     ],
@@ -2730,9 +2779,6 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
   sharedStyleGroups: {},
   layout: {
     grid: {
-      layoutMode: "grid3x3",
-      flex42ThreeRow: "bottom",
-      flex42Align: "center",
       left: 33,
       top: 121,
       rowGap: 68,
@@ -2740,8 +2786,6 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       columns: 3,
       width: 2201,
       height: 1816,
-      gridEmptySlotA: 3,
-      gridEmptySlotB: 6,
     },
     weekFlag: {
       fontSize: 76,
@@ -2907,14 +2951,6 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
         letterSpacing: -1.16,
         textAlign: "center",
       },
-      mainTitleOptions: {
-        maxFontSize: 82,
-        multiline: true,
-      },
-      subTitleOptions: {
-        maxFontSize: 58,
-        multiline: true,
-      },
       streamingDayStyle: {
         fontSize: 1,
         fontWeight: 400,
@@ -3017,6 +3053,16 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       },
     },
   },
+  textOptions: {
+    mainTitleOptions: {
+      maxFontSize: 82,
+      multiline: true,
+    },
+    subTitleOptions: {
+      maxFontSize: 58,
+      multiline: true,
+    },
+  },
   graph: v2_DEFAULT_GRAPH,
 };
 
@@ -3057,6 +3103,16 @@ const v2_asOptionalNumber = (value: unknown): number | undefined => {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 };
 
+const v2_DOMAIN_STYLE_PROPERTY_KEYS = new Set([
+  "layoutMode",
+  "flex42ThreeRow",
+  "flex42Align",
+  "gridEmptySlotA",
+  "gridEmptySlotB",
+  "maxFontSize",
+  "multiline",
+]);
+
 const v2_mergeCssPropertiesRecord = (
   base: Record<string, string | number>,
   candidate: unknown
@@ -3065,6 +3121,8 @@ const v2_mergeCssPropertiesRecord = (
 
   const merged: Record<string, string | number> = { ...base };
   Object.entries(candidate).forEach(([key, value]) => {
+    if (v2_DOMAIN_STYLE_PROPERTY_KEYS.has(key)) return;
+
     if (typeof value === "number" && Number.isFinite(value)) {
       merged[key] = value;
       return;
@@ -3093,29 +3151,20 @@ const v2_mergeStyleRecord = (
 };
 
 const v2_mergeSceneLayoutEntry = (
-  base: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined,
+  base: V2TemplateStyleRecord | undefined,
   candidate: unknown
-): V2TemplateStyleRecord | V2TemplateAutoResizeOptions => {
-  const mergedStyle = v2_mergeCssPropertiesRecord(
-    (base ?? {}) as Record<string, string | number>,
-    candidate
-  );
+): V2TemplateStyleRecord => v2_mergeStyleRecord(base, candidate);
 
-  if (!v2_isRecord(candidate)) {
-    return mergedStyle as V2TemplateStyleRecord;
-  }
+const v2_mergeAutoResizeOptions = (
+  base: V2TemplateAutoResizeOptions | undefined,
+  candidate: unknown
+): V2TemplateAutoResizeOptions => {
+  if (!v2_isRecord(candidate)) return { ...(base ?? {}) };
 
+  const next: V2TemplateAutoResizeOptions = { ...(base ?? {}) };
   const maxFontSize = v2_asOptionalNumber(candidate.maxFontSize);
   const multiline = v2_asOptionalBoolean(candidate.multiline);
 
-  if (maxFontSize === undefined && multiline === undefined) {
-    return mergedStyle as V2TemplateStyleRecord;
-  }
-
-  const next: V2TemplateAutoResizeOptions & Record<string, string | number> = {
-    ...(base as Record<string, string | number> | undefined),
-    ...mergedStyle,
-  };
   if (maxFontSize !== undefined) {
     next.maxFontSize = maxFontSize;
   }
@@ -3705,6 +3754,32 @@ const v2_sanitizeNodeGraph = ({
           orderKey: String((index + 1) * 1024).padStart(10, "0"),
           prevSiblingId:
             index === 0 ? null : (nextFrameChildIds[index - 1] ?? null),
+        },
+      };
+    });
+  }
+
+  const gridNode = nextNodes["scene-grid"];
+  if (gridNode?.type === "group") {
+    const preferredGridOrder = ["scene-grid-bg", "scene-grid-frame"];
+    const preferredSet = new Set(preferredGridOrder);
+    const nextGridChildIds = [
+      ...preferredGridOrder.filter((childId) =>
+        gridNode.childIds.includes(childId)
+      ),
+      ...gridNode.childIds.filter((childId) => !preferredSet.has(childId)),
+    ];
+    gridNode.childIds = nextGridChildIds;
+    nextGridChildIds.forEach((childId, index) => {
+      const childNode = nextNodes[childId];
+      if (!childNode) return;
+      nextNodes[childId] = {
+        ...childNode,
+        order: {
+          model: v2_ORDER_KEY_MODEL,
+          orderKey: String((index + 1) * 1024).padStart(10, "0"),
+          prevSiblingId:
+            index === 0 ? null : (nextGridChildIds[index - 1] ?? null),
         },
       };
     });
@@ -4679,6 +4754,30 @@ const v2_normalizeTimetableCardComponent = (
   };
 };
 
+const v2_normalizeTimetableEmptySlots = (
+  candidate: unknown,
+  fallback: number[]
+): number[] => {
+  if (!Array.isArray(candidate)) return [...fallback];
+
+  const next: number[] = [];
+  candidate.forEach((value) => {
+    if (typeof value !== "number" || !Number.isFinite(value)) return;
+    const slot = Math.round(value);
+    if (slot < 1 || slot > 9 || next.includes(slot)) return;
+    next.push(slot);
+  });
+  return next.slice(0, 2);
+};
+
+const v2_getLegacyGridEmptySlots = (candidate: unknown): number[] => {
+  if (!v2_isRecord(candidate)) return [];
+  return v2_normalizeTimetableEmptySlots(
+    [candidate.gridEmptySlotA, candidate.gridEmptySlotB],
+    []
+  );
+};
+
 const v2_normalizeTimetableConfig = (
   candidate: unknown,
   fallback: V2TemplateTimetableConfig
@@ -4779,12 +4878,17 @@ const v2_normalizeTimetableConfig = (
   const multiEntryCount = v2_clampTimetableMultiEntryCount(
     candidate.multiEntryCount ?? fallback.multiEntryCount
   );
+  const emptySlots = v2_normalizeTimetableEmptySlots(
+    candidate.emptySlots,
+    fallback.emptySlots
+  );
 
   return {
     layerId: v2_asString(candidate.layerId, fallback.layerId),
     layoutMode,
     flex42Align,
     flex42ThreeRow,
+    emptySlots,
     multiEntryCount,
     statusOptions: {
       online: true,
@@ -5925,6 +6029,14 @@ export const v2_normalizeTemplateRenderConfig = (
     raw.sharedStyleGroups,
     normalized.sharedStyleGroups
   );
+  if (v2_isRecord(raw.textOptions)) {
+    Object.entries(raw.textOptions).forEach(([optionsKey, candidate]) => {
+      normalized.textOptions[optionsKey] = v2_mergeAutoResizeOptions(
+        normalized.textOptions[optionsKey],
+        candidate
+      );
+    });
+  }
 
   normalized.artistTextPlaceholder = v2_asString(
     raw.artistTextPlaceholder,
@@ -5933,6 +6045,10 @@ export const v2_normalizeTemplateRenderConfig = (
 
   if (rawLayoutSource) {
     const layout = rawLayoutSource;
+    const legacyGridEmptySlots = v2_getLegacyGridEmptySlots(layout.grid);
+    if (legacyGridEmptySlots.length > 0) {
+      normalized.timetable.emptySlots = legacyGridEmptySlots;
+    }
     normalized.layout.grid = v2_mergeStyleRecord(normalized.layout.grid, layout.grid);
     normalized.layout.weekFlag = v2_mergeStyleRecord(
       normalized.layout.weekFlag,
@@ -6054,39 +6170,17 @@ export const v2_normalizeTemplateRenderConfig = (
       );
 
       if (v2_isRecord(cardLayoutSource.mainTitleOptions)) {
-        const prevOptions = normalized.layout.card.mainTitleOptions ?? {};
-        const nextMaxFontSize = v2_asOptionalNumber(
-          cardLayoutSource.mainTitleOptions.maxFontSize
+        normalized.textOptions.mainTitleOptions = v2_mergeAutoResizeOptions(
+          normalized.textOptions.mainTitleOptions,
+          cardLayoutSource.mainTitleOptions
         );
-        const nextMultiline = v2_asOptionalBoolean(
-          cardLayoutSource.mainTitleOptions.multiline
-        );
-
-        normalized.layout.card.mainTitleOptions = {
-          ...prevOptions,
-          ...(nextMaxFontSize !== undefined
-            ? { maxFontSize: nextMaxFontSize }
-            : {}),
-          ...(nextMultiline !== undefined ? { multiline: nextMultiline } : {}),
-        };
       }
 
       if (v2_isRecord(cardLayoutSource.subTitleOptions)) {
-        const prevOptions = normalized.layout.card.subTitleOptions ?? {};
-        const nextMaxFontSize = v2_asOptionalNumber(
-          cardLayoutSource.subTitleOptions.maxFontSize
+        normalized.textOptions.subTitleOptions = v2_mergeAutoResizeOptions(
+          normalized.textOptions.subTitleOptions,
+          cardLayoutSource.subTitleOptions
         );
-        const nextMultiline = v2_asOptionalBoolean(
-          cardLayoutSource.subTitleOptions.multiline
-        );
-
-        normalized.layout.card.subTitleOptions = {
-          ...prevOptions,
-          ...(nextMaxFontSize !== undefined
-            ? { maxFontSize: nextMaxFontSize }
-            : {}),
-          ...(nextMultiline !== undefined ? { multiline: nextMultiline } : {}),
-        };
       }
     }
   }
@@ -6098,6 +6192,7 @@ export const v2_normalizeTemplateRenderConfig = (
 
   if (rawCardLayoutSource) {
     const referencedCardLayoutKeys = new Set<string>();
+    const referencedCardOptionKeys = new Set<string>();
     Object.values(normalized.graph.nodes ?? {}).forEach((node) => {
       const styleRefs = node.styles;
       if (!styleRefs) return;
@@ -6107,11 +6202,16 @@ export const v2_normalizeTemplateRenderConfig = (
         styleRefs.entryStyleKey,
         styleRefs.textStyleKey,
         styleRefs.wrapperStyleKey,
-        styleRefs.optionsKey,
       ].forEach((styleKey) => {
         if (typeof styleKey !== "string" || styleKey.trim().length === 0) return;
         referencedCardLayoutKeys.add(styleKey);
       });
+      if (
+        typeof styleRefs.optionsKey === "string" &&
+        styleRefs.optionsKey.trim().length > 0
+      ) {
+        referencedCardOptionKeys.add(styleRefs.optionsKey);
+      }
     });
 
     referencedCardLayoutKeys.forEach((styleKey) => {
@@ -6120,6 +6220,14 @@ export const v2_normalizeTemplateRenderConfig = (
       normalized.layout.card[styleKey] = v2_mergeSceneLayoutEntry(
         normalized.layout.card[styleKey],
         rawStyleRecord
+      );
+    });
+    referencedCardOptionKeys.forEach((optionsKey) => {
+      const rawOptionsRecord = rawCardLayoutSource[optionsKey];
+      if (!v2_isRecord(rawOptionsRecord)) return;
+      normalized.textOptions[optionsKey] = v2_mergeAutoResizeOptions(
+        normalized.textOptions[optionsKey],
+        rawOptionsRecord
       );
     });
   }
@@ -6131,6 +6239,7 @@ export const v2_normalizeTemplateRenderConfig = (
 
   if (rawCardLayoutSource) {
     const referencedTimetableCardLayoutKeys = new Set<string>();
+    const referencedTimetableCardOptionKeys = new Set<string>();
     Object.values(normalized.timetable.components).forEach((component) => {
       v2_TIMETABLE_CARD_STATUS_KEYS.forEach((status) => {
         const state = component.states[status];
@@ -6146,13 +6255,18 @@ export const v2_normalizeTemplateRenderConfig = (
             node.entryStyleKey,
             node.textStyleKey,
             node.wrapperStyleKey,
-            node.optionsKey,
           ].forEach((styleKey) => {
             if (typeof styleKey !== "string" || styleKey.trim().length === 0) {
               return;
             }
             referencedTimetableCardLayoutKeys.add(styleKey);
           });
+          if (
+            typeof node.optionsKey === "string" &&
+            node.optionsKey.trim().length > 0
+          ) {
+            referencedTimetableCardOptionKeys.add(node.optionsKey);
+          }
         });
       });
     });
@@ -6163,6 +6277,14 @@ export const v2_normalizeTemplateRenderConfig = (
       normalized.layout.card[styleKey] = v2_mergeSceneLayoutEntry(
         normalized.layout.card[styleKey],
         rawStyleRecord
+      );
+    });
+    referencedTimetableCardOptionKeys.forEach((optionsKey) => {
+      const rawOptionsRecord = rawCardLayoutSource[optionsKey];
+      if (!v2_isRecord(rawOptionsRecord)) return;
+      normalized.textOptions[optionsKey] = v2_mergeAutoResizeOptions(
+        normalized.textOptions[optionsKey],
+        rawOptionsRecord
       );
     });
   }

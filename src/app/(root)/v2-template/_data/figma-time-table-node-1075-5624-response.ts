@@ -139,7 +139,6 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
           ...fallbackConfig.layout,
           grid: {
             ...fallbackConfig.layout.grid,
-            layoutMode: "grid3x3",
             left: 33,
             top: 121,
             width: 2201,
@@ -147,8 +146,6 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
             rowGap: 68,
             columnGap: 20,
             columns: 3,
-            gridEmptySlotA: 3,
-            gridEmptySlotB: 6,
           },
           weekFlag: {
             ...fallbackConfig.layout.weekFlag,
@@ -276,16 +273,6 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
               letterSpacing: -1.16,
               textAlign: "center",
             },
-            mainTitleOptions: {
-              ...fallbackConfig.layout.card.mainTitleOptions,
-              maxFontSize: 82,
-              multiline: true,
-            },
-            subTitleOptions: {
-              ...fallbackConfig.layout.card.subTitleOptions,
-              maxFontSize: 58,
-              multiline: false,
-            },
             streamingDayStyle: {
               ...fallbackConfig.layout.card.streamingDayStyle,
               fontSize: 1,
@@ -357,6 +344,24 @@ export const v2_createFigmaTimeTableNode1075_5624RenderConfigResponse =
               textAlign: "center",
             },
           },
+        },
+        textOptions: {
+          ...fallbackConfig.textOptions,
+          mainTitleOptions: {
+            ...fallbackConfig.textOptions.mainTitleOptions,
+            maxFontSize: 82,
+            multiline: true,
+          },
+          subTitleOptions: {
+            ...fallbackConfig.textOptions.subTitleOptions,
+            maxFontSize: 58,
+            multiline: false,
+          },
+        },
+        timetable: {
+          ...fallbackConfig.timetable,
+          layoutMode: "grid3x3",
+          emptySlots: [3, 6],
         },
       },
       createdAt: null,

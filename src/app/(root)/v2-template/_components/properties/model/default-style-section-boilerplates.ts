@@ -2,9 +2,6 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
   Record<string, Record<string, string | number>>
 > = {
   grid: {
-    layoutMode: "grid3x3",
-    flex42ThreeRow: "bottom",
-    flex42Align: "center",
     left: 33,
     top: 121,
     rowGap: 68,
@@ -12,8 +9,6 @@ export const v2_DEFAULT_STYLE_SECTION_BOILERPLATES: Partial<
     columns: 3,
     width: 2201,
     height: 1816,
-    gridEmptySlotA: 3,
-    gridEmptySlotB: 6,
   },
   gridBg: {
     position: "absolute",

@@ -16,10 +16,6 @@ import V2TimeTableCell from "./card-cell";
 import { v2_getHighlightStyle } from "./highlight-style";
 import { v2_toRenderableLayoutStyle } from "./render-style";
 
-type V2GridLayoutMode = "grid3x3" | "flex4x2" | "free";
-type V2Flex42Align = "left" | "center" | "right";
-type V2Flex42ThreeRow = "top" | "bottom";
-
 const v2_getCardInstanceTransform = (
   transforms:
     | Record<
@@ -85,47 +81,6 @@ const v2_getCardInstanceTransform = (
   return { x, y, width, height, rotateDeg, scale, opacity };
 };
 
-const v2_parseGridLayoutMode = (value: unknown): V2GridLayoutMode => {
-  if (value === "flex4x2") return "flex4x2";
-  if (value === "free") return "free";
-  return "grid3x3";
-};
-
-const v2_parseFlex42Align = (value: unknown): V2Flex42Align => {
-  if (value === "left" || value === "center" || value === "right") return value;
-  return "center";
-};
-
-const v2_parseFlex42ThreeRow = (value: unknown): V2Flex42ThreeRow => {
-  return value === "top" ? "top" : "bottom";
-};
-
-const v2_parseGridEmptySlots = (
-  slotA: unknown,
-  slotB: unknown
-): Set<number> => {
-  const parseSlot = (value: unknown): number | undefined => {
-    const candidate =
-      typeof value === "number"
-        ? value
-        : typeof value === "string"
-          ? Number.parseInt(value, 10)
-          : NaN;
-
-    if (!Number.isFinite(candidate)) return undefined;
-    const rounded = Math.round(candidate);
-    if (rounded < 1 || rounded > 9) return undefined;
-    return rounded;
-  };
-
-  const slots = [parseSlot(slotA), parseSlot(slotB)].filter(
-    (slot): slot is number => slot !== undefined
-  );
-  const uniqueSlots = Array.from(new Set(slots)).slice(0, 2);
-
-  return new Set(uniqueSlots);
-};
-
 const TimeTableGrid: React.FC<{
   cardStructure: V2TemplateCardStructure;
   cardStructureByComponentId?: Record<string, V2TemplateCardStructure>;
@@ -141,22 +96,18 @@ const TimeTableGrid: React.FC<{
   } = useTemplateRuntimeContext();
   const { weekDates } = useTemplateRuntimeData();
   const { renderConfig } = useTemplateRenderConfigContext();
+  const timetable = renderConfig.timetable;
   const gridLayout =
     (renderConfig.layout.grid as Record<string, string | number>) ?? {};
   const {
     columns,
-    layoutMode: layoutModeRaw,
-    gridEmptySlotA,
-    gridEmptySlotB,
-    flex42ThreeRow: flex42ThreeRowRaw,
-    flex42Align: flex42AlignRaw,
     gridTemplateColumns: gridTemplateColumnsRaw,
     ...gridStyleRaw
   } = gridLayout;
-  const layoutMode = v2_parseGridLayoutMode(layoutModeRaw);
-  const flex42ThreeRow = v2_parseFlex42ThreeRow(flex42ThreeRowRaw);
-  const flex42Align = v2_parseFlex42Align(flex42AlignRaw);
-  const emptySlots = v2_parseGridEmptySlots(gridEmptySlotA, gridEmptySlotB);
+  const layoutMode = timetable.layoutMode;
+  const flex42ThreeRow = timetable.flex42ThreeRow;
+  const flex42Align = timetable.flex42Align;
+  const emptySlots = new Set(timetable.emptySlots ?? []);
   const gridStyle = v2_toRenderableLayoutStyle(gridStyleRaw);
   const baseLayoutStyle: React.CSSProperties = {
     ...gridStyle,

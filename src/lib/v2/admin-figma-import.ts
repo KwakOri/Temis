@@ -91,12 +91,9 @@ const v2_buildLayoutOverridePostProcessor = (
   if (!v2_isLayoutMode(layoutModeOverride)) return undefined;
   return (config: V2TemplateRenderConfig): V2TemplateRenderConfig => ({
     ...config,
-    layout: {
-      ...config.layout,
-      grid: {
-        ...config.layout.grid,
-        layoutMode: layoutModeOverride,
-      },
+    timetable: {
+      ...config.timetable,
+      layoutMode: layoutModeOverride,
     },
   });
 };
@@ -126,8 +123,8 @@ export const v2_runAdminFigmaAnalyze = async (
   });
 
   const normalizedConfig = result.importResult?.normalizedConfig;
-  const layoutModeCandidate = v2_isLayoutMode(normalizedConfig?.layout?.grid?.layoutMode)
-    ? normalizedConfig.layout.grid.layoutMode
+  const layoutModeCandidate = v2_isLayoutMode(normalizedConfig?.timetable?.layoutMode)
+    ? normalizedConfig.timetable.layoutMode
     : "grid3x3";
 
   return {
@@ -184,10 +181,7 @@ export const v2_runAdminFigmaImport = async (
     templateId: result.importResult.templateId,
     templateName: result.importResult.templateName,
     latestRevisionNo: result.importResult.latestRevisionNo,
-    layoutMode:
-      (result.importResult.normalizedConfig.layout.grid.layoutMode as
-        | V2AdminFigmaLayoutMode
-        | undefined) ?? "grid3x3",
+    layoutMode: result.importResult.normalizedConfig.timetable.layoutMode,
     mode: result.validation.mode,
     detectedStatuses: v2_extractDetectedStatuses(result),
     detectedFeatures:
@@ -234,10 +228,7 @@ export const v2_runAdminFigmaImportConfig = async (
   return {
     templateId: input.templateId,
     renderConfig: result.importResult.normalizedConfig,
-    layoutMode:
-      (result.importResult.normalizedConfig.layout.grid.layoutMode as
-        | V2AdminFigmaLayoutMode
-        | undefined) ?? "grid3x3",
+    layoutMode: result.importResult.normalizedConfig.timetable.layoutMode,
     mode: result.validation.mode,
     detectedStatuses: v2_extractDetectedStatuses(result),
     detectedFeatures:

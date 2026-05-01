@@ -25,6 +25,7 @@ import {
   V2TemplateDayKey,
   V2TemplateExtraAssetDimensionMap,
   V2TemplateExtraAssetMap,
+  V2TemplateStyleRecord,
   V2TemplateTimetableCardComponent,
   V2TemplateTimetableCardState,
 } from "../src/types/time-table/template-render-config";
@@ -2117,7 +2118,6 @@ const CARD_STYLE_REF_KEYS = [
   "containerStyleKey",
   "textStyleKey",
   "wrapperStyleKey",
-  "optionsKey",
 ] as const;
 
 const makeUniqueGraphId = (base: string, used: Set<string>): string => {
@@ -2263,9 +2263,36 @@ const detachCardComponentPerInstance = ({
           );
           styleKeyMap.set(sourceStyleKey, nextStyleKey);
           config.layout.card[nextStyleKey] = {
-            ...(config.layout.card[sourceStyleKey] as Record<string, unknown>),
+            ...(config.layout.card[sourceStyleKey] as V2TemplateStyleRecord),
           };
         });
+        const sourceOptionsKey = sourceNode.styles.optionsKey;
+        const sourceOptions =
+          typeof sourceOptionsKey === "string"
+            ? config.textOptions[sourceOptionsKey] ??
+              (config.layout.card[sourceOptionsKey] as Record<string, unknown> | undefined)
+            : undefined;
+        if (
+          typeof sourceOptionsKey === "string" &&
+          sourceOptionsKey.trim().length > 0 &&
+          sourceOptions &&
+          typeof sourceOptions === "object" &&
+          !styleKeyMap.has(sourceOptionsKey)
+        ) {
+          const nextOptionsKey = makeUniqueCardStyleKey(
+            `${sourceOptionsKey}${CARD_INSTANCE_MARKER}${instanceToken}`,
+            usedCardStyleKeys
+          );
+          styleKeyMap.set(sourceOptionsKey, nextOptionsKey);
+          config.textOptions[nextOptionsKey] = {
+            ...(typeof sourceOptions.maxFontSize === "number"
+              ? { maxFontSize: sourceOptions.maxFontSize }
+              : {}),
+            ...(typeof sourceOptions.multiline === "boolean"
+              ? { multiline: sourceOptions.multiline }
+              : {}),
+          };
+        }
       });
 
       detachedNodeIds.forEach((oldNodeId) => {
@@ -2287,6 +2314,10 @@ const detachCardComponentPerInstance = ({
               clonedStyles[styleRefKey] = styleKeyMap.get(sourceStyleKey);
             }
           });
+          const sourceOptionsKey = clonedStyles.optionsKey;
+          if (typeof sourceOptionsKey === "string" && styleKeyMap.has(sourceOptionsKey)) {
+            clonedStyles.optionsKey = styleKeyMap.get(sourceOptionsKey);
+          }
         }
 
         const sourceParentId =
@@ -3815,7 +3846,7 @@ const applyLayoutMappingsFromFigma = ({
     );
 
     if (fallbackInstanceNodes.length > 0) {
-      const nextSceneStyles: Array<{ styleKey: string; style: Record<string, unknown> }> = [];
+      const nextSceneStyles: Array<{ styleKey: string; style: V2TemplateStyleRecord }> = [];
       fallbackInstanceNodes.forEach((instanceNode, fallbackIndex) => {
         const dayKey = toDayTagKey(
           typeof instanceNode.meta?.dayKey === "string"
@@ -3840,7 +3871,7 @@ const applyLayoutMappingsFromFigma = ({
             ? instanceNode.meta.layerSectionKey.trim()
             : undefined);
         if (!styleKey) return;
-        const style: Record<string, unknown> = {
+        const style: V2TemplateStyleRecord = {
           position: "absolute",
           left: rect.left,
           top: rect.top,
@@ -3880,14 +3911,14 @@ const applyLayoutMappingsFromFigma = ({
         nextSceneStyles.forEach(({ styleKey, style }) => {
           const current = config.layout.scene[
             styleKey
-          ] as Record<string, unknown> | undefined;
+          ] as V2TemplateStyleRecord | undefined;
           config.layout.scene[styleKey] = {
             ...(current ?? {}),
             ...style,
           };
         });
-        (config.layout.grid as Record<string, unknown>).layoutMode = "free";
-        summary.applied.push("layout.grid.layoutMode=free");
+        config.timetable.layoutMode = "free";
+        summary.applied.push("timetable.layoutMode=free");
         summary.applied.push("layout.scene.[cardInstanceStyle].position");
         if (nextSceneStyles.length < IMPORT_DAY_KEYS.length) {
           summary.warnings.push(
@@ -3990,8 +4021,8 @@ const applyLayoutMappingsFromFigma = ({
 
     cardComponent.instanceMode = "detached";
     cardComponent.instanceTransforms = nextTransforms;
-    (config.layout.grid as Record<string, unknown>).layoutMode = "free";
-    summary.applied.push("layout.grid.layoutMode=free");
+    config.timetable.layoutMode = "free";
+    summary.applied.push("timetable.layoutMode=free");
     summary.applied.push(`graph.componentDefinitions.${componentId}.instanceMode=detached`);
     summary.applied.push(`graph.componentDefinitions.${componentId}.instanceTransforms`);
     if (appliedCount < IMPORT_DAY_KEYS.length) {
@@ -5963,7 +5994,6 @@ const applyLayoutMappingsFromFigma = ({
         "entryStyleKey",
         "textStyleKey",
         "wrapperStyleKey",
-        "optionsKey",
       ] as const;
 
       const cloneCardLayoutRecordWithSuffix = ({
@@ -5984,11 +6014,44 @@ const applyLayoutMappingsFromFigma = ({
           const sourceValue = config.layout.card[sourceKey];
           if (sourceValue && typeof sourceValue === "object") {
             config.layout.card[targetKey] = {
-              ...(sourceValue as Record<string, unknown>),
+              ...(sourceValue as V2TemplateStyleRecord),
             };
           } else {
             config.layout.card[targetKey] = {};
           }
+        }
+        return targetKey;
+      };
+
+      const cloneCardOptionsRecordWithSuffix = ({
+        sourceKey,
+        suffix,
+      }: {
+        sourceKey?: string;
+        suffix: string;
+      }): string | undefined => {
+        if (!sourceKey || sourceKey.trim().length === 0) return undefined;
+        const normalizedSuffix = suffix.replace(/[^a-zA-Z0-9_-]+/g, "_");
+        const suffixToken = `__${normalizedSuffix}`;
+        if (sourceKey.endsWith(suffixToken)) {
+          return sourceKey;
+        }
+        const targetKey = `${sourceKey}${suffixToken}`;
+        if (!(targetKey in config.textOptions)) {
+          const sourceValue =
+            config.textOptions[sourceKey] ??
+            (config.layout.card[sourceKey] as Record<string, unknown> | undefined);
+          config.textOptions[targetKey] =
+            sourceValue && typeof sourceValue === "object"
+              ? {
+                  ...(typeof sourceValue.maxFontSize === "number"
+                    ? { maxFontSize: sourceValue.maxFontSize }
+                    : {}),
+                  ...(typeof sourceValue.multiline === "boolean"
+                    ? { multiline: sourceValue.multiline }
+                    : {}),
+                }
+              : {};
         }
         return targetKey;
       };
@@ -6021,6 +6084,15 @@ const applyLayoutMappingsFromFigma = ({
             nextStyles[styleRefKey] = targetStyleKey;
           }
         });
+        const sourceOptionsKey =
+          typeof nextStyles.optionsKey === "string" ? nextStyles.optionsKey : undefined;
+        const targetOptionsKey = cloneCardOptionsRecordWithSuffix({
+          sourceKey: sourceOptionsKey,
+          suffix,
+        });
+        if (targetOptionsKey) {
+          nextStyles.optionsKey = targetOptionsKey;
+        }
         if (entryStyleKey) {
           nextStyles.entryStyleKey = entryStyleKey;
         } else {
@@ -6849,6 +6921,7 @@ const applyLayoutMappingsFromFigma = ({
     const cardNormalizeSummary = v2_normalizeCardImportGraph({
       graph: config.graph,
       layout: config.layout,
+      textOptions: config.textOptions,
     });
     if (cardNormalizeSummary.prunedLegacyNodes > 0) {
       summary.applied.push(
@@ -8324,6 +8397,7 @@ export const runImportV2TemplateFromFigma = async (
   const postNormalizeCardSummary = v2_normalizeCardImportGraph({
     graph: normalizedConfig.graph,
     layout: normalizedConfig.layout,
+    textOptions: normalizedConfig.textOptions,
   });
   if (postNormalizeCardSummary.prunedLegacyNodes > 0) {
     mappingSummary.applied.push(

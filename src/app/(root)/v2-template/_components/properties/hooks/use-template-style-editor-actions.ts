@@ -45,7 +45,6 @@ interface UseTemplateStyleEditorActionsParams {
     >
   >;
   styleSectionHighlightTargetMap: Record<string, V2TemplateHighlightTarget>;
-  stylePropertyCatalog: readonly string[];
   lockedStylePropertyKeys: Set<string>;
 }
 
@@ -60,7 +59,6 @@ const useTemplateStyleEditorActions = ({
   rootLayoutStyleSectionKeyMap,
   cardLayoutStyleSectionKeyMap,
   styleSectionHighlightTargetMap,
-  stylePropertyCatalog,
   lockedStylePropertyKeys,
 }: UseTemplateStyleEditorActionsParams) => {
   const [styleGroupExpanded, setStyleGroupExpanded] = useState<
@@ -233,29 +231,6 @@ const useTemplateStyleEditorActions = ({
     ]
   );
 
-  const addStyleProperty = useCallback(
-    (section: string) => {
-      const currentMap = getStyleSectionMap(section);
-      const nextKey =
-        stylePropertyCatalog.find(
-          (property) =>
-            !lockedStylePropertyKeys.has(property) &&
-            currentMap[property] === undefined
-        ) ?? `custom_${Object.keys(currentMap).length + 1}`;
-
-      updateStyleSection(section, {
-        ...currentMap,
-        [nextKey]: "",
-      });
-    },
-    [
-      getStyleSectionMap,
-      lockedStylePropertyKeys,
-      stylePropertyCatalog,
-      updateStyleSection,
-    ]
-  );
-
   const removeStyleProperty = useCallback(
     (section: string, key: string) => {
       if (lockedStylePropertyKeys.has(key)) return;
@@ -284,77 +259,6 @@ const useTemplateStyleEditorActions = ({
       updateStyleSection,
       withExclusiveInsetValue,
     ]
-  );
-
-  const updateGridLayoutMode = useCallback(
-    (mode: "grid3x3" | "flex4x2" | "free") => {
-      const currentMap = getStyleSectionMap("grid");
-      updateStyleSection("grid", {
-        ...currentMap,
-        layoutMode: mode,
-      });
-    },
-    [getStyleSectionMap, updateStyleSection]
-  );
-
-  const updateFlex42Align = useCallback(
-    (align: "left" | "center" | "right") => {
-      const currentMap = getStyleSectionMap("grid");
-      updateStyleSection("grid", {
-        ...currentMap,
-        flex42Align: align,
-      });
-    },
-    [getStyleSectionMap, updateStyleSection]
-  );
-
-  const updateFlex42ThreeRow = useCallback(
-    (targetRow: "top" | "bottom") => {
-      const currentMap = getStyleSectionMap("grid");
-      updateStyleSection("grid", {
-        ...currentMap,
-        flex42ThreeRow: targetRow,
-      });
-    },
-    [getStyleSectionMap, updateStyleSection]
-  );
-
-  const pickGridEmptySlot = useCallback(
-    (slot: number) => {
-      const currentMap = getStyleSectionMap("grid");
-      const slotA = currentMap.gridEmptySlotA;
-      const slotB = currentMap.gridEmptySlotB;
-      const currentSlots = [slotA, slotB].filter(
-        (value): value is number => typeof value === "number"
-      );
-      const isSelected = currentSlots.includes(slot);
-
-      let nextSlots: number[];
-      if (isSelected) {
-        nextSlots = currentSlots.filter((value) => value !== slot);
-      } else if (currentSlots.length < 2) {
-        nextSlots = [...currentSlots, slot];
-      } else {
-        nextSlots = [currentSlots[1], slot];
-      }
-
-      const nextMap: Record<string, string | number> = {
-        ...currentMap,
-      };
-      if (nextSlots[0] !== undefined) {
-        nextMap.gridEmptySlotA = nextSlots[0];
-      } else {
-        delete nextMap.gridEmptySlotA;
-      }
-      if (nextSlots[1] !== undefined) {
-        nextMap.gridEmptySlotB = nextSlots[1];
-      } else {
-        delete nextMap.gridEmptySlotB;
-      }
-
-      updateStyleSection("grid", nextMap);
-    },
-    [getStyleSectionMap, updateStyleSection]
   );
 
   const getHighlightTargetFromStyleSection = useCallback(
@@ -543,13 +447,8 @@ const useTemplateStyleEditorActions = ({
 
   return {
     getStyleSectionMap,
-    addStyleProperty,
     removeStyleProperty,
     updateStylePropertyValue,
-    updateGridLayoutMode,
-    updateFlex42Align,
-    updateFlex42ThreeRow,
-    pickGridEmptySlot,
     setSectionHoverHighlight,
     clearSectionHoverHighlight,
     setSectionActiveHighlight,

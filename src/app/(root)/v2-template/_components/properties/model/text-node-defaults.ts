@@ -1,6 +1,9 @@
 "use client";
 
-import { V2TemplateRenderConfig } from "@/types/time-table/template-render-config";
+import {
+  V2TemplateAutoResizeOptions,
+  V2TemplateRenderConfig,
+} from "@/types/time-table/template-render-config";
 
 export const v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME =
   "absolute flex justify-center items-center";
@@ -11,7 +14,6 @@ export const v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME =
 export const v2_createDefaultTextNodeLayoutPatch = ({
   containerStyleKey,
   textStyleKey,
-  optionsKey,
   isFlexibleText,
 }: {
   containerStyleKey: string;
@@ -41,14 +43,10 @@ export const v2_createDefaultTextNodeLayoutPatch = ({
     },
   };
 
-  if (!isFlexibleText) return basePatch;
-
-  if (optionsKey) {
-    basePatch[optionsKey] = {
-      maxFontSize: 56,
-      multiline: true,
-    };
-  }
-
   return basePatch;
 };
+
+export const v2_createDefaultFlexibleTextOptions = (): V2TemplateAutoResizeOptions => ({
+  maxFontSize: 56,
+  multiline: true,
+});

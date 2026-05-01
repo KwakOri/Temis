@@ -34,8 +34,9 @@ export const v2_resolveRuntimeTextNodeValue = ({
   resolveStyleRecordByKey: (key?: string) => unknown;
 }): V2ResolvedRuntimeTextNode => {
   const optionsRaw = node.optionsKey
-    ? (resolveStyleRecordByKey(node.optionsKey) as Record<string, unknown>)
+    ? renderConfig.textOptions[node.optionsKey] ?? {}
     : {};
+  void resolveStyleRecordByKey;
 
   const firstDayKey = v2_parseDayKey(firstCard?.day) ?? v2_dayKeyFromIndex(0);
   const firstWeekDate = weekDates[0];
@@ -76,10 +77,14 @@ export const v2_resolveRuntimeTextNodeValue = ({
 
   const multiline =
     typeof optionsRaw.multiline === "boolean" ? optionsRaw.multiline : true;
-  const maxFontSize =
+  const fallbackMaxFontSize =
     node.id === "scene-artist-text" || node.id === "scene-memo-text"
       ? renderConfig.maxFontSizes.ARTIST
       : renderConfig.maxFontSizes.MAIN_TITLE;
+  const maxFontSize =
+    typeof optionsRaw.maxFontSize === "number" && Number.isFinite(optionsRaw.maxFontSize)
+      ? optionsRaw.maxFontSize
+      : fallbackMaxFontSize;
 
   return {
     text,

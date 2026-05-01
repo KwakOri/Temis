@@ -74,7 +74,6 @@ import {
 import {
   v2_createStyleKeyToSectionKeyMap,
 } from "./model/style-section-utils";
-import { v2_getGridEmptySlotsFromMap } from "./model/layout-utils";
 import {
   v2_applyTemplatePreset,
   v2_TEMPLATE_PRESET_DEFINITIONS,
@@ -99,7 +98,6 @@ import {
   v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP,
   v2_SCENE_CUSTOM_LAYER_ID_PREFIX,
   v2_SCENE_CUSTOM_NODE_ID_PREFIX,
-  v2_STYLE_PROPERTY_CATALOG,
   v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP,
   v2_STYLE_SECTION_LABELS,
   v2_STYLE_SECTION_ORDER,
@@ -113,6 +111,7 @@ import TemplateSelectedPropertiesPanelRouter from "./components/template-selecte
 import TemplateStylePresetControls from "./components/template-style-preset-controls";
 import TemplateStyleSectionEditor from "./components/template-style-section-editor";
 import {
+  v2_createDefaultFlexibleTextOptions,
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
   v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
@@ -1088,13 +1087,8 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const {
     getStyleSectionMap,
-    addStyleProperty,
     removeStyleProperty,
     updateStylePropertyValue,
-    updateGridLayoutMode,
-    updateFlex42Align,
-    updateFlex42ThreeRow,
-    pickGridEmptySlot,
     setSectionHoverHighlight,
     clearSectionHoverHighlight,
     setSectionActiveHighlight,
@@ -1116,7 +1110,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     rootLayoutStyleSectionKeyMap: v2_ROOT_LAYOUT_STYLE_SECTION_KEY_MAP,
     cardLayoutStyleSectionKeyMap: v2_CARD_LAYOUT_STYLE_SECTION_KEY_MAP,
     styleSectionHighlightTargetMap: v2_STYLE_SECTION_HIGHLIGHT_TARGET_MAP,
-    stylePropertyCatalog: v2_STYLE_PROPERTY_CATALOG,
     lockedStylePropertyKeys: v2_LOCKED_STYLE_PROPERTY_KEYS,
   });
 
@@ -1547,9 +1540,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const {
     getBoilerplateSectionMap,
-    addBoilerplateProperty,
-    removeBoilerplateProperty,
-    renameBoilerplateProperty,
     updateBoilerplatePropertyValue,
     getBoilerplateFieldType,
     getBoilerplateFieldStep,
@@ -1789,9 +1779,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const pickTimetableGridEmptySlot = (slot: number) => {
     safeUpdateConfig((prev) => {
-      const currentGridLayout =
-        (prev.layout.grid as Record<string, string | number>) ?? {};
-      const currentSlots = v2_getGridEmptySlotsFromMap(currentGridLayout);
+      const currentSlots = Array.isArray(prev.timetable.emptySlots)
+        ? prev.timetable.emptySlots
+        : [];
       const isSelected = currentSlots.includes(slot);
 
       let nextSlots: number[];
@@ -1803,25 +1793,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         nextSlots = [currentSlots[1], slot];
       }
 
-      const nextGridLayout: Record<string, string | number> = {
-        ...currentGridLayout,
-      };
-      if (nextSlots[0] !== undefined) {
-        nextGridLayout.gridEmptySlotA = nextSlots[0];
-      } else {
-        delete nextGridLayout.gridEmptySlotA;
-      }
-      if (nextSlots[1] !== undefined) {
-        nextGridLayout.gridEmptySlotB = nextSlots[1];
-      } else {
-        delete nextGridLayout.gridEmptySlotB;
-      }
-
       return {
         ...prev,
-        layout: {
-          ...prev.layout,
-          grid: nextGridLayout,
+        timetable: {
+          ...prev.timetable,
+          emptySlots: nextSlots,
         },
       };
     });
@@ -2368,14 +2344,11 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
       return {
         ...prev,
-        layout: {
-          ...prev.layout,
-          card: {
-            ...prev.layout.card,
-            [optionsKey]: {
-              ...(prev.layout.card[optionsKey] ?? {}),
-              ...patch,
-            },
+        textOptions: {
+          ...prev.textOptions,
+          [optionsKey]: {
+            ...(prev.textOptions[optionsKey] ?? {}),
+            ...patch,
           },
         },
       };
@@ -3054,6 +3027,12 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               optionsKey,
               isFlexibleText: kind === "flexibleText",
             });
+      const textOptionsPatch =
+        kind === "flexibleText" && optionsKey
+          ? {
+              [optionsKey]: v2_createDefaultFlexibleTextOptions(),
+            }
+          : {};
       const rootObjectIds = parentFrame
         ? (state.card.rootObjectIds ?? state.card.nodeOrder)
         : [...(state.card.rootObjectIds ?? state.card.nodeOrder), nodeId];
@@ -3100,6 +3079,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             ...prev.layout.card,
             ...layoutPatch,
           },
+        },
+        textOptions: {
+          ...prev.textOptions,
+          ...textOptionsPatch,
         },
       });
     });
@@ -3397,9 +3380,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     } = {}
   ) => {
     const timetable = renderConfig.timetable;
-    const selectedGridEmptySlots = v2_getGridEmptySlotsFromMap(
-      (renderConfig.layout.grid as Record<string, string | number>) ?? {}
-    );
+    const selectedGridEmptySlots = timetable.emptySlots ?? [];
     const extraAssetKeys = Object.keys(renderConfig.extraAssets ?? {}).sort(
       (a, b) => a.localeCompare(b)
     );
@@ -3886,7 +3867,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       const isFlexibleText = node.kind === "flexibleText";
       const flexibleTextOptions =
         isFlexibleText && node.optionsKey
-          ? renderConfig.layout.card[node.optionsKey]
+          ? renderConfig.textOptions[node.optionsKey]
           : null;
       const flexibleTextMultiline =
         typeof flexibleTextOptions?.multiline === "boolean"
@@ -4999,11 +4980,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       onApplyStyleExtensionGroupDefaults={applyStyleExtensionGroupDefaults}
       onUpdateStylePropertyValue={updateStylePropertyValue}
       onRemoveStyleProperty={removeStyleProperty}
-      onAddStyleProperty={addStyleProperty}
-      onUpdateGridLayoutMode={updateGridLayoutMode}
-      onPickGridEmptySlot={pickGridEmptySlot}
-      onUpdateFlex42ThreeRow={updateFlex42ThreeRow}
-      onUpdateFlex42Align={updateFlex42Align}
       getBoilerplateFieldType={getBoilerplateFieldType}
       getBoilerplateFieldStep={getBoilerplateFieldStep}
     />
@@ -5045,7 +5021,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         getBoilerplateSectionMap(nextSection as V2StyleSectionKey)
       }
       lockedStylePropertyKeys={v2_LOCKED_STYLE_PROPERTY_KEYS}
-      stylePropertyCatalog={v2_STYLE_PROPERTY_CATALOG}
       getBoilerplateAutoResizePair={(nextSection) =>
         getBoilerplateAutoResizePair(nextSection as V2StyleSectionKey)
       }
@@ -5080,9 +5055,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       onResetBoilerplateSection={(nextSection) =>
         resetBoilerplateSection(nextSection as V2StyleSectionKey)
       }
-      onAddBoilerplateProperty={(nextSection) =>
-        addBoilerplateProperty(nextSection as V2StyleSectionKey)
-      }
       getBoilerplateFieldType={getBoilerplateFieldType}
       getBoilerplateFieldStep={getBoilerplateFieldStep}
       onUpdateBoilerplatePropertyValue={(nextSection, key, value) =>
@@ -5091,16 +5063,6 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
           key,
           value
         )
-      }
-      onRenameBoilerplateProperty={(nextSection, currentKey, nextKey) =>
-        renameBoilerplateProperty(
-          nextSection as V2StyleSectionKey,
-          currentKey,
-          nextKey
-        )
-      }
-      onRemoveBoilerplateProperty={(nextSection, key) =>
-        removeBoilerplateProperty(nextSection as V2StyleSectionKey, key)
       }
     />
   );

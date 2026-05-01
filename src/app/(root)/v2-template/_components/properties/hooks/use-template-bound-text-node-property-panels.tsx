@@ -164,7 +164,7 @@ const useTemplateBoundTextNodePropertyPanels = ({
   }) => {
     if (!node.optionsKey) return null;
 
-    const options = renderConfig.layout.card[node.optionsKey];
+    const options = renderConfig.textOptions[node.optionsKey];
     const multiline =
       typeof options?.multiline === "boolean"
         ? options.multiline

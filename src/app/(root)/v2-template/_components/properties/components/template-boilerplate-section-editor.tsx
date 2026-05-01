@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlignHorizontalJustifyCenter, Braces } from "lucide-react";
+import { AlignHorizontalJustifyCenter } from "lucide-react";
 
 import {
   V2BoilerplateFieldConfig,
@@ -42,7 +42,6 @@ interface TemplateBoilerplateSectionEditorProps {
   section: string;
   getBoilerplateSectionMap: (section: string) => Record<string, string | number>;
   lockedStylePropertyKeys: Set<string>;
-  stylePropertyCatalog: readonly string[];
   getBoilerplateAutoResizePair: (
     section: string
   ) => TemplateBoilerplateAutoResizePair | null;
@@ -63,7 +62,6 @@ interface TemplateBoilerplateSectionEditorProps {
     align: V2VerticalAlign;
   }) => void;
   onResetBoilerplateSection: (section: string) => void;
-  onAddBoilerplateProperty: (section: string) => void;
   getBoilerplateFieldType: (
     field: V2BoilerplateFieldConfig
   ) => V2BoilerplateFieldType;
@@ -73,12 +71,6 @@ interface TemplateBoilerplateSectionEditorProps {
     key: string,
     value: string
   ) => void;
-  onRenameBoilerplateProperty: (
-    section: string,
-    currentKey: string,
-    nextKey: string
-  ) => void;
-  onRemoveBoilerplateProperty: (section: string, key: string) => void;
 }
 
 const TemplateBoilerplateSectionEditor: React.FC<
@@ -88,29 +80,18 @@ const TemplateBoilerplateSectionEditor: React.FC<
   section,
   getBoilerplateSectionMap,
   lockedStylePropertyKeys,
-  stylePropertyCatalog,
   getBoilerplateAutoResizePair,
   getBoilerplateHorizontalAlign,
   getBoilerplateVerticalAlign,
   onUpdateBoilerplateAutoResizeHorizontalAlign,
   onUpdateBoilerplateAutoResizeVerticalAlign,
   onResetBoilerplateSection,
-  onAddBoilerplateProperty,
   getBoilerplateFieldType,
   getBoilerplateFieldStep,
   onUpdateBoilerplatePropertyValue,
-  onRenameBoilerplateProperty,
-  onRemoveBoilerplateProperty,
 }) => {
   const sectionMap = getBoilerplateSectionMap(section);
   const groups = v2_expandDisplayGroups(v2_BOILERPLATE_SECTION_GROUPS[section] ?? []);
-  const presetKeys = new Set(
-    groups.flatMap((group) => group.fields.map((field) => field.key))
-  );
-  const customEntries = Object.entries(sectionMap).filter(
-    ([property]) =>
-      !presetKeys.has(property) && !lockedStylePropertyKeys.has(property)
-  );
   const autoResizePair = getBoilerplateAutoResizePair(section);
   const horizontalAlign = autoResizePair
     ? getBoilerplateHorizontalAlign(autoResizePair)
@@ -149,13 +130,6 @@ const TemplateBoilerplateSectionEditor: React.FC<
             className="px-2 py-1 rounded border border-gray-300 text-[11px] font-semibold text-gray-700 hover:bg-gray-50"
           >
             기본값 복원
-          </button>
-          <button
-            type="button"
-            onClick={() => onAddBoilerplateProperty(section)}
-            className="px-2 py-1 rounded border border-blue-300 text-[11px] font-semibold text-blue-700 hover:bg-blue-50"
-          >
-            + 커스텀 CSS
           </button>
         </div>
       </div>
@@ -288,51 +262,6 @@ const TemplateBoilerplateSectionEditor: React.FC<
         );
       })}
 
-      <div className="rounded border border-gray-200 bg-white p-3 space-y-2">
-        <h6 className="text-[11px] font-semibold tracking-wide text-gray-600 uppercase inline-flex items-center gap-1">
-          <Braces className="h-3.5 w-3.5" />
-          Custom CSS
-        </h6>
-        {customEntries.length === 0 && (
-          <p className="text-xs text-gray-400">추가된 커스텀 속성이 없습니다.</p>
-        )}
-        {customEntries.map(([property, value], index) => (
-          <div
-            key={`bp-custom-${section}-${index}`}
-            className="grid grid-cols-[1fr_1fr_auto] gap-2"
-          >
-            <input
-              list={`v2-bp-style-props-${section}`}
-              value={property}
-              onChange={(e) =>
-                onRenameBoilerplateProperty(section, property, e.target.value)
-              }
-              className="px-2 py-1 rounded border border-gray-300 text-xs"
-            />
-            <input
-              value={String(value)}
-              onChange={(e) =>
-                onUpdateBoilerplatePropertyValue(section, property, e.target.value)
-              }
-              className="px-2 py-1 rounded border border-gray-300 text-xs"
-              placeholder="값"
-            />
-            <button
-              type="button"
-              onClick={() => onRemoveBoilerplateProperty(section, property)}
-              className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
-            >
-              삭제
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <datalist id={`v2-bp-style-props-${section}`}>
-        {stylePropertyCatalog.map((property) => (
-          <option key={property} value={property} />
-        ))}
-      </datalist>
     </div>
   );
 };

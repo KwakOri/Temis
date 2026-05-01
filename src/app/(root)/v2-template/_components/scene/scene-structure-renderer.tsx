@@ -437,17 +437,13 @@ const V2SceneStructureRenderer = ({
           {node.children.map((childNode, index) => {
             const renderedChild = renderSceneNode(childNode, false);
             if (!renderedChild) return null;
-            const childZIndex =
-              node.id === "scene-grid"
-                ? node.children.length - index
-                : index + 1;
             return (
               <div
                 key={`${node.id}::${childNode.id}`}
                 style={{
                   position: "absolute",
                   inset: 0,
-                  zIndex: childZIndex,
+                  zIndex: index + 1,
                 }}
               >
                 {renderedChild}

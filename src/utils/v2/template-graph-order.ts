@@ -195,16 +195,7 @@ export const v2_normalizeGraphOrderKeys = (
       .filter((node): node is V2TemplateGraphNode => Boolean(node));
     if (existingNodes.length === 0) return;
 
-    const orderedIds = existingNodes
-      .sort((a, b) => {
-        const aKey = a.order?.orderKey ?? "";
-        const bKey = b.order?.orderKey ?? "";
-        if (aKey === bKey) {
-          return siblingIds.indexOf(a.id) - siblingIds.indexOf(b.id);
-        }
-        return aKey < bKey ? -1 : 1;
-      })
-      .map((node) => node.id);
+    const orderedIds = existingNodes.map((node) => node.id);
 
     orderedIds.forEach((nodeId, index) => {
       const node = normalizedGraph.nodes[nodeId];
@@ -489,6 +480,67 @@ export const v2_runOrderKeyRegressionChecks = (): V2OrderKeyRegressionCheckResul
         },
       },
       expectedRootNodeIds: ["a", "b", "c"],
+    },
+    {
+      name: "root-array-overrides-stale-order-key",
+      graph: {
+        rootNodeIds: ["b", "a"],
+        componentDefinitions: {},
+        nodes: {
+          a: {
+            id: "a",
+            type: "group",
+            label: "A",
+            parentId: null,
+            childIds: [],
+            order: { model: "orderKey", orderKey: "0000001024", prevSiblingId: null },
+          },
+          b: {
+            id: "b",
+            type: "group",
+            label: "B",
+            parentId: null,
+            childIds: [],
+            order: { model: "orderKey", orderKey: "0000002048", prevSiblingId: "a" },
+          },
+        },
+      },
+      expectedRootNodeIds: ["b", "a"],
+    },
+    {
+      name: "child-array-overrides-stale-order-key",
+      graph: {
+        rootNodeIds: ["p"],
+        componentDefinitions: {},
+        nodes: {
+          p: {
+            id: "p",
+            type: "group",
+            label: "Parent",
+            parentId: null,
+            childIds: ["b", "a"],
+          },
+          a: {
+            id: "a",
+            type: "text",
+            label: "A",
+            parentId: "p",
+            childIds: [],
+            order: { model: "orderKey", orderKey: "0000001024", prevSiblingId: null },
+          },
+          b: {
+            id: "b",
+            type: "text",
+            label: "B",
+            parentId: "p",
+            childIds: [],
+            order: { model: "orderKey", orderKey: "0000002048", prevSiblingId: "a" },
+          },
+        },
+      },
+      expectedChildIdsByParent: {
+        p: ["b", "a"],
+      },
     },
   ];
 

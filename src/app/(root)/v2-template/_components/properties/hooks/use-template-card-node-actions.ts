@@ -20,6 +20,7 @@ import {
   v2_graphUpdateNode,
 } from "@/utils/v2/template-graph-editor";
 import {
+  v2_createDefaultFlexibleTextOptions,
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
   v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
@@ -106,14 +107,11 @@ const useTemplateCardNodeActions = ({
   ) => {
     safeUpdateConfig((prev) => ({
       ...prev,
-      layout: {
-        ...prev.layout,
-        card: {
-          ...prev.layout.card,
-          [optionKey]: {
-            ...(prev.layout.card[optionKey] ?? {}),
-            ...patch,
-          },
+      textOptions: {
+        ...prev.textOptions,
+        [optionKey]: {
+          ...(prev.textOptions[optionKey] ?? {}),
+          ...patch,
         },
       },
     }));
@@ -384,6 +382,13 @@ const useTemplateCardNodeActions = ({
               isFlexibleText: kind === "flexibleText",
             })),
       };
+      const nextTextOptions =
+        kind === "flexibleText" && optionsKey
+          ? {
+              ...prev.textOptions,
+              [optionsKey]: v2_createDefaultFlexibleTextOptions(),
+            }
+          : prev.textOptions;
 
       const nextGraphNode = v2_cardNodeToGraphNode(nextNode);
       const nextGraph = v2_graphAppendChild({
@@ -398,6 +403,7 @@ const useTemplateCardNodeActions = ({
           ...prev.layout,
           card: nextCardLayout,
         },
+        textOptions: nextTextOptions,
       };
     });
   };

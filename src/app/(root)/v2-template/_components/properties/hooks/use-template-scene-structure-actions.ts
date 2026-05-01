@@ -23,6 +23,7 @@ import {
   v2_findSceneNodeContextById,
 } from "../model/structure-utils";
 import {
+  v2_createDefaultFlexibleTextOptions,
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
   v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
@@ -59,6 +60,10 @@ const useTemplateSceneStructureActions = ({
     dynamicSceneLayoutPatch: Record<
       string,
       NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>
+    >;
+    dynamicTextOptionsPatch?: Record<
+      string,
+      V2TemplateRenderConfig["textOptions"][string]
     >;
   } | null => {
     const runtimeSceneNodes = v2_getRuntimeSceneNodes(prev);
@@ -240,6 +245,9 @@ const useTemplateSceneStructureActions = ({
         optionsKey,
         isFlexibleText: true,
       }),
+      dynamicTextOptionsPatch: {
+        [optionsKey]: v2_createDefaultFlexibleTextOptions(),
+      },
     };
   };
 
@@ -263,7 +271,12 @@ const useTemplateSceneStructureActions = ({
 
       const payload = createCustomSceneNodePayload(prev, kind);
       if (!payload) return prev;
-      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
+      const {
+        sceneNode,
+        layerNode,
+        dynamicSceneLayoutPatch,
+        dynamicTextOptionsPatch = {},
+      } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
 
@@ -282,6 +295,10 @@ const useTemplateSceneStructureActions = ({
             ...prev.layout.scene,
             ...dynamicSceneLayoutPatch,
           },
+        },
+        textOptions: {
+          ...prev.textOptions,
+          ...dynamicTextOptionsPatch,
         },
       };
     });
@@ -306,7 +323,12 @@ const useTemplateSceneStructureActions = ({
     safeUpdateConfig((prev) => {
       const payload = createCustomSceneNodePayload(prev, kind);
       if (!payload) return prev;
-      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
+      const {
+        sceneNode,
+        layerNode,
+        dynamicSceneLayoutPatch,
+        dynamicTextOptionsPatch = {},
+      } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
 
@@ -324,6 +346,10 @@ const useTemplateSceneStructureActions = ({
             ...prev.layout.scene,
             ...dynamicSceneLayoutPatch,
           },
+        },
+        textOptions: {
+          ...prev.textOptions,
+          ...dynamicTextOptionsPatch,
         },
       };
     });
@@ -357,7 +383,12 @@ const useTemplateSceneStructureActions = ({
 
       const payload = createCustomSceneNodePayload(prev, kind);
       if (!payload) return prev;
-      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
+      const {
+        sceneNode,
+        layerNode,
+        dynamicSceneLayoutPatch,
+        dynamicTextOptionsPatch = {},
+      } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget = layerNode.target ?? null;
 
@@ -376,6 +407,10 @@ const useTemplateSceneStructureActions = ({
             ...prev.layout.scene,
             ...dynamicSceneLayoutPatch,
           },
+        },
+        textOptions: {
+          ...prev.textOptions,
+          ...dynamicTextOptionsPatch,
         },
       };
     });

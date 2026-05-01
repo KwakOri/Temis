@@ -59,44 +59,6 @@ const useTemplateBoilerplateActions = ({
     }));
   };
 
-  const addBoilerplateProperty = (section: string) => {
-    const currentMap = getBoilerplateSectionMap(section);
-    let nextIndex = 1;
-    while (currentMap[`custom_${nextIndex}`] !== undefined) {
-      nextIndex += 1;
-    }
-    const nextKey = `custom_${nextIndex}`;
-
-    updateBoilerplateSection(section, {
-      ...currentMap,
-      [nextKey]: "",
-    });
-  };
-
-  const removeBoilerplateProperty = (section: string, key: string) => {
-    const currentMap = getBoilerplateSectionMap(section);
-    const nextMap = { ...currentMap };
-    delete nextMap[key];
-    updateBoilerplateSection(section, nextMap);
-  };
-
-  const renameBoilerplateProperty = (
-    section: string,
-    currentKey: string,
-    nextKeyRaw: string
-  ) => {
-    const nextKey = nextKeyRaw.trim();
-    if (!nextKey) return;
-    if (lockedStylePropertyKeys.has(nextKey)) return;
-
-    const currentMap = getBoilerplateSectionMap(section);
-    const value = currentMap[currentKey];
-    const nextMap = { ...currentMap };
-    delete nextMap[currentKey];
-    nextMap[nextKey] = value;
-    updateBoilerplateSection(section, nextMap);
-  };
-
   const parseStyleValue = (rawValue: string): string | number => {
     const trimmed = rawValue.trim();
     if (trimmed === "") return "";
@@ -241,9 +203,6 @@ const useTemplateBoilerplateActions = ({
 
   return {
     getBoilerplateSectionMap,
-    addBoilerplateProperty,
-    removeBoilerplateProperty,
-    renameBoilerplateProperty,
     updateBoilerplatePropertyValue,
     getBoilerplateFieldType,
     getBoilerplateFieldStep,

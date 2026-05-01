@@ -84,29 +84,6 @@ const v2_getGridEditorAttributes = ({
   } as React.HTMLAttributes<HTMLElement>;
 };
 
-const v2_parseGridEmptySlots = (
-  slotA: unknown,
-  slotB: unknown
-): Set<number> => {
-  const parseSlot = (value: unknown): number | undefined => {
-    const candidate =
-      typeof value === "number"
-        ? value
-        : typeof value === "string"
-          ? Number.parseInt(value, 10)
-          : NaN;
-    if (!Number.isFinite(candidate)) return undefined;
-    const rounded = Math.round(candidate);
-    if (rounded < 1 || rounded > 9) return undefined;
-    return rounded;
-  };
-  return new Set(
-    [parseSlot(slotA), parseSlot(slotB)].filter(
-      (slot): slot is number => slot !== undefined
-    )
-  );
-};
-
 const v2_resolveTimetableStatus = ({
   isOffline,
   entryCount,
@@ -165,16 +142,11 @@ const V2TimetableGrid: React.FC<{ gridLayerId?: string }> = ({ gridLayerId }) =>
     (renderConfig.layout.grid as Record<string, string | number>) ?? {};
   const {
     columns,
-    gridEmptySlotA,
-    gridEmptySlotB,
     gridTemplateColumns: gridTemplateColumnsRaw,
     ...gridStyleRaw
   } = gridLayout;
-  delete (gridStyleRaw as Record<string, unknown>).layoutMode;
-  delete (gridStyleRaw as Record<string, unknown>).flex42ThreeRow;
-  delete (gridStyleRaw as Record<string, unknown>).flex42Align;
   const layoutMode = timetable.layoutMode;
-  const emptySlots = v2_parseGridEmptySlots(gridEmptySlotA, gridEmptySlotB);
+  const emptySlots = new Set(timetable.emptySlots ?? []);
   const gridStyle = v2_toRenderableLayoutStyle(gridStyleRaw);
   const baseLayoutStyle: React.CSSProperties = {
     ...gridStyle,

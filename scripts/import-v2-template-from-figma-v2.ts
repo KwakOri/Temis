@@ -141,27 +141,12 @@ const applyLayoutModeOverride = ({
   layoutMode?: LayoutMode;
 }): V2TemplateRenderConfig => {
   if (!isLayoutMode(layoutMode)) return config;
-  const grid = {
-    ...config.layout.grid,
-    layoutMode,
-  };
-  if (layoutMode === "free") {
-    grid.left = 0;
-    grid.top = 0;
-    grid.width = config.templateSize.width;
-    grid.height = config.templateSize.height;
-    delete (grid as Record<string, unknown>).right;
-    delete (grid as Record<string, unknown>).bottom;
-    delete (grid as Record<string, unknown>).rotateDeg;
-  } else {
-    delete (grid as Record<string, unknown>).width;
-    delete (grid as Record<string, unknown>).height;
-  }
+
   return {
     ...config,
-    layout: {
-      ...config.layout,
-      grid,
+    timetable: {
+      ...config.timetable,
+      layoutMode,
     },
   };
 };

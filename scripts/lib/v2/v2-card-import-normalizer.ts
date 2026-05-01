@@ -27,6 +27,7 @@ type ImportConfig = {
   layout: {
     card: Record<string, unknown>;
   };
+  textOptions?: Record<string, unknown>;
 };
 
 type NormalizeSummary = {
@@ -140,6 +141,38 @@ const mergeStyleRecord = ({
   return before !== after;
 };
 
+const mergeOptionsRecord = ({
+  textOptions,
+  legacyOptions,
+  targetKey,
+  fallbackKey,
+}: {
+  textOptions: Record<string, unknown>;
+  legacyOptions?: Record<string, unknown>;
+  targetKey?: string;
+  fallbackKey?: string;
+}): boolean => {
+  if (!targetKey || !fallbackKey) return false;
+  const fallback = textOptions[fallbackKey] ?? legacyOptions?.[fallbackKey];
+  if (!fallback || typeof fallback !== "object") return false;
+
+  const target =
+    textOptions[targetKey] && typeof textOptions[targetKey] === "object"
+      ? (textOptions[targetKey] as CardLayoutRecord)
+      : (textOptions[targetKey] = {} as CardLayoutRecord);
+  const sanitizedFallback = {
+    ...(fallback as CardLayoutRecord),
+  };
+
+  const before = JSON.stringify(target);
+  textOptions[targetKey] = {
+    ...sanitizedFallback,
+    ...(target as CardLayoutRecord),
+  };
+  const after = JSON.stringify(textOptions[targetKey]);
+  return before !== after;
+};
+
 const parseCardInstanceSuffix = (rootNodeId: string): string | null => {
   const match = rootNodeId.match(/__inst__([a-z]+_\d+)$/);
   return match?.[1] ?? null;
@@ -242,8 +275,10 @@ export const v2_normalizeCardImportGraph = (config: ImportConfig): NormalizeSumm
       }
 
       if (
-        mergeStyleRecord({
-          layoutCard: config.layout.card,
+        config.textOptions &&
+        mergeOptionsRecord({
+          textOptions: config.textOptions,
+          legacyOptions: config.layout.card,
           targetKey: node.styles?.optionsKey,
           fallbackKey:
             typeof optionsFallbackBase === "string"

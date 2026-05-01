@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Braces, ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 
 import {
   V2BoilerplateFieldConfig,
@@ -17,16 +17,8 @@ import { v2_BOILERPLATE_SECTION_GROUPS } from "../model/boilerplate-section-grou
 import { v2_STYLE_EXTENSION_GROUPS } from "../model/boilerplate-presets";
 import {
   v2_POSITION_MUTEX_MAP,
-  v2_getGridEmptySlotsFromMap,
   v2_hasRenderableStyleValue,
-  v2_parseFlex42Align,
-  v2_parseFlex42ThreeRow,
-  v2_parseGridLayoutMode,
 } from "../model/layout-utils";
-
-type V2GridLayoutMode = "grid3x3" | "flex4x2" | "free";
-type V2Flex42Align = "left" | "center" | "right";
-type V2Flex42ThreeRow = "top" | "bottom";
 
 interface TemplateStyleSectionEditorProps {
   title: string;
@@ -50,11 +42,6 @@ interface TemplateStyleSectionEditorProps {
     value: string
   ) => void;
   onRemoveStyleProperty: (section: string, key: string) => void;
-  onAddStyleProperty: (section: string) => void;
-  onUpdateGridLayoutMode: (mode: V2GridLayoutMode) => void;
-  onPickGridEmptySlot: (slot: number) => void;
-  onUpdateFlex42ThreeRow: (value: V2Flex42ThreeRow) => void;
-  onUpdateFlex42Align: (value: V2Flex42Align) => void;
   getBoilerplateFieldType: (
     field: V2BoilerplateFieldConfig
   ) => V2BoilerplateFieldType;
@@ -75,174 +62,23 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
   onApplyStyleExtensionGroupDefaults,
   onUpdateStylePropertyValue,
   onRemoveStyleProperty,
-  onAddStyleProperty,
-  onUpdateGridLayoutMode,
-  onPickGridEmptySlot,
-  onUpdateFlex42ThreeRow,
-  onUpdateFlex42Align,
   getBoilerplateFieldType,
   getBoilerplateFieldStep,
 }) => {
   const sectionMap = getStyleSectionMap(section);
   const displaySection = schemaSection ?? section;
-  const isGridSection = displaySection === "grid";
+  const isGridSection = displaySection === "grid" || section === "grid";
+  const groupSection = isGridSection ? "grid" : displaySection;
   const groups = [
-    ...v2_expandDisplayGroups(v2_BOILERPLATE_SECTION_GROUPS[displaySection] ?? []),
+    ...v2_expandDisplayGroups(v2_BOILERPLATE_SECTION_GROUPS[groupSection] ?? []),
     ...v2_STYLE_EXTENSION_GROUPS,
   ];
-  const gridPresetKeys = isGridSection
-    ? [
-        "layoutMode",
-        "gridEmptySlotA",
-        "gridEmptySlotB",
-        "flex42ThreeRow",
-        "flex42Align",
-      ]
-    : [];
-  const presetKeys = new Set([
-    ...groups.flatMap((group) => group.fields.map((field) => field.key)),
-    ...gridPresetKeys,
-  ]);
-  const customEntries = Object.entries(sectionMap).filter(
-    ([property]) =>
-      !presetKeys.has(property) && !lockedStylePropertyKeys.has(property)
-  );
-  const gridLayoutMode = isGridSection
-    ? v2_parseGridLayoutMode(sectionMap.layoutMode)
-    : null;
-  const gridEmptySlots = isGridSection ? v2_getGridEmptySlotsFromMap(sectionMap) : [];
-  const flex42Align = isGridSection
-    ? v2_parseFlex42Align(sectionMap.flex42Align)
-    : "center";
-  const flex42ThreeRow = isGridSection
-    ? v2_parseFlex42ThreeRow(sectionMap.flex42ThreeRow)
-    : "bottom";
 
   return (
     <div className="rounded border border-[#3a3d44] bg-[#1f2126] p-3 space-y-3">
       <div className="flex items-center justify-between">
         <h5 className="text-xs font-semibold text-gray-100">{title}</h5>
       </div>
-
-      {isGridSection && (
-        <div className="rounded border border-[#343842] bg-[#1b1d22] p-3 space-y-3">
-          <h6 className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">
-            Layout Mode
-          </h6>
-
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => onUpdateGridLayoutMode("grid3x3")}
-              className={`rounded border px-2 py-1 text-xs ${
-                gridLayoutMode === "grid3x3"
-                  ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                  : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-              }`}
-            >
-              3 x 3 (Grid)
-            </button>
-            <button
-              type="button"
-              onClick={() => onUpdateGridLayoutMode("flex4x2")}
-              className={`rounded border px-2 py-1 text-xs ${
-                gridLayoutMode === "flex4x2"
-                  ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                  : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-              }`}
-            >
-              4 x 2 (Flex)
-            </button>
-            <button
-              type="button"
-              onClick={() => onUpdateGridLayoutMode("free")}
-              className={`rounded border px-2 py-1 text-xs ${
-                gridLayoutMode === "free"
-                  ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                  : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-              }`}
-            >
-              Free
-            </button>
-          </div>
-
-          {gridLayoutMode === "grid3x3" ? (
-            <div className="space-y-2">
-              <span className="text-[11px] text-gray-400">비울 칸 선택</span>
-              <div className="grid grid-cols-3 gap-2">
-                {Array.from({ length: 9 }, (_, i) => i + 1).map((slot) => {
-                  const isSelected = gridEmptySlots.includes(slot);
-
-                  return (
-                    <button
-                      key={`grid-empty-slot-${slot}`}
-                      type="button"
-                      onClick={() => onPickGridEmptySlot(slot)}
-                      className={`relative rounded border px-2 py-2 text-xs font-semibold transition ${
-                        isSelected
-                          ? "border-blue-400/80 bg-blue-500/20 text-blue-100"
-                          : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                      }`}
-                    >
-                      <span>{slot}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : gridLayoutMode === "flex4x2" ? (
-            <div className="space-y-2">
-              <span className="text-[11px] text-gray-400">3칸 줄 위치</span>
-              <div className="grid grid-cols-2 gap-2">
-                {([
-                  { label: "윗줄 3칸", value: "top" },
-                  { label: "아랫줄 3칸", value: "bottom" },
-                ] as Array<{ label: string; value: V2Flex42ThreeRow }>).map(
-                  (option) => (
-                    <button
-                      key={`flex42-three-row-${option.value}`}
-                      type="button"
-                      onClick={() => onUpdateFlex42ThreeRow(option.value)}
-                      className={`rounded border px-2 py-1 text-xs ${
-                        flex42ThreeRow === option.value
-                          ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                          : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  )
-                )}
-              </div>
-              <span className="text-[11px] text-gray-400">3칸 줄 정렬</span>
-              <div className="grid grid-cols-3 gap-2">
-                {([
-                  { label: "Left", value: "left" },
-                  { label: "Center", value: "center" },
-                  { label: "Right", value: "right" },
-                ] as Array<{ label: string; value: V2Flex42Align }>).map((option) => (
-                  <button
-                    key={`flex42-align-${option.value}`}
-                    type="button"
-                    onClick={() => onUpdateFlex42Align(option.value)}
-                    className={`rounded border px-2 py-1 text-xs ${
-                      flex42Align === option.value
-                        ? "border-blue-400 bg-blue-500/20 text-blue-200"
-                        : "border-[#3a3d44] bg-[#2a2d33] text-gray-200 hover:bg-[#323640]"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="text-[11px] text-gray-400">
-              Free 모드에서는 카드 인스턴스의 개별 좌표(instanceTransforms)로 배치됩니다.
-            </p>
-          )}
-        </div>
-      )}
 
       {groups.map((group) => {
         const visibleFields = group.fields.filter(
@@ -385,52 +221,6 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
         );
       })}
 
-      <div className="border-t border-[#343842] pt-3 space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h6 className="text-[11px] font-semibold uppercase tracking-wide text-gray-300 inline-flex items-center gap-1">
-            <Braces className="h-3.5 w-3.5 text-gray-400" />
-            Custom CSS
-          </h6>
-          <button
-            type="button"
-            onClick={() => onAddStyleProperty(section)}
-            className="text-xs font-semibold text-blue-400 hover:text-blue-300"
-          >
-            + CSS 속성 추가
-          </button>
-        </div>
-        {customEntries.length === 0 && (
-          <p className="text-xs text-gray-500">추가된 속성이 없습니다.</p>
-        )}
-        {customEntries.map(([property, value], index) => (
-          <div
-            key={`style-custom-${section}-${index}`}
-            className="grid grid-cols-[1fr_1fr_auto] gap-2"
-            onMouseEnter={() => onSetSectionHoverHighlight(section)}
-            onMouseLeave={onClearSectionHoverHighlight}
-            onClick={() => onSetSectionActiveHighlight(section)}
-          >
-            <div className="rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-200 flex items-center">
-              {property}
-            </div>
-            <input
-              value={String(value)}
-              onChange={(e) =>
-                onUpdateStylePropertyValue(section, property, e.target.value)
-              }
-              className="rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
-              placeholder="값"
-            />
-            <button
-              type="button"
-              onClick={() => onRemoveStyleProperty(section, property)}
-              className="rounded border border-red-400/40 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10"
-            >
-              삭제
-            </button>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };

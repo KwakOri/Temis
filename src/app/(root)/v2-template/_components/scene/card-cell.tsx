@@ -511,13 +511,18 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
 
     const renderAutoResizeNode = () => {
       const nodeOptions = node.optionsKey
-        ? ((cardLayoutRecord[node.optionsKey] as Record<string, unknown>) ?? {})
+        ? renderConfig.textOptions[node.optionsKey] ?? {}
         : {};
-      const maxFontSize = v2_getDefaultMaxFontSizeByBinding({
+      const fallbackMaxFontSize = v2_getDefaultMaxFontSizeByBinding({
         binding: effectiveBinding,
         mainTitleMax: renderConfig.maxFontSizes.MAIN_TITLE,
         subTitleMax: renderConfig.maxFontSizes.SUB_TITLE,
       });
+      const maxFontSize =
+        typeof nodeOptions.maxFontSize === "number" &&
+        Number.isFinite(nodeOptions.maxFontSize)
+          ? nodeOptions.maxFontSize
+          : fallbackMaxFontSize;
       const multiline =
         typeof nodeOptions.multiline === "boolean" ? nodeOptions.multiline : true;
 

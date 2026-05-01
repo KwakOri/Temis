@@ -2,27 +2,15 @@ import {
   V2TemplateGraphNode,
   V2TemplateLayerNode,
   V2TemplateNodeGraph,
-  V2TemplateStyleRecord,
 } from "@/types/time-table/template-render-config";
 import {
   ROOT_LAYER_PARENT_ID,
   SectionStyleResolverMap,
   TemplateLayoutShape,
-  collectLayerNodeMap,
-  getStyleRecordBySectionKey,
-  setStyleRecordBySectionKey,
 } from "./style-section-resolver";
 
 const v2_ORDER_KEY_STEP = 1024;
-
-const parseZIndex = (value: unknown): number | undefined => {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return undefined;
-};
+const v2_SCENE_ROOT_LAYER_ID = "scene-root";
 
 const v2_toUnique = (ids: string[]): string[] => {
   const seen = new Set<string>();
@@ -87,30 +75,7 @@ export const buildOrderedLayerIdsByParent = ({
   resolverMap: SectionStyleResolverMap;
   graph: V2TemplateNodeGraph;
 }): Record<string, string[]> => {
-  const getSectionZIndex = (sectionKey?: string): number | undefined => {
-    if (!sectionKey) return undefined;
-    const style = getStyleRecordBySectionKey(layout, sectionKey, resolverMap);
-    return parseZIndex(style?.zIndex);
-  };
-
-  const zIndexCache = new Map<string, number>();
-  const getNodeZIndex = (node: V2TemplateLayerNode): number => {
-    const cached = zIndexCache.get(node.id);
-    if (cached !== undefined) return cached;
-
-    const own = getSectionZIndex(node.sectionKey);
-    let value = own ?? Number.NEGATIVE_INFINITY;
-
-    if (node.children?.length) {
-      node.children.forEach((child) => {
-        value = Math.max(value, getNodeZIndex(child));
-      });
-    }
-
-    const normalizedValue = Number.isFinite(value) ? value : 0;
-    zIndexCache.set(node.id, normalizedValue);
-    return normalizedValue;
-  };
+  void layout;
 
   const isVirtualOnlySiblings = (nodes: V2TemplateLayerNode[]): boolean =>
     nodes.length > 0 && nodes.every((node) => node.isVirtual === true);
@@ -120,88 +85,59 @@ export const buildOrderedLayerIdsByParent = ({
       return Boolean(sectionKey && resolverMap[sectionKey]?.scope === "card");
     });
 
-  const sortNodes = (nodes: V2TemplateLayerNode[]): V2TemplateLayerNode[] => {
-    const preferReverseSourceOrder =
-      isVirtualOnlySiblings(nodes) || hasCardLayerSibling(nodes);
-    return [...nodes].sort((a, b) => {
-      const aZ = getNodeZIndex(a);
-      const bZ = getNodeZIndex(b);
-      if (aZ === bZ) {
-        return preferReverseSourceOrder
-          ? nodes.indexOf(b) - nodes.indexOf(a)
-          : nodes.indexOf(a) - nodes.indexOf(b);
-      }
-      return bZ - aZ;
-    });
+  const getFallbackDisplayNodes = (
+    nodes: V2TemplateLayerNode[]
+  ): V2TemplateLayerNode[] => {
+    if (isVirtualOnlySiblings(nodes) || hasCardLayerSibling(nodes)) {
+      return [...nodes].reverse();
+    }
+    return [...nodes];
   };
 
   const graphNodeByLayerId = v2_buildGraphNodeByLayerId(graph);
-  const getOrderedIdsByGraph = (
+  const getParentGraphId = (parentId: string): string | null | undefined => {
+    if (parentId === ROOT_LAYER_PARENT_ID || parentId === v2_SCENE_ROOT_LAYER_ID) {
+      return null;
+    }
+    return graphNodeByLayerId.get(parentId)?.id;
+  };
+  const getDisplayOrderedIdsByGraph = (
     parentId: string,
     nodes: V2TemplateLayerNode[]
   ): string[] | null => {
     if (isVirtualOnlySiblings(nodes)) return null;
-    const parentGraphId =
-      parentId === ROOT_LAYER_PARENT_ID
-        ? null
-        : graphNodeByLayerId.get(parentId)?.id;
-    if (parentId !== ROOT_LAYER_PARENT_ID && parentGraphId === undefined) return null;
+    const parentGraphId = getParentGraphId(parentId);
+    if (parentGraphId === undefined) return null;
 
-    const defaultIds = nodes.map((node) => node.id);
-    const entries = defaultIds
-      .map((layerId, index) => {
-        const graphNode = graphNodeByLayerId.get(layerId);
-        if (!graphNode || graphNode.parentId !== parentGraphId) return null;
-        return {
-          layerId,
-          index,
-          graphNode,
-        };
-      })
-      .filter(
-        (
-          entry
-        ): entry is {
-          layerId: string;
-          index: number;
-          graphNode: V2TemplateGraphNode;
-        } => Boolean(entry)
-      );
+    const layerNodeById = new Map(nodes.map((node) => [node.id, node]));
+    const renderOrderedGraphNodeIds =
+      parentGraphId === null
+        ? graph.rootNodeIds
+        : (graph.nodes[parentGraphId]?.childIds ?? []);
+    const renderOrderedLayerIds = renderOrderedGraphNodeIds
+      .map((graphNodeId) => graph.nodes[graphNodeId])
+      .map((graphNode) => graphNode?.layerId ?? graphNode?.id)
+      .filter((layerId): layerId is string => {
+        return typeof layerId === "string" && layerNodeById.has(layerId);
+      });
 
-    if (entries.length === 0) return null;
+    if (renderOrderedLayerIds.length === 0) return null;
 
-    const allOrderKey = entries.every(
-      (entry) =>
-        entry.graphNode.order?.model === "orderKey" &&
-        typeof entry.graphNode.order.orderKey === "string" &&
-        entry.graphNode.order.orderKey.trim().length > 0
-    );
-    if (allOrderKey) {
-      const orderedByOrderKey = [...entries]
-        .sort((a, b) => {
-          const aKey = a.graphNode.order?.orderKey ?? "";
-          const bKey = b.graphNode.order?.orderKey ?? "";
-          if (aKey === bKey) return a.index - b.index;
-          return aKey < bKey ? -1 : 1;
-        })
-        .map((entry) => entry.layerId);
-      const orderedSet = new Set(orderedByOrderKey);
-      const remaining = defaultIds.filter((id) => !orderedSet.has(id));
-      return [...orderedByOrderKey, ...remaining];
-    }
-    // If siblings don't have explicit orderKey yet, fall back to z-index sort
-    // so the layer panel reflects current visual stacking.
-    return null;
+    const orderedSet = new Set(renderOrderedLayerIds);
+    const remaining = nodes
+      .map((node) => node.id)
+      .filter((id) => !orderedSet.has(id));
+    return [...renderOrderedLayerIds, ...remaining].reverse();
   };
 
   const orderedMap: Record<string, string[]> = {};
   const buildOrder = (nodes: V2TemplateLayerNode[], parentId: string) => {
-    const orderedByGraph = getOrderedIdsByGraph(parentId, nodes);
+    const orderedByGraph = getDisplayOrderedIdsByGraph(parentId, nodes);
     const sorted = orderedByGraph
       ? orderedByGraph
           .map((nodeId) => nodes.find((node) => node.id === nodeId))
           .filter((node): node is V2TemplateLayerNode => Boolean(node))
-      : sortNodes(nodes);
+      : getFallbackDisplayNodes(nodes);
 
     orderedMap[parentId] = sorted.map((node) => node.id);
     sorted.forEach((node) => {
@@ -228,7 +164,9 @@ export const applyReorderedLayerOrderKey = ({
 
   const graphNodeByLayerId = v2_buildGraphNodeByLayerId(graph);
   const parentGraphId =
-    parentId === ROOT_LAYER_PARENT_ID ? null : graphNodeByLayerId.get(parentId)?.id;
+    parentId === ROOT_LAYER_PARENT_ID || parentId === v2_SCENE_ROOT_LAYER_ID
+      ? null
+      : graphNodeByLayerId.get(parentId)?.id;
   if (parentId !== ROOT_LAYER_PARENT_ID && parentGraphId === undefined) {
     return graph;
   }
@@ -242,6 +180,7 @@ export const applyReorderedLayerOrderKey = ({
     .map((node) => node.id);
 
   if (orderedGraphNodeIds.length === 0) return graph;
+  const renderOrderedGraphNodeIds = [...orderedGraphNodeIds].reverse();
 
   const existingSiblingGraphNodeIds =
     parentGraphId == null
@@ -249,7 +188,7 @@ export const applyReorderedLayerOrderKey = ({
       : (graph.nodes[parentGraphId]?.childIds ?? []);
   const nextSiblingGraphNodeIds = v2_reorderSubsetPreservingOthers({
     existingIds: existingSiblingGraphNodeIds,
-    reorderedSubsetIds: orderedGraphNodeIds,
+    reorderedSubsetIds: renderOrderedGraphNodeIds,
   });
 
   const nextNodes: Record<string, V2TemplateGraphNode> = {
@@ -323,121 +262,4 @@ export const applyReorderedLayerOrderKey = ({
         : nextNodes[parentNode.id] ?? parentNode,
     },
   };
-};
-
-export const applyReorderedLayerZIndex = ({
-  layout,
-  layers,
-  resolverMap,
-  parentId,
-  orderedIds,
-}: {
-  layout: TemplateLayoutShape;
-  layers: V2TemplateLayerNode[];
-  resolverMap: SectionStyleResolverMap;
-  parentId: string;
-  orderedIds: string[];
-}): TemplateLayoutShape => {
-  if (orderedIds.length === 0) return layout;
-
-  const normalizedOrderedIds = v2_toUnique(orderedIds);
-
-  const zMap = new Map<string, number>();
-  normalizedOrderedIds.forEach((id, index) => {
-    zMap.set(id, (normalizedOrderedIds.length - index) * 10);
-  });
-
-  let nextLayout: TemplateLayoutShape = {
-    ...layout,
-    card: {
-      ...layout.card,
-    },
-  };
-  const layerNodeMap = collectLayerNodeMap(layers);
-  const parentNode =
-    parentId === ROOT_LAYER_PARENT_ID ? null : layerNodeMap.get(parentId) ?? null;
-  const siblings =
-    parentId === ROOT_LAYER_PARENT_ID
-      ? layers
-      : (parentNode?.children ?? []);
-  const siblingIdSet = new Set(siblings.map((sibling) => sibling.id));
-  const siblingSectionKeyCount = siblings.reduce((acc, sibling) => {
-    const sectionKey = sibling.sectionKey?.trim();
-    if (!sectionKey) return acc;
-    acc.set(sectionKey, (acc.get(sectionKey) ?? 0) + 1);
-    return acc;
-  }, new Map<string, number>());
-
-  const setStyleZIndex = (
-    style: V2TemplateStyleRecord | undefined,
-    zIndex: number
-  ): V2TemplateStyleRecord => {
-    return {
-      ...(style ?? {}),
-      zIndex,
-    };
-  };
-
-  const setSectionZIndex = (sectionKey: string, zIndex: number) => {
-    const currentStyle = getStyleRecordBySectionKey(nextLayout, sectionKey, resolverMap);
-    nextLayout = setStyleRecordBySectionKey(
-      nextLayout,
-      sectionKey,
-      setStyleZIndex(currentStyle, zIndex),
-      resolverMap
-    );
-  };
-
-  const applyNodeZIndex = (node: V2TemplateLayerNode, zIndex: number) => {
-    if (node.sectionKey) {
-      setSectionZIndex(node.sectionKey, zIndex);
-      return;
-    }
-    if (!node.children?.length) return;
-
-    const descendantSectionKeys = new Set<string>();
-    const collectDescendantSections = (current: V2TemplateLayerNode) => {
-      if (current.sectionKey) {
-        descendantSectionKeys.add(current.sectionKey);
-      }
-      current.children?.forEach((child) => collectDescendantSections(child));
-    };
-    node.children.forEach((child) => collectDescendantSections(child));
-    if (descendantSectionKeys.size === 0) return;
-
-    const currentZIndexBySection = new Map<string, number>();
-    let currentMaxZIndex = Number.NEGATIVE_INFINITY;
-    descendantSectionKeys.forEach((sectionKey) => {
-      const style = getStyleRecordBySectionKey(nextLayout, sectionKey, resolverMap);
-      const resolved = parseZIndex(style?.zIndex);
-      const normalized = Number.isFinite(resolved) ? (resolved as number) : 0;
-      currentZIndexBySection.set(sectionKey, normalized);
-      if (normalized > currentMaxZIndex) {
-        currentMaxZIndex = normalized;
-      }
-    });
-
-    const normalizedCurrentMax = Number.isFinite(currentMaxZIndex)
-      ? currentMaxZIndex
-      : 0;
-    const delta = zIndex - normalizedCurrentMax;
-    currentZIndexBySection.forEach((currentValue, sectionKey) => {
-      setSectionZIndex(sectionKey, Math.round(currentValue + delta));
-    });
-  };
-
-  normalizedOrderedIds.forEach((nodeId) => {
-    if (!siblingIdSet.has(nodeId)) return;
-    const zIndex = zMap.get(nodeId);
-    if (zIndex === undefined) return;
-    const node = layerNodeMap.get(nodeId);
-    if (!node) return;
-    const sectionKey = node.sectionKey?.trim();
-    if (sectionKey && (siblingSectionKeyCount.get(sectionKey) ?? 0) > 1) {
-      return;
-    }
-    applyNodeZIndex(node, zIndex);
-  });
-
-  return nextLayout;
 };

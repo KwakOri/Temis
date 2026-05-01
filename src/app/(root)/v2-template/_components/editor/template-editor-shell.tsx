@@ -38,7 +38,6 @@ import V2RuntimeForm from '../runtime/runtime-form';
 import V2Loading from '../shared/loading-screen';
 import {
   applyReorderedLayerOrderKey,
-  applyReorderedLayerZIndex,
   buildOrderedLayerIdsByParent,
 } from './model/layer-z-index';
 import {
@@ -80,6 +79,7 @@ import {
   v2_sceneNodeToGraphNode,
 } from '../properties/model/scene-node-graph-utils';
 import {
+  v2_createDefaultFlexibleTextOptions,
   v2_createDefaultTextNodeLayoutPatch,
   v2_DEFAULT_FLEXIBLE_TEXT_NODE_TEXT_CLASS_NAME,
   v2_DEFAULT_TEXT_NODE_CONTAINER_CLASS_NAME,
@@ -218,39 +218,6 @@ const v2_collectStyleKeysFromRefs = (
     }
   });
   return keys;
-};
-
-const v2_syncLayoutZIndexWithLayerOrder = ({
-  layout,
-  layers,
-  resolverMap,
-  graph,
-}: {
-  layout: ReturnType<typeof v2_normalizeTemplateRenderConfig>["layout"];
-  layers: ReturnType<typeof v2_getRuntimeLayerTree>;
-  resolverMap: ReturnType<typeof collectStyleSectionResolverMapFromRuntime>;
-  graph: V2TemplateNodeGraph;
-}) => {
-  const orderedMap = buildOrderedLayerIdsByParent({
-    layers,
-    layout,
-    resolverMap,
-    graph,
-  });
-
-  let nextLayout = layout;
-  Object.entries(orderedMap).forEach(([parentId, orderedIds]) => {
-    if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
-    nextLayout = applyReorderedLayerZIndex({
-      layout: nextLayout,
-      layers,
-      resolverMap,
-      parentId,
-      orderedIds,
-    });
-  });
-
-  return nextLayout;
 };
 
 const v2_collectSubtreeNodeIds = ({
@@ -463,6 +430,7 @@ const v2_createSceneNodePayloadForLayerMenu = ({
     string,
     NonNullable<V2TemplateRenderConfig["layout"]["scene"][string]>
   >;
+  dynamicTextOptionsPatch?: Record<string, V2TemplateRenderConfig["textOptions"][string]>;
 } | null => {
   const runtimeSceneNodes = v2_getRuntimeSceneNodes(config);
   const runtimeLayerTree = v2_getRuntimeLayerTree(config);
@@ -643,6 +611,9 @@ const v2_createSceneNodePayloadForLayerMenu = ({
       optionsKey,
       isFlexibleText: true,
     }),
+    dynamicTextOptionsPatch: {
+      [optionsKey]: v2_createDefaultFlexibleTextOptions(),
+    },
   };
 };
 
@@ -1322,38 +1293,7 @@ const V2TimeTableEditor: React.FC = () => {
     setRenderConfig((prev) => v2_normalizeTemplateRenderConfig(prev));
   }, [renderConfig.graph, setRenderConfig]);
 
-  useEffect(() => {
-    if (!setRenderConfig) return;
-    setRenderConfig((prev) => {
-      const prevRuntimeLayerTree = v2_getRuntimeLayerTree(prev);
-      const prevRuntimeCards = Object.keys(
-        prev.graph.componentDefinitions ?? {}
-      ).map((componentId) =>
-        v2_getRuntimeCardStructureByComponentId(prev, componentId)
-      );
-      const prevRuntimeSceneNodes = v2_getRuntimeSceneNodes(prev);
-      const prevRuntimeResolverMap = collectStyleSectionResolverMapFromRuntime({
-        layers: prevRuntimeLayerTree,
-        cards: prevRuntimeCards,
-        sceneNodes: prevRuntimeSceneNodes,
-      });
-      const syncedLayout = v2_syncLayoutZIndexWithLayerOrder({
-        layout: prev.layout,
-        layers: prevRuntimeLayerTree,
-        resolverMap: prevRuntimeResolverMap,
-        graph: prev.graph,
-      });
-      if (JSON.stringify(syncedLayout) === JSON.stringify(prev.layout)) {
-        return prev;
-      }
-      return {
-        ...prev,
-        layout: syncedLayout,
-      };
-    });
-  }, [renderConfig.graph, setRenderConfig]);
-
-  const applyLayerZIndex = ({
+  const applyLayerOrder = ({
     parentId,
     orderedIds,
   }: {
@@ -1363,29 +1303,10 @@ const V2TimeTableEditor: React.FC = () => {
     if (!setRenderConfig || orderedIds.length === 0) return;
 
     setRenderConfig((prev) => {
-      const prevRuntimeLayerTree = v2_getRuntimeLayerTree(prev);
-      const prevRuntimeCards = Object.keys(
-        prev.graph.componentDefinitions ?? {}
-      ).map((componentId) =>
-        v2_getRuntimeCardStructureByComponentId(prev, componentId)
-      );
-      const prevRuntimeSceneNodes = v2_getRuntimeSceneNodes(prev);
-      const prevRuntimeResolverMap = collectStyleSectionResolverMapFromRuntime({
-        layers: prevRuntimeLayerTree,
-        cards: prevRuntimeCards,
-        sceneNodes: prevRuntimeSceneNodes,
-      });
       return {
         ...prev,
         graph: applyReorderedLayerOrderKey({
           graph: prev.graph,
-          parentId,
-          orderedIds,
-        }),
-        layout: applyReorderedLayerZIndex({
-          layout: prev.layout,
-          layers: prevRuntimeLayerTree,
-          resolverMap: prevRuntimeResolverMap,
           parentId,
           orderedIds,
         }),
@@ -1434,18 +1355,26 @@ const V2TimeTableEditor: React.FC = () => {
       }
       const targetSceneParentId = targetSceneParentNode?.id ?? null;
 
-      const desiredIndex = Math.max(0, Math.floor(targetIndex));
-      const effectiveIndex =
-        sourceSceneContext.parentId === targetSceneParentId &&
-        desiredIndex > sourceSceneContext.index
-          ? desiredIndex - 1
-          : desiredIndex;
+      const targetSiblingIds =
+        targetSceneParentId === null
+          ? prev.graph.rootNodeIds
+          : (prev.graph.nodes[targetSceneParentId]?.childIds ?? []);
+      const targetLength = targetSiblingIds.filter(
+        (nodeId) => nodeId !== sourceSceneNode.id
+      ).length;
+      const displayIndex = Number.isFinite(targetIndex)
+        ? Math.floor(targetIndex)
+        : targetLength;
+      const renderInsertIndex = Math.max(
+        0,
+        Math.min(targetLength, targetLength - displayIndex)
+      );
 
       const nextGraph = v2_graphMoveNode({
         graph: prev.graph,
         nodeId: sourceSceneNode.id,
         targetParentId: targetSceneParentId ?? null,
-        targetIndex: effectiveIndex,
+        targetIndex: renderInsertIndex,
       });
       return v2_applyRelocatedComponentInstancePatch({
         prev,
@@ -1683,7 +1612,12 @@ const V2TimeTableEditor: React.FC = () => {
       });
       if (!payload) return prev;
 
-      const { sceneNode, layerNode, dynamicSceneLayoutPatch } = payload;
+      const {
+        sceneNode,
+        layerNode,
+        dynamicSceneLayoutPatch,
+        dynamicTextOptionsPatch = {},
+      } = payload;
       nextFocusLayerId = layerNode.id;
       nextFocusTarget =
         typeof layerNode.target === "string"
@@ -1758,6 +1692,10 @@ const V2TimeTableEditor: React.FC = () => {
             ...prev.layout.scene,
             ...dynamicSceneLayoutPatch,
           },
+        },
+        textOptions: {
+          ...prev.textOptions,
+          ...dynamicTextOptionsPatch,
         },
       };
     });
@@ -2533,7 +2471,7 @@ const V2TimeTableEditor: React.FC = () => {
                           });
                           return;
                         }
-                        applyLayerZIndex({
+                        applyLayerOrder({
                           parentId,
                           orderedIds,
                         });

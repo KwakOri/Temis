@@ -273,9 +273,6 @@ export const v2_createExampleRenderConfigResponse =
         extraAssetDimensions: {},
         layout: {
           grid: {
-            layoutMode: "grid3x3",
-            flex42ThreeRow: "bottom",
-            flex42Align: "center",
             left: 32,
             top: 96,
             rowGap: 8,
@@ -380,14 +377,6 @@ export const v2_createExampleRenderConfigResponse =
               lineHeight: 1,
               fontWeight: 400,
             },
-            mainTitleOptions: {
-              maxFontSize: 82,
-              multiline: true,
-            },
-            subTitleOptions: {
-              maxFontSize: 57,
-              multiline: true,
-            },
             streamingDayStyle: {
               fontSize: 56,
               fontWeight: 700,
@@ -417,8 +406,24 @@ export const v2_createExampleRenderConfigResponse =
           },
           scene: {},
         },
+        textOptions: {
+          ...fallbackConfig.textOptions,
+          mainTitleOptions: {
+            maxFontSize: 82,
+            multiline: true,
+          },
+          subTitleOptions: {
+            maxFontSize: 57,
+            multiline: true,
+          },
+        },
         graph: fallbackConfig.graph,
-        timetable: fallbackConfig.timetable,
+        timetable: {
+          ...fallbackConfig.timetable,
+          layoutMode: "grid3x3",
+          flex42ThreeRow: "bottom",
+          flex42Align: "center",
+        },
       },
       createdAt: "2026-03-29T00:00:00.000Z",
       updatedAt: "2026-03-29T00:00:00.000Z",

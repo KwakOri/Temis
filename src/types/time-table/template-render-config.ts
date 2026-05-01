@@ -656,6 +656,7 @@ export interface V2TemplateTimetableConfig {
   layoutMode: V2TemplateTimetableGridLayoutMode;
   flex42Align: V2TemplateTimetableFlex42Align;
   flex42ThreeRow: V2TemplateTimetableFlex42ThreeRow;
+  emptySlots: number[];
   multiEntryCount: number;
   statusOptions: V2TemplateTimetableStatusOptions;
   slots: Record<V2TemplateDayKey, V2TemplateTimetableGridSlot>;
@@ -699,17 +700,15 @@ export interface V2TemplateLayoutConfig {
     container: V2TemplateStyleRecord;
     mainTitleTextStyle?: V2TemplateStyleRecord;
     subTitleTextStyle?: V2TemplateStyleRecord;
-    mainTitleOptions?: V2TemplateAutoResizeOptions;
-    subTitleOptions?: V2TemplateAutoResizeOptions;
     streamingDayStyle?: V2TemplateStyleRecord;
     streamingDateStyle?: V2TemplateStyleRecord;
     streamingTimeStyle?: V2TemplateStyleRecord;
     mainTitleWrapperStyle?: V2TemplateStyleRecord;
     subTitleWrapperStyle?: V2TemplateStyleRecord;
-    [key: string]: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined;
+    [key: string]: V2TemplateStyleRecord | undefined;
   };
   scene: {
-    [key: string]: V2TemplateStyleRecord | V2TemplateAutoResizeOptions | undefined;
+    [key: string]: V2TemplateStyleRecord | undefined;
   };
 }
 
@@ -745,6 +744,7 @@ export interface V2TemplateRenderConfig {
   extraAssets: V2TemplateExtraAssetMap;
   extraAssetDimensions: V2TemplateExtraAssetDimensionMap;
   layout: V2TemplateLayoutConfig;
+  textOptions: Record<string, V2TemplateAutoResizeOptions>;
   graph: V2TemplateNodeGraph;
   timetable: V2TemplateTimetableConfig;
   sharedStyleGroups?: Record<string, V2TemplateSharedStyleGroup>;
