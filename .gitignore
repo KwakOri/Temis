@@ -45,3 +45,7 @@ next-env.d.ts
 /supabase/.temp/
 /supabase/.branches/
 public/sw.js
+
+# local browser automation artifacts
+.playwright-cli/
+.playwright-mcp/
