@@ -58,6 +58,11 @@ import {
 } from "@/types/time-table/template-render-config";
 import { v2_normalizeGraphOrderKeys } from "@/utils/v2/template-graph-order";
 import { v2_resolveStreamingDayLabelByKey } from "@/utils/v2/text-formatting";
+import {
+  v2_getStatefulSceneScopeFromVisibilityMode,
+  v2_STATEFUL_SCENE_GROUP_DEFINITIONS,
+  v2_STATEFUL_SCENE_VISIBILITY_MODES,
+} from "@/utils/v2/stateful-scene-variants";
 
 const v2_DEFAULT_THEME = "first";
 
@@ -3202,10 +3207,7 @@ const v2_VISIBILITY_MODE_SET = new Set([
   "onlineMultipleOnly",
   "offlineMemoOnly",
   "offlineNoMemoOnly",
-  "artistOnOnly",
-  "artistOffOnly",
-  "memoOnOnly",
-  "memoOffOnly",
+  ...v2_STATEFUL_SCENE_VISIBILITY_MODES,
 ]);
 
 const v2_COMPONENT_INSTANCE_MODE_SET = new Set(["component", "detached"]);
@@ -3885,29 +3887,7 @@ const v2_filterTemplateComponentRootNodeIds = (
 const v2_groupStatefulSceneNodeGraph = (
   graph: V2TemplateNodeGraph
 ): V2TemplateNodeGraph => {
-  const groups = [
-    {
-      groupId: "scene-artist-group",
-      legacyGroupIds: ["scene-artist"],
-      label: "Artist",
-      layerId: "artist",
-      componentKey: "artist",
-      childIds: [
-        "scene-artist-text",
-        "scene-artist-object",
-        "scene-artist-object-off",
-      ],
-      excludedChildIds: ["scene-frame", "scene-profile"],
-    },
-    {
-      groupId: "scene-memo",
-      legacyGroupIds: [],
-      label: "Memo",
-      layerId: "memo",
-      componentKey: "memo",
-      childIds: ["scene-memo-object", "scene-memo-text"],
-    },
-  ] as const;
+  const groups = Object.values(v2_STATEFUL_SCENE_GROUP_DEFINITIONS);
 
   const nextNodes: Record<string, V2TemplateGraphNode> = { ...graph.nodes };
   let nextRootNodeIds = [...graph.rootNodeIds];
@@ -3920,9 +3900,7 @@ const v2_groupStatefulSceneNodeGraph = (
         (node): node is V2TemplateGraphNode =>
           Boolean(node) && node.type === "group"
       );
-    const excludedChildIdSet = new Set<string>(
-      "excludedChildIds" in group ? [...group.excludedChildIds] : []
-    );
+    const excludedChildIdSet = new Set<string>(group.excludedChildIds ?? []);
     const groupChildIds = [
       ...(existingGroup?.type === "group" ? existingGroup.childIds : []),
       ...legacyGroups.flatMap((node) => node.childIds),
@@ -6321,10 +6299,13 @@ export const v2_isVisibleByMode = ({
   if (resolvedMode === "onlineMultipleOnly") return !isOffline && entryCount >= 2;
   if (resolvedMode === "offlineMemoOnly") return isOffline && hasOfflineMemo;
   if (resolvedMode === "offlineNoMemoOnly") return isOffline && !hasOfflineMemo;
-  if (resolvedMode === "artistOnOnly") return isArtistVisible;
-  if (resolvedMode === "artistOffOnly") return !isArtistVisible;
-  if (resolvedMode === "memoOnOnly") return isMemoVisible;
-  if (resolvedMode === "memoOffOnly") return !isMemoVisible;
+  const statefulScope = v2_getStatefulSceneScopeFromVisibilityMode(resolvedMode);
+  if (statefulScope?.feature === "artist") {
+    return statefulScope.status === "on" ? isArtistVisible : !isArtistVisible;
+  }
+  if (statefulScope?.feature === "memo") {
+    return statefulScope.status === "on" ? isMemoVisible : !isMemoVisible;
+  }
   return true;
 };
 

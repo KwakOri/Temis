@@ -9,6 +9,12 @@ import {
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import { V2TemplateHighlightTarget } from "@/types/time-table/template-editor-ui";
+import {
+  v2_getStatefulSceneFeatureLabel,
+  v2_getStatefulSceneStatusLabel,
+  v2_getStatefulSceneVisibilityMode,
+  v2_STATEFUL_SCENE_FEATURE_KEYS,
+} from "@/utils/v2/stateful-scene-variants";
 
 export const v2_BUILDER_TABS = [
   { id: "properties", label: "속성" },
@@ -170,10 +176,14 @@ export const v2_CARD_NODE_VISIBILITY_OPTIONS: Array<{
   { value: "onlineMultipleOnly", label: "온라인 · 다회차만" },
   { value: "offlineMemoOnly", label: "오프라인 · 메모 있음" },
   { value: "offlineNoMemoOnly", label: "오프라인 · 메모 없음" },
-  { value: "artistOnOnly", label: "아티스트 ON만" },
-  { value: "artistOffOnly", label: "아티스트 OFF만" },
-  { value: "memoOnOnly", label: "메모 ON만" },
-  { value: "memoOffOnly", label: "메모 OFF만" },
+  ...v2_STATEFUL_SCENE_FEATURE_KEYS.flatMap((feature) =>
+    (["on", "off"] as const).map((status) => ({
+      value: v2_getStatefulSceneVisibilityMode({ feature, status }),
+      label: `${v2_getStatefulSceneFeatureLabel(
+        feature
+      )} ${v2_getStatefulSceneStatusLabel(status)}만`,
+    }))
+  ),
 ];
 
 export const v2_FIXED_CARD_NODE_IDS = new Set([

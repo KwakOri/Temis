@@ -52,6 +52,11 @@ import {
   v2_resolveDayLabelByKey,
   v2_withScopedTimetableStyles,
 } from "@/utils/v2/template-render-config";
+import {
+  v2_getStatefulSceneFeatureByLayerId,
+  v2_getStatefulSceneFeatureLabel,
+  v2_getStatefulSceneStatusLabel,
+} from "@/utils/v2/stateful-scene-variants";
 import { v2_findTimetableCardObjectIdByLayerId } from "@/utils/v2/timetable-component-layer-tree";
 import { v2_DEFAULT_STYLE_SECTION_BOILERPLATES } from "./model/default-style-section-boilerplates";
 import {
@@ -5172,12 +5177,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
       syncSceneCardCollectionChildComponentIds,
     renderTimetableGridControls: () => renderTimetableGridControls(),
     renderSceneGroupExtraControls: (node) => {
-      const feature =
-        node.layerId === "artist"
-          ? "artist"
-          : node.layerId === "memo"
-            ? "memo"
-            : null;
+      const feature = v2_getStatefulSceneFeatureByLayerId(node.layerId);
       if (!feature && node.layerId && onEnterSceneUnitEditScope) {
         return (
           <div className="rounded border border-[#3a3d44] bg-[#141821] p-3">
@@ -5207,7 +5207,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         );
       }
       if (!feature || !onEnterStatefulSceneEditScope) return null;
-      const label = feature === "artist" ? "Artist" : "Memo";
+      const label = v2_getStatefulSceneFeatureLabel(feature);
       return (
         <div className="rounded border border-[#3a3d44] bg-[#141821] p-3">
           <div className="flex items-start justify-between gap-3">
@@ -5327,10 +5327,10 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
 
   const renderStatefulSceneScopeControls = () => {
     if (!statefulSceneEditScope) return null;
-    const label = statefulSceneEditScope.feature === "artist" ? "Artist" : "Memo";
+    const label = v2_getStatefulSceneFeatureLabel(statefulSceneEditScope.feature);
     const statusOptions = [
-      { value: "on" as const, label: "ON" },
-      { value: "off" as const, label: "OFF" },
+      { value: "on" as const, label: v2_getStatefulSceneStatusLabel("on") },
+      { value: "off" as const, label: v2_getStatefulSceneStatusLabel("off") },
     ];
     return (
       <div className="mb-3 rounded-xl border border-[#3a3d44] bg-[#1a1c20] p-3">
@@ -5392,7 +5392,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
             : sceneUnitEditScope
               ? sceneUnitEditScope.label
               : statefulSceneEditScope
-                ? `${statefulSceneEditScope.feature === "artist" ? "Artist" : "Memo"} State`
+                ? `${v2_getStatefulSceneFeatureLabel(
+                    statefulSceneEditScope.feature
+                  )} State`
                 : selectedPropertiesLabel
       }
       editorMode={selectedPropertiesEditorMode}

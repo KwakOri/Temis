@@ -23,6 +23,9 @@ import {
   v2_isVisibleByMode,
 } from "@/utils/v2/template-render-config";
 import {
+  v2_isSceneNodeEnabledByStatefulFeatureFlags,
+} from "@/utils/v2/stateful-scene-variants";
+import {
   v2_resolveRuntimeAssetModel,
   v2_resolveRuntimeCardInstance,
   v2_resolveRuntimeSceneModel,
@@ -106,7 +109,6 @@ const V2SceneStructureRenderer = ({
   const resolvedMemoVisible = memoVisibleOverride ?? isMemoTextVisible;
   const {
     layerTargetMap,
-    rootLayerZIndexById,
     memoTextFallback,
     dataIndexByDayKey,
     firstCard,
@@ -384,11 +386,11 @@ const V2SceneStructureRenderer = ({
     node: V2TemplateSceneNode,
     parentHidden: boolean
   ): React.ReactNode => {
-    const isArtistNode = node.id.startsWith("scene-artist");
-    const isMemoNode = node.id.startsWith("scene-memo");
     if (
-      (isArtistNode && !renderConfig.editorOptions.isArtist) ||
-      (isMemoNode && !renderConfig.editorOptions.isMemo)
+      !v2_isSceneNodeEnabledByStatefulFeatureFlags({
+        nodeId: node.id,
+        renderConfig,
+      })
     ) {
       return null;
     }
@@ -434,22 +436,7 @@ const V2SceneStructureRenderer = ({
           }}
           data-layer-id={groupLayerId}
         >
-          {node.children.map((childNode, index) => {
-            const renderedChild = renderSceneNode(childNode, false);
-            if (!renderedChild) return null;
-            return (
-              <div
-                key={`${node.id}::${childNode.id}`}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  zIndex: index + 1,
-                }}
-              >
-                {renderedChild}
-              </div>
-            );
-          })}
+          {node.children.map((childNode) => renderSceneNode(childNode, false))}
         </div>
       );
     }
@@ -474,25 +461,7 @@ const V2SceneStructureRenderer = ({
         isolation: "isolate",
       }}
     >
-      {sceneNodes.map((node) => {
-        const rendered = renderSceneNode(node, false);
-        if (!rendered) return null;
-        const layerId = node.layerId ?? node.id;
-        const rootZIndex = rootLayerZIndexById[layerId];
-        if (rootZIndex === undefined) return rendered;
-        return (
-          <div
-            key={`root-layer-${node.id}`}
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: rootZIndex,
-            }}
-          >
-            {rendered}
-          </div>
-        );
-      })}
+      {sceneNodes.map((node) => renderSceneNode(node, false))}
     </div>
   );
 };

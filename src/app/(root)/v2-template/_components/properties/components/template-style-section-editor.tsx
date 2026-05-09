@@ -35,13 +35,22 @@ interface TemplateStyleSectionEditorProps {
   onSetSectionHoverHighlight: (section: string) => void;
   onClearSectionHoverHighlight: () => void;
   onSetSectionActiveHighlight: (section: string) => void;
-  onApplyStyleExtensionGroupDefaults: (section: string, groupId: string) => void;
+  onApplyStyleExtensionGroupDefaults: (
+    section: string,
+    groupId: string,
+    schemaSection?: string
+  ) => void;
   onUpdateStylePropertyValue: (
     section: string,
     key: string,
-    value: string
+    value: string,
+    schemaSection?: string
   ) => void;
-  onRemoveStyleProperty: (section: string, key: string) => void;
+  onRemoveStyleProperty: (
+    section: string,
+    key: string,
+    schemaSection?: string
+  ) => void;
   getBoilerplateFieldType: (
     field: V2BoilerplateFieldConfig
   ) => V2BoilerplateFieldType;
@@ -124,7 +133,13 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
               {isExtensionGroup && (
                 <button
                   type="button"
-                  onClick={() => onApplyStyleExtensionGroupDefaults(section, group.id)}
+                  onClick={() =>
+                    onApplyStyleExtensionGroupDefaults(
+                      section,
+                      group.id,
+                      groupSection
+                    )
+                  }
                   className="h-6 w-6 shrink-0 rounded border border-[#3a3d44] bg-[#2a2d33] text-gray-300 hover:bg-[#323640] inline-flex items-center justify-center"
                   aria-label={`${groupLabel} 기본 항목 추가`}
                   title={`${groupLabel} 기본 항목 추가`}
@@ -172,7 +187,12 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
                           <select
                             value={valueString}
                             onChange={(e) =>
-                              onUpdateStylePropertyValue(section, field.key, e.target.value)
+                              onUpdateStylePropertyValue(
+                                section,
+                                field.key,
+                                e.target.value,
+                                groupSection
+                              )
                             }
                             className="w-full rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
                           >
@@ -193,7 +213,12 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
                             }
                             value={valueString}
                             onChange={(e) =>
-                              onUpdateStylePropertyValue(section, field.key, e.target.value)
+                              onUpdateStylePropertyValue(
+                                section,
+                                field.key,
+                                e.target.value,
+                                groupSection
+                              )
                             }
                             className="w-full rounded border border-[#383c45] bg-[#2a2d33] px-2 py-1 text-xs text-gray-100"
                             placeholder={field.placeholder ?? "값"}
@@ -201,7 +226,9 @@ const TemplateStyleSectionEditor: React.FC<TemplateStyleSectionEditorProps> = ({
                         )}
                         <button
                           type="button"
-                          onClick={() => onRemoveStyleProperty(section, field.key)}
+                          onClick={() =>
+                            onRemoveStyleProperty(section, field.key, groupSection)
+                          }
                           className={`rounded border px-2 text-xs ${
                             hasValue
                               ? "border-red-400/40 text-red-300 hover:bg-red-500/10"

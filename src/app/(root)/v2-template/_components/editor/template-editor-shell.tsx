@@ -11,8 +11,6 @@ import {
   V2TemplateEditorSceneUnitScope,
   V2TemplateEditorStatefulSceneScope,
   V2TemplateEditorTimetableComponentScope,
-  V2TemplateStatefulSceneFeatureKey,
-  V2TemplateStatefulSceneStatus,
   V2TemplateHighlightTarget,
 } from '@/types/time-table/template-editor-ui';
 import {
@@ -67,6 +65,13 @@ import {
   v2_COMPONENT_INSTANCE_CLONE_NODE_PREFIX,
   v2_createSceneComponentInstanceCloneNode,
 } from '@/utils/v2/template-scene-component-instance';
+import {
+  v2_getStatefulSceneFeatureLabel,
+  v2_getStatefulSceneFeatureLayerId,
+  v2_getStatefulSceneStatusLabel,
+  v2_getStatefulSceneVisibilityMode,
+  v2_isLayerVisibleForStatefulSceneScope,
+} from '@/utils/v2/stateful-scene-variants';
 import { v2_normalizeTemplateRenderConfig } from '@/utils/v2/template-render-config';
 import {
   v2_collectSceneNodesByLayerId,
@@ -300,38 +305,6 @@ type V2TemplateEditorScope =
       mode: "statefulScene";
     } & V2TemplateEditorStatefulSceneScope);
 
-const v2_STATEFUL_SCENE_LAYER_ID: Record<V2TemplateStatefulSceneFeatureKey, string> = {
-  artist: "artist",
-  memo: "memo",
-};
-
-const v2_STATEFUL_SCENE_LABEL: Record<V2TemplateStatefulSceneFeatureKey, string> = {
-  artist: "Artist",
-  memo: "Memo",
-};
-
-const v2_isLayerVisibleForStatefulSceneScope = ({
-  feature,
-  status,
-  node,
-}: {
-  feature: V2TemplateStatefulSceneFeatureKey;
-  status: V2TemplateStatefulSceneStatus;
-  node: V2TemplateLayerNode;
-}) => {
-  const mode = node.visibilityMode ?? "always";
-  if (feature === "artist") {
-    if (mode === "artistOnOnly") return status === "on";
-    if (mode === "artistOffOnly") return status === "off";
-    if (mode === "memoOnOnly" || mode === "memoOffOnly") return false;
-    return true;
-  }
-  if (mode === "memoOnOnly") return status === "on";
-  if (mode === "memoOffOnly") return status === "off";
-  if (mode === "artistOnOnly" || mode === "artistOffOnly") return false;
-  return true;
-};
-
 const v2_filterLayerTreeForStatefulSceneScope = ({
   layerTree,
   scope,
@@ -339,7 +312,7 @@ const v2_filterLayerTreeForStatefulSceneScope = ({
   layerTree: V2TemplateLayerNode[];
   scope: V2TemplateEditorStatefulSceneScope;
 }): V2TemplateLayerNode[] => {
-  const featureLayerId = v2_STATEFUL_SCENE_LAYER_ID[scope.feature];
+  const featureLayerId = v2_getStatefulSceneFeatureLayerId(scope.feature);
   const findNode = (nodes: V2TemplateLayerNode[]): V2TemplateLayerNode | null => {
     for (const node of nodes) {
       if (node.id === featureLayerId) return node;
@@ -352,8 +325,7 @@ const v2_filterLayerTreeForStatefulSceneScope = ({
     if (
       node.id !== featureLayerId &&
       !v2_isLayerVisibleForStatefulSceneScope({
-        feature: scope.feature,
-        status: scope.status,
+        scope,
         node,
       })
     ) {
@@ -363,7 +335,9 @@ const v2_filterLayerTreeForStatefulSceneScope = ({
       ...node,
       label:
         node.id === featureLayerId
-          ? `${v2_STATEFUL_SCENE_LABEL[scope.feature]} / ${scope.status === "on" ? "ON" : "OFF"}`
+          ? `${v2_getStatefulSceneFeatureLabel(
+              scope.feature
+            )} / ${v2_getStatefulSceneStatusLabel(scope.status)}`
           : node.label,
       children: node.children
         ?.map((child) => filterNode(child))
@@ -1053,7 +1027,7 @@ const V2TimeTableEditor: React.FC = () => {
     setRightPanelMode("properties");
     setSelectedCanvasTarget(null);
     setPropertiesFocusRequest({
-      layerId: v2_STATEFUL_SCENE_LAYER_ID[scope.feature],
+      layerId: v2_getStatefulSceneFeatureLayerId(scope.feature),
       nonce: Date.now(),
       editorMode: "instance",
     });
@@ -1632,23 +1606,16 @@ const V2TimeTableEditor: React.FC = () => {
           : sceneUnitEditScope
             ? sceneUnitEditScope.layerId
           : statefulSceneEditScope
-            ? v2_STATEFUL_SCENE_LAYER_ID[statefulSceneEditScope.feature]
+            ? v2_getStatefulSceneFeatureLayerId(statefulSceneEditScope.feature)
             : null;
       const anchorSceneNode =
         resolvedLayerId
           ? sceneNodeByLayerId.get(resolvedLayerId) ?? null
           : null;
       let nextGraphNode = v2_sceneNodeToGraphNode(sceneNode);
-      const statefulVisibilityMode =
-        statefulSceneEditScope?.feature === "artist"
-          ? statefulSceneEditScope.status === "on"
-            ? "artistOnOnly"
-            : "artistOffOnly"
-          : statefulSceneEditScope?.feature === "memo"
-            ? statefulSceneEditScope.status === "on"
-              ? "memoOnOnly"
-              : "memoOffOnly"
-            : undefined;
+      const statefulVisibilityMode = statefulSceneEditScope
+        ? v2_getStatefulSceneVisibilityMode(statefulSceneEditScope)
+        : undefined;
       nextGraphNode = {
         ...nextGraphNode,
         childIds: [],
@@ -2325,7 +2292,9 @@ const V2TimeTableEditor: React.FC = () => {
       : sceneUnitEditScope
         ? `${sceneUnitEditScope.label} 편집`
       : statefulSceneEditScope
-        ? `${v2_STATEFUL_SCENE_LABEL[statefulSceneEditScope.feature]} 편집`
+        ? `${v2_getStatefulSceneFeatureLabel(
+            statefulSceneEditScope.feature
+          )} 편집`
         : undefined;
   const scopedEditorExitHandler = timetableComponentEditScope
     ? closeTimetableComponentEditor

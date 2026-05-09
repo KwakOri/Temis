@@ -18,6 +18,7 @@ import {
   v2_dayKeyFromIndex,
   v2_parseDayKey,
 } from "@/utils/v2/template-render-config";
+import { v2_STATEFUL_SCENE_VISIBILITY_MODES } from "@/utils/v2/stateful-scene-variants";
 
 const v2_COLOR_KEY_SET = new Set(v2_TEMPLATE_COLOR_KEYS);
 const v2_VISIBILITY_MODE_SET = new Set([
@@ -28,10 +29,7 @@ const v2_VISIBILITY_MODE_SET = new Set([
   "onlineMultipleOnly",
   "offlineMemoOnly",
   "offlineNoMemoOnly",
-  "artistOnOnly",
-  "artistOffOnly",
-  "memoOnOnly",
-  "memoOffOnly",
+  ...v2_STATEFUL_SCENE_VISIBILITY_MODES,
 ]);
 const v2_COMPUTED_KEY_SET = new Set<string>(v2_TEMPLATE_COMPUTED_BINDING_KEYS);
 const v2_INVALID_COMPONENT_ID = "__invalid_component__";

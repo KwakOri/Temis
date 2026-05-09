@@ -15,6 +15,12 @@ import {
   type V2CardStatusGroupKey,
   v2_resolveCardStatusGroupKey,
 } from "@/utils/v2/card-instance-highlight-target";
+import {
+  v2_getStatefulSceneFeatureByLayerId,
+  v2_getStatefulSceneFeatureLabel,
+  v2_getStatefulSceneScopeFromVisibilityMode,
+  v2_getStatefulSceneStatusLabel,
+} from "@/utils/v2/stateful-scene-variants";
 
 const v2_inferLayerIcon = (kind: string): V2TemplateLayerIconKey => {
   if (kind === "group") return "group";
@@ -44,8 +50,8 @@ const v2_inferComponentKeyFromLayerId = (
   if (layerId === "week-flag") return "weekFlag";
   if (layerId === "top-object") return "topObject";
   if (layerId === "profile") return "profile";
-  if (layerId === "artist") return "artist";
-  if (layerId === "memo") return "memo";
+  const statefulFeature = v2_getStatefulSceneFeatureByLayerId(layerId);
+  if (statefulFeature) return statefulFeature;
   return undefined;
 };
 
@@ -93,10 +99,13 @@ const v2_getVisibilityLabel = (
   if (visibilityMode === "onlineMultipleOnly") return "온라인/다회차";
   if (visibilityMode === "offlineMemoOnly") return "오프라인/메모";
   if (visibilityMode === "offlineNoMemoOnly") return "오프라인/메모없음";
-  if (visibilityMode === "artistOnOnly") return "아티스트 ON";
-  if (visibilityMode === "artistOffOnly") return "아티스트 OFF";
-  if (visibilityMode === "memoOnOnly") return "메모 ON";
-  if (visibilityMode === "memoOffOnly") return "메모 OFF";
+  const statefulScope =
+    v2_getStatefulSceneScopeFromVisibilityMode(visibilityMode);
+  if (statefulScope) {
+    return `${v2_getStatefulSceneFeatureLabel(
+      statefulScope.feature
+    )} ${v2_getStatefulSceneStatusLabel(statefulScope.status)}`;
+  }
   return visibilityMode;
 };
 

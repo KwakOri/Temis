@@ -26,29 +26,6 @@ const v2_collectLayerTargetById = (
   return next;
 };
 
-const v2_createRootLayerZIndexById = (
-  runtimeLayerTree: V2TemplateLayerNode[]
-): Record<string, number> => {
-  const next: Record<string, number> = {};
-  const rootChildren =
-    runtimeLayerTree.length === 1 &&
-    runtimeLayerTree[0]?.isVirtual === true &&
-    runtimeLayerTree[0]?.children?.length
-      ? runtimeLayerTree[0].children
-      : runtimeLayerTree;
-  const assignGroupZIndex = (node: V2TemplateLayerNode, zIndex: number) => {
-    next[node.id] = zIndex;
-    node.children?.forEach((child) => {
-      assignGroupZIndex(child, zIndex);
-    });
-  };
-
-  rootChildren.forEach((node, index) => {
-    assignGroupZIndex(node, index + 1);
-  });
-  return next;
-};
-
 const v2_createDataIndexByDayKey = (
   data: TDefaultCard[]
 ): Record<string, number> => {
@@ -81,7 +58,6 @@ const v2_resolveMemoTextFallback = (
 export interface V2ResolvedRuntimeSceneModel {
   runtimeLayerTree: V2TemplateLayerNode[];
   layerTargetMap: Record<string, string>;
-  rootLayerZIndexById: Record<string, number>;
   memoTextFallback: string;
   dataIndexByDayKey: Record<string, number>;
   firstCard: Record<string, unknown> | undefined;
@@ -100,9 +76,6 @@ export const v2_resolveRuntimeSceneModel = ({
 }): V2ResolvedRuntimeSceneModel => {
   const runtimeLayerTree = v2_getRuntimeLayerTree(renderConfig);
   const layerTargetMap = v2_collectLayerTargetById(runtimeLayerTree);
-  const rootLayerZIndexById = v2_createRootLayerZIndexById(
-    runtimeLayerTree
-  );
   const memoTextFallback = v2_resolveMemoTextFallback(renderConfig);
   const dataIndexByDayKey = v2_createDataIndexByDayKey(data);
 
@@ -137,7 +110,6 @@ export const v2_resolveRuntimeSceneModel = ({
   return {
     runtimeLayerTree,
     layerTargetMap,
-    rootLayerZIndexById,
     memoTextFallback,
     dataIndexByDayKey,
     firstCard,

@@ -21,6 +21,10 @@ import {
   v2_hasRenderableStyleValue,
 } from "../model/layout-utils";
 import { v2_isKnownStyleSectionKey } from "../model/style-section-utils";
+import {
+  v2_filterStyleRecordByAllowedKeys,
+  v2_isAllowedStylePropertyKey,
+} from "../model/style-property-whitelist";
 
 type V2HorizontalAlign = "left" | "center" | "right";
 type V2VerticalAlign = "top" | "center" | "bottom";
@@ -155,11 +159,40 @@ const useTemplateStyleEditorActions = ({
     []
   );
 
+  const resolveSchemaSection = useCallback(
+    (section: string, schemaSection?: string): string =>
+      schemaSection ?? section,
+    []
+  );
+
+  const sanitizeStyleSectionMap = useCallback(
+    (
+      section: string,
+      nextMap: Record<string, string | number>,
+      schemaSection?: string
+    ) =>
+      v2_filterStyleRecordByAllowedKeys({
+        record: nextMap,
+        schemaSection: resolveSchemaSection(section, schemaSection),
+        preservedKeys: lockedStylePropertyKeys,
+      }),
+    [lockedStylePropertyKeys, resolveSchemaSection]
+  );
+
   const updateStyleSection = useCallback(
-    (section: string, nextMap: Record<string, string | number>) => {
+    (
+      section: string,
+      nextMap: Record<string, string | number>,
+      schemaSection?: string
+    ) => {
       safeUpdateConfig((prev) => {
         const targetSections = sharedStyleSectionTargets[section] ?? [section];
         return targetSections.reduce((nextPrev, targetSection) => {
+          const sanitizedMap = sanitizeStyleSectionMap(
+            targetSection,
+            nextMap,
+            schemaSection
+          );
           const knownSection = v2_isKnownStyleSectionKey(
             targetSection,
             styleSectionLabels
@@ -174,7 +207,7 @@ const useTemplateStyleEditorActions = ({
               ...nextPrev,
               layout: {
                 ...nextPrev.layout,
-                [rootLayoutKey]: nextMap,
+                [rootLayoutKey]: sanitizedMap,
               },
             };
           }
@@ -189,7 +222,7 @@ const useTemplateStyleEditorActions = ({
                 ...nextPrev.layout,
                 card: {
                   ...nextPrev.layout.card,
-                  [cardLayoutKey]: nextMap,
+                  [cardLayoutKey]: sanitizedMap,
                 },
               },
             };
@@ -202,7 +235,7 @@ const useTemplateStyleEditorActions = ({
                 ...nextPrev.layout,
                 scene: {
                   ...nextPrev.layout.scene,
-                  [targetSection]: nextMap,
+                  [targetSection]: sanitizedMap,
                 },
               },
             };
@@ -214,7 +247,7 @@ const useTemplateStyleEditorActions = ({
               ...nextPrev.layout,
               card: {
                 ...nextPrev.layout.card,
-                [targetSection]: nextMap,
+                [targetSection]: sanitizedMap,
               },
             },
           };
@@ -225,6 +258,7 @@ const useTemplateStyleEditorActions = ({
       cardLayoutStyleSectionKeyMap,
       rootLayoutStyleSectionKeyMap,
       safeUpdateConfig,
+      sanitizeStyleSectionMap,
       sceneStyleSectionKeySet,
       sharedStyleSectionTargets,
       styleSectionLabels,
@@ -232,30 +266,53 @@ const useTemplateStyleEditorActions = ({
   );
 
   const removeStyleProperty = useCallback(
-    (section: string, key: string) => {
+    (section: string, key: string, schemaSection?: string) => {
       if (lockedStylePropertyKeys.has(key)) return;
+      if (
+        !v2_isAllowedStylePropertyKey({
+          schemaSection: resolveSchemaSection(section, schemaSection),
+          key,
+        })
+      ) {
+        return;
+      }
       const currentMap = getStyleSectionMap(section);
       const nextMap = { ...currentMap };
       delete nextMap[key];
-      updateStyleSection(section, nextMap);
+      updateStyleSection(section, nextMap, schemaSection);
     },
-    [getStyleSectionMap, lockedStylePropertyKeys, updateStyleSection]
+    [
+      getStyleSectionMap,
+      lockedStylePropertyKeys,
+      resolveSchemaSection,
+      updateStyleSection,
+    ]
   );
 
   const updateStylePropertyValue = useCallback(
-    (section: string, key: string, rawValue: string) => {
+    (section: string, key: string, rawValue: string, schemaSection?: string) => {
       if (lockedStylePropertyKeys.has(key)) return;
+      if (
+        !v2_isAllowedStylePropertyKey({
+          schemaSection: resolveSchemaSection(section, schemaSection),
+          key,
+        })
+      ) {
+        return;
+      }
       const currentMap = getStyleSectionMap(section);
       const nextValue = parseStyleValue(rawValue);
       updateStyleSection(
         section,
-        withExclusiveInsetValue(currentMap, key, nextValue)
+        withExclusiveInsetValue(currentMap, key, nextValue),
+        schemaSection
       );
     },
     [
       getStyleSectionMap,
       lockedStylePropertyKeys,
       parseStyleValue,
+      resolveSchemaSection,
       updateStyleSection,
       withExclusiveInsetValue,
     ]
@@ -337,7 +394,7 @@ const useTemplateStyleEditorActions = ({
   }, []);
 
   const applyStyleExtensionGroupDefaults = useCallback(
-    (section: string, groupId: string) => {
+    (section: string, groupId: string, schemaSection?: string) => {
       const defaults = v2_STYLE_EXTENSION_DEFAULT_VALUES[groupId];
       if (!defaults) return;
 
@@ -345,6 +402,14 @@ const useTemplateStyleEditorActions = ({
       const nextMap: Record<string, string | number> = { ...currentMap };
 
       Object.entries(defaults).forEach(([key, value]) => {
+        if (
+          !v2_isAllowedStylePropertyKey({
+            schemaSection: resolveSchemaSection(section, schemaSection),
+            key,
+          })
+        ) {
+          return;
+        }
         const currentValue = nextMap[key];
         const isUnset =
           currentValue === undefined ||
@@ -354,7 +419,7 @@ const useTemplateStyleEditorActions = ({
         }
       });
 
-      updateStyleSection(section, nextMap);
+      updateStyleSection(section, nextMap, schemaSection);
 
       const stateKey = `${section}:${groupId}`;
       setStyleGroupExpanded((prev) => ({
@@ -362,7 +427,7 @@ const useTemplateStyleEditorActions = ({
         [stateKey]: true,
       }));
     },
-    [getStyleSectionMap, updateStyleSection]
+    [getStyleSectionMap, resolveSchemaSection, updateStyleSection]
   );
 
   const getHorizontalAlignFromStyle = useCallback(

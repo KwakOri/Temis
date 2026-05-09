@@ -57,7 +57,6 @@ export const v2_resolveRuntimeAssetModel = ({
         inset: 0,
         width: renderConfig.templateSize.width,
         height: renderConfig.templateSize.height,
-        zIndex: 0,
       }
     : isGuideOverlay
       ? {
@@ -65,7 +64,6 @@ export const v2_resolveRuntimeAssetModel = ({
           inset: 0,
           width: renderConfig.templateSize.width,
           height: renderConfig.templateSize.height,
-          zIndex: 999,
           pointerEvents: "none",
         }
       : isFrameArtwork
