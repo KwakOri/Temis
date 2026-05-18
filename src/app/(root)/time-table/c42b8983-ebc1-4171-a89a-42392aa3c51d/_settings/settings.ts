@@ -70,7 +70,7 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const BASE_COLORS = {
   first: {
-    primary: '#ffa7c1',
+    primary: '#9ACBEB',
     secondary: '#ffffff',
     tertiary: '',
     quaternary: '',
