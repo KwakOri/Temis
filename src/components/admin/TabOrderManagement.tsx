@@ -21,6 +21,7 @@ const TAB_NAMES: Record<string, string> = {
   customOrders: "맞춤 제작 주문",
   purchases: "결제 대기",
   salesStats: "매출 통계",
+  settlements: "정산",
   templates: "템플릿 관리",
   artists: "작가 관리",
   thumbnails: "썸네일 관리",

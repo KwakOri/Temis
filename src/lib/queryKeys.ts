@@ -1,5 +1,6 @@
 import type {
   GetCustomOrdersParams,
+  GetRoyaltyBatchesParams,
   GetRoyaltySalesParams,
   GetUsersParams,
 } from "@/types/admin";
@@ -105,6 +106,18 @@ export const queryKeys = {
       [...queryKeys.admin.all, "royaltySummary", from, to, status] as const,
     royaltySales: (params?: GetRoyaltySalesParams) =>
       [...queryKeys.admin.all, "royaltySales", params] as const,
+    royaltyBatches: (params?: GetRoyaltyBatchesParams) =>
+      [...queryKeys.admin.all, "royaltyBatches", params] as const,
+    royaltyBatch: (batchId: string) =>
+      [...queryKeys.admin.all, "royaltyBatch", batchId] as const,
+    royaltySettlementRun: (month?: string) =>
+      [...queryKeys.admin.all, "royaltySettlementRun", month] as const,
+    royaltySettingsArtists: () =>
+      [...queryKeys.admin.all, "royaltySettingsArtists"] as const,
+    royaltySettingsArtistTemplates: (artistId?: string) =>
+      [...queryKeys.admin.all, "royaltySettingsArtistTemplates", artistId] as const,
+    royaltySettingsTemplate: (templateId?: string) =>
+      [...queryKeys.admin.all, "royaltySettingsTemplate", templateId] as const,
   },
   adminOptions: {
     all: ["adminOptions"] as const,

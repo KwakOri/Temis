@@ -14,6 +14,8 @@ export type TemplateArtist = Tables<"template_artists">;
 export type TemplateSale = Tables<"template_sales">;
 export type TemplateSaleRoyalty = Tables<"template_sale_royalties">;
 export type TemplateSaleRoyaltyDetail = Tables<"template_sale_royalty_details">;
+export type ArtistRoyaltyRule = Tables<"artist_royalty_rules">;
+export type RoyaltySettlementBatch = Tables<"royalty_settlement_batches">;
 
 // Extended types
 export interface TemplateWithShopTemplate extends Template {
@@ -276,6 +278,9 @@ export interface AdminSalesStatsResponse {
 
 // Artist Royalty Settlement
 export type RoyaltyStatus = "unpaid" | "paid";
+export type RoyaltyRuleType = "fixed" | "percentage";
+export type RoyaltySource = "artist" | "template" | "manual" | "missing";
+export type RoyaltyBatchStatus = "draft" | "paid" | "cancelled";
 
 export interface RoyaltySummary {
   from: string;
@@ -284,6 +289,7 @@ export interface RoyaltySummary {
   paidRoyaltyAmount: number;
   unpaidCount: number;
   paidCount: number;
+  missingRuleCount?: number;
 }
 
 export interface RoyaltyByArtist {
@@ -295,11 +301,20 @@ export interface RoyaltyByArtist {
   paidRoyaltyAmount: number;
   unpaidCount: number;
   paidCount: number;
+  missingRuleCount?: number;
+}
+
+export interface DailyRoyaltyPoint {
+  date: string;
+  royaltyAmount: number;
+  royaltyCount: number;
+  missingRuleCount: number;
 }
 
 export interface AdminRoyaltySummaryResponse {
   summary: RoyaltySummary;
   byArtist: RoyaltyByArtist[];
+  daily?: DailyRoyaltyPoint[];
 }
 
 export interface RoyaltySaleItem {
@@ -316,6 +331,13 @@ export interface RoyaltySaleItem {
   status: RoyaltyStatus;
   paidAt: string | null;
   depositorName: string | null;
+  royaltySource: RoyaltySource;
+  royaltyRuleId: string | null;
+  royaltyTypeSnapshot: RoyaltyRuleType | null;
+  royaltyValueSnapshot: number | null;
+  settlementBatchId: string | null;
+  settlementBatchTitle: string | null;
+  settlementBatchStatus: RoyaltyBatchStatus | null;
 }
 
 export interface GetRoyaltySalesParams {
@@ -344,10 +366,138 @@ export interface MarkRoyaltiesPaidData {
   to?: string;
   artistIds?: string[];
   templateId?: string;
+  settlementMonth?: string;
+  title?: string;
+  rejectMissingRules?: boolean;
 }
 
 export interface MarkRoyaltiesPaidResponse {
   updatedCount: number;
+  totalAmount?: number;
+  batchId?: string;
+  batchTitle?: string;
+}
+
+export interface RoyaltySettlementBatchItem {
+  id: string;
+  settlementMonth: string;
+  periodFrom: string;
+  periodTo: string;
+  title: string;
+  status: RoyaltyBatchStatus;
+  totalAmount: number;
+  totalCount: number;
+  paidAt: string | null;
+  paidBy: number | null;
+  createdAt: string;
+}
+
+export interface GetRoyaltyBatchesParams {
+  from?: string;
+  to?: string;
+  status?: RoyaltyBatchStatus | "all";
+  page?: number;
+  limit?: number;
+}
+
+export interface GetRoyaltyBatchesResponse {
+  batches: RoyaltySettlementBatchItem[];
+  pagination: PaginationInfo;
+}
+
+export interface GetRoyaltyBatchResponse {
+  batch: RoyaltySettlementBatchItem;
+  royalties: RoyaltySaleItem[];
+}
+
+export interface RecalculateRoyaltiesData {
+  royaltyIds?: string[];
+  from?: string;
+  to?: string;
+  artistIds?: string[];
+  templateId?: string;
+  includePaid?: boolean;
+}
+
+export interface RecalculateRoyaltiesResponse {
+  updatedCount: number;
+}
+
+export interface RoyaltySettlementRunArtist {
+  artistId: string;
+  artistName: string;
+  salesCount: number;
+  grossSales: number;
+  royaltyAmount: number;
+  missingRuleCount: number;
+  royalties: RoyaltySaleItem[];
+}
+
+export interface RoyaltySettlementRunSummary {
+  month: string;
+  periodFrom: string;
+  periodTo: string;
+  artistCount: number;
+  salesCount: number;
+  grossSales: number;
+  royaltyAmount: number;
+  missingRuleCount: number;
+}
+
+export interface AdminRoyaltySettlementRunResponse {
+  summary: RoyaltySettlementRunSummary;
+  artists: RoyaltySettlementRunArtist[];
+}
+
+export interface RoyaltyRuleInput {
+  royaltyType: RoyaltyRuleType | null;
+  royaltyValue: number | null;
+}
+
+export interface ArtistRoyaltySettingsItem {
+  artistId: string;
+  artistName: string;
+  artistSlug: string | null;
+  isActive: boolean;
+  defaultRule: ArtistRoyaltyRule | null;
+  publicTemplateCount: number;
+  templateOverrideCount: number;
+  missingTemplateCount: number;
+}
+
+export interface GetArtistRoyaltySettingsResponse {
+  artists: ArtistRoyaltySettingsItem[];
+}
+
+export interface TemplateRoyaltySettingsItem {
+  templateId: string;
+  templateName: string;
+  isPublic: boolean;
+  isShopVisible: boolean;
+  defaultRule: ArtistRoyaltyRule | null;
+  templateRule: ArtistRoyaltyRule | null;
+  appliedRule: ArtistRoyaltyRule | null;
+  appliedSource: "template" | "artist" | "missing";
+}
+
+export interface GetTemplateRoyaltySettingsResponse {
+  artist: Pick<Artist, "id" | "name" | "slug">;
+  templates: TemplateRoyaltySettingsItem[];
+}
+
+export interface TemplateProductRoyaltySettingsArtist {
+  artistId: string;
+  artistName: string;
+  artistSlug: string | null;
+  defaultRule: ArtistRoyaltyRule | null;
+  templateRule: ArtistRoyaltyRule | null;
+  appliedRule: ArtistRoyaltyRule | null;
+  appliedSource: "template" | "artist" | "missing";
+}
+
+export interface GetTemplateProductRoyaltySettingsResponse {
+  templateId: string;
+  artists: TemplateProductRoyaltySettingsArtist[];
 }
 
 // Work Schedule Management

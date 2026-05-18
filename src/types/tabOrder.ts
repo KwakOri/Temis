@@ -9,6 +9,7 @@ export type TabType =
   | "emailPreview"
   | "purchases"
   | "salesStats"
+  | "settlements"
   | "customOrders"
   | "workCalendar"
   | "portfolios"

@@ -7,6 +7,7 @@ import {
   useUpdateAdminArtist,
 } from "@/hooks/query/useAdminArtists";
 import { ArtistWithLinkedUser } from "@/types/admin";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 interface AdminUserLite {
@@ -38,6 +39,7 @@ const initialForm: ArtistForm = {
 };
 
 export default function ArtistManagement() {
+  const router = useRouter();
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<ArtistForm>(initialForm);
   const [editingArtist, setEditingArtist] = useState<ArtistWithLinkedUser | null>(null);
@@ -250,6 +252,13 @@ export default function ArtistManagement() {
               placeholder="작가 검색"
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
+            <button
+              type="button"
+              onClick={() => router.push("/admin/settlements/royalty-settings")}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors whitespace-nowrap"
+            >
+              로열티 설정
+            </button>
             <button
               type="button"
               onClick={openCreateModal}

@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
         artist_id,
         artist_name_snapshot,
         royalty_amount,
+        royalty_source,
         status,
         sale_amount,
         sale_paid_at,
@@ -51,6 +52,11 @@ export async function GET(request: NextRequest) {
     let paidRoyaltyAmount = 0;
     let unpaidCount = 0;
     let paidCount = 0;
+    let missingRuleCount = 0;
+    const dailyMap = new Map<
+      string,
+      { date: string; royaltyAmount: number; royaltyCount: number; missingRuleCount: number }
+    >();
 
     for (const row of data || []) {
       if (!row.artist_id || !row.artist_name_snapshot) {
@@ -66,11 +72,31 @@ export async function GET(request: NextRequest) {
         paidRoyaltyAmount: 0,
         unpaidCount: 0,
         paidCount: 0,
+        missingRuleCount: 0,
       };
 
       const royaltyAmount = row.royalty_amount || 0;
+      const isMissingRule = row.royalty_source === "missing";
       artistStat.salesCount += 1;
       artistStat.grossSales += row.sale_amount || 0;
+      artistStat.missingRuleCount =
+        (artistStat.missingRuleCount || 0) + (isMissingRule ? 1 : 0);
+      missingRuleCount += isMissingRule ? 1 : 0;
+
+      if (row.sale_paid_at) {
+        const date = row.sale_paid_at.slice(0, 10);
+        const daily = dailyMap.get(date) || {
+          date,
+          royaltyAmount: 0,
+          royaltyCount: 0,
+          missingRuleCount: 0,
+        };
+
+        daily.royaltyAmount += royaltyAmount;
+        daily.royaltyCount += 1;
+        daily.missingRuleCount += isMissingRule ? 1 : 0;
+        dailyMap.set(date, daily);
+      }
 
       if (row.status === "paid") {
         artistStat.paidRoyaltyAmount += royaltyAmount;
@@ -95,11 +121,15 @@ export async function GET(request: NextRequest) {
         paidRoyaltyAmount,
         unpaidCount,
         paidCount,
+        missingRuleCount,
       },
       byArtist: Array.from(byArtistMap.values()).sort(
         (a, b) =>
           b.unpaidRoyaltyAmount - a.unpaidRoyaltyAmount ||
           b.grossSales - a.grossSales
+      ),
+      daily: Array.from(dailyMap.values()).sort((a, b) =>
+        a.date.localeCompare(b.date)
       ),
     };
 

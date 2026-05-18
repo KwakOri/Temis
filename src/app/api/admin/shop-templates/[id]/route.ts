@@ -101,6 +101,61 @@ export async function PATCH(
           { status: 400 }
         );
       }
+
+      const { data: linkedArtists, error: linkedArtistsError } = await supabase
+        .from("template_artists")
+        .select("artist_id, artist:artists(name)")
+        .eq("template_id", templateId);
+
+      if (linkedArtistsError) {
+        throw linkedArtistsError;
+      }
+
+      const artistIds = (linkedArtists || []).map((item) => item.artist_id);
+
+      if (artistIds.length > 0) {
+        const { data: royaltyRules, error: royaltyRulesError } = await supabase
+          .from("artist_royalty_rules")
+          .select("artist_id, template_id")
+          .in("artist_id", artistIds)
+          .or(`template_id.is.null,template_id.eq.${templateId}`);
+
+        if (royaltyRulesError) {
+          throw royaltyRulesError;
+        }
+
+        const defaultRuleArtists = new Set(
+          (royaltyRules || [])
+            .filter((rule) => !rule.template_id)
+            .map((rule) => rule.artist_id)
+        );
+        const templateRuleArtists = new Set(
+          (royaltyRules || [])
+            .filter((rule) => rule.template_id === templateId)
+            .map((rule) => rule.artist_id)
+        );
+        const missingArtists = (linkedArtists || []).filter(
+          (item) =>
+            !defaultRuleArtists.has(item.artist_id) &&
+            !templateRuleArtists.has(item.artist_id)
+        );
+
+        if (missingArtists.length > 0) {
+          const firstArtist = missingArtists[0];
+          const artist = Array.isArray(firstArtist.artist)
+            ? firstArtist.artist[0]
+            : firstArtist.artist;
+
+          return NextResponse.json(
+            {
+              error: `로열티가 설정되지 않은 작가가 있습니다: ${
+                artist?.name || firstArtist.artist_id
+              }`,
+            },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     if (body.is_shop_visible !== undefined)
