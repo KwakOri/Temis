@@ -941,6 +941,67 @@ export type Database = {
           },
         ]
       }
+      template_sale_royalties: {
+        Row: {
+          artist_id: string
+          artist_name_snapshot: string
+          created_at: string
+          id: string
+          paid_at: string | null
+          paid_by: number | null
+          royalty_amount: number
+          status: string
+          template_sale_id: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          artist_name_snapshot: string
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          royalty_amount?: number
+          status?: string
+          template_sale_id: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          artist_name_snapshot?: string
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          royalty_amount?: number
+          status?: string
+          template_sale_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_sale_royalties_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_template_sale_id_fkey"
+            columns: ["template_sale_id"]
+            isOneToOne: false
+            referencedRelation: "template_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_sales: {
         Row: {
           amount_paid: number
@@ -1187,7 +1248,32 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      template_sale_royalty_details: {
+        Row: {
+          artist_id: string | null
+          artist_name_snapshot: string | null
+          created_at: string | null
+          currency: string | null
+          depositor_name: string | null
+          id: string | null
+          paid_at: string | null
+          paid_by: number | null
+          plan_id: string | null
+          plan_name: string | null
+          purchase_request_id: string | null
+          royalty_amount: number | null
+          sale_amount: number | null
+          sale_paid_at: string | null
+          sale_status: string | null
+          status: string | null
+          template_id: string | null
+          template_name_snapshot: string | null
+          template_sale_id: string | null
+          updated_at: string | null
+          user_id: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_expired_tokens: { Args: never; Returns: undefined }
