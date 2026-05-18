@@ -15,7 +15,8 @@ BEGIN
   LIMIT 1;
 
   IF v_no_artist_id IS NULL THEN
-    RAISE EXCEPTION '"no-artist" 작가를 찾을 수 없습니다.';
+    RAISE NOTICE '"no-artist" 작가가 없어 전환을 건너뜁니다.';
+    RETURN;
   END IF;
 
   SELECT id
@@ -27,7 +28,19 @@ BEGIN
   LIMIT 1;
 
   IF v_temis_id IS NULL THEN
-    RAISE EXCEPTION '"테미스" 작가를 찾을 수 없습니다.';
+    INSERT INTO public.artists (
+      name,
+      slug,
+      bio,
+      is_active
+    )
+    VALUES (
+      '테미스',
+      'temis',
+      '기본 연결용 내부 작가',
+      true
+    )
+    RETURNING id INTO v_temis_id;
   END IF;
 
   -- 이미 테미스가 연결된 템플릿은 no-artist 연결만 제거(중복/유니크 충돌 방지)

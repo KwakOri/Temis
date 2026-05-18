@@ -12,6 +12,8 @@ export type TemplateAccess = Tables<"template_access">;
 export type Artist = Tables<"artists">;
 export type TemplateArtist = Tables<"template_artists">;
 export type TemplateSale = Tables<"template_sales">;
+export type TemplateSaleRoyalty = Tables<"template_sale_royalties">;
+export type TemplateSaleRoyaltyDetail = Tables<"template_sale_royalty_details">;
 
 // Extended types
 export interface TemplateWithShopTemplate extends Template {
@@ -270,6 +272,82 @@ export interface AdminSalesStatsResponse {
   byPlan: SalesByPlan[];
   byArtist: SalesByArtist[];
   daily: DailySalesPoint[];
+}
+
+// Artist Royalty Settlement
+export type RoyaltyStatus = "unpaid" | "paid";
+
+export interface RoyaltySummary {
+  from: string;
+  to: string;
+  unpaidRoyaltyAmount: number;
+  paidRoyaltyAmount: number;
+  unpaidCount: number;
+  paidCount: number;
+}
+
+export interface RoyaltyByArtist {
+  artistId: string;
+  artistName: string;
+  salesCount: number;
+  grossSales: number;
+  unpaidRoyaltyAmount: number;
+  paidRoyaltyAmount: number;
+  unpaidCount: number;
+  paidCount: number;
+}
+
+export interface AdminRoyaltySummaryResponse {
+  summary: RoyaltySummary;
+  byArtist: RoyaltyByArtist[];
+}
+
+export interface RoyaltySaleItem {
+  id: string;
+  templateSaleId: string;
+  artistId: string;
+  artistName: string;
+  templateId: string;
+  templateName: string;
+  planName: string | null;
+  salePaidAt: string;
+  saleAmount: number;
+  royaltyAmount: number;
+  status: RoyaltyStatus;
+  paidAt: string | null;
+  depositorName: string | null;
+}
+
+export interface GetRoyaltySalesParams {
+  from?: string;
+  to?: string;
+  artistId?: string;
+  templateId?: string;
+  status?: RoyaltyStatus | "all";
+  page?: number;
+  limit?: number;
+}
+
+export interface GetRoyaltySalesResponse {
+  royalties: RoyaltySaleItem[];
+  pagination: PaginationInfo;
+}
+
+export interface UpdateRoyaltyData {
+  status?: RoyaltyStatus;
+  royaltyAmount?: number;
+}
+
+export interface MarkRoyaltiesPaidData {
+  royaltyIds?: string[];
+  from?: string;
+  to?: string;
+  artistIds?: string[];
+  templateId?: string;
+}
+
+export interface MarkRoyaltiesPaidResponse {
+  updatedCount: number;
 }
 
 // Work Schedule Management
