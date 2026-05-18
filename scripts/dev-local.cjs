@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -8,7 +9,9 @@ const rootDir = path.resolve(__dirname, "..");
 const defaultProjectRef = "ajlgjdwkjyayrnocdfpj";
 const tempDir = path.join(rootDir, "supabase", ".temp");
 const dumpFilePath = path.join(tempDir, "remote-data.sql");
-const passthroughArgs = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const shouldDump = rawArgs.includes("--dump");
+const passthroughArgs = rawArgs.filter((arg) => arg !== "--dump");
 
 const envFromFiles = loadEnvFiles([
   path.join(rootDir, ".env"),
@@ -63,14 +66,14 @@ const remoteDumpSchemas = (
   .map((schema) => schema.trim())
   .filter(Boolean);
 
-if (useLinkedRemote && !resolvedAccessToken) {
+if (shouldDump && useLinkedRemote && !resolvedAccessToken) {
   console.error(
     "[dev:local] Missing remote auth. Set SB_TOKEN_TEMIS or SUPABASE_ACCESS_TOKEN (or provide SUPABASE_REMOTE_DB_URL)."
   );
   process.exit(1);
 }
 
-if (remoteDumpSchemas.length === 0) {
+if (shouldDump && remoteDumpSchemas.length === 0) {
   console.error("[dev:local] SUPABASE_REMOTE_DUMP_SCHEMAS must include at least one schema.");
   process.exit(1);
 }
@@ -80,11 +83,15 @@ if (resolvedAccessToken) {
 }
 
 ensureCommandAvailable("supabase");
-ensureCommandAvailable("psql");
+if (shouldDump) {
+  ensureCommandAvailable("psql");
+}
 
 fs.mkdirSync(tempDir, { recursive: true });
 
-console.log("[dev:local] 1/7 Starting local Supabase containers...");
+const totalSteps = shouldDump ? 7 : 3;
+
+console.log(`[dev:local] 1/${totalSteps} Starting local Supabase containers...`);
 const startArgs = ["start", "--workdir", rootDir];
 for (const excludedService of startExcludes) {
   startArgs.push("--exclude", excludedService);
@@ -94,7 +101,7 @@ if (startExcludes.length > 0) {
 }
 runCommand("supabase", startArgs);
 
-console.log("[dev:local] 2/7 Loading local Supabase connection info...");
+console.log(`[dev:local] 2/${totalSteps} Loading local Supabase connection info...`);
 const statusEnv = parseStatusOutput(
   runCommand("supabase", ["status", "-o", "env", "--workdir", rootDir], {
     captureStdout: true,
@@ -114,72 +121,75 @@ if (!localDbUrl || !localApiUrl || !localAnonKey) {
   process.exit(1);
 }
 
-if (useLinkedRemote) {
-  console.log(`[dev:local] 3/7 Linking to remote project (${projectRef})...`);
+if (shouldDump) {
+  if (useLinkedRemote) {
+    console.log(`[dev:local] 3/7 Linking to remote project (${projectRef})...`);
+    runCommand("supabase", [
+      "link",
+      "--project-ref",
+      projectRef,
+      "--workdir",
+      rootDir,
+    ]);
+  } else {
+    console.log("[dev:local] 3/7 Using SUPABASE_REMOTE_DB_URL as remote source...");
+  }
+
+  console.log("[dev:local] 4/7 Resetting local DB to clean baseline...");
   runCommand("supabase", [
-    "link",
-    "--project-ref",
-    projectRef,
+    "db",
+    "reset",
+    "--local",
+    "--no-seed",
+    "--yes",
     "--workdir",
     rootDir,
   ]);
-} else {
-  console.log("[dev:local] 3/7 Using SUPABASE_REMOTE_DB_URL as remote source...");
+
+  console.log("[dev:local] 5/7 Dumping remote data...");
+  const dataDumpArgs = [
+    "db",
+    "dump",
+    "--data-only",
+    "--use-copy",
+    "--file",
+    dumpFilePath,
+    "--workdir",
+    rootDir,
+  ];
+  if (useLinkedRemote) {
+    dataDumpArgs.push("--linked");
+  } else {
+    dataDumpArgs.push("--db-url", remoteDbUrl);
+  }
+  for (const schema of remoteDumpSchemas) {
+    dataDumpArgs.push("--schema", schema);
+  }
+  runCommand("supabase", dataDumpArgs);
+
+  console.log("[dev:local] 6/7 Importing remote data...");
+  const dumpTables = extractCopyTablesFromDump(dumpFilePath);
+  if (dumpTables.length > 0) {
+    const truncateSql = `TRUNCATE TABLE ${dumpTables.join(
+      ", "
+    )} RESTART IDENTITY CASCADE;`;
+    console.log(
+      `[dev:local]    Truncating ${dumpTables.length} table(s) before import to avoid duplicate key conflicts...`
+    );
+    runCommand("psql", [
+      localDbUrl,
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-q",
+      "-c",
+      truncateSql,
+    ]);
+  }
+  runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", dumpFilePath]);
+  syncLocalDerivedData(localDbUrl);
 }
 
-console.log("[dev:local] 4/7 Resetting local DB to clean baseline...");
-runCommand("supabase", [
-  "db",
-  "reset",
-  "--local",
-  "--no-seed",
-  "--yes",
-  "--workdir",
-  rootDir,
-]);
-
-console.log("[dev:local] 5/7 Dumping remote data...");
-const dataDumpArgs = [
-  "db",
-  "dump",
-  "--data-only",
-  "--use-copy",
-  "--file",
-  dumpFilePath,
-  "--workdir",
-  rootDir,
-];
-if (useLinkedRemote) {
-  dataDumpArgs.push("--linked");
-} else {
-  dataDumpArgs.push("--db-url", remoteDbUrl);
-}
-for (const schema of remoteDumpSchemas) {
-  dataDumpArgs.push("--schema", schema);
-}
-runCommand("supabase", dataDumpArgs);
-
-console.log("[dev:local] 6/7 Importing remote data...");
-const dumpTables = extractCopyTablesFromDump(dumpFilePath);
-if (dumpTables.length > 0) {
-  const truncateSql = `TRUNCATE TABLE ${dumpTables.join(
-    ", "
-  )} RESTART IDENTITY CASCADE;`;
-  console.log(
-    `[dev:local]    Truncating ${dumpTables.length} table(s) before import to avoid duplicate key conflicts...`
-  );
-  runCommand("psql", [
-    localDbUrl,
-    "-v",
-    "ON_ERROR_STOP=1",
-    "-q",
-    "-c",
-    truncateSql,
-  ]);
-}
-runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", dumpFilePath]);
-
-console.log("[dev:local] 7/7 Starting Next.js with local Supabase keys...");
+console.log(`[dev:local] ${totalSteps}/${totalSteps} Starting Next.js with local Supabase keys...`);
 const devEnv = {
   ...process.env,
   NEXT_PUBLIC_SUPABASE_URL: localApiUrl,
@@ -324,6 +334,40 @@ function extractCopyTablesFromDump(filePath) {
   }
 
   return Array.from(tables);
+}
+
+function syncLocalDerivedData(localDbUrl) {
+  console.log("[dev:local]    Syncing local derived data...");
+  runCommand("psql", [
+    localDbUrl,
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-q",
+    "-c",
+    `
+      INSERT INTO public.template_sale_royalties (
+        template_sale_id,
+        artist_id,
+        artist_name_snapshot,
+        royalty_amount,
+        status
+      )
+      SELECT
+        ts.id,
+        a.id,
+        a.name,
+        0,
+        'unpaid'
+      FROM public.template_sales ts
+      JOIN public.template_artists ta
+        ON ta.template_id = ts.template_id
+      JOIN public.artists a
+        ON a.id = ta.artist_id
+      WHERE ts.status = 'completed'
+        AND a.is_active = true
+      ON CONFLICT (template_sale_id, artist_id) DO NOTHING;
+    `,
+  ]);
 }
 
 function resolveEnvReference(rawValue, sourceEnv) {

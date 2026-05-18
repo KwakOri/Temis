@@ -1,4 +1,8 @@
-import type { GetCustomOrdersParams, GetUsersParams } from "@/types/admin";
+import type {
+  GetCustomOrdersParams,
+  GetRoyaltySalesParams,
+  GetUsersParams,
+} from "@/types/admin";
 
 export const queryKeys = {
   user: {
@@ -97,6 +101,10 @@ export const queryKeys = {
       [...queryKeys.admin.all, "templateArtists", templateId] as const,
     salesStats: (from?: string, to?: string) =>
       [...queryKeys.admin.all, "salesStats", from, to] as const,
+    royaltySummary: (from?: string, to?: string, status?: string) =>
+      [...queryKeys.admin.all, "royaltySummary", from, to, status] as const,
+    royaltySales: (params?: GetRoyaltySalesParams) =>
+      [...queryKeys.admin.all, "royaltySales", params] as const,
   },
   adminOptions: {
     all: ["adminOptions"] as const,
