@@ -1,10 +1,18 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import { useAdminSalesStats } from "@/hooks/query/useAdminSalesStats";
+import { BarChart3 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
 function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
+    date.getDate()
+  )}`;
 }
 
 function formatWon(amount: number): string {
@@ -20,7 +28,10 @@ export default function SalesStatsManagement() {
 
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
-  const [appliedRange, setAppliedRange] = useState({ from: initialFrom, to: initialTo });
+  const [appliedRange, setAppliedRange] = useState({
+    from: initialFrom,
+    to: initialTo,
+  });
 
   const { data, isLoading, error } = useAdminSalesStats(appliedRange);
 
@@ -29,13 +40,14 @@ export default function SalesStatsManagement() {
       alert("시작일은 종료일보다 늦을 수 없습니다.");
       return;
     }
+
     setAppliedRange({ from, to });
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
       </div>
     );
   }
@@ -52,27 +64,38 @@ export default function SalesStatsManagement() {
 
   return (
     <div className="space-y-6">
+      <AdminTabHeader
+        title="매출 통계"
+        description="템플릿 판매 매출을 조회합니다"
+        icon={BarChart3}
+      />
+
       <div className="bg-white border border-gray-200 rounded-lg p-4 sm:p-6">
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">시작일</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              시작일
+            </label>
             <input
               type="date"
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={(event) => setFrom(event.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">종료일</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              종료일
+            </label>
             <input
               type="date"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(event) => setTo(event.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
           <button
+            type="button"
             onClick={applyRange}
             className="px-4 py-2 bg-primary text-white rounded-md hover:bg-secondary"
           >
@@ -114,22 +137,33 @@ export default function SalesStatsManagement() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs text-gray-600">템플릿</th>
-                  <th className="px-4 py-2 text-right text-xs text-gray-600">건수</th>
-                  <th className="px-4 py-2 text-right text-xs text-gray-600">매출</th>
+                  <th className="px-4 py-2 text-left text-xs text-gray-600">
+                    템플릿
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs text-gray-600">
+                    건수
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs text-gray-600">
+                    매출
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {data.byTemplate.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
+                    <td
+                      colSpan={3}
+                      className="px-4 py-8 text-center text-sm text-gray-500"
+                    >
                       데이터가 없습니다.
                     </td>
                   </tr>
                 )}
                 {data.byTemplate.slice(0, 10).map((item) => (
                   <tr key={item.templateId}>
-                    <td className="px-4 py-2 text-sm text-gray-900">{item.templateName}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900">
+                      {item.templateName}
+                    </td>
                     <td className="px-4 py-2 text-sm text-right text-gray-700">
                       {item.salesCount}
                     </td>
@@ -151,22 +185,33 @@ export default function SalesStatsManagement() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs text-gray-600">작가</th>
-                  <th className="px-4 py-2 text-right text-xs text-gray-600">건수</th>
-                  <th className="px-4 py-2 text-right text-xs text-gray-600">매출</th>
+                  <th className="px-4 py-2 text-left text-xs text-gray-600">
+                    작가
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs text-gray-600">
+                    건수
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs text-gray-600">
+                    매출
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {data.byArtist.length === 0 && (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
+                    <td
+                      colSpan={3}
+                      className="px-4 py-8 text-center text-sm text-gray-500"
+                    >
                       데이터가 없습니다.
                     </td>
                   </tr>
                 )}
                 {data.byArtist.slice(0, 10).map((item) => (
                   <tr key={item.artistName}>
-                    <td className="px-4 py-2 text-sm text-gray-900">{item.artistName}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900">
+                      {item.artistName}
+                    </td>
                     <td className="px-4 py-2 text-sm text-right text-gray-700">
                       {item.salesCount}
                     </td>
@@ -189,22 +234,33 @@ export default function SalesStatsManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-2 text-left text-xs text-gray-600">일자</th>
-                <th className="px-4 py-2 text-right text-xs text-gray-600">건수</th>
-                <th className="px-4 py-2 text-right text-xs text-gray-600">매출</th>
+                <th className="px-4 py-2 text-left text-xs text-gray-600">
+                  일자
+                </th>
+                <th className="px-4 py-2 text-right text-xs text-gray-600">
+                  건수
+                </th>
+                <th className="px-4 py-2 text-right text-xs text-gray-600">
+                  매출
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {data.daily.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-sm text-gray-500">
+                  <td
+                    colSpan={3}
+                    className="px-4 py-8 text-center text-sm text-gray-500"
+                  >
                     데이터가 없습니다.
                   </td>
                 </tr>
               )}
               {data.daily.map((item) => (
                 <tr key={item.date}>
-                  <td className="px-4 py-2 text-sm text-gray-900">{item.date}</td>
+                  <td className="px-4 py-2 text-sm text-gray-900">
+                    {item.date}
+                  </td>
                   <td className="px-4 py-2 text-sm text-right text-gray-700">
                     {item.salesCount}
                   </td>
@@ -220,4 +276,3 @@ export default function SalesStatsManagement() {
     </div>
   );
 }
-

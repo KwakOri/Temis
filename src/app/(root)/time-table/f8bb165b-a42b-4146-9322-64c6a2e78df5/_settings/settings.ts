@@ -1,0 +1,168 @@
+import { CardInputConfig, TLanOpt } from '@/types/time-table/data';
+import { TButtonTheme } from '@/types/time-table/theme';
+
+export interface CardSizesProps {
+  ONLINE: {
+    width: number;
+    height: number;
+  };
+  OFFLINE: {
+    width: number;
+    height: number;
+  };
+  PROFILE: {
+    width: number;
+    height: number;
+  };
+  FRAME: {
+    width: number;
+    height: number;
+  };
+}
+/** ---------------------------------------------- */
+
+export const templateSize = {
+  width: 4000,
+  height: 2250,
+};
+
+/** Fonts 설정 */
+/** Fonts 설정 */
+
+/** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
+
+export const BASE_FONTS = {
+  PRIMARY: 'NostalgicMongtori',
+  SECONDARY: 'KccSign',
+  TERTIARY: 'SchoolSafetyTteokbokki',
+  QUATERNARY: '',
+};
+
+/** ---------------------------------------------- */
+
+/** 요일 표시 설정 */
+/** 요일 표시 설정 */
+
+/** kr | en | jp */
+
+export const weekdayOption: TLanOpt = 'en';
+export const monthOption: TLanOpt = 'en';
+
+/** ---------------------------------------------- */
+
+/** Theme 설정 */
+/** Theme 설정 */
+
+export const Themes = ['first', 'second', 'third'] as const;
+
+export const defaultTheme = 'first' as const;
+
+export const buttonThemes: TButtonTheme[] = [
+  { value: 'first', label: 'first' },
+];
+
+/**
+ * 날자: #FFFFFF , #FEFDAB
+ * 메인 제목: #1A1A1A
+ * 소 제목: #B0B0B0
+ * 시간: #FEFDAB
+ */
+
+export const BASE_COLORS = {
+  first: {
+    primary: '#ffa7c1',
+    secondary: '#ffffff',
+    tertiary: '',
+    quaternary: '',
+  },
+  second: {
+    primary: '',
+    secondary: '',
+    tertiary: '',
+    quaternary: '',
+  },
+  third: {
+    primary: '',
+    secondary: '',
+    tertiary: '',
+    quaternary: '',
+  },
+};
+
+export const COMP_COLORS = {
+  MAIN_TITLE: BASE_COLORS['first']['primary'],
+  SUB_TITLE: '',
+  STREAMING_TIME: BASE_COLORS['first']['secondary'],
+  STREAMING_DATE: '',
+  STREAMING_DAY: '',
+  ARTIST: BASE_COLORS['first']['primary'],
+  WEEKLY_FLAG: BASE_COLORS['first']['secondary'],
+  OFFLINE_MEMO: BASE_COLORS['first']['secondary'],
+};
+
+export const COMP_FONTS = {
+  MAIN_TITLE: BASE_FONTS.PRIMARY,
+  SUB_TITLE: '',
+  STREAMING_TIME: BASE_FONTS.PRIMARY,
+  STREAMING_DATE: '',
+  STREAMING_DAY: BASE_FONTS.SECONDARY,
+  ARTIST: BASE_FONTS.PRIMARY,
+  WEEKLY_FLAG: BASE_FONTS.TERTIARY,
+  OFFLINE_MEMO: BASE_FONTS.PRIMARY,
+};
+
+export const MAX_FONT_SIZES = {
+  MAIN_TITLE: 70,
+  SUB_TITLE: 42,
+  ARTIST: 48,
+};
+
+export const CARD_SIZES: CardSizesProps = {
+  ONLINE: {
+    width: 640,
+    height: 600,
+  },
+  OFFLINE: {
+    width: 640,
+    height: 600,
+  },
+  PROFILE: {
+    width: 1040,
+    height: 1620,
+  },
+  FRAME: {
+    width: 4000,
+    height: 2250,
+  },
+};
+
+export const profileTextPlaceholder = '작가이름 적는곳';
+/** ---------------------------------------------- */
+
+// 개발자 전용: 카드 입력 필드 구성
+// 이 부분만 수정하면 카드의 입력 필드가 변경됩니다
+export const CARD_INPUT_CONFIG: CardInputConfig = {
+  fields: [
+    {
+      key: 'time',
+      type: 'time',
+      placeholder: '10:00',
+      required: true,
+      defaultValue: '10:00',
+    },
+    {
+      key: 'mainTitle',
+      type: 'textarea',
+      placeholder: '메인 타이틀\n적는 곳',
+      defaultValue: '',
+      maxLength: 200,
+    },
+  ],
+  showLabels: false, // 라벨 표시 여부
+  // 오프라인 토글 설정
+  offlineToggle: {
+    label: '휴방',
+    activeColor: 'bg-[#3E4A82]',
+    inactiveColor: 'bg-gray-300',
+  },
+};

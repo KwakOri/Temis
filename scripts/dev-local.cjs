@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 
 const fs = require("node:fs");
 const path = require("node:path");
@@ -104,9 +105,9 @@ if (shouldSyncDump) {
   console.log("[dev:local] mode=local (reuse current local DB state)");
 }
 
-console.log(
-  `[dev:local] 1/${shouldSyncDump ? 7 : 3} Starting local Supabase containers...`
-);
+const totalSteps = shouldSyncDump ? 7 : 3;
+
+console.log(`[dev:local] 1/${totalSteps} Starting local Supabase containers...`);
 const startArgs = ["start", "--workdir", rootDir];
 for (const excludedService of startExcludes) {
   startArgs.push("--exclude", excludedService);
@@ -116,9 +117,7 @@ if (startExcludes.length > 0) {
 }
 runCommand("supabase", startArgs);
 
-console.log(
-  `[dev:local] 2/${shouldSyncDump ? 7 : 3} Loading local Supabase connection info...`
-);
+console.log(`[dev:local] 2/${totalSteps} Loading local Supabase connection info...`);
 const statusEnv = parseStatusOutput(
   runCommand("supabase", ["status", "-o", "env", "--workdir", rootDir], {
     captureStdout: true,
@@ -203,11 +202,10 @@ if (shouldSyncDump) {
     ]);
   }
   runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", dumpFilePath]);
+  syncLocalDerivedData(localDbUrl);
 }
 
-console.log(
-  `[dev:local] ${shouldSyncDump ? "7/7" : "3/3"} Starting Next.js with local Supabase keys...`
-);
+console.log(`[dev:local] ${totalSteps}/${totalSteps} Starting Next.js with local Supabase keys...`);
 const devEnv = {
   ...process.env,
   NEXT_PUBLIC_SUPABASE_URL: localApiUrl,
@@ -352,6 +350,40 @@ function extractCopyTablesFromDump(filePath) {
   }
 
   return Array.from(tables);
+}
+
+function syncLocalDerivedData(localDbUrl) {
+  console.log("[dev:local]    Syncing local derived data...");
+  runCommand("psql", [
+    localDbUrl,
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-q",
+    "-c",
+    `
+      INSERT INTO public.template_sale_royalties (
+        template_sale_id,
+        artist_id,
+        artist_name_snapshot,
+        royalty_amount,
+        status
+      )
+      SELECT
+        ts.id,
+        a.id,
+        a.name,
+        0,
+        'unpaid'
+      FROM public.template_sales ts
+      JOIN public.template_artists ta
+        ON ta.template_id = ts.template_id
+      JOIN public.artists a
+        ON a.id = ta.artist_id
+      WHERE ts.status = 'completed'
+        AND a.is_active = true
+      ON CONFLICT (template_sale_id, artist_id) DO NOTHING;
+    `,
+  ]);
 }
 
 function resolveEnvReference(rawValue, sourceEnv) {

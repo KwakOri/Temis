@@ -133,6 +133,51 @@ export type Database = {
         }
         Relationships: []
       }
+      artist_royalty_rules: {
+        Row: {
+          artist_id: string
+          created_at: string
+          id: string
+          royalty_type: string
+          royalty_value: number
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string
+          id?: string
+          royalty_type: string
+          royalty_value: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string
+          id?: string
+          royalty_type?: string
+          royalty_value?: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_royalty_rules_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_royalty_rules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artists: {
         Row: {
           bio: string | null
@@ -494,6 +539,69 @@ export type Database = {
             columns: ["team_template_id"]
             isOneToOne: false
             referencedRelation: "team_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      royalty_settlement_batches: {
+        Row: {
+          created_at: string
+          created_by: number | null
+          id: string
+          paid_at: string | null
+          paid_by: number | null
+          period_from: string
+          period_to: string
+          settlement_month: string
+          status: string
+          title: string
+          total_amount: number
+          total_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          period_from: string
+          period_to: string
+          settlement_month: string
+          status?: string
+          title: string
+          total_amount?: number
+          total_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          period_from?: string
+          period_to?: string
+          settlement_month?: string
+          status?: string
+          title?: string
+          total_amount?: number
+          total_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "royalty_settlement_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "royalty_settlement_batches_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1095,6 +1203,96 @@ export type Database = {
           },
         ]
       }
+      template_sale_royalties: {
+        Row: {
+          artist_id: string
+          artist_name_snapshot: string
+          created_at: string
+          id: string
+          paid_at: string | null
+          paid_by: number | null
+          royalty_amount: number
+          royalty_rule_id: string | null
+          royalty_source: string
+          royalty_type_snapshot: string | null
+          royalty_value_snapshot: number | null
+          settlement_batch_id: string | null
+          status: string
+          template_sale_id: string
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          artist_name_snapshot: string
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          royalty_amount?: number
+          royalty_rule_id?: string | null
+          royalty_source?: string
+          royalty_type_snapshot?: string | null
+          royalty_value_snapshot?: number | null
+          settlement_batch_id?: string | null
+          status?: string
+          template_sale_id: string
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          artist_name_snapshot?: string
+          created_at?: string
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          royalty_amount?: number
+          royalty_rule_id?: string | null
+          royalty_source?: string
+          royalty_type_snapshot?: string | null
+          royalty_value_snapshot?: number | null
+          settlement_batch_id?: string | null
+          status?: string
+          template_sale_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_sale_royalties_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_royalty_rule_id_fkey"
+            columns: ["royalty_rule_id"]
+            isOneToOne: false
+            referencedRelation: "artist_royalty_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_settlement_batch_id_fkey"
+            columns: ["settlement_batch_id"]
+            isOneToOne: false
+            referencedRelation: "royalty_settlement_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_template_sale_id_fkey"
+            columns: ["template_sale_id"]
+            isOneToOne: false
+            referencedRelation: "template_sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_sales: {
         Row: {
           amount_paid: number
@@ -1495,6 +1693,97 @@ export type Database = {
       }
     }
     Views: {
+      template_sale_royalty_details: {
+        Row: {
+          artist_id: string | null
+          artist_name_snapshot: string | null
+          created_at: string | null
+          currency: string | null
+          depositor_name: string | null
+          id: string | null
+          paid_at: string | null
+          paid_by: number | null
+          plan_id: string | null
+          plan_name: string | null
+          purchase_request_id: string | null
+          royalty_amount: number | null
+          royalty_rule_id: string | null
+          royalty_source: string | null
+          royalty_type_snapshot: string | null
+          royalty_value_snapshot: number | null
+          sale_amount: number | null
+          sale_paid_at: string | null
+          sale_status: string | null
+          settlement_batch_id: string | null
+          settlement_batch_status: string | null
+          settlement_batch_title: string | null
+          settlement_month: string | null
+          status: string | null
+          template_id: string | null
+          template_name_snapshot: string | null
+          template_sale_id: string | null
+          updated_at: string | null
+          user_id: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_sale_royalties_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_royalty_rule_id_fkey"
+            columns: ["royalty_rule_id"]
+            isOneToOne: false
+            referencedRelation: "artist_royalty_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_settlement_batch_id_fkey"
+            columns: ["settlement_batch_id"]
+            isOneToOne: false
+            referencedRelation: "royalty_settlement_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_template_sale_id_fkey"
+            columns: ["template_sale_id"]
+            isOneToOne: false
+            referencedRelation: "template_sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "template_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_purchase_request_id_fkey"
+            columns: ["purchase_request_id"]
+            isOneToOne: true
+            referencedRelation: "template_purchase_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_sales_daily_stats: {
         Row: {
           completed_count: number | null
@@ -1526,6 +1815,20 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_template_sale_royalty: {
+        Args: {
+          p_artist_id: string
+          p_sale_amount: number
+          p_template_id: string
+        }
+        Returns: {
+          royalty_amount: number
+          royalty_rule_id: string
+          royalty_source: string
+          royalty_type: string
+          royalty_value: number
+        }[]
+      }
       cleanup_expired_tokens: { Args: never; Returns: undefined }
       get_current_user_id: { Args: never; Returns: number }
       has_template_access: {
@@ -1533,6 +1836,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_user: { Args: never; Returns: boolean }
+      recalculate_royalty_settlement_batch: {
+        Args: { p_batch_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -1668,4 +1975,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
