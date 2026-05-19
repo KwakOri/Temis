@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.12 (cd3cf9e)"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -112,6 +132,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      artist_royalty_rules: {
+        Row: {
+          artist_id: string
+          created_at: string
+          id: string
+          royalty_type: string
+          royalty_value: number
+          template_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          artist_id: string
+          created_at?: string
+          id?: string
+          royalty_type: string
+          royalty_value: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          artist_id?: string
+          created_at?: string
+          id?: string
+          royalty_type?: string
+          royalty_value?: number
+          template_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artist_royalty_rules_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_royalty_rules_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       artists: {
         Row: {
@@ -474,6 +539,69 @@ export type Database = {
             columns: ["team_template_id"]
             isOneToOne: false
             referencedRelation: "team_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      royalty_settlement_batches: {
+        Row: {
+          created_at: string
+          created_by: number | null
+          id: string
+          paid_at: string | null
+          paid_by: number | null
+          period_from: string
+          period_to: string
+          settlement_month: string
+          status: string
+          title: string
+          total_amount: number
+          total_count: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          period_from: string
+          period_to: string
+          settlement_month: string
+          status?: string
+          title: string
+          total_amount?: number
+          total_count?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          paid_at?: string | null
+          paid_by?: number | null
+          period_from?: string
+          period_to?: string
+          settlement_month?: string
+          status?: string
+          title?: string
+          total_amount?: number
+          total_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "royalty_settlement_batches_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "royalty_settlement_batches_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -941,6 +1069,140 @@ export type Database = {
           },
         ]
       }
+      template_render_config_drafts: {
+        Row: {
+          base_revision_no: number | null
+          config_version: number
+          created_at: string
+          id: string
+          is_autosave: boolean
+          render_config: Json
+          template_id: string
+          updated_at: string
+          user_id: number
+        }
+        Insert: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config: Json
+          template_id: string
+          updated_at?: string
+          user_id: number
+        }
+        Update: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_render_config_drafts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_render_config_drafts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_render_config_revisions: {
+        Row: {
+          config_version: number
+          created_at: string
+          created_by: number | null
+          id: string
+          render_config: Json
+          revision_no: number
+          source: string
+          template_id: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config: Json
+          revision_no: number
+          source?: string
+          template_id: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config?: Json
+          revision_no?: number
+          source?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_render_config_revisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_render_config_revisions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_render_configs: {
+        Row: {
+          config_version: number
+          created_at: string
+          id: string
+          render_config: Json
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config: Json
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_render_configs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: true
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       template_sale_royalties: {
         Row: {
           artist_id: string
@@ -950,6 +1212,11 @@ export type Database = {
           paid_at: string | null
           paid_by: number | null
           royalty_amount: number
+          royalty_rule_id: string | null
+          royalty_source: string
+          royalty_type_snapshot: string | null
+          royalty_value_snapshot: number | null
+          settlement_batch_id: string | null
           status: string
           template_sale_id: string
           updated_at: string
@@ -962,6 +1229,11 @@ export type Database = {
           paid_at?: string | null
           paid_by?: number | null
           royalty_amount?: number
+          royalty_rule_id?: string | null
+          royalty_source?: string
+          royalty_type_snapshot?: string | null
+          royalty_value_snapshot?: number | null
+          settlement_batch_id?: string | null
           status?: string
           template_sale_id: string
           updated_at?: string
@@ -974,6 +1246,11 @@ export type Database = {
           paid_at?: string | null
           paid_by?: number | null
           royalty_amount?: number
+          royalty_rule_id?: string | null
+          royalty_source?: string
+          royalty_type_snapshot?: string | null
+          royalty_value_snapshot?: number | null
+          settlement_batch_id?: string | null
           status?: string
           template_sale_id?: string
           updated_at?: string
@@ -991,6 +1268,20 @@ export type Database = {
             columns: ["paid_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_royalty_rule_id_fkey"
+            columns: ["royalty_rule_id"]
+            isOneToOne: false
+            referencedRelation: "artist_royalty_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_settlement_batch_id_fkey"
+            columns: ["settlement_batch_id"]
+            isOneToOne: false
+            referencedRelation: "royalty_settlement_batches"
             referencedColumns: ["id"]
           },
           {
@@ -1065,7 +1356,7 @@ export type Database = {
           {
             foreignKeyName: "template_sales_purchase_request_id_fkey"
             columns: ["purchase_request_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "template_purchase_requests"
             referencedColumns: ["id"]
           },
@@ -1074,13 +1365,6 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "templates"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "template_sales_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1246,6 +1530,167 @@ export type Database = {
         }
         Relationships: []
       }
+      v2_template_render_config_drafts: {
+        Row: {
+          base_revision_no: number | null
+          config_version: number
+          created_at: string
+          id: string
+          is_autosave: boolean
+          render_config: Json
+          template_id: string
+          updated_at: string
+          user_id: number
+        }
+        Insert: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config: Json
+          template_id: string
+          updated_at?: string
+          user_id: number
+        }
+        Update: {
+          base_revision_no?: number | null
+          config_version?: number
+          created_at?: string
+          id?: string
+          is_autosave?: boolean
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_template_render_config_drafts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "v2_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "v2_template_render_config_drafts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_template_render_config_revisions: {
+        Row: {
+          config_version: number
+          created_at: string
+          created_by: number | null
+          id: string
+          render_config: Json
+          revision_no: number
+          source: string
+          template_id: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config: Json
+          revision_no: number
+          source?: string
+          template_id: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          created_by?: number | null
+          id?: string
+          render_config?: Json
+          revision_no?: number
+          source?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_template_render_config_revisions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "v2_template_render_config_revisions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "v2_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_template_render_configs: {
+        Row: {
+          config_version: number
+          created_at: string
+          id: string
+          render_config: Json
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config: Json
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          config_version?: number
+          created_at?: string
+          id?: string
+          render_config?: Json
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "v2_template_render_configs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: true
+            referencedRelation: "v2_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v2_templates: {
+        Row: {
+          created_at: string
+          description: string
+          id: string
+          is_public: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_public?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          id?: string
+          is_public?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       template_sale_royalty_details: {
@@ -1262,9 +1707,17 @@ export type Database = {
           plan_name: string | null
           purchase_request_id: string | null
           royalty_amount: number | null
+          royalty_rule_id: string | null
+          royalty_source: string | null
+          royalty_type_snapshot: string | null
+          royalty_value_snapshot: number | null
           sale_amount: number | null
           sale_paid_at: string | null
           sale_status: string | null
+          settlement_batch_id: string | null
+          settlement_batch_status: string | null
+          settlement_batch_title: string | null
+          settlement_month: string | null
           status: string | null
           template_id: string | null
           template_name_snapshot: string | null
@@ -1272,10 +1725,110 @@ export type Database = {
           updated_at: string | null
           user_id: number | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "template_sale_royalties_artist_id_fkey"
+            columns: ["artist_id"]
+            isOneToOne: false
+            referencedRelation: "artists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_paid_by_fkey"
+            columns: ["paid_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_royalty_rule_id_fkey"
+            columns: ["royalty_rule_id"]
+            isOneToOne: false
+            referencedRelation: "artist_royalty_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_settlement_batch_id_fkey"
+            columns: ["settlement_batch_id"]
+            isOneToOne: false
+            referencedRelation: "royalty_settlement_batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sale_royalties_template_sale_id_fkey"
+            columns: ["template_sale_id"]
+            isOneToOne: false
+            referencedRelation: "template_sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "template_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_purchase_request_id_fkey"
+            columns: ["purchase_request_id"]
+            isOneToOne: true
+            referencedRelation: "template_purchase_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "template_sales_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      template_sales_daily_stats: {
+        Row: {
+          completed_count: number | null
+          gross_revenue: number | null
+          issue_count: number | null
+          net_revenue: number | null
+          sale_date: string | null
+        }
         Relationships: []
+      }
+      template_sales_template_stats: {
+        Row: {
+          completed_count: number | null
+          gross_revenue: number | null
+          last_paid_at: string | null
+          net_revenue: number | null
+          template_id: string | null
+          template_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "template_sales_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
+      calculate_template_sale_royalty: {
+        Args: {
+          p_artist_id: string
+          p_sale_amount: number
+          p_template_id: string
+        }
+        Returns: {
+          royalty_amount: number
+          royalty_rule_id: string
+          royalty_source: string
+          royalty_type: string
+          royalty_value: number
+        }[]
+      }
       cleanup_expired_tokens: { Args: never; Returns: undefined }
       get_current_user_id: { Args: never; Returns: number }
       has_template_access: {
@@ -1283,6 +1836,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin_user: { Args: never; Returns: boolean }
+      recalculate_royalty_settlement_batch: {
+        Args: { p_batch_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
@@ -1411,6 +1968,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

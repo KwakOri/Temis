@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:local": "node scripts/dev-local.cjs",
+    "admin:tabs:sync": "node scripts/sync-admin-tab-order.cjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

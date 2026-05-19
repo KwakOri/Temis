@@ -7,6 +7,7 @@ import { DeadlineCalendarView } from "@/components/admin/DeadlineCalendar";
 import EmailTemplatePreview from "@/components/admin/EmailTemplatePreview";
 import PortfolioManagement from "@/components/admin/PortfolioManagement";
 import PurchaseManagement from "@/components/admin/PurchaseManagement";
+import RoyaltySettlementManagement from "@/components/admin/RoyaltySettlementManagement";
 import SalesStatsManagement from "@/components/admin/SalesStatsManagement";
 import SettingsManagement from "@/components/admin/SettingsManagement";
 import TeamManagement from "@/components/admin/TeamManagement";
@@ -50,6 +51,8 @@ export default function AdminTabPage() {
       return <PurchaseManagement />;
     case "salesStats":
       return <SalesStatsManagement />;
+    case "settlements":
+      return <RoyaltySettlementManagement />;
     case "templates":
       return <TemplateManagement />;
     case "artists":
