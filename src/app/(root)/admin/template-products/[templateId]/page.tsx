@@ -8,6 +8,10 @@ import {
   useUpdateTemplateArtists,
 } from "@/hooks/query/useAdminArtists";
 import {
+  useRoyaltySettingsTemplate,
+  useUpdateTemplateRoyaltyRule,
+} from "@/hooks/query/useAdminRoyalties";
+import {
   useAdminTemplate,
   useCreateShopTemplate,
   useCreateTemplatePlan,
@@ -16,7 +20,14 @@ import {
   useUpdateTemplatePlan,
 } from "@/hooks/query/useAdminTemplates";
 import { AdminTemplateService } from "@/services/admin/templateService";
-import type { Artist, TemplateWithShopTemplateAndPlans } from "@/types/admin";
+import type {
+  Artist,
+  ArtistRoyaltyRule,
+  RoyaltyRuleInput,
+  RoyaltyRuleType,
+  TemplateProductRoyaltySettingsArtist,
+  TemplateWithShopTemplateAndPlans,
+} from "@/types/admin";
 import type { ShopTemplateWithPlans as ShopTemplateDetailData } from "@/types/templateDetail";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
@@ -58,6 +69,122 @@ const optionLabels: Record<keyof PlanOptions, string> = {
   is_offline_memo: "오프라인 메모",
 };
 
+function formatRoyaltyRule(rule: ArtistRoyaltyRule | null): string {
+  if (!rule) {
+    return "미설정";
+  }
+
+  if (rule.royalty_type === "fixed") {
+    return `₩${Math.round(rule.royalty_value).toLocaleString("ko-KR")}`;
+  }
+
+  return `${rule.royalty_value}%`;
+}
+
+interface ProductRoyaltyRuleEditorProps {
+  item: TemplateProductRoyaltySettingsArtist;
+  onSave: (item: TemplateProductRoyaltySettingsArtist, data: RoyaltyRuleInput) => Promise<void>;
+  disabled?: boolean;
+}
+
+function ProductRoyaltyRuleEditor({
+  item,
+  onSave,
+  disabled,
+}: ProductRoyaltyRuleEditorProps) {
+  const [royaltyType, setRoyaltyType] = useState<RoyaltyRuleType>(
+    item.templateRule?.royalty_type === "fixed" ? "fixed" : "percentage"
+  );
+  const [royaltyValue, setRoyaltyValue] = useState(
+    item.templateRule ? String(item.templateRule.royalty_value) : ""
+  );
+
+  useEffect(() => {
+    setRoyaltyType(
+      item.templateRule?.royalty_type === "fixed" ? "fixed" : "percentage"
+    );
+    setRoyaltyValue(item.templateRule ? String(item.templateRule.royalty_value) : "");
+  }, [item.templateRule]);
+
+  const save = async () => {
+    const value = Number(royaltyValue);
+
+    if (!Number.isFinite(value) || value < 0) {
+      alert("로열티 값은 0 이상의 숫자로 입력해주세요.");
+      return;
+    }
+
+    if (royaltyType === "percentage" && value > 100) {
+      alert("비율 로열티는 100%를 초과할 수 없습니다.");
+      return;
+    }
+
+    await onSave(item, {
+      royaltyType,
+      royaltyValue: value,
+    });
+  };
+
+  const remove = async () => {
+    if (!item.templateRule) {
+      return;
+    }
+
+    if (!confirm("템플릿 로열티 override를 삭제하시겠습니까?")) {
+      return;
+    }
+
+    await onSave(item, {
+      royaltyType: null,
+      royaltyValue: null,
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select
+        value={royaltyType}
+        onChange={(event) => setRoyaltyType(event.target.value as RoyaltyRuleType)}
+        className="px-2 py-1.5 border border-[#DCC7B7] rounded-md text-xs bg-white"
+        disabled={disabled}
+      >
+        <option value="percentage">비율</option>
+        <option value="fixed">고정</option>
+      </select>
+      <input
+        type="number"
+        min={0}
+        max={royaltyType === "percentage" ? 100 : undefined}
+        step={royaltyType === "percentage" ? 0.1 : 1}
+        value={royaltyValue}
+        onChange={(event) => setRoyaltyValue(event.target.value)}
+        className="w-24 px-2 py-1.5 border border-[#DCC7B7] rounded-md text-xs text-right bg-white"
+        placeholder={royaltyType === "percentage" ? "30" : "10000"}
+        disabled={disabled}
+      />
+      <span className="text-xs text-[#7A685A]">
+        {royaltyType === "percentage" ? "%" : "원"}
+      </span>
+      <button
+        type="button"
+        onClick={save}
+        disabled={disabled}
+        className="px-2.5 py-1.5 rounded-md bg-[#D88A4A] text-white text-xs hover:bg-[#C97A3A] disabled:opacity-50"
+      >
+        저장
+      </button>
+      <button
+        type="button"
+        onClick={remove}
+        disabled={disabled || !item.templateRule}
+        className="px-2.5 py-1.5 rounded-md border border-[#DCC7B7] text-[#6D594D] text-xs hover:bg-[#F5ECE5] disabled:opacity-50"
+      >
+        삭제
+      </button>
+    </div>
+  );
+}
+
 function TemplateProductEditorContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -77,6 +204,8 @@ function TemplateProductEditorContent() {
   const createPlanMutation = useCreateTemplatePlan();
   const updatePlanMutation = useUpdateTemplatePlan();
   const updateTemplateArtistsMutation = useUpdateTemplateArtists();
+  const { data: templateRoyaltySettings } = useRoyaltySettingsTemplate(templateId);
+  const updateTemplateRoyaltyRuleMutation = useUpdateTemplateRoyaltyRule();
 
   const [productFormData, setProductFormData] = useState<ProductForm>({
     templateName: "",
@@ -386,6 +515,21 @@ function TemplateProductEditorContent() {
     createPlanMutation.isPending ||
     updatePlanMutation.isPending ||
     updateTemplateArtistsMutation.isPending;
+
+  const saveTemplateRoyaltyRule = async (
+    item: TemplateProductRoyaltySettingsArtist,
+    data: RoyaltyRuleInput
+  ) => {
+    try {
+      await updateTemplateRoyaltyRuleMutation.mutateAsync({
+        templateId,
+        artistId: item.artistId,
+        data,
+      });
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "저장 중 오류가 발생했습니다.");
+    }
+  };
 
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -835,6 +979,54 @@ function TemplateProductEditorContent() {
                           : "'테미스' 시스템 작가를 찾을 수 없음"}
                       </button>
                     </div>
+                  </div>
+                )}
+              </section>
+
+              <section className="rounded-xl border border-[#E8D8CB] bg-[#FFFAF6] p-4 sm:p-5">
+                <h3 className="text-sm font-semibold text-[#3B3028] mb-1">
+                  템플릿 로열티
+                </h3>
+                <p className="text-xs text-[#7A685A] mb-4">
+                  이 상품에서만 적용할 작가별 로열티 override를 설정합니다. 비워두면
+                  작가 기본 로열티가 적용됩니다.
+                </p>
+
+                {(templateRoyaltySettings?.artists.length || 0) === 0 ? (
+                  <div className="text-sm text-[#7A685A] bg-[#F9F1E8] border border-[#E7D7C9] rounded-lg p-3">
+                    저장된 작가 연결이 없습니다. 작가 연결을 저장한 뒤 템플릿 로열티를
+                    설정할 수 있습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {templateRoyaltySettings?.artists.map((item) => (
+                      <div
+                        key={item.artistId}
+                        className="rounded-lg border border-[#E8D8CB] bg-[#FFFDFB] p-3"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-medium text-[#3F342D]">
+                              {item.artistName}
+                            </div>
+                            <div className="text-xs text-[#7A685A] mt-1">
+                              작가 기본 {formatRoyaltyRule(item.defaultRule)} · 현재 적용{" "}
+                              {item.appliedSource === "template"
+                                ? "템플릿"
+                                : item.appliedSource === "artist"
+                                ? "작가 기본"
+                                : "미설정"}{" "}
+                              {formatRoyaltyRule(item.appliedRule)}
+                            </div>
+                          </div>
+                          <ProductRoyaltyRuleEditor
+                            item={item}
+                            onSave={saveTemplateRoyaltyRule}
+                            disabled={updateTemplateRoyaltyRuleMutation.isPending}
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </section>

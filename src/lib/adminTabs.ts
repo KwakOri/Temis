@@ -3,6 +3,7 @@ export type AdminTabId =
   | "customOrders"
   | "purchases"
   | "salesStats"
+  | "settlements"
   | "templates"
   | "artists"
   | "thumbnails"
@@ -21,6 +22,7 @@ export const ADMIN_TAB_SEGMENT_BY_ID: Record<AdminTabId, string> = {
   customOrders: "custom-orders",
   purchases: "purchases",
   salesStats: "sales-stats",
+  settlements: "settlements",
   templates: "templates",
   artists: "artists",
   thumbnails: "thumbnails",

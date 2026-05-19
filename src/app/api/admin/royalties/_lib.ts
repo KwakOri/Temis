@@ -1,5 +1,10 @@
 import {
+  RoyaltyBatchStatus,
+  RoyaltyRuleType,
   RoyaltySaleItem,
+  RoyaltySettlementBatch,
+  RoyaltySettlementBatchItem,
+  RoyaltySource,
   RoyaltyStatus,
   TemplateSaleRoyaltyDetail,
 } from "@/types/admin";
@@ -36,6 +41,16 @@ export function parseRoyaltyStatus(
   return "all";
 }
 
+export function parseRoyaltyBatchStatus(
+  value?: string | null
+): RoyaltyBatchStatus | "all" {
+  if (value === "draft" || value === "paid" || value === "cancelled") {
+    return value;
+  }
+
+  return "all";
+}
+
 export function parsePagination(searchParams: URLSearchParams) {
   const rawPage = Number(searchParams.get("page") || "1");
   const rawLimit = Number(searchParams.get("limit") || "50");
@@ -46,6 +61,41 @@ export function parsePagination(searchParams: URLSearchParams) {
   const offset = (page - 1) * limit;
 
   return { page, limit, offset };
+}
+
+export function parseRoyaltyRuleInput(body: {
+  royaltyType?: unknown;
+  royaltyValue?: unknown;
+}) {
+  const royaltyType = body.royaltyType;
+  const royaltyValue = body.royaltyValue;
+
+  if (royaltyType === null || royaltyValue === null) {
+    return { deleteRule: true as const };
+  }
+
+  if (royaltyType !== "fixed" && royaltyType !== "percentage") {
+    return {
+      error: "royaltyType은 fixed 또는 percentage만 가능합니다.",
+    } as const;
+  }
+
+  const numericValue =
+    typeof royaltyValue === "number" ? royaltyValue : Number(royaltyValue);
+
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return { error: "royaltyValue는 0 이상의 숫자여야 합니다." } as const;
+  }
+
+  if (royaltyType === "percentage" && numericValue > 100) {
+    return { error: "비율 로열티는 100%를 초과할 수 없습니다." } as const;
+  }
+
+  return {
+    deleteRule: false as const,
+    royaltyType: royaltyType as RoyaltyRuleType,
+    royaltyValue: Math.round(numericValue * 100) / 100,
+  };
 }
 
 export function toRoyaltySaleItem(
@@ -78,5 +128,63 @@ export function toRoyaltySaleItem(
     status: row.status,
     paidAt: row.paid_at,
     depositorName: row.depositor_name,
+    royaltySource: parseRoyaltySource(row.royalty_source),
+    royaltyRuleId: row.royalty_rule_id,
+    royaltyTypeSnapshot: parseRoyaltyRuleType(row.royalty_type_snapshot),
+    royaltyValueSnapshot: row.royalty_value_snapshot,
+    settlementBatchId: row.settlement_batch_id,
+    settlementBatchTitle: row.settlement_batch_title,
+    settlementBatchStatus: parseRoyaltyBatchStatusValue(
+      row.settlement_batch_status
+    ),
   };
+}
+
+export function toRoyaltySettlementBatchItem(
+  row: RoyaltySettlementBatch
+): RoyaltySettlementBatchItem {
+  return {
+    id: row.id,
+    settlementMonth: row.settlement_month,
+    periodFrom: row.period_from,
+    periodTo: row.period_to,
+    title: row.title,
+    status: parseRoyaltyBatchStatusValue(row.status) || "paid",
+    totalAmount: row.total_amount,
+    totalCount: row.total_count,
+    paidAt: row.paid_at,
+    paidBy: row.paid_by,
+    createdAt: row.created_at,
+  };
+}
+
+function parseRoyaltySource(value: string | null): RoyaltySource {
+  if (
+    value === "artist" ||
+    value === "template" ||
+    value === "manual" ||
+    value === "missing"
+  ) {
+    return value;
+  }
+
+  return "missing";
+}
+
+function parseRoyaltyRuleType(value: string | null): RoyaltyRuleType | null {
+  if (value === "fixed" || value === "percentage") {
+    return value;
+  }
+
+  return null;
+}
+
+function parseRoyaltyBatchStatusValue(
+  value: string | null
+): RoyaltyBatchStatus | null {
+  if (value === "draft" || value === "paid" || value === "cancelled") {
+    return value;
+  }
+
+  return null;
 }
