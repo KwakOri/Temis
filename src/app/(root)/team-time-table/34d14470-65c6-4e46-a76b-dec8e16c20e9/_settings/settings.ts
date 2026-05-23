@@ -168,6 +168,9 @@ export type TeamTimeTableMemberOrder = 'time' | 'member';
 export const teamTimeTableMemberOrder: TeamTimeTableMemberOrder = 'member';
 export const memberOrder = team_ids;
 
+// 더미 데이터에서 시간표 미입력 상태로 표시할 멤버 ID
+export const dummyUnregisteredMemberIds: number[] = [];
+
 export const memberIdsMap = new Map([
   [8, 'hwabi'],
   [281, 'bbami'],
@@ -175,7 +178,7 @@ export const memberIdsMap = new Map([
 ]);
 
 export const memberNamesMap = new Map([
-  [8, 'hwabi'],
-  [281, 'bbami'],
-  [362, 'hir'],
+  [8, '도화비'],
+  [281, '올빰이'],
+  [362, '아오이 히르'],
 ]);

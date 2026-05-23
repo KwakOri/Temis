@@ -3,7 +3,12 @@ import type {
   TeamTimeTableWeekData,
   UserScheduleData,
 } from '@/types/team-timetable';
-import { memberIdsMap, memberNamesMap, team_ids } from './settings';
+import {
+  dummyUnregisteredMemberIds,
+  memberIdsMap,
+  memberNamesMap,
+  team_ids,
+} from './settings';
 
 const DUMMY_WEEK_START_DATE = '2026-04-06';
 const DUMMY_CREATED_AT = '2026-04-06T11:45:24.928131+00:00';
@@ -87,26 +92,37 @@ export const createDummyResponse = (
   weekStartDate = DUMMY_WEEK_START_DATE
 ): TeamSchedulesResponse => {
   const resolvedWeekStartDate = weekStartDate || DUMMY_WEEK_START_DATE;
+  const unregisteredMemberIdSet = new Set(dummyUnregisteredMemberIds);
 
   return {
     schedules: team_ids.map(
-      (userId, index): UserScheduleData => ({
-        user_id: userId,
-        success: true,
-        schedule: {
-          id: `dummy-schedule-${userId}`,
+      (userId, index): UserScheduleData => {
+        if (unregisteredMemberIdSet.has(userId)) {
+          return {
+            user_id: userId,
+            success: false,
+            schedule: null,
+          };
+        }
+
+        return {
           user_id: userId,
-          week_start_date: resolvedWeekStartDate,
-          schedule_data: createDummyScheduleData(index),
-          created_at: DUMMY_CREATED_AT,
-          updated_at: DUMMY_CREATED_AT,
-          user: {
-            id: userId,
-            name: getMemberName(userId),
-            email: `${getMemberHandle(userId)}@example.com`,
+          success: true,
+          schedule: {
+            id: `dummy-schedule-${userId}`,
+            user_id: userId,
+            week_start_date: resolvedWeekStartDate,
+            schedule_data: createDummyScheduleData(index),
+            created_at: DUMMY_CREATED_AT,
+            updated_at: DUMMY_CREATED_AT,
+            user: {
+              id: userId,
+              name: getMemberName(userId),
+              email: `${getMemberHandle(userId)}@example.com`,
+            },
           },
-        },
-      })
+        };
+      }
     ),
     userIds: team_ids,
     weekStartDate: resolvedWeekStartDate,
