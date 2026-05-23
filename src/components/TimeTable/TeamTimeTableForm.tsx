@@ -1,6 +1,7 @@
 import ImageSaveModal from '@/components/TimeTable/ImageSaveModal';
 import MondaySelector from '@/components/TimeTable/MondaySelector';
 import ResetButton from '@/components/TimeTable/ResetButton';
+import { FormCard } from '@/components/TimeTable/FixedComponents/FormCard';
 import TimeTableFormTabs from '@/components/TimeTable/TimeTableFormTabs';
 import CardTitle from '@/components/TimeTable/FixedComponents/CardTitle';
 import { useTimeTable } from '@/contexts/TimeTableContext';
@@ -13,6 +14,7 @@ import { TDefaultCard } from '@/types/time-table/data';
 import { useQuery } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
 import React, { PropsWithChildren, useState } from 'react';
+import TextareaRenderer from './fieldRenderer/TextareaRenderer';
 
 export interface UnregisteredMember {
   userId: number;
@@ -25,11 +27,13 @@ interface TeamTimeTableFormProps {
   saveable?: boolean;
   teamData?: TDefaultCard[];
   unregisteredMembers?: UnregisteredMember[];
+  isMemo?: boolean;
 }
 
 const TeamTimeTableForm = ({
   addons,
   children,
+  isMemo = false,
   onReset,
   teamData,
   unregisteredMembers = [],
@@ -64,8 +68,13 @@ const TeamTimeTableForm = ({
     staleTime: 5 * 60 * 1000,
   });
 
-  const { mondayDateStr, captureSize } = state;
-  const { handleDateChange, downloadImage } = actions;
+  const { memoText, mondayDateStr, isMemoTextVisible, captureSize } = state;
+  const {
+    handleDateChange,
+    handleMemoTextChange,
+    handleOptionClick,
+    downloadImage,
+  } = actions;
 
   const onChangeActiveTab = (nextTab: string) => {
     setActiveTab(nextTab);
@@ -100,6 +109,8 @@ const TeamTimeTableForm = ({
     }
   };
 
+  const handleToggleMemo = () => handleOptionClick('memo', true);
+
   const renderMainSettings = () => (
     <div className="space-y-4">
       <h3 className="pl-1 font-bold text-lg text-gray-800">시간표</h3>
@@ -107,6 +118,23 @@ const TeamTimeTableForm = ({
         mondayDateStr={mondayDateStr}
         onDateChange={handleDateChange}
       />
+
+      {isMemo && (
+        <FormCard
+          size="sm"
+          isActive={isMemoTextVisible}
+          toggleIsActive={handleToggleMemo}
+          label="주간 메모"
+        >
+          <TextareaRenderer
+            value={memoText}
+            placeholder="팀 주간 메모를 입력해 주세요"
+            handleTextareaChange={handleMemoTextChange}
+            maxLength={300}
+            required={true}
+          />
+        </FormCard>
+      )}
 
       <h3 className="pl-1 font-bold text-lg text-gray-800">미작성 멤버</h3>
 

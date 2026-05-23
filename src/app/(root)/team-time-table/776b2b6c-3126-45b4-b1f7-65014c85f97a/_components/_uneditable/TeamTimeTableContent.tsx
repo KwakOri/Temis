@@ -23,10 +23,13 @@ const TeamTimeTableContent: React.FC<TeamTimeTableContentProps> = ({
   data,
   placeholders,
 }) => {
-  const { imageSrc, weekDates, profileText } = useTimeTableData();
+  const { imageSrc, weekDates, profileText, memoText, isMemoTextVisible } =
+    useTimeTableData();
   const { scale, isProfileTextVisible } = useTimeTableUI();
 
   if (weekDates.length === 0) return null;
+
+  console.log(memoText, isMemoTextVisible);
 
   return (
     <div

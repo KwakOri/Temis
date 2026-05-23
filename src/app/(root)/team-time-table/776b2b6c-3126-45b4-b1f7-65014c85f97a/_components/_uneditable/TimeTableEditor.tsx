@@ -60,7 +60,9 @@ const TimeTableEditorContent: React.FC = () => {
 
   const nicknameMap = React.useMemo(
     () =>
-      new Map((userNicknamesData?.users || []).map((user) => [user.id, user.name])),
+      new Map(
+        (userNicknamesData?.users || []).map((user) => [user.id, user.name])
+      ),
     [userNicknamesData]
   );
 
