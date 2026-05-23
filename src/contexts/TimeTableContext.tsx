@@ -61,6 +61,7 @@ export interface TimeTableActions {
   updateScale: (scale: number) => void;
   updateIsMobile: (isMobile: boolean) => void;
   updateIsProfileTextVisible: (visible: boolean) => void;
+  updateIsMemoTextVisible: (visible: boolean) => void;
 
   // 복합 액션
   handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -127,12 +128,15 @@ export const useTimeTableData = () => {
     weekDates: state.weekDates,
 
     updateProfileText: actions.updateProfileText,
+    updateMemoText: actions.updateMemoText,
     updateImageSrc: actions.updateImageSrc,
     updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
+    updateIsMemoTextVisible: actions.updateIsMemoTextVisible,
 
     updateMondayDate: actions.updateMondayDate,
     handleImageChange: actions.handleImageChange,
     handleProfileTextChange: actions.handleProfileTextChange,
+    handleMemoTextChange: actions.handleMemoTextChange,
 
     handleDateChange: actions.handleDateChange,
     handleOptionClick: actions.handleOptionClick,
@@ -150,6 +154,7 @@ export const useTimeTableUI = () => {
     updateScale: actions.updateScale,
     updateIsMobile: actions.updateIsMobile,
     updateIsProfileTextVisible: actions.updateIsProfileTextVisible,
+    updateIsMemoTextVisible: actions.updateIsMemoTextVisible,
     handleOptionClick: actions.handleOptionClick,
   };
 };

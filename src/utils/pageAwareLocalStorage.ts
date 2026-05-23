@@ -7,12 +7,20 @@ const isClient = typeof window !== "undefined";
 /**
  * 현재 페이지의 고유 ID를 추출하는 함수
  * - /time-table/[pageId] 형태에서 pageId를 추출
+ * - /team-time-table/[pageId] 형태에서 pageId를 추출
  * - _template 페이지는 "template"로 처리
  */
 export const getPageId = (pathname?: string): string => {
   if (!isClient && !pathname) return "default";
   
   const currentPath = pathname || (isClient ? window.location.pathname : "");
+  const teamTimeTableMatch = currentPath.match(/\/team-time-table\/([^\/]+)/);
+
+  if (teamTimeTableMatch && teamTimeTableMatch[1]) {
+    const pageId = teamTimeTableMatch[1];
+    return pageId === "_template" ? "team-template" : `team-${pageId}`;
+  }
+
   const timeTableMatch = currentPath.match(/\/time-table\/([^\/]+)/);
   
   if (timeTableMatch && timeTableMatch[1]) {
