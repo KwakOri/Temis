@@ -152,7 +152,7 @@ const CardMainTitle = ({ currentTheme, content, day }: CardMainTitleProps) => {
       style={{
         height: 200,
         width: '70%',
-        top: 428,
+        top: 426,
       }}
       className="absolute flex justify-center items-center shrink-0"
     >
@@ -179,7 +179,7 @@ const CardSubTitle = ({ content, day }: CardSubTitleProps) => {
       style={{
         width: '70%',
         height: 80,
-        top: 302,
+        top: 301,
       }}
       className="absolute flex justify-center items-center "
     >
