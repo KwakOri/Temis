@@ -52,6 +52,7 @@ import {
   v2_resolveDayLabelByKey,
   v2_withScopedTimetableStyles,
 } from "@/utils/v2/template-render-config";
+import { v2_getTemplateAssetRequirements } from "@/utils/v2/template-asset-requirements";
 import {
   v2_getStatefulSceneFeatureByLayerId,
   v2_getStatefulSceneFeatureLabel,
@@ -773,6 +774,38 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
   const [assetTheme, setAssetTheme] = useState<string>(
     renderConfig.defaultTheme || "first"
   );
+  const assetRequirements = useMemo(
+    () => v2_getTemplateAssetRequirements(renderConfig),
+    [renderConfig]
+  );
+  const visibleBuiltinAssetKeys = useMemo(() => {
+    const keys = assetRequirements
+      .map((requirement) =>
+        requirement.assetRef.source === "builtin" ? requirement.assetRef.key : null
+      )
+      .filter((key): key is V2TemplateBuiltinAssetKey => Boolean(key));
+    return Array.from(new Set(keys));
+  }, [assetRequirements]);
+  const visibleExtraAssetKeys = useMemo(() => {
+    const keys = assetRequirements
+      .map((requirement) =>
+        requirement.assetRef.source === "extra" ? requirement.assetRef.key : null
+      )
+      .filter((key): key is string => Boolean(key));
+    return Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b));
+  }, [assetRequirements]);
+  const visibleAssetLabels = useMemo(() => {
+    const labels: Record<V2TemplateBuiltinAssetKey, string> = {
+      ...v2_ASSET_LABELS,
+    };
+    assetRequirements.forEach((requirement) => {
+      if (requirement.assetRef.source !== "builtin") return;
+      labels[requirement.assetRef.key] = requirement.required
+        ? `${requirement.label} *`
+        : requirement.label;
+    });
+    return labels;
+  }, [assetRequirements]);
   const [boilerplateConfig, setBoilerplateConfig] = useState<
     Partial<Record<V2StyleSectionKey, Record<string, string | number>>>
   >(() =>
@@ -5504,9 +5537,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               computedKeys={v2_BINDING_COMPUTED_OPTIONS}
               scopeOptions={v2_FORM_FIELD_SCOPE_OPTIONS}
               typeOptions={v2_FORM_FIELD_TYPE_OPTIONS}
-              assetKeys={v2_ASSET_KEYS}
-              assetLabels={v2_ASSET_LABELS}
-              extraAssetKeys={Object.keys(renderConfig.extraAssets ?? {})}
+              assetKeys={visibleBuiltinAssetKeys}
+              assetLabels={visibleAssetLabels}
+              extraAssetKeys={visibleExtraAssetKeys}
               renderStyleTab={renderStyleTab}
               renderPropertiesTab={renderPropertiesTab}
               onUpdateTemplateSize={updateTemplateSize}

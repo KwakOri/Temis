@@ -13,11 +13,13 @@ import V2SceneRenderer from "./scene-renderer";
 interface V2TimeTableContentProps {
   artistVisibleOverride?: boolean;
   memoVisibleOverride?: boolean;
+  topObjectVisibleOverride?: boolean;
 }
 
 const V2TimeTableContent: React.FC<V2TimeTableContentProps> = ({
   artistVisibleOverride,
   memoVisibleOverride,
+  topObjectVisibleOverride,
 }) => {
   const { weekDates } = useTemplateRuntimeData();
   const { scale } = useTemplateRuntimeUI();
@@ -44,6 +46,7 @@ const V2TimeTableContent: React.FC<V2TimeTableContentProps> = ({
         sceneNodes={runtimeSceneNodes}
         artistVisibleOverride={artistVisibleOverride}
         memoVisibleOverride={memoVisibleOverride}
+        topObjectVisibleOverride={topObjectVisibleOverride}
       />
     </div>
   );

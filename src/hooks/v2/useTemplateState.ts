@@ -4,7 +4,13 @@ import { CroppedAreaPixels, ImageEditData } from "@/types/image-edit";
 import { domToPng } from "modern-screenshot";
 import { useEffect, useState } from "react";
 
-export type V2OptionType = "artist" | "memo" | "none";
+export type V2OptionType = "topObject" | "artist" | "memo" | "none";
+
+const v2_DEFAULT_SELECTED_OPTIONS: V2OptionType[] = [
+  "topObject",
+  "artist",
+  "memo",
+];
 
 const getDefaultMondayString = (): string => {
   const today = new Date();
@@ -61,6 +67,7 @@ export interface TemplateEditorUIState {
   weekDates: Date[];
   scale: number;
   isMobile: boolean;
+  isTopObjectVisible: boolean;
   isArtistVisible: boolean;
   isMemoTextVisible: boolean;
   selectedOptions: V2OptionType[];
@@ -74,6 +81,7 @@ export interface TemplateEditorUIActions {
   updateMondayDate: (dateStr: string) => void;
   updateScale: (newScale: number) => void;
   updateIsMobile: (mobile: boolean) => void;
+  updateIsTopObjectVisible: (visible: boolean) => void;
   updateIsArtistVisible: (visible: boolean) => void;
   updateIsMemoTextVisible: (visible: boolean) => void;
   handleImageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -111,7 +119,10 @@ export const useTemplateState = (captureSize?: {
   );
   const [isArtistVisible, setIsArtistVisible] = useState<boolean>(true);
   const [isMemoTextVisible, setIsMemoTextVisible] = useState<boolean>(true);
-  const [selectedOptions, setSelectedOptions] = useState<V2OptionType[]>(["none"]);
+  const [isTopObjectVisible, setIsTopObjectVisible] = useState<boolean>(true);
+  const [selectedOptions, setSelectedOptions] = useState<V2OptionType[]>(
+    v2_DEFAULT_SELECTED_OPTIONS
+  );
 
   const [imageEditData, setImageEditData] = useState<ImageEditData | null>(
     null
@@ -136,9 +147,11 @@ export const useTemplateState = (captureSize?: {
   useEffect(() => {
     const hasArtist = selectedOptions.includes("artist");
     const hasMemo = selectedOptions.includes("memo");
+    const hasTopObject = selectedOptions.includes("topObject");
 
     setIsArtistVisible(hasArtist);
     setIsMemoTextVisible(hasMemo);
+    setIsTopObjectVisible(hasTopObject);
   }, [selectedOptions]);
 
   useEffect(() => {
@@ -188,6 +201,8 @@ export const useTemplateState = (captureSize?: {
     updateMondayDate: (dateStr: string) => setMondayDateStr(dateStr),
     updateScale: (newScale: number) => setScale(newScale),
     updateIsMobile: (mobile: boolean) => setIsMobile(mobile),
+    updateIsTopObjectVisible: (visible: boolean) =>
+      setIsTopObjectVisible(visible),
     updateIsArtistVisible: (visible: boolean) => setIsArtistVisible(visible),
     updateIsMemoTextVisible: (visible: boolean) =>
       setIsMemoTextVisible(visible),
@@ -414,6 +429,7 @@ export const useTemplateState = (captureSize?: {
     weekDates,
     scale,
     isMobile,
+    isTopObjectVisible,
     isArtistVisible,
     isMemoTextVisible,
     selectedOptions,

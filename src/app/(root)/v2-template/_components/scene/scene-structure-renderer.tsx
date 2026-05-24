@@ -89,10 +89,12 @@ const V2SceneStructureRenderer = ({
   sceneNodes,
   artistVisibleOverride,
   memoVisibleOverride,
+  topObjectVisibleOverride,
 }: {
   sceneNodes: V2TemplateSceneNode[];
   artistVisibleOverride?: boolean;
   memoVisibleOverride?: boolean;
+  topObjectVisibleOverride?: boolean;
 }) => {
   const { renderConfig } = useTemplateRenderConfigContext();
   const {
@@ -103,10 +105,18 @@ const V2SceneStructureRenderer = ({
     activeHighlightTarget,
     isLayerHidden,
   } = useTemplateRuntimeContext();
-  const { weekDates, memoText, imageSrc, isArtistVisible, isMemoTextVisible } =
-    useTemplateRuntimeData();
+  const {
+    weekDates,
+    memoText,
+    imageSrc,
+    isArtistVisible,
+    isMemoTextVisible,
+    isTopObjectVisible,
+  } = useTemplateRuntimeData();
   const resolvedArtistVisible = artistVisibleOverride ?? isArtistVisible;
   const resolvedMemoVisible = memoVisibleOverride ?? isMemoTextVisible;
+  const resolvedTopObjectVisible =
+    topObjectVisibleOverride ?? isTopObjectVisible;
   const {
     layerTargetMap,
     memoTextFallback,
@@ -402,6 +412,7 @@ const V2SceneStructureRenderer = ({
       isOffline: firstCardOffline,
       entryCount: firstCardEntryCount,
       hasOfflineMemo: firstCardHasOfflineMemo,
+      isTopObjectVisible: resolvedTopObjectVisible,
       isArtistVisible: resolvedArtistVisible,
       isMemoVisible: resolvedMemoVisible,
     });

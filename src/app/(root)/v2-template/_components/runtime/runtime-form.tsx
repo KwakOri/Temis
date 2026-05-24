@@ -17,6 +17,7 @@ import TextRenderer from "./form-ui/field-renderers/text-renderer";
 import TextareaRenderer from "./form-ui/field-renderers/textarea-renderer";
 import RuntimeFormCard from "./form-ui/ui/form-card";
 import RuntimeProfileImageSelector from "./form-ui/ui/profile-image-selector";
+import { v2_resolveStructureCapabilities } from "@/utils/v2/template-render-config";
 
 interface V2RuntimeFormProps {
   embedded?: boolean;
@@ -35,6 +36,7 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
   const {
     memoText,
     imageSrc,
+    isTopObjectVisible,
     isArtistVisible,
     isMemoTextVisible,
     updateMemoText,
@@ -66,6 +68,14 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
 
   const offlineMemoEnabled = Boolean(
     renderConfig.timetable.statusOptions.offlineMemo
+  );
+  const structureCapabilities = React.useMemo(
+    () => v2_resolveStructureCapabilities(renderConfig),
+    [renderConfig]
+  );
+  const showTopObjectControls = Boolean(
+    structureCapabilities.objects.topObject.enabled &&
+      structureCapabilities.objects.topObject.mode === "statefulAsset"
   );
   const hasArtistCapability = React.useMemo(() => {
     const nodes = renderConfig.graph.nodes ?? {};
@@ -240,7 +250,7 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
         <RuntimeFormTabs
           activeTab={activeTab}
           onChangeActiveTab={setActiveTab}
-          isAddons={showArtistControls || showMemoControls}
+          isAddons={showTopObjectControls || showArtistControls || showMemoControls}
         />
 
         <div className="space-y-4 p-4">
@@ -267,10 +277,12 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
                 </section>
               ) : null}
 
-              <RuntimeWeekSelector
-                mondayDateStr={mondayDateStr}
-                onDateChange={updateMondayDate}
-              />
+              {structureCapabilities.objects.weekDates.enabled ? (
+                <RuntimeWeekSelector
+                  mondayDateStr={mondayDateStr}
+                  onDateChange={updateMondayDate}
+                />
+              ) : null}
 
               <RuntimeInputList
                 data={data}
@@ -291,6 +303,19 @@ const V2RuntimeForm: React.FC<V2RuntimeFormProps> = ({ embedded = false }) => {
             </div>
           ) : (
             <div className="space-y-4">
+              {showTopObjectControls ? (
+                <RuntimeFormCard
+                  label="상단 오브젝트"
+                  isActive={isTopObjectVisible}
+                  toggleIsActive={() => handleOptionClick("topObject", true)}
+                  size="sm"
+                >
+                  <p className="text-xs text-gray-500">
+                    top object on/off 오브젝트 표시를 전환합니다.
+                  </p>
+                </RuntimeFormCard>
+              ) : null}
+
               {hasProfileCapability ? (
                 <RuntimeProfileImageSelector
                   size="sm"

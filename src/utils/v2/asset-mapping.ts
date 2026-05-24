@@ -79,7 +79,15 @@ export const v2_BUILTIN_ASSET_ALIAS_RULES: Array<{
     aliases: ["artist_legacy", "artist_fallback", "artist_generic"],
   },
   { key: "onlineByTheme", aliases: ["online", "card_online", "on"] },
+  {
+    key: "multiByTheme",
+    aliases: ["multi", "multiple", "card_multi", "online_multi"],
+  },
   { key: "offlineByTheme", aliases: ["offline", "card_offline", "off"] },
+  {
+    key: "offlineMemoByTheme",
+    aliases: ["offline_memo", "offlinememo", "memo_offline", "memooffline"],
+  },
   {
     key: "boardByTheme",
     aliases: ["board", "board_bg", "scene_board", "scene_board_bg"],

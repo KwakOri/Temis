@@ -10,7 +10,7 @@ export interface V2TemplateEditorTimetableComponentScope {
   status: V2TemplateTimetableCardStatusKey;
 }
 
-export type V2TemplateStatefulSceneFeatureKey = "artist" | "memo";
+export type V2TemplateStatefulSceneFeatureKey = "topObject" | "artist" | "memo";
 export type V2TemplateStatefulSceneStatus = "on" | "off";
 
 export interface V2TemplateEditorStatefulSceneScope {

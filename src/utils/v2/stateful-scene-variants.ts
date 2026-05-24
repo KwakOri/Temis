@@ -3,6 +3,7 @@ import type {
   V2TemplateLayerComponentKey,
   V2TemplateLayerNode,
   V2TemplateRenderConfig,
+  V2TemplateStructureCapabilities,
   V2TemplateVisibilityMode,
 } from "@/types/time-table/template-render-config";
 import type {
@@ -21,12 +22,18 @@ type V2StatefulSceneGroupDefinition = {
   childIds: string[];
   excludedChildIds?: string[];
   nodeIdPrefix: string;
-  editorOptionKey: keyof Pick<V2TemplateEditorOptions, "isArtist" | "isMemo">;
+  editorOptionKey?: keyof Pick<V2TemplateEditorOptions, "isArtist" | "isMemo">;
+  capabilityObjectKey?: keyof V2TemplateStructureCapabilities["objects"];
   visibilityByStatus: Record<
     V2TemplateStatefulSceneStatus,
     Extract<
       V2TemplateVisibilityMode,
-      "artistOnOnly" | "artistOffOnly" | "memoOnOnly" | "memoOffOnly"
+      | "topObjectOnOnly"
+      | "topObjectOffOnly"
+      | "artistOnOnly"
+      | "artistOffOnly"
+      | "memoOnOnly"
+      | "memoOffOnly"
     >
   >;
 };
@@ -43,6 +50,21 @@ export const v2_STATEFUL_SCENE_GROUP_DEFINITIONS: Record<
   V2TemplateStatefulSceneFeatureKey,
   V2StatefulSceneGroupDefinition
 > = {
+  topObject: {
+    feature: "topObject",
+    groupId: "scene-top-object-group",
+    legacyGroupIds: [],
+    label: "TopObject",
+    layerId: "top-object",
+    componentKey: "topObject",
+    childIds: ["scene-top-object-on", "scene-top-object-off"],
+    nodeIdPrefix: "scene-top-object",
+    capabilityObjectKey: "topObject",
+    visibilityByStatus: {
+      on: "topObjectOnOnly",
+      off: "topObjectOffOnly",
+    },
+  },
   artist: {
     feature: "artist",
     groupId: "scene-artist-group",
@@ -172,5 +194,19 @@ export const v2_isSceneNodeEnabledByStatefulFeatureFlags = ({
   );
   if (!feature) return true;
   const optionKey = v2_STATEFUL_SCENE_GROUP_DEFINITIONS[feature].editorOptionKey;
-  return Boolean(renderConfig.editorOptions[optionKey]);
+  if (optionKey) {
+    return Boolean(renderConfig.editorOptions[optionKey]);
+  }
+  const capabilityObjectKey =
+    v2_STATEFUL_SCENE_GROUP_DEFINITIONS[feature].capabilityObjectKey;
+  if (capabilityObjectKey) {
+    const capability =
+      renderConfig.structureCapabilities?.objects?.[capabilityObjectKey];
+    if (!capability) return true;
+    return Boolean(
+      capability.enabled &&
+        (!("mode" in capability) || capability.mode === "statefulAsset")
+    );
+  }
+  return true;
 };

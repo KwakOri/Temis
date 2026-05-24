@@ -37,6 +37,7 @@ import {
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
   V2TemplateNodeGraph,
+  V2TemplateObjectAssetMode,
   V2TemplateRenderConfig,
   V2TemplateSceneAssetFit,
   V2TemplateSceneAssetRole,
@@ -44,6 +45,7 @@ import {
   V2TemplateSharedStyleGroup,
   V2TemplateStreamingDayFormat,
   V2TemplateStreamingTimeFormat,
+  V2TemplateStructureCapabilities,
   V2TemplateStyleRecord,
   V2TemplateTimetableCardComponent,
   V2TemplateTimetableCardState,
@@ -91,6 +93,7 @@ const v2_ASSET_KEYS = [
   "online_fri",
   "online_sat",
   "online_sun",
+  "multiByTheme",
   "multi_mon",
   "multi_tue",
   "multi_wed",
@@ -106,6 +109,7 @@ const v2_ASSET_KEYS = [
   "offline_fri",
   "offline_sat",
   "offline_sun",
+  "offlineMemoByTheme",
   "offlineMemo_mon",
   "offlineMemo_tue",
   "offlineMemo_wed",
@@ -326,10 +330,40 @@ const v2_DEFAULT_EDITOR_OPTIONS: V2TemplateEditorOptions = {
   isMultiple: false,
   maxStreamingTimeByDay: 1,
   enableThemeSelection: false,
-  useOnlineAssetsByDay: true,
-  useMultiAssetsByDay: true,
-  useOfflineAssetsByDay: true,
-  useOfflineMemoAssetsByDay: true,
+  useOnlineAssetsByDay: false,
+  useMultiAssetsByDay: false,
+  useOfflineAssetsByDay: false,
+  useOfflineMemoAssetsByDay: false,
+};
+
+const v2_DEFAULT_STRUCTURE_CAPABILITIES: V2TemplateStructureCapabilities = {
+  objects: {
+    topObject: {
+      enabled: true,
+      mode: "singleAsset",
+    },
+    profile: {
+      enabled: true,
+      imageRequired: false,
+      frameRequired: true,
+    },
+    artist: {
+      enabled: true,
+      mode: "textWithStatefulAsset",
+    },
+    memo: {
+      enabled: true,
+      mode: "statefulAssetWithText",
+    },
+    weekDates: {
+      enabled: true,
+    },
+  },
+  timetable: {
+    multipleEnabled: false,
+    maxEntriesPerDay: 1,
+    offlineMemoEnabled: true,
+  },
 };
 
 const v2_DEFAULT_MEMO_TEXT_GLOBAL_FIELD: V2TemplateFormField = {
@@ -713,16 +747,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       fontKey: "SUB_TITLE",
       assetRef: {
         source: "builtin",
-        key: "online_mon",
-      },
-      assetRefByDayKey: {
-        mon: { source: "builtin", key: "online_mon" },
-        tue: { source: "builtin", key: "online_tue" },
-        wed: { source: "builtin", key: "online_wed" },
-        thu: { source: "builtin", key: "online_thu" },
-        fri: { source: "builtin", key: "online_fri" },
-        sat: { source: "builtin", key: "online_sat" },
-        sun: { source: "builtin", key: "online_sun" },
+        key: "onlineByTheme",
       },
       fit: "cover",
       alt: "online-card-bg",
@@ -744,16 +769,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       fontKey: "SUB_TITLE",
       assetRef: {
         source: "builtin",
-        key: "multi_mon",
-      },
-      assetRefByDayKey: {
-        mon: { source: "builtin", key: "multi_mon" },
-        tue: { source: "builtin", key: "multi_tue" },
-        wed: { source: "builtin", key: "multi_wed" },
-        thu: { source: "builtin", key: "multi_thu" },
-        fri: { source: "builtin", key: "multi_fri" },
-        sat: { source: "builtin", key: "multi_sat" },
-        sun: { source: "builtin", key: "multi_sun" },
+        key: "multiByTheme",
       },
       fit: "cover",
       alt: "multi-card-bg",
@@ -775,16 +791,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       fontKey: "SUB_TITLE",
       assetRef: {
         source: "builtin",
-        key: "offline_mon",
-      },
-      assetRefByDayKey: {
-        mon: { source: "builtin", key: "offline_mon" },
-        tue: { source: "builtin", key: "offline_tue" },
-        wed: { source: "builtin", key: "offline_wed" },
-        thu: { source: "builtin", key: "offline_thu" },
-        fri: { source: "builtin", key: "offline_fri" },
-        sat: { source: "builtin", key: "offline_sat" },
-        sun: { source: "builtin", key: "offline_sun" },
+        key: "offlineByTheme",
       },
       fit: "cover",
       alt: "offline-card-bg",
@@ -806,16 +813,7 @@ const v2_DEFAULT_CARD_STRUCTURE: V2TemplateCardStructure = {
       fontKey: "SUB_TITLE",
       assetRef: {
         source: "builtin",
-        key: "offlineMemo_mon",
-      },
-      assetRefByDayKey: {
-        mon: { source: "builtin", key: "offlineMemo_mon" },
-        tue: { source: "builtin", key: "offlineMemo_tue" },
-        wed: { source: "builtin", key: "offlineMemo_wed" },
-        thu: { source: "builtin", key: "offlineMemo_thu" },
-        fri: { source: "builtin", key: "offlineMemo_fri" },
-        sat: { source: "builtin", key: "offlineMemo_sat" },
-        sun: { source: "builtin", key: "offlineMemo_sun" },
+        key: "offlineMemoByTheme",
       },
       fit: "cover",
       alt: "offline-memo-card-bg",
@@ -2227,6 +2225,35 @@ const v2_CREATE_TEMPLATE_SCENE_NODES: V2TemplateSceneNode[] = [
   v2_cloneDefaultSceneNode("scene-top-object"),
 ];
 
+const v2_createStatefulTopObjectSceneNode = (): V2TemplateSceneNode => {
+  const createStateNode = (status: "on" | "off"): V2TemplateSceneNode => {
+    const base = v2_cloneDefaultSceneNode("scene-top-object");
+    if (base.kind !== "asset") {
+      throw new Error("TopObject default scene node must be an asset node");
+    }
+    return {
+      ...base,
+      id: `scene-top-object-${status}`,
+      label: `TopObject ${status.toUpperCase()}`,
+      layerId: `top-object-${status}`,
+      assetRef: {
+        source: "extra",
+        key: `topObject.${status}`,
+      },
+      visibilityMode: status === "on" ? "topObjectOnOnly" : "topObjectOffOnly",
+    };
+  };
+
+  return {
+    id: "scene-top-object-group",
+    label: "TopObject",
+    kind: "group",
+    layerId: "top-object",
+    visibilityMode: "always",
+    children: [createStateNode("on"), createStateNode("off")],
+  };
+};
+
 const v2_createSceneOnlyNodeGraph = ({
   layers,
   sceneNodes,
@@ -2351,15 +2378,32 @@ const v2_createSceneOnlyNodeGraph = ({
 export const v2_createDefaultSceneTemplateNodeGraph = ({
   includeArtist = true,
   includeMemo = true,
+  includeTopObject = true,
+  includeProfile = true,
+  includeWeekDates = true,
+  topObjectMode = "singleAsset",
 }: {
   includeArtist?: boolean;
   includeMemo?: boolean;
+  includeTopObject?: boolean;
+  includeProfile?: boolean;
+  includeWeekDates?: boolean;
+  topObjectMode?: Exclude<V2TemplateObjectAssetMode, "none">;
 } = {}): V2TemplateNodeGraph => {
   const sceneNodes = v2_CREATE_TEMPLATE_SCENE_NODES.filter((node) => {
+    if (node.id === "scene-frame") return includeProfile;
+    if (node.id === "scene-week-flag") return includeWeekDates;
     if (node.id === "scene-artist-group") return includeArtist;
     if (node.id === "scene-memo") return includeMemo;
+    if (node.id === "scene-top-object") {
+      return includeTopObject && topObjectMode === "singleAsset";
+    }
     return true;
   }).map((node) => v2_cloneJson(node));
+
+  if (includeTopObject && topObjectMode === "statefulAsset") {
+    sceneNodes.push(v2_createStatefulTopObjectSceneNode());
+  }
 
   return v2_createSceneOnlyNodeGraph({
     layers: v2_DEFAULT_LAYER_TREE,
@@ -2514,6 +2558,7 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     },
   },
   editorOptions: { ...v2_DEFAULT_EDITOR_OPTIONS },
+  structureCapabilities: v2_cloneJson(v2_DEFAULT_STRUCTURE_CAPABILITIES),
   artistTextPlaceholder: v2_DEFAULT_ARTIST_TEXT_GLOBAL_FIELD.placeholder ?? "",
   formSchema: v2_DEFAULT_FORM_SCHEMA,
   assets: {
@@ -2571,6 +2616,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     online_sun: {
       first: null,
     },
+    multiByTheme: {
+      first: null,
+    },
     multi_mon: {
       first: null,
     },
@@ -2614,6 +2662,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
     offline_sun: {
+      first: null,
+    },
+    offlineMemoByTheme: {
       first: null,
     },
     offlineMemo_mon: {
@@ -2702,6 +2753,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
     online_sun: {
       first: null,
     },
+    multiByTheme: {
+      first: null,
+    },
     multi_mon: {
       first: null,
     },
@@ -2745,6 +2799,9 @@ export const v2_DEFAULT_TEMPLATE_RENDER_CONFIG: V2TemplateRenderConfig = {
       first: null,
     },
     offline_sun: {
+      first: null,
+    },
+    offlineMemoByTheme: {
       first: null,
     },
     offlineMemo_mon: {
@@ -3106,6 +3163,230 @@ const v2_asOptionalBoolean = (value: unknown): boolean | undefined => {
 
 const v2_asOptionalNumber = (value: unknown): number | undefined => {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+};
+
+const v2_OBJECT_ASSET_MODE_SET = new Set(["none", "singleAsset", "statefulAsset"]);
+const v2_ARTIST_MODE_SET = new Set([
+  "none",
+  "textOnly",
+  "textWithStatefulAsset",
+]);
+const v2_MEMO_MODE_SET = new Set([
+  "none",
+  "textOnly",
+  "textWithAsset",
+  "statefulAssetWithText",
+]);
+
+const v2_normalizeObjectAssetMode = (
+  value: unknown,
+  fallback: V2TemplateStructureCapabilities["objects"]["topObject"]["mode"]
+) => {
+  return typeof value === "string" && v2_OBJECT_ASSET_MODE_SET.has(value)
+    ? (value as V2TemplateStructureCapabilities["objects"]["topObject"]["mode"])
+    : fallback;
+};
+
+const v2_normalizeArtistMode = (
+  value: unknown,
+  fallback: V2TemplateStructureCapabilities["objects"]["artist"]["mode"]
+) => {
+  return typeof value === "string" && v2_ARTIST_MODE_SET.has(value)
+    ? (value as V2TemplateStructureCapabilities["objects"]["artist"]["mode"])
+    : fallback;
+};
+
+const v2_normalizeMemoMode = (
+  value: unknown,
+  fallback: V2TemplateStructureCapabilities["objects"]["memo"]["mode"]
+) => {
+  return typeof value === "string" && v2_MEMO_MODE_SET.has(value)
+    ? (value as V2TemplateStructureCapabilities["objects"]["memo"]["mode"])
+    : fallback;
+};
+
+const v2_normalizeStructureCapabilities = (
+  candidate: unknown,
+  fallback: V2TemplateStructureCapabilities
+): V2TemplateStructureCapabilities => {
+  if (!v2_isRecord(candidate)) return v2_cloneJson(fallback);
+
+  const rawObjects = v2_isRecord(candidate.objects) ? candidate.objects : {};
+  const rawTimetable = v2_isRecord(candidate.timetable)
+    ? candidate.timetable
+    : {};
+  const rawTopObject = v2_isRecord(rawObjects.topObject)
+    ? rawObjects.topObject
+    : {};
+  const rawProfile = v2_isRecord(rawObjects.profile) ? rawObjects.profile : {};
+  const rawArtist = v2_isRecord(rawObjects.artist) ? rawObjects.artist : {};
+  const rawMemo = v2_isRecord(rawObjects.memo) ? rawObjects.memo : {};
+  const rawWeekDates = v2_isRecord(rawObjects.weekDates)
+    ? rawObjects.weekDates
+    : {};
+
+  return {
+    objects: {
+      topObject: {
+        enabled: v2_asBoolean(
+          rawTopObject.enabled,
+          fallback.objects.topObject.enabled
+        ),
+        mode: v2_normalizeObjectAssetMode(
+          rawTopObject.mode,
+          fallback.objects.topObject.mode
+        ),
+      },
+      profile: {
+        enabled: v2_asBoolean(rawProfile.enabled, fallback.objects.profile.enabled),
+        imageRequired: v2_asBoolean(
+          rawProfile.imageRequired,
+          fallback.objects.profile.imageRequired
+        ),
+        frameRequired: v2_asBoolean(
+          rawProfile.frameRequired,
+          fallback.objects.profile.frameRequired
+        ),
+      },
+      artist: {
+        enabled: v2_asBoolean(rawArtist.enabled, fallback.objects.artist.enabled),
+        mode: v2_normalizeArtistMode(
+          rawArtist.mode,
+          fallback.objects.artist.mode
+        ),
+      },
+      memo: {
+        enabled: v2_asBoolean(rawMemo.enabled, fallback.objects.memo.enabled),
+        mode: v2_normalizeMemoMode(rawMemo.mode, fallback.objects.memo.mode),
+      },
+      weekDates: {
+        enabled: v2_asBoolean(
+          rawWeekDates.enabled,
+          fallback.objects.weekDates.enabled
+        ),
+      },
+    },
+    timetable: {
+      multipleEnabled: v2_asBoolean(
+        rawTimetable.multipleEnabled,
+        fallback.timetable.multipleEnabled
+      ),
+      maxEntriesPerDay: Math.max(
+        1,
+        Math.floor(
+          v2_asNumber(
+            rawTimetable.maxEntriesPerDay,
+            fallback.timetable.maxEntriesPerDay
+          )
+        )
+      ),
+      offlineMemoEnabled: v2_asBoolean(
+        rawTimetable.offlineMemoEnabled,
+        fallback.timetable.offlineMemoEnabled
+      ),
+    },
+  };
+};
+
+export const v2_inferStructureCapabilities = (
+  config: Pick<
+    V2TemplateRenderConfig,
+    "editorOptions" | "formSchema" | "graph" | "timetable"
+  >
+): V2TemplateStructureCapabilities => {
+  const nodes = config.graph.nodes ?? {};
+  const fields = config.formSchema.fields ?? [];
+  const hasField = (scope: "global" | "card", key: string) =>
+    fields.some((field) => field.scope === scope && field.key === key);
+  const hasNode = (...nodeIds: string[]) =>
+    nodeIds.some((nodeId) => Boolean(nodes[nodeId]));
+  const topObjectStateful = hasNode(
+    "scene-top-object-group",
+    "scene-top-object-on",
+    "scene-top-object-off"
+  );
+  const topObjectEnabled =
+    topObjectStateful || hasNode("scene-top-object", "scene-top-object-single");
+  const artistEnabled = Boolean(
+    config.editorOptions.isArtist &&
+      (hasNode(
+        "scene-artist-group",
+        "scene-artist-text",
+        "scene-artist-object",
+        "scene-artist-object-off"
+      ) ||
+        hasField("global", "artistText"))
+  );
+  const memoEnabled = Boolean(
+    config.editorOptions.isMemo &&
+      (hasNode("scene-memo", "scene-memo-object", "scene-memo-text") ||
+        hasField("global", "memoText"))
+  );
+
+  return {
+    objects: {
+      topObject: {
+        enabled: topObjectEnabled,
+        mode: topObjectStateful
+          ? "statefulAsset"
+          : topObjectEnabled
+            ? "singleAsset"
+            : "none",
+      },
+      profile: {
+        enabled: hasNode(
+          "scene-frame",
+          "scene-frame-artwork",
+          "scene-frame-frame",
+          "scene-profile",
+          "scene-profile-image",
+          "scene-profile-frame"
+        ),
+        imageRequired: false,
+        frameRequired: hasNode("scene-frame-frame", "scene-profile-frame"),
+      },
+      artist: {
+        enabled: artistEnabled,
+        mode: !artistEnabled
+          ? "none"
+          : hasNode("scene-artist-object", "scene-artist-object-off")
+            ? "textWithStatefulAsset"
+            : "textOnly",
+      },
+      memo: {
+        enabled: memoEnabled,
+        mode: !memoEnabled
+          ? "none"
+          : hasNode("scene-memo-object")
+            ? "statefulAssetWithText"
+            : "textOnly",
+      },
+      weekDates: {
+        enabled: hasNode("scene-week-flag"),
+      },
+    },
+    timetable: {
+      multipleEnabled: Boolean(config.editorOptions.isMultiple),
+      maxEntriesPerDay: Math.max(
+        1,
+        Math.floor(Number(config.editorOptions.maxStreamingTimeByDay) || 1)
+      ),
+      offlineMemoEnabled: Boolean(config.timetable.statusOptions.offlineMemo),
+    },
+  };
+};
+
+export const v2_resolveStructureCapabilities = (
+  config: Pick<
+    V2TemplateRenderConfig,
+    "editorOptions" | "formSchema" | "graph" | "timetable"
+  > &
+    Partial<Pick<V2TemplateRenderConfig, "structureCapabilities">>
+): V2TemplateStructureCapabilities => {
+  return v2_normalizeStructureCapabilities(
+    config.structureCapabilities,
+    v2_inferStructureCapabilities(config)
+  );
 };
 
 const v2_DOMAIN_STYLE_PROPERTY_KEYS = new Set([
@@ -5715,6 +5996,10 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assets.online_sun,
         raw.assets.online_sun
       ),
+      multiByTheme: v2_mergeThemeStringMap(
+        normalized.assets.multiByTheme,
+        raw.assets.multiByTheme
+      ),
       multi_mon: v2_mergeThemeStringMap(
         normalized.assets.multi_mon,
         raw.assets.multi_mon
@@ -5774,6 +6059,10 @@ export const v2_normalizeTemplateRenderConfig = (
       offline_sun: v2_mergeThemeStringMap(
         normalized.assets.offline_sun,
         raw.assets.offline_sun
+      ),
+      offlineMemoByTheme: v2_mergeThemeStringMap(
+        normalized.assets.offlineMemoByTheme,
+        raw.assets.offlineMemoByTheme
       ),
       offlineMemo_mon: v2_mergeThemeStringMap(
         normalized.assets.offlineMemo_mon,
@@ -5892,6 +6181,10 @@ export const v2_normalizeTemplateRenderConfig = (
         normalized.assetDimensions.online_sun,
         raw.assetDimensions.online_sun
       ),
+      multiByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.multiByTheme,
+        raw.assetDimensions.multiByTheme
+      ),
       multi_mon: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.multi_mon,
         raw.assetDimensions.multi_mon
@@ -5951,6 +6244,10 @@ export const v2_normalizeTemplateRenderConfig = (
       offline_sun: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.offline_sun,
         raw.assetDimensions.offline_sun
+      ),
+      offlineMemoByTheme: v2_mergeThemeAssetDimensionMap(
+        normalized.assetDimensions.offlineMemoByTheme,
+        raw.assetDimensions.offlineMemoByTheme
       ),
       offlineMemo_mon: v2_mergeThemeAssetDimensionMap(
         normalized.assetDimensions.offlineMemo_mon,
@@ -6215,6 +6512,16 @@ export const v2_normalizeTemplateRenderConfig = (
     normalized.timetable
   );
 
+  normalized.structureCapabilities = Object.prototype.hasOwnProperty.call(
+    raw,
+    "structureCapabilities"
+  )
+    ? v2_normalizeStructureCapabilities(
+        raw.structureCapabilities,
+        v2_inferStructureCapabilities(normalized)
+      )
+    : v2_inferStructureCapabilities(normalized);
+
   if (rawCardLayoutSource) {
     const referencedTimetableCardLayoutKeys = new Set<string>();
     const referencedTimetableCardOptionKeys = new Set<string>();
@@ -6282,6 +6589,7 @@ export const v2_isVisibleByMode = ({
   isOffline,
   entryCount = 1,
   hasOfflineMemo = false,
+  isTopObjectVisible = true,
   isArtistVisible = true,
   isMemoVisible = true,
 }: {
@@ -6289,6 +6597,7 @@ export const v2_isVisibleByMode = ({
   isOffline: boolean;
   entryCount?: number;
   hasOfflineMemo?: boolean;
+  isTopObjectVisible?: boolean;
   isArtistVisible?: boolean;
   isMemoVisible?: boolean;
 }): boolean => {
@@ -6300,6 +6609,9 @@ export const v2_isVisibleByMode = ({
   if (resolvedMode === "offlineMemoOnly") return isOffline && hasOfflineMemo;
   if (resolvedMode === "offlineNoMemoOnly") return isOffline && !hasOfflineMemo;
   const statefulScope = v2_getStatefulSceneScopeFromVisibilityMode(resolvedMode);
+  if (statefulScope?.feature === "topObject") {
+    return statefulScope.status === "on" ? isTopObjectVisible : !isTopObjectVisible;
+  }
   if (statefulScope?.feature === "artist") {
     return statefulScope.status === "on" ? isArtistVisible : !isArtistVisible;
   }

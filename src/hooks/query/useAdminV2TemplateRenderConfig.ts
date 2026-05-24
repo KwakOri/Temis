@@ -1,6 +1,7 @@
 import { queryKeys } from "@/lib/queryKeys";
 import {
   AdminV2TemplateRenderConfigService,
+  V2CreateAdminTemplatePayload,
   V2UpdateTemplateRenderConfigPayload,
 } from "@/services/admin/v2_template_render_config_service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -37,6 +38,23 @@ export const useUpdateAdminV2TemplateRenderConfig = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.template.renderConfig(variables.templateId),
+      });
+    },
+  });
+};
+
+export const useCreateAdminV2Template = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: V2CreateAdminTemplatePayload) =>
+      AdminV2TemplateRenderConfigService.createTemplate(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templates(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.template.v2Templates(),
       });
     },
   });

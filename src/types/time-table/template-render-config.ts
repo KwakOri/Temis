@@ -144,6 +144,47 @@ export interface V2TemplateEditorOptions {
   useOfflineMemoAssetsByDay: boolean;
 }
 
+export type V2TemplateObjectAssetMode = "none" | "singleAsset" | "statefulAsset";
+export type V2TemplateArtistMode =
+  | "none"
+  | "textOnly"
+  | "textWithStatefulAsset";
+export type V2TemplateMemoMode =
+  | "none"
+  | "textOnly"
+  | "textWithAsset"
+  | "statefulAssetWithText";
+
+export interface V2TemplateStructureCapabilities {
+  objects: {
+    topObject: {
+      enabled: boolean;
+      mode: V2TemplateObjectAssetMode;
+    };
+    profile: {
+      enabled: boolean;
+      imageRequired: boolean;
+      frameRequired: boolean;
+    };
+    artist: {
+      enabled: boolean;
+      mode: V2TemplateArtistMode;
+    };
+    memo: {
+      enabled: boolean;
+      mode: V2TemplateMemoMode;
+    };
+    weekDates: {
+      enabled: boolean;
+    };
+  };
+  timetable: {
+    multipleEnabled: boolean;
+    maxEntriesPerDay: number;
+    offlineMemoEnabled: boolean;
+  };
+}
+
 export interface V2TemplateAutoResizeOptions {
   maxFontSize?: number;
   multiline?: boolean;
@@ -174,6 +215,7 @@ export interface V2TemplateAssetMap {
   online_fri: Record<string, string | null>;
   online_sat: Record<string, string | null>;
   online_sun: Record<string, string | null>;
+  multiByTheme: Record<string, string | null>;
   multi_mon: Record<string, string | null>;
   multi_tue: Record<string, string | null>;
   multi_wed: Record<string, string | null>;
@@ -189,6 +231,7 @@ export interface V2TemplateAssetMap {
   offline_fri: Record<string, string | null>;
   offline_sat: Record<string, string | null>;
   offline_sun: Record<string, string | null>;
+  offlineMemoByTheme: Record<string, string | null>;
   offlineMemo_mon: Record<string, string | null>;
   offlineMemo_tue: Record<string, string | null>;
   offlineMemo_wed: Record<string, string | null>;
@@ -233,6 +276,20 @@ export type V2TemplateAssetRef =
       key: string;
     };
 
+export interface V2TemplateAssetRequirement {
+  id: string;
+  label: string;
+  required: boolean;
+  owner: {
+    type: "object" | "timetable" | "scene";
+    key: string;
+  };
+  state?: "on" | "off";
+  dayKey?: V2TemplateDayKey;
+  themeScoped: boolean;
+  assetRef: V2TemplateAssetRef;
+}
+
 export type V2TemplateStyleRecord = CSSProperties &
   Record<string, string | number>;
 
@@ -244,6 +301,8 @@ export type V2TemplateVisibilityMode =
   | "onlineMultipleOnly"
   | "offlineMemoOnly"
   | "offlineNoMemoOnly"
+  | "topObjectOnOnly"
+  | "topObjectOffOnly"
   | "artistOnOnly"
   | "artistOffOnly"
   | "memoOnOnly"
@@ -737,6 +796,7 @@ export interface V2TemplateRenderConfig {
   maxFontSizes: V2TemplateMaxFontSizes;
   cardSizes: V2TemplateCardSizes;
   editorOptions: V2TemplateEditorOptions;
+  structureCapabilities?: V2TemplateStructureCapabilities;
   artistTextPlaceholder: string;
   formSchema: V2TemplateFormSchema;
   assets: V2TemplateAssetMap;

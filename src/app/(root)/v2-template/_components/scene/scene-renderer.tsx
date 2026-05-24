@@ -7,16 +7,19 @@ const V2SceneRenderer = ({
   sceneNodes,
   artistVisibleOverride,
   memoVisibleOverride,
+  topObjectVisibleOverride,
 }: {
   sceneNodes: V2TemplateSceneNode[];
   artistVisibleOverride?: boolean;
   memoVisibleOverride?: boolean;
+  topObjectVisibleOverride?: boolean;
 }) => {
   return (
     <V2SceneStructureRenderer
       sceneNodes={sceneNodes}
       artistVisibleOverride={artistVisibleOverride}
       memoVisibleOverride={memoVisibleOverride}
+      topObjectVisibleOverride={topObjectVisibleOverride}
     />
   );
 };

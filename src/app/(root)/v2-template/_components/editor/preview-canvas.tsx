@@ -17,6 +17,7 @@ import type {
 } from "@/types/time-table/template-render-config";
 import { v2_getTimetableComponentStateForStatus } from "@/utils/v2/timetable-component-layer-tree";
 import { v2_getRuntimeSceneNodes } from "@/utils/v2/template-graph-runtime";
+import { v2_getStatefulSceneFeatureLayerId } from "@/utils/v2/stateful-scene-variants";
 import { useGesture } from "@use-gesture/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import V2TimeTableCell from "../scene/card-cell";
@@ -87,7 +88,7 @@ const V2StatefulSceneFeaturePreview: React.FC<{
     () => v2_getRuntimeSceneNodes(renderConfig),
     [renderConfig]
   );
-  const featureLayerId = scope.feature === "artist" ? "artist" : "memo";
+  const featureLayerId = v2_getStatefulSceneFeatureLayerId(scope.feature);
   const featureNode = runtimeSceneNodes.find(
     (node) => (node.layerId ?? node.id) === featureLayerId
   );
@@ -110,6 +111,9 @@ const V2StatefulSceneFeaturePreview: React.FC<{
         }
         memoVisibleOverride={
           scope.feature === "memo" ? scope.status === "on" : undefined
+        }
+        topObjectVisibleOverride={
+          scope.feature === "topObject" ? scope.status === "on" : undefined
         }
       />
     </div>
@@ -312,6 +316,10 @@ const V2TimeTablePreview: React.FC<V2TimeTablePreviewProps> = ({
       : undefined;
   const scopedMemoVisibleOverride =
     statefulSceneEditScope?.feature === "memo"
+      ? statefulSceneEditScope.status === "on"
+      : undefined;
+  const scopedTopObjectVisibleOverride =
+    statefulSceneEditScope?.feature === "topObject"
       ? statefulSceneEditScope.status === "on"
       : undefined;
   const componentPreviewSize = useMemo(() => {
@@ -564,6 +572,7 @@ const V2TimeTablePreview: React.FC<V2TimeTablePreviewProps> = ({
           <V2TimeTableContent
             artistVisibleOverride={scopedArtistVisibleOverride}
             memoVisibleOverride={scopedMemoVisibleOverride}
+            topObjectVisibleOverride={scopedTopObjectVisibleOverride}
           />
         ) : timetableComponentEditScope ? (
           <V2TimetableComponentPreview scope={timetableComponentEditScope} />

@@ -6,6 +6,24 @@ export interface V2UpdateTemplateRenderConfigPayload {
   renderConfig: V2TemplateRenderConfig;
 }
 
+export interface V2CreateAdminTemplatePayload {
+  name: string;
+  description: string;
+  is_public?: boolean;
+}
+
+export interface V2CreateAdminTemplateResponse {
+  success: boolean;
+  template: {
+    id: string;
+    name?: string;
+    description?: string;
+    is_public?: boolean;
+    created_at?: string;
+    updated_at?: string;
+  };
+}
+
 export interface V2TemplateRenderConfigDraftResponse {
   success: boolean;
   templateId: string;
@@ -46,6 +64,25 @@ export interface V2PublishTemplateRenderConfigResponse {
 
 export class AdminV2TemplateRenderConfigService {
   private static baseUrl = "/api/admin/v2/templates";
+
+  static async createTemplate(
+    payload: V2CreateAdminTemplatePayload
+  ): Promise<V2CreateAdminTemplateResponse> {
+    const response = await fetch(this.baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result?.error || "템플릿 생성에 실패했습니다.");
+    }
+
+    return result as V2CreateAdminTemplateResponse;
+  }
 
   static async getTemplateRenderConfig(
     templateId: string

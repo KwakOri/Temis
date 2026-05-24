@@ -285,7 +285,7 @@ const v2_applyRegistryKeyRenameToConfig = ({
 
 const v2_CARD_BACKGROUND_VARIANTS = {
   online: {
-    builtinAssetKey: "online_mon" as const,
+    builtinAssetKey: "onlineByTheme" as const,
     layerTarget: "cardNode:online-background",
     expectedVisibilityModes: ["onlineOnly", "onlineSingleOnly"] as const,
     editorOptionByDayKey: "useOnlineAssetsByDay" as const,
@@ -300,7 +300,7 @@ const v2_CARD_BACKGROUND_VARIANTS = {
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
   multi: {
-    builtinAssetKey: "multi_mon" as const,
+    builtinAssetKey: "multiByTheme" as const,
     layerTarget: "cardNode:multi-background",
     expectedVisibilityModes: ["onlineMultipleOnly"] as const,
     editorOptionByDayKey: "useMultiAssetsByDay" as const,
@@ -315,7 +315,7 @@ const v2_CARD_BACKGROUND_VARIANTS = {
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
   offline: {
-    builtinAssetKey: "offline_mon" as const,
+    builtinAssetKey: "offlineByTheme" as const,
     layerTarget: "cardNode:offline-background",
     expectedVisibilityModes: ["offlineOnly", "offlineNoMemoOnly"] as const,
     editorOptionByDayKey: "useOfflineAssetsByDay" as const,
@@ -330,7 +330,7 @@ const v2_CARD_BACKGROUND_VARIANTS = {
     } satisfies Record<V2TemplateDayKey, V2TemplateBuiltinAssetKey>,
   },
   offlineMemo: {
-    builtinAssetKey: "offlineMemo_mon" as const,
+    builtinAssetKey: "offlineMemoByTheme" as const,
     layerTarget: "cardNode:offline-memo-background",
     expectedVisibilityModes: ["offlineMemoOnly"] as const,
     editorOptionByDayKey: "useOfflineMemoAssetsByDay" as const,
@@ -977,31 +977,36 @@ const useTemplateThemeAssetActions = ({
         const nextMeta = {
           ...(node.meta ?? {}),
         };
+        const expectedCommonAssetRef: V2TemplateAssetRef = {
+          source: "builtin",
+          key: variant.builtinAssetKey,
+        };
 
         if (enabled && expectedAssetRefByDayKey) {
           const prevByDay = nextMeta.assetRefByDayKey ?? {};
-          const isAlreadyApplied = v2_TEMPLATE_DAY_KEYS.every((dayKey) =>
+          const hasExpectedByDay = v2_TEMPLATE_DAY_KEYS.every((dayKey) =>
             v2_isSameAssetRef(prevByDay[dayKey], expectedAssetRefByDayKey[dayKey])
           );
-          if (isAlreadyApplied) {
+          const hasExpectedCommonAssetRef = v2_isSameAssetRef(
+            nextMeta.assetRef,
+            expectedCommonAssetRef
+          );
+          if (hasExpectedByDay && hasExpectedCommonAssetRef) {
             return;
           }
           nextMeta.assetRefByDayKey = expectedAssetRefByDayKey;
+          nextMeta.assetRef = expectedCommonAssetRef;
         } else {
           const hasByDayMap = Boolean(nextMeta.assetRefByDayKey);
-          const expectedMonAssetRef: V2TemplateAssetRef = {
-            source: "builtin",
-            key: variant.builtinAssetKey,
-          };
-          const hasExpectedMonAssetRef = v2_isSameAssetRef(
+          const hasExpectedCommonAssetRef = v2_isSameAssetRef(
             nextMeta.assetRef,
-            expectedMonAssetRef
+            expectedCommonAssetRef
           );
-          if (!hasByDayMap && hasExpectedMonAssetRef) {
+          if (!hasByDayMap && hasExpectedCommonAssetRef) {
             return;
           }
           delete nextMeta.assetRefByDayKey;
-          nextMeta.assetRef = expectedMonAssetRef;
+          nextMeta.assetRef = expectedCommonAssetRef;
         }
 
         nextGraphNodes[nodeId] = {
