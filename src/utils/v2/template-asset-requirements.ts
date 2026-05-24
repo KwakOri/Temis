@@ -69,6 +69,7 @@ export interface V2TemplateAssetRequirementGroup {
   label: string;
   description: string;
   owner: V2TemplateAssetRequirement["owner"];
+  category?: "template" | "development";
   mode: "single" | "stateful" | "common" | "byDay";
   requirements: V2TemplateAssetRequirement[];
 }
@@ -78,6 +79,7 @@ const v2_toRequirementGroup = ({
   label,
   description,
   owner,
+  category,
   mode,
   requirements,
 }: V2TemplateAssetRequirementGroup): V2TemplateAssetRequirementGroup => ({
@@ -85,6 +87,7 @@ const v2_toRequirementGroup = ({
   label,
   description,
   owner,
+  category: category ?? "template",
   mode,
   requirements,
 });
@@ -166,11 +169,19 @@ export const v2_getTemplateAssetRequirementGroups = (
   renderConfig: V2TemplateRenderConfig
 ): V2TemplateAssetRequirementGroup[] => {
   const capabilities = v2_resolveStructureCapabilities(renderConfig);
+  const developmentRequirements: V2TemplateAssetRequirement[] = [
+    v2_toBuiltinAssetRequirement({
+      id: "development.guide",
+      label: "가이드 레이어",
+      owner: { type: "scene", key: "guide" },
+      key: "guideByTheme",
+    }),
+  ];
   const groups: V2TemplateAssetRequirementGroup[] = [
     v2_toRequirementGroup({
       id: "scene",
       label: "Scene",
-      description: "배경, 보드, 그리드, 가이드 레이어",
+      description: "배경, 보드, 그리드처럼 최종 템플릿에 필요한 장면 에셋",
       owner: { type: "scene", key: "scene" },
       mode: "single",
       requirements: [
@@ -191,12 +202,6 @@ export const v2_getTemplateAssetRequirementGroups = (
           label: "Grid 배경",
           owner: { type: "scene", key: "grid" },
           key: "gridBgByTheme",
-        }),
-        v2_toBuiltinAssetRequirement({
-          id: "scene.guide",
-          label: "가이드 레이어",
-          owner: { type: "scene", key: "guide" },
-          key: "guideByTheme",
         }),
       ],
     }),
@@ -251,21 +256,23 @@ export const v2_getTemplateAssetRequirementGroups = (
   }
 
   if (capabilities.objects.profile.enabled) {
+    developmentRequirements.push(
+      v2_toBuiltinAssetRequirement({
+        id: "development.profile.artworkDummy",
+        label: "프레임 아트워크 더미",
+        required: capabilities.objects.profile.imageRequired,
+        owner: { type: "object", key: "profile" },
+        key: "profileBgByTheme",
+      })
+    );
     groups.push(
       v2_toRequirementGroup({
         id: "object.profile",
         label: "프로필",
-        description: "프로필 아트워크 더미, 프레임, 프레임 배경",
+        description: "프로필 프레임과 프레임 배경",
         owner: { type: "object", key: "profile" },
         mode: "single",
         requirements: [
-          v2_toBuiltinAssetRequirement({
-            id: "object.profile.artwork",
-            label: "프레임 아트워크 더미",
-            required: capabilities.objects.profile.imageRequired,
-            owner: { type: "object", key: "profile" },
-            key: "profileBgByTheme",
-          }),
           v2_toBuiltinAssetRequirement({
             id: "object.profile.frame",
             label: "프레임",
@@ -285,7 +292,25 @@ export const v2_getTemplateAssetRequirementGroups = (
   }
 
   if (capabilities.objects.artist.enabled) {
-    if (capabilities.objects.artist.mode === "textWithStatefulAsset") {
+    if (capabilities.objects.artist.mode === "textWithAsset") {
+      groups.push(
+        v2_toRequirementGroup({
+          id: "object.artist",
+          label: "아티스트 오브젝트",
+          description: "아티스트 영역에 사용하는 단일 오브젝트",
+          owner: { type: "object", key: "artist" },
+          mode: "single",
+          requirements: [
+            v2_toBuiltinAssetRequirement({
+              id: "object.artist",
+              label: "아티스트 오브젝트",
+              owner: { type: "object", key: "artist" },
+              key: "artist",
+            }),
+          ],
+        })
+      );
+    } else if (capabilities.objects.artist.mode === "textWithStatefulAsset") {
       groups.push(
         v2_toRequirementGroup({
           id: "object.artist",
@@ -315,10 +340,7 @@ export const v2_getTemplateAssetRequirementGroups = (
   }
 
   if (capabilities.objects.memo.enabled) {
-    if (
-      capabilities.objects.memo.mode === "textWithAsset" ||
-      capabilities.objects.memo.mode === "statefulAssetWithText"
-    ) {
+    if (capabilities.objects.memo.mode === "textWithAsset") {
       groups.push(
         v2_toRequirementGroup({
           id: "object.memo",
@@ -332,6 +354,32 @@ export const v2_getTemplateAssetRequirementGroups = (
               label: "메모 오브젝트",
               owner: { type: "object", key: "memo" },
               key: "memoByTheme",
+            }),
+          ],
+        })
+      );
+    } else if (capabilities.objects.memo.mode === "statefulAssetWithText") {
+      groups.push(
+        v2_toRequirementGroup({
+          id: "object.memo",
+          label: "메모 오브젝트",
+          description: "주간 메모 표시 상태별 오브젝트",
+          owner: { type: "object", key: "memo" },
+          mode: "stateful",
+          requirements: [
+            v2_toExtraAssetRequirement({
+              id: "object.memo.on",
+              label: "메모 오브젝트 (ON)",
+              owner: { type: "object", key: "memo" },
+              key: "memo.on",
+              state: "on",
+            }),
+            v2_toExtraAssetRequirement({
+              id: "object.memo.off",
+              label: "메모 오브젝트 (OFF)",
+              owner: { type: "object", key: "memo" },
+              key: "memo.off",
+              state: "off",
             }),
           ],
         })
@@ -414,6 +462,20 @@ export const v2_getTemplateAssetRequirementGroups = (
         commonKey: "offlineMemoByTheme",
         useByDay: false,
         dayKeyPrefix: "offlineMemo",
+      })
+    );
+  }
+
+  if (developmentRequirements.length > 0) {
+    groups.push(
+      v2_toRequirementGroup({
+        id: "development.support",
+        label: "개발/검수 보조 에셋",
+        description: "가이드, 더미 이미지처럼 제작 중 확인을 돕는 에셋",
+        owner: { type: "scene", key: "development" },
+        category: "development",
+        mode: "single",
+        requirements: developmentRequirements,
       })
     );
   }

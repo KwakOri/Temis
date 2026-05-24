@@ -16,15 +16,20 @@ import type {
   V2TemplateCreationWeekDatePreset,
 } from '@/types/time-table/template-creation';
 import type {
+  V2TemplateArtistMode,
+  V2TemplateAssetRequirement,
+  V2TemplateMemoMode,
   V2TemplateObjectAssetMode,
   V2TemplateTimetableFlex42Align,
   V2TemplateTimetableFlex42ThreeRow,
   V2TemplateTimetableGridLayoutMode,
 } from '@/types/time-table/template-render-config';
+import type { V2TemplateAssetUploadItem } from '@/services/admin/v2_template_asset_service';
 import type { TLanOpt } from '@/types/time-table/data';
 import {
   useCreateAdminV2Template,
   useUpdateAdminV2TemplateRenderConfig,
+  useUploadAdminV2TemplateAssets,
 } from '@/hooks/query/useAdminV2TemplateRenderConfig';
 import {
   v2_buildRenderConfigFromCreationDraft,
@@ -33,7 +38,6 @@ import {
 } from '@/utils/v2/template-creation-builder';
 import {
   v2_getTemplateAssetRequirementGroups,
-  v2_getTemplateAssetRequirements,
 } from '@/utils/v2/template-asset-requirements';
 import {
   v2_clampTimetableCardComponentCount,
@@ -43,6 +47,10 @@ import {
   v2_MIN_TIMETABLE_CARD_COMPONENT_COUNT,
   v2_MIN_TIMETABLE_MULTI_ENTRY_COUNT,
 } from '@/utils/v2/template-render-config';
+import {
+  v2_applyUploadedAssetRecordsToRenderConfig,
+  v2_readImageFileDimensions,
+} from '@/utils/v2/template-asset-upload-client';
 
 const v2_toErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof Error && error.message.trim().length > 0) {
@@ -186,6 +194,20 @@ const v2_TOP_OBJECT_MODE_LABELS: Record<V2TemplateObjectAssetMode, string> = {
   statefulAsset: 'ON/OFF 에셋',
 };
 
+const v2_ARTIST_MODE_LABELS: Record<V2TemplateArtistMode, string> = {
+  none: '미사용',
+  textOnly: '텍스트만',
+  textWithAsset: '단일 에셋',
+  textWithStatefulAsset: 'ON/OFF 에셋',
+};
+
+const v2_MEMO_MODE_LABELS: Record<V2TemplateMemoMode, string> = {
+  none: '미사용',
+  textOnly: '텍스트만',
+  textWithAsset: '단일 에셋',
+  statefulAssetWithText: 'ON/OFF 에셋',
+};
+
 type V2CreateCardAssetKey = keyof V2TemplateCreationDraft['cardAssets'];
 
 const v2_CARD_ASSET_OPTIONS: Array<{
@@ -225,6 +247,240 @@ const v2_ASSET_GROUP_MODE_LABELS: Record<string, string> = {
   stateful: '상태별',
   common: '공통',
   byDay: '요일별',
+};
+
+const v2_TOP_OBJECT_MODE_OPTIONS: Array<{
+  value: Exclude<V2TemplateObjectAssetMode, 'none'>;
+  label: string;
+  description: string;
+  chips: string[];
+}> = [
+  {
+    value: 'singleAsset',
+    label: '단일 에셋',
+    description: '상태 전환 없이 하나의 상단 오브젝트를 사용합니다.',
+    chips: ['topObjectByTheme'],
+  },
+  {
+    value: 'statefulAsset',
+    label: 'ON/OFF 에셋',
+    description: '런타임 토글 상태에 따라 상단 오브젝트를 전환합니다.',
+    chips: ['topObject.on', 'topObject.off'],
+  },
+];
+
+const v2_ARTIST_MODE_OPTIONS: Array<{
+  value: Exclude<V2TemplateArtistMode, 'none' | 'textOnly'>;
+  label: string;
+  description: string;
+  chips: string[];
+}> = [
+  {
+    value: 'textWithAsset',
+    label: '단일 에셋',
+    description: '아티스트 텍스트와 하나의 오브젝트를 사용합니다.',
+    chips: ['artistText', 'artist'],
+  },
+  {
+    value: 'textWithStatefulAsset',
+    label: 'ON/OFF 에셋',
+    description: '아티스트 표시 상태에 따라 오브젝트를 전환합니다.',
+    chips: ['artistText', 'artistOnByTheme', 'artistOffByTheme'],
+  },
+];
+
+const v2_MEMO_MODE_OPTIONS: Array<{
+  value: Exclude<V2TemplateMemoMode, 'none' | 'textOnly'>;
+  label: string;
+  description: string;
+  chips: string[];
+}> = [
+  {
+    value: 'textWithAsset',
+    label: '단일 에셋',
+    description: '메모 텍스트와 하나의 오브젝트를 사용합니다.',
+    chips: ['memoText', 'memoByTheme'],
+  },
+  {
+    value: 'statefulAssetWithText',
+    label: 'ON/OFF 에셋',
+    description: '메모 표시 상태에 따라 오브젝트를 전환합니다.',
+    chips: ['memoText', 'memo.on', 'memo.off'],
+  },
+];
+
+type V2ObjectModeOption<TValue extends string> = {
+  value: TValue;
+  label: string;
+  description: string;
+  chips: string[];
+};
+
+const SwitchControl = ({
+  checked,
+  onChange,
+  disabled = false,
+  ariaLabel,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  ariaLabel: string;
+}) => (
+  <label
+    className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition ${
+      checked
+        ? 'bg-slate-500 ring-1 ring-white/45'
+        : 'bg-slate-300 ring-1 ring-slate-200'
+    } ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+  >
+    <input
+      type="checkbox"
+      role="switch"
+      aria-label={ariaLabel}
+      checked={checked}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.checked)}
+      className="sr-only"
+    />
+    <span
+      className={`absolute left-1 h-5 w-5 rounded-full bg-white shadow transition ${
+        checked ? 'translate-x-5' : 'translate-x-0'
+      }`}
+    />
+  </label>
+);
+
+function ObjectModeOptionList<TValue extends string>({
+  label,
+  value,
+  options,
+  disabled = false,
+  activeOnDark = false,
+  onChange,
+}: {
+  label: string;
+  value: TValue;
+  options: Array<V2ObjectModeOption<TValue>>;
+  disabled?: boolean;
+  activeOnDark?: boolean;
+  onChange: (value: TValue) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <p
+        className={`text-xs font-semibold ${
+          activeOnDark ? 'text-slate-200' : 'text-slate-500'
+        }`}
+      >
+        {label}
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map((option) => {
+          const selected = option.value === value;
+          const optionClasses = activeOnDark
+            ? selected
+              ? 'border-white bg-white text-slate-950 shadow-sm'
+              : 'border-white/15 bg-white/5 text-slate-100 hover:bg-white/10'
+            : selected
+              ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
+              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50';
+          const descriptionClasses = activeOnDark
+            ? selected
+              ? 'text-slate-600'
+              : 'text-slate-300'
+            : selected
+              ? 'text-slate-200'
+              : 'text-slate-500';
+          const chipClasses = activeOnDark
+            ? selected
+              ? 'bg-slate-100 text-slate-700'
+              : 'bg-white/10 text-slate-200'
+            : selected
+              ? 'bg-white/15 text-slate-100'
+              : 'bg-slate-100 text-slate-600';
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={selected}
+              disabled={disabled}
+              onClick={() => onChange(option.value)}
+              className={`min-h-[116px] rounded-md border px-3 py-3 text-left text-sm transition ${optionClasses} ${
+                disabled ? 'cursor-not-allowed opacity-55' : ''
+              }`}
+            >
+              <span className="block font-semibold">{option.label}</span>
+              <span className={`mt-1 block text-xs ${descriptionClasses}`}>
+                {option.description}
+              </span>
+              <span className="mt-3 flex flex-wrap gap-1">
+                {option.chips.map((chip) => (
+                  <span
+                    key={`${option.value}-${chip}`}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${chipClasses}`}
+                  >
+                    {chip}
+                  </span>
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const ObjectCapabilityCard = ({
+  title,
+  description,
+  checked,
+  onChange,
+  children,
+}: {
+  title: string;
+  description: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children?: ReactNode;
+}) => {
+  return (
+    <section
+      className={`min-h-[112px] rounded-md border px-4 py-4 transition ${
+        checked
+          ? 'border-slate-900 bg-slate-900 text-white'
+          : 'border-slate-200 bg-slate-50 text-slate-700'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-base font-semibold">{title}</p>
+          <p
+            className={`mt-1 text-sm ${
+              checked ? 'text-slate-200' : 'text-slate-500'
+            }`}
+          >
+            {description}
+          </p>
+        </div>
+        <SwitchControl
+          checked={checked}
+          onChange={onChange}
+          ariaLabel={`${title} 사용 여부`}
+        />
+      </div>
+      {children ? (
+        <div
+          className={`mt-4 space-y-3 border-t pt-3 ${
+            checked ? 'border-white/15' : 'border-slate-200'
+          }`}
+        >
+          {children}
+        </div>
+      ) : null}
+    </section>
+  );
 };
 
 const ToggleCard = ({
@@ -300,20 +556,49 @@ const TemplateEditorCreatePage = () => {
   );
   const [activePanelIndex, setActivePanelIndex] = useState(0);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [assetFilesByRequirementId, setAssetFilesByRequirementId] = useState<
+    Record<string, File | null>
+  >({});
   const createTemplateMutation = useCreateAdminV2Template();
   const updateRenderConfigMutation = useUpdateAdminV2TemplateRenderConfig();
+  const uploadAssetsMutation = useUploadAdminV2TemplateAssets();
 
   const previewConfig = useMemo(
     () => v2_buildRenderConfigFromCreationDraft(draft),
     [draft]
   );
-  const assetRequirements = useMemo(
-    () => v2_getTemplateAssetRequirements(previewConfig),
-    [previewConfig]
-  );
   const assetRequirementGroups = useMemo(
     () => v2_getTemplateAssetRequirementGroups(previewConfig),
     [previewConfig]
+  );
+  const templateAssetRequirementGroups = useMemo(
+    () =>
+      assetRequirementGroups.filter((group) => group.category !== 'development'),
+    [assetRequirementGroups]
+  );
+  const developmentAssetRequirementGroups = useMemo(
+    () =>
+      assetRequirementGroups.filter((group) => group.category === 'development'),
+    [assetRequirementGroups]
+  );
+  const templateAssetRequirements = useMemo(
+    () => templateAssetRequirementGroups.flatMap((group) => group.requirements),
+    [templateAssetRequirementGroups]
+  );
+  const developmentAssetRequirements = useMemo(
+    () => developmentAssetRequirementGroups.flatMap((group) => group.requirements),
+    [developmentAssetRequirementGroups]
+  );
+  const allAssetRequirements = useMemo(
+    () => [...templateAssetRequirements, ...developmentAssetRequirements],
+    [templateAssetRequirements, developmentAssetRequirements]
+  );
+  const selectedAssetUploadCount = useMemo(
+    () =>
+      allAssetRequirements.filter((requirement) =>
+        Boolean(assetFilesByRequirementId[requirement.id])
+      ).length,
+    [allAssetRequirements, assetFilesByRequirementId]
   );
   const themeOptions = useMemo(
     () => v2_resolveCreationThemeOptions(previewConfig),
@@ -330,7 +615,9 @@ const TemplateEditorCreatePage = () => {
   const isFirstPanel = activePanelIndex === 0;
   const isLastPanel = activePanelIndex === v2_CREATE_PANELS.length - 1;
   const isCreating =
-    createTemplateMutation.isPending || updateRenderConfigMutation.isPending;
+    createTemplateMutation.isPending ||
+    uploadAssetsMutation.isPending ||
+    updateRenderConfigMutation.isPending;
 
   const canCreate = useMemo(() => {
     const maxEntriesValid =
@@ -367,6 +654,44 @@ const TemplateEditorCreatePage = () => {
     }));
   };
 
+  const updateAssetFile = (requirementId: string, file: File | null) => {
+    setAssetFilesByRequirementId((current) => {
+      if (!file) {
+        const next = { ...current };
+        delete next[requirementId];
+        return next;
+      }
+      return {
+        ...current,
+        [requirementId]: file,
+      };
+    });
+  };
+
+  const buildAssetUploadItems = ({
+    requirements,
+    theme,
+  }: {
+    requirements: V2TemplateAssetRequirement[];
+    theme: string;
+  }): V2TemplateAssetUploadItem[] => {
+    const normalizedTheme = theme.trim();
+    if (!normalizedTheme) return [];
+    return requirements.flatMap((requirement) => {
+      const file = assetFilesByRequirementId[requirement.id];
+      if (!file) return [];
+      return [
+        {
+          clientId: `${requirement.id}:${normalizedTheme}:${Date.now()}`,
+          file,
+          targetType: requirement.assetRef.source,
+          targetKey: requirement.assetRef.key,
+          theme: normalizedTheme,
+        },
+      ];
+    });
+  };
+
   const handleCreateTemplate = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canCreate) return;
@@ -381,9 +706,22 @@ const TemplateEditorCreatePage = () => {
 
     try {
       const fallbackNameSuffix = Math.random().toString(36).slice(2, 10);
-      const nextConfig = v2_buildRenderConfigFromCreationDraft(draft, {
+      let nextConfig = v2_buildRenderConfigFromCreationDraft(draft, {
         fallbackNameSuffix,
       });
+      const uploadItems = buildAssetUploadItems({
+        requirements: allAssetRequirements,
+        theme: nextConfig.defaultTheme,
+      });
+      const uploadDimensions = await Promise.all(
+        uploadItems.map(async (item) => ({
+          clientId: item.clientId,
+          dimension: await v2_readImageFileDimensions(item.file),
+        }))
+      );
+      const dimensionsByClientId = new Map(
+        uploadDimensions.map((entry) => [entry.clientId, entry.dimension])
+      );
       const created = await createTemplateMutation.mutateAsync({
         name: nextConfig.metadata.name,
         description: nextConfig.metadata.description,
@@ -392,6 +730,18 @@ const TemplateEditorCreatePage = () => {
       const templateId = created.template?.id;
       if (!templateId) {
         throw new Error('생성된 템플릿 ID를 확인할 수 없습니다.');
+      }
+
+      if (uploadItems.length > 0) {
+        const uploadedRecords = await uploadAssetsMutation.mutateAsync({
+          templateId,
+          items: uploadItems,
+        });
+        nextConfig = v2_applyUploadedAssetRecordsToRenderConfig({
+          renderConfig: nextConfig,
+          uploadedRecords,
+          dimensionsByClientId,
+        });
       }
 
       await updateRenderConfigMutation.mutateAsync({
@@ -576,165 +926,229 @@ const TemplateEditorCreatePage = () => {
           title="구성 요소"
           description="처음에는 템플릿이 어떤 object capability를 가질지 정합니다."
         >
-          <div className="grid gap-2 sm:grid-cols-2">
-            <ToggleCard
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))]">
+            <ObjectCapabilityCard
               title="Top Object"
               description="상단 장식/상태 오브젝트"
               checked={draft.objects.topObject.enabled}
-              onClick={() =>
+              onChange={(checked) =>
                 updateDraft((current) => ({
                   ...current,
                   objects: {
                     ...current.objects,
                     topObject: {
                       ...current.objects.topObject,
-                      enabled: !current.objects.topObject.enabled,
+                      enabled: checked,
                     },
                   },
                 }))
               }
-            />
-            <ToggleCard
-              title="Profile"
-              description="프로필 아트워크와 프레임"
-              checked={draft.objects.profile.enabled}
-              onClick={() =>
-                updateDraft((current) => ({
-                  ...current,
-                  objects: {
-                    ...current.objects,
-                    profile: {
-                      ...current.objects.profile,
-                      enabled: !current.objects.profile.enabled,
-                    },
-                  },
-                }))
-              }
-            />
-            <ToggleCard
-              title="Artist"
-              description="아티스트 텍스트와 ON/OFF 오브젝트"
-              checked={draft.objects.artist.enabled}
-              onClick={() =>
-                updateDraft((current) => ({
-                  ...current,
-                  objects: {
-                    ...current.objects,
-                    artist: {
-                      enabled: !current.objects.artist.enabled,
-                    },
-                  },
-                }))
-              }
-            />
-            <ToggleCard
-              title="Memo"
-              description="주간 메모 텍스트와 오브젝트"
-              checked={draft.objects.memo.enabled}
-              onClick={() =>
-                updateDraft((current) => ({
-                  ...current,
-                  objects: {
-                    ...current.objects,
-                    memo: {
-                      enabled: !current.objects.memo.enabled,
-                    },
-                  },
-                }))
-              }
-            />
-            <ToggleCard
-              title="Week Dates"
-              description="주간 날짜/플래그 노드"
-              checked={draft.objects.weekDates.enabled}
-              onClick={() =>
-                updateDraft((current) => ({
-                  ...current,
-                  objects: {
-                    ...current.objects,
-                    weekDates: {
-                      enabled: !current.objects.weekDates.enabled,
-                    },
-                  },
-                }))
-              }
-            />
-          </div>
-
-          <div className="grid gap-4 rounded-md border border-slate-200 bg-slate-50 p-3 sm:grid-cols-3">
-            <div>
-              <label
-                className="mb-1 block text-sm font-medium text-slate-700"
-                htmlFor="top-object-mode"
-              >
-                Top Object 방식
-              </label>
-              <select
-                id="top-object-mode"
-                value={draft.objects.topObject.mode}
+            >
+              <ObjectModeOptionList
+                label="Top Object 방식"
+                value={
+                  draft.objects.topObject.mode === 'statefulAsset'
+                    ? 'statefulAsset'
+                    : 'singleAsset'
+                }
+                options={v2_TOP_OBJECT_MODE_OPTIONS}
                 disabled={!draft.objects.topObject.enabled}
-                onChange={(event) =>
+                activeOnDark={draft.objects.topObject.enabled}
+                onChange={(mode) =>
                   updateDraft((current) => ({
                     ...current,
                     objects: {
                       ...current.objects,
                       topObject: {
                         ...current.objects.topObject,
-                        mode: event.target.value as V2TemplateObjectAssetMode,
+                        mode,
                       },
                     },
                   }))
                 }
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </ObjectCapabilityCard>
+
+            <ObjectCapabilityCard
+              title="Profile"
+              description="프로필 아트워크와 프레임"
+              checked={draft.objects.profile.enabled}
+              onChange={(checked) =>
+                updateDraft((current) => ({
+                  ...current,
+                  objects: {
+                    ...current.objects,
+                    profile: {
+                      ...current.objects.profile,
+                      enabled: checked,
+                    },
+                  },
+                }))
+              }
+            >
+              <div
+                className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
+                  draft.objects.profile.enabled
+                    ? 'border-white/15 bg-white/5 text-slate-100'
+                    : 'border-slate-200 bg-white text-slate-600'
+                }`}
               >
-                <option value="singleAsset">단일 에셋</option>
-                <option value="statefulAsset">ON/OFF 에셋</option>
-              </select>
-            </div>
+                <span>프로필 이미지 필수</span>
+                <SwitchControl
+                  checked={draft.objects.profile.imageRequired}
+                  disabled={!draft.objects.profile.enabled}
+                  ariaLabel="프로필 이미지 필수 여부"
+                  onChange={(checked) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      objects: {
+                        ...current.objects,
+                        profile: {
+                          ...current.objects.profile,
+                          imageRequired: checked,
+                        },
+                      },
+                    }))
+                  }
+                />
+              </div>
 
-            <label className="flex items-center gap-2 self-end text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={draft.objects.profile.imageRequired}
-                disabled={!draft.objects.profile.enabled}
-                onChange={(event) =>
+              <div
+                className={`flex items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm ${
+                  draft.objects.profile.enabled
+                    ? 'border-white/15 bg-white/5 text-slate-100'
+                    : 'border-slate-200 bg-white text-slate-600'
+                }`}
+              >
+                <span>프레임 필수</span>
+                <SwitchControl
+                  checked={draft.objects.profile.frameRequired}
+                  disabled={!draft.objects.profile.enabled}
+                  ariaLabel="프레임 필수 여부"
+                  onChange={(checked) =>
+                    updateDraft((current) => ({
+                      ...current,
+                      objects: {
+                        ...current.objects,
+                        profile: {
+                          ...current.objects.profile,
+                          frameRequired: checked,
+                        },
+                      },
+                    }))
+                  }
+                />
+              </div>
+            </ObjectCapabilityCard>
+
+            <ObjectCapabilityCard
+              title="Artist"
+              description="아티스트 텍스트와 오브젝트"
+              checked={draft.objects.artist.enabled}
+              onChange={(checked) =>
+                updateDraft((current) => ({
+                  ...current,
+                  objects: {
+                    ...current.objects,
+                    artist: {
+                      ...current.objects.artist,
+                      enabled: checked,
+                      mode:
+                        current.objects.artist.mode === 'textWithAsset' ||
+                        current.objects.artist.mode === 'textWithStatefulAsset'
+                          ? current.objects.artist.mode
+                          : 'textWithStatefulAsset',
+                    },
+                  },
+                }))
+              }
+            >
+              <ObjectModeOptionList
+                label="Artist 방식"
+                value={
+                  draft.objects.artist.mode === 'textWithAsset'
+                    ? 'textWithAsset'
+                    : 'textWithStatefulAsset'
+                }
+                options={v2_ARTIST_MODE_OPTIONS}
+                disabled={!draft.objects.artist.enabled}
+                activeOnDark={draft.objects.artist.enabled}
+                onChange={(mode) =>
                   updateDraft((current) => ({
                     ...current,
                     objects: {
                       ...current.objects,
-                      profile: {
-                        ...current.objects.profile,
-                        imageRequired: event.target.checked,
+                      artist: {
+                        ...current.objects.artist,
+                        mode,
                       },
                     },
                   }))
                 }
-                className="accent-slate-900 disabled:opacity-50"
               />
-              프로필 이미지 필수
-            </label>
-
-            <label className="flex items-center gap-2 self-end text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={draft.objects.profile.frameRequired}
-                disabled={!draft.objects.profile.enabled}
-                onChange={(event) =>
+            </ObjectCapabilityCard>
+            <ObjectCapabilityCard
+              title="Memo"
+              description="주간 메모 텍스트와 오브젝트"
+              checked={draft.objects.memo.enabled}
+              onChange={(checked) =>
+                updateDraft((current) => ({
+                  ...current,
+                  objects: {
+                    ...current.objects,
+                    memo: {
+                      ...current.objects.memo,
+                      enabled: checked,
+                      mode:
+                        current.objects.memo.mode === 'textWithAsset' ||
+                        current.objects.memo.mode === 'statefulAssetWithText'
+                          ? current.objects.memo.mode
+                          : 'statefulAssetWithText',
+                    },
+                  },
+                }))
+              }
+            >
+              <ObjectModeOptionList
+                label="Memo 방식"
+                value={
+                  draft.objects.memo.mode === 'textWithAsset'
+                    ? 'textWithAsset'
+                    : 'statefulAssetWithText'
+                }
+                options={v2_MEMO_MODE_OPTIONS}
+                disabled={!draft.objects.memo.enabled}
+                activeOnDark={draft.objects.memo.enabled}
+                onChange={(mode) =>
                   updateDraft((current) => ({
                     ...current,
                     objects: {
                       ...current.objects,
-                      profile: {
-                        ...current.objects.profile,
-                        frameRequired: event.target.checked,
+                      memo: {
+                        ...current.objects.memo,
+                        mode,
                       },
                     },
                   }))
                 }
-                className="accent-slate-900 disabled:opacity-50"
               />
-              프레임 필수
-            </label>
+            </ObjectCapabilityCard>
+            <ObjectCapabilityCard
+              title="Week Dates"
+              description="주간 날짜/플래그 노드"
+              checked={draft.objects.weekDates.enabled}
+              onChange={(checked) =>
+                updateDraft((current) => ({
+                  ...current,
+                  objects: {
+                    ...current.objects,
+                    weekDates: {
+                      enabled: checked,
+                    },
+                  },
+                }))
+              }
+            />
           </div>
         </FieldBlock>
       );
@@ -1013,13 +1427,135 @@ const TemplateEditorCreatePage = () => {
         if (option.key === 'offlineMemo') return draft.timetable.offlineMemoEnabled;
         return true;
       });
+      const renderAssetGroups = (groups: typeof assetRequirementGroups) => (
+        <div className="space-y-3">
+          {groups.map((group) => (
+            <section
+              key={group.id}
+              className="rounded-md border border-slate-200 bg-slate-50 p-3"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {group.label}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {group.description}
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-1">
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {v2_ASSET_GROUP_MODE_LABELS[group.mode] ?? group.mode}
+                  </span>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {group.requirements.length} slots
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {group.requirements.map((requirement) => {
+                  const selectedFile = assetFilesByRequirementId[requirement.id];
+                  const inputId = `asset-file-${requirement.id.replace(
+                    /[^a-zA-Z0-9_-]/g,
+                    '-'
+                  )}`;
+                  return (
+                    <div
+                      key={requirement.id}
+                      className="rounded-md border border-slate-200 bg-white p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {requirement.label}
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            {requirement.assetRef.source}: {requirement.assetRef.key}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                          {requirement.state ? (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                              {requirement.state.toUpperCase()}
+                            </span>
+                          ) : null}
+                          {requirement.dayKey ? (
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                              {requirement.dayKey}
+                            </span>
+                          ) : null}
+                          {requirement.required ? (
+                            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+                              필수
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        <input
+                          id={inputId}
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={(event) =>
+                            updateAssetFile(
+                              requirement.id,
+                              event.target.files?.[0] ?? null
+                            )
+                          }
+                        />
+                        <label
+                          htmlFor={inputId}
+                          className="block cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          이미지 선택
+                        </label>
+                        {selectedFile ? (
+                          <div className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
+                            <span className="min-w-0 truncate">
+                              {selectedFile.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => updateAssetFile(requirement.id, null)}
+                              className="shrink-0 font-semibold text-slate-900 hover:text-rose-600"
+                            >
+                              제거
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400">
+                            생성 전에 업로드하면 기본 테마에 바로 세팅됩니다.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      );
 
       return (
         <FieldBlock
           title="에셋 요구사항"
-          description="공통 카드가 기본이며, 필요한 경우에만 요일별 에셋 슬롯을 엽니다."
+          description="공통 카드가 기본이며, 필요한 경우에만 요일별 에셋 슬롯을 엽니다. 선택한 파일은 생성 직후 기본 테마에 업로드됩니다."
         >
           <div className="space-y-3">
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+              업로드 대상 테마{' '}
+              <span className="font-semibold text-slate-950">
+                {draft.theme.defaultTheme}
+              </span>
+              {selectedAssetUploadCount > 0
+                ? ` · 선택된 파일 ${selectedAssetUploadCount}개`
+                : ''}
+            </div>
+
             <div>
               <p className="mb-2 text-sm font-medium text-slate-700">
                 카드 에셋 모드
@@ -1075,72 +1611,20 @@ const TemplateEditorCreatePage = () => {
               <p className="mb-2 text-sm font-medium text-slate-700">
                 생성될 에셋 그룹
               </p>
-              <div className="space-y-3">
-                {assetRequirementGroups.map((group) => (
-                  <section
-                    key={group.id}
-                    className="rounded-md border border-slate-200 bg-slate-50 p-3"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">
-                          {group.label}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {group.description}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-wrap gap-1">
-                        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-                          {v2_ASSET_GROUP_MODE_LABELS[group.mode] ?? group.mode}
-                        </span>
-                        <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
-                          {group.requirements.length} slots
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {group.requirements.map((requirement) => (
-                        <div
-                          key={requirement.id}
-                          className="rounded-md border border-slate-200 bg-white p-3"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900">
-                                {requirement.label}
-                              </p>
-                              <p className="mt-1 text-xs text-slate-500">
-                                {requirement.assetRef.source}:{' '}
-                                {requirement.assetRef.key}
-                              </p>
-                            </div>
-                            <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                              {requirement.state ? (
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                                  {requirement.state.toUpperCase()}
-                                </span>
-                              ) : null}
-                              {requirement.dayKey ? (
-                                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                                  {requirement.dayKey}
-                                </span>
-                              ) : null}
-                              {requirement.required ? (
-                                <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
-                                  필수
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
+              {renderAssetGroups(templateAssetRequirementGroups)}
             </div>
+
+            {developmentAssetRequirementGroups.length > 0 ? (
+              <div>
+                <p className="mb-2 text-sm font-medium text-slate-700">
+                  개발/검수 보조 에셋
+                </p>
+                <p className="mb-3 text-xs text-slate-500">
+                  가이드 레이어와 더미 이미지는 최종 제작 에셋과 분리해 관리합니다.
+                </p>
+                {renderAssetGroups(developmentAssetRequirementGroups)}
+              </div>
+            ) : null}
           </div>
         </FieldBlock>
       );
@@ -1255,8 +1739,12 @@ const TemplateEditorCreatePage = () => {
                   ? `TopObject (${v2_TOP_OBJECT_MODE_LABELS[draft.objects.topObject.mode]})`
                   : null,
                 draft.objects.profile.enabled ? 'Profile' : null,
-                draft.objects.artist.enabled ? 'Artist' : null,
-                draft.objects.memo.enabled ? 'Memo' : null,
+                draft.objects.artist.enabled
+                  ? `Artist (${v2_ARTIST_MODE_LABELS[draft.objects.artist.mode]})`
+                  : null,
+                draft.objects.memo.enabled
+                  ? `Memo (${v2_MEMO_MODE_LABELS[draft.objects.memo.mode]})`
+                  : null,
                 draft.objects.weekDates.enabled ? 'Week Dates' : null,
               ]
                 .filter(Boolean)
@@ -1265,11 +1753,14 @@ const TemplateEditorCreatePage = () => {
           </div>
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-semibold text-slate-900">생성 결과</p>
-              <p className="mt-2 text-sm text-slate-700">
-                graph nodes {Object.keys(previewConfig.graph.nodes).length}개 ·
-                asset groups {assetRequirementGroups.length}개 · asset slots{' '}
-                {assetRequirements.length}개
-              </p>
+            <p className="mt-2 text-sm text-slate-700">
+              graph nodes {Object.keys(previewConfig.graph.nodes).length}개 ·
+              asset groups {templateAssetRequirementGroups.length}개 · asset slots{' '}
+              {templateAssetRequirements.length}개
+              {developmentAssetRequirements.length > 0
+                ? ` · 보조 slots ${developmentAssetRequirements.length}개`
+                : ''}
+            </p>
           </div>
         </div>
       </FieldBlock>
@@ -1277,7 +1768,7 @@ const TemplateEditorCreatePage = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-8">
+    <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase text-slate-500">
@@ -1301,52 +1792,8 @@ const TemplateEditorCreatePage = () => {
 
       <form
         onSubmit={handleCreateTemplate}
-        className="mt-6 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)_320px]"
+        className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] 2xl:grid-cols-[minmax(0,1fr)_360px]"
       >
-        <nav className="h-fit rounded-xl border border-slate-200 bg-white p-3 lg:sticky lg:top-6">
-          <ol className="space-y-1">
-            {v2_CREATE_PANELS.map((panel, index) => {
-              const active = index === activePanelIndex;
-              const done = index < activePanelIndex;
-              return (
-                <li key={panel.id}>
-                  <button
-                    type="button"
-                    onClick={() => setActivePanelIndex(index)}
-                    className={`flex w-full items-start gap-3 rounded-md px-3 py-2 text-left transition ${
-                      active
-                        ? 'bg-slate-900 text-white'
-                        : 'text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    <span
-                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
-                        active
-                          ? 'border-white bg-white text-slate-900'
-                          : done
-                            ? 'border-slate-900 bg-slate-900 text-white'
-                            : 'border-slate-300 text-slate-500'
-                      }`}
-                    >
-                      {done ? <Check className="h-3 w-3" /> : index + 1}
-                    </span>
-                    <span>
-                      <span className="block text-sm font-semibold">{panel.label}</span>
-                      <span
-                        className={`mt-0.5 block text-xs ${
-                          active ? 'text-slate-200' : 'text-slate-500'
-                        }`}
-                      >
-                        {panel.description}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-
         <div className="min-w-0 space-y-4">
           <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
             <Layers3 className="h-4 w-4 text-slate-500" />
@@ -1356,7 +1803,54 @@ const TemplateEditorCreatePage = () => {
           {renderPanel()}
         </div>
 
-        <aside className="h-fit rounded-xl border border-slate-200 bg-white p-5 lg:sticky lg:top-6">
+        <aside className="space-y-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto">
+          <nav className="rounded-xl border border-slate-200 bg-white p-3">
+            <ol className="space-y-1">
+              {v2_CREATE_PANELS.map((panel, index) => {
+                const active = index === activePanelIndex;
+                const done = index < activePanelIndex;
+                return (
+                  <li key={panel.id}>
+                    <button
+                      type="button"
+                      onClick={() => setActivePanelIndex(index)}
+                      className={`flex w-full items-start gap-3 rounded-md px-3 py-2 text-left transition ${
+                        active
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] ${
+                          active
+                            ? 'border-white bg-white text-slate-900'
+                            : done
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-300 text-slate-500'
+                        }`}
+                      >
+                        {done ? <Check className="h-3 w-3" /> : index + 1}
+                      </span>
+                      <span>
+                        <span className="block text-sm font-semibold">
+                          {panel.label}
+                        </span>
+                        <span
+                          className={`mt-0.5 block text-xs ${
+                            active ? 'text-slate-200' : 'text-slate-500'
+                          }`}
+                        >
+                          {panel.description}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+          </nav>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
           <h2 className="text-base font-semibold text-slate-950">생성 요약</h2>
           <dl className="mt-4 space-y-3 text-sm">
             <div>
@@ -1376,6 +1870,22 @@ const TemplateEditorCreatePage = () => {
               <dd className="mt-1 text-slate-950">
                 {draft.objects.topObject.enabled
                   ? v2_TOP_OBJECT_MODE_LABELS[draft.objects.topObject.mode]
+                  : '미사용'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Artist</dt>
+              <dd className="mt-1 text-slate-950">
+                {draft.objects.artist.enabled
+                  ? v2_ARTIST_MODE_LABELS[draft.objects.artist.mode]
+                  : '미사용'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Memo</dt>
+              <dd className="mt-1 text-slate-950">
+                {draft.objects.memo.enabled
+                  ? v2_MEMO_MODE_LABELS[draft.objects.memo.mode]
                   : '미사용'}
               </dd>
             </div>
@@ -1414,8 +1924,14 @@ const TemplateEditorCreatePage = () => {
               에셋 슬롯
             </div>
             <p className="mt-1 text-xs text-slate-500">
-              {assetRequirementGroups.length}개 그룹, {assetRequirements.length}개 입력
-              슬롯이 생성됩니다.
+              {templateAssetRequirementGroups.length}개 제작 그룹,{' '}
+              {templateAssetRequirements.length}개 입력 슬롯이 생성됩니다.
+              {developmentAssetRequirements.length > 0
+                ? ` 보조 슬롯 ${developmentAssetRequirements.length}개는 별도 관리됩니다.`
+                : ''}
+              {selectedAssetUploadCount > 0
+                ? ` 생성 전에 ${selectedAssetUploadCount}개 파일을 업로드합니다.`
+                : ''}
             </p>
           </div>
 
@@ -1456,6 +1972,7 @@ const TemplateEditorCreatePage = () => {
               )}
             </button>
           </div>
+          </section>
         </aside>
       </form>
     </div>

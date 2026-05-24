@@ -92,7 +92,12 @@ export const v2_STATEFUL_SCENE_GROUP_DEFINITIONS: Record<
     label: "Memo",
     layerId: "memo",
     componentKey: "memo",
-    childIds: ["scene-memo-object", "scene-memo-text"],
+    childIds: [
+      "scene-memo-object",
+      "scene-memo-object-on",
+      "scene-memo-object-off",
+      "scene-memo-text",
+    ],
     nodeIdPrefix: "scene-memo",
     editorOptionKey: "isMemo",
     visibilityByStatus: {

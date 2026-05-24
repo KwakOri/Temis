@@ -4,6 +4,10 @@ import {
   V2CreateAdminTemplatePayload,
   V2UpdateTemplateRenderConfigPayload,
 } from "@/services/admin/v2_template_render_config_service";
+import {
+  AdminV2TemplateAssetService,
+} from "@/services/admin/v2_template_asset_service";
+import type { V2TemplateAssetUploadItem } from "@/services/admin/v2_template_asset_service";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const useAdminV2TemplateRenderConfig = (templateId?: string) => {
@@ -57,5 +61,17 @@ export const useCreateAdminV2Template = () => {
         queryKey: queryKeys.template.v2Templates(),
       });
     },
+  });
+};
+
+export const useUploadAdminV2TemplateAssets = () => {
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      items,
+    }: {
+      templateId: string;
+      items: V2TemplateAssetUploadItem[];
+    }) => AdminV2TemplateAssetService.uploadTemplateAssets({ templateId, items }),
   });
 };

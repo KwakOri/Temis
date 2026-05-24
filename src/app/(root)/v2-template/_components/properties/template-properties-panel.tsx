@@ -4834,6 +4834,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
     updateExtraAssetUrl,
     addExtraAssetKey,
     removeExtraAssetKey,
+    toggleCardBackgroundAssetsByDay,
     handleAssetFileUpload,
     handleExtraAssetFileUpload,
     uploadBulkAssetFiles,
@@ -5557,6 +5558,9 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
               }
               onToggleMultiple={updateIsMultiple}
               onChangeMaxStreamingTimeByDay={updateMaxStreamingTimeByDay}
+              onChangeCardAssetMode={(key, mode) =>
+                toggleCardBackgroundAssetsByDay(key, mode === "byDay")
+              }
               onApplyEntryCountVisibilityPreset={applyEntryCountVisibilityPreset}
               onAutoGenerateEntryCountNodes={autoGenerateEntryCountNodes}
               onAppendSchemaField={() =>

@@ -10,6 +10,7 @@ import {
   V2TemplateFormField,
   V2TemplateRenderConfig,
 } from "@/types/time-table/template-render-config";
+import { v2_resolveStructureCapabilities } from "@/utils/v2/template-render-config";
 import TemplateAssetsTab from "./template-assets-tab";
 import TemplateBuilderTabContentRouter, {
   V2BuilderTabId,
@@ -18,6 +19,9 @@ import TemplateCanvasTab from "./template-canvas-tab";
 import TemplateDataTab from "./template-data-tab";
 import TemplateExportTab from "./template-export-tab";
 import TemplateSchemaTab from "./template-schema-tab";
+
+type V2TemplateCardAssetModeKey = "online" | "offline" | "multi" | "offlineMemo";
+type V2TemplateCardAssetMode = "common" | "byDay";
 
 interface TemplatePropertiesTabsRendererProps {
   activeTab: V2BuilderTabId;
@@ -53,6 +57,10 @@ interface TemplatePropertiesTabsRendererProps {
   onChangePreviewTheme: (theme: string) => void;
   onToggleMultiple: (value: boolean) => void;
   onChangeMaxStreamingTimeByDay: (value: number) => void;
+  onChangeCardAssetMode: (
+    key: V2TemplateCardAssetModeKey,
+    mode: V2TemplateCardAssetMode
+  ) => void;
   onApplyEntryCountVisibilityPreset: () => void;
   onAutoGenerateEntryCountNodes: () => void;
   onAppendSchemaField: () => void;
@@ -187,6 +195,7 @@ const TemplatePropertiesTabsRenderer: React.FC<
   onChangePreviewTheme,
   onToggleMultiple,
   onChangeMaxStreamingTimeByDay,
+  onChangeCardAssetMode,
   onApplyEntryCountVisibilityPreset,
   onAutoGenerateEntryCountNodes,
   onAppendSchemaField,
@@ -226,24 +235,44 @@ const TemplatePropertiesTabsRenderer: React.FC<
     setIsClientMounted(true);
   }, []);
 
-  const renderTemplateTab = () => (
-    <TemplateCanvasTab
-      templateWidth={renderConfig.templateSize.width}
-      templateHeight={renderConfig.templateSize.height}
-      defaultTheme={renderConfig.defaultTheme}
-      previewTheme={currentTheme}
-      themeOptions={themeOptions}
-      isMultiple={isMultiple}
-      maxStreamingTimeByDay={maxStreamingTimeByDay}
-      onUpdateTemplateSize={onUpdateTemplateSize}
-      onChangeDefaultTheme={onChangeDefaultTheme}
-      onChangePreviewTheme={onChangePreviewTheme}
-      onToggleMultiple={onToggleMultiple}
-      onChangeMaxStreamingTimeByDay={onChangeMaxStreamingTimeByDay}
-      onApplyEntryCountVisibilityPreset={onApplyEntryCountVisibilityPreset}
-      onAutoGenerateEntryCountNodes={onAutoGenerateEntryCountNodes}
-    />
-  );
+  const renderTemplateTab = () => {
+    const capabilities = v2_resolveStructureCapabilities(renderConfig);
+    const cardAssetModes: Record<
+      V2TemplateCardAssetModeKey,
+      V2TemplateCardAssetMode
+    > = {
+      online: renderConfig.editorOptions.useOnlineAssetsByDay ? "byDay" : "common",
+      offline: renderConfig.editorOptions.useOfflineAssetsByDay
+        ? "byDay"
+        : "common",
+      multi: renderConfig.editorOptions.useMultiAssetsByDay ? "byDay" : "common",
+      offlineMemo: renderConfig.editorOptions.useOfflineMemoAssetsByDay
+        ? "byDay"
+        : "common",
+    };
+
+    return (
+      <TemplateCanvasTab
+        templateWidth={renderConfig.templateSize.width}
+        templateHeight={renderConfig.templateSize.height}
+        defaultTheme={renderConfig.defaultTheme}
+        previewTheme={currentTheme}
+        themeOptions={themeOptions}
+        isMultiple={isMultiple}
+        offlineMemoEnabled={capabilities.timetable.offlineMemoEnabled}
+        maxStreamingTimeByDay={maxStreamingTimeByDay}
+        cardAssetModes={cardAssetModes}
+        onUpdateTemplateSize={onUpdateTemplateSize}
+        onChangeDefaultTheme={onChangeDefaultTheme}
+        onChangePreviewTheme={onChangePreviewTheme}
+        onToggleMultiple={onToggleMultiple}
+        onChangeMaxStreamingTimeByDay={onChangeMaxStreamingTimeByDay}
+        onChangeCardAssetMode={onChangeCardAssetMode}
+        onApplyEntryCountVisibilityPreset={onApplyEntryCountVisibilityPreset}
+        onAutoGenerateEntryCountNodes={onAutoGenerateEntryCountNodes}
+      />
+    );
+  };
 
   const renderSchemaTab = () => (
     <TemplateSchemaTab

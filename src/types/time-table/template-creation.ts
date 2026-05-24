@@ -1,5 +1,7 @@
 import type { TLanOpt } from "@/types/time-table/data";
 import type {
+  V2TemplateArtistMode,
+  V2TemplateMemoMode,
   V2TemplateObjectAssetMode,
   V2TemplateTimetableFlex42Align,
   V2TemplateTimetableFlex42ThreeRow,
@@ -39,9 +41,11 @@ export interface V2TemplateCreationDraft {
     };
     artist: {
       enabled: boolean;
+      mode: V2TemplateArtistMode;
     };
     memo: {
       enabled: boolean;
+      mode: V2TemplateMemoMode;
     };
     weekDates: {
       enabled: boolean;

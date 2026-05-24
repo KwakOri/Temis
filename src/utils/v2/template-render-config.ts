@@ -18,6 +18,7 @@ import {
   V2TemplateComputedBindingKey,
   V2TemplateCardStructure,
   V2TemplateAssetRef,
+  V2TemplateArtistMode,
   V2TemplateBuiltinAssetKey,
   V2TemplateColorPalette,
   V2TemplateColorKey,
@@ -36,6 +37,7 @@ import {
   V2TemplateLayerComponentKey,
   V2TemplateLayerIconKey,
   V2TemplateLayerNode,
+  V2TemplateMemoMode,
   V2TemplateNodeGraph,
   V2TemplateObjectAssetMode,
   V2TemplateRenderConfig,
@@ -2254,6 +2256,91 @@ const v2_createStatefulTopObjectSceneNode = (): V2TemplateSceneNode => {
   };
 };
 
+const v2_createArtistSceneNode = (
+  mode: Exclude<V2TemplateArtistMode, "none">
+): V2TemplateSceneNode => {
+  const artistText = v2_cloneDefaultSceneNode("scene-artist-text");
+  if (mode !== "textWithStatefulAsset") {
+    artistText.visibilityMode = "always";
+  }
+
+  const children: V2TemplateSceneNode[] = [artistText];
+  if (mode === "textWithAsset") {
+    const artistObject = v2_cloneDefaultSceneNode("scene-artist-object");
+    if (artistObject.kind === "asset") {
+      artistObject.assetRef = {
+        source: "builtin",
+        key: "artist",
+      };
+      artistObject.visibilityMode = "always";
+      artistObject.label = "Artist Object";
+    }
+    children.push(artistObject);
+  } else if (mode === "textWithStatefulAsset") {
+    children.push(
+      v2_cloneDefaultSceneNode("scene-artist-object"),
+      v2_cloneDefaultSceneNode("scene-artist-object-off")
+    );
+  }
+
+  return {
+    id: "scene-artist-group",
+    label: "Artist",
+    kind: "group",
+    layerId: "artist",
+    visibilityMode: "always",
+    children,
+  };
+};
+
+const v2_createMemoSceneNode = (
+  mode: Exclude<V2TemplateMemoMode, "none">
+): V2TemplateSceneNode => {
+  const memoText = v2_cloneDefaultSceneNode("scene-memo-text");
+  if (mode !== "statefulAssetWithText") {
+    memoText.visibilityMode = "always";
+  }
+
+  const createMemoObject = (
+    status: "on" | "off" | "single"
+  ): V2TemplateSceneNode => {
+    const memoObject = v2_cloneDefaultSceneNode("scene-memo-object");
+    if (memoObject.kind !== "asset") return memoObject;
+    if (status === "single") {
+      memoObject.visibilityMode = "always";
+      return memoObject;
+    }
+    return {
+      ...memoObject,
+      id: `scene-memo-object-${status}`,
+      label: `Memo ${status.toUpperCase()}`,
+      layerId: `memo-object-${status}`,
+      assetRef: {
+        source: "extra",
+        key: `memo.${status}`,
+      },
+      visibilityMode: status === "on" ? "memoOnOnly" : "memoOffOnly",
+    };
+  };
+
+  const children: V2TemplateSceneNode[] = [];
+  if (mode === "textWithAsset") {
+    children.push(createMemoObject("single"));
+  } else if (mode === "statefulAssetWithText") {
+    children.push(createMemoObject("on"), createMemoObject("off"));
+  }
+  children.push(memoText);
+
+  return {
+    id: "scene-memo",
+    label: "Memo",
+    kind: "group",
+    layerId: "memo",
+    visibilityMode: "always",
+    children,
+  };
+};
+
 const v2_createSceneOnlyNodeGraph = ({
   layers,
   sceneNodes,
@@ -2382,6 +2469,8 @@ export const v2_createDefaultSceneTemplateNodeGraph = ({
   includeProfile = true,
   includeWeekDates = true,
   topObjectMode = "singleAsset",
+  artistMode = "textWithStatefulAsset",
+  memoMode = "statefulAssetWithText",
 }: {
   includeArtist?: boolean;
   includeMemo?: boolean;
@@ -2389,12 +2478,14 @@ export const v2_createDefaultSceneTemplateNodeGraph = ({
   includeProfile?: boolean;
   includeWeekDates?: boolean;
   topObjectMode?: Exclude<V2TemplateObjectAssetMode, "none">;
+  artistMode?: Exclude<V2TemplateArtistMode, "none">;
+  memoMode?: Exclude<V2TemplateMemoMode, "none">;
 } = {}): V2TemplateNodeGraph => {
   const sceneNodes = v2_CREATE_TEMPLATE_SCENE_NODES.filter((node) => {
     if (node.id === "scene-frame") return includeProfile;
     if (node.id === "scene-week-flag") return includeWeekDates;
-    if (node.id === "scene-artist-group") return includeArtist;
-    if (node.id === "scene-memo") return includeMemo;
+    if (node.id === "scene-artist-group") return false;
+    if (node.id === "scene-memo") return false;
     if (node.id === "scene-top-object") {
       return includeTopObject && topObjectMode === "singleAsset";
     }
@@ -2403,6 +2494,12 @@ export const v2_createDefaultSceneTemplateNodeGraph = ({
 
   if (includeTopObject && topObjectMode === "statefulAsset") {
     sceneNodes.push(v2_createStatefulTopObjectSceneNode());
+  }
+  if (includeArtist) {
+    sceneNodes.push(v2_createArtistSceneNode(artistMode));
+  }
+  if (includeMemo) {
+    sceneNodes.push(v2_createMemoSceneNode(memoMode));
   }
 
   return v2_createSceneOnlyNodeGraph({
@@ -3169,6 +3266,7 @@ const v2_OBJECT_ASSET_MODE_SET = new Set(["none", "singleAsset", "statefulAsset"
 const v2_ARTIST_MODE_SET = new Set([
   "none",
   "textOnly",
+  "textWithAsset",
   "textWithStatefulAsset",
 ]);
 const v2_MEMO_MODE_SET = new Set([

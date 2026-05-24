@@ -148,6 +148,7 @@ export type V2TemplateObjectAssetMode = "none" | "singleAsset" | "statefulAsset"
 export type V2TemplateArtistMode =
   | "none"
   | "textOnly"
+  | "textWithAsset"
   | "textWithStatefulAsset";
 export type V2TemplateMemoMode =
   | "none"

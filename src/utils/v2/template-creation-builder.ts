@@ -217,9 +217,11 @@ export const v2_createDefaultTemplateCreationDraft =
         },
         artist: {
           enabled: true,
+          mode: "textWithStatefulAsset",
         },
         memo: {
           enabled: true,
+          mode: "statefulAssetWithText",
         },
         weekDates: {
           enabled: true,
@@ -386,13 +388,27 @@ export const v2_buildRenderConfigFromCreationDraft = (
     draft.objects.topObject.mode === "statefulAsset"
       ? "statefulAsset"
       : "singleAsset";
+  const artistEnabled = draft.objects.artist.enabled;
+  const artistMode =
+    draft.objects.artist.mode === "textWithAsset" ||
+    draft.objects.artist.mode === "textOnly"
+      ? draft.objects.artist.mode
+      : "textWithStatefulAsset";
+  const memoEnabled = draft.objects.memo.enabled;
+  const memoMode =
+    draft.objects.memo.mode === "textWithAsset" ||
+    draft.objects.memo.mode === "textOnly"
+      ? draft.objects.memo.mode
+      : "statefulAssetWithText";
   const nextGraph = v2_createDefaultSceneTemplateNodeGraph({
-    includeArtist: draft.objects.artist.enabled,
-    includeMemo: draft.objects.memo.enabled,
+    includeArtist: artistEnabled,
+    includeMemo: memoEnabled,
     includeTopObject: topObjectEnabled,
     includeProfile: draft.objects.profile.enabled,
     includeWeekDates: draft.objects.weekDates.enabled,
     topObjectMode,
+    artistMode,
+    memoMode,
   });
   let nextTimetable = v2_createDefaultTimetableConfig({
     multiEntryCount: normalizedMultiEntryCount,
@@ -434,6 +450,18 @@ export const v2_buildRenderConfigFromCreationDraft = (
       v2_createThemeNullMap(nextThemeOptions);
     nextExtraAssetDimensions["topObject.off"] =
       nextExtraAssetDimensions["topObject.off"] ??
+      v2_createThemeNullMap(nextThemeOptions);
+  }
+  if (memoEnabled && memoMode === "statefulAssetWithText") {
+    nextExtraAssets["memo.on"] =
+      nextExtraAssets["memo.on"] ?? v2_createThemeNullMap(nextThemeOptions);
+    nextExtraAssets["memo.off"] =
+      nextExtraAssets["memo.off"] ?? v2_createThemeNullMap(nextThemeOptions);
+    nextExtraAssetDimensions["memo.on"] =
+      nextExtraAssetDimensions["memo.on"] ??
+      v2_createThemeNullMap(nextThemeOptions);
+    nextExtraAssetDimensions["memo.off"] =
+      nextExtraAssetDimensions["memo.off"] ??
       v2_createThemeNullMap(nextThemeOptions);
   }
 
@@ -522,8 +550,8 @@ export const v2_buildRenderConfigFromCreationDraft = (
     timetable: nextTimetable,
     editorOptions: {
       ...normalized.editorOptions,
-      isArtist: draft.objects.artist.enabled,
-      isMemo: draft.objects.memo.enabled,
+      isArtist: artistEnabled,
+      isMemo: memoEnabled,
       isMultiple: draft.timetable.multipleEnabled,
       maxStreamingTimeByDay: normalizedMaxEntries,
       useOnlineAssetsByDay: draft.cardAssets.online === "byDay",
@@ -549,12 +577,12 @@ export const v2_buildRenderConfigFromCreationDraft = (
             draft.objects.profile.enabled && draft.objects.profile.frameRequired,
         },
         artist: {
-          enabled: draft.objects.artist.enabled,
-          mode: draft.objects.artist.enabled ? "textWithStatefulAsset" : "none",
+          enabled: artistEnabled,
+          mode: artistEnabled ? artistMode : "none",
         },
         memo: {
-          enabled: draft.objects.memo.enabled,
-          mode: draft.objects.memo.enabled ? "statefulAssetWithText" : "none",
+          enabled: memoEnabled,
+          mode: memoEnabled ? memoMode : "none",
         },
         weekDates: {
           enabled: draft.objects.weekDates.enabled,
