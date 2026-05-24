@@ -210,7 +210,9 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
                   }}
                   className="absolute z-20 flex justify-center items-center "
                 >
-                  {formatTime(primaryEntry?.time as string, 'half')}
+                  {primaryEntry?.isGuerrilla
+                    ? '게릴라'
+                    : formatTime(primaryEntry?.time as string, 'half')}
                 </p>
 
                 <div
