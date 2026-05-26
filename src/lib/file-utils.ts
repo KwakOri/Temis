@@ -2,6 +2,61 @@ import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 import { deleteFileFromR2, getFileUrl, uploadFileToR2 } from "./r2";
 
+export type UploadType = "character-images" | "reference-files";
+
+export interface UploadValidationOptions {
+  maxSize?: number;
+  allowedTypes?: string[];
+  maxCount?: number;
+}
+
+export interface UploadFileMetadata {
+  name: string;
+  size: number;
+  type: string;
+}
+
+export const DEFAULT_UPLOAD_VALIDATION_OPTIONS: UploadValidationOptions = {
+  maxSize: 10 * 1024 * 1024,
+  maxCount: 5,
+};
+
+export const UPLOAD_VALIDATION_OPTIONS: Record<
+  UploadType,
+  UploadValidationOptions
+> = {
+  "character-images": {
+    maxSize: 10 * 1024 * 1024,
+    allowedTypes: ["image/jpeg", "image/png", "image/webp"],
+    maxCount: 5,
+  },
+  "reference-files": {
+    maxSize: 100 * 1024 * 1024,
+    allowedTypes: [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/gif",
+      "application/pdf",
+    ],
+    maxCount: 10,
+  },
+};
+
+export function isUploadType(
+  uploadType: string | null
+): uploadType is UploadType {
+  return uploadType === "character-images" || uploadType === "reference-files";
+}
+
+export function getUploadValidationOptions(
+  uploadType: string | null | undefined
+): UploadValidationOptions {
+  return uploadType && isUploadType(uploadType)
+    ? UPLOAD_VALIDATION_OPTIONS[uploadType]
+    : DEFAULT_UPLOAD_VALIDATION_OPTIONS;
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -178,11 +233,8 @@ export async function getFilesByIds(
  * 파일 타입과 크기를 검증합니다.
  */
 export function validateFile(
-  file: File,
-  options: {
-    maxSize?: number; // bytes
-    allowedTypes?: string[];
-  } = {}
+  file: UploadFileMetadata,
+  options: UploadValidationOptions = {}
 ): { isValid: boolean; error?: string } {
   const { maxSize = 10 * 1024 * 1024, allowedTypes } = options; // 기본 10MB
 
@@ -211,12 +263,8 @@ export function validateFile(
  * 여러 파일을 검증합니다.
  */
 export function validateFiles(
-  files: File[],
-  options: {
-    maxSize?: number;
-    allowedTypes?: string[];
-    maxCount?: number;
-  } = {}
+  files: UploadFileMetadata[],
+  options: UploadValidationOptions = {}
 ): { isValid: boolean; error?: string } {
   const { maxCount = 10 } = options;
 
