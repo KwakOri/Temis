@@ -107,7 +107,10 @@ export default function CustomOrderForm({
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [uploadingFileType, setUploadingFileType] = useState<
+    "character" | "reference" | null
+  >(null);
+  const isUploadingFiles = uploadingFileType !== null;
 
   // React Query hooks
   const { data: priceOptions, isLoading: loadingPricing } =
@@ -362,7 +365,7 @@ export default function CustomOrderForm({
       return;
     }
 
-    if (uploadingFiles) {
+    if (isUploadingFiles) {
       alert("파일 업로드가 진행 중입니다. 잠시 후 다시 시도해주세요.");
       return;
     }
@@ -415,7 +418,9 @@ export default function CustomOrderForm({
       return;
     }
 
-    setUploadingFiles(true);
+    if (isUploadingFiles) return;
+
+    setUploadingFileType("character");
     try {
       const result = await uploadFilesMutation.mutateAsync({
         files: Array.from(files),
@@ -445,7 +450,7 @@ export default function CustomOrderForm({
         error instanceof Error ? error.message : "파일 업로드에 실패했습니다."
       );
     } finally {
-      setUploadingFiles(false);
+      setUploadingFileType(null);
     }
   };
 
@@ -465,7 +470,9 @@ export default function CustomOrderForm({
       return;
     }
 
-    setUploadingFiles(true);
+    if (isUploadingFiles) return;
+
+    setUploadingFileType("reference");
     try {
       const result = await uploadFilesMutation.mutateAsync({
         files: Array.from(files),
@@ -495,7 +502,7 @@ export default function CustomOrderForm({
         error instanceof Error ? error.message : "파일 업로드에 실패했습니다."
       );
     } finally {
-      setUploadingFiles(false);
+      setUploadingFileType(null);
     }
   };
 
@@ -760,9 +767,9 @@ export default function CustomOrderForm({
                       파일 선택
                     </label>
                   </div>
-                  {uploadingFiles && (
-                    <div className="mt-2 text-sm text-blue-600 flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  {uploadingFileType === "character" && (
+                    <div className="mt-2 text-sm text-primary flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
                       파일 업로드 중...
                     </div>
                   )}
@@ -881,6 +888,12 @@ export default function CustomOrderForm({
                       파일 선택
                     </label>
                   </div>
+                  {uploadingFileType === "reference" && (
+                    <div className="mt-2 text-sm text-primary flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                      레퍼런스 파일 업로드 중...
+                    </div>
+                  )}
                   {/* 참고 파일 미리보기 */}
                   <FilePreview
                     files={step2Data.referenceFiles}
@@ -931,7 +944,7 @@ export default function CustomOrderForm({
 
               {loadingPricing ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3a8a] mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                   <p className="text-dark-gray/70 mt-2">
                     가격 정보를 불러오는 중...
                   </p>

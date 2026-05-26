@@ -362,8 +362,8 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
         {isSaving ? (
           // 저장 중 상태 - 로딩 스피너 표시
           <div className="px-8 pt-6 pb-4 flex flex-col gap-4 items-center">
-            <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3E4A82]"></div>
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
             </div>
             <div className="text-center">
               <h3 className="text-lg font-bold text-gray-900 mb-2">
@@ -585,7 +585,7 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
           {isSaving ? (
             // 저장 중 상태 - 버튼 비활성화
             <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3E4A82]"></div>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
               <span className="text-sm text-gray-600">저장 중...</span>
             </div>
           ) : saveCompleted ? (

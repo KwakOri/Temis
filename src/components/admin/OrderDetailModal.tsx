@@ -1,9 +1,13 @@
 "use client";
 
+import { useAdminCustomOrders } from "@/hooks/query/useAdminOrders";
 import { usePriceOptions } from "@/hooks/query/usePricing";
 import { CustomOrderWithUser, FileData } from "@/types/admin";
 import { getOptionDisplayLabel } from "@/utils/optionLabelHelper";
 import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Eye,
   File,
@@ -11,6 +15,58 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { useState } from "react";
+
+const latestDeadlineQueryParams = {
+  status: "default",
+  page: 1,
+  limit: 1,
+  sortBy: "deadline",
+  sortOrder: "desc" as const,
+};
+
+const formatDateInputValue = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getDefaultDeadline = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  return formatDateInputValue(date);
+};
+
+const normalizeDateInputValue = (value?: string | null) => {
+  if (!value) return "";
+
+  const dateOnlyMatch = value.match(/^\d{4}-\d{2}-\d{2}/);
+  if (dateOnlyMatch) return dateOnlyMatch[0];
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return formatDateInputValue(date);
+};
+
+const addWeeksToDateInputValue = (value: string, weeks: number) => {
+  const normalizedValue = normalizeDateInputValue(value) || getDefaultDeadline();
+  const [year, month, day] = normalizedValue.split("-").map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + weeks * 7);
+  return formatDateInputValue(date);
+};
+
+const formatDisplayDate = (value?: string | null) => {
+  const normalizedValue = normalizeDateInputValue(value);
+  if (!normalizedValue) return null;
+
+  const [year, month, day] = normalizedValue.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+};
 
 interface OrderDetailModalProps {
   order: CustomOrderWithUser;
@@ -41,10 +97,28 @@ export default function OrderDetailModal({
   const [status, setStatus] = useState(order.status);
   const [notes, setNotes] = useState(order.admin_notes || "");
   const [price, setPrice] = useState(order.price_quoted || "");
-  const [deadline, setDeadline] = useState(order.deadline || "");
+  const [deadline, setDeadline] = useState(
+    normalizeDateInputValue(order.deadline) || getDefaultDeadline()
+  );
 
   // 가격 옵션 조회 (옵션 라벨 표시용)
   const { data: priceOptions } = usePriceOptions("timetable");
+  const { data: latestDeadlineData, isLoading: isLatestDeadlineLoading } =
+    useAdminCustomOrders(latestDeadlineQueryParams);
+
+  const latestDeadline = latestDeadlineData?.orders.find(
+    (queueOrder) => queueOrder.deadline
+  )?.deadline;
+  const latestDeadlineLabel = isLatestDeadlineLoading
+    ? "불러오는 중..."
+    : formatDisplayDate(latestDeadline) || "설정된 마감일 없음";
+  const deadlineInputId = `deadline-${order.id}`;
+
+  const adjustDeadlineByWeeks = (weeks: number) => {
+    setDeadline((currentDeadline) =>
+      addWeeksToDateInputValue(currentDeadline, weeks)
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,12 +375,68 @@ export default function OrderDetailModal({
                   <label className="block text-sm font-medium text-primary mb-1">
                     마감 기한
                   </label>
-                  <input
-                    type="date"
-                    value={deadline}
-                    onChange={(e) => setDeadline(e.target.value)}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <div className="rounded-xl border border-orange-100 bg-orange-50/40 p-3">
+                    <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,0.45fr)_minmax(0,1fr)] gap-3">
+                      <div className="h-full rounded-lg border border-orange-200 bg-white px-4 py-3 shadow-sm">
+                        <div className="flex items-center gap-2 text-orange-600">
+                          <CalendarDays className="h-4 w-4" />
+                          <p className="text-xs font-semibold">
+                            마지막 주문의 마감일
+                          </p>
+                        </div>
+                        <p className="mt-2 text-xl font-bold text-gray-900">
+                          {latestDeadlineLabel}
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                          <div className="flex items-center justify-between gap-3 px-4 py-3">
+                            <div>
+                              <p className="text-xs font-medium text-gray-500">
+                                선택된 마감일
+                              </p>
+                              <p className="mt-1 text-2xl font-bold text-gray-900">
+                                {formatDisplayDate(deadline) || "날짜 미설정"}
+                              </p>
+                            </div>
+                            <label
+                              htmlFor={deadlineInputId}
+                              className="shrink-0 cursor-pointer rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-orange-100 transition-colors"
+                            >
+                              직접 설정
+                            </label>
+                            <input
+                              id={deadlineInputId}
+                              type="date"
+                              value={deadline}
+                              onChange={(e) => setDeadline(e.target.value)}
+                              className="sr-only"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => adjustDeadlineByWeeks(-1)}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-orange-200 hover:bg-orange-50 transition-colors"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            - 1주
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => adjustDeadlineByWeeks(1)}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-orange-200 hover:bg-orange-50 transition-colors"
+                          >
+                            + 1주
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -457,17 +587,17 @@ function NewFileManager({ files, title = "첨부파일" }: NewFileManagerProps) 
   };
 
   // 파일 미리보기
-  const previewFile = async (fileId: string) => {
+  const previewFile = (fileId: string) => {
     try {
-      const response = await fetch(`/api/admin/files/${fileId}/preview`, {
-        credentials: "include",
-      });
+      const previewWindow = window.open(
+        `/api/admin/files/${fileId}/preview`,
+        "_blank"
+      );
 
-      if (response.ok) {
-        const data = await response.json();
-        window.open(data.url, "_blank");
+      if (!previewWindow) {
+        alert("미리보기 창을 열 수 없습니다. 팝업 차단 설정을 확인해주세요.");
       } else {
-        alert("파일 미리보기에 실패했습니다.");
+        previewWindow.opener = null;
       }
     } catch (error) {
       console.error("Preview failed:", error);
