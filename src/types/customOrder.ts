@@ -74,6 +74,11 @@ export interface CustomOrderHistoryResponse {
   orders: CustomOrderWithStatus[];
 }
 
+export interface EstimatedDeadlineResponse {
+  latestDeadline: string | null;
+  estimatedDeadline: string;
+}
+
 export interface LegacyOrderLocal {
   id: string;
   email: string;

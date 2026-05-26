@@ -22,6 +22,8 @@ export const queryKeys = {
     all: ["customOrder"] as const,
     history: () => [...queryKeys.customOrder.all, "history"] as const,
     orders: () => [...queryKeys.customOrder.all, "orders"] as const,
+    estimatedDeadline: () =>
+      [...queryKeys.customOrder.all, "estimatedDeadline"] as const,
   },
   file: {
     all: ["file"] as const,
@@ -78,10 +80,15 @@ export const queryKeys = {
       [...queryKeys.admin.all, "template", templateId] as const,
     templatePlans: (templateId?: string) =>
       [...queryKeys.admin.all, "templatePlans", templateId] as const,
+    customOrdersRoot: () => [...queryKeys.admin.all, "customOrders"] as const,
     customOrders: (params?: GetCustomOrdersParams) =>
-      [...queryKeys.admin.all, "customOrders", params] as const,
+      params
+        ? [...queryKeys.admin.customOrdersRoot(), params] as const
+        : queryKeys.admin.customOrdersRoot(),
+    calendarRoot: (type: "custom" | "legacy") =>
+      [...queryKeys.admin.all, "calendar", type] as const,
     calendar: (type: "custom" | "legacy", startDate: string, endDate: string) =>
-      [...queryKeys.admin.all, "calendar", type, startDate, endDate] as const,
+      [...queryKeys.admin.calendarRoot(type), startDate, endDate] as const,
     purchaseRequests: () =>
       [...queryKeys.admin.all, "purchaseRequests"] as const,
     workSchedule: () => [...queryKeys.admin.all, "workSchedule"] as const,
