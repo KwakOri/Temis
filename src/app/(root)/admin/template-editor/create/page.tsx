@@ -1,7 +1,14 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { FormEvent, ReactNode, useMemo, useState } from 'react';
+import {
+  CSSProperties,
+  FormEvent,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   Check,
   ChevronLeft,
@@ -480,6 +487,132 @@ const ObjectCapabilityCard = ({
         </div>
       ) : null}
     </section>
+  );
+};
+
+const v2_ALPHA_CHECKER_MAT_STYLE: CSSProperties = {
+  backgroundColor: '#ffffff',
+  backgroundImage:
+    'linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)',
+  backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0',
+  backgroundSize: '16px 16px',
+};
+
+const AlphaCheckerMat = ({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) => (
+  <span className={className} style={v2_ALPHA_CHECKER_MAT_STYLE}>
+    {children}
+  </span>
+);
+
+const AssetRequirementUploadCard = ({
+  requirement,
+  selectedFile,
+  onFileChange,
+}: {
+  requirement: V2TemplateAssetRequirement;
+  selectedFile?: File | null;
+  onFileChange: (file: File | null) => void;
+}) => {
+  const inputId = `asset-file-${requirement.id.replace(
+    /[^a-zA-Z0-9_-]/g,
+    '-'
+  )}`;
+  const previewUrl = useMemo(
+    () => (selectedFile ? URL.createObjectURL(selectedFile) : null),
+    [selectedFile]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-3">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">
+            {requirement.label}
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1">
+          {requirement.state ? (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+              {requirement.state.toUpperCase()}
+            </span>
+          ) : null}
+          {requirement.dayKey ? (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+              {requirement.dayKey}
+            </span>
+          ) : null}
+          {requirement.required ? (
+            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
+              필수
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      <input
+        id={inputId}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+      />
+      <label
+        htmlFor={inputId}
+        className={`group flex aspect-video cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed text-center transition ${
+          previewUrl
+            ? 'border-slate-300 bg-white'
+            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+        }`}
+      >
+        {previewUrl ? (
+          <AlphaCheckerMat className="relative block h-full w-full">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt={`${requirement.label} 미리보기`}
+              className="h-full w-full object-contain"
+            />
+            <span className="absolute inset-x-0 bottom-0 bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100">
+              이미지 변경
+            </span>
+          </AlphaCheckerMat>
+        ) : (
+          <AlphaCheckerMat className="flex h-full w-full items-center justify-center">
+            <span className="flex flex-col items-center gap-2 rounded-md bg-white/85 px-4 py-3 text-xs font-semibold shadow-sm ring-1 ring-slate-200/70">
+              <ImagePlus className="h-5 w-5 text-slate-400" />
+              이미지 선택
+            </span>
+          </AlphaCheckerMat>
+        )}
+      </label>
+
+      {selectedFile ? (
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
+          <span className="min-w-0 truncate">{selectedFile.name}</span>
+          <button
+            type="button"
+            onClick={() => onFileChange(null)}
+            className="shrink-0 font-semibold text-slate-900 hover:text-rose-600"
+          >
+            제거
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 };
 
@@ -1456,82 +1589,13 @@ const TemplateEditorCreatePage = () => {
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {group.requirements.map((requirement) => {
                   const selectedFile = assetFilesByRequirementId[requirement.id];
-                  const inputId = `asset-file-${requirement.id.replace(
-                    /[^a-zA-Z0-9_-]/g,
-                    '-'
-                  )}`;
                   return (
-                    <div
+                    <AssetRequirementUploadCard
                       key={requirement.id}
-                      className="rounded-md border border-slate-200 bg-white p-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">
-                            {requirement.label}
-                          </p>
-                          <p className="mt-1 text-xs text-slate-500">
-                            {requirement.assetRef.source}: {requirement.assetRef.key}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 flex-wrap justify-end gap-1">
-                          {requirement.state ? (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                              {requirement.state.toUpperCase()}
-                            </span>
-                          ) : null}
-                          {requirement.dayKey ? (
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                              {requirement.dayKey}
-                            </span>
-                          ) : null}
-                          {requirement.required ? (
-                            <span className="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-semibold text-white">
-                              필수
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="mt-3 space-y-2">
-                        <input
-                          id={inputId}
-                          type="file"
-                          accept="image/*"
-                          className="sr-only"
-                          onChange={(event) =>
-                            updateAssetFile(
-                              requirement.id,
-                              event.target.files?.[0] ?? null
-                            )
-                          }
-                        />
-                        <label
-                          htmlFor={inputId}
-                          className="block cursor-pointer rounded-md border border-slate-300 px-3 py-2 text-center text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          이미지 선택
-                        </label>
-                        {selectedFile ? (
-                          <div className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
-                            <span className="min-w-0 truncate">
-                              {selectedFile.name}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => updateAssetFile(requirement.id, null)}
-                              className="shrink-0 font-semibold text-slate-900 hover:text-rose-600"
-                            >
-                              제거
-                            </button>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-slate-400">
-                            생성 전에 업로드하면 기본 테마에 바로 세팅됩니다.
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                      requirement={requirement}
+                      selectedFile={selectedFile}
+                      onFileChange={(file) => updateAssetFile(requirement.id, file)}
+                    />
                   );
                 })}
               </div>
@@ -1543,9 +1607,9 @@ const TemplateEditorCreatePage = () => {
       return (
         <FieldBlock
           title="에셋 요구사항"
-          description="공통 카드가 기본이며, 필요한 경우에만 요일별 에셋 슬롯을 엽니다. 선택한 파일은 생성 직후 기본 테마에 업로드됩니다."
+          description="카드 배경의 공통/요일별 모드와 템플릿 이미지 슬롯을 설정합니다."
         >
-          <div className="space-y-3">
+          <div className="space-y-5">
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
               업로드 대상 테마{' '}
               <span className="font-semibold text-slate-950">
@@ -1556,10 +1620,15 @@ const TemplateEditorCreatePage = () => {
                 : ''}
             </div>
 
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">
-                카드 에셋 모드
-              </p>
+            <section className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-slate-950">
+                  카드 에셋 모드
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  요일별 이미지가 필요한 카드만 개별 슬롯을 엽니다.
+                </p>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 {cardAssetOptions.map((option) => {
                   const selectedMode = draft.cardAssets[option.key];
@@ -1605,25 +1674,32 @@ const TemplateEditorCreatePage = () => {
                   );
                 })}
               </div>
-            </div>
+            </section>
 
-            <div>
-              <p className="mb-2 text-sm font-medium text-slate-700">
-                생성될 에셋 그룹
-              </p>
+            <section className="rounded-xl border border-slate-200 bg-white p-4">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-slate-950">
+                  이미지 업로드
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  각 슬롯의 16:9 영역을 눌러 이미지를 선택합니다.
+                </p>
+              </div>
               {renderAssetGroups(templateAssetRequirementGroups)}
-            </div>
+            </section>
 
             {developmentAssetRequirementGroups.length > 0 ? (
-              <div>
-                <p className="mb-2 text-sm font-medium text-slate-700">
-                  개발/검수 보조 에셋
-                </p>
-                <p className="mb-3 text-xs text-slate-500">
-                  가이드 레이어와 더미 이미지는 최종 제작 에셋과 분리해 관리합니다.
-                </p>
+              <section className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                <div className="mb-4">
+                  <h3 className="text-sm font-semibold text-slate-950">
+                    개발/검수 보조 에셋
+                  </h3>
+                  <p className="mt-1 text-xs text-slate-500">
+                    가이드 레이어와 더미 이미지는 최종 제작 에셋과 분리해 관리합니다.
+                  </p>
+                </div>
                 {renderAssetGroups(developmentAssetRequirementGroups)}
-              </div>
+              </section>
             ) : null}
           </div>
         </FieldBlock>
