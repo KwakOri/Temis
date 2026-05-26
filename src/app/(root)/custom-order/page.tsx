@@ -3,17 +3,42 @@
 import BackButton from "@/components/BackButton";
 import CustomOrderForm from "@/components/shop/CustomOrderForm";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSubmitCustomOrder } from "@/hooks/query/useCustomOrder";
+import {
+  useEstimatedCustomOrderDeadline,
+  useSubmitCustomOrder,
+} from "@/hooks/query/useCustomOrder";
 import { CustomOrderFormData } from "@/types/customOrder";
-import { Palette } from "lucide-react";
+import { CalendarDays, Palette } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+
+const formatDisplayDate = (value?: string | null) => {
+  if (!value) return null;
+
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return null;
+
+  return new Date(year, month - 1, day).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+};
 
 export default function CustomOrderPage() {
   const { user } = useAuth();
   const [showOrderForm, setShowOrderForm] = useState(false);
 
   const submitOrderMutation = useSubmitCustomOrder();
+  const {
+    data: estimatedDeadlineData,
+    isLoading: isEstimatedDeadlineLoading,
+  } = useEstimatedCustomOrderDeadline();
+
+  const estimatedDeadlineLabel = isEstimatedDeadlineLoading
+    ? "확인 중..."
+    : formatDisplayDate(estimatedDeadlineData?.estimatedDeadline) ||
+      "문의 후 안내";
 
   const handleOrderSubmit = async (formData: CustomOrderFormData) => {
     try {
@@ -67,16 +92,35 @@ export default function CustomOrderPage() {
             <BackButton className="mb-6" />
 
             <div className="bg-timetable-form-bg rounded-2xl shadow-xl p-6 md:p-8 border border-tertiary mb-8">
-              <div className="text-center mb-6 md:mb-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 bg-primary">
-                  <Palette className="w-8 h-8 text-white" />
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] items-start gap-4 mb-6 md:mb-8">
+                <div className="hidden lg:block" />
+
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 bg-primary">
+                    <Palette className="w-8 h-8 text-white" />
+                  </div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-dark-gray mb-2">
+                    맞춤형 시간표 제작
+                  </h1>
+                  <p className="text-dark-gray/70">
+                    나만의 특별한 시간표를 제작해보세요
+                  </p>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold text-dark-gray mb-2">
-                  맞춤형 시간표 제작
-                </h1>
-                <p className="text-dark-gray/70">
-                  나만의 특별한 시간표를 제작해보세요
-                </p>
+
+                <div className="w-full lg:max-w-xs lg:justify-self-end rounded-lg border border-primary/20 bg-white/80 px-4 py-3 text-left shadow-sm">
+                  <div className="flex items-center gap-2 text-primary">
+                    <CalendarDays className="h-4 w-4" />
+                    <p className="text-xs font-semibold">
+                      현재 신청 기준 예상 마감일
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xl font-bold text-dark-gray">
+                    {estimatedDeadlineLabel}
+                  </p>
+                  <p className="mt-1 text-xs text-dark-gray/60">
+                    현재 대기열의 마지막 마감일 기준
+                  </p>
+                </div>
               </div>
 
               {/* 컨텐츠 영역 */}

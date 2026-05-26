@@ -2,6 +2,7 @@ import {
   CancelCustomOrderResponse,
   CustomOrderFormData,
   CustomOrderHistoryResponse,
+  EstimatedDeadlineResponse,
   SubmitCustomOrderResponse,
 } from "@/types/customOrder";
 
@@ -15,6 +16,18 @@ export class CustomOrderService {
 
     if (!response.ok) {
       throw new Error("커스텀 주문 내역을 가져오는데 실패했습니다.");
+    }
+
+    return response.json();
+  }
+
+  static async getEstimatedDeadline(): Promise<EstimatedDeadlineResponse> {
+    const response = await fetch(`${this.baseUrl}/estimated-deadline`, {
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new Error("예상 마감일을 가져오는데 실패했습니다.");
     }
 
     return response.json();
