@@ -384,7 +384,7 @@ export default function OrderDetailsModal({
 
               {filesLoading && (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                   <p className="ml-3 text-slate-600">파일을 불러오는 중...</p>
                 </div>
               )}

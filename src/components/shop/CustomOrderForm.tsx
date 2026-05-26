@@ -944,7 +944,7 @@ export default function CustomOrderForm({
 
               {loadingPricing ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1e3a8a] mx-auto"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                   <p className="text-dark-gray/70 mt-2">
                     가격 정보를 불러오는 중...
                   </p>
