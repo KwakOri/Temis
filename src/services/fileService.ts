@@ -5,6 +5,7 @@ import {
 } from "@/types/file";
 
 type UploadType = "character-images" | "reference-files";
+const BYTES_PER_MB = 1000 * 1000;
 
 interface PresignUploadResponse {
   uploads: {
@@ -23,12 +24,12 @@ const UPLOAD_LIMITS: Record<
   }
 > = {
   "character-images": {
-    maxSize: 10 * 1024 * 1024,
+    maxSize: 10 * BYTES_PER_MB,
     maxCount: 5,
     allowedTypes: ["image/jpeg", "image/png", "image/webp"],
   },
   "reference-files": {
-    maxSize: 100 * 1024 * 1024,
+    maxSize: 100 * BYTES_PER_MB,
     maxCount: 10,
     allowedTypes: [
       "image/jpeg",
@@ -76,7 +77,7 @@ export class FileService {
     for (const file of files) {
       if (file.size > limits.maxSize) {
         throw new Error(
-          `파일 크기는 ${Math.round(limits.maxSize / 1024 / 1024)}MB 이하여야 합니다.`
+          `파일 크기는 ${Math.round(limits.maxSize / BYTES_PER_MB)}MB 이하여야 합니다.`
         );
       }
 

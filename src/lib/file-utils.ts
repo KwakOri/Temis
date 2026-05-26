@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { deleteFileFromR2, getFileUrl, uploadFileToR2 } from "./r2";
 
 export type UploadType = "character-images" | "reference-files";
+const BYTES_PER_MB = 1000 * 1000;
 
 export interface UploadValidationOptions {
   maxSize?: number;
@@ -17,7 +18,7 @@ export interface UploadFileMetadata {
 }
 
 export const DEFAULT_UPLOAD_VALIDATION_OPTIONS: UploadValidationOptions = {
-  maxSize: 10 * 1024 * 1024,
+  maxSize: 10 * BYTES_PER_MB,
   maxCount: 5,
 };
 
@@ -26,12 +27,12 @@ export const UPLOAD_VALIDATION_OPTIONS: Record<
   UploadValidationOptions
 > = {
   "character-images": {
-    maxSize: 10 * 1024 * 1024,
+    maxSize: 10 * BYTES_PER_MB,
     allowedTypes: ["image/jpeg", "image/png", "image/webp"],
     maxCount: 5,
   },
   "reference-files": {
-    maxSize: 100 * 1024 * 1024,
+    maxSize: 100 * BYTES_PER_MB,
     allowedTypes: [
       "image/jpeg",
       "image/png",
@@ -236,14 +237,14 @@ export function validateFile(
   file: UploadFileMetadata,
   options: UploadValidationOptions = {}
 ): { isValid: boolean; error?: string } {
-  const { maxSize = 10 * 1024 * 1024, allowedTypes } = options; // 기본 10MB
+  const { maxSize = 10 * BYTES_PER_MB, allowedTypes } = options; // 기본 10MB
 
   // 파일 크기 검증
   if (file.size > maxSize) {
     return {
       isValid: false,
       error: `파일 크기는 ${Math.round(
-        maxSize / 1024 / 1024
+        maxSize / BYTES_PER_MB
       )}MB 이하여야 합니다.`,
     };
   }
