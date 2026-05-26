@@ -25,6 +25,18 @@ export function PublicRegisterForm({
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const passwordChecks = [
+    formData.password.length >= 8,
+    /[A-Z]/.test(formData.password),
+    /[a-z]/.test(formData.password),
+    /[0-9]/.test(formData.password),
+    /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
+  ];
+  const isPasswordValid = passwordChecks.every(Boolean);
+  const hasConfirmPassword = formData.confirmPassword.length > 0;
+  const isPasswordMismatch =
+    hasConfirmPassword && formData.password !== formData.confirmPassword;
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -39,6 +51,12 @@ export function PublicRegisterForm({
     e.preventDefault();
     setIsLoading(true);
     setError("");
+
+    if (!isPasswordValid) {
+      setError("비밀번호 조건을 확인해주세요.");
+      setIsLoading(false);
+      return;
+    }
 
     // 비밀번호 확인
     if (formData.password !== formData.confirmPassword) {
@@ -60,7 +78,7 @@ export function PublicRegisterForm({
       } else {
         setError(result.error || "회원가입에 실패했습니다.");
       }
-    } catch (error) {
+    } catch {
       setError("회원가입 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -70,42 +88,67 @@ export function PublicRegisterForm({
   // 성공 상태 표시
   if (isSuccess) {
     return (
-      <div className={`max-w-md mx-auto ${className}`}>
-        <div className="text-center p-8 bg-gradient-to-br from-secondary/20 to-primary/20 rounded-2xl border border-secondary/30 shadow-lg">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary rounded-full mb-6 shadow-lg">
-            <svg
-              className="w-10 h-10 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
-          <h3 className="text-xl font-bold text-dark-gray mb-3">
-            회원가입 신청 완료! 🎉
-          </h3>
-          <p className="text-dark-gray/70 mb-4 leading-relaxed">
-            입력하신 이메일 주소로 <strong>인증 링크</strong>를 발송했습니다.
-          </p>
-          <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 mb-6 border border-white/50">
-            <p className="text-sm text-dark-gray/70 leading-relaxed">
-              📧 이메일을 확인하고 인증 링크를 클릭하여
+      <div className={`max-w-lg mx-auto ${className}`}>
+        <div className="overflow-hidden rounded-2xl border border-tertiary bg-timetable-form-bg shadow-xl">
+          <div className="h-2 bg-gradient-to-r from-primary to-secondary" />
+          <div className="p-7 md:p-8 text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-5 bg-primary/10 border border-primary/20">
+              <svg
+                className="w-8 h-8 text-primary"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-2xl font-bold text-dark-gray mb-3">
+              회원가입 신청 완료
+            </h3>
+            <p className="text-dark-gray/70 leading-relaxed">
+              입력하신 이메일로 인증 링크를 보냈습니다.
               <br />
-              <strong>회원가입을 완료</strong>해 주세요.
+              메일 인증까지 완료하면 계정을 사용할 수 있어요.
             </p>
+
+            <div className="my-6 border-y border-tertiary/70 divide-y divide-tertiary/70 text-left">
+              <div className="flex gap-3 py-3">
+                <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                  1
+                </span>
+                <p className="text-sm text-dark-gray/70">
+                  메일함에서 Temis 인증 메일을 확인해 주세요.
+                </p>
+              </div>
+              <div className="flex gap-3 py-3">
+                <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                  2
+                </span>
+                <p className="text-sm text-dark-gray/70">
+                  인증 링크를 누르면 가입이 최종 완료됩니다.
+                </p>
+              </div>
+              <div className="flex gap-3 py-3">
+                <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                  3
+                </span>
+                <p className="text-sm text-dark-gray/70">
+                  메일이 보이지 않으면 스팸함도 함께 확인해 주세요.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onBack}
+              className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            >
+              로그인 페이지로 돌아가기
+            </button>
           </div>
-          <button
-            onClick={onBack}
-            className="text-sm text-primary hover:text-primary/80 font-medium transition-colors underline decoration-2 underline-offset-4"
-          >
-            로그인 페이지로 돌아가기
-          </button>
         </div>
       </div>
     );
@@ -172,20 +215,42 @@ export function PublicRegisterForm({
             placeholder="비밀번호를 입력하세요"
             disabled={isLoading}
           />
-          <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-3">
-            <p className="text-xs text-red-700 flex items-center">
+          <div
+            className={`mt-2 rounded-lg border p-3 transition-colors ${
+              isPasswordValid
+                ? "bg-green-50 border-green-200"
+                : "bg-red-50 border-red-200"
+            }`}
+          >
+            <p
+              className={`text-xs flex items-center ${
+                isPasswordValid ? "text-green-700" : "text-red-700"
+              }`}
+            >
               <svg
-                className="w-3 h-3 mr-1 text-red-600"
+                className={`w-3 h-3 mr-1 ${
+                  isPasswordValid ? "text-green-600" : "text-red-600"
+                }`}
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                  clipRule="evenodd"
-                />
+                {isPasswordValid ? (
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clipRule="evenodd"
+                  />
+                ) : (
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                    clipRule="evenodd"
+                  />
+                )}
               </svg>
-              최소 8자, 대소문자, 숫자, 특수문자 포함
+              {isPasswordValid
+                ? "비밀번호 조건을 충족했습니다."
+                : "최소 8자, 대소문자, 숫자, 특수문자 포함"}
             </p>
           </div>
         </div>
@@ -208,6 +273,17 @@ export function PublicRegisterForm({
             placeholder="비밀번호를 다시 입력하세요"
             disabled={isLoading}
           />
+          {hasConfirmPassword && (
+            <p
+              className={`mt-2 text-xs ${
+                isPasswordMismatch ? "text-red-700" : "text-green-700"
+              }`}
+            >
+              {isPasswordMismatch
+                ? "비밀번호가 일치하지 않습니다."
+                : "비밀번호가 일치합니다."}
+            </p>
+          )}
         </div>
 
         {error && (
