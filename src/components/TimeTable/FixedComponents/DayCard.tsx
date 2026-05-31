@@ -2,6 +2,7 @@ import { Toggle } from "@/components/TimeTable/FixedComponents/Toggle";
 import { cn } from "@/lib/utils";
 import { SizeProps } from "@/utils/utils";
 import { cva } from "class-variance-authority";
+import { useEffect, useState } from "react";
 import CardTitle from "./CardTitle";
 import { cardVariants } from "./styles";
 
@@ -46,6 +47,22 @@ export const DayCard: React.FC<DayCardProps> = ({
   },
   size = "md",
 }) => {
+  const [isContentOverflowVisible, setIsContentOverflowVisible] =
+    useState(!isOffline);
+
+  useEffect(() => {
+    if (isOffline) {
+      setIsContentOverflowVisible(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsContentOverflowVisible(true);
+    }, expandAnimation.duration ?? 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isOffline, expandAnimation.duration]);
+
   return (
     <div
       className={cn(
@@ -68,8 +85,11 @@ export const DayCard: React.FC<DayCardProps> = ({
       {/* 확장 가능한 콘텐츠 영역 */}
       <div
         className={cn(
-          "transition-all overflow-hidden",
-          isOffline ? "max-h-0 opacity-0" : `max-h-screen opacity-100`
+          "transition-all",
+          isOffline ? "max-h-0 opacity-0" : `max-h-screen opacity-100`,
+          !isOffline && isContentOverflowVisible
+            ? "overflow-visible"
+            : "overflow-hidden"
         )}
         style={{
           transitionDuration: `${expandAnimation.duration}ms`,
