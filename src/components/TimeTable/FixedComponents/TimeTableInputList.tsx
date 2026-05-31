@@ -187,6 +187,22 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     activeColor: "bg-[#3E4A82]",
     inactiveColor: "bg-gray-300",
   };
+  const entryFieldConfigs = cardInputConfig.fields.filter(
+    (fieldConfig) => !fieldConfig.isOffline
+  );
+  const offlineFieldConfigs = cardInputConfig.fields.filter(
+    (fieldConfig) => fieldConfig.isOffline
+  );
+
+  const getInitialCardFieldValue = (fieldConfig: SimpleFieldConfig) =>
+    fieldConfig.defaultValue ?? "";
+
+  const renderFieldLabel = (fieldConfig: SimpleFieldConfig) =>
+    fieldConfig.label && cardInputConfig.showLabels ? (
+      <label className={cn(labelVariants({ size: "xs" }), "block mb-1")}>
+        {fieldConfig.label}
+      </label>
+    ) : null;
 
   // 필드 렌더링 함수 (다중 엔트리 지원)
   const renderInputField = (
@@ -345,6 +361,105 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     }
   };
 
+  const renderCardField = (
+    fieldConfig: SimpleFieldConfig,
+    card: TDefaultCard,
+    dayIndex: number
+  ) => {
+    const value = String(
+      card[fieldConfig.key] ?? getInitialCardFieldValue(fieldConfig)
+    );
+
+    const commonClassName =
+      "w-full bg-gray-100 rounded-xl p-3 text-gray-700 placeholder-gray-400 focus:outline-none";
+
+    switch (fieldConfig.type) {
+      case "text":
+      case "date":
+        return (
+          <TextRenderer
+            height={size}
+            value={value}
+            placeholder={fieldConfig.placeholder || ""}
+            handleTextChange={(newValue) =>
+              handleCardFieldChange(dayIndex, fieldConfig.key, newValue)
+            }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
+            type={fieldConfig.type === "date" ? "date" : "text"}
+          />
+        );
+
+      case "textarea":
+        return (
+          <TextareaRenderer
+            value={value}
+            placeholder={fieldConfig.placeholder || ""}
+            handleTextareaChange={(newValue) =>
+              handleCardFieldChange(dayIndex, fieldConfig.key, newValue)
+            }
+            maxLength={fieldConfig.maxLength}
+            required={fieldConfig.required}
+            rows={3}
+          />
+        );
+
+      case "time":
+        return (
+          <AdaptiveTimeRenderer
+            height={size}
+            id={`${fieldConfig.key}-${dayIndex}-offline`}
+            value={value}
+            onChange={(newValue) =>
+              handleCardFieldChange(dayIndex, fieldConfig.key, newValue)
+            }
+          />
+        );
+
+      case "select":
+        return (
+          <select
+            value={value}
+            required={fieldConfig.required}
+            className={commonClassName}
+            onChange={(e) =>
+              handleCardFieldChange(dayIndex, fieldConfig.key, e.target.value)
+            }
+          >
+            <option value="" disabled>
+              {fieldConfig.placeholder}
+            </option>
+            {fieldConfig.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
+
+      case "number":
+        return (
+          <TextRenderer
+            height={size}
+            value={value}
+            placeholder={fieldConfig.placeholder || ""}
+            handleTextChange={(newValue) =>
+              handleCardFieldChange(
+                dayIndex,
+                fieldConfig.key,
+                isNaN(parseInt(newValue)) ? 0 : parseInt(newValue)
+              )
+            }
+            type="number"
+            required={fieldConfig.required}
+          />
+        );
+
+      default:
+        return null;
+    }
+  };
+
   // 엔트리 필드 변경 핸들러
   const handleEntryFieldChange = (
     dayIndex: number,
@@ -359,10 +474,39 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
     onDataChange(newData);
   };
 
+  const handleCardFieldChange = (
+    dayIndex: number,
+    field: string,
+    value: string | number | boolean
+  ) => {
+    const newData = [...data];
+    newData[dayIndex] = { ...newData[dayIndex], [field]: value };
+    onDataChange(newData);
+  };
+
   // 오프라인 토글 핸들러
   const handleOfflineToggle = (dayIndex: number) => {
     const newData = [...data];
-    newData[dayIndex].isOffline = !newData[dayIndex].isOffline;
+    const currentCard = newData[dayIndex];
+    const nextIsOffline = !currentCard.isOffline;
+    const nextCard: TDefaultCard = {
+      ...currentCard,
+      isOffline: nextIsOffline,
+    };
+
+    if (nextIsOffline) {
+      offlineFieldConfigs.forEach((fieldConfig) => {
+        if (nextCard[fieldConfig.key] !== undefined) return;
+
+        const entryValue = currentCard.entries?.[0]?.[fieldConfig.key];
+        nextCard[fieldConfig.key] =
+          entryValue !== undefined && !Array.isArray(entryValue)
+            ? entryValue
+            : getInitialCardFieldValue(fieldConfig);
+      });
+    }
+
+    newData[dayIndex] = nextCard;
     onDataChange(newData);
   };
 
@@ -445,7 +589,16 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
           offlineToggleLabel={offlineToggleConfig.label}
           expandAnimation={expandAnimation}
           offlineMemoContent={
-            isOfflineMemo && day.isOffline ? (
+            day.isOffline && offlineFieldConfigs.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {offlineFieldConfigs.map((fieldConfig) => (
+                  <div key={fieldConfig.key}>
+                    {renderFieldLabel(fieldConfig)}
+                    {renderCardField(fieldConfig, day, dayIndex)}
+                  </div>
+                ))}
+              </div>
+            ) : isOfflineMemo && day.isOffline ? (
               <OfflineMemoCard
                 content={day.offlineMemo || ""}
                 onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
@@ -467,22 +620,13 @@ const TimeTableInputList: React.FC<TimeTableInputListProps> = ({
                 variant="default"
                 size={size}
               >
-                {cardInputConfig.fields.map((fieldConfig) => {
+                {entryFieldConfigs.map((fieldConfig) => {
                   const isDefaultField =
                     fieldConfig.key in defaultFieldRenderers;
 
                   return (
                     <div key={fieldConfig.key}>
-                      {fieldConfig.label && cardInputConfig.showLabels && (
-                        <label
-                          className={cn(
-                            labelVariants({ size: "xs" }),
-                            "block mb-1"
-                          )}
-                        >
-                          {fieldConfig.label}
-                        </label>
-                      )}
+                      {renderFieldLabel(fieldConfig)}
                       {isDefaultField
                         ? renderDefaultField(
                             fieldConfig.key,

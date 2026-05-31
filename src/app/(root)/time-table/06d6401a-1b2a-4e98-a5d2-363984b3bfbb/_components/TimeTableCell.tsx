@@ -400,7 +400,12 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
   const entryTime = (primaryEntry.time as string) || '09:00';
   const entryMainTitle = (primaryEntry.mainTitle as string) || '';
   const entrySubTitle = (primaryEntry.subTitle as string) || '';
-  const offlineMemo = time.offlineMemo;
+  const offlineMemo = (time.offlineMemo ?? primaryEntry.offlineMemo) as
+    | string
+    | undefined;
+  const offlineType = (time.offlineType ??
+    primaryEntry.offlineType ??
+    'option_01') as SelectProps;
 
   console.log('time', time);
 
@@ -408,7 +413,7 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
     <>
       {time.isOffline ? (
         <OfflineCard
-          offlineType={time.offlineType as string as SelectProps}
+          offlineType={offlineType}
           offlineMemo={offlineMemo}
           day={time.day}
         />
