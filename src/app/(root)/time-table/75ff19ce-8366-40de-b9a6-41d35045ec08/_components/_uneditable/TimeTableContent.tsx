@@ -9,6 +9,7 @@ import { templateSize } from '../../_settings/settings';
 import TimeTableArtist from '../TimeTableArtist';
 import TimeTableBoard from '../TimeTableBoard';
 import TimeTableGrid from '../TimeTableGrid';
+import TimeTableProfile from '../TimeTableProfile';
 import TimeTableWeekFlag from '../TimeTableWeekFlag';
 
 export interface TimeTableContentProps {
@@ -54,6 +55,7 @@ const TimeTableContent: React.FC<TimeTableContentProps> = ({
       />
 
       <TimeTableBoard />
+      <TimeTableProfile currentTheme={currentTheme} imageSrc={imageSrc} />
     </div>
   );
 };
