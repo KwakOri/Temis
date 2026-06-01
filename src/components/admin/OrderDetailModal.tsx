@@ -14,7 +14,7 @@ import {
   FileText,
   Image as ImageIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const latestDeadlineQueryParams = {
   status: "default",
@@ -56,6 +56,13 @@ const addWeeksToDateInputValue = (value: string, weeks: number) => {
   return formatDateInputValue(date);
 };
 
+const getRecommendedDeadline = (latestDeadline?: string | null) => {
+  const normalizedLatestDeadline = normalizeDateInputValue(latestDeadline);
+  if (!normalizedLatestDeadline) return getDefaultDeadline();
+
+  return addWeeksToDateInputValue(normalizedLatestDeadline, 1);
+};
+
 const formatDisplayDate = (value?: string | null) => {
   const normalizedValue = normalizeDateInputValue(value);
   if (!normalizedValue) return null;
@@ -94,11 +101,19 @@ export default function OrderDetailModal({
   console.log("Selected Options:", order.selected_options);
   console.log("Design Keywords:", order.design_keywords);
 
+  const orderDeadline = normalizeDateInputValue(order.deadline);
   const [status, setStatus] = useState(order.status);
   const [notes, setNotes] = useState(order.admin_notes || "");
   const [price, setPrice] = useState(order.price_quoted || "");
   const [deadline, setDeadline] = useState(
-    normalizeDateInputValue(order.deadline) || getDefaultDeadline()
+    orderDeadline || getDefaultDeadline()
+  );
+  const [hasChangedDeadline, setHasChangedDeadline] = useState(
+    Boolean(orderDeadline)
+  );
+  const [isDeadlineModalOpen, setIsDeadlineModalOpen] = useState(false);
+  const [draftDeadline, setDraftDeadline] = useState(
+    orderDeadline || getDefaultDeadline()
   );
 
   // 가격 옵션 조회 (옵션 라벨 표시용)
@@ -112,12 +127,29 @@ export default function OrderDetailModal({
   const latestDeadlineLabel = isLatestDeadlineLoading
     ? "불러오는 중..."
     : formatDisplayDate(latestDeadline) || "설정된 마감일 없음";
-  const deadlineInputId = `deadline-${order.id}`;
+
+  useEffect(() => {
+    if (hasChangedDeadline) return;
+
+    setDeadline(getRecommendedDeadline(latestDeadline));
+  }, [hasChangedDeadline, latestDeadline]);
 
   const adjustDeadlineByWeeks = (weeks: number) => {
+    setHasChangedDeadline(true);
     setDeadline((currentDeadline) =>
       addWeeksToDateInputValue(currentDeadline, weeks)
     );
+  };
+
+  const openDeadlineModal = () => {
+    setDraftDeadline(deadline || getRecommendedDeadline(latestDeadline));
+    setIsDeadlineModalOpen(true);
+  };
+
+  const applyDraftDeadline = () => {
+    setHasChangedDeadline(true);
+    setDeadline(draftDeadline);
+    setIsDeadlineModalOpen(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -400,19 +432,13 @@ export default function OrderDetailModal({
                                 {formatDisplayDate(deadline) || "날짜 미설정"}
                               </p>
                             </div>
-                            <label
-                              htmlFor={deadlineInputId}
-                              className="shrink-0 cursor-pointer rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-orange-100 transition-colors"
+                            <button
+                              type="button"
+                              onClick={openDeadlineModal}
+                              className="shrink-0 rounded-full border border-orange-200 bg-orange-50 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-orange-100 transition-colors"
                             >
                               직접 설정
-                            </label>
-                            <input
-                              id={deadlineInputId}
-                              type="date"
-                              value={deadline}
-                              onChange={(e) => setDeadline(e.target.value)}
-                              className="sr-only"
-                            />
+                            </button>
                           </div>
                         </div>
 
@@ -420,7 +446,8 @@ export default function OrderDetailModal({
                           <button
                             type="button"
                             onClick={() => adjustDeadlineByWeeks(-1)}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-orange-200 hover:bg-orange-50 transition-colors"
+                            disabled={isLatestDeadlineLoading}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-orange-200 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                           >
                             <ChevronLeft className="h-4 w-4" />
                             - 1주
@@ -428,7 +455,8 @@ export default function OrderDetailModal({
                           <button
                             type="button"
                             onClick={() => adjustDeadlineByWeeks(1)}
-                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-orange-200 hover:bg-orange-50 transition-colors"
+                            disabled={isLatestDeadlineLoading}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 shadow-sm hover:border-orange-200 hover:bg-orange-50 disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
                           >
                             + 1주
                             <ChevronRight className="h-4 w-4" />
@@ -486,6 +514,46 @@ export default function OrderDetailModal({
           </form>
         </div>
       </div>
+      {isDeadlineModalOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+            <div className="mb-4">
+              <h4 className="text-base font-semibold text-primary">
+                마감일 직접 설정
+              </h4>
+              <p className="mt-1 text-sm text-gray-500">
+                적용할 마감일을 선택해주세요.
+              </p>
+            </div>
+            <label className="block text-sm font-medium text-gray-700">
+              마감일
+              <input
+                type="date"
+                value={draftDeadline}
+                onChange={(e) => setDraftDeadline(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsDeadlineModalOpen(false)}
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-secondary hover:bg-gray-50 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={applyDraftDeadline}
+                disabled={!draftDeadline}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 transition-colors"
+              >
+                적용
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
