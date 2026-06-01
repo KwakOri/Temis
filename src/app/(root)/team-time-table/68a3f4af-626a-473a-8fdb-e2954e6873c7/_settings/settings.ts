@@ -160,7 +160,7 @@ export const Settings: SettingsType = {
   },
 };
 
-export const team_ids = [8, 281, 362];
+export const team_ids = [5, 359, 247];
 
 export type TeamTimeTableMemberOrder = 'time' | 'member';
 
@@ -172,13 +172,13 @@ export const memberOrder = team_ids;
 export const dummyUnregisteredMemberIds: number[] = [];
 
 export const memberIdsMap = new Map([
-  [8, 'miruru'],
-  [281, 'pukong'],
-  [362, 'liffy'],
+  [5, 'miruru'],
+  [359, 'pukong'],
+  [247, 'liffy'],
 ]);
 
 export const memberNamesMap = new Map([
-  [8, '미루루'],
-  [281, '푸콩이'],
-  [362, '리피'],
+  [5, '미루루'],
+  [359, '푸콩이'],
+  [247, '리피'],
 ]);
