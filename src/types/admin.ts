@@ -417,6 +417,7 @@ export interface RecalculateRoyaltiesData {
   artistIds?: string[];
   templateId?: string;
   includePaid?: boolean;
+  includeManual?: boolean;
 }
 
 export interface RecalculateRoyaltiesResponse {

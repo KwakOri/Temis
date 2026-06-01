@@ -1,9 +1,11 @@
 "use client";
 
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
+import RoyaltyManualAdjustmentModal from "@/components/admin/RoyaltyManualAdjustmentModal";
 import {
   useAdminRoyaltySettlementRun,
   useMarkRoyaltiesPaid,
+  useRecalculateRoyalties,
   useUpdateRoyalty,
 } from "@/hooks/query/useAdminRoyalties";
 import { getAdminPathByTabId } from "@/lib/adminTabs";
@@ -13,6 +15,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   HandCoins,
+  RefreshCw,
   Settings,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -100,28 +103,37 @@ export default function RoyaltySettlementRunManagement({
   );
   const [month, setMonth] = useState(normalizedInitialMonth);
   const [draftMonth, setDraftMonth] = useState(normalizedInitialMonth);
-  const [amountDrafts, setAmountDrafts] = useState<Record<string, string>>({});
+  const [manualRoyalty, setManualRoyalty] = useState<RoyaltySaleItem | null>(
+    null
+  );
+  const [manualAmountDraft, setManualAmountDraft] = useState("");
 
   useEffect(() => {
     setMonth(normalizedInitialMonth);
     setDraftMonth(normalizedInitialMonth);
-    setAmountDrafts({});
+    setManualRoyalty(null);
+    setManualAmountDraft("");
   }, [normalizedInitialMonth]);
 
   const settlementRunQuery = useAdminRoyaltySettlementRun(month);
   const markPaidMutation = useMarkRoyaltiesPaid();
   const updateRoyaltyMutation = useUpdateRoyalty();
+  const recalculateRoyaltiesMutation = useRecalculateRoyalties();
   const data = settlementRunQuery.data;
   const summary = data?.summary;
   const artists = data?.artists || [];
   const hasMissingRules = (summary?.missingRuleCount || 0) > 0;
   const hasTargets = (summary?.salesCount || 0) > 0;
-  const isBusy = markPaidMutation.isPending || updateRoyaltyMutation.isPending;
+  const isBusy =
+    markPaidMutation.isPending ||
+    updateRoyaltyMutation.isPending ||
+    recalculateRoyaltiesMutation.isPending;
 
   const goToMonth = (nextMonth: string) => {
     setMonth(nextMonth);
     setDraftMonth(nextMonth);
-    setAmountDrafts({});
+    setManualRoyalty(null);
+    setManualAmountDraft("");
     router.push(`/admin/settlements/run?month=${nextMonth}`);
   };
 
@@ -155,7 +167,6 @@ export default function RoyaltySettlementRunManagement({
       });
 
       alert(`${result.updatedCount}건을 정산 완료 처리했습니다.`);
-      setAmountDrafts({});
     } catch (error) {
       alert(
         error instanceof Error
@@ -165,9 +176,51 @@ export default function RoyaltySettlementRunManagement({
     }
   };
 
-  const updateRoyaltyAmount = async (royalty: RoyaltySaleItem) => {
-    const draftValue = amountDrafts[royalty.id] ?? String(royalty.royaltyAmount);
-    const nextAmount = Number(draftValue);
+  const recalculateCurrentMonth = async () => {
+    if (!summary || !hasTargets) {
+      return;
+    }
+
+    if (
+      !confirm(
+        `${formatMonthLabel(summary.month)} 미정산 로열티를 현재 설정 기준으로 재계산할까요?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const result = await recalculateRoyaltiesMutation.mutateAsync({
+        from: summary.periodFrom,
+        to: summary.periodTo,
+      });
+
+      alert(`${result.updatedCount}건을 재계산했습니다.`);
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "로열티 재계산 중 오류가 발생했습니다."
+      );
+    }
+  };
+
+  const openManualRoyaltyModal = (royalty: RoyaltySaleItem) => {
+    setManualRoyalty(royalty);
+    setManualAmountDraft(String(royalty.royaltyAmount));
+  };
+
+  const closeManualRoyaltyModal = () => {
+    setManualRoyalty(null);
+    setManualAmountDraft("");
+  };
+
+  const saveManualRoyaltyAmount = async () => {
+    if (!manualRoyalty) {
+      return;
+    }
+
+    const nextAmount = Number(manualAmountDraft.replace(/,/g, "").trim());
 
     if (!Number.isFinite(nextAmount) || nextAmount < 0) {
       alert("정산금액은 0 이상의 숫자로 입력해주세요.");
@@ -176,22 +229,39 @@ export default function RoyaltySettlementRunManagement({
 
     try {
       await updateRoyaltyMutation.mutateAsync({
-        id: royalty.id,
+        id: manualRoyalty.id,
         data: {
           royaltyAmount: Math.round(nextAmount),
         },
       });
-
-      setAmountDrafts((prev) => {
-        const next = { ...prev };
-        delete next[royalty.id];
-        return next;
-      });
+      closeManualRoyaltyModal();
     } catch (error) {
       alert(
         error instanceof Error
           ? error.message
           : "정산금액 저장 중 오류가 발생했습니다."
+      );
+    }
+  };
+
+  const resetManualRoyaltyToRule = async () => {
+    if (!manualRoyalty) {
+      return;
+    }
+
+    try {
+      const result = await recalculateRoyaltiesMutation.mutateAsync({
+        royaltyIds: [manualRoyalty.id],
+        includeManual: true,
+      });
+
+      alert(`${result.updatedCount}건을 현재 규칙으로 갱신했습니다.`);
+      closeManualRoyaltyModal();
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "로열티 재계산 중 오류가 발생했습니다."
       );
     }
   };
@@ -341,15 +411,32 @@ export default function RoyaltySettlementRunManagement({
               작가별 상세를 펼치면 상품 판매 기록과 로열티 산정 방식을 확인할 수 있습니다.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={completeSettlement}
-            disabled={!hasTargets || hasMissingRules || isBusy}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-secondary disabled:opacity-50"
-          >
-            <HandCoins className="h-4 w-4" />
-            정산 완료 처리
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={recalculateCurrentMonth}
+              disabled={!hasTargets || isBusy || settlementRunQuery.isLoading}
+              className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${
+                  recalculateRoyaltiesMutation.isPending ? "animate-spin" : ""
+                }`}
+              />
+              {recalculateRoyaltiesMutation.isPending
+                ? "재계산 중"
+                : "현재 규칙으로 재계산"}
+            </button>
+            <button
+              type="button"
+              onClick={completeSettlement}
+              disabled={!hasTargets || hasMissingRules || isBusy}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-md text-sm font-medium hover:bg-secondary disabled:opacity-50"
+            >
+              <HandCoins className="h-4 w-4" />
+              정산 완료 처리
+            </button>
+          </div>
         </div>
 
         {settlementRunQuery.isLoading ? (
@@ -432,9 +519,6 @@ export default function RoyaltySettlementRunManagement({
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {artist.royalties.map((royalty) => {
-                        const draftAmount =
-                          amountDrafts[royalty.id] ??
-                          String(royalty.royaltyAmount);
                         const isMissing = royalty.royaltySource === "missing";
 
                         return (
@@ -473,28 +557,18 @@ export default function RoyaltySettlementRunManagement({
                                 )}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-right">
-                              <input
-                                type="number"
-                                min={0}
-                                value={draftAmount}
-                                onChange={(event) =>
-                                  setAmountDrafts((prev) => ({
-                                    ...prev,
-                                    [royalty.id]: event.target.value,
-                                  }))
-                                }
-                                className="w-28 px-2 py-1 border border-gray-300 rounded text-right text-sm"
-                              />
+                            <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
+                              {formatWon(royalty.royaltyAmount)}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <button
                                 type="button"
-                                onClick={() => updateRoyaltyAmount(royalty)}
+                                onClick={() => openManualRoyaltyModal(royalty)}
                                 disabled={isBusy}
-                                className="px-3 py-1 border border-gray-300 rounded text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                                aria-label={`${royalty.artistName} ${royalty.templateName} 수동 정산 조정`}
                               >
-                                저장
+                                <Settings className="h-4 w-4" />
                               </button>
                             </td>
                           </tr>
@@ -508,6 +582,25 @@ export default function RoyaltySettlementRunManagement({
           </div>
         )}
       </section>
+
+      <RoyaltyManualAdjustmentModal
+        amountDraft={manualAmountDraft}
+        formatDate={formatDate}
+        formatWon={formatWon}
+        getRuleDetail={(royalty) =>
+          formatRuleValue(
+            royalty.royaltyTypeSnapshot,
+            royalty.royaltyValueSnapshot
+          )
+        }
+        getRuleLabel={getRuleSourceLabel}
+        isBusy={isBusy}
+        onAmountDraftChange={setManualAmountDraft}
+        onApplyRule={resetManualRoyaltyToRule}
+        onClose={closeManualRoyaltyModal}
+        onSave={saveManualRoyaltyAmount}
+        royalty={manualRoyalty}
+      />
     </div>
   );
 }
