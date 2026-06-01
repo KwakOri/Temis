@@ -1,5 +1,6 @@
 import { CardInputConfig, TLanOpt } from '@/types/time-table/data';
 import { TButtonTheme } from '@/types/time-table/theme';
+import { CSSProperties } from 'react';
 
 export interface CardSizesProps {
   ONLINE: {
@@ -32,8 +33,8 @@ export const templateSize = {
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const BASE_FONTS = {
-  PRIMARY: 'GeekbleMalrangiche',
-  SECONDARY: 'SchoolSafetyNotification',
+  PRIMARY: 'BookkMyungjo',
+  SECONDARY: '',
   TERTIARY: '',
   QUATERNARY: '',
 };
@@ -70,8 +71,8 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const BASE_COLORS = {
   first: {
-    primary: '#',
-    secondary: '#',
+    primary: '#FFFFFF',
+    secondary: '#C7363B',
     tertiary: '#',
     quaternary: '#',
   },
@@ -90,7 +91,7 @@ export const BASE_COLORS = {
 };
 
 export const COMP_COLORS = {
-  MAIN_TITLE: BASE_COLORS['first']['tertiary'],
+  MAIN_TITLE: BASE_COLORS['first']['primary'],
   SUB_TITLE: BASE_COLORS['first']['secondary'],
   STREAMING_TIME: BASE_COLORS['first']['primary'],
   STREAMING_DATE: BASE_COLORS['first']['primary'],
@@ -101,7 +102,7 @@ export const COMP_COLORS = {
 
 export const COMP_FONTS = {
   MAIN_TITLE: BASE_FONTS.PRIMARY,
-  SUB_TITLE: BASE_FONTS.SECONDARY,
+  SUB_TITLE: BASE_FONTS.PRIMARY,
   STREAMING_TIME: BASE_FONTS.PRIMARY,
   STREAMING_DATE: BASE_FONTS.PRIMARY,
   STREAMING_DAY: '',
@@ -151,14 +152,14 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     {
       key: 'subTitle',
       type: 'text',
-      placeholder: '소제목 적는 곳',
+      placeholder: '서브 타이틀 작성 하는 곳',
       defaultValue: '',
       maxLength: 50,
     },
     {
       key: 'mainTitle',
       type: 'textarea',
-      placeholder: '메인 타이틀\n적는 곳',
+      placeholder: '메인 타이틀\n작성 하는 곳',
       defaultValue: '',
       maxLength: 200,
     },
@@ -171,3 +172,16 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     inactiveColor: 'bg-gray-300',
   },
 };
+
+const cardSizes: CSSProperties[] = [
+  {
+    width: 400,
+    height: 200,
+  },
+  {
+    width: 280,
+    height: 280,
+  },
+];
+export const getCardSize: (day: number) => CSSProperties = (day: number) =>
+  cardSizes[day > 3 ? 1 : 0];
