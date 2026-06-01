@@ -875,16 +875,13 @@ export default function RoyaltySettlementManagement() {
                     <th className="px-4 py-2 text-center text-xs text-gray-600">
                       상태
                     </th>
-                    <th className="px-4 py-2 text-right text-xs text-gray-600">
-                      내역
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {(batches?.batches.length || 0) === 0 && (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={5}
                         className="px-4 py-8 text-center text-sm text-gray-500"
                       >
                         정산 배치가 없습니다.
@@ -910,23 +907,6 @@ export default function RoyaltySettlementManagement() {
                       </td>
                       <td className="px-4 py-2 text-sm text-center">
                         {batch.status === "cancelled" ? "취소" : "정산 완료"}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-right">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            router.push(
-                              `/admin/settlements/statements?month=${batch.settlementMonth.slice(
-                                0,
-                                7
-                              )}&batchId=${batch.id}`
-                            )
-                          }
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:bg-gray-50"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          보기
-                        </button>
                       </td>
                     </tr>
                   ))}

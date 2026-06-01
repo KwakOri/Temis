@@ -3,7 +3,6 @@ import RoyaltyStatementManagement from "@/components/admin/RoyaltyStatementManag
 interface SettlementStatementPageProps {
   searchParams?: Promise<{
     artistId?: string;
-    batchId?: string;
     month?: string;
   }>;
 }
@@ -16,7 +15,6 @@ export default async function SettlementStatementPage({
   return (
     <RoyaltyStatementManagement
       initialArtistId={params?.artistId || null}
-      initialBatchId={params?.batchId || null}
       initialMonth={params?.month || null}
     />
   );

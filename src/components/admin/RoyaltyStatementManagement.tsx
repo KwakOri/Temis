@@ -16,7 +16,6 @@ import { useEffect, useMemo, useState } from "react";
 
 interface RoyaltyStatementManagementProps {
   initialArtistId?: string | null;
-  initialBatchId?: string | null;
   initialMonth?: string | null;
 }
 
@@ -116,7 +115,6 @@ function buildCsvRows(month: string, royalties: RoyaltySaleItem[]) {
       "산정방식",
       "기준값",
       "로열티",
-      "정산배치",
       "정산일",
     ],
   ];
@@ -133,7 +131,6 @@ function buildCsvRows(month: string, royalties: RoyaltySaleItem[]) {
       getRuleSourceLabel(royalty),
       formatRuleValue(royalty.royaltyTypeSnapshot, royalty.royaltyValueSnapshot),
       royalty.royaltyAmount,
-      royalty.settlementBatchTitle,
       formatDate(royalty.paidAt),
     ]);
   }
@@ -143,7 +140,6 @@ function buildCsvRows(month: string, royalties: RoyaltySaleItem[]) {
 
 export default function RoyaltyStatementManagement({
   initialArtistId,
-  initialBatchId,
   initialMonth,
 }: RoyaltyStatementManagementProps) {
   const router = useRouter();
@@ -154,14 +150,12 @@ export default function RoyaltyStatementManagement({
   const [month, setMonth] = useState(normalizedInitialMonth);
   const [draftMonth, setDraftMonth] = useState(normalizedInitialMonth);
   const [artistId, setArtistId] = useState(initialArtistId || "");
-  const [highlightBatchId, setHighlightBatchId] = useState(initialBatchId || "");
 
   useEffect(() => {
     setMonth(normalizedInitialMonth);
     setDraftMonth(normalizedInitialMonth);
     setArtistId(initialArtistId || "");
-    setHighlightBatchId(initialBatchId || "");
-  }, [initialArtistId, initialBatchId, normalizedInitialMonth]);
+  }, [initialArtistId, normalizedInitialMonth]);
 
   const statementQuery = useAdminRoyaltyStatement({
     month,
@@ -172,31 +166,23 @@ export default function RoyaltyStatementManagement({
   const artists = data?.artists || [];
   const royalties = data?.royalties || [];
   const selectedArtist = artists.find((artist) => artist.artistId === artistId);
-  const highlightedBatch = data?.batches.find(
-    (batch) => batch.id === highlightBatchId
-  );
   const titlePrefix = selectedArtist
     ? `${selectedArtist.artistName} `
     : "전체 ";
 
   const pushStatementRoute = (
     nextMonth: string,
-    nextArtistId = artistId,
-    nextBatchId = highlightBatchId
+    nextArtistId = artistId
   ) => {
     const params = new URLSearchParams();
     params.set("month", nextMonth);
     if (nextArtistId) {
       params.set("artistId", nextArtistId);
     }
-    if (nextBatchId) {
-      params.set("batchId", nextBatchId);
-    }
 
     setMonth(nextMonth);
     setDraftMonth(nextMonth);
     setArtistId(nextArtistId);
-    setHighlightBatchId(nextBatchId);
     router.push(`/admin/settlements/statements?${params.toString()}`);
   };
 
@@ -285,7 +271,7 @@ export default function RoyaltyStatementManagement({
             <select
               value={artistId}
               onChange={(event) =>
-                pushStatementRoute(month, event.target.value, highlightBatchId)
+                pushStatementRoute(month, event.target.value)
               }
               className="px-3 py-2 border border-gray-300 rounded-md text-sm"
             >
@@ -321,42 +307,13 @@ export default function RoyaltyStatementManagement({
         </div>
       </section>
 
-      {highlightedBatch ? (
-        <section className="bg-green-50 border border-green-200 rounded-lg p-4 print:hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-semibold text-green-950">
-                정산 완료 내역으로 이동했습니다.
-              </h3>
-              <p className="text-sm text-green-800 mt-1">
-                {highlightedBatch.title} · {highlightedBatch.totalCount}건 ·{" "}
-                {formatWon(highlightedBatch.totalAmount)}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => pushStatementRoute(month, artistId, "")}
-              className="px-3 py-2 border border-green-300 rounded-md text-sm text-green-800 hover:bg-green-100"
-            >
-              강조 해제
-            </button>
-          </div>
-        </section>
-      ) : null}
-
       {statementQuery.error ? (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
           월별 로열티 정산 내역을 불러오지 못했습니다.
         </div>
       ) : null}
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-5">
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="text-sm text-gray-500">정산 배치</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {summary?.batchCount || 0}개
-          </div>
-        </div>
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="text-sm text-gray-500">작가</div>
           <div className="text-2xl font-bold text-gray-900">
@@ -380,82 +337,6 @@ export default function RoyaltyStatementManagement({
           <div className="text-2xl font-bold text-gray-900">
             {formatWon(summary?.royaltyAmount || 0)}
           </div>
-        </div>
-      </section>
-
-      <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200">
-          <h3 className="font-semibold text-gray-900">정산 배치</h3>
-          <p className="text-xs text-gray-500 mt-1">
-            {formatDate(summary?.periodFrom || null)} ~{" "}
-            {formatDate(summary?.periodTo || null)}
-          </p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs text-gray-600">
-                  배치명
-                </th>
-                <th className="px-4 py-2 text-right text-xs text-gray-600">
-                  건수
-                </th>
-                <th className="px-4 py-2 text-right text-xs text-gray-600">
-                  금액
-                </th>
-                <th className="px-4 py-2 text-left text-xs text-gray-600">
-                  지급일
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {statementQuery.isLoading ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-8 text-center text-sm text-gray-500"
-                  >
-                    정산 배치를 불러오는 중입니다.
-                  </td>
-                </tr>
-              ) : (data?.batches.length || 0) === 0 ? (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="px-4 py-8 text-center text-sm text-gray-500"
-                  >
-                    정산 완료 배치가 없습니다.
-                  </td>
-                </tr>
-              ) : (
-                data?.batches.map((batch) => (
-                  <tr
-                    key={batch.id}
-                    className={
-                      batch.id === highlightBatchId ? "bg-green-50/70" : ""
-                    }
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      <div className="font-medium">{batch.title}</div>
-                      <div className="text-xs text-gray-500">
-                        {batch.periodFrom} ~ {batch.periodTo}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-700">
-                      {batch.totalCount}건
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm font-medium text-gray-900">
-                      {formatWon(batch.totalAmount)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {formatDate(batch.paidAt)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
       </section>
 
@@ -619,10 +500,7 @@ export default function RoyaltyStatementManagement({
                       {formatWon(royalty.royaltyAmount)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
-                      <div>{formatDate(royalty.paidAt)}</div>
-                      <div className="text-xs text-gray-500">
-                        {royalty.settlementBatchTitle || "-"}
-                      </div>
+                      {formatDate(royalty.paidAt)}
                     </td>
                   </tr>
                 ))
