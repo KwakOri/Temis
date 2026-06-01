@@ -410,6 +410,39 @@ export interface GetRoyaltyBatchResponse {
   royalties: RoyaltySaleItem[];
 }
 
+export interface RoyaltyStatementSummary {
+  month: string;
+  settlementMonth: string;
+  periodFrom: string | null;
+  periodTo: string | null;
+  batchCount: number;
+  artistCount: number;
+  salesCount: number;
+  grossSales: number;
+  royaltyAmount: number;
+  paidAt: string | null;
+}
+
+export interface RoyaltyStatementArtist {
+  artistId: string;
+  artistName: string;
+  salesCount: number;
+  grossSales: number;
+  royaltyAmount: number;
+}
+
+export interface GetRoyaltyStatementParams {
+  month?: string;
+  artistId?: string;
+}
+
+export interface GetRoyaltyStatementResponse {
+  summary: RoyaltyStatementSummary;
+  artists: RoyaltyStatementArtist[];
+  batches: RoyaltySettlementBatchItem[];
+  royalties: RoyaltySaleItem[];
+}
+
 export interface RecalculateRoyaltiesData {
   royaltyIds?: string[];
   from?: string;

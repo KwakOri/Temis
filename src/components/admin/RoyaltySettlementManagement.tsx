@@ -16,6 +16,7 @@ import { RoyaltySaleItem, RoyaltyStatus } from "@/types/admin";
 import {
   AlertTriangle,
   CheckCircle2,
+  FileText,
   HandCoins,
   Settings,
 } from "lucide-react";
@@ -465,6 +466,18 @@ export default function RoyaltySettlementManagement() {
       >
         <button
           type="button"
+          onClick={() =>
+            router.push(
+              `/admin/settlements/statements?month=${appliedPeriod.monthValue}`
+            )
+          }
+          className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+        >
+          <FileText className="h-4 w-4" />
+          월별 내역
+        </button>
+        <button
+          type="button"
           onClick={() => router.push("/admin/settlements/royalty-settings")}
           className="inline-flex items-center gap-2 px-3 py-2 bg-primary text-white rounded-md text-sm hover:bg-secondary"
         >
@@ -862,13 +875,16 @@ export default function RoyaltySettlementManagement() {
                     <th className="px-4 py-2 text-center text-xs text-gray-600">
                       상태
                     </th>
+                    <th className="px-4 py-2 text-right text-xs text-gray-600">
+                      내역
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {(batches?.batches.length || 0) === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-8 text-center text-sm text-gray-500"
                       >
                         정산 배치가 없습니다.
@@ -894,6 +910,23 @@ export default function RoyaltySettlementManagement() {
                       </td>
                       <td className="px-4 py-2 text-sm text-center">
                         {batch.status === "cancelled" ? "취소" : "정산 완료"}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(
+                              `/admin/settlements/statements?month=${batch.settlementMonth.slice(
+                                0,
+                                7
+                              )}&batchId=${batch.id}`
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-gray-300 text-xs text-gray-700 hover:bg-gray-50"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          보기
+                        </button>
                       </td>
                     </tr>
                   ))}

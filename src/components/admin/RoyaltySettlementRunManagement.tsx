@@ -167,6 +167,12 @@ export default function RoyaltySettlementRunManagement({
       });
 
       alert(`${result.updatedCount}건을 정산 완료 처리했습니다.`);
+      const params = new URLSearchParams();
+      params.set("month", summary.month);
+      if (result.batchId) {
+        params.set("batchId", result.batchId);
+      }
+      router.push(`/admin/settlements/statements?${params.toString()}`);
     } catch (error) {
       alert(
         error instanceof Error
