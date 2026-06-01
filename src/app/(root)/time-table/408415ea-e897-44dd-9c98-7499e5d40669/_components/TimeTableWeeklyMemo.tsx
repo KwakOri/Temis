@@ -23,7 +23,7 @@ const TimeTableWeeklyMemo = () => {
               <AutoResizeText
                 style={{
                   fontFamily: COMP_FONTS.MAIN_TITLE,
-                  color: '#CACACA',
+                  color: '#000000',
                   lineHeight: 1.1,
                   fontWeight: 400,
                   letterSpacing: 2,

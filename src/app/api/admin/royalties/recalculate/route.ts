@@ -43,10 +43,11 @@ export async function POST(request: NextRequest) {
     const artistIds = normalizeIds(body.artistIds);
     const templateId = typeof body.templateId === "string" ? body.templateId : null;
     const includePaid = Boolean(body.includePaid);
+    const includeManual = Boolean(body.includeManual);
 
     let query = supabase
       .from("template_sale_royalty_details")
-      .select("id, artist_id, template_id, sale_amount, status")
+      .select("id, artist_id, template_id, sale_amount, status, royalty_source")
       .eq("sale_status", "completed");
 
     if (royaltyIds.length > 0) {
@@ -75,7 +76,11 @@ export async function POST(request: NextRequest) {
     }
 
     const rows = (royalties || []).filter(
-      (row) => row.id && row.artist_id && row.template_id
+      (row) =>
+        row.id &&
+        row.artist_id &&
+        row.template_id &&
+        (includeManual || row.royalty_source !== "manual")
     );
 
     if (rows.length === 0) {
