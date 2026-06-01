@@ -117,6 +117,8 @@ export const queryKeys = {
       [...queryKeys.admin.all, "royaltyBatches", params] as const,
     royaltyBatch: (batchId: string) =>
       [...queryKeys.admin.all, "royaltyBatch", batchId] as const,
+    royaltyStatement: (month?: string, artistId?: string) =>
+      [...queryKeys.admin.all, "royaltyStatement", month, artistId] as const,
     royaltySettlementRun: (month?: string) =>
       [...queryKeys.admin.all, "royaltySettlementRun", month] as const,
     royaltySettingsArtists: () =>

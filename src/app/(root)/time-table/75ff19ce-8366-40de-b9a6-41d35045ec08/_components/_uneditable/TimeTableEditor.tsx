@@ -53,8 +53,7 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TimeTableForm
-          isArtist={true}
-          isMemo
+          isArtist={false}
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
           cropWidth={CARD_SIZES.PROFILE.width}

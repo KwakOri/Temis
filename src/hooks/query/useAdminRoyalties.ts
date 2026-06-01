@@ -6,6 +6,7 @@ import {
 import {
   GetRoyaltyBatchesParams,
   GetRoyaltySalesParams,
+  GetRoyaltyStatementParams,
   MarkRoyaltiesPaidData,
   RecalculateRoyaltiesData,
   RoyaltyRuleInput,
@@ -86,6 +87,18 @@ export const useAdminRoyaltyBatch = (batchId?: string) => {
     queryKey: queryKeys.admin.royaltyBatch(batchId || ""),
     queryFn: () => AdminRoyaltyService.getBatch(batchId || ""),
     enabled: Boolean(batchId),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
+export const useAdminRoyaltyStatement = (
+  params?: GetRoyaltyStatementParams
+) => {
+  return useQuery({
+    queryKey: queryKeys.admin.royaltyStatement(params?.month, params?.artistId),
+    queryFn: () => AdminRoyaltyService.getStatement(params),
+    enabled: Boolean(params?.month),
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });
