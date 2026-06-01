@@ -22,15 +22,6 @@ const TimeTableBoard = () => {
         className="absolute inset-0 object-cover"
         draggable={false}
       />
-      <img
-        style={{
-          zIndex: 10,
-        }}
-        src={Imgs['first']['board'].src}
-        alt="board"
-        className="absolute inset-0 object-cover"
-        draggable={false}
-      />
     </>
   );
 };

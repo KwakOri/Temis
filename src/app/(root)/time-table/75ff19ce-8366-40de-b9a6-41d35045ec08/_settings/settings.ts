@@ -126,8 +126,8 @@ export const CARD_SIZES: CardSizesProps = {
     height: 300,
   },
   PROFILE: {
-    width: 640,
-    height: 720,
+    width: 1300,
+    height: 1060,
   },
   FRAME: {
     width: 1920,

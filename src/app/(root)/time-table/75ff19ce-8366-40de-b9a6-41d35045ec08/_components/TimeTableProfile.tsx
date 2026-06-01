@@ -18,23 +18,32 @@ interface TimeTableProfileProps {
 
 const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
   return (
-    <div
-      style={{
-        ...CARD_SIZES.PROFILE,
-        position: 'absolute',
-        top: 212,
-        left: 1168,
-        zIndex: 10,
-      }}
-    >
-      {imageSrc && (
+    <>
+      {imageSrc ? (
+        <div
+          style={{
+            ...CARD_SIZES.PROFILE,
+            position: 'absolute',
+            top: 10,
+            left: 0,
+            zIndex: 10,
+          }}
+          className="bg-black/30"
+        >
+          <img
+            className="object-cover w-full h-full"
+            src={imageSrc}
+            alt={'placeholder'}
+          />
+        </div>
+      ) : (
         <img
-          className="object-cover w-full h-full"
-          src={imageSrc}
+          className="absolute inset-0 z-10"
+          src={Imgs['first']['placeholder'].src}
           alt={'placeholder'}
         />
       )}
-    </div>
+    </>
   );
 };
 
@@ -48,7 +57,7 @@ const ProfileFrame = () => {
       }}
     >
       <img
-        src={Imgs['first']['frame'].src.replace('./', '/')}
+        src={Imgs['first']['profile'].src.replace('./', '/')}
         alt="frame"
         className="object-cover"
         draggable={false}
@@ -60,7 +69,7 @@ const ProfileFrame = () => {
 const ProfileImageContainer = ({ children }: PropsWithChildren) => {
   return (
     <div
-      className={`absolute flex justify-center z-20`}
+      className={`absolute flex justify-center z-10`}
       style={{
         width: 1920,
         height: 1080,
@@ -80,6 +89,11 @@ const TimeTableProfile = ({
     <ProfileImageContainer>
       <ProfileFrame />
       <ProfileImage imageSrc={imageSrc} />
+      <img
+        className="absolute inset-0 -z-10"
+        src={Imgs['first']['board'].src}
+        alt={'placeholder'}
+      />
     </ProfileImageContainer>
   );
 };
