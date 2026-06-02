@@ -1,0 +1,77 @@
+@font-face {
+  font-family: 'PuradakGentleGothic';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_11-01@1.1/PuradakGentleGothicR.woff2')
+    format('woff2');
+  font-weight: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'DS-Digital';
+  src: url('../_fonts/DS-DIGI.TTF') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'DS-Digital';
+  src: url('../_fonts/DS-DIGIB.TTF') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'DS-Digital';
+  src: url('../_fonts/DS-DIGII.TTF') format('truetype');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'DS-Digital';
+  src: url('../_fonts/DS-DIGIT.TTF') format('truetype');
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
+
+@font-face {
+  font-family: 'SongamLeeHyeongSik';
+  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2604-1@1.0/SongamIhyeongsik-Regular.woff2')
+    format('woff2');
+  font-weight: normal;
+  font-display: swap;
+
+  ascent-override: 84%;
+  descent-override: 16%;
+  line-gap-override: 0%;
+  size-adjust: 100%;
+}
