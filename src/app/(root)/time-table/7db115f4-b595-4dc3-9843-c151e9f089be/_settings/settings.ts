@@ -157,10 +157,10 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     },
     {
       key: 'subTitle',
-      type: 'text',
+      type: 'textarea',
       placeholder: '서브 타이틀 적는 곳',
       defaultValue: '',
-      maxLength: 50,
+      maxLength: 200,
     },
   ],
   showLabels: false, // 라벨 표시 여부
