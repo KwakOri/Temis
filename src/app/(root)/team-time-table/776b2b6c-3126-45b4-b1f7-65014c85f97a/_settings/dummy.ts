@@ -280,4 +280,28 @@ export const dummyResponse: TeamSchedulesResponse = {
   weekStartDate: DUMMY_WEEK_START_DATE,
 };
 
+export const createDummyResponse = (
+  weekStartDate = DUMMY_WEEK_START_DATE
+): TeamSchedulesResponse => {
+  const resolvedWeekStartDate = weekStartDate || DUMMY_WEEK_START_DATE;
+
+  return {
+    ...dummyResponse,
+    weekStartDate: resolvedWeekStartDate,
+    schedules: dummyResponse.schedules.map((item) => {
+      if (!item.schedule) {
+        return item;
+      }
+
+      return {
+        ...item,
+        schedule: {
+          ...item.schedule,
+          week_start_date: resolvedWeekStartDate,
+        },
+      };
+    }),
+  };
+};
+
 export const dummyData: UserScheduleData[] = dummyResponse.schedules;
