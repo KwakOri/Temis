@@ -162,6 +162,8 @@ export const Settings: SettingsType = {
 
 export const team_ids = [22, 248, 275, 276, 277];
 
+export const dummyUnregisteredMemberIds: number[] = [280];
+
 export const memberIdsMap = new Map([
   [22, 'rubit'],
   [248, 'seon'],
