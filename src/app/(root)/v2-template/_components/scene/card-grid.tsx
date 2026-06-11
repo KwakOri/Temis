@@ -441,6 +441,61 @@ const TimeTableGrid: React.FC<{
     );
   }
 
+  if (layoutMode === "vertical7") {
+    return (
+      <div
+        style={{
+          ...baseLayoutStyle,
+          display: "flex",
+          flexDirection: "column",
+          ...(rowGap !== undefined ? { rowGap } : {}),
+          ...v2_getHighlightStyle({
+            target: "grid",
+            hoverTarget: hoverHighlightTarget,
+            activeTarget: activeHighlightTarget,
+          }),
+        }}
+        className="absolute"
+      >
+        {runtimeInstances.slice(0, 7).map((instance, index) => {
+          if (isCardInstanceHidden(instance)) return null;
+          const dataIndex = resolveDataIndex(instance, index);
+          const time = data[dataIndex];
+          const weekDate = weekDates[dataIndex];
+          const instanceCardStructure = resolveCardStructureForInstance(instance);
+          if (!time || !weekDate) return null;
+          return (
+            <div
+              key={instance.id}
+              style={getCardInstanceWrapperStyle(
+                instance.instanceId,
+                dataIndex,
+                instanceCardStructure
+              )}
+            >
+              <V2TimeTableCell
+                time={time}
+                dayKeyOverride={instance.dayKey}
+                cardInstanceId={instance.instanceId}
+                cardInstanceLayerId={
+                  typeof instance.layerId === "string" &&
+                  instance.layerId.trim().length > 0
+                    ? instance.layerId
+                    : instance.id
+                }
+                currentTheme={currentTheme}
+                weekDate={weekDate}
+                index={dataIndex}
+                cardStructure={instanceCardStructure}
+                bindingOverrides={instance.bindingOverrides}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   const slotNodes: React.ReactNode[] = [];
   let itemIndex = 0;
 

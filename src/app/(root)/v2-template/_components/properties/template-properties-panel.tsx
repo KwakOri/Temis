@@ -4323,6 +4323,7 @@ const V2TemplateBuilderForm: React.FC<V2TemplateBuilderFormProps> = ({
         >
           <option value="grid3x3">3 x 3</option>
           <option value="flex4x2">4 x 2</option>
+          <option value="vertical7">일자 구성</option>
           <option value="free">자유배치</option>
         </select>
         {timetable.layoutMode === "grid3x3" ? (

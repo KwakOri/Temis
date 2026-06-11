@@ -675,6 +675,7 @@ export type V2TemplateTimetableCardStatusKey =
 export type V2TemplateTimetableGridLayoutMode =
   | "grid3x3"
   | "flex4x2"
+  | "vertical7"
   | "free";
 
 export type V2TemplateTimetableFlex42Align = "left" | "center" | "right";

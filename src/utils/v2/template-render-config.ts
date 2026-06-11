@@ -4710,6 +4710,7 @@ const v2_normalizeCardInstanceTransforms = (
 const v2_TIMETABLE_GRID_LAYOUT_MODE_SET = new Set([
   "grid3x3",
   "flex4x2",
+  "vertical7",
   "free",
 ]);
 const v2_TIMETABLE_FLEX42_ALIGN_SET = new Set(["left", "center", "right"]);

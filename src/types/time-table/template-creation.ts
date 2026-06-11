@@ -6,15 +6,32 @@ import type {
   V2TemplateTimetableFlex42Align,
   V2TemplateTimetableFlex42ThreeRow,
   V2TemplateTimetableGridLayoutMode,
+  V2TemplateWeekDateFormat,
 } from "@/types/time-table/template-render-config";
 
 export type V2TemplateCreationTimePreset = "h12Prefix" | "h12Suffix" | "h24";
-export type V2TemplateCreationWeekDatePreset =
-  | "locale"
-  | "ymdSlash"
-  | "mdySlash"
-  | "dmyDot";
+export type V2TemplateCreationWeekDateCompositionMode =
+  | "rangeText"
+  | "startEndText"
+  | "splitDateParts";
+export type V2TemplateCreationWeekDateMonthStyle =
+  | "numeric"
+  | "2-digit"
+  | "shortUpper"
+  | "shortCapital"
+  | "longCapital";
 export type V2TemplateCreationCardAssetMode = "common" | "byDay";
+
+export interface V2TemplateCreationWeekDateFormat {
+  dateOrder: V2TemplateWeekDateFormat["dateOrder"];
+  includeYear: boolean;
+  yearStyle: V2TemplateWeekDateFormat["yearStyle"];
+  monthStyle: V2TemplateCreationWeekDateMonthStyle;
+  dateStyle: V2TemplateWeekDateFormat["dateStyle"];
+  dateSeparator: string;
+  monthDateSeparator: string;
+  rangeSeparator: string;
+}
 
 export interface V2TemplateCreationDraft {
   metadata: {
@@ -69,6 +86,7 @@ export interface V2TemplateCreationDraft {
   formats: {
     localePreset: TLanOpt;
     timePreset: V2TemplateCreationTimePreset;
-    weekDatePreset: V2TemplateCreationWeekDatePreset;
+    weekDateCompositionMode: V2TemplateCreationWeekDateCompositionMode;
+    weekDateFormat: V2TemplateCreationWeekDateFormat;
   };
 }

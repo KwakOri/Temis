@@ -1,15 +1,20 @@
 import type {
   V2TemplateCreationDraft,
   V2TemplateCreationTimePreset,
-  V2TemplateCreationWeekDatePreset,
+  V2TemplateCreationWeekDateCompositionMode,
+  V2TemplateCreationWeekDateFormat,
+  V2TemplateCreationWeekDateMonthStyle,
 } from "@/types/time-table/template-creation";
 import type {
   V2TemplateBuiltinAssetKey,
   V2TemplateCardImageAssetByDayKey,
   V2TemplateCardStructure,
+  V2TemplateComputedBindingKey,
   V2TemplateDayKey,
+  V2TemplateNodeGraph,
   V2TemplateRenderConfig,
   V2TemplateStreamingTimeFormat,
+  V2TemplateStyleRecord,
   V2TemplateTimetableConfig,
   V2TemplateWeekDateFormat,
 } from "@/types/time-table/template-render-config";
@@ -30,7 +35,342 @@ const v2_createThemeNullMap = (themes: string[]) =>
     return acc;
   }, {});
 
+const v2_CREATION_WEEK_DATE_MONTH_STYLE_FORMAT: Record<
+  V2TemplateCreationWeekDateMonthStyle,
+  Pick<V2TemplateWeekDateFormat, "monthStyle" | "caseStyle">
+> = {
+  numeric: {
+    monthStyle: "numeric",
+    caseStyle: "original",
+  },
+  "2-digit": {
+    monthStyle: "2-digit",
+    caseStyle: "original",
+  },
+  shortUpper: {
+    monthStyle: "short",
+    caseStyle: "upper",
+  },
+  shortCapital: {
+    monthStyle: "short",
+    caseStyle: "capitalize",
+  },
+  longCapital: {
+    monthStyle: "long",
+    caseStyle: "capitalize",
+  },
+};
+
+export const v2_DEFAULT_CREATION_WEEK_DATE_FORMAT: V2TemplateCreationWeekDateFormat =
+  {
+    dateOrder: "mdy",
+    includeYear: false,
+    yearStyle: "numeric",
+    monthStyle: "shortUpper",
+    dateStyle: "2-digit",
+    dateSeparator: " ",
+    monthDateSeparator: " ",
+    rangeSeparator: " - ",
+  };
+
+export const v2_resolveCreationWeekDateFormat = (
+  format?: Partial<V2TemplateCreationWeekDateFormat>
+): V2TemplateCreationWeekDateFormat => ({
+  ...v2_DEFAULT_CREATION_WEEK_DATE_FORMAT,
+  ...format,
+  dateSeparator:
+    format?.dateSeparator && format.dateSeparator.length > 0
+      ? format.dateSeparator
+      : v2_DEFAULT_CREATION_WEEK_DATE_FORMAT.dateSeparator,
+  monthDateSeparator:
+    format?.monthDateSeparator && format.monthDateSeparator.length > 0
+      ? format.monthDateSeparator
+      : v2_DEFAULT_CREATION_WEEK_DATE_FORMAT.monthDateSeparator,
+  rangeSeparator:
+    format?.rangeSeparator && format.rangeSeparator.length > 0
+      ? format.rangeSeparator
+      : v2_DEFAULT_CREATION_WEEK_DATE_FORMAT.rangeSeparator,
+});
+
+export const v2_buildCreationWeekDateFormat = ({
+  base,
+  locale,
+  format,
+}: {
+  base: V2TemplateWeekDateFormat;
+  locale: V2TemplateWeekDateFormat["locale"];
+  format?: Partial<V2TemplateCreationWeekDateFormat>;
+}): V2TemplateWeekDateFormat => {
+  const controls = v2_resolveCreationWeekDateFormat(format);
+  const monthFormat =
+    v2_CREATION_WEEK_DATE_MONTH_STYLE_FORMAT[controls.monthStyle] ??
+    v2_CREATION_WEEK_DATE_MONTH_STYLE_FORMAT.shortUpper;
+
+  return {
+    ...base,
+    locale,
+    dateOrder: controls.dateOrder,
+    includeYear: controls.includeYear,
+    yearStyle: controls.yearStyle,
+    monthStyle: monthFormat.monthStyle,
+    dateStyle: controls.dateStyle,
+    caseStyle: monthFormat.caseStyle,
+    dateSeparator: controls.dateSeparator,
+    monthDateSeparator: controls.monthDateSeparator,
+    rangeSeparator: controls.rangeSeparator,
+  };
+};
+
 type V2CreationCardAssetKey = keyof V2TemplateCreationDraft["cardAssets"];
+
+type V2CreationWeekDateObjectSpec = {
+  nodeId: string;
+  label: string;
+  bindingKey: Extract<
+    V2TemplateComputedBindingKey,
+    | "weekDateRange"
+    | "weekStartYear"
+    | "weekStartMonth"
+    | "weekStartDate"
+    | "weekStartFullDate"
+    | "weekEndYear"
+    | "weekEndMonth"
+    | "weekEndDate"
+    | "weekEndFullDate"
+  >;
+  styleKey: string;
+};
+
+const v2_CREATION_WEEK_DATE_OBJECT_SPECS: Record<
+  V2TemplateCreationWeekDateCompositionMode,
+  V2CreationWeekDateObjectSpec[]
+> = {
+  rangeText: [
+    {
+      nodeId: "scene-week-flag",
+      label: "WeekDateRange",
+      bindingKey: "weekDateRange",
+      styleKey: "weekFlag",
+    },
+  ],
+  startEndText: [
+    {
+      nodeId: "scene-week-start-full",
+      label: "WeekStart",
+      bindingKey: "weekStartFullDate",
+      styleKey: "weekDateStartFull",
+    },
+    {
+      nodeId: "scene-week-end-full",
+      label: "WeekEnd",
+      bindingKey: "weekEndFullDate",
+      styleKey: "weekDateEndFull",
+    },
+  ],
+  splitDateParts: [
+    {
+      nodeId: "scene-week-start-year",
+      label: "StartYear",
+      bindingKey: "weekStartYear",
+      styleKey: "weekDateStartYear",
+    },
+    {
+      nodeId: "scene-week-start-month",
+      label: "StartMonth",
+      bindingKey: "weekStartMonth",
+      styleKey: "weekDateStartMonth",
+    },
+    {
+      nodeId: "scene-week-start-date",
+      label: "StartDate",
+      bindingKey: "weekStartDate",
+      styleKey: "weekDateStartDate",
+    },
+    {
+      nodeId: "scene-week-end-year",
+      label: "EndYear",
+      bindingKey: "weekEndYear",
+      styleKey: "weekDateEndYear",
+    },
+    {
+      nodeId: "scene-week-end-month",
+      label: "EndMonth",
+      bindingKey: "weekEndMonth",
+      styleKey: "weekDateEndMonth",
+    },
+    {
+      nodeId: "scene-week-end-date",
+      label: "EndDate",
+      bindingKey: "weekEndDate",
+      styleKey: "weekDateEndDate",
+    },
+  ],
+};
+
+const v2_asFiniteNumber = (
+  value: unknown,
+  fallback: number
+): number => {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+};
+
+const v2_createWeekDateCompositionLayout = ({
+  baseStyle,
+  mode,
+}: {
+  baseStyle: V2TemplateStyleRecord;
+  mode: V2TemplateCreationWeekDateCompositionMode;
+}): Record<string, V2TemplateStyleRecord> => {
+  if (mode === "rangeText") return {};
+
+  const left = v2_asFiniteNumber(baseStyle.left, 0);
+  const top = v2_asFiniteNumber(baseStyle.top, 0);
+  const width = v2_asFiniteNumber(baseStyle.width, 580);
+  const height = v2_asFiniteNumber(baseStyle.height, 114);
+
+  if (mode === "startEndText") {
+    const gap = 24;
+    const itemWidth = Math.max(1, (width - gap) / 2);
+    return {
+      weekDateStartFull: {
+        ...baseStyle,
+        left,
+        top,
+        width: itemWidth,
+        height,
+      },
+      weekDateEndFull: {
+        ...baseStyle,
+        left: left + itemWidth + gap,
+        top,
+        width: itemWidth,
+        height,
+      },
+    };
+  }
+
+  const gap = 12;
+  const itemWidth = Math.max(1, (width - gap * 5) / 6);
+  return {
+    weekDateStartYear: {
+      ...baseStyle,
+      left,
+      top,
+      width: itemWidth,
+      height,
+    },
+    weekDateStartMonth: {
+      ...baseStyle,
+      left: left + (itemWidth + gap),
+      top,
+      width: itemWidth,
+      height,
+    },
+    weekDateStartDate: {
+      ...baseStyle,
+      left: left + (itemWidth + gap) * 2,
+      top,
+      width: itemWidth,
+      height,
+    },
+    weekDateEndYear: {
+      ...baseStyle,
+      left: left + (itemWidth + gap) * 3,
+      top,
+      width: itemWidth,
+      height,
+    },
+    weekDateEndMonth: {
+      ...baseStyle,
+      left: left + (itemWidth + gap) * 4,
+      top,
+      width: itemWidth,
+      height,
+    },
+    weekDateEndDate: {
+      ...baseStyle,
+      left: left + (itemWidth + gap) * 5,
+      top,
+      width: itemWidth,
+      height,
+    },
+  };
+};
+
+const v2_applyCreationWeekDateCompositionToGraph = ({
+  graph,
+  mode,
+}: {
+  graph: V2TemplateNodeGraph;
+  mode: V2TemplateCreationWeekDateCompositionMode;
+}): V2TemplateNodeGraph => {
+  const specs =
+    v2_CREATION_WEEK_DATE_OBJECT_SPECS[mode] ??
+    v2_CREATION_WEEK_DATE_OBJECT_SPECS.rangeText;
+  const weekDateNodeIds = new Set(
+    Object.values(v2_CREATION_WEEK_DATE_OBJECT_SPECS).flatMap((items) =>
+      items.map((item) => item.nodeId)
+    )
+  );
+  const rootInsertIndex = graph.rootNodeIds.findIndex((nodeId) =>
+    weekDateNodeIds.has(nodeId)
+  );
+  const nextNodes = Object.entries(graph.nodes).reduce<
+    V2TemplateNodeGraph["nodes"]
+  >((acc, [nodeId, node]) => {
+    if (weekDateNodeIds.has(nodeId)) return acc;
+    acc[nodeId] = node;
+    return acc;
+  }, {});
+  const weekDateNodes: V2TemplateNodeGraph["nodes"] = {};
+
+  specs.forEach((spec) => {
+    weekDateNodes[spec.nodeId] = {
+      id: spec.nodeId,
+      type: "text",
+      label: spec.label,
+      parentId: null,
+      childIds: [],
+      layerId: "week-flag",
+      highlightTarget: "weekFlag",
+      visibilityMode: "always",
+      binding: {
+        mode: "computed",
+        key: spec.bindingKey,
+      },
+      styles: {
+        containerStyleKey: spec.styleKey,
+      },
+      meta: {
+        colorKey: "WEEKLY_FLAG",
+        fontKey: "WEEKLY_FLAG",
+        containerClassName: "absolute flex justify-center items-center",
+      },
+    };
+  });
+
+  const remainingRootNodeIds = graph.rootNodeIds.filter(
+    (nodeId) => !weekDateNodeIds.has(nodeId)
+  );
+  const nextWeekDateRootIds = specs.map((spec) => spec.nodeId);
+  const nextRootNodeIds =
+    rootInsertIndex >= 0
+      ? [
+          ...remainingRootNodeIds.slice(0, rootInsertIndex),
+          ...nextWeekDateRootIds,
+          ...remainingRootNodeIds.slice(rootInsertIndex),
+        ]
+      : [...remainingRootNodeIds, ...nextWeekDateRootIds];
+
+  return {
+    ...graph,
+    rootNodeIds: nextRootNodeIds,
+    nodes: {
+      ...nextNodes,
+      ...weekDateNodes,
+    },
+  };
+};
 
 const v2_CREATION_CARD_ASSET_SPECS: Record<
   V2CreationCardAssetKey,
@@ -245,7 +585,8 @@ export const v2_createDefaultTemplateCreationDraft =
       formats: {
         localePreset: "en",
         timePreset: "h12Prefix",
-        weekDatePreset: "mdySlash",
+        weekDateCompositionMode: "rangeText",
+        weekDateFormat: v2_DEFAULT_CREATION_WEEK_DATE_FORMAT,
       },
     };
   };
@@ -305,49 +646,6 @@ export const v2_applyCreationTimePreset = (
   };
 };
 
-export const v2_applyCreationWeekDatePreset = (
-  base: V2TemplateWeekDateFormat,
-  preset: V2TemplateCreationWeekDatePreset
-): V2TemplateWeekDateFormat => {
-  if (preset === "ymdSlash") {
-    return {
-      ...base,
-      dateOrder: "ymd",
-      monthStyle: "numeric",
-      dateStyle: "numeric",
-      dateSeparator: "/",
-      monthDateSeparator: "/",
-      rangeSeparator: " - ",
-    };
-  }
-
-  if (preset === "mdySlash") {
-    return {
-      ...base,
-      dateOrder: "mdy",
-      monthStyle: "numeric",
-      dateStyle: "numeric",
-      dateSeparator: "/",
-      monthDateSeparator: "/",
-      rangeSeparator: " - ",
-    };
-  }
-
-  if (preset === "dmyDot") {
-    return {
-      ...base,
-      dateOrder: "dmy",
-      monthStyle: "2-digit",
-      dateStyle: "2-digit",
-      dateSeparator: ".",
-      monthDateSeparator: ".",
-      rangeSeparator: " - ",
-    };
-  }
-
-  return base;
-};
-
 export const v2_buildRenderConfigFromCreationDraft = (
   draft: V2TemplateCreationDraft,
   options: {
@@ -400,7 +698,7 @@ export const v2_buildRenderConfigFromCreationDraft = (
     draft.objects.memo.mode === "textOnly"
       ? draft.objects.memo.mode
       : "statefulAssetWithText";
-  const nextGraph = v2_createDefaultSceneTemplateNodeGraph({
+  let nextGraph = v2_createDefaultSceneTemplateNodeGraph({
     includeArtist: artistEnabled,
     includeMemo: memoEnabled,
     includeTopObject: topObjectEnabled,
@@ -410,6 +708,12 @@ export const v2_buildRenderConfigFromCreationDraft = (
     artistMode,
     memoMode,
   });
+  if (draft.objects.weekDates.enabled) {
+    nextGraph = v2_applyCreationWeekDateCompositionToGraph({
+      graph: nextGraph,
+      mode: draft.formats.weekDateCompositionMode,
+    });
+  }
   let nextTimetable = v2_createDefaultTimetableConfig({
     multiEntryCount: normalizedMultiEntryCount,
     componentCount: normalizedCardComponentCount,
@@ -492,13 +796,11 @@ export const v2_buildRenderConfigFromCreationDraft = (
       normalized.streamingTimeFormat,
       draft.formats.timePreset
     ),
-    weekDateFormat: v2_applyCreationWeekDatePreset(
-      {
-        ...normalized.weekDateFormat,
-        locale: draft.formats.localePreset,
-      },
-      draft.formats.weekDatePreset
-    ),
+    weekDateFormat: v2_buildCreationWeekDateFormat({
+      base: normalized.weekDateFormat,
+      locale: draft.formats.localePreset,
+      format: draft.formats.weekDateFormat,
+    }),
     themes: nextThemeOptions,
     defaultTheme: resolvedDefaultTheme || normalized.defaultTheme,
     buttonThemes: nextThemeOptions.map((theme) => ({ value: theme, label: theme })),
@@ -539,6 +841,13 @@ export const v2_buildRenderConfigFromCreationDraft = (
     },
     layout: {
       ...normalized.layout,
+      scene: {
+        ...normalized.layout.scene,
+        ...v2_createWeekDateCompositionLayout({
+          baseStyle: normalized.layout.weekFlag,
+          mode: draft.formats.weekDateCompositionMode,
+        }),
+      },
       card: nextCardLayout,
       topObjectContainer: {
         ...normalized.layout.topObjectContainer,

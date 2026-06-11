@@ -400,6 +400,33 @@ const V2TimetableGrid: React.FC<{ gridLayerId?: string }> = ({ gridLayerId }) =>
     );
   }
 
+  if (layoutMode === "vertical7") {
+    return (
+      <div
+        {...v2_getGridEditorAttributes({
+          layerId: gridLayerId ?? timetable.layerId,
+          dragKind: "grid",
+        })}
+        style={{
+          ...baseLayoutStyle,
+          display: "flex",
+          flexDirection: "column",
+          ...(rowGap !== undefined ? { rowGap } : {}),
+          ...highlightStyle,
+        }}
+        className="absolute"
+      >
+        {slotEntries.map((entry) =>
+          entry ? (
+            <div key={entry.dayKey} style={getWrapperStyle(entry.transform)}>
+              {renderSlotCell(entry)}
+            </div>
+          ) : null
+        )}
+      </div>
+    );
+  }
+
   const slotNodes: React.ReactNode[] = [];
   let itemIndex = 0;
 

@@ -2,11 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import {
+  ChangeEvent,
   CSSProperties,
   FormEvent,
   ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -15,21 +17,27 @@ import {
   ChevronRight,
   ImagePlus,
   Layers3,
+  Trash2,
 } from 'lucide-react';
+import ImageCropModal from '@/components/ImageCropModal';
 import type {
   V2TemplateCreationCardAssetMode,
   V2TemplateCreationDraft,
   V2TemplateCreationTimePreset,
-  V2TemplateCreationWeekDatePreset,
+  V2TemplateCreationWeekDateCompositionMode,
+  V2TemplateCreationWeekDateFormat,
+  V2TemplateCreationWeekDateMonthStyle,
 } from '@/types/time-table/template-creation';
 import type {
   V2TemplateArtistMode,
   V2TemplateAssetRequirement,
+  V2TemplateComputedBindingKey,
   V2TemplateMemoMode,
   V2TemplateObjectAssetMode,
   V2TemplateTimetableFlex42Align,
   V2TemplateTimetableFlex42ThreeRow,
   V2TemplateTimetableGridLayoutMode,
+  V2TemplateWeekDateFormat,
 } from '@/types/time-table/template-render-config';
 import type { V2TemplateAssetUploadItem } from '@/services/admin/v2_template_asset_service';
 import type { TLanOpt } from '@/types/time-table/data';
@@ -39,8 +47,10 @@ import {
   useUploadAdminV2TemplateAssets,
 } from '@/hooks/query/useAdminV2TemplateRenderConfig';
 import {
+  v2_buildCreationWeekDateFormat,
   v2_buildRenderConfigFromCreationDraft,
   v2_createDefaultTemplateCreationDraft,
+  v2_resolveCreationWeekDateFormat,
   v2_resolveCreationThemeOptions,
 } from '@/utils/v2/template-creation-builder';
 import {
@@ -49,6 +59,7 @@ import {
 import {
   v2_clampTimetableCardComponentCount,
   v2_clampTimetableMultiEntryCount,
+  v2_createEmptyTemplateRenderConfig,
   v2_MAX_TIMETABLE_CARD_COMPONENT_COUNT,
   v2_MAX_TIMETABLE_MULTI_ENTRY_COUNT,
   v2_MIN_TIMETABLE_CARD_COMPONENT_COUNT,
@@ -58,12 +69,60 @@ import {
   v2_applyUploadedAssetRecordsToRenderConfig,
   v2_readImageFileDimensions,
 } from '@/utils/v2/template-asset-upload-client';
+import { v2_buildWeekDateComputedValues } from '@/utils/v2/text-formatting';
+
+type V2WeekDateComputedPreviewKey = Extract<
+  V2TemplateComputedBindingKey,
+  | 'weekDateRange'
+  | 'weekStartYear'
+  | 'weekStartMonth'
+  | 'weekStartDate'
+  | 'weekStartFullDate'
+  | 'weekEndYear'
+  | 'weekEndMonth'
+  | 'weekEndDate'
+  | 'weekEndFullDate'
+>;
 
 const v2_toErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
   return fallback;
+};
+
+const v2_readFileAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('load', () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error('이미지를 읽을 수 없습니다.'));
+    });
+    reader.addEventListener('error', () => {
+      reject(reader.error ?? new Error('이미지를 읽을 수 없습니다.'));
+    });
+    reader.readAsDataURL(file);
+  });
+
+const v2_toCroppedAssetFileName = (fileName: string): string => {
+  const trimmedName = fileName.trim();
+  const baseName = trimmedName.replace(/\.[^/.]+$/, '') || 'asset';
+  return `${baseName}.png`;
+};
+
+const v2_dataUrlToFile = async (
+  dataUrl: string,
+  sourceFile: File
+): Promise<File> => {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], v2_toCroppedAssetFileName(sourceFile.name), {
+    type: blob.type || 'image/png',
+    lastModified: Date.now(),
+  });
 };
 
 type V2CreatePanelId =
@@ -74,6 +133,27 @@ type V2CreatePanelId =
   | 'assets'
   | 'formats'
   | 'review';
+
+type V2InputFieldPreview = {
+  key: string;
+  label: string;
+  scopeLabel: string;
+  placeholder: string;
+  variant: 'text' | 'textarea' | 'time';
+};
+
+type V2PendingAssetCrop = {
+  requirementId: string;
+  file: File;
+  imageSrc: string;
+  cropWidth: number;
+  cropHeight: number;
+};
+
+const v2_ASSET_CROP_SIZE = {
+  width: 1600,
+  height: 900,
+} as const;
 
 const v2_CREATE_PANELS: Array<{
   id: V2CreatePanelId;
@@ -108,7 +188,7 @@ const v2_CREATE_PANELS: Array<{
   {
     id: 'formats',
     label: '포맷',
-    description: '언어와 날짜',
+    description: '시간과 날짜 오브젝트',
   },
   {
     id: 'review',
@@ -153,6 +233,11 @@ const v2_LAYOUT_MODE_OPTIONS: Array<{
     description: '4칸/3칸 행',
   },
   {
+    value: 'vertical7',
+    label: '일자 구성',
+    description: '7개 카드 수직',
+  },
+  {
     value: 'free',
     label: '자유배치',
     description: '슬롯별 위치',
@@ -171,15 +256,201 @@ const v2_TIME_PRESET_LABELS: Record<V2TemplateCreationTimePreset, string> = {
   h24: '24시간제',
 };
 
-const v2_WEEK_DATE_PRESET_LABELS: Record<
-  V2TemplateCreationWeekDatePreset,
+const v2_WEEK_DATE_COMPOSITION_LABELS: Record<
+  V2TemplateCreationWeekDateCompositionMode,
   string
 > = {
-  locale: '기본 locale',
-  ymdSlash: 'Y/M/D',
-  mdySlash: 'M/D/Y',
-  dmyDot: 'D.M.Y',
+  rangeText: '한 줄 범위',
+  startEndText: '시작 / 종료',
+  splitDateParts: '연 / 월 / 일 분리',
 };
+
+const v2_WEEK_DATE_ORDER_LABELS: Record<
+  V2TemplateCreationWeekDateFormat['dateOrder'],
+  string
+> = {
+  locale: '언어 기본',
+  ymd: 'Y M D',
+  mdy: 'M D Y',
+  dmy: 'D M Y',
+};
+
+const v2_WEEK_DATE_MONTH_STYLE_LABELS: Record<
+  V2TemplateCreationWeekDateMonthStyle,
+  string
+> = {
+  numeric: '4',
+  '2-digit': '04',
+  shortUpper: 'APR',
+  shortCapital: 'Apr',
+  longCapital: 'April',
+};
+
+const v2_WEEK_DATE_DATE_STYLE_LABELS: Record<
+  V2TemplateCreationWeekDateFormat['dateStyle'],
+  string
+> = {
+  numeric: '5',
+  '2-digit': '05',
+};
+
+const v2_WEEK_DATE_YEAR_STYLE_LABELS: Record<
+  V2TemplateCreationWeekDateFormat['yearStyle'],
+  string
+> = {
+  numeric: '2026',
+  '2-digit': '26',
+};
+
+const v2_WEEK_DATE_ORDER_OPTIONS: Array<{
+  value: V2TemplateCreationWeekDateFormat['dateOrder'];
+  label: string;
+}> = [
+  { value: 'mdy', label: 'M D Y' },
+  { value: 'ymd', label: 'Y M D' },
+  { value: 'dmy', label: 'D M Y' },
+];
+
+const v2_WEEK_DATE_MONTH_STYLE_OPTIONS: Array<{
+  value: V2TemplateCreationWeekDateMonthStyle;
+  label: string;
+}> = [
+  { value: 'shortUpper', label: 'APR' },
+  { value: 'shortCapital', label: 'Apr' },
+  { value: 'longCapital', label: 'April' },
+  { value: 'numeric', label: '4' },
+  { value: '2-digit', label: '04' },
+];
+
+const v2_WEEK_DATE_DATE_STYLE_OPTIONS: Array<{
+  value: V2TemplateCreationWeekDateFormat['dateStyle'];
+  label: string;
+}> = [
+  { value: '2-digit', label: '05' },
+  { value: 'numeric', label: '5' },
+];
+
+const v2_WEEK_DATE_YEAR_STYLE_OPTIONS: Array<{
+  value: V2TemplateCreationWeekDateFormat['yearStyle'];
+  label: string;
+}> = [
+  { value: 'numeric', label: '2026' },
+  { value: '2-digit', label: '26' },
+];
+
+const v2_WEEK_DATE_SEPARATOR_OPTIONS: Array<{
+  value: string;
+  label: string;
+}> = [
+  { value: ' ', label: 'space' },
+  { value: '/', label: '/' },
+  { value: '.', label: '.' },
+  { value: '-', label: '-' },
+];
+
+const v2_WEEK_DATE_RANGE_SEPARATOR_OPTIONS: Array<{
+  value: string;
+  label: string;
+}> = [
+  { value: ' - ', label: '-' },
+  { value: ' ~ ', label: '~' },
+];
+
+const v2_WEEK_DATE_PREVIEW_DATES = Array.from(
+  { length: 7 },
+  (_, index) => new Date(2026, 3, 5 + index)
+);
+
+const v2_describeWeekDateFormat = (
+  format: V2TemplateCreationWeekDateFormat,
+  mode: V2TemplateCreationWeekDateCompositionMode
+): string => {
+  const valueParts = [
+    `월 ${v2_WEEK_DATE_MONTH_STYLE_LABELS[format.monthStyle]}`,
+    `일 ${v2_WEEK_DATE_DATE_STYLE_LABELS[format.dateStyle]}`,
+    `연 ${v2_WEEK_DATE_YEAR_STYLE_LABELS[format.yearStyle]}`,
+  ];
+
+  if (mode === 'splitDateParts') {
+    return valueParts.join(' · ');
+  }
+
+  return [v2_WEEK_DATE_ORDER_LABELS[format.dateOrder], ...valueParts].join(
+    ' · '
+  );
+};
+
+const v2_WEEK_DATE_COMPOSITION_OPTIONS: Array<{
+  value: V2TemplateCreationWeekDateCompositionMode;
+  label: string;
+  description: string;
+  objectCount: string;
+  objects: Array<{
+    label: string;
+    computedKey: V2WeekDateComputedPreviewKey;
+  }>;
+}> = [
+  {
+    value: 'rangeText',
+    label: '한 줄 범위',
+    description: 'start와 end를 하나의 텍스트 오브젝트로 묶습니다.',
+    objectCount: '1 object',
+    objects: [
+      {
+        label: 'Week Range',
+        computedKey: 'weekDateRange',
+      },
+    ],
+  },
+  {
+    value: 'startEndText',
+    label: '시작 / 종료',
+    description: '시작 날짜와 종료 날짜를 각각 독립 오브젝트로 만듭니다.',
+    objectCount: '2 objects',
+    objects: [
+      {
+        label: 'Start',
+        computedKey: 'weekStartFullDate',
+      },
+      {
+        label: 'End',
+        computedKey: 'weekEndFullDate',
+      },
+    ],
+  },
+  {
+    value: 'splitDateParts',
+    label: '연 / 월 / 일 분리',
+    description: '시작/종료의 year, month, date를 각각 독립 오브젝트로 만듭니다.',
+    objectCount: '6 objects',
+    objects: [
+      {
+        label: 'Start Year',
+        computedKey: 'weekStartYear',
+      },
+      {
+        label: 'Start Month',
+        computedKey: 'weekStartMonth',
+      },
+      {
+        label: 'Start Date',
+        computedKey: 'weekStartDate',
+      },
+      {
+        label: 'End Year',
+        computedKey: 'weekEndYear',
+      },
+      {
+        label: 'End Month',
+        computedKey: 'weekEndMonth',
+      },
+      {
+        label: 'End Date',
+        computedKey: 'weekEndDate',
+      },
+    ],
+  },
+];
 
 const v2_FLEX42_THREE_ROW_LABELS: Record<
   V2TemplateTimetableFlex42ThreeRow,
@@ -510,15 +781,112 @@ const AlphaCheckerMat = ({
   </span>
 );
 
+const InputFieldKeyChip = ({ fieldKey }: { fieldKey: string }) => (
+  <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
+    {fieldKey}
+  </code>
+);
+
+const InputDataPreviewField = ({ field }: { field: V2InputFieldPreview }) => {
+  const previewClassName =
+    'mt-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500';
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{field.label}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{field.scopeLabel}</p>
+        </div>
+        <InputFieldKeyChip fieldKey={field.key} />
+      </div>
+
+      {field.variant === 'textarea' ? (
+        <div className={`${previewClassName} min-h-[72px]`}>
+          {field.placeholder}
+        </div>
+      ) : field.variant === 'time' ? (
+        <div className={`${previewClassName} flex items-center justify-between`}>
+          <span className="font-medium text-slate-700">20:00</span>
+          <span className="text-xs text-slate-400">시간</span>
+        </div>
+      ) : (
+        <div className={previewClassName}>{field.placeholder}</div>
+      )}
+    </div>
+  );
+};
+
+const EmptyInputDataPreview = ({ label }: { label: string }) => (
+  <div className="rounded-md border border-dashed border-slate-300 bg-white px-3 py-6 text-center text-sm text-slate-500">
+    {label}
+  </div>
+);
+
+const WeekDateCompositionPreview = ({
+  mode,
+  weekDateFormat,
+}: {
+  mode: V2TemplateCreationWeekDateCompositionMode;
+  weekDateFormat: V2TemplateWeekDateFormat;
+}) => {
+  const option =
+    v2_WEEK_DATE_COMPOSITION_OPTIONS.find((item) => item.value === mode) ??
+    v2_WEEK_DATE_COMPOSITION_OPTIONS[0];
+  const computedValues = v2_buildWeekDateComputedValues({
+    weekDates: v2_WEEK_DATE_PREVIEW_DATES,
+    weekDateFormat,
+  });
+  const gridClassName =
+    mode === 'splitDateParts'
+      ? 'sm:grid-cols-3'
+      : mode === 'startEndText'
+        ? 'sm:grid-cols-2'
+        : 'grid-cols-1';
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-3">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-900">
+          생성될 날짜 오브젝트
+        </p>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+          {option.objectCount}
+        </span>
+      </div>
+      <div className={`mt-3 grid gap-2 ${gridClassName}`}>
+        {option.objects.map((object) => (
+          <div
+            key={`week-date-preview-${object.label}`}
+            className="rounded-md border border-slate-300 bg-slate-50 p-2.5 shadow-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase text-slate-500">
+                {object.label}
+              </p>
+            </div>
+            <div className="mt-2 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-950 shadow-inner">
+              {computedValues[object.computedKey] || '-'}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const AssetRequirementUploadCard = ({
   requirement,
   selectedFile,
-  onFileChange,
+  onFileSelect,
+  onRemoveFile,
 }: {
   requirement: V2TemplateAssetRequirement;
   selectedFile?: File | null;
-  onFileChange: (file: File | null) => void;
+  onFileSelect: (file: File) => void;
+  onRemoveFile: () => void;
 }) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const inputId = `asset-file-${requirement.id.replace(
     /[^a-zA-Z0-9_-]/g,
     '-'
@@ -535,6 +903,13 @@ const AssetRequirementUploadCard = ({
       }
     };
   }, [previewUrl]);
+
+  const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    onFileSelect(file);
+  };
 
   return (
     <div className="rounded-md border border-slate-200 bg-white p-3">
@@ -565,51 +940,62 @@ const AssetRequirementUploadCard = ({
 
       <input
         id={inputId}
+        ref={inputRef}
         type="file"
         accept="image/*"
         className="sr-only"
-        onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+        onChange={handleFileInputChange}
       />
-      <label
-        htmlFor={inputId}
-        className={`group flex aspect-video cursor-pointer items-center justify-center overflow-hidden rounded-md border-2 border-dashed text-center transition ${
-          previewUrl
-            ? 'border-slate-300 bg-white'
-            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-        }`}
-      >
-        {previewUrl ? (
-          <AlphaCheckerMat className="relative block h-full w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt={`${requirement.label} 미리보기`}
-              className="h-full w-full object-contain"
-            />
-            <span className="absolute inset-x-0 bottom-0 bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100">
-              이미지 변경
-            </span>
-          </AlphaCheckerMat>
-        ) : (
-          <AlphaCheckerMat className="flex h-full w-full items-center justify-center">
-            <span className="flex flex-col items-center gap-2 rounded-md bg-white/85 px-4 py-3 text-xs font-semibold shadow-sm ring-1 ring-slate-200/70">
-              <ImagePlus className="h-5 w-5 text-slate-400" />
-              이미지 선택
-            </span>
-          </AlphaCheckerMat>
-        )}
-      </label>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className={`group flex aspect-video w-full items-center justify-center overflow-hidden rounded-md border-2 border-dashed text-center transition ${
+            previewUrl
+              ? 'border-slate-300 bg-white'
+              : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+          }`}
+        >
+          {previewUrl ? (
+            <AlphaCheckerMat className="relative block h-full w-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewUrl}
+                alt={`${requirement.label} 미리보기`}
+                className="h-full w-full object-contain"
+              />
+              <span className="absolute inset-x-0 bottom-0 bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white opacity-0 transition group-hover:opacity-100">
+                이미지 변경
+              </span>
+            </AlphaCheckerMat>
+          ) : (
+            <AlphaCheckerMat className="flex h-full w-full items-center justify-center">
+              <span className="flex flex-col items-center gap-2 rounded-md bg-white/85 px-4 py-3 text-xs font-semibold shadow-sm ring-1 ring-slate-200/70">
+                <ImagePlus className="h-5 w-5 text-slate-400" />
+                이미지 선택
+              </span>
+            </AlphaCheckerMat>
+          )}
+        </button>
 
-      {selectedFile ? (
-        <div className="mt-2 flex items-center justify-between gap-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
-          <span className="min-w-0 truncate">{selectedFile.name}</span>
+        {selectedFile ? (
           <button
             type="button"
-            onClick={() => onFileChange(null)}
-            className="shrink-0 font-semibold text-slate-900 hover:text-rose-600"
+            aria-label={`${requirement.label} 이미지 삭제`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemoveFile();
+            }}
+            className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:bg-rose-50 hover:text-rose-600"
           >
-            제거
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
+        ) : null}
+      </div>
+
+      {selectedFile ? (
+        <div className="mt-2 rounded-md bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
+          <span className="min-w-0 truncate">{selectedFile.name}</span>
         </div>
       ) : null}
     </div>
@@ -692,6 +1078,8 @@ const TemplateEditorCreatePage = () => {
   const [assetFilesByRequirementId, setAssetFilesByRequirementId] = useState<
     Record<string, File | null>
   >({});
+  const [pendingAssetCrop, setPendingAssetCrop] =
+    useState<V2PendingAssetCrop | null>(null);
   const createTemplateMutation = useCreateAdminV2Template();
   const updateRenderConfigMutation = useUpdateAdminV2TemplateRenderConfig();
   const uploadAssetsMutation = useUploadAdminV2TemplateAssets();
@@ -799,6 +1187,47 @@ const TemplateEditorCreatePage = () => {
         [requirementId]: file,
       };
     });
+  };
+
+  const handleAssetFileSelect = async (
+    requirement: V2TemplateAssetRequirement,
+    file: File
+  ) => {
+    setCreateError(null);
+    try {
+      const imageSrc = await v2_readFileAsDataUrl(file);
+      setPendingAssetCrop({
+        requirementId: requirement.id,
+        file,
+        imageSrc,
+        cropWidth: v2_ASSET_CROP_SIZE.width,
+        cropHeight: v2_ASSET_CROP_SIZE.height,
+      });
+    } catch (error) {
+      console.error('asset image read failed', error);
+      setCreateError(
+        v2_toErrorMessage(error, '이미지 파일을 읽는 중 오류가 발생했습니다.')
+      );
+    }
+  };
+
+  const handleAssetCropComplete = async (croppedImageSrc: string) => {
+    if (!pendingAssetCrop) return;
+
+    try {
+      const croppedFile = await v2_dataUrlToFile(
+        croppedImageSrc,
+        pendingAssetCrop.file
+      );
+      updateAssetFile(pendingAssetCrop.requirementId, croppedFile);
+    } catch (error) {
+      console.error('asset image crop failed', error);
+      setCreateError(
+        v2_toErrorMessage(error, '이미지 크롭 결과를 저장하는 중 오류가 발생했습니다.')
+      );
+    } finally {
+      setPendingAssetCrop(null);
+    }
   };
 
   const buildAssetUploadItems = ({
@@ -1295,7 +1724,7 @@ const TemplateEditorCreatePage = () => {
         >
           <div>
             <p className="mb-2 text-sm font-medium text-slate-700">배치 방식</p>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               {v2_LAYOUT_MODE_OPTIONS.map((option) => {
                 const isSelected = draft.timetable.layoutMode === option.value;
                 return (
@@ -1516,38 +1945,136 @@ const TemplateEditorCreatePage = () => {
 
     if (activePanel.id === 'data') {
       const globalFields = [
-        draft.objects.artist.enabled ? 'artistText' : null,
-        draft.objects.memo.enabled ? 'memoText' : null,
-      ].filter(Boolean);
+        draft.objects.artist.enabled
+          ? {
+              key: 'artistText',
+              label: '아티스트명',
+              scopeLabel: '전역 필드',
+              placeholder: '아티스트명을 입력',
+              variant: 'text',
+            }
+          : null,
+        draft.objects.memo.enabled
+          ? {
+              key: 'memoText',
+              label: '주간 메모',
+              scopeLabel: '전역 필드',
+              placeholder: '전체 시간표에 표시할 메모',
+              variant: 'textarea',
+            }
+          : null,
+      ].filter((field): field is V2InputFieldPreview => Boolean(field));
       const cardFields = [
-        'time',
-        'mainTitle',
-        'subTitle',
-        draft.timetable.offlineMemoEnabled ? 'offlineMemo' : null,
-      ].filter(Boolean);
+        {
+          key: 'time',
+          label: '방송 시간',
+          scopeLabel: '카드/엔트리 필드',
+          placeholder: '20:00',
+          variant: 'time',
+        },
+        {
+          key: 'mainTitle',
+          label: '메인 제목',
+          scopeLabel: '카드/엔트리 필드',
+          placeholder: '방송 제목을 입력',
+          variant: 'text',
+        },
+        {
+          key: 'subTitle',
+          label: '부제',
+          scopeLabel: '카드/엔트리 필드',
+          placeholder: '세부 설명 또는 코너명',
+          variant: 'text',
+        },
+        draft.timetable.offlineMemoEnabled
+          ? {
+              key: 'offlineMemo',
+              label: '오프라인 메모',
+              scopeLabel: '오프라인 카드 필드',
+              placeholder: '오프라인 상태일 때 보여줄 문구',
+              variant: 'textarea',
+            }
+          : null,
+      ].filter((field): field is V2InputFieldPreview => Boolean(field));
+      const allFields = [...globalFields, ...cardFields];
+
       return (
         <FieldBlock
           title="입력 데이터"
-          description="앞에서 고른 구성 요소에 따라 생성될 사용자 입력 필드입니다."
+          description="앞에서 고른 구성 요소에 따라 생성될 입력 폼을 미리 봅니다."
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm font-semibold text-slate-900">전역 필드</p>
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                {globalFields.length > 0 ? (
-                  globalFields.map((field) => <li key={field}>{field}</li>)
-                ) : (
-                  <li className="text-slate-500">추가 전역 필드 없음</li>
-                )}
-              </ul>
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {allFields.map((field) => (
+                <span
+                  key={`input-field-chip-${field.key}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700"
+                >
+                  {field.label}
+                  <InputFieldKeyChip fieldKey={field.key} />
+                </span>
+              ))}
             </div>
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-              <p className="text-sm font-semibold text-slate-900">카드/엔트리 필드</p>
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                {cardFields.map((field) => (
-                  <li key={field}>{field}</li>
-                ))}
-              </ul>
+
+            <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.85fr)_minmax(360px,1.15fr)]">
+              <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      전역 입력
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      시간표 전체에 한 번 적용됩니다.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {globalFields.length} fields
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {globalFields.length > 0 ? (
+                    globalFields.map((field) => (
+                      <InputDataPreviewField key={field.key} field={field} />
+                    ))
+                  ) : (
+                    <EmptyInputDataPreview label="추가 전역 입력 없음" />
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">
+                      카드 입력
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      요일 카드와 다회차 엔트리에 반복됩니다.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-slate-600">
+                    {cardFields.length} fields
+                  </span>
+                </div>
+
+                <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      Mon · Card 1
+                    </p>
+                    {draft.timetable.multipleEnabled ? (
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                        최대 {draft.timetable.maxEntriesPerDay}회차
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {cardFields.map((field) => (
+                      <InputDataPreviewField key={field.key} field={field} />
+                    ))}
+                  </div>
+                </div>
+              </section>
             </div>
           </div>
         </FieldBlock>
@@ -1594,7 +2121,10 @@ const TemplateEditorCreatePage = () => {
                       key={requirement.id}
                       requirement={requirement}
                       selectedFile={selectedFile}
-                      onFileChange={(file) => updateAssetFile(requirement.id, file)}
+                      onFileSelect={(file) =>
+                        handleAssetFileSelect(requirement, file)
+                      }
+                      onRemoveFile={() => updateAssetFile(requirement.id, null)}
                     />
                   );
                 })}
@@ -1707,13 +2237,46 @@ const TemplateEditorCreatePage = () => {
     }
 
     if (activePanel.id === 'formats') {
+      const selectedWeekDateComposition =
+        v2_WEEK_DATE_COMPOSITION_OPTIONS.find(
+          (option) => option.value === draft.formats.weekDateCompositionMode
+        ) ?? v2_WEEK_DATE_COMPOSITION_OPTIONS[0];
+      const weekDateCompositionMode =
+        draft.formats.weekDateCompositionMode;
+      const isSplitWeekDateParts =
+        weekDateCompositionMode === 'splitDateParts';
+      const showRangeSeparator = weekDateCompositionMode === 'rangeText';
+      const weekDateFormatDraft = v2_resolveCreationWeekDateFormat(
+        draft.formats.weekDateFormat
+      );
+      const weekDateFormatPreview = v2_buildCreationWeekDateFormat({
+        base: v2_createEmptyTemplateRenderConfig().weekDateFormat,
+        locale: draft.formats.localePreset,
+        format: weekDateFormatDraft,
+      });
+      const updateWeekDateFormat = (
+        patch: Partial<V2TemplateCreationWeekDateFormat>
+      ) =>
+        updateDraft((current) => ({
+          ...current,
+          formats: {
+            ...current.formats,
+            weekDateFormat: {
+              ...v2_resolveCreationWeekDateFormat(
+                current.formats.weekDateFormat
+              ),
+              ...patch,
+            },
+          },
+        }));
+
       return (
         <FieldBlock
           title="포맷"
-          description="요일, 시간, 주간 날짜의 기본 표시 방식을 정합니다."
+          description="카드 시간 표시와 주간 날짜 오브젝트 구성을 분리해서 정합니다."
         >
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
+          <div className="space-y-5">
+            <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
               <label
                 className="mb-1 block text-sm font-medium text-slate-700"
                 htmlFor="locale-preset"
@@ -1738,64 +2301,374 @@ const TemplateEditorCreatePage = () => {
                 <option value="en">영어</option>
                 <option value="jp">일본어</option>
               </select>
-            </div>
+            </section>
 
-            <div>
-              <label
-                className="mb-1 block text-sm font-medium text-slate-700"
-                htmlFor="time-preset"
-              >
-                시간 포맷
-              </label>
-              <select
-                id="time-preset"
-                value={draft.formats.timePreset}
-                onChange={(event) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    formats: {
-                      ...current.formats,
-                      timePreset:
-                        event.target.value as V2TemplateCreationTimePreset,
-                    },
-                  }))
-                }
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="h12Prefix">12시간제 AM/PM 앞</option>
-                <option value="h12Suffix">12시간제 AM/PM 뒤</option>
-                <option value="h24">24시간제</option>
-              </select>
-            </div>
+            <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.8fr)_minmax(280px,1fr)]">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    카드 시간 포맷
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    방송 카드의 시간 텍스트에만 적용됩니다.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <label
+                      className="mb-1 block text-sm font-medium text-slate-700"
+                      htmlFor="time-preset"
+                    >
+                      시간 표시
+                    </label>
+                    <select
+                      id="time-preset"
+                      value={draft.formats.timePreset}
+                      onChange={(event) =>
+                        updateDraft((current) => ({
+                          ...current,
+                          formats: {
+                            ...current.formats,
+                            timePreset:
+                              event.target.value as V2TemplateCreationTimePreset,
+                          },
+                        }))
+                      }
+                      className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="h12Prefix">12시간제 AM/PM 앞</option>
+                      <option value="h12Suffix">12시간제 AM/PM 뒤</option>
+                      <option value="h24">24시간제</option>
+                    </select>
+                  </div>
+                  <div className="rounded-md border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      Preview
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-slate-950">
+                      {draft.formats.timePreset === 'h24'
+                        ? '20:00'
+                        : draft.formats.timePreset === 'h12Suffix'
+                          ? '08:00 PM'
+                          : 'PM 08:00'}
+                    </p>
+                    <InputFieldKeyChip fieldKey="streamingTime" />
+                  </div>
+                </div>
+              </div>
+            </section>
 
-            <div>
-              <label
-                className="mb-1 block text-sm font-medium text-slate-700"
-                htmlFor="week-date-preset"
-              >
-                주간 날짜 포맷
-              </label>
-              <select
-                id="week-date-preset"
-                value={draft.formats.weekDatePreset}
-                onChange={(event) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    formats: {
-                      ...current.formats,
-                      weekDatePreset:
-                        event.target.value as V2TemplateCreationWeekDatePreset,
-                    },
-                  }))
-                }
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="locale">기본 locale</option>
-                <option value="ymdSlash">Y/M/D</option>
-                <option value="mdySlash">M/D/Y</option>
-                <option value="dmyDot">D.M.Y</option>
-              </select>
-            </div>
+            <section className="rounded-md border border-slate-200 bg-slate-50 p-4">
+              <div className="grid gap-4 xl:grid-cols-[minmax(280px,0.9fr)_minmax(420px,1.1fr)]">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    주간 날짜 오브젝트
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    주간 날짜를 몇 개의 텍스트 오브젝트로 만들지 정합니다.
+                  </p>
+                  <div className="mt-3 rounded-md border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      Selected
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-slate-900">
+                      {selectedWeekDateComposition.label}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {selectedWeekDateComposition.objectCount} ·{' '}
+                      {v2_describeWeekDateFormat(
+                        weekDateFormatDraft,
+                        weekDateCompositionMode
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {v2_WEEK_DATE_COMPOSITION_OPTIONS.map((option) => {
+                      const selected =
+                        draft.formats.weekDateCompositionMode === option.value;
+                      return (
+                        <button
+                          key={`week-date-composition-${option.value}`}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() =>
+                            updateDraft((current) => ({
+                              ...current,
+                              formats: {
+                                ...current.formats,
+                                weekDateCompositionMode: option.value,
+                              },
+                            }))
+                          }
+                          className={`rounded-md border p-3 text-left transition ${
+                            selected
+                              ? 'border-slate-900 bg-slate-900 text-white'
+                              : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="block text-sm font-semibold">
+                            {option.label}
+                          </span>
+                          <span
+                            className={`mt-1 block text-xs ${
+                              selected ? 'text-slate-200' : 'text-slate-500'
+                            }`}
+                          >
+                            {option.description}
+                          </span>
+                          <span
+                            className={`mt-3 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              selected
+                                ? 'bg-white text-slate-900'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            {option.objectCount}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="rounded-md border border-slate-200 bg-white p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">
+                          날짜 값 포맷
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          각 날짜 오브젝트에 들어갈 최종 표시값을 정합니다.
+                        </p>
+                      </div>
+                      {!isSplitWeekDateParts ? (
+                        <label className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={weekDateFormatDraft.includeYear}
+                            onChange={(event) =>
+                              updateWeekDateFormat({
+                                includeYear: event.target.checked,
+                              })
+                            }
+                            className="h-4 w-4 rounded border-slate-300"
+                          />
+                          범위/시작종료에 연도 포함
+                        </label>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                      {!isSplitWeekDateParts ? (
+                        <div>
+                          <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                            날짜 순서
+                          </p>
+                          <div className="grid grid-cols-3 gap-1">
+                            {v2_WEEK_DATE_ORDER_OPTIONS.map((option) => {
+                              const selected =
+                                weekDateFormatDraft.dateOrder === option.value;
+                              return (
+                                <button
+                                  key={`week-date-order-${option.value}`}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() =>
+                                    updateWeekDateFormat({
+                                      dateOrder: option.value,
+                                    })
+                                  }
+                                  className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
+                                    selected
+                                      ? 'border-slate-900 bg-slate-900 text-white'
+                                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {!isSplitWeekDateParts ? (
+                        <div>
+                          <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                            날짜 구분자
+                          </p>
+                          <div className="grid grid-cols-4 gap-1">
+                            {v2_WEEK_DATE_SEPARATOR_OPTIONS.map((option) => {
+                              const selected =
+                                weekDateFormatDraft.dateSeparator ===
+                                  option.value &&
+                                weekDateFormatDraft.monthDateSeparator ===
+                                  option.value;
+                              return (
+                                <button
+                                  key={`week-date-separator-${option.label}`}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() =>
+                                    updateWeekDateFormat({
+                                      dateSeparator: option.value,
+                                      monthDateSeparator: option.value,
+                                    })
+                                  }
+                                  className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
+                                    selected
+                                      ? 'border-slate-900 bg-slate-900 text-white'
+                                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+
+                      <div>
+                        <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                          월 표시
+                        </p>
+                        <div className="grid grid-cols-5 gap-1">
+                          {v2_WEEK_DATE_MONTH_STYLE_OPTIONS.map((option) => {
+                            const selected =
+                              weekDateFormatDraft.monthStyle === option.value;
+                            return (
+                              <button
+                                key={`week-date-month-${option.value}`}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() =>
+                                  updateWeekDateFormat({
+                                    monthStyle: option.value,
+                                  })
+                                }
+                                className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
+                                  selected
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                          일 표시
+                        </p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {v2_WEEK_DATE_DATE_STYLE_OPTIONS.map((option) => {
+                            const selected =
+                              weekDateFormatDraft.dateStyle === option.value;
+                            return (
+                              <button
+                                key={`week-date-date-${option.value}`}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() =>
+                                  updateWeekDateFormat({
+                                    dateStyle: option.value,
+                                  })
+                                }
+                                className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
+                                  selected
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                          연도 표시
+                        </p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {v2_WEEK_DATE_YEAR_STYLE_OPTIONS.map((option) => {
+                            const selected =
+                              weekDateFormatDraft.yearStyle === option.value;
+                            return (
+                              <button
+                                key={`week-date-year-${option.value}`}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() =>
+                                  updateWeekDateFormat({
+                                    yearStyle: option.value,
+                                  })
+                                }
+                                className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
+                                  selected
+                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                }`}
+                              >
+                                {option.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {showRangeSeparator ? (
+                        <div>
+                        <p className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                          범위 구분자
+                        </p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {v2_WEEK_DATE_RANGE_SEPARATOR_OPTIONS.map(
+                            (option) => {
+                              const selected =
+                                weekDateFormatDraft.rangeSeparator ===
+                                option.value;
+                              return (
+                                <button
+                                  key={`week-date-range-separator-${option.label}`}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() =>
+                                    updateWeekDateFormat({
+                                      rangeSeparator: option.value,
+                                    })
+                                  }
+                                  className={`rounded-md border px-2 py-2 text-xs font-semibold transition ${
+                                    selected
+                                      ? 'border-slate-900 bg-slate-900 text-white'
+                                      : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      </div>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <WeekDateCompositionPreview
+                    mode={draft.formats.weekDateCompositionMode}
+                    weekDateFormat={weekDateFormatPreview}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
         </FieldBlock>
       );
@@ -1989,7 +2862,16 @@ const TemplateEditorCreatePage = () => {
               <dd className="mt-1 text-slate-950">
                 {v2_LOCALE_PRESET_LABELS[draft.formats.localePreset]} ·{' '}
                 {v2_TIME_PRESET_LABELS[draft.formats.timePreset]} ·{' '}
-                {v2_WEEK_DATE_PRESET_LABELS[draft.formats.weekDatePreset]}
+                {v2_WEEK_DATE_COMPOSITION_LABELS[
+                  draft.formats.weekDateCompositionMode
+                ]}{' '}
+                ·{' '}
+                {v2_describeWeekDateFormat(
+                  v2_resolveCreationWeekDateFormat(
+                    draft.formats.weekDateFormat
+                  ),
+                  draft.formats.weekDateCompositionMode
+                )}
               </dd>
             </div>
           </dl>
@@ -2051,6 +2933,17 @@ const TemplateEditorCreatePage = () => {
           </section>
         </aside>
       </form>
+
+      {pendingAssetCrop ? (
+        <ImageCropModal
+          isOpen
+          onClose={() => setPendingAssetCrop(null)}
+          imageSrc={pendingAssetCrop.imageSrc}
+          onCropComplete={handleAssetCropComplete}
+          cropWidth={pendingAssetCrop.cropWidth}
+          cropHeight={pendingAssetCrop.cropHeight}
+        />
+      ) : null}
     </div>
   );
 };
