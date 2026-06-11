@@ -25,10 +25,10 @@ export const useUpdateCustomOrder = () => {
     }) => AdminOrderService.updateCustomOrder(orderId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.customOrders(),
+        queryKey: queryKeys.admin.customOrdersRoot(),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.calendar("custom", "", ""),
+        queryKey: queryKeys.admin.calendarRoot("custom"),
       });
     },
   });
@@ -50,7 +50,7 @@ export const useUpdateLegacyOrder = () => {
     }) => AdminOrderService.updateLegacyOrder(orderId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.calendar("legacy", "", ""),
+        queryKey: queryKeys.admin.calendarRoot("legacy"),
       });
     },
   });
@@ -138,7 +138,10 @@ export const useUpdateCustomOrderDeadline = () => {
     }) => AdminOrderService.updateCustomOrder(orderId, { deadline }),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.admin.customOrders(),
+        queryKey: queryKeys.admin.customOrdersRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.calendarRoot("custom"),
       });
     },
   });

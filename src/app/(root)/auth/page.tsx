@@ -40,10 +40,10 @@ function AuthContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-light via-timetable-card-bg to-tertiary px-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 md:h-32 md:w-32 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-3 md:mt-4 text-sm md:text-base text-gray-600">
+          <div className="animate-spin rounded-full h-16 w-16 md:h-24 md:w-24 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-3 md:mt-4 text-sm md:text-base text-dark-gray/70">
             인증 상태 확인 중...
           </p>
         </div>
@@ -168,10 +168,10 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-light via-timetable-card-bg to-tertiary px-4">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 md:h-32 md:w-32 border-b-2 border-gray-900 mx-auto"></div>
-            <p className="mt-3 md:mt-4 text-sm md:text-base text-gray-600">
+            <div className="animate-spin rounded-full h-16 w-16 md:h-24 md:w-24 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-3 md:mt-4 text-sm md:text-base text-dark-gray/70">
               로딩 중...
             </p>
           </div>

@@ -51,7 +51,7 @@ export default function ForgotPasswordForm({ onSuccess, onBack }: ForgotPassword
       } else {
         setError(data.error || "비밀번호 재설정 요청에 실패했습니다.");
       }
-    } catch (error) {
+    } catch {
       setError("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading(false);
@@ -112,7 +112,7 @@ export default function ForgotPasswordForm({ onSuccess, onBack }: ForgotPassword
               setEmail(e.target.value);
               if (error) setError("");
             }}
-            className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            className="mt-1 appearance-none relative block w-full px-3 py-2 border border-tertiary placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
             placeholder="your@example.com"
             required
             disabled={loading || !!success}
@@ -122,7 +122,7 @@ export default function ForgotPasswordForm({ onSuccess, onBack }: ForgotPassword
         <div className="flex flex-col space-y-3">
           <button
             type="submit"
-            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={loading || !!success}
           >
             {loading ? "발송 중..." : "비밀번호 재설정 링크 발송"}
@@ -132,7 +132,7 @@ export default function ForgotPasswordForm({ onSuccess, onBack }: ForgotPassword
             <button
               type="button"
               onClick={onBack}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              className="w-full flex justify-center py-2 px-4 border border-tertiary rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
               disabled={loading}
             >
               로그인으로 돌아가기

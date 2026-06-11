@@ -98,14 +98,14 @@ function ResetPasswordForm() {
 
   if (validating) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-light via-timetable-card-bg to-tertiary">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-            <h2 className="mt-6 text-2xl font-bold text-gray-900">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+            <h2 className="mt-6 text-2xl font-bold text-dark-gray">
               토큰 검증 중...
             </h2>
-            <p className="mt-2 text-sm text-gray-600">잠시만 기다려 주세요.</p>
+            <p className="mt-2 text-sm text-dark-gray/70">잠시만 기다려 주세요.</p>
           </div>
         </div>
       </div>
@@ -217,7 +217,7 @@ function ResetPasswordForm() {
                 name="password"
                 type="password"
                 required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-tertiary placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                 placeholder="새 비밀번호 (8자 이상)"
                 value={password}
                 onChange={(e) => {
@@ -238,7 +238,7 @@ function ResetPasswordForm() {
                 name="confirmPassword"
                 type="password"
                 required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-tertiary placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-primary focus:border-primary focus:z-10 sm:text-sm"
                 placeholder="비밀번호 확인"
                 value={confirmPassword}
                 onChange={(e) => {
@@ -252,7 +252,7 @@ function ResetPasswordForm() {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={resetPasswordMutation.isPending || !!success}
             >
               {resetPasswordMutation.isPending ? "변경 중..." : "비밀번호 변경"}
@@ -263,7 +263,7 @@ function ResetPasswordForm() {
             <button
               type="button"
               onClick={() => router.push("/auth")}
-              className="text-indigo-600 hover:text-indigo-500 text-sm"
+              className="text-primary hover:text-primary/80 text-sm"
             >
               로그인 페이지로 돌아가기
             </button>
@@ -278,14 +278,14 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-light via-timetable-card-bg to-tertiary">
           <div className="max-w-md w-full space-y-8">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-              <h2 className="mt-6 text-2xl font-bold text-gray-900">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+              <h2 className="mt-6 text-2xl font-bold text-dark-gray">
                 로딩 중...
               </h2>
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-dark-gray/70">
                 잠시만 기다려 주세요.
               </p>
             </div>

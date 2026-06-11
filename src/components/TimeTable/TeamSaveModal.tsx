@@ -135,7 +135,7 @@ const TeamSaveModal: React.FC<TeamSaveModalProps> = ({
 
             {teamsLoading ? (
               <div className="flex items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                 <span className="ml-2 text-gray-600">
                   팀 목록을 불러오는 중...
                 </span>

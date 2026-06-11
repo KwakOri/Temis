@@ -12,6 +12,15 @@ export const useCustomOrderHistory = () => {
   });
 };
 
+export const useEstimatedCustomOrderDeadline = () => {
+  return useQuery({
+    queryKey: queryKeys.customOrder.estimatedDeadline(),
+    queryFn: () => CustomOrderService.getEstimatedDeadline(),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+};
+
 export const useSubmitCustomOrder = () => {
   const queryClient = useQueryClient();
 
@@ -25,6 +34,9 @@ export const useSubmitCustomOrder = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.orders(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customOrder.estimatedDeadline(),
       });
       // 주문 파일 캐시도 무효화
       queryClient.invalidateQueries({
@@ -47,6 +59,9 @@ export const useCancelCustomOrder = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.customOrder.orders(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customOrder.estimatedDeadline(),
       });
     },
   });

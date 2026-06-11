@@ -207,7 +207,7 @@ export default function AdminFileManager({
         <div className="p-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
               <span className="ml-2 text-gray-500">파일 로딩 중...</span>
             </div>
           ) : (

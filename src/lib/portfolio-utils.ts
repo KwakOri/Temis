@@ -1,4 +1,5 @@
 import { uploadFileToR2, deleteFileFromR2, getFileUrl } from "./r2";
+import { PORTFOLIO_UPLOAD_FOLDER } from "./portfolio-upload";
 
 /**
  * 포트폴리오 이미지를 R2에 업로드
@@ -15,7 +16,7 @@ export async function uploadPortfolioImage(
     buffer,
     file.name,
     file.type,
-    "uploads/portfolios"
+    PORTFOLIO_UPLOAD_FOLDER
   );
 
   return {
@@ -49,11 +50,28 @@ export function extractFileKeyFromUrl(url: string): string {
   }
 }
 
+export function isPortfolioFileKey(fileKey: string): boolean {
+  return fileKey.startsWith(`${PORTFOLIO_UPLOAD_FOLDER}/`);
+}
+
+export function extractPortfolioFileKeyFromUrl(url: string): string | null {
+  try {
+    const fileKey = extractFileKeyFromUrl(url);
+    return isPortfolioFileKey(fileKey) ? fileKey : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 포트폴리오 이미지를 R2에서 삭제
  */
 export async function deletePortfolioImage(url: string): Promise<void> {
-  const fileKey = extractFileKeyFromUrl(url);
+  const fileKey = extractPortfolioFileKeyFromUrl(url);
+  if (!fileKey) {
+    return;
+  }
+
   await deleteFileFromR2(fileKey);
 }
 

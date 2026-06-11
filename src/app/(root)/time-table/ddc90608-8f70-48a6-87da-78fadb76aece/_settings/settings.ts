@@ -1,5 +1,5 @@
-import { CardInputConfig, TLanOpt } from "@/types/time-table/data";
-import { TButtonTheme } from "@/types/time-table/theme";
+import { CardInputConfig, TLanOpt } from '@/types/time-table/data';
+import { TButtonTheme } from '@/types/time-table/theme';
 
 /** ---------------------------------------------- */
 
@@ -14,10 +14,10 @@ export const templateSize = {
 /** _styles/index.css 에 먼저 폰트를 등록하고 작성해주세요. */
 
 export const fontOption = {
-  primary: "BagelFatOne-Regular",
-  secondary: "",
-  tertiary: "",
-  quaternary: "",
+  primary: 'SchoolSafetyRoundedSmile',
+  secondary: '',
+  tertiary: '',
+  quaternary: '',
 };
 
 /** ---------------------------------------------- */
@@ -27,20 +27,20 @@ export const fontOption = {
 
 /** kr | en | jp */
 
-export const weekdayOption: TLanOpt = "en";
-export const monthOption: TLanOpt = "en";
+export const weekdayOption: TLanOpt = 'en';
+export const monthOption: TLanOpt = 'en';
 
 /** ---------------------------------------------- */
 
 /** Theme 설정 */
 /** Theme 설정 */
 
-export const Themes = ["first", "second", "third"] as const;
+export const Themes = ['first', 'second', 'third'] as const;
 
-export const defaultTheme = "first" as const;
+export const defaultTheme = 'first' as const;
 
 export const buttonThemes: TButtonTheme[] = [
-  { value: "first", label: "first" },
+  { value: 'first', label: 'first' },
 ];
 
 /**
@@ -52,22 +52,22 @@ export const buttonThemes: TButtonTheme[] = [
 
 export const colors = {
   first: {
-    primary: "#AC6959",
-    secondary: "#F4B059",
-    tertiary: "#FFEFD2",
-    quaternary: "",
+    primary: '#AC6959',
+    secondary: '#F4B059',
+    tertiary: '#FFEFD2',
+    quaternary: '',
   },
   second: {
-    primary: "",
-    secondary: "",
-    tertiary: "",
-    quaternary: "",
+    primary: '',
+    secondary: '',
+    tertiary: '',
+    quaternary: '',
   },
   third: {
-    primary: "",
-    secondary: "",
-    tertiary: "",
-    quaternary: "",
+    primary: '',
+    secondary: '',
+    tertiary: '',
+    quaternary: '',
   },
 };
 
@@ -84,33 +84,33 @@ export const onlineCardHeight: number = 604;
 export const CARD_INPUT_CONFIG: CardInputConfig = {
   fields: [
     {
-      key: "time",
-      type: "time",
-      placeholder: "10:00",
+      key: 'time',
+      type: 'time',
+      placeholder: '10:00',
       required: true,
-      defaultValue: "10:00",
+      defaultValue: '10:00',
     },
     {
-      key: "mainTitle",
-      type: "textarea",
-      placeholder: "메인 타이틀\n적는 곳",
-      defaultValue: "",
+      key: 'mainTitle',
+      type: 'textarea',
+      placeholder: '메인 타이틀\n적는 곳',
+      defaultValue: '',
       maxLength: 200,
     },
     {
-      key: "subTitle",
-      type: "text",
-      placeholder: "서브 타이틀 적는 곳",
-      defaultValue: "",
+      key: 'subTitle',
+      type: 'text',
+      placeholder: '서브 타이틀 적는 곳',
+      defaultValue: '',
       maxLength: 50,
     },
   ],
   showLabels: false, // 라벨 표시 여부
   // 오프라인 토글 설정
   offlineToggle: {
-    label: "휴방",
-    activeColor: "bg-[#3E4A82]",
-    inactiveColor: "bg-gray-300",
+    label: '휴방',
+    activeColor: 'bg-[#3E4A82]',
+    inactiveColor: 'bg-gray-300',
   },
 };
 
@@ -140,7 +140,7 @@ export const weekFlagCardHeight: number = 778;
 /** Profile Frame 크기 */
 
 export interface ProfileImageInfoInterface {
-  arrange: "onBottom" | "onTop";
+  arrange: 'onBottom' | 'onTop';
   rotation: number;
   position: {
     top: number;
@@ -149,7 +149,7 @@ export interface ProfileImageInfoInterface {
 }
 
 export const profileImageInfo: ProfileImageInfoInterface = {
-  arrange: "onBottom",
+  arrange: 'onBottom',
   rotation: 4,
   position: {
     top: -1,
@@ -183,6 +183,6 @@ export const profileImageHeight = 1500;
 export const profileBackPlateWidth = 1327;
 export const profileBackPlateHeight = 1484;
 
-export const profileTextPlaceholder = "아티스트 명 적는 곳";
+export const profileTextPlaceholder = '아티스트 명 적는 곳';
 
 /** ---------------------------------------------- */

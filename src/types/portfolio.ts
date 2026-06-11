@@ -32,6 +32,23 @@ export interface UpdatePortfolioRequest {
   existingImageUrls?: string[]; // 유지할 기존 이미지 URL들
 }
 
+export interface CreatePortfolioMetadataRequest {
+  category: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string;
+  imageUrls: string[];
+}
+
+export interface UpdatePortfolioMetadataRequest {
+  category: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string;
+  imageUrls: string[];
+  uploadedImageUrls?: string[];
+}
+
 // Portfolio 삭제 요청
 export interface DeletePortfolioRequest {
   id: string;

@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
+import RoyaltyManualAdjustmentModal from "@/components/admin/RoyaltyManualAdjustmentModal";
 import {
   useAdminRoyaltyBatches,
   useAdminRoyaltySales,
@@ -12,7 +13,13 @@ import {
 import { useAdminSalesStats } from "@/hooks/query/useAdminSalesStats";
 import { getAdminPathByTabId } from "@/lib/adminTabs";
 import { RoyaltySaleItem, RoyaltyStatus } from "@/types/admin";
-import { AlertTriangle, CheckCircle2, HandCoins, Settings } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileText,
+  HandCoins,
+  Settings,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
@@ -133,6 +140,11 @@ export default function RoyaltySettlementManagement() {
   const [selectedRoyaltyIds, setSelectedRoyaltyIds] = useState<Set<string>>(
     () => new Set()
   );
+  const [isOpeningSettlementRun, setIsOpeningSettlementRun] = useState(false);
+  const [manualRoyalty, setManualRoyalty] = useState<RoyaltySaleItem | null>(
+    null
+  );
+  const [manualAmountDraft, setManualAmountDraft] = useState("");
 
   const appliedRange = useMemo(
     () => getMonthRange(appliedPeriod.monthValue, appliedPeriod.monthCount),
@@ -244,8 +256,31 @@ export default function RoyaltySettlementManagement() {
     setPage(1);
   };
 
+  const openSettlementRunWithRecalculation = async (
+    month: string,
+    range: { from: string; to: string }
+  ) => {
+    setIsOpeningSettlementRun(true);
+
+    try {
+      await recalculateRoyaltiesMutation.mutateAsync({
+        from: range.from,
+        to: range.to,
+      });
+      router.push(`/admin/settlements/run?month=${month}`);
+    } catch (mutationError) {
+      alert(
+        mutationError instanceof Error
+          ? mutationError.message
+          : "로열티 재계산 중 오류가 발생했습니다."
+      );
+    } finally {
+      setIsOpeningSettlementRun(false);
+    }
+  };
+
   const openLastMonthSettlementRun = () => {
-    router.push(`/admin/settlements/run?month=${lastMonthValue}`);
+    void openSettlementRunWithRecalculation(lastMonthValue, lastMonthRange);
   };
 
   const toggleRoyaltySelection = (id: string) => {
@@ -306,11 +341,22 @@ export default function RoyaltySettlementManagement() {
     }
   };
 
-  const updateRoyaltyAmount = async (
-    royalty: RoyaltySaleItem,
-    value: string
-  ) => {
-    const normalizedValue = value.replace(/,/g, "").trim();
+  const openManualRoyaltyModal = (royalty: RoyaltySaleItem) => {
+    setManualRoyalty(royalty);
+    setManualAmountDraft(String(royalty.royaltyAmount));
+  };
+
+  const closeManualRoyaltyModal = () => {
+    setManualRoyalty(null);
+    setManualAmountDraft("");
+  };
+
+  const saveManualRoyaltyAmount = async () => {
+    if (!manualRoyalty) {
+      return;
+    }
+
+    const normalizedValue = manualAmountDraft.replace(/,/g, "").trim();
     const nextAmount = Number(normalizedValue || "0");
 
     if (!Number.isFinite(nextAmount) || nextAmount < 0) {
@@ -320,20 +366,44 @@ export default function RoyaltySettlementManagement() {
 
     const roundedAmount = Math.round(nextAmount);
 
-    if (roundedAmount === royalty.royaltyAmount) {
+    if (roundedAmount === manualRoyalty.royaltyAmount) {
+      closeManualRoyaltyModal();
       return;
     }
 
     try {
       await updateRoyaltyMutation.mutateAsync({
-        id: royalty.id,
+        id: manualRoyalty.id,
         data: { royaltyAmount: roundedAmount },
       });
+      closeManualRoyaltyModal();
     } catch (mutationError) {
       alert(
         mutationError instanceof Error
           ? mutationError.message
           : "정산 금액 변경 중 오류가 발생했습니다."
+      );
+    }
+  };
+
+  const resetManualRoyaltyToRule = async () => {
+    if (!manualRoyalty) {
+      return;
+    }
+
+    try {
+      const result = await recalculateRoyaltiesMutation.mutateAsync({
+        royaltyIds: [manualRoyalty.id],
+        includeManual: true,
+      });
+
+      alert(`${result.updatedCount}건을 현재 규칙으로 갱신했습니다.`);
+      closeManualRoyaltyModal();
+    } catch (mutationError) {
+      alert(
+        mutationError instanceof Error
+          ? mutationError.message
+          : "로열티 재계산 중 오류가 발생했습니다."
       );
     }
   };
@@ -396,6 +466,18 @@ export default function RoyaltySettlementManagement() {
       >
         <button
           type="button"
+          onClick={() =>
+            router.push(
+              `/admin/settlements/statements?month=${appliedPeriod.monthValue}`
+            )
+          }
+          className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+        >
+          <FileText className="h-4 w-4" />
+          월별 내역
+        </button>
+        <button
+          type="button"
           onClick={() => router.push("/admin/settlements/royalty-settings")}
           className="inline-flex items-center gap-2 px-3 py-2 bg-primary text-white rounded-md text-sm hover:bg-secondary"
         >
@@ -452,10 +534,11 @@ export default function RoyaltySettlementManagement() {
             <button
               type="button"
               onClick={openLastMonthSettlementRun}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700"
+              disabled={isOpeningSettlementRun}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-50"
             >
               <HandCoins className="h-4 w-4" />
-              로열티 정산
+              {isOpeningSettlementRun ? "정산 기준 갱신 중" : "로열티 정산"}
             </button>
           </div>
         ) : (
@@ -746,13 +829,15 @@ export default function RoyaltySettlementManagement() {
                           <button
                             type="button"
                             onClick={() =>
-                              router.push(
-                                `/admin/settlements/run?month=${appliedPeriod.monthValue}`
+                              void openSettlementRunWithRecalculation(
+                                appliedPeriod.monthValue,
+                                appliedRange
                               )
                             }
+                            disabled={isOpeningSettlementRun}
                             className="px-3 py-1 bg-primary text-white rounded text-xs hover:bg-secondary disabled:opacity-50"
                           >
-                            로열티 정산
+                            {isOpeningSettlementRun ? "갱신 중" : "로열티 정산"}
                           </button>
                         ) : (
                           <span className="inline-flex px-2.5 py-1 rounded-full bg-gray-100 text-xs font-medium text-gray-500">
@@ -973,17 +1058,8 @@ export default function RoyaltySettlementManagement() {
                       <td className="px-4 py-2 text-sm text-right text-gray-700">
                         {formatWon(royalty.saleAmount)}
                       </td>
-                      <td className="px-4 py-2 text-sm text-right">
-                        <input
-                          key={`${royalty.id}-${royalty.royaltyAmount}`}
-                          type="number"
-                          min={0}
-                          defaultValue={royalty.royaltyAmount}
-                          onBlur={(event) =>
-                            updateRoyaltyAmount(royalty, event.target.value)
-                          }
-                          className="w-28 px-2 py-1 border border-gray-300 rounded text-right text-sm"
-                        />
+                      <td className="px-4 py-2 text-sm text-right font-medium text-gray-900">
+                        {formatWon(royalty.royaltyAmount)}
                       </td>
                       <td className="px-4 py-2 text-xs text-gray-600">
                         {getRoyaltyRuleLabel(royalty)}
@@ -1000,25 +1076,41 @@ export default function RoyaltySettlementManagement() {
                         </span>
                       </td>
                       <td className="px-4 py-2 text-sm text-right">
-                        {royalty.status === "paid" ? (
+                        <div className="flex justify-end gap-2">
+                          {royalty.status === "paid" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateRoyaltyStatus(royalty, "unpaid")
+                              }
+                              disabled={updateRoyaltyMutation.isPending}
+                              className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700 disabled:opacity-50"
+                            >
+                              취소
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => updateRoyaltyStatus(royalty, "paid")}
+                              disabled={markRoyaltiesPaidMutation.isPending}
+                              className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                            >
+                              정산 완료
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => updateRoyaltyStatus(royalty, "unpaid")}
-                            disabled={updateRoyaltyMutation.isPending}
-                            className="px-3 py-1 bg-gray-600 text-white rounded text-xs hover:bg-gray-700 disabled:opacity-50"
+                            onClick={() => openManualRoyaltyModal(royalty)}
+                            disabled={
+                              updateRoyaltyMutation.isPending ||
+                              recalculateRoyaltiesMutation.isPending
+                            }
+                            className="inline-flex h-7 w-7 items-center justify-center rounded border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                            aria-label={`${royalty.artistName} ${royalty.templateName} 수동 정산 조정`}
                           >
-                            취소
+                            <Settings className="h-4 w-4" />
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => updateRoyaltyStatus(royalty, "paid")}
-                            disabled={markRoyaltiesPaidMutation.isPending}
-                            className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
-                          >
-                            정산 완료
-                          </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1055,6 +1147,22 @@ export default function RoyaltySettlementManagement() {
           </details>
         </>
       )}
+
+      <RoyaltyManualAdjustmentModal
+        amountDraft={manualAmountDraft}
+        formatDate={formatKoreanDate}
+        formatWon={formatWon}
+        getRuleLabel={getRoyaltyRuleLabel}
+        isBusy={
+          updateRoyaltyMutation.isPending ||
+          recalculateRoyaltiesMutation.isPending
+        }
+        onAmountDraftChange={setManualAmountDraft}
+        onApplyRule={resetManualRoyaltyToRule}
+        onClose={closeManualRoyaltyModal}
+        onSave={saveManualRoyaltyAmount}
+        royalty={manualRoyalty}
+      />
     </div>
   );
 }

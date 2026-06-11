@@ -55,6 +55,7 @@ const TimeTableEditorContent: React.FC = () => {
         <TimeTableForm
           isArtist
           isMemo
+          multiSelect
           onReset={resetData}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}
           cropWidth={CARD_SIZES.PROFILE.width}

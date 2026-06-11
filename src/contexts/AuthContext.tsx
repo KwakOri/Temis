@@ -249,7 +249,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
               {/* 로딩 애니메이션 */}
               <div className="relative w-16 h-16 mb-4">
                 <div className="absolute inset-0 border-4 border-gray-200 rounded-full"></div>
-                <div className="absolute inset-0 border-4 border-blue-500 rounded-full border-t-transparent animate-spin"></div>
+                <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
               </div>
 
               {/* 텍스트 */}

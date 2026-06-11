@@ -13,6 +13,7 @@ import TimeTableDesignGuideController from '@/components/tools/TimeTableDesignGu
 import { useTeamBatchSchedules } from '@/hooks/query/useTeamSchedules';
 import { useUserNicknames } from '@/hooks/query/useUserNicknames';
 import { isGuideEnabled } from '@/utils/time-table/data';
+import { createDummyResponse } from '../../_settings/dummy';
 import { placeholders } from '../../_settings/general';
 import {
   CARD_INPUT_CONFIG,
@@ -21,12 +22,15 @@ import {
   team_ids,
   templateSize,
 } from '../../_settings/settings';
+import TeamDummyDataController from '../TeamDummyDataController';
 import TeamTimeTableContent from './TeamTimeTableContent';
 
 // TimeTableEditor의 내부 컴포넌트 (Context Provider 내부)
 const TimeTableEditorContent: React.FC = () => {
   // Context에서 상태 가져오기
   const { state } = useTimeTable();
+  const [useDummyTeamSchedules, setUseDummyTeamSchedules] =
+    React.useState(isGuideEnabled);
 
   // 기존 로컬 에디터 상태 (UI 상태만 사용)
   const { currentTheme, isInitialized } = useTimeTableEditor({
@@ -35,27 +39,36 @@ const TimeTableEditorContent: React.FC = () => {
     captureSize: templateSize,
   });
 
+  const shouldUseDummyTeamSchedules = isGuideEnabled && useDummyTeamSchedules;
+  const dummyTeamSchedulesData = React.useMemo(
+    () => createDummyResponse(state.mondayDateStr),
+    [state.mondayDateStr]
+  );
+
   // 팀 멤버들의 스케줄 데이터 로드
   const {
-    data: teamSchedulesData,
-    isLoading: teamSchedulesLoading,
-    error: teamSchedulesError,
+    data: fetchedTeamSchedulesData,
+    isLoading: fetchedTeamSchedulesLoading,
+    error: fetchedTeamSchedulesError,
     refetch,
-  } = useTeamBatchSchedules(team_ids, state.mondayDateStr);
+  } = useTeamBatchSchedules(
+    team_ids,
+    state.mondayDateStr,
+    !shouldUseDummyTeamSchedules
+  );
 
-  // 래핑된 데이터를 TeamSchedule[] 형식으로 변환
-  // Hook은 조건부 반환 이전에 호출되어야 함
-  const scheduleData = React.useMemo(() => {
-    if (!teamSchedulesData?.schedules) return [];
-
-    return teamSchedulesData.schedules
-      .filter((item) => item.success && item.schedule !== null)
-      .map((item) => item.schedule!);
-  }, [teamSchedulesData]);
+  const teamSchedulesData = shouldUseDummyTeamSchedules
+    ? dummyTeamSchedulesData
+    : fetchedTeamSchedulesData;
+  const teamSchedulesLoading =
+    !shouldUseDummyTeamSchedules && fetchedTeamSchedulesLoading;
+  const teamSchedulesError = shouldUseDummyTeamSchedules
+    ? null
+    : fetchedTeamSchedulesError;
 
   const { data: userNicknamesData } = useUserNicknames(
     team_ids,
-    !!teamSchedulesData?.schedules
+    !shouldUseDummyTeamSchedules && !!teamSchedulesData?.schedules
   );
 
   const nicknameMap = React.useMemo(
@@ -82,7 +95,9 @@ const TimeTableEditorContent: React.FC = () => {
 
   // 팀 데이터 리셋 함수
   const resetData = () => {
-    refetch();
+    if (!shouldUseDummyTeamSchedules) {
+      refetch();
+    }
   };
 
   // 로딩 상태 체크
@@ -128,7 +143,17 @@ const TimeTableEditorContent: React.FC = () => {
         <TeamTimeTableForm
           onReset={resetData}
           unregisteredMembers={unregisteredMembers}
-          addons={isGuideEnabled && <TimeTableDesignGuideController />}
+          addons={
+            isGuideEnabled && (
+              <div className="space-y-4">
+                <TeamDummyDataController
+                  enabled={useDummyTeamSchedules}
+                  onToggle={() => setUseDummyTeamSchedules((prev) => !prev)}
+                />
+                <TimeTableDesignGuideController />
+              </div>
+            )
+          }
         ></TeamTimeTableForm>
       </div>
     </div>

@@ -696,7 +696,7 @@ export default function AccessManagement() {
                         <div className="grow w-full flex justify-center items-center">
                           {usersLoading ? (
                             <div className="flex justify-center items-center py-12">
-                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                               <span className="ml-3 text-gray-600">
                                 사용자 검색 중...
                               </span>
@@ -880,7 +880,7 @@ export default function AccessManagement() {
 
             {loading ? (
               <div className="flex justify-center items-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             ) : (
               <div className="overflow-x-auto">

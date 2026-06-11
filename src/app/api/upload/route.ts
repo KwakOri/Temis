@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadMultipleFiles, validateFiles } from '@/lib/file-utils';
+import {
+  getUploadValidationOptions,
+  uploadMultipleFiles,
+  validateFiles,
+} from '@/lib/file-utils';
 import { verifyJWT, extractTokenFromRequest, extractTokenFromCookie } from '@/lib/auth/jwt';
 
 export async function POST(request: NextRequest) {
@@ -44,32 +48,7 @@ export async function POST(request: NextRequest) {
 
     // 파일 타입에 따른 검증 옵션 설정
     const uploadType = formData.get('type') as string;
-    let validationOptions = {};
-
-    switch (uploadType) {
-      case 'character-images':
-        validationOptions = {
-          maxSize: 10 * 1024 * 1024, // 10MB
-          allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-          maxCount: 5,
-        };
-        break;
-      case 'reference-files':
-        validationOptions = {
-          maxSize: 100 * 1024 * 1024, // 100MB
-          allowedTypes: [
-            'image/jpeg', 'image/png', 'image/webp', 'image/gif',
-            'application/pdf',
-          ],
-          maxCount: 10,
-        };
-        break;
-      default:
-        validationOptions = {
-          maxSize: 10 * 1024 * 1024, // 10MB
-          maxCount: 5,
-        };
-    }
+    const validationOptions = getUploadValidationOptions(uploadType);
 
     // 파일 검증
     const validation = validateFiles(files, validationOptions);

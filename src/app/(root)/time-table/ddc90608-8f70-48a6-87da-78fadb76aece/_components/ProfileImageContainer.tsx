@@ -1,7 +1,7 @@
-import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
-import { TTheme } from "@/types/time-table/theme";
-import { PropsWithChildren } from "react";
-import { Imgs } from "../_img/imgs";
+import AutoResizeText from '@/components/AutoResizeTextCard/AutoResizeText';
+import { TTheme } from '@/types/time-table/theme';
+import { PropsWithChildren } from 'react';
+import { Imgs } from '../_img/imgs';
 import {
   colors,
   fontOption,
@@ -10,7 +10,7 @@ import {
   profileImageHeight,
   profileImageInfo,
   profileImageWidth,
-} from "../_settings/settings";
+} from '../_settings/settings';
 
 interface ProfileBackPlateProps {
   currentTheme?: TTheme;
@@ -38,12 +38,12 @@ const ProfileBackPlate = ({ currentTheme }: ProfileBackPlateProps) => {
   return (
     <div
       style={{
-        zIndex: "0",
+        zIndex: '0',
       }}
       className="absolute inset-0"
     >
       <img
-        src={Imgs[currentTheme || "first"]["profileBG"].src.replace("./", "/")}
+        src={Imgs[currentTheme || 'first']['profileBG'].src.replace('./', '/')}
         alt="profileBG"
         className="object-cover w-full h-full"
         draggable={false}
@@ -58,18 +58,18 @@ const ProfileImage = ({ imageSrc }: ProfileImageProps) => {
       style={{
         width: profileImageWidth,
         height: profileImageHeight,
-        position: "absolute",
+        position: 'absolute',
         bottom: -28,
         left: 2048,
-        rotate: "2.3deg",
-        zIndex: profileImageInfo.arrange === "onTop" ? 20 : 10,
+        rotate: '2.3deg',
+        zIndex: profileImageInfo.arrange === 'onTop' ? 20 : 10,
       }}
     >
       {imageSrc && (
         <img
           className="object-cover w-full h-full"
           src={imageSrc}
-          alt={"placeholder"}
+          alt={'placeholder'}
         />
       )}
     </div>
@@ -82,12 +82,12 @@ const ProfileFrame = () => {
       style={{
         width: profileFrameWidth,
         height: profileFrameHeight,
-        zIndex: profileImageInfo.arrange === "onTop" ? 10 : 20,
-        position: "absolute",
+        zIndex: profileImageInfo.arrange === 'onTop' ? 10 : 20,
+        position: 'absolute',
       }}
     >
       <img
-        src={Imgs["first"]["profileFrame"].src.replace("./", "/")}
+        src={Imgs['first']['profileFrame'].src.replace('./', '/')}
         alt="frame"
         className="object-cover"
         draggable={false}
@@ -116,30 +116,30 @@ const ProfileText = ({
     >
       <div
         style={{
-          position: "absolute",
+          position: 'absolute',
           height: 160,
           width: 780,
           zIndex: 20,
           left: 2382,
           bottom: -8,
-          rotate: "2.3deg",
+          rotate: '2.3deg',
         }}
         className="flex justify-center items-center "
       >
         <AutoResizeText
           style={{
             lineHeight: 1,
-            color: colors["first"]["primary"],
+            color: colors['first']['primary'],
             fontFamily: fontOption.primary,
           }}
           className="text-center"
-          maxFontSize={96}
+          maxFontSize={84}
         >
           {profileText ? profileText : profileTextPlaceholder}
         </AutoResizeText>
       </div>
       <img
-        src={Imgs["first"]["artist"].src}
+        src={Imgs['first']['artist'].src}
         className="object-cover"
         alt="artist"
       />

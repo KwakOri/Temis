@@ -49,7 +49,7 @@ export function RegisterForm({ onSuccess, className = '' }: RegisterFormProps) {
       } else {
         setError(result.error || '회원가입에 실패했습니다.');
       }
-    } catch (error) {
+    } catch {
       setError('회원가입 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
@@ -70,7 +70,7 @@ export function RegisterForm({ onSuccess, className = '' }: RegisterFormProps) {
             required
             value={formData.name}
             onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-tertiary rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             placeholder="이름을 입력하세요"
             disabled={isLoading}
           />
@@ -87,7 +87,7 @@ export function RegisterForm({ onSuccess, className = '' }: RegisterFormProps) {
             required
             value={formData.email}
             onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-tertiary rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             placeholder="이메일을 입력하세요"
             disabled={isLoading}
           />
@@ -104,7 +104,7 @@ export function RegisterForm({ onSuccess, className = '' }: RegisterFormProps) {
             required
             value={formData.password}
             onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-tertiary rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             placeholder="비밀번호를 입력하세요"
             disabled={isLoading}
           />
@@ -124,7 +124,7 @@ export function RegisterForm({ onSuccess, className = '' }: RegisterFormProps) {
             required
             value={formData.confirmPassword}
             onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-tertiary rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             placeholder="비밀번호를 다시 입력하세요"
             disabled={isLoading}
           />
@@ -139,7 +139,7 @@ export function RegisterForm({ onSuccess, className = '' }: RegisterFormProps) {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isLoading ? '가입 중...' : '회원가입'}
         </button>

@@ -7,6 +7,8 @@ import {
   GetRoyaltyBatchesResponse,
   GetRoyaltySalesParams,
   GetRoyaltySalesResponse,
+  GetRoyaltyStatementParams,
+  GetRoyaltyStatementResponse,
   GetTemplateRoyaltySettingsResponse,
   GetTemplateProductRoyaltySettingsResponse,
   MarkRoyaltiesPaidData,
@@ -141,6 +143,27 @@ export class AdminRoyaltyService {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || "정산 배치 상세를 가져오는데 실패했습니다.");
+    }
+
+    return response.json();
+  }
+
+  static async getStatement(
+    params?: GetRoyaltyStatementParams
+  ): Promise<GetRoyaltyStatementResponse> {
+    const searchParams = new URLSearchParams();
+    if (params?.month) searchParams.set("month", params.month);
+    if (params?.artistId) searchParams.set("artistId", params.artistId);
+
+    const response = await fetch(
+      `${this.baseUrl}/statements${
+        searchParams.toString() ? `?${searchParams.toString()}` : ""
+      }`
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "월별 로열티 정산 내역을 가져오는데 실패했습니다.");
     }
 
     return response.json();

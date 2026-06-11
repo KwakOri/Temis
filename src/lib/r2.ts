@@ -1,9 +1,12 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 let cachedR2Client: S3Client | null = null;
 
@@ -37,6 +40,13 @@ export interface UploadFileResult {
   url: string;
 }
 
+function createFileKey(fileName: string, folder: string): string {
+  const timestamp = Date.now();
+  const randomId = Math.random().toString(36).substring(2, 15);
+  const fileExtension = fileName.split(".").pop() || "";
+  return `${folder}/${timestamp}-${randomId}.${fileExtension}`;
+}
+
 /**
  * 파일을 Cloudflare R2에 업로드합니다.
  */
@@ -46,10 +56,7 @@ export async function uploadFileToR2(
   mimeType: string,
   folder = "uploads/custom-orders"
 ): Promise<UploadFileResult> {
-  const timestamp = Date.now();
-  const randomId = Math.random().toString(36).substring(2, 15);
-  const fileExtension = fileName.split(".").pop() || "";
-  const fileKey = `${folder}/${timestamp}-${randomId}.${fileExtension}`;
+  const fileKey = createFileKey(fileName, folder);
 
   try {
     const upload = new Upload({
@@ -75,6 +82,62 @@ export async function uploadFileToR2(
   } catch (error) {
     console.error("R2 업로드 실패:", error);
     throw new Error("파일 업로드에 실패했습니다.");
+  }
+}
+
+/**
+ * 브라우저가 R2로 직접 업로드할 수 있는 presigned PUT URL을 생성합니다.
+ */
+export async function createPresignedUploadUrl(
+  fileName: string,
+  mimeType: string,
+  folder = "uploads/custom-orders",
+  expiresIn = 5 * 60
+): Promise<UploadFileResult & { uploadUrl: string }> {
+  const fileKey = createFileKey(fileName, folder);
+
+  try {
+    const command = new PutObjectCommand({
+      Bucket: getR2BucketName(),
+      Key: fileKey,
+      ContentType: mimeType,
+    });
+
+    const uploadUrl = await getSignedUrl(getR2Client(), command, { expiresIn });
+
+    return {
+      fileKey,
+      uploadUrl,
+      url: getFileUrl(fileKey),
+    };
+  } catch (error) {
+    console.error("R2 presigned URL 생성 실패:", error);
+    throw new Error("파일 업로드 URL 생성에 실패했습니다.");
+  }
+}
+
+/**
+ * R2에 업로드된 객체의 메타데이터를 조회합니다.
+ */
+export async function getFileMetadataFromR2(fileKey: string): Promise<{
+  contentLength: number;
+  contentType: string;
+}> {
+  try {
+    const command = new HeadObjectCommand({
+      Bucket: getR2BucketName(),
+      Key: fileKey,
+    });
+
+    const response = await getR2Client().send(command);
+
+    return {
+      contentLength: Number(response.ContentLength || 0),
+      contentType: response.ContentType || "",
+    };
+  } catch (error) {
+    console.error("R2 메타데이터 조회 실패:", error);
+    throw new Error("업로드된 파일을 확인할 수 없습니다.");
   }
 }
 

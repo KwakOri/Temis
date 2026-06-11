@@ -26,6 +26,8 @@ export const queryKeys = {
     all: ["customOrder"] as const,
     history: () => [...queryKeys.customOrder.all, "history"] as const,
     orders: () => [...queryKeys.customOrder.all, "orders"] as const,
+    estimatedDeadline: () =>
+      [...queryKeys.customOrder.all, "estimatedDeadline"] as const,
   },
   file: {
     all: ["file"] as const,
@@ -84,10 +86,15 @@ export const queryKeys = {
       [...queryKeys.admin.all, "templatePlans", templateId] as const,
     v2TemplateRenderConfig: (templateId: string) =>
       [...queryKeys.admin.all, "v2TemplateRenderConfig", templateId] as const,
+    customOrdersRoot: () => [...queryKeys.admin.all, "customOrders"] as const,
     customOrders: (params?: GetCustomOrdersParams) =>
-      [...queryKeys.admin.all, "customOrders", params] as const,
+      params
+        ? [...queryKeys.admin.customOrdersRoot(), params] as const
+        : queryKeys.admin.customOrdersRoot(),
+    calendarRoot: (type: "custom" | "legacy") =>
+      [...queryKeys.admin.all, "calendar", type] as const,
     calendar: (type: "custom" | "legacy", startDate: string, endDate: string) =>
-      [...queryKeys.admin.all, "calendar", type, startDate, endDate] as const,
+      [...queryKeys.admin.calendarRoot(type), startDate, endDate] as const,
     purchaseRequests: () =>
       [...queryKeys.admin.all, "purchaseRequests"] as const,
     workSchedule: () => [...queryKeys.admin.all, "workSchedule"] as const,
@@ -116,6 +123,8 @@ export const queryKeys = {
       [...queryKeys.admin.all, "royaltyBatches", params] as const,
     royaltyBatch: (batchId: string) =>
       [...queryKeys.admin.all, "royaltyBatch", batchId] as const,
+    royaltyStatement: (month?: string, artistId?: string) =>
+      [...queryKeys.admin.all, "royaltyStatement", month, artistId] as const,
     royaltySettlementRun: (month?: string) =>
       [...queryKeys.admin.all, "royaltySettlementRun", month] as const,
     royaltySettingsArtists: () =>
