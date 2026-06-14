@@ -120,7 +120,6 @@ const CardStreamingTime = ({
   currentTheme,
   isGuerrilla,
 }: CardStreamingTimeProps) => {
-  const [zone, halftime] = formatTime(time, 'half').split(' ');
   return (
     <p
       style={{
@@ -136,7 +135,7 @@ const CardStreamingTime = ({
       }}
       className=" absolute flex justify-start items-center"
     >
-      {isGuerrilla ? '게릴라' : halftime + ' ' + zone}
+      {isGuerrilla ? '게릴라' : formatTime(time, 'full')}
     </p>
   );
 };
