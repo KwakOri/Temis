@@ -10,7 +10,7 @@ const TimeTableWeeklyMemo = () => {
     <>
       {isMemoTextVisible && (
         <>
-          <div className="absolute inset-0 flex justify-center items-center z-40">
+          <div className="absolute inset-0 flex justify-center items-center z-30">
             <div
               style={{
                 height: 220,
