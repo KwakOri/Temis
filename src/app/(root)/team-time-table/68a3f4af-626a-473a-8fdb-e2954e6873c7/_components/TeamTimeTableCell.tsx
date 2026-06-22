@@ -187,7 +187,7 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
 
   return (
     <>
-      {isSuccess && (
+      {isSuccess && isOnline && (
         <div
           style={{ width: 380, height: 244 }}
           className=" relative flex justify-center items-center"
