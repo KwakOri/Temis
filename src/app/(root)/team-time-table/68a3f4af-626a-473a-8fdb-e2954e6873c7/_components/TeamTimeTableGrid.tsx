@@ -139,7 +139,7 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
         // const formattedDate = padZero(month + 1) + '.' + padZero(date);
         return (
           <div
-            style={{ gap: 18 }}
+            style={{ width: 380, gap: 18 }}
             key={`day-${dayGroup.day}`}
             className=" relative flex flex-col  items-center "
           >

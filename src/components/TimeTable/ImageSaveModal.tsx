@@ -1,7 +1,7 @@
 import { TeamService } from "@/services/teamService";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowBigDownDash, CalendarDays, ImageDown, Save } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 interface ImageSaveModalProps {
   isOpen: boolean;
@@ -229,8 +229,11 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
     return "이번주";
   }
 
+  const getOriginalOption = (options: SizeOption[]) =>
+    options.find((option) => option.key === "original") || options[0];
+
   // 원본 비율 유지 옵션 생성 (높이 기준)
-  const getSizeOptions = (): SizeOption[] => {
+  const sizeOptions = useMemo((): SizeOption[] => {
     const options: SizeOption[] = [];
     const originalAspectRatio = originalWidth / originalHeight;
 
@@ -265,7 +268,12 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
     }
 
     // 원본 크기 옵션 (항상 제공, 중복이면 제외)
-    if (!options.some((option) => option.width === originalWidth && option.height === originalHeight)) {
+    if (
+      !options.some(
+        (option) =>
+          option.width === originalWidth && option.height === originalHeight
+      )
+    ) {
       options.push({
         width: originalWidth,
         height: originalHeight,
@@ -275,12 +283,17 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
     }
 
     return options;
-  };
+  }, [originalWidth, originalHeight]);
 
-  const sizeOptions = getSizeOptions();
   const [selectedOption, setSelectedOption] = useState<SizeOption>(
-    sizeOptions[0]
+    () => getOriginalOption(sizeOptions)
   );
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    setSelectedOption(getOriginalOption(sizeOptions));
+  }, [isOpen, sizeOptions]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -307,7 +320,7 @@ const ImageSaveModal: React.FC<ImageSaveModalProps> = ({
     // 저장 중일 때는 모달을 닫을 수 없음
     if (isSaving) return;
 
-    setSelectedOption(sizeOptions[0]); // 첫 번째 옵션으로 리셋
+    setSelectedOption(getOriginalOption(sizeOptions)); // 원본 옵션으로 리셋
     setSaveCompleted(false); // 저장 완료 상태 초기화
     setIsSaving(false); // 저장 중 상태 초기화
     onClose();

@@ -87,16 +87,30 @@ const CARD_STREAMING_DATE_PROPERTIES: CardTypeMap<CSSProperties> = {
 };
 
 const CARD_STREAMING_TIME_PROPERTIES: CardTypeMap<CSSProperties> = {
-  a: { width: 300, height: 80, fontSize: 48, left: 488, top: 66 },
+  a: {
+    width: 300,
+    height: 80,
+    fontSize: 48,
+    left: 512,
+    top: 66,
+    justifyContent: 'start',
+  },
   b: {
     width: 300,
     height: 80,
     fontSize: 48,
-    left: 400,
-    top: 124,
+    left: 424,
+    top: 116,
     justifyContent: 'start',
   },
-  c: { width: 300, height: 80, fontSize: 48, left: 488, top: 60 },
+  c: {
+    width: 300,
+    height: 80,
+    fontSize: 48,
+    left: 512,
+    top: 60,
+    justifyContent: 'start',
+  },
 };
 
 const CARD_OFFLINE_MEMO_PROPERTIES: CardTypeMap<CSSProperties> = {
@@ -117,8 +131,8 @@ const CARD_MAIN_TITLE_PROPERTIES: CardTypeMap<CSSProperties> = {
     width: 1280,
     height: 80,
     fontSize: 48,
-    left: 400,
-    top: 212,
+    left: 424,
+    top: 200,
   },
   c: { width: 600, height: 80, left: 176, top: 180 },
 };
@@ -137,7 +151,7 @@ const CARD_MAIN_TITLE_MULTILINE: CardTypeMap<boolean> = {
 
 const CARD_SUB_TITLE_PROPERTIES: CardTypeMap<CSSProperties> = {
   a: { width: 650, height: 120, left: 96, top: 440 },
-  b: { width: 1280, height: 110, left: 396, top: 330 },
+  b: { width: 1280, height: 110, left: 424, top: 320 },
   c: { width: 650, height: 120, left: 96, top: 312 },
 };
 
@@ -154,15 +168,21 @@ const CARD_SUB_TITLE_MULTILINE: CardTypeMap<boolean> = {
 };
 
 const MULTI_CARD_STREAMING_TIME_PROPERTIES: CardTypeMap<CSSProperties> = {
-  a: { width: 300, height: 80, fontSize: 48, left: 152, top: 28 },
-  b: { width: 300, height: 80, fontSize: 48, left: 152, top: 0 },
-  c: { width: 300, height: 60, fontSize: 36, left: 96, top: 6 },
+  a: { width: 300, height: 80, fontSize: 48, left: 160, top: 28 },
+  b: {
+    width: 300,
+    height: 80,
+    fontSize: 48,
+    left: 160,
+    top: 8,
+  },
+  c: { width: 300, height: 60, fontSize: 36, left: 100, top: 6 },
 };
 
 const MULTI_CARD_MAIN_TITLE_PROPERTIES: CardTypeMap<CSSProperties> = {
   a: { width: 560, height: 110, left: 158, top: 90 },
-  b: { width: 1040, height: 110, left: 158, top: 60 },
-  c: { width: 600, height: 60, left: 100, top: 48 },
+  b: { width: 1040, height: 110, left: 158, top: 56 },
+  c: { width: 600, height: 60, left: 100, top: 52 },
 };
 
 const MULTI_CARD_MAIN_TITLE_MAX_FONT_SIZES: CardTypeMap<number> = {
@@ -300,8 +320,6 @@ const CardStreamingTime = ({
 }: CardStreamingTimeProps) => {
   const cardType = getTypeWithDay(day);
 
-  const [timezone, halftime] = formatTime(time, 'half').split(' ');
-
   return (
     <p
       style={{
@@ -312,7 +330,7 @@ const CardStreamingTime = ({
       }}
       className=" absolute flex justify-center items-center "
     >
-      {isGuerrilla ? '게릴라' : halftime + ' ' + timezone}
+      {isGuerrilla ? '게릴라' : formatTime(time, 'full')}
     </p>
   );
 };
@@ -411,8 +429,6 @@ const MultipleCardStreamingTime = ({
 }: CardStreamingTimeProps) => {
   const cardType = getTypeWithDay(day);
 
-  const [timezone, halftime] = formatTime(time, 'half').split(' ');
-
   return (
     <p
       style={{
@@ -423,7 +439,7 @@ const MultipleCardStreamingTime = ({
       }}
       className=" absolute flex justify-start items-center "
     >
-      {isGuerrilla ? '게릴라' : halftime + ' ' + timezone}
+      {isGuerrilla ? '게릴라' : formatTime(time, 'full')}
     </p>
   );
 };
