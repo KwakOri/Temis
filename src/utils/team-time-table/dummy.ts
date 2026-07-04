@@ -63,6 +63,54 @@ const DUMMY_TITLE_SETS = [
   ],
 ];
 
+const DUMMY_SUBTITLE_SETS = [
+  [
+    '게임 방송',
+    '잡담 타임',
+    '신작 체험',
+    '콜라보',
+    '시청자 참여',
+    '주말 특집',
+    '마무리 토크',
+  ],
+  [
+    '랭크 도전',
+    '근황 토크',
+    '콘텐츠 회의',
+    '노래 연습',
+    '합방 준비',
+    '리뷰 방송',
+    '자유 방송',
+  ],
+  [
+    '스토리 진행',
+    '소통 방송',
+    '챌린지',
+    '연습 세션',
+    '공지 포함',
+    '팬미팅',
+    '주간 정리',
+  ],
+  [
+    '오프닝',
+    '미니게임',
+    'Q&A',
+    '팀 미션',
+    '자료 준비',
+    '특별 편성',
+    '엔딩 토크',
+  ],
+  [
+    '아침 방송',
+    '점심 방송',
+    '짧방',
+    '정규 방송',
+    '테스트 방송',
+    '이벤트',
+    '릴레이',
+  ],
+];
+
 const DUMMY_OFFLINE_DAYS = [[0, 3], [3], [4], [0, 1], []];
 
 interface CreateTeamDummyResponseOptions {
@@ -96,6 +144,8 @@ const createDummyScheduleData = (
 ): TeamTimeTableWeekData => {
   const times = DUMMY_TIME_SETS[memberIndex % DUMMY_TIME_SETS.length];
   const titles = DUMMY_TITLE_SETS[memberIndex % DUMMY_TITLE_SETS.length];
+  const subTitles =
+    DUMMY_SUBTITLE_SETS[memberIndex % DUMMY_SUBTITLE_SETS.length];
   const offlineDays =
     DUMMY_OFFLINE_DAYS[memberIndex % DUMMY_OFFLINE_DAYS.length];
 
@@ -105,6 +155,7 @@ const createDummyScheduleData = (
       {
         time: times[day],
         mainTitle,
+        subTitle: subTitles[day],
         isGuerrilla: day === 2 && memberIndex % 2 === 0,
       },
     ],
