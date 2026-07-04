@@ -142,10 +142,19 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
         const month = dayGroup.date?.getMonth() ?? 0;
         const date = dayGroup.date?.getDate() ?? 0;
         const formattedDate = padZero(month + 1) + '.' + padZero(date);
+        const hasOnlineSchedule =
+          dayGroup.members.filter(
+            (member) =>
+              member.success &&
+              member.schedule !== null &&
+              !member.schedule.isOffline
+          ).length > 0;
+
         return (
           <div
             style={{ width: 488, height: 780, paddingTop: 130, gap: 13 }}
             key={`day-${dayGroup.day}`}
+            data-has-online-schedule={hasOnlineSchedule}
             className=" relative flex flex-col  items-center  bg-blue-600/30"
           >
             <p
