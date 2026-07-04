@@ -1,6 +1,6 @@
 import { useTimeTableData } from '@/contexts/TimeTableContext';
 import { getWeekDateRange, padZero } from '@/utils/date-formatter';
-import { colors, fontOption } from '../_settings/settings';
+import { fontOption } from '../_settings/settings';
 
 const TeamTimeTableWeekDates = () => {
   const { weekDates } = useTimeTableData();
@@ -12,7 +12,7 @@ const TeamTimeTableWeekDates = () => {
       className="absolute z-40 flex justify-center items-center"
       style={{
         fontFamily: fontOption.tertiary,
-        color: colors.first.secondary,
+        color: '#FDEFF3',
         fontSize: 44,
         top: 472,
         left: 144,
