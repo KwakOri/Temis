@@ -6,6 +6,7 @@ import type { TDefaultCard } from "./time-table/data";
 export interface TimeTableEntry {
   time: string;
   mainTitle: string;
+  subTitle?: string;
   isGuerrilla: boolean; // 게릴라방송 여부 (필수, 기본값 false)
   [key: string]: string | number | boolean | undefined; // Allow additional dynamic properties per template
 }
@@ -20,10 +21,11 @@ export interface TimeTableDay {
 // Full week timetable data (7 days)
 export type TimeTableWeekData = TimeTableDay[];
 
-// Simplified entry for team timetable storage (only time and mainTitle)
+// Simplified entry for team timetable storage
 export interface TeamTimeTableEntry {
   time: string;
   mainTitle: string;
+  subTitle: string;
   isGuerrilla: boolean; // 게릴라방송 여부 (필수, 기본값 false)
 }
 
@@ -101,6 +103,7 @@ export function convertToTeamTimeTableData(
     entries: day.entries.map((entry) => ({
       time: entry.time,
       mainTitle: entry.mainTitle,
+      subTitle: typeof entry.subTitle === "string" ? entry.subTitle : "",
       isGuerrilla: entry.isGuerrilla,
     })),
   })) as TeamTimeTableWeekData;
@@ -126,40 +129,80 @@ export function convertDynamicCardsToTeamTimeTableData(
         (entry.subject as string) ||
         (entry.content as string) ||
         "";
+      const subTitle = typeof entry.subTitle === "string" ? entry.subTitle : "";
 
       return {
         time,
         mainTitle,
+        subTitle,
         isGuerrilla: entry.isGuerrilla || false, // isGuerrilla 속성 포함
       };
     }),
   })) as TeamTimeTableWeekData;
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const getStringValue = (value: unknown): string =>
+  typeof value === "string" ? value : "";
+
+const getMainTitle = (entry: Record<string, unknown>): string =>
+  getStringValue(entry.mainTitle) ||
+  getStringValue(entry.title) ||
+  getStringValue(entry.subject) ||
+  getStringValue(entry.content);
+
+export function normalizeTeamTimeTableData(
+  data: unknown
+): TeamTimeTableWeekData | null {
+  if (!Array.isArray(data) || data.length !== 7) {
+    return null;
+  }
+
+  const normalizedDays = data.map((day, index): TeamTimeTableDay | null => {
+    if (!isRecord(day) || !Array.isArray(day.entries)) {
+      return null;
+    }
+
+    const entries = day.entries.map((entry): TeamTimeTableEntry | null => {
+      if (!isRecord(entry)) {
+        return null;
+      }
+
+      return {
+        time: getStringValue(entry.time),
+        mainTitle: getMainTitle(entry),
+        subTitle: getStringValue(entry.subTitle),
+        isGuerrilla:
+          typeof entry.isGuerrilla === "boolean" ? entry.isGuerrilla : false,
+      };
+    });
+
+    if (entries.some((entry) => entry === null)) {
+      return null;
+    }
+
+    return {
+      day: typeof day.day === "number" ? day.day : index,
+      isOffline: typeof day.isOffline === "boolean" ? day.isOffline : false,
+      entries: entries as TeamTimeTableEntry[],
+    };
+  });
+
+  if (normalizedDays.some((day) => day === null)) {
+    return null;
+  }
+
+  const normalized = normalizedDays as TeamTimeTableWeekData;
+  return normalized.every((day, index) => day.day === index)
+    ? normalized
+    : null;
+}
+
 // Function to validate team timetable data structure
 export function validateTeamTimeTableData(
   data: unknown
 ): data is TeamTimeTableWeekData {
-  if (!Array.isArray(data) || data.length !== 7) {
-    return false;
-  }
-
-  return data.every((day, index) => {
-    return (
-      typeof day === "object" &&
-      day !== null &&
-      typeof day.day === "number" &&
-      day.day === index &&
-      typeof day.isOffline === "boolean" &&
-      Array.isArray(day.entries) &&
-      day.entries.every(
-        (entry: TeamTimeTableEntry) =>
-          typeof entry === "object" &&
-          entry !== null &&
-          typeof entry.time === "string" &&
-          typeof entry.mainTitle === "string" &&
-          typeof entry.isGuerrilla === "boolean"
-      )
-    );
-  });
+  return normalizeTeamTimeTableData(data) !== null;
 }

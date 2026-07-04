@@ -48,7 +48,7 @@ export class TeamService {
     dynamicCards: TDefaultCard[],
     teamId?: string
   ): Promise<TeamSchedule> {
-    // Convert dynamic cards to team schedule data (only time and mainTitle)
+    // Convert dynamic cards to team schedule data.
     const teamScheduleData =
       convertDynamicCardsToTeamTimeTableData(dynamicCards);
 

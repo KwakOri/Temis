@@ -6,7 +6,6 @@ import { TTheme } from '@/types/time-table/theme';
 import { formatTime } from '@/utils/time-formatter';
 import { Imgs } from '../_img/imgs';
 import {
-  colors,
   fontOption,
   memberIdsMap,
   memberNamesMap,
@@ -183,22 +182,28 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
   const isOnline = !data.schedule?.isOffline;
   const userId = data.user_id;
   const primaryEntry = data.schedule?.entries[0];
-  const mainTitle =
-    typeof primaryEntry?.mainTitle === 'string' ? primaryEntry.mainTitle : '';
-  const subTitle =
-    typeof primaryEntry?.subTitle === 'string' ? primaryEntry.subTitle : '';
-  const hasSubTitle = subTitle.trim().length > 0;
   const memberName = memberNamesMap.get(userId) as string;
+
+  const timeColor = {
+    84: { color: '#FFE2EC' },
+    88: { color: '#FFF2E5' },
+    295: { color: '#FFE0F2' },
+  };
+  const subColor = {
+    84: { color: '#F33049' },
+    88: { color: '#F2CD8C' },
+    295: { color: '#D7687F' },
+  };
 
   return (
     <>
       {isSuccess && isOnline && (
         <div
-          style={{ width: 380, height: 244 }}
-          className=" relative flex justify-center items-center"
+          style={{ width: 460, height: 200 }}
+          className=" relative z-20 flex justify-center items-center "
         >
           <>
-            <p
+            {/* <p
               style={{
                 fontFamily: fontOption.primary,
                 color: colors.first.secondary,
@@ -213,18 +218,18 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
               className="absolute z-20 flex justify-start items-center "
             >
               {memberName}
-            </p>
+            </p> */}
             <p
               style={{
-                fontFamily: fontOption.primary,
-                color: colors.first.secondary,
-                fontSize: 54,
+                fontFamily: fontOption.tertiary,
+                fontSize: 30,
                 fontWeight: 700,
                 width: 170,
-                height: 80,
-                top: 80,
-                left: 196,
+                height: 40,
+                top: 28,
+                left: 208,
                 textShadow: '0px 0px 4px rgba(0, 0, 0, 0.5)',
+                ...timeColor[userId as keyof typeof timeColor],
               }}
               className="absolute z-20 flex justify-start items-center "
             >
@@ -235,57 +240,57 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
 
             <div
               style={{
-                width: 160,
-                height: hasSubTitle ? 36 : 60,
-                top: hasSubTitle ? 142 : 152,
-                left: 196,
+                width: '50%',
+                height: 60,
+                top: 76,
+                left: 208,
                 lineHeight: 1,
                 fontWeight: 700,
               }}
-              className="absolute z-20 flex justify-start items-start "
+              className="absolute z-20 flex justify-start items-center "
             >
               <AutoResizeText
-                maxFontSize={hasSubTitle ? 20 : 24}
+                maxFontSize={20}
                 multiline
                 style={{
                   fontFamily: fontOption.primary,
-                  color: colors.first.secondary,
+                  fontWeight: 400,
+
                   textAlign: 'left',
                   lineHeight: 1.2,
                   textShadow: '0px 0px 4px rgba(0, 0, 0, 0.5)',
+                  ...subColor[userId as keyof typeof timeColor],
                 }}
               >
-                {mainTitle}
+                {primaryEntry?.subTitle as string}
               </AutoResizeText>
             </div>
 
-            {hasSubTitle && (
-              <div
+            <div
+              style={{
+                width: '50%',
+                height: 60,
+                top: 120,
+                left: 208,
+                lineHeight: 1,
+                fontWeight: 700,
+              }}
+              className="absolute z-20 flex justify-start items-center "
+            >
+              <AutoResizeText
+                maxFontSize={28}
+                multiline
                 style={{
-                  width: 160,
-                  height: 28,
-                  top: 178,
-                  left: 196,
-                  lineHeight: 1,
-                  fontWeight: 700,
+                  fontFamily: fontOption.primary,
+                  textAlign: 'left',
+                  lineHeight: 1.2,
+                  textShadow: '0px 0px 4px rgba(0, 0, 0, 0.5)',
+                  ...timeColor[userId as keyof typeof timeColor],
                 }}
-                className="absolute z-20 flex justify-start items-start "
               >
-                <AutoResizeText
-                  maxFontSize={14}
-                  multiline
-                  style={{
-                    fontFamily: fontOption.primary,
-                    color: colors.first.secondary,
-                    textAlign: 'left',
-                    lineHeight: 1.2,
-                    textShadow: '0px 0px 4px rgba(0, 0, 0, 0.5)',
-                  }}
-                >
-                  {subTitle}
-                </AutoResizeText>
-              </div>
-            )}
+                {primaryEntry?.mainTitle as string}
+              </AutoResizeText>
+            </div>
 
             <CardBG isOffline={data.schedule?.isOffline} userId={userId} />
           </>
