@@ -10,6 +10,7 @@ import {
   teamTimeTableMemberOrder,
 } from '../_settings/settings';
 import TeamTimeTableCell from './TeamTimeTableCell';
+import TeamTimeTableMemo from './TeamTimeTableMemo';
 
 interface TeamTimeTableGridProps {
   data: UserScheduleData[];
@@ -155,8 +156,23 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
             style={{ width: 488, height: 780, paddingTop: 130, gap: 13 }}
             key={`day-${dayGroup.day}`}
             data-has-online-schedule={hasOnlineSchedule}
-            className=" relative flex flex-col  items-center  bg-blue-600/30"
+            className="relative flex flex-col  items-center"
           >
+            <p
+              className="absolute flex justify-center items-center z-30 "
+              style={{
+                fontFamily: fontOption.primary,
+                color: '#FFFFFF',
+                fontSize: 10,
+                top: 91,
+                left: 398,
+                width: 60,
+                height: 20,
+                letterSpacing: 2,
+              }}
+            >
+              {hasOnlineSchedule ? 'LIVE' : 'OFF'}
+            </p>
             <p
               className="absolute z-30"
               style={{
@@ -164,6 +180,7 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
                 fontSize: 52,
                 top: 30,
                 left: 108,
+                color: '#464646',
               }}
             >
               {days[dayGroup.day]}
@@ -199,6 +216,7 @@ const TeamTimeTableGrid: React.FC<TeamTimeTableGridProps> = ({
           </div>
         );
       })}
+      <TeamTimeTableMemo />
     </div>
   );
 };

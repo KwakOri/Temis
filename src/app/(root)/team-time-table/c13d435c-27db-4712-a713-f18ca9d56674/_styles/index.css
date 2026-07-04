@@ -41,7 +41,7 @@
   font-family: 'KblJump';
   src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2601-5@1.0/KBLJump_BTTF.woff2')
     format('woff2');
-  font-weight: normal;
+  font-weight: 700;
   font-display: swap;
 
   ascent-override: 84%;

@@ -5,6 +5,7 @@ import frame from './main/frame.png';
 import hanyuel from './main/hanyuel.png';
 import kumyamya from './main/kumyamya.png';
 import nut from './main/nut.png';
+import weekly_memo from './main/weekly_memo.png';
 
 export const Imgs: ImgsType = {
   first: {
@@ -13,5 +14,6 @@ export const Imgs: ImgsType = {
     nut,
     kumyamya,
     board,
+    weekly_memo,
   },
 };

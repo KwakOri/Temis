@@ -172,13 +172,13 @@ export const memberOrder = team_ids;
 export const dummyUnregisteredMemberIds: number[] = [];
 
 export const memberIdsMap = new Map([
-  [88, 'hanyuel'],
   [84, 'nut'],
+  [88, 'hanyuel'],
   [295, 'kumyamya'],
 ]);
 
 export const memberNamesMap = new Map([
-  [88, '하뉴엘 리 잔느'],
   [84, '누트 델 로제로'],
+  [88, '하뉴엘 리 잔느'],
   [295, '아이 쿠먀먀'],
 ]);
