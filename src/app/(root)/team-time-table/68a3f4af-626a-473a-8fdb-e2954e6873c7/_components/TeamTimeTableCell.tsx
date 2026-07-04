@@ -183,6 +183,11 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
   const isOnline = !data.schedule?.isOffline;
   const userId = data.user_id;
   const primaryEntry = data.schedule?.entries[0];
+  const mainTitle =
+    typeof primaryEntry?.mainTitle === 'string' ? primaryEntry.mainTitle : '';
+  const subTitle =
+    typeof primaryEntry?.subTitle === 'string' ? primaryEntry.subTitle : '';
+  const hasSubTitle = subTitle.trim().length > 0;
   const memberName = memberNamesMap.get(userId) as string;
 
   return (
@@ -231,8 +236,8 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
             <div
               style={{
                 width: 160,
-                height: 60,
-                top: 152,
+                height: hasSubTitle ? 36 : 60,
+                top: hasSubTitle ? 142 : 152,
                 left: 196,
                 lineHeight: 1,
                 fontWeight: 700,
@@ -240,7 +245,7 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
               className="absolute z-20 flex justify-start items-start "
             >
               <AutoResizeText
-                maxFontSize={24}
+                maxFontSize={hasSubTitle ? 20 : 24}
                 multiline
                 style={{
                   fontFamily: fontOption.primary,
@@ -250,9 +255,37 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
                   textShadow: '0px 0px 4px rgba(0, 0, 0, 0.5)',
                 }}
               >
-                {primaryEntry?.mainTitle as string}
+                {mainTitle}
               </AutoResizeText>
             </div>
+
+            {hasSubTitle && (
+              <div
+                style={{
+                  width: 160,
+                  height: 28,
+                  top: 178,
+                  left: 196,
+                  lineHeight: 1,
+                  fontWeight: 700,
+                }}
+                className="absolute z-20 flex justify-start items-start "
+              >
+                <AutoResizeText
+                  maxFontSize={14}
+                  multiline
+                  style={{
+                    fontFamily: fontOption.primary,
+                    color: colors.first.secondary,
+                    textAlign: 'left',
+                    lineHeight: 1.2,
+                    textShadow: '0px 0px 4px rgba(0, 0, 0, 0.5)',
+                  }}
+                >
+                  {subTitle}
+                </AutoResizeText>
+              </div>
+            )}
 
             <CardBG isOffline={data.schedule?.isOffline} userId={userId} />
           </>

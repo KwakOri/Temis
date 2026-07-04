@@ -105,6 +105,7 @@ const createDummyScheduleData = (
       {
         time: times[day],
         mainTitle,
+        subTitle: '',
         isGuerrilla: day === 2 && memberIndex % 2 === 0,
       },
     ],
