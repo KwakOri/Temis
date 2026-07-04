@@ -57,6 +57,8 @@ const TimeTableEditorContent: React.FC = () => {
     !shouldUseDummyTeamSchedules
   );
 
+  console.log(fetchedTeamSchedulesData);
+
   const teamSchedulesData = shouldUseDummyTeamSchedules
     ? dummyTeamSchedulesData
     : fetchedTeamSchedulesData;
