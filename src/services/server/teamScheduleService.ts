@@ -1,13 +1,44 @@
 import { supabase } from "@/lib/supabase";
 import { Json, Tables } from "@/types/supabase";
 import {
+  normalizeTeamTimeTableData,
   Team,
   TeamSchedule,
   TeamScheduleWithUser,
   TeamTimeTableWeekData,
   UserScheduleData,
-  validateTeamTimeTableData,
 } from "@/types/team-timetable";
+
+type TeamScheduleRow = Pick<
+  Tables<"team_schedules">,
+  | "id"
+  | "user_id"
+  | "week_start_date"
+  | "schedule_data"
+  | "created_at"
+  | "updated_at"
+>;
+
+const normalizeScheduleDataOrThrow = (
+  scheduleData: unknown
+): TeamTimeTableWeekData => {
+  const normalizedScheduleData = normalizeTeamTimeTableData(scheduleData);
+
+  if (!normalizedScheduleData) {
+    throw new Error("유효하지 않은 시간표 데이터입니다.");
+  }
+
+  return normalizedScheduleData;
+};
+
+const toTeamSchedule = (schedule: TeamScheduleRow): TeamSchedule => ({
+  id: schedule.id,
+  user_id: schedule.user_id,
+  week_start_date: schedule.week_start_date,
+  schedule_data: normalizeScheduleDataOrThrow(schedule.schedule_data),
+  created_at: schedule.created_at,
+  updated_at: schedule.updated_at,
+});
 
 export class TeamScheduleService {
   /**
@@ -81,14 +112,13 @@ export class TeamScheduleService {
   static async createTeamSchedule(data: {
     user_id: number;
     week_start_date: string;
-    schedule_data: TeamTimeTableWeekData;
+    schedule_data: unknown;
     team_id?: string; // Optional for permission check
   }): Promise<TeamSchedule> {
     try {
-      // Validate schedule data
-      if (!validateTeamTimeTableData(data.schedule_data)) {
-        throw new Error("유효하지 않은 시간표 데이터입니다.");
-      }
+      const normalizedScheduleData = normalizeScheduleDataOrThrow(
+        data.schedule_data
+      );
 
       // If team_id is provided, check if user is member of the team
       if (data.team_id) {
@@ -121,7 +151,7 @@ export class TeamScheduleService {
         const { data: updatedSchedule, error: updateError } = await supabase
           .from("team_schedules")
           .update({
-            schedule_data: data.schedule_data as unknown as Json,
+            schedule_data: normalizedScheduleData as unknown as Json,
             updated_at: new Date().toISOString(),
           })
           .eq("id", existingSchedule.id)
@@ -132,15 +162,7 @@ export class TeamScheduleService {
           throw updateError;
         }
 
-        return {
-          id: updatedSchedule.id,
-          user_id: updatedSchedule.user_id,
-          week_start_date: updatedSchedule.week_start_date,
-          schedule_data:
-            updatedSchedule.schedule_data as unknown as TeamTimeTableWeekData,
-          created_at: updatedSchedule.created_at,
-          updated_at: updatedSchedule.updated_at,
-        };
+        return toTeamSchedule(updatedSchedule);
       } else {
         // Create new schedule
         const { data: newSchedule, error: insertError } = await supabase
@@ -148,7 +170,7 @@ export class TeamScheduleService {
           .insert({
             user_id: data.user_id,
             week_start_date: data.week_start_date,
-            schedule_data: data.schedule_data as unknown as Json,
+            schedule_data: normalizedScheduleData as unknown as Json,
           })
           .select()
           .single();
@@ -157,15 +179,7 @@ export class TeamScheduleService {
           throw insertError;
         }
 
-        return {
-          id: newSchedule.id,
-          user_id: newSchedule.user_id,
-          week_start_date: newSchedule.week_start_date,
-          schedule_data:
-            newSchedule.schedule_data as unknown as TeamTimeTableWeekData,
-          created_at: newSchedule.created_at,
-          updated_at: newSchedule.updated_at,
-        };
+        return toTeamSchedule(newSchedule);
       }
     } catch (error) {
       console.error("Error creating/updating team schedule:", error);
@@ -221,15 +235,7 @@ export class TeamScheduleService {
         throw error;
       }
 
-      return data.map((schedule) => ({
-        id: schedule.id,
-        user_id: schedule.user_id,
-        week_start_date: schedule.week_start_date,
-        schedule_data:
-          schedule.schedule_data as unknown as TeamTimeTableWeekData,
-        created_at: schedule.created_at,
-        updated_at: schedule.updated_at,
-      }));
+      return data.map(toTeamSchedule);
     } catch (error) {
       console.error("Error fetching team schedules:", error);
       throw new Error("팀 시간표를 가져오는데 실패했습니다.");
@@ -274,14 +280,7 @@ export class TeamScheduleService {
         throw error;
       }
 
-      return {
-        id: data.id,
-        user_id: data.user_id,
-        week_start_date: data.week_start_date,
-        schedule_data: data.schedule_data as unknown as TeamTimeTableWeekData,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-      };
+      return toTeamSchedule(data);
     } catch (error) {
       console.error("Error fetching user team schedule:", error);
       throw error instanceof Error
@@ -368,13 +367,7 @@ export class TeamScheduleService {
       const scheduleMap = new Map<number, TeamScheduleWithUser>();
       data.forEach((schedule) => {
         scheduleMap.set(schedule.user_id, {
-          id: schedule.id,
-          user_id: schedule.user_id,
-          week_start_date: schedule.week_start_date,
-          schedule_data:
-            schedule.schedule_data as unknown as TeamTimeTableWeekData,
-          created_at: schedule.created_at,
-          updated_at: schedule.updated_at,
+          ...toTeamSchedule(schedule),
           user: schedule.users
             ? {
                 id: (schedule.users as { id: number }).id,
