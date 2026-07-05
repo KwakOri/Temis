@@ -516,17 +516,17 @@ Goal: prove Template Studio persistence locally before any remote database work.
 
 ### 9.1 Local Migration Files
 
-- [ ] Create migration for `template_studio_templates`.
-- [ ] Create migration for `template_studio_documents`.
-- [ ] Create migration for `template_studio_document_revisions`.
-- [ ] Create migration for `template_studio_document_drafts`.
-- [ ] Create migration for `template_studio_assets`.
-- [ ] Add updated-at triggers.
-- [ ] Add indexes for template, user draft, revision, and asset lookup paths.
-- [ ] Add status/check constraints.
-- [ ] Add foreign keys that match the current project user/auth model.
-- [ ] Add `template-studio-assets` storage bucket setup.
-- [ ] Add local storage policies for asset read/write/delete paths.
+- [x] Create migration for `template_studio_templates`.
+- [x] Create migration for `template_studio_documents`.
+- [x] Create migration for `template_studio_document_revisions`.
+- [x] Create migration for `template_studio_document_drafts`.
+- [x] Create migration for `template_studio_assets`.
+- [x] Add updated-at triggers.
+- [x] Add indexes for template, user draft, revision, and asset lookup paths.
+- [x] Add status/check constraints.
+- [x] Add foreign keys that match the current project user/auth model.
+- [x] Add `template-studio-assets` storage bucket setup.
+- [x] Add local storage policies for asset read/write/delete paths.
 
 ### 9.2 Local Docker Supabase Verification
 
