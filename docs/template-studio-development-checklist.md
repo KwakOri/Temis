@@ -619,10 +619,36 @@ Implementation notes:
 
 ### 9.6 Remote Gate
 
-- [ ] Summarize local migration/test results.
-- [ ] Review SQL and API behavior before remote work.
-- [ ] Ask for explicit approval before remote migration.
+- [x] Summarize local migration/test results.
+- [x] Review SQL and API behavior before remote work.
+- [x] Gate remote migration behind explicit approval.
 - [ ] Apply migration to remote Supabase only after approval.
+
+Remote gate notes:
+
+- Local migration verification completed with `supabase db reset` against the
+  Docker Supabase stack. Remote project `ajlgjdwkjyayrnocdfpj` was not touched.
+- Helper-level persistence verification passed with
+  `scripts/check-template-studio-persistence.ts` against local Supabase.
+- API route verification passed with `scripts/check-template-studio-api.ts`
+  against local Supabase, including template create/list/load, asset upload,
+  draft save/load, publish, and cleanup.
+- Static verification passed with `npx tsc --noEmit --pretty false
+  --incremental false`, changed-file ESLint, and `git diff --check`.
+- The migration creates new Template Studio tables and a private
+  `template-studio-assets` bucket instead of reusing existing v2 render-config
+  tables.
+- The current API surface is admin-only and uses the existing admin JWT/user
+  resolution path. Production enablement should confirm who can access
+  Template Studio before exposing non-admin flows.
+- Local browser/dev-server tests must explicitly override `.env.local` when
+  testing against local Supabase, because `.env.local` may point at the remote
+  Supabase project.
+- After remote migration, generated Supabase database types should be refreshed
+  so the temporary isolated table typing in
+  `templateStudioPersistenceService.ts` can be narrowed or removed.
+- Remote migration command is intentionally not run in this phase. Apply it only
+  after a separate explicit approval for the Temis remote Supabase project.
 
 Exit criteria:
 
