@@ -12,6 +12,7 @@ import {
   CalendarDays,
   ChevronRight,
   CheckCircle2,
+  Cloud,
   Download,
   EyeOff,
   Image as ImageIcon,
@@ -21,6 +22,8 @@ import {
   Minus,
   Moon,
   Plus,
+  Save,
+  Send,
   SlidersHorizontal,
   Sun,
   Type,
@@ -34,6 +37,14 @@ import React, {
   useState,
 } from "react";
 
+import {
+  useCreateTemplateStudioTemplate,
+  usePublishTemplateStudioDocument,
+  useSaveTemplateStudioDraft,
+  useTemplateStudioTemplate,
+  useTemplateStudioTemplates,
+  useUploadTemplateStudioAssets,
+} from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
 import {
   StudioBuiltinFieldId,
@@ -939,6 +950,7 @@ export function TemplateStudioClient() {
     string | null
   >(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
+  const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(null);
   const [selectedRuntimeDayId, setSelectedRuntimeDayId] = useState("mon");
   const [selectedRuntimeEntryIndex, setSelectedRuntimeEntryIndex] = useState(0);
   const pastSnapshotsRef = useRef<StudioEditorHistorySnapshot[]>([]);
@@ -961,6 +973,16 @@ export function TemplateStudioClient() {
   const selectedInputIdRef = useRef<StudioInputId | null>(selectedInputId);
   const selectedRuntimeDayIdRef = useRef(selectedRuntimeDayId);
   const selectedRuntimeEntryIndexRef = useRef(selectedRuntimeEntryIndex);
+  const templateStudioTemplatesQuery = useTemplateStudioTemplates();
+  const templateStudioTemplateQuery = useTemplateStudioTemplate(
+    remoteTemplateId ?? undefined,
+  );
+  const createTemplateStudioTemplateMutation =
+    useCreateTemplateStudioTemplate();
+  const saveTemplateStudioDraftMutation = useSaveTemplateStudioDraft();
+  const publishTemplateStudioDocumentMutation =
+    usePublishTemplateStudioDocument();
+  const uploadTemplateStudioAssetsMutation = useUploadTemplateStudioAssets();
 
   useEffect(() => {
     documentRef.current = document;
@@ -1036,6 +1058,18 @@ export function TemplateStudioClient() {
       .filter(Boolean)
       .sort((a, b) => a.order - b.order);
   }, [document.domains]);
+  const remoteTemplates = templateStudioTemplatesQuery.data?.templates ?? [];
+  const activeRemoteTemplate = remoteTemplateId
+    ? (remoteTemplates.find((template) => template.id === remoteTemplateId) ??
+      templateStudioTemplateQuery.data?.template ??
+      null)
+    : null;
+  const isRemoteSyncing =
+    createTemplateStudioTemplateMutation.isPending ||
+    saveTemplateStudioDraftMutation.isPending ||
+    publishTemplateStudioDocumentMutation.isPending ||
+    uploadTemplateStudioAssetsMutation.isPending ||
+    templateStudioTemplateQuery.isFetching;
   const timetableComposition = useMemo(
     () => getStudioTimetableComposition(document.domains?.timetable),
     [document.domains?.timetable],
@@ -1746,6 +1780,201 @@ export function TemplateStudioClient() {
     },
     [captureHistory, showShortcutStatus],
   );
+
+  const ensureRemoteTemplateId = useCallback(async (): Promise<string> => {
+    if (remoteTemplateId) {
+      return remoteTemplateId;
+    }
+
+    const currentDocument = documentRef.current;
+    const created = await createTemplateStudioTemplateMutation.mutateAsync({
+      name: currentDocument.metadata.name.trim() || "Untitled Template",
+      description: currentDocument.metadata.description ?? "",
+    });
+
+    setRemoteTemplateId(created.template.id);
+    return created.template.id;
+  }, [createTemplateStudioTemplateMutation, remoteTemplateId]);
+
+  const applyRemoteTemplateState = useCallback(
+    (
+      nextDocument: StudioTemplateDocument,
+      nextRuntimeValues: StudioRuntimeValues,
+      message: string,
+    ) => {
+      const normalizedRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
+        cloneRuntimeValues(nextRuntimeValues),
+        getStudioTimetableCapabilities(nextDocument.domains?.timetable),
+      );
+      const nextSelectedNodeId = nextDocument.graph.rootNodeIds[0] ?? null;
+      const nextSelectedInputId = Object.keys(nextDocument.inputs)[0] ?? null;
+      const nextRuntimeDayId =
+        nextDocument.domains?.timetable?.dayIds[0] ?? "mon";
+
+      captureHistory();
+
+      documentRef.current = nextDocument;
+      runtimeValuesRef.current = normalizedRuntimeValues;
+      selectedNodeIdRef.current = nextSelectedNodeId;
+      selectedNodeIdsRef.current = nextSelectedNodeId
+        ? [nextSelectedNodeId]
+        : [];
+      selectedInputIdRef.current = nextSelectedInputId;
+      selectedRuntimeDayIdRef.current = nextRuntimeDayId;
+      selectedRuntimeEntryIndexRef.current = 0;
+
+      setDocument(nextDocument);
+      setRuntimeValues(normalizedRuntimeValues);
+      setSelectedNodeId(nextSelectedNodeId);
+      setSelectedNodeIds(nextSelectedNodeId ? [nextSelectedNodeId] : []);
+      setSelectedInputId(nextSelectedInputId);
+      setSelectedRuntimeDayId(nextRuntimeDayId);
+      setSelectedRuntimeEntryIndex(0);
+      setWorkspaceMode("cards");
+      setPanelMode("layers");
+      setSelectedTimetableLayerId(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
+      setCollapsedLayerGroupIds([]);
+      setCollapsedTimetableLayerIds([]);
+      setNodePicker(null);
+      showShortcutStatus(message);
+    },
+    [captureHistory, showShortcutStatus],
+  );
+
+  const prepareRemoteDocumentForPersistence = useCallback(
+    async (templateId: string): Promise<StudioTemplateDocument> => {
+      const currentDocument = documentRef.current;
+      const dataUrlAssets = Object.values(currentDocument.assets).filter(
+        (asset) => asset.src.startsWith("data:"),
+      );
+
+      if (dataUrlAssets.length === 0) {
+        return currentDocument;
+      }
+
+      const uploaded = await uploadTemplateStudioAssetsMutation.mutateAsync({
+        templateId,
+        assets: dataUrlAssets.map((asset) => ({
+          assetId: asset.id,
+          label: asset.label,
+          src: asset.src,
+        })),
+      });
+      const nextDocument = cloneDocument(currentDocument);
+
+      uploaded.assets.forEach((asset) => {
+        const currentAsset = nextDocument.assets[asset.id];
+        if (!currentAsset) return;
+
+        nextDocument.assets[asset.id] = {
+          ...currentAsset,
+          src: asset.src,
+          storagePath: asset.storagePath,
+          mimeType: asset.mimeType,
+          byteSize: asset.byteSize,
+        };
+      });
+
+      documentRef.current = nextDocument;
+      setDocument(nextDocument);
+      showShortcutStatus(`Uploaded ${uploaded.assets.length} asset(s)`);
+
+      return nextDocument;
+    },
+    [showShortcutStatus, uploadTemplateStudioAssetsMutation],
+  );
+
+  const loadRemoteTemplate = useCallback(async () => {
+    if (!remoteTemplateId) {
+      showShortcutStatus("Select a remote template first");
+      return;
+    }
+
+    try {
+      const result = await templateStudioTemplateQuery.refetch();
+      const remoteTemplate = result.data;
+
+      if (!remoteTemplate) {
+        showShortcutStatus("Remote template load failed");
+        return;
+      }
+
+      const source = remoteTemplate.draft ?? remoteTemplate.document;
+
+      if (!source) {
+        showShortcutStatus("Remote template is empty");
+        return;
+      }
+
+      applyRemoteTemplateState(
+        cloneDocument(source.document),
+        cloneRuntimeValues(source.runtimeValues),
+        remoteTemplate.draft ? "Loaded remote draft" : "Loaded published document",
+      );
+    } catch (error) {
+      console.error("Template Studio remote load failed:", error);
+      showShortcutStatus("Remote load failed");
+    }
+  }, [
+    applyRemoteTemplateState,
+    remoteTemplateId,
+    showShortcutStatus,
+    templateStudioTemplateQuery,
+  ]);
+
+  const saveRemoteDraft = useCallback(async () => {
+    try {
+      const templateId = await ensureRemoteTemplateId();
+      const latestRevisionNo =
+        templateStudioTemplateQuery.data?.latestRevisionNo ?? null;
+      const nextDocument = await prepareRemoteDocumentForPersistence(templateId);
+
+      await saveTemplateStudioDraftMutation.mutateAsync({
+        templateId,
+        payload: {
+          document: nextDocument,
+          runtimeValues: runtimeValuesRef.current,
+          baseRevisionNo: latestRevisionNo,
+          isAutosave: false,
+        },
+      });
+
+      showShortcutStatus("Remote draft saved");
+    } catch (error) {
+      console.error("Template Studio remote draft save failed:", error);
+      showShortcutStatus("Remote draft save failed");
+    }
+  }, [
+    ensureRemoteTemplateId,
+    prepareRemoteDocumentForPersistence,
+    saveTemplateStudioDraftMutation,
+    showShortcutStatus,
+    templateStudioTemplateQuery.data?.latestRevisionNo,
+  ]);
+
+  const publishRemoteDocument = useCallback(async () => {
+    try {
+      const templateId = await ensureRemoteTemplateId();
+      const nextDocument = await prepareRemoteDocumentForPersistence(templateId);
+      const published = await publishTemplateStudioDocumentMutation.mutateAsync({
+        templateId,
+        payload: {
+          document: nextDocument,
+          runtimeValues: runtimeValuesRef.current,
+        },
+      });
+
+      showShortcutStatus(`Published revision ${published.revisionNo}`);
+    } catch (error) {
+      console.error("Template Studio publish failed:", error);
+      showShortcutStatus("Publish failed");
+    }
+  }, [
+    ensureRemoteTemplateId,
+    publishTemplateStudioDocumentMutation,
+    prepareRemoteDocumentForPersistence,
+    showShortcutStatus,
+  ]);
 
   const updateDocument = useCallback(
     (
@@ -6915,8 +7144,67 @@ export function TemplateStudioClient() {
             <span className="text-xs text-[var(--fg2)]">Studio&nbsp;Draft</span>
           </div>
           <span className="rounded-[5px] border border-emerald-400/30 bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-emerald-300">
-            Local
+            {remoteTemplateId ? "Remote" : "Local"}
           </span>
+        </div>
+
+        <div className="hidden min-w-[260px] items-center gap-1.5 lg:flex">
+          <select
+            className="h-[30px] min-w-0 flex-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none transition focus:border-[var(--accent)]"
+            title="Remote template"
+            value={remoteTemplateId ?? ""}
+            onChange={(event) => {
+              const nextTemplateId = event.currentTarget.value || null;
+              setRemoteTemplateId(nextTemplateId);
+              if (nextTemplateId) {
+                showShortcutStatus("Remote template selected");
+              }
+            }}
+          >
+            <option value="">Local only</option>
+            {remoteTemplates.map((template) => (
+              <option key={template.id} value={template.id}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
+            disabled={!remoteTemplateId || isRemoteSyncing}
+            title={
+              activeRemoteTemplate
+                ? `Load ${activeRemoteTemplate.name}`
+                : "Load remote template"
+            }
+            type="button"
+            onClick={() => {
+              void loadRemoteTemplate();
+            }}
+          >
+            <Cloud className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
+            disabled={isRemoteSyncing}
+            title="Save remote draft"
+            type="button"
+            onClick={() => {
+              void saveRemoteDraft();
+            }}
+          >
+            <Save className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-blue-400/40 bg-blue-500/15 text-blue-200 transition hover:bg-blue-500/25 disabled:cursor-not-allowed disabled:opacity-45"
+            disabled={isRemoteSyncing}
+            title="Publish remote document"
+            type="button"
+            onClick={() => {
+              void publishRemoteDocument();
+            }}
+          >
+            <Send className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         <div className="hidden flex-1 items-center justify-center gap-3.5 text-xs text-[var(--fg2)] md:flex">

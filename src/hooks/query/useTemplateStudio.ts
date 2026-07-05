@@ -4,6 +4,7 @@ import {
   TemplateStudioPublishPayload,
   TemplateStudioSaveDraftPayload,
   TemplateStudioService,
+  TemplateStudioUploadAssetPayload,
 } from "@/services/templateStudioService";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -92,6 +93,25 @@ export const usePublishTemplateStudioDocument = () => {
       });
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templateStudioDraft(variables.templateId),
+      });
+    },
+  });
+};
+
+export const useUploadTemplateStudioAssets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      assets,
+    }: {
+      templateId: string;
+      assets: TemplateStudioUploadAssetPayload[];
+    }) => TemplateStudioService.uploadAssets(templateId, assets),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplate(variables.templateId),
       });
     },
   });

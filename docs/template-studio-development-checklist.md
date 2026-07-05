@@ -591,13 +591,31 @@ Implementation notes:
 
 ### 9.5 Editor Integration
 
-- [ ] Add remote draft load path.
-- [ ] Add remote draft save path.
-- [ ] Keep local draft save as fallback.
-- [ ] Add publish action after draft save is stable.
-- [ ] Add remote asset upload path.
-- [ ] Convert production-saved assets from data URL storage to storage references.
-- [ ] Keep JSON export/import available.
+- [x] Add remote draft load path.
+- [x] Add remote draft save path.
+- [x] Keep local draft save as fallback.
+- [x] Add publish action after draft save is stable.
+- [x] Add remote asset upload path.
+- [x] Convert production-saved assets from data URL storage to storage references.
+- [x] Keep JSON export/import available.
+
+Implementation notes:
+
+- The editor top bar can select an existing remote Template Studio template,
+  load its draft/published document, save the current editor state as a remote
+  draft, or publish a revision.
+- If no remote template is selected, remote save/publish first creates a
+  Template Studio template from current document metadata.
+- Remote save/publish uploads document-level data URL assets to the private
+  `template-studio-assets` bucket before persisting the document JSON.
+- Asset upload supports both browser file-reader base64 data URLs and existing
+  utf8 SVG data URLs from the sample document.
+- Persisted document assets keep `storagePath`, `mimeType`, and `byteSize`.
+  The current editor stores a long-lived signed URL in `src`; a future
+  hardening pass should refresh signed URLs from `storagePath` on load instead
+  of relying on the persisted signed URL.
+- Local JSON export/import remains available and is independent from the remote
+  draft/publish flow.
 
 ### 9.6 Remote Gate
 

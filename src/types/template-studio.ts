@@ -175,6 +175,9 @@ export interface StudioAsset {
   id: StudioAssetId;
   label: string;
   src: string;
+  storagePath?: string;
+  mimeType?: string;
+  byteSize?: number;
 }
 
 export type StudioAssetMap = Record<StudioAssetId, StudioAsset>;

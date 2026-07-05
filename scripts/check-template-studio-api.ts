@@ -120,11 +120,15 @@ const main = async () => {
   const [
     templateRoutes,
     templateDetailRoutes,
+    assetUploadRoutes,
     draftRoutes,
     publishRoutes,
   ] = await Promise.all([
     import("../src/app/api/admin/template-studio/templates/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/route"),
+    import(
+      "../src/app/api/admin/template-studio/templates/[id]/assets/upload/route"
+    ),
     import("../src/app/api/admin/template-studio/templates/[id]/draft/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/publish/route"),
   ]);
@@ -198,6 +202,55 @@ const main = async () => {
     const document = createSampleStudioDocument();
     document.metadata.name = "Template Studio API Check";
     const runtimeValues = createInitialStudioRuntimeValues(document);
+
+    const uploadResponse = await callRoute<{
+      success: boolean;
+      assets: Array<{
+        id: string;
+        src: string;
+        storagePath: string;
+        mimeType: string;
+        byteSize: number;
+      }>;
+    }>(
+      "upload assets",
+      assetUploadRoutes.POST,
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates/${templateId}/assets/upload`,
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            assets: Object.values(document.assets).map((asset) => ({
+              assetId: asset.id,
+              label: asset.label,
+              src: asset.src,
+            })),
+          }),
+        },
+      ),
+      context,
+    );
+    assert(uploadResponse.success, "Asset upload response was not success.");
+    assert(
+      uploadResponse.assets.length === Object.keys(document.assets).length,
+      "Asset upload response did not include every document asset.",
+    );
+
+    const uploadedAssetsById = new Map(
+      uploadResponse.assets.map((asset) => [asset.id, asset]),
+    );
+    Object.keys(document.assets).forEach((assetId) => {
+      const uploadedAsset = uploadedAssetsById.get(assetId);
+      assert(uploadedAsset, `Uploaded asset missing for ${assetId}.`);
+      document.assets[assetId] = {
+        ...document.assets[assetId],
+        src: uploadedAsset.src,
+        storagePath: uploadedAsset.storagePath,
+        mimeType: uploadedAsset.mimeType,
+        byteSize: uploadedAsset.byteSize,
+      };
+    });
 
     const draftResponse = await callRoute<{
       success: boolean;

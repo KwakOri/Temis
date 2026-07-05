@@ -70,6 +70,27 @@ export interface TemplateStudioPublishResponse {
   migrationWarnings: string[];
 }
 
+export interface TemplateStudioUploadAssetPayload {
+  assetId: string;
+  label: string;
+  src: string;
+}
+
+export interface TemplateStudioUploadedAsset {
+  id: string;
+  label: string;
+  src: string;
+  storagePath: string;
+  mimeType: string;
+  byteSize: number;
+}
+
+export interface TemplateStudioUploadAssetsResponse {
+  success: boolean;
+  templateId: string;
+  assets: TemplateStudioUploadedAsset[];
+}
+
 const parseJsonResponse = async <T>(
   response: Response,
   fallbackMessage: string,
@@ -166,6 +187,24 @@ export class TemplateStudioService {
     return parseJsonResponse<TemplateStudioPublishResponse>(
       response,
       "Template Studio 문서 발행에 실패했습니다.",
+    );
+  }
+
+  static async uploadAssets(
+    templateId: string,
+    assets: TemplateStudioUploadAssetPayload[],
+  ): Promise<TemplateStudioUploadAssetsResponse> {
+    const response = await fetch(`${this.baseUrl}/${templateId}/assets/upload`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ assets }),
+    });
+
+    return parseJsonResponse<TemplateStudioUploadAssetsResponse>(
+      response,
+      "Template Studio asset 업로드에 실패했습니다.",
     );
   }
 }
