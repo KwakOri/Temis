@@ -86,6 +86,12 @@ export const queryKeys = {
       [...queryKeys.admin.all, "templatePlans", templateId] as const,
     v2TemplateRenderConfig: (templateId: string) =>
       [...queryKeys.admin.all, "v2TemplateRenderConfig", templateId] as const,
+    templateStudioTemplates: () =>
+      [...queryKeys.admin.all, "templateStudioTemplates"] as const,
+    templateStudioTemplate: (templateId: string) =>
+      [...queryKeys.admin.templateStudioTemplates(), templateId] as const,
+    templateStudioDraft: (templateId: string) =>
+      [...queryKeys.admin.templateStudioTemplate(templateId), "draft"] as const,
     customOrdersRoot: () => [...queryKeys.admin.all, "customOrders"] as const,
     customOrders: (params?: GetCustomOrdersParams) =>
       params

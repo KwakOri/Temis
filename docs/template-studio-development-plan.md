@@ -559,6 +559,15 @@ Step 4. API And Service Boundary
 - Keep Page/UI on the established path:
   Page/UI -> React Query hook -> Services layer -> API route -> Supabase.
 
+Status: completed locally on 2026-07-05.
+
+- Admin API routes exist for template list/create, template detail load, draft
+  get/save, and publish.
+- Client code now has a services-layer boundary and React Query hooks for the
+  same operations.
+- `check:template-studio:api` verifies the route contracts against local
+  Supabase by calling route handlers directly.
+
 Step 5. Editor Integration
 
 - Add remote draft load/save controls without removing local draft save.

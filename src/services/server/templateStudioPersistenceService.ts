@@ -465,6 +465,19 @@ export const getTemplateStudioTemplate = async (
   return data ? toTemplateRecord(data) : null;
 };
 
+export const listTemplateStudioTemplates = async (
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioTemplateRecord[]> => {
+  const supabase = getClient(client);
+  const { data, error } = await supabase
+    .from<TemplateStudioTemplateRow[]>("template_studio_templates")
+    .select(TEMPLATE_STUDIO_TEMPLATE_COLUMNS)
+    .order("updated_at", { ascending: false });
+
+  throwOnError("Failed to list Template Studio templates", error);
+  return (data ?? []).map(toTemplateRecord);
+};
+
 export const deleteTemplateStudioTemplate = async (
   templateId: string,
   client?: TemplateStudioPersistenceClient,

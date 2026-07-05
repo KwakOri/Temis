@@ -574,11 +574,20 @@ Implementation notes:
 
 ### 9.4 API, Service, And Hooks
 
-- [ ] Add Template Studio API route contracts.
-- [ ] Add `templateStudioService` services layer.
-- [ ] Add React Query hooks for list/load/save draft/publish.
-- [ ] Keep UI calls on Page/UI -> React Query -> Services -> API route.
-- [ ] Add local API tests or smoke scripts against local Supabase.
+- [x] Add Template Studio API route contracts.
+- [x] Add `templateStudioService` services layer.
+- [x] Add React Query hooks for list/load/save draft/publish.
+- [x] Keep UI calls on Page/UI -> React Query -> Services -> API route.
+- [x] Add local API tests or smoke scripts against local Supabase.
+
+Implementation notes:
+
+- Admin API contracts now cover template list/create, template load, draft
+  get/save, and publish.
+- `src/services/templateStudioService.ts` is the client service boundary.
+- `src/hooks/query/useTemplateStudio.ts` owns React Query hooks and invalidation.
+- `scripts/check-template-studio-api.ts` verifies the API route handlers against
+  local Supabase without touching remote Supabase.
 
 ### 9.5 Editor Integration
 
