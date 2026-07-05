@@ -530,17 +530,29 @@ Goal: prove Template Studio persistence locally before any remote database work.
 
 ### 9.2 Local Docker Supabase Verification
 
-- [ ] Start local Docker Supabase.
-- [ ] Apply migrations locally.
-- [ ] Verify migration status.
-- [ ] Inspect tables, indexes, constraints, triggers, and storage bucket shape.
-- [ ] Insert/read/update/delete sample template metadata locally.
-- [ ] Insert/read sample published document locally.
-- [ ] Insert/read/update sample user draft locally.
-- [ ] Insert/read sample revision history locally.
-- [ ] Insert/read/delete sample asset registry row locally.
-- [ ] Test draft-to-publish transaction locally.
-- [ ] Test storage bucket upload/read/delete policy locally.
+- [x] Start local Docker Supabase.
+- [x] Apply migrations locally with `supabase db reset`.
+- [x] Verify migration status.
+- [x] Inspect tables, indexes, constraints, triggers, and storage bucket shape.
+- [x] Insert/read/update/delete sample template metadata locally.
+- [x] Insert/read sample published document locally.
+- [x] Insert/read/update sample user draft locally.
+- [x] Insert/read sample revision history locally.
+- [x] Insert/read/delete sample asset registry row locally.
+- [x] Test draft-to-publish transaction locally.
+- [x] Test storage bucket upload/read/delete policy locally.
+
+Verification notes:
+
+- Local Docker was started with a temporary Docker config
+  (`DOCKER_CONFIG=/tmp/temis-docker-config`) to avoid the global Docker Desktop
+  credential helper hanging on image pulls.
+- `supabase db reset` applied
+  `20260705000000_create_template_studio_persistence.sql` successfully.
+- A local admin JWT context verified template metadata, draft, published
+  document, revision, and asset registry writes through RLS.
+- A local authenticated storage token verified
+  `template-studio-assets` upload, read, and delete paths.
 
 ### 9.3 Server Persistence Helpers
 

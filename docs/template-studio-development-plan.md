@@ -521,6 +521,16 @@ Step 2. Local Database Verification
 - Test a draft-to-publish transaction locally.
 - Test storage bucket insert/read/delete and policy behavior locally.
 
+Status: completed locally on 2026-07-05.
+
+- The local stack was started with a temporary Docker config to bypass a Docker
+  Desktop credential-helper hang during image pulls.
+- `supabase db reset` applied the Template Studio migration successfully.
+- RLS-backed sample writes passed for template metadata, user draft, published
+  document, revision history, and asset registry rows.
+- Authenticated storage upload, read, and delete checks passed for the
+  `template-studio-assets` bucket.
+
 Step 3. Server Persistence Helpers
 
 - Add server-only helpers for:
