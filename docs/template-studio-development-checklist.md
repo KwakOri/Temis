@@ -556,13 +556,21 @@ Verification notes:
 
 ### 9.3 Server Persistence Helpers
 
-- [ ] Add server-only document migration wrapper.
-- [ ] Add server-only document validation wrapper.
-- [ ] Add next revision number helper.
-- [ ] Add draft save helper.
-- [ ] Add publish transaction helper.
-- [ ] Add asset metadata helper.
-- [ ] Add helper-level tests against local Supabase.
+- [x] Add server-only document migration wrapper.
+- [x] Add server-only document validation wrapper.
+- [x] Add next revision number helper.
+- [x] Add draft save helper.
+- [x] Add publish transaction helper.
+- [x] Add asset metadata helper.
+- [x] Add helper-level tests against local Supabase.
+
+Implementation notes:
+
+- `src/services/server/templateStudioPersistenceService.ts` owns Template Studio
+  persistence helpers and keeps the temporary untyped Supabase table boundary
+  isolated until generated DB types include the new tables.
+- `scripts/check-template-studio-persistence.ts` verifies helpers against local
+  Supabase only, refusing non-local Supabase URLs.
 
 ### 9.4 API, Service, And Hooks
 

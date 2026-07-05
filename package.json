@@ -16,6 +16,7 @@
     "typecheck:v2-runtime": "tsc -p tsconfig.v2-runtime.json --noEmit",
     "check:v2-runtime": "npm run lint:v2-runtime && npm run typecheck:v2-runtime",
     "check:v2-orderkey": "tsx scripts/check-v2-orderkey.ts",
+    "check:template-studio:persistence": "tsx scripts/check-template-studio-persistence.ts",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"
   },
   "dependencies": {

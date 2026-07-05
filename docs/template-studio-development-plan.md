@@ -542,6 +542,15 @@ Step 3. Server Persistence Helpers
   - resolving asset metadata from storage references
 - Keep these helpers isolated from UI code.
 
+Status: completed locally on 2026-07-05.
+
+- `templateStudioPersistenceService` wraps document migration, validation,
+  draft save, publish, revision lookup, and asset metadata writes.
+- Helper verification is available through
+  `check:template-studio:persistence`; the script is local-only guarded.
+- The helper currently keeps a narrow untyped Supabase boundary because
+  generated DB types have not yet been refreshed with the new tables.
+
 Step 4. API And Service Boundary
 
 - Add thin Next.js API routes after helper behavior is verified.
