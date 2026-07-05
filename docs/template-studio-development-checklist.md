@@ -47,51 +47,63 @@ Already implemented:
 
 Current known gaps:
 
-- [ ] Semantic exception object model does not exist yet.
-- [ ] Timetable presets are still mostly simple text composition objects.
-- [ ] `Week Dates` is static text instead of a built-in date range binding.
-- [ ] `Weekly Memo` data ownership is still open.
-- [ ] `Profile Block` is not implemented as a Timetable-only preset.
-- [ ] `Artist / Profile Text` is not implemented as an independent preset.
-- [ ] `Top Object` is not implemented as a semantic preset.
-- [ ] `Status Card Background` is not implemented as a Cards semantic preset.
-- [ ] `multi` and `offline_memo` are not capability-gated.
-- [ ] Timetable preview still injects hidden day-card header/meta UI.
-- [ ] Sample document still places profile image in the Cards graph.
-- [ ] JSON import/export and persistence preparation are not implemented.
+- [x] Semantic exception object model exists at the type/metadata/validator
+      level.
+- [x] Preset registry exists for available/planned Cards and Timetable presets.
+- [ ] Generic editable slot runtime is not implemented yet.
+- [x] `Week Dates` uses a built-in date range binding.
+- [x] `Weekly Memo` creates or links a preset-owned global custom input when
+      inserted.
+- [x] `Profile Block` MVP exists.
+- [x] `Profile Block` frame and mask controls exist.
+- [x] `Profile Block` user-replaceable input flow exists.
+- [x] `Artist / Profile Text` text-only MVP exists as an independent preset.
+- [x] `Artist / Profile Text` text-with-asset mode exists.
+- [x] `Artist / Profile Text` asset visibility and focused asset layout controls
+      exist.
+- [x] `Top Object` exists as a Timetable semantic preset.
+- [x] `Status Card Background` exists as a Cards semantic preset for shared
+      status assets.
+- [ ] Day-specific status background asset overrides are not implemented yet.
+- [x] `multi` and `offline_memo` are capability-gated and disabled by default.
+- [x] Capability settings UI exists in the Timetable inspector.
+- [x] Timetable preview no longer injects hidden day-card header/meta UI.
+- [x] Sample document no longer places profile image in the Cards graph.
+- [x] Local JSON import/export exists.
+- [ ] Production persistence is not implemented.
 
 ## Non-Negotiable Rules
 
-- [ ] Do not attempt broad migration from existing hard-coded timetable folders.
-- [ ] Keep Template Studio as a separate domain.
-- [ ] Keep node ids and input ids opaque.
-- [ ] Do not introduce fixed semantic node ids.
-- [ ] Keep built-in timetable values out of `document.inputs`.
-- [ ] Keep custom template-specific values in `document.inputs`.
-- [ ] Keep select bindings declarative; they must not mutate graph, schema, or
-      timetable domain data at runtime.
-- [ ] Keep `Profile Block` Timetable-only.
-- [ ] Keep `Artist / Profile Text` independent from `Profile Block`.
-- [ ] Keep `multi` and `offline_memo` disabled by default until explicitly
-      enabled by template capability settings.
+- Do not attempt broad migration from existing hard-coded timetable folders.
+- Keep Template Studio as a separate domain.
+- Keep node ids and input ids opaque.
+- Do not introduce fixed semantic node ids.
+- Keep built-in timetable values out of `document.inputs`.
+- Keep custom template-specific values in `document.inputs`.
+- Keep select bindings declarative; they must not mutate graph, schema, or
+  timetable domain data at runtime.
+- Keep `Profile Block` Timetable-only.
+- Keep `Artist / Profile Text` independent from `Profile Block`.
+- Keep `multi` and `offline_memo` disabled by default until explicitly enabled
+  by template capability settings.
 
 ## Phase 0. Baseline Cleanup
 
 Goal: remove stale prototype labels and make the current baseline honest before
 new model work begins.
 
-- [ ] Replace visible `Milestone A` editor copy with a neutral current label.
-- [ ] Check sample metadata and update stale milestone descriptions.
-- [ ] Add a short comment or doc note for the current document version
+- [x] Replace visible `Milestone A` editor copy with a neutral current label.
+- [x] Check sample metadata and update stale milestone descriptions.
+- [x] Add a short comment or doc note for the current document version
       assumptions.
-- [ ] Confirm old Template Studio docs are removed and only the integrated plan
+- [x] Confirm old Template Studio docs are removed and only the integrated plan
       plus this checklist remain.
-- [ ] Run formatting on changed docs.
+- [x] Run formatting on changed docs.
 
 Exit criteria:
 
-- [ ] No user-facing UI still implies the editor is only Milestone A.
-- [ ] Docs and UI describe the current Cards/Timetable split accurately.
+- [x] No user-facing UI still implies the editor is only Milestone A.
+- [x] Docs and UI describe the current Cards/Timetable split accurately.
 
 ## Phase 1. Domain Model Stabilization
 
@@ -99,142 +111,178 @@ Goal: add missing contracts before implementing more presets.
 
 ### 1.1 Capabilities
 
-- [ ] Add `StudioTimetableCapabilities`.
-- [ ] Add `multi.enabled`.
-- [ ] Add `offlineMemo.enabled`.
-- [ ] Add default capability initialization for new documents.
-- [ ] Add normalization for documents missing capabilities.
-- [ ] Update sample document to include capabilities with both disabled by
+- [x] Add `StudioTimetableCapabilities`.
+- [x] Add `multi.enabled`.
+- [x] Add `offlineMemo.enabled`.
+- [x] Add default capability initialization for new documents.
+- [x] Add normalization for documents missing capabilities.
+- [x] Update sample document to include capabilities with both disabled by
       default.
-- [ ] Hide `multi` status controls unless `multi.enabled` is true.
-- [ ] Hide `offlineMemo` status controls unless `offlineMemo.enabled` is true.
-- [ ] Hide capability-gated built-in fields when the capability is disabled.
-- [ ] Add validator warnings/errors for capability-gated statuses that appear
+- [x] Hide `multi` status controls unless `multi.enabled` is true.
+- [x] Hide `offlineMemo` status controls unless `offlineMemo.enabled` is true.
+- [x] Hide capability-gated built-in fields when the capability is disabled.
+- [x] Add Timetable inspector toggles for `multi` and `offlineMemo`.
+- [x] Normalize runtime entries back to base statuses when a capability is
+      disabled.
+- [x] Add validator warnings/errors for capability-gated statuses that appear
       while disabled.
 
 ### 1.2 Built-In Fields
 
-- [ ] Decide canonical id for user-mentioned `time.day`.
-- [ ] Keep `day.label` as canonical day label id unless a stronger reason
+- [x] Decide canonical id for user-mentioned `time.day`.
+- [x] Keep `day.label` as canonical day label id unless a stronger reason
       appears.
-- [ ] Add `day.date`.
-- [ ] Add `week.date_range`.
-- [ ] Add `week.start_date`.
-- [ ] Add `week.end_date`.
-- [ ] Add `entry.is_multi`.
-- [ ] Add `entry.is_offline_memo`.
-- [ ] Add resolver support for new built-in fields.
-- [ ] Add compatibility rules for new built-in fields.
-- [ ] Add validator support for new built-in fields.
+- [x] Add `day.date`.
+- [x] Add `week.date_range`.
+- [x] Add `week.start_date`.
+- [x] Add `week.end_date`.
+- [x] Add `entry.is_multi`.
+- [x] Add `entry.is_offline_memo`.
+- [x] Add resolver support for new built-in fields.
+- [x] Add compatibility rules for new built-in fields.
+- [x] Add validator support for new built-in fields.
 
 ### 1.3 Exception Object Contract
 
-- [ ] Add semantic preset scope type: `cards | timetable`.
-- [ ] Add semantic key type:
-  - [ ] `weekDates`
-  - [ ] `weeklyMemo`
-  - [ ] `profileBlock`
-  - [ ] `artistProfileText`
-  - [ ] `topObject`
-  - [ ] `dayLabel`
-  - [ ] `dayDate`
-  - [ ] `entryStatusLabel`
-  - [ ] `statusCardBackground`
-- [ ] Add exception object metadata contract.
-- [ ] Add `lockedStructure`.
-- [ ] Add `singleton`.
-- [ ] Add `editableSlots`.
-- [ ] Add `builtInBindings`.
-- [ ] Add `capabilityFlags`.
-- [ ] Add validator checks for malformed exception metadata.
-- [ ] Add default/migration helpers for old simple timetable objects.
+- [x] Add semantic preset scope type: `cards | timetable`.
+- [x] Add semantic key type:
+  - [x] `dayCardContainers`
+  - [x] `weekDates`
+  - [x] `weeklyMemo`
+  - [x] `profileBlock`
+  - [x] `artistProfileText`
+  - [x] `topObject`
+  - [x] `dayLabel`
+  - [x] `dayDate`
+  - [x] `entryStatusLabel`
+  - [x] `statusCardBackground`
+- [x] Add exception object metadata contract.
+- [x] Add `lockedStructure`.
+- [x] Add `singleton`.
+- [x] Add `editableSlots`.
+- [x] Add `builtInBindings`.
+- [x] Add `capabilityFlags`.
+- [x] Add validator checks for malformed exception metadata.
+- [x] Add default/migration helpers for old simple timetable objects.
 
 Exit criteria:
 
-- [ ] TypeScript can represent every planned semantic preset.
-- [ ] Existing sample document validates.
-- [ ] Optional capabilities default to disabled.
-- [ ] No new preset needs to overload plain text object fields.
+- [x] TypeScript can represent every planned semantic preset.
+- [x] Existing sample document validates.
+- [x] Optional capabilities default to disabled.
+- [x] No new preset needs to overload plain text object fields.
 
 Verification:
 
-- [ ] `npx tsc --noEmit --pretty false --incremental false`
-- [ ] ESLint changed Template Studio files.
-- [ ] Browser smoke test `/template-studio`.
+- [x] `npx tsc --noEmit --pretty false --incremental false`
+- [x] ESLint changed Template Studio files.
+- [x] Browser smoke test `/template-studio`.
 
 ## Phase 2. Generated Card Fidelity
 
 Goal: Timetable generated cards must render only what is authored in Cards plus
 explicit Timetable composition objects.
 
-- [ ] Remove hidden day-card header UI from `StudioTimetablePreview`.
-- [ ] Remove hidden entry meta UI from generated card internals.
-- [ ] Keep generated day-card container selection/movement intact.
-- [ ] Ensure generated cards still receive `dayId`.
-- [ ] Ensure generated entries still receive `entryIndex`.
-- [ ] Add Cards preset/object template for `Day Label`.
-- [ ] Add Cards preset/object template for `Day Date`.
-- [ ] Add Cards preset/object template for `Entry Status Label`.
-- [ ] Bind sample card day label to built-in day context if the visual should
+- [x] Remove hidden day-card header UI from `StudioTimetablePreview`.
+- [x] Remove hidden entry meta UI from generated card internals.
+- [x] Keep generated day-card container selection/movement intact.
+- [x] Ensure generated cards still receive `dayId`.
+- [x] Ensure generated entries still receive `entryIndex`.
+- [x] Add Cards preset/object template for `Day Label`.
+- [x] Add Cards preset/object template for `Day Date`.
+- [x] Add Cards preset/object template for `Entry Status Label`.
+- [x] Bind sample card day label to built-in day context if the visual should
       remain visible.
-- [ ] Bind sample card entry/status label to built-in entry context if the
+- [x] Bind sample card entry/status label to built-in entry context if the
       visual should remain visible.
-- [ ] Remove or relocate sample Cards `Profile Image` according to the
+- [x] Remove or relocate sample Cards `Profile Image` according to the
       Timetable-only `Profile Block` rule.
 
 Exit criteria:
 
-- [ ] Timetable preview does not create hidden card-internal text or headers.
-- [ ] Any visible day/entry label can be found in Cards or Timetable layers.
-- [ ] Generated cards preserve the Cards source layout.
+- [x] Timetable preview does not create hidden card-internal text or headers.
+- [x] Any visible day/entry label can be found in Cards or Timetable layers.
+- [x] Generated cards preserve the Cards source layout.
 
 Verification:
 
-- [ ] Cards view renders expected source card.
-- [ ] Timetable view renders seven generated containers.
-- [ ] Switching Cards/Timetable does not change source card layout.
-- [ ] Day/entry scoped values resolve correctly.
+- [x] Cards view renders expected source card.
+- [x] Timetable view renders seven generated containers.
+- [x] Switching Cards/Timetable does not change source card layout.
+- [x] Day/entry scoped values resolve correctly.
 
 ## Phase 3. Preset Registry
 
 Goal: replace ad hoc preset definitions with one registry.
 
-- [ ] Create a Template Studio preset registry module.
-- [ ] Move current Timetable preset definitions out of
+- [x] Create a Template Studio preset registry module.
+- [x] Move current Timetable preset definitions out of
       `template-studio-client.tsx`.
-- [ ] Add preset category: `semanticException`.
-- [ ] Add preset category: `inputBundle`.
-- [ ] Add preset category: `freeObject`.
-- [ ] Support Cards presets.
-- [ ] Support Timetable presets.
-- [ ] Add required capability metadata.
-- [ ] Add singleton metadata.
-- [ ] Add repeatable preset id generation.
-- [ ] Add duplicate handling for singleton presets.
-- [ ] Add disabled UI state for presets blocked by missing capabilities.
-- [ ] Add empty state for preset groups.
+- [x] Add preset category: `semanticException`.
+- [x] Add preset category: `inputBundle`.
+- [x] Add preset category: `freeObject`.
+- [x] Support Cards presets.
+- [x] Support Timetable presets.
+- [x] Add required capability metadata.
+- [x] Add singleton metadata.
+- [x] Add registry-level repeatable preset creation rules.
+- [x] Add duplicate handling for singleton presets.
+- [x] Add disabled UI state for presets blocked by missing capabilities.
+- [x] Add empty state for preset groups.
 
 Initial singleton policy:
 
-- [ ] `dayCards` is singleton.
-- [ ] `weekDates` is singleton.
-- [ ] `profileBlock` is singleton.
-- [ ] `artistProfileText` is singleton.
-- [ ] `topObject` is singleton.
-- [ ] Decide whether `weeklyMemo` is singleton for the first implementation.
+- [x] `dayCards` is singleton.
+- [x] `weekDates` is singleton.
+- [x] `profileBlock` is singleton.
+- [x] `artistProfileText` is singleton.
+- [x] `topObject` is singleton.
+- [x] `weeklyMemo` is singleton for the first implementation.
 
 Exit criteria:
 
-- [ ] Adding a preset goes through the registry.
-- [ ] Singleton presets select existing objects instead of duplicating them.
-- [ ] Repeatable presets still create unique ids.
+- [x] Adding available core presets goes through the registry.
+- [x] Singleton presets select existing objects instead of duplicating them.
+- [x] Registry-created input-bundle repeatable presets create unique labels and
+      ids.
 
 Verification:
 
-- [ ] Presets panel still renders.
-- [ ] Existing `Week Dates` and `Weekly Memo` insertion behavior still works or
+- [x] Presets panel still renders.
+- [x] Existing `Week Dates` and `Weekly Memo` insertion behavior still works or
       is intentionally updated.
-- [ ] No client-local preset arrays remain for core presets.
+- [x] No client-local preset arrays remain for core presets.
+
+## Completed Slice. Semantic Slot Foundation
+
+Goal: make semantic preset slot behavior reusable before adding larger
+Timetable presets.
+
+- [x] Extract reusable semantic slot helpers from the current `Weekly Memo`
+      implementation.
+  - [x] Text input slot: create or reuse a preset-owned custom input.
+  - [x] Asset slot: reference an existing template asset.
+  - [x] Fit slot: support `cover`, `contain`, and `fill`.
+  - [x] Visibility slot: reuse timetable object `hidden` behavior.
+- [x] Add shared inspector UI for text, asset, fit, and visibility slots.
+- [x] Migrate `Weekly Memo` to the shared slot helpers without changing current
+      behavior.
+- [x] Use the shared slot helpers as the foundation for `Profile Block`.
+
+## Next Development Slice
+
+Goal: improve asset/input creation flows now that the core semantic preset
+shape is in place.
+
+- [x] Add upload/new template asset creation for semantic asset slots.
+- [ ] Reuse the asset-slot source UI across Timetable and Cards inspectors where
+      possible.
+- [x] Implement generic `Select Input Bundle` MVP.
+- [x] Add `Sticker Select` as the first preconfigured select bundle.
+- [x] Add diagnostics for select options without required label/asset mappings.
+- [x] Add quick jump actions between inputs and consuming objects.
+- [ ] Keep full day-specific status background matrix deferred until the shared
+      asset flow is more stable.
 
 ## Phase 4. Timetable Semantic Presets
 
@@ -242,63 +290,77 @@ Goal: implement full-week composition presets first.
 
 ### 4.1 Week Dates
 
-- [ ] Convert `Week Dates` from static text to semantic exception object.
-- [ ] Bind to `week.date_range`.
+- [x] Convert `Week Dates` from static text to semantic exception object.
+- [x] Bind to `week.date_range`.
 - [ ] Add formatting settings:
-  - [ ] `2026.07.01 - 07.07`
-  - [ ] `07.01 - 07.07`
-  - [ ] localized month/date labels
-  - [ ] split start/end layout support or a clear future placeholder
-- [ ] Keep Timetable-only scope.
-- [ ] Make it selectable from canvas and layer tree.
-- [ ] Expose position/size/typography controls.
+  - [x] `2026.07.01 - 07.07`
+  - [x] `07.01 - 07.07`
+  - [x] localized month/date labels
+  - [x] split start/end layout support or a clear future placeholder
+- [x] Keep Timetable-only scope.
+- [x] Make it selectable from canvas and layer tree.
+- [x] Expose position controls.
+- [x] Expose size controls for Timetable text composition objects.
+- [x] Expose typography controls for Timetable text composition objects.
 
 ### 4.2 Weekly Memo
 
-- [ ] Close data ownership decision.
-- [ ] Implement recommended first path: preset-created global custom input.
-- [ ] Create or link memo content input when preset is inserted.
-- [ ] Add multiline text support.
-- [ ] Add placeholder setting.
-- [ ] Add optional background asset slot.
-- [ ] Add visibility setting.
-- [ ] Keep Timetable-only scope.
+- [x] Use preset-created global custom input for memo content.
+- [x] Treat `Weekly Memo` as singleton in the first implementation.
+- [x] Implement preset-created global custom input behavior.
+- [x] Create or link memo content input when preset is inserted.
+- [x] Add multiline text support.
+- [x] Add placeholder setting.
+- [x] Add optional background asset slot.
+  - [x] Reference existing template assets from the timetable object.
+  - [x] Support background fit modes: `cover`, `contain`, `fill`.
+  - [x] Validate missing background asset references.
+  - [x] Add upload/new asset creation flow for this slot.
+  - [x] Add optional image input creation flow for user-replaceable memo
+        backgrounds.
+- [x] Add visibility setting.
+- [x] Keep Timetable-only scope.
 
 ### 4.3 Profile Block
 
-- [ ] Implement Timetable-only `Profile Block`.
-- [ ] Remove dependency on Cards profile image node for the default sample.
-- [ ] Add profile image slot.
-- [ ] Add frame slot.
-- [ ] Add mask/fit controls.
-- [ ] Add placeholder behavior.
-- [ ] Add optional user-replaceable image input creation.
-- [ ] Show as one layer-tree object by default.
-- [ ] Expose slot settings in inspector.
+- [x] Implement Timetable-only `Profile Block` MVP.
+- [x] Remove dependency on Cards profile image node for the default sample.
+- [x] Add profile image slot.
+- [x] Add frame slot.
+- [x] Add fit controls.
+- [x] Add mask controls.
+- [x] Add placeholder behavior.
+- [x] Add optional user-replaceable image input creation.
+- [x] Show as one layer-tree object by default.
+- [x] Expose initial slot settings in inspector.
 
 ### 4.4 Artist / Profile Text
 
-- [ ] Implement as independent Timetable-only semantic preset.
-- [ ] Do not merge into `Profile Block`.
-- [ ] Support text-only mode.
-- [ ] Support text-with-asset mode.
-- [ ] Support stateful on/off asset mode when needed.
-- [ ] Add text style controls.
-- [ ] Decide whether first implementation uses built-in value or custom input.
+- [x] Implement as independent Timetable-only semantic preset.
+- [x] Do not merge into `Profile Block`.
+- [x] Use preset-created global custom input for text content in the first
+      implementation.
+- [x] Create or link artist/profile text input when preset is inserted.
+- [x] Reuse an existing matching artist/profile text input instead of creating a
+      duplicate.
+- [x] Support text-only mode.
+- [x] Support text-with-asset mode.
+- [x] Support stateful on/off asset mode when needed.
+- [x] Add text style controls.
 
 ### 4.5 Top Object
 
-- [ ] Implement Timetable-only semantic preset.
-- [ ] Use template asset slot by default.
-- [ ] Add optional user-replaceable image input creation.
-- [ ] Add fit/position/size controls.
-- [ ] Show as one layer-tree object.
+- [x] Implement Timetable-only semantic preset.
+- [x] Use template asset slot by default.
+- [x] Add optional user-replaceable image input creation.
+- [x] Add fit/position/size controls.
+- [x] Show as one layer-tree object.
 
 Exit criteria:
 
-- [ ] All Timetable semantic presets appear in Timetable layers.
-- [ ] All Timetable semantic presets can be selected from canvas.
-- [ ] All Timetable semantic presets expose appropriate inspector settings.
+- [x] All Timetable semantic presets appear in Timetable layers.
+- [x] All Timetable semantic presets can be selected from canvas.
+- [x] All Timetable semantic presets expose appropriate inspector settings.
 - [ ] Built-in bindings are visible and understandable.
 
 Verification:
@@ -316,86 +378,98 @@ Timetable.
 
 ### 5.1 Built-In Text Presets
 
-- [ ] Implement `Day Label` Cards preset.
-- [ ] Implement `Day Date` Cards preset.
-- [ ] Implement `Entry Status Label` Cards preset.
-- [ ] Bind each preset to built-in fields.
-- [ ] Add basic typography and layout controls.
-- [ ] Confirm generated cards resolve values per day/entry.
+- [x] Implement `Day Label` Cards preset.
+- [x] Implement `Day Date` Cards preset.
+- [x] Implement `Entry Status Label` Cards preset.
+- [x] Bind each preset to built-in fields.
+- [x] Add basic typography and layout controls through normal text-object
+      inspectors.
+- [x] Confirm generated cards resolve values per day/entry.
 
 ### 5.2 Status Card Background
 
-- [ ] Implement `Status Card Background` as Cards semantic preset.
-- [ ] Support `online` asset slot.
-- [ ] Support `offline` asset slot.
-- [ ] Add `multi` slot only when capability is enabled.
-- [ ] Add `offlineMemo` slot only when capability is enabled.
-- [ ] Support shared assets first.
+- [x] Implement `Status Card Background` as Cards semantic preset.
+- [x] Support `online` asset slot.
+- [x] Support `offline` asset slot.
+- [x] Add `multi` slot only when capability is enabled.
+- [x] Add `offlineMemo` slot only when capability is enabled.
+- [x] Support shared assets first.
 - [ ] Add day-specific asset slots later only after shared flow is stable.
-- [ ] Add status fallback behavior to preview.
-- [ ] Add diagnostics for missing required base status assets.
+- [ ] Defer full `7 days x 4 statuses = 28 asset slots` matrix UI until after
+      shared status asset flow is stable.
+- [x] Add status fallback behavior to preview.
+- [x] Add diagnostics for missing required base status assets.
 
 Exit criteria:
 
-- [ ] Cards can author day/entry labels that render correctly in Timetable.
-- [ ] Cards can author base status backgrounds.
-- [ ] Capability-gated status slots are hidden until enabled.
+- [x] Cards can author day/entry labels that render correctly in Timetable.
+- [x] Cards can author base status backgrounds.
+- [x] Capability-gated status slots are hidden until enabled.
 
 Verification:
 
-- [ ] Add each Cards preset.
-- [ ] Switch selected day and confirm day-specific text changes.
-- [ ] Switch entry status and confirm status label/background changes.
-- [ ] Confirm Timetable still exposes only generated containers, not internals.
+- [x] Add each Cards preset.
+- [x] Switch selected day and confirm day-specific text changes.
+- [x] Switch entry status and confirm status label/background changes.
+- [x] Confirm Timetable still exposes only generated containers, not internals.
 
 ## Phase 6. Input Bundle Presets
 
 Goal: make template-specific optional features easy to add.
 
-### Sticker Select
+### Generic Select Input Bundle
 
-- [ ] Implement `Sticker Select` input bundle preset.
-- [ ] Default scope to `entry`.
-- [ ] Allow scope override before or after insertion.
-- [ ] Create select input with stable option values.
-- [ ] Create default options.
-- [ ] Optionally create bound text object.
-- [ ] Optionally create bound image object with select-asset mapping.
-- [ ] Add unmapped option diagnostics.
-- [ ] Add quick jump from input to consuming object.
-- [ ] Add quick jump from object to input.
+- [x] Implement generic `Select Input Bundle` preset.
+- [x] Treat `Sticker Select` as a preconfigured select bundle, not as the
+      underlying model.
+- [x] Default scope to `entry`.
+- [x] Allow scope override after insertion.
+- [x] Create select input with stable option values.
+- [x] Create and edit option labels.
+- [x] Support `select -> text` mappings.
+- [x] Support `select -> image/asset` mappings.
+- [x] Keep room for future `select -> visibility/variant` mappings without
+      requiring this MVP to implement them.
+- [x] Allow label-only, asset-only, and label+asset consumer objects.
+- [x] Create default sticker options only for the `Sticker Select` preset.
+- [x] Add unmapped option diagnostics for required text/asset mappings.
+- [x] Add quick jump from input to consuming object.
+- [x] Add quick jump from object to input.
 
 Exit criteria:
 
-- [ ] Sticker select can be added without hand-building input schema.
-- [ ] Sticker select remains a flexible input bundle, not a fixed semantic
-      exception object.
+- [x] A select input can be added without hand-building input schema.
+- [x] Select values can drive text and/or image output declaratively.
+- [x] `Sticker Select` is implemented through the generic select bundle path.
+- [x] Select bundles remain flexible input bundles, not fixed semantic
+      exception objects.
 
 Verification:
 
-- [ ] Add preset.
-- [ ] Edit options.
-- [ ] Bind to label.
-- [ ] Bind to image mapping.
-- [ ] Confirm runtime preview updates.
+- [x] Add generic select bundle.
+- [x] Add sticker select preset.
+- [x] Edit options.
+- [x] Bind to label.
+- [x] Bind to image mapping.
+- [x] Confirm runtime preview updates.
 
 ## Phase 7. Inspector And Layer Polish
 
 Goal: make the expanded model practical to use.
 
-- [ ] Group binding candidates by built-in/custom source.
-- [ ] Group binding candidates by scope.
-- [ ] Show active scope in binding dropdown rows.
-- [ ] Show input consumers.
-- [ ] Warn when an input has no consumers.
-- [ ] Warn when input scope is incompatible with current preview context.
-- [ ] Add jump from input to consuming objects.
-- [ ] Add jump from bound object to input.
-- [ ] Add diagnostics for hidden graph nodes.
-- [ ] Add diagnostics for unreachable graph nodes.
-- [ ] Improve drop affordance for above/below/inside.
-- [ ] Consider auto-expanding collapsed groups during drag.
-- [ ] Consider layer-tree range selection.
+- [x] Group binding candidates by built-in/custom source.
+- [x] Group binding candidates by scope.
+- [x] Show active scope in binding dropdown rows.
+- [x] Show input consumers.
+- [x] Warn when an input has no consumers.
+- [x] Warn when input scope is incompatible with current preview context.
+- [x] Add jump from input to consuming objects.
+- [x] Add jump from bound object to input.
+- [x] Add diagnostics for hidden graph nodes.
+- [x] Add diagnostics for unreachable graph nodes.
+- [x] Improve drop affordance for above/below/inside.
+- [x] Auto-expand collapsed groups during drag after a short hover delay.
+- [x] Add Cards layer-tree range selection.
 
 Exit criteria:
 
@@ -407,71 +481,164 @@ Exit criteria:
 
 Goal: prepare the editor data shape for saving without writing to production.
 
-- [ ] Define serialization boundary.
-- [ ] Add local JSON export.
-- [ ] Add local JSON import.
-- [ ] Add document version migration helper.
-- [ ] Add strict validation before export.
-- [ ] Add diagnostics summary before export.
-- [ ] Keep Supabase writes out of scope unless explicitly requested.
+- [x] Define serialization boundary.
+- [x] Add local JSON export.
+- [x] Add local JSON import.
+- [x] Add document version migration helper.
+- [x] Add strict validation before export.
+- [x] Add diagnostics summary before export.
+- [x] Define production persistence/storage plan.
+- [x] Choose separate Template Studio tables instead of reusing v2 render-config
+      tables.
+- [x] Define draft/publish/revision split.
+- [x] Define production asset storage policy.
+- [x] Define services/API boundary before React Query integration.
+- [x] Require local Docker Supabase migration testing before remote migration.
+- [x] Keep Supabase writes out of scope unless explicitly requested.
+
+Future migration workflow:
+
+- [ ] Write Template Studio Supabase migration files locally.
+- [ ] Start local Docker Supabase stack.
+- [ ] Apply migration to the local database.
+- [ ] Verify local migration status and schema shape.
+- [ ] Test sample insert/read flows for templates, documents, drafts, revisions,
+      and assets.
+- [ ] Test draft/publish/revision transaction behavior locally.
+- [ ] Test storage bucket and asset policy locally.
+- [ ] Run Template Studio API/service tests against the local Supabase database
+      once those layers exist.
+- [ ] Apply migration to the remote Supabase project only after explicit approval.
+
+## Phase 9. Local Supabase Persistence Foundation
+
+Goal: prove Template Studio persistence locally before any remote database work.
+
+### 9.1 Local Migration Files
+
+- [ ] Create migration for `template_studio_templates`.
+- [ ] Create migration for `template_studio_documents`.
+- [ ] Create migration for `template_studio_document_revisions`.
+- [ ] Create migration for `template_studio_document_drafts`.
+- [ ] Create migration for `template_studio_assets`.
+- [ ] Add updated-at triggers.
+- [ ] Add indexes for template, user draft, revision, and asset lookup paths.
+- [ ] Add status/check constraints.
+- [ ] Add foreign keys that match the current project user/auth model.
+- [ ] Add `template-studio-assets` storage bucket setup.
+- [ ] Add local storage policies for asset read/write/delete paths.
+
+### 9.2 Local Docker Supabase Verification
+
+- [ ] Start local Docker Supabase.
+- [ ] Apply migrations locally.
+- [ ] Verify migration status.
+- [ ] Inspect tables, indexes, constraints, triggers, and storage bucket shape.
+- [ ] Insert/read/update/delete sample template metadata locally.
+- [ ] Insert/read sample published document locally.
+- [ ] Insert/read/update sample user draft locally.
+- [ ] Insert/read sample revision history locally.
+- [ ] Insert/read/delete sample asset registry row locally.
+- [ ] Test draft-to-publish transaction locally.
+- [ ] Test storage bucket upload/read/delete policy locally.
+
+### 9.3 Server Persistence Helpers
+
+- [ ] Add server-only document migration wrapper.
+- [ ] Add server-only document validation wrapper.
+- [ ] Add next revision number helper.
+- [ ] Add draft save helper.
+- [ ] Add publish transaction helper.
+- [ ] Add asset metadata helper.
+- [ ] Add helper-level tests against local Supabase.
+
+### 9.4 API, Service, And Hooks
+
+- [ ] Add Template Studio API route contracts.
+- [ ] Add `templateStudioService` services layer.
+- [ ] Add React Query hooks for list/load/save draft/publish.
+- [ ] Keep UI calls on Page/UI -> React Query -> Services -> API route.
+- [ ] Add local API tests or smoke scripts against local Supabase.
+
+### 9.5 Editor Integration
+
+- [ ] Add remote draft load path.
+- [ ] Add remote draft save path.
+- [ ] Keep local draft save as fallback.
+- [ ] Add publish action after draft save is stable.
+- [ ] Add remote asset upload path.
+- [ ] Convert production-saved assets from data URL storage to storage references.
+- [ ] Keep JSON export/import available.
+
+### 9.6 Remote Gate
+
+- [ ] Summarize local migration/test results.
+- [ ] Review SQL and API behavior before remote work.
+- [ ] Ask for explicit approval before remote migration.
+- [ ] Apply migration to remote Supabase only after approval.
 
 Exit criteria:
 
-- [ ] A Template Studio document can round-trip through JSON locally.
-- [ ] Invalid documents are blocked or clearly warned before export.
+- [x] A Template Studio document can round-trip through JSON locally.
+- [x] Invalid documents are blocked or clearly warned before export.
 
 Verification:
 
-- [ ] Export sample document.
-- [ ] Import exported document.
-- [ ] Compare rendered Cards view.
-- [ ] Compare rendered Timetable view.
+- [x] Export sample document.
+- [x] Import exported document.
+- [x] Compare rendered Cards view.
+- [x] Compare rendered Timetable view.
 
 ## Per-Phase Verification Checklist
 
 Run after any implementation phase:
 
-- [ ] `npx tsc --noEmit --pretty false --incremental false`
-- [ ] ESLint changed Template Studio files.
-- [ ] Browser smoke test `/template-studio`.
+- [x] `npx tsc --noEmit --pretty false --incremental false`
+- [x] ESLint changed Template Studio files.
+- [x] Browser smoke test `/template-studio`.
 - [ ] Confirm Cards layer tree edits source card objects.
 - [ ] Confirm Timetable layer tree edits only composition objects and generated
       day-card containers.
 - [ ] Confirm day-scoped values do not leak across days.
 - [ ] Confirm entry-scoped values do not leak across entries.
-- [ ] Confirm validator has no new false positives for the sample document.
+- [x] Confirm validator has no new false positives for the sample document.
 - [ ] Confirm local draft save still works.
 
 ## Open Decisions
 
-- [ ] Should `Weekly Memo` content be a built-in week value or a preset-created
-      global custom input?
-- [ ] Should `weeklyMemo` be singleton in the first implementation?
-- [ ] Should Timetable-level external day headings be implemented in the same
-      pass as Cards `Day Label`, or deferred?
-- [ ] Which profile/artist text value should `Artist / Profile Text` bind to by
-      default?
-- [ ] When should the full `7 days x 4 statuses = 28 asset slots` UI be
-      introduced?
+- [x] No open product decisions remain for the current roadmap.
+
+Resolved decisions:
+
+- [x] `Weekly Memo` content uses a preset-created global custom input.
+- [x] `weeklyMemo` is singleton in the first implementation.
+- [x] Cards `Day Label` / `Day Date` come first; Timetable-level external day
+      headings are deferred.
+- [x] Status card background starts with shared slots; the full
+      `7 days x 4 statuses = 28 asset slots` UI is deferred until the simpler
+      shared asset flow is stable.
+- [x] `Artist / Profile Text` content uses a preset-created global custom input
+      in the first implementation.
 
 ## Done Definition For This Roadmap
 
-- [ ] Current UI no longer contains stale milestone labeling.
-- [ ] Capability-gated optional statuses are explicit and disabled by default.
-- [ ] Generated Timetable cards are faithful renderings of Cards source graph.
-- [ ] Semantic preset registry exists.
-- [ ] Timetable semantic presets exist for:
-  - [ ] `Week Dates`
-  - [ ] `Weekly Memo`
-  - [ ] `Profile Block`
-  - [ ] `Artist / Profile Text`
-  - [ ] `Top Object`
-- [ ] Cards semantic presets exist for:
-  - [ ] `Day Label`
-  - [ ] `Day Date`
-  - [ ] `Entry Status Label`
-  - [ ] `Status Card Background`
-- [ ] `Sticker Select` input bundle preset exists.
+- [x] Current UI no longer contains stale milestone labeling.
+- [x] Capability-gated optional statuses are explicit and disabled by default.
+- [x] Generated Timetable cards are faithful renderings of Cards source graph.
+- [x] Semantic preset registry exists.
+- [x] Timetable semantic presets exist for:
+  - [x] `Week Dates`
+  - [x] `Weekly Memo`
+  - [x] `Profile Block`
+  - [x] `Artist / Profile Text`
+  - [x] `Top Object`
+- [x] Cards semantic presets exist for:
+  - [x] `Day Label`
+  - [x] `Day Date`
+  - [x] `Entry Status Label`
+  - [x] `Status Card Background`
+- [x] Generic `Select Input Bundle` MVP exists.
+- [x] `Sticker Select` preset exists as a preconfigured select bundle.
 - [ ] Inspector and layer tree can explain semantic presets and input bindings.
-- [ ] Local JSON import/export exists.
-- [ ] Typecheck, lint, and browser smoke checks pass.
+- [x] Local JSON import/export exists.
+- [x] Current typecheck, lint, validator, and browser smoke checks pass.

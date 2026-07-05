@@ -1,17 +1,30 @@
 import {
   StudioBinding,
   StudioDiagnostic,
+  StudioExceptionObjectMeta,
   StudioGraphNode,
   StudioNodeId,
+  StudioSemanticPresetScope,
   StudioTemplateDocument,
+  StudioTimetableCompositionObject,
 } from "@/types/template-studio";
-import { getStudioBuiltinField } from "@/utils/template-studio/builtin-fields";
+import {
+  getStudioBuiltinField,
+  isStudioBuiltinFieldAvailable,
+  isStudioBuiltinFieldId,
+} from "@/utils/template-studio/builtin-fields";
 import {
   isStudioImageBinding,
   isStudioImageNode,
   isStudioTextBinding,
   isStudioTextNode,
 } from "@/utils/template-studio/binding-resolver";
+import {
+  getStudioStatusRequiredCapability,
+  getStudioTimetableCapabilities,
+  isStudioTimetableStatusAvailable,
+} from "@/utils/template-studio/timetable-capabilities";
+import { isStudioStatusCardBackgroundNode } from "@/utils/template-studio/status-card-background";
 
 const createDiagnostic = (
   severity: StudioDiagnostic["severity"],
@@ -25,7 +38,9 @@ const createDiagnostic = (
   detail,
 });
 
-const getBindingInputId = (binding: StudioBinding): string | null => {
+const getBindingInputId = (binding?: StudioBinding): string | null => {
+  if (!binding) return null;
+
   if (
     binding.kind === "staticText" ||
     binding.kind === "staticAsset" ||
@@ -35,6 +50,433 @@ const getBindingInputId = (binding: StudioBinding): string | null => {
   }
 
   return binding.inputId;
+};
+
+type StudioInputConsumerWorkspace = "cards" | "timetable";
+
+interface StudioInputConsumerDiagnosticReference {
+  id: string;
+  inputId: string;
+  workspace: StudioInputConsumerWorkspace;
+  label: string;
+  detail: string;
+}
+
+const STUDIO_EXCEPTION_SEMANTIC_KEYS = new Set<string>([
+  "dayCardContainers",
+  "weekDates",
+  "weeklyMemo",
+  "profileBlock",
+  "artistProfileText",
+  "topObject",
+  "dayLabel",
+  "dayDate",
+  "entryStatusLabel",
+  "statusCardBackground",
+]);
+
+const STUDIO_EXCEPTION_SCOPES = new Set<string>(["cards", "timetable"]);
+const STUDIO_CAPABILITY_KEYS = new Set<string>(["multi", "offlineMemo"]);
+
+const addInputConsumer = (
+  consumers: Record<string, StudioInputConsumerDiagnosticReference[]>,
+  inputId: string | null | undefined,
+  consumer: Omit<StudioInputConsumerDiagnosticReference, "inputId">,
+) => {
+  if (!inputId) return;
+
+  consumers[inputId] = [
+    ...(consumers[inputId] ?? []),
+    {
+      ...consumer,
+      inputId,
+    },
+  ];
+};
+
+const collectStudioInputConsumers = (
+  document: StudioTemplateDocument,
+): Record<string, StudioInputConsumerDiagnosticReference[]> => {
+  const consumers: Record<string, StudioInputConsumerDiagnosticReference[]> = {};
+
+  Object.values(document.graph.nodes).forEach((node) => {
+    addInputConsumer(consumers, getBindingInputId(node.binding), {
+      id: `cards:${node.id}:binding`,
+      workspace: "cards",
+      label: node.label,
+      detail: "Cards binding",
+    });
+
+    Object.entries(node.assetSlots ?? {}).forEach(([slotName, slot]) => {
+      addInputConsumer(consumers, slot.inputId, {
+        id: `cards:${node.id}:slot:${slotName}`,
+        workspace: "cards",
+        label: node.label,
+        detail: `Cards ${slotName} slot`,
+      });
+    });
+  });
+
+  Object.values(document.domains?.timetable?.composition?.objects ?? {}).forEach(
+    (object) => {
+      addInputConsumer(consumers, getBindingInputId(object.binding), {
+        id: `timetable:${object.id}:binding`,
+        workspace: "timetable",
+        label: object.label,
+        detail: "Timetable binding",
+      });
+
+      Object.entries(object.assetSlots ?? {}).forEach(([slotName, slot]) => {
+        addInputConsumer(consumers, slot.inputId, {
+          id: `timetable:${object.id}:slot:${slotName}`,
+          workspace: "timetable",
+          label: object.label,
+          detail: `Timetable ${slotName} slot`,
+        });
+      });
+    },
+  );
+
+  return consumers;
+};
+
+const getStyleStringValue = (
+  node: StudioGraphNode,
+  document: StudioTemplateDocument,
+  key: string,
+): string | null => {
+  if (!node.styleId) return null;
+
+  const value = document.styles[node.styleId]?.[key];
+  return typeof value === "string" ? value.trim().toLowerCase() : null;
+};
+
+const getStyleNumberValue = (
+  node: StudioGraphNode,
+  document: StudioTemplateDocument,
+  key: string,
+): number | null => {
+  if (!node.styleId) return null;
+
+  const value = document.styles[node.styleId]?.[key];
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value !== "string") return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const getGraphNodeHiddenReasons = (
+  document: StudioTemplateDocument,
+  node: StudioGraphNode,
+): string[] => {
+  const reasons: string[] = [];
+  const display = getStyleStringValue(node, document, "display");
+  const visibility = getStyleStringValue(node, document, "visibility");
+  const overflow = getStyleStringValue(node, document, "overflow");
+  const opacity = getStyleNumberValue(node, document, "opacity");
+  const width = getStyleNumberValue(node, document, "width");
+  const height = getStyleNumberValue(node, document, "height");
+
+  if (display === "none") {
+    reasons.push("display is none");
+  }
+
+  if (visibility === "hidden" || visibility === "collapse") {
+    reasons.push(`visibility is ${visibility}`);
+  }
+
+  if (opacity !== null && opacity <= 0) {
+    reasons.push("opacity is 0");
+  }
+
+  const hasCollapsedBox =
+    (width !== null && width <= 0) || (height !== null && height <= 0);
+  const clipsChildren = overflow === "hidden" || overflow === "clip";
+  if (hasCollapsedBox && (node.type !== "group" || clipsChildren)) {
+    reasons.push("width or height is 0");
+  }
+
+  return reasons;
+};
+
+const validateBuiltinFieldReference = (
+  document: StudioTemplateDocument,
+  ownerId: string,
+  ownerLabel: string,
+  fieldId: string,
+): StudioDiagnostic[] => {
+  if (!isStudioBuiltinFieldId(fieldId)) {
+    return [
+      createDiagnostic(
+        "error",
+        `binding-builtin-field-missing:${ownerId}:${fieldId}`,
+        "Missing built-in field",
+        `${ownerLabel} is bound to ${fieldId}, but that built-in field does not exist.`,
+      ),
+    ];
+  }
+
+  const field = getStudioBuiltinField(fieldId);
+  if (!field) return [];
+
+  if (!isStudioBuiltinFieldAvailable(document, field)) {
+    return [
+      createDiagnostic(
+        "warning",
+        `binding-builtin-field-disabled:${ownerId}:${fieldId}`,
+        "Built-in field is disabled",
+        `${ownerLabel} uses ${field.label}, but its required capability is not enabled.`,
+      ),
+    ];
+  }
+
+  return [];
+};
+
+const validateExceptionObjectMeta = (
+  document: StudioTemplateDocument,
+  ownerId: string,
+  ownerLabel: string,
+  meta: StudioExceptionObjectMeta,
+  expectedScope: StudioSemanticPresetScope,
+): StudioDiagnostic[] => {
+  const diagnostics: StudioDiagnostic[] = [];
+
+  if (!STUDIO_EXCEPTION_SEMANTIC_KEYS.has(meta.semanticKey)) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `exception-semantic-invalid:${ownerId}`,
+        "Invalid exception semantic key",
+        `${ownerLabel} uses unknown exception semantic key ${meta.semanticKey}.`,
+      ),
+    );
+  }
+
+  if (!STUDIO_EXCEPTION_SCOPES.has(meta.scope)) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `exception-scope-invalid:${ownerId}`,
+        "Invalid exception scope",
+        `${ownerLabel} uses unknown exception scope ${meta.scope}.`,
+      ),
+    );
+  } else if (meta.scope !== expectedScope) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `exception-scope-mismatch:${ownerId}`,
+        "Exception scope mismatch",
+        `${ownerLabel} is stored in ${expectedScope}, but its exception scope is ${meta.scope}.`,
+      ),
+    );
+  }
+
+  if (typeof meta.presetId !== "string" || meta.presetId.trim().length === 0) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `exception-preset-missing:${ownerId}`,
+        "Missing exception preset id",
+        `${ownerLabel} is an exception object and must keep its presetId.`,
+      ),
+    );
+  }
+
+  Object.entries(meta.builtInBindings ?? {}).forEach(([slot, fieldId]) => {
+    diagnostics.push(
+      ...validateBuiltinFieldReference(
+        document,
+        `${ownerId}:${slot}`,
+        `${ownerLabel} ${slot}`,
+        fieldId,
+      ),
+    );
+  });
+
+  (meta.capabilityFlags ?? []).forEach((capabilityKey) => {
+    if (!STUDIO_CAPABILITY_KEYS.has(capabilityKey)) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `exception-capability-invalid:${ownerId}:${capabilityKey}`,
+          "Invalid exception capability",
+          `${ownerLabel} references unknown capability ${capabilityKey}.`,
+        ),
+      );
+      return;
+    }
+
+    if (
+      !getStudioTimetableCapabilities(document.domains?.timetable)[
+        capabilityKey
+      ].enabled
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          `exception-capability-disabled:${ownerId}:${capabilityKey}`,
+          "Exception capability is disabled",
+          `${ownerLabel} references ${capabilityKey}, but that capability is not enabled.`,
+        ),
+      );
+    }
+  });
+
+  return diagnostics;
+};
+
+const validateTimetableCompositionObjectBinding = (
+  document: StudioTemplateDocument,
+  object: StudioTimetableCompositionObject,
+): StudioDiagnostic[] => {
+  if (!object.binding) return [];
+
+  const diagnostics: StudioDiagnostic[] = [];
+  const inputId = getBindingInputId(object.binding);
+  const input = inputId ? document.inputs[inputId] : null;
+
+  if (object.kind === "text" && !isStudioTextBinding(object.binding)) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-binding-type:${object.id}`,
+        "Binding does not match timetable text object",
+        `${object.label} is a text object, so it needs a text-compatible binding.`,
+      ),
+    );
+  }
+
+  if (inputId && !input) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-binding-input-missing:${object.id}`,
+        "Missing input reference",
+        `${object.label} is bound to ${inputId}, but that input does not exist.`,
+      ),
+    );
+  }
+
+  if (object.binding.kind === "builtinField") {
+    diagnostics.push(
+      ...validateBuiltinFieldReference(
+        document,
+        object.id,
+        object.label,
+        object.binding.fieldId,
+      ),
+    );
+  }
+
+  if (object.binding.kind === "inputText" && input && input.type !== "text") {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-binding-input-type:${object.id}`,
+        "Input type mismatch",
+        `${object.label} expects a text input, but ${input.label} is ${input.type}.`,
+      ),
+    );
+  }
+
+  if (
+    object.binding.kind === "selectText" &&
+    input &&
+    input.type !== "select"
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-binding-input-type:${object.id}`,
+        "Input type mismatch",
+        `${object.label} expects a select input, but ${input.label} is ${input.type}.`,
+      ),
+    );
+  }
+
+  return diagnostics;
+};
+
+const validateTimetableCompositionObjectAssets = (
+  document: StudioTemplateDocument,
+  object: StudioTimetableCompositionObject,
+): StudioDiagnostic[] => {
+  const diagnostics: StudioDiagnostic[] = [];
+
+  if (object.backgroundAssetId && !document.assets[object.backgroundAssetId]) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-background-asset-missing:${object.id}`,
+        "Missing background asset",
+        `${object.label} uses ${object.backgroundAssetId} as a background asset, but that asset does not exist.`,
+      ),
+    );
+  }
+
+  Object.entries(object.assetSlots ?? {}).forEach(([slotName, slot]) => {
+    if (slot.assetId && slot.inputId) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-object-asset-slot-source-conflict:${object.id}:${slotName}`,
+          "Conflicting slot sources",
+          `${object.label} uses both template asset and image input for ${slotName}.`,
+        ),
+      );
+    }
+
+    if (
+      slotName === "background" &&
+      slot.assetId === object.backgroundAssetId &&
+      !slot.inputId
+    ) {
+      return;
+    }
+
+    if (slot.assetId && !document.assets[slot.assetId]) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-object-asset-slot-missing:${object.id}:${slotName}`,
+          "Missing slot asset",
+          `${object.label} uses ${slot.assetId} for ${slotName}, but that asset does not exist.`,
+        ),
+      );
+    }
+
+    if (slot.inputId) {
+      const input = document.inputs[slot.inputId];
+
+      if (!input) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `timetable-object-asset-slot-input-missing:${object.id}:${slotName}`,
+            "Missing slot input",
+            `${object.label} uses ${slot.inputId} for ${slotName}, but that input does not exist.`,
+          ),
+        );
+        return;
+      }
+
+      if (input.type !== "image") {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `timetable-object-asset-slot-input-type:${object.id}:${slotName}`,
+            "Input type mismatch",
+            `${object.label} expects an image input for ${slotName}, but ${input.label} is ${input.type}.`,
+          ),
+        );
+      }
+    }
+  });
+
+  return diagnostics;
 };
 
 const validateBinding = (
@@ -80,16 +522,13 @@ const validateBinding = (
     );
   }
 
-  if (
-    node.binding.kind === "builtinField" &&
-    !getStudioBuiltinField(node.binding.fieldId)
-  ) {
+  if (node.binding.kind === "builtinField") {
     diagnostics.push(
-      createDiagnostic(
-        "error",
-        `binding-builtin-field-missing:${node.id}`,
-        "Missing built-in field",
-        `${node.label} is bound to ${node.binding.fieldId}, but that built-in field does not exist.`,
+      ...validateBuiltinFieldReference(
+        document,
+        node.id,
+        node.label,
+        node.binding.fieldId,
       ),
     );
   }
@@ -187,6 +626,82 @@ const validateBinding = (
           ),
         );
       }
+    });
+  }
+
+  return diagnostics;
+};
+
+const validateGraphNodeAssetSlots = (
+  document: StudioTemplateDocument,
+  node: StudioGraphNode,
+): StudioDiagnostic[] => {
+  const diagnostics: StudioDiagnostic[] = [];
+
+  Object.entries(node.assetSlots ?? {}).forEach(([slotName, slot]) => {
+    if (slot.assetId && slot.inputId) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `node-asset-slot-source-conflict:${node.id}:${slotName}`,
+          "Conflicting slot sources",
+          `${node.label} uses both template asset and image input for ${slotName}.`,
+        ),
+      );
+    }
+
+    if (slot.assetId && !document.assets[slot.assetId]) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `node-asset-slot-missing:${node.id}:${slotName}`,
+          "Missing slot asset",
+          `${node.label} uses ${slot.assetId} for ${slotName}, but that asset does not exist.`,
+        ),
+      );
+    }
+
+    if (slot.inputId) {
+      const input = document.inputs[slot.inputId];
+
+      if (!input) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `node-asset-slot-input-missing:${node.id}:${slotName}`,
+            "Missing slot input",
+            `${node.label} uses ${slot.inputId} for ${slotName}, but that input does not exist.`,
+          ),
+        );
+        return;
+      }
+
+      if (input.type !== "image") {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `node-asset-slot-input-type:${node.id}:${slotName}`,
+            "Input type mismatch",
+            `${node.label} expects an image input for ${slotName}, but ${input.label} is ${input.type}.`,
+          ),
+        );
+      }
+    }
+  });
+
+  if (isStudioStatusCardBackgroundNode(node)) {
+    (["online", "offline"] as const).forEach((statusId) => {
+      const slot = node.assetSlots?.[statusId];
+      if (slot?.assetId || slot?.inputId) return;
+
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          `status-background-base-slot-missing:${node.id}:${statusId}`,
+          "Missing status background asset",
+          `${node.label} has no ${statusId} background asset. The card will fall back to its base style for this status.`,
+        ),
+      );
     });
   }
 
@@ -323,8 +838,8 @@ const validateGraphIntegrity = (
       diagnostics.push(
         createDiagnostic(
           "warning",
-          `graph-orphan:${node.id}`,
-          "Node is not reachable from roots",
+          `graph-unreachable:${node.id}`,
+          "Unreachable graph node",
           `${node.label} exists in graph.nodes but is not reachable from graph.rootNodeIds.`,
         ),
       );
@@ -428,6 +943,89 @@ const validateTimetableDomain = (
     }
   });
 
+  if (timetable.composition) {
+    const seenCompositionRootIds = new Set<string>();
+
+    timetable.composition.rootObjectIds.forEach((objectId) => {
+      if (seenCompositionRootIds.has(objectId)) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `timetable-composition-root-duplicate:${objectId}`,
+            "Duplicate timetable composition root",
+            `${objectId} appears more than once in timetable composition roots.`,
+          ),
+        );
+      }
+      seenCompositionRootIds.add(objectId);
+
+      if (!timetable.composition?.objects[objectId]) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `timetable-composition-root-missing:${objectId}`,
+            "Missing timetable composition object",
+            `${objectId} is listed as a timetable layer but does not exist.`,
+          ),
+        );
+      }
+    });
+
+    Object.entries(timetable.composition.objects).forEach(
+      ([objectId, object]) => {
+        if (object.id !== objectId) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-composition-object-id-mismatch:${objectId}`,
+              "Timetable composition object id mismatch",
+              `${object.label} is stored under ${objectId}, but its id is ${object.id}.`,
+            ),
+          );
+        }
+
+        if (!seenCompositionRootIds.has(objectId)) {
+          diagnostics.push(
+            createDiagnostic(
+              "warning",
+              `timetable-composition-object-orphan:${objectId}`,
+              "Timetable composition object is not visible",
+              `${object.label} exists in timetable composition objects but is not listed in rootObjectIds.`,
+            ),
+          );
+        }
+
+        if (object.hidden) {
+          diagnostics.push(
+            createDiagnostic(
+              "warning",
+              `timetable-composition-object-hidden:${objectId}`,
+              "Timetable composition object is hidden",
+              `${object.label} is explicitly hidden and will not render in the timetable output.`,
+            ),
+          );
+        }
+
+        if (object.meta?.exception) {
+          diagnostics.push(
+            ...validateExceptionObjectMeta(
+              document,
+              object.id,
+              object.label,
+              object.meta.exception,
+              "timetable",
+            ),
+          );
+        }
+
+        diagnostics.push(
+          ...validateTimetableCompositionObjectBinding(document, object),
+          ...validateTimetableCompositionObjectAssets(document, object),
+        );
+      },
+    );
+  }
+
   (["online", "offline"] as const).forEach((statusId) => {
     const status = timetable.statuses[statusId];
     if (!status) {
@@ -455,6 +1053,22 @@ const validateTimetableDomain = (
   });
 
   Object.entries(timetable.statuses).forEach(([statusId, status]) => {
+    const requiredCapability = getStudioStatusRequiredCapability(statusId);
+
+    if (
+      requiredCapability &&
+      !getStudioTimetableCapabilities(timetable)[requiredCapability].enabled
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          `timetable-status-capability-disabled:${statusId}`,
+          "Timetable status capability is disabled",
+          `${status.label} is defined, but ${requiredCapability} is not enabled for this template.`,
+        ),
+      );
+    }
+
     if (status.id !== statusId) {
       diagnostics.push(
         createDiagnostic(
@@ -544,6 +1158,17 @@ const validateTimetableDomain = (
         `The timetable domain uses ${timetable.defaultEntryStatusId}, but that status does not exist.`,
       ),
     );
+  } else if (
+    !isStudioTimetableStatusAvailable(timetable, timetable.defaultEntryStatusId)
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-default-status-disabled:${timetable.defaultEntryStatusId}`,
+        "Default entry status is disabled",
+        `The timetable domain uses ${timetable.defaultEntryStatusId} as the default status, but its capability is not enabled.`,
+      ),
+    );
   }
 
   Object.entries(timetable.components).forEach(([componentId, component]) => {
@@ -565,6 +1190,17 @@ const validateTimetableDomain = (
           `timetable-component-default-status-missing:${componentId}`,
           "Missing component default status",
           `${component.label} uses ${component.defaultStatusId}, but that status does not exist.`,
+        ),
+      );
+    } else if (
+      !isStudioTimetableStatusAvailable(timetable, component.defaultStatusId)
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-component-default-status-disabled:${componentId}`,
+          "Component default status is disabled",
+          `${component.label} uses ${component.defaultStatusId}, but its capability is not enabled.`,
         ),
       );
     }
@@ -603,6 +1239,17 @@ const validateTimetableDomain = (
             `${component.label} uses variant status ${variant.statusId}, but that status does not exist.`,
           ),
         );
+      } else if (
+        !isStudioTimetableStatusAvailable(timetable, variant.statusId)
+      ) {
+        diagnostics.push(
+          createDiagnostic(
+            "warning",
+            `timetable-component-variant-status-disabled:${componentId}:${variant.statusId}`,
+            "Component variant status is disabled",
+            `${component.label} defines a ${variant.statusId} variant, but its capability is not enabled.`,
+          ),
+        );
       }
 
       if (!nodes[variant.rootNodeId]) {
@@ -618,7 +1265,11 @@ const validateTimetableDomain = (
     });
 
     Object.entries(timetable.statuses).forEach(([statusId, status]) => {
-      if (status.kind === "derived" && !component.variants[statusId]) {
+      if (
+        status.kind === "derived" &&
+        isStudioTimetableStatusAvailable(timetable, statusId) &&
+        !component.variants[statusId]
+      ) {
         diagnostics.push(
           createDiagnostic(
             "warning",
@@ -639,6 +1290,7 @@ export const validateStudioDocument = (
 ): StudioDiagnostic[] => {
   const diagnostics: StudioDiagnostic[] = [];
   const nodes = document.graph.nodes;
+  const inputConsumers = collectStudioInputConsumers(document);
 
   diagnostics.push(...validateGraphIntegrity(document));
 
@@ -663,6 +1315,18 @@ export const validateStudioDocument = (
           `style-missing:${node.id}`,
           "Missing style reference",
           `${node.label} uses ${node.styleId}, but that style does not exist.`,
+        ),
+      );
+    }
+
+    const hiddenReasons = getGraphNodeHiddenReasons(document, node);
+    if (hiddenReasons.length > 0) {
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          `graph-node-hidden:${node.id}`,
+          "Graph node may be hidden",
+          `${node.label} may not render because ${hiddenReasons.join(", ")}.`,
         ),
       );
     }
@@ -704,10 +1368,57 @@ export const validateStudioDocument = (
       }
     });
 
-    diagnostics.push(...validateBinding(document, node));
+    if (node.meta?.exception) {
+      diagnostics.push(
+        ...validateExceptionObjectMeta(
+          document,
+          node.id,
+          node.label,
+          node.meta.exception,
+          "cards",
+        ),
+      );
+    }
+
+    diagnostics.push(
+      ...validateBinding(document, node),
+      ...validateGraphNodeAssetSlots(document, node),
+    );
   });
 
   Object.values(document.inputs).forEach((input) => {
+    const consumers = inputConsumers[input.id] ?? [];
+
+    if (consumers.length === 0) {
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          `input-unused:${input.id}`,
+          "Input has no consumers",
+          `${input.label} is defined but is not used by any Cards or Timetable object.`,
+        ),
+      );
+    }
+
+    if (
+      input.scope !== "global" &&
+      consumers.some((consumer) => consumer.workspace === "timetable")
+    ) {
+      const timetableConsumers = consumers
+        .filter((consumer) => consumer.workspace === "timetable")
+        .map((consumer) => `${consumer.label} (${consumer.detail})`)
+        .join(", ");
+
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          `input-scope-preview-context:${input.id}`,
+          "Input scope may not match timetable preview context",
+          `${input.label} is ${input.scope}-scoped but is consumed by timetable-level object(s): ${timetableConsumers}. Timetable-level objects resolve custom inputs without a day or entry runtime context, so this input will fall back to its default value there.`,
+        ),
+      );
+    }
+
     if (input.scope !== "global" && !document.domains?.timetable) {
       diagnostics.push(
         createDiagnostic(

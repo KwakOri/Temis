@@ -5,16 +5,25 @@ import React from "react";
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { cn } from "@/lib/utils";
 import {
+  StudioAsset,
   StudioGraphNode,
   StudioRuntimeValues,
   StudioStyleRecord,
   StudioTemplateDocument,
+  StudioTimetableAssetSlot,
 } from "@/types/template-studio";
 import {
   resolveStudioAsset,
   resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
-import { type StudioRuntimeContext } from "@/utils/template-studio/input-values";
+import {
+  getStudioRuntimeInputValue,
+  type StudioRuntimeContext,
+} from "@/utils/template-studio/input-values";
+import {
+  isStudioStatusCardBackgroundNode,
+  resolveStudioStatusCardBackgroundSlot,
+} from "@/utils/template-studio/status-card-background";
 
 interface StudioRendererProps {
   document: StudioTemplateDocument;
@@ -57,6 +66,35 @@ const getNumericStyleValue = (
   return typeof value === "number" ? value : fallback;
 };
 
+const resolveStudioAssetSlot = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  slot: StudioTimetableAssetSlot | null | undefined,
+  context?: StudioRuntimeContext,
+): StudioAsset | null => {
+  if (!slot) return null;
+
+  if (slot.inputId) {
+    const input = document.inputs[slot.inputId];
+    if (!input || input.type !== "image") return null;
+
+    const value = getStudioRuntimeInputValue(input, values, context);
+    if (!value) return null;
+
+    return {
+      id: `runtime:${input.id}`,
+      label: input.label,
+      src: value,
+    };
+  }
+
+  return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
+};
+
+const getBackgroundSizeForFit = (
+  fit: StudioTimetableAssetSlot["fit"],
+): string => (fit === "fill" ? "100% 100%" : (fit ?? "cover"));
+
 export function StudioRenderer({
   document,
   runtimeValues,
@@ -73,6 +111,29 @@ export function StudioRenderer({
       ? document.styles[node.styleId]
       : undefined;
     const style = toCssStyle(styleRecord);
+    const statusBackgroundSlot = isStudioStatusCardBackgroundNode(node)
+      ? resolveStudioStatusCardBackgroundSlot(
+          document,
+          runtimeValues,
+          runtimeContext,
+          node,
+        )
+      : null;
+    const statusBackgroundAsset = resolveStudioAssetSlot(
+      document,
+      runtimeValues,
+      statusBackgroundSlot,
+      runtimeContext,
+    );
+    const resolvedStyle = statusBackgroundAsset
+      ? {
+          ...style,
+          backgroundImage: `url(${JSON.stringify(statusBackgroundAsset.src)})`,
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundSize: getBackgroundSizeForFit(statusBackgroundSlot?.fit),
+        }
+      : style;
     const isSelected =
       selectedNodeId === node.id || selectedNodeIdsSet.has(node.id);
     const children = node.childIds
@@ -93,7 +154,7 @@ export function StudioRenderer({
         isSelected && "outline outline-2 outline-offset-2 outline-blue-500",
       ),
       "data-node-locked": node.locked ? "true" : undefined,
-      style,
+      style: resolvedStyle,
     };
 
     if (node.type === "group") {

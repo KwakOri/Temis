@@ -9,22 +9,51 @@ export type StudioTimetableCompositionObjectId = string;
 export type StudioBuiltinFieldId =
   | "day.label"
   | "day.short_label"
+  | "day.date"
   | "day.is_offline"
+  | "week.date_range"
+  | "week.start_date"
+  | "week.end_date"
   | "entry.main_title"
   | "entry.sub_title"
   | "entry.status"
   | "entry.status_label"
-  | "entry.is_offline";
+  | "entry.is_offline"
+  | "entry.is_multi"
+  | "entry.is_offline_memo";
 
 export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
 export type StudioBuiltinFieldType = "text" | "boolean" | "status";
 export type StudioGraphNodeType = "group" | "text" | "image" | "flexibleText";
+export type StudioImageFit = "cover" | "contain" | "fill";
 export type StudioTimetableBaseStatus = "online" | "offline";
 export type StudioTimetableStatusKind = "base" | "derived";
-export type StudioTimetableCompositionObjectKind = "generatedDayCards" | "text";
+export type StudioTimetableCapabilityKey = "multi" | "offlineMemo";
+export type StudioTimetableCompositionObjectKind =
+  | "generatedDayCards"
+  | "text"
+  | "profileBlock"
+  | "topObject";
 export type StudioTimetableObjectPresetId =
-  "dayCards" | "weekDates" | "weeklyMemo";
+  | "dayCards"
+  | "weekDates"
+  | "weeklyMemo"
+  | "profileBlock"
+  | "artistProfileText"
+  | "topObject";
+export type StudioSemanticPresetScope = "cards" | "timetable";
+export type StudioSemanticKey =
+  | "dayCardContainers"
+  | "weekDates"
+  | "weeklyMemo"
+  | "profileBlock"
+  | "artistProfileText"
+  | "topObject"
+  | "dayLabel"
+  | "dayDate"
+  | "entryStatusLabel"
+  | "statusCardBackground";
 
 export interface StudioCanvasConfig {
   width: number;
@@ -38,8 +67,20 @@ export interface StudioSemanticMeta {
   contractId?: string;
 }
 
+export interface StudioExceptionObjectMeta {
+  semanticKey: StudioSemanticKey;
+  scope: StudioSemanticPresetScope;
+  presetId: string;
+  lockedStructure: boolean;
+  singleton?: boolean;
+  editableSlots?: Record<string, unknown>;
+  builtInBindings?: Record<string, StudioBuiltinFieldId>;
+  capabilityFlags?: StudioTimetableCapabilityKey[];
+}
+
 export interface StudioGraphNodeMeta {
   semantic?: StudioSemanticMeta;
+  exception?: StudioExceptionObjectMeta;
 }
 
 export type StudioBinding =
@@ -67,7 +108,8 @@ export interface StudioGraphNode {
   childIds: StudioNodeId[];
   styleId?: StudioStyleId;
   binding?: StudioBinding;
-  fit?: "cover" | "contain" | "fill";
+  assetSlots?: Record<string, StudioTimetableAssetSlot>;
+  fit?: StudioImageFit;
   locked?: boolean;
   meta?: StudioGraphNodeMeta;
 }
@@ -92,6 +134,7 @@ export interface StudioBuiltinFieldDefinition {
   scope: StudioInputScope;
   label: string;
   description?: string;
+  capabilityFlags?: StudioTimetableCapabilityKey[];
 }
 
 export interface StudioTextInputDefinition extends StudioInputBase {
@@ -99,6 +142,8 @@ export interface StudioTextInputDefinition extends StudioInputBase {
   placeholder?: string;
   defaultValue?: string;
   maxLength?: number;
+  multiline?: boolean;
+  minRows?: number;
 }
 
 export interface StudioImageInputDefinition extends StudioInputBase {
@@ -138,6 +183,7 @@ export interface StudioTimetableDayDefinition {
   id: StudioTimetableDayId;
   label: string;
   shortLabel?: string;
+  date?: string;
   order: number;
 }
 
@@ -167,6 +213,16 @@ export interface StudioTimetableCanvasConfig {
   backgroundColor?: string;
 }
 
+export interface StudioTimetableWeekDefinition {
+  startDate?: string;
+  endDate?: string;
+}
+
+export type StudioTimetableCapabilities = Record<
+  StudioTimetableCapabilityKey,
+  { enabled: boolean }
+>;
+
 export interface StudioTimetableDayCardOffset {
   left: number;
   top: number;
@@ -185,6 +241,12 @@ export interface StudioTimetableDayCardsLayout {
   dayOffsets?: Record<StudioTimetableDayId, StudioTimetableDayCardOffset>;
 }
 
+export interface StudioTimetableAssetSlot {
+  assetId?: StudioAssetId | null;
+  inputId?: StudioInputId | null;
+  fit?: StudioImageFit;
+}
+
 export interface StudioTimetableCompositionObject {
   id: StudioTimetableCompositionObjectId;
   kind: StudioTimetableCompositionObjectKind;
@@ -192,7 +254,14 @@ export interface StudioTimetableCompositionObject {
   presetId?: StudioTimetableObjectPresetId;
   style: StudioStyleRecord;
   binding?: StudioBinding;
+  assetSlots?: Record<string, StudioTimetableAssetSlot>;
+  backgroundAssetId?: StudioAssetId | null;
+  backgroundFit?: StudioImageFit;
   locked?: boolean;
+  hidden?: boolean;
+  meta?: {
+    exception?: StudioExceptionObjectMeta;
+  };
 }
 
 export interface StudioTimetableComposition {
@@ -206,6 +275,8 @@ export interface StudioTimetableComposition {
 export interface StudioTimetableDomain {
   version: 1;
   canvas?: StudioTimetableCanvasConfig;
+  week?: StudioTimetableWeekDefinition;
+  capabilities?: StudioTimetableCapabilities;
   mountNodeId: StudioNodeId;
   dayIds: StudioTimetableDayId[];
   days: Record<StudioTimetableDayId, StudioTimetableDayDefinition>;

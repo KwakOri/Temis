@@ -7,10 +7,13 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
+  ArrowUpRight,
   AlertTriangle,
   CalendarDays,
   ChevronRight,
   CheckCircle2,
+  Download,
+  EyeOff,
   Image as ImageIcon,
   Layers3,
   ListChecks,
@@ -36,18 +39,20 @@ import {
   StudioBuiltinFieldId,
   StudioGraphNode,
   StudioGraphNodeType,
+  StudioImageFit,
   StudioInputDefinition,
   StudioInputId,
   StudioInputScope,
   StudioInputType,
   StudioRuntimeValues,
+  StudioSelectOption,
   StudioStyleRecord,
   StudioTemplateDocument,
+  StudioTimetableCapabilityKey,
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
   StudioTimetableDayId,
   StudioTimetableDomain,
-  StudioTimetableObjectPresetId,
   StudioTimetableStatusId,
 } from "@/types/template-studio";
 import {
@@ -60,8 +65,8 @@ import {
   isStudioTextNode,
 } from "@/utils/template-studio/binding-resolver";
 import {
+  getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
-  STUDIO_BUILTIN_FIELDS,
 } from "@/utils/template-studio/builtin-fields";
 import {
   moveStudioGraphNodes,
@@ -77,17 +82,63 @@ import {
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
 import {
+  ensureStudioArtistProfileTextInput,
+  ensureStudioPresetImageInput,
+  ensureStudioWeeklyMemoInput,
+  STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
+  STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL,
+  STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+  STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL,
+  STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
+} from "@/utils/template-studio/preset-inputs";
+import {
+  getStudioPresetExistingTargetId,
+  getStudioPresetCreationRule,
+  getStudioPresetGroups,
+  isStudioCardContextObjectPreset,
+  isStudioCardSelectInputBundlePreset,
+  isStudioCardStatusBackgroundPreset,
+  isStudioTimetableCompositionPreset,
+  type StudioCardSelectInputBundlePreset,
+  type StudioCardStatusBackgroundPreset,
+  type StudioCardContextObjectPreset,
+  type StudioTimetableCompositionPreset,
+} from "@/utils/template-studio/preset-registry";
+import {
   createInitialStudioRuntimeValues,
   createSampleStudioDocument,
 } from "@/utils/template-studio/sample-document";
 import {
+  bindStudioArtistProfileTextObjectToInput,
+  bindStudioWeeklyMemoObjectToInput,
   createStudioTimetablePresetObject,
   ensureStudioTimetableComposition,
   getStudioTimetableComposition,
   getStudioTimetableCompositionObjectGeometry,
-  getStudioTimetablePresetLabel,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
+import {
+  setStudioTimetableObjectAssetInputSlot,
+  setStudioTimetableObjectAssetSlot,
+  setStudioTimetableObjectBackgroundAssetSlot,
+  setStudioTimetableObjectBackgroundInputSlot,
+  setStudioTimetableObjectMaskSlot,
+  setStudioTimetableObjectVisibilitySlot,
+  type StudioSemanticMaskShape,
+} from "@/utils/template-studio/semantic-slots";
+import {
+  createStudioTemplateExportPayload,
+  getStudioTemplateBlockingDiagnostics,
+  getStudioTemplateDiagnosticsSummary,
+  getStudioTemplateExportFilename,
+  parseStudioTemplateExportJson,
+} from "@/utils/template-studio/serialization";
+import {
+  createStudioStatusCardBackgroundExceptionMeta,
+  getStudioStatusCardBackgroundStatuses,
+  isStudioStatusCardBackgroundNode,
+  setStudioStatusCardBackgroundAssetSlot,
+} from "@/utils/template-studio/status-card-background";
 import {
   addStudioTimetableEntry,
   getStudioTimetableEntriesForDay,
@@ -95,6 +146,10 @@ import {
   removeStudioTimetableEntry,
   setStudioTimetableEntryStatus,
 } from "@/utils/template-studio/timetable-runtime";
+import {
+  getStudioAvailableTimetableStatuses,
+  getStudioTimetableCapabilities,
+} from "@/utils/template-studio/timetable-capabilities";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 
 import {
@@ -115,12 +170,23 @@ import {
 type PanelMode = "layers" | "inputs" | "presets" | "timetable";
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
+
+interface StudioInputConsumerReference {
+  id: string;
+  workspaceMode: WorkspaceMode;
+  targetId: string;
+  label: string;
+  detail: string;
+}
+
 type InspectorSectionKey =
   | "position"
   | "layout"
   | "appearance"
   | "binding"
   | "typography"
+  | "statusAssets"
+  | "settings"
   | "input"
   | "runtime"
   | "diagnostics";
@@ -188,6 +254,7 @@ type StudioLayerMoveCommand = "forward" | "backward" | "front" | "back";
 
 const STUDIO_HISTORY_LIMIT = 80;
 const STUDIO_DRAFT_STORAGE_KEY = "template-studio:draft:v1";
+const STUDIO_LAYER_AUTO_EXPAND_DELAY_MS = 550;
 
 const STUDIO_THEMES = {
   dark: {
@@ -230,6 +297,8 @@ const DEFAULT_INSPECTOR_SECTIONS: Record<InspectorSectionKey, boolean> = {
   appearance: true,
   binding: true,
   typography: true,
+  statusAssets: true,
+  settings: true,
   input: true,
   runtime: true,
   diagnostics: false,
@@ -246,6 +315,142 @@ const cloneRuntimeValues = (
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
 
 const cloneJson = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+const getUniqueStudioInputLabel = (
+  document: StudioTemplateDocument,
+  baseLabel: string,
+): string => {
+  const labels = new Set(
+    Object.values(document.inputs).map((input) =>
+      input.label.trim().toLowerCase(),
+    ),
+  );
+  let label = baseLabel;
+  let index = 2;
+
+  while (labels.has(label.trim().toLowerCase())) {
+    label = `${baseLabel} ${index}`;
+    index += 1;
+  }
+
+  return label;
+};
+
+const getUniqueStudioAssetLabel = (
+  document: StudioTemplateDocument,
+  baseLabel: string,
+): string => {
+  const labels = new Set(
+    Object.values(document.assets).map((asset) =>
+      asset.label.trim().toLowerCase(),
+    ),
+  );
+  let label = baseLabel;
+  let index = 2;
+
+  while (labels.has(label.trim().toLowerCase())) {
+    label = `${baseLabel} ${index}`;
+    index += 1;
+  }
+
+  return label;
+};
+
+const getStudioAssetLabelFromFile = (file: File, fallbackLabel: string) => {
+  const fileLabel = file.name.replace(/\.[^.]+$/, "").trim();
+  return fileLabel || fallbackLabel;
+};
+
+const addRuntimeDefaultForInput = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  input: StudioInputDefinition,
+): StudioRuntimeValues => {
+  const defaultValue = getStudioInputDefaultValue(input);
+
+  if (input.scope === "global") {
+    return {
+      ...values,
+      global: {
+        ...values.global,
+        [input.id]: values.global[input.id] ?? defaultValue,
+      },
+    };
+  }
+
+  const dayIds = document.domains?.timetable?.dayIds ?? [];
+
+  if (input.scope === "day") {
+    return {
+      ...values,
+      days: Object.fromEntries(
+        dayIds.map((dayId) => [
+          dayId,
+          {
+            ...(values.days[dayId] ?? {}),
+            [input.id]: values.days[dayId]?.[input.id] ?? defaultValue,
+          },
+        ]),
+      ),
+    };
+  }
+
+  return {
+    ...values,
+    entries: Object.fromEntries(
+      dayIds.map((dayId) => [
+        dayId,
+        (values.entries[dayId] ?? []).map((entryValues) => ({
+          ...entryValues,
+          [input.id]: entryValues[input.id] ?? defaultValue,
+        })),
+      ]),
+    ),
+  };
+};
+
+const replaceRuntimeInputValue = (
+  values: StudioRuntimeValues,
+  inputId: string,
+  previousValue: string,
+  nextValue: string,
+): StudioRuntimeValues => ({
+  ...values,
+  global: Object.fromEntries(
+    Object.entries(values.global).map(([currentInputId, value]) => [
+      currentInputId,
+      currentInputId === inputId && value === previousValue ? nextValue : value,
+    ]),
+  ),
+  days: Object.fromEntries(
+    Object.entries(values.days).map(([dayId, dayValues]) => [
+      dayId,
+      Object.fromEntries(
+        Object.entries(dayValues).map(([currentInputId, value]) => [
+          currentInputId,
+          currentInputId === inputId && value === previousValue
+            ? nextValue
+            : value,
+        ]),
+      ),
+    ]),
+  ),
+  entries: Object.fromEntries(
+    Object.entries(values.entries).map(([dayId, entries]) => [
+      dayId,
+      entries.map((entryValues) =>
+        Object.fromEntries(
+          Object.entries(entryValues).map(([currentInputId, value]) => [
+            currentInputId,
+            currentInputId === inputId && value === previousValue
+              ? nextValue
+              : value,
+          ]),
+        ),
+      ),
+    ]),
+  ),
+});
 
 const isStudioShortcutEditingTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
@@ -305,36 +510,28 @@ const STUDIO_INPUT_SCOPE_OPTIONS: StudioInputScope[] = [
   "entry",
 ];
 
-const STUDIO_TIMETABLE_PRESET_GROUPS: Array<{
-  title: string;
-  presets: Array<{
-    id: StudioTimetableObjectPresetId;
-    label: string;
-    type: string;
-  }>;
-}> = [
-  {
-    title: "Text",
-    presets: [
-      {
-        id: "weekDates",
-        label: "Week Dates",
-        type: "Label",
-      },
-      {
-        id: "weeklyMemo",
-        label: "Weekly Memo",
-        type: "Label",
-      },
-    ],
-  },
-];
-
 const getInputScopeLabel = (scope: StudioInputScope): string => {
   if (scope === "global") return "Global";
   if (scope === "day") return "Day";
   return "Entry";
 };
+
+const getStudioStyleString = (
+  styleRecord: StudioStyleRecord,
+  key: string,
+  fallback: string,
+) => {
+  const value = styleRecord[key];
+  return typeof value === "string" ? value : fallback;
+};
+
+const formatStudioSlotName = (slotName: string): string =>
+  slotName
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
 const getTimetableRootDropPositionFromLayerPosition = (
   position: "before" | "after",
@@ -349,6 +546,14 @@ const getGraphDropPositionFromLayerPosition = (
   if (position === "before") return "after";
   if (position === "after") return "before";
   return position;
+};
+
+const getStudioLayerDropPositionLabel = (
+  position: StudioGraphDropPosition,
+): string => {
+  if (position === "before") return "Above";
+  if (position === "after") return "Below";
+  return "Inside";
 };
 
 const getStudioNodeBounds = (
@@ -370,6 +575,55 @@ const getStudioNodeBounds = (
     width,
     height,
   };
+};
+
+const isPlacedTimetableCompositionObject = (
+  object: StudioTimetableCompositionObject | undefined,
+) =>
+  object?.kind === "text" ||
+  object?.kind === "profileBlock" ||
+  object?.kind === "topObject";
+
+const normalizeRuntimeValuesForTimetableCapabilities = (
+  values: StudioRuntimeValues,
+  capabilities: ReturnType<typeof getStudioTimetableCapabilities>,
+): StudioRuntimeValues => ({
+  ...values,
+  timetable: {
+    ...values.timetable,
+    entriesByDay: Object.fromEntries(
+      Object.entries(values.timetable.entriesByDay).map(([dayId, entries]) => [
+        dayId,
+        entries.map((entry) => {
+          if (!capabilities.multi.enabled && entry.statusId === "multi") {
+            return { ...entry, statusId: "online" };
+          }
+
+          if (
+            !capabilities.offlineMemo.enabled &&
+            entry.statusId === "offlineMemo"
+          ) {
+            return { ...entry, statusId: "offline" };
+          }
+
+          return entry;
+        }),
+      ]),
+    ),
+  },
+});
+
+const getStudioTimetableObjectMaskShape = (
+  object: StudioTimetableCompositionObject,
+): StudioSemanticMaskShape => {
+  const radius =
+    typeof object.style.borderRadius === "number"
+      ? object.style.borderRadius
+      : 0;
+
+  if (radius >= 9999) return "circle";
+  if (radius <= 0) return "rectangle";
+  return "rounded";
 };
 
 const getStudioCombinedBounds = (
@@ -582,6 +836,31 @@ function TextField({ label, value, onChange, placeholder }: TextFieldProps) {
   );
 }
 
+interface TextareaFieldProps extends TextFieldProps {
+  rows?: number;
+}
+
+function TextareaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+}: TextareaFieldProps) {
+  return (
+    <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>{label}</span>
+      <textarea
+        className="min-h-20 resize-y rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)]"
+        placeholder={placeholder}
+        rows={rows}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    </label>
+  );
+}
+
 interface SectionProps {
   title: string;
   open: boolean;
@@ -667,8 +946,14 @@ export function TemplateStudioClient() {
   const isRestoringHistoryRef = useRef(false);
   const clipboardPayloadRef = useRef<StudioEditorClipboardPayload | null>(null);
   const layerDragStateRef = useRef<StudioLayerDragState | null>(null);
+  const layerSelectionAnchorNodeIdRef = useRef<string | null>(selectedNodeId);
   const timetableLayerDragStateRef =
     useRef<StudioTimetableLayerDragState | null>(null);
+  const layerAutoExpandTimerRef = useRef<number | null>(null);
+  const layerAutoExpandTargetRef = useRef<string | null>(null);
+  const timetableLayerAutoExpandTimerRef = useRef<number | null>(null);
+  const timetableLayerAutoExpandTargetRef = useRef<string | null>(null);
+  const jsonImportInputRef = useRef<HTMLInputElement | null>(null);
   const documentRef = useRef(document);
   const runtimeValuesRef = useRef(runtimeValues);
   const selectedNodeIdRef = useRef<string | null>(selectedNodeId);
@@ -704,6 +989,18 @@ export function TemplateStudioClient() {
   useEffect(() => {
     selectedRuntimeEntryIndexRef.current = selectedRuntimeEntryIndex;
   }, [selectedRuntimeEntryIndex]);
+
+  useEffect(
+    () => () => {
+      if (layerAutoExpandTimerRef.current !== null) {
+        window.clearTimeout(layerAutoExpandTimerRef.current);
+      }
+      if (timetableLayerAutoExpandTimerRef.current !== null) {
+        window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
+      }
+    },
+    [],
+  );
 
   const nodes = document.graph.nodes;
   const selectedNode = selectedNodeId ? (nodes[selectedNodeId] ?? null) : null;
@@ -743,6 +1040,18 @@ export function TemplateStudioClient() {
     () => getStudioTimetableComposition(document.domains?.timetable),
     [document.domains?.timetable],
   );
+  const timetableCapabilities = useMemo(
+    () => getStudioTimetableCapabilities(document.domains?.timetable),
+    [document.domains?.timetable],
+  );
+  const cardPresetGroups = useMemo(
+    () => getStudioPresetGroups(document, "cards"),
+    [document],
+  );
+  const timetablePresetGroups = useMemo(
+    () => getStudioPresetGroups(document, "timetable"),
+    [document],
+  );
   const selectedTimetableCompositionObject = selectedTimetableLayerId
     ? (timetableComposition.objects[selectedTimetableLayerId] ?? null)
     : null;
@@ -750,10 +1059,40 @@ export function TemplateStudioClient() {
     selectedTimetableCompositionObject?.kind === "text"
       ? selectedTimetableCompositionObject
       : null;
+  const selectedTimetableBindingInputId = selectedTimetableTextObject
+    ? getStudioBindingInputId(selectedTimetableTextObject.binding)
+    : null;
+  const selectedTimetableBoundInput = selectedTimetableBindingInputId
+    ? (document.inputs[selectedTimetableBindingInputId] ?? null)
+    : null;
   const selectedTimetableTextValue =
     selectedTimetableTextObject?.binding?.kind === "staticText"
       ? selectedTimetableTextObject.binding.value
       : (selectedTimetableTextObject?.label ?? "");
+  const selectedTimetableBuiltinField =
+    selectedTimetableTextObject?.binding?.kind === "builtinField"
+      ? getStudioBuiltinField(selectedTimetableTextObject.binding.fieldId)
+      : null;
+  const isSelectedWeekDatesObject =
+    selectedTimetableCompositionObject?.presetId === "weekDates" ||
+    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
+      "weekDates";
+  const isSelectedWeeklyMemoObject =
+    selectedTimetableCompositionObject?.presetId === "weeklyMemo" ||
+    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
+      "weeklyMemo";
+  const isSelectedProfileBlockObject =
+    selectedTimetableCompositionObject?.presetId === "profileBlock" ||
+    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
+      "profileBlock";
+  const isSelectedArtistProfileTextObject =
+    selectedTimetableCompositionObject?.presetId === "artistProfileText" ||
+    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
+      "artistProfileText";
+  const isSelectedTopObject =
+    selectedTimetableCompositionObject?.presetId === "topObject" ||
+    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
+      "topObject";
   const activeRuntimeDayId = timetableDays.some(
     (day) => day.id === selectedRuntimeDayId,
   )
@@ -793,7 +1132,7 @@ export function TemplateStudioClient() {
     const compositionObject =
       timetableComposition.objects[selectedTimetableLayerId];
 
-    if (compositionObject?.kind === "text") {
+    if (isPlacedTimetableCompositionObject(compositionObject)) {
       return getStudioTimetableCompositionObjectGeometry(compositionObject);
     }
 
@@ -830,8 +1169,8 @@ export function TemplateStudioClient() {
     timetableDays,
   ]);
   const statusOptions = useMemo(
-    () => Object.values(document.domains?.timetable?.statuses ?? {}),
-    [document.domains],
+    () => getStudioAvailableTimetableStatuses(document),
+    [document],
   );
   const canPreviewTimetable =
     Boolean(document.domains?.timetable) && timetableDays.length > 0;
@@ -862,16 +1201,75 @@ export function TemplateStudioClient() {
     [document.assets],
   );
   const inputConsumers = useMemo(() => {
-    return Object.values(document.graph.nodes).reduce<Record<string, string[]>>(
+    const consumers = Object.values(document.graph.nodes).reduce<
+      Record<string, StudioInputConsumerReference[]>
+    >(
       (acc, node) => {
         const inputId = getStudioBindingInputId(node.binding);
-        if (!inputId) return acc;
-        acc[inputId] = [...(acc[inputId] ?? []), node.label];
+        if (inputId) {
+          acc[inputId] = [
+            ...(acc[inputId] ?? []),
+            {
+              id: `cards:${node.id}:binding`,
+              workspaceMode: "cards",
+              targetId: node.id,
+              label: node.label,
+              detail: "Cards · Binding",
+            },
+          ];
+        }
+
+        Object.entries(node.assetSlots ?? {}).forEach(([slotName, slot]) => {
+          if (!slot.inputId) return;
+          acc[slot.inputId] = [
+            ...(acc[slot.inputId] ?? []),
+            {
+              id: `cards:${node.id}:slot:${slotName}`,
+              workspaceMode: "cards",
+              targetId: node.id,
+              label: node.label,
+              detail: `Cards · ${formatStudioSlotName(slotName)}`,
+            },
+          ];
+        });
+
         return acc;
       },
       {},
     );
-  }, [document.graph.nodes]);
+
+    Object.values(timetableComposition.objects).forEach((object) => {
+      const inputId = getStudioBindingInputId(object.binding);
+      if (inputId) {
+        consumers[inputId] = [
+          ...(consumers[inputId] ?? []),
+          {
+            id: `timetable:${object.id}:binding`,
+            workspaceMode: "timetable",
+            targetId: object.id,
+            label: object.label,
+            detail: "Timetable · Binding",
+          },
+        ];
+      }
+
+      Object.entries(object.assetSlots ?? {}).forEach(([slotName, slot]) => {
+        if (!slot.inputId) return;
+        consumers[slot.inputId] = [
+          ...(consumers[slot.inputId] ?? []),
+          {
+            id: `timetable:${object.id}:slot:${slotName}`,
+            workspaceMode: "timetable",
+            targetId: object.id,
+            label: object.label,
+            detail: `Timetable · ${formatStudioSlotName(slotName)}`,
+          },
+        ];
+      });
+    });
+
+    return consumers;
+  }, [document.graph.nodes, timetableComposition.objects]);
   const diagnostics = useMemo(
     () => validateStudioDocument(document),
     [document],
@@ -884,10 +1282,26 @@ export function TemplateStudioClient() {
   }, [inputs, selectedNode]);
   const compatibleBuiltinFields = useMemo(() => {
     if (!selectedNode) return [];
-    return STUDIO_BUILTIN_FIELDS.filter((field) =>
+    return getStudioAvailableBuiltinFields(document).filter((field) =>
       isStudioBuiltinFieldCompatibleWithNode(field, selectedNode),
     );
-  }, [selectedNode]);
+  }, [document, selectedNode]);
+  const compatibleBuiltinFieldGroups = useMemo(
+    () =>
+      STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => ({
+        scope,
+        fields: compatibleBuiltinFields.filter((field) => field.scope === scope),
+      })).filter((group) => group.fields.length > 0),
+    [compatibleBuiltinFields],
+  );
+  const compatibleInputGroups = useMemo(
+    () =>
+      STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => ({
+        scope,
+        inputs: compatibleInputs.filter((input) => input.scope === scope),
+      })).filter((group) => group.inputs.length > 0),
+    [compatibleInputs],
+  );
   const selectedNodeBindingInputId = selectedNode
     ? getStudioBindingInputId(selectedNode.binding)
     : null;
@@ -925,6 +1339,29 @@ export function TemplateStudioClient() {
     () => new Set(collapsedTimetableLayerIds),
     [collapsedTimetableLayerIds],
   );
+  const visibleLayerNodeIds = useMemo(() => {
+    const nextNodeIds: string[] = [];
+
+    const collectNodeIds = (nodeIds: string[]) => {
+      getStudioLayerDisplayNodeIds(nodeIds).forEach((nodeId) => {
+        const node = document.graph.nodes[nodeId];
+        if (!node) return;
+
+        nextNodeIds.push(nodeId);
+
+        if (node.type === "group" && !collapsedLayerGroupIdsSet.has(nodeId)) {
+          collectNodeIds(node.childIds);
+        }
+      });
+    };
+
+    collectNodeIds(document.graph.rootNodeIds);
+    return nextNodeIds;
+  }, [
+    collapsedLayerGroupIdsSet,
+    document.graph.nodes,
+    document.graph.rootNodeIds,
+  ]);
 
   const showShortcutStatus = useCallback((message: string) => {
     setShortcutMessage(message);
@@ -952,9 +1389,75 @@ export function TemplateStudioClient() {
 
   const selectSingleNode = useCallback(
     (nodeId: string | null) => {
+      layerSelectionAnchorNodeIdRef.current = nodeId;
       applyNodeSelection(nodeId ? [nodeId] : [], nodeId);
     },
     [applyNodeSelection],
+  );
+
+  const jumpToInput = useCallback(
+    (inputId: StudioInputId) => {
+      const input = documentRef.current.inputs[inputId];
+
+      if (!input) {
+        showShortcutStatus("Input no longer exists");
+        return;
+      }
+
+      setSelectedInputId(inputId);
+      setInputScopeFilter(input.scope);
+      setPanelMode("inputs");
+      showShortcutStatus(`Selected input: ${input.label}`);
+    },
+    [showShortcutStatus],
+  );
+
+  const jumpToInputConsumer = useCallback(
+    (consumer: StudioInputConsumerReference) => {
+      setNodePicker(null);
+
+      if (consumer.workspaceMode === "cards") {
+        const node = documentRef.current.graph.nodes[consumer.targetId];
+
+        if (!node) {
+          showShortcutStatus("Consumer object no longer exists");
+          return;
+        }
+
+        const ancestorIds: string[] = [];
+        let parentId = node.parentId;
+        while (parentId) {
+          ancestorIds.push(parentId);
+          parentId = documentRef.current.graph.nodes[parentId]?.parentId ?? null;
+        }
+
+        setWorkspaceMode("cards");
+        setPanelMode("layers");
+        setCollapsedLayerGroupIds((currentNodeIds) =>
+          currentNodeIds.filter((nodeId) => !ancestorIds.includes(nodeId)),
+        );
+        selectSingleNode(node.id);
+        showShortcutStatus(`Selected object: ${node.label}`);
+        return;
+      }
+
+      const composition = getStudioTimetableComposition(
+        documentRef.current.domains?.timetable,
+      );
+      const object = composition.objects[consumer.targetId];
+
+      if (!object) {
+        showShortcutStatus("Consumer object no longer exists");
+        return;
+      }
+
+      setWorkspaceMode("timetable");
+      setPanelMode("layers");
+      selectSingleNode(null);
+      setSelectedTimetableLayerId(object.id);
+      showShortcutStatus(`Selected object: ${object.label}`);
+    },
+    [selectSingleNode, showShortcutStatus],
   );
 
   const toggleNodeSelection = useCallback(
@@ -964,9 +1467,47 @@ export function TemplateStudioClient() {
         ? currentNodeIds.filter((selectedId) => selectedId !== nodeId)
         : [...currentNodeIds, nodeId];
 
+      layerSelectionAnchorNodeIdRef.current = nodeId;
       applyNodeSelection(nextNodeIds, nodeId);
     },
     [applyNodeSelection],
+  );
+
+  const selectLayerNodeRange = useCallback(
+    (nodeId: string, appendToCurrentSelection: boolean) => {
+      const anchorNodeId =
+        layerSelectionAnchorNodeIdRef.current &&
+        visibleLayerNodeIds.includes(layerSelectionAnchorNodeIdRef.current)
+          ? layerSelectionAnchorNodeIdRef.current
+          : selectedNodeIdRef.current &&
+              visibleLayerNodeIds.includes(selectedNodeIdRef.current)
+            ? selectedNodeIdRef.current
+            : nodeId;
+      const anchorIndex = visibleLayerNodeIds.indexOf(anchorNodeId);
+      const targetIndex = visibleLayerNodeIds.indexOf(nodeId);
+
+      if (anchorIndex < 0 || targetIndex < 0) {
+        layerSelectionAnchorNodeIdRef.current = nodeId;
+        applyNodeSelection([nodeId], nodeId);
+        return;
+      }
+
+      const startIndex = Math.min(anchorIndex, targetIndex);
+      const endIndex = Math.max(anchorIndex, targetIndex);
+      const rangeNodeIds = visibleLayerNodeIds.slice(startIndex, endIndex + 1);
+      const nextNodeIds = appendToCurrentSelection
+        ? [...selectedNodeIdsRef.current, ...rangeNodeIds]
+        : rangeNodeIds;
+
+      layerSelectionAnchorNodeIdRef.current = anchorNodeId;
+      applyNodeSelection(nextNodeIds, nodeId);
+      showShortcutStatus(
+        `Selected ${rangeNodeIds.length} ${getStudioSelectionLabel(
+          rangeNodeIds.length,
+        )}`,
+      );
+    },
+    [applyNodeSelection, showShortcutStatus, visibleLayerNodeIds],
   );
 
   const toggleLayerGroupCollapsed = useCallback((nodeId: string) => {
@@ -1094,6 +1635,117 @@ export function TemplateStudioClient() {
       showShortcutStatus("Draft save failed");
     }
   }, [showShortcutStatus]);
+
+  const exportStudioJson = useCallback(() => {
+    const currentDocument = documentRef.current;
+    const exportDiagnostics = validateStudioDocument(currentDocument);
+    const blockingDiagnostics =
+      getStudioTemplateBlockingDiagnostics(exportDiagnostics);
+    const diagnosticsSummary =
+      getStudioTemplateDiagnosticsSummary(exportDiagnostics);
+
+    if (blockingDiagnostics.length > 0) {
+      setInspectorSections((currentSections) => ({
+        ...currentSections,
+        diagnostics: true,
+      }));
+      showShortcutStatus(
+        `Export blocked: ${diagnosticsSummary.errorCount} error(s) · ${diagnosticsSummary.firstError?.title ?? "Check diagnostics"}`,
+      );
+      return;
+    }
+
+    const payload = createStudioTemplateExportPayload(
+      currentDocument,
+      runtimeValuesRef.current,
+    );
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = window.document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = getStudioTemplateExportFilename(currentDocument);
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    showShortcutStatus(
+      diagnosticsSummary.warningCount > 0
+        ? `Exported JSON with ${diagnosticsSummary.warningCount} warning(s)`
+        : "Exported JSON",
+    );
+  }, [showShortcutStatus]);
+
+  const importStudioJsonFile = useCallback(
+    async (file: File) => {
+      let source = "";
+
+      try {
+        source = await file.text();
+      } catch {
+        showShortcutStatus("Import failed: could not read file");
+        return;
+      }
+
+      const importResult = parseStudioTemplateExportJson(source);
+
+      if (!importResult.ok) {
+        showShortcutStatus(`Import failed: ${importResult.message}`);
+        return;
+      }
+
+      const nextDocument = cloneDocument(importResult.document);
+      const nextRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
+        cloneRuntimeValues(importResult.runtimeValues),
+        getStudioTimetableCapabilities(nextDocument.domains?.timetable),
+      );
+      const nextSelectedNodeId = nextDocument.graph.rootNodeIds[0] ?? null;
+      const nextSelectedInputId = Object.keys(nextDocument.inputs)[0] ?? null;
+      const nextRuntimeDayId =
+        nextDocument.domains?.timetable?.dayIds[0] ?? "mon";
+
+      captureHistory();
+
+      documentRef.current = nextDocument;
+      runtimeValuesRef.current = nextRuntimeValues;
+      selectedNodeIdRef.current = nextSelectedNodeId;
+      selectedNodeIdsRef.current = nextSelectedNodeId
+        ? [nextSelectedNodeId]
+        : [];
+      selectedInputIdRef.current = nextSelectedInputId;
+      selectedRuntimeDayIdRef.current = nextRuntimeDayId;
+      selectedRuntimeEntryIndexRef.current = 0;
+
+      setDocument(nextDocument);
+      setRuntimeValues(nextRuntimeValues);
+      setSelectedNodeId(nextSelectedNodeId);
+      setSelectedNodeIds(nextSelectedNodeId ? [nextSelectedNodeId] : []);
+      setSelectedInputId(nextSelectedInputId);
+      setSelectedRuntimeDayId(nextRuntimeDayId);
+      setSelectedRuntimeEntryIndex(0);
+      setWorkspaceMode("cards");
+      setPanelMode("layers");
+      setSelectedTimetableLayerId(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
+      setCollapsedLayerGroupIds([]);
+      setCollapsedTimetableLayerIds([]);
+      setNodePicker(null);
+
+      const warningCount = importResult.diagnostics.filter(
+        (diagnostic) => diagnostic.severity === "warning",
+      ).length;
+      const migrationWarningCount = importResult.migrationWarnings.length;
+      showShortcutStatus(
+        importResult.usedRuntimeFallback
+          ? "Imported JSON with default runtime values"
+          : migrationWarningCount > 0
+            ? `Imported JSON with ${migrationWarningCount} migration note(s)`
+          : warningCount > 0
+            ? `Imported JSON with ${warningCount} warning(s)`
+            : "Imported JSON",
+      );
+    },
+    [captureHistory, showShortcutStatus],
+  );
 
   const updateDocument = useCallback(
     (
@@ -1267,6 +1919,111 @@ export function TemplateStudioClient() {
     setPanelMode("layers");
   };
 
+  const addCardContextObject = (preset: StudioCardContextObjectPreset) => {
+    const existingNodeId = getStudioPresetExistingTargetId(document, preset);
+
+    if (existingNodeId) {
+      selectSingleNode(existingNodeId);
+      setPanelMode("layers");
+      showShortcutStatus(`Selected existing ${preset.label}`);
+      return;
+    }
+
+    const nodeId = createStudioId("node");
+    const styleId = createStudioId("style");
+    const parentId =
+      selectedNode?.type === "group"
+        ? selectedNode.id
+        : (selectedNode?.parentId ?? document.graph.rootNodeIds[0] ?? null);
+
+    const node: StudioGraphNode = {
+      id: nodeId,
+      type: "text",
+      label: preset.label,
+      parentId,
+      childIds: [],
+      styleId,
+      binding: {
+        kind: "builtinField",
+        fieldId: preset.fieldId,
+      },
+      meta: {
+        exception: {
+          semanticKey: preset.semanticKey,
+          scope: "cards",
+          presetId: preset.id,
+          lockedStructure: true,
+          singleton: true,
+          builtInBindings: {
+            text: preset.fieldId,
+          },
+        },
+      },
+    };
+
+    updateDocument((nextDocument) => {
+      nextDocument.styles[styleId] = { ...preset.style };
+      nextDocument.graph.nodes[nodeId] = node;
+
+      if (parentId) {
+        nextDocument.graph.nodes[parentId]?.childIds.push(nodeId);
+      } else {
+        nextDocument.graph.rootNodeIds.push(nodeId);
+      }
+    });
+
+    selectSingleNode(nodeId);
+    setPanelMode("layers");
+    showShortcutStatus(`Added ${preset.label}`);
+  };
+
+  const addCardStatusBackgroundObject = (
+    preset: StudioCardStatusBackgroundPreset,
+  ) => {
+    const existingNodeId = getStudioPresetExistingTargetId(document, preset);
+
+    if (existingNodeId) {
+      selectSingleNode(existingNodeId);
+      setPanelMode("layers");
+      showShortcutStatus(`Selected existing ${preset.label}`);
+      return;
+    }
+
+    const nodeId = createStudioId("node");
+    const styleId = createStudioId("style");
+    const parentId =
+      selectedNode?.type === "group"
+        ? selectedNode.id
+        : (selectedNode?.parentId ?? document.graph.rootNodeIds[0] ?? null);
+
+    const node: StudioGraphNode = {
+      id: nodeId,
+      type: "group",
+      label: preset.label,
+      parentId,
+      childIds: [],
+      styleId,
+      meta: {
+        exception: createStudioStatusCardBackgroundExceptionMeta(),
+      },
+    };
+
+    updateDocument((nextDocument) => {
+      nextDocument.styles[styleId] = { ...preset.style };
+      nextDocument.graph.nodes[nodeId] = node;
+
+      if (parentId) {
+        nextDocument.graph.nodes[parentId]?.childIds.unshift(nodeId);
+      } else {
+        nextDocument.graph.rootNodeIds.unshift(nodeId);
+      }
+    });
+
+    selectSingleNode(nodeId);
+    setPanelMode("layers");
+    showShortcutStatus(`Added ${preset.label}`);
+  };
+
   const addInput = (type: StudioInputType) => {
     const inputId = createStudioId("input");
     const base = {
@@ -1305,15 +2062,241 @@ export function TemplateStudioClient() {
       nextDocument.inputs[inputId] = input;
     });
     setRuntimeValues((currentValues) =>
-      setStudioRuntimeInputValue(
-        document,
-        currentValues,
-        input.id,
-        getStudioInputDefaultValue(input),
-      ),
+      addRuntimeDefaultForInput(document, currentValues, input),
     );
     setSelectedInputId(inputId);
     setPanelMode("inputs");
+  };
+
+  const getCardInsertionParentId = (): string | null =>
+    selectedNode?.type === "group"
+      ? selectedNode.id
+      : (selectedNode?.parentId ?? document.graph.rootNodeIds[0] ?? null);
+
+  const getAssetIdByLabel = (label: string): string | null =>
+    assets.find(
+      (asset) => asset.label.trim().toLowerCase() === label.toLowerCase(),
+    )?.id ?? null;
+
+  const createSelectConsumerNode = ({
+    nextDocument,
+    parentId,
+    input,
+    kind,
+    label,
+    assetByOption,
+  }: {
+    nextDocument: StudioTemplateDocument;
+    parentId: string | null;
+    input: Extract<StudioInputDefinition, { type: "select" }>;
+    kind: "text" | "image";
+    label: string;
+    assetByOption?: Record<string, string | null>;
+  }): string => {
+    const nodeId = createStudioId("node");
+    const styleId = createStudioId("style");
+    const isImage = kind === "image";
+
+    nextDocument.styles[styleId] = isImage
+      ? {
+          position: "absolute",
+          left: 604,
+          top: 292,
+          width: 128,
+          height: 128,
+          borderRadius: 28,
+          overflow: "hidden",
+          rotateDeg: -8,
+        }
+      : {
+          position: "absolute",
+          left: 322,
+          top: 178,
+          width: 360,
+          height: 42,
+          fontSize: 18,
+          fontWeight: 700,
+          color: "#475569",
+          display: "flex",
+          alignItems: "center",
+        };
+
+    nextDocument.graph.nodes[nodeId] = {
+      id: nodeId,
+      type: isImage ? "image" : "text",
+      label,
+      parentId,
+      childIds: [],
+      styleId,
+      fit: isImage ? "cover" : undefined,
+      binding: isImage
+        ? {
+            kind: "selectAsset",
+            inputId: input.id,
+            assetByOption:
+              assetByOption ??
+              Object.fromEntries(
+                input.options.map((option) => [option.value, null]),
+              ),
+          }
+        : {
+            kind: "selectText",
+            inputId: input.id,
+            output: "label",
+          },
+    };
+
+    if (parentId) {
+      nextDocument.graph.nodes[parentId]?.childIds.push(nodeId);
+    } else {
+      nextDocument.graph.rootNodeIds.push(nodeId);
+    }
+
+    return nodeId;
+  };
+
+  const addSelectConsumerForInput = (
+    input: StudioInputDefinition,
+    kind: "text" | "image",
+  ) => {
+    if (input.type !== "select") return;
+
+    const parentId = getCardInsertionParentId();
+    let nextNodeId: string | null = null;
+
+    updateDocument((nextDocument) => {
+      const currentInput = nextDocument.inputs[input.id];
+      if (!currentInput || currentInput.type !== "select") return;
+
+      nextNodeId = createSelectConsumerNode({
+        nextDocument,
+        parentId,
+        input: currentInput,
+        kind,
+        label:
+          kind === "image"
+            ? `${currentInput.label} Image`
+            : `${currentInput.label} Label`,
+      });
+    });
+
+    if (nextNodeId) {
+      selectSingleNode(nextNodeId);
+      setPanelMode("layers");
+      showShortcutStatus(`Added ${kind === "image" ? "image" : "text"} consumer`);
+    }
+  };
+
+  const addCardSelectInputBundle = (preset: StudioCardSelectInputBundlePreset) => {
+    const inputId = createStudioId("input");
+    const parentId = getCardInsertionParentId();
+    const isSticker = preset.bundleKind === "stickerSelect";
+    const creationRule = getStudioPresetCreationRule(preset);
+    const inputLabelBase =
+      creationRule.mode === "repeatable"
+        ? creationRule.labelBase
+        : isSticker
+          ? "Entry Sticker"
+          : "Entry Select";
+    const inputLabel = getUniqueStudioInputLabel(
+      document,
+      inputLabelBase,
+    );
+    const options: StudioSelectOption[] = isSticker
+      ? [
+          { value: "none", label: "None" },
+          { value: "spark", label: "Spark" },
+          { value: "heart", label: "Heart" },
+        ]
+      : [
+          { value: "option-a", label: "Option A" },
+          { value: "option-b", label: "Option B" },
+        ];
+    const input: Extract<StudioInputDefinition, { type: "select" }> = {
+      id: inputId,
+      type: "select",
+      scope: "entry",
+      label: inputLabel,
+      defaultValue: isSticker ? "spark" : "option-a",
+      options,
+    };
+
+    let nextPrimaryNodeId: string | null = null;
+
+    updateDocument((nextDocument) => {
+      nextDocument.inputs[inputId] = input;
+
+      const labelNodeId = createSelectConsumerNode({
+        nextDocument,
+        parentId,
+        input,
+        kind: "text",
+        label: isSticker ? "Selected Sticker Label" : `${inputLabel} Label`,
+      });
+      nextPrimaryNodeId = labelNodeId;
+
+      if (isSticker) {
+        nextPrimaryNodeId = createSelectConsumerNode({
+          nextDocument,
+          parentId,
+          input,
+          kind: "image",
+          label: "Sticker Preview",
+          assetByOption: {
+            none: null,
+            spark: getAssetIdByLabel("Spark Sticker"),
+            heart: getAssetIdByLabel("Heart Sticker"),
+          },
+        });
+      }
+    });
+
+    setRuntimeValues((currentValues) =>
+      addRuntimeDefaultForInput(document, currentValues, input),
+    );
+    setSelectedInputId(inputId);
+
+    if (nextPrimaryNodeId) {
+      selectSingleNode(nextPrimaryNodeId);
+      setPanelMode("layers");
+    } else {
+      setPanelMode("inputs");
+    }
+
+    showShortcutStatus(`Added ${preset.label}`);
+  };
+
+  const createTemplateAssetFromFile = (
+    file: File,
+    fallbackLabel: string,
+    onAssetCreated?: (
+      nextDocument: StudioTemplateDocument,
+      assetId: string,
+    ) => void,
+  ) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const src = String(reader.result ?? "");
+      if (!src) return;
+
+      const assetId = createStudioId("asset");
+      const baseLabel = getStudioAssetLabelFromFile(file, fallbackLabel);
+
+      updateDocument((nextDocument) => {
+        nextDocument.assets[assetId] = {
+          id: assetId,
+          label: getUniqueStudioAssetLabel(nextDocument, baseLabel),
+          src,
+        };
+
+        onAssetCreated?.(nextDocument, assetId);
+      });
+
+      showShortcutStatus(`Uploaded ${baseLabel}`);
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const updateRuntimeInputValue = (
@@ -1344,6 +2327,145 @@ export function TemplateStudioClient() {
     });
   };
 
+  const updateSelectOptionLabel = (
+    inputId: string,
+    optionIndex: number,
+    label: string,
+  ) => {
+    updateInput(inputId, (currentInput) =>
+      currentInput.type === "select"
+        ? {
+            ...currentInput,
+            options: currentInput.options.map((option, index) =>
+              index === optionIndex ? { ...option, label } : option,
+            ),
+          }
+        : currentInput,
+    );
+  };
+
+  const updateSelectOptionValue = (
+    inputId: string,
+    optionIndex: number,
+    value: string,
+  ) => {
+    let previousValue: string | null = null;
+
+    updateDocument((nextDocument) => {
+      const input = nextDocument.inputs[inputId];
+      if (!input || input.type !== "select") return;
+
+      const currentOption = input.options[optionIndex];
+      if (!currentOption) return;
+
+      previousValue = currentOption.value;
+      input.options = input.options.map((option, index) =>
+        index === optionIndex ? { ...option, value } : option,
+      );
+
+      if (input.defaultValue === previousValue) {
+        input.defaultValue = value;
+      }
+
+      Object.values(nextDocument.graph.nodes).forEach((node) => {
+        if (
+          node.binding?.kind !== "selectAsset" ||
+          node.binding.inputId !== inputId ||
+          previousValue === null
+        ) {
+          return;
+        }
+
+        const mappedAssetId = node.binding.assetByOption[previousValue];
+        delete node.binding.assetByOption[previousValue];
+        node.binding.assetByOption[value] = mappedAssetId ?? null;
+      });
+    });
+
+    if (previousValue !== null && previousValue !== value) {
+      const runtimePreviousValue = previousValue;
+      setRuntimeValues((currentValues) =>
+        replaceRuntimeInputValue(
+          currentValues,
+          inputId,
+          runtimePreviousValue,
+          value,
+        ),
+      );
+    }
+  };
+
+  const addSelectOption = (inputId: string) => {
+    updateDocument((nextDocument) => {
+      const input = nextDocument.inputs[inputId];
+      if (!input || input.type !== "select") return;
+
+      const optionNumber = input.options.length + 1;
+      const option: StudioSelectOption = {
+        label: `Option ${optionNumber}`,
+        value: `option-${optionNumber}`,
+      };
+
+      input.options = [...input.options, option];
+      Object.values(nextDocument.graph.nodes).forEach((node) => {
+        if (
+          node.binding?.kind === "selectAsset" &&
+          node.binding.inputId === inputId
+        ) {
+          node.binding.assetByOption[option.value] = null;
+        }
+      });
+    });
+  };
+
+  const removeSelectOption = (inputId: string, optionIndex: number) => {
+    let removedValue: string | null = null;
+    let nextDefaultValue: string | null = null;
+
+    updateDocument((nextDocument) => {
+      const input = nextDocument.inputs[inputId];
+      if (!input || input.type !== "select" || input.options.length <= 1) {
+        return;
+      }
+
+      const currentOption = input.options[optionIndex];
+      if (!currentOption) return;
+
+      removedValue = currentOption.value;
+      const nextOptions = input.options.filter(
+        (_, index) => index !== optionIndex,
+      );
+      input.options = nextOptions;
+
+      if (!nextOptions.some((option) => option.value === input.defaultValue)) {
+        input.defaultValue = nextOptions[0]?.value ?? "";
+      }
+      nextDefaultValue = input.defaultValue ?? nextOptions[0]?.value ?? "";
+
+      Object.values(nextDocument.graph.nodes).forEach((node) => {
+        if (
+          node.binding?.kind === "selectAsset" &&
+          node.binding.inputId === inputId
+        ) {
+          delete node.binding.assetByOption[currentOption.value];
+        }
+      });
+    });
+
+    if (removedValue !== null && nextDefaultValue !== null) {
+      const runtimeRemovedValue = removedValue;
+      const runtimeNextDefaultValue = nextDefaultValue;
+      setRuntimeValues((currentValues) =>
+        replaceRuntimeInputValue(
+          currentValues,
+          inputId,
+          runtimeRemovedValue,
+          runtimeNextDefaultValue,
+        ),
+      );
+    }
+  };
+
   const updateTimetableCompositionObject = useCallback(
     (
       objectId: string,
@@ -1369,19 +2491,89 @@ export function TemplateStudioClient() {
   );
 
   const addTimetablePresetObject = useCallback(
-    (presetId: StudioTimetableObjectPresetId) => {
+    (preset: StudioTimetableCompositionPreset) => {
+      const existingObjectId = getStudioPresetExistingTargetId(
+        document,
+        preset,
+      );
+
+      if (preset.singleton && existingObjectId) {
+        let linkedPresetInput = false;
+
+        if (
+          preset.timetableObjectPresetId === "weeklyMemo" ||
+          preset.timetableObjectPresetId === "artistProfileText"
+        ) {
+          updateDocument((nextDocument) => {
+            const timetable = nextDocument.domains?.timetable;
+            if (!timetable) return;
+
+            const composition = ensureStudioTimetableComposition(timetable);
+            const object = composition.objects[existingObjectId];
+            if (!object || object.kind !== "text") return;
+
+            const { inputId } =
+              preset.timetableObjectPresetId === "weeklyMemo"
+                ? ensureStudioWeeklyMemoInput(nextDocument)
+                : ensureStudioArtistProfileTextInput(nextDocument);
+            if (
+              object.binding?.kind !== "inputText" ||
+              object.binding.inputId !== inputId
+            ) {
+              if (preset.timetableObjectPresetId === "weeklyMemo") {
+                bindStudioWeeklyMemoObjectToInput(object, inputId);
+              } else {
+                bindStudioArtistProfileTextObjectToInput(object, inputId);
+              }
+              linkedPresetInput = true;
+            }
+          });
+        }
+
+        setSelectedTimetableLayerId(existingObjectId);
+        setPanelMode("layers");
+        showShortcutStatus(
+          linkedPresetInput
+            ? `Linked ${preset.label} to input`
+            : `Selected existing ${preset.label}`,
+        );
+        return;
+      }
+
       let insertedObjectId: string | null = null;
+      let linkedPresetInput = false;
 
       updateDocument((nextDocument) => {
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
 
         const composition = ensureStudioTimetableComposition(timetable);
-        const object = createStudioTimetablePresetObject(presetId, composition);
+        const presetTextInput =
+          preset.timetableObjectPresetId === "weeklyMemo"
+            ? ensureStudioWeeklyMemoInput(nextDocument)
+            : preset.timetableObjectPresetId === "artistProfileText"
+              ? ensureStudioArtistProfileTextInput(nextDocument)
+              : null;
+        const assetIds = Object.keys(nextDocument.assets);
+        const defaultAssetId =
+          preset.timetableObjectPresetId === "profileBlock"
+            ? assetIds[0]
+            : preset.timetableObjectPresetId === "topObject"
+              ? (assetIds[1] ?? assetIds[0])
+            : undefined;
+        const object = createStudioTimetablePresetObject(
+          preset.timetableObjectPresetId,
+          composition,
+          {
+            inputId: presetTextInput?.inputId,
+            assetId: defaultAssetId,
+          },
+        );
 
         composition.objects[object.id] = object;
         composition.rootObjectIds.push(object.id);
         insertedObjectId = object.id;
+        linkedPresetInput = Boolean(presetTextInput);
       });
 
       if (!insertedObjectId) {
@@ -1391,9 +2583,13 @@ export function TemplateStudioClient() {
 
       setSelectedTimetableLayerId(insertedObjectId);
       setPanelMode("layers");
-      showShortcutStatus(`Added ${getStudioTimetablePresetLabel(presetId)}`);
+      showShortcutStatus(
+        linkedPresetInput
+          ? `Added ${preset.label} with input`
+          : `Added ${preset.label}`,
+      );
     },
-    [showShortcutStatus, updateDocument],
+    [document, showShortcutStatus, updateDocument],
   );
 
   const moveTimetableRootObjectLayer = useCallback(
@@ -1490,7 +2686,12 @@ export function TemplateStudioClient() {
   const updateTimetableLayerPosition = useCallback(
     (
       layerId: string,
-      nextPosition: { left?: number; top?: number },
+      nextPosition: {
+        left?: number;
+        top?: number;
+        width?: number;
+        height?: number;
+      },
       options: UpdateOptions = {},
     ) => {
       updateDocument((nextDocument) => {
@@ -1507,7 +2708,7 @@ export function TemplateStudioClient() {
         const composition = ensureStudioTimetableComposition(timetable);
         const object = composition.objects[layerId];
 
-        if (object?.kind === "text") {
+        if (isPlacedTimetableCompositionObject(object)) {
           const currentGeometry =
             getStudioTimetableCompositionObjectGeometry(object);
 
@@ -1517,6 +2718,12 @@ export function TemplateStudioClient() {
               (nextPosition.left ?? currentGeometry.left).toFixed(2),
             ),
             top: Number((nextPosition.top ?? currentGeometry.top).toFixed(2)),
+            width: Number(
+              (nextPosition.width ?? currentGeometry.width).toFixed(2),
+            ),
+            height: Number(
+              (nextPosition.height ?? currentGeometry.height).toFixed(2),
+            ),
           };
           return;
         }
@@ -1582,7 +2789,7 @@ export function TemplateStudioClient() {
           const composition = ensureStudioTimetableComposition(timetable);
           const object = composition.objects[layerId];
 
-          if (object?.kind === "text") {
+          if (isPlacedTimetableCompositionObject(object)) {
             const currentGeometry =
               getStudioTimetableCompositionObjectGeometry(object);
 
@@ -1658,10 +2865,50 @@ export function TemplateStudioClient() {
   );
 
   const clearTimetableLayerDragState = useCallback(() => {
+    if (timetableLayerAutoExpandTimerRef.current !== null) {
+      window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
+      timetableLayerAutoExpandTimerRef.current = null;
+    }
+    timetableLayerAutoExpandTargetRef.current = null;
     timetableLayerDragStateRef.current = null;
     setTimetableLayerDragState(null);
     setTimetableLayerDropState(null);
   }, []);
+
+  const scheduleTimetableLayerAutoExpand = useCallback(
+    (layerId: string, shouldExpand: boolean) => {
+      if (!shouldExpand) {
+        if (timetableLayerAutoExpandTargetRef.current === layerId) {
+          if (timetableLayerAutoExpandTimerRef.current !== null) {
+            window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
+            timetableLayerAutoExpandTimerRef.current = null;
+          }
+          timetableLayerAutoExpandTargetRef.current = null;
+        }
+        return;
+      }
+
+      if (timetableLayerAutoExpandTargetRef.current === layerId) return;
+
+      if (timetableLayerAutoExpandTimerRef.current !== null) {
+        window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
+      }
+
+      timetableLayerAutoExpandTargetRef.current = layerId;
+      timetableLayerAutoExpandTimerRef.current = window.setTimeout(() => {
+        setCollapsedTimetableLayerIds((currentLayerIds) =>
+          currentLayerIds.includes(layerId)
+            ? currentLayerIds.filter(
+                (currentLayerId) => currentLayerId !== layerId,
+              )
+            : currentLayerIds,
+        );
+        timetableLayerAutoExpandTimerRef.current = null;
+        timetableLayerAutoExpandTargetRef.current = null;
+      }, STUDIO_LAYER_AUTO_EXPAND_DELAY_MS);
+    },
+    [],
+  );
 
   const handleTimetableLayerDragStart = (
     event: React.DragEvent<HTMLButtonElement>,
@@ -1684,8 +2931,24 @@ export function TemplateStudioClient() {
     }
   };
 
+  const getTimetableLayerDropBlockedReason = (
+    dragState: StudioTimetableLayerDragState,
+    layerId: string,
+    dayId?: StudioTimetableDayId,
+  ): string | null => {
+    if (dragState.scope === "root") {
+      if (dayId) return "Cannot move root layer into day cards";
+      if (dragState.layerId === layerId) return "Already here";
+      return null;
+    }
+
+    if (!dayId) return "Cannot move day card outside its group";
+    if (dragState.dayId === dayId) return "Already here";
+    return null;
+  };
+
   const handleTimetableLayerDragOver = (
-    event: React.DragEvent<HTMLButtonElement>,
+    event: React.DragEvent<HTMLElement>,
     layerId: string,
     dayId?: StudioTimetableDayId,
   ) => {
@@ -1697,19 +2960,20 @@ export function TemplateStudioClient() {
     const rect = event.currentTarget.getBoundingClientRect();
     const position =
       event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-    let blockedReason: string | null = null;
+    const blockedReason = getTimetableLayerDropBlockedReason(
+      dragState,
+      layerId,
+      dayId,
+    );
+    const targetObject = timetableComposition.objects[layerId];
 
-    if (dragState.scope === "root") {
-      if (dayId) {
-        blockedReason = "Cannot move root layer into day cards";
-      } else if (dragState.layerId === layerId) {
-        blockedReason = "Already here";
-      }
-    } else if (!dayId) {
-      blockedReason = "Cannot move day card outside its group";
-    } else if (dragState.dayId === dayId) {
-      blockedReason = "Already here";
-    }
+    scheduleTimetableLayerAutoExpand(
+      layerId,
+      !dayId &&
+        !blockedReason &&
+        targetObject?.kind === "generatedDayCards" &&
+        collapsedTimetableLayerIds.includes(layerId),
+    );
 
     event.dataTransfer.dropEffect = blockedReason ? "none" : "move";
     setTimetableLayerDropState({
@@ -1720,7 +2984,7 @@ export function TemplateStudioClient() {
   };
 
   const handleTimetableLayerDrop = (
-    event: React.DragEvent<HTMLButtonElement>,
+    event: React.DragEvent<HTMLElement>,
     targetLayerId: string,
     targetDayId?: StudioTimetableDayId,
   ) => {
@@ -1755,6 +3019,33 @@ export function TemplateStudioClient() {
     }
 
     moveTimetableDayLayer(dragState.dayId, targetDayId, dropState.position);
+  };
+
+  const handleTimetableLayerIndicatorDragOver = (
+    event: React.DragEvent<HTMLElement>,
+    layerId: string,
+    position: "before" | "after",
+    dayId?: StudioTimetableDayId,
+  ) => {
+    const dragState =
+      timetableLayerDragStateRef.current ?? timetableLayerDragState;
+    if (!dragState) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const blockedReason = getTimetableLayerDropBlockedReason(
+      dragState,
+      layerId,
+      dayId,
+    );
+    scheduleTimetableLayerAutoExpand(layerId, false);
+    event.dataTransfer.dropEffect = blockedReason ? "none" : "move";
+    setTimetableLayerDropState({
+      layerId,
+      position,
+      blockedReason,
+    });
   };
 
   const bindSelectedNodeToInput = (inputId: StudioInputId) => {
@@ -1847,6 +3138,45 @@ export function TemplateStudioClient() {
       ),
     );
   };
+
+  const setTimetableCapability = useCallback(
+    (capabilityKey: StudioTimetableCapabilityKey, enabled: boolean) => {
+      const currentDocument = documentRef.current;
+      const timetable = currentDocument.domains?.timetable;
+      if (!timetable) return;
+
+      const currentCapabilities = getStudioTimetableCapabilities(timetable);
+      if (currentCapabilities[capabilityKey].enabled === enabled) return;
+
+      const nextCapabilities = {
+        ...currentCapabilities,
+        [capabilityKey]: { enabled },
+      };
+      const nextDocument = cloneDocument(currentDocument);
+      const nextTimetable = nextDocument.domains?.timetable;
+      if (!nextTimetable) return;
+
+      captureHistory();
+
+      nextTimetable.capabilities = nextCapabilities;
+
+      const nextRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
+        cloneRuntimeValues(runtimeValuesRef.current),
+        nextCapabilities,
+      );
+
+      documentRef.current = nextDocument;
+      runtimeValuesRef.current = nextRuntimeValues;
+      setDocument(nextDocument);
+      setRuntimeValues(nextRuntimeValues);
+      showShortcutStatus(
+        `${capabilityKey === "multi" ? "Multi" : "Offline memo"} ${
+          enabled ? "enabled" : "disabled"
+        }`,
+      );
+    },
+    [captureHistory, showShortcutStatus],
+  );
 
   const deleteSelectedNode = useCallback(() => {
     const selectedActionNodeIds = getStudioTopLevelNodeIds(
@@ -2862,9 +4192,47 @@ export function TemplateStudioClient() {
   );
 
   const clearLayerDragState = useCallback(() => {
+    if (layerAutoExpandTimerRef.current !== null) {
+      window.clearTimeout(layerAutoExpandTimerRef.current);
+      layerAutoExpandTimerRef.current = null;
+    }
+    layerAutoExpandTargetRef.current = null;
     layerDragStateRef.current = null;
     setLayerDropState(null);
   }, []);
+
+  const scheduleLayerGroupAutoExpand = useCallback(
+    (nodeId: string, shouldExpand: boolean) => {
+      if (!shouldExpand) {
+        if (layerAutoExpandTargetRef.current === nodeId) {
+          if (layerAutoExpandTimerRef.current !== null) {
+            window.clearTimeout(layerAutoExpandTimerRef.current);
+            layerAutoExpandTimerRef.current = null;
+          }
+          layerAutoExpandTargetRef.current = null;
+        }
+        return;
+      }
+
+      if (layerAutoExpandTargetRef.current === nodeId) return;
+
+      if (layerAutoExpandTimerRef.current !== null) {
+        window.clearTimeout(layerAutoExpandTimerRef.current);
+      }
+
+      layerAutoExpandTargetRef.current = nodeId;
+      layerAutoExpandTimerRef.current = window.setTimeout(() => {
+        setCollapsedLayerGroupIds((currentNodeIds) =>
+          currentNodeIds.includes(nodeId)
+            ? currentNodeIds.filter((currentNodeId) => currentNodeId !== nodeId)
+            : currentNodeIds,
+        );
+        layerAutoExpandTimerRef.current = null;
+        layerAutoExpandTargetRef.current = null;
+      }, STUDIO_LAYER_AUTO_EXPAND_DELAY_MS);
+    },
+    [],
+  );
 
   const handleLayerDragStart = useCallback(
     (event: React.DragEvent<HTMLElement>, nodeId: string) => {
@@ -2920,6 +4288,16 @@ export function TemplateStudioClient() {
         targetNodeId,
         position,
       );
+      const targetNode = documentRef.current.graph.nodes[targetNodeId];
+
+      scheduleLayerGroupAutoExpand(
+        targetNodeId,
+        validation.ok &&
+          position === "inside" &&
+          targetNode?.type === "group" &&
+          targetNode.childIds.length > 0 &&
+          collapsedLayerGroupIds.includes(targetNodeId),
+      );
 
       event.dataTransfer.dropEffect = validation.ok ? "move" : "none";
       setLayerDropState({
@@ -2928,7 +4306,7 @@ export function TemplateStudioClient() {
         blockedReason: validation.ok ? null : validation.reason,
       });
     },
-    [getLayerDropValidation],
+    [collapsedLayerGroupIds, getLayerDropValidation, scheduleLayerGroupAutoExpand],
   );
 
   const handleLayerDrop = useCallback(
@@ -3017,6 +4395,7 @@ export function TemplateStudioClient() {
         targetNodeId,
         position,
       );
+      scheduleLayerGroupAutoExpand(targetNodeId, false);
       event.dataTransfer.dropEffect = validation.ok ? "move" : "none";
       setLayerDropState({
         nodeId: targetNodeId,
@@ -3024,7 +4403,7 @@ export function TemplateStudioClient() {
         blockedReason: validation.ok ? null : validation.reason,
       });
     },
-    [getLayerDropValidation],
+    [getLayerDropValidation, scheduleLayerGroupAutoExpand],
   );
 
   const renderLayerDropIndicator = (
@@ -3036,18 +4415,44 @@ export function TemplateStudioClient() {
       layerDropState?.nodeId === nodeId && layerDropState.position === position;
     if (!isActive) return null;
 
+    const blockedReason = layerDropState.blockedReason;
+
     return (
       <div
         className={cn(
-          "my-0.5 h-0.5 rounded-full",
-          layerDropState.blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
+          "my-1 flex h-4 items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.06em]",
+          blockedReason ? "text-rose-300" : "text-[var(--accent)]",
         )}
         style={{ marginLeft: 10 + depth * 20 }}
+        title={blockedReason ?? getStudioLayerDropPositionLabel(position)}
         onDragOver={(event) =>
           handleLayerIndicatorDragOver(event, nodeId, position)
         }
         onDrop={(event) => handleLayerDrop(event, nodeId)}
-      />
+      >
+        <span
+          className={cn(
+            "h-1.5 w-1.5 shrink-0 rounded-full",
+            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
+          )}
+        />
+        <span
+          className={cn(
+            "h-0.5 min-w-0 flex-1 rounded-full",
+            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
+          )}
+        />
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5",
+            blockedReason
+              ? "bg-rose-400/15 text-rose-300"
+              : "bg-[var(--sel)] text-[var(--accent)]",
+          )}
+        >
+          {blockedReason ? "Blocked" : getStudioLayerDropPositionLabel(position)}
+        </span>
+      </div>
     );
   };
 
@@ -3095,8 +4500,8 @@ export function TemplateStudioClient() {
               : "text-[var(--fg2)] hover:bg-[var(--hover)]",
             isInsideDropActive &&
               (activeDropState?.blockedReason
-                ? "outline outline-1 outline-rose-400/80"
-                : "outline outline-1 outline-[var(--accent)]"),
+                ? "ring-1 ring-inset ring-rose-400/80"
+                : "ring-1 ring-inset ring-[var(--accent)]"),
             isCutLayerNode && "opacity-[0.45]",
           )}
           style={{ paddingLeft: 10 + depth * 20 }}
@@ -3108,7 +4513,9 @@ export function TemplateStudioClient() {
           onDragStart={(event) => handleLayerDragStart(event, node.id)}
           onDrop={(event) => handleLayerDrop(event, node.id)}
           onClick={(event) => {
-            if (event.shiftKey || event.metaKey || event.ctrlKey) {
+            if (event.shiftKey) {
+              selectLayerNodeRange(node.id, event.metaKey || event.ctrlKey);
+            } else if (event.metaKey || event.ctrlKey) {
               toggleNodeSelection(node.id);
             } else {
               selectSingleNode(node.id);
@@ -3160,6 +4567,18 @@ export function TemplateStudioClient() {
           {node.locked ? (
             <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
           ) : null}
+          {isInsideDropActive ? (
+            <span
+              className={cn(
+                "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em]",
+                activeDropState?.blockedReason
+                  ? "bg-rose-400/15 text-rose-300"
+                  : "bg-[var(--sel)] text-[var(--accent)]",
+              )}
+            >
+              {activeDropState?.blockedReason ? "Blocked" : "Inside"}
+            </span>
+          ) : null}
           <span className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
             {getNodeTypeLabel(node.type)}
           </span>
@@ -3180,6 +4599,7 @@ export function TemplateStudioClient() {
     type,
     depth = 0,
     disabled = false,
+    hidden = false,
     collapsible = false,
     collapsed = false,
     draggable = false,
@@ -3196,6 +4616,7 @@ export function TemplateStudioClient() {
     type: string;
     depth?: number;
     disabled?: boolean;
+    hidden?: boolean;
     collapsible?: boolean;
     collapsed?: boolean;
     draggable?: boolean;
@@ -3222,7 +4643,8 @@ export function TemplateStudioClient() {
             (isSelected
               ? "bg-[var(--sel)] font-semibold text-[var(--fg)]"
               : "text-[var(--fg2)] hover:bg-[var(--hover)]"),
-          blockedReason && "outline outline-1 outline-rose-400/80",
+          hidden && "opacity-55",
+          blockedReason && "ring-1 ring-inset ring-rose-400/80",
         )}
         disabled={disabled}
         draggable={draggable && !disabled}
@@ -3275,11 +4697,16 @@ export function TemplateStudioClient() {
             <Layers3 size={14} />
           ) : type === "day" ? (
             <CalendarDays size={14} />
+          ) : type === "block" || type === "image" ? (
+            <ImageIcon size={14} />
           ) : (
             <Type size={14} />
           )}
         </span>
         <span className="min-w-0 flex-1 truncate">{label}</span>
+        {hidden ? (
+          <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
+        ) : null}
         <span className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
           {type}
         </span>
@@ -3291,23 +4718,57 @@ export function TemplateStudioClient() {
     layerId: string,
     depth: number,
     position: "before" | "after",
+    dayId?: StudioTimetableDayId,
   ) => {
     const isActive =
       timetableLayerDropState?.layerId === layerId &&
       timetableLayerDropState.position === position;
     if (!isActive) return null;
 
+    const blockedReason = timetableLayerDropState?.blockedReason;
+
     return (
       <div
         className={cn(
-          "my-0.5 h-0.5 rounded-full",
-          timetableLayerDropState?.blockedReason
-            ? "bg-rose-400"
-            : "bg-[var(--accent)]",
+          "my-1 flex h-4 items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.06em]",
+          blockedReason ? "text-rose-300" : "text-[var(--accent)]",
         )}
         key={`${layerId}:${position}:drop`}
         style={{ marginLeft: 10 + depth * 20 }}
-      />
+        title={blockedReason ?? getStudioLayerDropPositionLabel(position)}
+        onDragOver={(event) =>
+          handleTimetableLayerIndicatorDragOver(
+            event,
+            layerId,
+            position,
+            dayId,
+          )
+        }
+        onDrop={(event) => handleTimetableLayerDrop(event, layerId, dayId)}
+      >
+        <span
+          className={cn(
+            "h-1.5 w-1.5 shrink-0 rounded-full",
+            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
+          )}
+        />
+        <span
+          className={cn(
+            "h-0.5 min-w-0 flex-1 rounded-full",
+            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
+          )}
+        />
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5",
+            blockedReason
+              ? "bg-rose-400/15 text-rose-300"
+              : "bg-[var(--sel)] text-[var(--accent)]",
+          )}
+        >
+          {blockedReason ? "Blocked" : getStudioLayerDropPositionLabel(position)}
+        </span>
+      </div>
     );
   };
 
@@ -3345,6 +4806,7 @@ export function TemplateStudioClient() {
                       id: object.id,
                       label: object.label,
                       type: "group",
+                      hidden: Boolean(object.hidden),
                       collapsible: true,
                       collapsed: isCollapsed,
                       draggable: true,
@@ -3373,12 +4835,14 @@ export function TemplateStudioClient() {
                                 layerId,
                                 1,
                                 "before",
+                                day.id,
                               )}
                               {renderTimetableLayerRow({
                                 id: layerId,
                                 label: `${day.shortLabel ?? day.label} Card`,
                                 type: "day",
                                 depth: 1,
+                                hidden: Boolean(object.hidden),
                                 draggable: true,
                                 blockedReason: dayBlockedReason,
                                 onDragEnd: clearTimetableLayerDragState,
@@ -3409,6 +4873,7 @@ export function TemplateStudioClient() {
                                 layerId,
                                 1,
                                 "after",
+                                day.id,
                               )}
                             </React.Fragment>
                           );
@@ -3425,7 +4890,13 @@ export function TemplateStudioClient() {
                   {renderTimetableLayerRow({
                     id: object.id,
                     label: object.label,
-                    type: "text",
+                    type:
+                      object.kind === "profileBlock"
+                        ? "block"
+                        : object.kind === "topObject"
+                          ? "image"
+                          : "text",
+                    hidden: Boolean(object.hidden),
                     draggable: true,
                     blockedReason,
                     onDragEnd: clearTimetableLayerDragState,
@@ -3453,44 +4924,77 @@ export function TemplateStudioClient() {
           Timetable Presets
         </div>
         <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
-          {STUDIO_TIMETABLE_PRESET_GROUPS.reduce(
+          {timetablePresetGroups.reduce(
             (count, group) => count + group.presets.length,
             0,
           )}{" "}
-          available
+          presets
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        <div className="grid gap-4">
-          {STUDIO_TIMETABLE_PRESET_GROUPS.map((group) => (
-            <section className="grid gap-1.5" key={group.title}>
-              <div className="px-1 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
-                {group.title}
-              </div>
-              {group.presets.map((preset) => (
-                <button
-                  className="flex min-h-12 w-full items-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-left transition hover:border-[var(--accent)] hover:bg-[var(--hover)]"
-                  key={preset.id}
-                  type="button"
-                  onClick={() => addTimetablePresetObject(preset.id)}
-                >
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--sel)] text-[var(--accent)]">
-                    <Type size={15} />
-                  </span>
-                  <span className="grid min-w-0 flex-1 gap-0.5">
-                    <span className="truncate text-[12px] font-bold text-[var(--fg)]">
-                      {preset.label}
-                    </span>
-                    <span className="truncate text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                      {preset.type}
-                    </span>
-                  </span>
-                  <Plus className="h-3.5 w-3.5 shrink-0 text-[var(--fg2)]" />
-                </button>
-              ))}
-            </section>
-          ))}
-        </div>
+        {timetablePresetGroups.length === 0 ? (
+          <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-3 text-xs font-semibold text-[var(--fg3)]">
+            No presets yet.
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {timetablePresetGroups.map((group) => (
+              <section className="grid gap-1.5" key={group.title}>
+                <div className="px-1 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
+                  {group.title}
+                </div>
+                {group.presets.map(
+                  ({ definition, disabledReason, existingTargetId }) => {
+                    const canInsert =
+                      isStudioTimetableCompositionPreset(definition) &&
+                      !disabledReason;
+                    const statusLabel =
+                      disabledReason ??
+                      (existingTargetId ? "Added" : definition.typeLabel);
+
+                    return (
+                      <button
+                        className={cn(
+                          "flex min-h-12 w-full items-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-left transition",
+                          canInsert
+                            ? "hover:border-[var(--accent)] hover:bg-[var(--hover)]"
+                            : "cursor-not-allowed opacity-55",
+                        )}
+                        disabled={!canInsert}
+                        key={definition.id}
+                        title={definition.description ?? definition.label}
+                        type="button"
+                        onClick={() => {
+                          if (!isStudioTimetableCompositionPreset(definition)) {
+                            return;
+                          }
+                          addTimetablePresetObject(definition);
+                        }}
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--sel)] text-[var(--accent)]">
+                          <Type size={15} />
+                        </span>
+                        <span className="grid min-w-0 flex-1 gap-0.5">
+                          <span className="truncate text-[12px] font-bold text-[var(--fg)]">
+                            {definition.label}
+                          </span>
+                          <span className="truncate text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                            {statusLabel}
+                          </span>
+                        </span>
+                        {existingTargetId ? (
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5 shrink-0 text-[var(--fg2)]" />
+                        )}
+                      </button>
+                    );
+                  },
+                )}
+              </section>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3507,6 +5011,21 @@ export function TemplateStudioClient() {
     ].join(":");
 
     if (input.type === "text") {
+      if (input.multiline) {
+        return (
+          <TextareaField
+            key={runtimeInputKey}
+            label={input.label}
+            placeholder={input.placeholder}
+            rows={input.minRows ?? 4}
+            value={value}
+            onChange={(nextValue) =>
+              updateRuntimeInputValue(input, nextValue, context)
+            }
+          />
+        );
+      }
+
       return (
         <TextField
           key={runtimeInputKey}
@@ -3681,6 +5200,39 @@ export function TemplateStudioClient() {
     );
   };
 
+  const renderTimetableCapabilityToggle = (
+    capabilityKey: StudioTimetableCapabilityKey,
+    label: string,
+  ) => {
+    const enabled = timetableCapabilities[capabilityKey].enabled;
+
+    return (
+      <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2.5">
+        <span className="grid gap-0.5">
+          <span className="text-xs font-bold text-[var(--fg)]">{label}</span>
+          <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
+            {enabled ? "Enabled" : "Disabled"}
+          </span>
+        </span>
+        <input
+          checked={enabled}
+          className="h-4 w-4 accent-[var(--accent)]"
+          type="checkbox"
+          onChange={(event) =>
+            setTimetableCapability(capabilityKey, event.currentTarget.checked)
+          }
+        />
+      </label>
+    );
+  };
+
+  const renderTimetableSettings = () => (
+    <div className="grid gap-2">
+      {renderTimetableCapabilityToggle("multi", "Multi Status")}
+      {renderTimetableCapabilityToggle("offlineMemo", "Offline Memo Status")}
+    </div>
+  );
+
   const renderTimetablePanel = () => {
     const timetable = document.domains?.timetable;
 
@@ -3843,6 +5395,17 @@ export function TemplateStudioClient() {
 
     return (
       <div className="grid gap-4">
+        {!isInputPanelActive ? (
+          <button
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+            type="button"
+            onClick={() => jumpToInput(input.id)}
+          >
+            <ArrowUpRight size={12} />
+            Open in Inputs
+          </button>
+        ) : null}
+
         <TextField
           label="Label"
           value={input.label}
@@ -3886,17 +5449,69 @@ export function TemplateStudioClient() {
                 )
               }
             />
-            <TextField
-              label="Default"
-              value={input.defaultValue ?? ""}
-              onChange={(value) =>
-                updateInput(input.id, (currentInput) =>
-                  currentInput.type === "text"
-                    ? { ...currentInput, defaultValue: value }
-                    : currentInput,
-                )
-              }
-            />
+            {input.multiline ? (
+              <TextareaField
+                label="Default"
+                rows={input.minRows ?? 4}
+                value={input.defaultValue ?? ""}
+                onChange={(value) =>
+                  updateInput(input.id, (currentInput) =>
+                    currentInput.type === "text"
+                      ? { ...currentInput, defaultValue: value }
+                      : currentInput,
+                  )
+                }
+              />
+            ) : (
+              <TextField
+                label="Default"
+                value={input.defaultValue ?? ""}
+                onChange={(value) =>
+                  updateInput(input.id, (currentInput) =>
+                    currentInput.type === "text"
+                      ? { ...currentInput, defaultValue: value }
+                      : currentInput,
+                  )
+                }
+              />
+            )}
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
+              <span>Multiline</span>
+              <input
+                checked={Boolean(input.multiline)}
+                className="h-4 w-4 accent-[var(--accent)]"
+                type="checkbox"
+                onChange={(event) =>
+                  updateInput(input.id, (currentInput) =>
+                    currentInput.type === "text"
+                      ? {
+                          ...currentInput,
+                          multiline: event.currentTarget.checked || undefined,
+                          minRows: event.currentTarget.checked
+                            ? (currentInput.minRows ?? 4)
+                            : undefined,
+                        }
+                      : currentInput,
+                  )
+                }
+              />
+            </label>
+            {input.multiline ? (
+              <NumberField
+                label="Rows"
+                value={Number(input.minRows ?? 4)}
+                onChange={(value) =>
+                  updateInput(input.id, (currentInput) =>
+                    currentInput.type === "text"
+                      ? {
+                          ...currentInput,
+                          minRows: Math.max(2, Math.min(12, value || 4)),
+                        }
+                      : currentInput,
+                  )
+                }
+              />
+            ) : null}
             <NumberField
               label="Max Length"
               value={Number(input.maxLength ?? 0)}
@@ -3930,6 +5545,25 @@ export function TemplateStudioClient() {
 
         {input.type === "select" && (
           <div className="grid gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                type="button"
+                onClick={() => addSelectConsumerForInput(input, "text")}
+              >
+                <Plus size={12} />
+                Text
+              </button>
+              <button
+                className="inline-flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                type="button"
+                onClick={() => addSelectConsumerForInput(input, "image")}
+              >
+                <Plus size={12} />
+                Image
+              </button>
+            </div>
+
             <label className="grid gap-1 text-xs font-semibold text-[#8fa6cf]">
               <span>Default Option</span>
               <select
@@ -3964,21 +5598,10 @@ export function TemplateStudioClient() {
                     className="h-9 rounded border border-[#303848] bg-[#111827] px-2 text-sm text-[#e5eefc] outline-none focus:border-[#4f8cff]"
                     value={option.label}
                     onChange={(event) =>
-                      updateInput(input.id, (currentInput) =>
-                        currentInput.type === "select"
-                          ? {
-                              ...currentInput,
-                              options: currentInput.options.map(
-                                (currentOption, index) =>
-                                  index === optionIndex
-                                    ? {
-                                        ...currentOption,
-                                        label: event.currentTarget.value,
-                                      }
-                                    : currentOption,
-                              ),
-                            }
-                          : currentInput,
+                      updateSelectOptionLabel(
+                        input.id,
+                        optionIndex,
+                        event.currentTarget.value,
                       )
                     }
                   />
@@ -3986,21 +5609,10 @@ export function TemplateStudioClient() {
                     className="h-9 rounded border border-[#303848] bg-[#111827] px-2 text-sm text-[#e5eefc] outline-none focus:border-[#4f8cff]"
                     value={option.value}
                     onChange={(event) =>
-                      updateInput(input.id, (currentInput) =>
-                        currentInput.type === "select"
-                          ? {
-                              ...currentInput,
-                              options: currentInput.options.map(
-                                (currentOption, index) =>
-                                  index === optionIndex
-                                    ? {
-                                        ...currentOption,
-                                        value: event.currentTarget.value,
-                                      }
-                                    : currentOption,
-                              ),
-                            }
-                          : currentInput,
+                      updateSelectOptionValue(
+                        input.id,
+                        optionIndex,
+                        event.currentTarget.value,
                       )
                     }
                   />
@@ -4008,18 +5620,7 @@ export function TemplateStudioClient() {
                     className="h-9 rounded border border-[#303848] px-3 text-xs font-bold text-[#c8d6f2] transition-colors hover:bg-[#1a2230] disabled:opacity-40"
                     disabled={input.options.length <= 1}
                     type="button"
-                    onClick={() =>
-                      updateInput(input.id, (currentInput) =>
-                        currentInput.type === "select"
-                          ? {
-                              ...currentInput,
-                              options: currentInput.options.filter(
-                                (_, index) => index !== optionIndex,
-                              ),
-                            }
-                          : currentInput,
-                      )
-                    }
+                    onClick={() => removeSelectOption(input.id, optionIndex)}
                   >
                     Del
                   </button>
@@ -4028,22 +5629,7 @@ export function TemplateStudioClient() {
               <button
                 className="inline-flex h-9 items-center justify-center gap-2 rounded border border-[#303848] bg-[#111827] text-xs font-bold text-[#c8d6f2] transition-colors hover:bg-[#1a2230]"
                 type="button"
-                onClick={() =>
-                  updateInput(input.id, (currentInput) =>
-                    currentInput.type === "select"
-                      ? {
-                          ...currentInput,
-                          options: [
-                            ...currentInput.options,
-                            {
-                              label: `Option ${currentInput.options.length + 1}`,
-                              value: `option-${currentInput.options.length + 1}`,
-                            },
-                          ],
-                        }
-                      : currentInput,
-                  )
-                }
+                onClick={() => addSelectOption(input.id)}
               >
                 <Plus size={14} />
                 Add option
@@ -4059,18 +5645,758 @@ export function TemplateStudioClient() {
           {(inputConsumers[input.id] ?? []).length > 0 ? (
             <div className="grid gap-1">
               {(inputConsumers[input.id] ?? []).map((consumer) => (
-                <div
-                  className="rounded bg-[#182131] px-2 py-1 text-xs font-bold text-[#c8d6f2]"
-                  key={consumer}
+                <button
+                  className="flex min-w-0 items-center gap-2 rounded bg-[#182131] px-2 py-1.5 text-left text-xs font-bold text-[#c8d6f2] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+                  key={consumer.id}
+                  type="button"
+                  onClick={() => jumpToInputConsumer(consumer)}
                 >
-                  {consumer}
-                </div>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{consumer.label}</span>
+                    <span className="block truncate text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--fg3)]">
+                      {consumer.detail}
+                    </span>
+                  </span>
+                  <ArrowUpRight size={12} className="shrink-0" />
+                </button>
               ))}
             </div>
           ) : (
             <p className="text-sm font-medium text-[#8fa6cf]">No consumers</p>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderTimetableVisibilitySlot = (
+    object: StudioTimetableCompositionObject,
+  ) => (
+    <label className="flex items-center justify-between gap-3 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>Visible</span>
+      <input
+        checked={!object.hidden}
+        className="h-4 w-4 accent-[var(--accent)]"
+        type="checkbox"
+        onChange={(event) => {
+          const visible = event.currentTarget.checked;
+          updateTimetableCompositionObject(object.id, (currentObject) => {
+            setStudioTimetableObjectVisibilitySlot(currentObject, visible);
+          });
+        }}
+      />
+    </label>
+  );
+
+  const renderTimetableInputSourceSlot = (input: StudioInputDefinition) => (
+    <div className="grid gap-3">
+      <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+          Custom Input Source
+        </span>
+        <span className="truncate text-xs font-semibold text-[var(--fg)]">
+          {input.label}
+        </span>
+        <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
+          {getInputScopeLabel(input.scope)} · {getInputTypeLabel(input.type)} ·{" "}
+          {input.id}
+        </span>
+      </div>
+      <button
+        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+        type="button"
+        onClick={() => jumpToInput(input.id)}
+      >
+        <ArrowUpRight size={12} />
+        Open in Inputs
+      </button>
+      {renderRuntimeInput(input)}
+    </div>
+  );
+
+  const renderTimetableAssetSlot = ({
+    object,
+    label,
+    assetId,
+    inputId,
+    fit,
+    defaultFit = "cover",
+    inputLabel = label,
+    onUpdateAsset,
+    onUpdateInput,
+  }: {
+    object: StudioTimetableCompositionObject;
+    label: string;
+    assetId?: string | null;
+    inputId?: string | null;
+    fit?: StudioImageFit;
+    defaultFit?: StudioImageFit;
+    inputLabel?: string;
+    onUpdateAsset: (
+      object: StudioTimetableCompositionObject,
+      assetId: string | null,
+      fit: StudioImageFit,
+    ) => void;
+    onUpdateInput?: (
+      object: StudioTimetableCompositionObject,
+      inputId: string,
+      fit: StudioImageFit,
+    ) => void;
+  }) => {
+    const source = inputId ? "input" : "asset";
+    const input = inputId ? document.inputs[inputId] : null;
+    const hasMissingAsset = Boolean(assetId && !document.assets[assetId]);
+    const hasMissingInput = Boolean(inputId && (!input || input.type !== "image"));
+    const hasSource = Boolean(assetId || inputId);
+    const activateInputSource = () => {
+      if (!onUpdateInput) return;
+
+      const defaultUrl = assetId ? (document.assets[assetId]?.src ?? "") : "";
+
+      updateDocument((nextDocument) => {
+        const timetable = nextDocument.domains?.timetable;
+        if (!timetable) return;
+
+        const composition = ensureStudioTimetableComposition(timetable);
+        const currentObject = composition.objects[object.id];
+        if (!currentObject) return;
+
+        const { inputId: nextInputId } = ensureStudioPresetImageInput(
+          nextDocument,
+          {
+            label: inputLabel,
+            placeholder: "Paste image URL",
+            defaultUrl,
+          },
+        );
+        onUpdateInput(currentObject, nextInputId, fit ?? defaultFit);
+      });
+
+      showShortcutStatus(`Linked ${label} to input`);
+    };
+
+    return (
+      <>
+        {onUpdateInput ? (
+          <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+            <span>{label} Source</span>
+            <select
+              className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+              value={source}
+              onChange={(event) => {
+                if (event.currentTarget.value === "input") {
+                  activateInputSource();
+                  return;
+                }
+
+                updateTimetableCompositionObject(
+                  object.id,
+                  (currentObject) => {
+                    onUpdateAsset(currentObject, assetId ?? null, fit ?? defaultFit);
+                  },
+                );
+              }}
+            >
+              <option value="asset">Template Asset</option>
+              <option value="input">User Input</option>
+            </select>
+          </label>
+        ) : null}
+        {source === "asset" ? (
+          <div className="grid gap-2">
+            <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+              <span>{label}</span>
+              <select
+                className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
+                disabled={assets.length === 0 && !assetId}
+                value={assetId ?? ""}
+                onChange={(event) => {
+                  const nextAssetId = event.currentTarget.value || null;
+                  updateTimetableCompositionObject(object.id, (currentObject) => {
+                    onUpdateAsset(currentObject, nextAssetId, fit ?? defaultFit);
+                  });
+                }}
+              >
+                <option value="">None</option>
+                {hasMissingAsset ? (
+                  <option value={assetId ?? ""}>Missing asset</option>
+                ) : null}
+                {assets.map((asset) => (
+                  <option key={asset.id} value={asset.id}>
+                    {asset.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]">
+              <Upload size={13} />
+              Upload Asset
+              <input
+                accept="image/*"
+                className="hidden"
+                type="file"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+
+                  createTemplateAssetFromFile(
+                    file,
+                    inputLabel,
+                    (nextDocument, nextAssetId) => {
+                      const timetable = nextDocument.domains?.timetable;
+                      if (!timetable) return;
+
+                      const composition =
+                        ensureStudioTimetableComposition(timetable);
+                      const currentObject = composition.objects[object.id];
+                      if (!currentObject) return;
+
+                      onUpdateAsset(
+                        currentObject,
+                        nextAssetId,
+                        fit ?? defaultFit,
+                      );
+                    },
+                  );
+                }}
+              />
+            </label>
+          </div>
+        ) : input && input.type === "image" ? (
+          renderTimetableInputSourceSlot(input)
+        ) : hasMissingInput ? (
+          <div className="rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-200">
+            Missing image input: {inputId}
+          </div>
+        ) : null}
+        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+          <span>Fit</span>
+          <select
+            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
+            disabled={!hasSource}
+            value={fit ?? defaultFit}
+            onChange={(event) => {
+              const nextFit = event.currentTarget.value as StudioImageFit;
+              updateTimetableCompositionObject(object.id, (currentObject) => {
+                if (inputId && onUpdateInput) {
+                  onUpdateInput(currentObject, inputId, nextFit);
+                  return;
+                }
+
+                onUpdateAsset(currentObject, assetId ?? null, nextFit);
+              });
+            }}
+          >
+            <option value="cover">Cover</option>
+            <option value="contain">Contain</option>
+            <option value="fill">Fill</option>
+          </select>
+        </label>
+      </>
+    );
+  };
+
+  const renderTimetableBackgroundAssetSlot = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const backgroundSlot = object.assetSlots?.background;
+
+    return renderTimetableAssetSlot({
+      object,
+      label: "Background Asset",
+      assetId: backgroundSlot?.assetId ?? object.backgroundAssetId,
+      inputId: backgroundSlot?.inputId,
+      fit: backgroundSlot?.fit ?? object.backgroundFit,
+      inputLabel: STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
+      onUpdateAsset: (currentObject, assetId, fit) => {
+        setStudioTimetableObjectBackgroundAssetSlot(
+          currentObject,
+          assetId,
+          fit,
+        );
+      },
+      onUpdateInput: (currentObject, inputId, fit) => {
+        setStudioTimetableObjectBackgroundInputSlot(currentObject, inputId, fit);
+      },
+    });
+  };
+
+  const renderTimetableProfileImageSlot = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const profileImageSlot = object.assetSlots?.profileImage;
+
+    return renderTimetableAssetSlot({
+      object,
+      label: "Profile Image",
+      assetId: profileImageSlot?.assetId,
+      inputId: profileImageSlot?.inputId,
+      fit: profileImageSlot?.fit,
+      inputLabel: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+      onUpdateAsset: (currentObject, assetId, fit) => {
+        setStudioTimetableObjectAssetSlot(
+          currentObject,
+          "profileImage",
+          assetId,
+          fit,
+        );
+      },
+      onUpdateInput: (currentObject, inputId, fit) => {
+        setStudioTimetableObjectAssetInputSlot(
+          currentObject,
+          "profileImage",
+          inputId,
+          fit,
+        );
+      },
+    });
+  };
+
+  const renderTimetableProfileFrameSlot = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const profileFrameSlot = object.assetSlots?.profileFrame;
+
+    return renderTimetableAssetSlot({
+      object,
+      label: "Frame Asset",
+      assetId: profileFrameSlot?.assetId,
+      inputId: profileFrameSlot?.inputId,
+      fit: profileFrameSlot?.fit,
+      defaultFit: "contain",
+      inputLabel: STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL,
+      onUpdateAsset: (currentObject, assetId, fit) => {
+        setStudioTimetableObjectAssetSlot(
+          currentObject,
+          "profileFrame",
+          assetId,
+          fit,
+        );
+      },
+      onUpdateInput: (currentObject, inputId, fit) => {
+        setStudioTimetableObjectAssetInputSlot(
+          currentObject,
+          "profileFrame",
+          inputId,
+          fit,
+        );
+      },
+    });
+  };
+
+  const renderTimetableTopObjectAssetSlot = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const assetSlot = object.assetSlots?.asset;
+
+    return renderTimetableAssetSlot({
+      object,
+      label: "Object Asset",
+      assetId: assetSlot?.assetId,
+      inputId: assetSlot?.inputId,
+      fit: assetSlot?.fit,
+      defaultFit: "contain",
+      inputLabel: STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL,
+      onUpdateAsset: (currentObject, assetId, fit) => {
+        setStudioTimetableObjectAssetSlot(
+          currentObject,
+          "asset",
+          assetId,
+          fit,
+        );
+      },
+      onUpdateInput: (currentObject, inputId, fit) => {
+        setStudioTimetableObjectAssetInputSlot(
+          currentObject,
+          "asset",
+          inputId,
+          fit,
+        );
+      },
+    });
+  };
+
+  const renderTimetableArtistProfileTextAssetSlot = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const assetSlot = object.assetSlots?.asset;
+
+    return renderTimetableAssetSlot({
+      object,
+      label: "Text Asset",
+      assetId: assetSlot?.assetId,
+      inputId: assetSlot?.inputId,
+      fit: assetSlot?.fit,
+      defaultFit: "contain",
+      inputLabel: STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
+      onUpdateAsset: (currentObject, assetId, fit) => {
+        setStudioTimetableObjectAssetSlot(
+          currentObject,
+          "asset",
+          assetId,
+          fit,
+        );
+      },
+      onUpdateInput: (currentObject, inputId, fit) => {
+        setStudioTimetableObjectAssetInputSlot(
+          currentObject,
+          "asset",
+          inputId,
+          fit,
+        );
+      },
+    });
+  };
+
+  const renderTimetableWeekDatesFormatControls = (
+    object: StudioTimetableCompositionObject,
+  ) => (
+    <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>Date Format</span>
+      <select
+        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+        value={getStudioStyleString(object.style, "dateRangeFormat", "long")}
+        onChange={(event) => {
+          const dateRangeFormat = event.currentTarget.value;
+          updateTimetableCompositionObject(object.id, (currentObject) => {
+            currentObject.style = {
+              ...currentObject.style,
+              dateRangeFormat,
+            };
+          });
+        }}
+      >
+        <option value="long">2026.07.01 - 07.07</option>
+        <option value="short">07.01 - 07.07</option>
+        <option value="localized">Localized</option>
+        <option value="split">Split lines</option>
+      </select>
+    </label>
+  );
+
+  const renderTimetableArtistProfileTextAssetLayoutControls = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const assetMode = getStudioStyleString(object.style, "assetMode", "visible");
+    const assetPosition = getStudioStyleString(
+      object.style,
+      "assetPosition",
+      "left",
+    );
+
+    return (
+      <div className="grid gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field-bg)] p-2">
+        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+          <span>Asset Mode</span>
+          <select
+            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+            value={assetMode}
+            onChange={(event) => {
+              const assetModeValue = event.currentTarget.value;
+              updateTimetableCompositionObject(object.id, (currentObject) => {
+                currentObject.style = {
+                  ...currentObject.style,
+                  assetMode: assetModeValue,
+                };
+              });
+            }}
+          >
+            <option value="visible">Visible</option>
+            <option value="hidden">Hidden</option>
+          </select>
+        </label>
+        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+          <span>Asset Position</span>
+          <select
+            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+            disabled={assetMode === "hidden"}
+            value={assetPosition}
+            onChange={(event) => {
+              const assetPositionValue = event.currentTarget.value;
+              updateTimetableCompositionObject(object.id, (currentObject) => {
+                currentObject.style = {
+                  ...currentObject.style,
+                  assetPosition: assetPositionValue,
+                };
+              });
+            }}
+          >
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <NumberField
+            label="Asset Size"
+            value={Number(object.style.assetSize ?? 160)}
+            onChange={(value) =>
+              updateTimetableCompositionObject(object.id, (currentObject) => {
+                currentObject.style = {
+                  ...currentObject.style,
+                  assetSize: Math.max(24, value),
+                };
+              })
+            }
+          />
+          <NumberField
+            label="Asset Gap"
+            value={Number(object.style.assetGap ?? 32)}
+            onChange={(value) =>
+              updateTimetableCompositionObject(object.id, (currentObject) => {
+                currentObject.style = {
+                  ...currentObject.style,
+                  assetGap: Math.max(0, value),
+                };
+              })
+            }
+          />
+        </div>
+      </div>
+    );
+  };
+
+  const renderTimetableProfileMaskControls = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const radius =
+      typeof object.style.borderRadius === "number"
+        ? object.style.borderRadius
+        : 0;
+    const shape = getStudioTimetableObjectMaskShape(object);
+
+    const updateMask = (nextShape: StudioSemanticMaskShape) => {
+      const nextRadius =
+        nextShape === "circle" ? 9999 : nextShape === "rectangle" ? 0 : 56;
+
+      updateTimetableCompositionObject(object.id, (currentObject) => {
+        setStudioTimetableObjectMaskSlot(
+          currentObject,
+          nextShape,
+          nextRadius,
+        );
+      });
+    };
+
+    return (
+      <div className="grid gap-2">
+        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+          <span>Mask</span>
+          <select
+            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+            value={shape}
+            onChange={(event) =>
+              updateMask(event.currentTarget.value as StudioSemanticMaskShape)
+            }
+          >
+            <option value="rectangle">Rectangle</option>
+            <option value="rounded">Rounded</option>
+            <option value="circle">Circle</option>
+          </select>
+        </label>
+        <NumberField
+          label="Radius"
+          value={radius}
+          onChange={(value) =>
+            updateTimetableCompositionObject(object.id, (currentObject) => {
+              setStudioTimetableObjectMaskSlot(
+                currentObject,
+                value >= 9999 ? "circle" : value <= 0 ? "rectangle" : "rounded",
+                value,
+              );
+            })
+          }
+        />
+      </div>
+    );
+  };
+
+  const renderTimetableTextTypographyControls = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const styleRecord = object.style;
+    const updateTimetableTextStyle = (
+      key: string,
+      value: string | number | undefined,
+    ) => {
+      updateTimetableCompositionObject(object.id, (currentObject) => {
+        if (currentObject.kind !== "text") return;
+        currentObject.style = {
+          ...currentObject.style,
+          [key]: value,
+        };
+      });
+    };
+
+    return (
+      <div className="grid gap-2">
+        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+          <span>Font</span>
+          <select
+            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+            value={String(styleRecord.fontFamily ?? "Inter")}
+            onChange={(event) =>
+              updateTimetableTextStyle("fontFamily", event.currentTarget.value)
+            }
+          >
+            <option value="Inter">Inter</option>
+            <option value="Pretendard">Pretendard</option>
+            <option value="SF Pro">SF Pro</option>
+            <option value="Roboto">Roboto</option>
+          </select>
+        </label>
+        <div className="grid grid-cols-[1.3fr_1fr] gap-2">
+          <NumberField
+            label="Size"
+            value={Number(styleRecord.fontSize ?? 16)}
+            onChange={(value) => updateTimetableTextStyle("fontSize", value)}
+          />
+          <NumberField
+            label="Weight"
+            value={Number(styleRecord.fontWeight ?? 700)}
+            onChange={(value) => updateTimetableTextStyle("fontWeight", value)}
+          />
+        </div>
+        <NumberField
+          label="Line Height"
+          value={Number(styleRecord.lineHeight ?? 1.2)}
+          onChange={(value) => updateTimetableTextStyle("lineHeight", value)}
+        />
+        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+          <span>Color</span>
+          <div className="flex h-8 items-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2">
+            <input
+              className="h-4 w-4 cursor-pointer rounded border-0 bg-transparent p-0"
+              type="color"
+              value={String(styleRecord.color ?? "#111827")}
+              onChange={(event) =>
+                updateTimetableTextStyle("color", event.currentTarget.value)
+              }
+            />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-xs font-medium uppercase tracking-[0.02em] text-[var(--fg)] outline-none"
+              value={String(styleRecord.color ?? "#111827")}
+              onChange={(event) =>
+                updateTimetableTextStyle("color", event.currentTarget.value)
+              }
+            />
+          </div>
+        </label>
+      </div>
+    );
+  };
+
+  const renderStatusCardBackgroundAssetSlots = (node: StudioGraphNode) => {
+    const statuses = getStudioStatusCardBackgroundStatuses(document);
+
+    if (statuses.length === 0) {
+      return (
+        <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-xs font-semibold text-[var(--fg3)]">
+          No available timetable statuses.
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid gap-3">
+        {statuses.map((status) => {
+          const slot = node.assetSlots?.[status.id];
+          const assetId = slot?.assetId ?? "";
+          const hasMissingAsset = Boolean(assetId && !document.assets[assetId]);
+
+          return (
+            <div
+              className="grid gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field-bg)] p-2"
+              key={status.id}
+            >
+              <div className="text-[11px] font-bold text-[var(--fg)]">
+                {status.label}
+              </div>
+              <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                <span>Asset</span>
+                <select
+                  className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
+                  disabled={assets.length === 0 && !assetId}
+                  value={assetId}
+                  onChange={(event) => {
+                    const nextAssetId = event.currentTarget.value || null;
+                    updateNode(node.id, (currentNode) => {
+                      setStudioStatusCardBackgroundAssetSlot(
+                        currentNode,
+                        status.id,
+                        nextAssetId,
+                        slot?.fit ?? "cover",
+                      );
+                    });
+                  }}
+                >
+                  <option value="">None</option>
+                  {hasMissingAsset ? (
+                    <option value={assetId}>Missing asset</option>
+                  ) : null}
+                  {assets.map((asset) => (
+                    <option key={asset.id} value={asset.id}>
+                      {asset.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]">
+                <Upload size={13} />
+                Upload Asset
+                <input
+                  accept="image/*"
+                  className="hidden"
+                  type="file"
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!file) return;
+
+                    createTemplateAssetFromFile(
+                      file,
+                      `${node.label} ${status.label}`,
+                      (nextDocument, nextAssetId) => {
+                        const currentNode = nextDocument.graph.nodes[node.id];
+                        if (!currentNode) return;
+
+                        setStudioStatusCardBackgroundAssetSlot(
+                          currentNode,
+                          status.id,
+                          nextAssetId,
+                          slot?.fit ?? "cover",
+                        );
+                      },
+                    );
+                  }}
+                />
+              </label>
+              <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                <span>Fit</span>
+                <select
+                  className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
+                  disabled={!assetId}
+                  value={slot?.fit ?? "cover"}
+                  onChange={(event) => {
+                    const nextFit = event.currentTarget.value as StudioImageFit;
+                    updateNode(node.id, (currentNode) => {
+                      setStudioStatusCardBackgroundAssetSlot(
+                        currentNode,
+                        status.id,
+                        assetId || null,
+                        nextFit,
+                      );
+                    });
+                  }}
+                >
+                  <option value="cover">Cover</option>
+                  <option value="contain">Contain</option>
+                  <option value="fill">Fill</option>
+                </select>
+              </label>
+            </div>
+          );
+        })}
       </div>
     );
   };
@@ -4199,6 +6525,14 @@ export function TemplateStudioClient() {
             />
           </div>,
         )}
+
+        {isStudioStatusCardBackgroundNode(selectedNode)
+          ? renderInspectorSection(
+              "statusAssets",
+              "Status Assets",
+              renderStatusCardBackgroundAssetSlots(selectedNode),
+            )
+          : null}
 
         {(isStudioTextNode(selectedNode) ||
           isStudioImageNode(selectedNode)) && (
@@ -4331,33 +6665,71 @@ export function TemplateStudioClient() {
                         {compatibleBindingCount === 0 ? (
                           <option value="">No compatible binding</option>
                         ) : null}
-                        {compatibleBuiltinFields.length > 0 ? (
-                          <optgroup label="Built-in Fields">
-                            {compatibleBuiltinFields.map((field) => (
+                        {compatibleBuiltinFieldGroups.map((group) => (
+                          <optgroup
+                            key={`builtin:${group.scope}`}
+                            label={`Built-in · ${getInputScopeLabel(group.scope)}`}
+                          >
+                            {group.fields.map((field) => (
                               <option
                                 key={field.id}
                                 value={`builtin:${field.id}`}
                               >
-                                {field.label} ·{" "}
-                                {getInputScopeLabel(field.scope)}
+                                {field.label} · Built-in ·{" "}
+                                {getInputScopeLabel(field.scope)} · {field.type}
                               </option>
                             ))}
                           </optgroup>
-                        ) : null}
-                        {compatibleInputs.length > 0 ? (
-                          <optgroup label="Template Inputs">
-                            {compatibleInputs.map((input) => (
+                        ))}
+                        {compatibleInputGroups.map((group) => (
+                          <optgroup
+                            key={`input:${group.scope}`}
+                            label={`Custom · ${getInputScopeLabel(group.scope)}`}
+                          >
+                            {group.inputs.map((input) => (
                               <option
                                 key={input.id}
                                 value={`input:${input.id}`}
                               >
-                                {input.label} · {getInputTypeLabel(input.type)}
+                                {input.label} · Custom ·{" "}
+                                {getInputScopeLabel(input.scope)} ·{" "}
+                                {getInputTypeLabel(input.type)}
                               </option>
                             ))}
                           </optgroup>
-                        ) : null}
+                        ))}
                       </select>
                     </label>
+
+                    {selectedNodeBuiltinField ? (
+                      <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                          Built-in Source
+                        </span>
+                        <span className="truncate text-xs font-semibold text-[var(--fg)]">
+                          {selectedNodeBuiltinField.label}
+                        </span>
+                        <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
+                          {getInputScopeLabel(selectedNodeBuiltinField.scope)} ·{" "}
+                          {selectedNodeBuiltinField.type} ·{" "}
+                          {selectedNodeBuiltinField.id}
+                        </span>
+                      </div>
+                    ) : selectedNodeBoundInput ? (
+                      <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                          Custom Input Source
+                        </span>
+                        <span className="truncate text-xs font-semibold text-[var(--fg)]">
+                          {selectedNodeBoundInput.label}
+                        </span>
+                        <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
+                          {getInputScopeLabel(selectedNodeBoundInput.scope)} ·{" "}
+                          {getInputTypeLabel(selectedNodeBoundInput.type)} ·{" "}
+                          {selectedNodeBoundInput.id}
+                        </span>
+                      </div>
+                    ) : null}
 
                     {selectedNode.binding?.kind === "selectText" && (
                       <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
@@ -4540,7 +6912,7 @@ export function TemplateStudioClient() {
               Template Studio
             </span>
             <span className="text-[11px] text-[var(--fg3)]">▾</span>
-            <span className="text-xs text-[var(--fg2)]">Milestone&nbsp;A</span>
+            <span className="text-xs text-[var(--fg2)]">Studio&nbsp;Draft</span>
           </div>
           <span className="rounded-[5px] border border-emerald-400/30 bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-emerald-300">
             Local
@@ -4647,6 +7019,34 @@ export function TemplateStudioClient() {
               <Sun className="h-3.5 w-3.5" />
             )}
           </button>
+          <button
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            title="Export JSON"
+            type="button"
+            onClick={exportStudioJson}
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
+          <button
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            title="Import JSON"
+            type="button"
+            onClick={() => jsonImportInputRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" />
+          </button>
+          <input
+            accept="application/json,.json"
+            className="hidden"
+            ref={jsonImportInputRef}
+            type="file"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (!file) return;
+              void importStudioJsonFile(file);
+            }}
+          />
           <div className="mx-0.5 h-[22px] w-px bg-[var(--border)]" />
           <button
             className="h-[30px] rounded-lg bg-[var(--accent)] px-3.5 text-xs font-semibold tracking-[0.01em] text-white"
@@ -4730,6 +7130,92 @@ export function TemplateStudioClient() {
                         )}
                       </button>
                     ),
+                  )}
+                </div>
+                <div className="grid gap-3 border-t border-[var(--border)] px-3 py-3">
+                  {cardPresetGroups.length === 0 ? (
+                    <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-xs font-semibold text-[var(--fg3)]">
+                      No card presets yet.
+                    </div>
+                  ) : (
+                    cardPresetGroups.map((group) => (
+                      <section className="grid gap-1.5" key={group.title}>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
+                          {group.title}
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {group.presets.map(
+                            ({
+                              definition,
+                              disabledReason,
+                              existingTargetId,
+                            }) => {
+                              const canInsert =
+                                (isStudioCardContextObjectPreset(definition) ||
+                                  isStudioCardStatusBackgroundPreset(
+                                    definition,
+                                  ) ||
+                                  isStudioCardSelectInputBundlePreset(
+                                    definition,
+                                  )) &&
+                                !disabledReason;
+
+                              return (
+                                <button
+                                  className={cn(
+                                    "flex h-9 min-w-0 items-center justify-center gap-1 rounded-[8px] border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-bold text-[var(--fg2)] transition",
+                                    canInsert
+                                      ? "hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                                      : "cursor-not-allowed opacity-55",
+                                  )}
+                                  disabled={!canInsert}
+                                  key={definition.id}
+                                  title={
+                                    disabledReason ??
+                                    (existingTargetId
+                                      ? `Select existing ${definition.label}`
+                                      : `Add ${definition.label}`)
+                                  }
+                                  type="button"
+                                  onClick={() => {
+                                    if (
+                                      isStudioCardContextObjectPreset(definition)
+                                    ) {
+                                      addCardContextObject(definition);
+                                      return;
+                                    }
+
+                                    if (
+                                      isStudioCardStatusBackgroundPreset(
+                                        definition,
+                                      )
+                                    ) {
+                                      addCardStatusBackgroundObject(definition);
+                                      return;
+                                    }
+
+                                    if (
+                                      isStudioCardSelectInputBundlePreset(
+                                        definition,
+                                      )
+                                    ) {
+                                      addCardSelectInputBundle(definition);
+                                    }
+                                  }}
+                                >
+                                  <span className="truncate">
+                                    {definition.label}
+                                  </span>
+                                  {existingTargetId ? (
+                                    <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-300" />
+                                  ) : null}
+                                </button>
+                              );
+                            },
+                          )}
+                        </div>
+                      </section>
+                    ))
                   )}
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
@@ -4931,6 +7417,14 @@ export function TemplateStudioClient() {
             ) : (
               <StudioRenderer
                 document={document}
+                runtimeContext={
+                  activeRuntimeDayId
+                    ? {
+                        dayId: activeRuntimeDayId,
+                        entryIndex: activeRuntimeEntryIndex,
+                      }
+                    : undefined
+                }
                 runtimeValues={runtimeValues}
                 selectedNodeId={selectedNodeId}
                 selectedNodeIds={selectedNodeIds}
@@ -5115,21 +7609,105 @@ export function TemplateStudioClient() {
                     "input",
                     "Text",
                     <div className="grid gap-2">
-                      <TextField
-                        label="Content"
-                        value={selectedTimetableTextValue}
-                        onChange={(value) =>
-                          updateTimetableCompositionObject(
-                            selectedTimetableTextObject.id,
-                            (object) => {
-                              object.binding = {
-                                kind: "staticText",
-                                value,
-                              };
-                            },
+                      {selectedTimetableBuiltinField ? (
+                        <>
+                          <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                              Built-in Source
+                            </span>
+                            <span className="truncate text-xs font-semibold text-[var(--fg)]">
+                              {selectedTimetableBuiltinField.label}
+                            </span>
+                            <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
+                              {getInputScopeLabel(
+                                selectedTimetableBuiltinField.scope,
+                              )}{" "}
+                              · {selectedTimetableBuiltinField.type} ·{" "}
+                              {selectedTimetableBuiltinField.id}
+                            </span>
+                          </div>
+                        {isSelectedWeekDatesObject
+                          ? renderTimetableWeekDatesFormatControls(
+                              selectedTimetableTextObject,
+                            )
+                          : null}
+                        </>
+                      ) : selectedTimetableBoundInput ? (
+                        renderTimetableInputSourceSlot(
+                          selectedTimetableBoundInput,
+                        )
+                      ) : (
+                        <TextField
+                          label="Content"
+                          value={selectedTimetableTextValue}
+                          onChange={(value) =>
+                            updateTimetableCompositionObject(
+                              selectedTimetableTextObject.id,
+                              (object) => {
+                                object.binding = {
+                                  kind: "staticText",
+                                  value,
+                                };
+                              },
+                            )
+                          }
+                        />
+                      )}
+                    </div>,
+                  )
+                : null}
+
+              {selectedTimetableBoundInput
+                ? renderInspectorSection(
+                    "runtime",
+                    "Preview Inputs",
+                    renderRuntimePreviewInputs(),
+                  )
+                : null}
+
+              {selectedTimetableCompositionObject
+                ? renderInspectorSection(
+                    "appearance",
+                    "Appearance",
+                    <div className="grid gap-2">
+                      {renderTimetableVisibilitySlot(
+                        selectedTimetableCompositionObject,
+                      )}
+                      {isSelectedWeeklyMemoObject ? (
+                        renderTimetableBackgroundAssetSlot(
+                          selectedTimetableCompositionObject,
+                        )
+                      ) : null}
+                      {isSelectedProfileBlockObject
+                        ? renderTimetableProfileImageSlot(
+                            selectedTimetableCompositionObject,
                           )
-                        }
-                      />
+                        : null}
+                      {isSelectedProfileBlockObject
+                        ? renderTimetableProfileFrameSlot(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
+                      {isSelectedProfileBlockObject
+                        ? renderTimetableProfileMaskControls(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
+                      {isSelectedArtistProfileTextObject
+                        ? renderTimetableArtistProfileTextAssetSlot(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
+                      {isSelectedArtistProfileTextObject
+                        ? renderTimetableArtistProfileTextAssetLayoutControls(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
+                      {isSelectedTopObject
+                        ? renderTimetableTopObjectAssetSlot(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
                     </div>,
                   )
                 : null}
@@ -5162,22 +7740,71 @@ export function TemplateStudioClient() {
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-[var(--fg2)]">
-                        <div className="grid gap-1.5">
-                          <span>W</span>
-                          <div className="flex h-8 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]">
-                            {Math.round(selectedTimetableLayerGeometry.width)}
-                          </div>
-                        </div>
-                        <div className="grid gap-1.5">
-                          <span>H</span>
-                          <div className="flex h-8 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]">
-                            {Math.round(selectedTimetableLayerGeometry.height)}
-                          </div>
-                        </div>
+                        {isPlacedTimetableCompositionObject(
+                          selectedTimetableCompositionObject ?? undefined,
+                        ) ? (
+                          <>
+                            <NumberField
+                              label="W"
+                              value={selectedTimetableLayerGeometry.width}
+                              onChange={(value) =>
+                                updateTimetableLayerPosition(
+                                  selectedTimetableLayerId,
+                                  { width: value },
+                                )
+                              }
+                            />
+                            <NumberField
+                              label="H"
+                              value={selectedTimetableLayerGeometry.height}
+                              onChange={(value) =>
+                                updateTimetableLayerPosition(
+                                  selectedTimetableLayerId,
+                                  { height: value },
+                                )
+                              }
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <div className="grid gap-1.5">
+                              <span>W</span>
+                              <div className="flex h-8 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]">
+                                {Math.round(
+                                  selectedTimetableLayerGeometry.width,
+                                )}
+                              </div>
+                            </div>
+                            <div className="grid gap-1.5">
+                              <span>H</span>
+                              <div className="flex h-8 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]">
+                                {Math.round(
+                                  selectedTimetableLayerGeometry.height,
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>,
                   )
                 : null}
+
+              {selectedTimetableTextObject
+                ? renderInspectorSection(
+                    "typography",
+                    "Typography",
+                    renderTimetableTextTypographyControls(
+                      selectedTimetableTextObject,
+                    ),
+                  )
+                : null}
+
+              {renderInspectorSection(
+                "settings",
+                "Settings",
+                renderTimetableSettings(),
+              )}
 
               {renderInspectorSection(
                 "runtime",

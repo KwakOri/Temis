@@ -3,6 +3,7 @@
 import React, { useMemo } from "react";
 
 import {
+  StudioAsset,
   StudioTimetableDayDefinition,
   StudioTimetableDayId,
   StudioGraphNode,
@@ -11,8 +12,10 @@ import {
   StudioTemplateDocument,
   StudioTimetableDayCardsLayout,
   StudioTimetableDomain,
+  StudioTimetableAssetSlot,
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
+import { resolveStudioTextBinding } from "@/utils/template-studio/binding-resolver";
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import {
   getStudioTimetableComposition,
@@ -43,10 +46,6 @@ export const STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT = {
   entryGap: 24,
 } satisfies StudioTimetableDayCardsLayout;
 
-const DAY_CARD_HEADER_GAP = 24;
-const DAY_CARD_ENTRY_META_HEIGHT = 28;
-const DAY_CARD_ENTRY_META_GAP = 6;
-
 export const getStudioTimetablePreviewSize = (
   timetable?: StudioTimetableDomain,
 ) => ({
@@ -70,12 +69,7 @@ export const getStudioTimetableDayCardHeight = (
   entryCount: number,
 ) =>
   layout.padding * 2 +
-  layout.headerHeight +
-  DAY_CARD_HEADER_GAP +
-  Math.max(1, entryCount) *
-    (DAY_CARD_ENTRY_META_HEIGHT +
-      DAY_CARD_ENTRY_META_GAP +
-      layout.entryPreviewHeight) +
+  Math.max(1, entryCount) * layout.entryPreviewHeight +
   Math.max(0, entryCount - 1) * layout.entryGap;
 
 export const getStudioTimetableDayCardGeometry = (
@@ -122,6 +116,136 @@ const getNumericStyleValue = (
   return typeof value === "number" ? value : fallback;
 };
 
+const getStringStyleValue = (
+  styleRecord: StudioStyleRecord | undefined,
+  key: string,
+  fallback: string,
+) => {
+  const value = styleRecord?.[key];
+  return typeof value === "string" ? value : fallback;
+};
+
+const parseIsoDateParts = (value: string | undefined) => {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  return {
+    year: match[1],
+    month: match[2],
+    day: match[3],
+  };
+};
+
+const getDatePartsWithDayOffset = (
+  value: string | undefined,
+  offset: number,
+) => {
+  const parts = parseIsoDateParts(value);
+  if (!parts) return null;
+
+  const date = new Date(
+    Date.UTC(
+      Number(parts.year),
+      Number(parts.month) - 1,
+      Number(parts.day) + offset,
+    ),
+  );
+
+  return {
+    year: String(date.getUTCFullYear()).padStart(4, "0"),
+    month: String(date.getUTCMonth() + 1).padStart(2, "0"),
+    day: String(date.getUTCDate()).padStart(2, "0"),
+  };
+};
+
+const formatDateParts = (
+  parts: ReturnType<typeof parseIsoDateParts>,
+  options: { includeYear: boolean },
+) => {
+  if (!parts) return "";
+  return options.includeYear
+    ? `${parts.year}.${parts.month}.${parts.day}`
+    : `${parts.month}.${parts.day}`;
+};
+
+const formatLocalizedDateParts = (
+  parts: ReturnType<typeof parseIsoDateParts>,
+  options: { includeYear: boolean },
+) => {
+  if (!parts) return "";
+  const date = new Date(
+    Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)),
+  );
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "2-digit",
+    year: options.includeYear ? "numeric" : undefined,
+    timeZone: "UTC",
+  });
+  return formatter.format(date);
+};
+
+const getWeekStartParts = (document: StudioTemplateDocument) =>
+  parseIsoDateParts(document.domains?.timetable?.week?.startDate);
+
+const getWeekEndParts = (document: StudioTemplateDocument) => {
+  const timetable = document.domains?.timetable;
+  const explicitEndParts = parseIsoDateParts(timetable?.week?.endDate);
+  if (explicitEndParts) return explicitEndParts;
+
+  if (!timetable?.week?.startDate) return null;
+  return getDatePartsWithDayOffset(
+    timetable.week.startDate,
+    Math.max(0, timetable.dayIds.length - 1),
+  );
+};
+
+const isWeekDatesObject = (object: StudioTimetableCompositionObject) =>
+  object.presetId === "weekDates" ||
+  object.meta?.exception?.semanticKey === "weekDates";
+
+const resolveWeekDatesText = (
+  document: StudioTemplateDocument,
+  object: StudioTimetableCompositionObject,
+) => {
+  const start = getWeekStartParts(document);
+  const end = getWeekEndParts(document);
+  if (!start && !end) return "";
+
+  const format = getStringStyleValue(
+    object.style,
+    "dateRangeFormat",
+    "long",
+  );
+  const first = start ?? end;
+  const last = end ?? start;
+
+  if (format === "short") {
+    return `${formatDateParts(first, { includeYear: false })} - ${formatDateParts(
+      last,
+      { includeYear: false },
+    )}`;
+  }
+
+  if (format === "localized") {
+    return `${formatLocalizedDateParts(first, {
+      includeYear: false,
+    })} - ${formatLocalizedDateParts(last, { includeYear: true })}`;
+  }
+
+  if (format === "split") {
+    return `${formatDateParts(first, { includeYear: true })}\n${formatDateParts(
+      last,
+      { includeYear: false },
+    )}`;
+  }
+
+  return `${formatDateParts(first, { includeYear: true })} - ${formatDateParts(
+    last,
+    { includeYear: false },
+  )}`;
+};
+
 const getEntryPreviewGeometry = (
   document: StudioTemplateDocument,
   rootNode: StudioGraphNode | undefined,
@@ -162,26 +286,80 @@ const resolveTimetableObjectText = (
   runtimeValues: StudioRuntimeValues,
   object: StudioTimetableCompositionObject,
 ) => {
-  if (object.binding?.kind === "staticText") return object.binding.value;
-
-  if (object.binding?.kind === "inputText") {
-    const input = document.inputs[object.binding.inputId];
-    if (input?.type === "text") {
-      return getStudioRuntimeInputValue(input, runtimeValues);
-    }
+  if (isWeekDatesObject(object)) {
+    return resolveWeekDatesText(document, object) || object.label;
   }
 
-  return object.label;
+  const value = resolveStudioTextBinding(
+    document,
+    runtimeValues,
+    object.binding,
+  );
+  return value || object.label;
+};
+
+const isArtistProfileTextObject = (
+  object: StudioTimetableCompositionObject,
+) =>
+  object.presetId === "artistProfileText" ||
+  object.meta?.exception?.semanticKey === "artistProfileText";
+
+const resolveTimetableAssetSlot = (
+  document: StudioTemplateDocument,
+  runtimeValues: StudioRuntimeValues,
+  slot?: StudioTimetableAssetSlot,
+): StudioAsset | null => {
+  if (!slot) return null;
+
+  if (slot.inputId) {
+    const input = document.inputs[slot.inputId];
+    if (!input || input.type !== "image") return null;
+
+    const value = getStudioRuntimeInputValue(input, runtimeValues);
+    if (!value) return null;
+
+    return {
+      id: `runtime:${input.id}`,
+      label: input.label,
+      src: value,
+    };
+  }
+
+  return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
 };
 
 const getTimetableObjectStyle = (
+  document: StudioTemplateDocument,
+  runtimeValues: StudioRuntimeValues,
   object: StudioTimetableCompositionObject,
 ): React.CSSProperties => {
   const { rotateDeg, ...styleRecord } = object.style;
+  delete styleRecord.dateRangeFormat;
+  delete styleRecord.assetMode;
+  delete styleRecord.assetPosition;
+  delete styleRecord.assetGap;
+  delete styleRecord.assetSize;
+  const backgroundSlot = object.assetSlots?.background;
+  const backgroundAsset =
+    resolveTimetableAssetSlot(document, runtimeValues, backgroundSlot) ??
+    (object.backgroundAssetId
+      ? document.assets[object.backgroundAssetId]
+      : null);
+  const backgroundFit = backgroundSlot?.fit ?? object.backgroundFit;
+  const backgroundSize =
+    backgroundFit === "fill"
+      ? "100% 100%"
+      : (backgroundFit ?? "cover");
 
   return {
     ...styleRecord,
     position: "absolute",
+    backgroundImage: backgroundAsset
+      ? `url(${JSON.stringify(backgroundAsset.src)})`
+      : undefined,
+    backgroundPosition: backgroundAsset ? "center" : undefined,
+    backgroundRepeat: backgroundAsset ? "no-repeat" : undefined,
+    backgroundSize: backgroundAsset ? backgroundSize : undefined,
     transform:
       typeof rotateDeg === "number" ? `rotate(${rotateDeg}deg)` : undefined,
   } as React.CSSProperties;
@@ -259,7 +437,7 @@ export function StudioTimetablePreview({
 
         return (
           <div
-            className="absolute grid content-start rounded-[22px] border border-slate-200 bg-white shadow-[0_28px_64px_rgba(15,23,42,0.12)]"
+            className="absolute grid content-start"
             data-node-id={`day-card:${day.id}`}
             key={day.id}
             style={{
@@ -281,21 +459,6 @@ export function StudioTimetablePreview({
               onSelectLayer?.(`day-card:${day.id}`);
             }}
           >
-            <div
-              className="flex items-baseline justify-between border-b border-slate-100"
-              style={{
-                height: dayCardsLayout.headerHeight,
-                marginBottom: DAY_CARD_HEADER_GAP,
-              }}
-            >
-              <span className="text-[30px] font-extrabold">
-                {day.shortLabel}
-              </span>
-              <span className="text-[18px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                {day.label}
-              </span>
-            </div>
-
             {entries.length > 0 ? (
               <div style={{ display: "grid", gap: dayCardsLayout.entryGap }}>
                 {entries.map((entry, entryIndex) => {
@@ -313,30 +476,12 @@ export function StudioTimetablePreview({
                     dayCardsLayout.entryPreviewWidth,
                     dayCardsLayout.entryPreviewHeight,
                   );
-                  const statusLabel =
-                    timetable?.statuses[entry.statusId]?.label ??
-                    entry.statusId;
-                  const resolvedStatusLabel = resolution
-                    ? (timetable?.statuses[resolution.resolvedStatusId]
-                        ?.label ?? resolution.resolvedStatusId)
-                    : "";
 
                   return (
-                    <div className="grid gap-1.5" key={entry.id}>
-                      <div
-                        className="flex items-center justify-between text-[18px] font-bold text-slate-400"
-                        style={{ height: DAY_CARD_ENTRY_META_HEIGHT }}
-                      >
-                        <span>Entry {entryIndex + 1}</span>
-                        <span>
-                          {resolution?.isFallback
-                            ? `${statusLabel} -> ${resolvedStatusLabel}`
-                            : statusLabel}
-                        </span>
-                      </div>
+                    <div key={entry.id}>
                       {rootNode && resolution ? (
                         <div
-                          className="relative mx-auto overflow-hidden rounded-md bg-slate-50"
+                          className="relative mx-auto overflow-hidden"
                           style={{
                             width: dayCardsLayout.entryPreviewWidth,
                             height: dayCardsLayout.entryPreviewHeight,
@@ -365,9 +510,7 @@ export function StudioTimetablePreview({
                           </div>
                         </div>
                       ) : (
-                        <div className="flex h-[92px] items-center justify-center rounded-md border border-dashed border-slate-300 text-xs font-bold text-slate-400">
-                          Empty
-                        </div>
+                        <div className="h-[92px] rounded-md border border-dashed border-slate-300" />
                       )}
                     </div>
                   );
@@ -375,11 +518,9 @@ export function StudioTimetablePreview({
               </div>
             ) : (
               <div
-                className="flex items-center justify-center rounded-md border border-dashed border-slate-300 text-xl font-bold text-slate-400"
+                className="rounded-md border border-dashed border-slate-300"
                 style={{ height: dayCardsLayout.entryPreviewHeight }}
-              >
-                Empty
-              </div>
+              />
             )}
           </div>
         );
@@ -390,6 +531,26 @@ export function StudioTimetablePreview({
   const renderTextObject = (object: StudioTimetableCompositionObject) => {
     const geometry = getStudioTimetableCompositionObjectGeometry(object);
     const selected = selectedLayerId === object.id;
+    const assetSlot = isArtistProfileTextObject(object)
+      ? object.assetSlots?.asset
+      : undefined;
+    const asset = resolveTimetableAssetSlot(document, runtimeValues, assetSlot);
+    const assetMode = getStringStyleValue(object.style, "assetMode", "visible");
+    const assetPosition = getStringStyleValue(
+      object.style,
+      "assetPosition",
+      "left",
+    );
+    const assetSize = Math.max(
+      24,
+      getNumericStyleValue(object.style, "assetSize", Math.min(160, geometry.height || 160)),
+    );
+    const assetGap = Math.max(
+      0,
+      getNumericStyleValue(object.style, "assetGap", 32),
+    );
+    const shouldShowAsset = Boolean(asset?.src && assetMode !== "hidden");
+    const text = resolveTimetableObjectText(document, runtimeValues, object);
 
     return (
       <div
@@ -397,7 +558,9 @@ export function StudioTimetablePreview({
         data-node-id={object.id}
         key={object.id}
         style={{
-          ...getTimetableObjectStyle(object),
+          ...getTimetableObjectStyle(document, runtimeValues, object),
+          flexDirection: assetPosition === "right" ? "row-reverse" : "row",
+          gap: shouldShowAsset ? assetGap : undefined,
           outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
           outlineOffset: 8,
           minWidth: Math.max(1, geometry.width),
@@ -408,7 +571,129 @@ export function StudioTimetablePreview({
           onSelectLayer?.(object.id);
         }}
       >
-        {resolveTimetableObjectText(document, runtimeValues, object)}
+        {shouldShowAsset && asset?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Timetable preset assets are plain template asset URLs.
+          <img
+            alt={asset.label}
+            className="shrink-0"
+            draggable={false}
+            src={asset.src}
+            style={{
+              width: assetSize,
+              height: assetSize,
+              objectFit: assetSlot?.fit ?? "contain",
+            }}
+          />
+        ) : null}
+        <span className="min-w-0">{text}</span>
+      </div>
+    );
+  };
+
+  const renderProfileBlockObject = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const selected = selectedLayerId === object.id;
+    const profileImageSlot = object.assetSlots?.profileImage;
+    const profileFrameSlot = object.assetSlots?.profileFrame;
+    const asset = resolveTimetableAssetSlot(
+      document,
+      runtimeValues,
+      profileImageSlot,
+    );
+    const frameAsset = resolveTimetableAssetSlot(
+      document,
+      runtimeValues,
+      profileFrameSlot,
+    );
+
+    return (
+      <div
+        className="absolute overflow-hidden"
+        data-node-id={object.id}
+        key={object.id}
+        style={{
+          ...getTimetableObjectStyle(document, runtimeValues, object),
+          outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
+          outlineOffset: 8,
+          minWidth: Math.max(1, geometry.width),
+          minHeight: Math.max(1, geometry.height),
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectLayer?.(object.id);
+        }}
+      >
+        {asset?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Timetable preset assets are plain template asset URLs.
+          <img
+            alt={asset.label}
+            className="absolute inset-0 h-full w-full"
+            draggable={false}
+            src={asset.src}
+            style={{ objectFit: profileImageSlot?.fit ?? "cover" }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex h-full w-full items-center justify-center text-[48px] font-extrabold text-slate-400">
+            Profile
+          </div>
+        )}
+        {frameAsset?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Timetable preset frame assets are plain template asset URLs.
+          <img
+            alt={frameAsset.label}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            draggable={false}
+            src={frameAsset.src}
+            style={{ objectFit: profileFrameSlot?.fit ?? "contain" }}
+          />
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderTopObject = (object: StudioTimetableCompositionObject) => {
+    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const selected = selectedLayerId === object.id;
+    const assetSlot = object.assetSlots?.asset;
+    const asset = resolveTimetableAssetSlot(
+      document,
+      runtimeValues,
+      assetSlot,
+    );
+
+    return (
+      <div
+        className="absolute overflow-visible"
+        data-node-id={object.id}
+        key={object.id}
+        style={{
+          ...getTimetableObjectStyle(document, runtimeValues, object),
+          outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
+          outlineOffset: 8,
+          minWidth: Math.max(1, geometry.width),
+          minHeight: Math.max(1, geometry.height),
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectLayer?.(object.id);
+        }}
+      >
+        {asset?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Timetable preset assets are plain template asset URLs.
+          <img
+            alt={asset.label}
+            className="absolute inset-0 h-full w-full"
+            draggable={false}
+            src={asset.src}
+            style={{ objectFit: assetSlot?.fit ?? "contain" }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex h-full w-full items-center justify-center border border-dashed border-slate-300 text-[42px] font-extrabold text-slate-400">
+            Top Object
+          </div>
+        )}
       </div>
     );
   };
@@ -425,9 +710,18 @@ export function StudioTimetablePreview({
       {composition.rootObjectIds.map((objectId) => {
         const object = composition.objects[objectId];
         if (!object) return null;
+        if (object.hidden) return null;
 
         if (object.kind === "generatedDayCards") {
           return renderDayCardsObject();
+        }
+
+        if (object.kind === "profileBlock") {
+          return renderProfileBlockObject(object);
+        }
+
+        if (object.kind === "topObject") {
+          return renderTopObject(object);
         }
 
         return renderTextObject(object);

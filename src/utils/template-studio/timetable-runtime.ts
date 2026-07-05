@@ -8,6 +8,7 @@ import {
   StudioTimetableStatusId,
 } from "@/types/template-studio";
 import { createStudioRuntimeDefaultsForScope } from "@/utils/template-studio/input-values";
+import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
 
 export interface StudioTimetableVariantResolution {
   requestedStatusId: StudioTimetableStatusId;
@@ -120,6 +121,7 @@ export const setStudioTimetableEntryStatus = (
 ): StudioRuntimeValues => {
   const timetable = document.domains?.timetable;
   if (!timetable?.statuses[statusId]) return values;
+  if (!isStudioTimetableStatusAvailable(timetable, statusId)) return values;
 
   const currentEntries = getStudioTimetableEntriesForDay(
     document,
@@ -150,17 +152,23 @@ export const resolveStudioTimetableComponentVariant = (
   if (!component) return null;
 
   const timetable = document.domains?.timetable;
-  const directVariant = component.variants[statusId];
+  const effectiveStatusId = isStudioTimetableStatusAvailable(
+    timetable,
+    statusId,
+  )
+    ? statusId
+    : component.defaultStatusId;
+  const directVariant = component.variants[effectiveStatusId];
   if (directVariant) {
     return {
       requestedStatusId: statusId,
-      resolvedStatusId: statusId,
+      resolvedStatusId: effectiveStatusId,
       variant: directVariant,
-      isFallback: false,
+      isFallback: effectiveStatusId !== statusId,
     };
   }
 
-  const status = timetable?.statuses[statusId];
+  const status = timetable?.statuses[effectiveStatusId];
   const fallbackIds = [
     status?.kind === "derived" ? status.fallbackStatusId : undefined,
     status?.baseStatus,
