@@ -223,12 +223,12 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
               style={{
                 fontFamily: fontOption.tertiary,
                 fontSize: 30,
-                fontWeight: 700,
                 width: 170,
                 height: 40,
                 top: 28,
                 left: 208,
                 textShadow: '0px 0px 4px rgba(0, 0, 0, 0.5)',
+                letterSpacing: 2,
                 ...timeColor[userId as keyof typeof timeColor],
               }}
               className="absolute z-20 flex justify-start items-center "
@@ -251,7 +251,6 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
             >
               <AutoResizeText
                 maxFontSize={20}
-                multiline
                 style={{
                   fontFamily: fontOption.primary,
                   fontWeight: 400,
@@ -278,8 +277,8 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
               className="absolute z-20 flex justify-start items-center "
             >
               <AutoResizeText
+                maxLines={2}
                 maxFontSize={28}
-                multiline
                 style={{
                   fontFamily: fontOption.primary,
                   textAlign: 'left',

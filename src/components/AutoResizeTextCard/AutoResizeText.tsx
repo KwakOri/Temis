@@ -10,7 +10,24 @@ interface Props extends React.HTMLAttributes<HTMLParagraphElement> {
   className?: string;
 
   multiline?: boolean;
+  maxLines?: number;
 }
+
+const rmPx = (pixel: string) => Number(pixel.slice(0, -2));
+
+const getAvailableLength = (parent: HTMLElement) => {
+  const availableWidth =
+    parent.clientWidth -
+    rmPx(parent.style.paddingLeft) -
+    rmPx(parent.style.paddingRight);
+
+  const availableHeight =
+    parent.clientHeight -
+    rmPx(parent.style.paddingTop) -
+    rmPx(parent.style.paddingBottom);
+
+  return { availableWidth, availableHeight };
+};
 
 const AutoResizeText: React.FC<Props> = ({
   children,
@@ -19,26 +36,19 @@ const AutoResizeText: React.FC<Props> = ({
   style,
   className,
   multiline = false,
+  maxLines,
   ...props
 }) => {
   const textRef = useRef<HTMLParagraphElement>(null);
   const [fontSize, setFontSize] = useState(maxFontSize);
-
-  const rmPx = (pixel: string) => Number(pixel.slice(0, -2));
-
-  const getAvailableLength = (parent: HTMLElement) => {
-    const availableWidth =
-      parent.clientWidth -
-      rmPx(parent.style.paddingLeft) -
-      rmPx(parent.style.paddingRight);
-
-    const availableHeight =
-      parent.clientHeight -
-      rmPx(parent.style.paddingTop) -
-      rmPx(parent.style.paddingBottom);
-
-    return { availableWidth, availableHeight };
-  };
+  const normalizedMaxLines =
+    typeof maxLines === 'number' && Number.isFinite(maxLines) && maxLines > 0
+      ? Math.floor(maxLines)
+      : undefined;
+  const hasLineLimit = normalizedMaxLines !== undefined;
+  const displayText = hasLineLimit
+    ? children.replace(/[\r\n]+/g, ' ')
+    : children;
 
   useEffect(() => {
     const el = textRef.current;
@@ -56,6 +66,54 @@ const AutoResizeText: React.FC<Props> = ({
       // 최소 크기 확인
       if (availableWidth <= 0 || availableHeight <= 0) {
         setFontSize(minFontSize);
+        return;
+      }
+
+      if (hasLineLimit) {
+        el.style.width = `${availableWidth}px`;
+        el.style.whiteSpace = 'normal';
+        el.style.wordBreak = 'break-word';
+        el.style.overflowWrap = 'break-word';
+
+        const fitsAtFontSize = (candidateFontSize: number) => {
+          el.style.fontSize = `${candidateFontSize}px`;
+
+          const computedStyle = window.getComputedStyle(el);
+          const computedLineHeight = Number.parseFloat(computedStyle.lineHeight);
+          const lineHeight =
+            Number.isFinite(computedLineHeight) && computedLineHeight > 0
+              ? computedLineHeight
+              : candidateFontSize * 1.2;
+          const maxTextHeight = lineHeight * normalizedMaxLines;
+          const textWidth = el.scrollWidth;
+          const textHeight = el.scrollHeight;
+          const estimatedLineCount = Math.ceil((textHeight - 0.5) / lineHeight);
+
+          return (
+            textWidth <= availableWidth &&
+            textHeight <= availableHeight &&
+            textHeight <= maxTextHeight + 0.5 &&
+            estimatedLineCount <= normalizedMaxLines
+          );
+        };
+
+        let low = Math.ceil(minFontSize * 2);
+        let high = Math.floor(maxFontSize * 2);
+        let bestFontSize = low;
+
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2);
+          const candidateFontSize = mid / 2;
+
+          if (fitsAtFontSize(candidateFontSize)) {
+            bestFontSize = mid;
+            low = mid + 1;
+          } else {
+            high = mid - 1;
+          }
+        }
+
+        setFontSize(bestFontSize / 2);
         return;
       }
 
@@ -112,7 +170,14 @@ const AutoResizeText: React.FC<Props> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [children, maxFontSize, minFontSize, multiline]);
+  }, [
+    displayText,
+    hasLineLimit,
+    maxFontSize,
+    minFontSize,
+    multiline,
+    normalizedMaxLines,
+  ]);
 
   return (
     <p
@@ -120,15 +185,30 @@ const AutoResizeText: React.FC<Props> = ({
       className={className}
       style={{
         fontSize: `${Math.floor(fontSize)}px`,
-        whiteSpace: multiline ? 'pre' : 'nowrap',
-        wordBreak: multiline ? 'break-word' : 'normal',
-        overflowWrap: multiline ? 'break-word' : 'normal',
+        whiteSpace: hasLineLimit ? 'normal' : multiline ? 'pre' : 'nowrap',
+        wordBreak: hasLineLimit
+          ? 'break-word'
+          : multiline
+          ? 'break-word'
+          : 'normal',
+        overflowWrap: hasLineLimit
+          ? 'break-word'
+          : multiline
+          ? 'break-word'
+          : 'normal',
         overflow: 'visible',
+        ...(hasLineLimit
+          ? {
+              width: '100%',
+              maxWidth: '100%',
+              boxSizing: 'border-box' as const,
+            }
+          : {}),
         ...style,
       }}
       {...props}
     >
-      {children}
+      {displayText}
     </p>
   );
 };
