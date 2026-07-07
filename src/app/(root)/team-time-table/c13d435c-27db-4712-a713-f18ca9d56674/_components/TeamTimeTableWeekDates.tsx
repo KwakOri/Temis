@@ -23,8 +23,8 @@ const TeamTimeTableWeekDates = () => {
         letterSpacing: 4,
       }}
     >
-      {padZero(start.month + 1)}.{padZero(start.date)} -{' '}
-      {padZero(end.month + 1)}.{padZero(end.date)}
+      {padZero(start.month)}.{padZero(start.date)} - {padZero(end.month)}.
+      {padZero(end.date)}
     </p>
   );
 };

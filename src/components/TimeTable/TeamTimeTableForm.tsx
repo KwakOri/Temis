@@ -1,19 +1,23 @@
+import ImageCropModal from '@/components/ImageCropModal';
+import { FormCard } from '@/components/TimeTable/FixedComponents/FormCard';
+import CardTitle from '@/components/TimeTable/FixedComponents/CardTitle';
 import ImageSaveModal from '@/components/TimeTable/ImageSaveModal';
 import MondaySelector from '@/components/TimeTable/MondaySelector';
 import ResetButton from '@/components/TimeTable/ResetButton';
-import { FormCard } from '@/components/TimeTable/FixedComponents/FormCard';
 import TimeTableFormTabs from '@/components/TimeTable/TimeTableFormTabs';
-import CardTitle from '@/components/TimeTable/FixedComponents/CardTitle';
+import TimeTableProfileImageSelector from '@/components/TimeTable/TimeTableProfileImageSelector';
 import { useTimeTable } from '@/contexts/TimeTableContext';
 import {
   useHasActiveTeam,
   useSaveTeamScheduleFromDynamicCards,
 } from '@/hooks/query/useTeam';
 import { TeamService } from '@/services/teamService';
+import { CroppedAreaPixels } from '@/types/image-edit';
 import { TDefaultCard } from '@/types/time-table/data';
 import { useQuery } from '@tanstack/react-query';
 import { usePathname } from 'next/navigation';
-import React, { PropsWithChildren, useState } from 'react';
+import React, { PropsWithChildren, useRef, useState } from 'react';
+import { Point } from 'react-easy-crop';
 import TextareaRenderer from './fieldRenderer/TextareaRenderer';
 
 export interface UnregisteredMember {
@@ -28,20 +32,29 @@ interface TeamTimeTableFormProps {
   teamData?: TDefaultCard[];
   unregisteredMembers?: UnregisteredMember[];
   isMemo?: boolean;
+  isProfileImage?: boolean;
+  cropWidth?: number;
+  cropHeight?: number;
 }
 
 const TeamTimeTableForm = ({
   addons,
   children,
   isMemo = false,
+  isProfileImage = false,
   onReset,
   teamData,
   unregisteredMembers = [],
   saveable = true,
+  cropWidth = 400,
+  cropHeight = 400,
 }: PropsWithChildren<TeamTimeTableFormProps>) => {
   const { state, actions } = useTimeTable();
   const pathname = usePathname();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState('main');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [showCropModal, setShowCropModal] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
 
   const { data: isTeam = false } = useHasActiveTeam();
@@ -68,13 +81,114 @@ const TeamTimeTableForm = ({
     staleTime: 5 * 60 * 1000,
   });
 
-  const { memoText, mondayDateStr, isMemoTextVisible, captureSize } = state;
+  const {
+    memoText,
+    mondayDateStr,
+    imageSrc,
+    isMemoTextVisible,
+    captureSize,
+  } = state;
   const {
     handleDateChange,
     handleMemoTextChange,
     handleOptionClick,
+    updateImageSrc,
     downloadImage,
   } = actions;
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleEditClick = () => {
+    const editData = actions.startEditMode();
+    if (editData && editData.originalImageSrc) {
+      setSelectedImage(editData.originalImageSrc);
+      setShowCropModal(true);
+    } else {
+      alert('편집할 이미지가 없습니다.');
+    }
+  };
+
+  const handleImageDelete = () => {
+    updateImageSrc(null);
+    actions.resetImageEditData();
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const isPNG = file.type === 'image/png';
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      const result = reader.result as string;
+
+      if (isPNG) {
+        setSelectedImage(result);
+        actions.setOriginalImage(result, cropWidth, cropHeight);
+        setShowCropModal(true);
+        return;
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        if (!ctx) {
+          setSelectedImage(result);
+          actions.setOriginalImage(result, cropWidth, cropHeight);
+          setShowCropModal(true);
+          return;
+        }
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+
+        const pngDataUrl = canvas.toDataURL('image/png');
+        setSelectedImage(pngDataUrl);
+        actions.setOriginalImage(pngDataUrl, cropWidth, cropHeight);
+        setShowCropModal(true);
+      };
+      img.src = result;
+    };
+
+    reader.readAsDataURL(file);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleCropComplete = (
+    croppedImageSrc: string,
+    croppedAreaPixels?: CroppedAreaPixels,
+    crop?: Point,
+    zoom?: number,
+    rotation?: number
+  ) => {
+    updateImageSrc(croppedImageSrc);
+
+    if (selectedImage && croppedAreaPixels) {
+      actions.saveCroppedImage(croppedImageSrc, croppedAreaPixels);
+
+      if (crop && zoom !== undefined && rotation !== undefined) {
+        actions.updateEditProgress(crop, zoom, rotation);
+      }
+    }
+
+    setShowCropModal(false);
+    setSelectedImage(null);
+  };
+
+  const handleCropCancel = () => {
+    setShowCropModal(false);
+    setSelectedImage(null);
+  };
 
   const onChangeActiveTab = (nextTab: string) => {
     setActiveTab(nextTab);
@@ -119,6 +233,16 @@ const TeamTimeTableForm = ({
         onDateChange={handleDateChange}
       />
 
+      {isProfileImage && (
+        <TimeTableProfileImageSelector
+          handleEditClick={handleEditClick}
+          handleImageDelete={handleImageDelete}
+          handleUploadClick={handleUploadClick}
+          imageSrc={imageSrc}
+          size="sm"
+        />
+      )}
+
       {isMemo && (
         <FormCard
           size="sm"
@@ -158,6 +282,17 @@ const TeamTimeTableForm = ({
             </div>
           ))}
         </div>
+      )}
+
+      {isProfileImage && (
+        <input
+          ref={fileInputRef}
+          id="team-file-upload"
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFileSelect}
+        />
       )}
 
       {children}
@@ -201,6 +336,24 @@ const TeamTimeTableForm = ({
           </div>
         </div>
       </div>
+
+      {selectedImage && (
+        <ImageCropModal
+          isOpen={showCropModal}
+          onClose={handleCropCancel}
+          imageSrc={selectedImage}
+          onCropComplete={handleCropComplete}
+          cropWidth={cropWidth}
+          cropHeight={cropHeight}
+          initialCrop={state.imageEditData?.crop}
+          initialZoom={state.imageEditData?.zoom}
+          initialRotation={state.imageEditData?.rotation}
+          isEditMode={
+            !!state.imageEditData &&
+            selectedImage === state.imageEditData.originalImageSrc
+          }
+        />
+      )}
 
       <ImageSaveModal
         isTeamCalendar={isTeamCalendar}
