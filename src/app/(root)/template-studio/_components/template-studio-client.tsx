@@ -1195,7 +1195,13 @@ function Section({ title, open, onToggle, badge, children }: SectionProps) {
   );
 }
 
-export function TemplateStudioClient() {
+interface TemplateStudioClientProps {
+  initialRemoteTemplateId?: string | null;
+}
+
+export function TemplateStudioClient({
+  initialRemoteTemplateId = null,
+}: TemplateStudioClientProps) {
   const [document, setDocument] = useState<StudioTemplateDocument>(() =>
     createSampleStudioDocument(),
   );
@@ -1237,7 +1243,9 @@ export function TemplateStudioClient() {
     string | null
   >(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
-  const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(null);
+  const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
+    initialRemoteTemplateId,
+  );
   const [selectedRuntimeDayId, setSelectedRuntimeDayId] = useState("mon");
   const [selectedRuntimeEntryIndex, setSelectedRuntimeEntryIndex] = useState(0);
   const pastSnapshotsRef = useRef<StudioEditorHistorySnapshot[]>([]);
@@ -1253,6 +1261,7 @@ export function TemplateStudioClient() {
   const timetableLayerAutoExpandTimerRef = useRef<number | null>(null);
   const timetableLayerAutoExpandTargetRef = useRef<string | null>(null);
   const jsonImportInputRef = useRef<HTMLInputElement | null>(null);
+  const autoLoadedRemoteTemplateIdRef = useRef<string | null>(null);
   const documentRef = useRef(document);
   const runtimeValuesRef = useRef(runtimeValues);
   const selectedNodeIdRef = useRef<string | null>(selectedNodeId);
@@ -1270,6 +1279,12 @@ export function TemplateStudioClient() {
   const publishTemplateStudioDocumentMutation =
     usePublishTemplateStudioDocument();
   const uploadTemplateStudioAssetsMutation = useUploadTemplateStudioAssets();
+
+  useEffect(() => {
+    const nextTemplateId = initialRemoteTemplateId ?? null;
+    setRemoteTemplateId(nextTemplateId);
+    autoLoadedRemoteTemplateIdRef.current = null;
+  }, [initialRemoteTemplateId]);
 
   useEffect(() => {
     documentRef.current = document;
@@ -2136,6 +2151,37 @@ export function TemplateStudioClient() {
     [captureHistory, showShortcutStatus],
   );
 
+  useEffect(() => {
+    if (!initialRemoteTemplateId) return;
+    if (remoteTemplateId !== initialRemoteTemplateId) return;
+    if (autoLoadedRemoteTemplateIdRef.current === initialRemoteTemplateId) {
+      return;
+    }
+
+    const remoteTemplate = templateStudioTemplateQuery.data;
+    if (!remoteTemplate) return;
+
+    autoLoadedRemoteTemplateIdRef.current = initialRemoteTemplateId;
+
+    const source = remoteTemplate.draft ?? remoteTemplate.document;
+    if (!source) {
+      showShortcutStatus("Remote template is empty");
+      return;
+    }
+
+    applyRemoteTemplateState(
+      cloneDocument(source.document),
+      cloneRuntimeValues(source.runtimeValues),
+      remoteTemplate.draft ? "Loaded remote draft" : "Loaded published document",
+    );
+  }, [
+    applyRemoteTemplateState,
+    initialRemoteTemplateId,
+    remoteTemplateId,
+    showShortcutStatus,
+    templateStudioTemplateQuery.data,
+  ]);
+
   const prepareRemoteDocumentForPersistence = useCallback(
     async (templateId: string): Promise<StudioTemplateDocument> => {
       const currentDocument = documentRef.current;
@@ -2315,7 +2361,7 @@ export function TemplateStudioClient() {
         runtimeValues: currentRuntimeValues,
       });
 
-      const previewUrl = `/template-studio/preview?previewKey=${encodeURIComponent(
+      const previewUrl = `/admin/template-studio/preview?previewKey=${encodeURIComponent(
         key,
       )}`;
       const previewWindow = window.open(previewUrl, "_blank");
@@ -2337,7 +2383,7 @@ export function TemplateStudioClient() {
       return;
     }
 
-    const previewUrl = `/template-studio/preview/${remoteTemplateId}`;
+    const previewUrl = `/admin/template-studio/${remoteTemplateId}/preview`;
     const previewWindow = window.open(previewUrl, "_blank");
 
     if (!previewWindow) {

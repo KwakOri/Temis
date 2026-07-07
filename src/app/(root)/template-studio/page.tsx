@@ -1,5 +1,7 @@
-import { TemplateStudioClient } from "./_components/template-studio-client";
+import { redirect } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 
 export default function TemplateStudioPage() {
-  return <TemplateStudioClient />;
+  redirect("/admin/template-studio");
 }
