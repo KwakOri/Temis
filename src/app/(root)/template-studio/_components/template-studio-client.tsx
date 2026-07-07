@@ -151,6 +151,10 @@ import {
   parseStudioTemplateExportJson,
 } from "@/utils/template-studio/serialization";
 import {
+  createTemplateStudioPreviewStorageKey,
+  writeTemplateStudioPreviewStorage,
+} from "@/utils/template-studio/preview-storage";
+import {
   createStudioStatusCardBackgroundExceptionMeta,
   getStudioStatusCardBackgroundStatuses,
   isStudioStatusCardBackgroundNode,
@@ -2113,6 +2117,52 @@ export function TemplateStudioClient() {
     prepareRemoteDocumentForPersistence,
     showShortcutStatus,
   ]);
+
+  const openRuntimeDraftPreview = useCallback(() => {
+    try {
+      const key = createTemplateStudioPreviewStorageKey();
+      const currentDocument = cloneDocument(documentRef.current);
+      const currentRuntimeValues = cloneRuntimeValues(runtimeValuesRef.current);
+
+      writeTemplateStudioPreviewStorage(key, {
+        version: 1,
+        createdAt: Date.now(),
+        source: "draft",
+        templateId: remoteTemplateId,
+        templateName: currentDocument.metadata.name,
+        document: currentDocument,
+        runtimeValues: currentRuntimeValues,
+      });
+
+      const previewUrl = `/template-studio/preview?previewKey=${encodeURIComponent(
+        key,
+      )}`;
+      const previewWindow = window.open(previewUrl, "_blank");
+
+      if (!previewWindow) {
+        window.location.assign(previewUrl);
+      }
+
+      showShortcutStatus("Opened runtime preview");
+    } catch (error) {
+      console.error("Template Studio preview open failed:", error);
+      showShortcutStatus("Preview open failed");
+    }
+  }, [remoteTemplateId, showShortcutStatus]);
+
+  const openPublishedPreview = useCallback(() => {
+    if (!remoteTemplateId) {
+      showShortcutStatus("Save or publish a remote template first");
+      return;
+    }
+
+    const previewUrl = `/template-studio/preview/${remoteTemplateId}`;
+    const previewWindow = window.open(previewUrl, "_blank");
+
+    if (!previewWindow) {
+      window.location.assign(previewUrl);
+    }
+  }, [remoteTemplateId, showShortcutStatus]);
 
   const updateDocument = useCallback(
     (
@@ -7712,7 +7762,7 @@ export function TemplateStudioClient() {
           </div>
         </div>
 
-        <div className="ml-auto flex min-w-[220px] items-center justify-end gap-2">
+        <div className="ml-auto flex min-w-[300px] items-center justify-end gap-2">
           <div className="flex h-[30px] items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-1">
             <button
               className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
@@ -7797,10 +7847,22 @@ export function TemplateStudioClient() {
               void importStudioJsonFile(file);
             }}
           />
+          <button
+            className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            title="Open runtime preview"
+            type="button"
+            onClick={openRuntimeDraftPreview}
+          >
+            <ArrowUpRight className="h-3.5 w-3.5" />
+            Preview
+          </button>
           <div className="mx-0.5 h-[22px] w-px bg-[var(--border)]" />
           <button
-            className="h-[30px] rounded-lg bg-[var(--accent)] px-3.5 text-xs font-semibold tracking-[0.01em] text-white"
+            className="h-[30px] rounded-lg bg-[var(--accent)] px-3.5 text-xs font-semibold tracking-[0.01em] text-white transition disabled:cursor-not-allowed disabled:opacity-45"
+            disabled={!remoteTemplateId}
+            title="Open published preview"
             type="button"
+            onClick={openPublishedPreview}
           >
             공유
           </button>
