@@ -11,11 +11,15 @@ import {
   StudioStyleRecord,
   StudioTemplateDocument,
   StudioTimetableDayCardsLayout,
+  StudioTimetableDayCardsAlignLastRow,
+  StudioTimetableDayCardsFillOrder,
+  StudioTimetableDayCardsGridPreset,
   StudioTimetableDomain,
   StudioTimetableAssetSlot,
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
 import { resolveStudioTextBinding } from "@/utils/template-studio/binding-resolver";
+import { resolveStudioWeekDateText } from "@/utils/template-studio/date-template";
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import {
   getStudioTimetableComposition,
@@ -38,13 +42,140 @@ export const STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT = {
   left: 434,
   top: 760,
   dayWidth: 420,
+  gridPreset: "1x7",
+  columns: 7,
+  rows: 1,
   dayGap: 32,
+  columnGap: 32,
+  rowGap: 32,
+  fillOrder: "row",
+  alignLastRow: "start",
   padding: 28,
   headerHeight: 76,
   entryPreviewWidth: 360,
   entryPreviewHeight: 212,
   entryGap: 24,
 } satisfies StudioTimetableDayCardsLayout;
+
+export const STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS = [
+  { id: "1x7", label: "7 columns", columns: 7, rows: 1 },
+  { id: "7x1", label: "1 column", columns: 1, rows: 7 },
+  { id: "4x2", label: "4 x 2", columns: 4, rows: 2 },
+  { id: "3x3", label: "3 x 3", columns: 3, rows: 3 },
+  { id: "custom", label: "Custom", columns: 7, rows: 1 },
+] as const;
+
+type StudioTimetableDayCardGridPosition = {
+  column: number;
+  row: number;
+};
+
+export type StudioTimetableDayCardGeometry = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+const clampGridSize = (value: unknown, fallback: number) => {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(12, Math.max(1, Math.round(parsed)));
+};
+
+const getDayCardGridPreset = (preset: StudioTimetableDayCardsGridPreset) =>
+  STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS.find(
+    (candidate) => candidate.id === preset,
+  ) ?? STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS[0];
+
+const getAlignedIncompleteTrackOffset = (
+  trackCount: number,
+  itemCount: number,
+  align: StudioTimetableDayCardsAlignLastRow,
+) => {
+  const remainingTracks = Math.max(0, trackCount - itemCount);
+  if (align === "center") return remainingTracks / 2;
+  if (align === "end") return remainingTracks;
+  return 0;
+};
+
+const getGeneratedDayCardGridPosition = ({
+  dayIndex,
+  dayCount,
+  columns,
+  rows,
+  fillOrder,
+  alignLastRow,
+}: {
+  dayIndex: number;
+  dayCount: number;
+  columns: number;
+  rows: number;
+  fillOrder: StudioTimetableDayCardsFillOrder;
+  alignLastRow: StudioTimetableDayCardsAlignLastRow;
+}): StudioTimetableDayCardGridPosition => {
+  if (fillOrder === "column") {
+    const column = Math.floor(dayIndex / rows);
+    const indexInColumn = dayIndex % rows;
+    const lastColumn = Math.floor((dayCount - 1) / rows);
+    const lastColumnCount = ((dayCount - 1) % rows) + 1;
+    const rowOffset =
+      column === lastColumn && lastColumnCount < rows
+        ? getAlignedIncompleteTrackOffset(
+            rows,
+            lastColumnCount,
+            alignLastRow,
+          )
+        : 0;
+
+    return {
+      column,
+      row: indexInColumn + rowOffset,
+    };
+  }
+
+  const row = Math.floor(dayIndex / columns);
+  const indexInRow = dayIndex % columns;
+  const lastRow = Math.floor((dayCount - 1) / columns);
+  const lastRowCount = ((dayCount - 1) % columns) + 1;
+  const columnOffset =
+    row === lastRow && lastRowCount < columns
+      ? getAlignedIncompleteTrackOffset(columns, lastRowCount, alignLastRow)
+      : 0;
+
+  return {
+    column: indexInRow + columnOffset,
+    row,
+  };
+};
+
+const getDayCardGridPosition = (
+  layout: StudioTimetableDayCardsLayout,
+  dayId: StudioTimetableDayId,
+  dayIndex: number,
+  dayCount: number,
+): StudioTimetableDayCardGridPosition => {
+  const columns = layout.columns ?? 7;
+  const rows = layout.rows ?? 1;
+  const slots = layout.slots ?? [];
+  const slotIndex = slots.findIndex((slotDayId) => slotDayId === dayId);
+
+  if (slotIndex >= 0) {
+    return {
+      column: slotIndex % columns,
+      row: Math.floor(slotIndex / columns),
+    };
+  }
+
+  return getGeneratedDayCardGridPosition({
+    dayIndex,
+    dayCount,
+    columns,
+    rows,
+    fillOrder: layout.fillOrder ?? "row",
+    alignLastRow: layout.alignLastRow ?? "start",
+  });
+};
 
 export const getStudioTimetablePreviewSize = (
   timetable?: StudioTimetableDomain,
@@ -56,13 +187,56 @@ export const getStudioTimetablePreviewSize = (
 
 export const getStudioTimetableDayCardsLayout = (
   timetable?: StudioTimetableDomain,
-): StudioTimetableDayCardsLayout => ({
-  ...STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT,
-  ...(timetable?.dayCardsLayout ?? {}),
-  dayOffsets: {
-    ...(timetable?.dayCardsLayout?.dayOffsets ?? {}),
-  },
-});
+): StudioTimetableDayCardsLayout => {
+  const rawLayout = {
+    ...STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT,
+    ...(timetable?.dayCardsLayout ?? {}),
+  };
+  const dayCount = Math.max(1, timetable?.dayIds.length ?? 7);
+  const rawPreset = rawLayout.gridPreset ?? "1x7";
+  const gridPreset: StudioTimetableDayCardsGridPreset =
+    rawPreset === "custom" ||
+    rawPreset === "7x1" ||
+    rawPreset === "4x2" ||
+    rawPreset === "3x3"
+      ? rawPreset
+      : "1x7";
+  const preset = getDayCardGridPreset(gridPreset);
+  const columns =
+    gridPreset === "custom"
+      ? clampGridSize(rawLayout.columns, preset.columns)
+      : preset.columns;
+  const rows =
+    gridPreset === "custom"
+      ? Math.max(
+          clampGridSize(rawLayout.rows, preset.rows),
+          Math.ceil(dayCount / columns),
+        )
+      : Math.max(preset.rows, Math.ceil(dayCount / columns));
+  const columnGap =
+    typeof rawLayout.columnGap === "number"
+      ? rawLayout.columnGap
+      : rawLayout.dayGap;
+  const rowGap =
+    typeof rawLayout.rowGap === "number" ? rawLayout.rowGap : rawLayout.dayGap;
+  const slotCount = columns * rows;
+
+  return {
+    ...rawLayout,
+    gridPreset,
+    columns,
+    rows,
+    dayGap: columnGap,
+    columnGap,
+    rowGap,
+    fillOrder: rawLayout.fillOrder ?? "row",
+    alignLastRow: rawLayout.alignLastRow ?? "start",
+    slots: (rawLayout.slots ?? []).slice(0, slotCount),
+    dayOffsets: {
+      ...(rawLayout.dayOffsets ?? {}),
+    },
+  };
+};
 
 export const getStudioTimetableDayCardHeight = (
   layout: StudioTimetableDayCardsLayout,
@@ -79,33 +253,147 @@ export const getStudioTimetableDayCardGeometry = (
   entryCount: number,
 ) => {
   const offset = layout.dayOffsets?.[dayId] ?? { left: 0, top: 0 };
+  const position = getDayCardGridPosition(layout, dayId, dayIndex, dayIndex + 1);
 
   return {
     left:
-      layout.left + dayIndex * (layout.dayWidth + layout.dayGap) + offset.left,
-    top: layout.top + offset.top,
+      layout.left +
+      position.column * (layout.dayWidth + (layout.columnGap ?? layout.dayGap)) +
+      offset.left,
+    top:
+      layout.top +
+      position.row *
+        (getStudioTimetableDayCardHeight(layout, entryCount) +
+          (layout.rowGap ?? layout.dayGap)) +
+      offset.top,
     width: layout.dayWidth,
     height: getStudioTimetableDayCardHeight(layout, entryCount),
   };
+};
+
+export const getStudioTimetableDayCardGeometries = (
+  layout: StudioTimetableDayCardsLayout,
+  days: StudioTimetableDayDefinition[],
+  getEntryCount: (dayId: StudioTimetableDayId) => number,
+): Record<StudioTimetableDayId, StudioTimetableDayCardGeometry> => {
+  const rowHeights = Array.from({ length: layout.rows ?? 1 }, () => 0);
+  const explicitPositions = new Map<
+    StudioTimetableDayId,
+    StudioTimetableDayCardGridPosition
+  >();
+  const slots = layout.slots ?? [];
+
+  if (slots.length > 0) {
+    const emptySlotIndexes: number[] = [];
+    const usedDayIds = new Set<StudioTimetableDayId>();
+
+    slots.forEach((slotDayId, slotIndex) => {
+      if (slotDayId && !usedDayIds.has(slotDayId)) {
+        usedDayIds.add(slotDayId);
+        explicitPositions.set(slotDayId, {
+          column: slotIndex % (layout.columns ?? 1),
+          row: Math.floor(slotIndex / (layout.columns ?? 1)),
+        });
+        return;
+      }
+
+      emptySlotIndexes.push(slotIndex);
+    });
+
+    let nextEmptySlotIndex = 0;
+    days.forEach((day) => {
+      if (explicitPositions.has(day.id)) return;
+
+      const slotIndex = emptySlotIndexes[nextEmptySlotIndex];
+      nextEmptySlotIndex += 1;
+      if (slotIndex === undefined) return;
+
+      explicitPositions.set(day.id, {
+        column: slotIndex % (layout.columns ?? 1),
+        row: Math.floor(slotIndex / (layout.columns ?? 1)),
+      });
+    });
+  }
+
+  const dayPositions = days.map((day, dayIndex) => {
+    const entryCount = getEntryCount(day.id);
+    const height = getStudioTimetableDayCardHeight(layout, entryCount);
+    const position =
+      explicitPositions.get(day.id) ??
+      getDayCardGridPosition(layout, day.id, dayIndex, days.length);
+    const rowIndex = Math.max(0, Math.floor(position.row));
+    rowHeights[rowIndex] = Math.max(rowHeights[rowIndex] ?? 0, height);
+
+    return {
+      day,
+      height,
+      position,
+    };
+  });
+  const rowTops: number[] = [];
+
+  rowHeights.forEach((rowHeight, rowIndex) => {
+    rowTops[rowIndex] =
+      rowIndex === 0
+        ? layout.top
+        : rowTops[rowIndex - 1] +
+          (rowHeights[rowIndex - 1] ?? 0) +
+          (layout.rowGap ?? layout.dayGap);
+  });
+
+  return Object.fromEntries(
+    dayPositions.map(({ day, height, position }) => {
+      const offset = layout.dayOffsets?.[day.id] ?? { left: 0, top: 0 };
+      return [
+        day.id,
+        {
+          left:
+            layout.left +
+            position.column *
+              (layout.dayWidth + (layout.columnGap ?? layout.dayGap)) +
+            offset.left,
+          top: (rowTops[Math.floor(position.row)] ?? layout.top) + offset.top,
+          width: layout.dayWidth,
+          height,
+        },
+      ];
+    }),
+  );
 };
 
 export const getStudioTimetableDayCardsBounds = (
   layout: StudioTimetableDayCardsLayout,
   days: StudioTimetableDayDefinition[],
   getEntryCount: (dayId: StudioTimetableDayId) => number,
-) => ({
-  left: layout.left,
-  top: layout.top,
-  width:
-    Math.max(1, days.length) * layout.dayWidth +
-    Math.max(0, days.length - 1) * layout.dayGap,
-  height: Math.max(
-    ...days.map((day) =>
-      getStudioTimetableDayCardHeight(layout, getEntryCount(day.id)),
-    ),
-    getStudioTimetableDayCardHeight(layout, 1),
-  ),
-});
+) => {
+  const geometries = Object.values(
+    getStudioTimetableDayCardGeometries(layout, days, getEntryCount),
+  );
+  if (geometries.length === 0) {
+    return {
+      left: layout.left,
+      top: layout.top,
+      width: layout.dayWidth,
+      height: getStudioTimetableDayCardHeight(layout, 1),
+    };
+  }
+
+  const left = Math.min(...geometries.map((geometry) => geometry.left));
+  const top = Math.min(...geometries.map((geometry) => geometry.top));
+  const right = Math.max(
+    ...geometries.map((geometry) => geometry.left + geometry.width),
+  );
+  const bottom = Math.max(
+    ...geometries.map((geometry) => geometry.top + geometry.height),
+  );
+
+  return {
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+  };
+};
 
 const getNumericStyleValue = (
   styleRecord: StudioStyleRecord | undefined,
@@ -125,81 +413,6 @@ const getStringStyleValue = (
   return typeof value === "string" ? value : fallback;
 };
 
-const parseIsoDateParts = (value: string | undefined) => {
-  if (!value) return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return null;
-  return {
-    year: match[1],
-    month: match[2],
-    day: match[3],
-  };
-};
-
-const getDatePartsWithDayOffset = (
-  value: string | undefined,
-  offset: number,
-) => {
-  const parts = parseIsoDateParts(value);
-  if (!parts) return null;
-
-  const date = new Date(
-    Date.UTC(
-      Number(parts.year),
-      Number(parts.month) - 1,
-      Number(parts.day) + offset,
-    ),
-  );
-
-  return {
-    year: String(date.getUTCFullYear()).padStart(4, "0"),
-    month: String(date.getUTCMonth() + 1).padStart(2, "0"),
-    day: String(date.getUTCDate()).padStart(2, "0"),
-  };
-};
-
-const formatDateParts = (
-  parts: ReturnType<typeof parseIsoDateParts>,
-  options: { includeYear: boolean },
-) => {
-  if (!parts) return "";
-  return options.includeYear
-    ? `${parts.year}.${parts.month}.${parts.day}`
-    : `${parts.month}.${parts.day}`;
-};
-
-const formatLocalizedDateParts = (
-  parts: ReturnType<typeof parseIsoDateParts>,
-  options: { includeYear: boolean },
-) => {
-  if (!parts) return "";
-  const date = new Date(
-    Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)),
-  );
-  const formatter = new Intl.DateTimeFormat(undefined, {
-    month: "short",
-    day: "2-digit",
-    year: options.includeYear ? "numeric" : undefined,
-    timeZone: "UTC",
-  });
-  return formatter.format(date);
-};
-
-const getWeekStartParts = (document: StudioTemplateDocument) =>
-  parseIsoDateParts(document.domains?.timetable?.week?.startDate);
-
-const getWeekEndParts = (document: StudioTemplateDocument) => {
-  const timetable = document.domains?.timetable;
-  const explicitEndParts = parseIsoDateParts(timetable?.week?.endDate);
-  if (explicitEndParts) return explicitEndParts;
-
-  if (!timetable?.week?.startDate) return null;
-  return getDatePartsWithDayOffset(
-    timetable.week.startDate,
-    Math.max(0, timetable.dayIds.length - 1),
-  );
-};
-
 const isWeekDatesObject = (object: StudioTimetableCompositionObject) =>
   object.presetId === "weekDates" ||
   object.meta?.exception?.semanticKey === "weekDates";
@@ -208,42 +421,14 @@ const resolveWeekDatesText = (
   document: StudioTemplateDocument,
   object: StudioTimetableCompositionObject,
 ) => {
-  const start = getWeekStartParts(document);
-  const end = getWeekEndParts(document);
-  if (!start && !end) return "";
-
   const format = getStringStyleValue(
     object.style,
     "dateRangeFormat",
     "long",
   );
-  const first = start ?? end;
-  const last = end ?? start;
+  const template = getStringStyleValue(object.style, "dateRangeTemplate", "");
 
-  if (format === "short") {
-    return `${formatDateParts(first, { includeYear: false })} - ${formatDateParts(
-      last,
-      { includeYear: false },
-    )}`;
-  }
-
-  if (format === "localized") {
-    return `${formatLocalizedDateParts(first, {
-      includeYear: false,
-    })} - ${formatLocalizedDateParts(last, { includeYear: true })}`;
-  }
-
-  if (format === "split") {
-    return `${formatDateParts(first, { includeYear: true })}\n${formatDateParts(
-      last,
-      { includeYear: false },
-    )}`;
-  }
-
-  return `${formatDateParts(first, { includeYear: true })} - ${formatDateParts(
-    last,
-    { includeYear: false },
-  )}`;
+  return resolveStudioWeekDateText(document, { format, template });
 };
 
 const getEntryPreviewGeometry = (
@@ -335,6 +520,7 @@ const getTimetableObjectStyle = (
 ): React.CSSProperties => {
   const { rotateDeg, ...styleRecord } = object.style;
   delete styleRecord.dateRangeFormat;
+  delete styleRecord.dateRangeTemplate;
   delete styleRecord.assetMode;
   delete styleRecord.assetPosition;
   delete styleRecord.assetGap;
@@ -401,10 +587,17 @@ export function StudioTimetablePreview({
   const previewSize = getStudioTimetablePreviewSize(timetable);
   const dayCardsLayout = getStudioTimetableDayCardsLayout(timetable);
   const composition = getStudioTimetableComposition(timetable);
+  const getPreviewEntryCount = (dayId: StudioTimetableDayId) =>
+    entriesByDay[dayId]?.length ?? 0;
+  const dayCardGeometries = getStudioTimetableDayCardGeometries(
+    dayCardsLayout,
+    days,
+    getPreviewEntryCount,
+  );
   const dayCardsBounds = getStudioTimetableDayCardsBounds(
     dayCardsLayout,
     days,
-    (dayId) => entriesByDay[dayId]?.length ?? 0,
+    getPreviewEntryCount,
   );
 
   const renderDayCardsObject = () => (
@@ -427,12 +620,14 @@ export function StudioTimetablePreview({
     >
       {days.map((day, dayIndex) => {
         const entries = entriesByDay[day.id] ?? [];
-        const dayGeometry = getStudioTimetableDayCardGeometry(
-          dayCardsLayout,
-          day.id,
-          dayIndex,
-          entries.length,
-        );
+        const dayGeometry =
+          dayCardGeometries[day.id] ??
+          getStudioTimetableDayCardGeometry(
+            dayCardsLayout,
+            day.id,
+            dayIndex,
+            entries.length,
+          );
         const selected = selectedLayerId === `day-card:${day.id}`;
 
         return (

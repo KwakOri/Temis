@@ -4,6 +4,14 @@ import {
   StudioRuntimeValues,
   StudioTemplateDocument,
 } from "@/types/template-studio";
+import {
+  formatStudioDateParts,
+  getStudioDatePartsWithDayOffset,
+  getStudioWeekEndParts,
+  getStudioWeekStartParts,
+  parseStudioIsoDateParts,
+  resolveStudioWeekDateText,
+} from "@/utils/template-studio/date-template";
 import { type StudioRuntimeContext } from "@/utils/template-studio/input-values";
 import { isStudioTimetableCapabilityEnabled } from "@/utils/template-studio/timetable-capabilities";
 
@@ -146,74 +154,16 @@ const getStatusDefinition = (
 
 const getBooleanText = (value: boolean): string => (value ? "Yes" : "No");
 
-const parseIsoDateParts = (value?: string) => {
-  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!match) return null;
-
-  return {
-    year: match[1],
-    month: match[2],
-    day: match[3],
-  };
-};
-
-const getDatePartsWithDayOffset = (
-  value: string | undefined,
-  offset: number,
-) => {
-  const parts = parseIsoDateParts(value);
-  if (!parts) return null;
-
-  const date = new Date(
-    Date.UTC(
-      Number(parts.year),
-      Number(parts.month) - 1,
-      Number(parts.day) + offset,
-    ),
-  );
-
-  return {
-    year: String(date.getUTCFullYear()).padStart(4, "0"),
-    month: String(date.getUTCMonth() + 1).padStart(2, "0"),
-    day: String(date.getUTCDate()).padStart(2, "0"),
-  };
-};
-
-const formatDateParts = (
-  parts: ReturnType<typeof parseIsoDateParts>,
-  options: { includeYear: boolean },
-): string => {
-  if (!parts) return "";
-  return options.includeYear
-    ? `${parts.year}.${parts.month}.${parts.day}`
-    : `${parts.month}.${parts.day}`;
-};
-
 const getDayDateParts = (
   document: StudioTemplateDocument,
   context: StudioRuntimeContext = {},
 ) => {
   const timetable = document.domains?.timetable;
   const day = context.dayId ? timetable?.days[context.dayId] : null;
-  if (day?.date) return parseIsoDateParts(day.date);
+  if (day?.date) return parseStudioIsoDateParts(day.date);
 
   if (!day || !timetable?.week?.startDate) return null;
-  return getDatePartsWithDayOffset(timetable.week.startDate, day.order);
-};
-
-const getWeekStartParts = (document: StudioTemplateDocument) =>
-  parseIsoDateParts(document.domains?.timetable?.week?.startDate);
-
-const getWeekEndParts = (document: StudioTemplateDocument) => {
-  const timetable = document.domains?.timetable;
-  const explicitEndParts = parseIsoDateParts(timetable?.week?.endDate);
-  if (explicitEndParts) return explicitEndParts;
-
-  if (!timetable?.week?.startDate) return null;
-  return getDatePartsWithDayOffset(
-    timetable.week.startDate,
-    Math.max(0, timetable.dayIds.length - 1),
-  );
+  return getStudioDatePartsWithDayOffset(timetable.week.startDate, day.order);
 };
 
 export const resolveStudioBuiltinFieldValue = (
@@ -232,7 +182,7 @@ export const resolveStudioBuiltinFieldValue = (
   if (fieldId === "day.label") return day?.label ?? "";
   if (fieldId === "day.short_label") return day?.shortLabel ?? day?.label ?? "";
   if (fieldId === "day.date") {
-    return formatDateParts(getDayDateParts(document, context), {
+    return formatStudioDateParts(getDayDateParts(document, context), {
       includeYear: false,
     });
   }
@@ -253,23 +203,19 @@ export const resolveStudioBuiltinFieldValue = (
   }
 
   if (fieldId === "week.start_date") {
-    return formatDateParts(getWeekStartParts(document), { includeYear: true });
+    return formatStudioDateParts(getStudioWeekStartParts(document), {
+      includeYear: true,
+    });
   }
 
   if (fieldId === "week.end_date") {
-    return formatDateParts(getWeekEndParts(document), { includeYear: true });
+    return formatStudioDateParts(getStudioWeekEndParts(document), {
+      includeYear: true,
+    });
   }
 
   if (fieldId === "week.date_range") {
-    const start = getWeekStartParts(document);
-    const end = getWeekEndParts(document);
-    if (!start && !end) return "";
-    if (!start) return formatDateParts(end, { includeYear: true });
-    if (!end) return formatDateParts(start, { includeYear: true });
-    return `${formatDateParts(start, { includeYear: true })} - ${formatDateParts(
-      end,
-      { includeYear: false },
-    )}`;
+    return resolveStudioWeekDateText(document);
   }
 
   if (fieldId === "entry.main_title") {

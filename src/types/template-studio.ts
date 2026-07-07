@@ -231,11 +231,28 @@ export interface StudioTimetableDayCardOffset {
   top: number;
 }
 
+export type StudioTimetableDayCardsGridPreset =
+  | "1x7"
+  | "7x1"
+  | "4x2"
+  | "3x3"
+  | "custom";
+export type StudioTimetableDayCardsFillOrder = "row" | "column";
+export type StudioTimetableDayCardsAlignLastRow = "start" | "center" | "end";
+
 export interface StudioTimetableDayCardsLayout {
   left: number;
   top: number;
   dayWidth: number;
+  gridPreset?: StudioTimetableDayCardsGridPreset;
+  columns?: number;
+  rows?: number;
   dayGap: number;
+  columnGap?: number;
+  rowGap?: number;
+  fillOrder?: StudioTimetableDayCardsFillOrder;
+  alignLastRow?: StudioTimetableDayCardsAlignLastRow;
+  slots?: Array<StudioTimetableDayId | null>;
   padding: number;
   headerHeight: number;
   entryPreviewWidth: number;
