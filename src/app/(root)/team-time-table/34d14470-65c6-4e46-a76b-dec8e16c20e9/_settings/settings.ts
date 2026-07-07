@@ -118,6 +118,8 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
 /** Profile Image 크기 */
 
 export const profileTextPlaceholder = '아티스트 명';
+export const profileImageWidth = 982;
+export const profileImageHeight = 405;
 
 /** ---------------------------------------------- */
 type SettingsType = {
@@ -140,8 +142,8 @@ export const Settings: SettingsType = {
     height: 300,
   },
   profile_image: {
-    width: 982,
-    height: 405,
+    width: profileImageWidth,
+    height: profileImageHeight,
   },
   card_online: {
     width: 408,
