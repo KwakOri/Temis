@@ -17,6 +17,8 @@ import { placeholders } from "../../_settings/general";
 import {
   CARD_INPUT_CONFIG,
   defaultTheme,
+  profileImageHeight,
+  profileImageWidth,
   team_ids,
   templateSize,
 } from "../../_settings/settings";
@@ -120,6 +122,8 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TeamTimeTableForm
+          cropHeight={profileImageHeight}
+          cropWidth={profileImageWidth}
           onReset={resetData}
           unregisteredMembers={unregisteredMembers}
           addons={isGuideEnabled && <TimeTableDesignGuideController />}

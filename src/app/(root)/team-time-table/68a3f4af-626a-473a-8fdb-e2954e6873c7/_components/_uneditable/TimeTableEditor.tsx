@@ -19,6 +19,8 @@ import {
   CARD_INPUT_CONFIG,
   defaultTheme,
   memberNamesMap,
+  profileImageHeight,
+  profileImageWidth,
   team_ids,
   templateSize,
 } from '../../_settings/settings';
@@ -143,6 +145,8 @@ const TimeTableEditorContent: React.FC = () => {
           />
         </TimeTablePreview>
         <TeamTimeTableForm
+          cropHeight={profileImageHeight}
+          cropWidth={profileImageWidth}
           isMemo
           onReset={resetData}
           unregisteredMembers={unregisteredMembers}
