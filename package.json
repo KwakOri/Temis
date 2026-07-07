@@ -18,6 +18,7 @@
     "check:v2-orderkey": "tsx scripts/check-v2-orderkey.ts",
     "check:template-studio:persistence": "tsx scripts/check-template-studio-persistence.ts",
     "check:template-studio:api": "tsx scripts/check-template-studio-api.ts",
+    "check:template-studio:preview-assets": "tsx scripts/check-template-studio-preview-assets.ts",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"
   },
   "dependencies": {

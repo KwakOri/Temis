@@ -47,6 +47,10 @@ import {
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
 import {
+  TemplateStudioPreviewAssetService,
+  type TemplateStudioPreviewAssetUploadItem,
+} from "@/services/templateStudioPreviewAssetService";
+import {
   StudioBuiltinFieldId,
   StudioGraphNode,
   StudioGraphNodeType,
@@ -151,7 +155,9 @@ import {
   parseStudioTemplateExportJson,
 } from "@/utils/template-studio/serialization";
 import {
+  createTemplateStudioPreviewId,
   createTemplateStudioPreviewStorageKey,
+  getOrCreateTemplateStudioPreviewRunId,
   writeTemplateStudioPreviewStorage,
 } from "@/utils/template-studio/preview-storage";
 import {
@@ -338,6 +344,153 @@ const cloneRuntimeValues = (
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
 
 const cloneJson = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+type StudioPreviewAssetReplacement = TemplateStudioPreviewAssetUploadItem & {
+  applyUrl: (url: string) => void;
+};
+
+const DATA_IMAGE_URL_PATTERN = /^data:(image\/[^;,]+)((?:;[^,]+)*),([\s\S]*)$/;
+const DATA_IMAGE_EXTENSION: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/svg+xml": "svg",
+  "image/webp": "webp",
+};
+
+const sanitizePreviewFileSegment = (value: string, fallback: string): string => {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return normalized.length > 0 ? normalized : fallback;
+};
+
+const dataImageUrlToFile = (
+  src: string,
+  fallbackName: string,
+): File | null => {
+  const match = src.match(DATA_IMAGE_URL_PATTERN);
+  if (!match) return null;
+
+  const mimeType = match[1];
+  const extension = DATA_IMAGE_EXTENSION[mimeType];
+  if (!extension) return null;
+
+  const parameters = match[2]
+    .split(";")
+    .map((parameter) => parameter.trim().toLowerCase())
+    .filter(Boolean);
+  const data = match[3];
+
+  try {
+    const buffer = parameters.includes("base64")
+      ? Uint8Array.from(window.atob(data), (character) =>
+          character.charCodeAt(0),
+        )
+      : new TextEncoder().encode(decodeURIComponent(data));
+    if (buffer.byteLength === 0) return null;
+
+    return new File(
+      [buffer],
+      `${sanitizePreviewFileSegment(fallbackName, "asset")}.${extension}`,
+      { type: mimeType },
+    );
+  } catch {
+    return null;
+  }
+};
+
+const collectStudioPreviewAssetReplacements = (
+  document: StudioTemplateDocument,
+  runtimeValues: StudioRuntimeValues,
+): StudioPreviewAssetReplacement[] => {
+  const replacements: StudioPreviewAssetReplacement[] = [];
+  const appendReplacement = ({
+    clientId,
+    source,
+    src,
+    applyUrl,
+  }: {
+    clientId: string;
+    source: string;
+    src: string;
+    applyUrl: (url: string) => void;
+  }) => {
+    if (!DATA_IMAGE_URL_PATTERN.test(src)) return;
+
+    const file = dataImageUrlToFile(src, clientId);
+    if (!file) return;
+
+    replacements.push({
+      clientId,
+      source,
+      file,
+      applyUrl,
+    });
+  };
+
+  Object.values(document.assets).forEach((asset) => {
+    appendReplacement({
+      clientId: `document-asset-${asset.id}`,
+      source: `document.assets.${asset.id}.src`,
+      src: asset.src,
+      applyUrl: (url) => {
+        asset.src = url;
+      },
+    });
+  });
+
+  Object.values(document.inputs).forEach((input) => {
+    if (input.type !== "image") return;
+
+    const globalValue = runtimeValues.global[input.id];
+    if (globalValue) {
+      appendReplacement({
+        clientId: `runtime-global-${input.id}`,
+        source: `runtime.global.${input.id}`,
+        src: globalValue,
+        applyUrl: (url) => {
+          runtimeValues.global[input.id] = url;
+        },
+      });
+    }
+
+    Object.entries(runtimeValues.days).forEach(([dayId, dayValues]) => {
+      const dayValue = dayValues[input.id];
+      if (!dayValue) return;
+
+      appendReplacement({
+        clientId: `runtime-day-${dayId}-${input.id}`,
+        source: `runtime.days.${dayId}.${input.id}`,
+        src: dayValue,
+        applyUrl: (url) => {
+          dayValues[input.id] = url;
+        },
+      });
+    });
+
+    Object.entries(runtimeValues.entries).forEach(([dayId, entries]) => {
+      entries.forEach((entryValues, entryIndex) => {
+        const entryValue = entryValues[input.id];
+        if (!entryValue) return;
+
+        appendReplacement({
+          clientId: `runtime-entry-${dayId}-${entryIndex}-${input.id}`,
+          source: `runtime.entries.${dayId}.${entryIndex}.${input.id}`,
+          src: entryValue,
+          applyUrl: (url) => {
+            entryValues[input.id] = url;
+          },
+        });
+      });
+    });
+  });
+
+  return replacements;
+};
 
 const getUniqueStudioInputLabel = (
   document: StudioTemplateDocument,
@@ -2118,16 +2271,44 @@ export function TemplateStudioClient() {
     showShortcutStatus,
   ]);
 
-  const openRuntimeDraftPreview = useCallback(() => {
+  const openRuntimeDraftPreview = useCallback(async () => {
     try {
       const key = createTemplateStudioPreviewStorageKey();
+      const previewId = createTemplateStudioPreviewId();
+      const previewRunId = getOrCreateTemplateStudioPreviewRunId();
       const currentDocument = cloneDocument(documentRef.current);
       const currentRuntimeValues = cloneRuntimeValues(runtimeValuesRef.current);
+      const replacements = collectStudioPreviewAssetReplacements(
+        currentDocument,
+        currentRuntimeValues,
+      );
+
+      if (replacements.length > 0) {
+        showShortcutStatus(`Uploading ${replacements.length} preview asset(s)`);
+        const uploaded =
+          await TemplateStudioPreviewAssetService.uploadPreviewAssets({
+            runId: previewRunId,
+            previewId,
+            items: replacements,
+          });
+        const replacementsByClientId = new Map(
+          replacements.map((replacement) => [
+            replacement.clientId,
+            replacement,
+          ]),
+        );
+
+        uploaded.uploaded.forEach((asset) => {
+          replacementsByClientId.get(asset.clientId)?.applyUrl(asset.url);
+        });
+      }
 
       writeTemplateStudioPreviewStorage(key, {
         version: 1,
         createdAt: Date.now(),
         source: "draft",
+        previewId,
+        previewRunId,
         templateId: remoteTemplateId,
         templateName: currentDocument.metadata.name,
         document: currentDocument,
@@ -7851,7 +8032,9 @@ export function TemplateStudioClient() {
             className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
             title="Open runtime preview"
             type="button"
-            onClick={openRuntimeDraftPreview}
+            onClick={() => {
+              void openRuntimeDraftPreview();
+            }}
           >
             <ArrowUpRight className="h-3.5 w-3.5" />
             Preview

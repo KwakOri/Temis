@@ -1,7 +1,9 @@
 import {
+  DeleteObjectsCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -156,6 +158,79 @@ export async function deleteFileFromR2(fileKey: string): Promise<void> {
     console.error("R2 삭제 실패:", error);
     throw new Error("파일 삭제에 실패했습니다.");
   }
+}
+
+/**
+ * Cloudflare R2에서 prefix로 객체 키를 조회합니다.
+ */
+export async function listFileKeysFromR2Prefix(
+  prefix: string,
+): Promise<string[]> {
+  const fileKeys: string[] = [];
+  let continuationToken: string | undefined;
+
+  try {
+    do {
+      const command = new ListObjectsV2Command({
+        Bucket: getR2BucketName(),
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+      });
+      const response = await getR2Client().send(command);
+
+      response.Contents?.forEach((object) => {
+        if (object.Key) {
+          fileKeys.push(object.Key);
+        }
+      });
+
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    return fileKeys;
+  } catch (error) {
+    console.error("R2 prefix 조회 실패:", error);
+    throw new Error("파일 목록 조회에 실패했습니다.");
+  }
+}
+
+/**
+ * Cloudflare R2에서 여러 객체를 삭제합니다.
+ */
+export async function deleteFilesFromR2(fileKeys: string[]): Promise<number> {
+  const uniqueKeys = Array.from(new Set(fileKeys.filter(Boolean)));
+  let deletedCount = 0;
+
+  try {
+    for (let index = 0; index < uniqueKeys.length; index += 1000) {
+      const chunk = uniqueKeys.slice(index, index + 1000);
+      if (chunk.length === 0) continue;
+
+      const command = new DeleteObjectsCommand({
+        Bucket: getR2BucketName(),
+        Delete: {
+          Objects: chunk.map((key) => ({ Key: key })),
+          Quiet: true,
+        },
+      });
+
+      await getR2Client().send(command);
+      deletedCount += chunk.length;
+    }
+
+    return deletedCount;
+  } catch (error) {
+    console.error("R2 일괄 삭제 실패:", error);
+    throw new Error("파일 삭제에 실패했습니다.");
+  }
+}
+
+/**
+ * Cloudflare R2에서 prefix 아래의 모든 객체를 삭제합니다.
+ */
+export async function deleteFilesFromR2Prefix(prefix: string): Promise<number> {
+  const fileKeys = await listFileKeysFromR2Prefix(prefix);
+  return deleteFilesFromR2(fileKeys);
 }
 
 /**

@@ -5,11 +5,15 @@ import type {
 
 export const TEMPLATE_STUDIO_PREVIEW_STORAGE_PREFIX =
   "template-studio:preview:";
+export const TEMPLATE_STUDIO_PREVIEW_RUN_STORAGE_KEY =
+  "template-studio:preview-run-id";
 
 export interface TemplateStudioPreviewStoragePayload {
   version: 1;
   createdAt: number;
   source: "draft";
+  previewId?: string;
+  previewRunId?: string;
   templateId?: string | null;
   templateName?: string;
   document: StudioTemplateDocument;
@@ -44,6 +48,59 @@ export const createTemplateStudioPreviewStorageKey = (): string => {
   return `${TEMPLATE_STUDIO_PREVIEW_STORAGE_PREFIX}${suffix}`;
 };
 
+export const createTemplateStudioPreviewId = (): string =>
+  typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+export const getOrCreateTemplateStudioPreviewRunId = (): string => {
+  if (typeof window === "undefined") {
+    return createTemplateStudioPreviewId();
+  }
+
+  const currentRunId = window.sessionStorage.getItem(
+    TEMPLATE_STUDIO_PREVIEW_RUN_STORAGE_KEY,
+  );
+  if (currentRunId) return currentRunId;
+
+  const nextRunId = createTemplateStudioPreviewId();
+  window.sessionStorage.setItem(
+    TEMPLATE_STUDIO_PREVIEW_RUN_STORAGE_KEY,
+    nextRunId,
+  );
+  return nextRunId;
+};
+
+const pruneTemplateStudioPreviewStorage = (
+  storage: Storage,
+  preserveKey: string,
+): void => {
+  for (let index = storage.length - 1; index >= 0; index -= 1) {
+    const storageKey = storage.key(index);
+    if (
+      storageKey?.startsWith(TEMPLATE_STUDIO_PREVIEW_STORAGE_PREFIX) &&
+      storageKey !== preserveKey
+    ) {
+      storage.removeItem(storageKey);
+    }
+  }
+};
+
+const tryWritePreviewStorage = (
+  storage: Storage,
+  key: string,
+  serialized: string,
+): unknown | null => {
+  try {
+    pruneTemplateStudioPreviewStorage(storage, key);
+    storage.setItem(key, serialized);
+    return null;
+  } catch (error) {
+    storage.removeItem(key);
+    return error;
+  }
+};
+
 export const writeTemplateStudioPreviewStorage = (
   key: string,
   payload: TemplateStudioPreviewStoragePayload,
@@ -51,8 +108,18 @@ export const writeTemplateStudioPreviewStorage = (
   if (typeof window === "undefined") return;
 
   const serialized = JSON.stringify(payload);
-  window.sessionStorage.setItem(key, serialized);
-  window.localStorage.setItem(key, serialized);
+  const sessionError = tryWritePreviewStorage(
+    window.sessionStorage,
+    key,
+    serialized,
+  );
+  const localError = tryWritePreviewStorage(window.localStorage, key, serialized);
+
+  if (sessionError && localError) {
+    throw sessionError instanceof Error
+      ? sessionError
+      : new Error("Template Studio 미리보기 데이터를 저장하지 못했습니다.");
+  }
 };
 
 export const readTemplateStudioPreviewStorage = (
