@@ -9,6 +9,7 @@ import { isGuideEnabled } from '@/utils/time-table/data';
 import { templateSize } from '../../_settings/settings';
 import TeamTimeTableGrid from '../TeamTimeTableGrid';
 import TeamTimeTableProfile from '../TeamTimeTableProfile';
+import TeamTimeTableTopObject from '../TeamTimeTableTopObject';
 import TeamTimeTableWeekDates from '../TeamTimeTableWeekDates';
 
 export interface TeamTimeTableContentProps {
@@ -42,7 +43,7 @@ const TeamTimeTableContent: React.FC<TeamTimeTableContentProps> = ({
       }}
     >
       {isGuideEnabled && <TeamTimeTableDesignGuide />}
-      {/* <TeamTimeTableTopObject /> */}
+      <TeamTimeTableTopObject />
       <TeamTimeTableWeekDates />
       {/* <TeamTimeTableMemo /> */}
 
