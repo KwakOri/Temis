@@ -4,14 +4,14 @@ const TeamTimeTableTopObject = () => {
   return (
     <div
       style={{
-        width: 4000,
-        height: 2250,
+        width: 4096,
+        height: 2304,
         position: 'absolute',
         zIndex: 30,
       }}
     >
       <img
-        src={Imgs['first']['topObject'].src}
+        src={Imgs['first']['top_object'].src}
         alt={'top-object'}
         draggable={false}
       />

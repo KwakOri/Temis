@@ -185,16 +185,9 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
   const memberName = memberNamesMap.get(userId) as string;
 
   const mainColor = {
-    84: { color: '#2254a6' },
-    88: { color: '#c04574' },
+    329: { color: '#c04574' },
+    413: { color: '#2254a6' },
   };
-  const subColor = {
-    84: { color: '#F33049' },
-    88: { color: '#F2CD8C' },
-  };
-
-  const time = formatTime(primaryEntry?.time as string, 'half');
-  const formattedTime = primaryEntry?.isGuerrilla ? '게릴라' : time;
 
   return (
     <>
@@ -232,7 +225,9 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
               }}
               className="absolute z-20 flex justify-center items-center"
             >
-              {primaryEntry?.isGuerrilla ? '게릴라' : formattedTime}
+              {primaryEntry?.isGuerrilla
+                ? '게릴라'
+                : formatTime(primaryEntry?.time as string, 'half')}
             </p>
 
             {/* <div
@@ -285,7 +280,9 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
             </div>
           </>
         )}
-        <CardBG isOffline={data.schedule?.isOffline} userId={userId} />
+        {isSuccess && (
+          <CardBG isOffline={data.schedule?.isOffline} userId={userId} />
+        )}
       </div>
     </>
   );

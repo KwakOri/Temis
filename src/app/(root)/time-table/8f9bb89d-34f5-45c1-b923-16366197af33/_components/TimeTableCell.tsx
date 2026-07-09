@@ -318,11 +318,13 @@ const TimeTableCell: React.FC<TimeTableCellProps> = ({
       {time.isOffline && (
         <OfflineCard day={time.day} currentTheme={currentTheme} />
       )}
-      <CardStreamingTime
-        isGuerrilla={primaryEntry.isGuerrilla}
-        time={entryTime}
-        day={time.day}
-      />
+      {time.isOffline || (
+        <CardStreamingTime
+          isGuerrilla={primaryEntry.isGuerrilla}
+          time={entryTime}
+          day={time.day}
+        />
+      )}
       <div
         style={{ width: 500, height: 360, ...compStyles[time.day] }}
         key={time.day}
