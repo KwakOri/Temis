@@ -9,6 +9,7 @@ import {
   getTemplateStudioDraft,
   getTemplateStudioLatestRevisionNo,
   getTemplateStudioTemplate,
+  listTemplateStudioAssetMetadata,
 } from "@/services/server/templateStudioPersistenceService";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -32,10 +33,11 @@ export async function GET(
       return templateStudioTemplateNotFoundResponse();
     }
 
-    const [document, draft, latestRevisionNo] = await Promise.all([
+    const [document, draft, latestRevisionNo, assets] = await Promise.all([
       getTemplateStudioCurrentDocument(templateId),
       getTemplateStudioDraft(templateId, actor.userId),
       getTemplateStudioLatestRevisionNo(templateId),
+      listTemplateStudioAssetMetadata(templateId),
     ]);
 
     return NextResponse.json({
@@ -44,6 +46,7 @@ export async function GET(
       template,
       document,
       draft,
+      assets,
       latestRevisionNo,
       source: draft ? "draft" : document ? "published" : "empty",
     });

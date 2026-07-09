@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { signJWT } from "../src/lib/auth/jwt";
 import { supabaseAdminServer } from "../src/lib/supabase-admin-server";
 import { deleteTemplateStudioTemplate } from "../src/services/server/templateStudioPersistenceService";
+import { deleteFilesFromR2 } from "../src/lib/r2";
 import {
   createInitialStudioRuntimeValues,
   createSampleStudioDocument,
@@ -117,6 +118,7 @@ const main = async () => {
   assertLocalSupabaseUrl();
   await ensureLocalAdminUser();
 
+  const uploadedR2Keys: string[] = [];
   const [
     templateRoutes,
     templateDetailRoutes,
@@ -208,9 +210,13 @@ const main = async () => {
       assets: Array<{
         id: string;
         src: string;
+        storageProvider: string;
         storagePath: string;
+        publicUrl: string;
+        contentHash: string;
         mimeType: string;
         byteSize: number;
+        uploaded: boolean;
       }>;
     }>(
       "upload assets",
@@ -243,10 +249,14 @@ const main = async () => {
     Object.keys(document.assets).forEach((assetId) => {
       const uploadedAsset = uploadedAssetsById.get(assetId);
       assert(uploadedAsset, `Uploaded asset missing for ${assetId}.`);
+      uploadedR2Keys.push(uploadedAsset.storagePath);
       document.assets[assetId] = {
         ...document.assets[assetId],
         src: uploadedAsset.src,
+        storageProvider: uploadedAsset.storageProvider,
         storagePath: uploadedAsset.storagePath,
+        publicUrl: uploadedAsset.publicUrl,
+        contentHash: uploadedAsset.contentHash,
         mimeType: uploadedAsset.mimeType,
         byteSize: uploadedAsset.byteSize,
       };
@@ -322,6 +332,7 @@ const main = async () => {
 
     const publishedDetailResponse = await callRoute<{
       success: boolean;
+      assets: Array<{ assetId: string; storageProvider: string | null }>;
       source: string;
       latestRevisionNo: number;
     }>(
@@ -341,9 +352,25 @@ const main = async () => {
       publishedDetailResponse.latestRevisionNo === 1,
       "Detail latest revision should be one.",
     );
+    assert(
+      publishedDetailResponse.assets.length === Object.keys(document.assets).length,
+      "Detail response should include asset metadata.",
+    );
+    assert(
+      publishedDetailResponse.assets.every(
+        (asset) => asset.storageProvider === "r2",
+      ),
+      "Detail asset metadata should use r2 provider.",
+    );
 
     console.log("Template Studio API route smoke check passed.");
   } finally {
+    if (uploadedR2Keys.length > 0) {
+      await deleteFilesFromR2(uploadedR2Keys).catch((error) => {
+        console.warn("Failed to cleanup Template Studio API check R2 keys.", error);
+      });
+    }
+
     if (templateId) {
       await deleteTemplateStudioTemplate(templateId);
     }

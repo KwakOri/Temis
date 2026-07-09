@@ -175,9 +175,13 @@ export interface StudioAsset {
   id: StudioAssetId;
   label: string;
   src: string;
+  storageProvider?: string;
   storagePath?: string;
+  publicUrl?: string;
+  contentHash?: string;
   mimeType?: string;
   byteSize?: number;
+  lastSyncedAt?: string;
 }
 
 export type StudioAssetMap = Record<StudioAssetId, StudioAsset>;

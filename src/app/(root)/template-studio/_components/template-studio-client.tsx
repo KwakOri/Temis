@@ -41,15 +41,19 @@ import {
   useCreateTemplateStudioTemplate,
   usePublishTemplateStudioDocument,
   useSaveTemplateStudioDraft,
+  useSyncTemplateStudioAssets,
   useTemplateStudioTemplate,
   useTemplateStudioTemplates,
-  useUploadTemplateStudioAssets,
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
 import {
   TemplateStudioPreviewAssetService,
   type TemplateStudioPreviewAssetUploadItem,
 } from "@/services/templateStudioPreviewAssetService";
+import type {
+  TemplateStudioUploadedAsset,
+  TemplateStudioUploadAssetPayload,
+} from "@/services/templateStudioService";
 import {
   StudioBuiltinFieldId,
   StudioGraphNode,
@@ -357,6 +361,12 @@ const DATA_IMAGE_EXTENSION: Record<string, string> = {
   "image/webp": "webp",
 };
 
+type StudioDataImagePayload = {
+  buffer: ArrayBuffer;
+  extension: string;
+  mimeType: string;
+};
+
 const sanitizePreviewFileSegment = (value: string, fallback: string): string => {
   const normalized = value
     .trim()
@@ -368,10 +378,13 @@ const sanitizePreviewFileSegment = (value: string, fallback: string): string => 
   return normalized.length > 0 ? normalized : fallback;
 };
 
-const dataImageUrlToFile = (
-  src: string,
-  fallbackName: string,
-): File | null => {
+const copyBytesToArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+};
+
+const parseStudioDataImageUrl = (src: string): StudioDataImagePayload | null => {
   const match = src.match(DATA_IMAGE_URL_PATTERN);
   if (!match) return null;
 
@@ -386,20 +399,80 @@ const dataImageUrlToFile = (
   const data = match[3];
 
   try {
-    const buffer = parameters.includes("base64")
+    const bytes = parameters.includes("base64")
       ? Uint8Array.from(window.atob(data), (character) =>
           character.charCodeAt(0),
         )
       : new TextEncoder().encode(decodeURIComponent(data));
-    if (buffer.byteLength === 0) return null;
+    if (bytes.byteLength === 0) return null;
 
+    return {
+      buffer: copyBytesToArrayBuffer(bytes),
+      extension,
+      mimeType,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const dataImageUrlToFile = (
+  src: string,
+  fallbackName: string,
+): File | null => {
+  const parsed = parseStudioDataImageUrl(src);
+  if (!parsed) return null;
+
+  try {
     return new File(
-      [buffer],
-      `${sanitizePreviewFileSegment(fallbackName, "asset")}.${extension}`,
-      { type: mimeType },
+      [parsed.buffer],
+      `${sanitizePreviewFileSegment(fallbackName, "asset")}.${parsed.extension}`,
+      { type: parsed.mimeType },
     );
   } catch {
     return null;
+  }
+};
+
+const bytesToHex = (bytes: ArrayBuffer): string =>
+  Array.from(new Uint8Array(bytes))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+
+const getStudioDataImageMetadata = async (
+  src: string,
+): Promise<{
+  byteSize: number;
+  contentHash: string | null;
+  mimeType: string;
+} | null> => {
+  const parsed = parseStudioDataImageUrl(src);
+  if (!parsed) return null;
+
+  if (!globalThis.crypto?.subtle) {
+    return {
+      byteSize: parsed.buffer.byteLength,
+      contentHash: null,
+      mimeType: parsed.mimeType,
+    };
+  }
+
+  try {
+    const digest = await globalThis.crypto.subtle.digest(
+      "SHA-256",
+      parsed.buffer,
+    );
+    return {
+      byteSize: parsed.buffer.byteLength,
+      contentHash: bytesToHex(digest),
+      mimeType: parsed.mimeType,
+    };
+  } catch {
+    return {
+      byteSize: parsed.buffer.byteLength,
+      contentHash: null,
+      mimeType: parsed.mimeType,
+    };
   }
 };
 
@@ -1278,7 +1351,7 @@ export function TemplateStudioClient({
   const saveTemplateStudioDraftMutation = useSaveTemplateStudioDraft();
   const publishTemplateStudioDocumentMutation =
     usePublishTemplateStudioDocument();
-  const uploadTemplateStudioAssetsMutation = useUploadTemplateStudioAssets();
+  const syncTemplateStudioAssetsMutation = useSyncTemplateStudioAssets();
 
   useEffect(() => {
     const nextTemplateId = initialRemoteTemplateId ?? null;
@@ -1370,7 +1443,7 @@ export function TemplateStudioClient({
     createTemplateStudioTemplateMutation.isPending ||
     saveTemplateStudioDraftMutation.isPending ||
     publishTemplateStudioDocumentMutation.isPending ||
-    uploadTemplateStudioAssetsMutation.isPending ||
+    syncTemplateStudioAssetsMutation.isPending ||
     templateStudioTemplateQuery.isFetching;
   const timetableComposition = useMemo(
     () => getStudioTimetableComposition(document.domains?.timetable),
@@ -2182,47 +2255,132 @@ export function TemplateStudioClient({
     templateStudioTemplateQuery.data,
   ]);
 
-  const prepareRemoteDocumentForPersistence = useCallback(
+  const ensureTemplateStudioAssetsSynced = useCallback(
     async (templateId: string): Promise<StudioTemplateDocument> => {
       const currentDocument = documentRef.current;
-      const dataUrlAssets = Object.values(currentDocument.assets).filter(
-        (asset) => asset.src.startsWith("data:"),
-      );
-
-      if (dataUrlAssets.length === 0) {
-        return currentDocument;
-      }
-
-      const uploaded = await uploadTemplateStudioAssetsMutation.mutateAsync({
-        templateId,
-        assets: dataUrlAssets.map((asset) => ({
-          assetId: asset.id,
-          label: asset.label,
-          src: asset.src,
-        })),
-      });
       const nextDocument = cloneDocument(currentDocument);
+      const remoteAssetsById = new Map(
+        (templateStudioTemplateQuery.data?.assets ?? []).map((asset) => [
+          asset.assetId,
+          asset,
+        ]),
+      );
+      const syncAssets: TemplateStudioUploadAssetPayload[] = [];
+      let changed = false;
 
-      uploaded.assets.forEach((asset) => {
+      const applySyncedAsset = (asset: TemplateStudioUploadedAsset) => {
         const currentAsset = nextDocument.assets[asset.id];
         if (!currentAsset) return;
 
         nextDocument.assets[asset.id] = {
           ...currentAsset,
-          src: asset.src,
+          src: asset.publicUrl ?? asset.src,
+          storageProvider: asset.storageProvider ?? "r2",
           storagePath: asset.storagePath,
+          publicUrl: asset.publicUrl ?? asset.src,
+          contentHash: asset.contentHash,
           mimeType: asset.mimeType,
           byteSize: asset.byteSize,
+          lastSyncedAt: asset.lastSyncedAt ?? undefined,
         };
-      });
+        changed = true;
+      };
+
+      for (const asset of Object.values(nextDocument.assets)) {
+        const remoteAsset = remoteAssetsById.get(asset.id);
+        const remoteUrl = remoteAsset?.publicUrl ?? null;
+
+        if (DATA_IMAGE_URL_PATTERN.test(asset.src)) {
+          const localMetadata = await getStudioDataImageMetadata(asset.src);
+          const canReuseRemote =
+            Boolean(localMetadata?.contentHash) &&
+            remoteAsset?.storageProvider === "r2" &&
+            remoteUrl &&
+            remoteAsset.contentHash === localMetadata?.contentHash &&
+            remoteAsset.mimeType === localMetadata.mimeType &&
+            remoteAsset.byteSize === localMetadata.byteSize;
+
+          if (canReuseRemote && localMetadata?.contentHash && remoteUrl) {
+            applySyncedAsset({
+              id: asset.id,
+              label: asset.label,
+              src: remoteUrl,
+              storageProvider: "r2",
+              storagePath: remoteAsset.storagePath,
+              publicUrl: remoteUrl,
+              contentHash: localMetadata.contentHash,
+              mimeType: localMetadata.mimeType,
+              byteSize: localMetadata.byteSize,
+              uploaded: false,
+              lastSyncedAt: remoteAsset.lastSyncedAt,
+            });
+            continue;
+          }
+
+          syncAssets.push({
+            assetId: asset.id,
+            label: asset.label,
+            src: asset.src,
+            localContentHash: localMetadata?.contentHash ?? undefined,
+            mimeType: localMetadata?.mimeType,
+            byteSize: localMetadata?.byteSize,
+          });
+          continue;
+        }
+
+        if (
+          remoteAsset?.storageProvider === "r2" &&
+          remoteUrl &&
+          (asset.src === remoteUrl ||
+            asset.publicUrl === remoteUrl ||
+            asset.storagePath === remoteAsset.storagePath ||
+            (asset.contentHash &&
+              remoteAsset.contentHash &&
+              asset.contentHash === remoteAsset.contentHash))
+        ) {
+          applySyncedAsset({
+            id: asset.id,
+            label: asset.label,
+            src: remoteUrl,
+            storageProvider: "r2",
+            storagePath: remoteAsset.storagePath,
+            publicUrl: remoteUrl,
+            contentHash: remoteAsset.contentHash ?? undefined,
+            mimeType: remoteAsset.mimeType,
+            byteSize: remoteAsset.byteSize ?? 0,
+            uploaded: false,
+            lastSyncedAt: remoteAsset.lastSyncedAt,
+          });
+        }
+      }
+
+      if (syncAssets.length > 0) {
+        showShortcutStatus(`Syncing ${syncAssets.length} asset(s)`);
+        const synced = await syncTemplateStudioAssetsMutation.mutateAsync({
+          templateId,
+          assets: syncAssets,
+        });
+        synced.assets.forEach(applySyncedAsset);
+      }
+
+      if (!changed) {
+        return currentDocument;
+      }
 
       documentRef.current = nextDocument;
       setDocument(nextDocument);
-      showShortcutStatus(`Uploaded ${uploaded.assets.length} asset(s)`);
+
+      if (syncAssets.length > 0) {
+        showShortcutStatus(`Synced ${syncAssets.length} asset(s)`);
+      }
 
       return nextDocument;
     },
-    [showShortcutStatus, uploadTemplateStudioAssetsMutation],
+    [
+      showShortcutStatus,
+      syncTemplateStudioAssetsMutation,
+      templateStudioTemplateQuery.data?.assets,
+    ],
   );
 
   const loadRemoteTemplate = useCallback(async () => {
@@ -2268,7 +2426,7 @@ export function TemplateStudioClient({
       const templateId = await ensureRemoteTemplateId();
       const latestRevisionNo =
         templateStudioTemplateQuery.data?.latestRevisionNo ?? null;
-      const nextDocument = await prepareRemoteDocumentForPersistence(templateId);
+      const nextDocument = await ensureTemplateStudioAssetsSynced(templateId);
 
       await saveTemplateStudioDraftMutation.mutateAsync({
         templateId,
@@ -2287,7 +2445,7 @@ export function TemplateStudioClient({
     }
   }, [
     ensureRemoteTemplateId,
-    prepareRemoteDocumentForPersistence,
+    ensureTemplateStudioAssetsSynced,
     saveTemplateStudioDraftMutation,
     showShortcutStatus,
     templateStudioTemplateQuery.data?.latestRevisionNo,
@@ -2296,7 +2454,7 @@ export function TemplateStudioClient({
   const publishRemoteDocument = useCallback(async () => {
     try {
       const templateId = await ensureRemoteTemplateId();
-      const nextDocument = await prepareRemoteDocumentForPersistence(templateId);
+      const nextDocument = await ensureTemplateStudioAssetsSynced(templateId);
       const published = await publishTemplateStudioDocumentMutation.mutateAsync({
         templateId,
         payload: {
@@ -2312,17 +2470,19 @@ export function TemplateStudioClient({
     }
   }, [
     ensureRemoteTemplateId,
+    ensureTemplateStudioAssetsSynced,
     publishTemplateStudioDocumentMutation,
-    prepareRemoteDocumentForPersistence,
     showShortcutStatus,
   ]);
 
   const openRuntimeDraftPreview = useCallback(async () => {
     try {
+      const templateId = await ensureRemoteTemplateId();
+      const syncedDocument = await ensureTemplateStudioAssetsSynced(templateId);
       const key = createTemplateStudioPreviewStorageKey();
       const previewId = createTemplateStudioPreviewId();
       const previewRunId = getOrCreateTemplateStudioPreviewRunId();
-      const currentDocument = cloneDocument(documentRef.current);
+      const currentDocument = cloneDocument(syncedDocument);
       const currentRuntimeValues = cloneRuntimeValues(runtimeValuesRef.current);
       const replacements = collectStudioPreviewAssetReplacements(
         currentDocument,
@@ -2355,7 +2515,7 @@ export function TemplateStudioClient({
         source: "draft",
         previewId,
         previewRunId,
-        templateId: remoteTemplateId,
+        templateId,
         templateName: currentDocument.metadata.name,
         document: currentDocument,
         runtimeValues: currentRuntimeValues,
@@ -2375,7 +2535,7 @@ export function TemplateStudioClient({
       console.error("Template Studio preview open failed:", error);
       showShortcutStatus("Preview open failed");
     }
-  }, [remoteTemplateId, showShortcutStatus]);
+  }, [ensureRemoteTemplateId, ensureTemplateStudioAssetsSynced, showShortcutStatus]);
 
   const openPublishedPreview = useCallback(() => {
     if (!remoteTemplateId) {

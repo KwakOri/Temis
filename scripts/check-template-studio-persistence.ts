@@ -139,14 +139,23 @@ const main = async () => {
     const asset = await upsertTemplateStudioAssetMetadata({
       templateId: template.id,
       assetId: "local-check-profile",
+      storageProvider: "r2",
       storagePath: `template-studio/${template.id}/assets/local-check-profile/profile.png`,
+      publicUrl: `https://example.com/template-studio/${template.id}/assets/local-check-profile/profile.png`,
+      contentHash: "local-check-content-hash",
       mimeType: "image/png",
       width: 1,
       height: 1,
       byteSize: 68,
       createdBy: LOCAL_ADMIN_USER_ID,
+      lastSyncedAt: new Date().toISOString(),
     });
     assert(asset.assetId === "local-check-profile", "Asset upsert failed.");
+    assert(asset.storageProvider === "r2", "Asset provider should be r2.");
+    assert(
+      asset.contentHash === "local-check-content-hash",
+      "Asset content hash should round-trip.",
+    );
 
     await deleteTemplateStudioAssetMetadata(template.id, asset.assetId);
 

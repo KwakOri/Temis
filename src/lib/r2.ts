@@ -88,6 +88,35 @@ export async function uploadFileToR2(
 }
 
 /**
+ * 지정한 키로 파일을 Cloudflare R2에 업로드합니다.
+ */
+export async function uploadFileToR2Key(
+  file: Buffer,
+  fileKey: string,
+  mimeType: string,
+): Promise<UploadFileResult> {
+  try {
+    const command = new PutObjectCommand({
+      Bucket: getR2BucketName(),
+      Key: fileKey,
+      Body: file,
+      ContentType: mimeType,
+      ACL: "public-read",
+    });
+
+    await getR2Client().send(command);
+
+    return {
+      fileKey,
+      url: getFileUrl(fileKey),
+    };
+  } catch (error) {
+    console.error("R2 지정 키 업로드 실패:", error);
+    throw new Error("파일 업로드에 실패했습니다.");
+  }
+}
+
+/**
  * 브라우저가 R2로 직접 업로드할 수 있는 presigned PUT URL을 생성합니다.
  */
 export async function createPresignedUploadUrl(

@@ -1,4 +1,5 @@
 import type {
+  TemplateStudioAssetRecord,
   TemplateStudioDocumentRecord,
   TemplateStudioDraftRecord,
   TemplateStudioTemplateRecord,
@@ -30,6 +31,7 @@ export interface TemplateStudioTemplateDetailResponse {
   template: TemplateStudioTemplateRecord;
   document: TemplateStudioDocumentRecord | null;
   draft: TemplateStudioDraftRecord | null;
+  assets: TemplateStudioAssetRecord[];
   latestRevisionNo: number;
   source: "draft" | "published" | "empty";
 }
@@ -74,15 +76,23 @@ export interface TemplateStudioUploadAssetPayload {
   assetId: string;
   label: string;
   src: string;
+  localContentHash?: string;
+  mimeType?: string;
+  byteSize?: number;
 }
 
 export interface TemplateStudioUploadedAsset {
   id: string;
   label: string;
   src: string;
+  storageProvider?: string;
   storagePath: string;
+  publicUrl?: string;
+  contentHash?: string;
   mimeType: string;
   byteSize: number;
+  uploaded?: boolean;
+  lastSyncedAt?: string | null;
 }
 
 export interface TemplateStudioUploadAssetsResponse {
@@ -194,7 +204,7 @@ export class TemplateStudioService {
     templateId: string,
     assets: TemplateStudioUploadAssetPayload[],
   ): Promise<TemplateStudioUploadAssetsResponse> {
-    const response = await fetch(`${this.baseUrl}/${templateId}/assets/upload`, {
+    const response = await fetch(`${this.baseUrl}/${templateId}/assets/sync`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -205,6 +215,24 @@ export class TemplateStudioService {
     return parseJsonResponse<TemplateStudioUploadAssetsResponse>(
       response,
       "Template Studio asset 업로드에 실패했습니다.",
+    );
+  }
+
+  static async syncAssets(
+    templateId: string,
+    assets: TemplateStudioUploadAssetPayload[],
+  ): Promise<TemplateStudioUploadAssetsResponse> {
+    const response = await fetch(`${this.baseUrl}/${templateId}/assets/sync`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ assets }),
+    });
+
+    return parseJsonResponse<TemplateStudioUploadAssetsResponse>(
+      response,
+      "Template Studio asset 동기화에 실패했습니다.",
     );
   }
 }

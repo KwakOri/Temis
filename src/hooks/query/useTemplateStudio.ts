@@ -119,3 +119,22 @@ export const useUploadTemplateStudioAssets = () => {
     },
   });
 };
+
+export const useSyncTemplateStudioAssets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      assets,
+    }: {
+      templateId: string;
+      assets: TemplateStudioUploadAssetPayload[];
+    }) => TemplateStudioService.syncAssets(templateId, assets),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplate(variables.templateId),
+      });
+    },
+  });
+};

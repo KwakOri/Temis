@@ -112,7 +112,10 @@ type TemplateStudioAssetRow = {
   id: string;
   template_id: string;
   asset_id: string;
+  storage_provider: string | null;
   storage_path: string;
+  public_url: string | null;
+  content_hash: string | null;
   mime_type: string;
   width: number | null;
   height: number | null;
@@ -120,6 +123,7 @@ type TemplateStudioAssetRow = {
   created_by: number | null;
   created_at: string;
   updated_at: string;
+  last_synced_at: string | null;
 };
 
 export type TemplateStudioTemplateRecord = {
@@ -172,7 +176,10 @@ export type TemplateStudioAssetRecord = {
   id: string;
   templateId: string;
   assetId: string;
+  storageProvider: string | null;
   storagePath: string;
+  publicUrl: string | null;
+  contentHash: string | null;
   mimeType: string;
   width: number | null;
   height: number | null;
@@ -180,6 +187,7 @@ export type TemplateStudioAssetRecord = {
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
+  lastSyncedAt: string | null;
 };
 
 export type TemplateStudioPreparedDocument = {
@@ -222,7 +230,7 @@ const TEMPLATE_STUDIO_DRAFT_COLUMNS =
 const TEMPLATE_STUDIO_REVISION_COLUMNS =
   "id, template_id, revision_no, document_version, document, runtime_values, source, created_by, created_at";
 const TEMPLATE_STUDIO_ASSET_COLUMNS =
-  "id, template_id, asset_id, storage_path, mime_type, width, height, byte_size, created_by, created_at, updated_at";
+  "id, template_id, asset_id, storage_provider, storage_path, public_url, content_hash, mime_type, width, height, byte_size, created_by, created_at, updated_at, last_synced_at";
 const TEMPLATE_STUDIO_TEMPLATE_COLUMNS =
   "id, name, description, status, created_by, created_at, updated_at";
 
@@ -409,7 +417,10 @@ const toAssetRecord = (row: TemplateStudioAssetRow): TemplateStudioAssetRecord =
   id: row.id,
   templateId: row.template_id,
   assetId: row.asset_id,
+  storageProvider: row.storage_provider,
   storagePath: row.storage_path,
+  publicUrl: row.public_url,
+  contentHash: row.content_hash,
   mimeType: row.mime_type,
   width: row.width,
   height: row.height,
@@ -417,6 +428,7 @@ const toAssetRecord = (row: TemplateStudioAssetRow): TemplateStudioAssetRecord =
   createdBy: row.created_by,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
+  lastSyncedAt: row.last_synced_at,
 });
 
 export const createTemplateStudioTemplate = async (
@@ -683,16 +695,52 @@ export const listTemplateStudioRevisions = async (
   return (data ?? []).map(toRevisionRecord);
 };
 
+export const listTemplateStudioAssetMetadata = async (
+  templateId: string,
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioAssetRecord[]> => {
+  const supabase = getClient(client);
+  const { data, error } = await supabase
+    .from<TemplateStudioAssetRow[]>("template_studio_assets")
+    .select(TEMPLATE_STUDIO_ASSET_COLUMNS)
+    .eq("template_id", templateId)
+    .order("updated_at", { ascending: false });
+
+  throwOnError("Failed to list Template Studio asset metadata", error);
+  return (data ?? []).map(toAssetRecord);
+};
+
+export const getTemplateStudioAssetMetadata = async (
+  templateId: string,
+  assetId: string,
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioAssetRecord | null> => {
+  const supabase = getClient(client);
+  const { data, error } = await supabase
+    .from<TemplateStudioAssetRow>("template_studio_assets")
+    .select(TEMPLATE_STUDIO_ASSET_COLUMNS)
+    .eq("template_id", templateId)
+    .eq("asset_id", assetId)
+    .maybeSingle();
+
+  throwOnError("Failed to fetch Template Studio asset metadata", error);
+  return data ? toAssetRecord(data) : null;
+};
+
 export const upsertTemplateStudioAssetMetadata = async (
   input: {
     templateId: string;
     assetId: string;
+    storageProvider?: string | null;
     storagePath: string;
+    publicUrl?: string | null;
+    contentHash?: string | null;
     mimeType: string;
     width?: number | null;
     height?: number | null;
     byteSize?: number | null;
     createdBy?: number | null;
+    lastSyncedAt?: string | null;
   },
   client?: TemplateStudioPersistenceClient,
 ): Promise<TemplateStudioAssetRecord> => {
@@ -703,12 +751,16 @@ export const upsertTemplateStudioAssetMetadata = async (
       {
         template_id: input.templateId,
         asset_id: input.assetId,
+        storage_provider: input.storageProvider ?? null,
         storage_path: input.storagePath,
+        public_url: input.publicUrl ?? null,
+        content_hash: input.contentHash ?? null,
         mime_type: input.mimeType,
         width: input.width ?? null,
         height: input.height ?? null,
         byte_size: input.byteSize ?? null,
         created_by: input.createdBy ?? null,
+        last_synced_at: input.lastSyncedAt ?? null,
       },
       {
         onConflict: "template_id,asset_id",
