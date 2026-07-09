@@ -42,6 +42,12 @@ export interface UploadFileResult {
   url: string;
 }
 
+export interface R2FileObject {
+  key: string;
+  lastModified?: Date;
+  size: number;
+}
+
 function createFileKey(fileName: string, folder: string): string {
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(2, 15);
@@ -195,7 +201,17 @@ export async function deleteFileFromR2(fileKey: string): Promise<void> {
 export async function listFileKeysFromR2Prefix(
   prefix: string,
 ): Promise<string[]> {
-  const fileKeys: string[] = [];
+  const objects = await listFileObjectsFromR2Prefix(prefix);
+  return objects.map((object) => object.key);
+}
+
+/**
+ * Cloudflare R2에서 prefix로 객체 키와 메타데이터를 조회합니다.
+ */
+export async function listFileObjectsFromR2Prefix(
+  prefix: string,
+): Promise<R2FileObject[]> {
+  const objects: R2FileObject[] = [];
   let continuationToken: string | undefined;
 
   try {
@@ -209,14 +225,18 @@ export async function listFileKeysFromR2Prefix(
 
       response.Contents?.forEach((object) => {
         if (object.Key) {
-          fileKeys.push(object.Key);
+          objects.push({
+            key: object.Key,
+            lastModified: object.LastModified,
+            size: Number(object.Size ?? 0),
+          });
         }
       });
 
       continuationToken = response.NextContinuationToken;
     } while (continuationToken);
 
-    return fileKeys;
+    return objects;
   } catch (error) {
     console.error("R2 prefix 조회 실패:", error);
     throw new Error("파일 목록 조회에 실패했습니다.");

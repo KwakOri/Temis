@@ -25,7 +25,10 @@ Runtime input images used only for preview form data are separate from canonical
 
 R2 is the canonical object store:
 
-- R2 object key: `template-studio/{templateId}/assets/{assetId}/{contentHash}.{extension}`
+- R2 object key: `{assetBasePrefix}/{templateId}/assets/{assetId}/{contentHash}.{extension}`
+  - local/dev default: `template-studio/dev`
+  - production default: `template-studio`
+  - override: `TEMPLATE_STUDIO_ASSET_R2_BASE_PREFIX`
 - Public URL: derived from the R2 public base URL and object key.
 - Supabase table `template_studio_assets`: metadata registry only.
 - Client document asset state stores the latest remote URL and metadata.
@@ -213,7 +216,17 @@ Preview flow should:
 
 Immediate deletion of old R2 objects is not part of the first implementation because old revisions may still reference previous asset URLs.
 
-Follow-up cleanup can safely delete R2 objects under `template-studio/{templateId}/assets/` only if no current document, draft, revision, or asset metadata row references the object key.
+Production cleanup can safely delete R2 objects under `{assetBasePrefix}/{templateId}/assets/` only if no current document, draft, revision, or asset metadata row references the object key.
+
+For local testing where Supabase metadata may be reset from remote dumps, cleanup should be prefix-based and ignore the DB registry. Use:
+
+- `npm run cleanup:template-studio:r2-assets` for dry-run
+- `npm run cleanup:template-studio:r2-assets -- --apply` to delete local/dev test prefixes
+
+Default cleanup prefixes:
+
+- preview assets: `uploads/dev/template-studio-preview/`
+- canonical synced assets: `template-studio/dev/`
 
 ## Verification Checklist
 
