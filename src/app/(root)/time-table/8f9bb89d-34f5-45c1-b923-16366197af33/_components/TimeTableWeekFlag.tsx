@@ -32,9 +32,9 @@ const TimeTableWeekFlag = ({
 }: TimeTableWeekFlagProps) => {
   const { start, end } = getWeekDateRange(weekDates);
 
-  const startMonth = padZero(start.month + 1).toString();
+  const startMonth = padZero(start.month).toString();
   const startDate = padZero(start.date).toString();
-  const endMonth = padZero(end.month + 1).toString();
+  const endMonth = padZero(end.month).toString();
   const endDate = padZero(end.date).toString();
   return (
     <div
