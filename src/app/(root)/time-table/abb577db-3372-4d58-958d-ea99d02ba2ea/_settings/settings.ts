@@ -157,10 +157,10 @@ export const CARD_INPUT_CONFIG: CardInputConfig = {
     },
     {
       key: 'mainTitle',
-      type: 'text',
+      type: 'textarea',
       placeholder: '메인 타이틀\n적는 곳',
       defaultValue: '',
-      maxLength: 200,
+      maxLength: 50,
     },
   ],
   showLabels: false, // 라벨 표시 여부
