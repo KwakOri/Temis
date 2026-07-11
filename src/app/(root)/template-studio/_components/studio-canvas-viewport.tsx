@@ -15,6 +15,30 @@ const STUDIO_PREVIEW_SCALE_MAX = 2;
 export const clampStudioPreviewScale = (value: number) =>
   Math.min(Math.max(value, STUDIO_PREVIEW_SCALE_MIN), STUDIO_PREVIEW_SCALE_MAX);
 
+export const getStudioWheelZoomScale = ({
+  currentScale,
+  deltaY,
+  deltaMode,
+  viewportHeight,
+}: {
+  currentScale: number;
+  deltaY: number;
+  deltaMode: number;
+  viewportHeight: number;
+}) => {
+  const deltaMultiplier =
+    deltaMode === 1 ? 16 : deltaMode === 2 ? Math.max(1, viewportHeight) : 1;
+  const normalizedDelta = deltaY * deltaMultiplier;
+  const zoomDelta = Math.max(
+    -0.1,
+    Math.min(0.1, normalizedDelta * -0.001),
+  );
+
+  return clampStudioPreviewScale(
+    Number((currentScale + zoomDelta).toFixed(3)),
+  );
+};
+
 type StudioViewportDragMemo =
   | {
       mode: "pan";
@@ -35,7 +59,7 @@ interface StudioCanvasViewportProps {
   canvasHeight: number;
   scale: number;
   fitRequestKey: number;
-  onScaleChange: (scale: number) => void;
+  onScaleChange: React.Dispatch<React.SetStateAction<number>>;
   onMoveNode?: (
     nodeId: string,
     delta: { deltaX: number; deltaY: number },
@@ -131,6 +155,30 @@ export function StudioCanvasViewport({
     window.addEventListener("resize", updateMobileState);
     return () => window.removeEventListener("resize", updateMobileState);
   }, []);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const handleWheelZoom = (event: WheelEvent) => {
+      if (!event.altKey || event.deltaY === 0) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      onScaleChange((currentScale) =>
+        getStudioWheelZoomScale({
+          currentScale,
+          deltaY: event.deltaY,
+          deltaMode: event.deltaMode,
+          viewportHeight: viewport.clientHeight,
+        }),
+      );
+    };
+
+    viewport.addEventListener("wheel", handleWheelZoom, { passive: false });
+    return () => viewport.removeEventListener("wheel", handleWheelZoom);
+  }, [onScaleChange]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

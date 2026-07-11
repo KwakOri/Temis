@@ -33,9 +33,15 @@ export type StudioTimetableStatusKind = "base" | "derived";
 export type StudioTimetableCapabilityKey = "multi" | "offlineMemo";
 export type StudioTimetableCompositionObjectKind =
   | "generatedDayCards"
+  | "group"
+  | "image"
   | "text"
   | "profileBlock"
   | "topObject";
+export type StudioTimetableProfileObjectRole =
+  | "backPlate"
+  | "userImage"
+  | "frame";
 export type StudioTimetableObjectPresetId =
   | "dayCards"
   | "weekDates"
@@ -288,6 +294,9 @@ export interface StudioTimetableCompositionObject {
   kind: StudioTimetableCompositionObjectKind;
   label: string;
   presetId?: StudioTimetableObjectPresetId;
+  parentId?: StudioTimetableCompositionObjectId | null;
+  childIds?: StudioTimetableCompositionObjectId[];
+  profileRole?: StudioTimetableProfileObjectRole;
   style: StudioStyleRecord;
   binding?: StudioBinding;
   assetSlots?: Record<string, StudioTimetableAssetSlot>;

@@ -17,6 +17,7 @@ import {
 } from "@/utils/template-studio/semantic-slots";
 
 export const STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID = "day-cards";
+const STUDIO_PROFILE_BLOCK_SIZE = 420;
 
 const createStudioTimetableDayCardsExceptionMeta = () => ({
   semanticKey: "dayCardContainers" as const,
@@ -106,6 +107,17 @@ const createStudioProfileBlockExceptionMeta = (
       shape: maskShape,
       radius: maskRadius,
     }),
+    visibility: createStudioSemanticVisibilitySlot(visible),
+  }),
+});
+
+const createStudioProfileBlockGroupExceptionMeta = (visible = true) => ({
+  semanticKey: "profileBlock" as const,
+  scope: "timetable" as const,
+  presetId: "profileBlock",
+  lockedStructure: true,
+  singleton: true,
+  editableSlots: createStudioSemanticSlotRecord({
     visibility: createStudioSemanticVisibilitySlot(visible),
   }),
 });
@@ -317,17 +329,121 @@ export const normalizeStudioTimetableCompositionObject = (
   return object;
 };
 
-export const getStudioTimetableComposition = (
-  timetable?: StudioTimetableDomain,
+const getStudioProfileBlockChildIds = (groupId: string) => ({
+  backPlateId: `${groupId}:back-plate-object`,
+  userImageId: `${groupId}:user-image-object`,
+  frameId: `${groupId}:frame-object`,
+});
+
+const createStudioProfileBlockGroupFromLegacyObject = (
+  object: StudioTimetableCompositionObject,
+) => {
+  const { backPlateId, userImageId, frameId } =
+    getStudioProfileBlockChildIds(object.id);
+  const geometry = getStudioTimetableCompositionObjectGeometry(object);
+  const profileImageSlot = object.assetSlots?.profileImage;
+  const profileFrameSlot = object.assetSlots?.profileFrame;
+  const maskRadius =
+    typeof object.style.borderRadius === "number"
+      ? object.style.borderRadius
+      : 56;
+  const commonChildStyle = {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: geometry.width,
+    height: geometry.height,
+    rotateDeg: 0,
+  };
+
+  const group: StudioTimetableCompositionObject = {
+    ...object,
+    kind: "group",
+    presetId: "profileBlock",
+    parentId: null,
+    childIds: [backPlateId, userImageId, frameId],
+    style: {
+      ...object.style,
+      borderRadius: 0,
+      overflow: "visible",
+    },
+    assetSlots: undefined,
+    backgroundAssetId: undefined,
+    backgroundFit: undefined,
+    meta: {
+      ...object.meta,
+      exception: createStudioProfileBlockGroupExceptionMeta(!object.hidden),
+    },
+  };
+  const backPlate: StudioTimetableCompositionObject = {
+    id: backPlateId,
+    kind: "image",
+    label: "back_plate_object",
+    parentId: object.id,
+    profileRole: "backPlate",
+    style: {
+      ...commonChildStyle,
+      backgroundColor: object.style.backgroundColor,
+    },
+    assetSlots: object.backgroundAssetId
+      ? {
+          asset: {
+            assetId: object.backgroundAssetId,
+            fit: object.backgroundFit ?? "contain",
+          },
+        }
+      : undefined,
+  };
+  const userImage: StudioTimetableCompositionObject = {
+    id: userImageId,
+    kind: "image",
+    label: "user_image_object",
+    parentId: object.id,
+    profileRole: "userImage",
+    style: {
+      ...commonChildStyle,
+      borderRadius: maskRadius,
+      overflow: "hidden",
+    },
+    assetSlots: profileImageSlot
+      ? { asset: { ...profileImageSlot } }
+      : undefined,
+  };
+  const frame: StudioTimetableCompositionObject = {
+    id: frameId,
+    kind: "image",
+    label: "frame_object",
+    parentId: object.id,
+    profileRole: "frame",
+    style: commonChildStyle,
+    assetSlots: profileFrameSlot
+      ? { asset: { ...profileFrameSlot } }
+      : undefined,
+  };
+
+  return { group, children: [backPlate, userImage, frame] };
+};
+
+const normalizeStudioTimetableComposition = (
+  composition?: StudioTimetableComposition,
 ): StudioTimetableComposition => {
   const objects = Object.fromEntries(
-    Object.entries(timetable?.composition?.objects ?? {}).map(
-      ([objectId, object]) => [
-        objectId,
-        normalizeStudioTimetableCompositionObject(object),
-      ],
-    ),
+    Object.entries(composition?.objects ?? {}).map(([objectId, object]) => [
+      objectId,
+      normalizeStudioTimetableCompositionObject(object),
+    ]),
   );
+
+  Object.entries(objects).forEach(([objectId, object]) => {
+    if (object.kind !== "profileBlock") return;
+
+    const { group, children } =
+      createStudioProfileBlockGroupFromLegacyObject(object);
+    objects[objectId] = group;
+    children.forEach((child) => {
+      objects[child.id] = child;
+    });
+  });
 
   if (!objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]) {
     objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID] =
@@ -335,9 +451,8 @@ export const getStudioTimetableComposition = (
   }
 
   const rootObjectIds =
-    timetable?.composition?.rootObjectIds &&
-    timetable.composition.rootObjectIds.length > 0
-      ? [...timetable.composition.rootObjectIds]
+    composition?.rootObjectIds && composition.rootObjectIds.length > 0
+      ? [...composition.rootObjectIds]
       : [STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID];
 
   if (!rootObjectIds.includes(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID)) {
@@ -348,11 +463,17 @@ export const getStudioTimetableComposition = (
     rootObjectIds: rootObjectIds.filter(
       (objectId, index, currentObjectIds) =>
         Boolean(objects[objectId]) &&
+        !objects[objectId].parentId &&
         currentObjectIds.indexOf(objectId) === index,
     ),
     objects,
   };
 };
+
+export const getStudioTimetableComposition = (
+  timetable?: StudioTimetableDomain,
+): StudioTimetableComposition =>
+  normalizeStudioTimetableComposition(timetable?.composition);
 
 export const ensureStudioTimetableComposition = (
   timetable: StudioTimetableDomain,
@@ -364,34 +485,9 @@ export const ensureStudioTimetableComposition = (
     };
   }
 
-  if (!timetable.composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]) {
-    timetable.composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID] =
-      createStudioTimetableDayCardsObject();
-  }
-
-  Object.entries(timetable.composition.objects).forEach(
-    ([objectId, object]) => {
-      timetable.composition!.objects[objectId] =
-        normalizeStudioTimetableCompositionObject(object);
-    },
+  timetable.composition = normalizeStudioTimetableComposition(
+    timetable.composition,
   );
-
-  if (
-    !timetable.composition.rootObjectIds.includes(
-      STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
-    )
-  ) {
-    timetable.composition.rootObjectIds.unshift(
-      STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
-    );
-  }
-
-  timetable.composition.rootObjectIds =
-    timetable.composition.rootObjectIds.filter(
-      (objectId, index, objectIds) =>
-        Boolean(timetable.composition?.objects[objectId]) &&
-        objectIds.indexOf(objectId) === index,
-    );
 
   return timetable.composition;
 };
@@ -410,6 +506,105 @@ const getUniqueTimetableObjectId = (
   }
 
   return { objectId, suffix };
+};
+
+export const createStudioProfileBlockPresetObjects = (
+  composition: StudioTimetableComposition,
+  options: {
+    inputId: StudioInputId;
+    backPlateAssetId?: string;
+    frameAssetId?: string;
+  },
+) => {
+  const { objectId, suffix } = getUniqueTimetableObjectId(
+    Object.keys(composition.objects),
+    "profile-block",
+  );
+  const label = suffix === 1 ? "Profile Block" : `Profile Block ${suffix}`;
+  const { backPlateId, userImageId, frameId } =
+    getStudioProfileBlockChildIds(objectId);
+  const commonChildStyle = {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: STUDIO_PROFILE_BLOCK_SIZE,
+    height: STUDIO_PROFILE_BLOCK_SIZE,
+    rotateDeg: 0,
+  };
+  const group: StudioTimetableCompositionObject = {
+    id: objectId,
+    kind: "group",
+    label,
+    presetId: "profileBlock",
+    parentId: null,
+    childIds: [backPlateId, userImageId, frameId],
+    style: {
+      position: "absolute",
+      left: 360,
+      top: 470,
+      width: STUDIO_PROFILE_BLOCK_SIZE,
+      height: STUDIO_PROFILE_BLOCK_SIZE,
+      rotateDeg: 0,
+      overflow: "visible",
+    },
+    meta: {
+      exception: createStudioProfileBlockGroupExceptionMeta(),
+    },
+  };
+  const children: StudioTimetableCompositionObject[] = [
+    {
+      id: backPlateId,
+      kind: "image",
+      label: "back_plate_object",
+      parentId: objectId,
+      profileRole: "backPlate",
+      style: commonChildStyle,
+      assetSlots: options.backPlateAssetId
+        ? {
+            asset: {
+              assetId: options.backPlateAssetId,
+              fit: "contain",
+            },
+          }
+        : undefined,
+    },
+    {
+      id: userImageId,
+      kind: "image",
+      label: "user_image_object",
+      parentId: objectId,
+      profileRole: "userImage",
+      style: {
+        ...commonChildStyle,
+        borderRadius: 56,
+        overflow: "hidden",
+      },
+      assetSlots: {
+        asset: {
+          inputId: options.inputId,
+          fit: "cover",
+        },
+      },
+    },
+    {
+      id: frameId,
+      kind: "image",
+      label: "frame_object",
+      parentId: objectId,
+      profileRole: "frame",
+      style: commonChildStyle,
+      assetSlots: options.frameAssetId
+        ? {
+            asset: {
+              assetId: options.frameAssetId,
+              fit: "contain",
+            },
+          }
+        : undefined,
+    },
+  ];
+
+  return { group, children };
 };
 
 export const getStudioTimetablePresetLabel = (

@@ -131,6 +131,7 @@ import {
 import {
   bindStudioArtistProfileTextObjectToInput,
   bindStudioWeeklyMemoObjectToInput,
+  createStudioProfileBlockPresetObjects,
   createStudioTimetablePresetObject,
   ensureStudioTimetableComposition,
   getStudioTimetableComposition,
@@ -171,7 +172,12 @@ import {
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
-import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioCustomFontFamilies,
+  getStudioFontWeightOptions,
+  normalizeStudioFontWeight,
+  type StudioFontWeightOption,
+} from "@/utils/template-studio/web-fonts";
 
 import {
   clampStudioPreviewScale,
@@ -179,7 +185,7 @@ import {
 } from "./studio-canvas-viewport";
 import { StudioNodePickerMenu } from "./studio-node-picker-menu";
 import { StudioRenderer } from "./studio-renderer";
-import { StudioSettingsDrawer } from "./studio-settings-drawer";
+import { StudioSettingsModal } from "./studio-settings-modal";
 import {
   getStudioTimetableDayCardGeometry,
   getStudioTimetableDayCardGeometries,
@@ -753,6 +759,8 @@ const getStudioNodeBounds = (
 const isPlacedTimetableCompositionObject = (
   object: StudioTimetableCompositionObject | undefined,
 ) =>
+  object?.kind === "group" ||
+  object?.kind === "image" ||
   object?.kind === "text" ||
   object?.kind === "profileBlock" ||
   object?.kind === "topObject";
@@ -1057,6 +1065,48 @@ function NumberField({ label, value, onChange }: NumberFieldProps) {
           }
         }}
       />
+    </label>
+  );
+}
+
+interface FontWeightFieldProps {
+  options: StudioFontWeightOption[];
+  value: string | number | null | undefined;
+  onChange: (value: number) => void;
+}
+
+function FontWeightField({
+  options,
+  value,
+  onChange,
+}: FontWeightFieldProps) {
+  const normalizedValue = normalizeStudioFontWeight(value);
+  const selectedWeight = options.reduce(
+    (closest, option) =>
+      Math.abs(option.value - normalizedValue) <
+      Math.abs(closest.value - normalizedValue)
+        ? option
+        : closest,
+    options[0],
+  ).value;
+
+  return (
+    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>Weight</span>
+      <select
+        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+        value={selectedWeight}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+        onFocus={() => {
+          if (selectedWeight !== normalizedValue) onChange(selectedWeight);
+        }}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }
@@ -1370,6 +1420,12 @@ export function TemplateStudioClient({
     selectedTimetableCompositionObject?.presetId === "profileBlock" ||
     selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
       "profileBlock";
+  const isSelectedLegacyProfileBlockObject =
+    isSelectedProfileBlockObject &&
+    selectedTimetableCompositionObject?.kind === "profileBlock";
+  const isSelectedProfileChildObject =
+    selectedTimetableCompositionObject?.kind === "image" &&
+    Boolean(selectedTimetableCompositionObject.profileRole);
   const isSelectedArtistProfileTextObject =
     selectedTimetableCompositionObject?.presetId === "artistProfileText" ||
     selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
@@ -3258,6 +3314,41 @@ export function TemplateStudioClient({
           });
         }
 
+        if (preset.timetableObjectPresetId === "profileBlock") {
+          updateDocument((nextDocument) => {
+            const timetable = nextDocument.domains?.timetable;
+            if (!timetable) return;
+
+            const composition = ensureStudioTimetableComposition(timetable);
+            const group = composition.objects[existingObjectId];
+            const userImageObject = group?.childIds
+              ?.map((childId) => composition.objects[childId])
+              .find((child) => child?.profileRole === "userImage");
+            if (!userImageObject) return;
+
+            const currentSlot = userImageObject.assetSlots?.asset;
+            const defaultUrl = currentSlot?.assetId
+              ? (nextDocument.assets[currentSlot.assetId]?.src ?? "")
+              : "";
+            const { inputId } = ensureStudioPresetImageInput(nextDocument, {
+              label: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+              scope: "global",
+              placeholder: "Paste profile image URL",
+              defaultUrl,
+            });
+
+            if (currentSlot?.inputId !== inputId) {
+              setStudioTimetableObjectAssetInputSlot(
+                userImageObject,
+                "asset",
+                inputId,
+                currentSlot?.fit ?? "cover",
+              );
+              linkedPresetInput = true;
+            }
+          });
+        }
+
         setSelectedTimetableLayerId(existingObjectId);
         setPanelMode("layers");
         showShortcutStatus(
@@ -3283,10 +3374,50 @@ export function TemplateStudioClient({
               ? ensureStudioArtistProfileTextInput(nextDocument)
               : null;
         const assetIds = Object.keys(nextDocument.assets);
+        const findAssetId = (keywords: string[]) =>
+          Object.values(nextDocument.assets).find((asset) => {
+            const searchable = `${asset.id} ${asset.label}`.toLowerCase();
+            return keywords.some((keyword) => searchable.includes(keyword));
+          })?.id;
+        const profileImageAssetId =
+          findAssetId(["profile", "avatar", "portrait", "photo"]) ??
+          assetIds[0];
+        const backPlateAssetId =
+          findAssetId(["back_plate", "back plate", "backplate", "plate"]) ??
+          assetIds[0];
+        const frameAssetId =
+          findAssetId(["frame", "border"]) ?? assetIds[1] ?? assetIds[0];
+
+        if (preset.timetableObjectPresetId === "profileBlock") {
+          const { inputId } = ensureStudioPresetImageInput(nextDocument, {
+            label: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+            scope: "global",
+            placeholder: "Paste profile image URL",
+            defaultUrl: profileImageAssetId
+              ? (nextDocument.assets[profileImageAssetId]?.src ?? "")
+              : "",
+          });
+          const { group, children } = createStudioProfileBlockPresetObjects(
+            composition,
+            {
+              inputId,
+              backPlateAssetId,
+              frameAssetId,
+            },
+          );
+
+          composition.objects[group.id] = group;
+          children.forEach((child) => {
+            composition.objects[child.id] = child;
+          });
+          composition.rootObjectIds.push(group.id);
+          insertedObjectId = group.id;
+          linkedPresetInput = true;
+          return;
+        }
+
         const defaultAssetId =
-          preset.timetableObjectPresetId === "profileBlock"
-            ? assetIds[0]
-            : preset.timetableObjectPresetId === "topObject"
+          preset.timetableObjectPresetId === "topObject"
               ? (assetIds[1] ?? assetIds[0])
             : undefined;
         const object = createStudioTimetablePresetObject(
@@ -3419,6 +3550,7 @@ export function TemplateStudioClient({
         top?: number;
         width?: number;
         height?: number;
+        rotateDeg?: number;
       },
       options: UpdateOptions = {},
     ) => {
@@ -3455,6 +3587,14 @@ export function TemplateStudioClient({
             ),
             height: Number(
               (nextPosition.height ?? currentGeometry.height).toFixed(2),
+            ),
+            rotateDeg: Number(
+              (
+                nextPosition.rotateDeg ??
+                (typeof object.style.rotateDeg === "number"
+                  ? object.style.rotateDeg
+                  : 0)
+              ).toFixed(2),
             ),
           };
           return;
@@ -5655,6 +5795,53 @@ export function TemplateStudioClient({
                 );
               }
 
+              if (object.kind === "group") {
+                const isCollapsed = collapsedTimetableLayerIdsSet.has(
+                  object.id,
+                );
+                const childIds = object.childIds ?? [];
+
+                return (
+                  <React.Fragment key={object.id}>
+                    {renderTimetableDropIndicator(object.id, 0, "before")}
+                    {renderTimetableLayerRow({
+                      id: object.id,
+                      label: object.label,
+                      type: "group",
+                      hidden: Boolean(object.hidden),
+                      collapsible: childIds.length > 0,
+                      collapsed: isCollapsed,
+                      draggable: true,
+                      blockedReason,
+                      onDragEnd: clearTimetableLayerDragState,
+                      onDragOver: (event) =>
+                        handleTimetableLayerDragOver(event, object.id),
+                      onDragStart: (event) =>
+                        handleTimetableLayerDragStart(event, object.id),
+                      onDrop: (event) =>
+                        handleTimetableLayerDrop(event, object.id),
+                      onToggleCollapsed: () =>
+                        toggleTimetableLayerCollapsed(object.id),
+                    })}
+                    {!isCollapsed
+                      ? childIds.map((childId) => {
+                          const child = timetableComposition.objects[childId];
+                          if (!child) return null;
+
+                          return renderTimetableLayerRow({
+                            id: child.id,
+                            label: child.label,
+                            type: child.kind === "image" ? "image" : child.kind,
+                            depth: 1,
+                            hidden: Boolean(object.hidden || child.hidden),
+                          });
+                        })
+                      : null}
+                    {renderTimetableDropIndicator(object.id, 0, "after")}
+                  </React.Fragment>
+                );
+              }
+
               return (
                 <React.Fragment key={object.id}>
                   {renderTimetableDropIndicator(object.id, 0, "before")}
@@ -6493,6 +6680,7 @@ export function TemplateStudioClient({
     fit,
     defaultFit = "cover",
     inputLabel = label,
+    sourceLocked,
     onUpdateAsset,
     onUpdateInput,
   }: {
@@ -6503,6 +6691,7 @@ export function TemplateStudioClient({
     fit?: StudioImageFit;
     defaultFit?: StudioImageFit;
     inputLabel?: string;
+    sourceLocked?: "asset" | "input";
     onUpdateAsset: (
       object: StudioTimetableCompositionObject,
       assetId: string | null,
@@ -6514,7 +6703,7 @@ export function TemplateStudioClient({
       fit: StudioImageFit,
     ) => void;
   }) => {
-    const source = inputId ? "input" : "asset";
+    const source = sourceLocked ?? (inputId ? "input" : "asset");
     const input = inputId ? document.inputs[inputId] : null;
     const hasMissingAsset = Boolean(assetId && !document.assets[assetId]);
     const hasMissingInput = Boolean(inputId && (!input || input.type !== "image"));
@@ -6548,7 +6737,7 @@ export function TemplateStudioClient({
 
     return (
       <>
-        {onUpdateInput ? (
+        {onUpdateInput && !sourceLocked ? (
           <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
             <span>{label} Source</span>
             <select
@@ -6640,6 +6829,15 @@ export function TemplateStudioClient({
           <div className="rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-200">
             Missing image input: {inputId}
           </div>
+        ) : source === "input" && onUpdateInput ? (
+          <button
+            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+            type="button"
+            onClick={activateInputSource}
+          >
+            <Plus size={12} />
+            Create user image input
+          </button>
         ) : null}
         <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
           <span>Fit</span>
@@ -6753,6 +6951,49 @@ export function TemplateStudioClient({
           fit,
         );
       },
+    });
+  };
+
+  const renderTimetableProfileChildAssetSlot = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const assetSlot = object.assetSlots?.asset;
+    const role = object.profileRole;
+    const isUserImage = role === "userImage";
+    const label =
+      role === "backPlate"
+        ? "Back Plate Asset"
+        : role === "frame"
+          ? "Frame Asset"
+          : "User Image";
+
+    return renderTimetableAssetSlot({
+      object,
+      label,
+      assetId: assetSlot?.assetId,
+      inputId: assetSlot?.inputId,
+      fit: assetSlot?.fit,
+      defaultFit: isUserImage ? "cover" : "contain",
+      inputLabel: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
+      sourceLocked: isUserImage ? "input" : "asset",
+      onUpdateAsset: (currentObject, assetId, fit) => {
+        setStudioTimetableObjectAssetSlot(
+          currentObject,
+          "asset",
+          assetId,
+          fit,
+        );
+      },
+      onUpdateInput: isUserImage
+        ? (currentObject, inputId, fit) => {
+            setStudioTimetableObjectAssetInputSlot(
+              currentObject,
+              "asset",
+              inputId,
+              fit,
+            );
+          }
+        : undefined,
     });
   };
 
@@ -7273,6 +7514,8 @@ export function TemplateStudioClient({
     object: StudioTimetableCompositionObject,
   ) => {
     const styleRecord = object.style;
+    const fontFamily = String(styleRecord.fontFamily ?? "Inter");
+    const fontWeightOptions = getStudioFontWeightOptions(document, fontFamily);
     const updateTimetableTextStyle = (
       key: string,
       value: string | number | undefined,
@@ -7292,7 +7535,7 @@ export function TemplateStudioClient({
           <span>Font</span>
           <select
             className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            value={String(styleRecord.fontFamily ?? "Inter")}
+            value={fontFamily}
             onChange={(event) =>
               updateTimetableTextStyle("fontFamily", event.currentTarget.value)
             }
@@ -7310,9 +7553,9 @@ export function TemplateStudioClient({
             value={Number(styleRecord.fontSize ?? 16)}
             onChange={(value) => updateTimetableTextStyle("fontSize", value)}
           />
-          <NumberField
-            label="Weight"
-            value={Number(styleRecord.fontWeight ?? 700)}
+          <FontWeightField
+            options={fontWeightOptions}
+            value={styleRecord.fontWeight ?? 700}
             onChange={(value) => updateTimetableTextStyle("fontWeight", value)}
           />
         </div>
@@ -7472,6 +7715,12 @@ export function TemplateStudioClient({
         </p>
       );
     }
+
+    const selectedFontFamily = String(styleRecord.fontFamily ?? "Inter");
+    const selectedFontWeightOptions = getStudioFontWeightOptions(
+      document,
+      selectedFontFamily,
+    );
 
     const bindingInputId = getStudioBindingInputId(selectedNode.binding);
     const bindingBuiltinFieldId =
@@ -7873,7 +8122,7 @@ export function TemplateStudioClient({
                   <span>Font</span>
                   <select
                     className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                    value={String(styleRecord.fontFamily ?? "Inter")}
+                    value={selectedFontFamily}
                     onChange={(event) =>
                       updateSelectedNodeStyle(
                         "fontFamily",
@@ -7896,9 +8145,9 @@ export function TemplateStudioClient({
                       updateSelectedNodeStyle("fontSize", value)
                     }
                   />
-                  <NumberField
-                    label="Weight"
-                    value={Number(styleRecord.fontWeight ?? 700)}
+                  <FontWeightField
+                    options={selectedFontWeightOptions}
+                    value={styleRecord.fontWeight ?? 700}
                     onChange={(value) =>
                       updateSelectedNodeStyle("fontWeight", value)
                     }
@@ -8164,7 +8413,7 @@ export function TemplateStudioClient({
         </div>
       </div>
 
-      <StudioSettingsDrawer
+      <StudioSettingsModal
         activeWorkspaceMode={activeWorkspaceMode}
         databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
         document={document}
@@ -8814,17 +9063,28 @@ export function TemplateStudioClient({
                           selectedTimetableCompositionObject,
                         )
                       ) : null}
-                      {isSelectedProfileBlockObject
+                      {isSelectedLegacyProfileBlockObject
                         ? renderTimetableProfileImageSlot(
                             selectedTimetableCompositionObject,
                           )
                         : null}
-                      {isSelectedProfileBlockObject
+                      {isSelectedLegacyProfileBlockObject
                         ? renderTimetableProfileFrameSlot(
                             selectedTimetableCompositionObject,
                           )
                         : null}
-                      {isSelectedProfileBlockObject
+                      {isSelectedLegacyProfileBlockObject
+                        ? renderTimetableProfileMaskControls(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
+                      {isSelectedProfileChildObject
+                        ? renderTimetableProfileChildAssetSlot(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
+                      {selectedTimetableCompositionObject.profileRole ===
+                      "userImage"
                         ? renderTimetableProfileMaskControls(
                             selectedTimetableCompositionObject,
                           )
@@ -8926,6 +9186,23 @@ export function TemplateStudioClient({
                           </>
                         )}
                       </div>
+                      {isPlacedTimetableCompositionObject(
+                        selectedTimetableCompositionObject ?? undefined,
+                      ) ? (
+                        <NumberField
+                          label="Rotate"
+                          value={Number(
+                            selectedTimetableCompositionObject?.style
+                              .rotateDeg ?? 0,
+                          )}
+                          onChange={(value) =>
+                            updateTimetableLayerPosition(
+                              selectedTimetableLayerId,
+                              { rotateDeg: value },
+                            )
+                          }
+                        />
+                      ) : null}
                     </div>,
                   )
                 : null}

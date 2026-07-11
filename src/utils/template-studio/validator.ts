@@ -946,6 +946,51 @@ const validateTimetableDomain = (
 
   if (timetable.composition) {
     const seenCompositionRootIds = new Set<string>();
+    const seenCompositionChildIds = new Set<string>();
+
+    Object.entries(timetable.composition.objects).forEach(
+      ([parentObjectId, parentObject]) => {
+        const seenChildIds = new Set<string>();
+        (parentObject.childIds ?? []).forEach((childId) => {
+          if (seenChildIds.has(childId)) {
+            diagnostics.push(
+              createDiagnostic(
+                "error",
+                `timetable-composition-child-duplicate:${parentObjectId}:${childId}`,
+                "Duplicate timetable group child",
+                `${childId} appears more than once in ${parentObject.label}.`,
+              ),
+            );
+          }
+          seenChildIds.add(childId);
+          seenCompositionChildIds.add(childId);
+
+          const childObject = timetable.composition?.objects[childId];
+          if (!childObject) {
+            diagnostics.push(
+              createDiagnostic(
+                "error",
+                `timetable-composition-child-missing:${parentObjectId}:${childId}`,
+                "Missing timetable group child",
+                `${childId} is listed in ${parentObject.label} but does not exist.`,
+              ),
+            );
+            return;
+          }
+
+          if (childObject.parentId !== parentObjectId) {
+            diagnostics.push(
+              createDiagnostic(
+                "error",
+                `timetable-composition-child-parent-mismatch:${parentObjectId}:${childId}`,
+                "Timetable child parent mismatch",
+                `${childObject.label} is listed in ${parentObject.label}, but its parentId does not match.`,
+              ),
+            );
+          }
+        });
+      },
+    );
 
     timetable.composition.rootObjectIds.forEach((objectId) => {
       if (seenCompositionRootIds.has(objectId)) {
@@ -959,6 +1004,17 @@ const validateTimetableDomain = (
         );
       }
       seenCompositionRootIds.add(objectId);
+
+      if (seenCompositionChildIds.has(objectId)) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `timetable-composition-root-is-child:${objectId}`,
+            "Timetable object is both root and child",
+            `${objectId} cannot be listed as both a root layer and a group child.`,
+          ),
+        );
+      }
 
       if (!timetable.composition?.objects[objectId]) {
         diagnostics.push(
@@ -985,13 +1041,30 @@ const validateTimetableDomain = (
           );
         }
 
-        if (!seenCompositionRootIds.has(objectId)) {
+        if (
+          !seenCompositionRootIds.has(objectId) &&
+          !seenCompositionChildIds.has(objectId)
+        ) {
           diagnostics.push(
             createDiagnostic(
               "warning",
               `timetable-composition-object-orphan:${objectId}`,
               "Timetable composition object is not visible",
               `${object.label} exists in timetable composition objects but is not listed in rootObjectIds.`,
+            ),
+          );
+        }
+
+        if (
+          object.parentId &&
+          !timetable.composition?.objects[object.parentId]
+        ) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-composition-parent-missing:${objectId}`,
+              "Missing timetable parent object",
+              `${object.label} references missing parent ${object.parentId}.`,
             ),
           );
         }

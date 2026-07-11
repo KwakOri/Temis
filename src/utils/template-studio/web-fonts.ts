@@ -59,6 +59,66 @@ export type StudioWebFontParseResult =
       errors: StudioWebFontParseError[];
     };
 
+export type StudioFontWeight =
+  | 100
+  | 200
+  | 300
+  | 400
+  | 500
+  | 600
+  | 700
+  | 800
+  | 900;
+
+export interface StudioFontWeightOption {
+  label: string;
+  value: StudioFontWeight;
+}
+
+const STUDIO_FONT_WEIGHT_OPTIONS: StudioFontWeightOption[] = [
+  { value: 100, label: "Thin" },
+  { value: 200, label: "Extra Light" },
+  { value: 300, label: "Light" },
+  { value: 400, label: "Normal" },
+  { value: 500, label: "Medium" },
+  { value: 600, label: "Semi Bold" },
+  { value: 700, label: "Bold" },
+  { value: 800, label: "Extra Bold" },
+  { value: 900, label: "Black" },
+];
+
+const toStandardFontWeight = (value: number): StudioFontWeight =>
+  Math.min(900, Math.max(100, Math.round(value / 100) * 100)) as StudioFontWeight;
+
+export const normalizeStudioFontWeight = (
+  value: string | number | null | undefined,
+): StudioFontWeight => {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "normal") return 400;
+    if (normalized === "bold") return 700;
+    return toStandardFontWeight(Number(normalized) || 400);
+  }
+
+  return toStandardFontWeight(
+    typeof value === "number" && Number.isFinite(value) ? value : 400,
+  );
+};
+
+const getFaceStandardFontWeights = (weight: string): StudioFontWeight[] => {
+  const values = weight.trim().toLowerCase().split(/\s+/);
+  if (values.length === 1) return [normalizeStudioFontWeight(values[0])];
+
+  const start = normalizeStudioFontWeight(values[0]);
+  const end = normalizeStudioFontWeight(values[1]);
+  const minimum = Math.min(start, end);
+  const maximum = Math.max(start, end);
+
+  return STUDIO_FONT_WEIGHT_OPTIONS.filter(
+    (option) => option.value >= minimum && option.value <= maximum,
+  ).map((option) => option.value);
+};
+
 const stripCopiedMarkdownEmphasis = (value: string): string =>
   value
     .split(/\r?\n/)
@@ -404,6 +464,57 @@ export const getStudioCustomFontFamilies = (
         .flatMap((source) => {
           const result = parseStudioWebFontCss(source.cssText);
           return result.ok ? result.families : [];
-        }),
+      }),
     ),
   );
+
+export const getStudioParsedFontWeightOptions = (
+  faces: StudioParsedWebFontFace[],
+  fontFamily?: string,
+): StudioFontWeightOption[] => {
+  const normalizedFamily = fontFamily?.trim().toLowerCase();
+  const weights = new Set<StudioFontWeight>();
+
+  faces.forEach((face) => {
+    if (
+      normalizedFamily &&
+      face.family.trim().toLowerCase() !== normalizedFamily
+    ) {
+      return;
+    }
+    getFaceStandardFontWeights(face.weight).forEach((weight) =>
+      weights.add(weight),
+    );
+  });
+
+  const options = STUDIO_FONT_WEIGHT_OPTIONS.filter((option) =>
+    weights.has(option.value),
+  );
+  return options.length > 0
+    ? options
+    : STUDIO_FONT_WEIGHT_OPTIONS.filter((option) => option.value === 400);
+};
+
+export const getStudioFontWeightOptions = (
+  document: StudioTemplateDocument,
+  fontFamily: string,
+): StudioFontWeightOption[] => {
+  const normalizedFamily = fontFamily.trim().toLowerCase();
+  const importedFaces: StudioParsedWebFontFace[] = [];
+
+  getStudioWebFontSources(document)
+    .filter((source) => source.enabled)
+    .forEach((source) => {
+      const result = parseStudioWebFontCss(source.cssText);
+      if (!result.ok) return;
+
+      result.faces.forEach((face) => {
+        if (face.family.trim().toLowerCase() !== normalizedFamily) return;
+        importedFaces.push(face);
+      });
+    });
+
+  return importedFaces.length > 0
+    ? getStudioParsedFontWeightOptions(importedFaces, fontFamily)
+    : STUDIO_FONT_WEIGHT_OPTIONS;
+};

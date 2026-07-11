@@ -954,6 +954,96 @@ export function StudioTimetablePreview({
     );
   };
 
+  const renderImageObject = (object: StudioTimetableCompositionObject) => {
+    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const selected = selectedLayerId === object.id;
+    const assetSlot = object.assetSlots?.asset;
+    const asset = resolveTimetableAssetSlot(
+      document,
+      runtimeValues,
+      assetSlot,
+    );
+
+    return (
+      <div
+        className="absolute"
+        data-node-id={object.id}
+        key={object.id}
+        style={{
+          ...getTimetableObjectStyle(document, runtimeValues, object),
+          outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
+          outlineOffset: 8,
+          minWidth: Math.max(1, geometry.width),
+          minHeight: Math.max(1, geometry.height),
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectLayer?.(object.id);
+        }}
+      >
+        {asset?.src ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Timetable composition images use template asset and runtime input URLs.
+          <img
+            alt={asset.label}
+            className="pointer-events-none absolute inset-0 h-full w-full"
+            draggable={false}
+            src={asset.src}
+            style={{ objectFit: assetSlot?.fit ?? "contain" }}
+          />
+        ) : (
+          <div className="pointer-events-none absolute inset-0 flex h-full w-full items-center justify-center border border-dashed border-slate-300 bg-slate-200/40 px-4 text-center text-[28px] font-bold text-slate-400">
+            {object.label}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCompositionObject = (
+    objectId: string,
+    visitedObjectIds = new Set<string>(),
+  ): React.ReactNode => {
+    if (visitedObjectIds.has(objectId)) return null;
+    const object = composition.objects[objectId];
+    if (!object || object.hidden) return null;
+
+    if (object.kind === "generatedDayCards") return renderDayCardsObject();
+    if (object.kind === "profileBlock") {
+      return renderProfileBlockObject(object);
+    }
+    if (object.kind === "topObject") return renderTopObject(object);
+    if (object.kind === "image") return renderImageObject(object);
+    if (object.kind !== "group") return renderTextObject(object);
+
+    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const selected = selectedLayerId === object.id;
+    const nextVisitedObjectIds = new Set(visitedObjectIds);
+    nextVisitedObjectIds.add(object.id);
+
+    return (
+      <div
+        className="absolute overflow-visible"
+        data-node-id={object.id}
+        key={object.id}
+        style={{
+          ...getTimetableObjectStyle(document, runtimeValues, object),
+          outline: selected ? "8px solid rgba(59, 130, 246, 0.75)" : "none",
+          outlineOffset: 8,
+          minWidth: Math.max(1, geometry.width),
+          minHeight: Math.max(1, geometry.height),
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelectLayer?.(object.id);
+        }}
+      >
+        {(object.childIds ?? []).map((childId) =>
+          renderCompositionObject(childId, nextVisitedObjectIds),
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
       className="relative overflow-hidden bg-[#eef2f7] text-[#172033]"
@@ -964,25 +1054,9 @@ export function StudioTimetablePreview({
       }}
     >
       <StudioWebFontLoader document={document} />
-      {composition.rootObjectIds.map((objectId) => {
-        const object = composition.objects[objectId];
-        if (!object) return null;
-        if (object.hidden) return null;
-
-        if (object.kind === "generatedDayCards") {
-          return renderDayCardsObject();
-        }
-
-        if (object.kind === "profileBlock") {
-          return renderProfileBlockObject(object);
-        }
-
-        if (object.kind === "topObject") {
-          return renderTopObject(object);
-        }
-
-        return renderTextObject(object);
-      })}
+      {composition.rootObjectIds.map((objectId) =>
+        renderCompositionObject(objectId),
+      )}
     </div>
   );
 }

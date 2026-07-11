@@ -2,9 +2,12 @@
 
 import {
   Check,
+  ChevronDown,
   Database,
   Download,
+  FileText,
   Monitor,
+  Palette,
   Pencil,
   Plus,
   RefreshCw,
@@ -13,7 +16,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -22,14 +25,16 @@ import type {
 } from "@/types/template-studio";
 import { createStudioId } from "@/utils/template-studio/id";
 import {
+  getStudioParsedFontWeightOptions,
   getStudioWebFontSources,
   parseStudioWebFontCss,
 } from "@/utils/template-studio/web-fonts";
 
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
+type SettingsTab = "canvas" | "fonts" | "data" | "appearance" | "document";
 
-interface StudioSettingsDrawerProps {
+interface StudioSettingsModalProps {
   activeWorkspaceMode: WorkspaceMode;
   databaseTargetLabel: string;
   document: StudioTemplateDocument;
@@ -59,7 +64,41 @@ interface StudioSettingsDrawerProps {
 const fieldClassName =
   "h-9 min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]";
 
-const sectionClassName = "grid gap-3 border-b border-[var(--border)] px-4 py-4";
+const sectionClassName =
+  "mx-auto grid w-full max-w-3xl content-start gap-3 rounded-xl border border-[var(--border)] bg-[var(--field)]/20 p-4";
+
+const settingsTabs = [
+  {
+    id: "canvas" as const,
+    label: "Canvas",
+    description: "Size & background",
+    Icon: Monitor,
+  },
+  {
+    id: "fonts" as const,
+    label: "Web Fonts",
+    description: "Font sources",
+    Icon: Type,
+  },
+  {
+    id: "data" as const,
+    label: "Data",
+    description: "Sync & JSON",
+    Icon: Database,
+  },
+  {
+    id: "appearance" as const,
+    label: "Appearance",
+    description: "Editor theme",
+    Icon: Palette,
+  },
+  {
+    id: "document" as const,
+    label: "Document",
+    description: "Environment info",
+    Icon: FileText,
+  },
+];
 
 function CanvasNumberField({
   label,
@@ -84,7 +123,7 @@ function CanvasNumberField({
   );
 }
 
-export function StudioSettingsDrawer({
+export function StudioSettingsModal({
   activeWorkspaceMode,
   databaseTargetLabel,
   document,
@@ -101,16 +140,29 @@ export function StudioSettingsDrawer({
   onThemeChange,
   onTimetableCanvasChange,
   onWebFontsChange,
-}: StudioSettingsDrawerProps) {
+}: StudioSettingsModalProps) {
   const [fontLabel, setFontLabel] = useState("");
   const [fontCss, setFontCss] = useState("");
   const [editingFontId, setEditingFontId] = useState<string | null>(null);
+  const [expandedFontIds, setExpandedFontIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<SettingsTab>("canvas");
   const webFonts = getStudioWebFontSources(document);
   const fontParseResult = useMemo(
     () => (fontCss.trim() ? parseStudioWebFontCss(fontCss) : null),
     [fontCss],
   );
   const timetableCanvas = document.domains?.timetable?.canvas;
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose, open]);
 
   if (!open) return null;
 
@@ -150,23 +202,38 @@ export function StudioSettingsDrawer({
   };
 
   return (
-    <>
-      <button
-        aria-label="Close settings"
-        className="fixed inset-0 top-12 z-30 cursor-default bg-black/25"
-        type="button"
-        onClick={onClose}
-      />
-      <aside className="fixed bottom-0 right-0 top-12 z-40 w-[360px] overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)] shadow-[-18px_0_40px_rgba(0,0,0,0.25)]">
-        <header className="sticky top-0 z-10 flex h-12 items-center border-b border-[var(--border)] bg-[var(--panel)] px-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-[2px]"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        aria-describedby="studio-settings-description"
+        aria-labelledby="studio-settings-title"
+        aria-modal="true"
+        className="flex h-[calc(100vh-4rem)] max-h-[880px] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-[0_28px_90px_rgba(0,0,0,0.5)]"
+        role="dialog"
+      >
+        <header className="flex h-16 shrink-0 items-center border-b border-[var(--border)] bg-[var(--panel)] px-5">
           <div>
-            <h2 className="text-sm font-bold text-[var(--fg)]">Settings</h2>
-            <p className="text-[10px] font-semibold text-[var(--fg3)]">
+            <h2
+              className="text-base font-bold text-[var(--fg)]"
+              id="studio-settings-title"
+            >
+              Settings
+            </h2>
+            <p
+              className="text-[11px] font-semibold text-[var(--fg3)]"
+              id="studio-settings-description"
+            >
               Template document settings
             </p>
           </div>
           <button
-            className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            aria-label="Close settings"
+            autoFocus
+            className="ml-auto flex h-9 w-9 items-center justify-center rounded-lg text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
             title="Close settings"
             type="button"
             onClick={onClose}
@@ -175,7 +242,55 @@ export function StudioSettingsDrawer({
           </button>
         </header>
 
-        <section className={sectionClassName}>
+        <div className="flex min-h-0 flex-1">
+          <nav
+            aria-label="Settings categories"
+            className="w-44 shrink-0 border-r border-[var(--border)] bg-[var(--field)]/15 p-3 sm:w-52"
+          >
+            <div className="grid gap-1" role="tablist" aria-orientation="vertical">
+              {settingsTabs.map(({ id, label, description, Icon }) => (
+                <button
+                  aria-controls={`studio-settings-panel-${id}`}
+                  aria-selected={activeTab === id}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition",
+                    activeTab === id
+                      ? "bg-[var(--sel)] text-[var(--fg)] shadow-[inset_0_0_0_1px_var(--field-border)]"
+                      : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                  )}
+                  id={`studio-settings-tab-${id}`}
+                  key={id}
+                  role="tab"
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                >
+                  <Icon
+                    className={cn(
+                      "h-4 w-4 shrink-0",
+                      activeTab === id && "text-[var(--accent)]",
+                    )}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-bold">{label}</span>
+                    <span className="block truncate text-[10px] font-semibold text-[var(--fg3)]">
+                      {description}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          <div className="min-w-0 flex-1 overflow-y-auto p-5">
+          <section
+            aria-labelledby="studio-settings-tab-canvas"
+            className={cn(
+              sectionClassName,
+              activeTab !== "canvas" && "hidden",
+            )}
+            id="studio-settings-panel-canvas"
+            role="tabpanel"
+          >
           <div className="flex items-center gap-2">
             <Monitor size={14} className="text-[var(--accent)]" />
             <h3 className="text-xs font-bold text-[var(--fg)]">Canvas</h3>
@@ -277,9 +392,17 @@ export function StudioSettingsDrawer({
               </button>
             ))}
           </div>
-        </section>
+          </section>
 
-        <section className={sectionClassName}>
+          <section
+            aria-labelledby="studio-settings-tab-fonts"
+            className={cn(
+              sectionClassName,
+              activeTab !== "fonts" && "hidden",
+            )}
+            id="studio-settings-panel-fonts"
+            role="tabpanel"
+          >
           <div className="flex items-center gap-2">
             <Type size={14} className="text-[var(--accent)]" />
             <h3 className="text-xs font-bold text-[var(--fg)]">Web Fonts</h3>
@@ -292,6 +415,11 @@ export function StudioSettingsDrawer({
             <div className="grid gap-2">
               {webFonts.map((source) => {
                 const parsed = parseStudioWebFontCss(source.cssText);
+                const fontFamily = parsed.ok ? parsed.families[0] : undefined;
+                const weightOptions = parsed.ok
+                  ? getStudioParsedFontWeightOptions(parsed.faces, fontFamily)
+                  : [];
+                const isExpanded = expandedFontIds.includes(source.id);
                 return (
                   <div
                     className="grid gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-3"
@@ -319,18 +447,37 @@ export function StudioSettingsDrawer({
                       >
                         <Check size={12} />
                       </button>
+                      <button
+                        aria-controls={`studio-font-weights-${source.id}`}
+                        aria-expanded={isExpanded}
+                        aria-label={`${isExpanded ? "Collapse" : "Expand"} ${source.label} font weights`}
+                        className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-35"
+                        disabled={!parsed.ok || !fontFamily}
+                        title={`${isExpanded ? "Collapse" : "Expand"} font weights`}
+                        type="button"
+                        onClick={() =>
+                          setExpandedFontIds((current) =>
+                            current.includes(source.id)
+                              ? current.filter((id) => id !== source.id)
+                              : [...current, source.id],
+                          )
+                        }
+                      >
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 transition-transform",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
+                      </button>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-xs font-bold text-[var(--fg)]">
                           {source.label}
                         </div>
                         <div className="truncate text-[10px] font-semibold text-[var(--fg3)]">
                           {parsed.ok
-                            ? parsed.faces
-                                .map((face) => face.weight)
-                                .filter(
-                                  (weight, index, all) =>
-                                    all.indexOf(weight) === index,
-                                )
+                            ? weightOptions
+                                .map((option) => option.value)
                                 .join(", ")
                             : "Invalid CSS"}
                         </div>
@@ -362,13 +509,51 @@ export function StudioSettingsDrawer({
                         <Trash2 size={13} />
                       </button>
                     </div>
-                    {parsed.ok && parsed.families[0] ? (
-                      <div
-                        className="truncate rounded-lg bg-[var(--panel)] px-2.5 py-2 text-base text-[var(--fg)]"
-                        style={{ fontFamily: parsed.families[0] }}
-                      >
-                        가나다라마바사 ABC 123
-                      </div>
+                    {parsed.ok && fontFamily ? (
+                      isExpanded ? (
+                        <div
+                          className="grid gap-1.5"
+                          id={`studio-font-weights-${source.id}`}
+                        >
+                          {weightOptions.map((option) => (
+                            <div
+                              className="grid grid-cols-[104px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[var(--field-border)] bg-[var(--panel)] px-3 py-2"
+                              key={option.value}
+                            >
+                              <div className="min-w-0">
+                                <div className="truncate text-[11px] font-bold text-[var(--fg)]">
+                                  {option.label}
+                                </div>
+                                <div className="text-[10px] font-semibold text-[var(--fg3)]">
+                                  {option.value}
+                                </div>
+                              </div>
+                              <div
+                                className="truncate text-base text-[var(--fg)]"
+                                style={{
+                                  fontFamily,
+                                  fontWeight: option.value,
+                                }}
+                              >
+                                가나다라마바사 ABC 123
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div
+                          className="truncate rounded-lg bg-[var(--panel)] px-2.5 py-2 text-base text-[var(--fg)]"
+                          style={{
+                            fontFamily,
+                            fontWeight:
+                              weightOptions.find(
+                                (option) => option.value === 400,
+                              )?.value ?? weightOptions[0]?.value,
+                          }}
+                        >
+                          가나다라마바사 ABC 123
+                        </div>
+                      )
                     ) : null}
                   </div>
                 );
@@ -432,9 +617,14 @@ export function StudioSettingsDrawer({
               </button>
             </div>
           </div>
-        </section>
+          </section>
 
-        <section className={sectionClassName}>
+          <section
+            aria-labelledby="studio-settings-tab-data"
+            className={cn(sectionClassName, activeTab !== "data" && "hidden")}
+            id="studio-settings-panel-data"
+            role="tabpanel"
+          >
           <div className="flex items-center gap-2">
             <Database size={14} className="text-[var(--accent)]" />
             <h3 className="text-xs font-bold text-[var(--fg)]">Data</h3>
@@ -463,9 +653,17 @@ export function StudioSettingsDrawer({
               <Upload size={14} /> Import JSON
             </button>
           </div>
-        </section>
+          </section>
 
-        <section className={sectionClassName}>
+          <section
+            aria-labelledby="studio-settings-tab-appearance"
+            className={cn(
+              sectionClassName,
+              activeTab !== "appearance" && "hidden",
+            )}
+            id="studio-settings-panel-appearance"
+            role="tabpanel"
+          >
           <h3 className="text-xs font-bold text-[var(--fg)]">Appearance</h3>
           <div className="grid grid-cols-2 gap-2">
             {(["dark", "light"] as const).map((option) => (
@@ -484,9 +682,18 @@ export function StudioSettingsDrawer({
               </button>
             ))}
           </div>
-        </section>
+          </section>
 
-        <section className="grid gap-2 px-4 py-4 text-[11px] font-semibold text-[var(--fg2)]">
+          <section
+            aria-labelledby="studio-settings-tab-document"
+            className={cn(
+              sectionClassName,
+              "gap-2 text-[11px] font-semibold text-[var(--fg2)]",
+              activeTab !== "document" && "hidden",
+            )}
+            id="studio-settings-panel-document"
+            role="tabpanel"
+          >
           <h3 className="mb-1 text-xs font-bold text-[var(--fg)]">
             Environment & Document
           </h3>
@@ -508,8 +715,10 @@ export function StudioSettingsDrawer({
             <span>Inputs</span>
             <span className="text-[var(--fg)]">{inputCount}</span>
           </div>
-        </section>
-      </aside>
-    </>
+          </section>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
