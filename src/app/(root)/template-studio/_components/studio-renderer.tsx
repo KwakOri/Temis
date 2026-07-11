@@ -20,6 +20,8 @@ import {
   getStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
+import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
+import { getStudioObjectRenderStyle } from "@/utils/template-studio/object-layout";
 import {
   isStudioStatusCardBackgroundNode,
   resolveStudioStatusCardBackgroundSlot,
@@ -112,7 +114,9 @@ export function StudioRenderer({
     const styleRecord = node.styleId
       ? document.styles[node.styleId]
       : undefined;
-    const style = toCssStyle(styleRecord);
+    const style = toCssStyle(
+      getStudioObjectRenderStyle(styleRecord ?? {}, node.layoutMode),
+    );
     const statusBackgroundSlot = isStudioStatusCardBackgroundNode(node)
       ? resolveStudioStatusCardBackgroundSlot(
           document,
@@ -138,7 +142,7 @@ export function StudioRenderer({
       : style;
     const isSelected =
       selectedNodeId === node.id || selectedNodeIdsSet.has(node.id);
-    const children = node.childIds
+    const children = getStudioPaintOrder(node.childIds)
       .map((childId) => document.graph.nodes[childId])
       .filter(Boolean)
       .map((childNode) => renderNode(childNode));
@@ -247,7 +251,7 @@ export function StudioRenderer({
       }}
     >
       <StudioWebFontLoader document={document} />
-      {(rootNodeIds ?? document.graph.rootNodeIds)
+      {getStudioPaintOrder(rootNodeIds ?? document.graph.rootNodeIds)
         .map((nodeId) => document.graph.nodes[nodeId])
         .filter(Boolean)
         .map((node) => renderNode(node))}

@@ -27,6 +27,7 @@ export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
 export type StudioBuiltinFieldType = "text" | "boolean" | "status";
 export type StudioGraphNodeType = "group" | "text" | "image" | "flexibleText";
+export type StudioObjectLayoutMode = "fixed" | "fillParent";
 export type StudioImageFit = "cover" | "contain" | "fill";
 export type StudioTimetableBaseStatus = "online" | "offline";
 export type StudioTimetableStatusKind = "base" | "derived";
@@ -124,6 +125,7 @@ export interface StudioGraphNode {
   label: string;
   parentId: StudioNodeId | null;
   childIds: StudioNodeId[];
+  layoutMode?: StudioObjectLayoutMode;
   styleId?: StudioStyleId;
   binding?: StudioBinding;
   assetSlots?: Record<string, StudioTimetableAssetSlot>;
@@ -296,6 +298,7 @@ export interface StudioTimetableCompositionObject {
   presetId?: StudioTimetableObjectPresetId;
   parentId?: StudioTimetableCompositionObjectId | null;
   childIds?: StudioTimetableCompositionObjectId[];
+  layoutMode?: StudioObjectLayoutMode;
   profileRole?: StudioTimetableProfileObjectRole;
   style: StudioStyleRecord;
   binding?: StudioBinding;

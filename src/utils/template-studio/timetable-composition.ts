@@ -175,7 +175,7 @@ export const createStudioTimetableDayCardsObject =
     kind: "generatedDayCards",
     label: "Day Card Containers",
     presetId: "dayCards",
-    style: {},
+    style: { opacity: 1 },
     meta: {
       exception: createStudioTimetableDayCardsExceptionMeta(),
     },
@@ -354,6 +354,7 @@ const createStudioProfileBlockGroupFromLegacyObject = (
     width: geometry.width,
     height: geometry.height,
     rotateDeg: 0,
+    opacity: 1,
   };
 
   const group: StudioTimetableCompositionObject = {
@@ -365,6 +366,7 @@ const createStudioProfileBlockGroupFromLegacyObject = (
     style: {
       ...object.style,
       borderRadius: 0,
+      opacity: object.style.opacity ?? 1,
       overflow: "visible",
     },
     assetSlots: undefined,
@@ -427,11 +429,20 @@ const createStudioProfileBlockGroupFromLegacyObject = (
 const normalizeStudioTimetableComposition = (
   composition?: StudioTimetableComposition,
 ): StudioTimetableComposition => {
-  const objects = Object.fromEntries(
-    Object.entries(composition?.objects ?? {}).map(([objectId, object]) => [
-      objectId,
-      normalizeStudioTimetableCompositionObject(object),
-    ]),
+  const objects: StudioTimetableComposition["objects"] = Object.fromEntries(
+    Object.entries(composition?.objects ?? {}).map(([objectId, object]) => {
+      const normalizedObject = normalizeStudioTimetableCompositionObject(object);
+      return [
+        objectId,
+        {
+          ...normalizedObject,
+          style: {
+            opacity: 1,
+            ...normalizedObject.style,
+          },
+        },
+      ];
+    }),
   );
 
   Object.entries(objects).forEach(([objectId, object]) => {
@@ -530,6 +541,7 @@ export const createStudioProfileBlockPresetObjects = (
     width: STUDIO_PROFILE_BLOCK_SIZE,
     height: STUDIO_PROFILE_BLOCK_SIZE,
     rotateDeg: 0,
+    opacity: 1,
   };
   const group: StudioTimetableCompositionObject = {
     id: objectId,
@@ -545,6 +557,7 @@ export const createStudioProfileBlockPresetObjects = (
       width: STUDIO_PROFILE_BLOCK_SIZE,
       height: STUDIO_PROFILE_BLOCK_SIZE,
       rotateDeg: 0,
+      opacity: 1,
       overflow: "visible",
     },
     meta: {
@@ -662,6 +675,7 @@ export const createStudioTimetablePresetObject = (
         alignItems: "center",
         fontSize: 86,
         fontWeight: 800,
+        opacity: 1,
       },
       binding: {
         kind: "builtinField",
@@ -687,6 +701,7 @@ export const createStudioTimetablePresetObject = (
         height: 420,
         borderRadius: 56,
         backgroundColor: "#dbeafe",
+        opacity: 1,
         overflow: "hidden",
       },
       assetSlots: options.assetId
@@ -733,6 +748,7 @@ export const createStudioTimetablePresetObject = (
         assetPosition: "left",
         assetSize: 160,
         assetGap: 32,
+        opacity: 1,
       },
       binding: options.inputId
         ? {
@@ -762,6 +778,7 @@ export const createStudioTimetablePresetObject = (
         width: 420,
         height: 420,
         borderRadius: 0,
+        opacity: 1,
         overflow: "visible",
       },
       assetSlots: options.assetId
@@ -797,6 +814,7 @@ export const createStudioTimetablePresetObject = (
       alignItems: "center",
       fontSize: 48,
       fontWeight: 700,
+      opacity: 1,
     },
     binding: options.inputId
       ? {

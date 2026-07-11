@@ -95,6 +95,15 @@ import {
 } from "@/utils/template-studio/graph-editor";
 import { createStudioId } from "@/utils/template-studio/id";
 import {
+  getStudioDataDropPosition,
+  getStudioLayerPanelOrder,
+} from "@/utils/template-studio/layer-order";
+import {
+  isStudioFillParentLayout,
+  resolveStudioGraphNodeGeometry,
+  resolveStudioTimetableObjectGeometry,
+} from "@/utils/template-studio/object-layout";
+import {
   getStudioInputDefaultValue,
   getStudioInputsForScope,
   getStudioRuntimeInputValue,
@@ -712,19 +721,11 @@ const formatStudioSlotName = (slotName: string): string =>
     .trim()
     .replace(/\b\w/g, (char) => char.toUpperCase());
 
-const getTimetableRootDropPositionFromLayerPosition = (
-  position: "before" | "after",
-): "before" | "after" => (position === "before" ? "after" : "before");
-
-const getStudioLayerDisplayNodeIds = (nodeIds: string[]): string[] =>
-  [...nodeIds].reverse();
-
-const getGraphDropPositionFromLayerPosition = (
-  position: StudioGraphDropPosition,
-): StudioGraphDropPosition => {
-  if (position === "before") return "after";
-  if (position === "after") return "before";
-  return position;
+const getStudioOpacityPercent = (value: unknown): number => {
+  const parsedValue = Number(value ?? 1);
+  if (!Number.isFinite(parsedValue)) return 100;
+  const percent = parsedValue <= 1 ? parsedValue * 100 : parsedValue;
+  return Math.min(Math.max(Math.round(percent), 0), 100);
 };
 
 const getStudioLayerDropPositionLabel = (
@@ -739,12 +740,10 @@ const getStudioNodeBounds = (
   document: StudioTemplateDocument,
   nodeId: string,
 ) => {
-  const node = document.graph.nodes[nodeId];
-  const style = node?.styleId ? document.styles[node.styleId] : undefined;
-  const left = typeof style?.left === "number" ? style.left : 0;
-  const top = typeof style?.top === "number" ? style.top : 0;
-  const width = typeof style?.width === "number" ? style.width : 0;
-  const height = typeof style?.height === "number" ? style.height : 0;
+  const { left, top, width, height } = resolveStudioGraphNodeGeometry(
+    document,
+    nodeId,
+  );
 
   return {
     left,
@@ -978,9 +977,10 @@ interface NumberFieldProps {
   label: string;
   value: number;
   onChange: (value: number) => void;
+  disabled?: boolean;
 }
 
-function NumberField({ label, value, onChange }: NumberFieldProps) {
+function NumberField({ label, value, onChange, disabled }: NumberFieldProps) {
   const [draftValue, setDraftValue] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const displayValue = isEditing
@@ -1031,7 +1031,8 @@ function NumberField({ label, value, onChange }: NumberFieldProps) {
     <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
       <span>{label}</span>
       <input
-        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:text-[var(--fg3)] disabled:opacity-70"
+        disabled={disabled}
         inputMode="decimal"
         type="text"
         value={displayValue}
@@ -1066,6 +1067,34 @@ function NumberField({ label, value, onChange }: NumberFieldProps) {
         }}
       />
     </label>
+  );
+}
+
+function FitParentButton({
+  active,
+  onClick,
+}: {
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-pressed={active}
+      className={cn(
+        "h-7 rounded-md border px-2.5 text-[10px] font-bold uppercase tracking-[0.05em] transition",
+        active
+          ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--accent)]"
+          : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]",
+      )}
+      title={active ? "Use fixed size" : "Fill parent"}
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+    >
+      Fit
+    </button>
   );
 }
 
@@ -1163,32 +1192,43 @@ interface SectionProps {
   open: boolean;
   onToggle: () => void;
   badge?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }
 
-function Section({ title, open, onToggle, badge, children }: SectionProps) {
+function Section({
+  title,
+  open,
+  onToggle,
+  badge,
+  action,
+  children,
+}: SectionProps) {
   return (
     <section className="border-b border-[var(--border)]">
-      <button
-        className="flex w-full items-center gap-1.5 px-4 py-3 text-left transition hover:bg-[var(--hover)]"
-        type="button"
-        onClick={onToggle}
-      >
-        <ChevronRight
-          className={cn(
-            "h-3 w-3 text-[var(--fg2)] transition-transform",
-            open && "rotate-90",
-          )}
-        />
-        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-          {title}
-        </span>
-        {badge ? (
-          <span className="ml-auto rounded bg-[var(--sel)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em] text-[var(--accent)]">
-            {badge}
+      <div className="flex items-center transition hover:bg-[var(--hover)]">
+        <button
+          className="flex min-w-0 flex-1 items-center gap-1.5 px-4 py-3 text-left"
+          type="button"
+          onClick={onToggle}
+        >
+          <ChevronRight
+            className={cn(
+              "h-3 w-3 text-[var(--fg2)] transition-transform",
+              open && "rotate-90",
+            )}
+          />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
+            {title}
           </span>
-        ) : null}
-      </button>
+          {badge ? (
+            <span className="ml-auto rounded bg-[var(--sel)] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em] text-[var(--accent)]">
+              {badge}
+            </span>
+          ) : null}
+        </button>
+        {action ? <div className="pr-4">{action}</div> : null}
+      </div>
       {open ? <div className="px-4 pb-4">{children}</div> : null}
     </section>
   );
@@ -1390,6 +1430,9 @@ export function TemplateStudioClient({
   const selectedTimetableCompositionObject = selectedTimetableLayerId
     ? (timetableComposition.objects[selectedTimetableLayerId] ?? null)
     : null;
+  const isSelectedTimetableObjectFitParent = isStudioFillParentLayout(
+    selectedTimetableCompositionObject?.layoutMode,
+  );
   const selectedTimetableTextObject =
     selectedTimetableCompositionObject?.kind === "text"
       ? selectedTimetableCompositionObject
@@ -1483,7 +1526,11 @@ export function TemplateStudioClient({
       timetableComposition.objects[selectedTimetableLayerId];
 
     if (isPlacedTimetableCompositionObject(compositionObject)) {
-      return getStudioTimetableCompositionObjectGeometry(compositionObject);
+      return resolveStudioTimetableObjectGeometry(
+        timetableComposition,
+        compositionObject.id,
+        getStudioTimetablePreviewSize(timetable),
+      );
     }
 
     if (selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
@@ -1527,7 +1574,7 @@ export function TemplateStudioClient({
     document,
     runtimeValues,
     selectedTimetableLayerId,
-    timetableComposition.objects,
+    timetableComposition,
     timetableEntryCardSize,
     timetableDays,
   ]);
@@ -1719,7 +1766,7 @@ export function TemplateStudioClient({
     const nextNodeIds: string[] = [];
 
     const collectNodeIds = (nodeIds: string[]) => {
-      getStudioLayerDisplayNodeIds(nodeIds).forEach((nodeId) => {
+      getStudioLayerPanelOrder(nodeIds).forEach((nodeId) => {
         const node = document.graph.nodes[nodeId];
         if (!node) return;
 
@@ -2515,6 +2562,13 @@ export function TemplateStudioClient({
     if (!selectedNode) return;
 
     updateNode(selectedNode.id, (node, nextDocument) => {
+      if (
+        isStudioFillParentLayout(node.layoutMode) &&
+        ["left", "top", "width", "height"].includes(key)
+      ) {
+        return;
+      }
+
       let styleId = node.styleId;
       if (!styleId) {
         styleId = createStudioId("style");
@@ -2525,6 +2579,41 @@ export function TemplateStudioClient({
       nextDocument.styles[styleId] = {
         ...nextDocument.styles[styleId],
         [key]: value,
+      };
+    });
+  };
+
+  const toggleSelectedNodeFitParent = () => {
+    if (!selectedNode) return;
+
+    const shouldFillParent = !isStudioFillParentLayout(
+      selectedNode.layoutMode,
+    );
+    const resolvedGeometry = resolveStudioGraphNodeGeometry(
+      document,
+      selectedNode.id,
+    );
+
+    updateNode(selectedNode.id, (node, nextDocument) => {
+      let styleId = node.styleId;
+      if (!styleId) {
+        styleId = createStudioId("style");
+        node.styleId = styleId;
+        nextDocument.styles[styleId] = getDefaultStyleForNode(node.type);
+      }
+
+      const style = nextDocument.styles[styleId] ?? {};
+      node.layoutMode = shouldFillParent ? "fillParent" : "fixed";
+      nextDocument.styles[styleId] = {
+        ...style,
+        left: 0,
+        top: 0,
+        ...(shouldFillParent
+          ? {}
+          : {
+              width: resolvedGeometry.width,
+              height: resolvedGeometry.height,
+            }),
       };
     });
   };
@@ -2602,7 +2691,13 @@ export function TemplateStudioClient({
       (nextDocument) => {
         targetNodeIds.forEach((targetNodeId) => {
           const node = nextDocument.graph.nodes[targetNodeId];
-          if (!node || isStudioNodeLocked(node)) return;
+          if (
+            !node ||
+            isStudioNodeLocked(node) ||
+            isStudioFillParentLayout(node.layoutMode)
+          ) {
+            return;
+          }
 
           let styleId = node.styleId;
           if (!styleId) {
@@ -3274,6 +3369,40 @@ export function TemplateStudioClient({
     [updateDocument],
   );
 
+  const toggleTimetableObjectFitParent = useCallback(
+    (objectId: string) => {
+      updateDocument((nextDocument) => {
+        const timetable = nextDocument.domains?.timetable;
+        if (!timetable) return;
+
+        const composition = ensureStudioTimetableComposition(timetable);
+        const object = composition.objects[objectId];
+        if (!object || !isPlacedTimetableCompositionObject(object)) return;
+
+        const shouldFillParent = !isStudioFillParentLayout(object.layoutMode);
+        const resolvedGeometry = resolveStudioTimetableObjectGeometry(
+          composition,
+          objectId,
+          getStudioTimetablePreviewSize(timetable),
+        );
+
+        object.layoutMode = shouldFillParent ? "fillParent" : "fixed";
+        object.style = {
+          ...object.style,
+          left: 0,
+          top: 0,
+          ...(shouldFillParent
+            ? {}
+            : {
+                width: resolvedGeometry.width,
+                height: resolvedGeometry.height,
+              }),
+        };
+      });
+    },
+    [updateDocument],
+  );
+
   const addTimetablePresetObject = useCallback(
     (preset: StudioTimetableCompositionPreset) => {
       const existingObjectId = getStudioPresetExistingTargetId(
@@ -3573,6 +3702,18 @@ export function TemplateStudioClient({
         );
 
         if (isPlacedTimetableCompositionObject(object)) {
+          const updatesBounds =
+            nextPosition.left !== undefined ||
+            nextPosition.top !== undefined ||
+            nextPosition.width !== undefined ||
+            nextPosition.height !== undefined;
+          if (
+            updatesBounds &&
+            isStudioFillParentLayout(object.layoutMode)
+          ) {
+            return;
+          }
+
           const currentGeometry =
             getStudioTimetableCompositionObjectGeometry(object);
 
@@ -3701,6 +3842,8 @@ export function TemplateStudioClient({
           const object = composition.objects[layerId];
 
           if (isPlacedTimetableCompositionObject(object)) {
+            if (isStudioFillParentLayout(object.layoutMode)) return;
+
             const currentGeometry =
               getStudioTimetableCompositionObjectGeometry(object);
 
@@ -3920,7 +4063,7 @@ export function TemplateStudioClient({
       moveTimetableRootObjectLayer(
         dragState.layerId,
         targetLayerId,
-        getTimetableRootDropPositionFromLayerPosition(dropState.position),
+        getStudioDataDropPosition(dropState.position),
       );
       return;
     }
@@ -4504,6 +4647,15 @@ export function TemplateStudioClient({
         return;
       }
 
+      if (
+        selectedActionNodes.some((node) =>
+          isStudioFillParentLayout(node.layoutMode),
+        )
+      ) {
+        showShortcutStatus("Disable Fit to move this object");
+        return;
+      }
+
       moveNodeByKeyboard(selectedActionNodeIds, deltaX, deltaY);
     },
     [document, moveNodeByKeyboard, selectedNodeIds, showShortcutStatus],
@@ -5036,8 +5188,10 @@ export function TemplateStudioClient({
     title: string,
     children: React.ReactNode,
     badge?: string,
+    action?: React.ReactNode,
   ) => (
     <Section
+      action={action}
       badge={badge}
       open={inspectorSections[sectionKey]}
       title={title}
@@ -5074,7 +5228,7 @@ export function TemplateStudioClient({
       const validation = validateStudioGraphMove(documentRef.current, {
         sourceNodeIds,
         targetNodeId,
-        position: getGraphDropPositionFromLayerPosition(position),
+        position: getStudioDataDropPosition(position),
       });
 
       if (!validation.ok) return validation;
@@ -5245,7 +5399,7 @@ export function TemplateStudioClient({
       }
 
       let moveResult = validation;
-      const graphPosition = getGraphDropPositionFromLayerPosition(position);
+      const graphPosition = getStudioDataDropPosition(position);
       updateDocument((nextDocument) => {
         moveResult = moveStudioGraphNodes(nextDocument, {
           sourceNodeIds: layerDragState.nodeIds,
@@ -5496,7 +5650,7 @@ export function TemplateStudioClient({
         </button>
         {renderLayerDropIndicator(node.id, depth, "after")}
         {!isLayerGroupCollapsed
-          ? getStudioLayerDisplayNodeIds(node.childIds).map((childId) =>
+          ? getStudioLayerPanelOrder(node.childIds).map((childId) =>
               renderLayerTree(childId, depth + 1, nextVisitedNodeIds),
             )
           : null}
@@ -5683,6 +5837,130 @@ export function TemplateStudioClient({
     );
   };
 
+  const renderTimetableCompositionLayerTree = (
+    objectId: string,
+    depth = 0,
+    parentHidden = false,
+    visitedObjectIds = new Set<string>(),
+  ): React.ReactNode => {
+    if (visitedObjectIds.has(objectId)) return null;
+
+    const object = timetableComposition.objects[objectId];
+    if (!object) return null;
+
+    const nextVisitedObjectIds = new Set(visitedObjectIds);
+    nextVisitedObjectIds.add(objectId);
+    const isRoot = depth === 0;
+    const isGeneratedDayCards = object.kind === "generatedDayCards";
+    const childIds = object.kind === "group" ? (object.childIds ?? []) : [];
+    const isGroup = isGeneratedDayCards || object.kind === "group";
+    const isCollapsed = collapsedTimetableLayerIdsSet.has(object.id);
+    const hidden = parentHidden || Boolean(object.hidden);
+    const blockedReason =
+      isRoot && timetableLayerDropState?.layerId === objectId
+        ? timetableLayerDropState.blockedReason
+        : null;
+    const type = isGroup
+      ? "group"
+      : object.kind === "profileBlock"
+        ? "block"
+        : object.kind === "image" || object.kind === "topObject"
+          ? "image"
+          : "text";
+
+    return (
+      <React.Fragment key={object.id}>
+        {isRoot
+          ? renderTimetableDropIndicator(object.id, depth, "before")
+          : null}
+        {renderTimetableLayerRow({
+          id: object.id,
+          label: object.label,
+          type,
+          depth,
+          hidden,
+          collapsible:
+            isGeneratedDayCards || (object.kind === "group" && childIds.length > 0),
+          collapsed: isCollapsed,
+          draggable: isRoot,
+          blockedReason,
+          onDragEnd: isRoot ? clearTimetableLayerDragState : undefined,
+          onDragOver: isRoot
+            ? (event) => handleTimetableLayerDragOver(event, object.id)
+            : undefined,
+          onDragStart: isRoot
+            ? (event) => handleTimetableLayerDragStart(event, object.id)
+            : undefined,
+          onDrop: isRoot
+            ? (event) => handleTimetableLayerDrop(event, object.id)
+            : undefined,
+          onToggleCollapsed: isGroup
+            ? () => toggleTimetableLayerCollapsed(object.id)
+            : undefined,
+        })}
+        {!isCollapsed && isGeneratedDayCards
+          ? timetableDays.map((day) => {
+              const layerId = `day-card:${day.id}`;
+              const dayBlockedReason =
+                timetableLayerDropState?.layerId === layerId
+                  ? timetableLayerDropState.blockedReason
+                  : null;
+
+              return (
+                <React.Fragment key={day.id}>
+                  {renderTimetableDropIndicator(
+                    layerId,
+                    depth + 1,
+                    "before",
+                    day.id,
+                  )}
+                  {renderTimetableLayerRow({
+                    id: layerId,
+                    label: `${day.shortLabel ?? day.label} Card`,
+                    type: "day",
+                    depth: depth + 1,
+                    hidden,
+                    draggable: true,
+                    blockedReason: dayBlockedReason,
+                    onDragEnd: clearTimetableLayerDragState,
+                    onDragOver: (event) =>
+                      handleTimetableLayerDragOver(event, layerId, day.id),
+                    onDragStart: (event) =>
+                      handleTimetableLayerDragStart(event, layerId, day.id),
+                    onDrop: (event) =>
+                      handleTimetableLayerDrop(event, layerId, day.id),
+                    onSelect: () => {
+                      setSelectedRuntimeDayId(day.id);
+                      setSelectedRuntimeEntryIndex(0);
+                    },
+                  })}
+                  {renderTimetableDropIndicator(
+                    layerId,
+                    depth + 1,
+                    "after",
+                    day.id,
+                  )}
+                </React.Fragment>
+              );
+            })
+          : null}
+        {!isCollapsed && object.kind === "group"
+          ? getStudioLayerPanelOrder(childIds).map((childId) =>
+              renderTimetableCompositionLayerTree(
+                childId,
+                depth + 1,
+                hidden,
+                nextVisitedObjectIds,
+              ),
+            )
+          : null}
+        {isRoot
+          ? renderTimetableDropIndicator(object.id, depth, "after")
+          : null}
+      </React.Fragment>
+    );
+  };
+
   const renderTimetableLayersPanel = () => (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-b border-[var(--border)] px-3 py-3">
@@ -5695,180 +5973,10 @@ export function TemplateStudioClient({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
         <div className="grid gap-0.5">
-          {getStudioLayerDisplayNodeIds(timetableComposition.rootObjectIds).map(
-            (objectId) => {
-              const object = timetableComposition.objects[objectId];
-              if (!object) return null;
-
-              const blockedReason =
-                timetableLayerDropState?.layerId === objectId
-                  ? timetableLayerDropState.blockedReason
-                  : null;
-
-              if (object.kind === "generatedDayCards") {
-                const isCollapsed = collapsedTimetableLayerIdsSet.has(
-                  object.id,
-                );
-
-                return (
-                  <React.Fragment key={object.id}>
-                    {renderTimetableDropIndicator(object.id, 0, "before")}
-                    {renderTimetableLayerRow({
-                      id: object.id,
-                      label: object.label,
-                      type: "group",
-                      hidden: Boolean(object.hidden),
-                      collapsible: true,
-                      collapsed: isCollapsed,
-                      draggable: true,
-                      blockedReason,
-                      onDragEnd: clearTimetableLayerDragState,
-                      onDragOver: (event) =>
-                        handleTimetableLayerDragOver(event, object.id),
-                      onDragStart: (event) =>
-                        handleTimetableLayerDragStart(event, object.id),
-                      onDrop: (event) =>
-                        handleTimetableLayerDrop(event, object.id),
-                      onToggleCollapsed: () =>
-                        toggleTimetableLayerCollapsed(object.id),
-                    })}
-                    {!isCollapsed
-                      ? timetableDays.map((day) => {
-                          const layerId = `day-card:${day.id}`;
-                          const dayBlockedReason =
-                            timetableLayerDropState?.layerId === layerId
-                              ? timetableLayerDropState.blockedReason
-                              : null;
-
-                          return (
-                            <React.Fragment key={day.id}>
-                              {renderTimetableDropIndicator(
-                                layerId,
-                                1,
-                                "before",
-                                day.id,
-                              )}
-                              {renderTimetableLayerRow({
-                                id: layerId,
-                                label: `${day.shortLabel ?? day.label} Card`,
-                                type: "day",
-                                depth: 1,
-                                hidden: Boolean(object.hidden),
-                                draggable: true,
-                                blockedReason: dayBlockedReason,
-                                onDragEnd: clearTimetableLayerDragState,
-                                onDragOver: (event) =>
-                                  handleTimetableLayerDragOver(
-                                    event,
-                                    layerId,
-                                    day.id,
-                                  ),
-                                onDragStart: (event) =>
-                                  handleTimetableLayerDragStart(
-                                    event,
-                                    layerId,
-                                    day.id,
-                                  ),
-                                onDrop: (event) =>
-                                  handleTimetableLayerDrop(
-                                    event,
-                                    layerId,
-                                    day.id,
-                                  ),
-                                onSelect: () => {
-                                  setSelectedRuntimeDayId(day.id);
-                                  setSelectedRuntimeEntryIndex(0);
-                                },
-                              })}
-                              {renderTimetableDropIndicator(
-                                layerId,
-                                1,
-                                "after",
-                                day.id,
-                              )}
-                            </React.Fragment>
-                          );
-                        })
-                      : null}
-                    {renderTimetableDropIndicator(object.id, 0, "after")}
-                  </React.Fragment>
-                );
-              }
-
-              if (object.kind === "group") {
-                const isCollapsed = collapsedTimetableLayerIdsSet.has(
-                  object.id,
-                );
-                const childIds = object.childIds ?? [];
-
-                return (
-                  <React.Fragment key={object.id}>
-                    {renderTimetableDropIndicator(object.id, 0, "before")}
-                    {renderTimetableLayerRow({
-                      id: object.id,
-                      label: object.label,
-                      type: "group",
-                      hidden: Boolean(object.hidden),
-                      collapsible: childIds.length > 0,
-                      collapsed: isCollapsed,
-                      draggable: true,
-                      blockedReason,
-                      onDragEnd: clearTimetableLayerDragState,
-                      onDragOver: (event) =>
-                        handleTimetableLayerDragOver(event, object.id),
-                      onDragStart: (event) =>
-                        handleTimetableLayerDragStart(event, object.id),
-                      onDrop: (event) =>
-                        handleTimetableLayerDrop(event, object.id),
-                      onToggleCollapsed: () =>
-                        toggleTimetableLayerCollapsed(object.id),
-                    })}
-                    {!isCollapsed
-                      ? childIds.map((childId) => {
-                          const child = timetableComposition.objects[childId];
-                          if (!child) return null;
-
-                          return renderTimetableLayerRow({
-                            id: child.id,
-                            label: child.label,
-                            type: child.kind === "image" ? "image" : child.kind,
-                            depth: 1,
-                            hidden: Boolean(object.hidden || child.hidden),
-                          });
-                        })
-                      : null}
-                    {renderTimetableDropIndicator(object.id, 0, "after")}
-                  </React.Fragment>
-                );
-              }
-
-              return (
-                <React.Fragment key={object.id}>
-                  {renderTimetableDropIndicator(object.id, 0, "before")}
-                  {renderTimetableLayerRow({
-                    id: object.id,
-                    label: object.label,
-                    type:
-                      object.kind === "profileBlock"
-                        ? "block"
-                        : object.kind === "topObject"
-                          ? "image"
-                          : "text",
-                    hidden: Boolean(object.hidden),
-                    draggable: true,
-                    blockedReason,
-                    onDragEnd: clearTimetableLayerDragState,
-                    onDragOver: (event) =>
-                      handleTimetableLayerDragOver(event, object.id),
-                    onDragStart: (event) =>
-                      handleTimetableLayerDragStart(event, object.id),
-                    onDrop: (event) =>
-                      handleTimetableLayerDrop(event, object.id),
-                  })}
-                  {renderTimetableDropIndicator(object.id, 0, "after")}
-                </React.Fragment>
-              );
-            },
+          {getStudioLayerPanelOrder(
+            timetableComposition.rootObjectIds,
+          ).map((objectId) =>
+            renderTimetableCompositionLayerTree(objectId),
           )}
         </div>
       </div>
@@ -6644,6 +6752,23 @@ export function TemplateStudioClient({
         }}
       />
     </label>
+  );
+
+  const renderTimetableOpacityControl = (
+    object: StudioTimetableCompositionObject,
+  ) => (
+    <NumberField
+      label="Opacity"
+      value={getStudioOpacityPercent(object.style.opacity)}
+      onChange={(value) =>
+        updateTimetableCompositionObject(object.id, (currentObject) => {
+          currentObject.style = {
+            ...currentObject.style,
+            opacity: Math.min(Math.max(value, 0), 100) / 100,
+          };
+        })
+      }
+    />
   );
 
   const renderTimetableInputSourceSlot = (input: StudioInputDefinition) => (
@@ -7717,6 +7842,13 @@ export function TemplateStudioClient({
     }
 
     const selectedFontFamily = String(styleRecord.fontFamily ?? "Inter");
+    const isSelectedNodeFitParent = isStudioFillParentLayout(
+      selectedNode.layoutMode,
+    );
+    const selectedNodeGeometry = resolveStudioGraphNodeGeometry(
+      document,
+      selectedNode.id,
+    );
     const selectedFontWeightOptions = getStudioFontWeightOptions(
       document,
       selectedFontFamily,
@@ -7735,9 +7867,7 @@ export function TemplateStudioClient({
       : bindingInputId
         ? `input:${bindingInputId}`
         : "";
-    const opacityRaw = Number(styleRecord.opacity ?? 1);
-    const opacityPercent =
-      opacityRaw <= 1 ? Math.round(opacityRaw * 100) : opacityRaw;
+    const opacityPercent = getStudioOpacityPercent(styleRecord.opacity);
     const alignActions = [
       { title: "Align left", Icon: AlignHorizontalJustifyStart },
       { title: "Align center", Icon: AlignHorizontalJustifyCenter },
@@ -7767,13 +7897,15 @@ export function TemplateStudioClient({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <NumberField
+                disabled={isSelectedNodeFitParent}
                 label="X"
-                value={Number(styleRecord.left ?? 0)}
+                value={selectedNodeGeometry.left}
                 onChange={(value) => updateSelectedNodeStyle("left", value)}
               />
               <NumberField
+                disabled={isSelectedNodeFitParent}
                 label="Y"
-                value={Number(styleRecord.top ?? 0)}
+                value={selectedNodeGeometry.top}
                 onChange={(value) => updateSelectedNodeStyle("top", value)}
               />
               <NumberField
@@ -7785,6 +7917,11 @@ export function TemplateStudioClient({
               />
             </div>
           </div>,
+          undefined,
+          <FitParentButton
+            active={isSelectedNodeFitParent}
+            onClick={toggleSelectedNodeFitParent}
+          />,
         )}
 
         {renderInspectorSection(
@@ -7792,13 +7929,15 @@ export function TemplateStudioClient({
           "Layout",
           <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
             <NumberField
+              disabled={isSelectedNodeFitParent}
               label="W"
-              value={Number(styleRecord.width ?? 0)}
+              value={selectedNodeGeometry.width}
               onChange={(value) => updateSelectedNodeStyle("width", value)}
             />
             <NumberField
+              disabled={isSelectedNodeFitParent}
               label="H"
-              value={Number(styleRecord.height ?? 0)}
+              value={selectedNodeGeometry.height}
               onChange={(value) => updateSelectedNodeStyle("height", value)}
             />
             <button
@@ -8597,7 +8736,7 @@ export function TemplateStudioClient({
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
                   <div className="grid gap-0.5">
-                    {getStudioLayerDisplayNodeIds(
+                    {getStudioLayerPanelOrder(
                       document.graph.rootNodeIds,
                     ).map((nodeId) => renderLayerTree(nodeId))}
                   </div>
@@ -8727,6 +8866,17 @@ export function TemplateStudioClient({
                       return false;
                     }
 
+                    const hasFitTarget = targetNodeIds.some((targetNodeId) =>
+                      isStudioFillParentLayout(
+                        documentRef.current.graph.nodes[targetNodeId]
+                          ?.layoutMode,
+                      ),
+                    );
+                    if (hasFitTarget) {
+                      showShortcutStatus("Disable Fit to move this object");
+                      return false;
+                    }
+
                     captureHistory();
                     return true;
                   }
@@ -8742,6 +8892,11 @@ export function TemplateStudioClient({
 
                     if (object?.locked) {
                       showShortcutStatus("Object is locked");
+                      return false;
+                    }
+
+                    if (isStudioFillParentLayout(object?.layoutMode)) {
+                      showShortcutStatus("Disable Fit to move this object");
                       return false;
                     }
 
@@ -9058,6 +9213,9 @@ export function TemplateStudioClient({
                       {renderTimetableVisibilitySlot(
                         selectedTimetableCompositionObject,
                       )}
+                      {renderTimetableOpacityControl(
+                        selectedTimetableCompositionObject,
+                      )}
                       {isSelectedWeeklyMemoObject ? (
                         renderTimetableBackgroundAssetSlot(
                           selectedTimetableCompositionObject,
@@ -9115,6 +9273,7 @@ export function TemplateStudioClient({
                     <div className="grid gap-2">
                       <div className="grid grid-cols-2 gap-2">
                         <NumberField
+                          disabled={isSelectedTimetableObjectFitParent}
                           label="X"
                           value={selectedTimetableLayerGeometry.left}
                           onChange={(value) =>
@@ -9125,6 +9284,7 @@ export function TemplateStudioClient({
                           }
                         />
                         <NumberField
+                          disabled={isSelectedTimetableObjectFitParent}
                           label="Y"
                           value={selectedTimetableLayerGeometry.top}
                           onChange={(value) =>
@@ -9141,6 +9301,7 @@ export function TemplateStudioClient({
                         ) ? (
                           <>
                             <NumberField
+                              disabled={isSelectedTimetableObjectFitParent}
                               label="W"
                               value={selectedTimetableLayerGeometry.width}
                               onChange={(value) =>
@@ -9151,6 +9312,7 @@ export function TemplateStudioClient({
                               }
                             />
                             <NumberField
+                              disabled={isSelectedTimetableObjectFitParent}
                               label="H"
                               value={selectedTimetableLayerGeometry.height}
                               onChange={(value) =>
@@ -9204,6 +9366,20 @@ export function TemplateStudioClient({
                         />
                       ) : null}
                     </div>,
+                    undefined,
+                    selectedTimetableCompositionObject &&
+                      isPlacedTimetableCompositionObject(
+                        selectedTimetableCompositionObject,
+                      ) ? (
+                      <FitParentButton
+                        active={isSelectedTimetableObjectFitParent}
+                        onClick={() =>
+                          toggleTimetableObjectFitParent(
+                            selectedTimetableCompositionObject.id,
+                          )
+                        }
+                      />
+                    ) : undefined,
                   )
                 : null}
 

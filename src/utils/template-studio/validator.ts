@@ -747,6 +747,21 @@ const validateGraphIntegrity = (
   Object.values(nodes).forEach((node) => {
     const childIds = new Set<StudioNodeId>();
 
+    if (
+      node.layoutMode &&
+      node.layoutMode !== "fixed" &&
+      node.layoutMode !== "fillParent"
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `node-layout-mode-invalid:${node.id}`,
+          "Invalid object layout mode",
+          `${node.label} uses unsupported layout mode ${node.layoutMode}.`,
+        ),
+      );
+    }
+
     node.childIds.forEach((childId) => {
       if (childId === node.id) {
         diagnostics.push(
@@ -947,10 +962,25 @@ const validateTimetableDomain = (
   if (timetable.composition) {
     const seenCompositionRootIds = new Set<string>();
     const seenCompositionChildIds = new Set<string>();
+    const compositionChildParentIds = new Map<string, string>();
 
     Object.entries(timetable.composition.objects).forEach(
       ([parentObjectId, parentObject]) => {
         const seenChildIds = new Set<string>();
+        if (
+          (parentObject.childIds?.length ?? 0) > 0 &&
+          parentObject.kind !== "group"
+        ) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-composition-children-on-non-group:${parentObjectId}`,
+              "Only timetable groups can contain children",
+              `${parentObject.label} contains childIds but is not a group object.`,
+            ),
+          );
+        }
+
         (parentObject.childIds ?? []).forEach((childId) => {
           if (seenChildIds.has(childId)) {
             diagnostics.push(
@@ -964,6 +994,20 @@ const validateTimetableDomain = (
           }
           seenChildIds.add(childId);
           seenCompositionChildIds.add(childId);
+
+          const existingParentId = compositionChildParentIds.get(childId);
+          if (existingParentId && existingParentId !== parentObjectId) {
+            diagnostics.push(
+              createDiagnostic(
+                "error",
+                `timetable-composition-child-multiple-parents:${childId}`,
+                "Timetable child has multiple parents",
+                `${childId} is included by both ${existingParentId} and ${parentObjectId}.`,
+              ),
+            );
+          } else {
+            compositionChildParentIds.set(childId, parentObjectId);
+          }
 
           const childObject = timetable.composition?.objects[childId];
           if (!childObject) {
@@ -990,6 +1034,45 @@ const validateTimetableDomain = (
           }
         });
       },
+    );
+
+    const compositionVisitState = new Map<string, "visiting" | "visited">();
+    const reportedCompositionCycles = new Set<string>();
+    const visitCompositionObject = (objectId: string, path: string[]) => {
+      const visitState = compositionVisitState.get(objectId);
+      if (visitState === "visited") return;
+      if (visitState === "visiting") {
+        const cycleStartIndex = path.indexOf(objectId);
+        const cyclePath = [
+          ...(cycleStartIndex >= 0 ? path.slice(cycleStartIndex) : path),
+          objectId,
+        ];
+        const cycleKey = [...new Set(cyclePath)].sort().join(":");
+        if (!reportedCompositionCycles.has(cycleKey)) {
+          reportedCompositionCycles.add(cycleKey);
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-composition-cycle:${cycleKey}`,
+              "Timetable composition contains a cycle",
+              `Group hierarchy loops through ${cyclePath.join(" → ")}.`,
+            ),
+          );
+        }
+        return;
+      }
+
+      const object = timetable.composition?.objects[objectId];
+      if (!object) return;
+      compositionVisitState.set(objectId, "visiting");
+      (object.childIds ?? []).forEach((childId) =>
+        visitCompositionObject(childId, [...path, objectId]),
+      );
+      compositionVisitState.set(objectId, "visited");
+    };
+
+    Object.keys(timetable.composition.objects).forEach((objectId) =>
+      visitCompositionObject(objectId, []),
     );
 
     timetable.composition.rootObjectIds.forEach((objectId) => {
@@ -1030,6 +1113,21 @@ const validateTimetableDomain = (
 
     Object.entries(timetable.composition.objects).forEach(
       ([objectId, object]) => {
+        if (
+          object.layoutMode &&
+          object.layoutMode !== "fixed" &&
+          object.layoutMode !== "fillParent"
+        ) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-layout-mode-invalid:${objectId}`,
+              "Invalid timetable layout mode",
+              `${object.label} uses unsupported layout mode ${object.layoutMode}.`,
+            ),
+          );
+        }
+
         if (object.id !== objectId) {
           diagnostics.push(
             createDiagnostic(
@@ -1065,6 +1163,23 @@ const validateTimetableDomain = (
               `timetable-composition-parent-missing:${objectId}`,
               "Missing timetable parent object",
               `${object.label} references missing parent ${object.parentId}.`,
+            ),
+          );
+        }
+
+        if (
+          object.parentId &&
+          timetable.composition?.objects[object.parentId] &&
+          !timetable.composition.objects[object.parentId].childIds?.includes(
+            objectId,
+          )
+        ) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-composition-parent-child-missing:${objectId}`,
+              "Timetable parent does not include child",
+              `${object.label} references ${object.parentId}, but that parent does not list it as a child.`,
             ),
           );
         }

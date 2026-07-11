@@ -22,9 +22,13 @@ import {
 import { resolveStudioTextBinding } from "@/utils/template-studio/binding-resolver";
 import { resolveStudioWeekDateText } from "@/utils/template-studio/date-template";
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
+import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
+import {
+  getStudioObjectRenderStyle,
+  resolveStudioTimetableObjectGeometry,
+} from "@/utils/template-studio/object-layout";
 import {
   getStudioTimetableComposition,
-  getStudioTimetableCompositionObjectGeometry,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
 import {
@@ -571,12 +575,23 @@ const resolveTimetableAssetSlot = (
   return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
 };
 
+const getTimetableCssOpacity = (value: unknown): number => {
+  const parsedValue = Number(value ?? 1);
+  if (!Number.isFinite(parsedValue)) return 1;
+  const normalizedValue = parsedValue <= 1 ? parsedValue : parsedValue / 100;
+  return Math.min(Math.max(normalizedValue, 0), 1);
+};
+
 const getTimetableObjectStyle = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
   object: StudioTimetableCompositionObject,
 ): React.CSSProperties => {
-  const { rotateDeg, ...styleRecord } = object.style;
+  const resolvedStyle = getStudioObjectRenderStyle(
+    object.style,
+    object.layoutMode,
+  );
+  const { opacity, rotateDeg, ...styleRecord } = resolvedStyle;
   delete styleRecord.dateRangeFormat;
   delete styleRecord.dateRangeTemplate;
   delete styleRecord.assetMode;
@@ -598,6 +613,7 @@ const getTimetableObjectStyle = (
   return {
     ...styleRecord,
     position: "absolute",
+    opacity: getTimetableCssOpacity(opacity),
     backgroundImage: backgroundAsset
       ? `url(${JSON.stringify(backgroundAsset.src)})`
       : undefined,
@@ -671,6 +687,10 @@ export function StudioTimetablePreview({
         top: dayCardsBounds.top,
         width: dayCardsBounds.width,
         height: dayCardsBounds.height,
+        opacity: getTimetableCssOpacity(
+          composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]?.style
+            .opacity,
+        ),
         outline:
           selectedLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID
             ? "8px solid rgba(59, 130, 246, 0.75)"
@@ -785,7 +805,11 @@ export function StudioTimetablePreview({
   );
 
   const renderTextObject = (object: StudioTimetableCompositionObject) => {
-    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const geometry = resolveStudioTimetableObjectGeometry(
+      composition,
+      object.id,
+      previewSize,
+    );
     const selected = selectedLayerId === object.id;
     const assetSlot = isArtistProfileTextObject(object)
       ? object.assetSlots?.asset
@@ -849,7 +873,11 @@ export function StudioTimetablePreview({
   const renderProfileBlockObject = (
     object: StudioTimetableCompositionObject,
   ) => {
-    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const geometry = resolveStudioTimetableObjectGeometry(
+      composition,
+      object.id,
+      previewSize,
+    );
     const selected = selectedLayerId === object.id;
     const profileImageSlot = object.assetSlots?.profileImage;
     const profileFrameSlot = object.assetSlots?.profileFrame;
@@ -910,7 +938,11 @@ export function StudioTimetablePreview({
   };
 
   const renderTopObject = (object: StudioTimetableCompositionObject) => {
-    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const geometry = resolveStudioTimetableObjectGeometry(
+      composition,
+      object.id,
+      previewSize,
+    );
     const selected = selectedLayerId === object.id;
     const assetSlot = object.assetSlots?.asset;
     const asset = resolveTimetableAssetSlot(
@@ -955,7 +987,11 @@ export function StudioTimetablePreview({
   };
 
   const renderImageObject = (object: StudioTimetableCompositionObject) => {
-    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const geometry = resolveStudioTimetableObjectGeometry(
+      composition,
+      object.id,
+      previewSize,
+    );
     const selected = selectedLayerId === object.id;
     const assetSlot = object.assetSlots?.asset;
     const asset = resolveTimetableAssetSlot(
@@ -1015,7 +1051,11 @@ export function StudioTimetablePreview({
     if (object.kind === "image") return renderImageObject(object);
     if (object.kind !== "group") return renderTextObject(object);
 
-    const geometry = getStudioTimetableCompositionObjectGeometry(object);
+    const geometry = resolveStudioTimetableObjectGeometry(
+      composition,
+      object.id,
+      previewSize,
+    );
     const selected = selectedLayerId === object.id;
     const nextVisitedObjectIds = new Set(visitedObjectIds);
     nextVisitedObjectIds.add(object.id);
@@ -1037,7 +1077,7 @@ export function StudioTimetablePreview({
           onSelectLayer?.(object.id);
         }}
       >
-        {(object.childIds ?? []).map((childId) =>
+        {getStudioPaintOrder(object.childIds ?? []).map((childId) =>
           renderCompositionObject(childId, nextVisitedObjectIds),
         )}
       </div>
@@ -1054,7 +1094,7 @@ export function StudioTimetablePreview({
       }}
     >
       <StudioWebFontLoader document={document} />
-      {composition.rootObjectIds.map((objectId) =>
+      {getStudioPaintOrder(composition.rootObjectIds).map((objectId) =>
         renderCompositionObject(objectId),
       )}
     </div>
