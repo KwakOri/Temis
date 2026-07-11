@@ -5,13 +5,21 @@ import React, { useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import {
-  StudioGraphNode,
   StudioNodeId,
   StudioTemplateDocument,
 } from "@/types/template-studio";
 
+export interface StudioPickerNode {
+  id: StudioNodeId;
+  label: string;
+  typeLabel: string;
+  parentId?: StudioNodeId | null;
+  childIds: StudioNodeId[];
+}
+
 interface StudioNodePickerMenuProps {
-  document: StudioTemplateDocument;
+  document?: StudioTemplateDocument;
+  nodes?: Record<StudioNodeId, StudioPickerNode>;
   nodeIds: StudioNodeId[];
   position: { x: number; y: number };
   selectedNodeId?: StudioNodeId | null;
@@ -24,13 +32,8 @@ interface PickerTreeNode {
   childIds: StudioNodeId[];
 }
 
-const getNodeTypeLabel = (node: StudioGraphNode) => {
-  if (node.type === "flexibleText") return "Auto Text";
-  return node.type[0].toUpperCase() + node.type.slice(1);
-};
-
 const buildPickerTree = (
-  document: StudioTemplateDocument,
+  nodes: Record<StudioNodeId, StudioPickerNode>,
   nodeIds: StudioNodeId[]
 ) => {
   const included = new Set<StudioNodeId>();
@@ -39,11 +42,11 @@ const buildPickerTree = (
   nodeIds.forEach((nodeId, index) => {
     hitOrder.set(nodeId, index);
 
-    let current: StudioGraphNode | null = document.graph.nodes[nodeId] ?? null;
+    let current: StudioPickerNode | null = nodes[nodeId] ?? null;
     while (current) {
       included.add(current.id);
       current = current.parentId
-        ? document.graph.nodes[current.parentId] ?? null
+        ? nodes[current.parentId] ?? null
         : null;
     }
   });
@@ -51,7 +54,7 @@ const buildPickerTree = (
   const scoreNode = (nodeId: StudioNodeId): number => {
     if (hitOrder.has(nodeId)) return hitOrder.get(nodeId) ?? 0;
 
-    const node = document.graph.nodes[nodeId];
+    const node = nodes[nodeId];
     if (!node) return Number.MAX_SAFE_INTEGER;
 
     const childScores = node.childIds
@@ -70,7 +73,7 @@ const buildPickerTree = (
 
   const roots: StudioNodeId[] = [];
   included.forEach((nodeId) => {
-    const node = document.graph.nodes[nodeId];
+    const node = nodes[nodeId];
     if (!node) return;
 
     const parentId = node.parentId;
@@ -91,15 +94,36 @@ const buildPickerTree = (
 
 export function StudioNodePickerMenu({
   document,
+  nodes: suppliedNodes,
   nodeIds,
   position,
   selectedNodeId,
   onClose,
   onSelectNode,
 }: StudioNodePickerMenuProps) {
+  const nodes = useMemo<Record<StudioNodeId, StudioPickerNode>>(() => {
+    if (suppliedNodes) return suppliedNodes;
+    if (!document) return {};
+
+    return Object.fromEntries(
+      Object.values(document.graph.nodes).map((node) => [
+        node.id,
+        {
+          id: node.id,
+          label: node.label,
+          typeLabel:
+            node.type === "flexibleText"
+              ? "Auto Text"
+              : node.type[0].toUpperCase() + node.type.slice(1),
+          parentId: node.parentId,
+          childIds: node.childIds,
+        },
+      ]),
+    );
+  }, [document, suppliedNodes]);
   const { roots, treeById, hitSet } = useMemo(
-    () => buildPickerTree(document, nodeIds),
-    [document, nodeIds]
+    () => buildPickerTree(nodes, nodeIds),
+    [nodeIds, nodes]
   );
   const [expandedIds, setExpandedIds] = useState<Set<StudioNodeId>>(
     () => new Set(Array.from(treeById.keys()))
@@ -133,7 +157,7 @@ export function StudioNodePickerMenu({
   };
 
   const renderNode = (nodeId: StudioNodeId, depth = 0): React.ReactNode => {
-    const node = document.graph.nodes[nodeId];
+    const node = nodes[nodeId];
     const treeNode = treeById.get(nodeId);
     if (!node || !treeNode) return null;
 
@@ -183,7 +207,7 @@ export function StudioNodePickerMenu({
           >
             <span className="block truncate font-semibold">{node.label}</span>
             <span className="block truncate text-[10px] uppercase tracking-wide text-[#8fa6cf]">
-              {getNodeTypeLabel(node)}
+              {node.typeLabel}
               {hitSet.has(nodeId) ? " · Hit" : " · Parent"}
             </span>
           </button>

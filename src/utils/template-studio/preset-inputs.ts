@@ -13,8 +13,8 @@ const normalizeInputLabel = (label: string): string =>
 export const STUDIO_WEEKLY_MEMO_INPUT_LABEL = "Weekly Memo";
 export const STUDIO_WEEKLY_MEMO_DEFAULT_VALUE = "Weekly memo";
 export const STUDIO_WEEKLY_MEMO_PLACEHOLDER = "Write a weekly memo";
-export const STUDIO_ARTIST_PROFILE_TEXT_INPUT_LABEL = "Artist / Profile Text";
-export const STUDIO_ARTIST_PROFILE_TEXT_DEFAULT_VALUE = "Artist profile";
+export const STUDIO_ARTIST_PROFILE_TEXT_INPUT_LABEL = "Artist";
+export const STUDIO_ARTIST_PROFILE_TEXT_DEFAULT_VALUE = "Artist";
 export const STUDIO_ARTIST_PROFILE_TEXT_PLACEHOLDER =
   "Write artist or profile text";
 export const STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL =
@@ -32,6 +32,8 @@ const STUDIO_WEEKLY_MEMO_MATCHING_LABELS = new Set([
 
 const STUDIO_ARTIST_PROFILE_TEXT_MATCHING_LABELS = new Set([
   normalizeInputLabel(STUDIO_ARTIST_PROFILE_TEXT_INPUT_LABEL),
+  normalizeInputLabel("Artist / Profile Text"),
+  normalizeInputLabel("Artist Profile Text"),
   normalizeInputLabel("Artist Profile"),
   normalizeInputLabel("Profile Text"),
 ]);

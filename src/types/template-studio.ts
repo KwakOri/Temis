@@ -37,12 +37,14 @@ export type StudioTimetableCompositionObjectKind =
   | "group"
   | "image"
   | "text"
+  | "flexibleText"
   | "profileBlock"
   | "topObject";
 export type StudioTimetableProfileObjectRole =
   | "backPlate"
   | "userImage"
   | "frame";
+export type StudioTimetableStructuredObjectRole = "background" | "text";
 export type StudioTimetableObjectPresetId =
   | "dayCards"
   | "weekDates"
@@ -300,6 +302,7 @@ export interface StudioTimetableCompositionObject {
   childIds?: StudioTimetableCompositionObjectId[];
   layoutMode?: StudioObjectLayoutMode;
   profileRole?: StudioTimetableProfileObjectRole;
+  structuredRole?: StudioTimetableStructuredObjectRole;
   style: StudioStyleRecord;
   binding?: StudioBinding;
   assetSlots?: Record<string, StudioTimetableAssetSlot>;

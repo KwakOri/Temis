@@ -5,7 +5,10 @@ import {
   getStudioLayerPanelOrder,
   getStudioPaintOrder,
 } from "../src/utils/template-studio/layer-order";
-import { createStudioProfileBlockPresetObjects } from "../src/utils/template-studio/timetable-composition";
+import {
+  createStudioProfileBlockPresetObjects,
+  createStudioStructuredTextPresetObjects,
+} from "../src/utils/template-studio/timetable-composition";
 
 const storedChildIds = [
   "profile-block:back-plate-object",
@@ -60,5 +63,27 @@ assert.deepEqual(
   ],
   "Profile layers must show frame, user image, then back plate.",
 );
+
+for (const presetId of ["artistProfileText", "weeklyMemo"] as const) {
+  const structured = createStudioStructuredTextPresetObjects(
+    presetId,
+    { rootObjectIds: [], objects: {} },
+    { inputId: `${presetId}-input` },
+  );
+  const [backgroundId, textId] = structured.group.childIds ?? [];
+
+  assert.equal(structured.children[0].structuredRole, "background");
+  assert.equal(structured.children[1].structuredRole, "text");
+  assert.deepEqual(
+    getStudioPaintOrder(structured.group.childIds ?? []),
+    [backgroundId, textId],
+    `${presetId} must paint its text above its background.`,
+  );
+  assert.deepEqual(
+    getStudioLayerPanelOrder(structured.group.childIds ?? []),
+    [textId, backgroundId],
+    `${presetId} must show its text above its background in the layer panel.`,
+  );
+}
 
 console.log("Template Studio layer order checks passed.");

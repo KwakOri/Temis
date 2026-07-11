@@ -339,7 +339,10 @@ const validateTimetableCompositionObjectBinding = (
   const inputId = getBindingInputId(object.binding);
   const input = inputId ? document.inputs[inputId] : null;
 
-  if (object.kind === "text" && !isStudioTextBinding(object.binding)) {
+  if (
+    (object.kind === "text" || object.kind === "flexibleText") &&
+    !isStudioTextBinding(object.binding)
+  ) {
     diagnostics.push(
       createDiagnostic(
         "error",

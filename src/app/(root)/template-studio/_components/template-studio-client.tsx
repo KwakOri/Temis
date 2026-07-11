@@ -141,6 +141,7 @@ import {
   bindStudioArtistProfileTextObjectToInput,
   bindStudioWeeklyMemoObjectToInput,
   createStudioProfileBlockPresetObjects,
+  createStudioStructuredTextPresetObjects,
   createStudioTimetablePresetObject,
   ensureStudioTimetableComposition,
   getStudioTimetableComposition,
@@ -192,7 +193,11 @@ import {
   clampStudioPreviewScale,
   StudioCanvasViewport,
 } from "./studio-canvas-viewport";
-import { StudioNodePickerMenu } from "./studio-node-picker-menu";
+import {
+  StudioNodePickerMenu,
+  type StudioPickerNode,
+} from "./studio-node-picker-menu";
+import { StudioImageCropModal } from "./studio-image-crop-modal";
 import { StudioRenderer } from "./studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
 import {
@@ -235,6 +240,13 @@ interface NodePickerState {
   x: number;
   y: number;
   nodeIds: string[];
+}
+
+interface PendingStudioImageCrop {
+  imageSrc: string;
+  initialWidth: number;
+  initialHeight: number;
+  onApply: (croppedImageSrc: string) => void;
 }
 
 interface StudioLayerDragState {
@@ -1265,6 +1277,8 @@ export function TemplateStudioClient({
   const [scale, setScale] = useState(0.8);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
+  const [pendingImageCrop, setPendingImageCrop] =
+    useState<PendingStudioImageCrop | null>(null);
   const [layerDropState, setLayerDropState] =
     useState<StudioLayerDropState | null>(null);
   const [cutNodeIds, setCutNodeIds] = useState<string[]>([]);
@@ -1427,6 +1441,43 @@ export function TemplateStudioClient({
     () => getStudioPresetGroups(document, "timetable"),
     [document],
   );
+  const timetablePickerNodes = useMemo<
+    Record<string, StudioPickerNode>
+  >(() => {
+    const pickerNodes = Object.fromEntries(
+      Object.values(timetableComposition.objects).map((object) => [
+        object.id,
+        {
+          id: object.id,
+          label: object.label,
+          typeLabel:
+            object.kind === "generatedDayCards"
+              ? "Generated Cards"
+              : object.kind === "flexibleText"
+                ? "Auto Text"
+                : object.kind[0].toUpperCase() + object.kind.slice(1),
+          parentId: object.parentId,
+          childIds: [...(object.childIds ?? [])],
+        },
+      ]),
+    );
+    const dayCardChildIds = timetableDays.map((day) => `day-card:${day.id}`);
+    const dayCardsNode = pickerNodes[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID];
+    if (dayCardsNode) dayCardsNode.childIds = dayCardChildIds;
+
+    timetableDays.forEach((day) => {
+      const nodeId = `day-card:${day.id}`;
+      pickerNodes[nodeId] = {
+        id: nodeId,
+        label: `${day.shortLabel ?? day.label} Card`,
+        typeLabel: "Day Card",
+        parentId: STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
+        childIds: [],
+      };
+    });
+
+    return pickerNodes;
+  }, [timetableComposition.objects, timetableDays]);
   const selectedTimetableCompositionObject = selectedTimetableLayerId
     ? (timetableComposition.objects[selectedTimetableLayerId] ?? null)
     : null;
@@ -1434,7 +1485,8 @@ export function TemplateStudioClient({
     selectedTimetableCompositionObject?.layoutMode,
   );
   const selectedTimetableTextObject =
-    selectedTimetableCompositionObject?.kind === "text"
+    selectedTimetableCompositionObject?.kind === "text" ||
+    selectedTimetableCompositionObject?.kind === "flexibleText"
       ? selectedTimetableCompositionObject
       : null;
   const selectedTimetableBindingInputId = selectedTimetableTextObject
@@ -1469,6 +1521,9 @@ export function TemplateStudioClient({
   const isSelectedProfileChildObject =
     selectedTimetableCompositionObject?.kind === "image" &&
     Boolean(selectedTimetableCompositionObject.profileRole);
+  const isSelectedStructuredBackgroundObject =
+    selectedTimetableCompositionObject?.kind === "image" &&
+    selectedTimetableCompositionObject.structuredRole === "background";
   const isSelectedArtistProfileTextObject =
     selectedTimetableCompositionObject?.presetId === "artistProfileText" ||
     selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
@@ -3145,36 +3200,46 @@ export function TemplateStudioClient({
     showShortcutStatus(`Added ${preset.label}`);
   };
 
-  const createTemplateAssetFromFile = (
+  const createTemplateAssetFromDataUrl = (
     file: File,
+    src: string,
     fallbackLabel: string,
     onAssetCreated?: (
       nextDocument: StudioTemplateDocument,
       assetId: string,
     ) => void,
   ) => {
+    if (!src) return;
+    const assetId = createStudioId("asset");
+    const baseLabel = getStudioAssetLabelFromFile(file, fallbackLabel);
+
+    updateDocument((nextDocument) => {
+      nextDocument.assets[assetId] = {
+        id: assetId,
+        label: getUniqueStudioAssetLabel(nextDocument, baseLabel),
+        src,
+      };
+      onAssetCreated?.(nextDocument, assetId);
+    });
+    showShortcutStatus(`Uploaded ${baseLabel}`);
+  };
+
+  const requestStudioImageCrop = (
+    file: File,
+    initialSize: { width: number; height: number },
+    onApply: (croppedImageSrc: string) => void,
+  ) => {
     const reader = new FileReader();
-
     reader.onload = () => {
-      const src = String(reader.result ?? "");
-      if (!src) return;
-
-      const assetId = createStudioId("asset");
-      const baseLabel = getStudioAssetLabelFromFile(file, fallbackLabel);
-
-      updateDocument((nextDocument) => {
-        nextDocument.assets[assetId] = {
-          id: assetId,
-          label: getUniqueStudioAssetLabel(nextDocument, baseLabel),
-          src,
-        };
-
-        onAssetCreated?.(nextDocument, assetId);
+      const imageSrc = String(reader.result ?? "");
+      if (!imageSrc) return;
+      setPendingImageCrop({
+        imageSrc,
+        initialWidth: Math.max(1, initialSize.width || 1),
+        initialHeight: Math.max(1, initialSize.height || 1),
+        onApply,
       });
-
-      showShortcutStatus(`Uploaded ${baseLabel}`);
     };
-
     reader.readAsDataURL(file);
   };
 
@@ -3422,8 +3487,19 @@ export function TemplateStudioClient({
             if (!timetable) return;
 
             const composition = ensureStudioTimetableComposition(timetable);
-            const object = composition.objects[existingObjectId];
-            if (!object || object.kind !== "text") return;
+            const rootObject = composition.objects[existingObjectId];
+            const object =
+              rootObject?.kind === "group"
+                ? rootObject.childIds
+                    ?.map((childId) => composition.objects[childId])
+                    .find((child) => child?.structuredRole === "text")
+                : rootObject;
+            if (
+              !object ||
+              (object.kind !== "text" && object.kind !== "flexibleText")
+            ) {
+              return;
+            }
 
             const { inputId } =
               preset.timetableObjectPresetId === "weeklyMemo"
@@ -3542,6 +3618,27 @@ export function TemplateStudioClient({
           composition.rootObjectIds.push(group.id);
           insertedObjectId = group.id;
           linkedPresetInput = true;
+          return;
+        }
+
+        if (
+          preset.timetableObjectPresetId === "weeklyMemo" ||
+          preset.timetableObjectPresetId === "artistProfileText"
+        ) {
+          const { group, children } = createStudioStructuredTextPresetObjects(
+            preset.timetableObjectPresetId,
+            composition,
+            {
+              inputId: presetTextInput?.inputId,
+            },
+          );
+          composition.objects[group.id] = group;
+          children.forEach((child) => {
+            composition.objects[child.id] = child;
+          });
+          composition.rootObjectIds.push(group.id);
+          insertedObjectId = group.id;
+          linkedPresetInput = Boolean(presetTextInput);
           return;
         }
 
@@ -3744,6 +3841,14 @@ export function TemplateStudioClient({
         if (layerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
           layout.left = Number((nextPosition.left ?? layout.left).toFixed(2));
           layout.top = Number((nextPosition.top ?? layout.top).toFixed(2));
+          const dayCardsObject =
+            composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID];
+          if (dayCardsObject && nextPosition.rotateDeg !== undefined) {
+            dayCardsObject.style = {
+              ...dayCardsObject.style,
+              rotateDeg: Number(nextPosition.rotateDeg.toFixed(2)),
+            };
+          }
           timetable.dayCardsLayout = layout;
           return;
         }
@@ -5488,7 +5593,7 @@ export function TemplateStudioClient({
           "my-1 flex h-4 items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.06em]",
           blockedReason ? "text-rose-300" : "text-[var(--accent)]",
         )}
-        style={{ marginLeft: 10 + depth * 20 }}
+        style={{ marginLeft: Math.min(10 + depth * 20, 70) }}
         title={blockedReason ?? getStudioLayerDropPositionLabel(position)}
         onDragOver={(event) =>
           handleLayerIndicatorDragOver(event, nodeId, position)
@@ -5534,7 +5639,7 @@ export function TemplateStudioClient({
         <div
           className="rounded px-2 py-1 text-[11px] font-semibold text-rose-300"
           key={`${nodeId}:cycle`}
-          style={{ marginLeft: 10 + depth * 20 }}
+          style={{ marginLeft: Math.min(10 + depth * 20, 70) }}
         >
           Cycle: {node.label}
         </div>
@@ -5552,11 +5657,11 @@ export function TemplateStudioClient({
     const isLayerGroupCollapsed = collapsedLayerGroupIdsSet.has(node.id);
 
     return (
-      <div key={node.id}>
+      <div className="min-w-0 max-w-full overflow-hidden" key={node.id}>
         {renderLayerDropIndicator(node.id, depth, "before")}
         <button
           className={cn(
-            "flex h-[34px] w-full items-center gap-2 rounded-[7px] px-2 text-left text-[12.5px] font-medium transition-colors",
+            "flex h-[34px] w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-[7px] px-2 text-left text-[12.5px] font-medium transition-colors",
             node.locked
               ? "cursor-default"
               : "cursor-grab active:cursor-grabbing",
@@ -5569,9 +5674,9 @@ export function TemplateStudioClient({
                 : "ring-1 ring-inset ring-[var(--accent)]"),
             isCutLayerNode && "opacity-[0.45]",
           )}
-          style={{ paddingLeft: 10 + depth * 20 }}
+          style={{ paddingLeft: Math.min(10 + depth * 20, 70) }}
           type="button"
-          title={activeDropState?.blockedReason ?? undefined}
+          title={activeDropState?.blockedReason ?? node.label}
           draggable={!node.locked}
           onDragEnd={clearLayerDragState}
           onDragOver={(event) => handleLayerDragOver(event, node.id)}
@@ -5628,7 +5733,7 @@ export function TemplateStudioClient({
               <Type size={14} />
             )}
           </span>
-          <span className="min-w-0 flex-1 truncate">{node.label}</span>
+          <span className="block min-w-0 flex-1 truncate">{node.label}</span>
           {node.locked ? (
             <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
           ) : null}
@@ -5698,7 +5803,7 @@ export function TemplateStudioClient({
     return (
       <button
         className={cn(
-          "flex h-[34px] w-full items-center gap-2 rounded-[7px] px-2 text-left text-[12.5px] font-medium transition-colors",
+            "flex h-[34px] w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-[7px] px-2 text-left text-[12.5px] font-medium transition-colors",
           disabled
             ? "cursor-not-allowed opacity-45"
             : draggable
@@ -5714,8 +5819,8 @@ export function TemplateStudioClient({
         disabled={disabled}
         draggable={draggable && !disabled}
         key={id}
-        style={{ paddingLeft: 10 + depth * 20 }}
-        title={blockedReason ?? undefined}
+        style={{ paddingLeft: Math.min(10 + depth * 20, 70) }}
+        title={blockedReason ?? label}
         type="button"
         onDragEnd={onDragEnd}
         onDragOver={onDragOver}
@@ -5768,7 +5873,7 @@ export function TemplateStudioClient({
             <Type size={14} />
           )}
         </span>
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+        <span className="block min-w-0 flex-1 truncate">{label}</span>
         {hidden ? (
           <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
         ) : null}
@@ -5799,7 +5904,7 @@ export function TemplateStudioClient({
           blockedReason ? "text-rose-300" : "text-[var(--accent)]",
         )}
         key={`${layerId}:${position}:drop`}
-        style={{ marginLeft: 10 + depth * 20 }}
+        style={{ marginLeft: Math.min(10 + depth * 20, 70) }}
         title={blockedReason ?? getStudioLayerDropPositionLabel(position)}
         onDragOver={(event) =>
           handleTimetableLayerIndicatorDragOver(
@@ -5863,9 +5968,11 @@ export function TemplateStudioClient({
     const type = isGroup
       ? "group"
       : object.kind === "profileBlock"
-        ? "block"
+          ? "block"
         : object.kind === "image" || object.kind === "topObject"
           ? "image"
+          : object.kind === "flexibleText"
+            ? "auto text"
           : "text";
 
     return (
@@ -5962,7 +6069,7 @@ export function TemplateStudioClient({
   };
 
   const renderTimetableLayersPanel = () => (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       <div className="border-b border-[var(--border)] px-3 py-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
           Timetable Layers
@@ -5971,8 +6078,8 @@ export function TemplateStudioClient({
           {timetableComposition.rootObjectIds.length} placed objects
         </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-        <div className="grid gap-0.5">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
+        <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
           {getStudioLayerPanelOrder(
             timetableComposition.rootObjectIds,
           ).map((objectId) =>
@@ -6125,17 +6232,20 @@ export function TemplateStudioClient({
               type="file"
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
                 if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = () => {
-                  updateRuntimeInputValue(
-                    input,
-                    String(reader.result ?? ""),
-                    context,
-                  );
-                };
-                reader.readAsDataURL(file);
+                const selectedGeometry =
+                  activeWorkspaceMode === "timetable"
+                    ? selectedTimetableLayerGeometry
+                    : selectedNode
+                      ? resolveStudioGraphNodeGeometry(document, selectedNode.id)
+                      : null;
+                requestStudioImageCrop(
+                  file,
+                  selectedGeometry ?? { width: 400, height: 400 },
+                  (croppedImageSrc) =>
+                    updateRuntimeInputValue(input, croppedImageSrc, context),
+                );
               }}
             />
           </label>
@@ -6925,25 +7035,35 @@ export function TemplateStudioClient({
                   event.currentTarget.value = "";
                   if (!file) return;
 
-                  createTemplateAssetFromFile(
-                    file,
-                    inputLabel,
-                    (nextDocument, nextAssetId) => {
-                      const timetable = nextDocument.domains?.timetable;
-                      if (!timetable) return;
-
-                      const composition =
-                        ensureStudioTimetableComposition(timetable);
-                      const currentObject = composition.objects[object.id];
-                      if (!currentObject) return;
-
-                      onUpdateAsset(
-                        currentObject,
-                        nextAssetId,
-                        fit ?? defaultFit,
-                      );
-                    },
+                  const cropGeometry = resolveStudioTimetableObjectGeometry(
+                    timetableComposition,
+                    object.id,
+                    getStudioTimetablePreviewSize(
+                      document.domains?.timetable,
+                    ),
                   );
+                  requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
+                    createTemplateAssetFromDataUrl(
+                      file,
+                      croppedSrc,
+                      inputLabel,
+                      (nextDocument, nextAssetId) => {
+                        const timetable = nextDocument.domains?.timetable;
+                        if (!timetable) return;
+
+                        const composition =
+                          ensureStudioTimetableComposition(timetable);
+                        const currentObject = composition.objects[object.id];
+                        if (!currentObject) return;
+
+                        onUpdateAsset(
+                          currentObject,
+                          nextAssetId,
+                          fit ?? defaultFit,
+                        );
+                      },
+                    );
+                  });
                 }}
               />
             </label>
@@ -7119,6 +7239,30 @@ export function TemplateStudioClient({
             );
           }
         : undefined,
+    });
+  };
+
+  const renderTimetableStructuredBackgroundAssetSlot = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const assetSlot = object.assetSlots?.asset;
+
+    return renderTimetableAssetSlot({
+      object,
+      label: "Background Asset",
+      assetId: assetSlot?.assetId,
+      fit: assetSlot?.fit,
+      defaultFit: "cover",
+      inputLabel: STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
+      sourceLocked: "asset",
+      onUpdateAsset: (currentObject, assetId, fit) => {
+        setStudioTimetableObjectAssetSlot(
+          currentObject,
+          "asset",
+          assetId,
+          fit,
+        );
+      },
     });
   };
 
@@ -7646,7 +7790,12 @@ export function TemplateStudioClient({
       value: string | number | undefined,
     ) => {
       updateTimetableCompositionObject(object.id, (currentObject) => {
-        if (currentObject.kind !== "text") return;
+        if (
+          currentObject.kind !== "text" &&
+          currentObject.kind !== "flexibleText"
+        ) {
+          return;
+        }
         currentObject.style = {
           ...currentObject.style,
           [key]: value,
@@ -7780,18 +7929,30 @@ export function TemplateStudioClient({
                     event.currentTarget.value = "";
                     if (!file) return;
 
-                    createTemplateAssetFromFile(
+                    const cropGeometry = resolveStudioGraphNodeGeometry(
+                      document,
+                      node.id,
+                    );
+                    requestStudioImageCrop(
                       file,
-                      `${node.label} ${status.label}`,
-                      (nextDocument, nextAssetId) => {
-                        const currentNode = nextDocument.graph.nodes[node.id];
-                        if (!currentNode) return;
+                      cropGeometry,
+                      (croppedSrc) => {
+                        createTemplateAssetFromDataUrl(
+                          file,
+                          croppedSrc,
+                          `${node.label} ${status.label}`,
+                          (nextDocument, nextAssetId) => {
+                            const currentNode =
+                              nextDocument.graph.nodes[node.id];
+                            if (!currentNode) return;
 
-                        setStudioStatusCardBackgroundAssetSlot(
-                          currentNode,
-                          status.id,
-                          nextAssetId,
-                          slot?.fit ?? "cover",
+                            setStudioStatusCardBackgroundAssetSlot(
+                              currentNode,
+                              status.id,
+                              nextAssetId,
+                              slot?.fit ?? "cover",
+                            );
+                          },
                         );
                       },
                     );
@@ -8574,7 +8735,7 @@ export function TemplateStudioClient({
       />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[260px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]">
+        <aside className="flex w-[260px] min-w-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--panel)]">
           <div className="flex gap-0.5 px-2 pt-2">
             {(activeWorkspaceMode === "cards"
               ? [
@@ -8734,8 +8895,8 @@ export function TemplateStudioClient({
                     ))
                   )}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-                  <div className="grid gap-0.5">
+                <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
+                  <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
                     {getStudioLayerPanelOrder(
                       document.graph.rootNodeIds,
                     ).map((nodeId) => renderLayerTree(nodeId))}
@@ -8906,20 +9067,23 @@ export function TemplateStudioClient({
                   }
             }
             onOpenNodePicker={
-              activeWorkspaceMode === "cards"
-                ? ({ clientX, clientY, nodeIds }) => {
-                    if (nodeIds.length === 0) {
-                      setNodePicker(null);
-                      return;
-                    }
+              ({ clientX, clientY, nodeIds }) => {
+                const selectableNodeIds =
+                  activeWorkspaceMode === "cards"
+                    ? nodeIds.filter((nodeId) => document.graph.nodes[nodeId])
+                    : nodeIds.filter((nodeId) => timetablePickerNodes[nodeId]);
+                const uniqueNodeIds = [...new Set(selectableNodeIds)];
+                if (uniqueNodeIds.length === 0) {
+                  setNodePicker(null);
+                  return;
+                }
 
-                    setNodePicker({
-                      x: clientX,
-                      y: clientY,
-                      nodeIds,
-                    });
-                  }
-                : undefined
+                setNodePicker({
+                  x: clientX,
+                  y: clientY,
+                  nodeIds: uniqueNodeIds,
+                });
+              }
             }
             resolveDragNodeId={
               activeWorkspaceMode === "timetable"
@@ -8978,15 +9142,28 @@ export function TemplateStudioClient({
             )}
           </StudioCanvasViewport>
 
-          {nodePicker && activeWorkspaceMode === "cards" ? (
+          {nodePicker ? (
             <StudioNodePickerMenu
-              document={document}
+              document={activeWorkspaceMode === "cards" ? document : undefined}
+              nodes={
+                activeWorkspaceMode === "timetable"
+                  ? timetablePickerNodes
+                  : undefined
+              }
               nodeIds={nodePicker.nodeIds}
               position={{ x: nodePicker.x, y: nodePicker.y }}
-              selectedNodeId={selectedNodeId}
+              selectedNodeId={
+                activeWorkspaceMode === "cards"
+                  ? selectedNodeId
+                  : selectedTimetableLayerId
+              }
               onClose={() => setNodePicker(null)}
               onSelectNode={(nodeId) => {
-                selectSingleNode(nodeId);
+                if (activeWorkspaceMode === "cards") {
+                  selectSingleNode(nodeId);
+                } else {
+                  selectTimetableCanvasLayer(nodeId);
+                }
                 setNodePicker(null);
               }}
             />
@@ -9216,7 +9393,8 @@ export function TemplateStudioClient({
                       {renderTimetableOpacityControl(
                         selectedTimetableCompositionObject,
                       )}
-                      {isSelectedWeeklyMemoObject ? (
+                      {isSelectedWeeklyMemoObject &&
+                      selectedTimetableCompositionObject.kind !== "group" ? (
                         renderTimetableBackgroundAssetSlot(
                           selectedTimetableCompositionObject,
                         )
@@ -9241,18 +9419,25 @@ export function TemplateStudioClient({
                             selectedTimetableCompositionObject,
                           )
                         : null}
+                      {isSelectedStructuredBackgroundObject
+                        ? renderTimetableStructuredBackgroundAssetSlot(
+                            selectedTimetableCompositionObject,
+                          )
+                        : null}
                       {selectedTimetableCompositionObject.profileRole ===
                       "userImage"
                         ? renderTimetableProfileMaskControls(
                             selectedTimetableCompositionObject,
                           )
                         : null}
-                      {isSelectedArtistProfileTextObject
+                      {isSelectedArtistProfileTextObject &&
+                      selectedTimetableCompositionObject.kind !== "group"
                         ? renderTimetableArtistProfileTextAssetSlot(
                             selectedTimetableCompositionObject,
                           )
                         : null}
-                      {isSelectedArtistProfileTextObject
+                      {isSelectedArtistProfileTextObject &&
+                      selectedTimetableCompositionObject.kind !== "group"
                         ? renderTimetableArtistProfileTextAssetLayoutControls(
                             selectedTimetableCompositionObject,
                           )
@@ -9350,7 +9535,7 @@ export function TemplateStudioClient({
                       </div>
                       {isPlacedTimetableCompositionObject(
                         selectedTimetableCompositionObject ?? undefined,
-                      ) ? (
+                      ) || isSelectedDayCardsObject ? (
                         <NumberField
                           label="Rotate"
                           value={Number(
@@ -9462,6 +9647,18 @@ export function TemplateStudioClient({
           )}
         </aside>
       </div>
+      {pendingImageCrop ? (
+        <StudioImageCropModal
+          imageSrc={pendingImageCrop.imageSrc}
+          initialHeight={pendingImageCrop.initialHeight}
+          initialWidth={pendingImageCrop.initialWidth}
+          onCancel={() => setPendingImageCrop(null)}
+          onApply={(croppedImageSrc) => {
+            pendingImageCrop.onApply(croppedImageSrc);
+            setPendingImageCrop(null);
+          }}
+        />
+      ) : null}
     </main>
   );
 }

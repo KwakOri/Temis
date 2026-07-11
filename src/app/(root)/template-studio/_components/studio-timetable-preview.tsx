@@ -35,6 +35,7 @@ import {
   getStudioTimetableEntriesForDay,
   resolveStudioTimetableComponentVariant,
 } from "@/utils/template-studio/timetable-runtime";
+import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 
 import { StudioWebFontLoader } from "./studio-web-font-loader";
 
@@ -691,6 +692,11 @@ export function StudioTimetablePreview({
           composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]?.style
             .opacity,
         ),
+        transform: `rotate(${Number(
+          composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID]?.style
+            .rotateDeg ?? 0,
+        )}deg)`,
+        transformOrigin: "center",
         outline:
           selectedLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID
             ? "8px solid rgba(59, 130, 246, 0.75)"
@@ -865,7 +871,19 @@ export function StudioTimetablePreview({
             }}
           />
         ) : null}
-        <span className="min-w-0">{text}</span>
+        {object.kind === "flexibleText" ? (
+          <AutoResizeText
+            className="min-w-0"
+            maxFontSize={getNumericStyleValue(object.style, "fontSize", 48)}
+            minFontSize={8}
+            multiline
+            style={{ margin: 0 }}
+          >
+            {text}
+          </AutoResizeText>
+        ) : (
+          <span className="min-w-0">{text}</span>
+        )}
       </div>
     );
   };

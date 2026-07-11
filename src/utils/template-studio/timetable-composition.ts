@@ -18,6 +18,10 @@ import {
 
 export const STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID = "day-cards";
 const STUDIO_PROFILE_BLOCK_SIZE = 420;
+const STUDIO_ARTIST_WIDTH = 1200;
+const STUDIO_ARTIST_HEIGHT = 180;
+const STUDIO_WEEKLY_MEMO_WIDTH = 1500;
+const STUDIO_WEEKLY_MEMO_HEIGHT = 110;
 
 const createStudioTimetableDayCardsExceptionMeta = () => ({
   semanticKey: "dayCardContainers" as const,
@@ -122,6 +126,20 @@ const createStudioProfileBlockGroupExceptionMeta = (visible = true) => ({
   }),
 });
 
+const createStudioStructuredGroupExceptionMeta = (
+  presetId: "weeklyMemo" | "artistProfileText",
+  visible = true,
+) => ({
+  semanticKey: presetId,
+  scope: "timetable" as const,
+  presetId,
+  lockedStructure: true,
+  singleton: true,
+  editableSlots: createStudioSemanticSlotRecord({
+    visibility: createStudioSemanticVisibilitySlot(visible),
+  }),
+});
+
 const createStudioArtistProfileTextExceptionMeta = (
   inputId?: StudioInputId,
   visible = true,
@@ -175,7 +193,7 @@ export const createStudioTimetableDayCardsObject =
     kind: "generatedDayCards",
     label: "Day Card Containers",
     presetId: "dayCards",
-    style: { opacity: 1 },
+    style: { opacity: 1, rotateDeg: 0 },
     meta: {
       exception: createStudioTimetableDayCardsExceptionMeta(),
     },
@@ -185,6 +203,7 @@ const inferStudioTimetableObjectPresetId = (
   object: StudioTimetableCompositionObject,
 ): StudioTimetableObjectPresetId | null => {
   if (object.presetId) return object.presetId;
+  if (object.parentId) return null;
   if (object.id === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) return "dayCards";
   if (object.id.startsWith("week-dates")) return "weekDates";
   if (object.id.startsWith("weekly-memo")) return "weeklyMemo";
@@ -426,6 +445,108 @@ const createStudioProfileBlockGroupFromLegacyObject = (
   return { group, children: [backPlate, userImage, frame] };
 };
 
+const getStudioStructuredTextChildIds = (groupId: string) => ({
+  backgroundId: `${groupId}:background-object`,
+  textId: `${groupId}:text-object`,
+});
+
+const createStudioStructuredTextGroupFromLegacyObject = (
+  object: StudioTimetableCompositionObject,
+  presetId: "weeklyMemo" | "artistProfileText",
+) => {
+  const { backgroundId, textId } = getStudioStructuredTextChildIds(object.id);
+  const geometry = getStudioTimetableCompositionObjectGeometry(object);
+  const legacyAssetSlot =
+    presetId === "artistProfileText"
+      ? object.assetSlots?.asset
+      : object.backgroundAssetId
+        ? {
+            assetId: object.backgroundAssetId,
+            fit: object.backgroundFit ?? "cover",
+          }
+        : undefined;
+  const commonChildStyle = {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: geometry.width,
+    height: geometry.height,
+    rotateDeg: 0,
+    opacity: 1,
+  };
+  const group: StudioTimetableCompositionObject = {
+    ...object,
+    kind: "group",
+    label: presetId === "artistProfileText" ? "Artist" : "Weekly Memo",
+    presetId,
+    parentId: null,
+    childIds: [backgroundId, textId],
+    style: {
+      position: "absolute",
+      left: geometry.left,
+      top: geometry.top,
+      width: geometry.width,
+      height: geometry.height,
+      rotateDeg:
+        typeof object.style.rotateDeg === "number" ? object.style.rotateDeg : 0,
+      opacity: object.style.opacity ?? 1,
+      overflow: "visible",
+    },
+    binding: undefined,
+    assetSlots: undefined,
+    backgroundAssetId: undefined,
+    backgroundFit: undefined,
+    meta: {
+      ...object.meta,
+      exception: createStudioStructuredGroupExceptionMeta(
+        presetId,
+        !object.hidden,
+      ),
+    },
+  };
+  const background: StudioTimetableCompositionObject = {
+    id: backgroundId,
+    kind: "image",
+    label:
+      presetId === "artistProfileText"
+        ? "artist_background_object"
+        : "weekly_memo_background_object",
+    parentId: object.id,
+    structuredRole: "background",
+    layoutMode: "fillParent",
+    style: {
+      ...commonChildStyle,
+      backgroundColor: object.style.backgroundColor,
+    },
+    assetSlots: legacyAssetSlot
+      ? { asset: { ...legacyAssetSlot } }
+      : undefined,
+  };
+  const text: StudioTimetableCompositionObject = {
+    id: textId,
+    kind: presetId === "weeklyMemo" ? "flexibleText" : "text",
+    label:
+      presetId === "artistProfileText"
+        ? "artist_text_object"
+        : "weekly_memo_text_object",
+    parentId: object.id,
+    structuredRole: "text",
+    layoutMode: "fillParent",
+    style: {
+      ...object.style,
+      ...commonChildStyle,
+      backgroundColor: undefined,
+      assetMode: undefined,
+      assetPosition: undefined,
+      assetSize: undefined,
+      assetGap: undefined,
+    },
+    binding: object.binding,
+  };
+
+  return { group, children: [background, text] };
+};
+
 const normalizeStudioTimetableComposition = (
   composition?: StudioTimetableComposition,
 ): StudioTimetableComposition => {
@@ -446,10 +567,33 @@ const normalizeStudioTimetableComposition = (
   );
 
   Object.entries(objects).forEach(([objectId, object]) => {
-    if (object.kind !== "profileBlock") return;
+    let converted:
+      | ReturnType<typeof createStudioProfileBlockGroupFromLegacyObject>
+      | ReturnType<typeof createStudioStructuredTextGroupFromLegacyObject>
+      | null = null;
 
-    const { group, children } =
-      createStudioProfileBlockGroupFromLegacyObject(object);
+    if (object.kind === "profileBlock") {
+      converted = createStudioProfileBlockGroupFromLegacyObject(object);
+    } else if (
+      object.presetId === "weeklyMemo" &&
+      (object.kind === "text" || object.kind === "flexibleText")
+    ) {
+      converted = createStudioStructuredTextGroupFromLegacyObject(
+        object,
+        "weeklyMemo",
+      );
+    } else if (
+      object.presetId === "artistProfileText" &&
+      (object.kind === "text" || object.kind === "flexibleText")
+    ) {
+      converted = createStudioStructuredTextGroupFromLegacyObject(
+        object,
+        "artistProfileText",
+      );
+    }
+
+    if (!converted) return;
+    const { group, children } = converted;
     objects[objectId] = group;
     children.forEach((child) => {
       objects[child.id] = child;
@@ -620,13 +764,115 @@ export const createStudioProfileBlockPresetObjects = (
   return { group, children };
 };
 
+export const createStudioStructuredTextPresetObjects = (
+  presetId: "weeklyMemo" | "artistProfileText",
+  composition: StudioTimetableComposition,
+  options: {
+    inputId?: StudioInputId;
+    backgroundAssetId?: string;
+  } = {},
+) => {
+  const isWeeklyMemo = presetId === "weeklyMemo";
+  const baseId = isWeeklyMemo ? "weekly-memo" : "artist-profile-text";
+  const { objectId, suffix } = getUniqueTimetableObjectId(
+    Object.keys(composition.objects),
+    baseId,
+  );
+  const baseLabel = isWeeklyMemo ? "Weekly Memo" : "Artist";
+  const label = suffix === 1 ? baseLabel : `${baseLabel} ${suffix}`;
+  const { backgroundId, textId } = getStudioStructuredTextChildIds(objectId);
+  const width = isWeeklyMemo
+    ? STUDIO_WEEKLY_MEMO_WIDTH
+    : STUDIO_ARTIST_WIDTH;
+  const height = isWeeklyMemo
+    ? STUDIO_WEEKLY_MEMO_HEIGHT
+    : STUDIO_ARTIST_HEIGHT;
+  const commonChildStyle = {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width,
+    height,
+    rotateDeg: 0,
+    opacity: 1,
+  };
+  const group: StudioTimetableCompositionObject = {
+    id: objectId,
+    kind: "group",
+    label,
+    presetId,
+    parentId: null,
+    childIds: [backgroundId, textId],
+    style: {
+      position: "absolute",
+      left: isWeeklyMemo ? 360 : 840,
+      top: isWeeklyMemo ? 1770 : 470,
+      width,
+      height,
+      rotateDeg: 0,
+      opacity: 1,
+      overflow: "visible",
+    },
+    meta: {
+      exception: createStudioStructuredGroupExceptionMeta(presetId),
+    },
+  };
+  const background: StudioTimetableCompositionObject = {
+    id: backgroundId,
+    kind: "image",
+    label: isWeeklyMemo
+      ? "weekly_memo_background_object"
+      : "artist_background_object",
+    parentId: objectId,
+    structuredRole: "background",
+    layoutMode: "fillParent",
+    style: commonChildStyle,
+    assetSlots: options.backgroundAssetId
+      ? {
+          asset: {
+            assetId: options.backgroundAssetId,
+            fit: "cover",
+          },
+        }
+      : undefined,
+  };
+  const textObject: StudioTimetableCompositionObject = {
+    id: textId,
+    kind: isWeeklyMemo ? "flexibleText" : "text",
+    label: isWeeklyMemo ? "weekly_memo_text_object" : "artist_text_object",
+    parentId: objectId,
+    structuredRole: "text",
+    layoutMode: "fillParent",
+    style: {
+      ...commonChildStyle,
+      color: isWeeklyMemo ? "#475569" : "#172033",
+      display: "flex",
+      alignItems: "center",
+      fontSize: isWeeklyMemo ? 48 : 64,
+      fontWeight: isWeeklyMemo ? 700 : 800,
+      lineHeight: isWeeklyMemo ? 1.2 : 1.12,
+    },
+    binding: options.inputId
+      ? {
+          kind: "inputText",
+          inputId: options.inputId,
+        }
+      : {
+          kind: "staticText",
+          value: isWeeklyMemo ? "Weekly memo" : "Artist",
+        },
+  };
+
+  return { group, children: [background, textObject] };
+};
+
 export const getStudioTimetablePresetLabel = (
   presetId: StudioTimetableObjectPresetId,
 ) => {
   if (presetId === "weekDates") return "Week Dates";
   if (presetId === "weeklyMemo") return "Weekly Memo";
   if (presetId === "profileBlock") return "Profile Block";
-  if (presetId === "artistProfileText") return "Artist / Profile Text";
+  if (presetId === "artistProfileText") return "Artist";
   if (presetId === "topObject") return "Top Object";
   return "Day Card Containers";
 };
@@ -839,6 +1085,7 @@ export const bindStudioWeeklyMemoObjectToInput = (
     kind: "inputText",
     inputId,
   };
+  if (object.structuredRole === "text") return;
   object.meta = {
     ...object.meta,
     exception: createStudioWeeklyMemoExceptionMeta(
@@ -858,6 +1105,7 @@ export const bindStudioArtistProfileTextObjectToInput = (
     kind: "inputText",
     inputId,
   };
+  if (object.structuredRole === "text") return;
   object.meta = {
     ...object.meta,
     exception: createStudioArtistProfileTextExceptionMeta(
