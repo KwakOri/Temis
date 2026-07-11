@@ -113,7 +113,9 @@ import {
 import {
   ensureStudioArtistProfileTextInput,
   ensureStudioPresetImageInput,
+  ensureStudioTimetableVariantInput,
   ensureStudioWeeklyMemoInput,
+  isStudioTimetableVariantInputCompatible,
   STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
   STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL,
   STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
@@ -142,10 +144,13 @@ import {
   bindStudioWeeklyMemoObjectToInput,
   createStudioProfileBlockPresetObjects,
   createStudioStructuredTextPresetObjects,
+  createStudioTopObjectPresetObjects,
   createStudioTimetablePresetObject,
   ensureStudioTimetableComposition,
   getStudioTimetableComposition,
   getStudioTimetableCompositionObjectGeometry,
+  getStudioTimetableObjectRenderableChildIds,
+  setStudioTimetableObjectActiveVariantValue,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
 import {
@@ -775,6 +780,36 @@ const isPlacedTimetableCompositionObject = (
   object?.kind === "text" ||
   object?.kind === "profileBlock" ||
   object?.kind === "topObject";
+
+const findTimetableStructuredTextObject = (
+  composition: StudioTimetableComposition,
+  rootObject: StudioTimetableCompositionObject | undefined,
+) => {
+  if (!rootObject) return null;
+
+  const visitedObjectIds = new Set<string>();
+  const queue = [...(rootObject.childIds ?? [])];
+
+  while (queue.length > 0) {
+    const objectId = queue.shift();
+    if (!objectId || visitedObjectIds.has(objectId)) continue;
+    visitedObjectIds.add(objectId);
+
+    const object = composition.objects[objectId];
+    if (!object) continue;
+
+    if (
+      object.structuredRole === "text" &&
+      (object.kind === "text" || object.kind === "flexibleText")
+    ) {
+      return object;
+    }
+
+    queue.push(...(object.childIds ?? []));
+  }
+
+  return null;
+};
 
 const normalizeRuntimeValuesForTimetableCapabilities = (
   values: StudioRuntimeValues,
@@ -1457,7 +1492,7 @@ export function TemplateStudioClient({
                 ? "Auto Text"
                 : object.kind[0].toUpperCase() + object.kind.slice(1),
           parentId: object.parentId,
-          childIds: [...(object.childIds ?? [])],
+          childIds: [...getStudioTimetableObjectRenderableChildIds(object)],
         },
       ]),
     );
@@ -1481,6 +1516,8 @@ export function TemplateStudioClient({
   const selectedTimetableCompositionObject = selectedTimetableLayerId
     ? (timetableComposition.objects[selectedTimetableLayerId] ?? null)
     : null;
+  const selectedTimetableVariantSet =
+    selectedTimetableCompositionObject?.variantSet ?? null;
   const isSelectedTimetableObjectFitParent = isStudioFillParentLayout(
     selectedTimetableCompositionObject?.layoutMode,
   );
@@ -1717,6 +1754,19 @@ export function TemplateStudioClient({
     );
 
     Object.values(timetableComposition.objects).forEach((object) => {
+      if (object.variantSet?.inputId) {
+        consumers[object.variantSet.inputId] = [
+          ...(consumers[object.variantSet.inputId] ?? []),
+          {
+            id: `timetable:${object.id}:variant`,
+            workspaceMode: "timetable",
+            targetId: object.id,
+            label: object.label,
+            detail: "Timetable · Object State",
+          },
+        ];
+      }
+
       const inputId = getStudioBindingInputId(object.binding);
       if (inputId) {
         consumers[inputId] = [
@@ -3480,6 +3530,38 @@ export function TemplateStudioClient({
 
         if (
           preset.timetableObjectPresetId === "weeklyMemo" ||
+          preset.timetableObjectPresetId === "artistProfileText" ||
+          preset.timetableObjectPresetId === "topObject"
+        ) {
+          updateDocument((nextDocument) => {
+            const timetable = nextDocument.domains?.timetable;
+            if (!timetable) return;
+
+            const composition = ensureStudioTimetableComposition(timetable);
+            const rootObject = composition.objects[existingObjectId];
+            if (
+              !rootObject?.variantSet ||
+              isStudioTimetableVariantInputCompatible(
+                nextDocument,
+                rootObject.variantSet.inputId,
+              )
+            ) {
+              return;
+            }
+
+            const variantInput = ensureStudioTimetableVariantInput(
+              nextDocument,
+              preset.timetableObjectPresetId,
+            );
+            if (!variantInput) return;
+
+            rootObject.variantSet.inputId = variantInput.inputId;
+            linkedPresetInput = true;
+          });
+        }
+
+        if (
+          preset.timetableObjectPresetId === "weeklyMemo" ||
           preset.timetableObjectPresetId === "artistProfileText"
         ) {
           updateDocument((nextDocument) => {
@@ -3490,9 +3572,7 @@ export function TemplateStudioClient({
             const rootObject = composition.objects[existingObjectId];
             const object =
               rootObject?.kind === "group"
-                ? rootObject.childIds
-                    ?.map((childId) => composition.objects[childId])
-                    .find((child) => child?.structuredRole === "text")
+                ? findTimetableStructuredTextObject(composition, rootObject)
                 : rootObject;
             if (
               !object ||
@@ -3578,6 +3658,15 @@ export function TemplateStudioClient({
             : preset.timetableObjectPresetId === "artistProfileText"
               ? ensureStudioArtistProfileTextInput(nextDocument)
               : null;
+        const variantInput =
+          preset.timetableObjectPresetId === "weeklyMemo" ||
+          preset.timetableObjectPresetId === "artistProfileText" ||
+          preset.timetableObjectPresetId === "topObject"
+            ? ensureStudioTimetableVariantInput(
+                nextDocument,
+                preset.timetableObjectPresetId,
+              )
+            : null;
         const assetIds = Object.keys(nextDocument.assets);
         const findAssetId = (keywords: string[]) =>
           Object.values(nextDocument.assets).find((asset) => {
@@ -3630,6 +3719,7 @@ export function TemplateStudioClient({
             composition,
             {
               inputId: presetTextInput?.inputId,
+              variantInputId: variantInput?.inputId,
             },
           );
           composition.objects[group.id] = group;
@@ -3638,14 +3728,32 @@ export function TemplateStudioClient({
           });
           composition.rootObjectIds.push(group.id);
           insertedObjectId = group.id;
-          linkedPresetInput = Boolean(presetTextInput);
+          linkedPresetInput = Boolean(presetTextInput || variantInput);
           return;
         }
 
         const defaultAssetId =
           preset.timetableObjectPresetId === "topObject"
-              ? (assetIds[1] ?? assetIds[0])
+            ? (assetIds[1] ?? assetIds[0])
             : undefined;
+        if (preset.timetableObjectPresetId === "topObject") {
+          const { group, children } = createStudioTopObjectPresetObjects(
+            composition,
+            {
+              assetId: defaultAssetId,
+              variantInputId: variantInput?.inputId,
+            },
+          );
+          composition.objects[group.id] = group;
+          children.forEach((child) => {
+            composition.objects[child.id] = child;
+          });
+          composition.rootObjectIds.push(group.id);
+          insertedObjectId = group.id;
+          linkedPresetInput = Boolean(variantInput);
+          return;
+        }
+
         const object = createStudioTimetablePresetObject(
           preset.timetableObjectPresetId,
           composition,
@@ -4429,6 +4537,137 @@ export function TemplateStudioClient({
     updateDocument,
   ]);
 
+  const deleteSelectedTimetableObject = useCallback(() => {
+    const selectedObjectId = selectedTimetableLayerId;
+
+    if (!selectedObjectId) {
+      showShortcutStatus("No timetable object selected");
+      return;
+    }
+
+    if (selectedObjectId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
+      showShortcutStatus("Day Card Containers is locked");
+      return;
+    }
+
+    if (selectedObjectId.startsWith("day-card:")) {
+      showShortcutStatus("Generated day cards are locked");
+      return;
+    }
+
+    const selectedObject = timetableComposition.objects[selectedObjectId];
+
+    if (!selectedObject) {
+      showShortcutStatus("Timetable object not found");
+      return;
+    }
+
+    const objectIdsToDelete = new Set<string>();
+    const collectObject = (objectId: string) => {
+      const object = timetableComposition.objects[objectId];
+      if (!object || objectIdsToDelete.has(objectId)) return;
+
+      objectIdsToDelete.add(objectId);
+      (object.childIds ?? []).forEach(collectObject);
+    };
+
+    collectObject(selectedObjectId);
+
+    if (objectIdsToDelete.size === 0) {
+      showShortcutStatus("Timetable delete failed");
+      return;
+    }
+
+    const fallbackSelectionId =
+      selectedObject.parentId &&
+      !objectIdsToDelete.has(selectedObject.parentId) &&
+      timetableComposition.objects[selectedObject.parentId]
+        ? selectedObject.parentId
+        : STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID;
+
+    updateDocument((nextDocument) => {
+      const timetable = nextDocument.domains?.timetable;
+      if (!timetable) return;
+
+      const composition = ensureStudioTimetableComposition(timetable);
+      const nextObjectIdsToDelete = new Set<string>();
+      const collectNextObject = (objectId: string) => {
+        const object = composition.objects[objectId];
+        if (!object || nextObjectIdsToDelete.has(objectId)) return;
+
+        nextObjectIdsToDelete.add(objectId);
+        (object.childIds ?? []).forEach(collectNextObject);
+      };
+
+      collectNextObject(selectedObjectId);
+
+      if (nextObjectIdsToDelete.has(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID)) {
+        nextObjectIdsToDelete.delete(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
+      }
+
+      Object.values(composition.objects).forEach((object) => {
+        if (!object.childIds) return;
+        object.childIds = object.childIds.filter(
+          (childId) => !nextObjectIdsToDelete.has(childId),
+        );
+        if (object.variantSet) {
+          Object.entries(object.variantSet.rootByValue).forEach(
+            ([value, rootObjectId]) => {
+              if (rootObjectId && nextObjectIdsToDelete.has(rootObjectId)) {
+                object.variantSet!.rootByValue[value] = null;
+              }
+            },
+          );
+
+          const activeRootId =
+            object.variantSet.rootByValue[
+              object.variantSet.activeValue ?? object.variantSet.defaultValue
+            ];
+          if (!activeRootId) {
+            const nextActiveOption = object.variantSet.options.find(
+              (option) => object.variantSet?.rootByValue[option.value],
+            );
+            object.variantSet.activeValue =
+              nextActiveOption?.value ?? object.variantSet.defaultValue;
+          }
+        }
+      });
+
+      composition.rootObjectIds = composition.rootObjectIds.filter(
+        (objectId) => !nextObjectIdsToDelete.has(objectId),
+      );
+
+      nextObjectIdsToDelete.forEach((objectId) => {
+        delete composition.objects[objectId];
+      });
+    });
+
+    setSelectedTimetableLayerId(fallbackSelectionId);
+    setCollapsedTimetableLayerIds((currentLayerIds) =>
+      currentLayerIds.filter((layerId) => !objectIdsToDelete.has(layerId)),
+    );
+    setNodePicker(null);
+    showShortcutStatus(
+      `Deleted ${objectIdsToDelete.size} timetable ${
+        objectIdsToDelete.size === 1 ? "object" : "objects"
+      }`,
+    );
+  }, [
+    selectedTimetableLayerId,
+    showShortcutStatus,
+    timetableComposition,
+    updateDocument,
+  ]);
+
+  const deleteActiveSelection = useCallback(() => {
+    if (activeWorkspaceMode === "timetable") {
+      deleteSelectedTimetableObject();
+      return;
+    }
+
+    deleteSelectedNode();
+  }, [activeWorkspaceMode, deleteSelectedNode, deleteSelectedTimetableObject]);
+
   const copySelectedNode = useCallback(() => {
     const selectedActionNodeIds = getStudioTopLevelNodeIds(
       document,
@@ -5193,7 +5432,7 @@ export function TemplateStudioClient({
       if (event.key === "Backspace" || event.key === "Delete") {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat) deleteSelectedNode();
+        if (!event.repeat) deleteActiveSelection();
         return;
       }
 
@@ -5264,7 +5503,7 @@ export function TemplateStudioClient({
   }, [
     copySelectedNode,
     cutSelectedNode,
-    deleteSelectedNode,
+    deleteActiveSelection,
     duplicateSelectedNode,
     groupSelectedNodes,
     moveSelectedNodeLayer,
@@ -5957,7 +6196,10 @@ export function TemplateStudioClient({
     nextVisitedObjectIds.add(objectId);
     const isRoot = depth === 0;
     const isGeneratedDayCards = object.kind === "generatedDayCards";
-    const childIds = object.kind === "group" ? (object.childIds ?? []) : [];
+    const childIds =
+      object.kind === "group"
+        ? getStudioTimetableObjectRenderableChildIds(object)
+        : [];
     const isGroup = isGeneratedDayCards || object.kind === "group";
     const isCollapsed = collapsedTimetableLayerIdsSet.has(object.id);
     const hidden = parentHidden || Boolean(object.hidden);
@@ -6399,6 +6641,55 @@ export function TemplateStudioClient({
           }
         />
       </label>
+    );
+  };
+
+  const renderTimetableObjectVariantControls = (
+    object: StudioTimetableCompositionObject,
+  ) => {
+    const variantSet = object.variantSet;
+    if (!variantSet) return null;
+
+    const activeValue = variantSet.activeValue ?? variantSet.defaultValue;
+
+    return (
+      <div className="grid gap-2">
+        <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
+          {variantSet.options.map((option) => {
+            const selected = option.value === activeValue;
+
+            return (
+              <button
+                className={cn(
+                  "h-8 rounded-md text-xs font-bold transition",
+                  selected
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                )}
+                key={option.value}
+                type="button"
+                onClick={() =>
+                  updateTimetableCompositionObject(object.id, (currentObject) =>
+                    setStudioTimetableObjectActiveVariantValue(
+                      currentObject,
+                      option.value,
+                    ),
+                  )
+                }
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
+          Editing state:{" "}
+          <span className="text-[var(--fg)]">
+            {variantSet.options.find((option) => option.value === activeValue)
+              ?.label ?? activeValue}
+          </span>
+        </div>
+      </div>
     );
   };
 
@@ -9109,6 +9400,7 @@ export function TemplateStudioClient({
                 onSelectLayer={selectTimetableCanvasLayer}
                 runtimeValues={runtimeValues}
                 selectedLayerId={selectedTimetableLayerId}
+                variantMode="authoring"
               />
             ) : (
               <StudioRenderer
@@ -9313,6 +9605,16 @@ export function TemplateStudioClient({
             </>
           ) : (
             <>
+              {selectedTimetableCompositionObject && selectedTimetableVariantSet
+                ? renderInspectorSection(
+                    "settings",
+                    "Object State",
+                    renderTimetableObjectVariantControls(
+                      selectedTimetableCompositionObject,
+                    ),
+                  )
+                : null}
+
               {selectedTimetableTextObject
                 ? renderInspectorSection(
                     "input",
@@ -9442,7 +9744,8 @@ export function TemplateStudioClient({
                             selectedTimetableCompositionObject,
                           )
                         : null}
-                      {isSelectedTopObject
+                      {isSelectedTopObject &&
+                      selectedTimetableCompositionObject.kind !== "group"
                         ? renderTimetableTopObjectAssetSlot(
                             selectedTimetableCompositionObject,
                           )

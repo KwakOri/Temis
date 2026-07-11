@@ -5,7 +5,10 @@ import {
   StudioTimetableCompositionObject,
   StudioTimetableDomain,
   StudioTimetableObjectPresetId,
+  StudioRuntimeValues,
+  StudioTemplateDocument,
 } from "@/types/template-studio";
+import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import {
   createStudioSemanticAssetSlot,
   createStudioSemanticImageInputSlot,
@@ -199,6 +202,129 @@ export const createStudioTimetableDayCardsObject =
     },
   });
 
+const STUDIO_TIMETABLE_ON_OFF_VARIANT_OPTIONS = [
+  { value: "on", label: "On" },
+  { value: "off", label: "Off" },
+];
+
+const createStudioTimetableOnOffVariantSet = (
+  onRootId: string,
+  offRootId: string,
+  activeValue = "on",
+  inputId?: StudioInputId,
+): StudioTimetableCompositionObject["variantSet"] => ({
+  options: STUDIO_TIMETABLE_ON_OFF_VARIANT_OPTIONS,
+  defaultValue: "on",
+  activeValue,
+  inputId,
+  rootByValue: {
+    on: onRootId,
+    off: offRootId,
+  },
+});
+
+const normalizeStudioTimetableVariantSet = (
+  variantSet: StudioTimetableCompositionObject["variantSet"],
+): StudioTimetableCompositionObject["variantSet"] => {
+  if (!variantSet) return undefined;
+
+  const options =
+    Array.isArray(variantSet.options) && variantSet.options.length > 0
+      ? variantSet.options
+      : STUDIO_TIMETABLE_ON_OFF_VARIANT_OPTIONS;
+  const optionValues = new Set(options.map((option) => option.value));
+  const defaultValue = optionValues.has(variantSet.defaultValue)
+    ? variantSet.defaultValue
+    : options[0]?.value ?? "on";
+  const activeValue =
+    variantSet.activeValue && optionValues.has(variantSet.activeValue)
+      ? variantSet.activeValue
+      : defaultValue;
+
+  return {
+    ...variantSet,
+    options,
+    defaultValue,
+    activeValue,
+    rootByValue: { ...(variantSet.rootByValue ?? {}) },
+  };
+};
+
+export const getStudioTimetableObjectActiveVariantValue = (
+  object: StudioTimetableCompositionObject,
+) => {
+  const variantSet = normalizeStudioTimetableVariantSet(object.variantSet);
+  return variantSet?.activeValue ?? null;
+};
+
+export const getStudioTimetableObjectActiveVariantRootId = (
+  object: StudioTimetableCompositionObject,
+) => {
+  const variantSet = normalizeStudioTimetableVariantSet(object.variantSet);
+  if (!variantSet) return null;
+
+  return (
+    variantSet.rootByValue[variantSet.activeValue ?? variantSet.defaultValue] ??
+    null
+  );
+};
+
+export const getStudioTimetableObjectRenderableChildIds = (
+  object: StudioTimetableCompositionObject,
+  variantValue?: string | null,
+) => {
+  const variantSet = normalizeStudioTimetableVariantSet(object.variantSet);
+  if (!variantSet) return object.childIds ?? [];
+
+  const resolvedValue =
+    variantValue &&
+    variantSet.options.some((option) => option.value === variantValue)
+      ? variantValue
+      : variantSet.activeValue ?? variantSet.defaultValue;
+  const activeVariantRootId = variantSet.rootByValue[resolvedValue] ?? null;
+
+  if (activeVariantRootId) return [activeVariantRootId];
+  return [];
+};
+
+export const getStudioTimetableObjectRuntimeVariantValue = (
+  document: StudioTemplateDocument,
+  runtimeValues: StudioRuntimeValues,
+  object: StudioTimetableCompositionObject,
+) => {
+  const variantSet = normalizeStudioTimetableVariantSet(object.variantSet);
+  if (!variantSet) return null;
+
+  const input = variantSet.inputId
+    ? document.inputs[variantSet.inputId]
+    : undefined;
+  const runtimeValue = input
+    ? getStudioRuntimeInputValue(input, runtimeValues)
+    : variantSet.defaultValue;
+
+  return variantSet.options.some((option) => option.value === runtimeValue)
+    ? runtimeValue
+    : variantSet.defaultValue;
+};
+
+export const setStudioTimetableObjectActiveVariantValue = (
+  object: StudioTimetableCompositionObject,
+  value: string,
+) => {
+  const variantSet = normalizeStudioTimetableVariantSet(object.variantSet);
+  if (
+    !variantSet ||
+    !variantSet.options.some((option) => option.value === value)
+  ) {
+    return;
+  }
+
+  object.variantSet = {
+    ...variantSet,
+    activeValue: value,
+  };
+};
+
 const inferStudioTimetableObjectPresetId = (
   object: StudioTimetableCompositionObject,
 ): StudioTimetableObjectPresetId | null => {
@@ -380,7 +506,7 @@ const createStudioProfileBlockGroupFromLegacyObject = (
     ...object,
     kind: "group",
     presetId: "profileBlock",
-    parentId: null,
+    parentId: object.parentId ?? null,
     childIds: [backPlateId, userImageId, frameId],
     style: {
       ...object.style,
@@ -445,16 +571,56 @@ const createStudioProfileBlockGroupFromLegacyObject = (
   return { group, children: [backPlate, userImage, frame] };
 };
 
+const getStudioVariantStateGroupIds = (groupId: string) => ({
+  onGroupId: `${groupId}:on`,
+  offGroupId: `${groupId}:off`,
+});
+
 const getStudioStructuredTextChildIds = (groupId: string) => ({
   backgroundId: `${groupId}:background-object`,
   textId: `${groupId}:text-object`,
+});
+
+const cloneStudioTimetableCompositionObject = (
+  object: StudioTimetableCompositionObject,
+): StudioTimetableCompositionObject =>
+  JSON.parse(JSON.stringify(object)) as StudioTimetableCompositionObject;
+
+const createStudioVariantStateGroup = (
+  id: string,
+  label: string,
+  parentId: string,
+  childIds: string[],
+  width: number,
+  height: number,
+  hidden = false,
+): StudioTimetableCompositionObject => ({
+  id,
+  kind: "group",
+  label,
+  parentId,
+  childIds,
+  hidden,
+  layoutMode: "fillParent",
+  style: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width,
+    height,
+    rotateDeg: 0,
+    opacity: 1,
+    overflow: "visible",
+  },
 });
 
 const createStudioStructuredTextGroupFromLegacyObject = (
   object: StudioTimetableCompositionObject,
   presetId: "weeklyMemo" | "artistProfileText",
 ) => {
-  const { backgroundId, textId } = getStudioStructuredTextChildIds(object.id);
+  const { onGroupId, offGroupId } = getStudioVariantStateGroupIds(object.id);
+  const { backgroundId, textId } = getStudioStructuredTextChildIds(onGroupId);
+  const offChildIds = getStudioStructuredTextChildIds(offGroupId);
   const geometry = getStudioTimetableCompositionObjectGeometry(object);
   const legacyAssetSlot =
     presetId === "artistProfileText"
@@ -479,8 +645,9 @@ const createStudioStructuredTextGroupFromLegacyObject = (
     kind: "group",
     label: presetId === "artistProfileText" ? "Artist" : "Weekly Memo",
     presetId,
-    parentId: null,
-    childIds: [backgroundId, textId],
+    parentId: object.parentId ?? null,
+    childIds: [onGroupId, offGroupId],
+    variantSet: createStudioTimetableOnOffVariantSet(onGroupId, offGroupId),
     style: {
       position: "absolute",
       left: geometry.left,
@@ -504,6 +671,23 @@ const createStudioStructuredTextGroupFromLegacyObject = (
       ),
     },
   };
+  const onGroup = createStudioVariantStateGroup(
+    onGroupId,
+    `${group.label} On`,
+    object.id,
+    [backgroundId, textId],
+    geometry.width,
+    geometry.height,
+  );
+  const offGroup = createStudioVariantStateGroup(
+    offGroupId,
+    `${group.label} Off`,
+    object.id,
+    [offChildIds.backgroundId, offChildIds.textId],
+    geometry.width,
+    geometry.height,
+    true,
+  );
   const background: StudioTimetableCompositionObject = {
     id: backgroundId,
     kind: "image",
@@ -511,7 +695,7 @@ const createStudioStructuredTextGroupFromLegacyObject = (
       presetId === "artistProfileText"
         ? "artist_background_object"
         : "weekly_memo_background_object",
-    parentId: object.id,
+    parentId: onGroupId,
     structuredRole: "background",
     layoutMode: "fillParent",
     style: {
@@ -529,7 +713,7 @@ const createStudioStructuredTextGroupFromLegacyObject = (
       presetId === "artistProfileText"
         ? "artist_text_object"
         : "weekly_memo_text_object",
-    parentId: object.id,
+    parentId: onGroupId,
     structuredRole: "text",
     layoutMode: "fillParent",
     style: {
@@ -543,8 +727,191 @@ const createStudioStructuredTextGroupFromLegacyObject = (
     },
     binding: object.binding,
   };
+  const offBackground: StudioTimetableCompositionObject = {
+    ...cloneStudioTimetableCompositionObject(background),
+    id: offChildIds.backgroundId,
+    label:
+      presetId === "artistProfileText"
+        ? "artist_off_background_object"
+        : "weekly_memo_off_background_object",
+    parentId: offGroupId,
+  };
+  const offText: StudioTimetableCompositionObject = {
+    ...cloneStudioTimetableCompositionObject(text),
+    id: offChildIds.textId,
+    label:
+      presetId === "artistProfileText"
+        ? "artist_off_text_object"
+        : "weekly_memo_off_text_object",
+    parentId: offGroupId,
+  };
 
-  return { group, children: [background, text] };
+  return {
+    group,
+    children: [onGroup, background, text, offGroup, offBackground, offText],
+  };
+};
+
+const createStudioStructuredTextVariantGroupFromFlatGroup = (
+  object: StudioTimetableCompositionObject,
+  objects: StudioTimetableComposition["objects"],
+  presetId: "weeklyMemo" | "artistProfileText",
+) => {
+  const { onGroupId, offGroupId } = getStudioVariantStateGroupIds(object.id);
+  const geometry = getStudioTimetableCompositionObjectGeometry(object);
+  const sourceChildIds = object.childIds ?? [];
+  const sourceChildren = sourceChildIds
+    .map((childId) => objects[childId])
+    .filter(Boolean);
+  const offStructuredIds = getStudioStructuredTextChildIds(offGroupId);
+  const getOffChildId = (child: StudioTimetableCompositionObject) => {
+    if (child.structuredRole === "background") {
+      return offStructuredIds.backgroundId;
+    }
+    if (child.structuredRole === "text") return offStructuredIds.textId;
+    return `${offGroupId}:${child.id.split(":").pop() ?? child.id}`;
+  };
+  const offChildIds = sourceChildren.map(getOffChildId);
+  const group: StudioTimetableCompositionObject = {
+    ...object,
+    kind: "group",
+    presetId,
+    parentId: object.parentId ?? null,
+    childIds: [onGroupId, offGroupId],
+    variantSet: createStudioTimetableOnOffVariantSet(onGroupId, offGroupId),
+    style: {
+      ...object.style,
+      opacity: object.style.opacity ?? 1,
+      overflow: "visible",
+    },
+    meta: {
+      ...object.meta,
+      exception: createStudioStructuredGroupExceptionMeta(
+        presetId,
+        !object.hidden,
+      ),
+    },
+  };
+  const onGroup = createStudioVariantStateGroup(
+    onGroupId,
+    `${group.label} On`,
+    object.id,
+    sourceChildIds,
+    geometry.width,
+    geometry.height,
+  );
+  const offGroup = createStudioVariantStateGroup(
+    offGroupId,
+    `${group.label} Off`,
+    object.id,
+    offChildIds,
+    geometry.width,
+    geometry.height,
+    true,
+  );
+  const onChildren = sourceChildren.map((child) => ({
+    ...child,
+    parentId: onGroupId,
+  }));
+  const offChildren = sourceChildren.map((child, index) => ({
+    ...cloneStudioTimetableCompositionObject(child),
+    id: offChildIds[index],
+    label: `${child.label}_off`,
+    parentId: offGroupId,
+  }));
+
+  return {
+    group,
+    children: [onGroup, ...onChildren, offGroup, ...offChildren],
+  };
+};
+
+const getStudioTopObjectImageIds = (groupId: string) => ({
+  imageId: `${groupId}:image-object`,
+});
+
+const createStudioTopObjectGroupFromLegacyObject = (
+  object: StudioTimetableCompositionObject,
+) => {
+  const { onGroupId, offGroupId } = getStudioVariantStateGroupIds(object.id);
+  const onImageIds = getStudioTopObjectImageIds(onGroupId);
+  const offImageIds = getStudioTopObjectImageIds(offGroupId);
+  const geometry = getStudioTimetableCompositionObjectGeometry(object);
+  const assetSlot = object.assetSlots?.asset;
+  const commonChildStyle = {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: geometry.width,
+    height: geometry.height,
+    rotateDeg: 0,
+    opacity: 1,
+    borderRadius: object.style.borderRadius,
+    overflow: object.style.overflow,
+  };
+  const group: StudioTimetableCompositionObject = {
+    ...object,
+    kind: "group",
+    presetId: "topObject",
+    parentId: object.parentId ?? null,
+    childIds: [onGroupId, offGroupId],
+    variantSet: createStudioTimetableOnOffVariantSet(onGroupId, offGroupId),
+    style: {
+      position: "absolute",
+      left: geometry.left,
+      top: geometry.top,
+      width: geometry.width,
+      height: geometry.height,
+      rotateDeg:
+        typeof object.style.rotateDeg === "number" ? object.style.rotateDeg : 0,
+      opacity: object.style.opacity ?? 1,
+      overflow: "visible",
+    },
+    assetSlots: undefined,
+    meta: {
+      ...object.meta,
+      exception: createStudioTopObjectExceptionMeta(
+        assetSlot?.assetId,
+        assetSlot?.fit ?? "contain",
+        !object.hidden,
+      ),
+    },
+  };
+  const onGroup = createStudioVariantStateGroup(
+    onGroupId,
+    `${group.label} On`,
+    object.id,
+    [onImageIds.imageId],
+    geometry.width,
+    geometry.height,
+  );
+  const offGroup = createStudioVariantStateGroup(
+    offGroupId,
+    `${group.label} Off`,
+    object.id,
+    [offImageIds.imageId],
+    geometry.width,
+    geometry.height,
+    true,
+  );
+  const image: StudioTimetableCompositionObject = {
+    id: onImageIds.imageId,
+    kind: "image",
+    label: "top_object",
+    presetId: "topObject",
+    parentId: onGroupId,
+    layoutMode: "fillParent",
+    style: commonChildStyle,
+    assetSlots: assetSlot ? { asset: { ...assetSlot } } : undefined,
+  };
+  const offImage: StudioTimetableCompositionObject = {
+    ...cloneStudioTimetableCompositionObject(image),
+    id: offImageIds.imageId,
+    label: "top_object_off",
+    parentId: offGroupId,
+  };
+
+  return { group, children: [onGroup, image, offGroup, offImage] };
 };
 
 const normalizeStudioTimetableComposition = (
@@ -557,6 +924,9 @@ const normalizeStudioTimetableComposition = (
         objectId,
         {
           ...normalizedObject,
+          variantSet: normalizeStudioTimetableVariantSet(
+            normalizedObject.variantSet,
+          ),
           style: {
             opacity: 1,
             ...normalizedObject.style,
@@ -570,6 +940,8 @@ const normalizeStudioTimetableComposition = (
     let converted:
       | ReturnType<typeof createStudioProfileBlockGroupFromLegacyObject>
       | ReturnType<typeof createStudioStructuredTextGroupFromLegacyObject>
+      | ReturnType<typeof createStudioStructuredTextVariantGroupFromFlatGroup>
+      | ReturnType<typeof createStudioTopObjectGroupFromLegacyObject>
       | null = null;
 
     if (object.kind === "profileBlock") {
@@ -590,6 +962,31 @@ const normalizeStudioTimetableComposition = (
         object,
         "artistProfileText",
       );
+    } else if (
+      object.presetId === "weeklyMemo" &&
+      object.kind === "group" &&
+      !object.variantSet
+    ) {
+      converted = createStudioStructuredTextVariantGroupFromFlatGroup(
+        object,
+        objects,
+        "weeklyMemo",
+      );
+    } else if (
+      object.presetId === "artistProfileText" &&
+      object.kind === "group" &&
+      !object.variantSet
+    ) {
+      converted = createStudioStructuredTextVariantGroupFromFlatGroup(
+        object,
+        objects,
+        "artistProfileText",
+      );
+    } else if (
+      object.presetId === "topObject" &&
+      object.kind === "topObject"
+    ) {
+      converted = createStudioTopObjectGroupFromLegacyObject(object);
     }
 
     if (!converted) return;
@@ -770,6 +1167,7 @@ export const createStudioStructuredTextPresetObjects = (
   options: {
     inputId?: StudioInputId;
     backgroundAssetId?: string;
+    variantInputId?: StudioInputId;
   } = {},
 ) => {
   const isWeeklyMemo = presetId === "weeklyMemo";
@@ -780,13 +1178,15 @@ export const createStudioStructuredTextPresetObjects = (
   );
   const baseLabel = isWeeklyMemo ? "Weekly Memo" : "Artist";
   const label = suffix === 1 ? baseLabel : `${baseLabel} ${suffix}`;
-  const { backgroundId, textId } = getStudioStructuredTextChildIds(objectId);
   const width = isWeeklyMemo
     ? STUDIO_WEEKLY_MEMO_WIDTH
     : STUDIO_ARTIST_WIDTH;
   const height = isWeeklyMemo
     ? STUDIO_WEEKLY_MEMO_HEIGHT
     : STUDIO_ARTIST_HEIGHT;
+  const { onGroupId, offGroupId } = getStudioVariantStateGroupIds(objectId);
+  const onChildIds = getStudioStructuredTextChildIds(onGroupId);
+  const offChildIds = getStudioStructuredTextChildIds(offGroupId);
   const commonChildStyle = {
     position: "absolute",
     left: 0,
@@ -802,7 +1202,13 @@ export const createStudioStructuredTextPresetObjects = (
     label,
     presetId,
     parentId: null,
-    childIds: [backgroundId, textId],
+    childIds: [onGroupId, offGroupId],
+    variantSet: createStudioTimetableOnOffVariantSet(
+      onGroupId,
+      offGroupId,
+      "on",
+      options.variantInputId,
+    ),
     style: {
       position: "absolute",
       left: isWeeklyMemo ? 360 : 840,
@@ -817,13 +1223,30 @@ export const createStudioStructuredTextPresetObjects = (
       exception: createStudioStructuredGroupExceptionMeta(presetId),
     },
   };
+  const onGroup = createStudioVariantStateGroup(
+    onGroupId,
+    `${baseLabel} On`,
+    objectId,
+    [onChildIds.backgroundId, onChildIds.textId],
+    width,
+    height,
+  );
+  const offGroup = createStudioVariantStateGroup(
+    offGroupId,
+    `${baseLabel} Off`,
+    objectId,
+    [offChildIds.backgroundId, offChildIds.textId],
+    width,
+    height,
+    true,
+  );
   const background: StudioTimetableCompositionObject = {
-    id: backgroundId,
+    id: onChildIds.backgroundId,
     kind: "image",
     label: isWeeklyMemo
       ? "weekly_memo_background_object"
       : "artist_background_object",
-    parentId: objectId,
+    parentId: onGroupId,
     structuredRole: "background",
     layoutMode: "fillParent",
     style: commonChildStyle,
@@ -837,10 +1260,10 @@ export const createStudioStructuredTextPresetObjects = (
       : undefined,
   };
   const textObject: StudioTimetableCompositionObject = {
-    id: textId,
+    id: onChildIds.textId,
     kind: isWeeklyMemo ? "flexibleText" : "text",
     label: isWeeklyMemo ? "weekly_memo_text_object" : "artist_text_object",
-    parentId: objectId,
+    parentId: onGroupId,
     structuredRole: "text",
     layoutMode: "fillParent",
     style: {
@@ -862,8 +1285,136 @@ export const createStudioStructuredTextPresetObjects = (
           value: isWeeklyMemo ? "Weekly memo" : "Artist",
         },
   };
+  const offBackground: StudioTimetableCompositionObject = {
+    ...cloneStudioTimetableCompositionObject(background),
+    id: offChildIds.backgroundId,
+    label: isWeeklyMemo
+      ? "weekly_memo_off_background_object"
+      : "artist_off_background_object",
+    parentId: offGroupId,
+  };
+  const offTextObject: StudioTimetableCompositionObject = {
+    ...cloneStudioTimetableCompositionObject(textObject),
+    id: offChildIds.textId,
+    label: isWeeklyMemo
+      ? "weekly_memo_off_text_object"
+      : "artist_off_text_object",
+    parentId: offGroupId,
+  };
 
-  return { group, children: [background, textObject] };
+  return {
+    group,
+    children: [
+      onGroup,
+      background,
+      textObject,
+      offGroup,
+      offBackground,
+      offTextObject,
+    ],
+  };
+};
+
+export const createStudioTopObjectPresetObjects = (
+  composition: StudioTimetableComposition,
+  options: {
+    assetId?: StudioTimetableCompositionObject["backgroundAssetId"];
+    variantInputId?: StudioInputId;
+  } = {},
+) => {
+  const { objectId, suffix } = getUniqueTimetableObjectId(
+    Object.keys(composition.objects),
+    "top-object",
+  );
+  const label = suffix === 1 ? "Top Object" : `Top Object ${suffix}`;
+  const width = 420;
+  const height = 420;
+  const { onGroupId, offGroupId } = getStudioVariantStateGroupIds(objectId);
+  const onImageIds = getStudioTopObjectImageIds(onGroupId);
+  const offImageIds = getStudioTopObjectImageIds(offGroupId);
+  const commonChildStyle = {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width,
+    height,
+    rotateDeg: 0,
+    opacity: 1,
+    borderRadius: 0,
+    overflow: "visible",
+  };
+  const group: StudioTimetableCompositionObject = {
+    id: objectId,
+    kind: "group",
+    label,
+    presetId: "topObject",
+    parentId: null,
+    childIds: [onGroupId, offGroupId],
+    variantSet: createStudioTimetableOnOffVariantSet(
+      onGroupId,
+      offGroupId,
+      "on",
+      options.variantInputId,
+    ),
+    style: {
+      position: "absolute",
+      left: 3060,
+      top: 260,
+      width,
+      height,
+      rotateDeg: 0,
+      opacity: 1,
+      overflow: "visible",
+    },
+    meta: {
+      exception: createStudioTopObjectExceptionMeta(
+        options.assetId,
+        "contain",
+      ),
+    },
+  };
+  const onGroup = createStudioVariantStateGroup(
+    onGroupId,
+    "Top Object On",
+    objectId,
+    [onImageIds.imageId],
+    width,
+    height,
+  );
+  const offGroup = createStudioVariantStateGroup(
+    offGroupId,
+    "Top Object Off",
+    objectId,
+    [offImageIds.imageId],
+    width,
+    height,
+    true,
+  );
+  const image: StudioTimetableCompositionObject = {
+    id: onImageIds.imageId,
+    kind: "image",
+    label: "top_object",
+    presetId: "topObject",
+    parentId: onGroupId,
+    layoutMode: "fillParent",
+    style: commonChildStyle,
+    assetSlots: options.assetId
+      ? {
+          asset: {
+            assetId: options.assetId,
+            fit: "contain",
+          },
+        }
+      : undefined,
+  };
+  const offImage: StudioTimetableCompositionObject = {
+    ...cloneStudioTimetableCompositionObject(image),
+    id: offImageIds.imageId,
+    label: "top_object_off",
+    parentId: offGroupId,
+  };
+
+  return { group, children: [onGroup, image, offGroup, offImage] };
 };
 
 export const getStudioTimetablePresetLabel = (

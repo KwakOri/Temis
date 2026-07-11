@@ -120,6 +120,13 @@ const collectStudioInputConsumers = (
 
   Object.values(document.domains?.timetable?.composition?.objects ?? {}).forEach(
     (object) => {
+      addInputConsumer(consumers, object.variantSet?.inputId, {
+        id: `timetable:${object.id}:variant`,
+        workspace: "timetable",
+        label: object.label,
+        detail: "Timetable object state",
+      });
+
       addInputConsumer(consumers, getBindingInputId(object.binding), {
         id: `timetable:${object.id}:binding`,
         workspace: "timetable",
@@ -477,6 +484,138 @@ const validateTimetableCompositionObjectAssets = (
           ),
         );
       }
+    }
+  });
+
+  return diagnostics;
+};
+
+const validateTimetableCompositionObjectVariants = (
+  document: StudioTemplateDocument,
+  object: StudioTimetableCompositionObject,
+  objects: Record<string, StudioTimetableCompositionObject>,
+): StudioDiagnostic[] => {
+  const variantSet = object.variantSet;
+  if (!variantSet) return [];
+
+  const diagnostics: StudioDiagnostic[] = [];
+  const optionValues = variantSet.options.map((option) => option.value);
+  const uniqueOptionValues = new Set(optionValues);
+
+  if (object.kind !== "group") {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-variant-owner-kind:${object.id}`,
+        "Object state owner must be a group",
+        `${object.label} defines object states but is not a group object.`,
+      ),
+    );
+  }
+
+  if (optionValues.length === 0 || uniqueOptionValues.size !== optionValues.length) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-variant-options-invalid:${object.id}`,
+        "Invalid object state options",
+        `${object.label} needs at least one uniquely named object state.`,
+      ),
+    );
+  }
+
+  if (!uniqueOptionValues.has(variantSet.defaultValue)) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-variant-default-invalid:${object.id}`,
+        "Invalid default object state",
+        `${object.label} uses ${variantSet.defaultValue} as its default, but that state is not defined.`,
+      ),
+    );
+  }
+
+  if (variantSet.activeValue && !uniqueOptionValues.has(variantSet.activeValue)) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-variant-active-invalid:${object.id}`,
+        "Invalid authoring object state",
+        `${object.label} is editing ${variantSet.activeValue}, but that state is not defined.`,
+      ),
+    );
+  }
+
+  const input = variantSet.inputId
+    ? document.inputs[variantSet.inputId]
+    : null;
+  if (variantSet.inputId && !input) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-variant-input-missing:${object.id}`,
+        "Missing object state input",
+        `${object.label} references ${variantSet.inputId}, but that input does not exist.`,
+      ),
+    );
+  } else if (input && input.type !== "select") {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-variant-input-type:${object.id}`,
+        "Object state input must be select",
+        `${object.label} expects a select input, but ${input.label} is ${input.type}.`,
+      ),
+    );
+  } else if (input?.type === "select" && input.scope !== "global") {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-object-variant-input-scope:${object.id}`,
+        "Object state input must be global",
+        `${object.label} is a timetable-level object, but ${input.label} uses ${input.scope} scope.`,
+      ),
+    );
+  } else if (input?.type === "select") {
+    const inputValues = new Set(input.options.map((option) => option.value));
+    const missingValues = optionValues.filter((value) => !inputValues.has(value));
+    if (missingValues.length > 0) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-object-variant-input-options:${object.id}`,
+          "Object state input options do not match",
+          `${input.label} is missing: ${missingValues.join(", ")}.`,
+        ),
+      );
+    }
+  }
+
+  variantSet.options.forEach((option) => {
+    const rootObjectId = variantSet.rootByValue[option.value];
+    if (!rootObjectId) return;
+
+    if (!objects[rootObjectId]) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-object-variant-root-missing:${object.id}:${option.value}`,
+          "Missing object state root",
+          `${object.label} maps ${option.label} to ${rootObjectId}, but that object does not exist.`,
+        ),
+      );
+      return;
+    }
+
+    if (!(object.childIds ?? []).includes(rootObjectId)) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-object-variant-root-not-child:${object.id}:${option.value}`,
+          "Object state root is not a child",
+          `${rootObjectId} must be a direct child of ${object.label}.`,
+        ),
+      );
     }
   });
 
@@ -1187,7 +1326,14 @@ const validateTimetableDomain = (
           );
         }
 
-        if (object.hidden) {
+        const parentVariantSet = object.parentId
+          ? timetable.composition?.objects[object.parentId]?.variantSet
+          : undefined;
+        const isVariantStateRoot = parentVariantSet
+          ? Object.values(parentVariantSet.rootByValue).includes(objectId)
+          : false;
+
+        if (object.hidden && !isVariantStateRoot) {
           diagnostics.push(
             createDiagnostic(
               "warning",
@@ -1213,6 +1359,11 @@ const validateTimetableDomain = (
         diagnostics.push(
           ...validateTimetableCompositionObjectBinding(document, object),
           ...validateTimetableCompositionObjectAssets(document, object),
+          ...validateTimetableCompositionObjectVariants(
+            document,
+            object,
+            timetable.composition?.objects ?? {},
+          ),
         );
       },
     );

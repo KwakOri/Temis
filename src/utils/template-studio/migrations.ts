@@ -1,6 +1,10 @@
 import { StudioTemplateDocument } from "@/types/template-studio";
 import { getStudioTimetableCapabilities } from "@/utils/template-studio/timetable-capabilities";
 import { getStudioTimetableComposition } from "@/utils/template-studio/timetable-composition";
+import {
+  ensureStudioTimetableVariantInput,
+  isStudioTimetableVariantInputCompatible,
+} from "@/utils/template-studio/preset-inputs";
 
 export const STUDIO_TEMPLATE_DOCUMENT_SCHEMA = "studio_template_document";
 export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 1;
@@ -79,6 +83,37 @@ export const migrateStudioTemplateDocument = (
       warnings.push("Added default timetable composition.");
     }
     timetable.composition = getStudioTimetableComposition(timetable);
+
+    Object.values(timetable.composition.objects).forEach((object) => {
+      if (
+        !object.variantSet ||
+        (object.presetId !== "weeklyMemo" &&
+          object.presetId !== "artistProfileText" &&
+          object.presetId !== "topObject")
+      ) {
+        return;
+      }
+
+      if (
+        isStudioTimetableVariantInputCompatible(
+          document,
+          object.variantSet.inputId,
+        )
+      ) {
+        return;
+      }
+
+      const variantInput = ensureStudioTimetableVariantInput(
+        document,
+        object.presetId,
+      );
+      if (!variantInput) return;
+
+      object.variantSet.inputId = variantInput.inputId;
+      if (variantInput.created) {
+        warnings.push(`Added ${object.label} state input.`);
+      }
+    });
   }
 
   return {

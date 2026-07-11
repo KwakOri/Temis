@@ -3,6 +3,7 @@ import {
   StudioInputId,
   StudioInputScope,
   StudioTemplateDocument,
+  StudioTimetableObjectPresetId,
 } from "@/types/template-studio";
 
 import { createStudioId } from "./id";
@@ -24,6 +25,73 @@ export const STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL = "Profile Block Frame";
 export const STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL =
   "Artist / Profile Text Asset";
 export const STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL = "Top Object Image";
+
+const STUDIO_TIMETABLE_VARIANT_INPUT_LABELS: Partial<
+  Record<StudioTimetableObjectPresetId, string>
+> = {
+  weeklyMemo: "Weekly Memo Status",
+  artistProfileText: "Artist Status",
+  topObject: "Top Object Status",
+};
+
+export const isStudioTimetableVariantInputCompatible = (
+  document: StudioTemplateDocument,
+  inputId: StudioInputId | null | undefined,
+) => {
+  if (!inputId) return false;
+  const input = document.inputs[inputId];
+  if (!input || input.type !== "select" || input.scope !== "global") {
+    return false;
+  }
+
+  const optionValues = new Set(input.options.map((option) => option.value));
+  return optionValues.has("on") && optionValues.has("off");
+};
+
+export const ensureStudioTimetableVariantInput = (
+  document: StudioTemplateDocument,
+  presetId: StudioTimetableObjectPresetId,
+): { inputId: StudioInputId; created: boolean } | null => {
+  const label = STUDIO_TIMETABLE_VARIANT_INPUT_LABELS[presetId];
+  if (!label) return null;
+
+  const normalizedLabel = normalizeInputLabel(label);
+  const existingInput = Object.values(document.inputs).find(
+    (input) =>
+      input.type === "select" &&
+      input.scope === "global" &&
+      normalizeInputLabel(input.label) === normalizedLabel,
+  );
+
+  if (existingInput?.type === "select") {
+    existingInput.options = [
+      { value: "on", label: "On" },
+      { value: "off", label: "Off" },
+    ];
+    if (
+      existingInput.defaultValue !== "on" &&
+      existingInput.defaultValue !== "off"
+    ) {
+      existingInput.defaultValue = "on";
+    }
+    return { inputId: existingInput.id, created: false };
+  }
+
+  const inputId = createStudioId("input");
+  document.inputs[inputId] = {
+    id: inputId,
+    type: "select",
+    scope: "global",
+    label,
+    defaultValue: "on",
+    options: [
+      { value: "on", label: "On" },
+      { value: "off", label: "Off" },
+    ],
+  };
+
+  return { inputId, created: true };
+};
 
 const STUDIO_WEEKLY_MEMO_MATCHING_LABELS = new Set([
   normalizeInputLabel(STUDIO_WEEKLY_MEMO_INPUT_LABEL),

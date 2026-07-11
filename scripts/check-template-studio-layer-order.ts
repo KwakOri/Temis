@@ -8,6 +8,7 @@ import {
 import {
   createStudioProfileBlockPresetObjects,
   createStudioStructuredTextPresetObjects,
+  getStudioTimetableObjectRenderableChildIds,
 } from "../src/utils/template-studio/timetable-composition";
 
 const storedChildIds = [
@@ -70,17 +71,27 @@ for (const presetId of ["artistProfileText", "weeklyMemo"] as const) {
     { rootObjectIds: [], objects: {} },
     { inputId: `${presetId}-input` },
   );
-  const [backgroundId, textId] = structured.group.childIds ?? [];
+  const activeStateGroupId = getStudioTimetableObjectRenderableChildIds(
+    structured.group,
+  )[0];
+  const objects = Object.fromEntries(
+    [structured.group, ...structured.children].map((object) => [
+      object.id,
+      object,
+    ]),
+  );
+  const activeStateGroup = objects[activeStateGroupId];
+  const [backgroundId, textId] = activeStateGroup.childIds ?? [];
 
-  assert.equal(structured.children[0].structuredRole, "background");
-  assert.equal(structured.children[1].structuredRole, "text");
+  assert.equal(objects[backgroundId].structuredRole, "background");
+  assert.equal(objects[textId].structuredRole, "text");
   assert.deepEqual(
-    getStudioPaintOrder(structured.group.childIds ?? []),
+    getStudioPaintOrder(activeStateGroup.childIds ?? []),
     [backgroundId, textId],
     `${presetId} must paint its text above its background.`,
   );
   assert.deepEqual(
-    getStudioLayerPanelOrder(structured.group.childIds ?? []),
+    getStudioLayerPanelOrder(activeStateGroup.childIds ?? []),
     [textId, backgroundId],
     `${presetId} must show its text above its background in the layer panel.`,
   );

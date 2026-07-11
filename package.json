@@ -24,6 +24,7 @@
     "check:template-studio:preview-assets": "tsx scripts/check-template-studio-preview-assets.ts",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",
+    "check:template-studio:object-variants": "tsx scripts/check-template-studio-object-variants.ts",
     "check:template-studio:crop-resize": "tsx scripts/check-template-studio-crop-resize.ts",
     "check:template-studio:web-fonts": "tsx scripts/check-template-studio-web-fonts.ts",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"

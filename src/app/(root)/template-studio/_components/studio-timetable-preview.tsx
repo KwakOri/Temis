@@ -28,6 +28,8 @@ import {
   resolveStudioTimetableObjectGeometry,
 } from "@/utils/template-studio/object-layout";
 import {
+  getStudioTimetableObjectRenderableChildIds,
+  getStudioTimetableObjectRuntimeVariantValue,
   getStudioTimetableComposition,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
@@ -631,6 +633,7 @@ interface StudioTimetablePreviewProps {
   runtimeValues: StudioRuntimeValues;
   selectedLayerId?: string | null;
   onSelectLayer?: (layerId: string) => void;
+  variantMode?: "authoring" | "runtime";
 }
 
 export function StudioTimetablePreview({
@@ -638,6 +641,7 @@ export function StudioTimetablePreview({
   runtimeValues,
   selectedLayerId = null,
   onSelectLayer,
+  variantMode = "runtime",
 }: StudioTimetablePreviewProps) {
   const timetable = document.domains?.timetable;
   const days = useMemo(() => {
@@ -1095,7 +1099,18 @@ export function StudioTimetablePreview({
           onSelectLayer?.(object.id);
         }}
       >
-        {getStudioPaintOrder(object.childIds ?? []).map((childId) =>
+        {getStudioPaintOrder(
+          getStudioTimetableObjectRenderableChildIds(
+            object,
+            variantMode === "runtime"
+              ? getStudioTimetableObjectRuntimeVariantValue(
+                  document,
+                  runtimeValues,
+                  object,
+                )
+              : undefined,
+          ),
+        ).map((childId) =>
           renderCompositionObject(childId, nextVisitedObjectIds),
         )}
       </div>

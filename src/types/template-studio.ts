@@ -293,6 +293,19 @@ export interface StudioTimetableAssetSlot {
   fit?: StudioImageFit;
 }
 
+export interface StudioTimetableObjectVariantOption {
+  value: string;
+  label: string;
+}
+
+export interface StudioTimetableObjectVariantSet {
+  options: StudioTimetableObjectVariantOption[];
+  defaultValue: string;
+  activeValue?: string;
+  inputId?: StudioInputId | null;
+  rootByValue: Record<string, StudioTimetableCompositionObjectId | null>;
+}
+
 export interface StudioTimetableCompositionObject {
   id: StudioTimetableCompositionObjectId;
   kind: StudioTimetableCompositionObjectKind;
@@ -300,6 +313,7 @@ export interface StudioTimetableCompositionObject {
   presetId?: StudioTimetableObjectPresetId;
   parentId?: StudioTimetableCompositionObjectId | null;
   childIds?: StudioTimetableCompositionObjectId[];
+  variantSet?: StudioTimetableObjectVariantSet;
   layoutMode?: StudioObjectLayoutMode;
   profileRole?: StudioTimetableProfileObjectRole;
   structuredRole?: StudioTimetableStructuredObjectRole;
