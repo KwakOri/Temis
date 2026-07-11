@@ -3,6 +3,7 @@ import {
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
+import { createStudioStatusCardBackgroundExceptionMeta } from "@/utils/template-studio/status-card-background";
 
 const svgDataUrl = (svg: string): string =>
   `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -33,6 +34,12 @@ const heartSticker = svgDataUrl(`
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
   <rect width="180" height="180" rx="36" fill="#fff7ed"/>
   <path d="M90 143S35 111 35 67c0-22 16-38 37-38 11 0 22 6 28 15 7-9 17-15 29-15 20 0 36 16 36 38 0 44-55 76-55 76z" fill="#fb7185"/>
+</svg>
+`);
+
+const defaultCardBackground = svgDataUrl(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 500">
+  <rect width="780" height="500" rx="24" fill="#ffffff"/>
 </svg>
 `);
 
@@ -70,48 +77,13 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       label: "Heart Sticker",
       src: heartSticker,
     },
-  },
-  inputs: {
-    input_a1: {
-      id: "input_a1",
-      type: "text",
-      scope: "global",
-      label: "Display Name",
-      placeholder: "Enter a display name",
-      defaultValue: "Template Studio",
-      maxLength: 32,
-    },
-    input_c3: {
-      id: "input_c3",
-      type: "select",
-      scope: "entry",
-      label: "Entry Sticker",
-      defaultValue: "spark",
-      options: [
-        { value: "none", label: "None" },
-        { value: "spark", label: "Spark" },
-        { value: "heart", label: "Heart" },
-      ],
-    },
-    input_d4: {
-      id: "input_d4",
-      type: "text",
-      scope: "day",
-      label: "Day Note",
-      placeholder: "Enter a note for this day",
-      defaultValue: "Daily focus",
-      maxLength: 40,
-    },
-    input_e5: {
-      id: "input_e5",
-      type: "text",
-      scope: "entry",
-      label: "Entry Memo",
-      placeholder: "Enter a memo for this entry",
-      defaultValue: "Entry detail",
-      maxLength: 48,
+    asset_background: {
+      id: "asset_background",
+      label: "Default Card Background",
+      src: defaultCardBackground,
     },
   },
+  inputs: {},
   styles: {
     style_canvas_card: {
       position: "absolute",
@@ -119,10 +91,19 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       top: 70,
       width: 780,
       height: 500,
+      backgroundColor: "transparent",
+    },
+    style_background: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: 780,
+      height: 500,
       backgroundColor: "#ffffff",
       borderRadius: 24,
       boxShadow: "0 24px 80px rgba(15, 23, 42, 0.18)",
       border: "1px solid rgba(148, 163, 184, 0.35)",
+      overflow: "hidden",
     },
     style_day_label: {
       position: "absolute",
@@ -148,7 +129,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       display: "flex",
       alignItems: "center",
     },
-    style_title: {
+    style_main_title: {
       position: "absolute",
       left: 320,
       top: 96,
@@ -160,7 +141,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       display: "flex",
       alignItems: "center",
     },
-    style_status_label: {
+    style_time: {
       position: "absolute",
       left: 322,
       top: 226,
@@ -172,7 +153,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       display: "flex",
       alignItems: "center",
     },
-    style_caption: {
+    style_sub_title: {
       position: "absolute",
       left: 322,
       top: 178,
@@ -181,40 +162,6 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       fontSize: 18,
       fontWeight: 600,
       color: "#475569",
-      display: "flex",
-      alignItems: "center",
-    },
-    style_sticker: {
-      position: "absolute",
-      left: 605,
-      top: 292,
-      width: 128,
-      height: 128,
-      borderRadius: 28,
-      overflow: "hidden",
-      rotateDeg: -8,
-    },
-    style_note: {
-      position: "absolute",
-      left: 56,
-      top: 334,
-      width: 480,
-      height: 74,
-      fontSize: 22,
-      fontWeight: 700,
-      color: "#0f766e",
-      display: "flex",
-      alignItems: "center",
-    },
-    style_entry_memo: {
-      position: "absolute",
-      left: 56,
-      top: 412,
-      width: 480,
-      height: 42,
-      fontSize: 16,
-      fontWeight: 700,
-      color: "#334155",
       display: "flex",
       alignItems: "center",
     },
@@ -228,88 +175,85 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
         label: "Template Card",
         parentId: null,
         childIds: [
-          "node_c3",
-          "node_d4",
-          "node_e5",
-          "node_f6",
-          "node_g7",
-          "node_h8",
+          "node_b2",
           "node_i9",
-          "node_j10",
+          "node_h8",
+          "node_e5",
+          "node_d4",
+          "node_c3",
         ],
         styleId: "style_canvas_card",
+      },
+      node_b2: {
+        id: "node_b2",
+        type: "group",
+        label: "background",
+        parentId: "node_a1",
+        childIds: [],
+        styleId: "style_background",
+        assetSlots: {
+          online: {
+            assetId: "asset_background",
+            fit: "cover",
+          },
+          offline: {
+            assetId: "asset_background",
+            fit: "cover",
+          },
+        },
+        meta: {
+          exception: createStudioStatusCardBackgroundExceptionMeta({
+            online: {
+              assetId: "asset_background",
+              fit: "cover",
+            },
+            offline: {
+              assetId: "asset_background",
+              fit: "cover",
+            },
+          }),
+        },
       },
       node_c3: {
         id: "node_c3",
         type: "flexibleText",
-        label: "Display Name",
+        label: "main_title",
         parentId: "node_a1",
         childIds: [],
-        styleId: "style_title",
+        styleId: "style_main_title",
         binding: {
-          kind: "inputText",
-          inputId: "input_a1",
+          kind: "builtinField",
+          fieldId: "entry.main_title",
         },
       },
       node_d4: {
         id: "node_d4",
-        type: "text",
-        label: "Selected Sticker Label",
+        type: "flexibleText",
+        label: "sub_title",
         parentId: "node_a1",
         childIds: [],
-        styleId: "style_caption",
+        styleId: "style_sub_title",
         binding: {
-          kind: "selectText",
-          inputId: "input_c3",
-          output: "label",
+          kind: "builtinField",
+          fieldId: "entry.sub_title",
         },
       },
       node_e5: {
         id: "node_e5",
-        type: "image",
-        label: "Sticker Preview",
-        parentId: "node_a1",
-        childIds: [],
-        styleId: "style_sticker",
-        binding: {
-          kind: "selectAsset",
-          inputId: "input_c3",
-          assetByOption: {
-            none: null,
-            spark: "asset_b2",
-            heart: "asset_c3",
-          },
-        },
-        fit: "cover",
-      },
-      node_f6: {
-        id: "node_f6",
         type: "text",
-        label: "Day Note",
+        label: "time",
         parentId: "node_a1",
         childIds: [],
-        styleId: "style_note",
+        styleId: "style_time",
         binding: {
-          kind: "inputText",
-          inputId: "input_d4",
-        },
-      },
-      node_g7: {
-        id: "node_g7",
-        type: "text",
-        label: "Entry Memo",
-        parentId: "node_a1",
-        childIds: [],
-        styleId: "style_entry_memo",
-        binding: {
-          kind: "inputText",
-          inputId: "input_e5",
+          kind: "builtinField",
+          fieldId: "entry.time",
         },
       },
       node_h8: {
         id: "node_h8",
         type: "text",
-        label: "Day Label",
+        label: "day",
         parentId: "node_a1",
         childIds: [],
         styleId: "style_day_label",
@@ -333,7 +277,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       node_i9: {
         id: "node_i9",
         type: "text",
-        label: "Day Date",
+        label: "date",
         parentId: "node_a1",
         childIds: [],
         styleId: "style_day_date",
@@ -350,30 +294,6 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
             singleton: true,
             builtInBindings: {
               text: "day.date",
-            },
-          },
-        },
-      },
-      node_j10: {
-        id: "node_j10",
-        type: "text",
-        label: "Entry Status Label",
-        parentId: "node_a1",
-        childIds: [],
-        styleId: "style_status_label",
-        binding: {
-          kind: "builtinField",
-          fieldId: "entry.status_label",
-        },
-        meta: {
-          exception: {
-            semanticKey: "entryStatusLabel",
-            scope: "cards",
-            presetId: "entryStatusLabel",
-            lockedStructure: true,
-            singleton: true,
-            builtInBindings: {
-              text: "entry.status_label",
             },
           },
         },

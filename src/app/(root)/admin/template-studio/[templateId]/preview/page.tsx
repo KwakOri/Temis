@@ -1,9 +1,9 @@
-import { TemplateStudioPublishedPreviewClient } from "@/app/(root)/admin/template-studio/_components/template-studio-published-preview-client";
+import { TemplateStudioPreviewClient } from "@/app/(root)/admin/template-studio/_components/template-studio-preview-client";
 import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
 
 export const dynamic = "force-dynamic";
 
-export default async function TemplateStudioPublishedPreviewPage({
+export default async function TemplateStudioPreviewPage({
   params,
 }: {
   params: Promise<{ templateId: string }>;
@@ -12,7 +12,7 @@ export default async function TemplateStudioPublishedPreviewPage({
 
   return (
     <AdminProtectedRoute>
-      <TemplateStudioPublishedPreviewClient templateId={templateId} />
+      <TemplateStudioPreviewClient templateId={templateId} />
     </AdminProtectedRoute>
   );
 }

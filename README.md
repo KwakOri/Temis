@@ -2,25 +2,40 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+Development uses Docker local Supabase by default:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# equivalent to: npm run dev:local
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Local Supabase (Remote Data Mirror)
+## Supabase Development Targets
 
-Run the app against local Supabase while cloning data from remote DB every time:
+Choose the DB target explicitly with these commands:
+
+```bash
+# Docker local Supabase (default)
+npm run dev
+npm run dev:local
+
+# Temis remote Supabase
+npm run dev:remote
+```
+
+### Local target
+
+`dev:local`:
+
+- starts or reuses the Docker local Supabase stack
+- applies pending local migrations
+- injects the local API URL, anon key, and service role key into Next.js
+- starts Next.js without using remote Supabase credentials as its DB target
+
+To refresh local data from the remote project, opt in explicitly:
 
 1. Make sure Docker Desktop and Supabase CLI are installed.
 2. Prepare one of these remote auth options:
@@ -29,21 +44,34 @@ Run the app against local Supabase while cloning data from remote DB every time:
 3. Run:
 
 ```bash
-npm run dev:local
+npm run dev:local -- --dump
 ```
 
-What `dev:local` does:
+Dump mode additionally:
 
-- starts a minimal local Supabase stack (Postgres + PostgREST + Kong + Auth)
 - links to remote project when using token mode
 - resets local DB to current local migrations
 - dumps remote data (`public` by default)
 - imports remote data into local DB
-- starts Next.js with local Supabase URL/keys injected
 
 Tip: pass Next.js args through the command, e.g. `npm run dev:local -- -p 3001`.
 Tip: override copied schemas with `SUPABASE_REMOTE_DUMP_SCHEMAS` (comma-separated).
 Tip: override excluded services with `SUPABASE_START_EXCLUDE` (comma-separated, empty string to disable exclusions).
+
+### Remote target
+
+Create an ignored `.env.remote.local` file with:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://ajlgjdwkjyayrnocdfpj.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-remote-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-remote-service-role-key
+SUPABASE_PROJECT_REF=ajlgjdwkjyayrnocdfpj
+```
+
+Then run `npm run dev:remote`. The remote launcher validates the Temis project
+host before starting and never prints either key. Do not commit the service role
+key or place it in source code.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

@@ -71,6 +71,12 @@ export const STUDIO_BUILTIN_FIELDS: StudioBuiltinFieldDefinition[] = [
     label: "Sub Title",
   },
   {
+    id: "entry.time",
+    type: "text",
+    scope: "entry",
+    label: "Time",
+  },
+  {
     id: "entry.status",
     type: "status",
     scope: "entry",
@@ -223,6 +229,7 @@ export const resolveStudioBuiltinFieldValue = (
   }
 
   if (fieldId === "entry.sub_title") return entry?.subTitle ?? "";
+  if (fieldId === "entry.time") return entry?.time ?? "09:00";
   if (fieldId === "entry.status") return entry?.statusId ?? "";
   if (fieldId === "entry.status_label")
     return status?.label ?? entry?.statusId ?? "";

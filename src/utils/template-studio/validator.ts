@@ -25,6 +25,7 @@ import {
   isStudioTimetableStatusAvailable,
 } from "@/utils/template-studio/timetable-capabilities";
 import { isStudioStatusCardBackgroundNode } from "@/utils/template-studio/status-card-background";
+import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
 
 const createDiagnostic = (
   severity: StudioDiagnostic["severity"],
@@ -1293,6 +1294,38 @@ export const validateStudioDocument = (
   const inputConsumers = collectStudioInputConsumers(document);
 
   diagnostics.push(...validateGraphIntegrity(document));
+
+  (document.resources?.webFonts ?? []).forEach((source, index) => {
+    if (
+      !source ||
+      typeof source.id !== "string" ||
+      typeof source.label !== "string" ||
+      typeof source.cssText !== "string" ||
+      typeof source.enabled !== "boolean"
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `web-font-invalid:${index}`,
+          "Invalid web font source",
+          `Web font source ${index + 1} is missing required fields.`,
+        ),
+      );
+      return;
+    }
+
+    const parsed = parseStudioWebFontCss(source.cssText);
+    if (!parsed.ok) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `web-font-css-invalid:${source.id}`,
+          "Invalid web font CSS",
+          `${source.label}: ${parsed.errors.map((error) => error.message).join(" ")}`,
+        ),
+      );
+    }
+  });
 
   document.graph.rootNodeIds.forEach((nodeId) => {
     if (!nodes[nodeId]) {

@@ -13,19 +13,17 @@ import {
   ChevronRight,
   CheckCircle2,
   Cloud,
-  Download,
   EyeOff,
   Image as ImageIcon,
   Layers3,
   ListChecks,
   Lock,
   Minus,
-  Moon,
   Plus,
   Save,
   Send,
+  Settings,
   SlidersHorizontal,
-  Sun,
   Type,
   Upload,
 } from "lucide-react";
@@ -46,10 +44,6 @@ import {
   useTemplateStudioTemplates,
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
-import {
-  TemplateStudioPreviewAssetService,
-  type TemplateStudioPreviewAssetUploadItem,
-} from "@/services/templateStudioPreviewAssetService";
 import type {
   TemplateStudioUploadedAsset,
   TemplateStudioUploadAssetPayload,
@@ -67,6 +61,7 @@ import {
   StudioSelectOption,
   StudioStyleRecord,
   StudioTemplateDocument,
+  StudioWebFontSource,
   StudioTimetableCapabilityKey,
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
@@ -159,12 +154,6 @@ import {
   parseStudioTemplateExportJson,
 } from "@/utils/template-studio/serialization";
 import {
-  createTemplateStudioPreviewId,
-  createTemplateStudioPreviewStorageKey,
-  getOrCreateTemplateStudioPreviewRunId,
-  writeTemplateStudioPreviewStorage,
-} from "@/utils/template-studio/preview-storage";
-import {
   createStudioStatusCardBackgroundExceptionMeta,
   getStudioStatusCardBackgroundStatuses,
   isStudioStatusCardBackgroundNode,
@@ -182,6 +171,7 @@ import {
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
+import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
 
 import {
   clampStudioPreviewScale,
@@ -189,11 +179,13 @@ import {
 } from "./studio-canvas-viewport";
 import { StudioNodePickerMenu } from "./studio-node-picker-menu";
 import { StudioRenderer } from "./studio-renderer";
+import { StudioSettingsDrawer } from "./studio-settings-drawer";
 import {
   getStudioTimetableDayCardGeometry,
   getStudioTimetableDayCardGeometries,
   getStudioTimetableDayCardsBounds,
   getStudioTimetableDayCardsLayout,
+  getStudioTimetableEntryCardSize,
   getStudioTimetablePreviewSize,
   StudioTimetablePreview,
   STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS,
@@ -286,8 +278,9 @@ type StudioEditorClipboardPayload =
 type StudioLayerMoveCommand = "forward" | "backward" | "front" | "back";
 
 const STUDIO_HISTORY_LIMIT = 80;
-const STUDIO_DRAFT_STORAGE_KEY = "template-studio:draft:v1";
 const STUDIO_LAYER_AUTO_EXPAND_DELAY_MS = 550;
+const STUDIO_DATABASE_TARGET_LABEL =
+  process.env.NEXT_PUBLIC_SUPABASE_TARGET === "local" ? "Local DB" : "Remote DB";
 
 const STUDIO_THEMES = {
   dark: {
@@ -349,10 +342,6 @@ const cloneRuntimeValues = (
 
 const cloneJson = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
-type StudioPreviewAssetReplacement = TemplateStudioPreviewAssetUploadItem & {
-  applyUrl: (url: string) => void;
-};
-
 const DATA_IMAGE_URL_PATTERN = /^data:(image\/[^;,]+)((?:;[^,]+)*),([\s\S]*)$/;
 const DATA_IMAGE_EXTENSION: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -365,17 +354,6 @@ type StudioDataImagePayload = {
   buffer: ArrayBuffer;
   extension: string;
   mimeType: string;
-};
-
-const sanitizePreviewFileSegment = (value: string, fallback: string): string => {
-  const normalized = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return normalized.length > 0 ? normalized : fallback;
 };
 
 const copyBytesToArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
@@ -411,24 +389,6 @@ const parseStudioDataImageUrl = (src: string): StudioDataImagePayload | null => 
       extension,
       mimeType,
     };
-  } catch {
-    return null;
-  }
-};
-
-const dataImageUrlToFile = (
-  src: string,
-  fallbackName: string,
-): File | null => {
-  const parsed = parseStudioDataImageUrl(src);
-  if (!parsed) return null;
-
-  try {
-    return new File(
-      [parsed.buffer],
-      `${sanitizePreviewFileSegment(fallbackName, "asset")}.${parsed.extension}`,
-      { type: parsed.mimeType },
-    );
   } catch {
     return null;
   }
@@ -474,95 +434,6 @@ const getStudioDataImageMetadata = async (
       mimeType: parsed.mimeType,
     };
   }
-};
-
-const collectStudioPreviewAssetReplacements = (
-  document: StudioTemplateDocument,
-  runtimeValues: StudioRuntimeValues,
-): StudioPreviewAssetReplacement[] => {
-  const replacements: StudioPreviewAssetReplacement[] = [];
-  const appendReplacement = ({
-    clientId,
-    source,
-    src,
-    applyUrl,
-  }: {
-    clientId: string;
-    source: string;
-    src: string;
-    applyUrl: (url: string) => void;
-  }) => {
-    if (!DATA_IMAGE_URL_PATTERN.test(src)) return;
-
-    const file = dataImageUrlToFile(src, clientId);
-    if (!file) return;
-
-    replacements.push({
-      clientId,
-      source,
-      file,
-      applyUrl,
-    });
-  };
-
-  Object.values(document.assets).forEach((asset) => {
-    appendReplacement({
-      clientId: `document-asset-${asset.id}`,
-      source: `document.assets.${asset.id}.src`,
-      src: asset.src,
-      applyUrl: (url) => {
-        asset.src = url;
-      },
-    });
-  });
-
-  Object.values(document.inputs).forEach((input) => {
-    if (input.type !== "image") return;
-
-    const globalValue = runtimeValues.global[input.id];
-    if (globalValue) {
-      appendReplacement({
-        clientId: `runtime-global-${input.id}`,
-        source: `runtime.global.${input.id}`,
-        src: globalValue,
-        applyUrl: (url) => {
-          runtimeValues.global[input.id] = url;
-        },
-      });
-    }
-
-    Object.entries(runtimeValues.days).forEach(([dayId, dayValues]) => {
-      const dayValue = dayValues[input.id];
-      if (!dayValue) return;
-
-      appendReplacement({
-        clientId: `runtime-day-${dayId}-${input.id}`,
-        source: `runtime.days.${dayId}.${input.id}`,
-        src: dayValue,
-        applyUrl: (url) => {
-          dayValues[input.id] = url;
-        },
-      });
-    });
-
-    Object.entries(runtimeValues.entries).forEach(([dayId, entries]) => {
-      entries.forEach((entryValues, entryIndex) => {
-        const entryValue = entryValues[input.id];
-        if (!entryValue) return;
-
-        appendReplacement({
-          clientId: `runtime-entry-${dayId}-${entryIndex}-${input.id}`,
-          source: `runtime.entries.${dayId}.${entryIndex}.${input.id}`,
-          src: entryValue,
-          applyUrl: (url) => {
-            entryValues[input.id] = url;
-          },
-        });
-      });
-    });
-  });
-
-  return replacements;
 };
 
 const getUniqueStudioInputLabel = (
@@ -772,6 +643,11 @@ const getStudioStyleString = (
 ) => {
   const value = styleRecord[key];
   return typeof value === "string" ? value : fallback;
+};
+
+const normalizeStudioDimension = (value: number, fallback: number) => {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(1, Number(value.toFixed(2)));
 };
 
 const getStudioWeekDatePreset = (presetId: string) =>
@@ -1285,11 +1161,11 @@ export function TemplateStudioClient({
     "node_c3",
   );
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(["node_c3"]);
-  const [selectedInputId, setSelectedInputId] = useState<StudioInputId | null>(
-    "input_a1",
-  );
+  const [selectedInputId, setSelectedInputId] =
+    useState<StudioInputId | null>(null);
   const [panelMode, setPanelMode] = useState<PanelMode>("layers");
   const [theme, setTheme] = useState<StudioTheme>("dark");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [inspectorSections, setInspectorSections] = useState<
     Record<InspectorSectionKey, boolean>
   >(DEFAULT_INSPECTOR_SECTIONS);
@@ -1504,6 +1380,13 @@ export function TemplateStudioClient({
       "topObject";
   const isSelectedDayCardsObject =
     selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID;
+  const timetableEntryCardSize = useMemo(() => {
+    const timetable = document.domains?.timetable;
+    return getStudioTimetableEntryCardSize(
+      document,
+      timetable?.components[timetable.entryComponentId],
+    );
+  }, [document]);
   const activeRuntimeDayId = timetableDays.some(
     (day) => day.id === selectedRuntimeDayId,
   )
@@ -1554,6 +1437,7 @@ export function TemplateStudioClient({
         (dayId) =>
           getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
             .length,
+        timetableEntryCardSize,
       );
     }
 
@@ -1567,15 +1451,20 @@ export function TemplateStudioClient({
     if (dayIndex < 0) return null;
 
     return (
-      getStudioTimetableDayCardGeometries(layout, timetableDays, (currentDayId) =>
-        getStudioTimetableEntriesForDay(document, runtimeValues, currentDayId)
-          .length,
+      getStudioTimetableDayCardGeometries(
+        layout,
+        timetableDays,
+        (currentDayId) =>
+          getStudioTimetableEntriesForDay(document, runtimeValues, currentDayId)
+            .length,
+        timetableEntryCardSize,
       )[dayId] ??
       getStudioTimetableDayCardGeometry(
         layout,
         dayId,
         dayIndex,
         getStudioTimetableEntriesForDay(document, runtimeValues, dayId).length,
+        timetableEntryCardSize,
       )
     );
   }, [
@@ -1583,6 +1472,7 @@ export function TemplateStudioClient({
     runtimeValues,
     selectedTimetableLayerId,
     timetableComposition.objects,
+    timetableEntryCardSize,
     timetableDays,
   ]);
   const statusOptions = useMemo(
@@ -1616,6 +1506,19 @@ export function TemplateStudioClient({
   const assets = useMemo(
     () => Object.values(document.assets),
     [document.assets],
+  );
+  const fontFamilies = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          "Inter",
+          "Pretendard",
+          "SF Pro",
+          "Roboto",
+          ...getStudioCustomFontFamilies(document),
+        ]),
+      ),
+    [document],
   );
   const inputConsumers = useMemo(() => {
     const consumers = Object.values(document.graph.nodes).reduce<
@@ -2037,22 +1940,6 @@ export function TemplateStudioClient({
     showShortcutStatus("Redo");
   }, [createHistorySnapshot, restoreHistorySnapshot, showShortcutStatus]);
 
-  const saveStudioDraft = useCallback(() => {
-    try {
-      window.localStorage.setItem(
-        STUDIO_DRAFT_STORAGE_KEY,
-        JSON.stringify({
-          document: documentRef.current,
-          runtimeValues: runtimeValuesRef.current,
-          savedAt: new Date().toISOString(),
-        }),
-      );
-      showShortcutStatus("Draft saved");
-    } catch {
-      showShortcutStatus("Draft save failed");
-    }
-  }, [showShortcutStatus]);
-
   const exportStudioJson = useCallback(() => {
     const currentDocument = documentRef.current;
     const exportDiagnostics = validateStudioDocument(currentDocument);
@@ -2238,14 +2125,16 @@ export function TemplateStudioClient({
 
     const source = remoteTemplate.draft ?? remoteTemplate.document;
     if (!source) {
-      showShortcutStatus("Remote template is empty");
+      showShortcutStatus("Database template is empty");
       return;
     }
 
     applyRemoteTemplateState(
       cloneDocument(source.document),
       cloneRuntimeValues(source.runtimeValues),
-      remoteTemplate.draft ? "Loaded remote draft" : "Loaded published document",
+      remoteTemplate.draft
+        ? "Loaded database draft"
+        : "Loaded published document",
     );
   }, [
     applyRemoteTemplateState,
@@ -2385,7 +2274,7 @@ export function TemplateStudioClient({
 
   const loadRemoteTemplate = useCallback(async () => {
     if (!remoteTemplateId) {
-      showShortcutStatus("Select a remote template first");
+      showShortcutStatus("Select a database template first");
       return;
     }
 
@@ -2394,25 +2283,27 @@ export function TemplateStudioClient({
       const remoteTemplate = result.data;
 
       if (!remoteTemplate) {
-        showShortcutStatus("Remote template load failed");
+        showShortcutStatus("Database template load failed");
         return;
       }
 
       const source = remoteTemplate.draft ?? remoteTemplate.document;
 
       if (!source) {
-        showShortcutStatus("Remote template is empty");
+        showShortcutStatus("Database template is empty");
         return;
       }
 
       applyRemoteTemplateState(
         cloneDocument(source.document),
         cloneRuntimeValues(source.runtimeValues),
-        remoteTemplate.draft ? "Loaded remote draft" : "Loaded published document",
+        remoteTemplate.draft
+          ? "Loaded database draft"
+          : "Loaded published document",
       );
     } catch (error) {
-      console.error("Template Studio remote load failed:", error);
-      showShortcutStatus("Remote load failed");
+      console.error("Template Studio database load failed:", error);
+      showShortcutStatus("Database load failed");
     }
   }, [
     applyRemoteTemplateState,
@@ -2421,7 +2312,7 @@ export function TemplateStudioClient({
     templateStudioTemplateQuery,
   ]);
 
-  const saveRemoteDraft = useCallback(async () => {
+  const saveDatabaseDraft = useCallback(async () => {
     try {
       const templateId = await ensureRemoteTemplateId();
       const latestRevisionNo =
@@ -2438,10 +2329,10 @@ export function TemplateStudioClient({
         },
       });
 
-      showShortcutStatus("Remote draft saved");
+      showShortcutStatus("Draft saved to database");
     } catch (error) {
-      console.error("Template Studio remote draft save failed:", error);
-      showShortcutStatus("Remote draft save failed");
+      console.error("Template Studio database draft save failed:", error);
+      showShortcutStatus("Database draft save failed");
     }
   }, [
     ensureRemoteTemplateId,
@@ -2479,67 +2370,42 @@ export function TemplateStudioClient({
     try {
       const templateId = await ensureRemoteTemplateId();
       const syncedDocument = await ensureTemplateStudioAssetsSynced(templateId);
-      const key = createTemplateStudioPreviewStorageKey();
-      const previewId = createTemplateStudioPreviewId();
-      const previewRunId = getOrCreateTemplateStudioPreviewRunId();
-      const currentDocument = cloneDocument(syncedDocument);
-      const currentRuntimeValues = cloneRuntimeValues(runtimeValuesRef.current);
-      const replacements = collectStudioPreviewAssetReplacements(
-        currentDocument,
-        currentRuntimeValues,
-      );
+      const latestRevisionNo =
+        templateStudioTemplateQuery.data?.latestRevisionNo ?? null;
 
-      if (replacements.length > 0) {
-        showShortcutStatus(`Uploading ${replacements.length} preview asset(s)`);
-        const uploaded =
-          await TemplateStudioPreviewAssetService.uploadPreviewAssets({
-            runId: previewRunId,
-            previewId,
-            items: replacements,
-          });
-        const replacementsByClientId = new Map(
-          replacements.map((replacement) => [
-            replacement.clientId,
-            replacement,
-          ]),
-        );
-
-        uploaded.uploaded.forEach((asset) => {
-          replacementsByClientId.get(asset.clientId)?.applyUrl(asset.url);
-        });
-      }
-
-      writeTemplateStudioPreviewStorage(key, {
-        version: 1,
-        createdAt: Date.now(),
-        source: "draft",
-        previewId,
-        previewRunId,
+      await saveTemplateStudioDraftMutation.mutateAsync({
         templateId,
-        templateName: currentDocument.metadata.name,
-        document: currentDocument,
-        runtimeValues: currentRuntimeValues,
+        payload: {
+          document: syncedDocument,
+          runtimeValues: runtimeValuesRef.current,
+          baseRevisionNo: latestRevisionNo,
+          isAutosave: false,
+        },
       });
 
-      const previewUrl = `/admin/template-studio/preview?previewKey=${encodeURIComponent(
-        key,
-      )}`;
+      const previewUrl = `/admin/template-studio/${templateId}/preview`;
       const previewWindow = window.open(previewUrl, "_blank");
 
       if (!previewWindow) {
         window.location.assign(previewUrl);
       }
 
-      showShortcutStatus("Opened runtime preview");
+      showShortcutStatus("Saved draft preview");
     } catch (error) {
       console.error("Template Studio preview open failed:", error);
       showShortcutStatus("Preview open failed");
     }
-  }, [ensureRemoteTemplateId, ensureTemplateStudioAssetsSynced, showShortcutStatus]);
+  }, [
+    ensureRemoteTemplateId,
+    ensureTemplateStudioAssetsSynced,
+    saveTemplateStudioDraftMutation,
+    showShortcutStatus,
+    templateStudioTemplateQuery.data?.latestRevisionNo,
+  ]);
 
-  const openPublishedPreview = useCallback(() => {
+  const openSavedPreview = useCallback(() => {
     if (!remoteTemplateId) {
-      showShortcutStatus("Save or publish a remote template first");
+      showShortcutStatus("Save or publish a database template first");
       return;
     }
 
@@ -2603,6 +2469,64 @@ export function TemplateStudioClient({
       nextDocument.styles[styleId] = {
         ...nextDocument.styles[styleId],
         [key]: value,
+      };
+    });
+  };
+
+  const updateCardCanvasSize = (nextSize: {
+    width?: number;
+    height?: number;
+    background?: string;
+  }) => {
+    updateDocument((nextDocument) => {
+      nextDocument.canvas = {
+        ...nextDocument.canvas,
+        width: normalizeStudioDimension(
+          nextSize.width ?? nextDocument.canvas.width,
+          nextDocument.canvas.width,
+        ),
+        height: normalizeStudioDimension(
+          nextSize.height ?? nextDocument.canvas.height,
+          nextDocument.canvas.height,
+        ),
+        background: nextSize.background ?? nextDocument.canvas.background,
+      };
+    });
+  };
+
+  const updateTimetableCanvasSize = (nextSize: {
+    width?: number;
+    height?: number;
+    backgroundColor?: string;
+  }) => {
+    updateDocument((nextDocument) => {
+      const timetable = nextDocument.domains?.timetable;
+      if (!timetable) return;
+      const currentCanvas = timetable.canvas ?? {
+        width: 4000,
+        height: 2250,
+        backgroundColor: "#eef2f7",
+      };
+      timetable.canvas = {
+        width: normalizeStudioDimension(
+          nextSize.width ?? currentCanvas.width,
+          currentCanvas.width,
+        ),
+        height: normalizeStudioDimension(
+          nextSize.height ?? currentCanvas.height,
+          currentCanvas.height,
+        ),
+        backgroundColor:
+          nextSize.backgroundColor ?? currentCanvas.backgroundColor,
+      };
+    });
+  };
+
+  const updateWebFonts = (webFonts: StudioWebFontSource[]) => {
+    updateDocument((nextDocument) => {
+      nextDocument.resources = {
+        ...nextDocument.resources,
+        webFonts,
       };
     });
   };
@@ -3511,6 +3435,10 @@ export function TemplateStudioClient({
         };
         const composition = ensureStudioTimetableComposition(timetable);
         const object = composition.objects[layerId];
+        const entryCardSize = getStudioTimetableEntryCardSize(
+          nextDocument,
+          timetable.components[timetable.entryComponentId],
+        );
 
         if (isPlacedTimetableCompositionObject(object)) {
           const currentGeometry =
@@ -3566,6 +3494,7 @@ export function TemplateStudioClient({
                 runtimeValues,
                 currentDayId,
               ).length,
+            entryCardSize,
           )[dayId] ??
           getStudioTimetableDayCardGeometry(
             layout,
@@ -3573,6 +3502,7 @@ export function TemplateStudioClient({
             dayIndex,
             getStudioTimetableEntriesForDay(nextDocument, runtimeValues, dayId)
               .length,
+            entryCardSize,
           );
         const baseLeft = dayGeometry.left - currentOffset.left;
         const baseTop = dayGeometry.top - currentOffset.top;
@@ -4788,7 +4718,7 @@ export function TemplateStudioClient({
       if (isModKey && !event.altKey && key === "s") {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat) saveStudioDraft();
+        if (!event.repeat) void saveDatabaseDraft();
         return;
       }
 
@@ -4945,7 +4875,7 @@ export function TemplateStudioClient({
     nudgeSelectedNode,
     pasteClipboardNode,
     redoEditorState,
-    saveStudioDraft,
+    saveDatabaseDraft,
     selectAllEditableNodes,
     selectSingleNode,
     showShortcutStatus,
@@ -7367,10 +7297,11 @@ export function TemplateStudioClient({
               updateTimetableTextStyle("fontFamily", event.currentTarget.value)
             }
           >
-            <option value="Inter">Inter</option>
-            <option value="Pretendard">Pretendard</option>
-            <option value="SF Pro">SF Pro</option>
-            <option value="Roboto">Roboto</option>
+            {fontFamilies.map((fontFamily) => (
+              <option key={fontFamily} value={fontFamily}>
+                {fontFamily}
+              </option>
+            ))}
           </select>
         </label>
         <div className="grid grid-cols-[1.3fr_1fr] gap-2">
@@ -7530,6 +7461,10 @@ export function TemplateStudioClient({
   };
 
   const renderNodeInspector = () => {
+    const styleRecord = selectedNode?.styleId
+      ? (document.styles[selectedNode.styleId] ?? {})
+      : {};
+
     if (!selectedNode) {
       return (
         <p className="p-4 text-sm font-medium text-[var(--fg2)]">
@@ -7538,9 +7473,6 @@ export function TemplateStudioClient({
       );
     }
 
-    const styleRecord = selectedNode.styleId
-      ? (document.styles[selectedNode.styleId] ?? {})
-      : {};
     const bindingInputId = getStudioBindingInputId(selectedNode.binding);
     const bindingBuiltinFieldId =
       selectedNode.binding?.kind === "builtinField"
@@ -7949,10 +7881,11 @@ export function TemplateStudioClient({
                       )
                     }
                   >
-                    <option value="Inter">Inter</option>
-                    <option value="Pretendard">Pretendard</option>
-                    <option value="SF Pro">SF Pro</option>
-                    <option value="Roboto">Roboto</option>
+                    {fontFamilies.map((fontFamily) => (
+                      <option key={fontFamily} value={fontFamily}>
+                        {fontFamily}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <div className="grid grid-cols-[1.3fr_1fr] gap-2">
@@ -8033,34 +7966,30 @@ export function TemplateStudioClient({
       style={themeStyle}
     >
       <div className="z-10 flex h-12 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
-        <div className="flex min-w-[220px] items-center gap-2.5">
+        <div className="flex min-w-[150px] items-center gap-2.5">
           <div className="h-[26px] w-[26px] shrink-0 rounded-[7px] bg-[linear-gradient(135deg,#7cc7ff,#c9a8ff_55%,#ff9fce)]" />
           <div className="flex min-w-0 items-baseline gap-2">
             <span className="truncate text-[13px] font-semibold text-[var(--fg)]">
               Template Studio
             </span>
             <span className="text-[11px] text-[var(--fg3)]">▾</span>
-            <span className="text-xs text-[var(--fg2)]">Studio&nbsp;Draft</span>
           </div>
-          <span className="rounded-[5px] border border-emerald-400/30 bg-emerald-400/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-emerald-300">
-            {remoteTemplateId ? "Remote" : "Local"}
-          </span>
         </div>
 
         <div className="hidden min-w-[260px] items-center gap-1.5 lg:flex">
           <select
             className="h-[30px] min-w-0 flex-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none transition focus:border-[var(--accent)]"
-            title="Remote template"
+            title="Database template"
             value={remoteTemplateId ?? ""}
             onChange={(event) => {
               const nextTemplateId = event.currentTarget.value || null;
               setRemoteTemplateId(nextTemplateId);
               if (nextTemplateId) {
-                showShortcutStatus("Remote template selected");
+                showShortcutStatus("Database template selected");
               }
             }}
           >
-            <option value="">Local only</option>
+            <option value="">New / unsaved</option>
             {remoteTemplates.map((template) => (
               <option key={template.id} value={template.id}>
                 {template.name}
@@ -8073,7 +8002,7 @@ export function TemplateStudioClient({
             title={
               activeRemoteTemplate
                 ? `Load ${activeRemoteTemplate.name}`
-                : "Load remote template"
+                : "Load database template"
             }
             type="button"
             onClick={() => {
@@ -8085,10 +8014,10 @@ export function TemplateStudioClient({
           <button
             className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
             disabled={isRemoteSyncing}
-            title="Save remote draft"
+            title="Save draft to database"
             type="button"
             onClick={() => {
-              void saveRemoteDraft();
+              void saveDatabaseDraft();
             }}
           >
             <Save className="h-3.5 w-3.5" />
@@ -8096,7 +8025,7 @@ export function TemplateStudioClient({
           <button
             className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-blue-400/40 bg-blue-500/15 text-blue-200 transition hover:bg-blue-500/25 disabled:cursor-not-allowed disabled:opacity-45"
             disabled={isRemoteSyncing}
-            title="Publish remote document"
+            title="Publish database document"
             type="button"
             onClick={() => {
               void publishRemoteDocument();
@@ -8107,7 +8036,12 @@ export function TemplateStudioClient({
         </div>
 
         <div className="hidden flex-1 items-center justify-center gap-3.5 text-xs text-[var(--fg2)] md:flex">
-          <span>
+          <button
+            className="rounded-md px-1.5 py-1 transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            title="Open canvas settings"
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+          >
             <b className="font-semibold text-[var(--fg)]">
               {previewCanvasSize.width}
             </b>{" "}
@@ -8115,11 +8049,7 @@ export function TemplateStudioClient({
             <b className="font-semibold text-[var(--fg)]">
               {previewCanvasSize.height}
             </b>
-          </span>
-          <span className="opacity-40">·</span>
-          <span>{activeObjectCount} objects</span>
-          <span className="opacity-40">·</span>
-          <span>{inputs.length} inputs</span>
+          </button>
           <div className="ml-1 flex h-[30px] items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
             {[
               { mode: "cards" as const, label: "Cards" },
@@ -8190,38 +8120,6 @@ export function TemplateStudioClient({
           >
             Fit
           </button>
-          <button
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            title="Toggle theme"
-            type="button"
-            onClick={() =>
-              setTheme((currentTheme) =>
-                currentTheme === "dark" ? "light" : "dark",
-              )
-            }
-          >
-            {theme === "dark" ? (
-              <Moon className="h-3.5 w-3.5" />
-            ) : (
-              <Sun className="h-3.5 w-3.5" />
-            )}
-          </button>
-          <button
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            title="Export JSON"
-            type="button"
-            onClick={exportStudioJson}
-          >
-            <Download className="h-3.5 w-3.5" />
-          </button>
-          <button
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            title="Import JSON"
-            type="button"
-            onClick={() => jsonImportInputRef.current?.click()}
-          >
-            <Upload className="h-3.5 w-3.5" />
-          </button>
           <input
             accept="application/json,.json"
             className="hidden"
@@ -8234,6 +8132,14 @@ export function TemplateStudioClient({
               void importStudioJsonFile(file);
             }}
           />
+          <button
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            title="Template settings"
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
           <button
             className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
             title="Open runtime preview"
@@ -8249,14 +8155,35 @@ export function TemplateStudioClient({
           <button
             className="h-[30px] rounded-lg bg-[var(--accent)] px-3.5 text-xs font-semibold tracking-[0.01em] text-white transition disabled:cursor-not-allowed disabled:opacity-45"
             disabled={!remoteTemplateId}
-            title="Open published preview"
+            title="Open saved preview"
             type="button"
-            onClick={openPublishedPreview}
+            onClick={openSavedPreview}
           >
             공유
           </button>
         </div>
       </div>
+
+      <StudioSettingsDrawer
+        activeWorkspaceMode={activeWorkspaceMode}
+        databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
+        document={document}
+        inputCount={inputs.length}
+        isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
+        objectCount={activeObjectCount}
+        open={settingsOpen}
+        theme={theme}
+        onCardsCanvasChange={updateCardCanvasSize}
+        onClose={() => setSettingsOpen(false)}
+        onExportJson={exportStudioJson}
+        onImportJson={() => jsonImportInputRef.current?.click()}
+        onReloadTemplate={() => {
+          void loadRemoteTemplate();
+        }}
+        onThemeChange={setTheme}
+        onTimetableCanvasChange={updateTimetableCanvasSize}
+        onWebFontsChange={updateWebFonts}
+      />
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-[260px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]">

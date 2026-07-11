@@ -105,7 +105,7 @@ if (shouldSyncDump) {
   console.log("[dev:local] mode=local (reuse current local DB state)");
 }
 
-const totalSteps = shouldSyncDump ? 7 : 3;
+const totalSteps = shouldSyncDump ? 7 : 4;
 
 console.log(`[dev:local] 1/${totalSteps} Starting local Supabase containers...`);
 const startArgs = ["start", "--workdir", rootDir];
@@ -115,7 +115,7 @@ for (const excludedService of startExcludes) {
 if (startExcludes.length > 0) {
   console.log(`[dev:local]    Excluding services: ${startExcludes.join(", ")}`);
 }
-runCommand("supabase", startArgs);
+runCommand("supabase", startArgs, { captureStdout: true });
 
 console.log(`[dev:local] 2/${totalSteps} Loading local Supabase connection info...`);
 const statusEnv = parseStatusOutput(
@@ -130,11 +130,23 @@ const localAnonKey = statusEnv.ANON_KEY ?? statusEnv.SUPABASE_ANON_KEY;
 const localServiceRoleKey =
   statusEnv.SERVICE_ROLE_KEY ?? statusEnv.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!localDbUrl || !localApiUrl || !localAnonKey) {
+if (!localDbUrl || !localApiUrl || !localAnonKey || !localServiceRoleKey) {
   console.error(
-    "[dev:local] Could not parse local Supabase env vars from `supabase status -o env`."
+    "[dev:local] Could not parse local Supabase URL, anon key, and service role key from `supabase status -o env`."
   );
   process.exit(1);
+}
+
+if (!shouldSyncDump) {
+  console.log("[dev:local] 3/4 Applying pending local migrations...");
+  runCommand("supabase", [
+    "migration",
+    "up",
+    "--local",
+    "--yes",
+    "--workdir",
+    rootDir,
+  ]);
 }
 
 if (shouldSyncDump) {
@@ -210,13 +222,11 @@ const devEnv = {
   ...process.env,
   NEXT_PUBLIC_SUPABASE_URL: localApiUrl,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: localAnonKey,
+  NEXT_PUBLIC_SUPABASE_TARGET: "local",
+  SUPABASE_SERVICE_ROLE_KEY: localServiceRoleKey,
 };
 
-if (localServiceRoleKey) {
-  devEnv.SUPABASE_SERVICE_ROLE_KEY = localServiceRoleKey;
-}
-
-const devProcess = spawn("npm", ["run", "dev", "--", ...passthroughArgs], {
+const devProcess = spawn("npm", ["run", "dev:next", "--", ...passthroughArgs], {
   cwd: rootDir,
   env: devEnv,
   stdio: "inherit",

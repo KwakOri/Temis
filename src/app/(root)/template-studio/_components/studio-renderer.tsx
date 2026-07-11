@@ -25,6 +25,8 @@ import {
   resolveStudioStatusCardBackgroundSlot,
 } from "@/utils/template-studio/status-card-background";
 
+import { StudioWebFontLoader } from "./studio-web-font-loader";
+
 interface StudioRendererProps {
   document: StudioTemplateDocument;
   runtimeValues: StudioRuntimeValues;
@@ -244,6 +246,7 @@ export function StudioRenderer({
         background: document.canvas.background,
       }}
     >
+      <StudioWebFontLoader document={document} />
       {(rootNodeIds ?? document.graph.rootNodeIds)
         .map((nodeId) => document.graph.nodes[nodeId])
         .filter(Boolean)

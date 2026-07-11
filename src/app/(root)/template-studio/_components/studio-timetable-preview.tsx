@@ -16,6 +16,7 @@ import {
   StudioTimetableDayCardsGridPreset,
   StudioTimetableDomain,
   StudioTimetableAssetSlot,
+  StudioTimetableComponentDefinition,
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
 import { resolveStudioTextBinding } from "@/utils/template-studio/binding-resolver";
@@ -30,6 +31,8 @@ import {
   getStudioTimetableEntriesForDay,
   resolveStudioTimetableComponentVariant,
 } from "@/utils/template-studio/timetable-runtime";
+
+import { StudioWebFontLoader } from "./studio-web-font-loader";
 
 import { StudioRenderer } from "./studio-renderer";
 
@@ -75,6 +78,16 @@ export type StudioTimetableDayCardGeometry = {
   top: number;
   width: number;
   height: number;
+};
+
+export type StudioTimetableEntryCardSize = {
+  width: number;
+  height: number;
+};
+
+type StudioTimetableEntryRootGeometry = StudioTimetableEntryCardSize & {
+  rootLeft: number;
+  rootTop: number;
 };
 
 const clampGridSize = (value: unknown, fallback: number) => {
@@ -238,12 +251,75 @@ export const getStudioTimetableDayCardsLayout = (
   };
 };
 
+const getFallbackEntryCardSize = (
+  layout: StudioTimetableDayCardsLayout,
+): StudioTimetableEntryCardSize => ({
+  width: Math.max(1, layout.entryPreviewWidth || layout.dayWidth || 1),
+  height: Math.max(1, layout.entryPreviewHeight || 1),
+});
+
+const getStudioTimetableEntryRootGeometry = (
+  document: StudioTemplateDocument,
+  rootNode: StudioGraphNode | undefined,
+): StudioTimetableEntryRootGeometry => {
+  const rootStyle = rootNode?.styleId
+    ? document.styles[rootNode.styleId]
+    : undefined;
+
+  return {
+    rootLeft: getNumericStyleValue(rootStyle, "left", 0),
+    rootTop: getNumericStyleValue(rootStyle, "top", 0),
+    width: Math.max(
+      1,
+      getNumericStyleValue(rootStyle, "width", document.canvas.width),
+    ),
+    height: Math.max(
+      1,
+      getNumericStyleValue(rootStyle, "height", document.canvas.height),
+    ),
+  };
+};
+
+export const getStudioTimetableEntryCardSize = (
+  document: StudioTemplateDocument,
+  component?: StudioTimetableComponentDefinition,
+): StudioTimetableEntryCardSize => {
+  const variantRootNodes = component
+    ? Object.values(component.variants)
+        .map((variant) => document.graph.nodes[variant.rootNodeId])
+        .filter(Boolean)
+    : [];
+
+  const rootNodes =
+    variantRootNodes.length > 0
+      ? variantRootNodes
+      : document.graph.rootNodeIds
+          .map((nodeId) => document.graph.nodes[nodeId])
+          .filter(Boolean);
+
+  if (rootNodes.length === 0) {
+    return {
+      width: Math.max(1, document.canvas.width),
+      height: Math.max(1, document.canvas.height),
+    };
+  }
+
+  const geometries = rootNodes.map((rootNode) =>
+    getStudioTimetableEntryRootGeometry(document, rootNode),
+  );
+
+  return {
+    width: Math.max(...geometries.map((geometry) => geometry.width)),
+    height: Math.max(...geometries.map((geometry) => geometry.height)),
+  };
+};
+
 export const getStudioTimetableDayCardHeight = (
   layout: StudioTimetableDayCardsLayout,
   entryCount: number,
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
 ) =>
-  layout.padding * 2 +
-  Math.max(1, entryCount) * layout.entryPreviewHeight +
+  Math.max(1, entryCount) * entryCardSize.height +
   Math.max(0, entryCount - 1) * layout.entryGap;
 
 export const getStudioTimetableDayCardGeometry = (
@@ -251,6 +327,7 @@ export const getStudioTimetableDayCardGeometry = (
   dayId: StudioTimetableDayId,
   dayIndex: number,
   entryCount: number,
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
 ) => {
   const offset = layout.dayOffsets?.[dayId] ?? { left: 0, top: 0 };
   const position = getDayCardGridPosition(layout, dayId, dayIndex, dayIndex + 1);
@@ -258,16 +335,21 @@ export const getStudioTimetableDayCardGeometry = (
   return {
     left:
       layout.left +
-      position.column * (layout.dayWidth + (layout.columnGap ?? layout.dayGap)) +
+      position.column *
+        (entryCardSize.width + (layout.columnGap ?? layout.dayGap)) +
       offset.left,
     top:
       layout.top +
       position.row *
-        (getStudioTimetableDayCardHeight(layout, entryCount) +
+        (getStudioTimetableDayCardHeight(layout, entryCount, entryCardSize) +
           (layout.rowGap ?? layout.dayGap)) +
       offset.top,
-    width: layout.dayWidth,
-    height: getStudioTimetableDayCardHeight(layout, entryCount),
+    width: entryCardSize.width,
+    height: getStudioTimetableDayCardHeight(
+      layout,
+      entryCount,
+      entryCardSize,
+    ),
   };
 };
 
@@ -275,6 +357,7 @@ export const getStudioTimetableDayCardGeometries = (
   layout: StudioTimetableDayCardsLayout,
   days: StudioTimetableDayDefinition[],
   getEntryCount: (dayId: StudioTimetableDayId) => number,
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
 ): Record<StudioTimetableDayId, StudioTimetableDayCardGeometry> => {
   const rowHeights = Array.from({ length: layout.rows ?? 1 }, () => 0);
   const explicitPositions = new Map<
@@ -317,7 +400,11 @@ export const getStudioTimetableDayCardGeometries = (
 
   const dayPositions = days.map((day, dayIndex) => {
     const entryCount = getEntryCount(day.id);
-    const height = getStudioTimetableDayCardHeight(layout, entryCount);
+    const height = getStudioTimetableDayCardHeight(
+      layout,
+      entryCount,
+      entryCardSize,
+    );
     const position =
       explicitPositions.get(day.id) ??
       getDayCardGridPosition(layout, day.id, dayIndex, days.length);
@@ -350,10 +437,10 @@ export const getStudioTimetableDayCardGeometries = (
           left:
             layout.left +
             position.column *
-              (layout.dayWidth + (layout.columnGap ?? layout.dayGap)) +
+              (entryCardSize.width + (layout.columnGap ?? layout.dayGap)) +
             offset.left,
           top: (rowTops[Math.floor(position.row)] ?? layout.top) + offset.top,
-          width: layout.dayWidth,
+          width: entryCardSize.width,
           height,
         },
       ];
@@ -365,16 +452,22 @@ export const getStudioTimetableDayCardsBounds = (
   layout: StudioTimetableDayCardsLayout,
   days: StudioTimetableDayDefinition[],
   getEntryCount: (dayId: StudioTimetableDayId) => number,
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
 ) => {
   const geometries = Object.values(
-    getStudioTimetableDayCardGeometries(layout, days, getEntryCount),
+    getStudioTimetableDayCardGeometries(
+      layout,
+      days,
+      getEntryCount,
+      entryCardSize,
+    ),
   );
   if (geometries.length === 0) {
     return {
       left: layout.left,
       top: layout.top,
-      width: layout.dayWidth,
-      height: getStudioTimetableDayCardHeight(layout, 1),
+      width: entryCardSize.width,
+      height: getStudioTimetableDayCardHeight(layout, 1, entryCardSize),
     };
   }
 
@@ -429,41 +522,6 @@ const resolveWeekDatesText = (
   const template = getStringStyleValue(object.style, "dateRangeTemplate", "");
 
   return resolveStudioWeekDateText(document, { format, template });
-};
-
-const getEntryPreviewGeometry = (
-  document: StudioTemplateDocument,
-  rootNode: StudioGraphNode | undefined,
-  previewWidth: number,
-  previewHeight: number,
-) => {
-  const rootStyle = rootNode?.styleId
-    ? document.styles[rootNode.styleId]
-    : undefined;
-  const rootLeft = getNumericStyleValue(rootStyle, "left", 0);
-  const rootTop = getNumericStyleValue(rootStyle, "top", 0);
-  const rootWidth = getNumericStyleValue(
-    rootStyle,
-    "width",
-    document.canvas.width,
-  );
-  const rootHeight = getNumericStyleValue(
-    rootStyle,
-    "height",
-    document.canvas.height,
-  );
-  const entryScale = Math.min(
-    previewWidth / Math.max(1, rootWidth),
-    previewHeight / Math.max(1, rootHeight),
-  );
-
-  return {
-    entryScale,
-    rootLeft,
-    rootTop,
-    scaledEntryWidth: rootWidth * entryScale,
-    scaledEntryHeight: rootHeight * entryScale,
-  };
 };
 
 const resolveTimetableObjectText = (
@@ -587,17 +645,20 @@ export function StudioTimetablePreview({
   const previewSize = getStudioTimetablePreviewSize(timetable);
   const dayCardsLayout = getStudioTimetableDayCardsLayout(timetable);
   const composition = getStudioTimetableComposition(timetable);
+  const entryCardSize = getStudioTimetableEntryCardSize(document, component);
   const getPreviewEntryCount = (dayId: StudioTimetableDayId) =>
     entriesByDay[dayId]?.length ?? 0;
   const dayCardGeometries = getStudioTimetableDayCardGeometries(
     dayCardsLayout,
     days,
     getPreviewEntryCount,
+    entryCardSize,
   );
   const dayCardsBounds = getStudioTimetableDayCardsBounds(
     dayCardsLayout,
     days,
     getPreviewEntryCount,
+    entryCardSize,
   );
 
   const renderDayCardsObject = () => (
@@ -627,6 +688,7 @@ export function StudioTimetablePreview({
             day.id,
             dayIndex,
             entries.length,
+            entryCardSize,
           );
         const selected = selectedLayerId === `day-card:${day.id}`;
 
@@ -641,7 +703,6 @@ export function StudioTimetablePreview({
               top: dayGeometry.top - dayCardsBounds.top,
               width: dayGeometry.width,
               minHeight: dayGeometry.height,
-              padding: dayCardsLayout.padding,
               outline: selected ? "8px solid rgba(59, 130, 246, 0.85)" : "none",
               outlineOffset: 8,
             }}
@@ -665,30 +726,27 @@ export function StudioTimetablePreview({
                   const rootNode = resolution
                     ? document.graph.nodes[resolution.variant.rootNodeId]
                     : undefined;
-                  const geometry = getEntryPreviewGeometry(
+                  const geometry = getStudioTimetableEntryRootGeometry(
                     document,
                     rootNode,
-                    dayCardsLayout.entryPreviewWidth,
-                    dayCardsLayout.entryPreviewHeight,
                   );
 
                   return (
                     <div key={entry.id}>
                       {rootNode && resolution ? (
                         <div
-                          className="relative mx-auto overflow-hidden"
+                          className="relative overflow-visible"
                           style={{
-                            width: dayCardsLayout.entryPreviewWidth,
-                            height: dayCardsLayout.entryPreviewHeight,
+                            width: geometry.width,
+                            height: geometry.height,
                           }}
                         >
                           <div
                             className="absolute origin-top-left"
                             style={{
-                              left: -geometry.rootLeft * geometry.entryScale,
-                              top: -geometry.rootTop * geometry.entryScale,
+                              left: -geometry.rootLeft,
+                              top: -geometry.rootTop,
                               pointerEvents: "none",
-                              transform: `scale(${geometry.entryScale})`,
                               width: document.canvas.width,
                               height: document.canvas.height,
                             }}
@@ -714,7 +772,10 @@ export function StudioTimetablePreview({
             ) : (
               <div
                 className="rounded-md border border-dashed border-slate-300"
-                style={{ height: dayCardsLayout.entryPreviewHeight }}
+                style={{
+                  width: entryCardSize.width,
+                  height: entryCardSize.height,
+                }}
               />
             )}
           </div>
@@ -902,6 +963,7 @@ export function StudioTimetablePreview({
         height: previewSize.height,
       }}
     >
+      <StudioWebFontLoader document={document} />
       {composition.rootObjectIds.map((objectId) => {
         const object = composition.objects[objectId];
         if (!object) return null;

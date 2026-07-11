@@ -1,17 +1,17 @@
 "use client";
 
 import { TemplateStudioRuntimeShell } from "@/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell";
-import { useTemplateStudioPreview } from "@/hooks/query/useTemplateStudioPreview";
+import { useTemplateStudioTemplate } from "@/hooks/query/useTemplateStudio";
 
-interface TemplateStudioPublishedPreviewClientProps {
+interface TemplateStudioPreviewClientProps {
   templateId: string;
 }
 
-export function TemplateStudioPublishedPreviewClient({
+export function TemplateStudioPreviewClient({
   templateId,
-}: TemplateStudioPublishedPreviewClientProps) {
+}: TemplateStudioPreviewClientProps) {
   const { data, isLoading, isError, error, refetch } =
-    useTemplateStudioPreview(templateId);
+    useTemplateStudioTemplate(templateId);
 
   if (!templateId) {
     return (
@@ -54,15 +54,44 @@ export function TemplateStudioPublishedPreviewClient({
     );
   }
 
+  const previewSource = data.draft
+    ? {
+        document: data.draft.document,
+        runtimeValues: data.draft.runtimeValues,
+        source: "draft" as const,
+        updatedAt: data.draft.updatedAt,
+      }
+    : data.document
+      ? {
+          document: data.document.document,
+          runtimeValues: data.document.runtimeValues,
+          source: "published" as const,
+          updatedAt: data.document.updatedAt,
+        }
+      : null;
+
+  if (!previewSource) {
+    return (
+      <main className="flex h-screen w-full items-center justify-center bg-slate-950 px-4 text-slate-100">
+        <div className="grid max-w-sm gap-3 rounded-lg border border-slate-800 bg-slate-900 p-5 text-center">
+          <h1 className="text-sm font-bold">Template Studio Preview</h1>
+          <p className="text-sm font-semibold text-slate-300">
+            저장된 draft 또는 published 문서가 없습니다.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <TemplateStudioRuntimeShell
-      key={`${templateId}:${data.updatedAt}`}
-      document={data.document}
-      initialRuntimeValues={data.runtimeValues}
-      source="published"
-      templateId={data.templateId}
+      key={`${templateId}:${previewSource.source}:${previewSource.updatedAt}`}
+      document={previewSource.document}
+      initialRuntimeValues={previewSource.runtimeValues}
+      source={previewSource.source}
+      templateId={templateId}
       templateName={data.template.name}
-      updatedAt={data.updatedAt}
+      updatedAt={previewSource.updatedAt}
     />
   );
 }

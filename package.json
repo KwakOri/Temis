@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "npm run dev:local",
+    "dev:next": "next dev",
     "dev:local": "node scripts/dev-local.cjs",
+    "dev:remote": "node scripts/dev-remote.cjs",
     "import:v2:figma": "tsx scripts/import-v2-template-from-figma.ts",
     "import:v2:figma:v2": "tsx scripts/import-v2-template-from-figma-v2.ts",
     "cleanup:v2:r2-orphans": "tsx scripts/cleanup-v2-r2-orphans.ts",
@@ -20,6 +22,7 @@
     "check:template-studio:persistence": "tsx scripts/check-template-studio-persistence.ts",
     "check:template-studio:api": "tsx scripts/check-template-studio-api.ts",
     "check:template-studio:preview-assets": "tsx scripts/check-template-studio-preview-assets.ts",
+    "check:template-studio:web-fonts": "tsx scripts/check-template-studio-web-fonts.ts",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"
   },
   "dependencies": {

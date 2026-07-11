@@ -16,6 +16,7 @@ export type StudioBuiltinFieldId =
   | "week.end_date"
   | "entry.main_title"
   | "entry.sub_title"
+  | "entry.time"
   | "entry.status"
   | "entry.status_label"
   | "entry.is_offline"
@@ -59,6 +60,17 @@ export interface StudioCanvasConfig {
   width: number;
   height: number;
   background: string;
+}
+
+export interface StudioWebFontSource {
+  id: string;
+  label: string;
+  cssText: string;
+  enabled: boolean;
+}
+
+export interface StudioTemplateResources {
+  webFonts?: StudioWebFontSource[];
 }
 
 export interface StudioSemanticMeta {
@@ -321,6 +333,7 @@ export interface StudioTimetableRuntimeEntry {
   statusId: StudioTimetableStatusId;
   mainTitle?: string;
   subTitle?: string;
+  time?: string;
 }
 
 export interface StudioTimetableRuntimeValues {
@@ -344,6 +357,7 @@ export interface StudioTemplateDocument {
   inputs: Record<StudioInputId, StudioInputDefinition>;
   styles: StudioStyleMap;
   assets: StudioAssetMap;
+  resources?: StudioTemplateResources;
   domains?: StudioTemplateDomains;
 }
 
