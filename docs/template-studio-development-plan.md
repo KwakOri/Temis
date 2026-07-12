@@ -83,6 +83,11 @@ Implemented baseline:
   - timetable day-card container can be selected and moved
   - generated day cards expose top-level containers only in Timetable
 - Local draft save to browser storage.
+- Admin-protected template list, create, edit, and saved preview routes.
+- Supabase-backed draft, published document, and revision persistence through
+  React Query, services, and admin API routes.
+- Canonical template asset synchronization to Cloudflare R2 before draft save,
+  publish, and saved preview.
 - Undo/redo, copy/cut/paste, duplicate, group/ungroup, lock, z-order commands,
   arrow-key movement, zoom, fit, pan, and canvas selection shortcuts.
 - Initial timetable capability model:
@@ -101,9 +106,9 @@ Implemented baseline:
   - editable slots
   - built-in bindings
   - capability flags
-- Template Studio document `version` remains `1` while these prototype fields
-  are optional; missing timetable capabilities must resolve to disabled
-  defaults until a formal persistence migration exists.
+- Template Studio document `version` is moving from `1` to `2` for the shared
+  component-frame and explicit Entry Group contract. Version-1 documents must
+  migrate on import and persistence load.
 
 Current important limitations:
 
@@ -135,9 +140,14 @@ Current important limitations:
   not implemented yet.
 - Optional capability settings UI exists in the Timetable inspector; disabling
   a capability normalizes runtime entries back to the related base status.
-- Local JSON export/import is implemented with versioned migration/default
-  helpers; production persistence is not implemented, but the storage boundary
-  and rollout plan are now fixed.
+- Local JSON export/import, admin API persistence, draft/publish revisions, saved
+  preview, and R2-backed canonical document assets are implemented.
+- Runtime input edits in saved preview remain ephemeral and reset to the saved
+  default runtime values on reload.
+- The first Multi implementation automatically splits a fixed day height and
+  scales one full card per entry. It is superseded by the shared-frame,
+  fixed-two-slot authored variant plan in
+  `template-studio-fixed-two-slot-multi-variant-plan.md`.
 
 ## Fixed Product Decisions
 
@@ -166,6 +176,17 @@ context.
 Timetable preview must not inject hidden day labels, entry labels, or header UI
 inside each generated card. If such a visual element appears inside a repeated
 card, it must exist in Cards and bind to a built-in field.
+
+### Multi Is An Authored Fixed Two-Entry Variant
+
+Multi is not a general `N`-entry auto-layout. All statuses share one component
+frame. Online, Offline, and Offline Memo contain one explicit Entry Group;
+Multi contains exactly two. The runtime renders the selected day-card variant
+once and Entry Groups select entry indexes `0` and `1` internally.
+
+The authoritative implementation plan is:
+
+- `docs/template-studio-fixed-two-slot-multi-variant-plan.md`
 
 ### Built-In Values Are Not Custom Inputs
 
@@ -421,12 +442,13 @@ High-risk items:
 
 - Generic editable slot runtime is still missing, so user-replaceable asset
   presets need narrow preset-specific handling until the generic runtime exists.
-- Local JSON export/import exists with a first versioned migration/default path;
-  production persistence now has a proposed storage and schema rollout plan, but
-  the actual Supabase migration and API layer are not implemented.
-- Template asset uploads are stored inside the document as data URLs for the
-  current local prototype; production should move binary assets to a dedicated
-  storage bucket and keep only stable asset references inside the document.
+- Document/runtime cross-validation is still too shallow at the server boundary;
+  runtime values currently receive shape validation but not all capability and
+  entry-count invariant checks.
+- Required component variant roots and future Entry Group roots need destructive
+  edit protection so graph operations cannot leave dangling component records.
+- The editor client remains a large single component that owns graph editing,
+  history, runtime values, persistence, and asset synchronization.
 
 Medium-risk items:
 
@@ -437,9 +459,9 @@ Medium-risk items:
   settings, visibility toggling, existing-asset background selection, direct
   template asset upload, and explicit user-replaceable image input switching
   exist.
-- `multi` and `offline_memo` are capability-gated in runtime controls and can be
-  enabled through the Timetable inspector; future persistence still needs to
-  preserve these capability settings explicitly.
+- `multi` and `offline_memo` are capability-gated in runtime controls and are
+  preserved through document persistence; Multi still needs conversion from
+  automatic card scaling to the fixed-two-slot authored variant contract.
 - `Status Card Background` supports shared status assets, but day-specific
   overrides and a large matrix editor are intentionally deferred.
 - Timetable composition supports only a shallow root object list; future slot
@@ -695,7 +717,8 @@ Tasks:
 - [x] Update visible editor copy from `Milestone A` to a current neutral label.
 - [x] Record the current Template Studio document version assumptions.
 - [ ] Keep v2 and hard-coded timetable folders as reference material only.
-- [ ] Do not connect Supabase or production publishing.
+- [x] Keep persistence behind the existing React Query -> service -> admin API
+      -> server persistence boundary.
 
 ### Phase 1. Domain Model Stabilization
 

@@ -70,7 +70,11 @@ Current known gaps:
 - [x] Timetable preview no longer injects hidden day-card header/meta UI.
 - [x] Sample document no longer places profile image in the Cards graph.
 - [x] Local JSON import/export exists.
-- [ ] Production persistence is not implemented.
+- [x] Admin API draft/publish/revision persistence exists.
+- [x] Canonical document assets synchronize to Cloudflare R2.
+- [x] Saved preview loads the current user draft before the published document.
+- [ ] Replace automatic Multi height splitting with an authored fixed-two-slot
+      Multi variant.
 
 ## Non-Negotiable Rules
 
@@ -86,6 +90,9 @@ Current known gaps:
 - Keep `Artist / Profile Text` independent from `Profile Block`.
 - Keep `multi` and `offline_memo` disabled by default until explicitly enabled
   by template capability settings.
+- Keep one shared component frame across every card status.
+- Keep entry-scoped card objects inside explicit Entry Groups.
+- Keep Multi fixed to exactly two runtime entry slots.
 
 ## Phase 0. Baseline Cleanup
 
