@@ -19,6 +19,28 @@
   --color-timetable-form-bg: #f5f0ed;
 }
 
+.template-studio-runtime-theme {
+  --runtime-primary: #fd9319;
+  --runtime-primary-hover: #e58615;
+  --runtime-primary-soft: rgba(253, 147, 25, 0.14);
+  --runtime-focus: rgba(253, 147, 25, 0.48);
+  --runtime-form-bg: #f5f0ed;
+  --runtime-card-bg: #ece3e1;
+  --runtime-input-bg: #dcd0c6;
+  --runtime-input-hover: #e0d8d0;
+  --runtime-canvas-bg: #0a0f1a;
+  --runtime-border: #e2d4c4;
+  --runtime-border-strong: #cfb9a8;
+  --runtime-fg: #1b1612;
+  --runtime-fg-muted: #6b625d;
+  --runtime-fg-subtle: #8b817b;
+  --runtime-danger: #dc2626;
+  --runtime-danger-hover: #b91c1c;
+  --runtime-disabled-opacity: 0.45;
+  --runtime-shadow-card: 0 2px 3.4px rgba(0, 0, 0, 0.08);
+  --runtime-shadow-overlay: 0 12px 30px rgba(0, 0, 0, 0.24);
+}
+
 .v2-dark-form-theme {
   --color-timetable-card-bg: #1b212c;
   --color-timetable-card-border: #303848;

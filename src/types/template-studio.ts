@@ -219,6 +219,7 @@ export interface StudioTimetableDayDefinition {
   shortLabel?: string;
   date?: string;
   order: number;
+  componentId?: StudioTimetableComponentId;
 }
 
 export interface StudioTimetableStatusDefinition {
@@ -347,7 +348,7 @@ export interface StudioTimetableComposition {
 }
 
 export interface StudioTimetableDomain {
-  version: 1;
+  version: 2;
   canvas?: StudioTimetableCanvasConfig;
   week?: StudioTimetableWeekDefinition;
   capabilities?: StudioTimetableCapabilities;
@@ -385,7 +386,7 @@ export interface StudioTemplateDomains {
 
 export interface StudioTemplateDocument {
   schema: "studio_template_document";
-  version: 3;
+  version: 4;
   metadata: {
     editor: "template-studio";
     name: string;

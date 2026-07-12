@@ -294,6 +294,9 @@ assert.ok(onlineMainTitle?.styleId && offlineMainTitle?.styleId);
 const offlineLeftBefore =
   stylePropagationDocument.styles[offlineMainTitle.styleId].left;
 stylePropagationDocument.styles[onlineMainTitle.styleId].fontSize = 55;
+stylePropagationDocument.styles[onlineMainTitle.styleId].textAlign = "center";
+stylePropagationDocument.styles[onlineMainTitle.styleId].justifyContent =
+  "center";
 const stylePropagationResult = applyStudioVariantStyle(
   stylePropagationDocument,
   {
@@ -308,6 +311,14 @@ assert.equal(stylePropagationResult.appliedNodeCount, 1);
 assert.equal(
   stylePropagationDocument.styles[offlineMainTitle.styleId].fontSize,
   55,
+);
+assert.equal(
+  stylePropagationDocument.styles[offlineMainTitle.styleId].textAlign,
+  "center",
+);
+assert.equal(
+  stylePropagationDocument.styles[offlineMainTitle.styleId].justifyContent,
+  "center",
 );
 assert.equal(
   stylePropagationDocument.styles[offlineMainTitle.styleId].left,
@@ -370,7 +381,7 @@ delete legacyDocument.graph.nodes[legacyGroup.id];
 
 const legacyMigration = migrateStudioTemplateDocument(legacyDocument);
 if (!legacyMigration.ok) throw new Error(legacyMigration.message);
-assert.equal(legacyMigration.document.version, 3);
+assert.equal(legacyMigration.document.version, 4);
 const migratedLegacyComponent =
   legacyMigration.document.domains!.timetable!.components.defaultEntryCard;
 assert.ok(migratedLegacyComponent.frame);

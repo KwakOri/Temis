@@ -134,16 +134,21 @@ export const getStudioTimetableAddEntryDisabledReason = (
   values: StudioRuntimeValues,
   dayId: StudioTimetableDayId,
 ): string | null => {
+  const entryCount = getStudioTimetableEntriesForDay(
+    document,
+    values,
+    dayId,
+  ).length;
+
+  if (entryCount === 0) return null;
+
   if (
     !isStudioTimetableCapabilityEnabled(document.domains?.timetable, "multi")
   ) {
     return "Enable Multi Status to add entries";
   }
 
-  if (
-    getStudioTimetableEntriesForDay(document, values, dayId).length >=
-    getStudioTimetableMaxEntriesPerDay()
-  ) {
+  if (entryCount >= getStudioTimetableMaxEntriesPerDay()) {
     return "Maximum entries reached";
   }
 
@@ -239,6 +244,49 @@ export const removeStudioTimetableEntry = (
       entriesByDay: {
         ...(values.timetable?.entriesByDay ?? {}),
         [dayId]: normalizedEntries,
+      },
+    },
+  };
+};
+
+export const setStudioTimetableDayBaseStatus = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  dayId: StudioTimetableDayId,
+  baseStatus: "online" | "offline",
+): StudioRuntimeValues => {
+  const currentEntries = getStudioTimetableEntriesForDay(
+    document,
+    values,
+    dayId,
+  );
+  const firstEntry = currentEntries[0];
+  if (!firstEntry) return values;
+
+  const useMultiStatus =
+    baseStatus === "online" &&
+    currentEntries.length > 1 &&
+    isStudioTimetableStatusAvailable(
+      document.domains?.timetable,
+      "multi",
+    );
+  const nextEntries = useMultiStatus
+    ? currentEntries.map((entry) => ({ ...entry, statusId: "multi" }))
+    : [{ ...firstEntry, statusId: baseStatus }];
+
+  return {
+    ...values,
+    entries: {
+      ...values.entries,
+      [dayId]: useMultiStatus
+        ? [...(values.entries[dayId] ?? [])]
+        : (values.entries[dayId] ?? []).slice(0, 1),
+    },
+    timetable: {
+      ...values.timetable,
+      entriesByDay: {
+        ...(values.timetable?.entriesByDay ?? {}),
+        [dayId]: nextEntries,
       },
     },
   };

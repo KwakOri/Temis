@@ -41,6 +41,7 @@ const TYPOGRAPHY_STYLE_KEYS = new Set([
   "lineHeight",
   "letterSpacing",
   "textAlign",
+  "justifyContent",
   "textDecoration",
   "textTransform",
   "whiteSpace",
@@ -56,7 +57,9 @@ export const pickStudioVariantStyleScope = (
     Object.entries(style).filter(([key]) => {
       if (scope === "layout") return LAYOUT_STYLE_KEYS.has(key);
       if (scope === "typography") return TYPOGRAPHY_STYLE_KEYS.has(key);
-      if (scope === "visual") return !LAYOUT_STYLE_KEYS.has(key);
+      if (scope === "visual") {
+        return !LAYOUT_STYLE_KEYS.has(key) || TYPOGRAPHY_STYLE_KEYS.has(key);
+      }
       return !LAYOUT_STYLE_KEYS.has(key) && !TYPOGRAPHY_STYLE_KEYS.has(key);
     }),
   );

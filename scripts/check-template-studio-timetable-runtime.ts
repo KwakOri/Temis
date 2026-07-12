@@ -12,7 +12,9 @@ import {
   getStudioTimetableDaysWithMultipleEntries,
   getStudioTimetableEffectiveMaxEntriesPerDay,
   removeStudioTimetableEntry,
+  setStudioTimetableDayBaseStatus,
   setStudioTimetableEntryField,
+  setStudioTimetableEntryStatus,
   validateStudioRuntimeValuesForDocument,
 } from "../src/utils/template-studio/timetable-runtime";
 
@@ -95,6 +97,43 @@ assert.equal(
   "online",
   "Removing back to one entry must restore the Online layout.",
 );
+
+const offlineValues = setStudioTimetableDayBaseStatus(
+  document,
+  withSecondEntry,
+  dayId,
+  "offline",
+);
+assert.equal(offlineValues.timetable.entriesByDay[dayId].length, 1);
+assert.equal(offlineValues.entries[dayId].length, 1);
+assert.equal(
+  offlineValues.timetable.entriesByDay[dayId][0].statusId,
+  "offline",
+);
+
+document.domains!.timetable!.capabilities!.offlineMemo.enabled = true;
+ensureStudioTimetableCapabilityStatus(
+  document.domains!.timetable!,
+  "offlineMemo",
+);
+const offlineMemoValues = setStudioTimetableEntryStatus(
+  document,
+  offlineValues,
+  dayId,
+  0,
+  "offlineMemo",
+);
+assert.equal(
+  offlineMemoValues.timetable.entriesByDay[dayId][0].statusId,
+  "offlineMemo",
+);
+const onlineValues = setStudioTimetableDayBaseStatus(
+  document,
+  offlineMemoValues,
+  dayId,
+  "online",
+);
+assert.equal(onlineValues.timetable.entriesByDay[dayId][0].statusId, "online");
 
 const withMainTitle = setStudioTimetableEntryField(
   document,

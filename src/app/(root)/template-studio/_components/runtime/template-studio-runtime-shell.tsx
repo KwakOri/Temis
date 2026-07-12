@@ -20,6 +20,7 @@ import {
   StudioTimetablePreview,
 } from "../studio-timetable-preview";
 import { TemplateStudioRuntimeForm } from "./template-studio-runtime-form";
+import { StudioRuntimeActionButton } from "./ui/studio-runtime-action-button";
 
 interface TemplateStudioRuntimeShellProps {
   document: StudioTemplateDocument;
@@ -256,19 +257,19 @@ export function TemplateStudioRuntimeShell({
   }, []);
 
   return (
-    <main className="flex h-screen w-full flex-col overflow-hidden bg-slate-950 text-slate-100">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-slate-800 bg-slate-900 px-4">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500 text-white">
+    <main className="template-studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]">
+      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--runtime-border)] bg-[var(--runtime-card-bg)] px-4">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--runtime-primary)] text-white shadow-[var(--runtime-shadow-card)]">
           <CalendarDays size={15} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-sm font-bold">{displayName}</h1>
-            <span className="rounded border border-slate-700 bg-slate-950 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-slate-400">
+            <span className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--runtime-fg-muted)]">
               {source}
             </span>
           </div>
-          <div className="flex min-w-0 gap-2 text-[11px] font-semibold text-slate-500">
+          <div className="flex min-w-0 gap-2 text-[11px] font-semibold text-[var(--runtime-fg-subtle)]">
             {templateId ? <span className="truncate">{templateId}</span> : null}
             {updatedAtLabel ? <span>{updatedAtLabel}</span> : null}
           </div>
@@ -277,38 +278,44 @@ export function TemplateStudioRuntimeShell({
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <section
-          className="relative min-h-0 flex-1 overflow-hidden bg-slate-950"
+          className="relative min-h-0 flex-1 overflow-hidden bg-[var(--runtime-canvas-bg)]"
           ref={previewContainerRef}
         >
-          <div className="absolute right-4 top-4 z-20 flex h-9 items-center rounded-lg border border-slate-700 bg-slate-900/95 p-1 shadow-lg shadow-black/30 backdrop-blur">
-            <button
-              className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-800 hover:text-white"
+          <div className="absolute right-4 top-4 z-20 flex h-10 items-center rounded-xl border border-[var(--runtime-border)] bg-[var(--runtime-card-bg)]/95 p-1 shadow-[var(--runtime-shadow-overlay)] backdrop-blur">
+            <StudioRuntimeActionButton
+              aria-label="Zoom out"
+              className="size-7"
+              size="icon"
               title="Zoom out"
-              type="button"
+              variant="ghost"
               onClick={() => updateScale(viewportTransform.scale - zoomStep)}
             >
               <Minus size={14} />
-            </button>
-            <span className="min-w-12 text-center text-xs font-bold text-slate-200">
+            </StudioRuntimeActionButton>
+            <span className="min-w-12 text-center text-xs font-bold text-[var(--runtime-fg)]">
               {Math.round(viewportTransform.scale * 100)}%
             </span>
-            <button
-              className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            <StudioRuntimeActionButton
+              aria-label="Zoom in"
+              className="size-7"
+              size="icon"
               title="Zoom in"
-              type="button"
+              variant="ghost"
               onClick={() => updateScale(viewportTransform.scale + zoomStep)}
             >
               <Plus size={14} />
-            </button>
-            <div className="mx-1 h-5 w-px bg-slate-700" />
-            <button
-              className="flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            </StudioRuntimeActionButton>
+            <div className="mx-1 h-5 w-px bg-[var(--runtime-border)]" />
+            <StudioRuntimeActionButton
+              aria-label="Fit preview"
+              className="size-7"
+              size="icon"
               title="Fit"
-              type="button"
+              variant="ghost"
               onClick={fitToViewport}
             >
               <Maximize2 size={14} />
-            </button>
+            </StudioRuntimeActionButton>
           </div>
 
           <div
@@ -328,7 +335,7 @@ export function TemplateStudioRuntimeShell({
             onWheel={handleViewportWheel}
           >
             <div
-              className="relative shrink-0 shadow-2xl shadow-black/40"
+              className="relative shrink-0 shadow-[var(--runtime-shadow-overlay)]"
               style={{
                 width: previewSize.width * viewportTransform.scale,
                 height: previewSize.height * viewportTransform.scale,

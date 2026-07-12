@@ -1,32 +1,41 @@
 "use client";
 
-import { Minus, Plus, RotateCcw, Upload } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import { Plus, RotateCcw, Upload } from "lucide-react";
+import React, { useMemo, useRef } from "react";
 
-import { cn } from "@/lib/utils";
 import type {
   StudioInputDefinition,
   StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTimetableDayId,
-  StudioTimetableStatusId,
+  StudioTimetableRuntimeEntry,
 } from "@/types/template-studio";
 import {
   getStudioRuntimeInputValue,
   setStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
-import { getStudioAvailableTimetableStatuses } from "@/utils/template-studio/timetable-capabilities";
+import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
 import {
   addStudioTimetableEntry,
   getStudioTimetableAddEntryDisabledReason,
   getStudioTimetableEntriesForDay,
   removeStudioTimetableEntry,
+  setStudioTimetableDayBaseStatus,
   setStudioTimetableEntryField,
   setStudioTimetableEntryStatus,
   setStudioTimetableOfflineMemo,
   type StudioTimetableEditableEntryField,
 } from "@/utils/template-studio/timetable-runtime";
+import { StudioRuntimeDayCard } from "./composition/studio-runtime-day-card";
+import { StudioRuntimeEntryCard } from "./composition/studio-runtime-entry-card";
+import { StudioRuntimeFormTabs } from "./composition/studio-runtime-form-tabs";
+import { StudioRuntimeSectionTitle } from "./composition/studio-runtime-section-title";
+import { StudioRuntimeWeekSummary } from "./composition/studio-runtime-week-summary";
+import { StudioRuntimeActionButton } from "./ui/studio-runtime-action-button";
+import { StudioRuntimeCard } from "./ui/studio-runtime-card";
+import { StudioRuntimeEmptyState } from "./ui/studio-runtime-empty-state";
+import { StudioRuntimeField } from "./ui/studio-runtime-field";
 
 interface TemplateStudioRuntimeFormProps {
   document: StudioTemplateDocument;
@@ -39,7 +48,6 @@ type RuntimeInputGroups = Record<
   "global" | "day" | "entry",
   StudioInputDefinition[]
 >;
-type RuntimeScopeTab = "global" | "days";
 
 const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
   const suffix =
@@ -50,53 +58,63 @@ const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
   return `${dayId}-entry-${suffix}`;
 };
 
-const RuntimeTextField = ({
-  label,
-  value,
-  placeholder,
-  onChange,
+const RuntimeImageUploadAction = ({
+  onValueChange,
 }: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  onChange: (value: string) => void;
-}) => (
-  <label className="grid gap-1.5 text-[11px] font-semibold text-slate-400">
-    <span>{label}</span>
-    <input
-      className="h-9 rounded-md border border-slate-700 bg-slate-950 px-2.5 text-sm font-medium text-slate-100 outline-none placeholder:text-slate-600 focus:border-blue-400"
-      placeholder={placeholder}
-      type="text"
-      value={value}
-      onChange={(event) => onChange(event.currentTarget.value)}
-    />
-  </label>
-);
+  onValueChange: (value: string) => void;
+}) => {
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-const RuntimeTextareaField = ({
-  label,
-  value,
-  placeholder,
-  rows,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  placeholder?: string;
-  rows: number;
-  onChange: (value: string) => void;
-}) => (
-  <label className="grid gap-1.5 text-[11px] font-semibold text-slate-400">
-    <span>{label}</span>
-    <textarea
-      className="min-h-24 resize-y rounded-md border border-slate-700 bg-slate-950 p-2.5 text-sm font-medium text-slate-100 outline-none placeholder:text-slate-600 focus:border-blue-400"
-      placeholder={placeholder}
-      rows={rows}
-      value={value}
-      onChange={(event) => onChange(event.currentTarget.value)}
-    />
-  </label>
-);
+  return (
+    <>
+      <StudioRuntimeActionButton
+        fullWidth
+        size="compact"
+        variant="secondary"
+        onClick={() => inputRef.current?.click()}
+      >
+        <Upload size={14} />
+        Upload
+      </StudioRuntimeActionButton>
+      <input
+        ref={inputRef}
+        accept="image/*"
+        className="hidden"
+        type="file"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = () => onValueChange(String(reader.result ?? ""));
+          reader.readAsDataURL(file);
+        }}
+      />
+    </>
+  );
+};
+
+const getDayStatus = (
+  document: StudioTemplateDocument,
+  entries: StudioTimetableRuntimeEntry[],
+) => {
+  const timetable = document.domains?.timetable;
+  const statusId =
+    entries.length > 1
+      ? "multi"
+      : (entries[0]?.statusId ?? timetable?.defaultEntryStatusId ?? "online");
+  const baseStatus =
+    timetable?.statuses[statusId]?.baseStatus ??
+    (statusId === "offlineMemo" ? "offline" : "online");
+
+  return {
+    statusId,
+    online: baseStatus === "online",
+    memoEnabled: statusId === "offlineMemo",
+    multi: entries.length > 1,
+  };
+};
 
 export function TemplateStudioRuntimeForm({
   document,
@@ -125,42 +143,10 @@ export function TemplateStudioRuntimeForm({
 
     return groups;
   }, [document.inputs]);
-  const statusOptions = useMemo(
-    () => getStudioAvailableTimetableStatuses(document),
-    [document],
+  const canUseOfflineMemo = isStudioTimetableStatusAvailable(
+    timetable,
+    "offlineMemo",
   );
-  const [selectedDayId, setSelectedDayId] = useState<string>(days[0]?.id ?? "");
-  const [selectedEntryIndex, setSelectedEntryIndex] = useState(0);
-  const [activeScopeTab, setActiveScopeTab] = useState<RuntimeScopeTab>(
-    days.length > 0 ? "days" : "global",
-  );
-  const activeEntries = selectedDayId
-    ? getStudioTimetableEntriesForDay(document, runtimeValues, selectedDayId)
-    : [];
-  const activeEntry = activeEntries[selectedEntryIndex] ?? null;
-  const addEntryDisabledReason = selectedDayId
-    ? getStudioTimetableAddEntryDisabledReason(
-        document,
-        runtimeValues,
-        selectedDayId,
-      )
-    : "Select a day first";
-  const canAddEntry = addEntryDisabledReason === null;
-  useEffect(() => {
-    if (selectedDayId && days.some((day) => day.id === selectedDayId)) return;
-    setSelectedDayId(days[0]?.id ?? "");
-    setSelectedEntryIndex(0);
-  }, [days, selectedDayId]);
-
-  useEffect(() => {
-    if (days.length > 0 || activeScopeTab === "global") return;
-    setActiveScopeTab("global");
-  }, [activeScopeTab, days.length]);
-
-  useEffect(() => {
-    if (selectedEntryIndex < activeEntries.length) return;
-    setSelectedEntryIndex(Math.max(0, activeEntries.length - 1));
-  }, [activeEntries.length, selectedEntryIndex]);
 
   const updateInputValue = (
     input: StudioInputDefinition,
@@ -178,76 +164,81 @@ export function TemplateStudioRuntimeForm({
     );
   };
 
-  const addEntry = () => {
-    if (!selectedDayId || !canAddEntry) return;
-
-    const nextEntryId = createEntryId(selectedDayId, activeEntries.length);
-    setRuntimeValues((currentValues) =>
-      addStudioTimetableEntry(
-        document,
-        currentValues,
-        selectedDayId,
-        nextEntryId,
-      ),
-    );
-    setSelectedEntryIndex(activeEntries.length);
-  };
-
-  const removeEntry = (entryIndex: number) => {
-    if (!selectedDayId) return;
-
-    setRuntimeValues((currentValues) =>
-      removeStudioTimetableEntry(
-        document,
-        currentValues,
-        selectedDayId,
-        entryIndex,
-      ),
-    );
-    setSelectedEntryIndex((currentIndex) =>
-      Math.max(0, Math.min(currentIndex, activeEntries.length - 2)),
-    );
-  };
-
-  const updateEntryStatus = (
-    entryIndex: number,
-    statusId: StudioTimetableStatusId,
+  const addEntry = (
+    dayId: StudioTimetableDayId,
+    entries: StudioTimetableRuntimeEntry[],
   ) => {
-    if (!selectedDayId) return;
+    if (
+      getStudioTimetableAddEntryDisabledReason(
+        document,
+        runtimeValues,
+        dayId,
+      ) !== null
+    ) {
+      return;
+    }
+
+    const nextEntryId = createEntryId(dayId, entries.length);
+    setRuntimeValues((currentValues) =>
+      addStudioTimetableEntry(document, currentValues, dayId, nextEntryId),
+    );
+  };
+
+  const removeEntry = (dayId: StudioTimetableDayId, entryIndex: number) => {
+    setRuntimeValues((currentValues) =>
+      removeStudioTimetableEntry(document, currentValues, dayId, entryIndex),
+    );
+  };
+
+  const updateDayBaseStatus = (
+    dayId: StudioTimetableDayId,
+    online: boolean,
+  ) => {
+    setRuntimeValues((currentValues) =>
+      setStudioTimetableDayBaseStatus(
+        document,
+        currentValues,
+        dayId,
+        online ? "online" : "offline",
+      ),
+    );
+  };
+
+  const toggleOfflineMemo = (dayId: StudioTimetableDayId, enabled: boolean) => {
+    if (!canUseOfflineMemo) return;
 
     setRuntimeValues((currentValues) =>
       setStudioTimetableEntryStatus(
         document,
         currentValues,
-        selectedDayId,
-        entryIndex,
-        statusId,
+        dayId,
+        0,
+        enabled ? "offlineMemo" : "offline",
       ),
     );
   };
 
   const updateEntryField = (
+    dayId: StudioTimetableDayId,
+    entryIndex: number,
     field: StudioTimetableEditableEntryField,
     value: string,
   ) => {
-    if (!selectedDayId || !activeEntry) return;
-
     setRuntimeValues((currentValues) =>
       setStudioTimetableEntryField(
         document,
         currentValues,
-        selectedDayId,
-        selectedEntryIndex,
+        dayId,
+        entryIndex,
         field,
         value,
       ),
     );
   };
 
-  const updateOfflineMemo = (value: string) => {
-    if (!selectedDayId) return;
+  const updateOfflineMemo = (dayId: StudioTimetableDayId, value: string) => {
     setRuntimeValues((currentValues) =>
-      setStudioTimetableOfflineMemo(currentValues, selectedDayId, value),
+      setStudioTimetableOfflineMemo(currentValues, dayId, value),
     );
   };
 
@@ -265,13 +256,14 @@ export function TemplateStudioRuntimeForm({
     if (input.type === "text") {
       if (input.multiline) {
         return (
-          <RuntimeTextareaField
+          <StudioRuntimeField
+            control="textarea"
             key={key}
             label={input.label}
             placeholder={input.placeholder}
             rows={input.minRows ?? 4}
             value={value}
-            onChange={(nextValue) =>
+            onValueChange={(nextValue) =>
               updateInputValue(input, nextValue, context)
             }
           />
@@ -279,12 +271,15 @@ export function TemplateStudioRuntimeForm({
       }
 
       return (
-        <RuntimeTextField
+        <StudioRuntimeField
+          control="input"
           key={key}
           label={input.label}
           placeholder={input.placeholder}
           value={value}
-          onChange={(nextValue) => updateInputValue(input, nextValue, context)}
+          onValueChange={(nextValue) =>
+            updateInputValue(input, nextValue, context)
+          }
         />
       );
     }
@@ -292,58 +287,35 @@ export function TemplateStudioRuntimeForm({
     if (input.type === "image") {
       return (
         <div className="grid gap-2" key={key}>
-          <RuntimeTextField
+          <StudioRuntimeField
+            control="input"
             label={input.label}
             placeholder={input.placeholder}
             value={value}
-            onChange={(nextValue) =>
+            onValueChange={(nextValue) =>
               updateInputValue(input, nextValue, context)
             }
           />
-          <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 text-xs font-bold text-slate-300 transition hover:border-blue-400 hover:text-white">
-            <Upload size={14} />
-            Upload
-            <input
-              accept="image/*"
-              className="hidden"
-              type="file"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = () => {
-                  updateInputValue(input, String(reader.result ?? ""), context);
-                };
-                reader.readAsDataURL(file);
-              }}
-            />
-          </label>
+          <RuntimeImageUploadAction
+            onValueChange={(nextValue) =>
+              updateInputValue(input, nextValue, context)
+            }
+          />
         </div>
       );
     }
 
     return (
-      <label
-        className="grid gap-1.5 text-[11px] font-semibold text-slate-400"
+      <StudioRuntimeField
+        control="select"
         key={key}
-      >
-        <span>{input.label}</span>
-        <select
-          className="h-9 rounded-md border border-slate-700 bg-slate-950 px-2.5 text-sm font-medium text-slate-100 outline-none focus:border-blue-400"
-          value={value}
-          onChange={(event) =>
-            updateInputValue(input, event.currentTarget.value, context)
-          }
-        >
-          {input.options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+        label={input.label}
+        options={input.options}
+        value={value}
+        onValueChange={(nextValue) =>
+          updateInputValue(input, nextValue, context)
+        }
+      />
     );
   };
 
@@ -355,237 +327,198 @@ export function TemplateStudioRuntimeForm({
     if (inputs.length === 0) return null;
 
     return (
-      <section className="grid gap-3 border-t border-slate-800 pt-4">
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+      <StudioRuntimeCard className="grid gap-3">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--runtime-fg-muted)]">
           {title}
         </h3>
         <div className="grid gap-3">
           {inputs.map((input) => renderInput(input, context))}
         </div>
-      </section>
+      </StudioRuntimeCard>
     );
   };
 
-  const renderEntryInputGroup = () => {
-    if (!selectedDayId || !activeEntry) return null;
-
-    const context: StudioRuntimeContext = {
-      dayId: selectedDayId,
-      entryIndex: selectedEntryIndex,
-    };
+  const renderEntryCard = (
+    dayId: StudioTimetableDayId,
+    entry: StudioTimetableRuntimeEntry,
+    entryIndex: number,
+    entryCount: number,
+  ) => {
+    const context: StudioRuntimeContext = { dayId, entryIndex };
 
     return (
-      <section className="grid gap-3 border-t border-slate-800 pt-4">
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-          Entry
-        </h3>
-        <div className="grid gap-3">
-          <RuntimeTextField
-            label="Main Title"
-            placeholder={`Entry ${selectedEntryIndex + 1}`}
-            value={activeEntry.mainTitle ?? ""}
-            onChange={(value) => updateEntryField("mainTitle", value)}
-          />
-          <RuntimeTextField
-            label="Sub Title"
-            value={activeEntry.subTitle ?? ""}
-            onChange={(value) => updateEntryField("subTitle", value)}
-          />
-          <RuntimeTextField
-            label="Time"
-            placeholder="09:00"
-            value={activeEntry.time ?? ""}
-            onChange={(value) => updateEntryField("time", value)}
-          />
-          {activeEntry.statusId === "offlineMemo" ? (
-            <RuntimeTextareaField
-              label="Offline Memo"
-              placeholder="Enter offline memo"
-              rows={4}
-              value={
-                runtimeValues.timetable.offlineMemoByDay?.[selectedDayId] ?? ""
-              }
-              onChange={updateOfflineMemo}
-            />
-          ) : null}
-          {inputGroups.entry.map((input) => renderInput(input, context))}
-        </div>
-      </section>
+      <StudioRuntimeEntryCard
+        index={entryIndex}
+        key={entry.id}
+        removable={entryCount > 1}
+        showIndex={entryCount > 1}
+        onRemove={() => removeEntry(dayId, entryIndex)}
+      >
+        <StudioRuntimeField
+          control="input"
+          label="Time"
+          placeholder="09:00"
+          value={entry.time ?? ""}
+          onValueChange={(value) =>
+            updateEntryField(dayId, entryIndex, "time", value)
+          }
+        />
+        <StudioRuntimeField
+          control="input"
+          label="Sub Title"
+          value={entry.subTitle ?? ""}
+          onValueChange={(value) =>
+            updateEntryField(dayId, entryIndex, "subTitle", value)
+          }
+        />
+        <StudioRuntimeField
+          control="textarea"
+          label="Main Title"
+          placeholder={`Entry ${entryIndex + 1}`}
+          rows={3}
+          value={entry.mainTitle ?? ""}
+          onValueChange={(value) =>
+            updateEntryField(dayId, entryIndex, "mainTitle", value)
+          }
+        />
+        {inputGroups.entry.map((input) => renderInput(input, context))}
+      </StudioRuntimeEntryCard>
     );
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col border-t border-slate-800 bg-slate-900 text-slate-100 lg:w-[420px] lg:border-l lg:border-t-0">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-800 px-4">
+    <aside className="flex h-full min-h-0 w-full flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] lg:w-[420px] lg:border-l lg:border-t-0">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--runtime-border)] px-4">
         <div>
-          <h2 className="text-sm font-bold">Inputs</h2>
-          <p className="text-[11px] font-semibold text-slate-500">
-            {days.length > 0 ? `${days.length} days` : "Global only"}
+          <h1 className="text-sm font-extrabold">Timetable</h1>
+          <p className="text-[11px] font-semibold text-[var(--runtime-fg-subtle)]">
+            {days.length > 0 ? `${days.length} days` : "Global settings"}
           </p>
         </div>
-        <button
-          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-slate-700 bg-slate-950 px-2.5 text-xs font-bold text-slate-300 transition hover:border-blue-400 hover:text-white"
-          type="button"
+        <StudioRuntimeActionButton
+          size="compact"
+          variant="secondary"
           onClick={onReset}
         >
           <RotateCcw size={14} />
           Reset
-        </button>
+        </StudioRuntimeActionButton>
       </div>
 
+      <StudioRuntimeFormTabs
+        ariaLabel="Runtime form sections"
+        tabs={[{ id: "basic", label: "Basic" }]}
+        value="basic"
+        onValueChange={() => undefined}
+      />
+
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="grid grid-cols-2 gap-1 rounded-lg border border-slate-800 bg-slate-950 p-1">
-          <button
-            aria-pressed={activeScopeTab === "global"}
-            className={cn(
-              "h-9 rounded-md text-xs font-bold transition",
-              activeScopeTab === "global"
-                ? "bg-blue-500 text-white"
-                : "text-slate-400 hover:bg-slate-800 hover:text-white",
-            )}
-            type="button"
-            onClick={() => setActiveScopeTab("global")}
-          >
-            Global
-          </button>
-          <button
-            aria-pressed={activeScopeTab === "days"}
-            className={cn(
-              "h-9 rounded-md text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40",
-              activeScopeTab === "days"
-                ? "bg-blue-500 text-white"
-                : "text-slate-400 hover:bg-slate-800 hover:text-white",
-            )}
-            disabled={days.length === 0}
-            type="button"
-            onClick={() => setActiveScopeTab("days")}
-          >
-            Days
-          </button>
-        </div>
-
-        {activeScopeTab === "days" && days.length > 0 ? (
-          <section className="mt-4 grid gap-3">
-            <div className="grid grid-cols-7 gap-1">
-              {days.map((day) => (
-                <button
-                  className={cn(
-                    "h-9 rounded-md border text-[11px] font-bold transition",
-                    selectedDayId === day.id
-                      ? "border-blue-400 bg-blue-500 text-white"
-                      : "border-slate-700 bg-slate-950 text-slate-400 hover:border-blue-400 hover:text-white",
-                  )}
-                  key={day.id}
-                  type="button"
-                  onClick={() => {
-                    setSelectedDayId(day.id);
-                    setSelectedEntryIndex(0);
-                  }}
-                >
-                  {day.shortLabel ?? day.label.slice(0, 3)}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
-                  Entries
-                </h3>
-                <button
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-blue-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
-                  disabled={!canAddEntry}
-                  title={addEntryDisabledReason ?? "Add entry"}
-                  type="button"
-                  onClick={addEntry}
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-
-              {activeEntries.length === 0 ? (
-                <div className="rounded-md border border-dashed border-slate-700 bg-slate-950 px-3 py-4 text-center text-xs font-semibold text-slate-500">
-                  Empty day
-                </div>
-              ) : (
-                <div className="grid gap-2">
-                  {activeEntries.map((entry, entryIndex) => (
-                    <div
-                      className={cn(
-                        "grid gap-2 rounded-md border p-2 transition",
-                        selectedEntryIndex === entryIndex
-                          ? "border-blue-400 bg-blue-500/10"
-                          : "border-slate-800 bg-slate-950",
-                      )}
-                      key={entry.id}
-                    >
-                      <button
-                        className="flex min-w-0 items-center gap-2 text-left"
-                        type="button"
-                        onClick={() => setSelectedEntryIndex(entryIndex)}
-                      >
-                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-slate-800 text-[10px] font-extrabold text-slate-300">
-                          {entryIndex + 1}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-200">
-                          {entry.id}
-                        </span>
-                      </button>
-
-                      <div className="grid grid-cols-[1fr_auto] gap-1.5">
-                        <select
-                          className="h-8 min-w-0 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs font-semibold text-slate-100 outline-none focus:border-blue-400"
-                          value={entry.statusId}
-                          disabled={activeEntries.length > 1}
-                          onChange={(event) =>
-                            updateEntryStatus(
-                              entryIndex,
-                              event.currentTarget
-                                .value as StudioTimetableStatusId,
-                            )
-                          }
-                        >
-                          {statusOptions.map((status) => (
-                            <option key={status.id} value={status.id}>
-                              {status.label}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-700 bg-slate-900 text-slate-400 transition hover:border-rose-400 hover:text-rose-300"
-                          title="Remove entry"
-                          type="button"
-                          onClick={() => removeEntry(entryIndex)}
-                        >
-                          <Minus size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-        ) : null}
-
-        <div className="mt-4 grid gap-4">
-          {activeScopeTab === "global"
-            ? renderInputGroup("Global", inputGroups.global)
-            : null}
-
-          {activeScopeTab === "days" && selectedDayId
-            ? renderInputGroup("Day", inputGroups.day, {
-                dayId: selectedDayId,
-              })
-            : null}
-
-          {activeScopeTab === "days" ? renderEntryInputGroup() : null}
-
-          {activeScopeTab === "global" && inputGroups.global.length === 0 ? (
-            <div className="rounded-md border border-dashed border-slate-700 bg-slate-950 px-3 py-6 text-center text-xs font-semibold text-slate-500">
-              No global inputs
-            </div>
+        <div className="grid gap-4">
+          <StudioRuntimeSectionTitle
+            description="Shared values used by the whole timetable"
+            title="Global settings"
+          />
+          {timetable?.week ? (
+            <StudioRuntimeWeekSummary
+              endDate={timetable.week.endDate}
+              startDate={timetable.week.startDate}
+            />
           ) : null}
+          {renderInputGroup("Global", inputGroups.global)}
+          {inputGroups.global.length === 0 ? (
+            <StudioRuntimeEmptyState compact>
+              No global inputs
+            </StudioRuntimeEmptyState>
+          ) : null}
+
+          <StudioRuntimeSectionTitle
+            className="pt-2"
+            description="Edit each day without changing selection"
+            title="Weekly timetable"
+          />
+
+          {days.length === 0 ? (
+            <StudioRuntimeEmptyState>No timetable days</StudioRuntimeEmptyState>
+          ) : (
+            days.map((day) => {
+              const entries = getStudioTimetableEntriesForDay(
+                document,
+                runtimeValues,
+                day.id,
+              );
+              const status = getDayStatus(document, entries);
+              const addEntryDisabledReason =
+                getStudioTimetableAddEntryDisabledReason(
+                  document,
+                  runtimeValues,
+                  day.id,
+                );
+
+              return (
+                <StudioRuntimeDayCard
+                  dayId={day.id}
+                  key={day.id}
+                  label={day.shortLabel ?? day.label}
+                  memoAvailable={canUseOfflineMemo && entries.length > 0}
+                  memoEnabled={status.memoEnabled}
+                  multi={status.multi}
+                  online={status.online}
+                  settings={renderInputGroup("Day", inputGroups.day, {
+                    dayId: day.id,
+                  })}
+                  offlineContent={
+                    <StudioRuntimeField
+                      control="textarea"
+                      label="Offline Memo"
+                      placeholder="Enter offline memo"
+                      rows={4}
+                      value={
+                        runtimeValues.timetable.offlineMemoByDay?.[day.id] ?? ""
+                      }
+                      onValueChange={(value) =>
+                        updateOfflineMemo(day.id, value)
+                      }
+                    />
+                  }
+                  onMemoEnabledChange={(enabled) =>
+                    toggleOfflineMemo(day.id, enabled)
+                  }
+                  onOnlineChange={(online) =>
+                    updateDayBaseStatus(day.id, online)
+                  }
+                >
+                  {entries.length === 0 ? (
+                    <StudioRuntimeEmptyState compact>
+                      No entries
+                    </StudioRuntimeEmptyState>
+                  ) : (
+                    entries.map((entry, entryIndex) =>
+                      renderEntryCard(
+                        day.id,
+                        entry,
+                        entryIndex,
+                        entries.length,
+                      ),
+                    )
+                  )}
+
+                  <StudioRuntimeActionButton
+                    fullWidth
+                    aria-label={`Add entry to ${day.label}`}
+                    disabled={addEntryDisabledReason !== null}
+                    title={
+                      addEntryDisabledReason ?? `Add entry to ${day.label}`
+                    }
+                    variant="primary"
+                    onClick={() => addEntry(day.id, entries)}
+                  >
+                    <Plus size={16} />
+                    Add entry
+                  </StudioRuntimeActionButton>
+                </StudioRuntimeDayCard>
+              );
+            })
+          )}
         </div>
       </div>
     </aside>

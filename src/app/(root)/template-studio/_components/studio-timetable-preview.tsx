@@ -20,6 +20,7 @@ import {
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
 import { resolveStudioTextBinding } from "@/utils/template-studio/binding-resolver";
+import { getStudioTimetableDayComponent } from "@/utils/template-studio/component-sets";
 import { resolveStudioWeekDateText } from "@/utils/template-studio/date-template";
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
@@ -95,6 +96,10 @@ export type StudioTimetableEntryCardSize = {
   width: number;
   height: number;
 };
+
+export type StudioTimetableEntryCardSizeResolver = (
+  dayId: StudioTimetableDayId,
+) => StudioTimetableEntryCardSize;
 
 type StudioTimetableEntryRootGeometry = StudioTimetableEntryCardSize & {
   rootLeft: number;
@@ -359,14 +364,52 @@ export const getStudioTimetableDayCardGeometry = (
   };
 };
 
+const resolveEntryCardSize = (
+  layout: StudioTimetableDayCardsLayout,
+  dayId: StudioTimetableDayId,
+  entryCardSizeOrResolver:
+    | StudioTimetableEntryCardSize
+    | StudioTimetableEntryCardSizeResolver,
+) => {
+  const size =
+    typeof entryCardSizeOrResolver === "function"
+      ? entryCardSizeOrResolver(dayId)
+      : entryCardSizeOrResolver;
+  const fallback = getFallbackEntryCardSize(layout);
+
+  return {
+    width: Math.max(1, Number.isFinite(size?.width) ? size.width : fallback.width),
+    height: Math.max(
+      1,
+      Number.isFinite(size?.height) ? size.height : fallback.height,
+    ),
+  };
+};
+
+const getTrackOrigin = (
+  start: number,
+  trackSizes: number[],
+  rawIndex: number,
+  gap: number,
+) => {
+  const index = Math.max(0, Math.floor(rawIndex));
+  const fraction = Math.max(0, rawIndex - index);
+  const precedingSize = trackSizes
+    .slice(0, index)
+    .reduce((total, size) => total + size + gap, 0);
+  const currentTrackSize = trackSizes[index] ?? 0;
+  return start + precedingSize + fraction * (currentTrackSize + gap);
+};
+
 export const getStudioTimetableDayCardGeometries = (
   layout: StudioTimetableDayCardsLayout,
   days: StudioTimetableDayDefinition[],
   getEntryCount: (dayId: StudioTimetableDayId) => number,
-  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(
-    layout,
-  ),
+  entryCardSizeOrResolver:
+    | StudioTimetableEntryCardSize
+    | StudioTimetableEntryCardSizeResolver = getFallbackEntryCardSize(layout),
 ): Record<StudioTimetableDayId, StudioTimetableDayCardGeometry> => {
+  const columnWidths = Array.from({ length: layout.columns ?? 1 }, () => 0);
   const rowHeights = Array.from({ length: layout.rows ?? 1 }, () => 0);
   const explicitPositions = new Map<
     StudioTimetableDayId,
@@ -408,6 +451,11 @@ export const getStudioTimetableDayCardGeometries = (
 
   const dayPositions = days.map((day, dayIndex) => {
     const entryCount = getEntryCount(day.id);
+    const entryCardSize = resolveEntryCardSize(
+      layout,
+      day.id,
+      entryCardSizeOrResolver,
+    );
     const height = getStudioTimetableDayCardHeight(
       layout,
       entryCount,
@@ -417,37 +465,50 @@ export const getStudioTimetableDayCardGeometries = (
       explicitPositions.get(day.id) ??
       getDayCardGridPosition(layout, day.id, dayIndex, days.length);
     const rowIndex = Math.max(0, Math.floor(position.row));
+    const columnIndex = Math.max(0, Math.floor(position.column));
+    columnWidths[columnIndex] = Math.max(
+      columnWidths[columnIndex] ?? 0,
+      entryCardSize.width,
+    );
     rowHeights[rowIndex] = Math.max(rowHeights[rowIndex] ?? 0, height);
 
     return {
       day,
+      entryCardSize,
       height,
       position,
     };
   });
-  const rowTops: number[] = [];
-
-  rowHeights.forEach((rowHeight, rowIndex) => {
-    rowTops[rowIndex] =
-      rowIndex === 0
-        ? layout.top
-        : rowTops[rowIndex - 1] +
-          (rowHeights[rowIndex - 1] ?? 0) +
-          (layout.rowGap ?? layout.dayGap);
+  const fallback = getFallbackEntryCardSize(layout);
+  const maximumColumnWidth = Math.max(fallback.width, ...columnWidths);
+  const maximumRowHeight = Math.max(fallback.height, ...rowHeights);
+  columnWidths.forEach((width, index) => {
+    if (width <= 0) columnWidths[index] = maximumColumnWidth;
   });
+  rowHeights.forEach((height, index) => {
+    if (height <= 0) rowHeights[index] = maximumRowHeight;
+  });
+  const columnGap = layout.columnGap ?? layout.dayGap;
+  const rowGap = layout.rowGap ?? layout.dayGap;
 
   return Object.fromEntries(
-    dayPositions.map(({ day, height, position }) => {
+    dayPositions.map(({ day, entryCardSize, height, position }) => {
       const offset = layout.dayOffsets?.[day.id] ?? { left: 0, top: 0 };
       return [
         day.id,
         {
-          left:
-            layout.left +
-            position.column *
-              (entryCardSize.width + (layout.columnGap ?? layout.dayGap)) +
-            offset.left,
-          top: (rowTops[Math.floor(position.row)] ?? layout.top) + offset.top,
+          left: getTrackOrigin(
+            layout.left,
+            columnWidths,
+            position.column,
+            columnGap,
+          ) + offset.left,
+          top: getTrackOrigin(
+            layout.top,
+            rowHeights,
+            position.row,
+            rowGap,
+          ) + offset.top,
           width: entryCardSize.width,
           height,
         },
@@ -460,19 +521,24 @@ export const getStudioTimetableDayCardsBounds = (
   layout: StudioTimetableDayCardsLayout,
   days: StudioTimetableDayDefinition[],
   getEntryCount: (dayId: StudioTimetableDayId) => number,
-  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(
-    layout,
-  ),
+  entryCardSizeOrResolver:
+    | StudioTimetableEntryCardSize
+    | StudioTimetableEntryCardSizeResolver = getFallbackEntryCardSize(layout),
 ) => {
   const geometries = Object.values(
     getStudioTimetableDayCardGeometries(
       layout,
       days,
       getEntryCount,
-      entryCardSize,
+      entryCardSizeOrResolver,
     ),
   );
   if (geometries.length === 0) {
+    const entryCardSize = resolveEntryCardSize(
+      layout,
+      "",
+      entryCardSizeOrResolver,
+    );
     return {
       left: layout.left,
       top: layout.top,
@@ -645,9 +711,16 @@ export function StudioTimetablePreview({
       .map((dayId) => timetable.days[dayId])
       .filter(Boolean);
   }, [timetable]);
-  const component = timetable
-    ? timetable.components[timetable.entryComponentId]
-    : undefined;
+  const componentByDayId = useMemo(
+    () =>
+      Object.fromEntries(
+        days.map((day) => [
+          day.id,
+          getStudioTimetableDayComponent(document, day.id),
+        ]),
+      ),
+    [days, document],
+  );
   const entriesByDay = useMemo(
     () =>
       Object.fromEntries(
@@ -661,20 +734,21 @@ export function StudioTimetablePreview({
   const previewSize = getStudioTimetablePreviewSize(timetable);
   const dayCardsLayout = getStudioTimetableDayCardsLayout(timetable);
   const composition = getStudioTimetableComposition(timetable);
-  const entryCardSize = getStudioTimetableEntryCardSize(document, component);
+  const getEntryCardSize = (dayId: StudioTimetableDayId) =>
+    getStudioTimetableEntryCardSize(document, componentByDayId[dayId]);
   const getPreviewEntryCount = (dayId: StudioTimetableDayId) =>
     entriesByDay[dayId]?.length ?? 0;
   const dayCardGeometries = getStudioTimetableDayCardGeometries(
     dayCardsLayout,
     days,
     getPreviewEntryCount,
-    entryCardSize,
+    getEntryCardSize,
   );
   const dayCardsBounds = getStudioTimetableDayCardsBounds(
     dayCardsLayout,
     days,
     getPreviewEntryCount,
-    entryCardSize,
+    getEntryCardSize,
   );
 
   const renderDayCardsObject = () => (
@@ -706,6 +780,8 @@ export function StudioTimetablePreview({
     >
       {days.map((day, dayIndex) => {
         const entries = entriesByDay[day.id] ?? [];
+        const component = componentByDayId[day.id];
+        const entryCardSize = getEntryCardSize(day.id);
         const dayGeometry =
           dayCardGeometries[day.id] ??
           getStudioTimetableDayCardGeometry(

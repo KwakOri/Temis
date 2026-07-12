@@ -1035,6 +1035,20 @@ const validateTimetableDomain = (
 
   const diagnostics: StudioDiagnostic[] = [];
   const nodes = document.graph.nodes;
+  const referencedComponentIds = new Set<string>([
+    timetable.entryComponentId,
+  ]);
+
+  if (timetable.version !== 2) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-version-invalid:${String(timetable.version)}`,
+        "Unsupported timetable domain version",
+        `The timetable domain uses version ${String(timetable.version)}, but version 2 is required.`,
+      ),
+    );
+  }
 
   if (!nodes[timetable.mountNodeId]) {
     diagnostics.push(
@@ -1094,6 +1108,20 @@ const validateTimetableDomain = (
           `${day.label} is stored under ${dayId}, but its id is ${day.id}.`,
         ),
       );
+    }
+
+    if (day.componentId) {
+      referencedComponentIds.add(day.componentId);
+      if (!timetable.components[day.componentId]) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `timetable-day-component-missing:${dayId}:${day.componentId}`,
+            "Missing day component set",
+            `${day.label} references component set ${day.componentId}, but it does not exist.`,
+          ),
+        );
+      }
     }
   });
 
@@ -1515,6 +1543,39 @@ const validateTimetableDomain = (
       ),
     );
   }
+
+  Object.entries(timetable.components).forEach(([componentId, component]) => {
+    if (referencedComponentIds.has(componentId)) return;
+    diagnostics.push(
+      createDiagnostic(
+        "warning",
+        `timetable-component-unused:${componentId}`,
+        "Unused component set",
+        `${component.label} is not the default and is not assigned to any timetable day.`,
+      ),
+    );
+  });
+
+  const componentOwnerByVariantRootId = new Map<string, string>();
+  Object.entries(timetable.components).forEach(([componentId, component]) => {
+    Object.values(component.variants).forEach((variant) => {
+      const ownerComponentId = componentOwnerByVariantRootId.get(
+        variant.rootNodeId,
+      );
+      if (ownerComponentId && ownerComponentId !== componentId) {
+        diagnostics.push(
+          createDiagnostic(
+            "error",
+            `timetable-component-root-shared:${ownerComponentId}:${componentId}:${variant.rootNodeId}`,
+            "Component sets share a variant root",
+            `${ownerComponentId} and ${componentId} both reference ${variant.rootNodeId}. Component sets must own independent graph roots.`,
+          ),
+        );
+        return;
+      }
+      componentOwnerByVariantRootId.set(variant.rootNodeId, componentId);
+    });
+  });
 
   if (!timetable.statuses[timetable.defaultEntryStatusId]) {
     diagnostics.push(

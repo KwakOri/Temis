@@ -12,7 +12,7 @@ import { ensureStudioTimetableEntryGroupContract } from "@/utils/template-studio
 import { ensureStudioIndependentStatusVariants } from "@/utils/template-studio/status-variants";
 
 export const STUDIO_TEMPLATE_DOCUMENT_SCHEMA = "studio_template_document";
-export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 3;
+export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 4;
 
 export type StudioTemplateDocumentMigrationResult =
   | {
@@ -63,6 +63,7 @@ export const migrateStudioTemplateDocument = (
   if (
     value.version !== 1 &&
     value.version !== 2 &&
+    value.version !== 3 &&
     value.version !== STUDIO_TEMPLATE_DOCUMENT_VERSION
   ) {
     return {
@@ -88,7 +89,7 @@ export const migrateStudioTemplateDocument = (
 
   const document = cloneJson(value) as unknown as StudioTemplateDocument;
   const warnings: string[] = [];
-  if (value.version === 1 || value.version === 2) {
+  if (value.version !== STUDIO_TEMPLATE_DOCUMENT_VERSION) {
     document.version = STUDIO_TEMPLATE_DOCUMENT_VERSION;
     warnings.push(
       `Migrated Template Studio document from version ${value.version} to version ${STUDIO_TEMPLATE_DOCUMENT_VERSION}.`,
@@ -97,6 +98,10 @@ export const migrateStudioTemplateDocument = (
   const timetable = document.domains?.timetable;
 
   if (timetable) {
+    if ((timetable as { version: number }).version !== 2) {
+      (timetable as { version: number }).version = 2;
+      warnings.push("Migrated timetable domain to version 2.");
+    }
     if (!timetable.capabilities) {
       warnings.push("Added default timetable capabilities.");
     }

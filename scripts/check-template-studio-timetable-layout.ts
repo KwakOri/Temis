@@ -49,4 +49,47 @@ assert.equal(
   "Day geometry must use the component frame height.",
 );
 
+const mixedDays = timetable.dayIds
+  .slice(0, 3)
+  .map((dayId) => timetable.days[dayId]);
+const mixedLayout = {
+  ...layout,
+  left: 100,
+  top: 200,
+  columns: 2,
+  rows: 2,
+  columnGap: 10,
+  rowGap: 20,
+  slots: [],
+};
+const mixedSizes = {
+  [mixedDays[0].id]: { width: 100, height: 50 },
+  [mixedDays[1].id]: { width: 200, height: 80 },
+  [mixedDays[2].id]: { width: 120, height: 40 },
+};
+const mixedGeometries = getStudioTimetableDayCardGeometries(
+  mixedLayout,
+  mixedDays,
+  () => 1,
+  (dayId) => mixedSizes[dayId],
+);
+assert.deepEqual(mixedGeometries[mixedDays[0].id], {
+  left: 100,
+  top: 200,
+  width: 100,
+  height: 50,
+});
+assert.deepEqual(mixedGeometries[mixedDays[1].id], {
+  left: 230,
+  top: 200,
+  width: 200,
+  height: 80,
+});
+assert.deepEqual(mixedGeometries[mixedDays[2].id], {
+  left: 100,
+  top: 300,
+  width: 120,
+  height: 40,
+});
+
 console.log("Template Studio timetable layout checks passed.");

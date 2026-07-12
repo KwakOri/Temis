@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  AlignCenter,
   AlignHorizontalJustifyCenter,
   AlignHorizontalJustifyEnd,
   AlignHorizontalJustifyStart,
+  AlignLeft,
+  AlignRight,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
@@ -13,6 +16,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Cloud,
+  Copy,
   EyeOff,
   Image as ImageIcon,
   Layers3,
@@ -25,6 +29,7 @@ import {
   Send,
   Settings,
   SlidersHorizontal,
+  Trash2,
   Type,
   Upload,
 } from "lucide-react";
@@ -66,6 +71,7 @@ import {
   StudioTimetableCapabilityKey,
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
+  StudioTimetableComponentId,
   StudioTimetableDayCardsLayout,
   StudioTimetableDayId,
   StudioTimetableDomain,
@@ -84,6 +90,13 @@ import {
   getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
 } from "@/utils/template-studio/builtin-fields";
+import {
+  cloneStudioTimetableComponentSet,
+  deleteStudioTimetableComponentSet,
+  getStudioTimetableComponentSetDeleteReason,
+  getStudioTimetableDayComponent,
+  resolveStudioTimetableDayComponent,
+} from "@/utils/template-studio/component-sets";
 import {
   STUDIO_WEEK_DATE_FORMAT_PRESETS,
   STUDIO_WEEK_DATE_LONG_TEMPLATE,
@@ -246,6 +259,7 @@ interface StudioInputConsumerReference {
 }
 
 type InspectorSectionKey =
+  | "componentSet"
   | "position"
   | "layout"
   | "appearance"
@@ -374,6 +388,7 @@ const STUDIO_THEMES = {
 } satisfies Record<StudioTheme, Record<string, string>>;
 
 const DEFAULT_INSPECTOR_SECTIONS: Record<InspectorSectionKey, boolean> = {
+  componentSet: true,
   position: true,
   layout: true,
   appearance: true,
@@ -702,6 +717,34 @@ const getStudioStyleString = (
   const value = styleRecord[key];
   return typeof value === "string" ? value : fallback;
 };
+
+type StudioTextAlignment = "left" | "center" | "right";
+
+const getStudioTextAlignment = (
+  styleRecord: StudioStyleRecord,
+): StudioTextAlignment => {
+  const value = styleRecord.textAlign;
+  if (value === "center" || value === "right") return value;
+  if (value === "left") return value;
+
+  const justifyContent = getStudioStyleString(
+    styleRecord,
+    "justifyContent",
+    "flex-start",
+  );
+  if (justifyContent === "center") return "center";
+  if (justifyContent === "flex-end" || justifyContent === "end") {
+    return "right";
+  }
+  return "left";
+};
+
+const getStudioTextJustifyContent = (textAlign: StudioTextAlignment) =>
+  textAlign === "left"
+    ? "flex-start"
+    : textAlign === "right"
+      ? "flex-end"
+      : "center";
 
 const normalizeStudioDimension = (value: number, fallback: number) => {
   if (!Number.isFinite(value)) return fallback;
@@ -1212,6 +1255,45 @@ function FontWeightField({ options, value, onChange }: FontWeightFieldProps) {
   );
 }
 
+interface TextAlignmentFieldProps {
+  value: StudioTextAlignment;
+  onChange: (value: StudioTextAlignment) => void;
+}
+
+function TextAlignmentField({ value, onChange }: TextAlignmentFieldProps) {
+  const options = [
+    { value: "left" as const, label: "Align left", Icon: AlignLeft },
+    { value: "center" as const, label: "Align center", Icon: AlignCenter },
+    { value: "right" as const, label: "Align right", Icon: AlignRight },
+  ];
+
+  return (
+    <div className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>Alignment</span>
+      <div className="grid h-8 min-w-0 grid-cols-3 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+        {options.map(({ value: optionValue, label, Icon }) => (
+          <button
+            aria-label={label}
+            aria-pressed={value === optionValue}
+            className={cn(
+              "flex min-w-0 items-center justify-center rounded-[5px] transition",
+              value === optionValue
+                ? "bg-[var(--accent)] text-white"
+                : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+            )}
+            key={optionValue}
+            title={label}
+            type="button"
+            onClick={() => onChange(optionValue)}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface TextFieldProps {
   label: string;
   value: string;
@@ -1365,6 +1447,9 @@ export function TemplateStudioClient({
   const [selectedRuntimeEntryIndex, setSelectedRuntimeEntryIndex] = useState(0);
   const [selectedCardStatusId, setSelectedCardStatusId] =
     useState<StudioTimetableStatusId>("online");
+  const [selectedCardComponentId, setSelectedCardComponentId] =
+    useState<StudioTimetableComponentId>("");
+  const [componentLabelDraft, setComponentLabelDraft] = useState("");
   const pastSnapshotsRef = useRef<StudioEditorHistorySnapshot[]>([]);
   const futureSnapshotsRef = useRef<StudioEditorHistorySnapshot[]>([]);
   const isRestoringHistoryRef = useRef(false);
@@ -1497,11 +1582,34 @@ export function TemplateStudioClient({
     () => getStudioAvailableTimetableStatuses(document),
     [document],
   );
-  const cardEntryComponent = document.domains?.timetable
-    ? document.domains.timetable.components[
-        document.domains.timetable.entryComponentId
-      ]
+  const cardComponentOptions = useMemo(
+    () => Object.values(document.domains?.timetable?.components ?? {}),
+    [document.domains?.timetable?.components],
+  );
+  const activeCardComponentId = useMemo(() => {
+    const timetable = document.domains?.timetable;
+    if (!timetable) return "";
+    if (timetable.components[selectedCardComponentId]) {
+      return selectedCardComponentId;
+    }
+    if (timetable.components[timetable.entryComponentId]) {
+      return timetable.entryComponentId;
+    }
+    return cardComponentOptions[0]?.id ?? "";
+  }, [
+    cardComponentOptions,
+    document.domains?.timetable,
+    selectedCardComponentId,
+  ]);
+  const cardEntryComponent = activeCardComponentId
+    ? document.domains?.timetable?.components[activeCardComponentId]
     : undefined;
+  const cardComponentDeleteReason = activeCardComponentId
+    ? getStudioTimetableComponentSetDeleteReason(
+        document,
+        activeCardComponentId,
+      )
+    : "Component set is missing";
   const selectedCardVariantResolution = useMemo(
     () =>
       resolveStudioTimetableComponentVariant(
@@ -1516,6 +1624,14 @@ export function TemplateStudioClient({
   const cardAuthoringRootNodeIds = selectedCardVariantRootId
     ? [selectedCardVariantRootId]
     : document.graph.rootNodeIds;
+  useEffect(() => {
+    if (selectedCardComponentId !== activeCardComponentId) {
+      setSelectedCardComponentId(activeCardComponentId);
+    }
+  }, [activeCardComponentId, selectedCardComponentId]);
+  useEffect(() => {
+    setComponentLabelDraft(cardEntryComponent?.label ?? "");
+  }, [cardEntryComponent?.id, cardEntryComponent?.label]);
   useEffect(() => {
     if (
       cardStatusOptions.some((status) => status.id === selectedCardStatusId)
@@ -1570,6 +1686,20 @@ export function TemplateStudioClient({
   }, [timetableComposition.objects, timetableDays]);
   const selectedTimetableCompositionObject = selectedTimetableLayerId
     ? (timetableComposition.objects[selectedTimetableLayerId] ?? null)
+    : null;
+  const selectedTimetableDayId = selectedTimetableLayerId?.startsWith(
+    "day-card:",
+  )
+    ? (selectedTimetableLayerId.replace(
+        /^day-card:/,
+        "",
+      ) as StudioTimetableDayId)
+    : null;
+  const selectedTimetableDay = selectedTimetableDayId
+    ? (document.domains?.timetable?.days[selectedTimetableDayId] ?? null)
+    : null;
+  const selectedTimetableDayComponentResolution = selectedTimetableDayId
+    ? resolveStudioTimetableDayComponent(document, selectedTimetableDayId)
     : null;
   const selectedTimetableVariantSet =
     selectedTimetableCompositionObject?.variantSet ?? null;
@@ -1626,13 +1756,14 @@ export function TemplateStudioClient({
       "topObject";
   const isSelectedDayCardsObject =
     selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID;
-  const timetableEntryCardSize = useMemo(() => {
-    const timetable = document.domains?.timetable;
-    return getStudioTimetableEntryCardSize(
-      document,
-      timetable?.components[timetable.entryComponentId],
-    );
-  }, [document]);
+  const getTimetableEntryCardSizeForDay = useCallback(
+    (dayId: StudioTimetableDayId) =>
+      getStudioTimetableEntryCardSize(
+        document,
+        getStudioTimetableDayComponent(document, dayId),
+      ),
+    [document],
+  );
   const activeRuntimeDayId = timetableDays.some(
     (day) => day.id === selectedRuntimeDayId,
   )
@@ -1752,7 +1883,7 @@ export function TemplateStudioClient({
         (dayId) =>
           getStudioTimetableEntriesForDay(document, runtimeValues, dayId)
             .length,
-        timetableEntryCardSize,
+        getTimetableEntryCardSizeForDay,
       );
     }
 
@@ -1772,14 +1903,14 @@ export function TemplateStudioClient({
         (currentDayId) =>
           getStudioTimetableEntriesForDay(document, runtimeValues, currentDayId)
             .length,
-        timetableEntryCardSize,
+        getTimetableEntryCardSizeForDay,
       )[dayId] ??
       getStudioTimetableDayCardGeometry(
         layout,
         dayId,
         dayIndex,
         getStudioTimetableEntriesForDay(document, runtimeValues, dayId).length,
-        timetableEntryCardSize,
+        getTimetableEntryCardSizeForDay(dayId),
       )
     );
   }, [
@@ -1787,7 +1918,7 @@ export function TemplateStudioClient({
     runtimeValues,
     selectedTimetableLayerId,
     timetableComposition,
-    timetableEntryCardSize,
+    getTimetableEntryCardSizeForDay,
     timetableDays,
   ]);
   const statusOptions = useMemo(
@@ -2775,6 +2906,123 @@ export function TemplateStudioClient({
     [captureHistory],
   );
 
+  const selectCardComponent = useCallback(
+    (componentId: StudioTimetableComponentId) => {
+      const nextDocument = documentRef.current;
+      const component =
+        nextDocument.domains?.timetable?.components[componentId];
+      if (!component) return;
+
+      setSelectedCardComponentId(componentId);
+      setComponentLabelDraft(component.label);
+      const resolution = resolveStudioTimetableComponentVariant(
+        nextDocument,
+        component,
+        selectedCardStatusId,
+      );
+      const rootNodeId = resolution?.variant.rootNodeId;
+      if (rootNodeId) {
+        setSelectedNodeId(rootNodeId);
+        setSelectedNodeIds([rootNodeId]);
+      }
+    },
+    [selectedCardStatusId],
+  );
+
+  const duplicateSelectedCardComponent = () => {
+    if (!activeCardComponentId) return;
+
+    let nextComponentId: StudioTimetableComponentId | null = null;
+    let failureReason: string | null = null;
+    updateDocument((nextDocument) => {
+      const result = cloneStudioTimetableComponentSet(
+        nextDocument,
+        activeCardComponentId,
+      );
+      if (result.ok) {
+        nextComponentId = result.componentId;
+      } else {
+        failureReason = result.reason;
+      }
+    });
+
+    if (!nextComponentId) {
+      showShortcutStatus(failureReason ?? "Component set duplicate failed");
+      return;
+    }
+    selectCardComponent(nextComponentId);
+    showShortcutStatus("Component set duplicated");
+  };
+
+  const commitSelectedCardComponentLabel = () => {
+    if (!activeCardComponentId || !cardEntryComponent) return;
+    const nextLabel = componentLabelDraft.trim();
+    if (!nextLabel) {
+      setComponentLabelDraft(cardEntryComponent.label);
+      return;
+    }
+    if (nextLabel === cardEntryComponent.label) return;
+
+    updateDocument((nextDocument) => {
+      const component =
+        nextDocument.domains?.timetable?.components[activeCardComponentId];
+      if (component) component.label = nextLabel;
+    });
+    setComponentLabelDraft(nextLabel);
+    showShortcutStatus("Component set renamed");
+  };
+
+  const deleteSelectedCardComponent = () => {
+    if (!activeCardComponentId) return;
+    const reason = getStudioTimetableComponentSetDeleteReason(
+      documentRef.current,
+      activeCardComponentId,
+    );
+    if (reason) {
+      showShortcutStatus(reason);
+      return;
+    }
+    if (!window.confirm("Delete this unused component set?")) return;
+
+    let failureReason: string | null = null;
+    updateDocument((nextDocument) => {
+      const result = deleteStudioTimetableComponentSet(
+        nextDocument,
+        activeCardComponentId,
+      );
+      if (!result.ok) failureReason = result.reason;
+    });
+    if (failureReason) {
+      showShortcutStatus(failureReason);
+      return;
+    }
+
+    const timetable = documentRef.current.domains?.timetable;
+    const fallbackComponentId = timetable?.entryComponentId;
+    if (fallbackComponentId) selectCardComponent(fallbackComponentId);
+    showShortcutStatus("Component set deleted");
+  };
+
+  const assignComponentSetToSelectedDay = (
+    componentId: StudioTimetableComponentId,
+  ) => {
+    if (!selectedTimetableDayId) return;
+    updateDocument((nextDocument) => {
+      const timetable = nextDocument.domains?.timetable;
+      const day = timetable?.days[selectedTimetableDayId];
+      if (!timetable || !day || !timetable.components[componentId]) return;
+
+      if (componentId === timetable.entryComponentId) {
+        delete day.componentId;
+      } else {
+        day.componentId = componentId;
+      }
+    });
+    showShortcutStatus(
+      `${selectedTimetableDay?.label ?? "Day"} component set updated`,
+    );
+  };
+
   const updateNode = useCallback(
     (
       nodeId: string,
@@ -2835,6 +3083,27 @@ export function TemplateStudioClient({
       nextDocument.styles[styleId] = {
         ...nextDocument.styles[styleId],
         [key]: value,
+      };
+    });
+  };
+
+  const updateSelectedNodeTextAlignment = (
+    textAlign: StudioTextAlignment,
+  ) => {
+    if (!selectedNode) return;
+
+    updateNode(selectedNode.id, (node, nextDocument) => {
+      let styleId = node.styleId;
+      if (!styleId) {
+        styleId = createStudioId("style");
+        node.styleId = styleId;
+        nextDocument.styles[styleId] = getDefaultStyleForNode(node.type);
+      }
+
+      nextDocument.styles[styleId] = {
+        ...nextDocument.styles[styleId],
+        textAlign,
+        justifyContent: getStudioTextJustifyContent(textAlign),
       };
     });
   };
@@ -4083,10 +4352,11 @@ export function TemplateStudioClient({
         };
         const composition = ensureStudioTimetableComposition(timetable);
         const object = composition.objects[layerId];
-        const entryCardSize = getStudioTimetableEntryCardSize(
-          nextDocument,
-          timetable.components[timetable.entryComponentId],
-        );
+        const getEntryCardSizeForDay = (dayId: StudioTimetableDayId) =>
+          getStudioTimetableEntryCardSize(
+            nextDocument,
+            getStudioTimetableDayComponent(nextDocument, dayId),
+          );
 
         if (isPlacedTimetableCompositionObject(object)) {
           const updatesBounds =
@@ -4167,7 +4437,7 @@ export function TemplateStudioClient({
                 runtimeValues,
                 currentDayId,
               ).length,
-            entryCardSize,
+            getEntryCardSizeForDay,
           )[dayId] ??
           getStudioTimetableDayCardGeometry(
             layout,
@@ -4175,7 +4445,7 @@ export function TemplateStudioClient({
             dayIndex,
             getStudioTimetableEntriesForDay(nextDocument, runtimeValues, dayId)
               .length,
-            entryCardSize,
+            getEntryCardSizeForDay(dayId),
           );
         const baseLeft = dayGeometry.left - currentOffset.left;
         const baseTop = dayGeometry.top - currentOffset.top;
@@ -8318,6 +8588,7 @@ export function TemplateStudioClient({
   ) => {
     const styleRecord = object.style;
     const fontFamily = String(styleRecord.fontFamily ?? "Inter");
+    const textAlign = getStudioTextAlignment(styleRecord);
     const fontWeightOptions = getStudioFontWeightOptions(document, fontFamily);
     const updateTimetableTextStyle = (
       key: string,
@@ -8367,6 +8638,24 @@ export function TemplateStudioClient({
             onChange={(value) => updateTimetableTextStyle("fontWeight", value)}
           />
         </div>
+        <TextAlignmentField
+          value={textAlign}
+          onChange={(value) => {
+            updateTimetableCompositionObject(object.id, (currentObject) => {
+              if (
+                currentObject.kind !== "text" &&
+                currentObject.kind !== "flexibleText"
+              ) {
+                return;
+              }
+              currentObject.style = {
+                ...currentObject.style,
+                textAlign: value,
+                justifyContent: getStudioTextJustifyContent(value),
+              };
+            });
+          }}
+        />
         <NumberField
           label="Line Height"
           value={Number(styleRecord.lineHeight ?? 1.2)}
@@ -8678,8 +8967,8 @@ export function TemplateStudioClient({
             {renderInspectorSection(
               "binding",
               "Binding",
-              <div className="grid gap-3">
-                <div className="grid grid-cols-2 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+              <div className="grid min-w-0 gap-3">
+                <div className="grid w-full min-w-0 grid-cols-2 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
                   <button
                     className={cn(
                       "h-7 rounded-[5px] text-[11.5px] font-semibold transition",
@@ -8720,7 +9009,7 @@ export function TemplateStudioClient({
                 {!isBoundBinding ? (
                   <>
                     {isStudioTextNode(selectedNode) && (
-                      <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                      <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                         <span>Static text</span>
                         <textarea
                           className="min-h-20 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
@@ -8742,10 +9031,10 @@ export function TemplateStudioClient({
                     )}
 
                     {isStudioImageNode(selectedNode) && (
-                      <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                      <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                         <span>Static asset</span>
                         <select
-                          className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
+                          className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
                           disabled={assets.length === 0}
                           value={
                             selectedNode.binding?.kind === "staticAsset"
@@ -8775,10 +9064,10 @@ export function TemplateStudioClient({
                   </>
                 ) : (
                   <>
-                    <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                       <span>Binding Source</span>
                       <select
-                        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
+                        className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
                         disabled={compatibleBindingCount === 0}
                         value={bindingSourceValue}
                         onChange={(event) => {
@@ -8840,7 +9129,7 @@ export function TemplateStudioClient({
                     </label>
 
                     {selectedNodeBuiltinField ? (
-                      <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                      <div className="grid min-w-0 gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
                         <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
                           Built-in Source
                         </span>
@@ -8854,7 +9143,7 @@ export function TemplateStudioClient({
                         </span>
                       </div>
                     ) : selectedNodeBoundInput ? (
-                      <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                      <div className="grid min-w-0 gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
                         <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
                           Custom Input Source
                         </span>
@@ -8870,10 +9159,10 @@ export function TemplateStudioClient({
                     ) : null}
 
                     {selectedNode.binding?.kind === "selectText" && (
-                      <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                      <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                         <span>Select Output</span>
                         <select
-                          className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                          className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
                           value={selectedNode.binding.output}
                           onChange={(event) =>
                             updateNode(selectedNode.id, (node) => {
@@ -8896,15 +9185,15 @@ export function TemplateStudioClient({
                         if (!input || input.type !== "select") return null;
 
                         return (
-                          <div className="grid gap-2">
+                          <div className="grid min-w-0 gap-2">
                             {input.options.map((option) => (
                               <label
-                                className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]"
+                                className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]"
                                 key={option.value}
                               >
                                 <span>{option.label}</span>
                                 <select
-                                  className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                                  className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
                                   value={
                                     selectedNode.binding?.kind === "selectAsset"
                                       ? (selectedNode.binding.assetByOption[
@@ -8982,6 +9271,10 @@ export function TemplateStudioClient({
                     }
                   />
                 </div>
+                <TextAlignmentField
+                  value={getStudioTextAlignment(styleRecord)}
+                  onChange={updateSelectedNodeTextAlignment}
+                />
                 <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                   <span>Color</span>
                   <div className="flex h-8 items-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2">
@@ -9280,6 +9573,66 @@ export function TemplateStudioClient({
         <aside className="flex w-[260px] min-w-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--panel)]">
           {activeWorkspaceMode === "cards" ? (
             <div className="grid gap-2 border-b border-[var(--border)] p-2">
+              <div className="grid gap-1.5">
+                <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--fg3)]">
+                  Component Set
+                </span>
+                <div className="flex min-w-0 gap-1">
+                  <select
+                    aria-label="Component set"
+                    className="h-8 min-w-0 flex-1 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                    value={activeCardComponentId}
+                    onChange={(event) =>
+                      selectCardComponent(event.currentTarget.value)
+                    }
+                  >
+                    {cardComponentOptions.map((component) => (
+                      <option key={component.id} value={component.id}>
+                        {component.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    aria-label="Duplicate component set"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={!cardEntryComponent}
+                    title="Duplicate component set"
+                    type="button"
+                    onClick={duplicateSelectedCardComponent}
+                  >
+                    <Copy size={13} />
+                  </button>
+                  <button
+                    aria-label="Delete component set"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-rose-400/60 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+                    disabled={Boolean(cardComponentDeleteReason)}
+                    title={cardComponentDeleteReason ?? "Delete component set"}
+                    type="button"
+                    onClick={deleteSelectedCardComponent}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+                <input
+                  aria-label="Component set name"
+                  className="h-8 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:opacity-40"
+                  disabled={!cardEntryComponent}
+                  placeholder="Component set name"
+                  value={componentLabelDraft}
+                  onBlur={commitSelectedCardComponentLabel}
+                  onChange={(event) =>
+                    setComponentLabelDraft(event.currentTarget.value)
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") event.currentTarget.blur();
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      setComponentLabelDraft(cardEntryComponent?.label ?? "");
+                    }
+                  }}
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
                 {cardStatusOptions.map((status) => (
                   <button
@@ -9922,6 +10275,63 @@ export function TemplateStudioClient({
             </>
           ) : (
             <>
+              {selectedTimetableDay &&
+              selectedTimetableDayComponentResolution
+                ? renderInspectorSection(
+                    "componentSet",
+                    "Component Set",
+                    <div className="grid gap-2">
+                      <label className="grid gap-1.5">
+                        <span className="text-[10px] font-bold text-[var(--fg2)]">
+                          {selectedTimetableDay.label} layout
+                        </span>
+                        <select
+                          className="h-9 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                          value={
+                            selectedTimetableDayComponentResolution.componentId
+                          }
+                          onChange={(event) =>
+                            assignComponentSetToSelectedDay(
+                              event.currentTarget.value,
+                            )
+                          }
+                        >
+                          {cardComponentOptions.map((component) => (
+                            <option key={component.id} value={component.id}>
+                              {component.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="flex items-center justify-between rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 py-2 text-[10px] font-semibold text-[var(--fg3)]">
+                        <span>
+                          {selectedTimetableDayComponentResolution.source ===
+                          "default"
+                            ? "Default set"
+                            : "Day override"}
+                        </span>
+                        <span>
+                          {
+                            getTimetableEntryCardSizeForDay(
+                              selectedTimetableDay.id,
+                            ).width
+                          }{" "}
+                          ×{" "}
+                          {
+                            getTimetableEntryCardSizeForDay(
+                              selectedTimetableDay.id,
+                            ).height
+                          }
+                        </span>
+                      </div>
+                      <p className="text-[10px] font-medium leading-relaxed text-[var(--fg3)]">
+                        This set controls all status layouts for the selected
+                        day.
+                      </p>
+                    </div>,
+                  )
+                : null}
+
               {selectedTimetableCompositionObject && selectedTimetableVariantSet
                 ? renderInspectorSection(
                     "settings",

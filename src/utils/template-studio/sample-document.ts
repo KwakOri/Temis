@@ -59,7 +59,7 @@ const ensureIndependentSampleVariants = (
 export const createSampleStudioDocument = (): StudioTemplateDocument =>
   ensureIndependentSampleVariants({
   schema: "studio_template_document",
-  version: 3,
+  version: 4,
   metadata: {
     editor: "template-studio",
     name: "Template Studio Sample",
@@ -321,7 +321,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument =>
   },
   domains: {
     timetable: {
-      version: 1,
+      version: 2,
       canvas: {
         width: 4000,
         height: 2250,
