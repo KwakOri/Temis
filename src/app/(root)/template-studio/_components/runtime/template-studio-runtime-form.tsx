@@ -24,6 +24,7 @@ import {
   removeStudioTimetableEntry,
   setStudioTimetableEntryField,
   setStudioTimetableEntryStatus,
+  setStudioTimetableOfflineMemo,
   type StudioTimetableEditableEntryField,
 } from "@/utils/template-studio/timetable-runtime";
 
@@ -243,6 +244,13 @@ export function TemplateStudioRuntimeForm({
     );
   };
 
+  const updateOfflineMemo = (value: string) => {
+    if (!selectedDayId) return;
+    setRuntimeValues((currentValues) =>
+      setStudioTimetableOfflineMemo(currentValues, selectedDayId, value),
+    );
+  };
+
   const renderInput = (
     input: StudioInputDefinition,
     context: StudioRuntimeContext = {},
@@ -389,6 +397,17 @@ export function TemplateStudioRuntimeForm({
             value={activeEntry.time ?? ""}
             onChange={(value) => updateEntryField("time", value)}
           />
+          {activeEntry.statusId === "offlineMemo" ? (
+            <RuntimeTextareaField
+              label="Offline Memo"
+              placeholder="Enter offline memo"
+              rows={4}
+              value={
+                runtimeValues.timetable.offlineMemoByDay?.[selectedDayId] ?? ""
+              }
+              onChange={updateOfflineMemo}
+            />
+          ) : null}
           {inputGroups.entry.map((input) => renderInput(input, context))}
         </div>
       </section>

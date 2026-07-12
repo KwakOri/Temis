@@ -302,3 +302,18 @@ Browser checks:
 - Existing documents migrate without layout shift or duplicated structures.
 - Runtime, editor, persistence, and validation enforce the same contract.
 
+## Implementation Status
+
+Implemented on 2026-07-12:
+
+- [x] Document version 3 and shared-root migration
+- [x] Independent Online and Offline variants for new documents
+- [x] Multi direct variant provisioning with fixed slots `0` and `1`
+- [x] Offline Memo direct variant and `day.offline_memo` binding
+- [x] Capability settings in the Settings modal
+- [x] Removal of shared-layout and `Make Layout Unique` UI
+- [x] Stable cross-variant sync keys
+- [x] Selective style propagation dialog and pure style filters
+- [x] Runtime Offline Memo input and persistence
+- [x] TypeScript, ESLint, focused checks, local persistence/API checks, and
+  browser verification

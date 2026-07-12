@@ -27,6 +27,7 @@ import {
 import { isStudioStatusCardBackgroundNode } from "@/utils/template-studio/status-card-background";
 import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
 import { getStudioVariantEntryGroups } from "@/utils/template-studio/entry-groups";
+import { getStudioOfflineMemoTextNode } from "@/utils/template-studio/status-variants";
 
 const createDiagnostic = (
   severity: StudioDiagnostic["severity"],
@@ -1603,6 +1604,27 @@ const validateTimetableDomain = (
       }
     });
 
+    const statusIdsByRootNodeId = Object.entries(component.variants).reduce<
+      Record<string, string[]>
+    >((accumulator, [statusId, variant]) => {
+      accumulator[variant.rootNodeId] = [
+        ...(accumulator[variant.rootNodeId] ?? []),
+        statusId,
+      ];
+      return accumulator;
+    }, {});
+    Object.entries(statusIdsByRootNodeId).forEach(([rootNodeId, statusIds]) => {
+      if (statusIds.length < 2) return;
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-component-shared-variant-root:${componentId}:${rootNodeId}`,
+          "Status variants must be independent",
+          `${component.label} shares one root between ${statusIds.join(", ")}.`,
+        ),
+      );
+    });
+
     Object.entries(component.variants).forEach(([variantStatusId, variant]) => {
       if (variant.statusId !== variantStatusId) {
         diagnostics.push(
@@ -1698,14 +1720,29 @@ const validateTimetableDomain = (
       ) {
         diagnostics.push(
           createDiagnostic(
-            "warning",
+            "error",
             `timetable-component-derived-variant-missing:${componentId}:${statusId}`,
-            "Derived component variant will use fallback",
-            `${component.label} has no ${status.label} variant, so it will fall back to ${status.fallbackStatusId ?? status.baseStatus}.`,
+            "Missing independent status variant",
+            `${component.label} must own a direct ${status.label} variant while the capability is enabled.`,
           ),
         );
       }
     });
+
+    if (
+      capabilities.offlineMemo.enabled &&
+      component.variants.offlineMemo &&
+      !getStudioOfflineMemoTextNode(document, component)
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-component-offline-memo-text:${componentId}`,
+          "Missing Offline Memo text",
+          `${component.label} needs one text object bound to day.offline_memo.`,
+        ),
+      );
+    }
   });
 
   return diagnostics;

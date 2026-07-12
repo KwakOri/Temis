@@ -10,6 +10,7 @@ export type StudioBuiltinFieldId =
   | "day.label"
   | "day.short_label"
   | "day.date"
+  | "day.offline_memo"
   | "day.is_offline"
   | "week.date_range"
   | "week.start_date"
@@ -101,6 +102,7 @@ export interface StudioGraphNodeMeta {
   semantic?: StudioSemanticMeta;
   exception?: StudioExceptionObjectMeta;
   entrySlot?: StudioEntrySlotMeta;
+  variantSyncKey?: string;
 }
 
 export interface StudioEntrySlotMeta {
@@ -374,6 +376,7 @@ export interface StudioTimetableRuntimeEntry {
 
 export interface StudioTimetableRuntimeValues {
   entriesByDay: Record<StudioTimetableDayId, StudioTimetableRuntimeEntry[]>;
+  offlineMemoByDay?: Record<StudioTimetableDayId, string>;
 }
 
 export interface StudioTemplateDomains {
@@ -382,7 +385,7 @@ export interface StudioTemplateDomains {
 
 export interface StudioTemplateDocument {
   schema: "studio_template_document";
-  version: 2;
+  version: 3;
   metadata: {
     editor: "template-studio";
     name: string;

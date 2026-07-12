@@ -22,6 +22,11 @@ import {
 import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-studio/timetable-capabilities";
 import { resolveStudioBuiltinFieldValue } from "../src/utils/template-studio/builtin-fields";
 import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
+import {
+  ensureStudioCapabilityVariant,
+  getStudioOfflineMemoTextNode,
+} from "../src/utils/template-studio/status-variants";
+import { applyStudioVariantStyle } from "../src/utils/template-studio/variant-style-propagation";
 
 const stateInputId = "artist-state";
 const structured = createStudioStructuredTextPresetObjects(
@@ -179,10 +184,10 @@ const cardVariantDocument = createSampleStudioDocument();
 const cardComponent =
   cardVariantDocument.domains?.timetable?.components.defaultEntryCard;
 assert.ok(cardComponent);
-assert.equal(
+assert.notEqual(
   cardComponent.variants.online.rootNodeId,
   cardComponent.variants.offline.rootNodeId,
-  "The sample starts with a shared Online/Offline layout.",
+  "The sample must start with independent Online/Offline layouts.",
 );
 const sourceRootId = cardComponent.variants.online.rootNodeId;
 const sourceRoot = cardVariantDocument.graph.nodes[sourceRootId];
@@ -218,15 +223,9 @@ const multiDocument = createSampleStudioDocument();
 const multiTimetable = multiDocument.domains!.timetable!;
 multiTimetable.capabilities!.multi.enabled = true;
 ensureStudioTimetableCapabilityStatus(multiTimetable, "multi");
+ensureStudioCapabilityVariant(multiDocument, "multi");
 const multiComponent =
   multiTimetable.components[multiTimetable.entryComponentId];
-const multiCloneResult = cloneStudioComponentVariant(
-  multiDocument,
-  multiComponent.id,
-  "online",
-  "multi",
-);
-if (!multiCloneResult.ok) throw new Error(multiCloneResult.reason);
 const multiGroups = getStudioVariantEntryGroups(
   multiDocument,
   multiComponent.variants.multi,
@@ -238,6 +237,83 @@ assert.deepEqual(
 );
 assert.notEqual(multiGroups[0].id, multiGroups[1].id);
 assert.notEqual(multiGroups[0].styleId, multiGroups[1].styleId);
+
+const offlineMemoDocument = createSampleStudioDocument();
+const offlineMemoTimetable = offlineMemoDocument.domains!.timetable!;
+offlineMemoTimetable.capabilities!.offlineMemo.enabled = true;
+ensureStudioCapabilityVariant(offlineMemoDocument, "offlineMemo");
+const offlineMemoComponent =
+  offlineMemoTimetable.components[offlineMemoTimetable.entryComponentId];
+assert.ok(offlineMemoComponent.variants.offlineMemo);
+assert.notEqual(
+  offlineMemoComponent.variants.offlineMemo.rootNodeId,
+  offlineMemoComponent.variants.offline.rootNodeId,
+);
+assert.ok(
+  getStudioOfflineMemoTextNode(offlineMemoDocument, offlineMemoComponent),
+);
+const offlineMemoValues = createStudioInitialRuntimeValues(offlineMemoDocument);
+const offlineMemoDayId = offlineMemoTimetable.dayIds[0];
+offlineMemoValues.timetable.offlineMemoByDay![offlineMemoDayId] = "Day off";
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    offlineMemoDocument,
+    offlineMemoValues,
+    "day.offline_memo",
+    { dayId: offlineMemoDayId, entryIndex: 0 },
+  ),
+  "Day off",
+);
+
+const stylePropagationDocument = createSampleStudioDocument();
+const stylePropagationComponent =
+  stylePropagationDocument.domains!.timetable!.components.defaultEntryCard;
+const onlineStyleGroup = getStudioVariantEntryGroups(
+  stylePropagationDocument,
+  stylePropagationComponent.variants.online,
+)[0];
+const offlineStyleGroup = getStudioVariantEntryGroups(
+  stylePropagationDocument,
+  stylePropagationComponent.variants.offline,
+)[0];
+const onlineMainTitle = onlineStyleGroup.childIds
+  .map((nodeId) => stylePropagationDocument.graph.nodes[nodeId])
+  .find(
+    (node) =>
+      node.binding?.kind === "builtinField" &&
+      node.binding.fieldId === "entry.main_title",
+  );
+const offlineMainTitle = offlineStyleGroup.childIds
+  .map((nodeId) => stylePropagationDocument.graph.nodes[nodeId])
+  .find(
+    (node) =>
+      node.binding?.kind === "builtinField" &&
+      node.binding.fieldId === "entry.main_title",
+  );
+assert.ok(onlineMainTitle?.styleId && offlineMainTitle?.styleId);
+const offlineLeftBefore =
+  stylePropagationDocument.styles[offlineMainTitle.styleId].left;
+stylePropagationDocument.styles[onlineMainTitle.styleId].fontSize = 55;
+const stylePropagationResult = applyStudioVariantStyle(
+  stylePropagationDocument,
+  {
+    component: stylePropagationComponent,
+    sourceNodeId: onlineMainTitle.id,
+    sourceStatusId: "online",
+    targetStatusIds: ["offline"],
+    scope: "visual",
+  },
+);
+assert.equal(stylePropagationResult.appliedNodeCount, 1);
+assert.equal(
+  stylePropagationDocument.styles[offlineMainTitle.styleId].fontSize,
+  55,
+);
+assert.equal(
+  stylePropagationDocument.styles[offlineMainTitle.styleId].left,
+  offlineLeftBefore,
+  "Visual propagation must not copy layout geometry.",
+);
 
 const multiValues = createStudioInitialRuntimeValues(multiDocument, {
   entryCountPerDay: 2,
@@ -271,9 +347,11 @@ assert.equal(
 );
 
 const legacyDocument = createSampleStudioDocument();
-(legacyDocument as unknown as { version: number }).version = 1;
+(legacyDocument as unknown as { version: number }).version = 2;
 const legacyComponent =
   legacyDocument.domains!.timetable!.components.defaultEntryCard;
+legacyComponent.variants.offline.rootNodeId =
+  legacyComponent.variants.online.rootNodeId;
 delete legacyComponent.frame;
 const legacyRoot =
   legacyDocument.graph.nodes[legacyComponent.variants.online.rootNodeId];
@@ -292,17 +370,22 @@ delete legacyDocument.graph.nodes[legacyGroup.id];
 
 const legacyMigration = migrateStudioTemplateDocument(legacyDocument);
 if (!legacyMigration.ok) throw new Error(legacyMigration.message);
-assert.equal(legacyMigration.document.version, 2);
+assert.equal(legacyMigration.document.version, 3);
 const migratedLegacyComponent =
   legacyMigration.document.domains!.timetable!.components.defaultEntryCard;
 assert.ok(migratedLegacyComponent.frame);
+assert.notEqual(
+  migratedLegacyComponent.variants.online.rootNodeId,
+  migratedLegacyComponent.variants.offline.rootNodeId,
+  "Migration must separate shared base status roots.",
+);
 assert.deepEqual(
   getStudioVariantEntryGroups(
     legacyMigration.document,
     migratedLegacyComponent.variants.online,
   ).map((group) => group.meta?.entrySlot?.index),
   [0],
-  "Version-1 migration must wrap entry-scoped nodes exactly once.",
+  "Migration must wrap entry-scoped nodes exactly once.",
 );
 const repeatedMigration = migrateStudioTemplateDocument(
   legacyMigration.document,
@@ -315,7 +398,7 @@ assert.deepEqual(
       .variants.online,
   ).map((group) => group.meta?.entrySlot?.index),
   [0],
-  "Version-2 migration must be idempotent.",
+  "Version-3 migration must be idempotent.",
 );
 
 console.log("Template Studio object variant checks passed.");

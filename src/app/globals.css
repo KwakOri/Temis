@@ -121,6 +121,32 @@
   scrollbar-color: #d1d5db transparent;
 }
 
+/* Template Studio right inspector */
+.template-studio-inspector-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--inspector-scrollbar-thumb)
+    var(--inspector-scrollbar-track);
+}
+
+.template-studio-inspector-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.template-studio-inspector-scrollbar::-webkit-scrollbar-track {
+  background: var(--inspector-scrollbar-track);
+}
+
+.template-studio-inspector-scrollbar::-webkit-scrollbar-thumb {
+  min-height: 48px;
+  border: 2px solid var(--inspector-scrollbar-track);
+  border-radius: 999px;
+  background: var(--inspector-scrollbar-thumb);
+}
+
+.template-studio-inspector-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--inspector-scrollbar-thumb-hover);
+}
+
 @keyframes slideLoop {
   0% {
     transform: translateX(0%);
@@ -159,7 +185,8 @@
   /* 단일 transform으로 통합하여 성능 최적화 */
   transform: translateZ(0) scale(1.05);
   /* 그림자 강도만 조절 (새로운 계산 없음) */
-  box-shadow: 0 10px 10px -5px rgba(0, 0, 0, 0.15),
+  box-shadow:
+    0 10px 10px -5px rgba(0, 0, 0, 0.15),
     0 10px 10px -5px rgba(0, 0, 0, 0.04);
   z-index: 50;
 }

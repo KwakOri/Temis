@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarDays,
   Check,
   ChevronDown,
   Database,
@@ -21,9 +22,11 @@ import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import type {
   StudioTemplateDocument,
+  StudioTimetableCapabilityKey,
   StudioWebFontSource,
 } from "@/types/template-studio";
 import { createStudioId } from "@/utils/template-studio/id";
+import { getStudioTimetableCapabilities } from "@/utils/template-studio/timetable-capabilities";
 import {
   getStudioParsedFontWeightOptions,
   getStudioWebFontSources,
@@ -32,7 +35,7 @@ import {
 
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
-type SettingsTab = "canvas" | "fonts" | "data" | "appearance" | "document";
+type SettingsTab = "canvas" | "timetable" | "fonts" | "data" | "appearance" | "document";
 
 interface StudioSettingsModalProps {
   activeWorkspaceMode: WorkspaceMode;
@@ -53,6 +56,10 @@ interface StudioSettingsModalProps {
   onImportJson: () => void;
   onReloadTemplate: () => void;
   onThemeChange: (theme: StudioTheme) => void;
+  onTimetableCapabilityChange: (
+    capabilityKey: StudioTimetableCapabilityKey,
+    enabled: boolean,
+  ) => void;
   onTimetableCanvasChange: (nextSize: {
     width?: number;
     height?: number;
@@ -73,6 +80,12 @@ const settingsTabs = [
     label: "Canvas",
     description: "Size & background",
     Icon: Monitor,
+  },
+  {
+    id: "timetable" as const,
+    label: "Timetable",
+    description: "Status capabilities",
+    Icon: CalendarDays,
   },
   {
     id: "fonts" as const,
@@ -138,6 +151,7 @@ export function StudioSettingsModal({
   onImportJson,
   onReloadTemplate,
   onThemeChange,
+  onTimetableCapabilityChange,
   onTimetableCanvasChange,
   onWebFontsChange,
 }: StudioSettingsModalProps) {
@@ -152,6 +166,9 @@ export function StudioSettingsModal({
     [fontCss],
   );
   const timetableCanvas = document.domains?.timetable?.canvas;
+  const timetableCapabilities = getStudioTimetableCapabilities(
+    document.domains?.timetable,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -392,6 +409,85 @@ export function StudioSettingsModal({
               </button>
             ))}
           </div>
+          </section>
+
+          <section
+            aria-labelledby="studio-settings-tab-timetable"
+            className={cn(
+              sectionClassName,
+              activeTab !== "timetable" && "hidden",
+            )}
+            id="studio-settings-panel-timetable"
+            role="tabpanel"
+          >
+          <div className="flex items-center gap-2">
+            <CalendarDays size={14} className="text-[var(--accent)]" />
+            <h3 className="text-xs font-bold text-[var(--fg)]">
+              Timetable Statuses
+            </h3>
+          </div>
+
+          {document.domains?.timetable ? (
+            <div className="grid gap-2">
+              {(
+                [
+                  {
+                    capabilityKey: "multi" as const,
+                    label: "Multi Status",
+                    description:
+                      "Enable the fixed two-entry runtime and Multi card layout.",
+                  },
+                  {
+                    capabilityKey: "offlineMemo" as const,
+                    label: "Offline Memo Status",
+                    description:
+                      "Enable the Offline Memo entry status and card layout.",
+                  },
+                ] satisfies Array<{
+                  capabilityKey: StudioTimetableCapabilityKey;
+                  label: string;
+                  description: string;
+                }>
+              ).map(({ capabilityKey, label, description }) => {
+                const enabled = timetableCapabilities[capabilityKey].enabled;
+
+                return (
+                  <label
+                    className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-[var(--field-border)] bg-[var(--field)]/40 p-3"
+                    key={capabilityKey}
+                  >
+                    <span className="grid gap-1">
+                      <span className="text-xs font-bold text-[var(--fg)]">
+                        {label}
+                      </span>
+                      <span className="text-[10px] font-semibold leading-relaxed text-[var(--fg3)]">
+                        {description}
+                      </span>
+                      <span className="text-[9px] font-bold uppercase tracking-[0.06em] text-[var(--accent)]">
+                        {enabled ? "Enabled" : "Disabled"}
+                      </span>
+                    </span>
+                    <input
+                      aria-label={label}
+                      checked={enabled}
+                      className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                      type="checkbox"
+                      onChange={(event) =>
+                        onTimetableCapabilityChange(
+                          capabilityKey,
+                          event.currentTarget.checked,
+                        )
+                      }
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs font-semibold text-[var(--fg3)]">
+              This document has no Timetable domain.
+            </p>
+          )}
           </section>
 
           <section

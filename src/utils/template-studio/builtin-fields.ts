@@ -35,6 +35,13 @@ export const STUDIO_BUILTIN_FIELDS: StudioBuiltinFieldDefinition[] = [
     label: "Day Date",
   },
   {
+    id: "day.offline_memo",
+    type: "text",
+    scope: "day",
+    label: "Offline Memo",
+    capabilityFlags: ["offlineMemo"],
+  },
+  {
     id: "day.is_offline",
     type: "boolean",
     scope: "day",
@@ -191,6 +198,12 @@ export const resolveStudioBuiltinFieldValue = (
     return formatStudioDateParts(getDayDateParts(document, context), {
       includeYear: false,
     });
+  }
+
+  if (fieldId === "day.offline_memo") {
+    return context.dayId
+      ? (values.timetable.offlineMemoByDay?.[context.dayId] ?? "Offline memo")
+      : "Offline memo";
   }
 
   if (fieldId === "day.is_offline") {

@@ -76,6 +76,7 @@ export const createStudioInitialRuntimeValues = (
           })),
         ]),
       ),
+      offlineMemoByDay: Object.fromEntries(dayIds.map((dayId) => [dayId, ""])),
     },
   };
 };

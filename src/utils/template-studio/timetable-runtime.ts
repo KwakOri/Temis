@@ -39,7 +39,9 @@ export const isStudioRuntimeValuesLike = (
     !isRecord(value.days) ||
     !isRecord(value.entries) ||
     !isRecord(value.timetable) ||
-    !isRecord(value.timetable.entriesByDay)
+    !isRecord(value.timetable.entriesByDay) ||
+    (value.timetable.offlineMemoByDay !== undefined &&
+      !isRecord(value.timetable.offlineMemoByDay))
   ) {
     return false;
   }
@@ -63,9 +65,32 @@ export const isStudioRuntimeValuesLike = (
           ),
       ),
   );
+  const offlineMemoValuesAreValid = Object.values(
+    value.timetable.offlineMemoByDay ?? {},
+  ).every((memo) => typeof memo === "string");
 
-  return dayValuesAreValid && customEntriesAreValid && timetableEntriesAreValid;
+  return (
+    dayValuesAreValid &&
+    customEntriesAreValid &&
+    timetableEntriesAreValid &&
+    offlineMemoValuesAreValid
+  );
 };
+
+export const setStudioTimetableOfflineMemo = (
+  values: StudioRuntimeValues,
+  dayId: StudioTimetableDayId,
+  value: string,
+): StudioRuntimeValues => ({
+  ...values,
+  timetable: {
+    ...values.timetable,
+    offlineMemoByDay: {
+      ...(values.timetable.offlineMemoByDay ?? {}),
+      [dayId]: value,
+    },
+  },
+});
 
 const getDefaultEntryStatusId = (
   document: StudioTemplateDocument,

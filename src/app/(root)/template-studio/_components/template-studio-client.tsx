@@ -19,6 +19,7 @@ import {
   ListChecks,
   Lock,
   Minus,
+  Paintbrush,
   Plus,
   Save,
   Send,
@@ -83,7 +84,6 @@ import {
   getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
 } from "@/utils/template-studio/builtin-fields";
-import { cloneStudioComponentVariant } from "@/utils/template-studio/component-variants";
 import {
   STUDIO_WEEK_DATE_FORMAT_PRESETS,
   STUDIO_WEEK_DATE_LONG_TEMPLATE,
@@ -196,6 +196,11 @@ import {
   getStudioAvailableTimetableStatuses,
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
+import { ensureStudioCapabilityVariant } from "@/utils/template-studio/status-variants";
+import {
+  applyStudioVariantStyle,
+  type StudioVariantStyleScope,
+} from "@/utils/template-studio/variant-style-propagation";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import {
   getStudioCustomFontFamilies,
@@ -213,6 +218,7 @@ import {
   type StudioPickerNode,
 } from "./studio-node-picker-menu";
 import { StudioImageCropModal } from "./studio-image-crop-modal";
+import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { StudioRenderer } from "./studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
 import {
@@ -342,6 +348,9 @@ const STUDIO_THEMES = {
     "--card": "#ffffff",
     "--sel": "rgba(59,130,246,0.20)",
     "--accent": "#3b82f6",
+    "--inspector-scrollbar-track": "#0e1626",
+    "--inspector-scrollbar-thumb": "#33415a",
+    "--inspector-scrollbar-thumb-hover": "#4b5f80",
   },
   light: {
     "--bg": "#f0f0f0",
@@ -358,6 +367,9 @@ const STUDIO_THEMES = {
     "--card": "#ffffff",
     "--sel": "rgba(13,153,255,0.14)",
     "--accent": "#0d99ff",
+    "--inspector-scrollbar-track": "#ffffff",
+    "--inspector-scrollbar-thumb": "#c5cad3",
+    "--inspector-scrollbar-thumb-hover": "#9ba3b1",
   },
 } satisfies Record<StudioTheme, Record<string, string>>;
 
@@ -1317,6 +1329,7 @@ export function TemplateStudioClient({
   const [panelMode, setPanelMode] = useState<PanelMode>("layers");
   const [theme, setTheme] = useState<StudioTheme>("dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [stylePropagationOpen, setStylePropagationOpen] = useState(false);
   const [inspectorSections, setInspectorSections] = useState<
     Record<InspectorSectionKey, boolean>
   >(DEFAULT_INSPECTOR_SECTIONS);
@@ -1480,10 +1493,6 @@ export function TemplateStudioClient({
     () => getStudioTimetableComposition(document.domains?.timetable),
     [document.domains?.timetable],
   );
-  const timetableCapabilities = useMemo(
-    () => getStudioTimetableCapabilities(document.domains?.timetable),
-    [document.domains?.timetable],
-  );
   const cardStatusOptions = useMemo(
     () => getStudioAvailableTimetableStatuses(document),
     [document],
@@ -1502,19 +1511,8 @@ export function TemplateStudioClient({
       ),
     [cardEntryComponent, document, selectedCardStatusId],
   );
-  const selectedCardDirectVariant =
-    cardEntryComponent?.variants[selectedCardStatusId];
   const selectedCardVariantRootId =
     selectedCardVariantResolution?.variant.rootNodeId ?? null;
-  const selectedCardVariantIsShared = Boolean(
-    selectedCardDirectVariant &&
-    cardEntryComponent &&
-    Object.entries(cardEntryComponent.variants).some(
-      ([statusId, variant]) =>
-        statusId !== selectedCardStatusId &&
-        variant.rootNodeId === selectedCardDirectVariant.rootNodeId,
-    ),
-  );
   const cardAuthoringRootNodeIds = selectedCardVariantRootId
     ? [selectedCardVariantRootId]
     : document.graph.rootNodeIds;
@@ -1710,6 +1708,17 @@ export function TemplateStudioClient({
         entriesByDay: {
           ...runtimeValues.timetable.entriesByDay,
           [activeRuntimeDayId]: authoringEntries,
+        },
+        offlineMemoByDay: {
+          ...(runtimeValues.timetable.offlineMemoByDay ?? {}),
+          [activeRuntimeDayId]:
+            selectedCardStatusId === "offlineMemo"
+              ? runtimeValues.timetable.offlineMemoByDay?.[
+                  activeRuntimeDayId
+                ] || "Offline memo"
+              : (runtimeValues.timetable.offlineMemoByDay?.[
+                  activeRuntimeDayId
+                ] ?? ""),
         },
       },
     };
@@ -2828,6 +2837,38 @@ export function TemplateStudioClient({
         [key]: value,
       };
     });
+  };
+
+  const applySelectedNodeStyleToStatuses = (options: {
+    targetStatusIds: StudioTimetableStatusId[];
+    scope: StudioVariantStyleScope;
+    includeDescendants: boolean;
+    applyToAllMultiSlots: boolean;
+  }) => {
+    if (!selectedNode || !cardEntryComponent) return;
+    let appliedNodeCount = 0;
+    let appliedStatusCount = 0;
+    let skippedStatusCount = 0;
+    updateDocument((nextDocument) => {
+      const nextComponent =
+        nextDocument.domains?.timetable?.components[cardEntryComponent.id];
+      if (!nextComponent) return;
+      const result = applyStudioVariantStyle(nextDocument, {
+        component: nextComponent,
+        sourceNodeId: selectedNode.id,
+        sourceStatusId: selectedCardStatusId,
+        ...options,
+      });
+      appliedNodeCount = result.appliedNodeCount;
+      appliedStatusCount = result.appliedStatusIds.length;
+      skippedStatusCount = result.skippedStatusIds.length;
+    });
+    setStylePropagationOpen(false);
+    showShortcutStatus(
+      appliedNodeCount > 0
+        ? `Applied ${appliedNodeCount} style update(s) to ${appliedStatusCount} status(es)${skippedStatusCount > 0 ? ` · ${skippedStatusCount} skipped` : ""}`
+        : "No matching status objects were found",
+    );
   };
 
   const toggleSelectedNodeFitParent = () => {
@@ -4578,6 +4619,7 @@ export function TemplateStudioClient({
       nextTimetable.capabilities = nextCapabilities;
       if (enabled) {
         ensureStudioTimetableCapabilityStatus(nextTimetable, capabilityKey);
+        ensureStudioCapabilityVariant(nextDocument, capabilityKey);
       }
 
       const nextRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
@@ -4597,47 +4639,6 @@ export function TemplateStudioClient({
     },
     [captureHistory, showShortcutStatus],
   );
-
-  const createSelectedCardVariant = useCallback(() => {
-    const currentDocument = documentRef.current;
-    const timetable = currentDocument.domains?.timetable;
-    if (!timetable) return;
-
-    const component = timetable.components[timetable.entryComponentId];
-    const resolution = resolveStudioTimetableComponentVariant(
-      currentDocument,
-      component,
-      selectedCardStatusId,
-    );
-    if (!component || !resolution) {
-      showShortcutStatus("No fallback variant is available");
-      return;
-    }
-
-    const sourceStatusId = component.variants[selectedCardStatusId]
-      ? selectedCardStatusId
-      : resolution.resolvedStatusId;
-    const nextDocument = cloneDocument(currentDocument);
-    const result = cloneStudioComponentVariant(
-      nextDocument,
-      component.id,
-      sourceStatusId,
-      selectedCardStatusId,
-    );
-    if (!result.ok) {
-      showShortcutStatus(result.reason);
-      return;
-    }
-
-    captureHistory();
-    documentRef.current = nextDocument;
-    setDocument(nextDocument);
-    setSelectedNodeId(result.rootNodeId);
-    setSelectedNodeIds([result.rootNodeId]);
-    showShortcutStatus(
-      `${selectedCardStatusId} variant created from ${sourceStatusId}`,
-    );
-  }, [captureHistory, selectedCardStatusId, showShortcutStatus]);
 
   const deleteSelectedNode = useCallback(() => {
     const selectedActionNodeIds = getStudioTopLevelNodeIds(
@@ -6892,32 +6893,6 @@ export function TemplateStudioClient({
     );
   };
 
-  const renderTimetableCapabilityToggle = (
-    capabilityKey: StudioTimetableCapabilityKey,
-    label: string,
-  ) => {
-    const enabled = timetableCapabilities[capabilityKey].enabled;
-
-    return (
-      <label className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2.5">
-        <span className="grid gap-0.5">
-          <span className="text-xs font-bold text-[var(--fg)]">{label}</span>
-          <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
-            {enabled ? "Enabled" : "Disabled"}
-          </span>
-        </span>
-        <input
-          checked={enabled}
-          className="h-4 w-4 accent-[var(--accent)]"
-          type="checkbox"
-          onChange={(event) =>
-            setTimetableCapability(capabilityKey, event.currentTarget.checked)
-          }
-        />
-      </label>
-    );
-  };
-
   const renderTimetableObjectVariantControls = (
     object: StudioTimetableCompositionObject,
   ) => {
@@ -6966,13 +6941,6 @@ export function TemplateStudioClient({
       </div>
     );
   };
-
-  const renderTimetableSettings = () => (
-    <div className="grid gap-2">
-      {renderTimetableCapabilityToggle("multi", "Multi Status")}
-      {renderTimetableCapabilityToggle("offlineMemo", "Offline Memo Status")}
-    </div>
-  );
 
   const renderTimetablePanel = () => {
     const timetable = document.domains?.timetable;
@@ -9291,9 +9259,22 @@ export function TemplateStudioClient({
           void loadRemoteTemplate();
         }}
         onThemeChange={setTheme}
+        onTimetableCapabilityChange={setTimetableCapability}
         onTimetableCanvasChange={updateTimetableCanvasSize}
         onWebFontsChange={updateWebFonts}
       />
+      {stylePropagationOpen ? (
+        <StudioApplyStyleDialog
+          open
+          sourceStatusId={selectedCardStatusId}
+          statuses={cardStatusOptions.map((status) => ({
+            id: status.id,
+            label: status.label,
+          }))}
+          onApply={applySelectedNodeStyleToStatuses}
+          onClose={() => setStylePropagationOpen(false)}
+        />
+      ) : null}
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-[260px] min-w-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--panel)]">
@@ -9328,25 +9309,6 @@ export function TemplateStudioClient({
                   </button>
                 ))}
               </div>
-
-              {!selectedCardDirectVariant || selectedCardVariantIsShared ? (
-                <div className="grid gap-1.5 rounded-lg border border-amber-400/25 bg-amber-400/10 p-2">
-                  <div className="text-[10px] font-semibold leading-relaxed text-amber-200">
-                    {!selectedCardDirectVariant
-                      ? `Using ${selectedCardVariantResolution?.resolvedStatusId ?? "fallback"} layout`
-                      : "This layout is shared with another status"}
-                  </div>
-                  <button
-                    className="h-7 rounded-md border border-amber-300/30 bg-amber-300/10 px-2 text-[10px] font-bold text-amber-100 transition hover:bg-amber-300/20"
-                    type="button"
-                    onClick={createSelectedCardVariant}
-                  >
-                    {!selectedCardDirectVariant
-                      ? "Create Variant"
-                      : "Make Layout Unique"}
-                  </button>
-                </div>
-              ) : null}
 
               {selectedCardStatusId === "multi" ? (
                 <div className="rounded-md border border-fuchsia-400/25 bg-fuchsia-400/10 px-2 py-1.5 text-[10px] font-semibold leading-relaxed text-fuchsia-100">
@@ -9807,7 +9769,7 @@ export function TemplateStudioClient({
           ) : null}
         </section>
 
-        <aside className="w-[280px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-[var(--border)] bg-[var(--panel)]">
+        <aside className="template-studio-inspector-scrollbar w-[280px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-[var(--border)] bg-[var(--panel)]">
           <div className="border-b border-[var(--border)] px-4 py-3">
             <div className="mb-3 flex items-center gap-2">
               <span className="flex h-[18px] w-[18px] items-center justify-center rounded-[5px] bg-[var(--sel)] text-[11px] font-extrabold text-[var(--accent)]">
@@ -9893,6 +9855,22 @@ export function TemplateStudioClient({
               />
             </div>
           </div>
+
+          {!isInputPanelActive &&
+          activeWorkspaceMode === "cards" &&
+          selectedNode &&
+          cardStatusOptions.length > 1 ? (
+            <div className="border-b border-[var(--border)] px-4 py-3">
+              <button
+                className="flex h-8 w-full items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                type="button"
+                onClick={() => setStylePropagationOpen(true)}
+              >
+                <Paintbrush size={13} />
+                Apply style to other statuses...
+              </button>
+            </div>
+          ) : null}
 
           {isInputPanelActive ? (
             <>
@@ -10219,12 +10197,6 @@ export function TemplateStudioClient({
                     ),
                   )
                 : null}
-
-              {renderInspectorSection(
-                "settings",
-                "Settings",
-                renderTimetableSettings(),
-              )}
 
               {renderInspectorSection(
                 "runtime",

@@ -3,6 +3,7 @@ import {
   StudioTemplateDocument,
 } from "@/types/template-studio";
 import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
+import { ensureStudioIndependentStatusVariants } from "@/utils/template-studio/status-variants";
 import { createStudioStatusCardBackgroundExceptionMeta } from "@/utils/template-studio/status-card-background";
 
 const svgDataUrl = (svg: string): string =>
@@ -48,9 +49,17 @@ export const createInitialStudioRuntimeValues = (
 ): StudioRuntimeValues =>
   createStudioInitialRuntimeValues(document, { entryCountPerDay: 1 });
 
-export const createSampleStudioDocument = (): StudioTemplateDocument => ({
+const ensureIndependentSampleVariants = (
+  document: StudioTemplateDocument,
+): StudioTemplateDocument => {
+  ensureStudioIndependentStatusVariants(document);
+  return document;
+};
+
+export const createSampleStudioDocument = (): StudioTemplateDocument =>
+  ensureIndependentSampleVariants({
   schema: "studio_template_document",
-  version: 2,
+  version: 3,
   metadata: {
     editor: "template-studio",
     name: "Template Studio Sample",
