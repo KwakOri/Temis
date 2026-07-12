@@ -115,11 +115,26 @@ export const formatStudioDateParts = (
     : `${parts.month}.${parts.day}`;
 };
 
-export const getStudioWeekStartParts = (document: StudioTemplateDocument) =>
-  parseStudioIsoDateParts(document.domains?.timetable?.week?.startDate);
+export const getStudioWeekStartParts = (
+  document: StudioTemplateDocument,
+  startDateOverride?: string,
+) =>
+  parseStudioIsoDateParts(
+    startDateOverride ?? document.domains?.timetable?.week?.startDate,
+  );
 
-export const getStudioWeekEndParts = (document: StudioTemplateDocument) => {
+export const getStudioWeekEndParts = (
+  document: StudioTemplateDocument,
+  startDateOverride?: string,
+) => {
   const timetable = document.domains?.timetable;
+  if (parseStudioIsoDateParts(startDateOverride)) {
+    return getStudioDatePartsWithDayOffset(
+      startDateOverride,
+      Math.max(0, (timetable?.dayIds.length ?? 0) - 1),
+    );
+  }
+
   const explicitEndParts = parseStudioIsoDateParts(timetable?.week?.endDate);
   if (explicitEndParts) return explicitEndParts;
 
@@ -222,10 +237,11 @@ export const resolveStudioWeekDateText = (
   options: {
     format?: string;
     template?: string;
+    startDate?: string;
   } = {},
 ) => {
-  const start = getStudioWeekStartParts(document);
-  const end = getStudioWeekEndParts(document);
+  const start = getStudioWeekStartParts(document, options.startDate);
+  const end = getStudioWeekEndParts(document, options.startDate);
   if (!start && !end) return "";
 
   const template =

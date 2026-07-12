@@ -8,6 +8,8 @@ interface StudioRuntimeEntryCardProps {
   index: number;
   showIndex: boolean;
   removable: boolean;
+  entryLabel: string;
+  removeLabel: string;
   children: React.ReactNode;
   className?: string;
   onRemove?: () => void;
@@ -17,27 +19,24 @@ export function StudioRuntimeEntryCard({
   index,
   showIndex,
   removable,
+  entryLabel,
+  removeLabel,
   children,
   className,
   onRemove,
 }: StudioRuntimeEntryCardProps) {
   return (
-    <section
-      className={cn(
-        "grid gap-3 rounded-2xl border border-[var(--runtime-border)] bg-[var(--runtime-input-hover)] p-3",
-        className,
-      )}
-    >
+    <section className={cn("relative grid gap-3", className)}>
       {showIndex ? (
         <div className="flex items-center gap-2">
           <span className="inline-flex size-6 items-center justify-center rounded-lg bg-[var(--runtime-card-bg)] text-[11px] font-extrabold text-[var(--runtime-fg-muted)]">
             {index + 1}
           </span>
           <span
-            aria-label={`Entry ${index + 1}`}
+            aria-label={`${entryLabel} ${index + 1}`}
             className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-[var(--runtime-fg-subtle)]"
           >
-            Entry
+            {entryLabel}
           </span>
         </div>
       ) : null}
@@ -46,10 +45,10 @@ export function StudioRuntimeEntryCard({
 
       {removable ? (
         <StudioRuntimeActionButton
-          aria-label={`Remove entry ${index + 1}`}
+          aria-label={removeLabel}
           className="justify-self-end"
           size="icon"
-          title={`Remove entry ${index + 1}`}
+          title={removeLabel}
           variant="danger"
           onClick={onRemove}
         >

@@ -169,10 +169,15 @@ const getBooleanText = (value: boolean): string => (value ? "Yes" : "No");
 
 const getDayDateParts = (
   document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
   context: StudioRuntimeContext = {},
 ) => {
   const timetable = document.domains?.timetable;
   const day = context.dayId ? timetable?.days[context.dayId] : null;
+  const runtimeWeekStartDate = values.timetable.weekStartDate;
+  if (day && parseStudioIsoDateParts(runtimeWeekStartDate)) {
+    return getStudioDatePartsWithDayOffset(runtimeWeekStartDate, day.order);
+  }
   if (day?.date) return parseStudioIsoDateParts(day.date);
 
   if (!day || !timetable?.week?.startDate) return null;
@@ -195,7 +200,7 @@ export const resolveStudioBuiltinFieldValue = (
   if (fieldId === "day.label") return day?.label ?? "";
   if (fieldId === "day.short_label") return day?.shortLabel ?? day?.label ?? "";
   if (fieldId === "day.date") {
-    return formatStudioDateParts(getDayDateParts(document, context), {
+    return formatStudioDateParts(getDayDateParts(document, values, context), {
       includeYear: false,
     });
   }
@@ -222,19 +227,27 @@ export const resolveStudioBuiltinFieldValue = (
   }
 
   if (fieldId === "week.start_date") {
-    return formatStudioDateParts(getStudioWeekStartParts(document), {
-      includeYear: true,
-    });
+    return formatStudioDateParts(
+      getStudioWeekStartParts(document, values.timetable.weekStartDate),
+      {
+        includeYear: true,
+      },
+    );
   }
 
   if (fieldId === "week.end_date") {
-    return formatStudioDateParts(getStudioWeekEndParts(document), {
-      includeYear: true,
-    });
+    return formatStudioDateParts(
+      getStudioWeekEndParts(document, values.timetable.weekStartDate),
+      {
+        includeYear: true,
+      },
+    );
   }
 
   if (fieldId === "week.date_range") {
-    return resolveStudioWeekDateText(document);
+    return resolveStudioWeekDateText(document, {
+      startDate: values.timetable.weekStartDate,
+    });
   }
 
   if (fieldId === "entry.main_title") {

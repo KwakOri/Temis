@@ -10,6 +10,12 @@ interface StudioRuntimeDayCardProps {
   memoEnabled: boolean;
   memoAvailable: boolean;
   multi: boolean;
+  onlineAriaLabel: string;
+  multiLabel: string;
+  memoLabel: string;
+  memoDescription: string;
+  memoToggleTitle: string;
+  memoUnavailableTitle: string;
   settings?: React.ReactNode;
   children: React.ReactNode;
   offlineContent?: React.ReactNode;
@@ -24,6 +30,12 @@ export function StudioRuntimeDayCard({
   memoEnabled,
   memoAvailable,
   multi,
+  onlineAriaLabel,
+  multiLabel,
+  memoLabel,
+  memoDescription,
+  memoToggleTitle,
+  memoUnavailableTitle,
   settings,
   children,
   offlineContent,
@@ -33,27 +45,26 @@ export function StudioRuntimeDayCard({
   return (
     <StudioRuntimeCard
       aria-labelledby={`runtime-day-${dayId}`}
-      className="grid gap-4"
-      density="default"
+      className="grid gap-0 border-2 px-3 py-0"
+      density="compact"
     >
-      <header className="flex items-center justify-between gap-4">
+      <header className="flex h-12 items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-2">
           <h3
-            className="truncate text-sm font-extrabold text-[var(--runtime-fg)]"
+            className="truncate pl-1 text-base font-semibold tracking-[-1px] text-[var(--runtime-fg)]"
             id={`runtime-day-${dayId}`}
           >
             {label}
           </h3>
           {online && multi ? (
             <span className="rounded-lg bg-[var(--runtime-primary-soft)] px-2 py-1 text-[9px] font-extrabold uppercase tracking-[0.06em] text-[var(--runtime-primary-hover)]">
-              Multi
+              {multiLabel}
             </span>
           ) : null}
         </div>
         <StudioRuntimeToggle
-          ariaLabel={`${String(label)} online`}
+          ariaLabel={onlineAriaLabel}
           checked={online}
-          label={online ? "Online" : "Offline"}
           onCheckedChange={onOnlineChange}
         />
       </header>
@@ -61,21 +72,17 @@ export function StudioRuntimeDayCard({
       {settings ? <div className="grid gap-3">{settings}</div> : null}
 
       {online ? (
-        <div className="grid gap-3">{children}</div>
+        <div className="grid gap-3 pb-3.5">{children}</div>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-3 pb-3.5">
           <div className="rounded-2xl border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-3 py-2.5">
             <StudioRuntimeToggle
-              ariaLabel={`${String(label)} offline memo`}
+              ariaLabel={`${String(label)} ${memoLabel}`}
               checked={memoEnabled}
-              description="Use the offline memo card"
+              description={memoDescription}
               disabled={!memoAvailable}
-              label="Memo"
-              title={
-                memoAvailable
-                  ? "Toggle offline memo"
-                  : "Offline Memo is disabled for this template"
-              }
+              label={memoLabel}
+              title={memoAvailable ? memoToggleTitle : memoUnavailableTitle}
               onCheckedChange={onMemoEnabledChange}
             />
           </div>

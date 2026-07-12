@@ -40,6 +40,8 @@ export const isStudioRuntimeValuesLike = (
     !isRecord(value.entries) ||
     !isRecord(value.timetable) ||
     !isRecord(value.timetable.entriesByDay) ||
+    (value.timetable.weekStartDate !== undefined &&
+      typeof value.timetable.weekStartDate !== "string") ||
     (value.timetable.offlineMemoByDay !== undefined &&
       !isRecord(value.timetable.offlineMemoByDay))
   ) {
@@ -266,10 +268,7 @@ export const setStudioTimetableDayBaseStatus = (
   const useMultiStatus =
     baseStatus === "online" &&
     currentEntries.length > 1 &&
-    isStudioTimetableStatusAvailable(
-      document.domains?.timetable,
-      "multi",
-    );
+    isStudioTimetableStatusAvailable(document.domains?.timetable, "multi");
   const nextEntries = useMultiStatus
     ? currentEntries.map((entry) => ({ ...entry, statusId: "multi" }))
     : [{ ...firstEntry, statusId: baseStatus }];

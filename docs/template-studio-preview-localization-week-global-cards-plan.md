@@ -94,18 +94,21 @@ TemplateStudioRuntimeShell
 
 ### 4.3 저장
 
-초기 구현은 `localStorage`에 locale을 저장한다.
+초기 구현은 URL, `localStorage`, same-site cookie를 함께 사용한다.
 
 ```text
-key: temis.platform.locale
-value: ko | en | ja
+query: ?lang=ko|en|ja
+storage key: temis.platform.locale
+cookie key: temis_platform_locale
 ```
 
 우선순위:
 
-1. 저장된 지원 locale
-2. `navigator.languages`/`navigator.language`
-3. `en`
+1. URL query의 지원 locale
+2. localStorage의 지원 locale
+3. same-site cookie의 지원 locale
+4. `navigator.languages`/`navigator.language`
+5. `en`
 
 SSR hydration mismatch를 피하기 위해 최초 render는 안정적인 기본값을 사용하고 mount 후
 브라우저 preference를 적용한다.
@@ -180,7 +183,8 @@ Global settings
 
 이 규칙이면 현재 Artist Status와 Artist/Profile Text는 composition topology로 묶이고,
 Profile Image와 Top Object는 독립 카드가 된다. 새 사용자 input도 최소한 독립 카드로 자동
-표시된다.
+표시된다. 기존 TimeTable의 순서를 따라 image content가 포함된 카드를 먼저 배치하고, 그
+외에는 document input 순서를 유지한다.
 
 ### 6.4 control 표현
 

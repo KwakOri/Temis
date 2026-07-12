@@ -43,19 +43,20 @@ Form 내부에서 별도의 locale state를 만들지 않는다.
 
 ## persistence
 
-mount 후 저장 locale 또는 browser locale을 읽고, 사용자 변경 시 localStorage에 저장한다.
-storage 접근 실패는 UI를 중단시키지 않는다.
+mount 후 URL query, localStorage, same-site cookie, browser locale 순서로 읽는다. 사용자
+변경 시 세 client-side 위치에 동기화한다. storage/cookie 접근 실패는 UI를 중단시키지
+않으며 URL query가 새로고침과 공유 링크 fallback 역할을 한다.
 
 ## 번역 계약
 
 UI dictionary key는 semantic key를 사용한다.
 
 ```ts
-copy.form.title
-copy.form.reset
-copy.week.previous
-copy.entry.add
-copy.status.online
+copy.form.title;
+copy.form.reset;
+copy.week.previous;
+copy.entry.add;
+copy.status.online;
 ```
 
 한국어 문장을 영어 key로 직접 lookup하지 않는다.

@@ -376,6 +376,7 @@ export interface StudioTimetableRuntimeEntry {
 }
 
 export interface StudioTimetableRuntimeValues {
+  weekStartDate?: string;
   entriesByDay: Record<StudioTimetableDayId, StudioTimetableRuntimeEntry[]>;
   offlineMemoByDay?: Record<StudioTimetableDayId, string>;
 }

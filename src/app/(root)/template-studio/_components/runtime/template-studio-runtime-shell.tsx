@@ -13,6 +13,16 @@ import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
 } from "@/types/template-studio";
+import {
+  getStudioRuntimeCopy,
+  getStudioRuntimeIntlLocale,
+  isStudioRuntimeLocale,
+  normalizeStudioRuntimeLocale,
+  STUDIO_RUNTIME_LOCALE_COOKIE_KEY,
+  STUDIO_RUNTIME_LOCALE_OPTIONS,
+  STUDIO_RUNTIME_LOCALE_STORAGE_KEY,
+  type StudioRuntimeLocale,
+} from "@/utils/template-studio/runtime-i18n";
 import { StudioRenderer } from "../studio-renderer";
 import { clampStudioPreviewScale } from "../studio-canvas-viewport";
 import {
@@ -36,13 +46,16 @@ const cloneRuntimeValues = (
 ): StudioRuntimeValues =>
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
 
-const formatUpdatedAt = (value?: string | null) => {
+const formatUpdatedAt = (
+  value: string | null | undefined,
+  locale: StudioRuntimeLocale,
+) => {
   if (!value) return null;
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
 
-  return new Intl.DateTimeFormat("ko-KR", {
+  return new Intl.DateTimeFormat(getStudioRuntimeIntlLocale(locale), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
@@ -62,6 +75,7 @@ export function TemplateStudioRuntimeShell({
   const [runtimeValues, setRuntimeValues] = useState<StudioRuntimeValues>(() =>
     cloneRuntimeValues(initialRuntimeValues),
   );
+  const [locale, setLocale] = useState<StudioRuntimeLocale>("en");
   const [containerSize, setContainerSize] = useState({
     width: 0,
     height: 0,
@@ -80,6 +94,7 @@ export function TemplateStudioRuntimeShell({
     originY: number;
   } | null>(null);
   const timetable = document.domains?.timetable;
+  const copy = getStudioRuntimeCopy(locale);
   const previewSize = useMemo(
     () =>
       timetable
@@ -152,10 +167,7 @@ export function TemplateStudioRuntimeShell({
           scale: clampedScale,
           x: pointerX - rect.width / 2 + nextWidth / 2 - localX * clampedScale,
           y:
-            pointerY -
-            rect.height / 2 +
-            nextHeight / 2 -
-            localY * clampedScale,
+            pointerY - rect.height / 2 + nextHeight / 2 - localY * clampedScale,
         };
       });
     },
@@ -164,7 +176,50 @@ export function TemplateStudioRuntimeShell({
 
   const displayName =
     templateName?.trim() || document.metadata.name || "Template Studio Preview";
-  const updatedAtLabel = formatUpdatedAt(updatedAt);
+  const updatedAtLabel = formatUpdatedAt(updatedAt, locale);
+
+  useEffect(() => {
+    const queryLocale = new URLSearchParams(window.location.search).get("lang");
+    if (isStudioRuntimeLocale(queryLocale)) {
+      setLocale(queryLocale);
+      return;
+    }
+
+    let storedLocale: string | null = null;
+    try {
+      storedLocale = window.localStorage.getItem(
+        STUDIO_RUNTIME_LOCALE_STORAGE_KEY,
+      );
+    } catch {
+      storedLocale = null;
+    }
+
+    if (isStudioRuntimeLocale(storedLocale)) {
+      setLocale(storedLocale);
+      return;
+    }
+
+    let cookieLocale: string | undefined;
+    try {
+      cookieLocale = (
+        typeof window.document.cookie === "string" ? window.document.cookie : ""
+      )
+        .split(";")
+        .map((item) => item.trim())
+        .find((item) => item.startsWith(`${STUDIO_RUNTIME_LOCALE_COOKIE_KEY}=`))
+        ?.split("=")[1];
+    } catch {
+      cookieLocale = undefined;
+    }
+    if (isStudioRuntimeLocale(cookieLocale)) {
+      setLocale(cookieLocale);
+      return;
+    }
+
+    const browserLocale =
+      window.navigator.languages?.[0] ?? window.navigator.language;
+    setLocale(normalizeStudioRuntimeLocale(browserLocale));
+  }, []);
 
   useEffect(() => {
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
@@ -197,19 +252,36 @@ export function TemplateStudioRuntimeShell({
     setRuntimeValues(cloneRuntimeValues(initialRuntimeValues));
   };
 
+  const updateLocale = (nextLocale: StudioRuntimeLocale) => {
+    setLocale(nextLocale);
+    const url = new URL(window.location.href);
+    url.searchParams.set("lang", nextLocale);
+    window.history.replaceState(null, "", url);
+    try {
+      window.localStorage.setItem(
+        STUDIO_RUNTIME_LOCALE_STORAGE_KEY,
+        nextLocale,
+      );
+    } catch {
+      // A blocked storage API must not prevent changing the active UI locale.
+    }
+    try {
+      window.document.cookie = `${STUDIO_RUNTIME_LOCALE_COOKIE_KEY}=${nextLocale}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch {
+      // URL state remains available when cookies are blocked.
+    }
+  };
+
   const handleViewportWheel = useCallback(
     (event: React.WheelEvent<HTMLDivElement>) => {
       event.preventDefault();
 
       const direction = event.deltaY > 0 ? -1 : 1;
       const multiplier = event.shiftKey ? 2 : 1;
-      updateScale(
-        viewportTransform.scale + direction * zoomStep * multiplier,
-        {
-          clientX: event.clientX,
-          clientY: event.clientY,
-        },
-      );
+      updateScale(viewportTransform.scale + direction * zoomStep * multiplier, {
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
     },
     [updateScale, viewportTransform.scale],
   );
@@ -245,19 +317,25 @@ export function TemplateStudioRuntimeShell({
     [],
   );
 
-  const stopPanning = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
-    if (panStateRef.current?.pointerId === event.pointerId) {
-      panStateRef.current = null;
-      setIsPanning(false);
-    }
+  const stopPanning = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (panStateRef.current?.pointerId === event.pointerId) {
+        panStateRef.current = null;
+        setIsPanning(false);
+      }
 
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }, []);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    },
+    [],
+  );
 
   return (
-    <main className="template-studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]">
+    <main
+      className="template-studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]"
+      lang={locale}
+    >
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--runtime-border)] bg-[var(--runtime-card-bg)] px-4">
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--runtime-primary)] text-white shadow-[var(--runtime-shadow-card)]">
           <CalendarDays size={15} />
@@ -266,7 +344,7 @@ export function TemplateStudioRuntimeShell({
           <div className="flex min-w-0 items-center gap-2">
             <h1 className="truncate text-sm font-bold">{displayName}</h1>
             <span className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--runtime-fg-muted)]">
-              {source}
+              {source === "draft" ? copy.sourceDraft : copy.sourcePublished}
             </span>
           </div>
           <div className="flex min-w-0 gap-2 text-[11px] font-semibold text-[var(--runtime-fg-subtle)]">
@@ -274,6 +352,20 @@ export function TemplateStudioRuntimeShell({
             {updatedAtLabel ? <span>{updatedAtLabel}</span> : null}
           </div>
         </div>
+        <select
+          aria-label={copy.language}
+          className="h-8 shrink-0 rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-2 text-xs font-bold text-[var(--runtime-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--runtime-focus)]"
+          value={locale}
+          onChange={(event) =>
+            updateLocale(event.currentTarget.value as StudioRuntimeLocale)
+          }
+        >
+          {STUDIO_RUNTIME_LOCALE_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
@@ -283,10 +375,10 @@ export function TemplateStudioRuntimeShell({
         >
           <div className="absolute right-4 top-4 z-20 flex h-10 items-center rounded-xl border border-[var(--runtime-border)] bg-[var(--runtime-card-bg)]/95 p-1 shadow-[var(--runtime-shadow-overlay)] backdrop-blur">
             <StudioRuntimeActionButton
-              aria-label="Zoom out"
+              aria-label={copy.zoomOut}
               className="size-7"
               size="icon"
-              title="Zoom out"
+              title={copy.zoomOut}
               variant="ghost"
               onClick={() => updateScale(viewportTransform.scale - zoomStep)}
             >
@@ -296,10 +388,10 @@ export function TemplateStudioRuntimeShell({
               {Math.round(viewportTransform.scale * 100)}%
             </span>
             <StudioRuntimeActionButton
-              aria-label="Zoom in"
+              aria-label={copy.zoomIn}
               className="size-7"
               size="icon"
-              title="Zoom in"
+              title={copy.zoomIn}
               variant="ghost"
               onClick={() => updateScale(viewportTransform.scale + zoomStep)}
             >
@@ -307,10 +399,10 @@ export function TemplateStudioRuntimeShell({
             </StudioRuntimeActionButton>
             <div className="mx-1 h-5 w-px bg-[var(--runtime-border)]" />
             <StudioRuntimeActionButton
-              aria-label="Fit preview"
+              aria-label={copy.fitPreview}
               className="size-7"
               size="icon"
-              title="Fit"
+              title={copy.fitPreview}
               variant="ghost"
               onClick={fitToViewport}
             >
@@ -370,6 +462,7 @@ export function TemplateStudioRuntimeShell({
         <div className="h-[44vh] min-h-[320px] shrink-0 lg:h-full">
           <TemplateStudioRuntimeForm
             document={document}
+            locale={locale}
             runtimeValues={runtimeValues}
             setRuntimeValues={setRuntimeValues}
             onReset={resetRuntimeValues}

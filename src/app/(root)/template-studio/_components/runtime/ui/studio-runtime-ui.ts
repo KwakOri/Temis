@@ -14,11 +14,11 @@ export const studioRuntimeControlVariants = cva(
   {
     variants: {
       size: {
-        compact: "h-9 rounded-xl px-3 text-sm",
+        compact: "h-10 rounded-lg px-3 text-sm",
         default: "min-h-10 rounded-xl px-3 py-2.5 text-sm",
       },
       state: {
-        default: "border-[var(--runtime-border)]",
+        default: "border-transparent",
         error: "border-[var(--runtime-danger)]",
       },
     },

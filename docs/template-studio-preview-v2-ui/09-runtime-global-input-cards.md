@@ -52,7 +52,8 @@ topology 관계가 없는 경우에만 다음 exact 규칙을 허용한다.
 ### standalone fallback
 
 관계를 찾지 못한 input은 독립 group이 된다. 따라서 에디터에서 새 global input을 추가해도
-UI code 변경 없이 표시된다.
+UI code 변경 없이 표시된다. image content가 있는 group을 먼저 배치하고 나머지는 최초
+input index를 유지한다.
 
 ## boolean-like select
 

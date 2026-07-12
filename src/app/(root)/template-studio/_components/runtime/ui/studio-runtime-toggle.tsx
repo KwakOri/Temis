@@ -47,10 +47,8 @@ export function StudioRuntimeToggle({
         aria-checked={checked}
         aria-label={ariaLabel}
         className={cn(
-          "relative h-6 w-11 shrink-0 rounded-full shadow-[inset_0_1px_3px_rgba(0,0,0,0.24)] transition",
-          checked
-            ? "bg-[var(--runtime-primary)]"
-            : "bg-[var(--runtime-fg)]",
+          "relative h-7 w-16 shrink-0 rounded-full p-0.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.3)] transition",
+          checked ? "bg-[var(--runtime-primary)]" : "bg-[var(--runtime-fg)]",
           "disabled:cursor-not-allowed disabled:opacity-[var(--runtime-disabled-opacity)]",
           studioRuntimeFocusRingClass,
         )}
@@ -62,8 +60,8 @@ export function StudioRuntimeToggle({
       >
         <span
           className={cn(
-            "absolute left-1 top-1 size-4 rounded-full bg-[#ffe0bd] shadow-sm transition-transform",
-            checked ? "translate-x-5" : "translate-x-0",
+            "absolute left-1 top-1 size-5 rounded-full bg-[#ffe0bd] shadow-[0_4px_4px_rgba(0,0,0,0.25)] transition-transform",
+            checked ? "translate-x-9" : "translate-x-0",
           )}
         />
       </button>

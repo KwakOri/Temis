@@ -16,6 +16,7 @@ export interface StudioRuntimeFieldOption {
 interface StudioRuntimeFieldBaseProps {
   id?: string;
   label: string;
+  hideLabel?: boolean;
   description?: string;
   disabled?: boolean;
   required?: boolean;
@@ -67,7 +68,7 @@ export function StudioRuntimeField(props: StudioRuntimeFieldProps) {
       size: props.control === "textarea" ? "default" : "compact",
       state: props.error ? "error" : "default",
     }),
-    props.control === "textarea" && "min-h-24 resize-y",
+    props.control === "textarea" && "min-h-24 resize-none",
     props.controlClassName,
   );
   const commonProps = {
@@ -80,7 +81,10 @@ export function StudioRuntimeField(props: StudioRuntimeFieldProps) {
 
   return (
     <div className={cn("grid gap-1.5", props.className)}>
-      <label className={studioRuntimeLabelClass} htmlFor={controlId}>
+      <label
+        className={cn(studioRuntimeLabelClass, props.hideLabel && "sr-only")}
+        htmlFor={controlId}
+      >
         {props.label}
       </label>
 

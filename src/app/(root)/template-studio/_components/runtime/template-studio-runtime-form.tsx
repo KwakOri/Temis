@@ -15,7 +15,23 @@ import {
   setStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
+import {
+  getStudioRuntimeGlobalInputGroups,
+  getStudioRuntimeOnOffOptionValues,
+} from "@/utils/template-studio/runtime-global-input-groups";
 import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
+import {
+  getLocalizedStudioAddEntryDisabledReason,
+  formatStudioRuntimeWeekRange,
+  getStudioRuntimeCopy,
+  getStudioRuntimeDayLabel,
+  type StudioRuntimeLocale,
+} from "@/utils/template-studio/runtime-i18n";
+import {
+  getStudioRuntimeWeekEndDate,
+  getStudioRuntimeWeekStartDate,
+  shiftStudioRuntimeWeek,
+} from "@/utils/template-studio/runtime-week";
 import {
   addStudioTimetableEntry,
   getStudioTimetableAddEntryDisabledReason,
@@ -30,8 +46,9 @@ import {
 import { StudioRuntimeDayCard } from "./composition/studio-runtime-day-card";
 import { StudioRuntimeEntryCard } from "./composition/studio-runtime-entry-card";
 import { StudioRuntimeFormTabs } from "./composition/studio-runtime-form-tabs";
+import { StudioRuntimeGlobalInputCard } from "./composition/studio-runtime-global-input-card";
 import { StudioRuntimeSectionTitle } from "./composition/studio-runtime-section-title";
-import { StudioRuntimeWeekSummary } from "./composition/studio-runtime-week-summary";
+import { StudioRuntimeWeekSelector } from "./composition/studio-runtime-week-selector";
 import { StudioRuntimeActionButton } from "./ui/studio-runtime-action-button";
 import { StudioRuntimeCard } from "./ui/studio-runtime-card";
 import { StudioRuntimeEmptyState } from "./ui/studio-runtime-empty-state";
@@ -42,6 +59,7 @@ interface TemplateStudioRuntimeFormProps {
   runtimeValues: StudioRuntimeValues;
   setRuntimeValues: React.Dispatch<React.SetStateAction<StudioRuntimeValues>>;
   onReset: () => void;
+  locale?: StudioRuntimeLocale;
 }
 
 type RuntimeInputGroups = Record<
@@ -59,8 +77,10 @@ const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
 };
 
 const RuntimeImageUploadAction = ({
+  label,
   onValueChange,
 }: {
+  label: string;
   onValueChange: (value: string) => void;
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -74,7 +94,7 @@ const RuntimeImageUploadAction = ({
         onClick={() => inputRef.current?.click()}
       >
         <Upload size={14} />
-        Upload
+        {label}
       </StudioRuntimeActionButton>
       <input
         ref={inputRef}
@@ -121,6 +141,7 @@ export function TemplateStudioRuntimeForm({
   runtimeValues,
   setRuntimeValues,
   onReset,
+  locale = "en",
 }: TemplateStudioRuntimeFormProps) {
   const timetable = document.domains?.timetable;
   const days = useMemo(
@@ -143,10 +164,23 @@ export function TemplateStudioRuntimeForm({
 
     return groups;
   }, [document.inputs]);
+  const globalInputGroups = useMemo(
+    () => getStudioRuntimeGlobalInputGroups(document),
+    [document],
+  );
   const canUseOfflineMemo = isStudioTimetableStatusAvailable(
     timetable,
     "offlineMemo",
   );
+  const copy = getStudioRuntimeCopy(locale);
+  const weekStartDate = getStudioRuntimeWeekStartDate(document, runtimeValues);
+  const weekEndDate = getStudioRuntimeWeekEndDate(document, runtimeValues);
+  const weekLabel = formatStudioRuntimeWeekRange({
+    locale,
+    startDate: weekStartDate,
+    endDate: weekEndDate,
+    fallback: copy.weekNotSet,
+  });
 
   const updateInputValue = (
     input: StudioInputDefinition,
@@ -242,9 +276,16 @@ export function TemplateStudioRuntimeForm({
     );
   };
 
+  const shiftWeek = (weekDelta: number) => {
+    setRuntimeValues((currentValues) =>
+      shiftStudioRuntimeWeek(document, currentValues, weekDelta),
+    );
+  };
+
   const renderInput = (
     input: StudioInputDefinition,
     context: StudioRuntimeContext = {},
+    options: { hideLabel?: boolean; imageUploadOnly?: boolean } = {},
   ) => {
     const value = getStudioRuntimeInputValue(input, runtimeValues, context);
     const key = [
@@ -258,6 +299,7 @@ export function TemplateStudioRuntimeForm({
         return (
           <StudioRuntimeField
             control="textarea"
+            hideLabel={options.hideLabel}
             key={key}
             label={input.label}
             placeholder={input.placeholder}
@@ -273,6 +315,7 @@ export function TemplateStudioRuntimeForm({
       return (
         <StudioRuntimeField
           control="input"
+          hideLabel={options.hideLabel}
           key={key}
           label={input.label}
           placeholder={input.placeholder}
@@ -285,10 +328,23 @@ export function TemplateStudioRuntimeForm({
     }
 
     if (input.type === "image") {
+      if (options.imageUploadOnly) {
+        return (
+          <RuntimeImageUploadAction
+            key={key}
+            label={copy.upload}
+            onValueChange={(nextValue) =>
+              updateInputValue(input, nextValue, context)
+            }
+          />
+        );
+      }
+
       return (
         <div className="grid gap-2" key={key}>
           <StudioRuntimeField
             control="input"
+            hideLabel={options.hideLabel}
             label={input.label}
             placeholder={input.placeholder}
             value={value}
@@ -297,6 +353,7 @@ export function TemplateStudioRuntimeForm({
             }
           />
           <RuntimeImageUploadAction
+            label={copy.upload}
             onValueChange={(nextValue) =>
               updateInputValue(input, nextValue, context)
             }
@@ -308,6 +365,7 @@ export function TemplateStudioRuntimeForm({
     return (
       <StudioRuntimeField
         control="select"
+        hideLabel={options.hideLabel}
         key={key}
         label={input.label}
         options={input.options}
@@ -318,6 +376,51 @@ export function TemplateStudioRuntimeForm({
       />
     );
   };
+
+  const renderGlobalInputCards = () =>
+    globalInputGroups.map((group) => {
+      const toggleInput = group.toggleInput;
+      const onOffValues = toggleInput
+        ? getStudioRuntimeOnOffOptionValues(toggleInput)
+        : null;
+      const toggleValue = toggleInput
+        ? getStudioRuntimeInputValue(toggleInput, runtimeValues)
+        : null;
+      const enabled =
+        toggleInput && onOffValues
+          ? toggleValue === onOffValues.onValue
+          : undefined;
+      const hideContentLabels = group.contentInputs.length === 1;
+
+      return (
+        <StudioRuntimeGlobalInputCard
+          enabled={enabled}
+          key={group.id}
+          label={group.label}
+          toggleAriaLabel={toggleInput?.label}
+          onEnabledChange={
+            toggleInput && onOffValues
+              ? (nextEnabled) =>
+                  updateInputValue(
+                    toggleInput,
+                    nextEnabled ? onOffValues.onValue : onOffValues.offValue,
+                  )
+              : undefined
+          }
+        >
+          {group.contentInputs.map((input) =>
+            renderInput(
+              input,
+              {},
+              {
+                hideLabel: hideContentLabels,
+                imageUploadOnly: input.type === "image",
+              },
+            ),
+          )}
+        </StudioRuntimeGlobalInputCard>
+      );
+    });
 
   const renderInputGroup = (
     title: string,
@@ -348,15 +451,17 @@ export function TemplateStudioRuntimeForm({
 
     return (
       <StudioRuntimeEntryCard
+        entryLabel={copy.entry}
         index={entryIndex}
         key={entry.id}
         removable={entryCount > 1}
+        removeLabel={copy.removeEntry(entryIndex + 1)}
         showIndex={entryCount > 1}
         onRemove={() => removeEntry(dayId, entryIndex)}
       >
         <StudioRuntimeField
           control="input"
-          label="Time"
+          label={copy.time}
           placeholder="09:00"
           value={entry.time ?? ""}
           onValueChange={(value) =>
@@ -365,7 +470,7 @@ export function TemplateStudioRuntimeForm({
         />
         <StudioRuntimeField
           control="input"
-          label="Sub Title"
+          label={copy.subTitle}
           value={entry.subTitle ?? ""}
           onValueChange={(value) =>
             updateEntryField(dayId, entryIndex, "subTitle", value)
@@ -373,7 +478,7 @@ export function TemplateStudioRuntimeForm({
         />
         <StudioRuntimeField
           control="textarea"
-          label="Main Title"
+          label={copy.mainTitle}
           placeholder={`Entry ${entryIndex + 1}`}
           rows={3}
           value={entry.mainTitle ?? ""}
@@ -390,9 +495,11 @@ export function TemplateStudioRuntimeForm({
     <aside className="flex h-full min-h-0 w-full flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] lg:w-[420px] lg:border-l lg:border-t-0">
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--runtime-border)] px-4">
         <div>
-          <h1 className="text-sm font-extrabold">Timetable</h1>
+          <h1 className="text-sm font-extrabold">{copy.formTitle}</h1>
           <p className="text-[11px] font-semibold text-[var(--runtime-fg-subtle)]">
-            {days.length > 0 ? `${days.length} days` : "Global settings"}
+            {days.length > 0
+              ? copy.dayCount(days.length)
+              : copy.globalSettingsOnly}
           </p>
         </div>
         <StudioRuntimeActionButton
@@ -401,13 +508,13 @@ export function TemplateStudioRuntimeForm({
           onClick={onReset}
         >
           <RotateCcw size={14} />
-          Reset
+          {copy.reset}
         </StudioRuntimeActionButton>
       </div>
 
       <StudioRuntimeFormTabs
-        ariaLabel="Runtime form sections"
-        tabs={[{ id: "basic", label: "Basic" }]}
+        ariaLabel={copy.formSections}
+        tabs={[{ id: "basic", label: copy.basic }]}
         value="basic"
         onValueChange={() => undefined}
       />
@@ -415,30 +522,35 @@ export function TemplateStudioRuntimeForm({
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="grid gap-4">
           <StudioRuntimeSectionTitle
-            description="Shared values used by the whole timetable"
-            title="Global settings"
+            description={copy.globalSettingsDescription}
+            title={copy.globalSettings}
           />
-          {timetable?.week ? (
-            <StudioRuntimeWeekSummary
-              endDate={timetable.week.endDate}
-              startDate={timetable.week.startDate}
-            />
-          ) : null}
-          {renderInputGroup("Global", inputGroups.global)}
-          {inputGroups.global.length === 0 ? (
+          <StudioRuntimeWeekSelector
+            disabled={!weekStartDate}
+            label={copy.week}
+            nextLabel={copy.nextWeek}
+            previousLabel={copy.previousWeek}
+            value={weekLabel}
+            onNext={() => shiftWeek(1)}
+            onPrevious={() => shiftWeek(-1)}
+          />
+          {renderGlobalInputCards()}
+          {globalInputGroups.length === 0 ? (
             <StudioRuntimeEmptyState compact>
-              No global inputs
+              {copy.noGlobalInputs}
             </StudioRuntimeEmptyState>
           ) : null}
 
           <StudioRuntimeSectionTitle
             className="pt-2"
-            description="Edit each day without changing selection"
-            title="Weekly timetable"
+            description={copy.weeklyTimetableDescription}
+            title={copy.weeklyTimetable}
           />
 
           {days.length === 0 ? (
-            <StudioRuntimeEmptyState>No timetable days</StudioRuntimeEmptyState>
+            <StudioRuntimeEmptyState>
+              {copy.noTimetableDays}
+            </StudioRuntimeEmptyState>
           ) : (
             days.map((day) => {
               const entries = getStudioTimetableEntriesForDay(
@@ -453,24 +565,51 @@ export function TemplateStudioRuntimeForm({
                   runtimeValues,
                   day.id,
                 );
+              const localizedAddEntryDisabledReason =
+                getLocalizedStudioAddEntryDisabledReason(
+                  copy,
+                  addEntryDisabledReason,
+                );
+              const shortDayLabel = getStudioRuntimeDayLabel({
+                locale,
+                dayId: day.id,
+                width: "short",
+                fallback: day.shortLabel ?? day.label,
+              });
+              const longDayLabel = getStudioRuntimeDayLabel({
+                locale,
+                dayId: day.id,
+                width: "long",
+                fallback: day.label,
+              });
 
               return (
                 <StudioRuntimeDayCard
                   dayId={day.id}
                   key={day.id}
-                  label={day.shortLabel ?? day.label}
+                  label={shortDayLabel}
                   memoAvailable={canUseOfflineMemo && entries.length > 0}
+                  memoDescription={copy.memoDescription}
                   memoEnabled={status.memoEnabled}
+                  memoLabel={copy.memo}
+                  memoToggleTitle={copy.toggleOfflineMemo}
+                  memoUnavailableTitle={copy.offlineMemoUnavailable}
                   multi={status.multi}
+                  multiLabel={copy.multi}
                   online={status.online}
-                  settings={renderInputGroup("Day", inputGroups.day, {
-                    dayId: day.id,
-                  })}
+                  onlineAriaLabel={`${longDayLabel} ${copy.online}`}
+                  settings={renderInputGroup(
+                    copy.daySettings,
+                    inputGroups.day,
+                    {
+                      dayId: day.id,
+                    },
+                  )}
                   offlineContent={
                     <StudioRuntimeField
                       control="textarea"
-                      label="Offline Memo"
-                      placeholder="Enter offline memo"
+                      label={copy.offlineMemo}
+                      placeholder={copy.offlineMemoPlaceholder}
                       rows={4}
                       value={
                         runtimeValues.timetable.offlineMemoByDay?.[day.id] ?? ""
@@ -489,7 +628,7 @@ export function TemplateStudioRuntimeForm({
                 >
                   {entries.length === 0 ? (
                     <StudioRuntimeEmptyState compact>
-                      No entries
+                      {copy.noEntries}
                     </StudioRuntimeEmptyState>
                   ) : (
                     entries.map((entry, entryIndex) =>
@@ -504,16 +643,18 @@ export function TemplateStudioRuntimeForm({
 
                   <StudioRuntimeActionButton
                     fullWidth
-                    aria-label={`Add entry to ${day.label}`}
+                    aria-label={copy.addEntryTo(longDayLabel)}
                     disabled={addEntryDisabledReason !== null}
+                    size="compact"
                     title={
-                      addEntryDisabledReason ?? `Add entry to ${day.label}`
+                      localizedAddEntryDisabledReason ??
+                      copy.addEntryTo(longDayLabel)
                     }
                     variant="primary"
                     onClick={() => addEntry(day.id, entries)}
                   >
                     <Plus size={16} />
-                    Add entry
+                    {copy.addEntry}
                   </StudioRuntimeActionButton>
                 </StudioRuntimeDayCard>
               );

@@ -67,6 +67,7 @@ export const createStudioInitialRuntimeValues = (
       ]),
     ),
     timetable: {
+      weekStartDate: timetable?.week?.startDate,
       entriesByDay: Object.fromEntries(
         dayIds.map((dayId) => [
           dayId,

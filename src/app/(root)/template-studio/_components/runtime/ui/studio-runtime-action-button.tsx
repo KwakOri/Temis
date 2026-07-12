@@ -23,7 +23,7 @@ const studioRuntimeActionButtonVariants = cva(
           "bg-[var(--runtime-danger)] text-white hover:bg-[var(--runtime-danger-hover)]",
       },
       size: {
-        compact: "h-8 rounded-lg px-2.5 text-xs",
+        compact: "h-9 rounded-lg px-2.5 text-xs",
         default: "h-10 rounded-xl px-4 text-sm",
         icon: "size-8 rounded-lg text-xs",
       },
