@@ -28,6 +28,8 @@ Template Studio의 Preview 페이지가 기존 TimeTable 입력 폼과 같은 �
    - Header, zoom toolbar, panel boundary 적용
 5. [05-verification-and-rollout.md](./template-studio-preview-v2-ui/05-verification-and-rollout.md)
    - 정적 검사, 상태 행렬, 반응형/시각 회귀 검증
+6. [06-legacy-layout-composition.md](./template-studio-preview-v2-ui/06-legacy-layout-composition.md)
+   - 기존 TimeTable의 전체 요일 카드 레이아웃 재구성과 동적 Input 자동 배치
 
 각 단계는 이전 문서의 completion gate를 통과한 뒤 진행한다. 단계 중 발견한 설계 변경은
 해당 세부 문서에 먼저 기록하고 구현한다.
