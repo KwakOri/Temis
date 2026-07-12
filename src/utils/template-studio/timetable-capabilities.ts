@@ -17,6 +17,26 @@ export const STUDIO_DEFAULT_TIMETABLE_CAPABILITIES: StudioTimetableCapabilities 
     offlineMemo: { enabled: false },
   };
 
+const STUDIO_CAPABILITY_STATUS_DEFINITIONS: Record<
+  StudioTimetableCapabilityKey,
+  StudioTimetableStatusDefinition
+> = {
+  multi: {
+    id: "multi",
+    label: "Multi",
+    kind: "derived",
+    baseStatus: "online",
+    fallbackStatusId: "online",
+  },
+  offlineMemo: {
+    id: "offlineMemo",
+    label: "Offline Memo",
+    kind: "derived",
+    baseStatus: "offline",
+    fallbackStatusId: "offline",
+  },
+};
+
 export const getStudioTimetableCapabilities = (
   timetable?: StudioTimetableDomain,
 ): StudioTimetableCapabilities => ({
@@ -36,6 +56,17 @@ export const isStudioTimetableCapabilityEnabled = (
   timetable: StudioTimetableDomain | undefined,
   capabilityKey: StudioTimetableCapabilityKey,
 ): boolean => getStudioTimetableCapabilities(timetable)[capabilityKey].enabled;
+
+export const ensureStudioTimetableCapabilityStatus = (
+  timetable: StudioTimetableDomain,
+  capabilityKey: StudioTimetableCapabilityKey,
+): boolean => {
+  const definition = STUDIO_CAPABILITY_STATUS_DEFINITIONS[capabilityKey];
+  if (timetable.statuses[definition.id]) return false;
+
+  timetable.statuses[definition.id] = { ...definition };
+  return true;
+};
 
 export const getStudioStatusRequiredCapability = (
   statusId: string,

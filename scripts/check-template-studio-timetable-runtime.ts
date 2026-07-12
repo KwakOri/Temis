@@ -1,0 +1,183 @@
+import assert from "node:assert/strict";
+
+import { resolveStudioBuiltinFieldValue } from "../src/utils/template-studio/builtin-fields";
+import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
+import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migrations";
+import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-studio/timetable-capabilities";
+import { validateStudioDocument } from "../src/utils/template-studio/validator";
+import {
+  addStudioTimetableEntry,
+  getStudioTimetableAddEntryDisabledReason,
+  getStudioTimetableDaysWithMultipleEntries,
+  getStudioTimetableEffectiveMaxEntriesPerDay,
+  removeStudioTimetableEntry,
+  setStudioTimetableEntryField,
+} from "../src/utils/template-studio/timetable-runtime";
+
+const document = createSampleStudioDocument();
+const dayId = document.domains?.timetable?.dayIds[0];
+assert.ok(dayId);
+
+const initialValues = createStudioInitialRuntimeValues(document);
+const initialEntry = initialValues.timetable.entriesByDay[dayId]?.[0];
+assert.ok(initialEntry);
+
+assert.equal(getStudioTimetableEffectiveMaxEntriesPerDay(document), 1);
+assert.equal(
+  getStudioTimetableAddEntryDisabledReason(document, initialValues, dayId),
+  "Enable Multi Status to add entries",
+);
+assert.equal(
+  addStudioTimetableEntry(
+    document,
+    initialValues,
+    dayId,
+    `${dayId}-blocked-entry`,
+  ),
+  initialValues,
+  "The runtime mutation must reject entry creation while Multi is disabled.",
+);
+
+document.domains!.timetable!.capabilities!.multi.enabled = true;
+ensureStudioTimetableCapabilityStatus(document.domains!.timetable!, "multi");
+assert.equal(getStudioTimetableEffectiveMaxEntriesPerDay(document), 3);
+const withSecondEntry = addStudioTimetableEntry(
+  document,
+  initialValues,
+  dayId,
+  `${dayId}-entry-2`,
+);
+assert.equal(withSecondEntry.timetable.entriesByDay[dayId].length, 2);
+assert.deepEqual(
+  withSecondEntry.timetable.entriesByDay[dayId].map((entry) => entry.statusId),
+  ["multi", "multi"],
+  "Adding the second online entry must activate the Multi layout.",
+);
+assert.deepEqual(getStudioTimetableDaysWithMultipleEntries(withSecondEntry), [
+  dayId,
+]);
+assert.equal(
+  getStudioTimetableAddEntryDisabledReason(document, withSecondEntry, dayId),
+  null,
+);
+const backToSingleEntry = removeStudioTimetableEntry(
+  document,
+  withSecondEntry,
+  dayId,
+  1,
+);
+assert.equal(
+  backToSingleEntry.timetable.entriesByDay[dayId][0].statusId,
+  "online",
+  "Removing back to one entry must restore the Online layout.",
+);
+
+const withMainTitle = setStudioTimetableEntryField(
+  document,
+  initialValues,
+  dayId,
+  0,
+  "mainTitle",
+  "Updated title",
+);
+assert.equal(
+  withMainTitle.timetable.entriesByDay[dayId][0].mainTitle,
+  "Updated title",
+);
+assert.equal(
+  withMainTitle.timetable.entriesByDay[dayId][0].statusId,
+  initialEntry.statusId,
+  "Editing a built-in field must preserve the entry status.",
+);
+assert.equal(
+  initialValues.timetable.entriesByDay[dayId][0].mainTitle,
+  undefined,
+  "Editing a built-in field must not mutate the previous runtime values.",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    document,
+    withMainTitle,
+    "entry.main_title",
+    { dayId, entryIndex: 0 },
+  ),
+  "Updated title",
+  "The renderer-facing built-in resolver must read the edited title.",
+);
+
+const withSubTitle = setStudioTimetableEntryField(
+  document,
+  withMainTitle,
+  dayId,
+  0,
+  "subTitle",
+  "Updated subtitle",
+);
+const withTime = setStudioTimetableEntryField(
+  document,
+  withSubTitle,
+  dayId,
+  0,
+  "time",
+  "18:30",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(document, withTime, "entry.sub_title", {
+    dayId,
+    entryIndex: 0,
+  }),
+  "Updated subtitle",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(document, withTime, "entry.time", {
+    dayId,
+    entryIndex: 0,
+  }),
+  "18:30",
+);
+
+const unchangedValues = setStudioTimetableEntryField(
+  document,
+  withTime,
+  dayId,
+  99,
+  "mainTitle",
+  "Ignored",
+);
+assert.equal(
+  unchangedValues,
+  withTime,
+  "An invalid entry index must leave runtime values unchanged.",
+);
+
+const migrationSource = createSampleStudioDocument();
+migrationSource.domains!.timetable!.capabilities!.multi.enabled = true;
+migrationSource.domains!.timetable!.capabilities!.offlineMemo.enabled = true;
+assert.ok(
+  validateStudioDocument(migrationSource).some(
+    (diagnostic) =>
+      diagnostic.id === "timetable-capability-status-missing:multi",
+  ),
+);
+const migrationResult = migrateStudioTemplateDocument(migrationSource);
+if (!migrationResult.ok) throw new Error(migrationResult.message);
+assert.deepEqual(migrationResult.document.domains?.timetable?.statuses.multi, {
+  id: "multi",
+  label: "Multi",
+  kind: "derived",
+  baseStatus: "online",
+  fallbackStatusId: "online",
+});
+assert.deepEqual(
+  migrationResult.document.domains?.timetable?.statuses.offlineMemo,
+  {
+    id: "offlineMemo",
+    label: "Offline Memo",
+    kind: "derived",
+    baseStatus: "offline",
+    fallbackStatusId: "offline",
+  },
+);
+
+console.log("Template Studio timetable runtime checks passed.");

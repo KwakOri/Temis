@@ -92,6 +92,12 @@ export type StudioTimetableEntryCardSize = {
   height: number;
 };
 
+export type StudioTimetableEntrySlotGeometry = {
+  top: number;
+  width: number;
+  height: number;
+};
+
 type StudioTimetableEntryRootGeometry = StudioTimetableEntryCardSize & {
   rootLeft: number;
   rootTop: number;
@@ -323,11 +329,34 @@ export const getStudioTimetableEntryCardSize = (
 
 export const getStudioTimetableDayCardHeight = (
   layout: StudioTimetableDayCardsLayout,
+  _entryCount: number,
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
+) => Math.max(1, entryCardSize.height);
+
+export const getStudioTimetableEntrySlotGeometries = (
+  layout: StudioTimetableDayCardsLayout,
   entryCount: number,
   entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
-) =>
-  Math.max(1, entryCount) * entryCardSize.height +
-  Math.max(0, entryCount - 1) * layout.entryGap;
+): StudioTimetableEntrySlotGeometry[] => {
+  const count = Math.max(0, Math.floor(entryCount));
+  if (count === 0) return [];
+
+  const cardHeight = Math.max(1, entryCardSize.height);
+  const requestedGap = Math.max(0, layout.entryGap);
+  const maxGap =
+    count > 1 ? Math.max(0, (cardHeight - count) / (count - 1)) : 0;
+  const gap = Math.min(requestedGap, maxGap);
+  const slotHeight = Math.max(
+    1,
+    (cardHeight - gap * (count - 1)) / count,
+  );
+
+  return Array.from({ length: count }, (_, index) => ({
+    top: index * (slotHeight + gap),
+    width: Math.max(1, entryCardSize.width),
+    height: slotHeight,
+  }));
+};
 
 export const getStudioTimetableDayCardGeometry = (
   layout: StudioTimetableDayCardsLayout,
@@ -711,6 +740,11 @@ export function StudioTimetablePreview({
     >
       {days.map((day, dayIndex) => {
         const entries = entriesByDay[day.id] ?? [];
+        const entrySlots = getStudioTimetableEntrySlotGeometries(
+          dayCardsLayout,
+          entries.length,
+          entryCardSize,
+        );
         const dayGeometry =
           dayCardGeometries[day.id] ??
           getStudioTimetableDayCardGeometry(
@@ -724,7 +758,7 @@ export function StudioTimetablePreview({
 
         return (
           <div
-            className="absolute grid content-start"
+            className="absolute"
             data-node-id={`day-card:${day.id}`}
             key={day.id}
             style={{
@@ -732,7 +766,7 @@ export function StudioTimetablePreview({
               left: dayGeometry.left - dayCardsBounds.left,
               top: dayGeometry.top - dayCardsBounds.top,
               width: dayGeometry.width,
-              minHeight: dayGeometry.height,
+              height: dayGeometry.height,
               outline: selected ? "8px solid rgba(59, 130, 246, 0.85)" : "none",
               outlineOffset: 8,
             }}
@@ -746,7 +780,10 @@ export function StudioTimetablePreview({
             }}
           >
             {entries.length > 0 ? (
-              <div style={{ display: "grid", gap: dayCardsLayout.entryGap }}>
+              <div
+                className="relative overflow-hidden"
+                style={{ width: dayGeometry.width, height: dayGeometry.height }}
+              >
                 {entries.map((entry, entryIndex) => {
                   const resolution = resolveStudioTimetableComponentVariant(
                     document,
@@ -760,23 +797,38 @@ export function StudioTimetablePreview({
                     document,
                     rootNode,
                   );
+                  const slot = entrySlots[entryIndex];
+                  if (!slot) return null;
+                  const scaleX = slot.width / geometry.width;
+                  const scaleY = slot.height / geometry.height;
 
                   return (
-                    <div key={entry.id}>
+                    <div
+                      className="absolute overflow-hidden"
+                      key={entry.id}
+                      style={{
+                        left: 0,
+                        top: slot.top,
+                        width: slot.width,
+                        height: slot.height,
+                      }}
+                    >
                       {rootNode && resolution ? (
                         <div
-                          className="relative overflow-visible"
+                          className="relative overflow-hidden"
                           style={{
-                            width: geometry.width,
-                            height: geometry.height,
+                            width: slot.width,
+                            height: slot.height,
                           }}
                         >
                           <div
                             className="absolute origin-top-left"
                             style={{
-                              left: -geometry.rootLeft,
-                              top: -geometry.rootTop,
+                              left: -geometry.rootLeft * scaleX,
+                              top: -geometry.rootTop * scaleY,
                               pointerEvents: "none",
+                              transform: `scale(${scaleX}, ${scaleY})`,
+                              transformOrigin: "top left",
                               width: document.canvas.width,
                               height: document.canvas.height,
                             }}
@@ -793,7 +845,10 @@ export function StudioTimetablePreview({
                           </div>
                         </div>
                       ) : (
-                        <div className="h-[92px] rounded-md border border-dashed border-slate-300" />
+                        <div
+                          className="rounded-md border border-dashed border-slate-300"
+                          style={{ width: slot.width, height: slot.height }}
+                        />
                       )}
                     </div>
                   );

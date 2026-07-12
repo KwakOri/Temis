@@ -1395,6 +1395,21 @@ const validateTimetableDomain = (
     }
   });
 
+  const capabilities = getStudioTimetableCapabilities(timetable);
+  (["multi", "offlineMemo"] as const).forEach((capabilityKey) => {
+    if (!capabilities[capabilityKey].enabled) return;
+    if (timetable.statuses[capabilityKey]) return;
+
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `timetable-capability-status-missing:${capabilityKey}`,
+        "Missing capability status",
+        `${capabilityKey} is enabled, but its timetable status definition is missing.`,
+      ),
+    );
+  });
+
   Object.entries(timetable.statuses).forEach(([statusId, status]) => {
     const requiredCapability = getStudioStatusRequiredCapability(statusId);
 

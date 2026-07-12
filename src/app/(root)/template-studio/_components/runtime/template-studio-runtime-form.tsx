@@ -19,10 +19,12 @@ import {
 import { getStudioAvailableTimetableStatuses } from "@/utils/template-studio/timetable-capabilities";
 import {
   addStudioTimetableEntry,
+  getStudioTimetableAddEntryDisabledReason,
   getStudioTimetableEntriesForDay,
-  getStudioTimetableMaxEntriesPerDay,
   removeStudioTimetableEntry,
+  setStudioTimetableEntryField,
   setStudioTimetableEntryStatus,
+  type StudioTimetableEditableEntryField,
 } from "@/utils/template-studio/timetable-runtime";
 
 interface TemplateStudioRuntimeFormProps {
@@ -36,6 +38,7 @@ type RuntimeInputGroups = Record<
   "global" | "day" | "entry",
   StudioInputDefinition[]
 >;
+type RuntimeScopeTab = "global" | "days";
 
 const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
   const suffix =
@@ -125,30 +128,35 @@ export function TemplateStudioRuntimeForm({
     () => getStudioAvailableTimetableStatuses(document),
     [document],
   );
-  const maxEntries = useMemo(
-    () => getStudioTimetableMaxEntriesPerDay(document),
-    [document],
-  );
   const [selectedDayId, setSelectedDayId] = useState<string>(
     days[0]?.id ?? "",
   );
   const [selectedEntryIndex, setSelectedEntryIndex] = useState(0);
+  const [activeScopeTab, setActiveScopeTab] = useState<RuntimeScopeTab>(
+    days.length > 0 ? "days" : "global",
+  );
   const activeEntries = selectedDayId
     ? getStudioTimetableEntriesForDay(document, runtimeValues, selectedDayId)
     : [];
   const activeEntry = activeEntries[selectedEntryIndex] ?? null;
-  const canAddEntry =
-    Boolean(selectedDayId) && activeEntries.length < maxEntries;
-  const hasScopedInputs =
-    inputGroups.global.length > 0 ||
-    inputGroups.day.length > 0 ||
-    inputGroups.entry.length > 0;
-
+  const addEntryDisabledReason = selectedDayId
+    ? getStudioTimetableAddEntryDisabledReason(
+        document,
+        runtimeValues,
+        selectedDayId,
+      )
+    : "Select a day first";
+  const canAddEntry = addEntryDisabledReason === null;
   useEffect(() => {
     if (selectedDayId && days.some((day) => day.id === selectedDayId)) return;
     setSelectedDayId(days[0]?.id ?? "");
     setSelectedEntryIndex(0);
   }, [days, selectedDayId]);
+
+  useEffect(() => {
+    if (days.length > 0 || activeScopeTab === "global") return;
+    setActiveScopeTab("global");
+  }, [activeScopeTab, days.length]);
 
   useEffect(() => {
     if (selectedEntryIndex < activeEntries.length) return;
@@ -210,6 +218,24 @@ export function TemplateStudioRuntimeForm({
         selectedDayId,
         entryIndex,
         statusId,
+      ),
+    );
+  };
+
+  const updateEntryField = (
+    field: StudioTimetableEditableEntryField,
+    value: string,
+  ) => {
+    if (!selectedDayId || !activeEntry) return;
+
+    setRuntimeValues((currentValues) =>
+      setStudioTimetableEntryField(
+        document,
+        currentValues,
+        selectedDayId,
+        selectedEntryIndex,
+        field,
+        value,
       ),
     );
   };
@@ -329,6 +355,43 @@ export function TemplateStudioRuntimeForm({
     );
   };
 
+  const renderEntryInputGroup = () => {
+    if (!selectedDayId || !activeEntry) return null;
+
+    const context: StudioRuntimeContext = {
+      dayId: selectedDayId,
+      entryIndex: selectedEntryIndex,
+    };
+
+    return (
+      <section className="grid gap-3 border-t border-slate-800 pt-4">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-slate-500">
+          Entry
+        </h3>
+        <div className="grid gap-3">
+          <RuntimeTextField
+            label="Main Title"
+            placeholder={`Entry ${selectedEntryIndex + 1}`}
+            value={activeEntry.mainTitle ?? ""}
+            onChange={(value) => updateEntryField("mainTitle", value)}
+          />
+          <RuntimeTextField
+            label="Sub Title"
+            value={activeEntry.subTitle ?? ""}
+            onChange={(value) => updateEntryField("subTitle", value)}
+          />
+          <RuntimeTextField
+            label="Time"
+            placeholder="09:00"
+            value={activeEntry.time ?? ""}
+            onChange={(value) => updateEntryField("time", value)}
+          />
+          {inputGroups.entry.map((input) => renderInput(input, context))}
+        </div>
+      </section>
+    );
+  };
+
   return (
     <aside className="flex h-full min-h-0 w-full flex-col border-t border-slate-800 bg-slate-900 text-slate-100 lg:w-[420px] lg:border-l lg:border-t-0">
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-slate-800 px-4">
@@ -349,8 +412,38 @@ export function TemplateStudioRuntimeForm({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        {days.length > 0 ? (
-          <section className="grid gap-3">
+        <div className="grid grid-cols-2 gap-1 rounded-lg border border-slate-800 bg-slate-950 p-1">
+          <button
+            aria-pressed={activeScopeTab === "global"}
+            className={cn(
+              "h-9 rounded-md text-xs font-bold transition",
+              activeScopeTab === "global"
+                ? "bg-blue-500 text-white"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white",
+            )}
+            type="button"
+            onClick={() => setActiveScopeTab("global")}
+          >
+            Global
+          </button>
+          <button
+            aria-pressed={activeScopeTab === "days"}
+            className={cn(
+              "h-9 rounded-md text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-40",
+              activeScopeTab === "days"
+                ? "bg-blue-500 text-white"
+                : "text-slate-400 hover:bg-slate-800 hover:text-white",
+            )}
+            disabled={days.length === 0}
+            type="button"
+            onClick={() => setActiveScopeTab("days")}
+          >
+            Days
+          </button>
+        </div>
+
+        {activeScopeTab === "days" && days.length > 0 ? (
+          <section className="mt-4 grid gap-3">
             <div className="grid grid-cols-7 gap-1">
               {days.map((day) => (
                 <button
@@ -380,7 +473,7 @@ export function TemplateStudioRuntimeForm({
                 <button
                   className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-700 bg-slate-950 text-slate-300 transition hover:border-blue-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-45"
                   disabled={!canAddEntry}
-                  title="Add entry"
+                  title={addEntryDisabledReason ?? "Add entry"}
                   type="button"
                   onClick={addEntry}
                 >
@@ -453,24 +546,21 @@ export function TemplateStudioRuntimeForm({
         ) : null}
 
         <div className="mt-4 grid gap-4">
-          {renderInputGroup("Global", inputGroups.global)}
+          {activeScopeTab === "global"
+            ? renderInputGroup("Global", inputGroups.global)
+            : null}
 
-          {selectedDayId
+          {activeScopeTab === "days" && selectedDayId
             ? renderInputGroup("Day", inputGroups.day, {
                 dayId: selectedDayId,
               })
             : null}
 
-          {selectedDayId && activeEntry
-            ? renderInputGroup("Entry", inputGroups.entry, {
-                dayId: selectedDayId,
-                entryIndex: selectedEntryIndex,
-              })
-            : null}
+          {activeScopeTab === "days" ? renderEntryInputGroup() : null}
 
-          {!hasScopedInputs && days.length === 0 ? (
+          {activeScopeTab === "global" && inputGroups.global.length === 0 ? (
             <div className="rounded-md border border-dashed border-slate-700 bg-slate-950 px-3 py-6 text-center text-xs font-semibold text-slate-500">
-              No inputs
+              No global inputs
             </div>
           ) : null}
         </div>

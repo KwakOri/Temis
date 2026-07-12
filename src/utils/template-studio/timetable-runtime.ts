@@ -8,7 +8,10 @@ import {
   StudioTimetableStatusId,
 } from "@/types/template-studio";
 import { createStudioRuntimeDefaultsForScope } from "@/utils/template-studio/input-values";
-import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
+import {
+  isStudioTimetableCapabilityEnabled,
+  isStudioTimetableStatusAvailable,
+} from "@/utils/template-studio/timetable-capabilities";
 
 export interface StudioTimetableVariantResolution {
   requestedStatusId: StudioTimetableStatusId;
@@ -16,6 +19,11 @@ export interface StudioTimetableVariantResolution {
   variant: StudioTimetableComponentVariant;
   isFallback: boolean;
 }
+
+export type StudioTimetableEditableEntryField = keyof Pick<
+  StudioTimetableRuntimeEntry,
+  "mainTitle" | "subTitle" | "time"
+>;
 
 const getDefaultEntryStatusId = (
   document: StudioTemplateDocument,
@@ -48,6 +56,39 @@ export const getStudioTimetableMaxEntriesPerDay = (
   document: StudioTemplateDocument,
 ): number => Math.max(1, document.domains?.timetable?.maxEntriesPerDay ?? 1);
 
+export const getStudioTimetableEffectiveMaxEntriesPerDay = (
+  document: StudioTemplateDocument,
+): number =>
+  isStudioTimetableCapabilityEnabled(document.domains?.timetable, "multi")
+    ? getStudioTimetableMaxEntriesPerDay(document)
+    : 1;
+
+export const getStudioTimetableAddEntryDisabledReason = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  dayId: StudioTimetableDayId,
+): string | null => {
+  if (!isStudioTimetableCapabilityEnabled(document.domains?.timetable, "multi")) {
+    return "Enable Multi Status to add entries";
+  }
+
+  if (
+    getStudioTimetableEntriesForDay(document, values, dayId).length >=
+    getStudioTimetableMaxEntriesPerDay(document)
+  ) {
+    return "Maximum entries reached";
+  }
+
+  return null;
+};
+
+export const getStudioTimetableDaysWithMultipleEntries = (
+  values: StudioRuntimeValues,
+): StudioTimetableDayId[] =>
+  Object.entries(values.timetable.entriesByDay)
+    .filter(([, entries]) => entries.length > 1)
+    .map(([dayId]) => dayId);
+
 export const addStudioTimetableEntry = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
@@ -59,11 +100,27 @@ export const addStudioTimetableEntry = (
     values,
     dayId,
   );
-  if (currentEntries.length >= getStudioTimetableMaxEntriesPerDay(document)) {
+  if (
+    currentEntries.length >=
+    getStudioTimetableEffectiveMaxEntriesPerDay(document)
+  ) {
     return values;
   }
 
   const inputDefaults = createStudioRuntimeDefaultsForScope(document, "entry");
+  const useMultiStatus =
+    currentEntries.length >= 1 &&
+    Boolean(document.domains?.timetable?.statuses.multi) &&
+    isStudioTimetableStatusAvailable(document.domains?.timetable, "multi");
+  const nextCurrentEntries = useMultiStatus
+    ? currentEntries.map((entry) =>
+        entry.statusId === "online" ? { ...entry, statusId: "multi" } : entry,
+      )
+    : currentEntries;
+  const nextEntry = createEntryInstance(document, entryId);
+  if (useMultiStatus && nextEntry.statusId === "online") {
+    nextEntry.statusId = "multi";
+  }
 
   return {
     ...values,
@@ -75,7 +132,7 @@ export const addStudioTimetableEntry = (
       ...values.timetable,
       entriesByDay: {
         ...(values.timetable?.entriesByDay ?? {}),
-        [dayId]: [...currentEntries, createEntryInstance(document, entryId)],
+        [dayId]: [...nextCurrentEntries, nextEntry],
       },
     },
   };
@@ -93,6 +150,17 @@ export const removeStudioTimetableEntry = (
     dayId,
   );
   if (entryIndex < 0 || entryIndex >= currentEntries.length) return values;
+  const remainingEntries = currentEntries.filter(
+    (_, index) => index !== entryIndex,
+  );
+  const normalizedEntries =
+    remainingEntries.length <= 1
+      ? remainingEntries.map((entry) =>
+          entry.statusId === "multi"
+            ? { ...entry, statusId: "online" }
+            : entry,
+        )
+      : remainingEntries;
 
   return {
     ...values,
@@ -106,7 +174,7 @@ export const removeStudioTimetableEntry = (
       ...values.timetable,
       entriesByDay: {
         ...(values.timetable?.entriesByDay ?? {}),
-        [dayId]: currentEntries.filter((_, index) => index !== entryIndex),
+        [dayId]: normalizedEntries,
       },
     },
   };
@@ -138,6 +206,35 @@ export const setStudioTimetableEntryStatus = (
         ...(values.timetable?.entriesByDay ?? {}),
         [dayId]: currentEntries.map((entry, index) =>
           index === entryIndex ? { ...entry, statusId } : entry,
+        ),
+      },
+    },
+  };
+};
+
+export const setStudioTimetableEntryField = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  dayId: StudioTimetableDayId,
+  entryIndex: number,
+  field: StudioTimetableEditableEntryField,
+  value: string,
+): StudioRuntimeValues => {
+  const currentEntries = getStudioTimetableEntriesForDay(
+    document,
+    values,
+    dayId,
+  );
+  if (!currentEntries[entryIndex]) return values;
+
+  return {
+    ...values,
+    timetable: {
+      ...values.timetable,
+      entriesByDay: {
+        ...(values.timetable?.entriesByDay ?? {}),
+        [dayId]: currentEntries.map((entry, index) =>
+          index === entryIndex ? { ...entry, [field]: value } : entry,
         ),
       },
     },

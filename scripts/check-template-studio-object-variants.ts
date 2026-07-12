@@ -6,6 +6,7 @@ import type {
 } from "../src/types/template-studio";
 import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migrations";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import { cloneStudioComponentVariant } from "../src/utils/template-studio/component-variants";
 import {
   createStudioStructuredTextPresetObjects,
   getStudioTimetableComposition,
@@ -165,6 +166,48 @@ assert.deepEqual(
   ),
   [],
   "Migrated object variants must pass document validation.",
+);
+
+const cardVariantDocument = createSampleStudioDocument();
+const cardComponent =
+  cardVariantDocument.domains?.timetable?.components.defaultEntryCard;
+assert.ok(cardComponent);
+assert.equal(
+  cardComponent.variants.online.rootNodeId,
+  cardComponent.variants.offline.rootNodeId,
+  "The sample starts with a shared Online/Offline layout.",
+);
+const sourceRootId = cardComponent.variants.online.rootNodeId;
+const sourceRoot = cardVariantDocument.graph.nodes[sourceRootId];
+assert.ok(sourceRoot);
+const sourceStyleId = sourceRoot.styleId;
+assert.ok(sourceStyleId);
+
+const cloneResult = cloneStudioComponentVariant(
+  cardVariantDocument,
+  cardComponent.id,
+  "online",
+  "offline",
+);
+if (!cloneResult.ok) throw new Error(cloneResult.reason);
+assert.equal(cloneResult.ok, true);
+assert.notEqual(cloneResult.rootNodeId, sourceRootId);
+assert.equal(
+  cardComponent.variants.offline.rootNodeId,
+  cloneResult.rootNodeId,
+);
+const clonedRoot = cardVariantDocument.graph.nodes[cloneResult.rootNodeId];
+assert.ok(clonedRoot);
+assert.notEqual(clonedRoot.styleId, sourceStyleId);
+assert.deepEqual(
+  cardVariantDocument.styles[clonedRoot.styleId!],
+  cardVariantDocument.styles[sourceStyleId],
+);
+cardVariantDocument.styles[clonedRoot.styleId!].left = 999;
+assert.notEqual(
+  cardVariantDocument.styles[sourceStyleId].left,
+  999,
+  "Cloned variants must not share mutable style records.",
 );
 
 console.log("Template Studio object variant checks passed.");

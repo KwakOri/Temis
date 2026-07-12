@@ -227,3 +227,24 @@ Browser regression scenarios:
 - Existing background asset slots and fallback behavior continue to work.
 - Existing template-studio checks, TypeScript, ESLint, new focused checks, and
   the browser regression scenarios pass.
+
+## Implementation Status
+
+Implemented on 2026-07-12:
+
+- [x] Shared effective-entry-limit and Add Entry guards
+- [x] Runtime mutation guard while Multi is disabled
+- [x] Non-destructive blocking when disabling Multi with multiple entries
+- [x] Automatic `online` to `multi` transition at two or more entries
+- [x] Automatic `multi` to `online` transition when returning to one entry
+- [x] Capability-derived status creation and migration
+- [x] Validator diagnostics for enabled capabilities with missing statuses
+- [x] Fixed day-card bounds with equal one/two/three-entry slot allocation
+- [x] Runtime component fitting inside each allocated slot
+- [x] Capability-filtered Cards status tabs
+- [x] Selected-variant-only Cards layers and canvas rendering
+- [x] Create Variant from Fallback and Make Layout Unique actions
+- [x] Multi preview entry-count selector and runtime-slot size guide
+- [x] Status-specific background resolution in the selected authoring context
+- [x] Focused runtime, layout, migration, and variant clone checks
+- [x] Browser verification against `template sample 02`

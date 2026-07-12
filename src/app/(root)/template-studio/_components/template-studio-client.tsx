@@ -83,6 +83,7 @@ import {
   getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
 } from "@/utils/template-studio/builtin-fields";
+import { cloneStudioComponentVariant } from "@/utils/template-studio/component-variants";
 import {
   STUDIO_WEEK_DATE_FORMAT_PRESETS,
   STUDIO_WEEK_DATE_LONG_TEMPLATE,
@@ -177,12 +178,17 @@ import {
 } from "@/utils/template-studio/status-card-background";
 import {
   addStudioTimetableEntry,
+  getStudioTimetableAddEntryDisabledReason,
+  getStudioTimetableDaysWithMultipleEntries,
+  getStudioTimetableEffectiveMaxEntriesPerDay,
   getStudioTimetableEntriesForDay,
   getStudioTimetableMaxEntriesPerDay,
   removeStudioTimetableEntry,
+  resolveStudioTimetableComponentVariant,
   setStudioTimetableEntryStatus,
 } from "@/utils/template-studio/timetable-runtime";
 import {
+  ensureStudioTimetableCapabilityStatus,
   getStudioAvailableTimetableStatuses,
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
@@ -211,6 +217,7 @@ import {
   getStudioTimetableDayCardsBounds,
   getStudioTimetableDayCardsLayout,
   getStudioTimetableEntryCardSize,
+  getStudioTimetableEntrySlotGeometries,
   getStudioTimetablePreviewSize,
   StudioTimetablePreview,
   STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS,
@@ -1336,6 +1343,9 @@ export function TemplateStudioClient({
   );
   const [selectedRuntimeDayId, setSelectedRuntimeDayId] = useState("mon");
   const [selectedRuntimeEntryIndex, setSelectedRuntimeEntryIndex] = useState(0);
+  const [selectedCardStatusId, setSelectedCardStatusId] =
+    useState<StudioTimetableStatusId>("online");
+  const [cardMultiPreviewCount, setCardMultiPreviewCount] = useState(2);
   const pastSnapshotsRef = useRef<StudioEditorHistorySnapshot[]>([]);
   const futureSnapshotsRef = useRef<StudioEditorHistorySnapshot[]>([]);
   const isRestoringHistoryRef = useRef(false);
@@ -1468,6 +1478,47 @@ export function TemplateStudioClient({
     () => getStudioTimetableCapabilities(document.domains?.timetable),
     [document.domains?.timetable],
   );
+  const cardStatusOptions = useMemo(
+    () => getStudioAvailableTimetableStatuses(document),
+    [document],
+  );
+  const cardEntryComponent = document.domains?.timetable
+    ? document.domains.timetable.components[
+        document.domains.timetable.entryComponentId
+      ]
+    : undefined;
+  const selectedCardVariantResolution = useMemo(
+    () =>
+      resolveStudioTimetableComponentVariant(
+        document,
+        cardEntryComponent,
+        selectedCardStatusId,
+      ),
+    [cardEntryComponent, document, selectedCardStatusId],
+  );
+  const selectedCardDirectVariant =
+    cardEntryComponent?.variants[selectedCardStatusId];
+  const selectedCardVariantRootId =
+    selectedCardVariantResolution?.variant.rootNodeId ?? null;
+  const selectedCardVariantIsShared = Boolean(
+    selectedCardDirectVariant &&
+      cardEntryComponent &&
+      Object.entries(cardEntryComponent.variants).some(
+        ([statusId, variant]) =>
+          statusId !== selectedCardStatusId &&
+          variant.rootNodeId === selectedCardDirectVariant.rootNodeId,
+      ),
+  );
+  const cardAuthoringRootNodeIds = selectedCardVariantRootId
+    ? [selectedCardVariantRootId]
+    : document.graph.rootNodeIds;
+  useEffect(() => {
+    if (cardStatusOptions.some((status) => status.id === selectedCardStatusId)) {
+      return;
+    }
+
+    setSelectedCardStatusId(cardStatusOptions[0]?.id ?? "online");
+  }, [cardStatusOptions, selectedCardStatusId]);
   const cardPresetGroups = useMemo(
     () => getStudioPresetGroups(document, "cards"),
     [document],
@@ -1595,7 +1646,8 @@ export function TemplateStudioClient({
     const day = timetableDays.find((currentDay) => currentDay.id === dayId);
     return day ? `${day.shortLabel ?? day.label} Card` : "Timetable Layer";
   }, [selectedTimetableLayerId, timetableComposition.objects, timetableDays]);
-  const maxRuntimeEntries = getStudioTimetableMaxEntriesPerDay(document);
+  const configuredMaxRuntimeEntries = getStudioTimetableMaxEntriesPerDay(document);
+  const maxRuntimeEntries = getStudioTimetableEffectiveMaxEntriesPerDay(document);
   const activeRuntimeEntries = activeRuntimeDayId
     ? getStudioTimetableEntriesForDay(
         document,
@@ -1609,6 +1661,37 @@ export function TemplateStudioClient({
   );
   const activeRuntimeEntry =
     activeRuntimeEntries[activeRuntimeEntryIndex] ?? null;
+  const cardMultiPreviewSlots = getStudioTimetableEntrySlotGeometries(
+    getStudioTimetableDayCardsLayout(document.domains?.timetable),
+    Math.min(cardMultiPreviewCount, configuredMaxRuntimeEntries),
+    timetableEntryCardSize,
+  );
+  const cardAuthoringRuntimeValues = useMemo(() => {
+    if (!activeRuntimeDayId || !activeRuntimeEntry) return runtimeValues;
+
+    const dayEntries =
+      runtimeValues.timetable.entriesByDay[activeRuntimeDayId] ?? [];
+    return {
+      ...runtimeValues,
+      timetable: {
+        ...runtimeValues.timetable,
+        entriesByDay: {
+          ...runtimeValues.timetable.entriesByDay,
+          [activeRuntimeDayId]: dayEntries.map((entry, entryIndex) =>
+            entryIndex === activeRuntimeEntryIndex
+              ? { ...entry, statusId: selectedCardStatusId }
+              : entry,
+          ),
+        },
+      },
+    };
+  }, [
+    activeRuntimeDayId,
+    activeRuntimeEntry,
+    activeRuntimeEntryIndex,
+    runtimeValues,
+    selectedCardStatusId,
+  ]);
   const selectedTimetableLayerGeometry = useMemo(() => {
     const timetable = document.domains?.timetable;
     if (!timetable || !selectedTimetableLayerId) return null;
@@ -4415,6 +4498,18 @@ export function TemplateStudioClient({
       const currentCapabilities = getStudioTimetableCapabilities(timetable);
       if (currentCapabilities[capabilityKey].enabled === enabled) return;
 
+      if (
+        capabilityKey === "multi" &&
+        !enabled &&
+        getStudioTimetableDaysWithMultipleEntries(runtimeValuesRef.current)
+          .length > 0
+      ) {
+        showShortcutStatus(
+          "Remove extra entries before disabling Multi Status",
+        );
+        return;
+      }
+
       const nextCapabilities = {
         ...currentCapabilities,
         [capabilityKey]: { enabled },
@@ -4426,6 +4521,9 @@ export function TemplateStudioClient({
       captureHistory();
 
       nextTimetable.capabilities = nextCapabilities;
+      if (enabled) {
+        ensureStudioTimetableCapabilityStatus(nextTimetable, capabilityKey);
+      }
 
       const nextRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
         cloneRuntimeValues(runtimeValuesRef.current),
@@ -4444,6 +4542,47 @@ export function TemplateStudioClient({
     },
     [captureHistory, showShortcutStatus],
   );
+
+  const createSelectedCardVariant = useCallback(() => {
+    const currentDocument = documentRef.current;
+    const timetable = currentDocument.domains?.timetable;
+    if (!timetable) return;
+
+    const component = timetable.components[timetable.entryComponentId];
+    const resolution = resolveStudioTimetableComponentVariant(
+      currentDocument,
+      component,
+      selectedCardStatusId,
+    );
+    if (!component || !resolution) {
+      showShortcutStatus("No fallback variant is available");
+      return;
+    }
+
+    const sourceStatusId = component.variants[selectedCardStatusId]
+      ? selectedCardStatusId
+      : resolution.resolvedStatusId;
+    const nextDocument = cloneDocument(currentDocument);
+    const result = cloneStudioComponentVariant(
+      nextDocument,
+      component.id,
+      sourceStatusId,
+      selectedCardStatusId,
+    );
+    if (!result.ok) {
+      showShortcutStatus(result.reason);
+      return;
+    }
+
+    captureHistory();
+    documentRef.current = nextDocument;
+    setDocument(nextDocument);
+    setSelectedNodeId(result.rootNodeId);
+    setSelectedNodeIds([result.rootNodeId]);
+    showShortcutStatus(
+      `${selectedCardStatusId} variant created from ${sourceStatusId}`,
+    );
+  }, [captureHistory, selectedCardStatusId, showShortcutStatus]);
 
   const deleteSelectedNode = useCallback(() => {
     const selectedActionNodeIds = getStudioTopLevelNodeIds(
@@ -6711,7 +6850,14 @@ export function TemplateStudioClient({
       );
     }
 
-    const canAddEntry = activeRuntimeEntries.length < maxRuntimeEntries;
+    const addEntryDisabledReason = activeRuntimeDayId
+      ? getStudioTimetableAddEntryDisabledReason(
+          document,
+          runtimeValues,
+          activeRuntimeDayId,
+        )
+      : "Select a day first";
+    const canAddEntry = addEntryDisabledReason === null;
 
     return (
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
@@ -6754,7 +6900,7 @@ export function TemplateStudioClient({
             <button
               className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
               disabled={!canAddEntry}
-              title="Add entry"
+              title={addEntryDisabledReason ?? "Add entry"}
               type="button"
               onClick={addEntryToActiveDay}
             >
@@ -9027,6 +9173,95 @@ export function TemplateStudioClient({
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-[260px] min-w-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--panel)]">
+          {activeWorkspaceMode === "cards" ? (
+            <div className="grid gap-2 border-b border-[var(--border)] p-2">
+              <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
+                {cardStatusOptions.map((status) => (
+                  <button
+                    className={cn(
+                      "h-8 rounded-md px-2 text-[11px] font-bold transition",
+                      selectedCardStatusId === status.id
+                        ? "bg-[var(--accent)] text-white"
+                        : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                    )}
+                    key={status.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedCardStatusId(status.id);
+                      const resolution = resolveStudioTimetableComponentVariant(
+                        document,
+                        cardEntryComponent,
+                        status.id,
+                      );
+                      const rootNodeId = resolution?.variant.rootNodeId;
+                      if (rootNodeId) {
+                        setSelectedNodeId(rootNodeId);
+                        setSelectedNodeIds([rootNodeId]);
+                      }
+                    }}
+                  >
+                    {status.label}
+                  </button>
+                ))}
+              </div>
+
+              {!selectedCardDirectVariant || selectedCardVariantIsShared ? (
+                <div className="grid gap-1.5 rounded-lg border border-amber-400/25 bg-amber-400/10 p-2">
+                  <div className="text-[10px] font-semibold leading-relaxed text-amber-200">
+                    {!selectedCardDirectVariant
+                      ? `Using ${selectedCardVariantResolution?.resolvedStatusId ?? "fallback"} layout`
+                      : "This layout is shared with another status"}
+                  </div>
+                  <button
+                    className="h-7 rounded-md border border-amber-300/30 bg-amber-300/10 px-2 text-[10px] font-bold text-amber-100 transition hover:bg-amber-300/20"
+                    type="button"
+                    onClick={createSelectedCardVariant}
+                  >
+                    {!selectedCardDirectVariant
+                      ? "Create Variant"
+                      : "Make Layout Unique"}
+                  </button>
+                </div>
+              ) : null}
+
+              {selectedCardStatusId === "multi" ? (
+                <label className="grid gap-1 text-[10px] font-semibold text-[var(--fg2)]">
+                  <span>Multi preview entries</span>
+                  <select
+                    className="h-7 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-bold text-[var(--fg)] outline-none"
+                    value={Math.min(
+                      cardMultiPreviewCount,
+                      configuredMaxRuntimeEntries,
+                    )}
+                    onChange={(event) =>
+                      setCardMultiPreviewCount(
+                        Number(event.currentTarget.value),
+                      )
+                    }
+                  >
+                    {Array.from(
+                      {
+                        length: Math.max(1, configuredMaxRuntimeEntries - 1),
+                      },
+                      (_, index) => index + 2,
+                    ).map((entryCount) => (
+                      <option key={entryCount} value={entryCount}>
+                        {entryCount} entries
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[9px] text-[var(--fg3)]">
+                    Target slot height: {Math.round(
+                      cardMultiPreviewSlots[0]?.height ??
+                        timetableEntryCardSize.height,
+                    )}
+                    px
+                  </span>
+                </label>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="flex gap-0.5 px-2 pt-2">
             {(activeWorkspaceMode === "cards"
               ? [
@@ -9189,7 +9424,7 @@ export function TemplateStudioClient({
                 <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
                   <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
                     {getStudioLayerPanelOrder(
-                      document.graph.rootNodeIds,
+                      cardAuthoringRootNodeIds,
                     ).map((nodeId) => renderLayerTree(nodeId))}
                   </div>
                 </div>
@@ -9403,34 +9638,57 @@ export function TemplateStudioClient({
                 variantMode="authoring"
               />
             ) : (
-              <StudioRenderer
-                document={document}
-                runtimeContext={
-                  activeRuntimeDayId
-                    ? {
-                        dayId: activeRuntimeDayId,
-                        entryIndex: activeRuntimeEntryIndex,
-                      }
-                    : undefined
-                }
-                runtimeValues={runtimeValues}
-                selectedNodeId={selectedNodeId}
-                selectedNodeIds={selectedNodeIds}
-                onSelectNode={(nodeId, event) => {
-                  if (!nodeId) {
-                    selectSingleNode(null);
-                    setNodePicker(null);
-                    return;
-                  }
-
-                  if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
-                    toggleNodeSelection(nodeId);
-                  } else {
-                    selectSingleNode(nodeId);
-                  }
-                  setNodePicker(null);
+              <div
+                className="relative"
+                style={{
+                  width: document.canvas.width,
+                  height: document.canvas.height,
                 }}
-              />
+              >
+                <StudioRenderer
+                  document={document}
+                  rootNodeIds={cardAuthoringRootNodeIds}
+                  runtimeContext={
+                    activeRuntimeDayId
+                      ? {
+                          dayId: activeRuntimeDayId,
+                          entryIndex: activeRuntimeEntryIndex,
+                        }
+                      : undefined
+                  }
+                  runtimeValues={cardAuthoringRuntimeValues}
+                  selectedNodeId={selectedNodeId}
+                  selectedNodeIds={selectedNodeIds}
+                  onSelectNode={(nodeId, event) => {
+                    if (!nodeId) {
+                      selectSingleNode(null);
+                      setNodePicker(null);
+                      return;
+                    }
+
+                    if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
+                      toggleNodeSelection(nodeId);
+                    } else {
+                      selectSingleNode(nodeId);
+                    }
+                    setNodePicker(null);
+                  }}
+                />
+                {selectedCardStatusId === "multi" &&
+                cardMultiPreviewSlots[0] ? (
+                  <div
+                    className="pointer-events-none absolute left-0 top-0 border-4 border-dashed border-fuchsia-400/80"
+                    style={{
+                      width: cardMultiPreviewSlots[0].width,
+                      height: cardMultiPreviewSlots[0].height,
+                    }}
+                  >
+                    <span className="absolute left-2 top-2 rounded bg-fuchsia-500 px-2 py-1 text-[10px] font-bold text-white">
+                      Multi entry slot
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             )}
           </StudioCanvasViewport>
 

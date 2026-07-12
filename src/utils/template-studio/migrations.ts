@@ -1,5 +1,8 @@
 import { StudioTemplateDocument } from "@/types/template-studio";
-import { getStudioTimetableCapabilities } from "@/utils/template-studio/timetable-capabilities";
+import {
+  ensureStudioTimetableCapabilityStatus,
+  getStudioTimetableCapabilities,
+} from "@/utils/template-studio/timetable-capabilities";
 import { getStudioTimetableComposition } from "@/utils/template-studio/timetable-composition";
 import {
   ensureStudioTimetableVariantInput,
@@ -78,6 +81,19 @@ export const migrateStudioTemplateDocument = (
       warnings.push("Added default timetable capabilities.");
     }
     timetable.capabilities = getStudioTimetableCapabilities(timetable);
+    Object.entries(timetable.capabilities).forEach(
+      ([capabilityKey, capability]) => {
+        if (!capability.enabled) return;
+        if (
+          ensureStudioTimetableCapabilityStatus(
+            timetable,
+            capabilityKey as keyof typeof timetable.capabilities,
+          )
+        ) {
+          warnings.push(`Added ${capabilityKey} timetable status.`);
+        }
+      },
+    );
 
     if (!timetable.composition) {
       warnings.push("Added default timetable composition.");
