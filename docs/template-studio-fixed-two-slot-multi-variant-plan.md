@@ -245,3 +245,21 @@ Browser checks:
   non-uniform component scaling.
 - Editor, import, draft, publish, and preview enforce the same two-entry policy.
 - TypeScript, ESLint, focused checks, and browser regression scenarios pass.
+
+## Implementation Status
+
+Implemented on 2026-07-12:
+
+- [x] Document version 2 and version-1 migration
+- [x] Shared component frame contract and synchronized variant root geometry
+- [x] Explicit Entry Group slot metadata and recursive runtime context
+- [x] Online/Offline/Offline Memo one-slot validation
+- [x] Multi fixed slot 0/1 creation through variant cloning
+- [x] One component-variant render per day
+- [x] Removal of runtime entry-height allocation and full-card scaling
+- [x] Fixed effective maximum of two entries
+- [x] Destructive edit guards for variant roots and Entry Groups
+- [x] Document/runtime cross-validation for import, export, draft, and publish
+- [x] Focused migration, layout, runtime, clone, and static renderer checks
+- [ ] Saved remote-template browser regression; local execution currently requires
+      a `SUPABASE_SERVICE_ROLE_KEY` that is not present in the development shell

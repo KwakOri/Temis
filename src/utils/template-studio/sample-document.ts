@@ -50,7 +50,7 @@ export const createInitialStudioRuntimeValues = (
 
 export const createSampleStudioDocument = (): StudioTemplateDocument => ({
   schema: "studio_template_document",
-  version: 1,
+  version: 2,
   metadata: {
     editor: "template-studio",
     name: "Template Studio Sample",
@@ -165,6 +165,14 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       display: "flex",
       alignItems: "center",
     },
+    style_entry_group_1: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: 780,
+      height: 500,
+      overflow: "visible",
+    },
   },
   graph: {
     rootNodeIds: ["node_a1"],
@@ -174,14 +182,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
         type: "group",
         label: "Template Card",
         parentId: null,
-        childIds: [
-          "node_b2",
-          "node_i9",
-          "node_h8",
-          "node_e5",
-          "node_d4",
-          "node_c3",
-        ],
+        childIds: ["node_b2", "node_i9", "node_h8", "node_entry_group_1"],
         styleId: "style_canvas_card",
       },
       node_b2: {
@@ -218,7 +219,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
         id: "node_c3",
         type: "flexibleText",
         label: "main_title",
-        parentId: "node_a1",
+        parentId: "node_entry_group_1",
         childIds: [],
         styleId: "style_main_title",
         binding: {
@@ -230,7 +231,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
         id: "node_d4",
         type: "flexibleText",
         label: "sub_title",
-        parentId: "node_a1",
+        parentId: "node_entry_group_1",
         childIds: [],
         styleId: "style_sub_title",
         binding: {
@@ -242,13 +243,22 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
         id: "node_e5",
         type: "text",
         label: "time",
-        parentId: "node_a1",
+        parentId: "node_entry_group_1",
         childIds: [],
         styleId: "style_time",
         binding: {
           kind: "builtinField",
           fieldId: "entry.time",
         },
+      },
+      node_entry_group_1: {
+        id: "node_entry_group_1",
+        type: "group",
+        label: "Entry Group 1",
+        parentId: "node_a1",
+        childIds: ["node_e5", "node_d4", "node_c3"],
+        styleId: "style_entry_group_1",
+        meta: { entrySlot: { index: 0 } },
       },
       node_h8: {
         id: "node_h8",
@@ -432,6 +442,12 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
           id: "defaultEntryCard",
           label: "Default entry card",
           defaultStatusId: "online",
+          frame: {
+            left: 160,
+            top: 120,
+            width: 780,
+            height: 500,
+          },
           variants: {
             online: {
               statusId: "online",
@@ -446,7 +462,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument => ({
       },
       entryComponentId: "defaultEntryCard",
       defaultEntryStatusId: "online",
-      maxEntriesPerDay: 3,
+      maxEntriesPerDay: 2,
     },
   },
 });

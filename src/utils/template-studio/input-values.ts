@@ -4,6 +4,8 @@ import {
   StudioRuntimeValues,
   StudioTemplateDocument,
 } from "@/types/template-studio";
+import { STUDIO_MULTI_ENTRY_SLOT_COUNT } from "@/utils/template-studio/entry-groups";
+import { isStudioTimetableCapabilityEnabled } from "@/utils/template-studio/timetable-capabilities";
 
 export interface StudioRuntimeContext {
   dayId?: string;
@@ -42,7 +44,13 @@ export const createStudioInitialRuntimeValues = (
 ): StudioRuntimeValues => {
   const timetable = document.domains?.timetable;
   const dayIds = timetable?.dayIds ?? [];
-  const entryCountPerDay = Math.max(1, options.entryCountPerDay ?? 1);
+  const requestedEntryCount = Math.max(1, options.entryCountPerDay ?? 1);
+  const entryCountPerDay = Math.min(
+    requestedEntryCount,
+    isStudioTimetableCapabilityEnabled(timetable, "multi")
+      ? STUDIO_MULTI_ENTRY_SLOT_COUNT
+      : 1,
+  );
   const dayDefaults = createStudioRuntimeDefaultsForScope(document, "day");
   const entryDefaults = createStudioRuntimeDefaultsForScope(document, "entry");
   const defaultStatusId = timetable?.defaultEntryStatusId ?? "online";

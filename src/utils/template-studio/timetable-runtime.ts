@@ -1,4 +1,5 @@
 import {
+  StudioDiagnostic,
   StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTimetableComponentDefinition,
@@ -12,6 +13,7 @@ import {
   isStudioTimetableCapabilityEnabled,
   isStudioTimetableStatusAvailable,
 } from "@/utils/template-studio/timetable-capabilities";
+import { STUDIO_MULTI_ENTRY_SLOT_COUNT } from "@/utils/template-studio/entry-groups";
 
 export interface StudioTimetableVariantResolution {
   requestedStatusId: StudioTimetableStatusId;
@@ -24,6 +26,46 @@ export type StudioTimetableEditableEntryField = keyof Pick<
   StudioTimetableRuntimeEntry,
   "mainTitle" | "subTitle" | "time"
 >;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+export const isStudioRuntimeValuesLike = (
+  value: unknown,
+): value is StudioRuntimeValues => {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.global) ||
+    !isRecord(value.days) ||
+    !isRecord(value.entries) ||
+    !isRecord(value.timetable) ||
+    !isRecord(value.timetable.entriesByDay)
+  ) {
+    return false;
+  }
+
+  const dayValuesAreValid = Object.values(value.days).every(isRecord);
+  const customEntriesAreValid = Object.values(value.entries).every(
+    (entries) => Array.isArray(entries) && entries.every(isRecord),
+  );
+  const timetableEntriesAreValid = Object.values(
+    value.timetable.entriesByDay,
+  ).every(
+    (entries) =>
+      Array.isArray(entries) &&
+      entries.every(
+        (entry) =>
+          isRecord(entry) &&
+          typeof entry.id === "string" &&
+          typeof entry.statusId === "string" &&
+          [entry.mainTitle, entry.subTitle, entry.time].every(
+            (field) => field === undefined || typeof field === "string",
+          ),
+      ),
+  );
+
+  return dayValuesAreValid && customEntriesAreValid && timetableEntriesAreValid;
+};
 
 const getDefaultEntryStatusId = (
   document: StudioTemplateDocument,
@@ -52,15 +94,14 @@ export const getStudioTimetableEntriesForDay = (
   );
 };
 
-export const getStudioTimetableMaxEntriesPerDay = (
-  document: StudioTemplateDocument,
-): number => Math.max(1, document.domains?.timetable?.maxEntriesPerDay ?? 1);
+export const getStudioTimetableMaxEntriesPerDay = (): number =>
+  STUDIO_MULTI_ENTRY_SLOT_COUNT;
 
 export const getStudioTimetableEffectiveMaxEntriesPerDay = (
   document: StudioTemplateDocument,
 ): number =>
   isStudioTimetableCapabilityEnabled(document.domains?.timetable, "multi")
-    ? getStudioTimetableMaxEntriesPerDay(document)
+    ? getStudioTimetableMaxEntriesPerDay()
     : 1;
 
 export const getStudioTimetableAddEntryDisabledReason = (
@@ -68,13 +109,15 @@ export const getStudioTimetableAddEntryDisabledReason = (
   values: StudioRuntimeValues,
   dayId: StudioTimetableDayId,
 ): string | null => {
-  if (!isStudioTimetableCapabilityEnabled(document.domains?.timetable, "multi")) {
+  if (
+    !isStudioTimetableCapabilityEnabled(document.domains?.timetable, "multi")
+  ) {
     return "Enable Multi Status to add entries";
   }
 
   if (
     getStudioTimetableEntriesForDay(document, values, dayId).length >=
-    getStudioTimetableMaxEntriesPerDay(document)
+    getStudioTimetableMaxEntriesPerDay()
   ) {
     return "Maximum entries reached";
   }
@@ -113,9 +156,7 @@ export const addStudioTimetableEntry = (
     Boolean(document.domains?.timetable?.statuses.multi) &&
     isStudioTimetableStatusAvailable(document.domains?.timetable, "multi");
   const nextCurrentEntries = useMultiStatus
-    ? currentEntries.map((entry) =>
-        entry.statusId === "online" ? { ...entry, statusId: "multi" } : entry,
-      )
+    ? currentEntries.map((entry) => ({ ...entry, statusId: "multi" }))
     : currentEntries;
   const nextEntry = createEntryInstance(document, entryId);
   if (useMultiStatus && nextEntry.statusId === "online") {
@@ -156,9 +197,7 @@ export const removeStudioTimetableEntry = (
   const normalizedEntries =
     remainingEntries.length <= 1
       ? remainingEntries.map((entry) =>
-          entry.statusId === "multi"
-            ? { ...entry, statusId: "online" }
-            : entry,
+          entry.statusId === "multi" ? { ...entry, statusId: "online" } : entry,
         )
       : remainingEntries;
 
@@ -197,6 +236,22 @@ export const setStudioTimetableEntryStatus = (
     dayId,
   );
   if (!currentEntries[entryIndex]) return values;
+  if (currentEntries.length > 1) {
+    if (statusId !== "multi") return values;
+    return {
+      ...values,
+      timetable: {
+        ...values.timetable,
+        entriesByDay: {
+          ...(values.timetable?.entriesByDay ?? {}),
+          [dayId]: currentEntries.map((entry) => ({
+            ...entry,
+            statusId: "multi",
+          })),
+        },
+      },
+    };
+  }
 
   return {
     ...values,
@@ -239,6 +294,74 @@ export const setStudioTimetableEntryField = (
       },
     },
   };
+};
+
+export const validateStudioRuntimeValuesForDocument = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+): StudioDiagnostic[] => {
+  const timetable = document.domains?.timetable;
+  if (!timetable) return [];
+  const diagnostics: StudioDiagnostic[] = [];
+  const multiEnabled = isStudioTimetableCapabilityEnabled(timetable, "multi");
+
+  timetable.dayIds.forEach((dayId) => {
+    const entries = values.timetable.entriesByDay[dayId] ?? [];
+    if (entries.length > STUDIO_MULTI_ENTRY_SLOT_COUNT) {
+      diagnostics.push({
+        id: `runtime-entry-limit:${dayId}`,
+        severity: "error",
+        title: "Too many timetable entries",
+        detail: `${dayId} has ${entries.length} entries, but Multi supports exactly two slots.`,
+      });
+    }
+    if (!multiEnabled && entries.length > 1) {
+      diagnostics.push({
+        id: `runtime-multi-disabled:${dayId}`,
+        severity: "error",
+        title: "Multiple entries require Multi",
+        detail: `${dayId} contains multiple entries while Multi is disabled.`,
+      });
+    }
+    if (
+      entries.length > 1 &&
+      entries.some((entry) => entry.statusId !== "multi")
+    ) {
+      diagnostics.push({
+        id: `runtime-multi-status:${dayId}`,
+        severity: "error",
+        title: "Invalid Multi runtime status",
+        detail: `${dayId} has two entries, so both entries must use the Multi layout status.`,
+      });
+    }
+    if (entries.length <= 1 && entries[0]?.statusId === "multi") {
+      diagnostics.push({
+        id: `runtime-single-multi-status:${dayId}`,
+        severity: "error",
+        title: "Invalid single-entry Multi status",
+        detail: `${dayId} has one entry, so it cannot use the Multi layout status.`,
+      });
+    }
+    entries.forEach((entry, entryIndex) => {
+      if (!timetable.statuses[entry.statusId]) {
+        diagnostics.push({
+          id: `runtime-status-missing:${dayId}:${entryIndex}`,
+          severity: "error",
+          title: "Unknown runtime status",
+          detail: `${dayId} entry ${entryIndex + 1} uses missing status ${entry.statusId}.`,
+        });
+      } else if (!isStudioTimetableStatusAvailable(timetable, entry.statusId)) {
+        diagnostics.push({
+          id: `runtime-status-disabled:${dayId}:${entryIndex}`,
+          severity: "error",
+          title: "Unavailable runtime status",
+          detail: `${dayId} entry ${entryIndex + 1} uses disabled status ${entry.statusId}.`,
+        });
+      }
+    });
+  });
+
+  return diagnostics;
 };
 
 export const resolveStudioTimetableComponentVariant = (

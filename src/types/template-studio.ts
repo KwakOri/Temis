@@ -41,9 +41,7 @@ export type StudioTimetableCompositionObjectKind =
   | "profileBlock"
   | "topObject";
 export type StudioTimetableProfileObjectRole =
-  | "backPlate"
-  | "userImage"
-  | "frame";
+  "backPlate" | "userImage" | "frame";
 export type StudioTimetableStructuredObjectRole = "background" | "text";
 export type StudioTimetableObjectPresetId =
   | "dayCards"
@@ -102,6 +100,11 @@ export interface StudioExceptionObjectMeta {
 export interface StudioGraphNodeMeta {
   semantic?: StudioSemanticMeta;
   exception?: StudioExceptionObjectMeta;
+  entrySlot?: StudioEntrySlotMeta;
+}
+
+export interface StudioEntrySlotMeta {
+  index: 0 | 1;
 }
 
 export type StudioBinding =
@@ -229,10 +232,18 @@ export interface StudioTimetableComponentVariant {
   rootNodeId: StudioNodeId;
 }
 
+export interface StudioTimetableComponentFrame {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 export interface StudioTimetableComponentDefinition {
   id: StudioTimetableComponentId;
   label: string;
   defaultStatusId: StudioTimetableStatusId;
+  frame?: StudioTimetableComponentFrame;
   variants: Record<StudioTimetableStatusId, StudioTimetableComponentVariant>;
 }
 
@@ -258,11 +269,7 @@ export interface StudioTimetableDayCardOffset {
 }
 
 export type StudioTimetableDayCardsGridPreset =
-  | "1x7"
-  | "7x1"
-  | "4x2"
-  | "3x3"
-  | "custom";
+  "1x7" | "7x1" | "4x2" | "3x3" | "custom";
 export type StudioTimetableDayCardsFillOrder = "row" | "column";
 export type StudioTimetableDayCardsAlignLastRow = "start" | "center" | "end";
 
@@ -375,7 +382,7 @@ export interface StudioTemplateDomains {
 
 export interface StudioTemplateDocument {
   schema: "studio_template_document";
-  version: 1;
+  version: 2;
   metadata: {
     editor: "template-studio";
     name: string;

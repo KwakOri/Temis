@@ -13,6 +13,7 @@ import {
   getStudioTimetableEffectiveMaxEntriesPerDay,
   removeStudioTimetableEntry,
   setStudioTimetableEntryField,
+  validateStudioRuntimeValuesForDocument,
 } from "../src/utils/template-studio/timetable-runtime";
 
 const document = createSampleStudioDocument();
@@ -41,7 +42,7 @@ assert.equal(
 
 document.domains!.timetable!.capabilities!.multi.enabled = true;
 ensureStudioTimetableCapabilityStatus(document.domains!.timetable!, "multi");
-assert.equal(getStudioTimetableEffectiveMaxEntriesPerDay(document), 3);
+assert.equal(getStudioTimetableEffectiveMaxEntriesPerDay(document), 2);
 const withSecondEntry = addStudioTimetableEntry(
   document,
   initialValues,
@@ -59,7 +60,29 @@ assert.deepEqual(getStudioTimetableDaysWithMultipleEntries(withSecondEntry), [
 ]);
 assert.equal(
   getStudioTimetableAddEntryDisabledReason(document, withSecondEntry, dayId),
-  null,
+  "Maximum entries reached",
+);
+assert.equal(
+  addStudioTimetableEntry(document, withSecondEntry, dayId, `${dayId}-entry-3`),
+  withSecondEntry,
+  "Multi must remain a fixed two-entry layout.",
+);
+const invalidThreeEntries = structuredClone(withSecondEntry);
+invalidThreeEntries.timetable.entriesByDay[dayId].push({
+  id: `${dayId}-entry-3`,
+  statusId: "multi",
+});
+assert.ok(
+  validateStudioRuntimeValuesForDocument(document, invalidThreeEntries).some(
+    (diagnostic) => diagnostic.id === `runtime-entry-limit:${dayId}`,
+  ),
+);
+const invalidMixedStatuses = structuredClone(withSecondEntry);
+invalidMixedStatuses.timetable.entriesByDay[dayId][0].statusId = "online";
+assert.ok(
+  validateStudioRuntimeValuesForDocument(document, invalidMixedStatuses).some(
+    (diagnostic) => diagnostic.id === `runtime-multi-status:${dayId}`,
+  ),
 );
 const backToSingleEntry = removeStudioTimetableEntry(
   document,
@@ -96,12 +119,10 @@ assert.equal(
   "Editing a built-in field must not mutate the previous runtime values.",
 );
 assert.equal(
-  resolveStudioBuiltinFieldValue(
-    document,
-    withMainTitle,
-    "entry.main_title",
-    { dayId, entryIndex: 0 },
-  ),
+  resolveStudioBuiltinFieldValue(document, withMainTitle, "entry.main_title", {
+    dayId,
+    entryIndex: 0,
+  }),
   "Updated title",
   "The renderer-facing built-in resolver must read the edited title.",
 );

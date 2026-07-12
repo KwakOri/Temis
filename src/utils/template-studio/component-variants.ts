@@ -5,10 +5,13 @@ import type {
   StudioTimetableStatusId,
 } from "@/types/template-studio";
 import { createStudioId } from "@/utils/template-studio/id";
+import {
+  applyStudioTimetableComponentFrames,
+  ensureStudioVariantEntryGroups,
+} from "@/utils/template-studio/entry-groups";
 
 export type StudioComponentVariantCloneResult =
-  | { ok: true; rootNodeId: StudioNodeId }
-  | { ok: false; reason: string };
+  { ok: true; rootNodeId: StudioNodeId } | { ok: false; reason: string };
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
@@ -70,6 +73,8 @@ export const cloneStudioComponentVariant = (
     statusId: targetStatusId,
     rootNodeId,
   };
+  ensureStudioVariantEntryGroups(document, component, targetStatusId);
+  applyStudioTimetableComponentFrames(document);
 
   return { ok: true, rootNodeId };
 };

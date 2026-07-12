@@ -128,9 +128,7 @@ export function TemplateStudioRuntimeForm({
     () => getStudioAvailableTimetableStatuses(document),
     [document],
   );
-  const [selectedDayId, setSelectedDayId] = useState<string>(
-    days[0]?.id ?? "",
-  );
+  const [selectedDayId, setSelectedDayId] = useState<string>(days[0]?.id ?? "");
   const [selectedEntryIndex, setSelectedEntryIndex] = useState(0);
   const [activeScopeTab, setActiveScopeTab] = useState<RuntimeScopeTab>(
     days.length > 0 ? "days" : "global",
@@ -184,7 +182,12 @@ export function TemplateStudioRuntimeForm({
 
     const nextEntryId = createEntryId(selectedDayId, activeEntries.length);
     setRuntimeValues((currentValues) =>
-      addStudioTimetableEntry(document, currentValues, selectedDayId, nextEntryId),
+      addStudioTimetableEntry(
+        document,
+        currentValues,
+        selectedDayId,
+        nextEntryId,
+      ),
     );
     setSelectedEntryIndex(activeEntries.length);
   };
@@ -260,7 +263,9 @@ export function TemplateStudioRuntimeForm({
             placeholder={input.placeholder}
             rows={input.minRows ?? 4}
             value={value}
-            onChange={(nextValue) => updateInputValue(input, nextValue, context)}
+            onChange={(nextValue) =>
+              updateInputValue(input, nextValue, context)
+            }
           />
         );
       }
@@ -283,7 +288,9 @@ export function TemplateStudioRuntimeForm({
             label={input.label}
             placeholder={input.placeholder}
             value={value}
-            onChange={(nextValue) => updateInputValue(input, nextValue, context)}
+            onChange={(nextValue) =>
+              updateInputValue(input, nextValue, context)
+            }
           />
           <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 text-xs font-bold text-slate-300 transition hover:border-blue-400 hover:text-white">
             <Upload size={14} />
@@ -299,11 +306,7 @@ export function TemplateStudioRuntimeForm({
 
                 const reader = new FileReader();
                 reader.onload = () => {
-                  updateInputValue(
-                    input,
-                    String(reader.result ?? ""),
-                    context,
-                  );
+                  updateInputValue(input, String(reader.result ?? ""), context);
                 };
                 reader.readAsDataURL(file);
               }}
@@ -514,6 +517,7 @@ export function TemplateStudioRuntimeForm({
                         <select
                           className="h-8 min-w-0 rounded-md border border-slate-700 bg-slate-900 px-2 text-xs font-semibold text-slate-100 outline-none focus:border-blue-400"
                           value={entry.statusId}
+                          disabled={activeEntries.length > 1}
                           onChange={(event) =>
                             updateEntryStatus(
                               entryIndex,

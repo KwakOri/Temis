@@ -73,7 +73,7 @@ Current known gaps:
 - [x] Admin API draft/publish/revision persistence exists.
 - [x] Canonical document assets synchronize to Cloudflare R2.
 - [x] Saved preview loads the current user draft before the published document.
-- [ ] Replace automatic Multi height splitting with an authored fixed-two-slot
+- [x] Replace automatic Multi height splitting with an authored fixed-two-slot
       Multi variant.
 
 ## Non-Negotiable Rules
@@ -641,7 +641,7 @@ Remote gate notes:
   against local Supabase, including template create/list/load, asset upload,
   draft save/load, publish, and cleanup.
 - Static verification passed with `npx tsc --noEmit --pretty false
-  --incremental false`, changed-file ESLint, and `git diff --check`.
+--incremental false`, changed-file ESLint, and `git diff --check`.
 - The migration creates new Template Studio tables and a private
   `template-studio-assets` bucket instead of reusing existing v2 render-config
   tables.

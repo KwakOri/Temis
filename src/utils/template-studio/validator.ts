@@ -26,6 +26,7 @@ import {
 } from "@/utils/template-studio/timetable-capabilities";
 import { isStudioStatusCardBackgroundNode } from "@/utils/template-studio/status-card-background";
 import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
+import { getStudioVariantEntryGroups } from "@/utils/template-studio/entry-groups";
 
 const createDiagnostic = (
   severity: StudioDiagnostic["severity"],
@@ -98,7 +99,8 @@ const addInputConsumer = (
 const collectStudioInputConsumers = (
   document: StudioTemplateDocument,
 ): Record<string, StudioInputConsumerDiagnosticReference[]> => {
-  const consumers: Record<string, StudioInputConsumerDiagnosticReference[]> = {};
+  const consumers: Record<string, StudioInputConsumerDiagnosticReference[]> =
+    {};
 
   Object.values(document.graph.nodes).forEach((node) => {
     addInputConsumer(consumers, getBindingInputId(node.binding), {
@@ -118,32 +120,32 @@ const collectStudioInputConsumers = (
     });
   });
 
-  Object.values(document.domains?.timetable?.composition?.objects ?? {}).forEach(
-    (object) => {
-      addInputConsumer(consumers, object.variantSet?.inputId, {
-        id: `timetable:${object.id}:variant`,
+  Object.values(
+    document.domains?.timetable?.composition?.objects ?? {},
+  ).forEach((object) => {
+    addInputConsumer(consumers, object.variantSet?.inputId, {
+      id: `timetable:${object.id}:variant`,
+      workspace: "timetable",
+      label: object.label,
+      detail: "Timetable object state",
+    });
+
+    addInputConsumer(consumers, getBindingInputId(object.binding), {
+      id: `timetable:${object.id}:binding`,
+      workspace: "timetable",
+      label: object.label,
+      detail: "Timetable binding",
+    });
+
+    Object.entries(object.assetSlots ?? {}).forEach(([slotName, slot]) => {
+      addInputConsumer(consumers, slot.inputId, {
+        id: `timetable:${object.id}:slot:${slotName}`,
         workspace: "timetable",
         label: object.label,
-        detail: "Timetable object state",
+        detail: `Timetable ${slotName} slot`,
       });
-
-      addInputConsumer(consumers, getBindingInputId(object.binding), {
-        id: `timetable:${object.id}:binding`,
-        workspace: "timetable",
-        label: object.label,
-        detail: "Timetable binding",
-      });
-
-      Object.entries(object.assetSlots ?? {}).forEach(([slotName, slot]) => {
-        addInputConsumer(consumers, slot.inputId, {
-          id: `timetable:${object.id}:slot:${slotName}`,
-          workspace: "timetable",
-          label: object.label,
-          detail: `Timetable ${slotName} slot`,
-        });
-      });
-    },
-  );
+    });
+  });
 
   return consumers;
 };
@@ -513,7 +515,10 @@ const validateTimetableCompositionObjectVariants = (
     );
   }
 
-  if (optionValues.length === 0 || uniqueOptionValues.size !== optionValues.length) {
+  if (
+    optionValues.length === 0 ||
+    uniqueOptionValues.size !== optionValues.length
+  ) {
     diagnostics.push(
       createDiagnostic(
         "error",
@@ -535,7 +540,10 @@ const validateTimetableCompositionObjectVariants = (
     );
   }
 
-  if (variantSet.activeValue && !uniqueOptionValues.has(variantSet.activeValue)) {
+  if (
+    variantSet.activeValue &&
+    !uniqueOptionValues.has(variantSet.activeValue)
+  ) {
     diagnostics.push(
       createDiagnostic(
         "error",
@@ -546,9 +554,7 @@ const validateTimetableCompositionObjectVariants = (
     );
   }
 
-  const input = variantSet.inputId
-    ? document.inputs[variantSet.inputId]
-    : null;
+  const input = variantSet.inputId ? document.inputs[variantSet.inputId] : null;
   if (variantSet.inputId && !input) {
     diagnostics.push(
       createDiagnostic(
@@ -578,7 +584,9 @@ const validateTimetableCompositionObjectVariants = (
     );
   } else if (input?.type === "select") {
     const inputValues = new Set(input.options.map((option) => option.value));
-    const missingValues = optionValues.filter((value) => !inputValues.has(value));
+    const missingValues = optionValues.filter(
+      (value) => !inputValues.has(value),
+    );
     if (missingValues.length > 0) {
       diagnostics.push(
         createDiagnostic(
@@ -1563,6 +1571,25 @@ const validateTimetableDomain = (
       );
     }
 
+    if (
+      !component.frame ||
+      !Number.isFinite(component.frame.left) ||
+      !Number.isFinite(component.frame.top) ||
+      !Number.isFinite(component.frame.width) ||
+      !Number.isFinite(component.frame.height) ||
+      component.frame.width <= 0 ||
+      component.frame.height <= 0
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `timetable-component-frame-invalid:${componentId}`,
+          "Invalid shared component frame",
+          `${component.label} needs one positive shared frame for every status variant.`,
+        ),
+      );
+    }
+
     (["online", "offline"] as const).forEach((baseStatusId) => {
       if (!component.variants[baseStatusId]) {
         diagnostics.push(
@@ -1610,7 +1637,8 @@ const validateTimetableDomain = (
         );
       }
 
-      if (!nodes[variant.rootNodeId]) {
+      const variantRoot = nodes[variant.rootNodeId];
+      if (!variantRoot) {
         diagnostics.push(
           createDiagnostic(
             "error",
@@ -1619,6 +1647,46 @@ const validateTimetableDomain = (
             `${component.label} ${variantStatusId} points to ${variant.rootNodeId}, but that node does not exist.`,
           ),
         );
+      } else {
+        const rootStyle = variantRoot.styleId
+          ? document.styles[variantRoot.styleId]
+          : undefined;
+        if (
+          component.frame &&
+          (["left", "top", "width", "height"] as const).some(
+            (key) => rootStyle?.[key] !== component.frame?.[key],
+          )
+        ) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-component-frame-mismatch:${componentId}:${variantStatusId}`,
+              "Variant frame mismatch",
+              `${component.label} ${variantStatusId} must use the shared component frame.`,
+            ),
+          );
+        }
+
+        const entryGroups = getStudioVariantEntryGroups(document, variant);
+        const slotIndexes = entryGroups.map(
+          (group) => group.meta?.entrySlot?.index,
+        );
+        const expectedSlotIndexes = variantStatusId === "multi" ? [0, 1] : [0];
+        if (
+          slotIndexes.length !== expectedSlotIndexes.length ||
+          expectedSlotIndexes.some(
+            (slotIndex) => !slotIndexes.includes(slotIndex as 0 | 1),
+          )
+        ) {
+          diagnostics.push(
+            createDiagnostic(
+              "error",
+              `timetable-component-entry-groups:${componentId}:${variantStatusId}`,
+              "Invalid Entry Group contract",
+              `${component.label} ${variantStatusId} requires Entry Group slot${expectedSlotIndexes.length > 1 ? "s" : ""} ${expectedSlotIndexes.join(" and ")}.`,
+            ),
+          );
+        }
       }
     });
 

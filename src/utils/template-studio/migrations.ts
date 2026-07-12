@@ -8,9 +8,10 @@ import {
   ensureStudioTimetableVariantInput,
   isStudioTimetableVariantInputCompatible,
 } from "@/utils/template-studio/preset-inputs";
+import { ensureStudioTimetableEntryGroupContract } from "@/utils/template-studio/entry-groups";
 
 export const STUDIO_TEMPLATE_DOCUMENT_SCHEMA = "studio_template_document";
-export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 1;
+export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 2;
 
 export type StudioTemplateDocumentMigrationResult =
   | {
@@ -58,22 +59,39 @@ export const migrateStudioTemplateDocument = (
     };
   }
 
-  if (value.version !== STUDIO_TEMPLATE_DOCUMENT_VERSION) {
+  if (
+    value.version !== 1 &&
+    value.version !== STUDIO_TEMPLATE_DOCUMENT_VERSION
+  ) {
     return {
       ok: false,
       message: `Template Studio document version ${String(value.version)} is not supported.`,
     };
   }
 
-  if (!isStudioTemplateDocumentLike(value)) {
+  if (
+    !isRecord(value.metadata) ||
+    !isRecord(value.canvas) ||
+    !isRecord(value.graph) ||
+    !isRecord(value.inputs) ||
+    !isRecord(value.styles) ||
+    !isRecord(value.assets)
+  ) {
     return {
       ok: false,
-      message: "The selected Template Studio document is missing required fields.",
+      message:
+        "The selected Template Studio document is missing required fields.",
     };
   }
 
-  const document = cloneJson(value);
+  const document = cloneJson(value) as unknown as StudioTemplateDocument;
   const warnings: string[] = [];
+  if (value.version === 1) {
+    document.version = STUDIO_TEMPLATE_DOCUMENT_VERSION;
+    warnings.push(
+      "Migrated Template Studio document from version 1 to version 2.",
+    );
+  }
   const timetable = document.domains?.timetable;
 
   if (timetable) {
@@ -99,6 +117,7 @@ export const migrateStudioTemplateDocument = (
       warnings.push("Added default timetable composition.");
     }
     timetable.composition = getStudioTimetableComposition(timetable);
+    warnings.push(...ensureStudioTimetableEntryGroupContract(document));
 
     Object.values(timetable.composition.objects).forEach((object) => {
       if (

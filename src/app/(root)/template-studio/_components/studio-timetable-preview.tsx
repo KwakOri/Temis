@@ -37,6 +37,10 @@ import {
   getStudioTimetableEntriesForDay,
   resolveStudioTimetableComponentVariant,
 } from "@/utils/template-studio/timetable-runtime";
+import {
+  getStudioTimetableComponentFrame,
+  resolveStudioTimetableDayVariantStatus,
+} from "@/utils/template-studio/entry-groups";
 import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 
 import { StudioWebFontLoader } from "./studio-web-font-loader";
@@ -92,12 +96,6 @@ export type StudioTimetableEntryCardSize = {
   height: number;
 };
 
-export type StudioTimetableEntrySlotGeometry = {
-  top: number;
-  width: number;
-  height: number;
-};
-
 type StudioTimetableEntryRootGeometry = StudioTimetableEntryCardSize & {
   rootLeft: number;
   rootTop: number;
@@ -147,11 +145,7 @@ const getGeneratedDayCardGridPosition = ({
     const lastColumnCount = ((dayCount - 1) % rows) + 1;
     const rowOffset =
       column === lastColumn && lastColumnCount < rows
-        ? getAlignedIncompleteTrackOffset(
-            rows,
-            lastColumnCount,
-            alignLastRow,
-          )
+        ? getAlignedIncompleteTrackOffset(rows, lastColumnCount, alignLastRow)
         : 0;
 
     return {
@@ -297,18 +291,14 @@ export const getStudioTimetableEntryCardSize = (
   document: StudioTemplateDocument,
   component?: StudioTimetableComponentDefinition,
 ): StudioTimetableEntryCardSize => {
-  const variantRootNodes = component
-    ? Object.values(component.variants)
-        .map((variant) => document.graph.nodes[variant.rootNodeId])
-        .filter(Boolean)
-    : [];
+  if (component) {
+    const frame = getStudioTimetableComponentFrame(document, component);
+    return { width: frame.width, height: frame.height };
+  }
 
-  const rootNodes =
-    variantRootNodes.length > 0
-      ? variantRootNodes
-      : document.graph.rootNodeIds
-          .map((nodeId) => document.graph.nodes[nodeId])
-          .filter(Boolean);
+  const rootNodes = document.graph.rootNodeIds
+    .map((nodeId) => document.graph.nodes[nodeId])
+    .filter(Boolean);
 
   if (rootNodes.length === 0) {
     return {
@@ -330,43 +320,27 @@ export const getStudioTimetableEntryCardSize = (
 export const getStudioTimetableDayCardHeight = (
   layout: StudioTimetableDayCardsLayout,
   _entryCount: number,
-  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(
+    layout,
+  ),
 ) => Math.max(1, entryCardSize.height);
-
-export const getStudioTimetableEntrySlotGeometries = (
-  layout: StudioTimetableDayCardsLayout,
-  entryCount: number,
-  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
-): StudioTimetableEntrySlotGeometry[] => {
-  const count = Math.max(0, Math.floor(entryCount));
-  if (count === 0) return [];
-
-  const cardHeight = Math.max(1, entryCardSize.height);
-  const requestedGap = Math.max(0, layout.entryGap);
-  const maxGap =
-    count > 1 ? Math.max(0, (cardHeight - count) / (count - 1)) : 0;
-  const gap = Math.min(requestedGap, maxGap);
-  const slotHeight = Math.max(
-    1,
-    (cardHeight - gap * (count - 1)) / count,
-  );
-
-  return Array.from({ length: count }, (_, index) => ({
-    top: index * (slotHeight + gap),
-    width: Math.max(1, entryCardSize.width),
-    height: slotHeight,
-  }));
-};
 
 export const getStudioTimetableDayCardGeometry = (
   layout: StudioTimetableDayCardsLayout,
   dayId: StudioTimetableDayId,
   dayIndex: number,
   entryCount: number,
-  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(
+    layout,
+  ),
 ) => {
   const offset = layout.dayOffsets?.[dayId] ?? { left: 0, top: 0 };
-  const position = getDayCardGridPosition(layout, dayId, dayIndex, dayIndex + 1);
+  const position = getDayCardGridPosition(
+    layout,
+    dayId,
+    dayIndex,
+    dayIndex + 1,
+  );
 
   return {
     left:
@@ -381,11 +355,7 @@ export const getStudioTimetableDayCardGeometry = (
           (layout.rowGap ?? layout.dayGap)) +
       offset.top,
     width: entryCardSize.width,
-    height: getStudioTimetableDayCardHeight(
-      layout,
-      entryCount,
-      entryCardSize,
-    ),
+    height: getStudioTimetableDayCardHeight(layout, entryCount, entryCardSize),
   };
 };
 
@@ -393,7 +363,9 @@ export const getStudioTimetableDayCardGeometries = (
   layout: StudioTimetableDayCardsLayout,
   days: StudioTimetableDayDefinition[],
   getEntryCount: (dayId: StudioTimetableDayId) => number,
-  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(
+    layout,
+  ),
 ): Record<StudioTimetableDayId, StudioTimetableDayCardGeometry> => {
   const rowHeights = Array.from({ length: layout.rows ?? 1 }, () => 0);
   const explicitPositions = new Map<
@@ -488,7 +460,9 @@ export const getStudioTimetableDayCardsBounds = (
   layout: StudioTimetableDayCardsLayout,
   days: StudioTimetableDayDefinition[],
   getEntryCount: (dayId: StudioTimetableDayId) => number,
-  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(layout),
+  entryCardSize: StudioTimetableEntryCardSize = getFallbackEntryCardSize(
+    layout,
+  ),
 ) => {
   const geometries = Object.values(
     getStudioTimetableDayCardGeometries(
@@ -550,11 +524,7 @@ const resolveWeekDatesText = (
   document: StudioTemplateDocument,
   object: StudioTimetableCompositionObject,
 ) => {
-  const format = getStringStyleValue(
-    object.style,
-    "dateRangeFormat",
-    "long",
-  );
+  const format = getStringStyleValue(object.style, "dateRangeFormat", "long");
   const template = getStringStyleValue(object.style, "dateRangeTemplate", "");
 
   return resolveStudioWeekDateText(document, { format, template });
@@ -577,9 +547,7 @@ const resolveTimetableObjectText = (
   return value || object.label;
 };
 
-const isArtistProfileTextObject = (
-  object: StudioTimetableCompositionObject,
-) =>
+const isArtistProfileTextObject = (object: StudioTimetableCompositionObject) =>
   object.presetId === "artistProfileText" ||
   object.meta?.exception?.semanticKey === "artistProfileText";
 
@@ -638,9 +606,7 @@ const getTimetableObjectStyle = (
       : null);
   const backgroundFit = backgroundSlot?.fit ?? object.backgroundFit;
   const backgroundSize =
-    backgroundFit === "fill"
-      ? "100% 100%"
-      : (backgroundFit ?? "cover");
+    backgroundFit === "fill" ? "100% 100%" : (backgroundFit ?? "cover");
 
   return {
     ...styleRecord,
@@ -740,11 +706,6 @@ export function StudioTimetablePreview({
     >
       {days.map((day, dayIndex) => {
         const entries = entriesByDay[day.id] ?? [];
-        const entrySlots = getStudioTimetableEntrySlotGeometries(
-          dayCardsLayout,
-          entries.length,
-          entryCardSize,
-        );
         const dayGeometry =
           dayCardGeometries[day.id] ??
           getStudioTimetableDayCardGeometry(
@@ -784,75 +745,60 @@ export function StudioTimetablePreview({
                 className="relative overflow-hidden"
                 style={{ width: dayGeometry.width, height: dayGeometry.height }}
               >
-                {entries.map((entry, entryIndex) => {
+                {(() => {
+                  const statusId = resolveStudioTimetableDayVariantStatus(
+                    document,
+                    runtimeValues,
+                    day.id,
+                  );
                   const resolution = resolveStudioTimetableComponentVariant(
                     document,
                     component,
-                    entry.statusId,
+                    statusId,
                   );
                   const rootNode = resolution
                     ? document.graph.nodes[resolution.variant.rootNodeId]
                     : undefined;
-                  const geometry = getStudioTimetableEntryRootGeometry(
+                  const frame = getStudioTimetableComponentFrame(
                     document,
-                    rootNode,
+                    component,
                   );
-                  const slot = entrySlots[entryIndex];
-                  if (!slot) return null;
-                  const scaleX = slot.width / geometry.width;
-                  const scaleY = slot.height / geometry.height;
 
-                  return (
+                  return rootNode && resolution ? (
                     <div
                       className="absolute overflow-hidden"
-                      key={entry.id}
                       style={{
                         left: 0,
-                        top: slot.top,
-                        width: slot.width,
-                        height: slot.height,
+                        top: 0,
+                        width: frame.width,
+                        height: frame.height,
                       }}
                     >
-                      {rootNode && resolution ? (
-                        <div
-                          className="relative overflow-hidden"
-                          style={{
-                            width: slot.width,
-                            height: slot.height,
-                          }}
-                        >
-                          <div
-                            className="absolute origin-top-left"
-                            style={{
-                              left: -geometry.rootLeft * scaleX,
-                              top: -geometry.rootTop * scaleY,
-                              pointerEvents: "none",
-                              transform: `scale(${scaleX}, ${scaleY})`,
-                              transformOrigin: "top left",
-                              width: document.canvas.width,
-                              height: document.canvas.height,
-                            }}
-                          >
-                            <StudioRenderer
-                              document={document}
-                              rootNodeIds={[resolution.variant.rootNodeId]}
-                              runtimeContext={{
-                                dayId: day.id,
-                                entryIndex,
-                              }}
-                              runtimeValues={runtimeValues}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="rounded-md border border-dashed border-slate-300"
-                          style={{ width: slot.width, height: slot.height }}
+                      <div
+                        className="absolute"
+                        style={{
+                          left: -frame.left,
+                          top: -frame.top,
+                          pointerEvents: "none",
+                          width: document.canvas.width,
+                          height: document.canvas.height,
+                        }}
+                      >
+                        <StudioRenderer
+                          document={document}
+                          rootNodeIds={[resolution.variant.rootNodeId]}
+                          runtimeContext={{ dayId: day.id, entryIndex: 0 }}
+                          runtimeValues={runtimeValues}
                         />
-                      )}
+                      </div>
                     </div>
+                  ) : (
+                    <div
+                      className="rounded-md border border-dashed border-slate-300"
+                      style={{ width: frame.width, height: frame.height }}
+                    />
                   );
-                })}
+                })()}
               </div>
             ) : (
               <div
@@ -888,7 +834,11 @@ export function StudioTimetablePreview({
     );
     const assetSize = Math.max(
       24,
-      getNumericStyleValue(object.style, "assetSize", Math.min(160, geometry.height || 160)),
+      getNumericStyleValue(
+        object.style,
+        "assetSize",
+        Math.min(160, geometry.height || 160),
+      ),
     );
     const assetGap = Math.max(
       0,
@@ -1022,11 +972,7 @@ export function StudioTimetablePreview({
     );
     const selected = selectedLayerId === object.id;
     const assetSlot = object.assetSlots?.asset;
-    const asset = resolveTimetableAssetSlot(
-      document,
-      runtimeValues,
-      assetSlot,
-    );
+    const asset = resolveTimetableAssetSlot(document, runtimeValues, assetSlot);
 
     return (
       <div
@@ -1071,11 +1017,7 @@ export function StudioTimetablePreview({
     );
     const selected = selectedLayerId === object.id;
     const assetSlot = object.assetSlots?.asset;
-    const asset = resolveTimetableAssetSlot(
-      document,
-      runtimeValues,
-      assetSlot,
-    );
+    const asset = resolveTimetableAssetSlot(document, runtimeValues, assetSlot);
 
     return (
       <div

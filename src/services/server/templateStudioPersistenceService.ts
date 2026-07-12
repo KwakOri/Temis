@@ -11,6 +11,10 @@ import {
   STUDIO_TEMPLATE_DOCUMENT_VERSION,
 } from "@/utils/template-studio/migrations";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
+import {
+  isStudioRuntimeValuesLike,
+  validateStudioRuntimeValuesForDocument,
+} from "@/utils/template-studio/timetable-runtime";
 
 type SupabaseErrorLike = {
   code?: string;
@@ -57,10 +61,7 @@ export type TemplateStudioPersistenceClient = {
 export type TemplateStudioTemplateStatus = "draft" | "published" | "archived";
 
 export type TemplateStudioRevisionSource =
-  | "publish"
-  | "import"
-  | "backfill"
-  | "system";
+  "publish" | "import" | "backfill" | "system";
 
 type TemplateStudioTemplateRow = {
   id: string;
@@ -234,21 +235,10 @@ const TEMPLATE_STUDIO_ASSET_COLUMNS =
 const TEMPLATE_STUDIO_TEMPLATE_COLUMNS =
   "id, name, description, status, created_by, created_at, updated_at";
 
-const templateStudioClient = supabaseAdminServer as unknown as
-  TemplateStudioPersistenceClient;
+const templateStudioClient =
+  supabaseAdminServer as unknown as TemplateStudioPersistenceClient;
 
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isStudioRuntimeValues = (value: unknown): value is StudioRuntimeValues =>
-  isRecord(value) &&
-  isRecord(value.global) &&
-  isRecord(value.days) &&
-  isRecord(value.entries) &&
-  isRecord(value.timetable) &&
-  isRecord(value.timetable.entriesByDay);
 
 const toJson = (value: unknown): Json => cloneJson(value) as Json;
 
@@ -257,10 +247,7 @@ const getBlockingDiagnostics = (
 ): StudioDiagnostic[] =>
   diagnostics.filter((diagnostic) => diagnostic.severity === "error");
 
-const throwOnError = (
-  message: string,
-  error: SupabaseErrorLike | null,
-) => {
+const throwOnError = (message: string, error: SupabaseErrorLike | null) => {
   if (error) {
     throw new TemplateStudioPersistenceError(message, error);
   }
@@ -270,9 +257,8 @@ const getClient = (
   client?: TemplateStudioPersistenceClient,
 ): TemplateStudioPersistenceClient => client ?? templateStudioClient;
 
-export const migrateTemplateStudioDocumentForPersistence = (
-  value: unknown,
-) => migrateStudioTemplateDocument(value);
+export const migrateTemplateStudioDocumentForPersistence = (value: unknown) =>
+  migrateStudioTemplateDocument(value);
 
 export const validateTemplateStudioDocumentForPersistence = (
   value: unknown,
@@ -291,7 +277,13 @@ export const validateTemplateStudioDocumentForPersistence = (
   }
 
   const document = migrationResult.document;
-  const diagnostics = validateStudioDocument(document);
+  const documentDiagnostics = validateStudioDocument(document);
+  const diagnostics = isStudioRuntimeValuesLike(runtimeValues)
+    ? [
+        ...documentDiagnostics,
+        ...validateStudioRuntimeValuesForDocument(document, runtimeValues),
+      ]
+    : documentDiagnostics;
   const blockingDiagnostics = getBlockingDiagnostics(diagnostics);
 
   if (blockingDiagnostics.length > 0) {
@@ -303,7 +295,7 @@ export const validateTemplateStudioDocumentForPersistence = (
     };
   }
 
-  if (isStudioRuntimeValues(runtimeValues)) {
+  if (isStudioRuntimeValuesLike(runtimeValues)) {
     return {
       ok: true,
       document,
@@ -378,7 +370,9 @@ const toDocumentRecord = (
   };
 };
 
-const toDraftRecord = (row: TemplateStudioDraftRow): TemplateStudioDraftRecord => {
+const toDraftRecord = (
+  row: TemplateStudioDraftRow,
+): TemplateStudioDraftRecord => {
   const prepared = prepareStoredDocument(row.document, row.runtime_values);
 
   return {
@@ -413,7 +407,9 @@ const toRevisionRecord = (
   };
 };
 
-const toAssetRecord = (row: TemplateStudioAssetRow): TemplateStudioAssetRecord => ({
+const toAssetRecord = (
+  row: TemplateStudioAssetRow,
+): TemplateStudioAssetRecord => ({
   id: row.id,
   templateId: row.template_id,
   assetId: row.asset_id,

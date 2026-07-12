@@ -6,6 +6,10 @@ import {
 import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
 import { migrateStudioTemplateDocument } from "@/utils/template-studio/migrations";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
+import {
+  isStudioRuntimeValuesLike,
+  validateStudioRuntimeValuesForDocument,
+} from "@/utils/template-studio/timetable-runtime";
 
 export const STUDIO_TEMPLATE_EXPORT_SCHEMA = "studio_template_export";
 export const STUDIO_TEMPLATE_EXPORT_VERSION = 1;
@@ -38,14 +42,6 @@ const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isStudioRuntimeValues = (value: unknown): value is StudioRuntimeValues =>
-  isRecord(value) &&
-  isRecord(value.global) &&
-  isRecord(value.days) &&
-  isRecord(value.entries) &&
-  isRecord(value.timetable) &&
-  isRecord(value.timetable.entriesByDay);
-
 const getImportedDocumentSource = (value: unknown): unknown | null => {
   if (isRecord(value) && value.schema === "studio_template_document") {
     return value;
@@ -70,7 +66,7 @@ const getImportedRuntimeValues = (
     isRecord(value) &&
     value.schema === STUDIO_TEMPLATE_EXPORT_SCHEMA &&
     value.version === STUDIO_TEMPLATE_EXPORT_VERSION &&
-    isStudioRuntimeValues(value.runtimeValues)
+    isStudioRuntimeValuesLike(value.runtimeValues)
   ) {
     return value.runtimeValues;
   }
@@ -170,6 +166,18 @@ export const parseStudioTemplateExportJson = (
   }
 
   const importedRuntimeValues = getImportedRuntimeValues(parsed);
+  const runtimeDiagnostics = importedRuntimeValues
+    ? validateStudioRuntimeValuesForDocument(document, importedRuntimeValues)
+    : [];
+  const runtimeBlockingDiagnostics =
+    getStudioTemplateBlockingDiagnostics(runtimeDiagnostics);
+  if (runtimeBlockingDiagnostics.length > 0) {
+    return {
+      ok: false,
+      message: `The selected runtime values have ${runtimeBlockingDiagnostics.length} validation error(s).`,
+      diagnostics: [...diagnostics, ...runtimeDiagnostics],
+    };
+  }
 
   return {
     ok: true,
@@ -177,7 +185,7 @@ export const parseStudioTemplateExportJson = (
     runtimeValues: importedRuntimeValues
       ? cloneJson(importedRuntimeValues)
       : createStudioInitialRuntimeValues(document),
-    diagnostics,
+    diagnostics: [...diagnostics, ...runtimeDiagnostics],
     migrationWarnings: migrationResult.warnings,
     usedRuntimeFallback: !importedRuntimeValues,
   };

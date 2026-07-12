@@ -15,6 +15,13 @@ import {
   setStudioTimetableObjectActiveVariantValue,
 } from "../src/utils/template-studio/timetable-composition";
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
+import {
+  getStudioNodeRuntimeContext,
+  getStudioVariantEntryGroups,
+} from "../src/utils/template-studio/entry-groups";
+import { ensureStudioTimetableCapabilityStatus } from "../src/utils/template-studio/timetable-capabilities";
+import { resolveStudioBuiltinFieldValue } from "../src/utils/template-studio/builtin-fields";
+import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
 
 const stateInputId = "artist-state";
 const structured = createStudioStructuredTextPresetObjects(
@@ -192,10 +199,7 @@ const cloneResult = cloneStudioComponentVariant(
 if (!cloneResult.ok) throw new Error(cloneResult.reason);
 assert.equal(cloneResult.ok, true);
 assert.notEqual(cloneResult.rootNodeId, sourceRootId);
-assert.equal(
-  cardComponent.variants.offline.rootNodeId,
-  cloneResult.rootNodeId,
-);
+assert.equal(cardComponent.variants.offline.rootNodeId, cloneResult.rootNodeId);
 const clonedRoot = cardVariantDocument.graph.nodes[cloneResult.rootNodeId];
 assert.ok(clonedRoot);
 assert.notEqual(clonedRoot.styleId, sourceStyleId);
@@ -208,6 +212,110 @@ assert.notEqual(
   cardVariantDocument.styles[sourceStyleId].left,
   999,
   "Cloned variants must not share mutable style records.",
+);
+
+const multiDocument = createSampleStudioDocument();
+const multiTimetable = multiDocument.domains!.timetable!;
+multiTimetable.capabilities!.multi.enabled = true;
+ensureStudioTimetableCapabilityStatus(multiTimetable, "multi");
+const multiComponent =
+  multiTimetable.components[multiTimetable.entryComponentId];
+const multiCloneResult = cloneStudioComponentVariant(
+  multiDocument,
+  multiComponent.id,
+  "online",
+  "multi",
+);
+if (!multiCloneResult.ok) throw new Error(multiCloneResult.reason);
+const multiGroups = getStudioVariantEntryGroups(
+  multiDocument,
+  multiComponent.variants.multi,
+);
+assert.deepEqual(
+  multiGroups.map((group) => group.meta?.entrySlot?.index),
+  [0, 1],
+  "The Multi variant must own exactly two authored Entry Groups.",
+);
+assert.notEqual(multiGroups[0].id, multiGroups[1].id);
+assert.notEqual(multiGroups[0].styleId, multiGroups[1].styleId);
+
+const multiValues = createStudioInitialRuntimeValues(multiDocument, {
+  entryCountPerDay: 2,
+});
+const multiDayId = multiTimetable.dayIds[0];
+multiValues.timetable.entriesByDay[multiDayId][0].mainTitle = "First entry";
+multiValues.timetable.entriesByDay[multiDayId][1].mainTitle = "Second entry";
+const firstContext = getStudioNodeRuntimeContext(multiGroups[0], {
+  dayId: multiDayId,
+});
+const secondContext = getStudioNodeRuntimeContext(multiGroups[1], {
+  dayId: multiDayId,
+});
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    multiDocument,
+    multiValues,
+    "entry.main_title",
+    firstContext,
+  ),
+  "First entry",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    multiDocument,
+    multiValues,
+    "entry.main_title",
+    secondContext,
+  ),
+  "Second entry",
+);
+
+const legacyDocument = createSampleStudioDocument();
+(legacyDocument as unknown as { version: number }).version = 1;
+const legacyComponent =
+  legacyDocument.domains!.timetable!.components.defaultEntryCard;
+delete legacyComponent.frame;
+const legacyRoot =
+  legacyDocument.graph.nodes[legacyComponent.variants.online.rootNodeId];
+const legacyGroup = getStudioVariantEntryGroups(
+  legacyDocument,
+  legacyComponent.variants.online,
+)[0];
+assert.ok(legacyGroup);
+const legacyGroupIndex = legacyRoot.childIds.indexOf(legacyGroup.id);
+legacyRoot.childIds.splice(legacyGroupIndex, 1, ...legacyGroup.childIds);
+legacyGroup.childIds.forEach((childId) => {
+  legacyDocument.graph.nodes[childId].parentId = legacyRoot.id;
+});
+if (legacyGroup.styleId) delete legacyDocument.styles[legacyGroup.styleId];
+delete legacyDocument.graph.nodes[legacyGroup.id];
+
+const legacyMigration = migrateStudioTemplateDocument(legacyDocument);
+if (!legacyMigration.ok) throw new Error(legacyMigration.message);
+assert.equal(legacyMigration.document.version, 2);
+const migratedLegacyComponent =
+  legacyMigration.document.domains!.timetable!.components.defaultEntryCard;
+assert.ok(migratedLegacyComponent.frame);
+assert.deepEqual(
+  getStudioVariantEntryGroups(
+    legacyMigration.document,
+    migratedLegacyComponent.variants.online,
+  ).map((group) => group.meta?.entrySlot?.index),
+  [0],
+  "Version-1 migration must wrap entry-scoped nodes exactly once.",
+);
+const repeatedMigration = migrateStudioTemplateDocument(
+  legacyMigration.document,
+);
+if (!repeatedMigration.ok) throw new Error(repeatedMigration.message);
+assert.deepEqual(
+  getStudioVariantEntryGroups(
+    repeatedMigration.document,
+    repeatedMigration.document.domains!.timetable!.components.defaultEntryCard
+      .variants.online,
+  ).map((group) => group.meta?.entrySlot?.index),
+  [0],
+  "Version-2 migration must be idempotent.",
 );
 
 console.log("Template Studio object variant checks passed.");

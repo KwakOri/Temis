@@ -1,96 +1,52 @@
 import assert from "node:assert/strict";
 
-import type {
-  StudioTimetableDayCardsLayout,
-  StudioTimetableDayDefinition,
-} from "../src/types/template-studio";
 import {
   getStudioTimetableDayCardGeometries,
-  getStudioTimetableDayCardHeight,
-  getStudioTimetableEntrySlotGeometries,
+  getStudioTimetableEntryCardSize,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
+import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import { getStudioTimetableComponentFrame } from "../src/utils/template-studio/entry-groups";
 
-const layout: StudioTimetableDayCardsLayout = {
-  left: 0,
-  top: 0,
-  dayWidth: 360,
-  gridPreset: "7x1",
-  columns: 1,
-  rows: 2,
-  dayGap: 20,
-  columnGap: 20,
-  rowGap: 20,
-  fillOrder: "row",
-  alignLastRow: "start",
-  padding: 0,
-  headerHeight: 0,
-  entryPreviewWidth: 360,
-  entryPreviewHeight: 212,
-  entryGap: 24,
-};
-const entryCardSize = { width: 360, height: 212 };
+const document = createSampleStudioDocument();
+const timetable = document.domains?.timetable;
+assert.ok(timetable);
+const component = timetable.components[timetable.entryComponentId];
+assert.ok(component);
+const frame = getStudioTimetableComponentFrame(document, component);
+const entryCardSize = getStudioTimetableEntryCardSize(document, component);
 
-assert.equal(getStudioTimetableDayCardHeight(layout, 1, entryCardSize), 212);
-assert.equal(getStudioTimetableDayCardHeight(layout, 2, entryCardSize), 212);
-assert.equal(getStudioTimetableDayCardHeight(layout, 3, entryCardSize), 212);
+assert.deepEqual(entryCardSize, { width: frame.width, height: frame.height });
+assert.deepEqual(frame, {
+  left: 160,
+  top: 120,
+  width: 780,
+  height: 500,
+});
 
-const twoEntrySlots = getStudioTimetableEntrySlotGeometries(
-  layout,
-  2,
-  entryCardSize,
-);
-assert.deepEqual(twoEntrySlots, [
-  { top: 0, width: 360, height: 94 },
-  { top: 118, width: 360, height: 94 },
-]);
-assert.equal(
-  twoEntrySlots[1].top + twoEntrySlots[1].height,
-  entryCardSize.height,
-);
-
-const threeEntrySlots = getStudioTimetableEntrySlotGeometries(
-  layout,
-  3,
-  entryCardSize,
-);
-assert.equal(threeEntrySlots.length, 3);
-assert.equal(threeEntrySlots[0].top, 0);
-assert.equal(
-  Math.round(
-    (threeEntrySlots[2].top + threeEntrySlots[2].height) * 1000,
-  ) / 1000,
-  entryCardSize.height,
-);
-assert.ok(
-  threeEntrySlots.every(
-    (slot, index) =>
-      index === 0 ||
-      slot.top >=
-        threeEntrySlots[index - 1].top +
-          threeEntrySlots[index - 1].height,
-  ),
-);
-
-const days: StudioTimetableDayDefinition[] = [
-  { id: "mon", label: "Monday", order: 0 },
-  { id: "tue", label: "Tuesday", order: 1 },
-];
+const days = timetable.dayIds.slice(0, 2).map((dayId) => timetable.days[dayId]);
+const layout = timetable.dayCardsLayout!;
 const singleEntryGeometries = getStudioTimetableDayCardGeometries(
   layout,
   days,
   () => 1,
   entryCardSize,
 );
-const mixedEntryGeometries = getStudioTimetableDayCardGeometries(
+const multiEntryGeometries = getStudioTimetableDayCardGeometries(
   layout,
   days,
-  (dayId) => (dayId === "mon" ? 3 : 1),
+  (dayId) => (dayId === days[0].id ? 2 : 1),
   entryCardSize,
 );
+
 assert.deepEqual(
-  mixedEntryGeometries,
+  multiEntryGeometries,
   singleEntryGeometries,
-  "Entry count must not change day-card bounds or neighboring positions.",
+  "Entry count must not change the shared frame or neighboring day positions.",
+);
+assert.equal(
+  singleEntryGeometries[days[0].id].height,
+  frame.height,
+  "Day geometry must use the component frame height.",
 );
 
 console.log("Template Studio timetable layout checks passed.");

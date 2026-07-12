@@ -26,6 +26,7 @@ import {
   isStudioStatusCardBackgroundNode,
   resolveStudioStatusCardBackgroundSlot,
 } from "@/utils/template-studio/status-card-background";
+import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
 
 import { StudioWebFontLoader } from "./studio-web-font-loader";
 
@@ -110,7 +111,14 @@ export function StudioRenderer({
 }: StudioRendererProps) {
   const selectedNodeIdsSet = new Set(selectedNodeIds);
 
-  const renderNode = (node: StudioGraphNode): React.ReactNode => {
+  const renderNode = (
+    node: StudioGraphNode,
+    inheritedContext: StudioRuntimeContext | undefined,
+  ): React.ReactNode => {
+    const nodeRuntimeContext = getStudioNodeRuntimeContext(
+      node,
+      inheritedContext,
+    );
     const styleRecord = node.styleId
       ? document.styles[node.styleId]
       : undefined;
@@ -121,7 +129,7 @@ export function StudioRenderer({
       ? resolveStudioStatusCardBackgroundSlot(
           document,
           runtimeValues,
-          runtimeContext,
+          nodeRuntimeContext,
           node,
         )
       : null;
@@ -129,7 +137,7 @@ export function StudioRenderer({
       document,
       runtimeValues,
       statusBackgroundSlot,
-      runtimeContext,
+      nodeRuntimeContext,
     );
     const resolvedStyle = statusBackgroundAsset
       ? {
@@ -145,7 +153,7 @@ export function StudioRenderer({
     const children = getStudioPaintOrder(node.childIds)
       .map((childId) => document.graph.nodes[childId])
       .filter(Boolean)
-      .map((childNode) => renderNode(childNode));
+      .map((childNode) => renderNode(childNode, nodeRuntimeContext));
 
     const commonProps = {
       "data-node-id": node.id,
@@ -176,7 +184,7 @@ export function StudioRenderer({
         document,
         runtimeValues,
         node.binding,
-        runtimeContext,
+        nodeRuntimeContext,
       );
 
       return (
@@ -204,7 +212,7 @@ export function StudioRenderer({
       document,
       runtimeValues,
       node.binding,
-      runtimeContext,
+      nodeRuntimeContext,
     );
 
     if (node.type === "flexibleText") {
@@ -254,7 +262,7 @@ export function StudioRenderer({
       {getStudioPaintOrder(rootNodeIds ?? document.graph.rootNodeIds)
         .map((nodeId) => document.graph.nodes[nodeId])
         .filter(Boolean)
-        .map((node) => renderNode(node))}
+        .map((node) => renderNode(node, runtimeContext))}
     </div>
   );
 }
