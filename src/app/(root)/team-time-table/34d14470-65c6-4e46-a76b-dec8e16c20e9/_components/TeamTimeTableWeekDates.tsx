@@ -22,7 +22,7 @@ const TeamTimeTableWeekDates = () => {
           fontFamily: fontOption.primary,
           color: colors.first.tertiary,
           fontSize: 60,
-          top: 452,
+          top: 548,
         }}
       >
         {start.full} ~ {end.full}
