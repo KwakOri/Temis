@@ -549,6 +549,7 @@ export function TemplateStudioRuntimeForm({
         <StudioRuntimeField
           control="input"
           label={copy.subTitle}
+          placeholder="서브타이틀 적는 곳"
           value={entry.subTitle ?? ""}
           onValueChange={(value) =>
             updateEntryField(dayId, entryIndex, "subTitle", value)
@@ -557,7 +558,7 @@ export function TemplateStudioRuntimeForm({
         <StudioRuntimeField
           control="textarea"
           label={copy.mainTitle}
-          placeholder={`Entry ${entryIndex + 1}`}
+          placeholder={"메인타이틀\n적는 곳"}
           rows={3}
           value={entry.mainTitle ?? ""}
           onValueChange={(value) =>
