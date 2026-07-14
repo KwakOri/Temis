@@ -1,5 +1,6 @@
 import React from "react";
 
+import { cn } from "@/lib/utils";
 import { StudioRuntimeCard } from "../ui/studio-runtime-card";
 import { StudioRuntimeToggle } from "../ui/studio-runtime-toggle";
 
@@ -35,13 +36,15 @@ export function StudioRuntimeDayCard({
   memoLabel,
   memoDescription,
   memoToggleTitle,
-  memoUnavailableTitle,
   settings,
   children,
   offlineContent,
   onOnlineChange,
   onMemoEnabledChange,
 }: StudioRuntimeDayCardProps) {
+  const hasOfflineContent = memoAvailable || memoEnabled;
+  const hasBody = online || hasOfflineContent;
+
   return (
     <StudioRuntimeCard
       aria-labelledby={`runtime-day-${dayId}`}
@@ -71,25 +74,34 @@ export function StudioRuntimeDayCard({
 
       {settings ? <div className="grid gap-3">{settings}</div> : null}
 
-      {online ? (
-        <div className="grid gap-3 pb-3.5">{children}</div>
-      ) : (
-        <div className="grid gap-3 pb-3.5">
-          {memoAvailable ? (
-            <div className="rounded-2xl border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-3 py-2.5">
-              <StudioRuntimeToggle
-                ariaLabel={`${String(label)} ${memoLabel}`}
-                checked={memoEnabled}
-                description={memoDescription}
-                label={memoLabel}
-                title={memoToggleTitle}
-                onCheckedChange={onMemoEnabledChange}
-              />
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-300 ease-in-out",
+          hasBody ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="overflow-hidden">
+          {online ? (
+            <div className="grid gap-3 pb-3.5">{children}</div>
+          ) : hasOfflineContent ? (
+            <div className="grid gap-3 pb-3.5">
+              {memoAvailable ? (
+                <div className="rounded-2xl border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-3 py-2.5">
+                  <StudioRuntimeToggle
+                    ariaLabel={`${String(label)} ${memoLabel}`}
+                    checked={memoEnabled}
+                    description={memoDescription}
+                    label={memoLabel}
+                    title={memoToggleTitle}
+                    onCheckedChange={onMemoEnabledChange}
+                  />
+                </div>
+              ) : null}
+              {memoEnabled ? offlineContent : null}
             </div>
           ) : null}
-          {memoEnabled ? offlineContent : null}
         </div>
-      )}
+      </div>
     </StudioRuntimeCard>
   );
 }
