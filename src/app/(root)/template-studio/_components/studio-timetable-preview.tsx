@@ -676,12 +676,14 @@ const isWeekDatesObject = (object: StudioTimetableCompositionObject) =>
 
 const resolveWeekDatesText = (
   document: StudioTemplateDocument,
+  runtimeValues: StudioRuntimeValues,
   object: StudioTimetableCompositionObject,
 ) => {
   const format = getStringStyleValue(object.style, "dateRangeFormat", "long");
   const template = getStringStyleValue(object.style, "dateRangeTemplate", "");
+  const startDate = runtimeValues.timetable.weekStartDate;
 
-  return resolveStudioWeekDateText(document, { format, template });
+  return resolveStudioWeekDateText(document, { format, template, startDate });
 };
 
 const resolveTimetableObjectText = (
@@ -690,7 +692,7 @@ const resolveTimetableObjectText = (
   object: StudioTimetableCompositionObject,
 ) => {
   if (isWeekDatesObject(object)) {
-    return resolveWeekDatesText(document, object) || object.label;
+    return resolveWeekDatesText(document, runtimeValues, object) || object.label;
   }
 
   const value = resolveStudioTextBinding(
