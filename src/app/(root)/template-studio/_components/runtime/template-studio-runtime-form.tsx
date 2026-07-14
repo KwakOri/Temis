@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Upload } from "lucide-react";
+import { Plus, RotateCcw, Upload } from "lucide-react";
 import React, { useMemo, useRef, useState } from "react";
 
 import type {
@@ -733,10 +733,10 @@ export function TemplateStudioRuntimeForm({
           </StudioRuntimeActionButton>
           <StudioRuntimeActionButton
             className="h-12 shrink-0 rounded-md px-4 text-base font-bold"
-            variant="danger"
+            variant="ghost"
             onClick={onReset}
           >
-            {copy.reset}
+            <RotateCcw size={18} />
           </StudioRuntimeActionButton>
         </div>
       </div>

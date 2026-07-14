@@ -18,7 +18,7 @@ const studioRuntimeActionButtonVariants = cva(
         secondary:
           "border border-[var(--runtime-border)] bg-[var(--runtime-card-bg)] text-[var(--runtime-fg)] hover:border-[var(--runtime-border-strong)] hover:bg-[var(--runtime-input-hover)]",
         ghost:
-          "bg-transparent text-[var(--runtime-fg-muted)] hover:bg-[var(--runtime-input-hover)] hover:text-[var(--runtime-fg)]",
+          "bg-transparent text-[var(--runtime-fg)] hover:bg-[var(--runtime-input-hover)] hover:text-[var(--runtime-fg)]",
         danger:
           "bg-[var(--runtime-danger)] text-white hover:bg-[var(--runtime-danger-hover)]",
       },
