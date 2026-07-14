@@ -1,5 +1,6 @@
 import React from "react";
 
+import { cn } from "@/lib/utils";
 import { StudioRuntimeCard } from "../ui/studio-runtime-card";
 import { StudioRuntimeToggle } from "../ui/studio-runtime-toggle";
 
@@ -39,9 +40,16 @@ export function StudioRuntimeGlobalInputCard({
           />
         ) : null}
       </header>
-      {showContent && hasContent ? (
-        <div className="grid gap-3 pb-3.5">{children}</div>
-      ) : null}
+      <div
+        className={cn(
+          "grid transition-[grid-template-rows] duration-300 ease-in-out",
+          showContent && hasContent ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="grid gap-3 pb-3.5">{children}</div>
+        </div>
+      </div>
     </StudioRuntimeCard>
   );
 }
