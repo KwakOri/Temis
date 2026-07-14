@@ -48,7 +48,7 @@ export function StudioRuntimeToggle({
         aria-label={ariaLabel}
         className={cn(
           "relative h-7 w-16 shrink-0 rounded-full p-0.5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.3)] transition",
-          checked ? "bg-[var(--runtime-primary)]" : "bg-[var(--runtime-fg)]",
+          checked ? "bg-[var(--runtime-primary)]" : "bg-[var(--runtime-border-strong)]",
           "disabled:cursor-not-allowed disabled:opacity-[var(--runtime-disabled-opacity)]",
           studioRuntimeFocusRingClass,
         )}

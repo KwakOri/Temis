@@ -700,21 +700,19 @@ export function TemplateStudioRuntimeForm({
                       )
                     )}
 
-                    <StudioRuntimeActionButton
-                      fullWidth
-                      aria-label={copy.addEntryTo(longDayLabel)}
-                      disabled={addEntryDisabledReason !== null}
-                      size="compact"
-                      title={
-                        localizedAddEntryDisabledReason ??
-                        copy.addEntryTo(longDayLabel)
-                      }
-                      variant="primary"
-                      onClick={() => addEntry(day.id, entries)}
-                    >
-                      <Plus size={16} />
-                      {copy.addEntry}
-                    </StudioRuntimeActionButton>
+                    {addEntryDisabledReason === null ? (
+                      <StudioRuntimeActionButton
+                        fullWidth
+                        aria-label={copy.addEntryTo(longDayLabel)}
+                        size="compact"
+                        title={copy.addEntryTo(longDayLabel)}
+                        variant="primary"
+                        onClick={() => addEntry(day.id, entries)}
+                      >
+                        <Plus size={16} />
+                        {copy.addEntry}
+                      </StudioRuntimeActionButton>
+                    ) : null}
                   </StudioRuntimeDayCard>
                 );
               })

@@ -75,17 +75,18 @@ export function StudioRuntimeDayCard({
         <div className="grid gap-3 pb-3.5">{children}</div>
       ) : (
         <div className="grid gap-3 pb-3.5">
-          <div className="rounded-2xl border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-3 py-2.5">
-            <StudioRuntimeToggle
-              ariaLabel={`${String(label)} ${memoLabel}`}
-              checked={memoEnabled}
-              description={memoDescription}
-              disabled={!memoAvailable}
-              label={memoLabel}
-              title={memoAvailable ? memoToggleTitle : memoUnavailableTitle}
-              onCheckedChange={onMemoEnabledChange}
-            />
-          </div>
+          {memoAvailable ? (
+            <div className="rounded-2xl border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-3 py-2.5">
+              <StudioRuntimeToggle
+                ariaLabel={`${String(label)} ${memoLabel}`}
+                checked={memoEnabled}
+                description={memoDescription}
+                label={memoLabel}
+                title={memoToggleTitle}
+                onCheckedChange={onMemoEnabledChange}
+              />
+            </div>
+          ) : null}
           {memoEnabled ? offlineContent : null}
         </div>
       )}
