@@ -44,7 +44,7 @@ const createStudioWeekDatesExceptionMeta = () => ({
   scope: "timetable" as const,
   presetId: "weekDates",
   lockedStructure: true,
-  singleton: true,
+  singleton: false,
   builtInBindings: {
     text: "week.date_range" as const,
   },
@@ -190,6 +190,22 @@ const createStudioTopObjectExceptionMeta = (
   }),
 });
 
+const createStudioBoardExceptionMeta = (
+  assetId?: StudioTimetableCompositionObject["backgroundAssetId"],
+  fit: StudioTimetableCompositionObject["backgroundFit"] = "cover",
+  visible = true,
+) => ({
+  semanticKey: "board" as const,
+  scope: "timetable" as const,
+  presetId: "board",
+  lockedStructure: true,
+  singleton: true,
+  editableSlots: createStudioSemanticSlotRecord({
+    asset: createStudioSemanticAssetSlot({ assetId, fit }),
+    visibility: createStudioSemanticVisibilitySlot(visible),
+  }),
+});
+
 export const createStudioTimetableDayCardsObject =
   (): StudioTimetableCompositionObject => ({
     id: STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
@@ -331,6 +347,7 @@ const inferStudioTimetableObjectPresetId = (
   if (object.presetId) return object.presetId;
   if (object.parentId) return null;
   if (object.id === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) return "dayCards";
+  if (object.id.startsWith("board")) return "board";
   if (object.id.startsWith("week-dates")) return "weekDates";
   if (object.id.startsWith("weekly-memo")) return "weeklyMemo";
   if (object.id.startsWith("profile-block")) return "profileBlock";
@@ -361,6 +378,9 @@ export const normalizeStudioTimetableCompositionObject = (
   }
 
   if (presetId === "weekDates" && object.kind === "text") {
+    const exceptionMeta =
+      object.meta?.exception ?? createStudioWeekDatesExceptionMeta();
+
     return {
       ...object,
       presetId,
@@ -370,8 +390,29 @@ export const normalizeStudioTimetableCompositionObject = (
       },
       meta: {
         ...object.meta,
+        exception: {
+          ...exceptionMeta,
+          singleton: false,
+        },
+      },
+    };
+  }
+
+  if (presetId === "board" && object.kind === "image") {
+    const assetSlot = object.assetSlots?.asset;
+
+    return {
+      ...object,
+      presetId,
+      meta: {
+        ...object.meta,
         exception:
-          object.meta?.exception ?? createStudioWeekDatesExceptionMeta(),
+          object.meta?.exception ??
+          createStudioBoardExceptionMeta(
+            assetSlot?.assetId,
+            assetSlot?.fit ?? "cover",
+            !object.hidden,
+          ),
       },
     };
   }
@@ -1420,6 +1461,7 @@ export const createStudioTopObjectPresetObjects = (
 export const getStudioTimetablePresetLabel = (
   presetId: StudioTimetableObjectPresetId,
 ) => {
+  if (presetId === "board") return "Board";
   if (presetId === "weekDates") return "Week Dates";
   if (presetId === "weeklyMemo") return "Weekly Memo";
   if (presetId === "profileBlock") return "Profile Block";
@@ -1439,21 +1481,52 @@ export const createStudioTimetablePresetObject = (
   if (presetId === "dayCards") return createStudioTimetableDayCardsObject();
 
   const baseId =
-    presetId === "weekDates"
-      ? "week-dates"
-      : presetId === "weeklyMemo"
-        ? "weekly-memo"
-        : presetId === "profileBlock"
-          ? "profile-block"
-          : presetId === "artistProfileText"
-            ? "artist-profile-text"
-            : "top-object";
+    presetId === "board"
+      ? "board"
+      : presetId === "weekDates"
+        ? "week-dates"
+        : presetId === "weeklyMemo"
+          ? "weekly-memo"
+          : presetId === "profileBlock"
+            ? "profile-block"
+            : presetId === "artistProfileText"
+              ? "artist-profile-text"
+              : "top-object";
   const { objectId, suffix } = getUniqueTimetableObjectId(
     Object.keys(composition.objects),
     baseId,
   );
   const baseLabel = getStudioTimetablePresetLabel(presetId);
   const label = suffix === 1 ? baseLabel : `${baseLabel} ${suffix}`;
+
+  if (presetId === "board") {
+    return {
+      id: objectId,
+      kind: "image",
+      label,
+      presetId,
+      parentId: null,
+      layoutMode: "fillParent",
+      style: {
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: 4000,
+        height: 2250,
+        opacity: 1,
+        overflow: "hidden",
+      },
+      assetSlots: {
+        asset: {
+          assetId: options.assetId,
+          fit: "cover",
+        },
+      },
+      meta: {
+        exception: createStudioBoardExceptionMeta(options.assetId),
+      },
+    };
+  }
 
   if (presetId === "weekDates") {
     return {

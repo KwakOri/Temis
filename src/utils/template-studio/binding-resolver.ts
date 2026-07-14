@@ -134,6 +134,7 @@ export const resolveStudioTextBinding = (
       values,
       binding.fieldId,
       context,
+      { dayLabelFormat: binding.dayLabelFormat },
     );
   }
 

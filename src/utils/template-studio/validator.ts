@@ -67,6 +67,7 @@ interface StudioInputConsumerDiagnosticReference {
 
 const STUDIO_EXCEPTION_SEMANTIC_KEYS = new Set<string>([
   "dayCardContainers",
+  "board",
   "weekDates",
   "weeklyMemo",
   "profileBlock",
@@ -842,19 +843,17 @@ const validateGraphNodeAssetSlots = (
   });
 
   if (isStudioStatusCardBackgroundNode(node)) {
-    (["online", "offline"] as const).forEach((statusId) => {
-      const slot = node.assetSlots?.[statusId];
-      if (slot?.assetId || slot?.inputId) return;
-
+    const slot = node.assetSlots?.asset;
+    if (!slot?.assetId && !slot?.inputId) {
       diagnostics.push(
         createDiagnostic(
           "warning",
-          `status-background-base-slot-missing:${node.id}:${statusId}`,
-          "Missing status background asset",
-          `${node.label} has no ${statusId} background asset. The card will fall back to its base style for this status.`,
+          `status-background-asset-missing:${node.id}`,
+          "Missing background asset",
+          `${node.label} has no background asset. The current card layout will fall back to its base style.`,
         ),
       );
-    });
+    }
   }
 
   return diagnostics;

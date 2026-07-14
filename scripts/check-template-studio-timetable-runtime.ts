@@ -14,6 +14,7 @@ import {
   removeStudioTimetableEntry,
   setStudioTimetableDayBaseStatus,
   setStudioTimetableEntryField,
+  setStudioTimetableEntryGuerrilla,
   setStudioTimetableEntryStatus,
   validateStudioRuntimeValuesForDocument,
 } from "../src/utils/template-studio/timetable-runtime";
@@ -195,6 +196,34 @@ assert.equal(
     entryIndex: 0,
   }),
   "18:30",
+);
+
+const withGuerrilla = setStudioTimetableEntryGuerrilla(
+  document,
+  withTime,
+  dayId,
+  0,
+  true,
+);
+assert.equal(
+  withGuerrilla.timetable.entriesByDay[dayId][0].isGuerrilla,
+  true,
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(document, withGuerrilla, "entry.time", {
+    dayId,
+    entryIndex: 0,
+  }),
+  "게릴라",
+  "The renderer-facing time field must show the guerrilla label while enabled.",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(document, withTime, "entry.time", {
+    dayId,
+    entryIndex: 0,
+  }),
+  "18:30",
+  "Enabling guerrilla mode must not mutate the previous runtime values.",
 );
 
 const unchangedValues = setStudioTimetableEntryField(

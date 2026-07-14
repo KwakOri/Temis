@@ -26,7 +26,34 @@ import {
   ensureStudioCapabilityVariant,
   getStudioOfflineMemoTextNode,
 } from "../src/utils/template-studio/status-variants";
+import {
+  isStudioStatusCardBackgroundNode,
+  setStudioStatusCardBackgroundAssetSlot,
+} from "../src/utils/template-studio/status-card-background";
 import { applyStudioVariantStyle } from "../src/utils/template-studio/variant-style-propagation";
+import {
+  getStudioPresetExistingTargetId,
+  isStudioCardStatusBackgroundPreset,
+  STUDIO_PRESET_DEFINITIONS,
+} from "../src/utils/template-studio/preset-registry";
+
+const findStatusBackgroundNode = (
+  document: ReturnType<typeof createSampleStudioDocument>,
+  rootNodeId: string,
+) => {
+  const queue = [rootNodeId];
+  const visitedNodeIds = new Set<string>();
+  while (queue.length > 0) {
+    const nodeId = queue.shift();
+    if (!nodeId || visitedNodeIds.has(nodeId)) continue;
+    visitedNodeIds.add(nodeId);
+    const node = document.graph.nodes[nodeId];
+    if (!node) continue;
+    if (isStudioStatusCardBackgroundNode(node)) return node;
+    queue.push(...node.childIds);
+  }
+  return null;
+};
 
 const stateInputId = "artist-state";
 const structured = createStudioStructuredTextPresetObjects(
@@ -188,6 +215,178 @@ assert.notEqual(
   cardComponent.variants.online.rootNodeId,
   cardComponent.variants.offline.rootNodeId,
   "The sample must start with independent Online/Offline layouts.",
+);
+const onlineBackground = findStatusBackgroundNode(
+  cardVariantDocument,
+  cardComponent.variants.online.rootNodeId,
+);
+const offlineBackground = findStatusBackgroundNode(
+  cardVariantDocument,
+  cardComponent.variants.offline.rootNodeId,
+);
+assert.ok(onlineBackground && offlineBackground);
+assert.notEqual(onlineBackground.id, offlineBackground.id);
+assert.equal(
+  cardVariantDocument.styles[onlineBackground.styleId!]?.backgroundColor,
+  "transparent",
+);
+assert.equal(
+  cardVariantDocument.styles[offlineBackground.styleId!]?.backgroundColor,
+  "transparent",
+);
+assert.deepEqual(Object.keys(onlineBackground.assetSlots ?? {}), ["asset"]);
+assert.deepEqual(Object.keys(offlineBackground.assetSlots ?? {}), ["asset"]);
+setStudioStatusCardBackgroundAssetSlot(
+  onlineBackground,
+  "asset_b2",
+  "contain",
+);
+assert.equal(onlineBackground.assetSlots?.asset?.assetId, "asset_b2");
+assert.equal(onlineBackground.assetSlots?.asset?.fit, "contain");
+assert.equal(
+  offlineBackground.assetSlots?.asset?.assetId,
+  "asset_background",
+  "Editing the Online background must not mutate the Offline variant.",
+);
+
+const statusBackgroundPreset = STUDIO_PRESET_DEFINITIONS.find(
+  (definition) => definition.id === "statusCardBackground",
+);
+assert.ok(
+  statusBackgroundPreset &&
+    isStudioCardStatusBackgroundPreset(statusBackgroundPreset),
+);
+assert.equal(statusBackgroundPreset.style.backgroundColor, "transparent");
+assert.equal(
+  getStudioPresetExistingTargetId(
+    cardVariantDocument,
+    statusBackgroundPreset,
+    { cardRootNodeId: cardComponent.variants.online.rootNodeId },
+  ),
+  onlineBackground.id,
+);
+assert.equal(
+  getStudioPresetExistingTargetId(
+    cardVariantDocument,
+    statusBackgroundPreset,
+    { cardRootNodeId: cardComponent.variants.offline.rootNodeId },
+  ),
+  offlineBackground.id,
+  "Card singleton lookup must stay inside the selected status variant.",
+);
+
+const legacyBackgroundDocument = createSampleStudioDocument();
+const legacyBackgroundComponent =
+  legacyBackgroundDocument.domains?.timetable?.components.defaultEntryCard;
+assert.ok(legacyBackgroundComponent);
+const legacyOnlineBackground = findStatusBackgroundNode(
+  legacyBackgroundDocument,
+  legacyBackgroundComponent.variants.online.rootNodeId,
+);
+const legacyOfflineBackground = findStatusBackgroundNode(
+  legacyBackgroundDocument,
+  legacyBackgroundComponent.variants.offline.rootNodeId,
+);
+assert.ok(legacyOnlineBackground && legacyOfflineBackground);
+[legacyOnlineBackground, legacyOfflineBackground].forEach((background) => {
+  assert.ok(background.styleId);
+  legacyBackgroundDocument.styles[background.styleId].backgroundColor =
+    "#ffffff";
+  background.assetSlots = {
+    online: { assetId: "asset_b2", fit: "cover" },
+    offline: { assetId: "asset_c3", fit: "fill" },
+  };
+  background.meta!.exception!.editableSlots = {
+    statusAssets: { source: "status-assets", slots: background.assetSlots },
+  };
+});
+(legacyBackgroundDocument as unknown as { version: number }).version = 4;
+const legacyBackgroundMigration = migrateStudioTemplateDocument(
+  legacyBackgroundDocument,
+);
+if (!legacyBackgroundMigration.ok) {
+  throw new Error(legacyBackgroundMigration.message);
+}
+assert.equal(legacyBackgroundMigration.document.version, 6);
+assert.ok(
+  legacyBackgroundMigration.warnings.some((warning) =>
+    warning.includes("status background asset maps"),
+  ),
+);
+assert.ok(
+  legacyBackgroundMigration.warnings.some((warning) =>
+    warning.includes("legacy white base color"),
+  ),
+);
+const migratedBackgroundComponent =
+  legacyBackgroundMigration.document.domains?.timetable?.components
+    .defaultEntryCard;
+assert.ok(migratedBackgroundComponent);
+const migratedOnlineBackground = findStatusBackgroundNode(
+  legacyBackgroundMigration.document,
+  migratedBackgroundComponent.variants.online.rootNodeId,
+);
+const migratedOfflineBackground = findStatusBackgroundNode(
+  legacyBackgroundMigration.document,
+  migratedBackgroundComponent.variants.offline.rootNodeId,
+);
+assert.ok(migratedOnlineBackground && migratedOfflineBackground);
+assert.equal(
+  legacyBackgroundMigration.document.styles[migratedOnlineBackground.styleId!]
+    ?.backgroundColor,
+  "transparent",
+);
+assert.equal(
+  legacyBackgroundMigration.document.styles[
+    migratedOfflineBackground.styleId!
+  ]?.backgroundColor,
+  "transparent",
+);
+assert.deepEqual(Object.keys(migratedOnlineBackground.assetSlots ?? {}), [
+  "asset",
+]);
+assert.equal(migratedOnlineBackground.assetSlots?.asset?.assetId, "asset_b2");
+assert.deepEqual(Object.keys(migratedOfflineBackground.assetSlots ?? {}), [
+  "asset",
+]);
+assert.equal(migratedOfflineBackground.assetSlots?.asset?.assetId, "asset_c3");
+assert.equal(migratedOfflineBackground.assetSlots?.asset?.fit, "fill");
+assert.equal(
+  migratedOfflineBackground.meta?.exception?.editableSlots?.statusAssets,
+  undefined,
+);
+
+const explicitWhiteBackgroundDocument = createSampleStudioDocument();
+const explicitWhiteBackgroundComponent =
+  explicitWhiteBackgroundDocument.domains?.timetable?.components
+    .defaultEntryCard;
+assert.ok(explicitWhiteBackgroundComponent);
+const explicitWhiteBackground = findStatusBackgroundNode(
+  explicitWhiteBackgroundDocument,
+  explicitWhiteBackgroundComponent.variants.online.rootNodeId,
+);
+assert.ok(explicitWhiteBackground?.styleId);
+explicitWhiteBackgroundDocument.styles[
+  explicitWhiteBackground.styleId
+].backgroundColor = "#ffffff";
+const explicitWhiteBackgroundMigration = migrateStudioTemplateDocument(
+  explicitWhiteBackgroundDocument,
+);
+if (!explicitWhiteBackgroundMigration.ok) {
+  throw new Error(explicitWhiteBackgroundMigration.message);
+}
+assert.equal(
+  explicitWhiteBackgroundMigration.document.styles[
+    explicitWhiteBackground.styleId
+  ].backgroundColor,
+  "#ffffff",
+  "A white base color explicitly saved in a current document must be preserved.",
+);
+assert.equal(
+  explicitWhiteBackgroundMigration.warnings.some((warning) =>
+    warning.includes("legacy white base color"),
+  ),
+  false,
 );
 const sourceRootId = cardComponent.variants.online.rootNodeId;
 const sourceRoot = cardVariantDocument.graph.nodes[sourceRootId];
@@ -381,7 +580,7 @@ delete legacyDocument.graph.nodes[legacyGroup.id];
 
 const legacyMigration = migrateStudioTemplateDocument(legacyDocument);
 if (!legacyMigration.ok) throw new Error(legacyMigration.message);
-assert.equal(legacyMigration.document.version, 4);
+assert.equal(legacyMigration.document.version, 6);
 const migratedLegacyComponent =
   legacyMigration.document.domains!.timetable!.components.defaultEntryCard;
 assert.ok(migratedLegacyComponent.frame);

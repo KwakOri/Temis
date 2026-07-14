@@ -11,6 +11,7 @@ import type {
 } from "@/types/template-studio";
 import { createStudioId } from "@/utils/template-studio/id";
 import type { StudioRuntimeContext } from "@/utils/template-studio/input-values";
+import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
 import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
 
 export const STUDIO_MULTI_ENTRY_SLOT_COUNT = 2;
@@ -52,6 +53,23 @@ export const getStudioTimetableComponentFrame = (
   document: StudioTemplateDocument,
   component: StudioTimetableComponentDefinition | undefined,
 ): StudioTimetableComponentFrame => {
+  const defaultVariant = component
+    ? (component.variants[component.defaultStatusId] ??
+      Object.values(component.variants)[0])
+    : undefined;
+  const defaultRoot = defaultVariant
+    ? document.graph.nodes[defaultVariant.rootNodeId]
+    : undefined;
+
+  if (isStudioFillParentLayout(defaultRoot?.layoutMode)) {
+    return {
+      left: 0,
+      top: 0,
+      width: Math.max(1, document.canvas.width),
+      height: Math.max(1, document.canvas.height),
+    };
+  }
+
   if (component?.frame) {
     return {
       left: component.frame.left,
@@ -60,11 +78,6 @@ export const getStudioTimetableComponentFrame = (
       height: Math.max(1, component.frame.height),
     };
   }
-
-  const defaultVariant = component
-    ? (component.variants[component.defaultStatusId] ??
-      Object.values(component.variants)[0])
-    : undefined;
 
   return (
     getVariantRootFrame(document, defaultVariant) ?? {

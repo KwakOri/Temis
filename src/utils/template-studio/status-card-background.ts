@@ -1,20 +1,17 @@
 import {
   StudioGraphNode,
+  StudioNodeId,
   StudioRuntimeValues,
   StudioTemplateDocument,
   StudioTimetableAssetSlot,
-  StudioTimetableStatusDefinition,
+  StudioTimetableStatusId,
 } from "@/types/template-studio";
 import { type StudioRuntimeContext } from "@/utils/template-studio/input-values";
-import { createStudioSemanticSlotRecord } from "@/utils/template-studio/semantic-slots";
-import { getStudioAvailableTimetableStatuses } from "@/utils/template-studio/timetable-capabilities";
-
-const STATUS_CARD_BACKGROUND_STATUS_ORDER = [
-  "online",
-  "offline",
-  "multi",
-  "offlineMemo",
-];
+import {
+  createStudioSemanticAssetSlot,
+  createStudioSemanticImageInputSlot,
+  createStudioSemanticSlotRecord,
+} from "@/utils/template-studio/semantic-slots";
 
 export const isStudioStatusCardBackgroundNode = (
   node: StudioGraphNode | null | undefined,
@@ -23,7 +20,7 @@ export const isStudioStatusCardBackgroundNode = (
   node.meta.exception.semanticKey === "statusCardBackground";
 
 export const createStudioStatusCardBackgroundExceptionMeta = (
-  assetSlots?: StudioGraphNode["assetSlots"],
+  assetSlot?: StudioTimetableAssetSlot | null,
 ) => ({
   semanticKey: "statusCardBackground" as const,
   scope: "cards" as const,
@@ -34,53 +31,169 @@ export const createStudioStatusCardBackgroundExceptionMeta = (
     status: "entry.status" as const,
   },
   editableSlots: createStudioSemanticSlotRecord({
-    statusAssets: {
-      source: "status-assets" as const,
-      slots: assetSlots ?? {},
-    },
+    asset: assetSlot?.inputId
+      ? createStudioSemanticImageInputSlot({
+          inputId: assetSlot.inputId,
+          fit: assetSlot.fit ?? "cover",
+        })
+      : createStudioSemanticAssetSlot({
+          assetId: assetSlot?.assetId,
+          fit: assetSlot?.fit ?? "cover",
+        }),
   }),
 });
 
-export const getStudioStatusCardBackgroundStatuses = (
-  document: StudioTemplateDocument,
-): StudioTimetableStatusDefinition[] => {
-  const statuses = getStudioAvailableTimetableStatuses(document);
-  const orderIndex = (statusId: string) => {
-    const index = STATUS_CARD_BACKGROUND_STATUS_ORDER.indexOf(statusId);
-    return index < 0 ? Number.MAX_SAFE_INTEGER : index;
-  };
-
-  return [...statuses].sort(
-    (left, right) =>
-      orderIndex(left.id) - orderIndex(right.id) ||
-      left.label.localeCompare(right.label),
-  );
-};
-
 export const setStudioStatusCardBackgroundAssetSlot = (
   node: StudioGraphNode,
-  statusId: string,
   assetId: string | null,
   fit: StudioTimetableAssetSlot["fit"] = "cover",
 ) => {
-  const assetSlots = {
-    ...(node.assetSlots ?? {}),
-  };
-
   if (assetId) {
-    assetSlots[statusId] = {
-      assetId,
-      fit,
+    node.assetSlots = {
+      asset: {
+        assetId,
+        fit,
+      },
     };
   } else {
-    delete assetSlots[statusId];
+    node.assetSlots = undefined;
   }
 
-  node.assetSlots = Object.keys(assetSlots).length > 0 ? assetSlots : undefined;
   node.meta = {
     ...node.meta,
-    exception: createStudioStatusCardBackgroundExceptionMeta(node.assetSlots),
+    exception: createStudioStatusCardBackgroundExceptionMeta(
+      node.assetSlots?.asset,
+    ),
   };
+};
+
+const getStudioGraphSubtreeNodeIds = (
+  document: StudioTemplateDocument,
+  rootNodeId: StudioNodeId,
+): StudioNodeId[] => {
+  const nodeIds: StudioNodeId[] = [];
+  const visitedNodeIds = new Set<StudioNodeId>();
+  const visit = (nodeId: StudioNodeId) => {
+    if (visitedNodeIds.has(nodeId)) return;
+    visitedNodeIds.add(nodeId);
+    const node = document.graph.nodes[nodeId];
+    if (!node) return;
+    nodeIds.push(nodeId);
+    node.childIds.forEach(visit);
+  };
+
+  visit(rootNodeId);
+  return nodeIds;
+};
+
+const resolveStudioLegacyStatusCardBackgroundSlot = (
+  document: StudioTemplateDocument,
+  node: StudioGraphNode,
+  statusId: StudioTimetableStatusId | null,
+  componentDefaultStatusId?: StudioTimetableStatusId,
+): StudioTimetableAssetSlot | null => {
+  const timetable = document.domains?.timetable;
+  const status = statusId ? timetable?.statuses[statusId] : null;
+  const candidates = [
+    statusId,
+    status?.fallbackStatusId,
+    status?.baseStatus,
+    componentDefaultStatusId,
+    timetable?.defaultEntryStatusId,
+    "online",
+  ].filter(Boolean) as string[];
+
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+
+    const slot = node.assetSlots?.[candidate];
+    if (slot?.assetId || slot?.inputId) return slot;
+  }
+
+  return null;
+};
+
+export const ensureStudioVariantStatusCardBackgroundAssets = (
+  document: StudioTemplateDocument,
+): string[] => {
+  const timetable = document.domains?.timetable;
+  if (!timetable) return [];
+
+  let migratedNodeCount = 0;
+  Object.values(timetable.components).forEach((component) => {
+    Object.entries(component.variants).forEach(([statusId, variant]) => {
+      getStudioGraphSubtreeNodeIds(document, variant.rootNodeId)
+        .map((nodeId) => document.graph.nodes[nodeId])
+        .filter(
+          (node): node is StudioGraphNode =>
+            Boolean(node) && isStudioStatusCardBackgroundNode(node),
+        )
+        .forEach((node) => {
+          const editableSlots = node.meta?.exception?.editableSlots;
+          const hasLegacyStatusSlots = Object.keys(node.assetSlots ?? {}).some(
+            (slotName) => slotName !== "asset",
+          );
+          const hasLegacyMeta = Boolean(editableSlots?.statusAssets);
+          if (!hasLegacyStatusSlots && !hasLegacyMeta) return;
+
+          const assetSlot =
+            node.assetSlots?.asset ??
+            resolveStudioLegacyStatusCardBackgroundSlot(
+              document,
+              node,
+              statusId,
+              component.defaultStatusId,
+            );
+          node.assetSlots = assetSlot
+            ? { asset: { ...assetSlot, fit: assetSlot.fit ?? "cover" } }
+            : undefined;
+          node.meta = {
+            ...node.meta,
+            exception: createStudioStatusCardBackgroundExceptionMeta(
+              node.assetSlots?.asset,
+            ),
+          };
+          migratedNodeCount += 1;
+        });
+    });
+  });
+
+  return migratedNodeCount > 0
+    ? [
+        `Converted ${migratedNodeCount} status background asset map${
+          migratedNodeCount === 1 ? "" : "s"
+        } to variant-local assets.`,
+      ]
+    : [];
+};
+
+export const ensureStudioStatusCardBackgroundBaseColors = (
+  document: StudioTemplateDocument,
+): string[] => {
+  let migratedNodeCount = 0;
+
+  Object.values(document.graph.nodes).forEach((node) => {
+    if (!isStudioStatusCardBackgroundNode(node) || !node.styleId) return;
+    const style = document.styles[node.styleId];
+    if (!style) return;
+    const backgroundColor = String(style.backgroundColor ?? "")
+      .trim()
+      .toLowerCase();
+    if (backgroundColor !== "#ffffff" && backgroundColor !== "#fff") return;
+
+    style.backgroundColor = "transparent";
+    migratedNodeCount += 1;
+  });
+
+  return migratedNodeCount > 0
+    ? [
+        `Removed the legacy white base color from ${migratedNodeCount} status background object${
+          migratedNodeCount === 1 ? "" : "s"
+        }.`,
+      ]
+    : [];
 };
 
 export const getStudioRuntimeEntryStatusId = (
@@ -100,25 +213,15 @@ export const resolveStudioStatusCardBackgroundSlot = (
   context: StudioRuntimeContext | undefined,
   node: StudioGraphNode,
 ): StudioTimetableAssetSlot | null => {
-  const statusId = getStudioRuntimeEntryStatusId(values, context);
-  const timetable = document.domains?.timetable;
-  const status = statusId ? timetable?.statuses[statusId] : null;
-  const candidates = [
-    statusId,
-    status?.fallbackStatusId,
-    status?.baseStatus,
-    timetable?.defaultEntryStatusId,
-    "online",
-  ].filter(Boolean) as string[];
-
-  const seen = new Set<string>();
-  for (const candidate of candidates) {
-    if (seen.has(candidate)) continue;
-    seen.add(candidate);
-
-    const slot = node.assetSlots?.[candidate];
-    if (slot?.assetId || slot?.inputId) return slot;
+  const variantAssetSlot = node.assetSlots?.asset;
+  if (variantAssetSlot?.assetId || variantAssetSlot?.inputId) {
+    return variantAssetSlot;
   }
 
-  return null;
+  const statusId = getStudioRuntimeEntryStatusId(values, context);
+  return resolveStudioLegacyStatusCardBackgroundSlot(
+    document,
+    node,
+    statusId,
+  );
 };

@@ -4,10 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { TemplateStudioRuntimeForm } from "../src/app/(root)/template-studio/_components/runtime/template-studio-runtime-form";
 import { TemplateStudioRuntimeShell } from "../src/app/(root)/template-studio/_components/runtime/template-studio-runtime-shell";
+import { StudioRuntimeGlobalInputCard } from "../src/app/(root)/template-studio/_components/runtime/composition/studio-runtime-global-input-card";
 import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
 } from "../src/types/template-studio";
+import { resolveStudioTextBinding } from "../src/utils/template-studio/binding-resolver";
 import { resolveStudioBuiltinFieldValue } from "../src/utils/template-studio/builtin-fields";
 import { createStudioInitialRuntimeValues } from "../src/utils/template-studio/input-values";
 import {
@@ -15,7 +17,7 @@ import {
   getStudioRuntimeOnOffOptionValues,
 } from "../src/utils/template-studio/runtime-global-input-groups";
 import {
-  formatStudioRuntimeWeekRange,
+  formatStudioRuntimeWeekStartDate,
   getStudioRuntimeCopy,
   normalizeStudioRuntimeLocale,
   type StudioRuntimeLocale,
@@ -35,6 +37,22 @@ import {
 
 const countOccurrences = (source: string, value: string) =>
   source.split(value).length - 1;
+
+const toggleOnlyCardMarkup = renderToStaticMarkup(
+  <StudioRuntimeGlobalInputCard
+    enabled
+    label="Toggle only"
+    toggleAriaLabel="Toggle only status"
+    onEnabledChange={() => undefined}
+  >
+    {[]}
+  </StudioRuntimeGlobalInputCard>,
+);
+assert.doesNotMatch(
+  toggleOnlyCardMarkup,
+  /pb-3\.5/,
+  "A toggle-only card must not reserve padding for an empty content area.",
+);
 
 const document = createSampleStudioDocument();
 const timetable = document.domains?.timetable;
@@ -67,10 +85,29 @@ const renderForm = (
 const initialValues = createStudioInitialRuntimeValues(document);
 const singleEntryMarkup = renderForm(document, initialValues);
 assert.match(singleEntryMarkup, /aria-label="Runtime form sections"/);
-assert.match(singleEntryMarkup, />Global settings</);
+assert.match(singleEntryMarkup, />Timetable</);
 assert.match(singleEntryMarkup, />Weekly timetable</);
+assert.match(singleEntryMarkup, />Save as image</);
+assert.match(singleEntryMarkup, />Reset</);
 assert.match(singleEntryMarkup, /aria-label="Previous week"/);
 assert.match(singleEntryMarkup, /aria-label="Next week"/);
+assert.match(singleEntryMarkup, />7\/1</);
+assert.match(singleEntryMarkup, /aria-label="Monday Guerrilla"/);
+assert.equal(
+  countOccurrences(singleEntryMarkup, 'title="Guerrilla OFF"'),
+  timetable.dayIds.length,
+  "Every initial timetable entry must render a guerrilla toggle.",
+);
+assert.equal(
+  countOccurrences(singleEntryMarkup, 'aria-haspopup="listbox"'),
+  timetable.dayIds.length,
+  "Every initial timetable entry must use the studio time picker.",
+);
+assert.equal(
+  countOccurrences(singleEntryMarkup, ">09:00</span>"),
+  timetable.dayIds.length,
+  "An empty entry time must use the same 09:00 fallback as the preview.",
+);
 assert.equal(
   countOccurrences(singleEntryMarkup, 'aria-label="Entry 1"'),
   0,
@@ -86,6 +123,11 @@ const multiValues = addStudioTimetableEntry(
 );
 const multiMarkup = renderForm(document, multiValues);
 assert.match(multiMarkup, />Multi</);
+assert.equal(
+  countOccurrences(multiMarkup, 'aria-haspopup="listbox"'),
+  timetable.dayIds.length + 1,
+  "Adding an entry must also add its time picker.",
+);
 assert.equal(countOccurrences(multiMarkup, 'aria-label="Entry 1"'), 1);
 assert.equal(countOccurrences(multiMarkup, 'aria-label="Entry 2"'), 1);
 assert.match(multiMarkup, /aria-label="Remove entry 1"/);
@@ -187,31 +229,32 @@ const removedInputMarkup = renderForm(
 assert.doesNotMatch(removedInputMarkup, /Dynamic Global Check/);
 
 const koreanMarkup = renderForm(document, initialValues, "ko");
-assert.match(koreanMarkup, />공통 설정</);
+assert.match(koreanMarkup, />시간표</);
 assert.match(koreanMarkup, />주간 시간표</);
+assert.match(koreanMarkup, />이미지로 저장</);
 assert.match(koreanMarkup, /aria-label="이전 주"/);
 assert.match(koreanMarkup, /aria-label="월요일 온라인"/);
+assert.match(koreanMarkup, /aria-label="월요일 게릴라"/);
 assert.match(koreanMarkup, />월</);
 
 const japaneseMarkup = renderForm(document, initialValues, "ja");
-assert.match(japaneseMarkup, />共通設定</);
+assert.match(japaneseMarkup, />時間割</);
 assert.match(japaneseMarkup, />週間時間割</);
 assert.match(japaneseMarkup, /aria-label="次の週"/);
 assert.match(japaneseMarkup, /aria-label="月曜日 オンライン"/);
+assert.match(japaneseMarkup, /aria-label="月曜日 ゲリラ"/);
 assert.match(japaneseMarkup, />月</);
 
 assert.equal(normalizeStudioRuntimeLocale("ko-KR"), "ko");
 assert.equal(normalizeStudioRuntimeLocale("ja-JP"), "ja");
 assert.equal(normalizeStudioRuntimeLocale("fr-FR"), "en");
 assert.equal(getStudioRuntimeCopy("ko").reset, "초기화");
-assert.match(
-  formatStudioRuntimeWeekRange({
-    locale: "en",
-    startDate: "2026-07-01",
-    endDate: "2026-07-07",
+assert.equal(
+  formatStudioRuntimeWeekStartDate({
+    startDate: "2026-07-13",
     fallback: "Not set",
   }),
-  /Jul 1, 2026.*Jul 7/,
+  "7/13",
 );
 
 const nextWeekValues = shiftStudioRuntimeWeek(document, initialValues, 1);
@@ -228,6 +271,29 @@ assert.equal(
     dayId,
   }),
   "07.08",
+);
+assert.equal(
+  resolveStudioBuiltinFieldValue(
+    document,
+    nextWeekValues,
+    "day.label",
+    { dayId },
+    { dayLabelFormat: "koreanLong" },
+  ),
+  "월요일",
+);
+assert.equal(
+  resolveStudioTextBinding(
+    document,
+    nextWeekValues,
+    {
+      kind: "builtinField",
+      fieldId: "day.label",
+      dayLabelFormat: "shortUpper",
+    },
+    { dayId },
+  ),
+  "MON",
 );
 assert.equal(
   resolveStudioBuiltinFieldValue(document, nextWeekValues, "week.date_range"),
@@ -360,9 +426,10 @@ const shellMarkup = renderToStaticMarkup(
 );
 assert.match(shellMarkup, /template-studio-runtime-theme/);
 assert.match(shellMarkup, /aria-label="Language"/);
-assert.match(shellMarkup, /aria-label="Zoom out"/);
-assert.match(shellMarkup, /aria-label="Zoom in"/);
-assert.match(shellMarkup, /aria-label="Fit preview"/);
+assert.match(shellMarkup, /aria-label="Preview scale"/);
+assert.match(shellMarkup, />Back</);
+assert.doesNotMatch(shellMarkup, /aria-label="Zoom out"/);
+assert.doesNotMatch(shellMarkup, /aria-label="Fit preview"/);
 assert.doesNotMatch(shellMarkup, /blue-[0-9]/);
 
 console.log("Template Studio runtime V2 UI checks passed.");

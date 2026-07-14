@@ -117,6 +117,67 @@ const getDayCardGridPreset = (preset: StudioTimetableDayCardsGridPreset) =>
     (candidate) => candidate.id === preset,
   ) ?? STUDIO_TIMETABLE_DAY_CARD_GRID_PRESETS[0];
 
+const normalizeStudioGridEmptySlotIndexes = (
+  emptySlotIndexes: number[] | undefined,
+  slotCount: number,
+  itemCount: number,
+) => {
+  const emptySlotCount = Math.max(0, slotCount - itemCount);
+  const normalized = (emptySlotIndexes ?? []).reduce<number[]>(
+    (indexes, index) => {
+      const normalizedIndex = Math.floor(index);
+      if (
+        !Number.isFinite(index) ||
+        normalizedIndex < 0 ||
+        normalizedIndex >= slotCount ||
+        indexes.includes(normalizedIndex) ||
+        indexes.length >= emptySlotCount
+      ) {
+        return indexes;
+      }
+      return [...indexes, normalizedIndex];
+    },
+    [],
+  );
+
+  for (
+    let index = slotCount - 1;
+    index >= 0 && normalized.length < emptySlotCount;
+    index -= 1
+  ) {
+    if (!normalized.includes(index)) normalized.unshift(index);
+  }
+
+  return normalized;
+};
+
+export const getStudioTimetableThreeByThreeEmptySlotIndexes = (
+  layout: StudioTimetableDayCardsLayout,
+  dayCount: number,
+) =>
+  normalizeStudioGridEmptySlotIndexes(
+    layout.emptySlotIndexes,
+    9,
+    Math.min(9, Math.max(0, dayCount)),
+  );
+
+const getStudioGridTraversalSlotIndexes = (
+  columns: number,
+  rows: number,
+  fillOrder: StudioTimetableDayCardsFillOrder,
+) => {
+  const slotCount = columns * rows;
+  if (fillOrder !== "column") {
+    return Array.from({ length: slotCount }, (_, index) => index);
+  }
+
+  return Array.from({ length: slotCount }, (_, index) => {
+    const column = Math.floor(index / rows);
+    const row = index % rows;
+    return row * columns + column;
+  });
+};
+
 const getAlignedIncompleteTrackOffset = (
   trackCount: number,
   itemCount: number,
@@ -192,6 +253,25 @@ const getDayCardGridPosition = (
     };
   }
 
+  if (layout.gridPreset === "3x3") {
+    const emptySlotIndexes = new Set(
+      getStudioTimetableThreeByThreeEmptySlotIndexes(layout, dayCount),
+    );
+    const occupiedSlotIndexes = getStudioGridTraversalSlotIndexes(
+      columns,
+      rows,
+      layout.fillOrder ?? "row",
+    ).filter((index) => !emptySlotIndexes.has(index));
+    const generatedSlotIndex = occupiedSlotIndexes[dayIndex];
+
+    if (generatedSlotIndex !== undefined) {
+      return {
+        column: generatedSlotIndex % columns,
+        row: Math.floor(generatedSlotIndex / columns),
+      };
+    }
+  }
+
   return getGeneratedDayCardGridPosition({
     dayIndex,
     dayCount,
@@ -257,6 +337,14 @@ export const getStudioTimetableDayCardsLayout = (
     fillOrder: rawLayout.fillOrder ?? "row",
     alignLastRow: rawLayout.alignLastRow ?? "start",
     slots: (rawLayout.slots ?? []).slice(0, slotCount),
+    emptySlotIndexes:
+      gridPreset === "3x3"
+        ? normalizeStudioGridEmptySlotIndexes(
+            rawLayout.emptySlotIndexes,
+            slotCount,
+            dayCount,
+          )
+        : undefined,
     dayOffsets: {
       ...(rawLayout.dayOffsets ?? {}),
     },

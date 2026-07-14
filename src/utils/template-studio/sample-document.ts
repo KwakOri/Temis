@@ -59,7 +59,7 @@ const ensureIndependentSampleVariants = (
 export const createSampleStudioDocument = (): StudioTemplateDocument =>
   ensureIndependentSampleVariants({
   schema: "studio_template_document",
-  version: 4,
+  version: 6,
   metadata: {
     editor: "template-studio",
     name: "Template Studio Sample",
@@ -108,7 +108,7 @@ export const createSampleStudioDocument = (): StudioTemplateDocument =>
       top: 0,
       width: 780,
       height: 500,
-      backgroundColor: "#ffffff",
+      backgroundColor: "transparent",
       borderRadius: 24,
       boxShadow: "0 24px 80px rgba(15, 23, 42, 0.18)",
       border: "1px solid rgba(148, 163, 184, 0.35)",
@@ -202,25 +202,15 @@ export const createSampleStudioDocument = (): StudioTemplateDocument =>
         childIds: [],
         styleId: "style_background",
         assetSlots: {
-          online: {
-            assetId: "asset_background",
-            fit: "cover",
-          },
-          offline: {
+          asset: {
             assetId: "asset_background",
             fit: "cover",
           },
         },
         meta: {
           exception: createStudioStatusCardBackgroundExceptionMeta({
-            online: {
-              assetId: "asset_background",
-              fit: "cover",
-            },
-            offline: {
-              assetId: "asset_background",
-              fit: "cover",
-            },
+            assetId: "asset_background",
+            fit: "cover",
           }),
         },
       },

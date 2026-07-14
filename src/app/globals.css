@@ -143,30 +143,65 @@
   scrollbar-color: #d1d5db transparent;
 }
 
-/* Template Studio right inspector */
-.template-studio-inspector-scrollbar {
+/* Template Studio editor panels */
+.template-studio-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: var(--inspector-scrollbar-thumb)
     var(--inspector-scrollbar-track);
 }
 
-.template-studio-inspector-scrollbar::-webkit-scrollbar {
+.template-studio-scrollbar::-webkit-scrollbar {
   width: 10px;
 }
 
-.template-studio-inspector-scrollbar::-webkit-scrollbar-track {
+.template-studio-scrollbar::-webkit-scrollbar-track {
   background: var(--inspector-scrollbar-track);
 }
 
-.template-studio-inspector-scrollbar::-webkit-scrollbar-thumb {
+.template-studio-scrollbar::-webkit-scrollbar-thumb {
   min-height: 48px;
   border: 2px solid var(--inspector-scrollbar-track);
   border-radius: 999px;
   background: var(--inspector-scrollbar-thumb);
 }
 
-.template-studio-inspector-scrollbar::-webkit-scrollbar-thumb:hover {
+.template-studio-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--inspector-scrollbar-thumb-hover);
+}
+
+.studio-hex-color-hue {
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #ff0000,
+    #ffff00,
+    #00ff00,
+    #00ffff,
+    #0000ff,
+    #ff00ff,
+    #ff0000
+  );
+  outline: none;
+}
+
+.studio-hex-color-hue::-webkit-slider-thumb {
+  width: 14px;
+  height: 14px;
+  appearance: none;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65);
+}
+
+.studio-hex-color-hue::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65);
 }
 
 @keyframes slideLoop {

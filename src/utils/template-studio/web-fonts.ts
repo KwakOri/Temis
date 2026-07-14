@@ -11,7 +11,18 @@ const ALLOWED_FONT_FACE_DESCRIPTORS = new Set([
   "font-display",
   "font-stretch",
   "unicode-range",
+  "ascent-override",
+  "descent-override",
+  "line-gap-override",
+  "size-adjust",
 ]);
+
+export const STUDIO_WEB_FONT_METRIC_DEFAULTS = {
+  "ascent-override": "84%",
+  "descent-override": "16%",
+  "line-gap-override": "0%",
+  "size-adjust": "100%",
+} as const;
 
 const FONT_DISPLAY_VALUES = new Set([
   "auto",
@@ -29,6 +40,9 @@ const FONT_STRETCH_PATTERN =
   /^(normal|ultra-condensed|extra-condensed|condensed|semi-condensed|semi-expanded|expanded|extra-expanded|ultra-expanded|\d+(?:\.\d+)?%(?:\s+\d+(?:\.\d+)?%)?)$/i;
 const UNICODE_RANGE_PATTERN =
   /^U\+[0-9A-F?]{1,6}(?:-[0-9A-F]{1,6})?(?:\s*,\s*U\+[0-9A-F?]{1,6}(?:-[0-9A-F]{1,6})?)*$/i;
+const FONT_METRIC_OVERRIDE_PATTERN =
+  /^(?:normal|(?:\d+(?:\.\d+)?|\.\d+)%)$/i;
+const FONT_SIZE_ADJUST_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)%$/;
 const MAX_DATA_FONT_URL_LENGTH = 140_000;
 
 export interface StudioParsedWebFontFace {
@@ -335,6 +349,20 @@ const normalizeDescriptor = (name: string, value: string): string | null => {
       ? value.trim().toUpperCase()
       : null;
   }
+  if (
+    name === "ascent-override" ||
+    name === "descent-override" ||
+    name === "line-gap-override"
+  ) {
+    return FONT_METRIC_OVERRIDE_PATTERN.test(value.trim())
+      ? value.trim().toLowerCase()
+      : null;
+  }
+  if (name === "size-adjust") {
+    return FONT_SIZE_ADJUST_PATTERN.test(value.trim())
+      ? value.trim()
+      : null;
+  }
   return null;
 };
 
@@ -375,6 +403,7 @@ export const parseStudioWebFontCss = (
 
     const descriptors: Record<string, string> = {};
     const sourceDescriptors = {
+      ...STUDIO_WEB_FONT_METRIC_DEFAULTS,
       ...parsed.declarations,
       "font-display": parsed.declarations["font-display"] ?? "swap",
     };
@@ -420,6 +449,10 @@ export const parseStudioWebFontCss = (
         "font-weight",
         "font-style",
         "font-display",
+        "ascent-override",
+        "descent-override",
+        "line-gap-override",
+        "size-adjust",
         "font-stretch",
         "unicode-range",
       ];

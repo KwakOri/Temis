@@ -64,7 +64,9 @@ export const isStudioRuntimeValuesLike = (
           typeof entry.statusId === "string" &&
           [entry.mainTitle, entry.subTitle, entry.time].every(
             (field) => field === undefined || typeof field === "string",
-          ),
+          ) &&
+          (entry.isGuerrilla === undefined ||
+            typeof entry.isGuerrilla === "boolean"),
       ),
   );
   const offlineMemoValuesAreValid = Object.values(
@@ -362,6 +364,34 @@ export const setStudioTimetableEntryField = (
         ...(values.timetable?.entriesByDay ?? {}),
         [dayId]: currentEntries.map((entry, index) =>
           index === entryIndex ? { ...entry, [field]: value } : entry,
+        ),
+      },
+    },
+  };
+};
+
+export const setStudioTimetableEntryGuerrilla = (
+  document: StudioTemplateDocument,
+  values: StudioRuntimeValues,
+  dayId: StudioTimetableDayId,
+  entryIndex: number,
+  isGuerrilla: boolean,
+): StudioRuntimeValues => {
+  const currentEntries = getStudioTimetableEntriesForDay(
+    document,
+    values,
+    dayId,
+  );
+  if (!currentEntries[entryIndex]) return values;
+
+  return {
+    ...values,
+    timetable: {
+      ...values.timetable,
+      entriesByDay: {
+        ...(values.timetable?.entriesByDay ?? {}),
+        [dayId]: currentEntries.map((entry, index) =>
+          index === entryIndex ? { ...entry, isGuerrilla } : entry,
         ),
       },
     },

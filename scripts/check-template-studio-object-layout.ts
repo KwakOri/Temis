@@ -9,6 +9,26 @@ import {
   resolveStudioGraphNodeGeometry,
   resolveStudioTimetableObjectGeometry,
 } from "../src/utils/template-studio/object-layout";
+import {
+  createStudioTimetablePresetObject,
+  getStudioTimetableComposition,
+} from "../src/utils/template-studio/timetable-composition";
+import {
+  getStudioPresetCreationRule,
+  getStudioPresetGroups,
+  STUDIO_PRESET_DEFINITIONS,
+} from "../src/utils/template-studio/preset-registry";
+import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
+import {
+  getStudioCardsGuide,
+  getStudioTimetableGuide,
+  setStudioCardsGuideAsset,
+  setStudioCardsGuideOpacity,
+  setStudioCardsGuideVisibility,
+  setStudioTimetableGuideAsset,
+  setStudioTimetableGuideOpacity,
+  setStudioTimetableGuideVisibility,
+} from "../src/utils/template-studio/timetable-guide";
 
 const document = {
   canvas: { width: 1200, height: 800, background: "#fff" },
@@ -105,6 +125,139 @@ assert.deepEqual(
     { width: 4000, height: 2250 },
   ),
   { left: 0, top: 0, width: 4000, height: 2250 },
+);
+
+const board = createStudioTimetablePresetObject("board", composition, {
+  assetId: "board-asset",
+});
+composition.objects[board.id] = board;
+
+assert.equal(board.kind, "image");
+assert.equal(board.layoutMode, "fillParent");
+assert.equal(board.assetSlots?.asset?.assetId, "board-asset");
+assert.equal(board.assetSlots?.asset?.inputId, undefined);
+assert.equal(board.assetSlots?.asset?.fit, "cover");
+assert.equal(board.meta?.exception?.semanticKey, "board");
+assert.deepEqual(
+  resolveStudioTimetableObjectGeometry(
+    composition,
+    board.id,
+    { width: 4096, height: 2304 },
+  ),
+  { left: 0, top: 0, width: 4096, height: 2304 },
+  "Board must fill the current timetable canvas without a runtime input.",
+);
+
+const graphRootNodeIdsBeforeGuide = [...document.graph.rootNodeIds];
+const timetableRootObjectIdsBeforeGuide = [...composition.rootObjectIds];
+
+assert.deepEqual(getStudioTimetableGuide(document), {
+  assetId: null,
+  visible: false,
+  opacity: 0.5,
+});
+assert.deepEqual(getStudioCardsGuide(document), {
+  assetId: null,
+  visible: false,
+  opacity: 0.5,
+});
+
+setStudioCardsGuideAsset(document, "cards-guide-asset");
+setStudioCardsGuideOpacity(document, 0.35);
+setStudioCardsGuideVisibility(document, false);
+assert.deepEqual(getStudioCardsGuide(document), {
+  assetId: "cards-guide-asset",
+  visible: false,
+  opacity: 0.35,
+});
+assert.deepEqual(getStudioTimetableGuide(document), {
+  assetId: null,
+  visible: false,
+  opacity: 0.5,
+});
+
+setStudioTimetableGuideAsset(document, "guide-asset");
+assert.deepEqual(getStudioTimetableGuide(document), {
+  assetId: "guide-asset",
+  visible: true,
+  opacity: 0.5,
+});
+
+setStudioTimetableGuideOpacity(document, 1.5);
+assert.equal(getStudioTimetableGuide(document).opacity, 1);
+setStudioTimetableGuideOpacity(document, -0.5);
+assert.equal(getStudioTimetableGuide(document).opacity, 0);
+
+setStudioTimetableGuideVisibility(document, false);
+assert.equal(getStudioTimetableGuide(document).visible, false);
+assert.deepEqual(getStudioCardsGuide(document), {
+  assetId: "cards-guide-asset",
+  visible: false,
+  opacity: 0.35,
+});
+assert.deepEqual(document.graph.rootNodeIds, graphRootNodeIdsBeforeGuide);
+assert.deepEqual(composition.rootObjectIds, timetableRootObjectIdsBeforeGuide);
+
+const repeatableDocument = createSampleStudioDocument();
+const repeatableTimetable = repeatableDocument.domains?.timetable;
+assert.ok(repeatableTimetable);
+const repeatableComposition = getStudioTimetableComposition(
+  repeatableTimetable,
+);
+const weekDatesPreset = STUDIO_PRESET_DEFINITIONS.find(
+  (preset) => preset.id === "weekDates",
+);
+assert.ok(weekDatesPreset);
+assert.equal(weekDatesPreset.singleton, false);
+assert.equal(getStudioPresetCreationRule(weekDatesPreset).mode, "repeatable");
+
+const weekDatesObjects = Array.from({ length: 4 }, () => {
+  const object = createStudioTimetablePresetObject(
+    "weekDates",
+    repeatableComposition,
+  );
+  repeatableComposition.objects[object.id] = object;
+  repeatableComposition.rootObjectIds.push(object.id);
+  return object;
+});
+repeatableTimetable.composition = repeatableComposition;
+
+assert.deepEqual(
+  weekDatesObjects.map((object) => object.id),
+  ["week-dates", "week-dates-2", "week-dates-3", "week-dates-4"],
+);
+assert.deepEqual(
+  weekDatesObjects.map((object) => object.label),
+  ["Week Dates", "Week Dates 2", "Week Dates 3", "Week Dates 4"],
+);
+assert.ok(
+  weekDatesObjects.every(
+    (object) => object.meta?.exception?.singleton === false,
+  ),
+);
+
+const weekDatesPresetItem = getStudioPresetGroups(
+  repeatableDocument,
+  "timetable",
+)
+  .flatMap((group) => group.presets)
+  .find((item) => item.definition.id === "weekDates");
+assert.ok(weekDatesPresetItem);
+assert.equal(
+  weekDatesPresetItem.existingTargetId,
+  null,
+  "Repeatable Week Dates must keep the preset add action available.",
+);
+
+weekDatesObjects[0].meta!.exception!.singleton = true;
+const normalizedRepeatableComposition = getStudioTimetableComposition(
+  repeatableTimetable,
+);
+assert.equal(
+  normalizedRepeatableComposition.objects[weekDatesObjects[0].id].meta
+    ?.exception?.singleton,
+  false,
+  "Legacy Week Dates metadata must normalize to repeatable.",
 );
 
 console.log("Template Studio object layout checks passed.");

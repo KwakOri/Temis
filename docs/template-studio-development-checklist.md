@@ -396,14 +396,14 @@ Timetable.
 ### 5.2 Status Card Background
 
 - [x] Implement `Status Card Background` as Cards semantic preset.
-- [x] Support `online` asset slot.
-- [x] Support `offline` asset slot.
-- [x] Add `multi` slot only when capability is enabled.
-- [x] Add `offlineMemo` slot only when capability is enabled.
-- [x] Support shared assets first.
-- [ ] Add day-specific asset slots later only after shared flow is stable.
+- [x] Store one background asset on each independently authored status variant.
+- [x] Keep Online and Offline background assets isolated by variant.
+- [x] Add independent Multi and Offline Memo background assets with their
+      capability-gated variants.
+- [ ] Add day-specific asset slots later only after the variant-local asset flow
+      is stable.
 - [ ] Defer full `7 days x 4 statuses = 28 asset slots` matrix UI until after
-      shared status asset flow is stable.
+      the variant-local asset flow is stable.
 - [x] Add status fallback behavior to preview.
 - [x] Add diagnostics for missing required base status assets.
 

@@ -22,6 +22,7 @@ export function StudioRuntimeGlobalInputCard({
     enabled !== undefined &&
     Boolean(toggleAriaLabel) &&
     Boolean(onEnabledChange);
+  const hasContent = React.Children.count(children) > 0;
   const showContent = !hasToggle || enabled;
 
   return (
@@ -38,7 +39,7 @@ export function StudioRuntimeGlobalInputCard({
           />
         ) : null}
       </header>
-      {showContent && children ? (
+      {showContent && hasContent ? (
         <div className="grid gap-3 pb-3.5">{children}</div>
       ) : null}
     </StudioRuntimeCard>

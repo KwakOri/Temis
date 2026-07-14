@@ -14,6 +14,11 @@ export const STUDIO_RUNTIME_LOCALE_OPTIONS: Array<{
 
 export interface StudioRuntimeCopy {
   language: string;
+  back: string;
+  previewScale: string;
+  saveImage: string;
+  savingImage: string;
+  saveImageFailed: string;
   sourceDraft: string;
   sourcePublished: string;
   zoomOut: string;
@@ -37,8 +42,22 @@ export interface StudioRuntimeCopy {
   weekNotSet: string;
   weekRuntimeDescription: string;
   upload: string;
+  cropImage: string;
+  cropDescription: string;
+  cropZoom: string;
+  cropRotation: string;
+  cropTargetFrame: string;
+  cropTargetDescription: string;
+  cropResetView: string;
+  cropApply: string;
+  cropProcessing: string;
+  cropFailed: string;
+  cancel: string;
   daySettings: string;
   time: string;
+  hour: string;
+  minute: string;
+  guerrilla: string;
   subTitle: string;
   mainTitle: string;
   offlineMemo: string;
@@ -63,6 +82,11 @@ export interface StudioRuntimeCopy {
 const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
   ko: {
     language: "언어",
+    back: "뒤로가기",
+    previewScale: "미리보기 배율",
+    saveImage: "이미지로 저장",
+    savingImage: "저장 중...",
+    saveImageFailed: "이미지를 저장하지 못했습니다.",
     sourceDraft: "초안",
     sourcePublished: "게시됨",
     zoomOut: "축소",
@@ -86,8 +110,22 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     weekNotSet: "날짜 미설정",
     weekRuntimeDescription: "미리보기에서 표시할 주를 선택합니다",
     upload: "새 이미지 업로드",
+    cropImage: "이미지 자르기",
+    cropDescription: "프로필 영역 비율에 맞춰 표시할 부분을 선택해 주세요.",
+    cropZoom: "확대",
+    cropRotation: "회전",
+    cropTargetFrame: "프로필 영역",
+    cropTargetDescription: "크롭 비율과 출력 크기는 에디터의 프로필 영역으로 고정됩니다.",
+    cropResetView: "보기 초기화",
+    cropApply: "자르기 적용",
+    cropProcessing: "처리 중...",
+    cropFailed: "이미지를 자르지 못했습니다.",
+    cancel: "취소",
     daySettings: "요일 설정",
     time: "시간",
+    hour: "시",
+    minute: "분",
+    guerrilla: "게릴라",
     subTitle: "서브 타이틀",
     mainTitle: "메인 타이틀",
     offlineMemo: "휴방 메모",
@@ -110,6 +148,11 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
   },
   en: {
     language: "Language",
+    back: "Back",
+    previewScale: "Preview scale",
+    saveImage: "Save as image",
+    savingImage: "Saving...",
+    saveImageFailed: "Could not save the image.",
     sourceDraft: "Draft",
     sourcePublished: "Published",
     zoomOut: "Zoom out",
@@ -133,8 +176,23 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     weekNotSet: "Not set",
     weekRuntimeDescription: "Choose the week shown in this preview",
     upload: "Upload new image",
+    cropImage: "Crop image",
+    cropDescription: "Choose the area to display in the profile frame.",
+    cropZoom: "Zoom",
+    cropRotation: "Rotation",
+    cropTargetFrame: "Profile frame",
+    cropTargetDescription:
+      "The crop ratio and output size are fixed to the profile frame authored in the editor.",
+    cropResetView: "Reset view",
+    cropApply: "Apply crop",
+    cropProcessing: "Processing...",
+    cropFailed: "Could not crop the image.",
+    cancel: "Cancel",
     daySettings: "Day",
     time: "Time",
+    hour: "Hour",
+    minute: "Minute",
+    guerrilla: "Guerrilla",
     subTitle: "Sub Title",
     mainTitle: "Main Title",
     offlineMemo: "Offline Memo",
@@ -157,6 +215,11 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
   },
   ja: {
     language: "言語",
+    back: "戻る",
+    previewScale: "プレビュー倍率",
+    saveImage: "画像として保存",
+    savingImage: "保存中...",
+    saveImageFailed: "画像を保存できませんでした。",
     sourceDraft: "下書き",
     sourcePublished: "公開済み",
     zoomOut: "縮小",
@@ -180,8 +243,23 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     weekNotSet: "日付未設定",
     weekRuntimeDescription: "プレビューに表示する週を選択します",
     upload: "新しい画像をアップロード",
+    cropImage: "画像を切り抜く",
+    cropDescription: "プロフィール枠に表示する範囲を選択してください。",
+    cropZoom: "拡大",
+    cropRotation: "回転",
+    cropTargetFrame: "プロフィール枠",
+    cropTargetDescription:
+      "切り抜き比率と出力サイズはエディターのプロフィール枠に固定されます。",
+    cropResetView: "表示をリセット",
+    cropApply: "切り抜きを適用",
+    cropProcessing: "処理中...",
+    cropFailed: "画像を切り抜けませんでした。",
+    cancel: "キャンセル",
     daySettings: "曜日設定",
     time: "時間",
+    hour: "時",
+    minute: "分",
+    guerrilla: "ゲリラ",
     subTitle: "サブタイトル",
     mainTitle: "メインタイトル",
     offlineMemo: "休止メモ",
@@ -286,40 +364,17 @@ const parseRuntimeIsoDate = (value: string | null): Date | null => {
   );
 };
 
-export const formatStudioRuntimeWeekRange = ({
-  locale,
+export const formatStudioRuntimeWeekStartDate = ({
   startDate,
-  endDate,
   fallback,
 }: {
-  locale: StudioRuntimeLocale;
   startDate: string | null;
-  endDate: string | null;
   fallback: string;
 }): string => {
   const start = parseRuntimeIsoDate(startDate);
-  const end = parseRuntimeIsoDate(endDate);
-  if (!start || !end) return fallback;
+  if (!start) return fallback;
 
-  const startFormatter = new Intl.DateTimeFormat(
-    getStudioRuntimeIntlLocale(locale),
-    {
-      year: "numeric",
-      month: locale === "en" ? "short" : "numeric",
-      day: "numeric",
-      timeZone: "UTC",
-    },
-  );
-  const endFormatter = new Intl.DateTimeFormat(
-    getStudioRuntimeIntlLocale(locale),
-    {
-      month: locale === "en" ? "short" : "numeric",
-      day: "numeric",
-      timeZone: "UTC",
-    },
-  );
-
-  return `${startFormatter.format(start)} – ${endFormatter.format(end)}`;
+  return `${start.getUTCMonth() + 1}/${start.getUTCDate()}`;
 };
 
 export const getLocalizedStudioAddEntryDisabledReason = (

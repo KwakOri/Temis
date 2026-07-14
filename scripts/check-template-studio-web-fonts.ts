@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 
-import { parseStudioWebFontCss } from "../src/utils/template-studio/web-fonts";
+import {
+  parseStudioWebFontCss,
+  STUDIO_WEB_FONT_METRIC_DEFAULTS,
+} from "../src/utils/template-studio/web-fonts";
 
 const faceNames = [
   "Thin",
@@ -36,6 +39,43 @@ assert.deepEqual(
 );
 assert.equal(parsedPretendard.faces.length, 9);
 assert.equal(parsedPretendard.cssText.includes("*@font-face"), false);
+parsedPretendard.faces.forEach((face) => {
+  Object.entries(STUDIO_WEB_FONT_METRIC_DEFAULTS).forEach(([name, value]) => {
+    assert.equal(face.descriptors[name], value);
+    assert.ok(parsedPretendard.cssText.includes(`  ${name}: ${value};`));
+  });
+});
+
+const explicitMetrics = parseStudioWebFontCss(`
+  @font-face {
+    font-family: 'Custom Metrics';
+    src: url('https://example.com/custom.woff2') format('woff2');
+    ascent-override: 90%;
+    descent-override: normal;
+    size-adjust: 102.5%;
+  }
+`);
+assert.equal(explicitMetrics.ok, true);
+if (!explicitMetrics.ok) process.exit(1);
+assert.equal(explicitMetrics.faces[0].descriptors["ascent-override"], "90%");
+assert.equal(
+  explicitMetrics.faces[0].descriptors["descent-override"],
+  "normal",
+);
+assert.equal(
+  explicitMetrics.faces[0].descriptors["line-gap-override"],
+  "0%",
+);
+assert.equal(explicitMetrics.faces[0].descriptors["size-adjust"], "102.5%");
+
+const invalidMetrics = parseStudioWebFontCss(`
+  @font-face {
+    font-family: 'Invalid Metrics';
+    src: url('https://example.com/invalid.woff2') format('woff2');
+    ascent-override: nope;
+  }
+`);
+assert.equal(invalidMetrics.ok, false, "Invalid metric overrides must fail");
 
 const arbitraryCss = parseStudioWebFontCss(
   "body { display: none; } @font-face { font-family: Test; src: url('https://example.com/test.woff2'); }",

@@ -106,7 +106,7 @@ const legacyDocument = createSampleStudioDocument();
   1;
 const migration = migrateStudioTemplateDocument(legacyDocument);
 if (!migration.ok) throw new Error(migration.message);
-assert.equal(migration.document.version, 4);
+assert.equal(migration.document.version, 6);
 assert.equal(migration.document.domains?.timetable?.version, 2);
 assert.ok(
   migration.warnings.includes("Migrated timetable domain to version 2."),

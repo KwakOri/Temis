@@ -24,6 +24,15 @@ export type StudioBuiltinFieldId =
   | "entry.is_multi"
   | "entry.is_offline_memo";
 
+export type StudioDayLabelFormat =
+  | "default"
+  | "long"
+  | "short"
+  | "shortUpper"
+  | "shortLower"
+  | "koreanLong"
+  | "koreanShort";
+
 export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
 export type StudioBuiltinFieldType = "text" | "boolean" | "status";
@@ -46,6 +55,7 @@ export type StudioTimetableProfileObjectRole =
 export type StudioTimetableStructuredObjectRole = "background" | "text";
 export type StudioTimetableObjectPresetId =
   | "dayCards"
+  | "board"
   | "weekDates"
   | "weeklyMemo"
   | "profileBlock"
@@ -54,6 +64,7 @@ export type StudioTimetableObjectPresetId =
 export type StudioSemanticPresetScope = "cards" | "timetable";
 export type StudioSemanticKey =
   | "dayCardContainers"
+  | "board"
   | "weekDates"
   | "weeklyMemo"
   | "profileBlock"
@@ -77,8 +88,16 @@ export interface StudioWebFontSource {
   enabled: boolean;
 }
 
+export interface StudioTimetableGuideResource {
+  assetId?: StudioAssetId | null;
+  visible?: boolean;
+  opacity?: number;
+}
+
 export interface StudioTemplateResources {
   webFonts?: StudioWebFontSource[];
+  cardsGuide?: StudioTimetableGuideResource;
+  timetableGuide?: StudioTimetableGuideResource;
 }
 
 export interface StudioSemanticMeta {
@@ -112,7 +131,11 @@ export interface StudioEntrySlotMeta {
 export type StudioBinding =
   | { kind: "staticText"; value: string }
   | { kind: "inputText"; inputId: StudioInputId }
-  | { kind: "builtinField"; fieldId: StudioBuiltinFieldId }
+  | {
+      kind: "builtinField";
+      fieldId: StudioBuiltinFieldId;
+      dayLabelFormat?: StudioDayLabelFormat;
+    }
   | { kind: "staticAsset"; assetId: StudioAssetId }
   | { kind: "inputImage"; inputId: StudioInputId }
   | {
@@ -289,6 +312,7 @@ export interface StudioTimetableDayCardsLayout {
   fillOrder?: StudioTimetableDayCardsFillOrder;
   alignLastRow?: StudioTimetableDayCardsAlignLastRow;
   slots?: Array<StudioTimetableDayId | null>;
+  emptySlotIndexes?: number[];
   padding: number;
   headerHeight: number;
   entryPreviewWidth: number;
@@ -373,6 +397,7 @@ export interface StudioTimetableRuntimeEntry {
   mainTitle?: string;
   subTitle?: string;
   time?: string;
+  isGuerrilla?: boolean;
 }
 
 export interface StudioTimetableRuntimeValues {
@@ -387,7 +412,7 @@ export interface StudioTemplateDomains {
 
 export interface StudioTemplateDocument {
   schema: "studio_template_document";
-  version: 4;
+  version: 6;
   metadata: {
     editor: "template-studio";
     name: string;

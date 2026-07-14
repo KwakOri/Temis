@@ -1,6 +1,8 @@
 "use client";
 
-import { CalendarDays, Maximize2, Minus, Plus } from "lucide-react";
+import { toPng } from "html-to-image";
+import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import React, {
   useCallback,
   useEffect,
@@ -15,7 +17,6 @@ import type {
 } from "@/types/template-studio";
 import {
   getStudioRuntimeCopy,
-  getStudioRuntimeIntlLocale,
   isStudioRuntimeLocale,
   normalizeStudioRuntimeLocale,
   STUDIO_RUNTIME_LOCALE_COOKIE_KEY,
@@ -30,7 +31,6 @@ import {
   StudioTimetablePreview,
 } from "../studio-timetable-preview";
 import { TemplateStudioRuntimeForm } from "./template-studio-runtime-form";
-import { StudioRuntimeActionButton } from "./ui/studio-runtime-action-button";
 
 interface TemplateStudioRuntimeShellProps {
   document: StudioTemplateDocument;
@@ -46,32 +46,16 @@ const cloneRuntimeValues = (
 ): StudioRuntimeValues =>
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
 
-const formatUpdatedAt = (
-  value: string | null | undefined,
-  locale: StudioRuntimeLocale,
-) => {
-  if (!value) return null;
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-
-  return new Intl.DateTimeFormat(getStudioRuntimeIntlLocale(locale), {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-};
-
 const zoomStep = 0.1;
 
 export function TemplateStudioRuntimeShell({
   document,
   initialRuntimeValues,
-  source,
   templateId,
   templateName,
-  updatedAt,
 }: TemplateStudioRuntimeShellProps) {
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
+  const previewContentRef = useRef<HTMLDivElement | null>(null);
   const [runtimeValues, setRuntimeValues] = useState<StudioRuntimeValues>(() =>
     cloneRuntimeValues(initialRuntimeValues),
   );
@@ -86,6 +70,7 @@ export function TemplateStudioRuntimeShell({
     y: 0,
   });
   const [isPanning, setIsPanning] = useState(false);
+  const [isSavingImage, setIsSavingImage] = useState(false);
   const panStateRef = useRef<{
     pointerId: number;
     startX: number;
@@ -109,8 +94,8 @@ export function TemplateStudioRuntimeShell({
     const element = previewContainerRef.current;
     if (!element) return;
 
-    const availableWidth = Math.max(1, element.clientWidth - 48);
-    const availableHeight = Math.max(1, element.clientHeight - 48);
+    const availableWidth = Math.max(1, element.clientWidth - 64);
+    const availableHeight = Math.max(1, element.clientHeight - 64);
     const fitScale = clampStudioPreviewScale(
       Math.min(
         1,
@@ -120,7 +105,7 @@ export function TemplateStudioRuntimeShell({
     );
 
     setViewportTransform({
-      scale: Number(fitScale.toFixed(2)),
+      scale: Number(fitScale.toFixed(3)),
       x: 0,
       y: 0,
     });
@@ -176,7 +161,9 @@ export function TemplateStudioRuntimeShell({
 
   const displayName =
     templateName?.trim() || document.metadata.name || "Template Studio Preview";
-  const updatedAtLabel = formatUpdatedAt(updatedAt, locale);
+  const backHref = templateId
+    ? `/admin/template-studio/${templateId}/edit`
+    : "/admin/template-studio";
 
   useEffect(() => {
     const queryLocale = new URLSearchParams(window.location.search).get("lang");
@@ -331,92 +318,108 @@ export function TemplateStudioRuntimeShell({
     [],
   );
 
+  const savePreviewImage = useCallback(async () => {
+    const element = previewContentRef.current;
+    if (!element || isSavingImage) return;
+
+    setIsSavingImage(true);
+    try {
+      const dataUrl = await toPng(element, {
+        cacheBust: true,
+        height: previewSize.height,
+        pixelRatio: 1,
+        style: {
+          transform: "none",
+        },
+        width: previewSize.width,
+      });
+      const safeName =
+        displayName
+          .trim()
+          .replace(/[^a-zA-Z0-9가-힣ぁ-んァ-ン一-龯_-]+/g, "-")
+          .replace(/^-+|-+$/g, "") || "timetable";
+      const link = window.document.createElement("a");
+      link.download = `${safeName}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (error) {
+      console.error("Template Studio preview image export failed", error);
+      window.alert(copy.saveImageFailed);
+    } finally {
+      setIsSavingImage(false);
+    }
+  }, [
+    copy.saveImageFailed,
+    displayName,
+    isSavingImage,
+    previewSize.height,
+    previewSize.width,
+  ]);
+
   return (
     <main
       className="template-studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]"
       lang={locale}
     >
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--runtime-border)] bg-[var(--runtime-card-bg)] px-4">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[var(--runtime-primary)] text-white shadow-[var(--runtime-shadow-card)]">
-          <CalendarDays size={15} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-sm font-bold">{displayName}</h1>
-            <span className="rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.04em] text-[var(--runtime-fg-muted)]">
-              {source === "draft" ? copy.sourceDraft : copy.sourcePublished}
-            </span>
-          </div>
-          <div className="flex min-w-0 gap-2 text-[11px] font-semibold text-[var(--runtime-fg-subtle)]">
-            {templateId ? <span className="truncate">{templateId}</span> : null}
-            {updatedAtLabel ? <span>{updatedAtLabel}</span> : null}
-          </div>
-        </div>
-        <select
-          aria-label={copy.language}
-          className="h-8 shrink-0 rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-2 text-xs font-bold text-[var(--runtime-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--runtime-focus)]"
-          value={locale}
-          onChange={(event) =>
-            updateLocale(event.currentTarget.value as StudioRuntimeLocale)
-          }
-        >
-          {STUDIO_RUNTIME_LOCALE_OPTIONS.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </header>
-
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row md:items-center">
         <section
-          className="relative min-h-0 flex-1 overflow-hidden bg-[var(--runtime-canvas-bg)]"
+          className="relative h-full min-h-0 flex-1 overflow-hidden bg-[var(--runtime-form-bg)]"
+          data-testid="template-studio-preview-area"
           ref={previewContainerRef}
         >
-          <div className="absolute right-4 top-4 z-20 flex h-10 items-center rounded-xl border border-[var(--runtime-border)] bg-[var(--runtime-card-bg)]/95 p-1 shadow-[var(--runtime-shadow-overlay)] backdrop-blur">
-            <StudioRuntimeActionButton
-              aria-label={copy.zoomOut}
-              className="size-7"
-              size="icon"
-              title={copy.zoomOut}
-              variant="ghost"
-              onClick={() => updateScale(viewportTransform.scale - zoomStep)}
+          <div
+            className="absolute left-4 top-4 z-50 flex select-none items-center gap-4 rounded bg-white/80 px-4 py-2 shadow-sm backdrop-blur-sm"
+            data-testid="template-studio-preview-controls"
+          >
+            <Link
+              className="flex items-center text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+              href={backHref}
             >
-              <Minus size={14} />
-            </StudioRuntimeActionButton>
-            <span className="min-w-12 text-center text-xs font-bold text-[var(--runtime-fg)]">
-              {Math.round(viewportTransform.scale * 100)}%
-            </span>
-            <StudioRuntimeActionButton
-              aria-label={copy.zoomIn}
-              className="size-7"
-              size="icon"
-              title={copy.zoomIn}
-              variant="ghost"
-              onClick={() => updateScale(viewportTransform.scale + zoomStep)}
+              <ChevronLeft className="mr-1 size-4" />
+              {copy.back}
+            </Link>
+            <div className="h-6 w-px bg-gray-300" />
+            <div className="flex items-center">
+              <label
+                className="text-sm font-medium text-gray-600"
+                htmlFor="template-studio-preview-scale"
+              >
+                {copy.previewScale}: {viewportTransform.scale.toFixed(1)}x
+              </label>
+              <input
+                aria-label={copy.previewScale}
+                className="ml-2 h-2 w-32 appearance-none rounded-lg bg-gray-300 accent-[var(--runtime-primary)] sm:w-60 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[var(--runtime-primary)] [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--runtime-primary)] [&::-webkit-slider-thumb]:shadow-md"
+                id="template-studio-preview-scale"
+                max={2}
+                min={0.1}
+                step={0.1}
+                type="range"
+                value={viewportTransform.scale}
+                onChange={(event) =>
+                  updateScale(Number.parseFloat(event.currentTarget.value))
+                }
+              />
+            </div>
+            <div className="hidden h-6 w-px bg-gray-300 sm:block" />
+            <select
+              aria-label={copy.language}
+              className="hidden h-8 shrink-0 rounded-lg border border-[var(--runtime-border)] bg-[var(--runtime-input-bg)] px-2 text-xs font-bold text-[var(--runtime-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--runtime-focus)] sm:block"
+              value={locale}
+              onChange={(event) =>
+                updateLocale(event.currentTarget.value as StudioRuntimeLocale)
+              }
             >
-              <Plus size={14} />
-            </StudioRuntimeActionButton>
-            <div className="mx-1 h-5 w-px bg-[var(--runtime-border)]" />
-            <StudioRuntimeActionButton
-              aria-label={copy.fitPreview}
-              className="size-7"
-              size="icon"
-              title={copy.fitPreview}
-              variant="ghost"
-              onClick={fitToViewport}
-            >
-              <Maximize2 size={14} />
-            </StudioRuntimeActionButton>
+              {STUDIO_RUNTIME_LOCALE_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div
             className="absolute inset-0 flex items-center justify-center overflow-hidden"
             style={{
-              backgroundImage:
-                "linear-gradient(45deg, #0b111b 25%, transparent 25%), linear-gradient(-45deg, #0b111b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #0b111b 75%), linear-gradient(-45deg, transparent 75%, #0b111b 75%)",
-              backgroundPosition: "0 0, 0 16px, 16px -16px, -16px 0",
-              backgroundSize: "32px 32px",
               touchAction: "none",
             }}
             onDoubleClick={fitToViewport}
@@ -427,7 +430,7 @@ export function TemplateStudioRuntimeShell({
             onWheel={handleViewportWheel}
           >
             <div
-              className="relative shrink-0 shadow-[var(--runtime-shadow-overlay)]"
+              className="relative shrink-0 rounded-sm shadow-lg"
               style={{
                 width: previewSize.width * viewportTransform.scale,
                 height: previewSize.height * viewportTransform.scale,
@@ -443,31 +446,42 @@ export function TemplateStudioRuntimeShell({
                   transform: `scale(${viewportTransform.scale})`,
                 }}
               >
-                {timetable ? (
-                  <StudioTimetablePreview
-                    document={document}
-                    runtimeValues={runtimeValues}
-                  />
-                ) : (
-                  <StudioRenderer
-                    document={document}
-                    runtimeValues={runtimeValues}
-                  />
-                )}
+                <div
+                  data-testid="template-studio-preview-content"
+                  ref={previewContentRef}
+                  style={{
+                    height: previewSize.height,
+                    width: previewSize.width,
+                  }}
+                >
+                  {timetable ? (
+                    <StudioTimetablePreview
+                      document={document}
+                      runtimeValues={runtimeValues}
+                    />
+                  ) : (
+                    <StudioRenderer
+                      document={document}
+                      runtimeValues={runtimeValues}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <div className="h-[44vh] min-h-[320px] shrink-0 lg:h-full">
-          <TemplateStudioRuntimeForm
-            document={document}
-            locale={locale}
-            runtimeValues={runtimeValues}
-            setRuntimeValues={setRuntimeValues}
-            onReset={resetRuntimeValues}
-          />
-        </div>
+        <TemplateStudioRuntimeForm
+          document={document}
+          isSavingImage={isSavingImage}
+          locale={locale}
+          runtimeValues={runtimeValues}
+          setRuntimeValues={setRuntimeValues}
+          onReset={resetRuntimeValues}
+          onSaveImage={() => {
+            void savePreviewImage();
+          }}
+        />
       </div>
     </main>
   );

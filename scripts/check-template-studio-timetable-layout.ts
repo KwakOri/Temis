@@ -3,9 +3,13 @@ import assert from "node:assert/strict";
 import {
   getStudioTimetableDayCardGeometries,
   getStudioTimetableEntryCardSize,
+  getStudioTimetableThreeByThreeEmptySlotIndexes,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
-import { getStudioTimetableComponentFrame } from "../src/utils/template-studio/entry-groups";
+import {
+  applyStudioTimetableComponentFrames,
+  getStudioTimetableComponentFrame,
+} from "../src/utils/template-studio/entry-groups";
 
 const document = createSampleStudioDocument();
 const timetable = document.domains?.timetable;
@@ -91,5 +95,145 @@ assert.deepEqual(mixedGeometries[mixedDays[2].id], {
   width: 120,
   height: 40,
 });
+
+const fillParentDocument = createSampleStudioDocument();
+fillParentDocument.canvas.width = 640;
+fillParentDocument.canvas.height = 660;
+const fillParentTimetable = fillParentDocument.domains?.timetable;
+assert.ok(fillParentTimetable);
+const fillParentComponent =
+  fillParentTimetable.components[fillParentTimetable.entryComponentId];
+assert.ok(fillParentComponent);
+Object.values(fillParentComponent.variants).forEach((variant) => {
+  const root = fillParentDocument.graph.nodes[variant.rootNodeId];
+  assert.ok(root);
+  root.layoutMode = "fillParent";
+});
+
+assert.deepEqual(
+  getStudioTimetableComponentFrame(fillParentDocument, fillParentComponent),
+  { left: 0, top: 0, width: 640, height: 660 },
+  "A fill-parent card component must follow the current Cards canvas size.",
+);
+
+applyStudioTimetableComponentFrames(fillParentDocument);
+assert.deepEqual(fillParentComponent.frame, {
+  left: 0,
+  top: 0,
+  width: 640,
+  height: 660,
+});
+Object.values(fillParentComponent.variants).forEach((variant) => {
+  const root = fillParentDocument.graph.nodes[variant.rootNodeId];
+  const style = root.styleId
+    ? fillParentDocument.styles[root.styleId]
+    : undefined;
+  assert.equal(style?.left, 0);
+  assert.equal(style?.top, 0);
+  assert.equal(style?.width, 640);
+  assert.equal(style?.height, 660);
+});
+
+const fillParentLayout = {
+  ...fillParentTimetable.dayCardsLayout!,
+  left: 0,
+  top: 0,
+  gridPreset: "3x3" as const,
+  columns: 3,
+  rows: 3,
+  dayGap: 0,
+  columnGap: 0,
+  rowGap: 0,
+  slots: undefined,
+};
+const fillParentDays = fillParentTimetable.dayIds.map(
+  (dayId) => fillParentTimetable.days[dayId],
+);
+const fillParentGeometries = getStudioTimetableDayCardGeometries(
+  fillParentLayout,
+  fillParentDays,
+  () => 1,
+  getStudioTimetableEntryCardSize(fillParentDocument, fillParentComponent),
+);
+assert.deepEqual(fillParentGeometries[fillParentDays[0].id], {
+  left: 0,
+  top: 0,
+  width: 640,
+  height: 660,
+});
+assert.deepEqual(fillParentGeometries[fillParentDays[2].id], {
+  left: 1280,
+  top: 0,
+  width: 640,
+  height: 660,
+});
+assert.deepEqual(fillParentGeometries[fillParentDays[6].id], {
+  left: 0,
+  top: 1320,
+  width: 640,
+  height: 660,
+});
+
+const emptyCellLayout = {
+  ...fillParentLayout,
+  emptySlotIndexes: [0, 4],
+};
+assert.deepEqual(
+  getStudioTimetableThreeByThreeEmptySlotIndexes(
+    emptyCellLayout,
+    fillParentDays.length,
+  ),
+  [0, 4],
+);
+const emptyCellGeometries = getStudioTimetableDayCardGeometries(
+  emptyCellLayout,
+  fillParentDays,
+  () => 1,
+  getStudioTimetableEntryCardSize(fillParentDocument, fillParentComponent),
+);
+assert.deepEqual(emptyCellGeometries[fillParentDays[0].id], {
+  left: 640,
+  top: 0,
+  width: 640,
+  height: 660,
+});
+assert.deepEqual(emptyCellGeometries[fillParentDays[2].id], {
+  left: 0,
+  top: 660,
+  width: 640,
+  height: 660,
+});
+assert.deepEqual(emptyCellGeometries[fillParentDays[6].id], {
+  left: 1280,
+  top: 1320,
+  width: 640,
+  height: 660,
+});
+
+const normalizedEmptyCellLayout = {
+  ...fillParentLayout,
+  emptySlotIndexes: [4, 4, -1, 12],
+};
+assert.deepEqual(
+  getStudioTimetableThreeByThreeEmptySlotIndexes(
+    normalizedEmptyCellLayout,
+    fillParentDays.length,
+  ),
+  [8, 4],
+  "Invalid and duplicate empty cells must fall back to a valid two-cell selection.",
+);
+
+const fixedFrameDocument = createSampleStudioDocument();
+fixedFrameDocument.canvas.width = 640;
+fixedFrameDocument.canvas.height = 660;
+const fixedFrameTimetable = fixedFrameDocument.domains?.timetable;
+assert.ok(fixedFrameTimetable);
+const fixedFrameComponent =
+  fixedFrameTimetable.components[fixedFrameTimetable.entryComponentId];
+assert.deepEqual(
+  getStudioTimetableComponentFrame(fixedFrameDocument, fixedFrameComponent),
+  { left: 160, top: 120, width: 780, height: 500 },
+  "A fixed card component must keep its explicit shared frame.",
+);
 
 console.log("Template Studio timetable layout checks passed.");

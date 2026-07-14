@@ -21,6 +21,10 @@ Choose the DB target explicitly with these commands:
 # Docker local Supabase (default)
 npm run dev
 npm run dev:local
+npm run dev:local:db
+
+# Clone remote data into Docker local Supabase, then start local dev
+npm run dev:local:db:sync
 
 # Temis remote Supabase
 npm run dev:remote
@@ -35,6 +39,8 @@ npm run dev:remote
 - injects the local API URL, anon key, and service role key into Next.js
 - starts Next.js without using remote Supabase credentials as its DB target
 
+`dev:local:db` is an explicit alias for the same local-DB dev flow.
+
 To refresh local data from the remote project, opt in explicitly:
 
 1. Make sure Docker Desktop and Supabase CLI are installed.
@@ -45,6 +51,8 @@ To refresh local data from the remote project, opt in explicitly:
 
 ```bash
 npm run dev:local -- --dump
+# equivalent explicit alias:
+npm run dev:local:db:sync
 ```
 
 Dump mode additionally:
@@ -53,6 +61,7 @@ Dump mode additionally:
 - resets local DB to current local migrations
 - dumps remote data (`public` by default)
 - imports remote data into local DB
+- applies pending local migrations again after import
 
 Tip: pass Next.js args through the command, e.g. `npm run dev:local -- -p 3001`.
 Tip: override copied schemas with `SUPABASE_REMOTE_DUMP_SCHEMAS` (comma-separated).

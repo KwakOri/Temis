@@ -18,7 +18,7 @@ export function StudioRuntimeSectionTitle({
   return (
     <div className={cn("flex items-end justify-between gap-3", className)}>
       <div className="min-w-0">
-        <h2 className="text-base font-extrabold text-[var(--runtime-fg)]">
+        <h2 className="pl-1 text-lg font-bold text-[var(--runtime-fg)]">
           {title}
         </h2>
         {description ? (

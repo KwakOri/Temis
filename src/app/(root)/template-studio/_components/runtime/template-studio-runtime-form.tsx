@@ -1,7 +1,7 @@
 "use client";
 
-import { Plus, RotateCcw, Upload } from "lucide-react";
-import React, { useMemo, useRef } from "react";
+import { Plus, Upload } from "lucide-react";
+import React, { useMemo, useRef, useState } from "react";
 
 import type {
   StudioInputDefinition,
@@ -15,6 +15,7 @@ import {
   setStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
+import { getStudioRuntimeProfileImageCropTarget } from "@/utils/template-studio/runtime-image-crop";
 import {
   getStudioRuntimeGlobalInputGroups,
   getStudioRuntimeOnOffOptionValues,
@@ -22,13 +23,12 @@ import {
 import { isStudioTimetableStatusAvailable } from "@/utils/template-studio/timetable-capabilities";
 import {
   getLocalizedStudioAddEntryDisabledReason,
-  formatStudioRuntimeWeekRange,
+  formatStudioRuntimeWeekStartDate,
   getStudioRuntimeCopy,
   getStudioRuntimeDayLabel,
   type StudioRuntimeLocale,
 } from "@/utils/template-studio/runtime-i18n";
 import {
-  getStudioRuntimeWeekEndDate,
   getStudioRuntimeWeekStartDate,
   shiftStudioRuntimeWeek,
 } from "@/utils/template-studio/runtime-week";
@@ -39,6 +39,7 @@ import {
   removeStudioTimetableEntry,
   setStudioTimetableDayBaseStatus,
   setStudioTimetableEntryField,
+  setStudioTimetableEntryGuerrilla,
   setStudioTimetableEntryStatus,
   setStudioTimetableOfflineMemo,
   type StudioTimetableEditableEntryField,
@@ -53,12 +54,17 @@ import { StudioRuntimeActionButton } from "./ui/studio-runtime-action-button";
 import { StudioRuntimeCard } from "./ui/studio-runtime-card";
 import { StudioRuntimeEmptyState } from "./ui/studio-runtime-empty-state";
 import { StudioRuntimeField } from "./ui/studio-runtime-field";
+import { StudioRuntimeImageCropModal } from "./ui/studio-runtime-image-crop-modal";
+import { StudioRuntimeTimePicker } from "./ui/studio-runtime-time-picker";
+import { StudioRuntimeToggle } from "./ui/studio-runtime-toggle";
 
 interface TemplateStudioRuntimeFormProps {
   document: StudioTemplateDocument;
   runtimeValues: StudioRuntimeValues;
   setRuntimeValues: React.Dispatch<React.SetStateAction<StudioRuntimeValues>>;
   onReset: () => void;
+  onSaveImage?: () => void;
+  isSavingImage?: boolean;
   locale?: StudioRuntimeLocale;
 }
 
@@ -66,6 +72,13 @@ type RuntimeInputGroups = Record<
   "global" | "day" | "entry",
   StudioInputDefinition[]
 >;
+
+interface PendingRuntimeImageCrop {
+  imageSrc: string;
+  targetHeight: number;
+  targetWidth: number;
+  onApply: (croppedImageSrc: string) => void;
+}
 
 const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
   const suffix =
@@ -78,10 +91,10 @@ const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
 
 const RuntimeImageUploadAction = ({
   label,
-  onValueChange,
+  onFileSelect,
 }: {
   label: string;
-  onValueChange: (value: string) => void;
+  onFileSelect: (file: File) => void;
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -105,10 +118,7 @@ const RuntimeImageUploadAction = ({
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
           if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = () => onValueChange(String(reader.result ?? ""));
-          reader.readAsDataURL(file);
+          onFileSelect(file);
         }}
       />
     </>
@@ -141,8 +151,12 @@ export function TemplateStudioRuntimeForm({
   runtimeValues,
   setRuntimeValues,
   onReset,
+  onSaveImage,
+  isSavingImage = false,
   locale = "en",
 }: TemplateStudioRuntimeFormProps) {
+  const [pendingImageCrop, setPendingImageCrop] =
+    useState<PendingRuntimeImageCrop | null>(null);
   const timetable = document.domains?.timetable;
   const days = useMemo(
     () =>
@@ -174,11 +188,8 @@ export function TemplateStudioRuntimeForm({
   );
   const copy = getStudioRuntimeCopy(locale);
   const weekStartDate = getStudioRuntimeWeekStartDate(document, runtimeValues);
-  const weekEndDate = getStudioRuntimeWeekEndDate(document, runtimeValues);
-  const weekLabel = formatStudioRuntimeWeekRange({
-    locale,
+  const weekLabel = formatStudioRuntimeWeekStartDate({
     startDate: weekStartDate,
-    endDate: weekEndDate,
     fallback: copy.weekNotSet,
   });
 
@@ -196,6 +207,38 @@ export function TemplateStudioRuntimeForm({
         context,
       ),
     );
+  };
+
+  const uploadRuntimeImage = (
+    input: StudioInputDefinition,
+    file: File,
+    context: StudioRuntimeContext = {},
+  ) => {
+    if (input.type !== "image") return;
+
+    const cropTarget = getStudioRuntimeProfileImageCropTarget(
+      document,
+      input.id,
+    );
+    const reader = new FileReader();
+    reader.onload = () => {
+      const imageSrc = String(reader.result ?? "");
+      if (!imageSrc) return;
+
+      if (!cropTarget) {
+        updateInputValue(input, imageSrc, context);
+        return;
+      }
+
+      setPendingImageCrop({
+        imageSrc,
+        targetHeight: cropTarget.height,
+        targetWidth: cropTarget.width,
+        onApply: (croppedImageSrc) =>
+          updateInputValue(input, croppedImageSrc, context),
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const addEntry = (
@@ -270,6 +313,22 @@ export function TemplateStudioRuntimeForm({
     );
   };
 
+  const updateEntryGuerrilla = (
+    dayId: StudioTimetableDayId,
+    entryIndex: number,
+    isGuerrilla: boolean,
+  ) => {
+    setRuntimeValues((currentValues) =>
+      setStudioTimetableEntryGuerrilla(
+        document,
+        currentValues,
+        dayId,
+        entryIndex,
+        isGuerrilla,
+      ),
+    );
+  };
+
   const updateOfflineMemo = (dayId: StudioTimetableDayId, value: string) => {
     setRuntimeValues((currentValues) =>
       setStudioTimetableOfflineMemo(currentValues, dayId, value),
@@ -333,9 +392,7 @@ export function TemplateStudioRuntimeForm({
           <RuntimeImageUploadAction
             key={key}
             label={copy.upload}
-            onValueChange={(nextValue) =>
-              updateInputValue(input, nextValue, context)
-            }
+            onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
           />
         );
       }
@@ -354,9 +411,7 @@ export function TemplateStudioRuntimeForm({
           />
           <RuntimeImageUploadAction
             label={copy.upload}
-            onValueChange={(nextValue) =>
-              updateInputValue(input, nextValue, context)
-            }
+            onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
           />
         </div>
       );
@@ -448,6 +503,16 @@ export function TemplateStudioRuntimeForm({
     entryCount: number,
   ) => {
     const context: StudioRuntimeContext = { dayId, entryIndex };
+    const day = timetable?.days[dayId];
+    const dayLabel = getStudioRuntimeDayLabel({
+      locale,
+      dayId,
+      width: "long",
+      fallback: day?.label ?? dayId,
+    });
+    const guerrillaAriaLabel = `${dayLabel} ${copy.guerrilla}${
+      entryCount > 1 ? ` ${entryIndex + 1}` : ""
+    }`;
 
     return (
       <StudioRuntimeEntryCard
@@ -459,15 +524,28 @@ export function TemplateStudioRuntimeForm({
         showIndex={entryCount > 1}
         onRemove={() => removeEntry(dayId, entryIndex)}
       >
-        <StudioRuntimeField
-          control="input"
-          label={copy.time}
-          placeholder="09:00"
-          value={entry.time ?? ""}
-          onValueChange={(value) =>
-            updateEntryField(dayId, entryIndex, "time", value)
-          }
-        />
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
+          <StudioRuntimeTimePicker
+            disabled={Boolean(entry.isGuerrilla)}
+            hourLabel={copy.hour}
+            label={copy.time}
+            minuteLabel={copy.minute}
+            value={entry.time || "09:00"}
+            onValueChange={(value) =>
+              updateEntryField(dayId, entryIndex, "time", value)
+            }
+          />
+          <StudioRuntimeToggle
+            ariaLabel={guerrillaAriaLabel}
+            checked={Boolean(entry.isGuerrilla)}
+            className="h-10"
+            label={copy.guerrilla}
+            title={`${copy.guerrilla} ${entry.isGuerrilla ? "ON" : "OFF"}`}
+            onCheckedChange={(isGuerrilla) =>
+              updateEntryGuerrilla(dayId, entryIndex, isGuerrilla)
+            }
+          />
+        </div>
         <StudioRuntimeField
           control="input"
           label={copy.subTitle}
@@ -492,176 +570,191 @@ export function TemplateStudioRuntimeForm({
   };
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] lg:w-[420px] lg:border-l lg:border-t-0">
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-[var(--runtime-border)] px-4">
-        <div>
-          <h1 className="text-sm font-extrabold">{copy.formTitle}</h1>
-          <p className="text-[11px] font-semibold text-[var(--runtime-fg-subtle)]">
-            {days.length > 0
-              ? copy.dayCount(days.length)
-              : copy.globalSettingsOnly}
-          </p>
-        </div>
-        <StudioRuntimeActionButton
-          size="compact"
-          variant="secondary"
-          onClick={onReset}
-        >
-          <RotateCcw size={14} />
-          {copy.reset}
-        </StudioRuntimeActionButton>
-      </div>
+    <>
+      <aside
+        className="flex h-[44vh] min-h-[320px] w-full shrink-0 flex-col border-t-2 border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] md:h-full md:max-w-[400px] md:min-w-[300px] md:w-1/4 md:border-l-2 md:border-t-0"
+        data-testid="template-studio-runtime-form"
+      >
+      <div className="flex min-h-0 flex-1 flex-col">
+        <StudioRuntimeFormTabs
+          ariaLabel={copy.formSections}
+          tabs={[{ id: "basic", label: copy.basic }]}
+          value="basic"
+          onValueChange={() => undefined}
+        />
 
-      <StudioRuntimeFormTabs
-        ariaLabel={copy.formSections}
-        tabs={[{ id: "basic", label: copy.basic }]}
-        value="basic"
-        onValueChange={() => undefined}
-      />
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--runtime-form-bg)] p-4">
+          <div className="grid gap-4">
+            <StudioRuntimeSectionTitle title={copy.formTitle} />
+            <StudioRuntimeWeekSelector
+              disabled={!weekStartDate}
+              label={copy.week}
+              nextLabel={copy.nextWeek}
+              previousLabel={copy.previousWeek}
+              value={weekLabel}
+              onNext={() => shiftWeek(1)}
+              onPrevious={() => shiftWeek(-1)}
+            />
+            {renderGlobalInputCards()}
+            {globalInputGroups.length === 0 ? (
+              <StudioRuntimeEmptyState compact>
+                {copy.noGlobalInputs}
+              </StudioRuntimeEmptyState>
+            ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
-        <div className="grid gap-4">
-          <StudioRuntimeSectionTitle
-            description={copy.globalSettingsDescription}
-            title={copy.globalSettings}
-          />
-          <StudioRuntimeWeekSelector
-            disabled={!weekStartDate}
-            label={copy.week}
-            nextLabel={copy.nextWeek}
-            previousLabel={copy.previousWeek}
-            value={weekLabel}
-            onNext={() => shiftWeek(1)}
-            onPrevious={() => shiftWeek(-1)}
-          />
-          {renderGlobalInputCards()}
-          {globalInputGroups.length === 0 ? (
-            <StudioRuntimeEmptyState compact>
-              {copy.noGlobalInputs}
-            </StudioRuntimeEmptyState>
-          ) : null}
+            <StudioRuntimeSectionTitle title={copy.weeklyTimetable} />
 
-          <StudioRuntimeSectionTitle
-            className="pt-2"
-            description={copy.weeklyTimetableDescription}
-            title={copy.weeklyTimetable}
-          />
-
-          {days.length === 0 ? (
-            <StudioRuntimeEmptyState>
-              {copy.noTimetableDays}
-            </StudioRuntimeEmptyState>
-          ) : (
-            days.map((day) => {
-              const entries = getStudioTimetableEntriesForDay(
-                document,
-                runtimeValues,
-                day.id,
-              );
-              const status = getDayStatus(document, entries);
-              const addEntryDisabledReason =
-                getStudioTimetableAddEntryDisabledReason(
+            {days.length === 0 ? (
+              <StudioRuntimeEmptyState>
+                {copy.noTimetableDays}
+              </StudioRuntimeEmptyState>
+            ) : (
+              days.map((day) => {
+                const entries = getStudioTimetableEntriesForDay(
                   document,
                   runtimeValues,
                   day.id,
                 );
-              const localizedAddEntryDisabledReason =
-                getLocalizedStudioAddEntryDisabledReason(
-                  copy,
-                  addEntryDisabledReason,
-                );
-              const shortDayLabel = getStudioRuntimeDayLabel({
-                locale,
-                dayId: day.id,
-                width: "short",
-                fallback: day.shortLabel ?? day.label,
-              });
-              const longDayLabel = getStudioRuntimeDayLabel({
-                locale,
-                dayId: day.id,
-                width: "long",
-                fallback: day.label,
-              });
+                const status = getDayStatus(document, entries);
+                const addEntryDisabledReason =
+                  getStudioTimetableAddEntryDisabledReason(
+                    document,
+                    runtimeValues,
+                    day.id,
+                  );
+                const localizedAddEntryDisabledReason =
+                  getLocalizedStudioAddEntryDisabledReason(
+                    copy,
+                    addEntryDisabledReason,
+                  );
+                const shortDayLabel = getStudioRuntimeDayLabel({
+                  locale,
+                  dayId: day.id,
+                  width: "short",
+                  fallback: day.shortLabel ?? day.label,
+                });
+                const longDayLabel = getStudioRuntimeDayLabel({
+                  locale,
+                  dayId: day.id,
+                  width: "long",
+                  fallback: day.label,
+                });
 
-              return (
-                <StudioRuntimeDayCard
-                  dayId={day.id}
-                  key={day.id}
-                  label={shortDayLabel}
-                  memoAvailable={canUseOfflineMemo && entries.length > 0}
-                  memoDescription={copy.memoDescription}
-                  memoEnabled={status.memoEnabled}
-                  memoLabel={copy.memo}
-                  memoToggleTitle={copy.toggleOfflineMemo}
-                  memoUnavailableTitle={copy.offlineMemoUnavailable}
-                  multi={status.multi}
-                  multiLabel={copy.multi}
-                  online={status.online}
-                  onlineAriaLabel={`${longDayLabel} ${copy.online}`}
-                  settings={renderInputGroup(
-                    copy.daySettings,
-                    inputGroups.day,
-                    {
-                      dayId: day.id,
-                    },
-                  )}
-                  offlineContent={
-                    <StudioRuntimeField
-                      control="textarea"
-                      label={copy.offlineMemo}
-                      placeholder={copy.offlineMemoPlaceholder}
-                      rows={4}
-                      value={
-                        runtimeValues.timetable.offlineMemoByDay?.[day.id] ?? ""
-                      }
-                      onValueChange={(value) =>
-                        updateOfflineMemo(day.id, value)
-                      }
-                    />
-                  }
-                  onMemoEnabledChange={(enabled) =>
-                    toggleOfflineMemo(day.id, enabled)
-                  }
-                  onOnlineChange={(online) =>
-                    updateDayBaseStatus(day.id, online)
-                  }
-                >
-                  {entries.length === 0 ? (
-                    <StudioRuntimeEmptyState compact>
-                      {copy.noEntries}
-                    </StudioRuntimeEmptyState>
-                  ) : (
-                    entries.map((entry, entryIndex) =>
-                      renderEntryCard(
-                        day.id,
-                        entry,
-                        entryIndex,
-                        entries.length,
-                      ),
-                    )
-                  )}
-
-                  <StudioRuntimeActionButton
-                    fullWidth
-                    aria-label={copy.addEntryTo(longDayLabel)}
-                    disabled={addEntryDisabledReason !== null}
-                    size="compact"
-                    title={
-                      localizedAddEntryDisabledReason ??
-                      copy.addEntryTo(longDayLabel)
+                return (
+                  <StudioRuntimeDayCard
+                    dayId={day.id}
+                    key={day.id}
+                    label={shortDayLabel}
+                    memoAvailable={canUseOfflineMemo && entries.length > 0}
+                    memoDescription={copy.memoDescription}
+                    memoEnabled={status.memoEnabled}
+                    memoLabel={copy.memo}
+                    memoToggleTitle={copy.toggleOfflineMemo}
+                    memoUnavailableTitle={copy.offlineMemoUnavailable}
+                    multi={status.multi}
+                    multiLabel={copy.multi}
+                    online={status.online}
+                    onlineAriaLabel={`${longDayLabel} ${copy.online}`}
+                    settings={renderInputGroup(
+                      copy.daySettings,
+                      inputGroups.day,
+                      {
+                        dayId: day.id,
+                      },
+                    )}
+                    offlineContent={
+                      <StudioRuntimeField
+                        control="textarea"
+                        label={copy.offlineMemo}
+                        placeholder={copy.offlineMemoPlaceholder}
+                        rows={4}
+                        value={
+                          runtimeValues.timetable.offlineMemoByDay?.[day.id] ??
+                          ""
+                        }
+                        onValueChange={(value) =>
+                          updateOfflineMemo(day.id, value)
+                        }
+                      />
                     }
-                    variant="primary"
-                    onClick={() => addEntry(day.id, entries)}
+                    onMemoEnabledChange={(enabled) =>
+                      toggleOfflineMemo(day.id, enabled)
+                    }
+                    onOnlineChange={(online) =>
+                      updateDayBaseStatus(day.id, online)
+                    }
                   >
-                    <Plus size={16} />
-                    {copy.addEntry}
-                  </StudioRuntimeActionButton>
-                </StudioRuntimeDayCard>
-              );
-            })
-          )}
+                    {entries.length === 0 ? (
+                      <StudioRuntimeEmptyState compact>
+                        {copy.noEntries}
+                      </StudioRuntimeEmptyState>
+                    ) : (
+                      entries.map((entry, entryIndex) =>
+                        renderEntryCard(
+                          day.id,
+                          entry,
+                          entryIndex,
+                          entries.length,
+                        ),
+                      )
+                    )}
+
+                    <StudioRuntimeActionButton
+                      fullWidth
+                      aria-label={copy.addEntryTo(longDayLabel)}
+                      disabled={addEntryDisabledReason !== null}
+                      size="compact"
+                      title={
+                        localizedAddEntryDisabledReason ??
+                        copy.addEntryTo(longDayLabel)
+                      }
+                      variant="primary"
+                      onClick={() => addEntry(day.id, entries)}
+                    >
+                      <Plus size={16} />
+                      {copy.addEntry}
+                    </StudioRuntimeActionButton>
+                  </StudioRuntimeDayCard>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
-    </aside>
+
+      <div className="shrink-0 border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] p-4">
+        <div className="flex gap-2">
+          <StudioRuntimeActionButton
+            fullWidth
+            className="h-12 rounded-md text-base font-bold"
+            disabled={!onSaveImage || isSavingImage}
+            onClick={onSaveImage}
+          >
+            {isSavingImage ? copy.savingImage : copy.saveImage}
+          </StudioRuntimeActionButton>
+          <StudioRuntimeActionButton
+            className="h-12 shrink-0 rounded-md px-4 text-base font-bold"
+            variant="danger"
+            onClick={onReset}
+          >
+            {copy.reset}
+          </StudioRuntimeActionButton>
+        </div>
+      </div>
+      </aside>
+      {pendingImageCrop ? (
+        <StudioRuntimeImageCropModal
+          imageSrc={pendingImageCrop.imageSrc}
+          locale={locale}
+          targetHeight={pendingImageCrop.targetHeight}
+          targetWidth={pendingImageCrop.targetWidth}
+          onCancel={() => setPendingImageCrop(null)}
+          onApply={(croppedImageSrc) => {
+            pendingImageCrop.onApply(croppedImageSrc);
+            setPendingImageCrop(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

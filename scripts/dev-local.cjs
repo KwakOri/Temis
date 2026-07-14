@@ -105,7 +105,7 @@ if (shouldSyncDump) {
   console.log("[dev:local] mode=local (reuse current local DB state)");
 }
 
-const totalSteps = shouldSyncDump ? 7 : 4;
+const totalSteps = shouldSyncDump ? 8 : 4;
 
 console.log(`[dev:local] 1/${totalSteps} Starting local Supabase containers...`);
 const startArgs = ["start", "--workdir", rootDir];
@@ -151,7 +151,7 @@ if (!shouldSyncDump) {
 
 if (shouldSyncDump) {
   if (useLinkedRemote) {
-    console.log(`[dev:local] 3/7 Linking to remote project (${projectRef})...`);
+    console.log(`[dev:local] 3/8 Linking to remote project (${projectRef})...`);
     runCommand("supabase", [
       "link",
       "--project-ref",
@@ -160,10 +160,10 @@ if (shouldSyncDump) {
       rootDir,
     ]);
   } else {
-    console.log("[dev:local] 3/7 Using SUPABASE_REMOTE_DB_URL as remote source...");
+    console.log("[dev:local] 3/8 Using SUPABASE_REMOTE_DB_URL as remote source...");
   }
 
-  console.log("[dev:local] 4/7 Resetting local DB to clean baseline...");
+  console.log("[dev:local] 4/8 Resetting local DB to clean baseline...");
   runCommand("supabase", [
     "db",
     "reset",
@@ -174,7 +174,7 @@ if (shouldSyncDump) {
     rootDir,
   ]);
 
-  console.log("[dev:local] 5/7 Dumping remote data...");
+  console.log("[dev:local] 5/8 Dumping remote data...");
   const dataDumpArgs = [
     "db",
     "dump",
@@ -195,7 +195,7 @@ if (shouldSyncDump) {
   }
   runCommand("supabase", dataDumpArgs);
 
-  console.log("[dev:local] 6/7 Importing remote data...");
+  console.log("[dev:local] 6/8 Importing remote data...");
   const dumpTables = extractCopyTablesFromDump(dumpFilePath);
   if (dumpTables.length > 0) {
     const truncateSql = `TRUNCATE TABLE ${dumpTables.join(
@@ -214,6 +214,16 @@ if (shouldSyncDump) {
     ]);
   }
   runCommand("psql", [localDbUrl, "-v", "ON_ERROR_STOP=1", "-q", "-f", dumpFilePath]);
+
+  console.log("[dev:local] 7/8 Applying pending local migrations...");
+  runCommand("supabase", [
+    "migration",
+    "up",
+    "--local",
+    "--yes",
+    "--workdir",
+    rootDir,
+  ]);
   syncLocalDerivedData(localDbUrl);
 }
 

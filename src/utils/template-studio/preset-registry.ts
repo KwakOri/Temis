@@ -1,5 +1,7 @@
 import {
   StudioBuiltinFieldId,
+  StudioGraphNode,
+  StudioNodeId,
   StudioSemanticKey,
   StudioSemanticPresetScope,
   StudioStyleRecord,
@@ -103,6 +105,10 @@ export interface StudioPresetGroup {
   presets: StudioPresetListItem[];
 }
 
+export interface StudioPresetLookupContext {
+  cardRootNodeId?: StudioNodeId | null;
+}
+
 const STUDIO_CAPABILITY_LABELS: Record<StudioTimetableCapabilityKey, string> = {
   multi: "Multi",
   offlineMemo: "Offline memo",
@@ -126,6 +132,21 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
       "Generated weekly card region exposed as a single timetable layer.",
   },
   {
+    id: "board",
+    scope: "timetable",
+    kind: "timetableCompositionObject",
+    label: "Board",
+    groupLabel: "Background",
+    typeLabel: "Image",
+    category: "semanticException",
+    implemented: true,
+    singleton: true,
+    semanticKey: "board",
+    timetableObjectPresetId: "board",
+    description:
+      "Single full-canvas background image fixed by the template creator.",
+  },
+  {
     id: "weekDates",
     scope: "timetable",
     kind: "timetableCompositionObject",
@@ -134,9 +155,11 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
     typeLabel: "Label",
     category: "semanticException",
     implemented: true,
-    singleton: true,
+    singleton: false,
     semanticKey: "weekDates",
     timetableObjectPresetId: "weekDates",
+    description:
+      "Repeatable week-date label for independently placing start and end date parts.",
   },
   {
     id: "weeklyMemo",
@@ -288,7 +311,7 @@ export const STUDIO_PRESET_DEFINITIONS: readonly StudioPresetDefinition[] = [
       top: 0,
       width: 780,
       height: 500,
-      backgroundColor: "#ffffff",
+      backgroundColor: "transparent",
       borderRadius: 24,
       overflow: "hidden",
     },
@@ -348,12 +371,31 @@ export const isStudioTimetableCompositionPreset = (
 export const getStudioPresetExistingTargetId = (
   document: StudioTemplateDocument,
   preset: StudioPresetDefinition,
+  context: StudioPresetLookupContext = {},
 ): string | null => {
+  if (!preset.singleton) return null;
   if (!preset.semanticKey) return null;
 
   if (preset.scope === "cards") {
+    const graphNodes = context.cardRootNodeId
+      ? (() => {
+          const nodes: StudioGraphNode[] = [];
+          const visitedNodeIds = new Set<StudioNodeId>();
+          const visit = (nodeId: StudioNodeId) => {
+            if (visitedNodeIds.has(nodeId)) return;
+            visitedNodeIds.add(nodeId);
+            const node = document.graph.nodes[nodeId];
+            if (!node) return;
+            nodes.push(node);
+            node.childIds.forEach(visit);
+          };
+          visit(context.cardRootNodeId);
+          return nodes;
+        })()
+      : Object.values(document.graph.nodes);
+
     return (
-      Object.values(document.graph.nodes).find(
+      graphNodes.find(
         (node) =>
           node.meta?.exception?.scope === "cards" &&
           node.meta.exception.semanticKey === preset.semanticKey,
@@ -426,6 +468,7 @@ export const getStudioPresetDefinitionsForScope = (
 export const getStudioPresetGroups = (
   document: StudioTemplateDocument,
   scope: StudioSemanticPresetScope,
+  context: StudioPresetLookupContext = {},
 ): StudioPresetGroup[] => {
   const groups: StudioPresetGroup[] = [];
 
@@ -444,7 +487,11 @@ export const getStudioPresetGroups = (
 
     group.presets.push({
       definition,
-      existingTargetId: getStudioPresetExistingTargetId(document, definition),
+      existingTargetId: getStudioPresetExistingTargetId(
+        document,
+        definition,
+        context,
+      ),
       disabledReason: getStudioPresetDisabledReason(document, definition),
     });
   });

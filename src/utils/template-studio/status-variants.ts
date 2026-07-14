@@ -17,6 +17,9 @@ import {
   ensureStudioTimetableCapabilityStatus,
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
+import {
+  ensureStudioVariantStatusCardBackgroundAssets,
+} from "@/utils/template-studio/status-card-background";
 
 const getNodeSyncKey = (
   node: StudioGraphNode,
@@ -268,6 +271,7 @@ export const ensureStudioIndependentStatusVariants = (
     if (!capabilities[capabilityKey].enabled) return;
     warnings.push(...ensureStudioCapabilityVariant(document, capabilityKey));
   });
+  warnings.push(...ensureStudioVariantStatusCardBackgroundAssets(document));
   applyStudioTimetableComponentFrames(document);
   return warnings;
 };

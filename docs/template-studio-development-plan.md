@@ -462,8 +462,8 @@ Medium-risk items:
 - `multi` and `offline_memo` are capability-gated in runtime controls and are
   preserved through document persistence; Multi still needs conversion from
   automatic card scaling to the fixed-two-slot authored variant contract.
-- `Status Card Background` supports shared status assets, but day-specific
-  overrides and a large matrix editor are intentionally deferred.
+- `Status Card Background` stores one asset per independently authored status
+  variant; day-specific overrides remain intentionally deferred.
 - Timetable composition supports only a shallow root object list; future slot
   editing and controlled drill-down are not modeled yet.
 - Future preset UI must distinguish available, planned, disabled-by-capability,
@@ -831,18 +831,19 @@ Implementation order:
 
 Status card background requirements:
 
-- Support base statuses first: `online`, `offline`.
-- Add `multi` and `offlineMemo` slots only when capabilities are enabled.
-- Support shared assets first.
+- Support independent base variants first: `online`, `offline`.
+- Add `multi` and `offlineMemo` background assets only when their independent
+  variants are enabled.
+- Store one background asset on each status variant.
 - Later support day-specific status assets.
-- Introduce the full 28-slot status/day matrix UI only after the simpler shared
-  asset flow is stable.
+- Introduce the full 28-slot status/day matrix UI only after the simpler
+  variant-local asset flow is stable.
 
 Reference note:
 
 - v2 explored a full `7 days x 4 statuses = 28 asset slots` model. Template
   Studio should borrow the capability and state concepts, but should introduce
-  the full 28-slot UI only after the simpler shared-asset flow is stable.
+  the full 28-slot UI only after the simpler variant-local asset flow is stable.
 
 ### Phase 6. Input Bundle Presets
 

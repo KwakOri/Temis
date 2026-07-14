@@ -6,6 +6,8 @@
     "dev": "npm run dev:local",
     "dev:next": "next dev",
     "dev:local": "node scripts/dev-local.cjs",
+    "dev:local:db": "node scripts/dev-local.cjs",
+    "dev:local:db:sync": "node scripts/dev-local.cjs --dump",
     "dev:remote": "node scripts/dev-remote.cjs",
     "import:v2:figma": "tsx scripts/import-v2-template-from-figma.ts",
     "import:v2:figma:v2": "tsx scripts/import-v2-template-from-figma-v2.ts",
@@ -31,6 +33,7 @@
     "check:template-studio:timetable-layout": "tsx scripts/check-template-studio-timetable-layout.ts",
     "check:template-studio:entry-groups-renderer": "tsx scripts/check-template-studio-entry-groups-renderer.tsx",
     "check:template-studio:crop-resize": "tsx scripts/check-template-studio-crop-resize.ts",
+    "check:template-studio:hex-colors": "tsx scripts/check-template-studio-hex-colors.ts",
     "check:template-studio:web-fonts": "tsx scripts/check-template-studio-web-fonts.ts",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"
   },
