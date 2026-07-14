@@ -388,10 +388,10 @@ export const resolveStudioBuiltinFieldValue = (
   }
 
   if (fieldId === "entry.main_title") {
-    return entry?.mainTitle ?? `Entry ${(context.entryIndex ?? 0) + 1}`;
+    return entry?.mainTitle ?? "메인타이틀\n적는 곳";
   }
 
-  if (fieldId === "entry.sub_title") return entry?.subTitle ?? "";
+  if (fieldId === "entry.sub_title") return entry?.subTitle ?? "서브타이틀 적는 곳";
   if (fieldId === "entry.time") {
     return entry?.isGuerrilla ? "게릴라" : (entry?.time ?? "09:00");
   }
