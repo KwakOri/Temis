@@ -21,6 +21,7 @@
     "typecheck:v2-runtime": "tsc -p tsconfig.v2-runtime.json --noEmit",
     "check:v2-runtime": "npm run lint:v2-runtime && npm run typecheck:v2-runtime",
     "check:v2-orderkey": "tsx scripts/check-v2-orderkey.ts",
+    "check:template-entitlement": "tsx scripts/check-template-entitlement.ts",
     "check:template-studio:persistence": "tsx scripts/check-template-studio-persistence.ts",
     "check:template-studio:api": "tsx scripts/check-template-studio-api.ts",
     "check:template-studio:preview-assets": "tsx scripts/check-template-studio-preview-assets.ts",

@@ -118,10 +118,13 @@ export class TemplateService {
         return false;
       }
 
-      // 1. 먼저 템플릿이 공개되어 있는지 확인
+      // 1. 템플릿이 발행 상태인지 확인한다.
+      // is_public은 상품 분류(일반 판매/개인 맞춤)일 뿐 이용 권한이 아니므로
+      // 여기서 즉시 접근을 허용하지 않는다. 이용 권한은 template_access와
+      // template_artists 연결로만 판정한다.
       const { data: templateData, error: templateError } = await supabase
         .from("templates")
-        .select("is_public")
+        .select("status")
         .eq("id", templateId)
         .single();
 
@@ -129,9 +132,8 @@ export class TemplateService {
         return false;
       }
 
-      // 공개 템플릿이면 접근 허용
-      if (templateData?.is_public) {
-        return true;
+      if (templateData?.status !== "published") {
+        return false;
       }
 
       // 2. template_access 테이블에서 권한 확인
