@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase";
 import {
-  GrantTemplateAccessData,
   SendAccessGrantedEmailData,
   TemplatePurchaseRequestWithRelations,
 } from "@/types/admin";
@@ -58,21 +57,6 @@ export class AdminPurchaseService {
     }
 
     return data;
-  }
-
-  static async grantTemplateAccess(
-    data: GrantTemplateAccessData
-  ): Promise<void> {
-    const { error } = await supabase.from("template_access").insert({
-      template_id: data.template_id,
-      user_id: data.user_id,
-      access_level: data.access_level,
-      granted_by: data.user_id, // This should be the admin user ID
-    });
-
-    if (error) {
-      throw new Error(`템플릿 접근 권한 부여에 실패했습니다: ${error.message}`);
-    }
   }
 
   static async updatePurchaseRequestStatus(
@@ -140,25 +124,22 @@ export class AdminPurchaseService {
       throw new Error("템플릿을 찾을 수 없습니다.");
     }
 
-    // 4. 템플릿 접근 권한 부여
-    const { error: accessError } = await supabase
-      .from("template_access")
-      .insert({
-        template_id: templateId,
-        user_id: user.id,
-        access_level: "write",
-        granted_by: admin.id,
-        template_plan_id: planId, // 플랜 ID 저장
-      });
+    // 4. 템플릿 접근 권한 부여와 구매 요청 완료 처리를 하나의 트랜잭션으로 실행
+    // (재시도해도 template_access가 중복 생성되지 않는 idempotent upsert)
+    const { error: approveError } = await supabase.rpc(
+      "approve_template_purchase_request",
+      {
+        p_request_id: requestId,
+        p_admin_id: admin.id,
+        p_plan_id: planId,
+      }
+    );
 
-    if (accessError) {
-      throw new Error(`권한 부여에 실패했습니다: ${accessError.message}`);
+    if (approveError) {
+      throw new Error(`권한 부여에 실패했습니다: ${approveError.message}`);
     }
 
-    // 5. 구매 신청 상태 업데이트
-    await this.updatePurchaseRequestStatus(requestId, "completed");
-
-    // 6. 이메일 발송 (선택적)
+    // 5. 이메일 발송 (선택적)
     try {
       const emailData: SendAccessGrantedEmailData = {
         email: user.email,

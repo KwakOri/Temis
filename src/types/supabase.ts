@@ -1832,6 +1832,18 @@ export type Database = {
       }
     }
     Functions: {
+      approve_template_purchase_request: {
+        Args: { p_admin_id: number; p_plan_id?: string; p_request_id: string }
+        Returns: {
+          access_level: string
+          granted_at: string
+          granted_by: number
+          id: string
+          template_id: string
+          template_plan_id: string | null
+          user_id: number
+        }
+      }
       calculate_template_sale_royalty: {
         Args: {
           p_artist_id: string
