@@ -1,8 +1,8 @@
 # 13. 과도기 `v2-template` 시스템 제거 검토
 
-최종 수정: 2026-07-15
+최종 수정: 2026-07-16
 
-상태: 검토 완료, 제거 작업 진행 중
+상태: 로컬 제거 완료(원격 반영은 사용자가 직접 수행)
 
 ## 목적
 
@@ -143,14 +143,46 @@ Legacy·Studio에 영향이 없다.
 8. `npm run build` 성공 확인
 9. 원격 migration 적용과 원격 R2 정리는 사용자가 직접 수행한다
 
+## 실행 결과 (2026-07-16)
+
+- **데이터 점검**: 로컬·원격 모두 `v2_templates` 계열 4개 테이블 행 수 0건,
+  실사용 흔적 없음을 확인했다.
+- **R2 정리**: `uploads/dev/v2-template` prefix에서 참조 없는 object 37개를
+  삭제했다(`cleanup:v2:r2-orphans -- --apply`, 삭제 후 재조회로 0건 확인).
+  운영 prefix(`uploads/v2-template`)는 애초에 비어 있었다.
+- **코드 삭제**: 인벤토리에 나열한 프론트 라우트, API 라우트, 격리 유틸 208개
+  파일과 `types/time-table`의 v2 전용 4개 파일을 삭제했다. `data.ts`/
+  `theme.ts`/`image.ts`/`template-data.ts`는 수정하지 않았다.
+- **package.json / tsconfig**: v2 전용 npm script 7개와
+  `tsconfig.v2-runtime.json`을 제거했다. Studio 소속인
+  `check:template-studio:runtime-v2-ui`는 유지했다.
+- **DB migration**:
+  [`20260715100000_drop_v2_template_transitional_schema.sql`](../../supabase/migrations/20260715100000_drop_v2_template_transitional_schema.sql)로
+  v2 테이블 4개와 trigger 함수 3개를 제거했다. `supabase db reset --local`로
+  빈 DB부터 전체 migration이 재현되는 것을 확인했다.
+- **생성 타입**: 원격에는 아직 테이블이 남아 있어 remote 대상 `gen:types`는
+  실행하지 않고 `src/types/supabase.ts`에서 `v2_template_render_config_drafts`
+  / `_revisions` / `v2_template_render_configs` / `v2_templates` 타입 블록만
+  수동으로 제거했다.
+- **회귀 검증**: `tsc --noEmit`, 전체 ESLint(신규 오류 없음, 기존 문제
+  2995→2929건으로 오히려 감소), `npm run build`(195개 페이지 전부 생성 성공),
+  그리고 Studio/Legacy 관련 회귀 스크립트 11개
+  (`check:template-studio:runtime`, `check:template-studio:persistence`,
+  `check:runtime-payload-limits`, `check:runtime-image-strip`,
+  `check:pilot-e2e`, `check:personalized-template-flow`,
+  `check:template-entitlement`, `check:purchase-plan-validation`,
+  `check:admin-template-access`, `check:admin-catalog-writes`,
+  `check:admin-purchase-requests`)를 모두 재실행해 통과를 확인했다.
+
 ## 완료 기준
 
-- [ ] 코드에서 `v2-template`/`v2_template` 참조가 인벤토리 목록 밖에는 남지
+- [x] 코드에서 `v2-template`/`v2_template` 참조가 인벤토리 목록 밖에는 남지
       않는다 (Studio의 `runtime-v2-ui` 관련은 예외).
-- [ ] `src/types/time-table/data.ts`/`theme.ts`/`image.ts`/`template-data.ts`는
+- [x] `src/types/time-table/data.ts`/`theme.ts`/`image.ts`/`template-data.ts`는
       수정하지 않는다.
-- [ ] 로컬 DB에서 v2 테이블 DROP migration이 빈 DB부터 재현된다.
-- [ ] `tsc --noEmit`, ESLint, `npm run build`가 통과한다.
-- [ ] Legacy(`time-table-tester`, `team-time-table/*`)와 Studio 관련 회귀
+- [x] 로컬 DB에서 v2 테이블 DROP migration이 빈 DB부터 재현된다.
+- [x] `tsc --noEmit`, ESLint, `npm run build`가 통과한다.
+- [x] Legacy(`time-table-tester`, `team-time-table/*`)와 Studio 관련 회귀
       스크립트가 모두 그대로 통과한다.
-- [ ] 원격 DB·R2 반영은 사용자가 직접 수행한다.
+- [ ] 원격 DB·R2 반영은 사용자가 직접 수행한다. (원격은 아직 손대지 않음 —
+      로컬 검증만 완료)

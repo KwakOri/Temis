@@ -11,9 +11,11 @@
 - **Legacy**: 기존 개별 템플릿 시스템
 - **Studio**: Template Studio로 제작한 새 템플릿. 기획상 새 v2 템플릿을 의미한다.
 
-프로젝트에 남아 있는 `/v2-template`, `/api/v2/*`, `/api/admin/v2/*` 및
-`v2_templates` 계열은 Studio로 오기 위한 과도기 시스템이다. 앞으로 운영하지
-않으며, 이 문서에서 말하는 새 v2 템플릿에 포함하지 않는다.
+`/v2-template`, `/api/v2/*`, `/api/admin/v2/*` 및 `v2_templates` 계열은
+Studio로 오기 위한 과도기 시스템이었다. 운영에 사용한 적이 없으며, 로컬
+저장소·로컬 DB에서는 이미 제거했다(원격 DB는 아직 유지 — 아래 "과도기
+`/v2-template` 시스템 제거" 참고). 이 문서에서 말하는 새 v2 템플릿에는
+포함하지 않는다.
 
 새 템플릿을 코드와 DB에서 `v2`가 아니라 `studio`라고 부르는 이유는 과도기
 `v2_templates` 시스템과 구분하고 숫자 version을 document/revision 버전과
@@ -286,34 +288,33 @@ IndexedDB에 다음 namespace로 저장한다.
 - [`08-user-runtime-state.md`](./08-user-runtime-state.md)
 - [`12-user-runtime-browser-image-storage.md`](./12-user-runtime-browser-image-storage.md)
 
-## 과도기 `/v2-template` 시스템의 취급
+## 과도기 `/v2-template` 시스템 제거
 
-다음 시스템은 Studio 도입 전 과도기 구현이며 운영에 사용하지 않는다.
+Studio 도입 전 과도기 구현이었던 다음 시스템은 로컬 저장소·로컬 DB에서 완전히
+제거했다. 상세 검토와 실행 결과는
+[`13-v2-template-legacy-removal.md`](./13-v2-template-legacy-removal.md)를
+따른다.
 
 ```text
-/v2-template/*
-/api/v2/*
-/api/admin/v2/*
-v2_templates
-v2_template_render_configs
-v2_template_render_config_revisions
-v2_template_render_config_drafts
+/v2-template/*            (제거됨)
+/api/v2/*                 (제거됨)
+/api/admin/v2/*           (제거됨)
+/admin/template-editor/*  (제거됨, v2 전용 admin 편집기)
+v2_templates               (로컬 DB에서 DROP, 원격은 아직 유지)
+v2_template_render_configs           (〃)
+v2_template_render_config_revisions  (〃)
+v2_template_render_config_drafts     (〃)
 ```
 
-이 시스템은 `templates.template_engine = 'studio'` 체계와 연결되지 않으며 상점,
-구매, `template_access`, Studio document 체계의 운영 기준으로 사용하면 안 된다.
+이 시스템은 `templates.template_engine = 'studio'` 체계와 연결된 적이 없으며
+상점, 구매, `template_access`, Studio document 체계의 운영 기준으로 사용된 적도
+없다. `src/types/time-table/`의 일부 파일(`data.ts`/`theme.ts`/`image.ts`)은
+Legacy 템플릿과 공유되므로 제거 대상에서 제외했다 — 자세한 파일별 판정은
+`13-v2-template-legacy-removal.md`의 표를 따른다.
 
-현재 저장소에는 route, API, schema가 남아 있으므로 **운영하지 않는 것과 기술적으로
-접근할 수 없는 것은 다르다**. 완전한 비활성화를 위해서는 별도 작업으로 다음을
-진행한다.
-
-1. 사용자 `/v2-template/*` route 비활성화 또는 제거
-2. `/api/v2/*`와 `/api/admin/v2/*` 비활성화
-3. 관리자·내부 navigation 링크 제거 여부 확인
-4. `v2_*` 데이터 사용 여부 read-only 점검
-5. 필요한 데이터가 없으면 관련 table·migration 이후 코드 제거
-
-원격 DB table 삭제는 로컬 검증이 끝난 뒤 사용자가 직접 수행한다.
+**원격 DB table 삭제와 원격 R2 정리는 아직 실행하지 않았다.** 로컬 검증이 끝난
+뒤 사용자가 직접 수행한다(신규 migration
+`20260715100000_drop_v2_template_transitional_schema.sql`을 원격에 적용).
 
 ## 운영 시나리오 요약
 
