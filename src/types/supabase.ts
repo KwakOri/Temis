@@ -106,33 +106,6 @@ export type Database = {
         }
         Relationships: []
       }
-      admin_tab_order: {
-        Row: {
-          created_at: string
-          id: string
-          is_visible: boolean
-          order_index: number
-          tab_id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_visible?: boolean
-          order_index: number
-          tab_id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_visible?: boolean
-          order_index?: number
-          tab_id?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       artist_royalty_rules: {
         Row: {
           artist_id: string

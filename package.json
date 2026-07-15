@@ -11,7 +11,6 @@
     "dev:remote": "node scripts/dev-remote.cjs",
     "cleanup:template-studio:r2-assets": "tsx scripts/cleanup-template-studio-r2-assets.ts",
     "cleanup:runtime-images": "tsx scripts/cleanup-legacy-runtime-image-data.ts",
-    "admin:tabs:sync": "node scripts/sync-admin-tab-order.cjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

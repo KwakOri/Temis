@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useTabOrders } from "@/hooks/query/useTabOrder";
 import { AdminTabId, getAdminPathByTabId, getAdminTabIdBySegment } from "@/lib/adminTabs";
 import {
   AlertTriangle,
@@ -26,7 +25,7 @@ import {
   X,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 const defaultTabs = [
   { id: "workCalendar" as AdminTabId, name: "작업 캘린더", icon: Calendar },
@@ -63,21 +62,7 @@ export default function AdminDashboardShell({
   const activeTab = getAdminTabIdBySegment(currentSegment);
 
   const isAdmin = user?.isAdmin || false;
-  const { data: tabOrders } = useTabOrders();
-
-  const tabs = useMemo(() => {
-    if (!tabOrders || tabOrders.length === 0) {
-      return defaultTabs;
-    }
-
-    const tabMap = new Map(defaultTabs.map((tab) => [tab.id, tab]));
-
-    return tabOrders
-      .filter((order) => order.is_visible)
-      .sort((a, b) => a.order_index - b.order_index)
-      .map((order) => tabMap.get(order.tab_id as AdminTabId))
-      .filter((tab) => tab !== undefined) as typeof defaultTabs;
-  }, [tabOrders]);
+  const tabs = defaultTabs;
 
   if (loading) {
     return (

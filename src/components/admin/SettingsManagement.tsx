@@ -23,7 +23,6 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
-import TabOrderManagement from "./TabOrderManagement";
 
 interface PriceOptionFormData {
   label: string;
@@ -167,9 +166,6 @@ export default function SettingsManagement() {
         <Settings className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
         <h2 className="text-lg sm:text-xl font-bold text-primary">설정 관리</h2>
       </div>
-
-      {/* ===== 탭 순서 관리 섹션 ===== */}
-      <TabOrderManagement />
 
       {/* ===== 일반 설정 섹션 ===== */}
       <section className="space-y-4">
