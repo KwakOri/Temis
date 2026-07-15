@@ -147,15 +147,16 @@ const main = async () => {
       );
     };
 
-    // 1. Oversized total payload is rejected. Filler must land somewhere
-    // that survives document-contract pruning (arbitrary global input ids
-    // the sample document doesn't declare get stripped before the size
-    // check runs), so it goes into the day's offline memo field instead.
+    // 1. An oversized raw request body is rejected with 413 before JSON
+    // parsing/validation ever runs (streaming byte-limited read, see
+    // readJsonBodyWithLimit). This filler is large enough to cross the
+    // request-body cap on its own, regardless of what document pruning
+    // would later do to any individual field.
     const oversized = await putWith((v) => {
       v.timetable.offlineMemoByDay = v.timetable.offlineMemoByDay ?? {};
       v.timetable.offlineMemoByDay[firstDayId] = "y".repeat(6_000_000);
     });
-    assert(oversized.status === 400, `expected 400 for oversized payload, got ${oversized.status}`);
+    assert(oversized.status === 413, `expected 413 for oversized payload, got ${oversized.status}`);
 
     // 2. Overly long entry mainTitle is rejected.
     const longTitle = await putWith((v) => {
@@ -163,30 +164,31 @@ const main = async () => {
     });
     assert(longTitle.status === 400, `expected 400 for long mainTitle, got ${longTitle.status}`);
 
-    // 3. A non-image data URI claiming to be an image input is rejected, if
-    // the sample document exposes an image input; otherwise this step is a
-    // structural no-op (still exercises the general text-length checks above).
+    // 3. Runtime images live only in the browser's IndexedDB now (see doc
+    // 12) — the server strips any image-input value from the PUT body
+    // before validation runs, rather than rejecting it. Any Data URI a
+    // stale/malicious client sends for an image input must disappear from
+    // the persisted/returned runtimeValues instead of causing a 400.
     const imageInputId = Object.keys(document.inputs).find(
       (id) => document.inputs[id].type === "image",
     );
     if (imageInputId) {
-      const badMime = await putWith((v) => {
-        v.global = {
-          ...v.global,
-          [imageInputId]: "data:text/plain;base64,aGVsbG8=",
-        };
-      });
-      assert(badMime.status === 400, `expected 400 for bad image MIME, got ${badMime.status}`);
-
-      const tooLargeImage = await putWith((v) => {
+      const strippedOversized = await putWith((v) => {
         v.global = {
           ...v.global,
           [imageInputId]: `data:image/png;base64,${"A".repeat(6_000_000)}`,
         };
       });
+      const strippedBody = await json<{ runtimeValues: typeof baseValues }>(
+        strippedOversized,
+      );
       assert(
-        tooLargeImage.status === 400,
-        `expected 400 for oversized image, got ${tooLargeImage.status}`,
+        strippedBody.status === 200,
+        `expected 200 (image stripped, not rejected), got ${strippedBody.status}`,
+      );
+      assert(
+        !(imageInputId in (strippedBody.body?.runtimeValues.global ?? {})),
+        "expected image input value to be stripped from persisted runtimeValues",
       );
     }
 

@@ -258,14 +258,15 @@ DB 용량과 API 메모리 사용량이 증가할 수 있다.
   제목, (문서에 이미지 input이 있는 경우) 잘못된 MIME과 초과 크기 이미지가
   모두 거부되고 정상 범위 편집은 성공하는지 확인했다.
 
-### 이연: 영구 사용자 이미지의 별도 저장 구조
+### 이연: 사용자 runtime 이미지의 브라우저 로컬 저장 전환
 
-"영구 사용자 이미지는 별도 user asset 테이블과 사용자별 R2 prefix에
-저장하고 runtime에는 검증된 asset ID/URL만 저장한다"는 원래 후속 조치는
-새 테이블·업로드 API·마이그레이션을 필요로 하는 별도 기능 작업이라 이번
-범위에서 처리하지 않았다. 현재는 크기·MIME 제한을 통과한 base64 데이터
-URI를 `runtime_values` JSONB에 그대로 저장한다 — 무제한 저장은 막았지만
-DB 행 크기 자체는 여전히 이미지 데이터를 포함한다.
+최초 검토에서는 별도 user asset 테이블과 private R2 저장을 제안했지만, runtime
+이미지는 편집 중인 브라우저에서만 필요하다는 요구사항에 따라 서버 영구 저장을
+추가하지 않기로 결정했다. 후속 12단계에서는 crop 처리 PNG Blob만 IndexedDB에
+저장하고 image binary와 브라우저 로컬 참조를 server runtime payload에서 모두
+제외한다. 현재 구현은 전환 전이므로 크기·MIME 제한을 통과한 base64 Data URL을
+`runtime_values` JSONB에 저장한다 — 무제한 저장은 막았지만 DB 행 크기 자체는
+여전히 이미지 데이터를 포함한다.
 
 ## P2. E2E 완료 범위와 문서 표현 불일치 — 부분 해결
 
@@ -370,8 +371,8 @@ R2 외부 객체 쓰기를 포함하는 asset 업로드 검증 스크립트
       (Publishable/Secret key 전환 자체는 별도 결정 전까지 보류 — 현재
       anon/service-role 키 체계 기준으로 해결)
 - [x] 구매 요청과 승인에서 plan-template 관계가 항상 일치한다.
-- [x] 사용자 runtime payload와 image 저장에 서버 크기/타입 제한이 적용된다.
-      (영구 이미지의 별도 R2 저장 구조 변경은 별도 기능 작업으로 이연)
+- [x] 사용자 runtime payload와 현재 Data URL image 저장에 서버 크기/타입 제한이
+      적용된다. (브라우저 IndexedDB 전환은 별도 기능 작업으로 이연)
 - [x] Studio template 삭제 후 R2 객체가 best-effort로 정리된다(R2 장애 시
       기존 수동 정리 스크립트가 안전망).
 - [x] 일반 판매·개인 맞춤 흐름이 통합 테스트(route handler 직접 호출)로
@@ -379,9 +380,13 @@ R2 외부 객체 쓰기를 포함하는 asset 업로드 검증 스크립트
 - [x] `npm run build`가 성공한다.
 - [ ] 원격 migration 적용과 key 전환은 사용자가 최종 확인 후 직접 수행한다.
 
-남은 이연 항목(별도 기능/작업으로 분리, 원격 반영을 막는 조건은 아님):
+남은 후속 항목(별도 기능/작업으로 분리, 원격 반영을 막는 조건은 아님):
 
-- 영구 사용자 이미지를 위한 별도 user asset 테이블 + R2 prefix 저장 구조
+- 사용자 runtime image의 브라우저 로컬 저장 전환: 12단계 계획 수정 완료,
+  구현 미착수. source file은 보존하지 않고 crop PNG Blob만 IndexedDB에 저장하며,
+  image binary와 로컬 참조는 서버 payload에서 제외한다. source와 처리 결과에는
+  각각 최대 20 MiB를 적용한다. 상세 내용은
+  `12-user-runtime-browser-image-storage.md`를 따른다.
 - Playwright 등을 이용한 실제 브라우저 E2E
 - Publishable/Secret key 전환과 앱 전체 API route 권한 등급 전수 분류·전체
   GRANT 회수(이번에 처리한 5개 테이블 + Studio 우선 대상 외 나머지 스키마)

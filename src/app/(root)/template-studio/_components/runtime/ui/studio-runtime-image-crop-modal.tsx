@@ -19,7 +19,7 @@ interface StudioRuntimeImageCropModalProps {
   targetHeight: number;
   targetWidth: number;
   onCancel: () => void;
-  onApply: (croppedImageSrc: string) => void;
+  onApply: (croppedImageBlob: Blob) => void;
 }
 
 const clampDimension = (value: number) =>
@@ -43,7 +43,7 @@ const createRuntimeCroppedImage = (
   rotation: number,
   outputWidth: number,
   outputHeight: number,
-): Promise<string> =>
+): Promise<Blob> =>
   new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
@@ -83,7 +83,16 @@ const createRuntimeCroppedImage = (
           outputCanvas.width,
           outputCanvas.height,
         );
-        resolve(outputCanvas.toDataURL("image/png"));
+        // A Blob keeps the cropped PNG out of Data URL / string-based
+        // storage entirely — it goes straight into IndexedDB, never through
+        // runtime_values JSON.
+        outputCanvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error("Failed to encode the cropped image."));
+            return;
+          }
+          resolve(blob);
+        }, "image/png");
       } catch (error) {
         reject(error);
       }

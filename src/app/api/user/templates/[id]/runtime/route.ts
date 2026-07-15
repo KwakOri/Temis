@@ -1,4 +1,5 @@
 import { requireAuth } from "@/lib/auth/middleware";
+import { readJsonBodyWithLimit } from "@/lib/http/read-json-body-with-limit";
 import { TemplateService } from "@/lib/templates";
 import {
   getTemplateStudioCurrentDocument,
@@ -10,7 +11,11 @@ import {
   pruneStudioRuntimeValuesForDocument,
   reconcileStudioUserRuntimeValues,
 } from "@/utils/template-studio/runtime-state";
-import { validateStudioRuntimePayloadLimits } from "@/utils/template-studio/runtime-payload-limits";
+import { stripStudioRuntimeImageValues } from "@/utils/template-studio/runtime-image-strip";
+import {
+  MAX_RUNTIME_PAYLOAD_BYTES,
+  validateStudioRuntimePayloadLimits,
+} from "@/utils/template-studio/runtime-payload-limits";
 import {
   isStudioRuntimeValuesLike,
   validateStudioRuntimeValuesForDocument,
@@ -95,11 +100,23 @@ export async function GET(
 
     // Only user id from the token is ever written; body/query user ids are never trusted.
     let runtimeValues = reconciled.runtimeValues;
-    if (reconciled.changed && state) {
+    let shouldPersist = reconciled.changed;
+
+    // Runtime images live only in the browser's IndexedDB — legacy saved
+    // state may still carry Data URIs from before this migration, so strip
+    // them from every response and persist the cleanup once.
+    const stripped = stripStudioRuntimeImageValues(
+      documentRecord.document,
+      runtimeValues
+    );
+    runtimeValues = stripped.values;
+    shouldPersist = shouldPersist || stripped.changed;
+
+    if (shouldPersist && state) {
       const saved = await saveTemplateStudioUserState({
         templateId,
         userId: auth.userId,
-        runtimeValues: reconciled.runtimeValues,
+        runtimeValues,
         baseRevisionNo: reconciled.baseRevisionNo,
       });
       runtimeValues = saved.runtimeValues;
@@ -111,6 +128,8 @@ export async function GET(
       runtimeValues,
       baseRevisionNo: reconciled.baseRevisionNo,
       hasSavedState: Boolean(state),
+      // Stable identity for this browser's local (IndexedDB) runtime image storage.
+      storageOwnerId: String(auth.userId),
     });
   } catch (error) {
     console.error("Template Studio runtime fetch error:", error);
@@ -131,7 +150,24 @@ export async function PUT(
     const auth = await authorize(request, templateId);
     if (auth instanceof NextResponse) return auth;
 
-    const body = await request.json().catch(() => null);
+    const bodyResult = await readJsonBodyWithLimit(
+      request,
+      MAX_RUNTIME_PAYLOAD_BYTES
+    );
+    if (!bodyResult.ok) {
+      if (bodyResult.reason === "too_large") {
+        return NextResponse.json(
+          { error: "Request payload too large" },
+          { status: 413 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Invalid runtimeValues payload" },
+        { status: 400 }
+      );
+    }
+
+    const body = bodyResult.data as { runtimeValues?: unknown } | null;
     if (!isStudioRuntimeValuesLike(body?.runtimeValues)) {
       return NextResponse.json(
         { error: "Invalid runtimeValues payload" },
@@ -147,9 +183,17 @@ export async function PUT(
       );
     }
 
-    const pruned = pruneStudioRuntimeValuesForDocument(
+    // Defense in depth: strip image-input values before pruning/validation
+    // even though up-to-date clients never send them (images stay local to
+    // the browser's IndexedDB, see runtime-image-strip.ts).
+    const { values: imagesStripped } = stripStudioRuntimeImageValues(
       documentRecord.document,
       body.runtimeValues
+    );
+
+    const pruned = pruneStudioRuntimeValuesForDocument(
+      documentRecord.document,
+      imagesStripped
     );
     const diagnostics = [
       ...validateStudioRuntimeValuesForDocument(documentRecord.document, pruned),

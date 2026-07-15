@@ -50,11 +50,12 @@ export function TemplateStudioRunClient({
 
   return (
     <TemplateStudioRuntimeShell
-      key={`${templateId}:${data.baseRevisionNo ?? "none"}`}
+      key={`${templateId}:${data.storageOwnerId}:${data.baseRevisionNo ?? "none"}`}
       backHref="/my-page"
       document={data.document}
       initialRuntimeValues={data.runtimeValues}
       source="published"
+      storageOwnerId={data.storageOwnerId}
       templateId={templateId}
       templateName={data.template.name}
       onSaveValues={async (runtimeValues) => {

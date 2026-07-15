@@ -75,9 +75,12 @@ templates
 9. [직접 DB 접근 축소](./09-direct-db-access-hardening.md)
 10. [파일럿 E2E와 배포 준비](./10-pilot-e2e-rollout.md)
 11. [1~10단계 구현 검토와 후속 보완 항목](./11-implementation-review-remediation.md)
+12. [사용자 runtime 이미지 브라우저 로컬 저장 계획](./12-user-runtime-browser-image-storage.md)
 
 1~10단계는 번호 순서로 진행한 구현 문서이며, 11단계는 구현 완료 후 발견한
-보완 항목과 현재 처리·보류 상태를 기록한 검토 문서다.
+보완 항목과 현재 처리·보류 상태를 기록한 검토 문서다. 12단계는 이연했던 사용자
+runtime 이미지의 crop 처리 결과를 서버에 보내지 않고 브라우저 IndexedDB에만
+저장하는 후속 개발 계획이다.
 
 ## 진행 상태
 
@@ -94,6 +97,7 @@ templates
 | 9. 브라우저 직접 DB 접근 축소 | 완료(우선 대상 범위) | 2026-07-15 |
 | 10. 파일럿 E2E와 배포 준비 | 완료(로컬 검증) | 2026-07-15 |
 | 11. 구현 검토와 후속 보완 | P0/P1/P2 해결 완료(우선 대상 범위) | 2026-07-15 |
+| 12. 사용자 runtime 이미지 브라우저 저장 | 핵심 구현 완료(실제 브라우저 E2E 미실시) | 2026-07-15 |
 
 1~3단계 검증 결과:
 
@@ -132,6 +136,9 @@ templates
 Studio runtime payload·R2 수명주기, production build와 E2E 범위 문제를 확인했고,
 이번에 전부 우선 대상 범위로 해결했다(신규 migration
 `20260715080000`/`20260715090000`, 신규 검증 스크립트 5개). Publishable/Secret
-key 전환과 앱 전체 API·DB 권한 전수 개편, 영구 사용자 이미지의 별도 R2 저장
-구조, 실제 브라우저 E2E는 별도 작업으로 이연했다. 상세 내용은
-`11-implementation-review-remediation.md`를 따른다.
+key 전환과 앱 전체 API·DB 권한 전수 개편, 실제 브라우저 E2E는 별도 작업으로
+이연했다. 사용자 runtime 이미지는 R2·DB에 보관하지 않고 crop 처리 PNG Blob만
+동일 브라우저의 IndexedDB에 저장한다. source file은 폐기하며, 선택 파일과 처리
+결과에는 각각 최대 20 MiB를 적용한다. 상세 내용은
+`11-implementation-review-remediation.md`와
+`12-user-runtime-browser-image-storage.md`를 따른다.

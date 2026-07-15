@@ -42,6 +42,8 @@ interface TemplateStudioRuntimeShellProps {
   backHref?: string;
   /** When provided, the form shows a "저장" action that persists runtimeValues (user-run mode). */
   onSaveValues?: (runtimeValues: StudioRuntimeValues) => Promise<void>;
+  /** Stable identity for this browser's local (IndexedDB) runtime image storage. User-run mode only. */
+  storageOwnerId?: string | null;
 }
 
 const cloneRuntimeValues = (
@@ -58,6 +60,7 @@ export function TemplateStudioRuntimeShell({
   templateName,
   backHref: backHrefProp,
   onSaveValues,
+  storageOwnerId,
 }: TemplateStudioRuntimeShellProps) {
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewContentRef = useRef<HTMLDivElement | null>(null);
@@ -500,6 +503,8 @@ export function TemplateStudioRuntimeShell({
           locale={locale}
           runtimeValues={runtimeValues}
           setRuntimeValues={setRuntimeValues}
+          storageOwnerId={storageOwnerId}
+          templateId={templateId}
           onReset={resetRuntimeValues}
           onSaveImage={() => {
             void savePreviewImage();

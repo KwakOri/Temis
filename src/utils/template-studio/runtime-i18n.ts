@@ -46,6 +46,10 @@ export interface StudioRuntimeCopy {
   weekNotSet: string;
   weekRuntimeDescription: string;
   upload: string;
+  imageTooLarge: string;
+  imageStorageFailed: string;
+  imageQuotaExceeded: string;
+  imageLocalOnlyNotice: string;
   cropImage: string;
   cropDescription: string;
   cropZoom: string;
@@ -118,6 +122,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     weekNotSet: "날짜 미설정",
     weekRuntimeDescription: "미리보기에서 표시할 주를 선택합니다",
     upload: "새 이미지 업로드",
+    imageTooLarge: "이미지 파일은 20MB를 넘을 수 없습니다.",
+    imageStorageFailed: "이미지를 이 브라우저에 저장하지 못했습니다.",
+    imageQuotaExceeded: "브라우저 저장 공간이 부족해 이미지를 저장하지 못했습니다.",
+    imageLocalOnlyNotice: "이 이미지는 이 브라우저에만 저장되며 사이트 데이터를 삭제하면 사라집니다.",
     cropImage: "이미지 자르기",
     cropDescription: "프로필 영역 비율에 맞춰 표시할 부분을 선택해 주세요.",
     cropZoom: "확대",
@@ -188,6 +196,11 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     weekNotSet: "Not set",
     weekRuntimeDescription: "Choose the week shown in this preview",
     upload: "Upload new image",
+    imageTooLarge: "Image files can't be larger than 20MB.",
+    imageStorageFailed: "Could not save this image in this browser.",
+    imageQuotaExceeded: "Not enough browser storage space to save this image.",
+    imageLocalOnlyNotice:
+      "This image is stored only in this browser and is lost if you clear site data.",
     cropImage: "Crop image",
     cropDescription: "Choose the area to display in the profile frame.",
     cropZoom: "Zoom",
@@ -259,6 +272,11 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     weekNotSet: "日付未設定",
     weekRuntimeDescription: "プレビューに表示する週を選択します",
     upload: "新しい画像をアップロード",
+    imageTooLarge: "画像ファイルは20MBを超えることはできません。",
+    imageStorageFailed: "この画像をブラウザに保存できませんでした。",
+    imageQuotaExceeded: "ブラウザの保存容量が不足しているため画像を保存できませんでした。",
+    imageLocalOnlyNotice:
+      "この画像はこのブラウザにのみ保存され、サイトデータを削除すると失われます。",
     cropImage: "画像を切り抜く",
     cropDescription: "プロフィール枠に表示する範囲を選択してください。",
     cropZoom: "拡大",

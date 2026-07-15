@@ -6,6 +6,8 @@ export interface TemplateStudioRuntimeResponse {
   runtimeValues: StudioRuntimeValues;
   baseRevisionNo: number | null;
   hasSavedState: boolean;
+  /** Stable identity for this browser's local (IndexedDB) runtime image storage. */
+  storageOwnerId: string;
 }
 
 export interface TemplateStudioSaveRuntimeResponse {

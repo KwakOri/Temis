@@ -292,8 +292,9 @@ P0/P1/P2 항목을 모두 처리했다. 상세 내용은 해당 문서를 따르
   (`20260715090000`).
 - **P2(runtime payload 제한)**: 사용자 runtime 저장 API에 input별
   maxLength, 이미지 data URI MIME/크기, 전체 payload 크기(5MB) 제한을
-  추가했다. 영구 사용자 이미지를 별도 R2 자산 테이블로 옮기는 저장 구조
-  변경은 별도 기능 작업으로 보류했다(아래 "남은 항목" 참고).
+  추가했다. 이 제한은 현재 Data URL 저장 방식의 안전장치다. 후속 12단계에서는
+  runtime 이미지를 서버 payload에서 제외하고 브라우저 IndexedDB에만 저장한다
+  (아래 "남은 항목" 참고).
 - **P2(Studio 삭제 시 R2 orphan)**: 템플릿 삭제 라우트가 DB 삭제 전 해당
   템플릿의 R2 asset prefix를 best-effort로 정리하도록 했다. R2 실패는
   DB 삭제를 막지 않으며, 실패 시 기존 `cleanup:template-studio:r2-assets`
@@ -306,12 +307,13 @@ P0/P1/P2 항목을 모두 처리했다. 상세 내용은 해당 문서를 따르
 
 ### 남은 항목 (이번 범위에서 의도적으로 보류)
 
-- **영구 사용자 이미지의 R2 저장 구조 변경**: 현재는 runtime 이미지 입력을
-  base64 데이터 URI로 그대로 저장하고 크기만 제한한다. 별도 user asset
-  테이블과 사용자별 R2 prefix로 옮기는 것은 새 저장 아키텍처를 설계하는
-  일이라 이번 보완 범위에서 제외했다.
+- **사용자 runtime 이미지의 브라우저 로컬 저장 전환**: 현재는 runtime 이미지
+  입력을 base64 데이터 URI로 서버에 저장하고 크기만 제한한다. 후속 12단계에서
+  source file은 보존하지 않고 crop 처리 PNG Blob만 동일 브라우저의 IndexedDB에
+  저장한다. 이미지 binary와 로컬 참조는 서버 payload에서 제외하며, 선택 source와
+  처리 PNG에 각각 최대 20 MiB를 적용한다. 상세 계획은
+  `12-user-runtime-browser-image-storage.md`를 따른다.
 - **실제 브라우저 E2E**: 로그인, route redirect, 새로고침 후 값 복원을 실제
   브라우저(Playwright 등)로 검증하지 않았다. 지금까지의 자동 검증은 모두
   Next API route handler를 직접 호출하는 통합 테스트다.
 - 두 항목 모두 원격 반영을 막는 조건은 아니지만, 다음 작업 우선순위로 남는다.
-

@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, RotateCcw, Upload } from "lucide-react";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   StudioInputDefinition,
@@ -16,6 +16,15 @@ import {
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
 import { getStudioRuntimeProfileImageCropTarget } from "@/utils/template-studio/runtime-image-crop";
+import { convertStudioRuntimeImageFileToPngBlob } from "@/utils/template-studio/runtime-image-blob";
+import { MAX_RUNTIME_IMAGE_SOURCE_BYTES } from "@/utils/template-studio/runtime-image-storage-constants";
+import {
+  deleteStudioRuntimeImage,
+  getStudioRuntimeImage,
+  putStudioRuntimeImage,
+  StudioRuntimeImageQuotaError,
+  type StudioRuntimeImageContext,
+} from "@/services/browser/templateStudioRuntimeImageStorage";
 import {
   getStudioRuntimeGlobalInputGroups,
   getStudioRuntimeOnOffOptionValues,
@@ -68,6 +77,14 @@ interface TemplateStudioRuntimeFormProps {
   onSaveValues?: () => void;
   isSavingValues?: boolean;
   locale?: StudioRuntimeLocale;
+  /**
+   * When both are set, uploaded images are stored in this browser's
+   * IndexedDB (scoped to templateId+storageOwnerId) instead of the
+   * in-memory-only Data URL behavior used by the admin preview. See
+   * docs/template-system-integration/12-user-runtime-browser-image-storage.md.
+   */
+  templateId?: string | null;
+  storageOwnerId?: string | null;
 }
 
 type RuntimeInputGroups = Record<
@@ -79,8 +96,14 @@ interface PendingRuntimeImageCrop {
   imageSrc: string;
   targetHeight: number;
   targetWidth: number;
-  onApply: (croppedImageSrc: string) => void;
+  onApply: (croppedImageBlob: Blob) => void;
+  onCancel: () => void;
 }
+
+const buildLocalImageStateKey = (
+  inputId: string,
+  context: StudioRuntimeContext,
+): string => `${inputId}:${context.dayId ?? ""}:${context.entryIndex ?? ""}`;
 
 const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
   const suffix =
@@ -93,15 +116,17 @@ const createEntryId = (dayId: StudioTimetableDayId, entryCount: number) => {
 
 const RuntimeImageUploadAction = ({
   label,
+  localOnlyNotice,
   onFileSelect,
 }: {
   label: string;
+  localOnlyNotice?: string;
   onFileSelect: (file: File) => void;
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <>
+    <div className="grid gap-1">
       <StudioRuntimeActionButton
         fullWidth
         size="compact"
@@ -123,7 +148,12 @@ const RuntimeImageUploadAction = ({
           onFileSelect(file);
         }}
       />
-    </>
+      {localOnlyNotice ? (
+        <p className="text-[11px] leading-snug text-[var(--runtime-fg-muted)]">
+          {localOnlyNotice}
+        </p>
+      ) : null}
+    </div>
   );
 };
 
@@ -158,9 +188,37 @@ export function TemplateStudioRuntimeForm({
   onSaveValues,
   isSavingValues = false,
   locale = "en",
+  templateId = null,
+  storageOwnerId = null,
 }: TemplateStudioRuntimeFormProps) {
   const [pendingImageCrop, setPendingImageCrop] =
     useState<PendingRuntimeImageCrop | null>(null);
+  const canUseLocalImageStorage = Boolean(templateId && storageOwnerId);
+  const localImageObjectUrlsRef = useRef<Map<string, string>>(new Map());
+
+  const setLocalImageObjectUrl = (
+    stateKey: string,
+    nextUrl: string | null,
+  ) => {
+    const previous = localImageObjectUrlsRef.current.get(stateKey);
+    if (previous && previous !== nextUrl) {
+      URL.revokeObjectURL(previous);
+    }
+    if (nextUrl) {
+      localImageObjectUrlsRef.current.set(stateKey, nextUrl);
+    } else {
+      localImageObjectUrlsRef.current.delete(stateKey);
+    }
+  };
+
+  useEffect(() => {
+    const urls = localImageObjectUrlsRef.current;
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
+    };
+  }, []);
+
   const timetable = document.domains?.timetable;
   const days = useMemo(
     () =>
@@ -197,6 +255,103 @@ export function TemplateStudioRuntimeForm({
     fallback: copy.weekNotSet,
   });
 
+  const buildImageStorageContext = (
+    context: StudioRuntimeContext,
+  ): StudioRuntimeImageContext | null => {
+    if (context.dayId && context.entryIndex !== undefined) {
+      const entryId = getStudioTimetableEntriesForDay(
+        document,
+        runtimeValues,
+        context.dayId,
+      )[context.entryIndex]?.id;
+      if (!entryId) return null;
+      return { scope: "entry", dayId: context.dayId, entryId };
+    }
+    if (context.dayId) {
+      return { scope: "day", dayId: context.dayId };
+    }
+    return { scope: "global" };
+  };
+
+  // Rehydrate any images the user already saved for this template in this
+  // browser. The server never returns image values (see
+  // runtime-image-strip.ts), so this is the only source for them.
+  useEffect(() => {
+    if (!canUseLocalImageStorage || !templateId || !storageOwnerId) return;
+    let cancelled = false;
+
+    const imageInputs = Object.values(document.inputs).filter(
+      (input): input is StudioInputDefinition & { type: "image" } =>
+        input.type === "image",
+    );
+
+    const contexts: Array<{
+      input: StudioInputDefinition;
+      context: StudioRuntimeContext;
+    }> = [];
+
+    imageInputs.forEach((input) => {
+      if (input.scope === "global") {
+        contexts.push({ input, context: {} });
+      } else if (input.scope === "day") {
+        days.forEach((day) => contexts.push({ input, context: { dayId: day.id } }));
+      } else {
+        days.forEach((day) => {
+          const entries = getStudioTimetableEntriesForDay(
+            document,
+            runtimeValues,
+            day.id,
+          );
+          entries.forEach((_entry, entryIndex) => {
+            contexts.push({ input, context: { dayId: day.id, entryIndex } });
+          });
+        });
+      }
+    });
+
+    void (async () => {
+      for (const { input, context } of contexts) {
+        const imageContext = buildImageStorageContext(context);
+        if (!imageContext) continue;
+
+        try {
+          const record = await getStudioRuntimeImage({
+            userId: storageOwnerId,
+            templateId,
+            inputId: input.id,
+            context: imageContext,
+          });
+          if (cancelled || !record) continue;
+
+          const objectUrl = URL.createObjectURL(record.blob);
+          setLocalImageObjectUrl(
+            buildLocalImageStateKey(input.id, context),
+            objectUrl,
+          );
+          setRuntimeValues((currentValues) =>
+            setStudioRuntimeInputValue(
+              document,
+              currentValues,
+              input.id,
+              objectUrl,
+              context,
+            ),
+          );
+        } catch (error) {
+          console.error("Failed to restore a local runtime image", error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // Re-hydrate when the template/document identity or the signed-in user
+    // changes; runtimeValues itself is intentionally excluded to avoid
+    // re-running on every keystroke/edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUseLocalImageStorage, templateId, storageOwnerId, document]);
+
   const updateInputValue = (
     input: StudioInputDefinition,
     value: string,
@@ -213,6 +368,43 @@ export function TemplateStudioRuntimeForm({
     );
   };
 
+  const persistLocalRuntimeImage = async (
+    input: StudioInputDefinition,
+    context: StudioRuntimeContext,
+    blob: Blob,
+  ) => {
+    if (!canUseLocalImageStorage || !templateId || !storageOwnerId) {
+      // Admin preview (or any caller without a real user identity) keeps the
+      // previous in-memory-only behavior: show the image for this session
+      // without touching IndexedDB.
+      updateInputValue(input, URL.createObjectURL(blob), context);
+      return;
+    }
+
+    const imageContext = buildImageStorageContext(context);
+    if (!imageContext) return;
+
+    try {
+      const record = await putStudioRuntimeImage(
+        { userId: storageOwnerId, templateId, inputId: input.id, context: imageContext },
+        blob,
+      );
+      const objectUrl = URL.createObjectURL(record.blob);
+      setLocalImageObjectUrl(
+        buildLocalImageStateKey(input.id, context),
+        objectUrl,
+      );
+      updateInputValue(input, objectUrl, context);
+    } catch (error) {
+      const message =
+        error instanceof StudioRuntimeImageQuotaError
+          ? copy.imageQuotaExceeded
+          : copy.imageStorageFailed;
+      console.error("Failed to store a runtime image locally", error);
+      window.alert(message);
+    }
+  };
+
   const uploadRuntimeImage = (
     input: StudioInputDefinition,
     file: File,
@@ -220,29 +412,45 @@ export function TemplateStudioRuntimeForm({
   ) => {
     if (input.type !== "image") return;
 
+    if (file.size > MAX_RUNTIME_IMAGE_SOURCE_BYTES) {
+      window.alert(copy.imageTooLarge);
+      return;
+    }
+
     const cropTarget = getStudioRuntimeProfileImageCropTarget(
       document,
       input.id,
     );
-    const reader = new FileReader();
-    reader.onload = () => {
-      const imageSrc = String(reader.result ?? "");
-      if (!imageSrc) return;
 
-      if (!cropTarget) {
-        updateInputValue(input, imageSrc, context);
-        return;
-      }
+    if (!cropTarget) {
+      // No crop UI for this input, but the source is still normalized to a
+      // static PNG Blob — never stored as the raw source File/Data URL.
+      void convertStudioRuntimeImageFileToPngBlob(file)
+        .then((blob) => {
+          if (blob.size > MAX_RUNTIME_IMAGE_SOURCE_BYTES) {
+            window.alert(copy.imageTooLarge);
+            return;
+          }
+          return persistLocalRuntimeImage(input, context, blob);
+        })
+        .catch((error) => {
+          console.error("Template Studio runtime image conversion failed", error);
+          window.alert(copy.cropFailed);
+        });
+      return;
+    }
 
-      setPendingImageCrop({
-        imageSrc,
-        targetHeight: cropTarget.height,
-        targetWidth: cropTarget.width,
-        onApply: (croppedImageSrc) =>
-          updateInputValue(input, croppedImageSrc, context),
-      });
-    };
-    reader.readAsDataURL(file);
+    const sourceObjectUrl = URL.createObjectURL(file);
+    setPendingImageCrop({
+      imageSrc: sourceObjectUrl,
+      targetHeight: cropTarget.height,
+      targetWidth: cropTarget.width,
+      onApply: (croppedImageBlob) => {
+        URL.revokeObjectURL(sourceObjectUrl);
+        void persistLocalRuntimeImage(input, context, croppedImageBlob);
+      },
+      onCancel: () => URL.revokeObjectURL(sourceObjectUrl),
+    });
   };
 
   const addEntry = (
@@ -266,6 +474,33 @@ export function TemplateStudioRuntimeForm({
   };
 
   const removeEntry = (dayId: StudioTimetableDayId, entryIndex: number) => {
+    if (canUseLocalImageStorage && templateId && storageOwnerId) {
+      const entryId = getStudioTimetableEntriesForDay(
+        document,
+        runtimeValues,
+        dayId,
+      )[entryIndex]?.id;
+
+      if (entryId) {
+        Object.values(document.inputs)
+          .filter((input) => input.type === "image" && input.scope === "entry")
+          .forEach((input) => {
+            setLocalImageObjectUrl(
+              buildLocalImageStateKey(input.id, { dayId, entryIndex }),
+              null,
+            );
+            void deleteStudioRuntimeImage({
+              userId: storageOwnerId,
+              templateId,
+              inputId: input.id,
+              context: { scope: "entry", dayId, entryId },
+            }).catch((error) =>
+              console.error("Failed to delete a local runtime image", error),
+            );
+          });
+      }
+    }
+
     setRuntimeValues((currentValues) =>
       removeStudioTimetableEntry(document, currentValues, dayId, entryIndex),
     );
@@ -396,6 +631,9 @@ export function TemplateStudioRuntimeForm({
           <RuntimeImageUploadAction
             key={key}
             label={copy.upload}
+            localOnlyNotice={
+              canUseLocalImageStorage ? copy.imageLocalOnlyNotice : undefined
+            }
             onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
           />
         );
@@ -415,6 +653,9 @@ export function TemplateStudioRuntimeForm({
           />
           <RuntimeImageUploadAction
             label={copy.upload}
+            localOnlyNotice={
+              canUseLocalImageStorage ? copy.imageLocalOnlyNotice : undefined
+            }
             onFileSelect={(file) => uploadRuntimeImage(input, file, context)}
           />
         </div>
@@ -763,9 +1004,12 @@ export function TemplateStudioRuntimeForm({
           locale={locale}
           targetHeight={pendingImageCrop.targetHeight}
           targetWidth={pendingImageCrop.targetWidth}
-          onCancel={() => setPendingImageCrop(null)}
-          onApply={(croppedImageSrc) => {
-            pendingImageCrop.onApply(croppedImageSrc);
+          onCancel={() => {
+            pendingImageCrop.onCancel();
+            setPendingImageCrop(null);
+          }}
+          onApply={(croppedImageBlob) => {
+            pendingImageCrop.onApply(croppedImageBlob);
             setPendingImageCrop(null);
           }}
         />
