@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTabHeader from "@/components/admin/AdminTabHeader";
 import {
   useDeleteTemplateStudioTemplate,
   useTemplateStudioTemplates,
@@ -8,9 +9,9 @@ import { cn } from "@/lib/utils";
 import type { TemplateStudioTemplateRecord } from "@/services/server/templateStudioPersistenceService";
 import {
   ArrowUpRight,
+  Edit,
   Eye,
-  FileText,
-  Pencil,
+  LayoutTemplate,
   Plus,
   RefreshCw,
   Trash2,
@@ -32,11 +33,84 @@ const formatDateTime = (value: string | null | undefined) => {
   });
 };
 
+const statusBadgeStyles: Record<TemplateStudioTemplateRecord["status"], string> =
+  {
+    draft: "bg-yellow-100 text-yellow-800",
+    published: "bg-green-100 text-green-800",
+    archived: "bg-gray-200 text-gray-600",
+  };
+
 const statusLabels: Record<TemplateStudioTemplateRecord["status"], string> = {
-  draft: "Draft",
-  published: "Published",
-  archived: "Archived",
+  draft: "초안",
+  published: "게시됨",
+  archived: "보관됨",
 };
+
+const StatusBadge = ({
+  status,
+}: {
+  status: TemplateStudioTemplateRecord["status"];
+}) => (
+  <span
+    className={cn(
+      "inline-flex px-2 py-0.5 text-xs font-semibold rounded-full",
+      statusBadgeStyles[status],
+    )}
+  >
+    {statusLabels[status]}
+  </span>
+);
+
+const RowActions = ({
+  template,
+  onDelete,
+  isDeleting,
+}: {
+  template: TemplateStudioTemplateRecord;
+  onDelete: (template: TemplateStudioTemplateRecord) => void;
+  isDeleting: boolean;
+}) => (
+  <div className="flex flex-wrap items-center gap-2">
+    <Link
+      className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+      href={`/admin/template-studio/${template.id}/edit`}
+    >
+      <Edit className="h-3.5 w-3.5" />
+      수정
+    </Link>
+    <Link
+      aria-disabled={template.status !== "published"}
+      className={cn(
+        "inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors",
+        template.status === "published"
+          ? "bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
+          : "pointer-events-none bg-gray-50 text-gray-400 border border-gray-100",
+      )}
+      href={`/admin/template-studio/${template.id}/preview`}
+    >
+      <Eye className="h-3.5 w-3.5" />
+      미리보기
+    </Link>
+    <Link
+      className="inline-flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+      href={`/admin/template-studio/${template.id}/edit`}
+      target="_blank"
+      title="새 탭에서 열기"
+    >
+      <ArrowUpRight className="h-3.5 w-3.5" />
+    </Link>
+    <button
+      className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      disabled={isDeleting}
+      title="템플릿 삭제"
+      type="button"
+      onClick={() => onDelete(template)}
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+      삭제
+    </button>
+  </div>
+);
 
 export function TemplateStudioAdminListClient() {
   const templatesQuery = useTemplateStudioTemplates();
@@ -56,158 +130,193 @@ export function TemplateStudioAdminListClient() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-300">
-              Admin
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">
-              Template Studio
-            </h1>
-            <p className="mt-2 text-sm text-slate-400">
-              시간표 템플릿을 만들고 draft, publish, runtime preview 상태를 확인합니다.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 text-sm font-semibold text-slate-200 transition hover:border-blue-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={templatesQuery.isFetching}
-              type="button"
-              onClick={() => {
-                void templatesQuery.refetch();
-              }}
-            >
-              <RefreshCw
-                className={cn(
-                  "h-4 w-4",
-                  templatesQuery.isFetching && "animate-spin",
-                )}
-              />
-              새로고침
-            </button>
-            <Link
-              className="inline-flex h-10 items-center gap-2 rounded-md bg-blue-500 px-4 text-sm font-bold text-white transition hover:bg-blue-400"
-              href="/admin/template-studio/create"
-            >
-              <Plus className="h-4 w-4" />새 템플릿
-            </Link>
-          </div>
-        </header>
+    <div className="space-y-4 sm:space-y-6">
+      <AdminTabHeader
+        description="시간표 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
+        icon={LayoutTemplate}
+        title="Template Studio"
+      >
+        <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
+          <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
+            총 {templates.length}개
+          </span>
+        </div>
+        <button
+          className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          disabled={templatesQuery.isFetching}
+          type="button"
+          onClick={() => {
+            void templatesQuery.refetch();
+          }}
+        >
+          <RefreshCw
+            className={cn(
+              "h-4 w-4",
+              templatesQuery.isFetching && "animate-spin",
+            )}
+          />
+          새로고침
+        </button>
+        <Link
+          className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
+          href="/admin/template-studio/create"
+        >
+          <Plus className="h-4 w-4" />
+          새 템플릿
+        </Link>
+      </AdminTabHeader>
 
-        <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-900">
-          <div className="border-b border-slate-800 px-4 py-3">
-            <h2 className="text-sm font-bold">템플릿 목록</h2>
-          </div>
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+        {/* 데스크톱 테이블 뷰 */}
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  템플릿
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-36">
+                  업데이트
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[22rem]">
+                  작업
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {templatesQuery.isLoading ? (
+                <tr>
+                  <td className="px-6 py-12 text-center text-gray-500 text-sm" colSpan={3}>
+                    템플릿 목록을 불러오는 중...
+                  </td>
+                </tr>
+              ) : templatesQuery.isError ? (
+                <tr>
+                  <td className="px-6 py-12 text-center text-red-700 text-sm" colSpan={3}>
+                    {templatesQuery.error instanceof Error
+                      ? templatesQuery.error.message
+                      : "템플릿 목록을 불러오지 못했습니다."}
+                  </td>
+                </tr>
+              ) : templates.length === 0 ? (
+                <tr>
+                  <td className="px-6 py-12 text-center" colSpan={3}>
+                    <LayoutTemplate className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+                    <p className="text-gray-500 text-sm mb-4">
+                      아직 생성된 Template Studio 템플릿이 없습니다.
+                    </p>
+                    <Link
+                      className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
+                      href="/admin/template-studio/create"
+                    >
+                      <Plus className="h-4 w-4" />
+                      첫 템플릿 만들기
+                    </Link>
+                  </td>
+                </tr>
+              ) : (
+                templates.map((template) => (
+                  <tr className="hover:bg-gray-50" key={template.id}>
+                    <td className="px-4 py-4 align-top">
+                      <div className="max-w-md">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {template.name}
+                          </span>
+                          <StatusBadge status={template.status} />
+                        </div>
+                        {template.description ? (
+                          <p className="text-xs text-gray-500 truncate mt-1">
+                            {template.description}
+                          </p>
+                        ) : null}
+                        <p className="text-xs text-gray-400 truncate mt-1">
+                          {template.id}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 align-top text-sm text-gray-500">
+                      {formatDateTime(template.updatedAt)}
+                    </td>
+                    <td className="px-4 py-4 align-top">
+                      <RowActions
+                        isDeleting={
+                          deleteTemplateMutation.isPending &&
+                          deleteTemplateMutation.variables === template.id
+                        }
+                        template={template}
+                        onDelete={handleDelete}
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
 
+        {/* 모바일 카드 뷰 */}
+        <div className="lg:hidden divide-y divide-gray-200">
           {templatesQuery.isLoading ? (
-            <div className="px-4 py-10 text-center text-sm font-semibold text-slate-400">
-              템플릿 목록을 불러오는 중...
+            <div className="px-4 py-12 text-center">
+              <p className="text-gray-500 text-sm">
+                템플릿 목록을 불러오는 중...
+              </p>
             </div>
           ) : templatesQuery.isError ? (
-            <div className="px-4 py-10 text-center">
-              <p className="text-sm font-semibold text-rose-300">
+            <div className="px-4 py-12 text-center">
+              <p className="text-red-700 text-sm">
                 {templatesQuery.error instanceof Error
                   ? templatesQuery.error.message
                   : "템플릿 목록을 불러오지 못했습니다."}
               </p>
             </div>
           ) : templates.length === 0 ? (
-            <div className="grid gap-3 px-4 py-12 text-center">
-              <FileText className="mx-auto h-8 w-8 text-slate-600" />
-              <p className="text-sm font-semibold text-slate-300">
+            <div className="px-4 py-12 text-center">
+              <LayoutTemplate className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+              <p className="text-gray-500 text-sm mb-4">
                 아직 생성된 Template Studio 템플릿이 없습니다.
               </p>
               <Link
-                className="mx-auto inline-flex h-9 items-center gap-2 rounded-md bg-blue-500 px-4 text-sm font-bold text-white transition hover:bg-blue-400"
+                className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
                 href="/admin/template-studio/create"
               >
-                <Plus className="h-4 w-4" />첫 템플릿 만들기
+                <Plus className="h-4 w-4" />
+                첫 템플릿 만들기
               </Link>
             </div>
           ) : (
-            <div className="divide-y divide-slate-800">
-              {templates.map((template) => (
-                <article
-                  className="grid gap-4 px-4 py-4 transition hover:bg-slate-800/50 md:grid-cols-[1fr_auto]"
-                  key={template.id}
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="truncate text-base font-bold text-white">
-                        {template.name}
-                      </h3>
-                      <span
-                        className={cn(
-                          "rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]",
-                          template.status === "published"
-                            ? "bg-emerald-400/15 text-emerald-300"
-                            : template.status === "archived"
-                              ? "bg-slate-700 text-slate-300"
-                              : "bg-blue-400/15 text-blue-300",
-                        )}
-                      >
-                        {statusLabels[template.status]}
-                      </span>
-                    </div>
-                    {template.description ? (
-                      <p className="mt-1 line-clamp-2 text-sm text-slate-400">
-                        {template.description}
-                      </p>
-                    ) : null}
-                    <p className="mt-2 text-xs text-slate-500">
-                      {template.id} · 업데이트 {formatDateTime(template.updatedAt)}
+            templates.map((template) => (
+              <div className="p-4 space-y-3" key={template.id}>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900 truncate">
+                      {template.name}
+                    </span>
+                    <StatusBadge status={template.status} />
+                  </div>
+                  {template.description ? (
+                    <p className="text-xs text-gray-500 truncate mt-1">
+                      {template.description}
                     </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                    <Link
-                      className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-700 px-3 text-sm font-semibold text-slate-200 transition hover:border-blue-400 hover:text-white"
-                      href={`/admin/template-studio/${template.id}/edit`}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      편집
-                    </Link>
-                    <Link
-                      className={cn(
-                        "inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-semibold transition",
-                        template.status === "published"
-                          ? "border-slate-700 text-slate-200 hover:border-blue-400 hover:text-white"
-                          : "pointer-events-none border-slate-800 text-slate-600",
-                      )}
-                      href={`/admin/template-studio/${template.id}/preview`}
-                      aria-disabled={template.status !== "published"}
-                    >
-                      <Eye className="h-4 w-4" />
-                      Preview
-                    </Link>
-                    <Link
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 text-slate-400 transition hover:border-blue-400 hover:text-white"
-                      href={`/admin/template-studio/${template.id}/edit`}
-                      title="새 화면에서 열기"
-                    >
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Link>
-                    <button
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 text-slate-400 transition hover:border-rose-400 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={
-                        deleteTemplateMutation.isPending &&
-                        deleteTemplateMutation.variables === template.id
-                      }
-                      title="템플릿 삭제"
-                      type="button"
-                      onClick={() => handleDelete(template)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  ) : null}
+                  <p className="text-xs text-gray-400 mt-1">
+                    업데이트 {formatDateTime(template.updatedAt)}
+                  </p>
+                </div>
+                <RowActions
+                  isDeleting={
+                    deleteTemplateMutation.isPending &&
+                    deleteTemplateMutation.variables === template.id
+                  }
+                  template={template}
+                  onDelete={handleDelete}
+                />
+              </div>
+            ))
           )}
-        </section>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }
