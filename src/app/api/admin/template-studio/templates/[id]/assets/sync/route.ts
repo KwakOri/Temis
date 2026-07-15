@@ -15,6 +15,10 @@ import {
   getTemplateStudioTemplate,
   upsertTemplateStudioAssetMetadata,
 } from "@/services/server/templateStudioPersistenceService";
+import {
+  buildTemplateStudioAssetTemplatePrefix,
+  sanitizeTemplateStudioPathSegment,
+} from "@/utils/template-studio/asset-storage";
 import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -38,34 +42,6 @@ type SyncAssetPayload = {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-
-const trimSlashes = (value: string): string =>
-  value.replace(/^\/+|\/+$/g, "");
-
-const resolveTemplateStudioAssetBasePrefix = (): string => {
-  const explicitPrefix = process.env.TEMPLATE_STUDIO_ASSET_R2_BASE_PREFIX;
-  if (explicitPrefix && explicitPrefix.trim().length > 0) {
-    return trimSlashes(explicitPrefix);
-  }
-
-  const isProduction =
-    process.env.NODE_ENV === "production" ||
-    process.env.APP_ENV === "production" ||
-    process.env.VERCEL_ENV === "production";
-
-  return isProduction ? "template-studio" : "template-studio/dev";
-};
-
-const sanitizePathSegment = (value: string, fallback: string): string => {
-  const normalized = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return normalized.length > 0 ? normalized : fallback;
-};
 
 const parseDataUrl = (src: string) => {
   const match = src.match(/^data:([^;,]+)((?:;[^,]+)*),([\s\S]*)$/);
@@ -149,10 +125,10 @@ const buildTemplateStudioAssetKey = ({
   contentHash: string;
   extension: string;
 }): string =>
-  `${resolveTemplateStudioAssetBasePrefix()}/${sanitizePathSegment(
-    templateId,
-    "template",
-  )}/assets/${sanitizePathSegment(assetId, "asset")}/${contentHash}.${extension}`;
+  `${buildTemplateStudioAssetTemplatePrefix(templateId)}/assets/${sanitizeTemplateStudioPathSegment(
+    assetId,
+    "asset",
+  )}/${contentHash}.${extension}`;
 
 export async function POST(
   request: NextRequest,
