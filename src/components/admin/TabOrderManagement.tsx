@@ -23,6 +23,7 @@ const TAB_NAMES: Record<string, string> = {
   salesStats: "매출 통계",
   settlements: "정산",
   templates: "템플릿 관리",
+  templateStudio: "Template Studio",
   artists: "작가 관리",
   thumbnails: "썸네일 관리",
   portfolios: "포트폴리오 관리",
