@@ -10,6 +10,7 @@ import {
   pruneStudioRuntimeValuesForDocument,
   reconcileStudioUserRuntimeValues,
 } from "@/utils/template-studio/runtime-state";
+import { validateStudioRuntimePayloadLimits } from "@/utils/template-studio/runtime-payload-limits";
 import {
   isStudioRuntimeValuesLike,
   validateStudioRuntimeValuesForDocument,
@@ -150,10 +151,10 @@ export async function PUT(
       documentRecord.document,
       body.runtimeValues
     );
-    const diagnostics = validateStudioRuntimeValuesForDocument(
-      documentRecord.document,
-      pruned
-    );
+    const diagnostics = [
+      ...validateStudioRuntimeValuesForDocument(documentRecord.document, pruned),
+      ...validateStudioRuntimePayloadLimits(documentRecord.document, pruned),
+    ];
     if (diagnostics.some((diagnostic) => diagnostic.severity === "error")) {
       return NextResponse.json(
         { error: "runtimeValues failed validation", diagnostics },
