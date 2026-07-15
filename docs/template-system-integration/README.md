@@ -74,8 +74,10 @@ templates
 8. [사용자별 Studio 실행 상태](./08-user-runtime-state.md)
 9. [직접 DB 접근 축소](./09-direct-db-access-hardening.md)
 10. [파일럿 E2E와 배포 준비](./10-pilot-e2e-rollout.md)
+11. [1~10단계 구현 검토와 후속 보완 항목](./11-implementation-review-remediation.md)
 
-단계는 번호 순서로 진행한다.
+1~10단계는 번호 순서로 진행한 구현 문서이며, 11단계는 구현 완료 후 발견한
+보완 항목과 현재 처리·보류 상태를 기록한 검토 문서다.
 
 ## 진행 상태
 
@@ -91,6 +93,7 @@ templates
 | 8. 사용자별 Studio 실행 상태 | 완료 | 2026-07-15 |
 | 9. 브라우저 직접 DB 접근 축소 | 완료(우선 대상 범위) | 2026-07-15 |
 | 10. 파일럿 E2E와 배포 준비 | 완료(로컬 검증) | 2026-07-15 |
+| 11. 구현 검토와 후속 보완 | P0/P1/P2 해결 완료(우선 대상 범위) | 2026-07-15 |
 
 1~3단계 검증 결과:
 
@@ -100,9 +103,8 @@ templates
 - Template Studio persistence/API smoke check 성공
 - preview API의 미인증 `401`, 일반 사용자 `403`, 관리자 성공 사례 확인
 - `tsc --noEmit` 및 변경 파일 ESLint 성공
-- production build는 컴파일·타입 검사까지 성공했으나 `/admin` prerender의 번들
-  런타임 오류로 최종 완료되지 않았다. 이 관리자 빌드 문제는 별도 진단 대상으로
-  남긴다.
+- 최초 검토에서 production build가 `/admin` prerender 오류로 실패했으나 이후
+  별도 작업에서 해결했다.
 
 ## 전체 완료 기준
 
@@ -110,13 +112,26 @@ templates
 - [x] `is_public` 값이 이용 권한을 우회하지 않는다.
 - [x] Studio 문서와 사용자 입력은 인증된 서버 API를 통해서만 읽고 쓴다.
 - [x] 사용자 A의 저장값을 사용자 B가 조회하거나 수정할 수 없다.
-- [x] 일반 판매, 개인 맞춤, 작가, 관리자, 미구매 사용자 시나리오가 E2E로 검증된다
-      (`npm run check:pilot-e2e`, 로컬).
+- [x] 일반 판매, 개인 맞춤, 작가, 관리자, 미구매 사용자 시나리오가
+      통합 테스트(route handler 직접 호출, `check:pilot-e2e` +
+      `check:personalized-template-flow`)로 검증된다. 실제 브라우저 E2E는
+      별도 작업으로 이연.
 - [x] 모든 신규 마이그레이션이 원격 복제 데이터가 있는 로컬 DB에서 처음부터
       재현된다.
+- [x] anon key로 entitlement 구성 테이블(`templates`/`shop_templates`/
+      `template_plans`/`artists`/`template_artists`)을 변조할 수 없다.
+- [x] 구매 요청·승인에서 plan-template 관계가 항상 일치한다.
 
 10단계 문서(`10-pilot-e2e-rollout.md`)에 원격 반영 전 산출물(적용 migration
 순서, 데이터 점검 SQL, rollback 전략, smoke test 체크리스트, 모니터링
 항목)을 정리했다. **원격 migration 적용과 운영 데이터 변경은 사용자가 직접
 수행한다** — 이 초기화 작업 전체에서 원격 DB는 조회 목적으로만 사용했고
 한 번도 변경하지 않았다.
+
+구현 완료 후 재검토에서 anon 권한 우회, 구매 plan-template 관계 검증 누락,
+Studio runtime payload·R2 수명주기, production build와 E2E 범위 문제를 확인했고,
+이번에 전부 우선 대상 범위로 해결했다(신규 migration
+`20260715080000`/`20260715090000`, 신규 검증 스크립트 5개). Publishable/Secret
+key 전환과 앱 전체 API·DB 권한 전수 개편, 영구 사용자 이미지의 별도 R2 저장
+구조, 실제 브라우저 E2E는 별도 작업으로 이연했다. 상세 내용은
+`11-implementation-review-remediation.md`를 따른다.

@@ -95,7 +95,11 @@
 - 아래 스크립트를 초기화된 DB에서 전부 재실행해 통과를 확인했다:
   `check:template-entitlement`, `check:template-studio:persistence`,
   `check:template-studio:runtime`, `check:admin-purchase-requests`,
-  `check:admin-template-access`, `check:pilot-e2e`.
+  `check:admin-template-access`, `check:pilot-e2e`,
+  `check:admin-catalog-writes`, `check:purchase-plan-validation`,
+  `check:runtime-payload-limits`, `check:template-studio:delete-r2-cleanup`,
+  `check:personalized-template-flow`(마지막 5개는 11단계 구현 검토 후속
+  보완에서 추가됨, 아래 참고).
 - `tsc --noEmit` 전체 통과.
 - 변경/신규 파일 ESLint 통과(무관한 사전 존재 경고 1건 확인 후 그대로 둠 —
   `purchase-requests/[id]/route.ts`의 미사용 `message` 변수, import 줄만
@@ -125,12 +129,14 @@
 20260715050000_reconcile_template_access.sql
 20260715060000_create_template_studio_user_states.sql
 20260715070000_revoke_anon_access_to_sensitive_tables.sql
+20260715080000_revoke_anon_write_catalog_tables.sql
+20260715090000_validate_plan_on_purchase_approval.sql
 ```
 
-9개 전부 로컬에서 빈 DB부터, 그리고 원격 복제 데이터 위에서(6·9단계 검증
-당시) 순서대로 적용 가능함을 확인했다. `supabase db push`로 원격에 반영할
-때도 이 순서를 따른다(파일명 타임스탬프 순서와 동일하므로 CLI가 자동으로
-지킨다).
+마지막 두 개는 11단계 구현 검토(P0/P1)에서 추가됐다. 11개 전부 로컬에서 빈
+DB부터, 그리고 원격 복제 데이터 위에서(6·9단계 검증 당시) 순서대로 적용
+가능함을 확인했다. `supabase db push`로 원격에 반영할 때도 이 순서를 따른다
+(파일명 타임스탬프 순서와 동일하므로 CLI가 자동으로 지킨다).
 
 ### 2. 원격 적용 전 데이터 점검 SQL과 예상 건수
 
@@ -220,6 +226,13 @@ template_access GROUP BY template_id, user_id HAVING count(*) > 1;`가 0행인�
 - [ ] anon key(공개 anon key, service role 아님)로 REST API에서
       `template_access`/`template_purchase_requests`를 직접 조회/삽입
       시도 시 거부되는지(`curl`로 9단계와 동일하게 확인)
+- [ ] anon key로 `templates`/`artists`/`template_artists`/`shop_templates`/
+      `template_plans`에 INSERT/UPDATE/DELETE 시도 시 거부되는지(SELECT는
+      공개 카탈로그이므로 계속 허용됨 — 11단계 P0 참고)
+- [ ] 다른 상품의 plan_id로 구매 요청을 보내면 400으로 거부되는지
+- [ ] 개인 맞춤(비공개) Studio 템플릿을 만들어 특정 사용자에게만
+      `template_access`를 부여하고, 그 사용자만 실행 가능하고 다른
+      사용자는 거부되는지
 
 ### 6. 원격 반영 후 모니터링 항목
 
@@ -233,7 +246,72 @@ template_access GROUP BY template_id, user_id HAVING count(*) > 1;`가 0행인�
 - 이메일 발송 실패 로그("권한 부여 알림 메일 발송 실패") — 알림은
   best-effort이므로 실패해도 승인 자체는 막히지 않지만, 급증하면 Gmail
   설정 문제로 봐야 한다.
-- `/admin` 페이지의 실제 프로덕션 동작(빌드 prerender 이슈와 별개로,
-  런타임에서 정상 작동하는지는 배포 후 별도 확인 필요 — 이번 범위에서
-  근본 원인은 진단하지 않았다).
+- `/admin` 페이지의 실제 프로덕션 동작은 배포 후 별도 확인한다(빌드
+  prerender 실패는 next-pwa 교체로 해결됨, 아래 "next-pwa 교체" 참고).
+- `Template Studio R2 asset cleanup failed for template ...` 로그 — 템플릿
+  삭제 시 R2 정리는 best-effort라 실패해도 DB 삭제는 진행된다. 급증하면
+  R2 자격 증명/네트워크 문제이거나 `npm run
+  cleanup:template-studio:r2-assets`로 주기적으로 정리해야 한다는 신호다.
+- `plan % does not match purchase request ...` RPC 예외 로그 — 정상 흐름에서는
+  발생하지 않아야 하며, 나타나면 승인 API를 우회해 RPC를 직접 호출하는
+  경로가 있다는 신호다.
+
+## next-pwa 교체 (production build 차단 해소)
+
+`npm run build`가 `/admin` prerender에서 `TypeError: a[d] is not a function`로
+실패하던 원인을 확인했다. `next-pwa@5.6.0`(2022년 이후 App Router 대응 없이
+방치됨)을 비활성화하면 빌드가 성공하는 것으로 원인을 특정했고, 관리되는 포크
+`@ducanh2912/next-pwa@10.2.9`(월 72만 다운로드, GitHub 683 stars, `next
+>=14`/`webpack >=5.9` peer dependency로 이 프로젝트와 호환)로 교체했다.
+`runtimeCaching`/`skipWaiting`이 `workboxOptions` 하위로 이동하는 설정 API
+차이를 반영해 `next.config.ts`를 수정했고, 이전 패키지가 실수로 커밋해 둔
+`public/workbox-*.js`를 정리하고 `.gitignore`에 생성 파일 패턴을 추가했다.
+로컬에서 `npm run build`가 `/admin`을 포함해 전체 페이지에서 `exit code 0`으로
+성공함을 재확인했다.
+
+## 11단계 구현 검토 후속 보완
+
+구현 완료 후 재검토(`11-implementation-review-remediation.md`)에서 발견한
+P0/P1/P2 항목을 모두 처리했다. 상세 내용은 해당 문서를 따르며, 요약은
+다음과 같다.
+
+- **P0(entitlement 우회)**: `templates`/`shop_templates`/`template_plans`/
+  `artists`/`template_artists`에 쓰는 admin·사용자 라우트 12개가 anon-key
+  클라이언트를 쓰고 있어 anon 쓰기 권한을 곧바로 회수할 수 없었다. 전부
+  service-role로 전환한 뒤 `20260715080000` 마이그레이션으로 이 5개 테이블의
+  INSERT/UPDATE/DELETE(SELECT는 공개 카탈로그이므로 유지)와
+  `template_studio_preview_assets`의 전체 권한을 anon/authenticated에서
+  회수했다. `curl`로 anon key 쓰기 시도가 401로 거부되고 공개 조회는 계속
+  200임을 확인했다.
+- **P1(plan-template 불일치)**: 구매 요청 API가 `plan_id`와 `template_id`의
+  실제 연결을 확인하지 않아 다른 상품의 plan으로 원하는 템플릿 권한을 얻을
+  수 있었다. `POST /api/template-purchase-requests`에 plan↔template↔상점
+  노출 일치 검사를 추가하고, 승인 API가 클라이언트의 `planId`를 더 이상
+  받지 않도록 하고, RPC(`approve_template_purchase_request`) 자체도 요청에
+  기록된 plan과 다른 값이 들어오면 예외를 던지도록 방어했다
+  (`20260715090000`).
+- **P2(runtime payload 제한)**: 사용자 runtime 저장 API에 input별
+  maxLength, 이미지 data URI MIME/크기, 전체 payload 크기(5MB) 제한을
+  추가했다. 영구 사용자 이미지를 별도 R2 자산 테이블로 옮기는 저장 구조
+  변경은 별도 기능 작업으로 보류했다(아래 "남은 항목" 참고).
+- **P2(Studio 삭제 시 R2 orphan)**: 템플릿 삭제 라우트가 DB 삭제 전 해당
+  템플릿의 R2 asset prefix를 best-effort로 정리하도록 했다. R2 실패는
+  DB 삭제를 막지 않으며, 실패 시 기존 `cleanup:template-studio:r2-assets`
+  스크립트가 수동 안전망 역할을 한다.
+- **P2(E2E 범위)**: 일반 판매 흐름(파일럿)에 더해 개인 맞춤(비공개) Studio
+  템플릿의 생성→관리자 수동 권한 부여→지정 사용자 실행/저장/재조회→타
+  사용자 거부 전체 흐름을 `check:personalized-template-flow`로 검증했다.
+  다만 이 스크립트들은 여전히 route handler를 직접 호출하는 통합 테스트이지
+  실제 브라우저 E2E가 아니다(아래 "남은 항목" 참고).
+
+### 남은 항목 (이번 범위에서 의도적으로 보류)
+
+- **영구 사용자 이미지의 R2 저장 구조 변경**: 현재는 runtime 이미지 입력을
+  base64 데이터 URI로 그대로 저장하고 크기만 제한한다. 별도 user asset
+  테이블과 사용자별 R2 prefix로 옮기는 것은 새 저장 아키텍처를 설계하는
+  일이라 이번 보완 범위에서 제외했다.
+- **실제 브라우저 E2E**: 로그인, route redirect, 새로고침 후 값 복원을 실제
+  브라우저(Playwright 등)로 검증하지 않았다. 지금까지의 자동 검증은 모두
+  Next API route handler를 직접 호출하는 통합 테스트다.
+- 두 항목 모두 원격 반영을 막는 조건은 아니지만, 다음 작업 우선순위로 남는다.
 
