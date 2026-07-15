@@ -25,6 +25,7 @@ export class ShopService {
         template_plans:template_plans!shop_template_id (*)
       `)
       .eq("is_shop_visible", true)
+      .eq("templates.status", "published")
       .order("created_at", { ascending: sortOrder === "oldest" });
 
     if (error) {

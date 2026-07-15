@@ -39,6 +39,9 @@ interface TemplateStudioRuntimeShellProps {
   templateId?: string | null;
   templateName?: string;
   updatedAt?: string | null;
+  backHref?: string;
+  /** When provided, the form shows a "저장" action that persists runtimeValues (user-run mode). */
+  onSaveValues?: (runtimeValues: StudioRuntimeValues) => Promise<void>;
 }
 
 const cloneRuntimeValues = (
@@ -53,6 +56,8 @@ export function TemplateStudioRuntimeShell({
   initialRuntimeValues,
   templateId,
   templateName,
+  backHref: backHrefProp,
+  onSaveValues,
 }: TemplateStudioRuntimeShellProps) {
   const previewContainerRef = useRef<HTMLDivElement | null>(null);
   const previewContentRef = useRef<HTMLDivElement | null>(null);
@@ -71,6 +76,7 @@ export function TemplateStudioRuntimeShell({
   });
   const [isPanning, setIsPanning] = useState(false);
   const [isSavingImage, setIsSavingImage] = useState(false);
+  const [isSavingValues, setIsSavingValues] = useState(false);
   const panStateRef = useRef<{
     pointerId: number;
     startX: number;
@@ -161,9 +167,11 @@ export function TemplateStudioRuntimeShell({
 
   const displayName =
     templateName?.trim() || document.metadata.name || "Template Studio Preview";
-  const backHref = templateId
-    ? `/admin/template-studio/${templateId}/edit`
-    : "/admin/template-studio";
+  const backHref =
+    backHrefProp ??
+    (templateId
+      ? `/admin/template-studio/${templateId}/edit`
+      : "/admin/template-studio");
 
   useEffect(() => {
     const queryLocale = new URLSearchParams(window.location.search).get("lang");
@@ -356,6 +364,20 @@ export function TemplateStudioRuntimeShell({
     previewSize.width,
   ]);
 
+  const saveValues = useCallback(async () => {
+    if (!onSaveValues || isSavingValues) return;
+
+    setIsSavingValues(true);
+    try {
+      await onSaveValues(runtimeValues);
+    } catch (error) {
+      console.error("Template Studio runtime value save failed", error);
+      window.alert(copy.saveFailed);
+    } finally {
+      setIsSavingValues(false);
+    }
+  }, [copy.saveFailed, isSavingValues, onSaveValues, runtimeValues]);
+
   return (
     <main
       className="template-studio-runtime-theme flex h-screen w-full flex-col overflow-hidden bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)]"
@@ -474,6 +496,7 @@ export function TemplateStudioRuntimeShell({
         <TemplateStudioRuntimeForm
           document={document}
           isSavingImage={isSavingImage}
+          isSavingValues={isSavingValues}
           locale={locale}
           runtimeValues={runtimeValues}
           setRuntimeValues={setRuntimeValues}
@@ -481,6 +504,13 @@ export function TemplateStudioRuntimeShell({
           onSaveImage={() => {
             void savePreviewImage();
           }}
+          onSaveValues={
+            onSaveValues
+              ? () => {
+                  void saveValues();
+                }
+              : undefined
+          }
         />
       </div>
     </main>

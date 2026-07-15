@@ -65,6 +65,8 @@ interface TemplateStudioRuntimeFormProps {
   onReset: () => void;
   onSaveImage?: () => void;
   isSavingImage?: boolean;
+  onSaveValues?: () => void;
+  isSavingValues?: boolean;
   locale?: StudioRuntimeLocale;
 }
 
@@ -153,6 +155,8 @@ export function TemplateStudioRuntimeForm({
   onReset,
   onSaveImage,
   isSavingImage = false,
+  onSaveValues,
+  isSavingValues = false,
   locale = "en",
 }: TemplateStudioRuntimeFormProps) {
   const [pendingImageCrop, setPendingImageCrop] =
@@ -723,10 +727,22 @@ export function TemplateStudioRuntimeForm({
 
       <div className="shrink-0 border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] p-4">
         <div className="flex gap-2">
+          {onSaveValues ? (
+            <StudioRuntimeActionButton
+              fullWidth
+              className="h-12 rounded-md text-base font-bold"
+              disabled={isSavingValues}
+              variant="primary"
+              onClick={onSaveValues}
+            >
+              {isSavingValues ? copy.saving : copy.save}
+            </StudioRuntimeActionButton>
+          ) : null}
           <StudioRuntimeActionButton
             fullWidth
             className="h-12 rounded-md text-base font-bold"
             disabled={!onSaveImage || isSavingImage}
+            variant={onSaveValues ? "secondary" : undefined}
             onClick={onSaveImage}
           >
             {isSavingImage ? copy.savingImage : copy.saveImage}

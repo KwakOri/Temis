@@ -154,8 +154,8 @@ const MyPageContent = () => {
     }
   };
 
-  const handleTemplateClick = (template: Template) => {
-    router.push(`/time-table/${template.id}`);
+  const handleTemplateClick = (template: Template & { use_href?: string }) => {
+    router.push(template.use_href ?? `/time-table/${template.id}`);
   };
 
   const handleTeamTemplateClick = (templateId: string) => {

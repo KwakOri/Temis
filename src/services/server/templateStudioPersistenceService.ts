@@ -109,6 +109,17 @@ type TemplateStudioRevisionRow = {
   created_at: string;
 };
 
+type TemplateStudioUserStateRow = {
+  id: string;
+  template_id: string;
+  user_id: number;
+  base_revision_no: number | null;
+  runtime_values: Json;
+  version: number;
+  created_at: string;
+  updated_at: string;
+};
+
 type TemplateStudioAssetRow = {
   id: string;
   template_id: string;
@@ -173,6 +184,17 @@ export type TemplateStudioRevisionRecord = {
   createdAt: string;
 };
 
+export type TemplateStudioUserStateRecord = {
+  id: string;
+  templateId: string;
+  userId: number;
+  baseRevisionNo: number | null;
+  runtimeValues: StudioRuntimeValues;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type TemplateStudioAssetRecord = {
   id: string;
   templateId: string;
@@ -234,6 +256,8 @@ const TEMPLATE_STUDIO_ASSET_COLUMNS =
   "id, template_id, asset_id, storage_provider, storage_path, public_url, content_hash, mime_type, width, height, byte_size, created_by, created_at, updated_at, last_synced_at";
 const TEMPLATE_STUDIO_TEMPLATE_COLUMNS =
   "id, name, description, status, created_by, created_at, updated_at";
+const TEMPLATE_STUDIO_USER_STATE_COLUMNS =
+  "id, template_id, user_id, base_revision_no, runtime_values, version, created_at, updated_at";
 
 const templateStudioClient =
   supabaseAdminServer as unknown as TemplateStudioPersistenceClient;
@@ -384,6 +408,27 @@ const toDraftRecord = (
     runtimeValues: prepared.runtimeValues,
     baseRevisionNo: row.base_revision_no,
     isAutosave: row.is_autosave,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+};
+
+const toUserStateRecord = (
+  row: TemplateStudioUserStateRow,
+): TemplateStudioUserStateRecord => {
+  if (!isStudioRuntimeValuesLike(row.runtime_values)) {
+    throw new TemplateStudioPersistenceError(
+      "Stored Template Studio user state runtime values are invalid.",
+    );
+  }
+
+  return {
+    id: row.id,
+    templateId: row.template_id,
+    userId: row.user_id,
+    baseRevisionNo: row.base_revision_no,
+    runtimeValues: cloneJson(row.runtime_values) as StudioRuntimeValues,
+    version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -618,6 +663,59 @@ export const deleteTemplateStudioDraft = async (
     .eq("user_id", userId);
 
   throwOnError("Failed to delete Template Studio draft", error);
+};
+
+export const getTemplateStudioUserState = async (
+  templateId: string,
+  userId: number,
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioUserStateRecord | null> => {
+  const supabase = getClient(client);
+  const { data, error } = await supabase
+    .from<TemplateStudioUserStateRow>("template_studio_user_states")
+    .select(TEMPLATE_STUDIO_USER_STATE_COLUMNS)
+    .eq("template_id", templateId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  throwOnError("Failed to fetch Template Studio user state", error);
+  return data ? toUserStateRecord(data) : null;
+};
+
+export const saveTemplateStudioUserState = async (
+  input: {
+    templateId: string;
+    userId: number;
+    runtimeValues: StudioRuntimeValues;
+    baseRevisionNo: number | null;
+  },
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioUserStateRecord> => {
+  const supabase = getClient(client);
+  const { data, error } = await supabase
+    .from<TemplateStudioUserStateRow>("template_studio_user_states")
+    .upsert(
+      {
+        template_id: input.templateId,
+        user_id: input.userId,
+        base_revision_no: input.baseRevisionNo,
+        runtime_values: toJson(input.runtimeValues),
+      },
+      {
+        onConflict: "template_id,user_id",
+      },
+    )
+    .select(TEMPLATE_STUDIO_USER_STATE_COLUMNS)
+    .single();
+
+  throwOnError("Failed to save Template Studio user state", error);
+  if (!data) {
+    throw new TemplateStudioPersistenceError(
+      "Failed to save Template Studio user state: empty response",
+    );
+  }
+
+  return toUserStateRecord(data);
 };
 
 export const publishTemplateStudioDocument = async (

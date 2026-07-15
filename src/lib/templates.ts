@@ -1,3 +1,4 @@
+import { JWTPayload } from "@/lib/auth/jwt";
 import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
 import { supabase } from "./supabase";
 
@@ -174,6 +175,40 @@ export class TemplateService {
       console.error("Error checking template access:", error);
       return false;
     }
+  }
+
+  /**
+   * 공통 이용 권한 판정 (관리자 우회 포함).
+   * `/api/template-access`와 사용자 실행 API가 동일한 판정 경로를 쓰도록 공유한다.
+   */
+  static async resolveEntitlement(
+    templateId: string,
+    user: Pick<JWTPayload, "userId" | "email" | "role">
+  ): Promise<{
+    hasAccess: boolean;
+    isAdmin: boolean;
+    reason: "admin_access" | "template_access" | "no_access";
+  }> {
+    const adminEmails =
+      process.env.ADMIN_EMAILS?.split(",").map((email) => email.trim()) || [];
+    const isAdmin =
+      user.role === "admin" ||
+      Boolean(user.email && adminEmails.includes(user.email));
+
+    if (isAdmin) {
+      return { hasAccess: true, isAdmin: true, reason: "admin_access" };
+    }
+
+    const hasAccess = await TemplateService.hasAccess(
+      templateId,
+      String(user.userId)
+    );
+
+    return {
+      hasAccess,
+      isAdmin: false,
+      reason: hasAccess ? "template_access" : "no_access",
+    };
   }
 }
 

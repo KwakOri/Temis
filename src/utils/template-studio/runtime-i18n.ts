@@ -19,6 +19,10 @@ export interface StudioRuntimeCopy {
   saveImage: string;
   savingImage: string;
   saveImageFailed: string;
+  save: string;
+  saving: string;
+  saveFailed: string;
+  saved: string;
   sourceDraft: string;
   sourcePublished: string;
   zoomOut: string;
@@ -87,6 +91,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     saveImage: "이미지로 저장",
     savingImage: "저장 중...",
     saveImageFailed: "이미지를 저장하지 못했습니다.",
+    save: "저장",
+    saving: "저장 중...",
+    saveFailed: "저장하지 못했습니다.",
+    saved: "저장되었습니다",
     sourceDraft: "초안",
     sourcePublished: "게시됨",
     zoomOut: "축소",
@@ -153,6 +161,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     saveImage: "Save as image",
     savingImage: "Saving...",
     saveImageFailed: "Could not save the image.",
+    save: "Save",
+    saving: "Saving...",
+    saveFailed: "Could not save.",
+    saved: "Saved",
     sourceDraft: "Draft",
     sourcePublished: "Published",
     zoomOut: "Zoom out",
@@ -220,6 +232,10 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     saveImage: "画像として保存",
     savingImage: "保存中...",
     saveImageFailed: "画像を保存できませんでした。",
+    save: "保存",
+    saving: "保存中...",
+    saveFailed: "保存できませんでした。",
+    saved: "保存しました",
     sourceDraft: "下書き",
     sourcePublished: "公開済み",
     zoomOut: "縮小",

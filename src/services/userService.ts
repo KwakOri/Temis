@@ -7,7 +7,7 @@ export interface UserTemplate {
   id: string | number;
   access_level: "read" | "write" | "admin";
   granted_at: string | null;
-  templates: Template;
+  templates: Template & { use_href: string };
   template_plan: TemplatePlan | null;
   access_source?: "purchase" | "artist";
 }
@@ -24,7 +24,7 @@ interface RawUserTemplate {
   id: string | number;
   access_level: "read" | "write" | "admin";
   granted_at: string | null;
-  templates: Template;
+  templates: Template & { use_href: string };
   template_plan: TemplatePlan | null;
 }
 

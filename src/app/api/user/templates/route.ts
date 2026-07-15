@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { getTemplateUseHref } from "@/utils/template-links";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -25,6 +26,8 @@ export async function GET(request: NextRequest) {
           description,
           thumbnail_url,
           is_public,
+          template_engine,
+          status,
           created_at
         ),
         template_plan:template_plan_id (
@@ -57,6 +60,8 @@ export async function GET(request: NextRequest) {
           description,
           thumbnail_url,
           is_public,
+          template_engine,
+          status,
           created_at
         ),
         artists!inner(user_id)
@@ -72,14 +77,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // draft/archived 템플릿은 일반 사용자 목록에서 제외한다.
+    const withUseHref = <T extends { id: string; template_engine: string | null }>(
+      templates: T
+    ) => ({
+      ...templates,
+      use_href: getTemplateUseHref(templates.id, templates.template_engine),
+    });
+
     // 3) 구매 템플릿 / 작업 템플릿 분리
     const artistTemplates = (artistLinkedRows || [])
-      .filter((row) => Boolean(row.templates))
+      .filter((row) => Boolean(row.templates) && row.templates.status === "published")
       .map((row) => ({
         id: `artist-${row.id}`,
         access_level: "write" as const,
         granted_at: row.created_at,
-        templates: row.templates,
+        templates: withUseHref(row.templates),
         template_plan: null,
       }));
 
@@ -88,10 +101,17 @@ export async function GET(request: NextRequest) {
       artistTemplates.map((row) => row.templates.id)
     );
 
-    const purchaseTemplates = (directAccessRows || []).filter(
-      (row) =>
-        Boolean(row.templates) && !artistTemplateIds.has(row.templates!.id)
-    );
+    const purchaseTemplates = (directAccessRows || [])
+      .filter(
+        (row) =>
+          Boolean(row.templates) &&
+          row.templates.status === "published" &&
+          !artistTemplateIds.has(row.templates!.id)
+      )
+      .map((row) => ({
+        ...row,
+        templates: withUseHref(row.templates!),
+      }));
 
     return NextResponse.json({
       success: true,

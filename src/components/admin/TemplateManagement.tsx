@@ -150,6 +150,43 @@ export default function TemplateManagement() {
     return `${names[0]} 외 ${names.length - 1}명`;
   };
 
+  const isPublishedTemplate = (template: TemplateWithShopTemplateAndPlans) =>
+    template.status === "published";
+
+  const engineLabels: Record<string, string> = {
+    legacy: "Legacy",
+    studio: "Studio",
+  };
+
+  const statusBadgeStyles: Record<string, string> = {
+    draft: "bg-yellow-100 text-yellow-800",
+    published: "bg-green-100 text-green-800",
+    archived: "bg-gray-200 text-gray-600",
+  };
+
+  const statusLabels: Record<string, string> = {
+    draft: "초안",
+    published: "게시됨",
+    archived: "보관됨",
+  };
+
+  const renderEngineStatusBadges = (
+    template: TemplateWithShopTemplateAndPlans
+  ) => (
+    <div className="flex flex-wrap items-center gap-1">
+      <span className="inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full bg-slate-100 text-slate-700">
+        {engineLabels[template.template_engine] ?? template.template_engine}
+      </span>
+      <span
+        className={`inline-flex px-2 py-0.5 text-[11px] font-semibold rounded-full ${
+          statusBadgeStyles[template.status] ?? "bg-gray-100 text-gray-600"
+        }`}
+      >
+        {statusLabels[template.status] ?? template.status}
+      </span>
+    </div>
+  );
+
   const temisArtistOption = useMemo(
     () => artists.find((artist) => artist.slug === "temis"),
     [artists]
@@ -430,9 +467,13 @@ export default function TemplateManagement() {
     setCopySuccess(false);
   };
 
-  const handleGoToTemplate = (templateId: string) => {
-    // 새 탭에서 템플릿 페이지 열기
-    window.open(`/time-table/${templateId}`, "_blank");
+  const handleGoToTemplate = (template: TemplateWithShopTemplateAndPlans) => {
+    // Studio 행은 Studio editor, legacy 행은 기존 관리 화면(실행 링크)으로 연다.
+    const href =
+      template.template_engine === "studio"
+        ? `/admin/template-studio/${template.id}/edit`
+        : `/time-table/${template.id}`;
+    window.open(href, "_blank");
   };
 
   const filteredTemplates = templates;
@@ -533,6 +574,13 @@ export default function TemplateManagement() {
     if (nextVisible && !hasLinkedArtist(template)) {
       alert(
         "작가 미연결 상태에서는 판매를 시작할 수 없습니다. '테미스' 또는 실제 작가를 연결해 주세요."
+      );
+      return;
+    }
+
+    if (nextVisible && !isPublishedTemplate(template)) {
+      alert(
+        "게시되지 않은 템플릿은 판매를 시작할 수 없습니다. 먼저 템플릿을 게시해 주세요."
       );
       return;
     }
@@ -848,6 +896,9 @@ export default function TemplateManagement() {
                             {template.description}
                           </div>
                         )}
+                        <div className="mt-1.5">
+                          {renderEngineStatusBadges(template)}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-4 align-top">
@@ -903,7 +954,7 @@ export default function TemplateManagement() {
                     <td className="px-4 py-4 align-top text-sm">
                       <div className="w-full flex items-center gap-2">
                         <button
-                          onClick={() => handleGoToTemplate(template.id)}
+                          onClick={() => handleGoToTemplate(template)}
                           className="px-3 py-1.5 rounded text-xs font-medium bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0] transition-colors flex items-center justify-center gap-1 flex-1"
                           title="새 탭에서 템플릿 열기"
                         >
@@ -948,7 +999,9 @@ export default function TemplateManagement() {
                                   상품 수정
                                 </button>
                                 {(() => {
-                                  const canStartSale = hasLinkedArtist(template);
+                                  const canStartSale =
+                                    hasLinkedArtist(template) &&
+                                    isPublishedTemplate(template);
                                   const selling = isSelling(template);
 
                                   return (
@@ -967,6 +1020,8 @@ export default function TemplateManagement() {
                                         ? "판매 중지"
                                         : canStartSale
                                         ? "판매 시작"
+                                        : !isPublishedTemplate(template)
+                                        ? "판매 불가(게시 필요)"
                                         : "판매 불가(작가 필요)"}
                                     </button>
                                   );
@@ -1050,6 +1105,9 @@ export default function TemplateManagement() {
                     <div className="text-xs text-gray-500 mt-1 truncate">
                       작가: {getTemplateArtistLabel(template)}
                     </div>
+                    <div className="mt-1.5">
+                      {renderEngineStatusBadges(template)}
+                    </div>
                   </div>
 
                   {/* 상품 상태 및 생성일 */}
@@ -1115,7 +1173,9 @@ export default function TemplateManagement() {
                               상품 수정
                             </button>
                             {(() => {
-                              const canStartSale = hasLinkedArtist(template);
+                              const canStartSale =
+                                hasLinkedArtist(template) &&
+                                isPublishedTemplate(template);
                               const selling = isSelling(template);
 
                               return (
@@ -1134,6 +1194,8 @@ export default function TemplateManagement() {
                                     ? "판매 중지"
                                     : canStartSale
                                     ? "판매 시작"
+                                    : !isPublishedTemplate(template)
+                                    ? "판매 불가(게시 필요)"
                                     : "판매 불가(작가 필요)"}
                                 </button>
                               );
@@ -1145,7 +1207,7 @@ export default function TemplateManagement() {
 
                     <div className="flex flex-wrap gap-2">
                       <button
-                        onClick={() => handleGoToTemplate(template.id)}
+                        onClick={() => handleGoToTemplate(template)}
                         className="px-3 py-1.5 rounded text-xs font-medium bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0] transition-colors"
                       >
                         템플릿 열기
@@ -1530,7 +1592,7 @@ export default function TemplateManagement() {
 
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => handleGoToTemplate(selectedTemplateForId.id)}
+                onClick={() => handleGoToTemplate(selectedTemplateForId)}
                 className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors flex items-center gap-2"
               >
                 <svg

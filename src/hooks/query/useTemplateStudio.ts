@@ -6,6 +6,8 @@ import {
   TemplateStudioService,
   TemplateStudioUploadAssetPayload,
 } from "@/services/templateStudioService";
+import { TemplateStudioRuntimeService } from "@/services/templateStudioRuntimeService";
+import type { StudioRuntimeValues } from "@/types/template-studio";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const useTemplateStudioTemplates = () =>
@@ -134,6 +136,36 @@ export const useSyncTemplateStudioAssets = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.templateStudioTemplate(variables.templateId),
+      });
+    },
+  });
+};
+
+export const useTemplateStudioRuntime = (templateId?: string) =>
+  useQuery({
+    queryKey: queryKeys.template.templateStudioRuntime(templateId || "unknown"),
+    queryFn: () => TemplateStudioRuntimeService.getRuntime(templateId!),
+    enabled: Boolean(templateId),
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
+  });
+
+export const useSaveTemplateStudioRuntime = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      runtimeValues,
+    }: {
+      templateId: string;
+      runtimeValues: StudioRuntimeValues;
+    }) => TemplateStudioRuntimeService.saveRuntime(templateId, runtimeValues),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.template.templateStudioRuntime(
+          variables.templateId,
+        ),
       });
     },
   });

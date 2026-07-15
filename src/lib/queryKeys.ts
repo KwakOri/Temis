@@ -23,6 +23,8 @@ export const queryKeys = {
       [...queryKeys.template.all, "renderConfig", id] as const,
     templateStudioPreview: (id: string | number) =>
       [...queryKeys.template.all, "templateStudioPreview", id] as const,
+    templateStudioRuntime: (id: string | number) =>
+      [...queryKeys.template.all, "templateStudioRuntime", id] as const,
   },
   customOrder: {
     all: ["customOrder"] as const,

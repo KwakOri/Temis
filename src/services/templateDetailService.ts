@@ -31,6 +31,7 @@ export class TemplateDetailService {
       `)
       .eq("template_id", templateId)
       .eq("is_shop_visible", true)
+      .eq("templates.status", "published")
       .single();
 
     if (error) {
