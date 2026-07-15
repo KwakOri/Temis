@@ -40,16 +40,16 @@ export class ShopService {
     }));
   }
 
-  static async getUserTemplateAccess(userId: string): Promise<string[]> {
-    const { data, error } = await supabase
-      .from("template_access")
-      .select("template_id")
-      .eq("user_id", Number(userId));
+  static async getUserTemplateAccess(): Promise<string[]> {
+    const response = await fetch("/api/user/template-access", {
+      credentials: "include",
+    });
+    const result = await response.json().catch(() => null);
 
-    if (error) {
-      throw new Error(`접근 권한을 가져오는데 실패했습니다: ${error.message}`);
+    if (!response.ok) {
+      throw new Error(result?.error || "접근 권한을 가져오는데 실패했습니다.");
     }
 
-    return data?.map((item) => item.template_id) || [];
+    return result?.templateIds ?? [];
   }
 }

@@ -17,21 +17,11 @@ export const useApprovePurchaseRequest = () => {
   return useMutation({
     mutationFn: ({
       requestId,
-      templateId,
-      userId,
       planId,
     }: {
       requestId: string;
-      templateId: string;
-      userId: number;
-      planId: string;
-    }) =>
-      AdminPurchaseService.approvePurchaseRequest(
-        requestId,
-        templateId,
-        userId,
-        planId
-      ),
+      planId?: string;
+    }) => AdminPurchaseService.approvePurchaseRequest(requestId, planId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.purchaseRequests(),

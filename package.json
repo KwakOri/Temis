@@ -25,6 +25,8 @@
     "check:template-studio:persistence": "tsx scripts/check-template-studio-persistence.ts",
     "check:template-studio:api": "tsx scripts/check-template-studio-api.ts",
     "check:template-studio:runtime": "tsx scripts/check-template-studio-runtime.ts",
+    "check:admin-purchase-requests": "tsx scripts/check-admin-purchase-requests.ts",
+    "check:admin-template-access": "tsx scripts/check-admin-template-access.ts",
     "check:template-studio:preview-assets": "tsx scripts/check-template-studio-preview-assets.ts",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",

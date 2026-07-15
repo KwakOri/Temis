@@ -1,6 +1,9 @@
 import { JWTPayload } from "@/lib/auth/jwt";
 import { Tables, TablesInsert, TablesUpdate } from "@/types/supabase";
-import { supabase } from "./supabase";
+// This module is only imported from server API routes (never bundled into the
+// browser). It uses the service-role client so template_access/templates reads
+// don't depend on anon/authenticated table grants, which step 9 revokes.
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 
 type Template = Tables<"templates">;
 type TemplateAccess = Tables<"template_access">;

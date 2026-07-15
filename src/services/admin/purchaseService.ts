@@ -1,155 +1,57 @@
-import { supabase } from "@/lib/supabase";
-import {
-  SendAccessGrantedEmailData,
-  TemplatePurchaseRequestWithRelations,
-} from "@/types/admin";
+import { TemplatePurchaseRequestWithRelations } from "@/types/admin";
 
 export class AdminPurchaseService {
-  // Template Purchase Requests (Supabase)
+  private static baseUrl = "/api/admin/purchase-requests";
+
   static async getPurchaseRequests(): Promise<TemplatePurchaseRequestWithRelations[]> {
-    const { data, error } = await supabase
-      .from("template_purchase_requests")
-      .select(`
-        *,
-        template:templates(*),
-        template_plan:template_plans(*),
-        user:users(id, name, email)
-      `)
-      .order("created_at", { ascending: false });
+    const response = await fetch(this.baseUrl, { credentials: "include" });
+    const result = await response.json().catch(() => null);
 
-    if (error) {
-      throw new Error(`구매 요청을 가져오는데 실패했습니다: ${error.message}`);
+    if (!response.ok) {
+      throw new Error(result?.error || "구매 요청을 가져오는데 실패했습니다.");
     }
 
-    return data || [];
-  }
-
-  static async findUserByEmail(email: string): Promise<{ id: number; name: string; email: string } | null> {
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, name, email")
-      .eq("email", email)
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") {
-        // No rows returned
-        return null;
-      }
-      throw new Error(`사용자를 찾는데 실패했습니다: ${error.message}`);
-    }
-
-    return data;
-  }
-
-  static async getTemplateById(templateId: string): Promise<{ id: string; name: string } | null> {
-    const { data, error } = await supabase
-      .from("templates")
-      .select("id, name")
-      .eq("id", templateId)
-      .single();
-
-    if (error) {
-      if (error.code === "PGRST116") {
-        return null;
-      }
-      throw new Error(`템플릿을 찾는데 실패했습니다: ${error.message}`);
-    }
-
-    return data;
+    return result?.requests ?? [];
   }
 
   static async updatePurchaseRequestStatus(
     requestId: string,
     status: string
   ): Promise<void> {
-    const { error } = await supabase
-      .from("template_purchase_requests")
-      .update({ status })
-      .eq("id", requestId);
+    const response = await fetch(`${this.baseUrl}/${requestId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ status }),
+    });
 
-    if (error) {
+    if (!response.ok) {
+      const result = await response.json().catch(() => null);
       throw new Error(
-        `구매 요청 상태 업데이트에 실패했습니다: ${error.message}`
+        result?.error || "구매 요청 상태 업데이트에 실패했습니다."
       );
     }
   }
 
-  // Email notification (API)
-  static async sendAccessGrantedEmail(
-    data: SendAccessGrantedEmailData
+  // 통합 승인 프로세스: 접근 권한 부여, 구매 요청 완료 처리, 메일 발송을 서버가 처리한다.
+  static async approvePurchaseRequest(
+    requestId: string,
+    planId?: string
   ): Promise<void> {
-    const response = await fetch("/api/email/template-access-granted", {
+    const response = await fetch(`${this.baseUrl}/${requestId}/approve`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify(data),
+      body: JSON.stringify({ planId }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "이메일 전송에 실패했습니다.");
-    }
-  }
-
-  // 통합 승인 프로세스
-  static async approvePurchaseRequest(
-    requestId: string,
-    templateId: string,
-    userId: number,
-    planId?: string
-  ): Promise<void> {
-    // 1. 사용자 정보 가져오기
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id, name, email")
-      .eq("id", userId)
-      .single();
-
-    if (userError || !user) {
-      throw new Error("사용자를 찾을 수 없습니다.");
-    }
-
-    // 2. 관리자 ID 찾기
-    const admin = await this.findUserByEmail("timetable@admin.com");
-    if (!admin) {
-      throw new Error("관리자 계정을 찾을 수 없습니다.");
-    }
-
-    // 3. 템플릿 정보 가져오기
-    const template = await this.getTemplateById(templateId);
-    if (!template) {
-      throw new Error("템플릿을 찾을 수 없습니다.");
-    }
-
-    // 4. 템플릿 접근 권한 부여와 구매 요청 완료 처리를 하나의 트랜잭션으로 실행
-    // (재시도해도 template_access가 중복 생성되지 않는 idempotent upsert)
-    const { error: approveError } = await supabase.rpc(
-      "approve_template_purchase_request",
-      {
-        p_request_id: requestId,
-        p_admin_id: admin.id,
-        p_plan_id: planId,
-      }
-    );
-
-    if (approveError) {
-      throw new Error(`권한 부여에 실패했습니다: ${approveError.message}`);
-    }
-
-    // 5. 이메일 발송 (선택적)
-    try {
-      const emailData: SendAccessGrantedEmailData = {
-        email: user.email,
-        userName: user.name || "고객",
-        templateName: template.name,
-      };
-      await this.sendAccessGrantedEmail(emailData);
-    } catch (emailError) {
-      console.error("메일 발송 실패:", emailError);
-      // 메일 발송 실패는 전체 프로세스를 중단하지 않음
+      const result = await response.json().catch(() => null);
+      throw new Error(result?.error || "권한 부여에 실패했습니다.");
     }
   }
 }
