@@ -17,9 +17,6 @@ export async function POST(
   const { user: admin } = adminCheck;
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const planId: string | undefined = body?.planId ?? undefined;
-
     const { data: purchaseRequest, error: requestError } =
       await supabaseAdminServer
         .from("template_purchase_requests")
@@ -35,12 +32,13 @@ export async function POST(
     }
 
     // 접근 권한 부여와 구매 요청 완료 처리를 하나의 트랜잭션으로 실행 (idempotent upsert).
+    // plan은 요청 자체에 이미 기록된 값만 쓴다 — 클라이언트가 다른 plan_id를
+    // 보내 원하는 템플릿 권한을 다른 상품 가격으로 부여받는 것을 막는다.
     const { error: approveError } = await supabaseAdminServer.rpc(
       "approve_template_purchase_request",
       {
         p_request_id: requestId,
         p_admin_id: Number(admin.userId),
-        p_plan_id: planId,
       }
     );
 

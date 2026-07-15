@@ -15,13 +15,8 @@ export const useApprovePurchaseRequest = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      requestId,
-      planId,
-    }: {
-      requestId: string;
-      planId?: string;
-    }) => AdminPurchaseService.approvePurchaseRequest(requestId, planId),
+    mutationFn: (requestId: string) =>
+      AdminPurchaseService.approvePurchaseRequest(requestId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.admin.purchaseRequests(),

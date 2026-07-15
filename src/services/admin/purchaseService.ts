@@ -36,17 +36,11 @@ export class AdminPurchaseService {
   }
 
   // 통합 승인 프로세스: 접근 권한 부여, 구매 요청 완료 처리, 메일 발송을 서버가 처리한다.
-  static async approvePurchaseRequest(
-    requestId: string,
-    planId?: string
-  ): Promise<void> {
+  // plan은 요청에 이미 기록된 값만 쓰므로 클라이언트에서 별도로 지정하지 않는다.
+  static async approvePurchaseRequest(requestId: string): Promise<void> {
     const response = await fetch(`${this.baseUrl}/${requestId}/approve`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
       credentials: "include",
-      body: JSON.stringify({ planId }),
     });
 
     if (!response.ok) {

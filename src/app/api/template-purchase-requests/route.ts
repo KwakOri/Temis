@@ -36,10 +36,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 템플릿 존재 확인
+    // 템플릿 존재 및 일반 판매 상태 확인
     const { data: template, error: templateError } = await supabase
       .from("templates")
-      .select("id, name")
+      .select("id, name, is_public, status")
       .eq("id", template_id)
       .single();
 
@@ -50,10 +50,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 플랜 존재 확인
+    if (!template.is_public || template.status !== "published") {
+      return NextResponse.json(
+        { error: "구매할 수 없는 템플릿입니다." },
+        { status: 400 }
+      );
+    }
+
+    // 플랜이 실제로 이 템플릿의 상점 상품에 속하는지 확인 (다른 상품 plan_id를
+    // 붙여 원하는 템플릿 권한을 얻는 것을 막는다).
     const { data: plan, error: planError } = await supabase
       .from("template_plans")
-      .select("id, plan, price")
+      .select(
+        "id, plan, price, shop_template:shop_templates!inner(template_id, is_shop_visible)"
+      )
       .eq("id", plan_id)
       .single();
 
@@ -61,6 +71,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "플랜을 찾을 수 없습니다." },
         { status: 404 }
+      );
+    }
+
+    const shopTemplate = Array.isArray(plan.shop_template)
+      ? plan.shop_template[0]
+      : plan.shop_template;
+
+    if (!shopTemplate || shopTemplate.template_id !== template_id) {
+      return NextResponse.json(
+        { error: "선택한 플랜이 요청한 템플릿과 일치하지 않습니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!shopTemplate.is_shop_visible) {
+      return NextResponse.json(
+        { error: "현재 판매 중이 아닌 템플릿입니다." },
+        { status: 400 }
       );
     }
 
