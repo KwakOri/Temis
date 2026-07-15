@@ -46,6 +46,32 @@ const assertLocalSupabaseUrl = () => {
   }
 };
 
+const insertTempLegacyTemplate = async (): Promise<string> => {
+  const { data, error } = await supabaseAdminServer
+    .from("templates")
+    .insert({
+      name: "Template Studio API Check Legacy Fixture",
+      description: "Legacy-engine row used to verify Studio API rejects it.",
+      template_engine: "legacy",
+      status: "published",
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    throw error ?? new Error("Failed to insert legacy template fixture.");
+  }
+
+  return (data as { id: string }).id;
+};
+
+const deleteTempLegacyTemplate = async (legacyTemplateId: string) => {
+  await supabaseAdminServer
+    .from("templates")
+    .delete()
+    .eq("id", legacyTemplateId);
+};
+
 const ensureLocalAdminUser = async () => {
   const now = new Date().toISOString();
   const { error } = await supabaseAdminServer.from("users").upsert(
@@ -156,6 +182,7 @@ const main = async () => {
   const routeBaseUrl = "http://127.0.0.1/template-studio-api-check";
 
   let templateId: string | null = null;
+  let legacyTemplateId: string | null = null;
 
   try {
     const createResponse = await callRoute<{
@@ -417,6 +444,83 @@ const main = async () => {
       "Detail asset metadata should use r2 provider.",
     );
 
+    legacyTemplateId = await insertTempLegacyTemplate();
+    const legacyContext = {
+      params: Promise.resolve({ id: legacyTemplateId }),
+    };
+    const legacyDetailUrl = `${routeBaseUrl}/api/admin/template-studio/templates/${legacyTemplateId}`;
+
+    const legacyDetailResponse = await templateDetailRoutes.GET(
+      createRequest(legacyDetailUrl, token),
+      legacyContext,
+    );
+    assert(
+      legacyDetailResponse.status === 404,
+      "Studio detail route should treat a legacy-engine id as not found.",
+    );
+
+    const legacyDraftResponse = await draftRoutes.GET(
+      createRequest(`${legacyDetailUrl}/draft`, token),
+      legacyContext,
+    );
+    assert(
+      legacyDraftResponse.status === 404,
+      "Studio draft route should treat a legacy-engine id as not found.",
+    );
+
+    const legacyPublishResponse = await publishRoutes.POST(
+      createRequest(`${legacyDetailUrl}/publish`, token, {
+        method: "POST",
+        body: JSON.stringify({ document, runtimeValues }),
+      }),
+      legacyContext,
+    );
+    assert(
+      legacyPublishResponse.status === 404,
+      "Studio publish route should treat a legacy-engine id as not found.",
+    );
+
+    const legacyDeleteResponse = await templateDetailRoutes.DELETE(
+      createRequest(legacyDetailUrl, token, { method: "DELETE" }),
+      legacyContext,
+    );
+    assert(
+      legacyDeleteResponse.status === 404,
+      "Studio delete route should treat a legacy-engine id as not found.",
+    );
+
+    const deleteResponse = await callRoute<{
+      success: boolean;
+      templateId: string;
+    }>(
+      "delete template",
+      templateDetailRoutes.DELETE,
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates/${templateId}`,
+        token,
+        { method: "DELETE" },
+      ),
+      context,
+    );
+    assert(deleteResponse.success, "Delete response was not success.");
+    assert(
+      deleteResponse.templateId === templateId,
+      "Delete response template id mismatch.",
+    );
+
+    const detailAfterDeleteResponse = await templateDetailRoutes.GET(
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates/${templateId}`,
+        token,
+      ),
+      context,
+    );
+    assert(
+      detailAfterDeleteResponse.status === 404,
+      "Deleted template should no longer be reachable.",
+    );
+    templateId = null;
+
     console.log("Template Studio API route smoke check passed.");
   } finally {
     if (uploadedR2Keys.length > 0) {
@@ -427,6 +531,10 @@ const main = async () => {
 
     if (templateId) {
       await deleteTemplateStudioTemplate(templateId);
+    }
+
+    if (legacyTemplateId) {
+      await deleteTempLegacyTemplate(legacyTemplateId);
     }
   }
 };

@@ -101,6 +101,11 @@ export interface TemplateStudioUploadAssetsResponse {
   assets: TemplateStudioUploadedAsset[];
 }
 
+export interface TemplateStudioDeleteTemplateResponse {
+  success: boolean;
+  templateId: string;
+}
+
 const parseJsonResponse = async <T>(
   response: Response,
   fallbackMessage: string,
@@ -233,6 +238,19 @@ export class TemplateStudioService {
     return parseJsonResponse<TemplateStudioUploadAssetsResponse>(
       response,
       "Template Studio asset 동기화에 실패했습니다.",
+    );
+  }
+
+  static async deleteTemplate(
+    templateId: string,
+  ): Promise<TemplateStudioDeleteTemplateResponse> {
+    const response = await fetch(`${this.baseUrl}/${templateId}`, {
+      method: "DELETE",
+    });
+
+    return parseJsonResponse<TemplateStudioDeleteTemplateResponse>(
+      response,
+      "Template Studio 템플릿 삭제에 실패했습니다.",
     );
   }
 }

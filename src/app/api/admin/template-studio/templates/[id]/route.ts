@@ -5,6 +5,7 @@ import {
   templateStudioTemplateNotFoundResponse,
 } from "@/app/api/admin/template-studio/_utils";
 import {
+  deleteTemplateStudioTemplate,
   getTemplateStudioCurrentDocument,
   getTemplateStudioDraft,
   getTemplateStudioLatestRevisionNo,
@@ -54,6 +55,41 @@ export async function GET(
     console.error("Template Studio template fetch error:", error);
     return NextResponse.json(
       { error: "Template Studio 템플릿 조회 중 오류가 발생했습니다." },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const actor = await requireTemplateStudioAdminActor(request);
+  if (!actor.ok) {
+    return actor.response;
+  }
+
+  try {
+    const templateId = await parseTemplateStudioTemplateId({ params });
+    if (!templateId) {
+      return templateStudioBadTemplateIdResponse();
+    }
+
+    const template = await getTemplateStudioTemplate(templateId);
+    if (!template) {
+      return templateStudioTemplateNotFoundResponse();
+    }
+
+    await deleteTemplateStudioTemplate(templateId);
+
+    return NextResponse.json({
+      success: true,
+      templateId,
+    });
+  } catch (error) {
+    console.error("Template Studio template delete error:", error);
+    return NextResponse.json(
+      { error: "Template Studio 템플릿 삭제 중 오류가 발생했습니다." },
       { status: 500 },
     );
   }

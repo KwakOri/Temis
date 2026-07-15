@@ -138,3 +138,20 @@ export const useSyncTemplateStudioAssets = () => {
     },
   });
 };
+
+export const useDeleteTemplateStudioTemplate = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (templateId: string) =>
+      TemplateStudioService.deleteTemplate(templateId),
+    onSuccess: (_, templateId) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.templateStudioTemplates(),
+      });
+      queryClient.removeQueries({
+        queryKey: queryKeys.admin.templateStudioTemplate(templateId),
+      });
+    },
+  });
+};

@@ -1,6 +1,9 @@
 "use client";
 
-import { useTemplateStudioTemplates } from "@/hooks/query/useTemplateStudio";
+import {
+  useDeleteTemplateStudioTemplate,
+  useTemplateStudioTemplates,
+} from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
 import type { TemplateStudioTemplateRecord } from "@/services/server/templateStudioPersistenceService";
 import {
@@ -10,6 +13,7 @@ import {
   Pencil,
   Plus,
   RefreshCw,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -36,7 +40,20 @@ const statusLabels: Record<TemplateStudioTemplateRecord["status"], string> = {
 
 export function TemplateStudioAdminListClient() {
   const templatesQuery = useTemplateStudioTemplates();
+  const deleteTemplateMutation = useDeleteTemplateStudioTemplate();
   const templates = templatesQuery.data?.templates ?? [];
+
+  const handleDelete = (template: TemplateStudioTemplateRecord) => {
+    if (
+      !confirm(
+        `"${template.name}" 템플릿을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      )
+    ) {
+      return;
+    }
+
+    deleteTemplateMutation.mutate(template.id);
+  };
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100">
@@ -172,6 +189,18 @@ export function TemplateStudioAdminListClient() {
                     >
                       <ArrowUpRight className="h-4 w-4" />
                     </Link>
+                    <button
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-slate-700 text-slate-400 transition hover:border-rose-400 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+                      disabled={
+                        deleteTemplateMutation.isPending &&
+                        deleteTemplateMutation.variables === template.id
+                      }
+                      title="템플릿 삭제"
+                      type="button"
+                      onClick={() => handleDelete(template)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </article>
               ))}
