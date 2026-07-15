@@ -65,7 +65,7 @@ export async function PATCH(
     if (body.is_shop_visible === true) {
       const { data: template, error: templateError } = await supabase
         .from("templates")
-        .select("id, is_public")
+        .select("id, is_public, status")
         .eq("id", templateId)
         .single();
 
@@ -79,6 +79,13 @@ export async function PATCH(
       if (!template.is_public) {
         return NextResponse.json(
           { error: "비공개 템플릿은 판매를 시작할 수 없습니다." },
+          { status: 400 }
+        );
+      }
+
+      if (template.status !== "published") {
+        return NextResponse.json(
+          { error: "게시되지 않은 템플릿은 판매를 시작할 수 없습니다." },
           { status: 400 }
         );
       }

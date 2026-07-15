@@ -27,6 +27,7 @@
     "check:template-studio:runtime": "tsx scripts/check-template-studio-runtime.ts",
     "check:admin-purchase-requests": "tsx scripts/check-admin-purchase-requests.ts",
     "check:admin-template-access": "tsx scripts/check-admin-template-access.ts",
+    "check:pilot-e2e": "tsx scripts/check-pilot-e2e.ts",
     "check:template-studio:preview-assets": "tsx scripts/check-template-studio-preview-assets.ts",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",

@@ -81,6 +81,26 @@ Studio documents/drafts/revisions/assets/user states, 관련 RPC)만 다뤘다.
   코드는 변경 없음). `templateStudioPersistenceService.ts`는 이미 처음부터
   service-role만 썼음을 재확인했다.
 
+**보정 (10단계에서 발견)**: 이 단계의 최초 조사는 "브라우저에서 직접
+실행되는 코드"만 우선순위로 잡아, **서버 API route 안에서 anon-key
+클라이언트를 쓰는 나머지 경우**를 놓쳤다. GRANT 회수는 코드가 브라우저에서
+도는지가 아니라 **어떤 key로 DB에 접속하는지**로 결정되므로, 서버에서
+실행되는 API route라도 `@/lib/supabase`(anon key)를 쓰면 이번 GRANT 회수로
+그대로 깨진다. 10단계 파일럿 스크립트를 만들다가 다음 5개 파일이 여전히
+anon key로 `template_access`/`template_purchase_requests`를 건드리고
+있음을 발견해 `supabaseAdminServer`로 전환했다:
+
+- `src/app/api/template-purchase-requests/route.ts`
+- `src/app/api/user/purchase-requests/[id]/route.ts`
+- `src/app/api/user/purchase-history/route.ts`
+- `src/app/api/admin/user-templates/route.ts`
+- `src/app/api/user/templates/route.ts`
+
+이 5개를 고치지 않았다면 이번 GRANT 회수가 구매 요청 생성/조회/수정/취소,
+구매 이력 조회, 마이페이지 목록을 전부 깨뜨렸을 것이다. 앞으로 이
+테이블들을 건드리는 새 API route를 추가할 때는 반드시
+`supabaseAdminServer`를 써야 한다.
+
 ## GRANT 회수
 
 신규 마이그레이션 `20260715070000_revoke_anon_access_to_sensitive_tables.sql`:

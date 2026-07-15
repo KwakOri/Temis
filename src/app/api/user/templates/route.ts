@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdminServer as supabase } from "@/lib/supabase-admin-server";
 import { getTemplateUseHref } from "@/utils/template-links";
 import { NextRequest, NextResponse } from "next/server";
 
