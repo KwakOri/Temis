@@ -10,12 +10,12 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
+  ArrowLeft,
   ArrowUpRight,
   AlertTriangle,
   CalendarDays,
   ChevronRight,
   CheckCircle2,
-  Cloud,
   Copy,
   EyeOff,
   Image as ImageIcon,
@@ -33,6 +33,7 @@ import {
   Type,
   Upload,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import React, {
   useCallback,
   useEffect,
@@ -47,7 +48,6 @@ import {
   useSaveTemplateStudioDraft,
   useSyncTemplateStudioAssets,
   useTemplateStudioTemplate,
-  useTemplateStudioTemplates,
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
 import type {
@@ -1410,6 +1410,7 @@ interface TemplateStudioClientProps {
 export function TemplateStudioClient({
   initialRemoteTemplateId = null,
 }: TemplateStudioClientProps) {
+  const router = useRouter();
   const [document, setDocument] = useState<StudioTemplateDocument>(() =>
     createSampleStudioDocument(),
   );
@@ -1486,7 +1487,6 @@ export function TemplateStudioClient({
   const selectedInputIdRef = useRef<StudioInputId | null>(selectedInputId);
   const selectedRuntimeDayIdRef = useRef(selectedRuntimeDayId);
   const selectedRuntimeEntryIndexRef = useRef(selectedRuntimeEntryIndex);
-  const templateStudioTemplatesQuery = useTemplateStudioTemplates();
   const templateStudioTemplateQuery = useTemplateStudioTemplate(
     remoteTemplateId ?? undefined,
   );
@@ -1577,12 +1577,6 @@ export function TemplateStudioClient({
       .filter(Boolean)
       .sort((a, b) => a.order - b.order);
   }, [document.domains]);
-  const remoteTemplates = templateStudioTemplatesQuery.data?.templates ?? [];
-  const activeRemoteTemplate = remoteTemplateId
-    ? (remoteTemplates.find((template) => template.id === remoteTemplateId) ??
-      templateStudioTemplateQuery.data?.template ??
-      null)
-    : null;
   const isRemoteSyncing =
     createTemplateStudioTemplateMutation.isPending ||
     saveTemplateStudioDraftMutation.isPending ||
@@ -1972,12 +1966,38 @@ export function TemplateStudioClient({
   const timetableGuideAsset = timetableGuide.assetId
     ? document.assets[timetableGuide.assetId]
     : null;
+  const activeGuide =
+    activeWorkspaceMode === "cards" ? cardsGuide : timetableGuide;
+  const activeGuideAsset =
+    activeWorkspaceMode === "cards" ? cardsGuideAsset : timetableGuideAsset;
+  const setActiveGuideVisibility = (visible: boolean) => {
+    updateDocument(
+      (nextDocument) => {
+        if (activeWorkspaceMode === "cards") {
+          setStudioCardsGuideVisibility(nextDocument, visible);
+        } else {
+          setStudioTimetableGuideVisibility(nextDocument, visible);
+        }
+      },
+      { history: false },
+    );
+  };
+  const setActiveGuideOpacity = (opacity: number) => {
+    updateDocument(
+      (nextDocument) => {
+        if (activeWorkspaceMode === "cards") {
+          setStudioCardsGuideOpacity(nextDocument, opacity);
+        } else {
+          setStudioTimetableGuideOpacity(nextDocument, opacity);
+        }
+      },
+      { history: false },
+    );
+  };
   const activePanelMode: PanelMode =
     activeWorkspaceMode === "timetable" && panelMode === "timetable"
       ? "layers"
-      : activeWorkspaceMode === "cards" && panelMode === "presets"
-        ? "layers"
-        : panelMode;
+      : panelMode;
   const isInputPanelActive = activePanelMode === "inputs";
   const assets = useMemo(
     () => Object.values(document.assets),
@@ -6957,67 +6977,6 @@ export function TemplateStudioClient({
         <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
           {timetableComposition.rootObjectIds.length} placed objects
         </div>
-        <div className="mt-2 flex min-w-0 items-center gap-2">
-          <button
-            aria-pressed={Boolean(
-              timetableGuideAsset && timetableGuide.visible,
-            )}
-            className={cn(
-              "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[10px] font-bold transition",
-              timetableGuideAsset && timetableGuide.visible
-                ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--accent)]"
-                : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]",
-            )}
-            title={
-              timetableGuideAsset
-                ? timetableGuide.visible
-                  ? "가이드 숨기기"
-                  : "가이드 표시"
-                : "설정에서 가이드 이미지 추가"
-            }
-            type="button"
-            onClick={() => {
-              if (!timetableGuideAsset) {
-                setSettingsOpen(true);
-                return;
-              }
-
-              updateDocument(
-                (nextDocument) => {
-                  setStudioTimetableGuideVisibility(
-                    nextDocument,
-                    !timetableGuide.visible,
-                  );
-                },
-                { history: false },
-              );
-            }}
-          >
-            <ImageIcon size={12} />
-            가이드
-          </button>
-          <input
-            aria-label="가이드 오퍼시티"
-            className="h-1 min-w-0 flex-1 cursor-pointer accent-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35"
-            disabled={!timetableGuideAsset}
-            max={100}
-            min={0}
-            type="range"
-            value={Math.round(timetableGuide.opacity * 100)}
-            onChange={(event) => {
-              const opacity = Number(event.currentTarget.value) / 100;
-              updateDocument(
-                (nextDocument) => {
-                  setStudioTimetableGuideOpacity(nextDocument, opacity);
-                },
-                { history: false },
-              );
-            }}
-          />
-          <span className="w-7 shrink-0 text-right text-[9px] font-bold tabular-nums text-[var(--fg3)]">
-            {Math.round(timetableGuide.opacity * 100)}%
-          </span>
-        </div>
       </div>
       <div className="template-studio-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
         <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
@@ -7106,6 +7065,114 @@ export function TemplateStudioClient({
               </section>
             ))}
           </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderCardsPresetsPanel = () => (
+    <div className="template-studio-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <div className="border-b border-[var(--border)] px-3 py-3">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
+          Cards Presets
+        </div>
+        <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
+          Add objects and reusable bundles
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5 px-3 py-3">
+        {(["group", "text", "flexibleText", "image"] as const).map(
+          (type) => (
+            <button
+              className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+              key={type}
+              title={`Add ${getNodeTypeLabel(type)}`}
+              type="button"
+              onClick={() => addNode(type)}
+            >
+              {type === "image" ? (
+                <ImageIcon size={17} />
+              ) : type === "group" ? (
+                <Layers3 size={17} />
+              ) : type === "flexibleText" ? (
+                <span>
+                  T<span className="align-super text-[8px]">a</span>
+                </span>
+              ) : (
+                <Type size={17} />
+              )}
+            </button>
+          ),
+        )}
+      </div>
+      <div className="grid gap-3 border-t border-[var(--border)] px-3 py-3">
+        {cardPresetGroups.length === 0 ? (
+          <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-xs font-semibold text-[var(--fg3)]">
+            No card presets yet.
+          </div>
+        ) : (
+          cardPresetGroups.map((group) => (
+            <section className="grid gap-1.5" key={group.title}>
+              <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
+                {group.title}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {group.presets.map(
+                  ({ definition, disabledReason, existingTargetId }) => {
+                    const canInsert =
+                      (isStudioCardContextObjectPreset(definition) ||
+                        isStudioCardStatusBackgroundPreset(definition) ||
+                        isStudioCardSelectInputBundlePreset(definition)) &&
+                      !disabledReason;
+
+                    return (
+                      <button
+                        className={cn(
+                          "flex h-9 min-w-0 items-center justify-center gap-1 rounded-[8px] border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-bold text-[var(--fg2)] transition",
+                          canInsert
+                            ? "hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                            : "cursor-not-allowed opacity-55",
+                        )}
+                        disabled={!canInsert}
+                        key={definition.id}
+                        title={
+                          disabledReason ??
+                          (existingTargetId
+                            ? `Select existing ${definition.label}`
+                            : `Add ${definition.label}`)
+                        }
+                        type="button"
+                        onClick={() => {
+                          if (isStudioCardContextObjectPreset(definition)) {
+                            addCardContextObject(definition);
+                            return;
+                          }
+
+                          if (
+                            isStudioCardStatusBackgroundPreset(definition)
+                          ) {
+                            addCardStatusBackgroundObject(definition);
+                            return;
+                          }
+
+                          if (
+                            isStudioCardSelectInputBundlePreset(definition)
+                          ) {
+                            addCardSelectInputBundle(definition);
+                          }
+                        }}
+                      >
+                        <span className="truncate">{definition.label}</span>
+                        {existingTargetId ? (
+                          <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-300" />
+                        ) : null}
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            </section>
+          ))
         )}
       </div>
     </div>
@@ -9648,51 +9715,17 @@ export function TemplateStudioClient({
       style={themeStyle}
     >
       <div className="z-10 flex h-12 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
-        <div className="flex min-w-[150px] items-center gap-2.5">
-          <div className="h-[26px] w-[26px] shrink-0 rounded-[7px] bg-[linear-gradient(135deg,#7cc7ff,#c9a8ff_55%,#ff9fce)]" />
-          <div className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-[13px] font-semibold text-[var(--fg)]">
-              Template Studio
-            </span>
-            <span className="text-[11px] text-[var(--fg3)]">▾</span>
-          </div>
-        </div>
-
-        <div className="hidden min-w-[260px] items-center gap-1.5 lg:flex">
-          <select
-            className="h-[30px] min-w-0 flex-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none transition focus:border-[var(--accent)]"
-            title="Database template"
-            value={remoteTemplateId ?? ""}
-            onChange={(event) => {
-              const nextTemplateId = event.currentTarget.value || null;
-              setRemoteTemplateId(nextTemplateId);
-              if (nextTemplateId) {
-                showShortcutStatus("Database template selected");
-              }
-            }}
-          >
-            <option value="">New / unsaved</option>
-            {remoteTemplates.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex min-w-0 shrink-0 items-center gap-1.5">
           <button
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={!remoteTemplateId || isRemoteSyncing}
-            title={
-              activeRemoteTemplate
-                ? `Load ${activeRemoteTemplate.name}`
-                : "Load database template"
-            }
+            className="flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            title="템플릿 목록으로"
             type="button"
-            onClick={() => {
-              void loadRemoteTemplate();
-            }}
+            onClick={() => router.push("/admin/template-studio")}
           >
-            <Cloud className="h-3.5 w-3.5" />
+            <ArrowLeft className="h-3.5 w-3.5" />
+            목록
           </button>
+          <div className="mx-0.5 h-[22px] w-px bg-[var(--border)]" />
           <button
             className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
             disabled={isRemoteSyncing}
@@ -9717,9 +9750,9 @@ export function TemplateStudioClient({
           </button>
         </div>
 
-        <div className="hidden flex-1 items-center justify-center gap-3.5 text-xs text-[var(--fg2)] md:flex">
+        <div className="hidden min-w-0 flex-1 items-center justify-center gap-3 text-xs text-[var(--fg2)] md:flex">
           <button
-            className="rounded-md px-1.5 py-1 transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+            className="shrink-0 rounded-md px-1.5 py-1 transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
             title="Open canvas settings"
             type="button"
             onClick={() => setSettingsOpen(true)}
@@ -9732,7 +9765,7 @@ export function TemplateStudioClient({
               {previewCanvasSize.height}
             </b>
           </button>
-          <div className="ml-1 flex h-[30px] items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+          <div className="flex h-[30px] shrink-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
             {[
               { mode: "cards" as const, label: "Cards" },
               { mode: "timetable" as const, label: "Timetable" },
@@ -9758,6 +9791,51 @@ export function TemplateStudioClient({
                 {label}
               </button>
             ))}
+          </div>
+          <div className="mx-0.5 h-[22px] w-px shrink-0 bg-[var(--border)]" />
+          <div className="flex min-w-0 max-w-[240px] flex-1 items-center gap-2">
+            <button
+              aria-pressed={Boolean(activeGuideAsset && activeGuide.visible)}
+              className={cn(
+                "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[10px] font-bold transition",
+                activeGuideAsset && activeGuide.visible
+                  ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--accent)]"
+                  : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]",
+              )}
+              title={
+                activeGuideAsset
+                  ? activeGuide.visible
+                    ? "가이드 숨기기"
+                    : "가이드 표시"
+                  : "설정에서 가이드 이미지 추가"
+              }
+              type="button"
+              onClick={() => {
+                if (!activeGuideAsset) {
+                  setSettingsOpen(true);
+                  return;
+                }
+                setActiveGuideVisibility(!activeGuide.visible);
+              }}
+            >
+              <ImageIcon size={12} />
+              가이드
+            </button>
+            <input
+              aria-label="가이드 오퍼시티"
+              className="h-1 min-w-0 flex-1 cursor-pointer accent-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35"
+              disabled={!activeGuideAsset}
+              max={100}
+              min={0}
+              type="range"
+              value={Math.round(activeGuide.opacity * 100)}
+              onChange={(event) => {
+                setActiveGuideOpacity(Number(event.currentTarget.value) / 100);
+              }}
+            />
+            <span className="w-7 shrink-0 text-right text-[9px] font-bold tabular-nums text-[var(--fg3)]">
+              {Math.round(activeGuide.opacity * 100)}%
+            </span>
           </div>
         </div>
 
@@ -9991,6 +10069,7 @@ export function TemplateStudioClient({
             {(activeWorkspaceMode === "cards"
               ? [
                   { mode: "layers" as const, label: "Layers", Icon: Layers3 },
+                  { mode: "presets" as const, label: "Presets", Icon: Plus },
                   {
                     mode: "inputs" as const,
                     label: "Inputs",
@@ -10042,181 +10121,6 @@ export function TemplateStudioClient({
                   <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
                     {cardAuthoringRootNodeIds.length} placed objects
                   </div>
-                  <div className="mt-2 flex min-w-0 items-center gap-2">
-                    <button
-                      aria-pressed={Boolean(
-                        cardsGuideAsset && cardsGuide.visible,
-                      )}
-                      className={cn(
-                        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[10px] font-bold transition",
-                        cardsGuideAsset && cardsGuide.visible
-                          ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--accent)]"
-                          : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]",
-                      )}
-                      title={
-                        cardsGuideAsset
-                          ? cardsGuide.visible
-                            ? "가이드 숨기기"
-                            : "가이드 표시"
-                          : "설정에서 가이드 이미지 추가"
-                      }
-                      type="button"
-                      onClick={() => {
-                        if (!cardsGuideAsset) {
-                          setSettingsOpen(true);
-                          return;
-                        }
-
-                        updateDocument(
-                          (nextDocument) => {
-                            setStudioCardsGuideVisibility(
-                              nextDocument,
-                              !cardsGuide.visible,
-                            );
-                          },
-                          { history: false },
-                        );
-                      }}
-                    >
-                      <ImageIcon size={12} />
-                      가이드
-                    </button>
-                    <input
-                      aria-label="카드 가이드 오퍼시티"
-                      className="h-1 min-w-0 flex-1 cursor-pointer accent-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35"
-                      disabled={!cardsGuideAsset}
-                      max={100}
-                      min={0}
-                      type="range"
-                      value={Math.round(cardsGuide.opacity * 100)}
-                      onChange={(event) => {
-                        const opacity =
-                          Number(event.currentTarget.value) / 100;
-                        updateDocument(
-                          (nextDocument) => {
-                            setStudioCardsGuideOpacity(nextDocument, opacity);
-                          },
-                          { history: false },
-                        );
-                      }}
-                    />
-                    <span className="w-7 shrink-0 text-right text-[9px] font-bold tabular-nums text-[var(--fg3)]">
-                      {Math.round(cardsGuide.opacity * 100)}%
-                    </span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5 px-3 py-3">
-                  {(["group", "text", "flexibleText", "image"] as const).map(
-                    (type) => (
-                      <button
-                        className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-                        key={type}
-                        title={`Add ${getNodeTypeLabel(type)}`}
-                        type="button"
-                        onClick={() => addNode(type)}
-                      >
-                        {type === "image" ? (
-                          <ImageIcon size={17} />
-                        ) : type === "group" ? (
-                          <Layers3 size={17} />
-                        ) : type === "flexibleText" ? (
-                          <span>
-                            T<span className="align-super text-[8px]">a</span>
-                          </span>
-                        ) : (
-                          <Type size={17} />
-                        )}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <div className="grid gap-3 border-t border-[var(--border)] px-3 py-3">
-                  {cardPresetGroups.length === 0 ? (
-                    <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-xs font-semibold text-[var(--fg3)]">
-                      No card presets yet.
-                    </div>
-                  ) : (
-                    cardPresetGroups.map((group) => (
-                      <section className="grid gap-1.5" key={group.title}>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
-                          {group.title}
-                        </div>
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {group.presets.map(
-                            ({
-                              definition,
-                              disabledReason,
-                              existingTargetId,
-                            }) => {
-                              const canInsert =
-                                (isStudioCardContextObjectPreset(definition) ||
-                                  isStudioCardStatusBackgroundPreset(
-                                    definition,
-                                  ) ||
-                                  isStudioCardSelectInputBundlePreset(
-                                    definition,
-                                  )) &&
-                                !disabledReason;
-
-                              return (
-                                <button
-                                  className={cn(
-                                    "flex h-9 min-w-0 items-center justify-center gap-1 rounded-[8px] border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-bold text-[var(--fg2)] transition",
-                                    canInsert
-                                      ? "hover:border-[var(--accent)] hover:text-[var(--fg)]"
-                                      : "cursor-not-allowed opacity-55",
-                                  )}
-                                  disabled={!canInsert}
-                                  key={definition.id}
-                                  title={
-                                    disabledReason ??
-                                    (existingTargetId
-                                      ? `Select existing ${definition.label}`
-                                      : `Add ${definition.label}`)
-                                  }
-                                  type="button"
-                                  onClick={() => {
-                                    if (
-                                      isStudioCardContextObjectPreset(
-                                        definition,
-                                      )
-                                    ) {
-                                      addCardContextObject(definition);
-                                      return;
-                                    }
-
-                                    if (
-                                      isStudioCardStatusBackgroundPreset(
-                                        definition,
-                                      )
-                                    ) {
-                                      addCardStatusBackgroundObject(definition);
-                                      return;
-                                    }
-
-                                    if (
-                                      isStudioCardSelectInputBundlePreset(
-                                        definition,
-                                      )
-                                    ) {
-                                      addCardSelectInputBundle(definition);
-                                    }
-                                  }}
-                                >
-                                  <span className="truncate">
-                                    {definition.label}
-                                  </span>
-                                  {existingTargetId ? (
-                                    <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-300" />
-                                  ) : null}
-                                </button>
-                              );
-                            },
-                          )}
-                        </div>
-                      </section>
-                    ))
-                  )}
                 </div>
                 <div className="template-studio-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
                   <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
@@ -10230,7 +10134,9 @@ export function TemplateStudioClient({
           ) : activePanelMode === "presets" ? (
             activeWorkspaceMode === "timetable" ? (
               renderTimetablePresetsPanel()
-            ) : null
+            ) : (
+              renderCardsPresetsPanel()
+            )
           ) : activePanelMode === "inputs" ? (
             <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
               <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
