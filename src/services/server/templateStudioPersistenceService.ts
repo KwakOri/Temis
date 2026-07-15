@@ -438,12 +438,15 @@ export const createTemplateStudioTemplate = async (
 ): Promise<TemplateStudioTemplateRecord> => {
   const supabase = getClient(client);
   const { data, error } = await supabase
-    .from<TemplateStudioTemplateRow>("template_studio_templates")
+    .from<TemplateStudioTemplateRow>("templates")
     .insert({
       name: input.name,
       description: input.description ?? "",
+      template_engine: "studio",
       status: input.status ?? "draft",
       created_by: input.createdBy ?? null,
+      is_public: false,
+      is_shop_visible: false,
     })
     .select(TEMPLATE_STUDIO_TEMPLATE_COLUMNS)
     .single();
@@ -464,9 +467,10 @@ export const getTemplateStudioTemplate = async (
 ): Promise<TemplateStudioTemplateRecord | null> => {
   const supabase = getClient(client);
   const { data, error } = await supabase
-    .from<TemplateStudioTemplateRow>("template_studio_templates")
+    .from<TemplateStudioTemplateRow>("templates")
     .select(TEMPLATE_STUDIO_TEMPLATE_COLUMNS)
     .eq("id", templateId)
+    .eq("template_engine", "studio")
     .maybeSingle();
 
   throwOnError("Failed to fetch Template Studio template", error);
@@ -478,8 +482,9 @@ export const listTemplateStudioTemplates = async (
 ): Promise<TemplateStudioTemplateRecord[]> => {
   const supabase = getClient(client);
   const { data, error } = await supabase
-    .from<TemplateStudioTemplateRow[]>("template_studio_templates")
+    .from<TemplateStudioTemplateRow[]>("templates")
     .select(TEMPLATE_STUDIO_TEMPLATE_COLUMNS)
+    .eq("template_engine", "studio")
     .order("updated_at", { ascending: false });
 
   throwOnError("Failed to list Template Studio templates", error);
@@ -492,9 +497,10 @@ export const deleteTemplateStudioTemplate = async (
 ): Promise<void> => {
   const supabase = getClient(client);
   const { error } = await supabase
-    .from("template_studio_templates")
+    .from("templates")
     .delete()
-    .eq("id", templateId);
+    .eq("id", templateId)
+    .eq("template_engine", "studio");
 
   throwOnError("Failed to delete Template Studio template", error);
 };

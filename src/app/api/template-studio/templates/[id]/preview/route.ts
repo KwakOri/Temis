@@ -1,3 +1,4 @@
+import { requireTemplateStudioAdminActor } from "@/app/api/admin/template-studio/_utils";
 import {
   getTemplateStudioCurrentDocument,
   getTemplateStudioTemplate,
@@ -8,9 +9,14 @@ const TEMPLATE_STUDIO_TEMPLATE_ID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const actor = await requireTemplateStudioAdminActor(request);
+  if (!actor.ok) {
+    return actor.response;
+  }
+
   try {
     const { id } = await params;
     if (!TEMPLATE_STUDIO_TEMPLATE_ID_REGEX.test(id)) {

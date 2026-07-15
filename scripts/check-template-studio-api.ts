@@ -125,6 +125,7 @@ const main = async () => {
     assetUploadRoutes,
     draftRoutes,
     publishRoutes,
+    publishedPreviewRoutes,
   ] = await Promise.all([
     import("../src/app/api/admin/template-studio/templates/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/route"),
@@ -133,6 +134,7 @@ const main = async () => {
     ),
     import("../src/app/api/admin/template-studio/templates/[id]/draft/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/publish/route"),
+    import("../src/app/api/template-studio/templates/[id]/preview/route"),
   ]);
 
   const token = await signJWT(
@@ -140,6 +142,14 @@ const main = async () => {
       userId: LOCAL_ADMIN_USER_ID,
       email: LOCAL_ADMIN_EMAIL,
       role: "admin",
+    },
+    "1h",
+  );
+  const regularUserToken = await signJWT(
+    {
+      userId: 9000002,
+      email: "user@temis.com",
+      role: "user",
     },
     "1h",
   );
@@ -328,6 +338,50 @@ const main = async () => {
     assert(
       publishResponse.document.publishedRevisionNo === 1,
       "Published document should point at revision 1.",
+    );
+
+    const publishedPreviewUrl = `${routeBaseUrl}/api/template-studio/templates/${templateId}/preview`;
+    const unauthenticatedPreviewResponse = await publishedPreviewRoutes.GET(
+      new NextRequest(publishedPreviewUrl),
+      context,
+    );
+    assert(
+      unauthenticatedPreviewResponse.status === 401,
+      "Published preview should reject unauthenticated requests.",
+    );
+
+    const regularUserPreviewResponse = await publishedPreviewRoutes.GET(
+      createRequest(publishedPreviewUrl, regularUserToken),
+      context,
+    );
+    assert(
+      regularUserPreviewResponse.status === 403,
+      "Published preview should reject non-admin requests.",
+    );
+
+    const adminPreviewResponse = await callRoute<{
+      success: boolean;
+      templateId: string;
+      source: string;
+      publishedRevisionNo: number | null;
+    }>(
+      "load admin-only published preview",
+      publishedPreviewRoutes.GET,
+      createRequest(publishedPreviewUrl, token),
+      context,
+    );
+    assert(adminPreviewResponse.success, "Published preview response was not success.");
+    assert(
+      adminPreviewResponse.templateId === templateId,
+      "Published preview template id mismatch.",
+    );
+    assert(
+      adminPreviewResponse.source === "published",
+      "Published preview source should be published.",
+    );
+    assert(
+      adminPreviewResponse.publishedRevisionNo === 1,
+      "Published preview should point at revision 1.",
     );
 
     const publishedDetailResponse = await callRoute<{

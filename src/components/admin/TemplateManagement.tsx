@@ -304,6 +304,7 @@ export default function TemplateManagement() {
       templates: {
         id: selectedTemplate.id,
         created_at: selectedTemplate.created_at,
+        created_by: selectedTemplate.created_by,
         updated_at: selectedTemplate.updated_at,
         name: productFormData.title || selectedTemplate.name,
         description: selectedTemplate.description,
@@ -311,6 +312,8 @@ export default function TemplateManagement() {
         thumbnail_url: selectedTemplate.thumbnail_url,
         is_public: selectedTemplate.is_public,
         is_shop_visible: selectedTemplate.is_shop_visible,
+        status: selectedTemplate.status,
+        template_engine: selectedTemplate.template_engine,
       },
       template_plans: previewPlans,
       template_artists: previewTemplateArtists,

@@ -1372,38 +1372,55 @@ export type Database = {
       templates: {
         Row: {
           created_at: string
+          created_by: number | null
           description: string
           detailed_description: string | null
           id: string
           is_public: boolean
           is_shop_visible: boolean
           name: string
+          status: string
+          template_engine: string
           thumbnail_url: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          created_by?: number | null
           description?: string
           detailed_description?: string | null
           id?: string
           is_public?: boolean
           is_shop_visible?: boolean
           name: string
+          status?: string
+          template_engine?: string
           thumbnail_url?: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          created_by?: number | null
           description?: string
           detailed_description?: string | null
           id?: string
           is_public?: boolean
           is_shop_visible?: boolean
           name?: string
+          status?: string
+          template_engine?: string
           thumbnail_url?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       thumbnails: {
         Row: {

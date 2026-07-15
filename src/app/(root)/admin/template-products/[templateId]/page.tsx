@@ -469,6 +469,7 @@ function TemplateProductEditorContent() {
       templates: {
         id: template.id,
         created_at: template.created_at,
+        created_by: template.created_by,
         updated_at: template.updated_at,
         name: productFormData.templateName || template.name,
         description: productFormData.templateDescription,
@@ -476,6 +477,8 @@ function TemplateProductEditorContent() {
         thumbnail_url: template.thumbnail_url,
         is_public: template.is_public,
         is_shop_visible: template.is_shop_visible,
+        status: template.status,
+        template_engine: template.template_engine,
       },
       template_plans: previewPlans,
       template_artists: previewTemplateArtists,
