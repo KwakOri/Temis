@@ -45,6 +45,11 @@ export const useTemplateHubTemplates = (params?: TemplateHubListParams) =>
     queryFn: () => AdminTemplateHubService.listTemplates(params),
     placeholderData: keepPreviousData,
     staleTime: 60 * 1000,
+    // 공용 상품 편집 페이지는 Hub가 아니라 기존 /admin/templates로 돌아가므로
+    // (Beta 단계의 알려진 제약), 상품을 편집하고 Hub로 다시 들어왔을 때도
+    // staleTime 안에서 오래된 상품 상태를 보여주지 않도록 매 mount마다
+    // 다시 조회한다.
+    refetchOnMount: "always",
   });
 
 export const useUpdateTemplateSalesType = () => {

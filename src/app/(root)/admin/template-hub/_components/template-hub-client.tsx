@@ -8,10 +8,12 @@ import {
 } from "@/components/admin/template-hub/template-hub-filters";
 import { TemplateHubList } from "@/components/admin/template-hub/template-hub-list";
 import { TemplateHubPagination } from "@/components/admin/template-hub/template-hub-pagination";
+import { TemplateHubRowActions } from "@/components/admin/template-hub/template-hub-row-actions";
 import { useTemplateHubTemplates } from "@/hooks/query/useTemplateHub";
 import { cn } from "@/lib/utils";
 import type { TemplateHubListParams } from "@/types/template-hub";
-import { LayoutList, RefreshCw } from "lucide-react";
+import { LayoutList, Plus, RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 20;
@@ -98,6 +100,15 @@ export function TemplateHubClient() {
           />
           새로고침
         </button>
+        {/* 신규 제작을 Studio로 단일화한다는 제품 결정이 확정되기 전까지
+            기존 TemplateManagement.tsx의 Legacy 생성 기능은 그대로 둔다. */}
+        <Link
+          className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 py-2 text-sm font-medium text-[#F4FDFF] transition-colors hover:bg-secondary sm:px-4"
+          href="/admin/template-studio/create"
+        >
+          <Plus className="h-4 w-4" />
+          새 템플릿
+        </Link>
       </AdminTabHeader>
 
       <TemplateHubFilters
@@ -121,6 +132,7 @@ export function TemplateHubClient() {
         // 최초 로드에만 skeleton을 보여준다.
         isLoading={templatesQuery.isLoading}
         items={data?.items ?? []}
+        renderActions={(item) => <TemplateHubRowActions item={item} />}
         onRetry={() => void templatesQuery.refetch()}
       />
 

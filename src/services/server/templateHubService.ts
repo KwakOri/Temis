@@ -731,3 +731,111 @@ export const getTemplateHubItem = async (
 
   return items[0] ?? null;
 };
+
+// ---------------------------------------------------------------------------
+// mutation (04단계)
+//
+// 여기서는 새 판정 로직을 만들지 않는다. 03단계의
+// evaluateTemplateSalesTypeTransition / evaluateTemplateSaleVisibilityChange를
+// 그대로 재사용하고, 서버가 판정한 결과만 canonical 테이블에 반영한다.
+// ---------------------------------------------------------------------------
+
+export class TemplateHubNotFoundError extends Error {
+  constructor(message = "템플릿을 찾을 수 없습니다.") {
+    super(message);
+    this.name = "TemplateHubNotFoundError";
+  }
+}
+
+export class TemplateHubSaleMustStopFirstError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TemplateHubSaleMustStopFirstError";
+  }
+}
+
+export class TemplateHubSaleNotReadyError extends Error {
+  readonly reasons: TemplateSaleBlockReason[];
+
+  constructor(reasons: TemplateSaleBlockReason[]) {
+    super("판매를 시작하려면 먼저 아래 조건을 해결해 주세요.");
+    this.name = "TemplateHubSaleNotReadyError";
+    this.reasons = reasons;
+  }
+}
+
+/**
+ * 일반 판매/맞춤 제작 분류를 변경한다.
+ *
+ * `evaluateTemplateSalesTypeTransition`이 거부하면(판매 중 맞춤 제작 전환)
+ * DB를 건드리지 않고 바로 예외를 던진다.
+ */
+export const updateTemplateSalesType = async (
+  templateId: string,
+  salesType: TemplateSalesType
+): Promise<TemplateHubItem> => {
+  const current = await getTemplateHubItem(templateId);
+  if (!current) throw new TemplateHubNotFoundError();
+
+  const decision = evaluateTemplateSalesTypeTransition({
+    nextSalesType: salesType,
+    isShopVisible: current.isShopVisible,
+  });
+
+  if (!decision.allowed) {
+    throw new TemplateHubSaleMustStopFirstError(decision.message);
+  }
+
+  const { error } = await supabase
+    .from("templates")
+    .update({ is_public: salesType === "general" })
+    .eq("id", templateId);
+
+  if (error) throw error;
+
+  const updated = await getTemplateHubItem(templateId);
+  if (!updated) throw new TemplateHubNotFoundError();
+  return updated;
+};
+
+/**
+ * 판매 시작·중지.
+ *
+ * 판매 중지는 readiness와 무관하게 항상 허용한다. 판매 시작은
+ * `evaluateTemplateSaleVisibilityChange`가 현재 readiness를 재검증한 뒤에만
+ * 허용한다 — 목록 조회 시점과 mutation 시점 사이에 조건이 바뀌었을 수 있으므로
+ * 클라이언트가 보낸 상태를 신뢰하지 않고 서버에서 다시 계산한다.
+ */
+export const updateTemplateSaleVisibility = async (
+  templateId: string,
+  visible: boolean
+): Promise<TemplateHubItem> => {
+  const current = await getTemplateHubItem(templateId);
+  if (!current) throw new TemplateHubNotFoundError();
+
+  const decision = evaluateTemplateSaleVisibilityChange({
+    requestedVisible: visible,
+    readiness: current.saleReadiness,
+  });
+
+  if (!decision.allowed) {
+    throw new TemplateHubSaleNotReadyError(decision.reasons);
+  }
+
+  // 상품이 없는 템플릿은 shop_templates 행 자체가 없다. visible=true는 이미
+  // readiness(PRODUCT_MISSING)에서 걸러지므로, 여기 도달했다면 상품이 없는
+  // 상태에서 visible=false를 요청한 경우뿐이다 — 반영할 대상이 없으므로
+  // 아무 것도 갱신하지 않고 통과시킨다(이미 false이므로 결과는 동일하다).
+  if (current.shopProductId) {
+    const { error } = await supabase
+      .from("shop_templates")
+      .update({ is_shop_visible: visible })
+      .eq("id", current.shopProductId);
+
+    if (error) throw error;
+  }
+
+  const updated = await getTemplateHubItem(templateId);
+  if (!updated) throw new TemplateHubNotFoundError();
+  return updated;
+};
