@@ -90,6 +90,14 @@ export type TemplateHubListParams = {
   publicationStatus?: TemplatePublicationStatus;
   salesType?: TemplateSalesType;
   saleStatus?: TemplateSaleStatus;
+  /**
+   * 상품 구성 여부 필터.
+   *
+   * `saleStatus="unconfigured"`와 `hasProduct=false`는 결과가 같지만(상품이
+   * 없으면 판매 중일 수도, 판매 준비될 수도 없다), "구성됨"은 단일 saleStatus
+   * 값으로 표현할 수 없어 별도 파라미터로 둔다.
+   */
+  hasProduct?: boolean;
 };
 
 export type TemplateHubListResponse = {

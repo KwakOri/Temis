@@ -172,6 +172,21 @@ const parseEnumParam = <T extends string>(
   return raw as T;
 };
 
+const parseBooleanParam = (
+  raw: string | null,
+  name: string
+): boolean | undefined => {
+  if (raw === null || raw.trim() === "") return undefined;
+
+  if (raw !== "true" && raw !== "false") {
+    throw new TemplateHubParamError(
+      `${name} 파라미터는 true 또는 false여야 합니다.`
+    );
+  }
+
+  return raw === "true";
+};
+
 /** query string을 목록 파라미터로 정규화한다. 잘못된 값은 400으로 이어진다. */
 export const parseTemplateHubListParams = (
   searchParams: URLSearchParams
@@ -211,6 +226,7 @@ export const parseTemplateHubListParams = (
       "saleStatus",
       TEMPLATE_SALE_STATUSES
     ),
+    hasProduct: parseBooleanParam(searchParams.get("hasProduct"), "hasProduct"),
   };
 };
 
@@ -446,6 +462,7 @@ const toHubItem = (
 type FilterableQuery<T> = {
   or(filter: string): T;
   eq(column: string, value: string | boolean): T;
+  is(column: string, value: null): T;
 };
 
 const applySqlFilters = <T extends FilterableQuery<T>>(
@@ -469,9 +486,21 @@ const applySqlFilters = <T extends FilterableQuery<T>>(
   if (params.saleStatus === "selling") {
     next = next.eq("shop_templates.is_shop_visible", true);
   }
+  // `hasProduct=true`는 select의 inner join이 담당한다. `false`는 연결된
+  // shop_templates가 없는 템플릿을 고르는 embedded null 필터를 사용한다.
+  if (params.hasProduct === false) {
+    next = next.is("shop_templates", null);
+  }
 
   return next;
 };
+
+/**
+ * `shop_templates` 컬럼을 조건으로 쓰거나 상품 보유를 요구하는 필터는 해당
+ * 관계를 inner join으로 바꿔야 상품이 없는 템플릿이 제외된다.
+ */
+const needsShopTemplateInnerJoin = (params: TemplateHubListParams): boolean =>
+  params.saleStatus === "selling" || params.hasProduct === true;
 
 const countWithSearch = async (
   search: string | undefined,
@@ -532,12 +561,8 @@ const fetchCounts = async (
 const needsReadinessScan = (saleStatus?: TemplateSaleStatus): boolean =>
   saleStatus !== undefined && saleStatus !== "selling";
 
-/**
- * `selling` 필터는 `shop_templates`의 컬럼을 조건으로 쓰므로 해당 관계를
- * inner join으로 바꿔야 상품이 없는 템플릿이 제외된다.
- */
-const buildSelect = (saleStatus?: TemplateSaleStatus): string =>
-  saleStatus === "selling"
+const buildSelect = (params: TemplateHubListParams): string =>
+  needsShopTemplateInnerJoin(params)
     ? TEMPLATE_HUB_SELECT.replace("shop_templates (", "shop_templates!inner (")
     : TEMPLATE_HUB_SELECT;
 
@@ -546,7 +571,7 @@ const fetchRows = async (
   range: { from: number; to: number } | null
 ): Promise<TemplateHubRow[]> => {
   let query = applySqlFilters(
-    supabase.from("templates").select(buildSelect(params.saleStatus)),
+    supabase.from("templates").select(buildSelect(params)),
     params
   );
 
@@ -566,8 +591,9 @@ const fetchRows = async (
 };
 
 const countRows = async (params: TemplateHubListParams): Promise<number> => {
-  const select =
-    params.saleStatus === "selling" ? "id, shop_templates!inner(id)" : "id";
+  const select = needsShopTemplateInnerJoin(params)
+    ? "id, shop_templates!inner(id)"
+    : "id, shop_templates(id)";
 
   const { count, error } = await applySqlFilters(
     supabase.from("templates").select(select, { count: "exact", head: true }),

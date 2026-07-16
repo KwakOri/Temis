@@ -78,6 +78,8 @@ export class AdminTemplateHubService {
       query.set("publicationStatus", params.publicationStatus);
     if (params?.salesType) query.set("salesType", params.salesType);
     if (params?.saleStatus) query.set("saleStatus", params.saleStatus);
+    if (params?.hasProduct !== undefined)
+      query.set("hasProduct", String(params.hasProduct));
 
     const suffix = query.toString() ? `?${query.toString()}` : "";
     const response = await fetch(`${this.baseUrl}/templates${suffix}`);
