@@ -1,7 +1,7 @@
 # 04. 비활성 미리보기 링크의 키보드 접근 차단
 
 - 우선순위: P2
-- 상태: 미수정
+- 상태: 완료 (2026-07-16)
 - 영향 영역: Studio draft·archived 행의 미리보기 액션
 
 ## 문제
@@ -52,3 +52,34 @@ Studio 템플릿이 `published`가 아니면 미리보기 링크에 다음 처�
 - DOM에서 비활성 요소에 `href`가 없음을 확인한다.
 - axe 등 접근성 검사 도구가 연결된 환경에서는 링크·버튼 규칙 위반이 없는지
   추가 확인한다.
+
+## 완료 근거 (2026-07-16)
+
+- `src/components/admin/template-hub/template-hub-row-actions.tsx`와
+  `src/app/(root)/admin/template-studio/_components/template-studio-admin-list-client.tsx`
+  두 곳의 미리보기 액션을 상태에 따라 서로 다른 요소로 분기하도록 고쳤다.
+  - published: 기존과 동일하게 `href`가 있는 Next.js `Link`.
+  - draft/archived: `href`가 없는 `<span>`. `pointer-events-none` +
+    `aria-disabled` 조합을 제거하고, 이미 코드베이스에 있던 "상품 등록 차단"
+    비활성 `<span>` 패턴(`template-hub-row-actions.tsx`의 `productLinkBlocked`)과
+    동일한 스타일·구조로 맞췄다. `title`로 비활성 이유("게시된 템플릿만
+    미리볼 수 있습니다.")를 노출한다.
+- 로컬 dev 서버(`npm run dev`, 별도 포트로 임시 기동)에서 draft 1건 +
+  published 1건 Studio 템플릿을 만들어 Playwright로 실제 브라우저 검증을
+  했다.
+  - DOM 확인: published는 `<a href="...">`(tabIndex 0), draft는
+    `<span>`(href 없음, tabIndex -1, title 있음) — `/admin/template-hub`와
+    `/admin/template-studio` 양쪽 모두, 데스크톱 테이블·모바일 카드 마크업
+    모두에서 동일하게 확인.
+  - 키보드 Tab 순회: draft 행에서는 "수정" 다음 바로 "삭제"로 포커스가
+    넘어가 "미리보기"가 tab 순서에서 완전히 빠짐을 확인. published 행에서는
+    "미리보기"가 정상적으로 포커스를 받고 올바른 `href`를 가짐을 확인.
+  - 마우스 강제 클릭(`force: true`)으로 draft 행의 비활성 `span`을 클릭해도
+    URL이 바뀌지 않음을 확인(애초에 `href`도 클릭 핸들러도 없어 Enter/Space
+    를 눌러도 동일하게 아무 일도 일어나지 않는다).
+  - 테스트에 사용한 synthetic 템플릿과 임시 dev 서버는 검증 후 모두
+    정리했다.
+- `npx tsc --noEmit --pretty false --incremental false`, 변경 파일 ESLint
+  모두 통과. 기존 `npm run check:template-hub:api` 회귀(30건)도 그대로
+  통과해 다른 Hub 동작에 영향이 없음을 확인했다.
+- 기존 관리 탭 코드(그 외 부분)와 원격 Supabase는 변경하지 않았다.

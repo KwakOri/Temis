@@ -70,6 +70,7 @@ export const TemplateHubRowActions = ({ item }: { item: TemplateHubItem }) => {
 
   const previewDisabled =
     item.templateEngine === "studio" && item.publicationStatus !== "published";
+  const previewDisabledReason = "게시된 템플릿만 미리볼 수 있습니다.";
   const readinessTooltip = item.saleReadiness.reasons
     .map((reason) => reason.message)
     .join("\n");
@@ -89,19 +90,23 @@ export const TemplateHubRowActions = ({ item }: { item: TemplateHubItem }) => {
             <Edit className="h-3.5 w-3.5" />
             수정
           </Link>
-          <Link
-            aria-disabled={previewDisabled}
-            className={cn(
-              actionButton,
-              previewDisabled
-                ? "pointer-events-none bg-gray-50 text-gray-400"
-                : "bg-[#F5F0ED] text-[#2d2d2d] hover:bg-[#EDE5E0]"
-            )}
-            href={`/admin/template-studio/${item.id}/preview`}
-          >
-            <Eye className="h-3.5 w-3.5" />
-            미리보기
-          </Link>
+          {previewDisabled ? (
+            <span
+              className={cn(actionButton, "cursor-not-allowed bg-gray-50 text-gray-400")}
+              title={previewDisabledReason}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              미리보기
+            </span>
+          ) : (
+            <Link
+              className={cn(actionButton, "bg-[#F5F0ED] text-[#2d2d2d] hover:bg-[#EDE5E0]")}
+              href={`/admin/template-studio/${item.id}/preview`}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              미리보기
+            </Link>
+          )}
         </>
       ) : (
         <Link

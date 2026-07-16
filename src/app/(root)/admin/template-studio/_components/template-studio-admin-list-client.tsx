@@ -78,19 +78,23 @@ const RowActions = ({
       <Edit className="h-3.5 w-3.5" />
       수정
     </Link>
-    <Link
-      aria-disabled={template.status !== "published"}
-      className={cn(
-        "inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors",
-        template.status === "published"
-          ? "bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
-          : "pointer-events-none bg-gray-50 text-gray-400 border border-gray-100",
-      )}
-      href={`/admin/template-studio/${template.id}/preview`}
-    >
-      <Eye className="h-3.5 w-3.5" />
-      미리보기
-    </Link>
+    {template.status === "published" ? (
+      <Link
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
+        href={`/admin/template-studio/${template.id}/preview`}
+      >
+        <Eye className="h-3.5 w-3.5" />
+        미리보기
+      </Link>
+    ) : (
+      <span
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium cursor-not-allowed bg-gray-50 text-gray-400 border border-gray-100"
+        title="게시된 템플릿만 미리볼 수 있습니다."
+      >
+        <Eye className="h-3.5 w-3.5" />
+        미리보기
+      </span>
+    )}
     <Link
       className="inline-flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
       href={`/admin/template-studio/${template.id}/edit`}
