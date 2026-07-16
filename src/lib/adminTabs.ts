@@ -6,6 +6,7 @@ export type AdminTabId =
   | "settlements"
   | "templates"
   | "templateStudio"
+  | "templateHub"
   | "artists"
   | "thumbnails"
   | "portfolios"
@@ -26,6 +27,7 @@ export const ADMIN_TAB_SEGMENT_BY_ID: Record<AdminTabId, string> = {
   settlements: "settlements",
   templates: "templates",
   templateStudio: "template-studio",
+  templateHub: "template-hub",
   artists: "artists",
   thumbnails: "thumbnails",
   portfolios: "portfolios",
