@@ -1,81 +1,158 @@
-# Template Studio 공개 템플릿 판매 흐름 점검 및 로드맵
+# Template Studio 일반 판매 흐름 점검 및 로드맵
 
 최종 수정: 2026-07-16
 
+> 이 폴더는 조사·의사결정 기록이다. 실제 구현 순서와 단계별 완료 기준은
+> [`../template-hub-development/`](../template-hub-development/README.md)을
+> 단일 개발 기준으로 사용한다.
+
 ## 배경
 
-기존 템플릿 시스템의 절차:
+템플릿 운영에는 다음 세 흐름이 분리되어 있다.
 
-**공개 템플릿**
-1. 템플릿 메타데이터 생성
-2. 템플릿 내용 편집 (기존에는 코드에서 직접 진행)
-3. 상점 데이터 생성 및 업로드
-4. 판매 개시
+1. **콘텐츠 제작·게시**: `templates.status` (`draft` → `published`)
+2. **판매 상품 구성**: `templates.is_public`, `shop_templates`,
+   `template_plans`, 작가·로열티 연결
+3. **실제 상점 노출**: `shop_templates.is_shop_visible`
 
-**비공개 템플릿**
-1~2번은 동일
-3. 주문자 본인에게 해당 템플릿의 권한 부여
+`templates.is_public`은 공개 접근 여부가 아니라 **일반 판매 상품인지 개인 맞춤
+상품인지 나타내는 상품 분류**다. 실제 이용 권한은 `template_access`와 작가
+연결로 판단한다. 관리자 UI에서도 혼동을 피하기 위해 "공개/비공개"보다
+"일반 판매/맞춤 제작" 표기를 권장한다.
 
-새 관리자 화면 `Template Studio`(`/admin/template-studio`)에서 위 절차를
-그대로 재현할 수 있는지 점검했다. 결론: **비공개 템플릿 흐름은 완전히
-재현 가능하지만, 공개 템플릿의 3~4번은 API·UI 모두 존재하되 전부 레거시
-"Templates" 관리 탭에만 붙어 있고 Template Studio 자체에는 연결되어 있지
-않다.**
+현재 관리자 화면에는 기존 "템플릿 관리" 탭과 `Template Studio` 탭이 함께
+존재한다. 개발 중 `dev` 브랜치를 계속 병합할 예정이므로, 두 기존 탭을 직접
+통합하거나 개편하지 않고 **별도의 신규 통합 탭을 병행 구축**한다.
 
-## API 준비 상태
+- 작업명: **템플릿 통합 관리 (Beta)**
+- 탭 id(가칭): `templateHub`
+- URL(가칭): `/admin/template-hub`
+- 상세 방향: [`admin-consolidation-direction.md`](./admin-consolidation-direction.md)
 
-| 단계 | 상태 | 위치 |
+## 현재 기능 준비 상태
+
+| 단계 | 상태 | 현재 구현 |
 | --- | --- | --- |
-| 1. 메타데이터 생성 | 구현됨 | `POST /api/admin/template-studio/templates` → `createTemplateStudioTemplate()`(`src/services/server/templateStudioPersistenceService.ts:475`). `templates` 테이블에 `template_engine: "studio"`, `status: "draft"`, **`is_public: false` 하드코딩**으로 insert |
-| 2. 내용 편집 | 구현됨 | draft CRUD: `.../template-studio/templates/[id]/draft`. Studio 자체 "publish": `.../[id]/publish` → RPC `publish_template_studio_document`(마이그레이션 `20260715010000_add_template_engine_and_status.sql:140`) — **`status`만 `published`로 바꿀 뿐 `is_public`은 건드리지 않음** |
-| 3. 상점 데이터 생성/업로드 | 구현됨, Template Studio 밖에 위치 | `/api/admin/shop-templates`, `/api/admin/template-products`, `/api/admin/template-plans` (레거시 관리 API). `templates.is_public === true`인 것만 대상으로 하는 gate 있음(`src/app/api/admin/shop-templates/route.ts:39-50`). 테이블이 통합되어 있어 Studio 템플릿도 이론상 처리 가능하나, Template Studio API에는 이 흐름으로 이어주는 엔드포인트가 없음 |
-| 4. 판매 개시(`is_public` 토글) | 구현됨, 완전히 별개의 엔드포인트 | `PUT /api/admin/templates/[id]`(`src/app/api/admin/templates/[id]/route.ts:93-101`, `is_shop_visible`도 함께 처리). Studio의 publish(2번)와 무관하며 둘을 잇는 API 없음 |
-| 5. 비공개 템플릿 권한 부여 | 완전 구현됨 | `/api/admin/template-access` → `TemplateAccessService.grantAccess`(`src/lib/templates.ts`), grant 이메일 발송까지 포함. `templates` 통합 스키마 덕분에 Studio 템플릿에도 동일하게 동작 |
+| Studio 메타데이터 생성 | 구현됨 | `POST /api/admin/template-studio/templates`. `template_engine="studio"`, `status="draft"`, `is_public=false`로 생성 |
+| Studio 내용 편집·게시 | 구현됨 | draft CRUD와 `publish_template_studio_document`. 게시 시 `status`만 `published`로 변경 |
+| 일반 판매 상품 분류 | API 있음, Studio UI 없음 | `PATCH /api/admin/templates/[id]`의 `is_public`. Studio 생성값이 `false`이므로 상품 등록 전에 별도 전환 필요 |
+| 상점 상품·가격·작가·로열티 구성 | 구현됨, 공용 독립 페이지 | `/admin/template-products/[templateId]`. 실제 저장은 `/api/admin/shop-templates`, `/api/admin/template-plans` 등을 사용 |
+| 판매 시작·중지 | 구 관리 탭에만 UI 있음 | `PATCH /api/admin/shop-templates/[shopTemplateId]`의 `is_shop_visible`. 서버가 일반 판매, 게시, 작가, 로열티 조건을 검사 |
+| 맞춤 제작 템플릿 권한 부여 | 구현됨 | `/api/admin/template-access`. 엔진과 무관하게 동작 |
 
-## UI 준비 상태
+`templates.is_shop_visible`과 레거시 `/api/admin/template-products`는 신규 통합
+흐름의 기준으로 사용하지 않는다. 상점 노출의 기준은
+`shop_templates.is_shop_visible`, 상품 정보의 기준은 `shop_templates`와
+`template_plans`다.
 
-| 단계 | 상태 | 위치 |
-| --- | --- | --- |
-| 1/2. 메타데이터/내용 편집 | 구현됨 | Studio 목록(`.../template-studio/page.tsx`), 생성(`/create`), 에디터(`[templateId]/edit`) 전부 존재. 에디터 내 "Publish database document" 액션 존재. 목록 화면은 수정/미리보기/삭제만 있고 **공개·상점 관련 조작 없음** |
-| 3. 상점 데이터 생성/업로드 | 구현됨, Template Studio에서 접근 불가 | `TemplateManagement.tsx`(레거시 "Templates" 사이드바 탭)에만 상품 생성 폼 존재. 이 화면은 Studio 템플릿을 인식하고 클릭 시 Studio 에디터로 연결까지 되지만, **반대 방향(Studio → 상점 등록)으로 가는 진입점이 없음** |
-| 4. 판매 개시 UI | 레거시 Templates 탭에만 존재 | 같은 `TemplateManagement.tsx` 모달의 `is_public` 체크박스. Studio 목록에는 공개/비공개 상태 표시 자체가 없음 |
-| 5. 권한 부여 UI | 완전 구현됨 | "접근 권한 관리" 탭(`AccessManagement.tsx`) — Studio 템플릿도 노출되고 사용자 검색·부여·해제 전부 동작 |
+## 개발 원칙: 기존 탭 무수정 병행 구축
 
-## 검토한 변경 방향
+통합 탭이 안정되기 전까지 다음 기존 화면을 수정·삭제·리네임하지 않는다.
 
-- **A. 링크만 연결**: Studio 화면에 레거시 상점 관리 페이지로 가는 버튼만 추가. 변경 최소, 즉시 배포 가능하지만 화면을 오가야 함.
-- **B. 상태만 노출**: Studio 목록에 `is_public`/상점 등록 여부 배지만 표시. 실제 조작은 여전히 레거시에서.
-- **C. 기존 API를 Studio UI로 재배선**: 새 API 없이 기존 `/api/admin/templates/[id]`, `/api/admin/shop-templates` 등을 Studio 화면에서 호출하도록 폼만 이식.
-- **D. Studio "게시" 개념 재정의**: 지금 분리된 `status`(콘텐츠)와 `is_public`(판매)의 관계를 제품적으로 다시 정의.
-- **E. 레거시 Templates 탭 단계적 폐기**: Studio가 유일한 진입점이 되도록 레거시 편집 기능을 걷어냄.
+- `src/components/admin/TemplateManagement.tsx`
+- `src/app/(root)/admin/template-studio/page.tsx`
+- `template-studio-admin-list-client.tsx`
+- 기존 `/admin/templates`, `/admin/template-studio` 루트 동작
 
-풀 리라이트(D+E 동시 진행)는 리스크가 크고, 링크만 붙이는 A는 근본 해결이 아니므로 아래처럼 단계적 진행을 권장한다.
+신규 기능은 가능한 한 아래 독립 영역에 추가한다.
 
-## 권장 로드맵 (추천 순서)
+```text
+src/app/(root)/admin/template-hub/
+src/components/admin/template-hub/
+src/hooks/query/useTemplateHub.ts
+src/services/admin/templateHubService.ts
+src/app/api/admin/template-hub/
+```
 
-1. **Studio → 레거시 상점 관리 딥링크 추가** (낮은 리스크, 반나절 이내)
-   Studio 목록/에디터에 "상점 정보 관리" 버튼을 추가해 `/admin/template-products/[templateId]`로 이동. 진입점이 없어 재현 자체가 안 되던 상태를 즉시 해소.
+기존 API는 계약이 충분한 경우 그대로 호출하되, 목록 집계나 판매 준비 상태처럼
+기존 응답으로 부족한 기능은 `/api/admin/template-hub/*` 아래에 새로 둔다.
+사이드바 노출을 위해 불가피하게 수정하는 `adminTabs.ts`와
+`AdminDashboardShell.tsx`는 기능 구현과 분리된 작은 커밋으로 관리한다.
 
-2. **Studio 목록에 공개/판매 상태 노출** (낮은 리스크)
-   `is_public`, `is_shop_visible`, 상점 상품 존재 여부를 목록 API 응답에 포함해 배지로 표시. 새 API 불필요.
+## 신규 통합 탭의 책임
 
-3. **판매 개시 토글을 Studio 화면으로 이식** (중간 난이도)
-   기존 `PUT /api/admin/templates/[id]`를 그대로 재사용하고 호출 UI만 Studio로 이전. 공개 템플릿 4번이 Studio 안에서 완결.
+신규 탭은 Legacy와 Studio를 모두 다루는 운영 허브다.
 
-4. **상점 데이터 생성 폼을 Studio 안으로 이식** (중간~높은 난이도)
-   `TemplateManagement.tsx`의 상품 생성 로직을 공용 컴포넌트로 분리해 Studio 에디터에 "상점 정보" 탭으로 추가. 기존 API 그대로 사용. 공개 템플릿 1~4번이 전부 Studio 안에서 완결.
+- 전 엔진 목록, 검색, 페이지네이션
+- 엔진·게시 상태·판매 유형·상품 구성·판매 상태 표시
+- 판매 불가 사유 표시
+- 엔진별 제작 화면 연결
+  - Studio → `/admin/template-studio/[id]/edit`
+  - Legacy → `/time-table/[id]`
+- 공용 상품 페이지 연결 → `/admin/template-products/[id]`
+- 일반 판매/맞춤 제작 분류 변경
+- 판매 시작·중지
+- ID 복사
 
-5. **"게시" 개념 정리** (제품 결정 필요)
-   콘텐츠 `status` publish와 판매 `is_public` 토글을 그대로 분리 유지할지, 하나의 "판매 개시" 마법사로 묶을지 결정. 코드보다 정책 문제이므로 3~4단계 UI에 반영하기 전에 방향을 먼저 정한다.
+콘텐츠 게시와 판매 개시는 데이터 의미를 합치지 않는다. 나중에 필요하면
+`게시 → 상품 확인 → 판매 시작`을 하나의 UI 마법사로 제공하되, `status`,
+`is_public`, `is_shop_visible`, `template_access`는 계속 독립 상태로 유지한다.
 
-6. **레거시 Templates 탭 정리** (장기, 선택적)
-   Studio가 공개/비공개 흐름을 모두 커버하게 되면, 같은 템플릿을 두 곳에서 편집 가능한 중복 상태를 없애기 위해 레거시 탭에서 Studio-engine 템플릿의 편집 기능을 숨기거나 순수 조회용 카탈로그로 전환.
+## 권장 로드맵
 
-## 참고
+### 1. 신규 탭 골격 추가
 
-- 구·신 관리화면(Templates 탭 ↔ Template Studio)의 통합 방향 검토는
-  [`admin-consolidation-direction.md`](./admin-consolidation-direction.md)에
-  정리했다. 이 로드맵의 1·2·4단계에 영향을 주는 코드 현황 변화(상품 폼의
-  독립 페이지 분리 등)도 해당 문서에 반영되어 있다.
-- 구매된 Studio 엔진 상점 템플릿이 실제 결제/내보내기 런타임에서 정상 렌더링되는지는 이번 점검 범위 밖이며 별도 확인이 필요하다.
-- 관련 통합 작업 이력은 [`docs/template-system-integration/`](../template-system-integration/README.md)에 정리되어 있다.
+- `/admin/template-hub`와 독립 컴포넌트 디렉터리를 만든다.
+- 초기에는 직접 URL 또는 Beta 탭으로만 접근한다.
+- 기존 두 탭의 코드는 건드리지 않는다.
+
+### 2. 읽기 전용 통합 목록 완성
+
+- 기존 `/api/admin/templates`의 검색·페이지네이션을 참고하되 신규 Hub 응답
+  타입을 별도로 정의한다.
+- `template_engine`, `status`, `is_public`, `shop_templates`, 작가 연결,
+  plan 존재 여부를 한 응답으로 정규화한다.
+- 신형 admin 비주얼을 사용하되 기존 Studio 목록 컴포넌트를 직접 개조하지
+  않는다.
+
+### 3. 서버 기준 판매 준비 상태 추가
+
+판매 시작 가능 여부를 클라이언트에서 임의로 조합하지 않고 서버가 다음 조건을
+판정해 `ready`, `reasons` 형태로 반환하도록 한다.
+
+- `status === "published"`
+- `is_public === true`
+- `shop_templates` 존재
+- 구매 가능한 `template_plans` 존재
+- 작가 연결 존재
+- 연결 작가의 적용 가능한 로열티 규칙 존재
+
+판매 시작 mutation은 기존 `PATCH /api/admin/shop-templates/[id]`를 사용하고,
+신규 Hub UI는 서버 오류를 그대로 사용자에게 설명한다.
+
+### 4. 통합 탭에서 운영 액션 연결
+
+- Studio/Legacy 엔진별 제작 화면 이동
+- 상품 정보 페이지 이동
+- 일반 판매/맞춤 제작 분류 변경
+- 판매 시작·중지
+
+`is_public=true → false` 변경 시 판매 중인 상품이 상점에 남지 않도록, 판매를
+먼저 중지하게 하거나 서버에서 원자적으로 중지하는 정책을 적용한다.
+
+### 5. 병행 검증
+
+- 같은 템플릿을 기존 "템플릿 관리" 탭과 신규 Hub에서 비교한다.
+- 목록 건수, 분류, 상품 상태, 판매 상태가 일치하는지 확인한다.
+- Studio 생성 → 게시 → 일반 판매 전환 → 상품/plan/작가/로열티 저장 → 판매
+  시작 → 구매 승인 → 사용자 실행 흐름을 검증한다.
+- 검증 기간에는 기존 탭을 운영 fallback으로 유지한다.
+
+### 6. 전환·정리 (별도 후속 작업)
+
+통합 탭의 기능 동등성과 운영 안정성이 확인된 뒤 별도 PR에서만 진행한다.
+
+- 신규 탭의 Beta 표기 제거
+- 기존 탭을 사이드바에서 숨김
+- 기존 URL redirect 여부 결정
+- `TemplateManagement.tsx` 및 레거시 API·컬럼 제거 여부 재검토
+
+개발 중에는 기존 탭 삭제나 redirect를 선행하지 않는다.
+
+## 검증 범위
+
+Studio 생성부터 판매, 구매 승인, `template_access` 생성, 사용자 실행과 상태
+재조회까지는 로컬 API E2E가 존재한다
+(`docs/template-system-integration/10-pilot-e2e-rollout.md`). 신규 통합 탭에서는
+추가로 실제 브라우저 UI 조작, 반응형 표시, 상점 노출, 이미지 내보내기 smoke
+test를 수행한다. 원격 DB 변경은 별도 명시 요청이 있을 때만 진행한다.

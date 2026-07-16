@@ -1,7 +1,7 @@
 # 템플릿 통합 관리 Hub 개발 계획
 
 최종 수정: 2026-07-16  
-상태: 계획 확정, 구현 전
+상태: 01~05단계 완료, 06~07단계 보류
 
 ## 1. 목표
 
@@ -217,10 +217,11 @@ mutation API는 이 두 함수를 그대로 재사용하고 새 판정 로직을
 
 ## 10. 관련 문서
 
+- 1~5단계 코드 점검 후속 수정사항:
+  [`./remediation/`](./remediation/README.md)
 - 조사·의사결정 기록:
   [`../template-studio-public-sale-flow/`](../template-studio-public-sale-flow/README.md)
 - 통합 데이터·권한 모델:
   [`../template-system-integration/`](../template-system-integration/README.md)
 - Legacy·Studio 운영 모델:
   [`../template-system-integration/legacy-studio-operating-model.md`](../template-system-integration/legacy-studio-operating-model.md)
-
