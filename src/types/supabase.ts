@@ -1681,6 +1681,14 @@ export type Database = {
         Args: { p_batch_id: string }
         Returns: undefined
       }
+      template_hub_set_sale_visibility: {
+        Args: { p_template_id: string; p_visible: boolean }
+        Returns: undefined
+      }
+      template_hub_set_sales_type: {
+        Args: { p_sales_type: string; p_template_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

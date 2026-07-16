@@ -764,11 +764,23 @@ export class TemplateHubSaleNotReadyError extends Error {
   }
 }
 
+/** `template_hub_set_sales_type`/`template_hub_set_sale_visibility` RPC가 던지는 커스텀 SQLSTATE. */
+const TEMPLATE_HUB_RPC_ERRCODE = {
+  TEMPLATE_NOT_FOUND: "X0001",
+  SALE_MUST_STOP_FIRST: "X0002",
+  SALE_NOT_READY: "X0003",
+} as const;
+
+const rpcErrorCode = (error: { code?: string | null } | null): string | null =>
+  error?.code ?? null;
+
 /**
  * 일반 판매/맞춤 제작 분류를 변경한다.
  *
- * `evaluateTemplateSalesTypeTransition`이 거부하면(판매 중 맞춤 제작 전환)
- * DB를 건드리지 않고 바로 예외를 던진다.
+ * 최종 판정과 쓰기는 `template_hub_set_sales_type` DB 함수가 하나의 트랜잭션
+ * 안에서 수행한다(01단계 수정사항). 여기서는 애플리케이션 판정 함수로 빠른
+ * 실패만 시도하고, DB 함수의 응답을 최종 권위로 삼아 동일한 예외 계약으로
+ * 변환한다 — 동시 요청이 조회 이후 상태를 바꿨더라도 DB가 다시 거부한다.
  */
 export const updateTemplateSalesType = async (
   templateId: string,
@@ -786,12 +798,23 @@ export const updateTemplateSalesType = async (
     throw new TemplateHubSaleMustStopFirstError(decision.message);
   }
 
-  const { error } = await supabase
-    .from("templates")
-    .update({ is_public: salesType === "general" })
-    .eq("id", templateId);
+  const { error } = await supabase.rpc("template_hub_set_sales_type", {
+    p_template_id: templateId,
+    p_sales_type: salesType,
+  });
 
-  if (error) throw error;
+  if (error) {
+    const code = rpcErrorCode(error);
+    if (code === TEMPLATE_HUB_RPC_ERRCODE.TEMPLATE_NOT_FOUND) {
+      throw new TemplateHubNotFoundError();
+    }
+    if (code === TEMPLATE_HUB_RPC_ERRCODE.SALE_MUST_STOP_FIRST) {
+      throw new TemplateHubSaleMustStopFirstError(
+        error.message || "맞춤 제작으로 변경하려면 먼저 판매를 중지해 주세요."
+      );
+    }
+    throw error;
+  }
 
   const updated = await getTemplateHubItem(templateId);
   if (!updated) throw new TemplateHubNotFoundError();
@@ -801,10 +824,12 @@ export const updateTemplateSalesType = async (
 /**
  * 판매 시작·중지.
  *
- * 판매 중지는 readiness와 무관하게 항상 허용한다. 판매 시작은
- * `evaluateTemplateSaleVisibilityChange`가 현재 readiness를 재검증한 뒤에만
- * 허용한다 — 목록 조회 시점과 mutation 시점 사이에 조건이 바뀌었을 수 있으므로
- * 클라이언트가 보낸 상태를 신뢰하지 않고 서버에서 다시 계산한다.
+ * 최종 판정과 쓰기는 `template_hub_set_sale_visibility` DB 함수가 하나의
+ * 트랜잭션 안에서 수행한다(01단계 수정사항). 애플리케이션의
+ * `evaluateTemplateSaleVisibilityChange`로 먼저 빠르게 걸러내되, DB가 다시
+ * 거부하면(조회 이후 조건이 바뀐 경우) 그 시점의 최신 상태를 다시 조회해
+ * 상세 사유(`reasons`)를 재계산한다 — DB는 최종 허용 여부만 판정하고, 사용자
+ * 대면 사유 메시지는 기존 TS 판정 로직을 그대로 재사용한다.
  */
 export const updateTemplateSaleVisibility = async (
   templateId: string,
@@ -822,17 +847,23 @@ export const updateTemplateSaleVisibility = async (
     throw new TemplateHubSaleNotReadyError(decision.reasons);
   }
 
-  // 상품이 없는 템플릿은 shop_templates 행 자체가 없다. visible=true는 이미
-  // readiness(PRODUCT_MISSING)에서 걸러지므로, 여기 도달했다면 상품이 없는
-  // 상태에서 visible=false를 요청한 경우뿐이다 — 반영할 대상이 없으므로
-  // 아무 것도 갱신하지 않고 통과시킨다(이미 false이므로 결과는 동일하다).
-  if (current.shopProductId) {
-    const { error } = await supabase
-      .from("shop_templates")
-      .update({ is_shop_visible: visible })
-      .eq("id", current.shopProductId);
+  const { error } = await supabase.rpc("template_hub_set_sale_visibility", {
+    p_template_id: templateId,
+    p_visible: visible,
+  });
 
-    if (error) throw error;
+  if (error) {
+    const code = rpcErrorCode(error);
+    if (code === TEMPLATE_HUB_RPC_ERRCODE.TEMPLATE_NOT_FOUND) {
+      throw new TemplateHubNotFoundError();
+    }
+    if (code === TEMPLATE_HUB_RPC_ERRCODE.SALE_NOT_READY) {
+      const latest = await getTemplateHubItem(templateId);
+      throw new TemplateHubSaleNotReadyError(
+        latest?.saleReadiness.reasons ?? []
+      );
+    }
+    throw error;
   }
 
   const updated = await getTemplateHubItem(templateId);

@@ -7,6 +7,7 @@
  *   - sales type mutation
  *   - sale start/stop mutation
  *   - 관리자 인증
+ *   - (remediation 01) 판매 시작/맞춤 제작 전환 동시 요청의 원자성
  *
  * 로컬 복제 DB에는 Studio 템플릿이 draft 1건뿐이라(published+상품 구성,
  * 판매 중 등 표본 조합이 없음), 이 스크립트가 직접 synthetic 템플릿을 만들어
@@ -426,6 +427,116 @@ const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
       );
       assert(res.status === 400, `expected 400, got ${res.status}`);
     });
+
+    // -------------------------------------------------------------------
+    // 01단계 수정사항: 판매 상태 변경의 원자성. "판매 시작"과 "맞춤 제작
+    // 전환"을 동시에 요청해도 selling+custom 불변식 위반 상태가 생기지
+    // 않아야 한다. DB 함수가 최종 권위를 갖는지 검증하기 위해 실제로
+    // 동시 요청을 여러 차례 반복한다.
+    // -------------------------------------------------------------------
+    const createConcurrencyFixture = async (label: string): Promise<CreatedFixture> => {
+      const now = new Date().toISOString();
+      const { data: template, error: templateError } = await supabaseAdminServer
+        .from("templates")
+        .insert({
+          name: `${FIXTURE_PREFIX} 동시성 검증 ${label}`,
+          description: "",
+          thumbnail_url: "",
+          template_engine: "studio",
+          status: "published",
+          is_public: true,
+          created_at: now,
+          updated_at: now,
+        })
+        .select("id")
+        .single();
+      if (templateError || !template) throw templateError ?? new Error("템플릿 생성 실패");
+
+      const { data: shopTemplate, error: shopError } = await supabaseAdminServer
+        .from("shop_templates")
+        .insert({ template_id: template.id, title: `${FIXTURE_PREFIX} 동시성 검증`, is_shop_visible: false })
+        .select("id")
+        .single();
+      if (shopError || !shopTemplate) throw shopError ?? new Error("상품 생성 실패");
+
+      const { error: planError } = await supabaseAdminServer.from("template_plans").insert({
+        shop_template_id: shopTemplate.id,
+        plan: "pro",
+        price: 20000,
+      });
+      if (planError) throw planError;
+
+      const { error: artistLinkError } = await supabaseAdminServer.from("template_artists").insert({
+        template_id: template.id,
+        artist_id: TEMIS_ARTIST_ID,
+        role: "creator",
+        is_primary: true,
+        display_order: 0,
+      });
+      if (artistLinkError) throw artistLinkError;
+
+      return { id: template.id, shopTemplateId: shopTemplate.id };
+    };
+
+    const assertNoSaleInvariantViolation = async (context: string) => {
+      const { data, error } = await supabaseAdminServer
+        .from("shop_templates")
+        .select("id, is_shop_visible, templates!inner(id, is_public, status)")
+        .eq("is_shop_visible", true);
+      if (error) throw error;
+
+      const violations = (data ?? []).filter((row) => {
+        const template = row.templates as unknown as { is_public: boolean; status: string } | null;
+        return !template || template.is_public === false || template.status !== "published";
+      });
+
+      assert(
+        violations.length === 0,
+        `${context}: is_shop_visible=true인데 is_public=false 또는 status!=published인 행이 있다 (${JSON.stringify(violations)})`
+      );
+    };
+
+    const CONCURRENCY_ITERATIONS = 5;
+
+    for (let i = 0; i < CONCURRENCY_ITERATIONS; i += 1) {
+      const fixture = await createConcurrencyFixture(`#${i}`);
+
+      await check(`동시 요청 반복 ${i}: 판매 시작 vs 맞춤 제작 전환 — 불변식 유지`, async () => {
+        const [saleResult, salesTypeResult] = await Promise.allSettled([
+          saleRoute(
+            req(`${base}/sale`, adminToken, { body: { visible: true }, method: "PATCH" }),
+            { params: Promise.resolve({ id: fixture.id }) }
+          ),
+          salesTypeRoute(
+            req(`${base}/sales-type`, adminToken, { body: { salesType: "custom" }, method: "PATCH" }),
+            { params: Promise.resolve({ id: fixture.id }) }
+          ),
+        ]);
+
+        for (const result of [saleResult, salesTypeResult]) {
+          assert(result.status === "fulfilled", `route가 예외를 던지면 안 된다: ${JSON.stringify(result)}`);
+        }
+
+        const saleRes = saleResult as PromiseFulfilledResult<NextResponse>;
+        const salesTypeRes = salesTypeResult as PromiseFulfilledResult<NextResponse>;
+        assert(
+          [200, 409].includes(saleRes.value.status),
+          `sale 응답은 200 또는 409여야 한다: ${saleRes.value.status}`
+        );
+        assert(
+          [200, 409].includes(salesTypeRes.value.status),
+          `sales-type 응답은 200 또는 409여야 한다: ${salesTypeRes.value.status}`
+        );
+
+        await assertNoSaleInvariantViolation(`반복 ${i}`);
+      });
+
+      const { error: cleanupError } = await supabaseAdminServer
+        .from("templates")
+        .delete()
+        .eq("id", fixture.id);
+      if (cleanupError) throw cleanupError;
+    }
   } finally {
     await deleteFixtures(fixtures);
   }

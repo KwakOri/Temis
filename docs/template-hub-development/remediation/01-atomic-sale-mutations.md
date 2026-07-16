@@ -1,7 +1,7 @@
 # 01. 판매 상태 변경의 원자성 보장
 
 - 우선순위: P1
-- 상태: 미수정
+- 상태: 완료 (2026-07-16)
 - 영향 영역: 판매 시작·중지, 일반 판매·맞춤 제작 전환
 
 ## 문제
@@ -91,3 +91,37 @@ where st.is_shop_visible = true
 ```
 
 기대 결과는 항상 `0`이다.
+
+## 완료 근거 (2026-07-16)
+
+- 신규 migration `supabase/migrations/20260716010000_atomic_template_hub_sale_mutations.sql`
+  에 `template_hub_set_sales_type`, `template_hub_set_sale_visibility`
+  `SECURITY DEFINER` 함수를 추가했다. 두 함수 모두 대상 `templates`/`shop_templates`
+  행을 `FOR UPDATE`로 잠근 뒤 같은 트랜잭션에서 최종 판정과 쓰기를 수행하고,
+  `PUBLIC`/`anon`/`authenticated`의 실행 권한은 회수하고 `service_role`에만
+  부여했다.
+- 오류는 표준 SQLSTATE와 충돌하지 않는 커스텀 코드(`X0001`~`X0003`, Postgres
+  문서가 권장하는 `X0` 접두사)로 던지고, `src/services/server/templateHubService.ts`가
+  이를 기존 API 오류 계약(`TEMPLATE_NOT_FOUND` / `SALE_MUST_STOP_FIRST` /
+  `SALE_NOT_READY`)으로 그대로 변환한다. `SALE_NOT_READY`의 상세 `reasons`는
+  DB 재거부 이후 최신 상태를 다시 조회해 기존 TS 판정 함수로 재계산한다.
+- `scripts/check-template-hub-api.ts`에 동시 요청 회귀 테스트를 추가했다.
+  "판매 시작"과 "맞춤 제작 전환"을 `Promise.allSettled`로 동시에 요청하는
+  시나리오를 매번 새 fixture로 5회 반복하고, 반복마다 아래 불변식을 직접
+  집계해 위반이 없는지 확인한다.
+
+  ```sql
+  select count(*)
+  from public.shop_templates st
+  join public.templates t on t.id = st.template_id
+  where st.is_shop_visible = true
+    and (t.is_public = false or t.status <> 'published');
+  ```
+
+- 로컬 Supabase에서 실행 결과: `npm run check:template-hub:api` 25건 전체
+  통과(동시 요청 반복 5회 포함), 테스트 종료 후 `[hub-qa]` 템플릿 0건, 위
+  불변식 SQL 직접 집계 결과 `0`.
+- `npx tsc --noEmit --pretty false --incremental false`, 변경 파일 ESLint
+  모두 통과.
+- 기존 관리 탭(`/admin/templates`, `/admin/template-studio`) 코드와 원격
+  Supabase는 변경하지 않았다. 원격 migration 적용은 별도 승인 후 진행한다.

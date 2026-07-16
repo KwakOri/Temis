@@ -2,7 +2,7 @@
 
 - 점검일: 2026-07-16
 - 대상 브랜치: `features/template-system`
-- 상태: 수정 계획 정리 완료, 구현 전
+- 상태: 순차 구현 진행 중 (01 완료)
 
 ## 목적
 
@@ -17,7 +17,7 @@ Template Hub 1~5단계 구현을 코드·스키마·테스트·빌드·CI 기준
 
 | 번호 | 우선순위 | 수정사항 | 현재 상태 |
 | --- | --- | --- | --- |
-| 01 | P1 | [판매 상태 변경의 원자성 보장](./01-atomic-sale-mutations.md) | 미수정 |
+| 01 | P1 | [판매 상태 변경의 원자성 보장](./01-atomic-sale-mutations.md) | 완료 |
 | 02 | P1 | [중단된 CI 복구와 Hub 검증 등록](./02-ci-and-hub-regression.md) | 미수정 |
 | 03 | P2 | [readiness 필터 1,000건 상한 제거](./03-readiness-filter-pagination.md) | 미수정 |
 | 04 | P2 | [비활성 미리보기 링크의 키보드 접근 차단](./04-disabled-preview-accessibility.md) | 미수정 |
