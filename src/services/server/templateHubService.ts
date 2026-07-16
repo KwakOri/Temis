@@ -4,7 +4,6 @@ import {
   TEMPLATE_PUBLICATION_STATUSES,
   TEMPLATE_SALES_TYPES,
   TEMPLATE_SALE_STATUSES,
-  resolveTemplateSaleStatus,
   type TemplateEngine,
   type TemplateHubItem,
   type TemplateHubLinkedArtist,
@@ -12,7 +11,6 @@ import {
   type TemplateHubListResponse,
   type TemplatePublicationStatus,
   type TemplateSaleBlockReason,
-  type TemplateSaleStatus,
   type TemplateSalesType,
 } from "@/types/template-hub";
 
@@ -38,13 +36,6 @@ import {
 
 export const TEMPLATE_HUB_DEFAULT_LIMIT = 20;
 export const TEMPLATE_HUB_MAX_LIMIT = 100;
-
-/**
- * `saleStatus` 필터는 로열티까지 포함한 readiness 계산이 필요해 SQL만으로
- * 판정할 수 없다. 이 경우 다른 필터로 좁힌 집합을 서버에서 계산한 뒤
- * 잘라내므로, 계산 대상이 무한히 커지지 않도록 상한을 둔다.
- */
-const READINESS_FILTER_SCAN_LIMIT = 1000;
 
 // ---------------------------------------------------------------------------
 // 파라미터 정규화
@@ -382,13 +373,21 @@ const toHubItem = (
  * builder마다 다른 `eq` 값 타입을 그대로 받으면서도 `select` 결과 타입을 잃지
  * 않는다.
  */
+/**
+ * Hub 목록 필터를 순수 컬럼 필터인 `template_hub_list` view에 적용한다.
+ *
+ * `sale_status`(selling/ready/blocked/unconfigured)와 `has_product`는 이제
+ * DB view가 `evaluateTemplateSaleReadiness()`/`resolveTemplateSaleStatus()`와
+ * 동일한 조건으로 미리 계산해 두므로(remediation 03단계 —
+ * `supabase/migrations/20260716030000_create_template_hub_list_view.sql`),
+ * 애플리케이션이 로열티까지 스캔해 메모리에서 필터링할 필요가 없다.
+ */
 type FilterableQuery<T> = {
   or(filter: string): T;
   eq(column: string, value: string | boolean): T;
-  is(column: string, value: null): T;
 };
 
-const applySqlFilters = <T extends FilterableQuery<T>>(
+const applyListViewFilters = <T extends FilterableQuery<T>>(
   query: T,
   params: TemplateHubListParams
 ): T => {
@@ -406,24 +405,15 @@ const applySqlFilters = <T extends FilterableQuery<T>>(
   if (params.salesType) {
     next = next.eq("is_public", params.salesType === "general");
   }
-  if (params.saleStatus === "selling") {
-    next = next.eq("shop_templates.is_shop_visible", true);
+  if (params.saleStatus) {
+    next = next.eq("sale_status", params.saleStatus);
   }
-  // `hasProduct=true`는 select의 inner join이 담당한다. `false`는 연결된
-  // shop_templates가 없는 템플릿을 고르는 embedded null 필터를 사용한다.
-  if (params.hasProduct === false) {
-    next = next.is("shop_templates", null);
+  if (params.hasProduct !== undefined) {
+    next = next.eq("has_product", params.hasProduct);
   }
 
   return next;
 };
-
-/**
- * `shop_templates` 컬럼을 조건으로 쓰거나 상품 보유를 요구하는 필터는 해당
- * 관계를 inner join으로 바꿔야 상품이 없는 템플릿이 제외된다.
- */
-const needsShopTemplateInnerJoin = (params: TemplateHubListParams): boolean =>
-  params.saleStatus === "selling" || params.hasProduct === true;
 
 const countWithSearch = async (
   search: string | undefined,
@@ -476,55 +466,62 @@ const fetchCounts = async (
 };
 
 /**
- * `saleStatus`가 readiness에 의존하는지 여부.
+ * 필터·count·정렬·페이지네이션을 전담하는 `template_hub_list` view에서 현재
+ * 페이지에 해당하는 템플릿 id와 정확한 전체 건수를 가져온다.
  *
- * `selling`은 `shop_templates.is_shop_visible`만 보면 되므로 SQL로 처리할 수
- * 있지만, 나머지는 로열티까지 계산해야 판정된다.
+ * saleStatus/hasProduct를 포함한 모든 필터가 SQL `WHERE`로 처리되고
+ * `count: "exact"`가 DB 집계이므로, 후보가 아무리 많아도 매 요청이 읽는 행은
+ * 정확히 페이지 크기만큼이다 — 과거처럼 판정을 위해 전체 후보를 스캔하지
+ * 않는다.
  */
-const needsReadinessScan = (saleStatus?: TemplateSaleStatus): boolean =>
-  saleStatus !== undefined && saleStatus !== "selling";
+/** 필터만 적용한 정확한 전체 건수. `fetchListPage`가 범위 밖 offset을 받았을 때만 별도로 쓴다. */
+const countListPage = async (
+  params: TemplateHubListParams
+): Promise<number> => {
+  const { count, error } = await applyListViewFilters(
+    supabase
+      .from("template_hub_list")
+      .select("id", { count: "exact", head: true }),
+    params
+  );
+  if (error) throw error;
+  return count ?? 0;
+};
 
-const buildSelect = (params: TemplateHubListParams): string =>
-  needsShopTemplateInnerJoin(params)
-    ? TEMPLATE_HUB_SELECT.replace("shop_templates (", "shop_templates!inner (")
-    : TEMPLATE_HUB_SELECT;
-
-const fetchRows = async (
-  params: TemplateHubListParams,
-  range: { from: number; to: number } | null
-): Promise<TemplateHubRow[]> => {
-  let query = applySqlFilters(
-    supabase.from("templates").select(buildSelect(params)),
+const fetchListPage = async (
+  params: TemplateHubListParams & { limit: number; offset: number }
+): Promise<{ ids: string[]; total: number }> => {
+  let query = applyListViewFilters(
+    supabase
+      .from("template_hub_list")
+      .select("id", { count: "exact" }),
     params
   );
 
   // 같은 updated_at을 가진 행이 페이지마다 뒤바뀌지 않도록 id를 보조 정렬 기준으로 쓴다.
   query = query
     .order("updated_at", { ascending: false })
-    .order("id", { ascending: false });
+    .order("id", { ascending: false })
+    .range(params.offset, params.offset + params.limit - 1);
 
-  query = range
-    ? query.range(range.from, range.to)
-    : query.limit(READINESS_FILTER_SCAN_LIMIT);
+  const { data, error, count } = await query;
 
-  const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    // PostgREST는 offset이 전체 결과 건수를 넘으면 데이터를 비워 반환하는 대신
+    // "Requested range not satisfiable"(PGRST103) 오류를 던진다. 이 경우를
+    // 빈 페이지로 취급하고, 정확한 total만 별도 count 쿼리로 다시 구한다 —
+    // 클라이언트가 마지막 페이지 이후로 넘어가거나 필터를 바꾼 직후 이전
+    // 페이지의 offset을 그대로 재요청할 때 흔히 발생한다.
+    if (error.code === "PGRST103") {
+      return { ids: [], total: await countListPage(params) };
+    }
+    throw error;
+  }
 
-  return (data ?? []) as unknown as TemplateHubRow[];
-};
-
-const countRows = async (params: TemplateHubListParams): Promise<number> => {
-  const select = needsShopTemplateInnerJoin(params)
-    ? "id, shop_templates!inner(id)"
-    : "id, shop_templates(id)";
-
-  const { count, error } = await applySqlFilters(
-    supabase.from("templates").select(select, { count: "exact", head: true }),
-    params
-  );
-
-  if (error) throw error;
-  return count ?? 0;
+  return {
+    ids: (data ?? []).map((row) => row.id as string),
+    total: count ?? 0,
+  };
 };
 
 const buildItems = async (rows: TemplateHubRow[]): Promise<TemplateHubItem[]> => {
@@ -537,43 +534,41 @@ const buildItems = async (rows: TemplateHubRow[]): Promise<TemplateHubItem[]> =>
   );
 };
 
+/** 페이지 id에 해당하는 전체 관계 데이터를 조회하고, view가 정한 순서를 그대로 보존한다. */
+const fetchRowsByIds = async (ids: string[]): Promise<TemplateHubRow[]> => {
+  if (ids.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("templates")
+    .select(TEMPLATE_HUB_SELECT)
+    .in("id", ids);
+  if (error) throw error;
+
+  const rowsById = new Map(
+    (data ?? []).map((row) => [
+      (row as unknown as TemplateHubRow).id,
+      row as unknown as TemplateHubRow,
+    ])
+  );
+
+  return ids
+    .map((id) => rowsById.get(id))
+    .filter((row): row is TemplateHubRow => row !== undefined);
+};
+
 export const listTemplateHubTemplates = async (
   params: TemplateHubListParams & { limit: number; offset: number }
 ): Promise<TemplateHubListResponse> => {
-  const counts = await fetchCounts(params.search);
+  const [counts, page] = await Promise.all([
+    fetchCounts(params.search),
+    fetchListPage(params),
+  ]);
 
-  // readiness에 의존하지 않는 필터 조합은 SQL 페이지네이션을 그대로 사용한다.
-  if (!needsReadinessScan(params.saleStatus)) {
-    const [total, rows] = await Promise.all([
-      countRows(params),
-      fetchRows(params, {
-        from: params.offset,
-        to: params.offset + params.limit - 1,
-      }),
-    ]);
-
-    return {
-      items: await buildItems(rows),
-      pagination: { limit: params.limit, offset: params.offset, total },
-      counts,
-    };
-  }
-
-  // readiness 기반 필터는 SQL로 좁힌 집합 전체를 계산한 뒤 잘라낸다.
-  const scannedRows = await fetchRows(params, null);
-  const scannedItems = await buildItems(scannedRows);
-
-  const filtered = scannedItems.filter(
-    (item) => resolveTemplateSaleStatus(item) === params.saleStatus
-  );
+  const rows = await fetchRowsByIds(page.ids);
 
   return {
-    items: filtered.slice(params.offset, params.offset + params.limit),
-    pagination: {
-      limit: params.limit,
-      offset: params.offset,
-      total: filtered.length,
-    },
+    items: await buildItems(rows),
+    pagination: { limit: params.limit, offset: params.offset, total: page.total },
     counts,
   };
 };

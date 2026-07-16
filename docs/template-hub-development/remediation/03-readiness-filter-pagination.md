@@ -1,7 +1,7 @@
 # 03. readiness 필터 1,000건 상한 제거
 
 - 우선순위: P2
-- 상태: 미수정
+- 상태: 완료 (2026-07-16)
 - 영향 영역: 판매 준비 완료·판매 불가·상품 미구성 필터와 페이지네이션
 
 ## 문제
@@ -55,3 +55,56 @@ readiness 사유 배열까지 SQL에서 만들지 여부는 별도 선택이 가
 - 첫 페이지, 50번째 페이지, 마지막 페이지, 범위 밖 offset을 확인한다.
 - SQL 직접 집계와 API `pagination.total`을 비교한다.
 - 테스트 후 synthetic 데이터가 전부 정리됐는지 확인한다.
+
+## 완료 근거 (2026-07-16)
+
+- 신규 migration
+  `supabase/migrations/20260716030000_create_template_hub_list_view.sql`에
+  두 단계 view를 추가했다.
+  - `template_hub_readiness`: `evaluateTemplateSaleReadiness()`와 동일한
+    조건(게시·일반판매·상품·plan·작가·로열티)을 SQL로 재구성해 템플릿별
+    `is_ready`/`has_product`/`is_shop_visible`을 계산한다.
+  - `template_hub_list`: `resolveTemplateSaleStatus()`와 동일한 우선순위로
+    `sale_status`(selling/ready/blocked/unconfigured)를 계산한다.
+  - 두 view 모두 `anon`/`authenticated`/`PUBLIC` 권한은 회수하고
+    `service_role`에만 `SELECT`를 부여했다.
+- `src/services/server/templateHubService.ts`를 다시 짰다.
+  `READINESS_FILTER_SCAN_LIMIT`(1,000건 상한), `needsReadinessScan`,
+  `needsShopTemplateInnerJoin`, 애플리케이션 메모리 필터링을 전부 제거하고,
+  `template_hub_list` view에 모든 필터(`search`/`engine`/`publicationStatus`/
+  `salesType`/`saleStatus`/`hasProduct`)와 `order`/`range`/`count: "exact"`를
+  그대로 위임하는 `fetchListPage()`로 대체했다. 현재 페이지의 id만 다시
+  `templates`에서 관계 데이터(shop_templates/template_plans/template_artists)와
+  함께 조회해(`fetchRowsByIds()`) 기존 `buildItems()`(로열티 coverage 포함)로
+  아이템을 만든다 — 요청당 읽는 행 수는 항상 페이지 크기에 비례하고, 전체
+  후보 크기에는 비례하지 않는다.
+- 이 작업 중 기존에 잠재해 있던 별도 버그를 발견해 함께 고쳤다: offset이
+  전체 결과 건수를 넘으면 PostgREST가 데이터를 비워 반환하는 대신
+  `PGRST103`("Requested range not satisfiable")을 던져 API가 500을
+  반환했다(신규 SQL 기반 페이지네이션에서만이 아니라 `.range()`를 쓰는 모든
+  경로에 해당하는 문제). `fetchListPage()`가 이 코드를 감지하면 빈 페이지로
+  처리하고, `total`만 별도 `count`-only 쿼리로 다시 구하도록 했다
+  (`countListPage()`).
+- 신규 스크립트 `scripts/check-template-hub-readiness-scale.ts`
+  (`npm run check:template-hub:readiness-scale`)를 추가했다. `[hub-scale-qa]`
+  접두사로 unconfigured 1,205건 + ready/blocked/selling 표본 8건, 총 1,213건을
+  생성한 뒤:
+  - `saleStatus=unconfigured`의 `pagination.total`이 DB 직접 집계(1,205)와
+    일치(옛 1,000건 상한이 남아 있으면 이 값이 작아진다).
+  - ready/blocked/selling 총 건수도 정확.
+  - 첫 페이지, offset=1020(52번째 페이지, 옛 1,000건 상한을 넘는 지점),
+    마지막 페이지(나머지 5건), 범위 밖 offset(빈 배열이지만 total 유지)이
+    모두 올바르게 동작.
+  - `search` + `saleStatus` 결합 결과도 정확.
+  - finally에서 이름 접두사로 전체 fixture를 정리하고, 정리 후 잔여 0건을
+    재확인. (대량 삭제를 id 목록 `in(...)` 쿼리로 보내면 URI 길이 제한에
+    걸려, 접두사 기준 단일 delete로 처리하도록 만들었다.)
+  - 실행 비용이 커서(1,200여 건 insert/delete) 상시 CI에는 넣지 않고 수동/
+    주기적 검증 스크립트로 유지한다. `npm run check:template-hub:api`(30건)는
+    그대로 CI([remediation 02](./02-ci-and-hub-regression.md))에 남는다.
+- 로컬 Supabase에서 실행 결과: `check:template-hub:readiness-scale` 7건 전체
+  통과, `check:template-hub:api` 30건 전체 통과(기존 표본 회귀 없음),
+  `check:template-hub:sale-readiness` 22건 통과, 매번 fixture 0건 잔여.
+- `npx tsc --noEmit --pretty false --incremental false`, 변경 파일 ESLint,
+  안전한 CI 값을 주입한 `npm run build` 모두 통과.
+- 원격 Supabase에는 적용하지 않았다. 기존 관리 탭 코드는 변경하지 않았다.

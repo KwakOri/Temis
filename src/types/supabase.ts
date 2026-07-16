@@ -1522,6 +1522,41 @@ export type Database = {
       }
     }
     Views: {
+      template_hub_list: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          has_product: boolean | null
+          id: string | null
+          is_public: boolean | null
+          is_ready: boolean | null
+          is_shop_visible: boolean | null
+          name: string | null
+          sale_status: string | null
+          shop_template_id: string | null
+          status: string | null
+          template_engine: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      template_hub_readiness: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          has_product: boolean | null
+          id: string | null
+          is_public: boolean | null
+          is_ready: boolean | null
+          is_shop_visible: boolean | null
+          name: string | null
+          shop_template_id: string | null
+          status: string | null
+          template_engine: string | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
       template_sale_royalty_details: {
         Row: {
           artist_id: string | null
