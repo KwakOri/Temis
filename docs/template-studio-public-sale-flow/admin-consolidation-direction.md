@@ -9,10 +9,16 @@
 
 관리자 사이드바에 템플릿을 다루는 탭이 두 개 존재한다.
 
-- **구 화면**: "Templates" 탭 → `TemplateManagement.tsx`
+- **구 화면**: 사이드바 표시명 "템플릿 관리"(탭 id `templates`) →
+  `TemplateManagement.tsx`
   (`src/components/admin/TemplateManagement.tsx`, 약 2,000줄)
-- **신 화면**: "Template Studio" 탭 → `/admin/template-studio`
+- **신 화면**: 사이드바 표시명 "Template Studio"(탭 id `templateStudio`) →
+  `/admin/template-studio`
   (`src/app/(root)/admin/template-studio/`)
+
+이하 이 문서에서 "Templates 탭"은 구 화면(탭 id `templates`)을 가리키는
+편의상 표기이며, 사이드바에 실제로 그 영문 텍스트가 노출되는 것은 아니다
+(`AdminDashboardShell.tsx:36-37`).
 
 두 화면 모두 통합된 `templates` 테이블을 다루므로 같은 템플릿이 두 곳에
 중복 노출된다. 이 문서는 두 화면을 어떤 방향으로 통합할지 코드 현황을
@@ -44,7 +50,7 @@
    컴포넌트로 분리"를 중간~높은 난이도로 예상했지만, 실제로는
    `handleCreateProduct`/`handleEditProduct`가 이미
    `/admin/template-products/[templateId]` **독립 라우트 페이지**로 이동한다
-   (`TemplateManagement.tsx:556-564`). 이 페이지는 상품 정보, PRO 플랜 가격,
+   (`TemplateManagement.tsx:557-563`). 이 페이지는 상품 정보, PRO 플랜 가격,
    작가 연결, 로열티 규칙까지 포함한 완결형 화면이고 엔진에 의존하지 않는다.
    따라서 Studio에서 상품 관리로 가는 길은 **링크 하나 추가**로 끝난다 —
    로드맵 1단계와 4단계가 사실상 같은 작업으로 합쳐진다.
@@ -100,10 +106,11 @@ Studio 목록의 신형 비주얼·컴포넌트 구조를 기반으로 하되, �
 조인 완비)로 바꾼 **단일 "템플릿 관리" 목록**을 만들고, 구 Templates 탭과
 Studio 전용 목록을 모두 이 화면으로 대체한다.
 
-- 장점: 목록이 하나가 된다. 신형 비주얼 시스템 유지. API는 기존 것을
-  그대로 재사용하므로 서버 변경이 거의 없다. 모놀리스는 자연 폐기된다.
-- 단점: 목록 화면 신규 작성 비용(다만 Studio 목록 컴포넌트를 확장하는
-  형태라 밑그림은 이미 있다). 전환기 동안 기능 누락 리스크.
+- 장점: 목록이 하나가 된다. 신형 비주얼 톤 유지. API는 기존 것을 그대로
+  재사용하므로 서버 변경이 거의 없다. 모놀리스는 자연 폐기된다.
+- 단점: 목록 화면의 렌더링 레이어를 사실상 새로 짜야 한다(타입이 다르므로
+  단순 데이터 소스 교체가 아님 — 3단계 상세 참고). 전환기 동안 기능 누락
+  리스크.
 
 ## 권장안: 방향 C를 목표로 한 단계적 수렴
 
@@ -124,13 +131,21 @@ Studio 전용 목록을 모두 이 화면으로 대체한다.
 
 - `toggleShopVisibility`의 로직(작가 연결 gate, `published` gate 포함)을
   훅 또는 공용 유틸로 추출해 Studio 목록 행 액션에 추가.
-- API는 기존 `PUT /api/admin/shop-templates/[id]` 계열을 그대로 사용.
+- API는 기존 `PATCH /api/admin/shop-templates/[id]` 계열을 그대로 사용
+  (README의 관련 표는 이 엔드포인트를 `PUT`으로 적었으나 실제 핸들러는
+  `PATCH`다).
 
 ### 3단계 — 통합 목록으로 전환
 
-- Studio 목록 컴포넌트(`template-studio-admin-list-client.tsx`)를 확장해
-  데이터 소스를 `useAdminTemplates`(기존 `/api/admin/templates`)로 교체.
-  전 엔진 표시, 검색, 페이지네이션, 공개/비공개 필터를 흡수.
+- Studio 목록 컴포넌트(`template-studio-admin-list-client.tsx`)의 비주얼
+  틀은 유지하되, 데이터 소스를 `useAdminTemplates`(기존
+  `/api/admin/templates`)로 교체. 이는 단순 확장이 아니라 렌더링 레이어를
+  사실상 새로 쓰는 작업에 가깝다 — 현재 `TemplateStudioTemplateRecord`는
+  camelCase이고 `is_public`/`shop_templates` 필드가 아예 없는 반면,
+  `useAdminTemplates`가 반환하는 `TemplateWithShopTemplateAndPlans`는
+  snake_case에 shop/plans/artists까지 포함하는 다른 타입이라 컬럼·상태
+  분기를 이 타입 기준으로 다시 짜야 한다. 전 엔진 표시, 검색,
+  페이지네이션, 공개/비공개 필터를 흡수.
 - 행 액션을 엔진별로 분기:
   - `studio`: Studio 에디터 편집 / 미리보기 / 삭제
   - `legacy`: `/time-table/[id]` 실행 링크 (편집 액션 없음, 조회 전용)
@@ -138,8 +153,10 @@ Studio 전용 목록을 모두 이 화면으로 대체한다.
 - "새 템플릿" 버튼은 Studio 생성(`/admin/template-studio/create`)으로
   단일화. legacy 엔진 신규 생성 모달은 이 시점에 폐기한다
   (신규 제작은 Studio로만 한다는 전제 — 아래 "결정 필요" 참고).
-- 사이드바에서 "Templates" 탭 제거, "Template Studio" 탭을 "템플릿 관리"로
-  개칭(또는 그 반대 — 세그먼트 URL 유지 관점에서 결정). 제거되는 세그먼트는
+- 사이드바에서 구 `templates` 탭(현재 표시명 "템플릿 관리")을 제거하고,
+  남는 `templateStudio` 탭의 표시명을 "템플릿 관리"로 바꾼다(또는 반대로
+  "Template Studio" 이름과 URL 세그먼트를 유지하고 구 탭 쪽을 제거 — 어느
+  세그먼트를 남길지는 "결정 필요" 표 참고). 제거되는 세그먼트는
   `adminTabs.ts`에서 남는 탭으로 redirect 처리해 북마크를 보존한다.
 - `TemplateManagement.tsx`는 이 단계 완료 후 삭제.
 
