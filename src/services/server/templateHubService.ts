@@ -123,6 +123,64 @@ export const isPurchasablePlan = (plan: {
   return true;
 };
 
+export type TemplateSalesTypeTransitionResult =
+  | { allowed: true }
+  | { allowed: false; code: "SALE_MUST_STOP_FIRST"; message: string };
+
+/**
+ * 일반 판매 → 맞춤 제작 전환 불변식.
+ *
+ * `is_public=true → false`는 판매 중(`isShopVisible=true`)인 상태에서 허용하지
+ * 않는다. 자동으로 판매를 먼저 중지시키지 않고, 운영자가 판매 중지를 먼저
+ * 명시적으로 수행하도록 요구한다. 그 외 전환(맞춤 제작 → 일반 판매, 또는
+ * 판매 중이 아닌 일반 판매 → 맞춤 제작)은 항상 허용한다.
+ */
+export const evaluateTemplateSalesTypeTransition = (input: {
+  nextSalesType: TemplateSalesType;
+  isShopVisible: boolean;
+}): TemplateSalesTypeTransitionResult => {
+  if (input.nextSalesType === "custom" && input.isShopVisible) {
+    return {
+      allowed: false,
+      code: "SALE_MUST_STOP_FIRST",
+      message: "맞춤 제작으로 변경하려면 먼저 판매를 중지해 주세요.",
+    };
+  }
+
+  return { allowed: true };
+};
+
+export type TemplateSaleVisibilityChangeResult =
+  | { allowed: true }
+  | { allowed: false; code: "SALE_NOT_READY"; reasons: TemplateSaleBlockReason[] };
+
+/**
+ * 판매 시작·중지 불변식.
+ *
+ * 판매 중지(`requestedVisible=false`)는 readiness와 무관하게 항상 허용한다 —
+ * 데이터가 이상 상태(판매 중인데 조건 불일치)여도 운영자가 즉시 중지할 수
+ * 있어야 한다. 판매 시작은 `evaluateTemplateSaleReadiness`의 결과가
+ * `ready=true`일 때만 허용한다.
+ */
+export const evaluateTemplateSaleVisibilityChange = (input: {
+  requestedVisible: boolean;
+  readiness: TemplateSaleReadiness;
+}): TemplateSaleVisibilityChangeResult => {
+  if (!input.requestedVisible) {
+    return { allowed: true };
+  }
+
+  if (!input.readiness.ready) {
+    return {
+      allowed: false,
+      code: "SALE_NOT_READY",
+      reasons: input.readiness.reasons,
+    };
+  }
+
+  return { allowed: true };
+};
+
 // ---------------------------------------------------------------------------
 // 파라미터 정규화
 // ---------------------------------------------------------------------------

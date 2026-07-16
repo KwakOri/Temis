@@ -39,6 +39,7 @@
     "check:template-studio:crop-resize": "tsx scripts/check-template-studio-crop-resize.ts",
     "check:template-studio:hex-colors": "tsx scripts/check-template-studio-hex-colors.ts",
     "check:template-studio:web-fonts": "tsx scripts/check-template-studio-web-fonts.ts",
+    "check:template-hub:sale-readiness": "tsx scripts/check-template-hub-sale-readiness.ts",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"
   },
   "dependencies": {
