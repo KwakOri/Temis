@@ -1,6 +1,6 @@
 # 03. 판매 준비 상태와 서버 규칙
 
-상태: 대기  
+상태: 완료 (2026-07-16)  
 선행 단계: 02. 읽기 전용 통합 목록
 
 ## 1. 목표
@@ -76,6 +76,20 @@ evaluateTemplateSaleReadiness(input): TemplateSaleReadiness
 - 단건 mutation 직전에 동일 규칙 재사용 가능
 - 누락된 관계를 예외가 아닌 차단 사유로 변환
 
+01단계에서 목록 응답 계약에 `saleReadiness`가 이미 포함되어 있어, 로열티
+판정을 포함한 `evaluateTemplateSaleReadiness`는 01단계 구현 시점에 이미
+완전한 형태로 작성되어 있었다. 03단계에서 추가한 것은 6절의 두 불변식을
+재사용 가능한 순수 함수로 분리한 것이다.
+
+```ts
+evaluateTemplateSalesTypeTransition(input): TemplateSalesTypeTransitionResult
+evaluateTemplateSaleVisibilityChange(input): TemplateSaleVisibilityChangeResult
+```
+
+두 함수 모두 DB 접근이 없는 순수 함수다. 04단계의 Hub mutation API
+(`PATCH .../sales-type`, `PATCH .../sale`)는 이 두 함수를 그대로 호출해
+새 판정 로직을 만들지 않는다.
+
 ## 5. 판매 상태 표현
 
 Hub의 표시 상태는 다음 순서로 계산한다.
@@ -145,12 +159,42 @@ Hub 전용 mutation API는 다음 순서를 요구한다.
 
 기존 파일럿 E2E의 정상 판매 시나리오도 회귀 없이 통과해야 한다.
 
+### 검증 결과 (2026-07-16)
+
+`npm run check:template-hub:sale-readiness`
+(`scripts/check-template-hub-sale-readiness.ts`)에 위 9개 시나리오를 포함해
+22건의 단위 테스트를 작성했다. DB나 네트워크 없이 순수 함수만 호출하며
+전부 통과했다.
+
+- `evaluateTemplateSaleReadiness`: draft/archived 차단, 맞춤 제작 차단, 상품
+  없음(PLAN_MISSING 중복 없음 확인 포함), plan 없음, 작가 없음(ROYALTY_MISSING
+  중복 없음 확인 포함), 일부 작가만 로열티 없음(누락 작가 ID·이름이 응답에
+  포함되는지 확인), 모든 조건 충족, 여러 사유 동시 발생
+- `isPurchasablePlan`: pro/lite 정상, 무료(0원) 허용, 다른 상품의 plan 거부,
+  가격 null/음수 거부, 미지원 plan 종류 거부
+- `evaluateTemplateSaleVisibilityChange`: 조건 불일치 상태에서도 판매 중지
+  항상 허용, ready일 때만 판매 시작 허용, 거부 시 `SALE_NOT_READY`와 전체
+  사유 목록 반환
+- `evaluateTemplateSalesTypeTransition`: 판매 중 맞춤 제작 전환 거부
+  (`SALE_MUST_STOP_FIRST`), 판매 중이 아니면 허용, 일반 판매로의 전환은
+  판매 중 여부와 무관하게 항상 허용
+
+`npm run check:pilot-e2e`로 기존 정상 판매 시나리오 회귀 여부를 확인했다 —
+통과(로컬 환경에 Gmail 변수가 없어 발생하는 이메일 발송 실패 로그는 이
+스크립트가 이미 알려진 것으로 처리하는 무해한 경고이며, 이번 변경과 무관하다).
+로컬 복제 DB의 판매 중 템플릿 10건도 여전히 전부 `ready: true`로 평가되어
+회귀가 없음을 다시 확인했다. `tsc --noEmit`, 변경 파일 ESLint 통과.
+
 ## 10. 완료 조건
 
-- readiness가 서버 단일 함수에서 계산됨
-- 목록과 단건 mutation이 같은 판정을 사용함
-- plan과 로열티를 포함한 모든 차단 사유 제공
-- 데이터 이상 상태를 숨기지 않음
-- 판매 중지는 항상 가능함
-- 판매 중 맞춤 제작 전환이 차단됨
+- [x] readiness가 서버 단일 함수에서 계산됨
+- [x] 목록과 단건 mutation이 같은 판정을 사용함 — mutation은 04단계에서
+      구현하되, 재사용할 순수 함수(`evaluateTemplateSaleVisibilityChange`,
+      `evaluateTemplateSalesTypeTransition`)는 이번 단계에서 이미 준비됨
+- [x] plan과 로열티를 포함한 모든 차단 사유 제공
+- [x] 데이터 이상 상태를 숨기지 않음
+- [x] 판매 중지는 항상 가능함 (순수 함수 단위 테스트로 확인, 04단계에서
+      실제 mutation에 연결)
+- [x] 판매 중 맞춤 제작 전환이 차단됨 (순수 함수 단위 테스트로 확인, 04단계에서
+      실제 mutation에 연결)
 
