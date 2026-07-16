@@ -5,6 +5,11 @@
  * route는 이 파일이 검증하는 evaluateTemplateSaleReadiness /
  * evaluateTemplateSalesTypeTransition / evaluateTemplateSaleVisibilityChange를
  * 그대로 재사용해야 한다 — 새 판정 로직을 만들지 않는다.
+ *
+ * `templateHubService`가 아니라 `templateHubSaleRules`에서 직접 import한다
+ * (remediation 02단계) — 서비스 모듈은 최상단에서 `supabase-admin-server`를
+ * import하며 Supabase 환경변수가 없으면 즉시 throw하므로, 이 순수 단위
+ * 테스트를 DB 없이 CI에서 돌리려면 DB 비의존 모듈만 import해야 한다.
  */
 import {
   evaluateTemplateSaleReadiness,
@@ -12,7 +17,7 @@ import {
   evaluateTemplateSalesTypeTransition,
   isPurchasablePlan,
   type TemplateSaleReadinessInput,
-} from "../src/services/server/templateHubService";
+} from "../src/services/server/templateHubSaleRules";
 import type {
   TemplateHubLinkedArtist,
   TemplateSaleBlockReasonCode,

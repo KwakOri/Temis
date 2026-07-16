@@ -1,0 +1,102 @@
+name: Template Hub Check
+
+# 이전에 있던 V2 Template OrderKey Check workflow는 V2 Template 제거 이후
+# 존재하지 않는 `npm run check:v2-orderkey`를 호출해 항상 실패했다
+# (remediation 02). 이 workflow가 그 자리를 대신해 Template Hub 변경을
+# 실제로 검증한다.
+
+on:
+  pull_request:
+    paths:
+      - 'src/app/(root)/admin/template-hub/**'
+      - 'src/app/api/admin/template-hub/**'
+      - 'src/components/admin/template-hub/**'
+      - 'src/hooks/query/useTemplateHub.ts'
+      - 'src/services/admin/templateHubService.ts'
+      - 'src/services/server/templateHubService.ts'
+      - 'src/services/server/templateHubSaleRules.ts'
+      - 'src/types/template-hub.ts'
+      - 'scripts/check-template-hub-*.ts'
+      - 'supabase/migrations/**'
+      - '.github/workflows/template-hub-check.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/app/(root)/admin/template-hub/**'
+      - 'src/app/api/admin/template-hub/**'
+      - 'src/components/admin/template-hub/**'
+      - 'src/hooks/query/useTemplateHub.ts'
+      - 'src/services/admin/templateHubService.ts'
+      - 'src/services/server/templateHubService.ts'
+      - 'src/services/server/templateHubSaleRules.ts'
+      - 'src/types/template-hub.ts'
+      - 'scripts/check-template-hub-*.ts'
+      - 'supabase/migrations/**'
+      - '.github/workflows/template-hub-check.yml'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    # 빌드에만 필요한 안전한 CI 전용 값. 실제 프로덕션 비밀은 여기 두지 않는다.
+    env:
+      JWT_SECRET: ci-template-hub-check-secret
+      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_DATA_VERSION: ci
+      CLOUDFLARE_R2_ACCESS_KEY_ID: ci-dummy
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: ci-dummy
+      CLOUDFLARE_R2_ENDPOINT: https://ci-dummy.r2.cloudflarestorage.com
+      CLOUDFLARE_R2_BUCKET_NAME: ci-dummy
+      CLOUDFLARE_R2_PUBLIC_URL: https://pub-ci-dummy.r2.dev
+      NEXT_PUBLIC_CLOUDFLARE_R2_PUBLIC_URL: https://pub-ci-dummy.r2.dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit --pretty false --incremental false
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: DB-independent sale rule unit tests
+        # 의도적으로 Supabase 환경변수를 주입하지 않는다 — 순수 판정 로직이
+        # DB 모듈 import 없이 동작하는지(remediation 02) 이 단계에서 검증한다.
+        run: npm run check:template-hub:sale-readiness
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Export local Supabase env
+        run: |
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(supabase status -o json | jq -r '.API_URL')"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(supabase status -o json | jq -r '.ANON_KEY')"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | jq -r '.SERVICE_ROLE_KEY')"
+          } >> "$GITHUB_ENV"
+
+      - name: Template Hub API regression tests
+        run: npm run check:template-hub:api
+
+      - name: Production build
+        run: npm run build
