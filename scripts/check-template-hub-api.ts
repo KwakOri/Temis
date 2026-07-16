@@ -8,6 +8,7 @@
  *   - sale start/stop mutation
  *   - 관리자 인증
  *   - (remediation 01) 판매 시작/맞춤 제작 전환 동시 요청의 원자성
+ *   - (remediation 06) 템플릿당 상품 1개 불변식(동시 생성 요청)
  *
  * 로컬 복제 DB에는 Studio 템플릿이 draft 1건뿐이라(published+상품 구성,
  * 판매 중 등 표본 조합이 없음), 이 스크립트가 직접 synthetic 템플릿을 만들어
@@ -24,6 +25,7 @@ import { supabaseAdminServer } from "../src/lib/supabase-admin-server";
 import { GET as listTemplatesRoute } from "../src/app/api/admin/template-hub/templates/route";
 import { PATCH as saleRoute } from "../src/app/api/admin/template-hub/templates/[id]/sale/route";
 import { PATCH as salesTypeRoute } from "../src/app/api/admin/template-hub/templates/[id]/sales-type/route";
+import { POST as createShopTemplateRoute } from "../src/app/api/admin/shop-templates/route";
 import type {
   TemplateHubErrorResponse,
   TemplateHubItemResponse,
@@ -535,6 +537,67 @@ const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
         .from("templates")
         .delete()
         .eq("id", fixture.id);
+      if (cleanupError) throw cleanupError;
+    }
+
+    // -------------------------------------------------------------------
+    // 06단계 수정사항: 템플릿당 상품 1개 불변식. 상품이 없는 published
+    // 템플릿에 동시 생성 요청 두 건을 보내면 하나만 성공(201)하고 나머지는
+    // DB unique 제약(`shop_templates_template_id_unique`)에 막혀 409를
+    // 받아야 한다.
+    // -------------------------------------------------------------------
+    for (let i = 0; i < CONCURRENCY_ITERATIONS; i += 1) {
+      const now = new Date().toISOString();
+      const { data: template, error: templateError } = await supabaseAdminServer
+        .from("templates")
+        .insert({
+          name: `${FIXTURE_PREFIX} 상품 생성 동시성 #${i}`,
+          description: "",
+          thumbnail_url: "",
+          template_engine: "studio",
+          status: "published",
+          is_public: true,
+          created_at: now,
+          updated_at: now,
+        })
+        .select("id")
+        .single();
+      if (templateError || !template) throw templateError ?? new Error("템플릿 생성 실패");
+
+      await check(`동시 상품 생성 반복 ${i}: 하나만 성공하고 나머지는 409`, async () => {
+        const shopTemplateBody = {
+          template_id: template.id,
+          title: `${FIXTURE_PREFIX} 동시 생성 상품`,
+        };
+
+        const results = await Promise.allSettled([
+          createShopTemplateRoute(req(`${base}/shop-templates`, adminToken, { body: shopTemplateBody, method: "POST" })),
+          createShopTemplateRoute(req(`${base}/shop-templates`, adminToken, { body: shopTemplateBody, method: "POST" })),
+        ]);
+
+        for (const result of results) {
+          assert(result.status === "fulfilled", `route가 예외를 던지면 안 된다: ${JSON.stringify(result)}`);
+        }
+
+        const statuses = (results as PromiseFulfilledResult<NextResponse>[]).map((r) => r.value.status);
+        const succeeded = statuses.filter((s) => s === 201).length;
+        const conflicted = statuses.filter((s) => s === 409).length;
+
+        assert(succeeded === 1, `정확히 하나만 201이어야 한다: ${JSON.stringify(statuses)}`);
+        assert(conflicted === 1, `나머지 하나는 409여야 한다: ${JSON.stringify(statuses)}`);
+
+        const { count, error: countError } = await supabaseAdminServer
+          .from("shop_templates")
+          .select("id", { count: "exact", head: true })
+          .eq("template_id", template.id);
+        if (countError) throw countError;
+        assert(count === 1, `shop_templates 행이 정확히 1개여야 한다: ${count}`);
+      });
+
+      const { error: cleanupError } = await supabaseAdminServer
+        .from("templates")
+        .delete()
+        .eq("id", template.id);
       if (cleanupError) throw cleanupError;
     }
   } finally {

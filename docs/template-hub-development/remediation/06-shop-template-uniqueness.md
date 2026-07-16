@@ -1,7 +1,7 @@
 # 06. 템플릿당 상품 1개 불변식 보장
 
 - 우선순위: P2
-- 상태: 미수정
+- 상태: 완료 (2026-07-16)
 - 영향 영역: 상품 상태, 판매 시작·중지, 목록 count
 
 ## 문제
@@ -66,3 +66,31 @@ having count(*) > 1;
 migration 전후 모두 결과가 0건이어야 한다. 이후 동일한 `template_id`로 병렬 insert를
 시도해 하나만 성공하는지 확인한다. 원격 migration 적용은 사용자 명시 승인 후에만
 수행한다.
+
+## 완료 근거 (2026-07-16)
+
+- migration 적용 전 로컬 복제 DB 중복 감사 결과 0건(위 SQL 그대로 실행, 결과는
+  migration 파일 헤더 주석에도 기록).
+- 신규 migration
+  `supabase/migrations/20260716020000_shop_templates_template_id_unique.sql`이
+  `template_id IS NOT NULL` partial unique index
+  `shop_templates_template_id_unique`를 추가했다. NULL(고아 상품)은 제약
+  대상에서 제외된다.
+- `src/app/api/admin/shop-templates/route.ts`의 POST가 unique violation
+  (`23505`)을 기존 "이미 이 템플릿에 대한 상품이 등록되어 있습니다." 409
+  응답으로 매핑하도록 고쳤다 — 사전 조회가 통과한 뒤에도 동시 요청이 DB
+  제약에 걸리면 500 대신 409를 반환한다.
+- `scripts/check-template-hub-api.ts`에 동시 상품 생성 회귀 테스트를
+  추가했다. 상품이 없는 published 템플릿에 동일한 `template_id`로 두 요청을
+  동시에 보내는 시나리오를 매번 새 템플릿으로 5회 반복하고, 매번 정확히
+  하나만 201, 나머지 하나는 409이며 `shop_templates` 행이 정확히 1개인지
+  확인한다.
+- 로컬 Supabase에서 `npm run check:template-hub:api` 실행 결과: 전체 30건
+  통과(신규 동시 생성 테스트 5회 포함), 종료 후 `[hub-qa]` 템플릿 0건.
+- `npx tsc --noEmit --pretty false --incremental false`, 변경 파일 ESLint
+  모두 통과.
+- 기존 상품 수정·plan 연결·판매 시작/중지 흐름은 회귀 테스트의 기존 표본
+  (`studioReadyNotSelling`, `studioSelling` 등)이 그대로 통과해 영향이 없음을
+  확인했다.
+- 원격 Supabase에는 적용하지 않았다. 원격 적용 전 반드시 원격에서 동일한
+  중복 감사 SQL을 먼저 실행하고, 사용자 승인 후 진행한다.

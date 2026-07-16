@@ -96,6 +96,15 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (insertError) {
+      // 사전 조회와 이 insert 사이의 경합은 DB unique 제약
+      // (`shop_templates_template_id_unique`)이 최종적으로 막는다. 동시
+      // 요청 중 하나만 여기 도달하고, 나머지는 23505로 거부된다.
+      if (insertError.code === "23505") {
+        return NextResponse.json(
+          { error: "이미 이 템플릿에 대한 상품이 등록되어 있습니다." },
+          { status: 409 }
+        );
+      }
       console.error("Shop template creation error:", insertError);
       throw insertError;
     }
