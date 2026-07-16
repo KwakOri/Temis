@@ -16,8 +16,8 @@ const TeamTimeTableMemo = () => {
     >
       {isMemoTextVisible && (
         <div
-          className="absolute flex justify-center items-center"
-          style={{ top: 1940, width: 3600, height: 200 }}
+          className="absolute flex justify-center items-center bg-black/30"
+          style={{ top: 1848, width: 3600, height: 212 }}
         >
           <AutoResizeText
             style={{

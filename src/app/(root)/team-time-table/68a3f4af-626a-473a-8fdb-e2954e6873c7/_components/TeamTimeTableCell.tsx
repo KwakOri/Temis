@@ -187,7 +187,7 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
     typeof primaryEntry?.mainTitle === 'string' ? primaryEntry.mainTitle : '';
   const subTitle =
     typeof primaryEntry?.subTitle === 'string' ? primaryEntry.subTitle : '';
-  const hasSubTitle = subTitle.trim().length > 0;
+  const hasSubTitle = false;
   const memberName = memberNamesMap.get(userId) as string;
 
   return (
@@ -259,7 +259,7 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
               </AutoResizeText>
             </div>
 
-            {hasSubTitle && (
+            {/* {hasSubTitle && (
               <div
                 style={{
                   width: 160,
@@ -285,7 +285,7 @@ const TeamTimeTableCell: React.FC<TeamTimeTableCellProps> = ({
                   {subTitle}
                 </AutoResizeText>
               </div>
-            )}
+            )} */}
 
             <CardBG isOffline={data.schedule?.isOffline} userId={userId} />
           </>
