@@ -17,6 +17,8 @@
  * artist_royalty_rules까지 CASCADE되므로 정리 대상은 templates row만 추적하면
  * 된다(마이그레이션에서 FK ON DELETE CASCADE 확인 완료).
  */
+import { randomUUID } from "node:crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { signJWT } from "../src/lib/auth/jwt";
@@ -47,7 +49,21 @@ const assertLocalSupabaseUrl = () => {
 };
 
 const TEMIS_ARTIST_ID = "e5441051-86eb-418c-8051-efd0836a97c6";
-const FIXTURE_PREFIX = "[hub-qa]";
+// 실행마다 고유한 접두사를 써서, 병렬/연속 실행이 서로의 fixture와 충돌하지
+// 않게 한다(remediation 05).
+const RUN_ID = randomUUID().slice(0, 8);
+const FIXTURE_PREFIX = `[hub-qa-${RUN_ID}]`;
+
+/**
+ * 생성에 성공한 템플릿 id를 즉시 기록하는 registry(remediation 05).
+ *
+ * 과거에는 fixture 5개를 만드는 도중 하나라도 실패하면 `createFixtures()`가
+ * reject하고 호출부의 `fixtures` 변수는 끝까지 빈 객체로 남아, 이미 insert된
+ * 앞쪽 fixture들이 정리되지 않고 로컬 복제 DB에 남을 수 있었다. 이제 각
+ * 템플릿 insert가 성공하는 즉시(연결 데이터를 만들기 전에) 이 registry에
+ * 기록하고, 정리는 registry를 기준으로 수행한다.
+ */
+const trackedTemplateIds = new Set<string>();
 
 const base = "http://127.0.0.1/hub-api-check";
 
@@ -145,6 +161,8 @@ const createFixtures = async (): Promise<Record<string, CreatedFixture>> => {
       throw templateError ?? new Error("템플릿 생성 실패");
     }
 
+    trackedTemplateIds.add(template.id);
+
     let shopTemplateId: string | null = null;
 
     if (fixture.withProduct) {
@@ -188,19 +206,40 @@ const createFixtures = async (): Promise<Record<string, CreatedFixture>> => {
   return created;
 };
 
-const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
-  const ids = Object.values(created).map((f) => f.id);
+/** registry에 남아 있는 모든 템플릿을 정리한다. 개별 정리(성공 시 registry에서 제거)와 최종 안전망 역할을 겸한다. */
+const deleteFixtures = async () => {
+  const ids = Array.from(trackedTemplateIds);
   if (ids.length === 0) return;
 
   const { error } = await supabaseAdminServer.from("templates").delete().in("id", ids);
   if (error) {
-    console.error("픽스처 정리 실패 — 수동 확인 필요:", ids, error.message);
+    console.error("픽스처 정리 실패 — 수동 확인 필요. 아래 id를 직접 삭제하세요:", ids, error.message);
     throw error;
+  }
+
+  for (const id of ids) trackedTemplateIds.delete(id);
+};
+
+const assertNoResidueFromPriorRuns = async () => {
+  // FIXTURE_PREFIX 자체는 이번 실행의 RUN_ID를 포함해 항상 비어 있는 게
+  // 당연하므로, 접두사 공통부(run id 앞부분)로 과거 실행이 정리에 실패해
+  // 남긴 잔여물이 있는지 함께 확인한다.
+  const { count, error } = await supabaseAdminServer
+    .from("templates")
+    .select("id", { count: "exact", head: true })
+    .ilike("name", "[hub-qa-%");
+  if (error) throw error;
+
+  if ((count ?? 0) > 0) {
+    console.warn(
+      `경고: 이전 실행이 정리하지 못한 [hub-qa-*] 템플릿이 ${count}건 남아 있습니다. 수동으로 확인하세요.`
+    );
   }
 };
 
 (async () => {
   assertLocalSupabaseUrl();
+  await assertNoResidueFromPriorRuns();
 
   const adminToken = await signJWT(
     { userId: "1", email: "hub-qa-admin@temis.local", role: "admin" } satisfies JWTPayload,
@@ -212,6 +251,7 @@ const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
   );
 
   let fixtures: Record<string, CreatedFixture> = {};
+  let testError: unknown;
 
   try {
     fixtures = await createFixtures();
@@ -453,6 +493,7 @@ const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
         .select("id")
         .single();
       if (templateError || !template) throw templateError ?? new Error("템플릿 생성 실패");
+      trackedTemplateIds.add(template.id);
 
       const { data: shopTemplate, error: shopError } = await supabaseAdminServer
         .from("shop_templates")
@@ -538,6 +579,7 @@ const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
         .delete()
         .eq("id", fixture.id);
       if (cleanupError) throw cleanupError;
+      trackedTemplateIds.delete(fixture.id);
     }
 
     // -------------------------------------------------------------------
@@ -563,6 +605,7 @@ const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
         .select("id")
         .single();
       if (templateError || !template) throw templateError ?? new Error("템플릿 생성 실패");
+      trackedTemplateIds.add(template.id);
 
       await check(`동시 상품 생성 반복 ${i}: 하나만 성공하고 나머지는 409`, async () => {
         const shopTemplateBody = {
@@ -599,9 +642,20 @@ const deleteFixtures = async (created: Record<string, CreatedFixture>) => {
         .delete()
         .eq("id", template.id);
       if (cleanupError) throw cleanupError;
+      trackedTemplateIds.delete(template.id);
     }
+  } catch (error) {
+    testError = error;
+    throw error;
   } finally {
-    await deleteFixtures(fixtures);
+    try {
+      await deleteFixtures();
+    } catch (cleanupError) {
+      // 원래 테스트가 이미 실패한 상태라면 그 실패를 정리 실패로 덮어쓰지
+      // 않는다 — 다만 정리 실패 자체도 눈에 띄게 남긴다(remediation 05).
+      console.error("픽스처 정리 실패:", cleanupError);
+      if (!testError) throw cleanupError;
+    }
   }
 
   console.log(`\nTemplate Hub API 회귀 테스트 통과 (${passed}건). 픽스처 정리 완료.`);

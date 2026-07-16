@@ -2,7 +2,7 @@
 
 - 점검일: 2026-07-16
 - 대상 브랜치: `features/template-system`
-- 상태: 순차 구현 진행 중 (01, 02, 06, 03, 04 완료)
+- 상태: 6개 항목 모두 완료 (로컬 검증 기준). 원격 migration 적용은 별도 승인 대기
 
 ## 목적
 
@@ -21,7 +21,7 @@ Template Hub 1~5단계 구현을 코드·스키마·테스트·빌드·CI 기준
 | 02 | P1 | [중단된 CI 복구와 Hub 검증 등록](./02-ci-and-hub-regression.md) | 완료 |
 | 03 | P2 | [readiness 필터 1,000건 상한 제거](./03-readiness-filter-pagination.md) | 완료 |
 | 04 | P2 | [비활성 미리보기 링크의 키보드 접근 차단](./04-disabled-preview-accessibility.md) | 완료 |
-| 05 | P2 | [API 테스트 fixture의 실패 안전 정리](./05-fixture-cleanup-safety.md) | 미수정 |
+| 05 | P2 | [API 테스트 fixture의 실패 안전 정리](./05-fixture-cleanup-safety.md) | 완료 |
 | 06 | P2 | [템플릿당 상품 1개 불변식 보장](./06-shop-template-uniqueness.md) | 완료 |
 
 ## 권장 처리 순서
