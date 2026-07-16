@@ -4,6 +4,7 @@ import type {
   GetRoyaltySalesParams,
   GetUsersParams,
 } from "@/types/admin";
+import type { TemplateHubListParams } from "@/types/template-hub";
 
 export const queryKeys = {
   user: {
@@ -90,6 +91,11 @@ export const queryKeys = {
       [...queryKeys.admin.all, "templatePlans", templateId] as const,
     v2TemplateRenderConfig: (templateId: string) =>
       [...queryKeys.admin.all, "v2TemplateRenderConfig", templateId] as const,
+    templateHub: () => [...queryKeys.admin.all, "templateHub"] as const,
+    templateHubList: (params?: TemplateHubListParams) =>
+      [...queryKeys.admin.templateHub(), "list", params] as const,
+    templateHubItem: (templateId: string) =>
+      [...queryKeys.admin.templateHub(), "item", templateId] as const,
     templateStudioTemplates: () =>
       [...queryKeys.admin.all, "templateStudioTemplates"] as const,
     templateStudioTemplate: (templateId: string) =>
