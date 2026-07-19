@@ -74,3 +74,30 @@ export const OTHER_OPTIONS: OtherOption[] = [
     is_discount: true,
   },
 ];
+
+// 상충하는 기타 옵션 양방향 매핑 ("포트폴리오 비공개" ↔ "후기 이벤트 참여")
+export const OTHER_OPTION_CONFLICTS: Record<string, string> = {
+  portfolio_private: "review_event",
+  review_event: "portfolio_private",
+};
+
+// 기존 주문에 한글 라벨로 저장된 기타 옵션을 현재 value로 정규화
+const LEGACY_OTHER_OPTION_VALUES: Record<string, string> = {
+  "포트폴리오 비공개": "portfolio_private",
+  "후기 이벤트 참여": "review_event",
+};
+
+export const normalizeOtherOptionValue = (optionValue: string): string =>
+  LEGACY_OTHER_OPTION_VALUES[optionValue] ?? optionValue;
+
+// 선택된 옵션 value 목록에 상충 옵션이 함께 포함되어 있는지 판별
+export const hasConflictingOtherOptions = (
+  selectedOptionValues: string[]
+): boolean => {
+  const normalizedValues = selectedOptionValues.map(normalizeOtherOptionValue);
+
+  return (
+    normalizedValues.includes("portfolio_private") &&
+    normalizedValues.includes("review_event")
+  );
+};
