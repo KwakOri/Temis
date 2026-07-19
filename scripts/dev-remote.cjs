@@ -29,15 +29,15 @@ const resolveTargetEnv = (key) =>
     sourceEnv
   );
 
-const supabaseUrl = resolveTargetEnv("NEXT_PUBLIC_SUPABASE_URL");
-const supabaseAnonKey = resolveTargetEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-const supabaseServiceRoleKey = resolveTargetEnv("SUPABASE_SERVICE_ROLE_KEY");
+const supabaseUrl = resolveTargetEnv("SUPABASE_URL");
+const supabasePublishableKey = resolveTargetEnv("SUPABASE_PUBLISHABLE_KEY");
+const supabaseSecretKey = resolveTargetEnv("SUPABASE_SECRET_KEY");
 const projectRef = resolveTargetEnv("SUPABASE_PROJECT_REF") ?? defaultProjectRef;
 
 const missingKeys = [
-  ["NEXT_PUBLIC_SUPABASE_URL", supabaseUrl],
-  ["NEXT_PUBLIC_SUPABASE_ANON_KEY", supabaseAnonKey],
-  ["SUPABASE_SERVICE_ROLE_KEY", supabaseServiceRoleKey],
+  ["SUPABASE_URL", supabaseUrl],
+  ["SUPABASE_PUBLISHABLE_KEY", supabasePublishableKey],
+  ["SUPABASE_SECRET_KEY", supabaseSecretKey],
 ]
   .filter(([, value]) => !value)
   .map(([key]) => key);
@@ -54,7 +54,19 @@ let parsedSupabaseUrl;
 try {
   parsedSupabaseUrl = new URL(supabaseUrl);
 } catch {
-  console.error("[dev:remote] NEXT_PUBLIC_SUPABASE_URL must be a valid URL.");
+  console.error("[dev:remote] SUPABASE_URL must be a valid URL.");
+  process.exit(1);
+}
+
+if (!supabasePublishableKey.startsWith("sb_publishable_")) {
+  console.error(
+    "[dev:remote] SUPABASE_PUBLISHABLE_KEY must use the sb_publishable_ format."
+  );
+  process.exit(1);
+}
+
+if (!supabaseSecretKey.startsWith("sb_secret_")) {
+  console.error("[dev:remote] SUPABASE_SECRET_KEY must use the sb_secret_ format.");
   process.exit(1);
 }
 
@@ -74,10 +86,10 @@ const devProcess = spawn("npm", ["run", "dev:next", "--", ...passthroughArgs], {
   cwd: rootDir,
   env: {
     ...process.env,
-    NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: supabaseAnonKey,
+    SUPABASE_URL: supabaseUrl,
+    SUPABASE_PUBLISHABLE_KEY: supabasePublishableKey,
     NEXT_PUBLIC_SUPABASE_TARGET: "remote",
-    SUPABASE_SERVICE_ROLE_KEY: supabaseServiceRoleKey,
+    SUPABASE_SECRET_KEY: supabaseSecretKey,
   },
   stdio: "inherit",
 });

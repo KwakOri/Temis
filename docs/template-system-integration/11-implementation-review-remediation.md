@@ -35,12 +35,18 @@
 다음 작업은 방향만 확인했으며 이번 후속 작업에서는 잠시 보류한다(P0의 근본
 원인인 anon 쓰기 자체는 해결했다 — 아래 참고).
 
-- legacy anon/service-role key를 Publishable/Secret key로 전환
 - 브라우저 Supabase 직접 호출을 모두 Next API route로 이전(우선 대상 12개
-  라우트는 이번에 전환 완료, 앱 전체 전수 조사는 보류)
+  라우트는 이번에 전환 완료, 앱 전체 전수 조사는 당시 보류)
 - 전체 API route의 공개/사용자/관리자 권한 등급 분류
 - 앱 전체 anon/authenticated GRANT 회수(우선 대상 테이블은 회수 완료, 전체
   스키마 전수 회수는 보류)
+
+후속 14단계(2026-07-17)에서 Publishable/Secret key 전환과 남아 있던 브라우저
+상점 목록·상세 Supabase 직접 조회 제거를 완료했다. 현재 두 키 모두 서버 전용
+환경변수이며 세부 운영 전환 순서는 `14-supabase-api-key-cutover.md`에 기록했다.
+같은 재검토에서 기존 "앱 전체 GRANT 회수 보류" 범위에 계정·토큰·정산 데이터
+직접 변조가 가능한 P0가 실제로 남아 있음을 확인했으므로, 이 부분은 더 이상
+원격 반영을 막지 않는 단순 후속 항목으로 보지 않는다.
 
 ## 종합 판정
 
@@ -89,7 +95,7 @@ artists CRUD, template-artists 연결, 사용자 본인 artist-profile)를 실�
 
 ### 참고: 이번 범위에서 여전히 보류하는 것
 
-- Publishable/Secret key 전환, 앱 전체 API route 전수 분류, 스키마 전체
+- 앱 전체 API route 전수 분류, 스키마 전체
   `ALTER DEFAULT PRIVILEGES` 정리는 이번 P0 해결 범위에 포함하지 않았다.
   이번에 처리한 5개 테이블은 이 P0 검토에서 실제로 확인된 우회 경로였고,
   프로젝트 전체를 대상으로 한 전수 조사는 아니다. 새 테이블을 추가하거나
@@ -214,7 +220,7 @@ Error occurred prerendering page "/admin"
 차단 조건으로 취급하지 않는다.
 
 검토 당시 환경변수를 주입하지 않은 기본 `npm run build`는 API route 수집 단계에서
-`SUPABASE_SERVICE_ROLE_KEY` 누락으로 더 일찍 실패했다. 서버 client를 module
+당시 legacy service-role 환경변수 누락으로 더 일찍 실패했다. 서버 client를 module
 import 시 즉시 생성하는 구조도 당시 함께 확인된 항목이다. 실제 해결 변경의 범위와
 검증 결과는 별도 build 수정 이력을 따른다.
 
@@ -378,7 +384,8 @@ R2 외부 객체 쓰기를 포함하는 asset 업로드 검증 스크립트
 - [x] 일반 판매·개인 맞춤 흐름이 통합 테스트(route handler 직접 호출)로
       검증된다. 실제 브라우저 E2E는 별도 작업으로 이연.
 - [x] `npm run build`가 성공한다.
-- [ ] 원격 migration 적용과 key 전환은 사용자가 최종 확인 후 직접 수행한다.
+- [ ] 원격 migration 적용과 legacy key 비활성화는 사용자가 최종 확인 후 직접
+      수행한다(앱의 새 키 이름 전환은 14단계에서 완료).
 
 남은 후속 항목(별도 기능/작업으로 분리, 원격 반영을 막는 조건은 아님):
 
@@ -388,5 +395,10 @@ R2 외부 객체 쓰기를 포함하는 asset 업로드 검증 스크립트
   각각 최대 20 MiB를 적용한다. 상세 내용은
   `12-user-runtime-browser-image-storage.md`를 따른다.
 - Playwright 등을 이용한 실제 브라우저 E2E
-- Publishable/Secret key 전환과 앱 전체 API route 권한 등급 전수 분류·전체
-  GRANT 회수(이번에 처리한 5개 테이블 + Studio 우선 대상 외 나머지 스키마)
+
+원격 Publishable/Secret key 전환 전 차단 조건(P0):
+
+- 앱 전체 API route 권한 등급 전수 분류와 민감 테이블·함수의
+  `PUBLIC`/`anon`/`authenticated` GRANT 회수. 후속 14단계 재검토에서
+  `users`/`tokens`/`files`/판매·정산 테이블과 정산 RPC의 실제 anon 유효 권한을
+  재현했다. 상세 근거와 전환 순서는 `14-supabase-api-key-cutover.md`를 따른다.

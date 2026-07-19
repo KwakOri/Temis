@@ -29,7 +29,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 const assertLocalSupabaseUrl = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseUrl = process.env.SUPABASE_URL ?? "";
   if (
     !supabaseUrl.startsWith("http://127.0.0.1:") &&
     !supabaseUrl.startsWith("http://localhost:")

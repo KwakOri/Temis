@@ -77,6 +77,7 @@ templates
 11. [1~10단계 구현 검토와 후속 보완 항목](./11-implementation-review-remediation.md)
 12. [사용자 runtime 이미지 브라우저 로컬 저장 계획](./12-user-runtime-browser-image-storage.md)
 13. [과도기 `v2-template` 시스템 제거 검토](./13-v2-template-legacy-removal.md)
+14. [Supabase Publishable/Secret 키 전환과 브라우저 경계](./14-supabase-api-key-cutover.md)
 
 1~10단계는 번호 순서로 진행한 구현 문서이며, 11단계는 구현 완료 후 발견한
 보완 항목과 현재 처리·보류 상태를 기록한 검토 문서다. 12단계는 이연했던 사용자
@@ -109,6 +110,7 @@ runtime 이미지의 crop 처리 결과를 서버에 보내지 않고 브라우�
 | 11. 구현 검토와 후속 보완 | P0/P1/P2 해결 완료(우선 대상 범위) | 2026-07-15 |
 | 12. 사용자 runtime 이미지 브라우저 저장 | 핵심 구현 완료(실제 브라우저 E2E 미실시) | 2026-07-15 |
 | 13. 과도기 v2-template 제거 | 로컬 제거 완료(원격 반영은 사용자가 직접) | 2026-07-16 |
+| 14. Supabase API 키 전환 | 코드·CI 완료(원격 전환 전 민감 DB 권한 P0 회수 필요) | 2026-07-17 |
 
 1~3단계 검증 결과:
 
@@ -147,9 +149,10 @@ runtime 이미지의 crop 처리 결과를 서버에 보내지 않고 브라우�
 Studio runtime payload·R2 수명주기, production build와 E2E 범위 문제를 확인했고,
 이번에 전부 우선 대상 범위로 해결했다(신규 migration
 `20260715080000`/`20260715090000`, 신규 검증 스크립트 5개). Publishable/Secret
-key 전환과 앱 전체 API·DB 권한 전수 개편, 실제 브라우저 E2E는 별도 작업으로
-이연했다. 사용자 runtime 이미지는 R2·DB에 보관하지 않고 crop 처리 PNG Blob만
+key 전환과 브라우저 Supabase client 제거는 14단계에서 완료했다. 앱 전체 API·DB
+권한 전수 개편과 실제 브라우저 E2E는 별도 작업으로 이연했다. 사용자 runtime 이미지는 R2·DB에 보관하지 않고 crop 처리 PNG Blob만
 동일 브라우저의 IndexedDB에 저장한다. source file은 폐기하며, 선택 파일과 처리
 결과에는 각각 최대 20 MiB를 적용한다. 상세 내용은
 `11-implementation-review-remediation.md`와
-`12-user-runtime-browser-image-storage.md`를 따른다.
+`12-user-runtime-browser-image-storage.md`, `14-supabase-api-key-cutover.md`를
+따른다.

@@ -126,13 +126,12 @@ const statusEnv = parseStatusOutput(
 
 const localDbUrl = statusEnv.DB_URL ?? statusEnv.POSTGRES_URL;
 const localApiUrl = statusEnv.API_URL ?? statusEnv.KONG_URL;
-const localAnonKey = statusEnv.ANON_KEY ?? statusEnv.SUPABASE_ANON_KEY;
-const localServiceRoleKey =
-  statusEnv.SERVICE_ROLE_KEY ?? statusEnv.SUPABASE_SERVICE_ROLE_KEY;
+const localPublishableKey = statusEnv.PUBLISHABLE_KEY;
+const localSecretKey = statusEnv.SECRET_KEY;
 
-if (!localDbUrl || !localApiUrl || !localAnonKey || !localServiceRoleKey) {
+if (!localDbUrl || !localApiUrl || !localPublishableKey || !localSecretKey) {
   console.error(
-    "[dev:local] Could not parse local Supabase URL, anon key, and service role key from `supabase status -o env`."
+    "[dev:local] Could not parse local Supabase URL, publishable key, and secret key from `supabase status -o env`."
   );
   process.exit(1);
 }
@@ -230,10 +229,10 @@ if (shouldSyncDump) {
 console.log(`[dev:local] ${totalSteps}/${totalSteps} Starting Next.js with local Supabase keys...`);
 const devEnv = {
   ...process.env,
-  NEXT_PUBLIC_SUPABASE_URL: localApiUrl,
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: localAnonKey,
+  SUPABASE_URL: localApiUrl,
+  SUPABASE_PUBLISHABLE_KEY: localPublishableKey,
   NEXT_PUBLIC_SUPABASE_TARGET: "local",
-  SUPABASE_SERVICE_ROLE_KEY: localServiceRoleKey,
+  SUPABASE_SECRET_KEY: localSecretKey,
 };
 
 const devProcess = spawn("npm", ["run", "dev:next", "--", ...passthroughArgs], {

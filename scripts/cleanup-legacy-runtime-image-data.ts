@@ -20,7 +20,7 @@
  *   npx tsx scripts/cleanup-legacy-runtime-image-data.ts --apply --template-id <uuid>
  *
  * Requires the same Supabase env vars the app uses at runtime
- * (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY). Verify against a
+ * (SUPABASE_URL, SUPABASE_SECRET_KEY). Verify against a
  * local/replica database before ever running --apply against production.
  */
 import { supabaseAdminServer } from "../src/lib/supabase-admin-server";

@@ -1,53 +1,25 @@
-import { supabase } from "@/lib/supabase";
 import {
   PurchaseRequestData,
   PurchaseRequestResponse,
-  TemplateArtist,
   ShopTemplateWithPlans,
 } from "@/types/templateDetail";
-
-type ShopTemplateDetailRow = Omit<ShopTemplateWithPlans, "template_artists"> & {
-  templates: ShopTemplateWithPlans["templates"] & {
-    template_artists?: TemplateArtist[];
-  };
-};
 
 export class TemplateDetailService {
   static async getTemplateDetail(
     templateId: string
   ): Promise<ShopTemplateWithPlans> {
-    const { data, error } = await supabase
-      .from("shop_templates")
-      .select(`
-        *,
-        templates!inner (
-          *,
-          template_artists (
-            *,
-            artist:artists(*)
-          )
-        ),
-        template_plans:template_plans!shop_template_id (*)
-      `)
-      .eq("template_id", templateId)
-      .eq("is_shop_visible", true)
-      .eq("templates.status", "published")
-      .single();
+    const response = await fetch(
+      `/api/shop/templates/${encodeURIComponent(templateId)}`
+    );
+    const result = (await response.json().catch(() => null)) as
+      | { template?: ShopTemplateWithPlans; error?: string }
+      | null;
 
-    if (error) {
-      throw new Error(`템플릿을 찾을 수 없습니다: ${error.message}`);
+    if (!response.ok || !result?.template) {
+      throw new Error(result?.error || "템플릿을 찾을 수 없습니다.");
     }
 
-    if (!data) {
-      throw new Error("템플릿을 찾을 수 없습니다.");
-    }
-
-    const row = data as ShopTemplateDetailRow;
-
-    return {
-      ...row,
-      template_artists: row.templates.template_artists || [],
-    };
+    return result.template;
   }
 
   static async submitPurchaseRequest(

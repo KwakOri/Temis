@@ -15,8 +15,15 @@ on:
       - 'src/services/admin/templateHubService.ts'
       - 'src/services/server/templateHubService.ts'
       - 'src/services/server/templateHubSaleRules.ts'
+      - 'src/lib/supabase.ts'
+      - 'src/lib/supabase-admin-server.ts'
+      - 'src/app/api/shop/templates/**'
+      - 'src/services/shopService.ts'
+      - 'src/services/templateDetailService.ts'
       - 'src/types/template-hub.ts'
       - 'scripts/check-template-hub-*.ts'
+      - 'scripts/check-supabase-key-boundary.cjs'
+      - '.env.example'
       - 'supabase/migrations/**'
       - '.github/workflows/template-hub-check.yml'
       - 'package.json'
@@ -32,8 +39,15 @@ on:
       - 'src/services/admin/templateHubService.ts'
       - 'src/services/server/templateHubService.ts'
       - 'src/services/server/templateHubSaleRules.ts'
+      - 'src/lib/supabase.ts'
+      - 'src/lib/supabase-admin-server.ts'
+      - 'src/app/api/shop/templates/**'
+      - 'src/services/shopService.ts'
+      - 'src/services/templateDetailService.ts'
       - 'src/types/template-hub.ts'
       - 'scripts/check-template-hub-*.ts'
+      - 'scripts/check-supabase-key-boundary.cjs'
+      - '.env.example'
       - 'supabase/migrations/**'
       - '.github/workflows/template-hub-check.yml'
       - 'package.json'
@@ -74,6 +88,9 @@ jobs:
       - name: ESLint
         run: npm run lint
 
+      - name: Supabase key boundary check
+        run: npm run check:supabase-key-boundary
+
       - name: DB-independent sale rule unit tests
         # 의도적으로 Supabase 환경변수를 주입하지 않는다 — 순수 판정 로직이
         # DB 모듈 import 없이 동작하는지(remediation 02) 이 단계에서 검증한다.
@@ -90,9 +107,9 @@ jobs:
       - name: Export local Supabase env
         run: |
           {
-            echo "NEXT_PUBLIC_SUPABASE_URL=$(supabase status -o json | jq -r '.API_URL')"
-            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(supabase status -o json | jq -r '.ANON_KEY')"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$(supabase status -o json | jq -r '.SERVICE_ROLE_KEY')"
+            echo "SUPABASE_URL=$(supabase status -o json | jq -r '.API_URL')"
+            echo "SUPABASE_PUBLISHABLE_KEY=$(supabase status -o json | jq -r '.PUBLISHABLE_KEY')"
+            echo "SUPABASE_SECRET_KEY=$(supabase status -o json | jq -r '.SECRET_KEY')"
           } >> "$GITHUB_ENV"
 
       - name: Template Hub API regression tests

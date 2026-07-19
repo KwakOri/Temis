@@ -59,7 +59,7 @@ const parseEnvOutput = (value: string): Record<string, string> => {
 };
 
 const applyLocalSupabaseEnv = () => {
-  const currentUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const currentUrl = process.env.SUPABASE_URL ?? "";
   if (
     currentUrl.startsWith("http://127.0.0.1:") ||
     currentUrl.startsWith("http://localhost:")
@@ -77,15 +77,14 @@ const applyLocalSupabaseEnv = () => {
   );
   const statusEnv = parseEnvOutput(statusOutput);
   const localApiUrl = statusEnv.API_URL ?? statusEnv.KONG_URL;
-  const localServiceRoleKey =
-    statusEnv.SERVICE_ROLE_KEY ?? statusEnv.SUPABASE_SERVICE_ROLE_KEY;
+  const localSecretKey = statusEnv.SECRET_KEY;
 
   if (localApiUrl) {
-    process.env.NEXT_PUBLIC_SUPABASE_URL = localApiUrl;
+    process.env.SUPABASE_URL = localApiUrl;
   }
 
-  if (localServiceRoleKey) {
-    process.env.SUPABASE_SERVICE_ROLE_KEY = localServiceRoleKey;
+  if (localSecretKey) {
+    process.env.SUPABASE_SECRET_KEY = localSecretKey;
   }
 };
 
@@ -96,7 +95,7 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 const assertLocalSupabaseUrl = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const supabaseUrl = process.env.SUPABASE_URL ?? "";
 
   if (
     !supabaseUrl.startsWith("http://127.0.0.1:") &&

@@ -36,7 +36,7 @@ V2 Template 제거 이후 남은 workflow를 정리하고 Template Hub 전용 �
 
 DB 비의존 테스트는 현재 서버 서비스 전체를 import하면서
 `supabase-admin-server.ts` 초기화까지 수행한다. 순수 판정 로직을 DB 모듈과 분리해
-`NEXT_PUBLIC_SUPABASE_URL`과 `SUPABASE_SERVICE_ROLE_KEY` 없이 실행 가능하게 해야 한다.
+`SUPABASE_URL`과 `SUPABASE_SECRET_KEY` 없이 실행 가능하게 해야 한다.
 
 API 회귀 테스트는 로컬 Supabase URL 검사를 계속 유지해 원격 DB를 대상으로 fixture를
 만들 수 없게 한다.

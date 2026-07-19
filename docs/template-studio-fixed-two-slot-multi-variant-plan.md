@@ -262,4 +262,4 @@ Implemented on 2026-07-12:
 - [x] Document/runtime cross-validation for import, export, draft, and publish
 - [x] Focused migration, layout, runtime, clone, and static renderer checks
 - [ ] Saved remote-template browser regression; local execution currently requires
-      a `SUPABASE_SERVICE_ROLE_KEY` that is not present in the development shell
+      a `SUPABASE_SECRET_KEY` that is not present in the development shell

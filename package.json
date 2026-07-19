@@ -42,6 +42,7 @@
     "check:template-hub:sale-readiness": "tsx scripts/check-template-hub-sale-readiness.ts",
     "check:template-hub:api": "tsx scripts/check-template-hub-api.ts",
     "check:template-hub:readiness-scale": "tsx scripts/check-template-hub-readiness-scale.ts",
+    "check:supabase-key-boundary": "node scripts/check-supabase-key-boundary.cjs",
     "gen:types": "supabase gen types typescript --project-id ajlgjdwkjyayrnocdfpj --schema public > src/types/supabase.ts"
   },
   "dependencies": {

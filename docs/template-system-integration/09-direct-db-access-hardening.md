@@ -32,7 +32,7 @@ API 권한 검사로 보완되지 않는다.
 
 - anon REST 요청으로 민감 행을 읽거나 쓸 수 없다.
 - 정상 UI는 서버 API를 통해 기존 기능을 유지한다.
-- service-role key는 서버 환경 밖으로 노출되지 않는다.
+- Secret key는 서버 환경 밖으로 노출되지 않는다.
 
 ## 범위 한정
 
@@ -142,4 +142,3 @@ anon key로 `template_access`/`template_purchase_requests`를 건드리고
   entitlement 판정 경로를 검증하고 있었다).
 - `tsc --noEmit`, 변경/신규 파일 ESLint 통과.
 - 원격 DB는 변경하지 않았다.
-

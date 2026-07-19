@@ -36,7 +36,8 @@ npm run dev:remote
 
 - starts or reuses the Docker local Supabase stack
 - applies pending local migrations
-- injects the local API URL, anon key, and service role key into Next.js
+- injects the local API URL, publishable key, and secret key into the server
+  runtime (no Supabase key is exposed through `NEXT_PUBLIC_*`)
 - starts Next.js without using remote Supabase credentials as its DB target
 
 `dev:local:db` is an explicit alias for the same local-DB dev flow.
@@ -72,15 +73,17 @@ Tip: override excluded services with `SUPABASE_START_EXCLUDE` (comma-separated, 
 Create an ignored `.env.remote.local` file with:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://ajlgjdwkjyayrnocdfpj.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-remote-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-remote-service-role-key
+SUPABASE_URL=https://ajlgjdwkjyayrnocdfpj.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+SUPABASE_SECRET_KEY=sb_secret_xxx
 SUPABASE_PROJECT_REF=ajlgjdwkjyayrnocdfpj
 ```
 
 Then run `npm run dev:remote`. The remote launcher validates the Temis project
-host before starting and never prints either key. Do not commit the service role
-key or place it in source code.
+host and both new key formats before starting, and never prints either key. Do
+not commit the secret key or place it in source code. Browser code reads public
+catalog data through `/api/shop/templates*`; it does not initialize a Supabase
+client.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
