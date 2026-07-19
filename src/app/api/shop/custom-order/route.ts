@@ -1,5 +1,9 @@
 import { supabase } from "@/lib/supabase";
 import { getCurrentUserId } from "@/lib/auth/jwt";
+import {
+  hasConflictingOtherOptions,
+  normalizeOtherOptionValue,
+} from "@/constants/constants";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -50,11 +54,11 @@ export async function POST(request: NextRequest) {
     // 선택된 옵션 값들 추출 (영어 value로 저장)
     const selectedOptionValues = Object.entries(selectedOptionsInput || {})
       .filter(([, isSelected]) => isSelected)
-      .map(([optionValue]) => optionValue);
+      .map(([optionValue]) => normalizeOtherOptionValue(optionValue));
 
     // 필수 영역 옵션 추가 (영어 value로)
     if (requiredArea) {
-      selectedOptionValues.push(requiredArea);
+      selectedOptionValues.push(normalizeOtherOptionValue(requiredArea));
     }
 
     // 빠른 마감 옵션 추가 (영어 value로)
@@ -65,6 +69,17 @@ export async function POST(request: NextRequest) {
     // 외부 계약 옵션 추가 (영어 value로)
     if (externalContract) {
       selectedOptionValues.push("external_contract");
+    }
+
+    // 최종 옵션 목록에 상충 옵션이 함께 포함되면 저장하지 않음
+    if (hasConflictingOtherOptions(selectedOptionValues)) {
+      return NextResponse.json(
+        {
+          error:
+            '"후기 이벤트 참여"와 "포트폴리오 비공개" 옵션은 함께 선택할 수 없습니다.',
+        },
+        { status: 400 }
+      );
     }
 
     // 데이터베이스에 주문 정보 저장 (옵션은 영어 value로 저장)
@@ -260,11 +275,11 @@ export async function PUT(request: NextRequest) {
     // 선택된 옵션 값들 추출 (영어 value로 저장)
     const selectedOptionValues = Object.entries(selectedOptionsInput || {})
       .filter(([, isSelected]) => isSelected)
-      .map(([optionValue]) => optionValue);
+      .map(([optionValue]) => normalizeOtherOptionValue(optionValue));
 
     // 필수 영역 옵션 추가 (영어 value로)
     if (requiredArea) {
-      selectedOptionValues.push(requiredArea);
+      selectedOptionValues.push(normalizeOtherOptionValue(requiredArea));
     }
 
     // 빠른 마감 옵션 추가 (영어 value로)
@@ -275,6 +290,17 @@ export async function PUT(request: NextRequest) {
     // 외부 계약 옵션 추가 (영어 value로)
     if (externalContract) {
       selectedOptionValues.push("external_contract");
+    }
+
+    // 최종 옵션 목록에 상충 옵션이 함께 포함되면 저장하지 않음
+    if (hasConflictingOtherOptions(selectedOptionValues)) {
+      return NextResponse.json(
+        {
+          error:
+            '"후기 이벤트 참여"와 "포트폴리오 비공개" 옵션은 함께 선택할 수 없습니다.',
+        },
+        { status: 400 }
+      );
     }
 
     // 주문 업데이트 (옵션은 영어 value로 저장)
