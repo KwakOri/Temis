@@ -1,12 +1,12 @@
 "use client";
 
 import AdminTabHeader from "@/components/admin/AdminTabHeader";
+import { useAdminTemplates } from "@/hooks/query/useAdminTemplates";
 import { AdminAccessService } from "@/services/admin/accessService";
 import { Tables } from "@/types/supabase";
 import { Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 
-type Template = Tables<"templates">;
 type User = Tables<"users">;
 type TemplateAccess = Tables<"template_access">;
 
@@ -14,10 +14,12 @@ interface TemplateAccessWithUser extends TemplateAccess {
   user?: User;
 }
 
+const TEMPLATES_PER_PAGE = 9;
+
 export default function AccessManagement() {
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+  const [selectedTemplateName, setSelectedTemplateName] = useState("");
   const [templateAccess, setTemplateAccess] = useState<
     TemplateAccessWithUser[]
   >([]);
@@ -33,22 +35,49 @@ export default function AccessManagement() {
     "read" | "write" | "admin"
   >("read");
   const [templateSearchTerm, setTemplateSearchTerm] = useState("");
+  const [debouncedTemplateSearchTerm, setDebouncedTemplateSearchTerm] =
+    useState("");
   const [userSearchTerm, setUserSearchTerm] = useState("");
 
   // 페이지네이션 상태
-  const [currentPage, setCurrentPage] = useState(1);
+  const [templatePage, setTemplatePage] = useState(1);
+  const [userPage, setUserPage] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
   const [usersPerPage] = useState(9);
   const [searchDebounceTimer, setSearchDebounceTimer] =
     useState<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    fetchTemplates();
-  }, []);
+  const {
+    data: templatesData,
+    isLoading: templatesLoading,
+    isFetching: templatesFetching,
+    error: templatesError,
+  } = useAdminTemplates({
+    limit: TEMPLATES_PER_PAGE,
+    offset: (templatePage - 1) * TEMPLATES_PER_PAGE,
+    search: debouncedTemplateSearchTerm || undefined,
+  });
+
+  const templates = templatesData?.templates ?? [];
+  const totalTemplates = templatesData?.pagination.total ?? 0;
+  const allTemplatesCount =
+    (templatesData?.pagination.publicCount ?? 0) +
+    (templatesData?.pagination.privateCount ?? 0);
 
   useEffect(() => {
     fetchUsers();
-  }, [currentPage]);
+  }, [userPage]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setTemplatePage(1);
+      setDebouncedTemplateSearchTerm(templateSearchTerm.trim());
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [templateSearchTerm]);
 
   // 검색어가 변경될 때 디바운스 적용하여 API 호출
   useEffect(() => {
@@ -87,27 +116,13 @@ export default function AccessManagement() {
   // 검색어 변경 핸들러
   const handleUserSearch = (searchTerm: string) => {
     setUserSearchTerm(searchTerm);
-    setCurrentPage(1);
-  };
-
-  const fetchTemplates = async () => {
-    try {
-      const response = await fetch("/api/admin/templates", {
-        credentials: "include",
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setTemplates(data.templates || []);
-      }
-    } catch (error) {
-      console.error("Failed to fetch templates:", error);
-    }
+    setUserPage(1);
   };
 
   const fetchUsers = async () => {
     try {
       setUsersLoading(true);
-      const offset = (currentPage - 1) * usersPerPage;
+      const offset = (userPage - 1) * usersPerPage;
       const params = new URLSearchParams({
         limit: usersPerPage.toString(),
         offset: offset.toString(),
@@ -417,14 +432,20 @@ export default function AccessManagement() {
           템플릿 선택
         </h3>
 
-        {templates.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            등록된 템플릿이 없습니다.
+        {templatesLoading && !templatesData ? (
+          <div className="flex justify-center items-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : templatesError && !templatesData ? (
+          <div className="text-center py-8 text-red-600">
+            {templatesError instanceof Error
+              ? templatesError.message
+              : "템플릿 목록을 불러오지 못했습니다."}
           </div>
         ) : (
           <>
             {/* Template Search Bar */}
-            {templates.length > 3 && (
+            {(allTemplatesCount > 3 || templateSearchTerm) && (
               <div className="mb-4">
                 <div className="relative">
                   <input
@@ -451,7 +472,9 @@ export default function AccessManagement() {
                   </div>
                   {templateSearchTerm && (
                     <button
+                      type="button"
                       onClick={() => setTemplateSearchTerm("")}
+                      aria-label="템플릿 검색어 지우기"
                       className="absolute inset-y-0 right-0 pr-3 flex items-center"
                     >
                       <svg
@@ -473,48 +496,48 @@ export default function AccessManagement() {
               </div>
             )}
 
-            {(() => {
-              const filteredTemplates = templates.filter(
-                (template) =>
-                  template.name
-                    .toLowerCase()
-                    .includes(templateSearchTerm.toLowerCase()) ||
-                  (template.description &&
-                    template.description
-                      .toLowerCase()
-                      .includes(templateSearchTerm.toLowerCase()))
-              );
+            {templatesFetching && templatesData && (
+              <div className="mb-3 text-sm text-gray-500" role="status">
+                템플릿 목록을 불러오는 중...
+              </div>
+            )}
 
-              if (filteredTemplates.length === 0 && templateSearchTerm) {
-                return (
-                  <div className="text-center py-8 text-gray-500">
-                    <svg
-                      className="mx-auto h-12 w-12 text-gray-400 mb-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                    <p>
-                      &apos;{templateSearchTerm}&apos;에 대한 검색 결과가
-                      없습니다.
-                    </p>
-                  </div>
-                );
-              }
-
-              return (
+            {templates.length === 0 ? (
+              debouncedTemplateSearchTerm ? (
+                <div className="text-center py-8 text-gray-500">
+                  <svg
+                    className="mx-auto h-12 w-12 text-gray-400 mb-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                  <p>
+                    &apos;{debouncedTemplateSearchTerm}&apos;에 대한 검색
+                    결과가 없습니다.
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  등록된 템플릿이 없습니다.
+                </div>
+              )
+            ) : (
+              <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredTemplates.map((template) => (
+                  {templates.map((template) => (
                     <div
                       key={template.id}
-                      onClick={() => setSelectedTemplate(template.id)}
+                      onClick={() => {
+                        setSelectedTemplate(template.id);
+                        setSelectedTemplateName(template.name);
+                      }}
                       className={`relative p-4 border rounded-lg cursor-pointer transition-all duration-200 hover:shadow-md ${
                         selectedTemplate === template.id
                           ? "border-indigo-500 bg-indigo-50 ring-2 ring-indigo-200"
@@ -573,8 +596,15 @@ export default function AccessManagement() {
                     </div>
                   ))}
                 </div>
-              );
-            })()}
+
+                <PaginationComponent
+                  currentPage={templatePage}
+                  totalItems={totalTemplates}
+                  itemsPerPage={TEMPLATES_PER_PAGE}
+                  onPageChange={setTemplatePage}
+                />
+              </>
+            )}
           </>
         )}
 
@@ -594,9 +624,7 @@ export default function AccessManagement() {
                 />
               </svg>
               <span className="text-sm text-blue-800">
-                <strong>
-                  {templates.find((t) => t.id === selectedTemplate)?.name}
-                </strong>{" "}
+                <strong>{selectedTemplateName}</strong>{" "}
                 템플릿이 선택되었습니다.
               </span>
             </div>
@@ -797,10 +825,10 @@ export default function AccessManagement() {
 
                               {/* 페이지네이션 */}
                               <PaginationComponent
-                                currentPage={currentPage}
+                                currentPage={userPage}
                                 totalItems={totalUsers}
                                 itemsPerPage={usersPerPage}
-                                onPageChange={setCurrentPage}
+                                onPageChange={setUserPage}
                               />
                             </div>
                           )}
