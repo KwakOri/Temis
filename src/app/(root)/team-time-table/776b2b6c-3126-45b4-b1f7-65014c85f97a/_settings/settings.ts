@@ -162,7 +162,7 @@ export const Settings: SettingsType = {
   },
 };
 
-export const team_ids = [22, 248, 275, 276, 277];
+export const team_ids = [22, 248, 275, 276, 423];
 
 export const dummyUnregisteredMemberIds: number[] = [280];
 
@@ -171,7 +171,7 @@ export const memberIdsMap = new Map([
   [248, 'seon'],
   [275, 'saebaek'],
   [276, 'ira'],
-  [277, 'cosmo'],
+  [423, 'cosmo'],
 ]);
 
 export const memberNamesMap = new Map([
@@ -179,5 +179,5 @@ export const memberNamesMap = new Map([
   [248, '세온'],
   [275, '류새백'],
   [276, '이라'],
-  [277, '코스모'],
+  [423, '코스모'],
 ]);
