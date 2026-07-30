@@ -133,6 +133,18 @@ import {
   type StudioNodeClipboardPayload,
 } from "@/utils/template-studio/node-clipboard";
 import {
+  applyStudioDeleteNodes,
+  applyStudioInsertNode,
+  createStudioSelectConsumerNode,
+  planStudioAddCardContextObject,
+  planStudioAddCardStatusBackground,
+  planStudioAddNode,
+  getStudioDefaultNodeStyle,
+  planStudioDeleteNodes,
+  resolveStudioNodeInsertionParentId,
+  type StudioSelectConsumerInput,
+} from "@/utils/template-studio/node-commands";
+import {
   getStudioDataDropPosition,
   getStudioLayerPanelOrder,
 } from "@/utils/template-studio/layer-order";
@@ -210,7 +222,6 @@ import {
   parseStudioTemplateExportJson,
 } from "@/utils/template-studio/serialization";
 import {
-  createStudioStatusCardBackgroundExceptionMeta,
   isStudioStatusCardBackgroundNode,
   setStudioStatusCardBackgroundAssetSlot,
 } from "@/utils/template-studio/status-card-background";
@@ -883,49 +894,6 @@ const getStudioTimetableObjectMaskShape = (
   if (radius >= 9999) return "circle";
   if (radius <= 0) return "rectangle";
   return "rounded";
-};
-
-const getDefaultStyleForNode = (
-  type: StudioGraphNodeType,
-): StudioStyleRecord => {
-  if (type === "group") {
-    return {
-      position: "absolute",
-      left: 80,
-      top: 80,
-      width: 320,
-      height: 220,
-      backgroundColor: "transparent",
-      border: "1px solid rgba(148, 163, 184, 0.45)",
-      borderRadius: 8,
-    };
-  }
-
-  if (type === "image") {
-    return {
-      position: "absolute",
-      left: 100,
-      top: 100,
-      width: 180,
-      height: 140,
-      backgroundColor: "#e2e8f0",
-      borderRadius: 8,
-      overflow: "hidden",
-    };
-  }
-
-  return {
-    position: "absolute",
-    left: 120,
-    top: 120,
-    width: 240,
-    height: 56,
-    color: "#111827",
-    fontSize: type === "flexibleText" ? 32 : 20,
-    fontWeight: type === "flexibleText" ? 800 : 700,
-    display: "flex",
-    alignItems: "center",
-  };
 };
 
 const getInputTypeLabel = (type: StudioInputType) => {
@@ -2854,7 +2822,7 @@ export function TemplateStudioClient({
       if (!styleId) {
         styleId = createStudioId("style");
         node.styleId = styleId;
-        nextDocument.styles[styleId] = getDefaultStyleForNode(node.type);
+        nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
       }
 
       nextDocument.styles[styleId] = {
@@ -2872,7 +2840,7 @@ export function TemplateStudioClient({
       if (!styleId) {
         styleId = createStudioId("style");
         node.styleId = styleId;
-        nextDocument.styles[styleId] = getDefaultStyleForNode(node.type);
+        nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
       }
 
       nextDocument.styles[styleId] = {
@@ -2929,7 +2897,7 @@ export function TemplateStudioClient({
       if (!styleId) {
         styleId = createStudioId("style");
         node.styleId = styleId;
-        nextDocument.styles[styleId] = getDefaultStyleForNode(node.type);
+        nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
       }
 
       const style = nextDocument.styles[styleId] ?? {};
@@ -3033,7 +3001,7 @@ export function TemplateStudioClient({
           if (!styleId) {
             styleId = createStudioId("style");
             node.styleId = styleId;
-            nextDocument.styles[styleId] = getDefaultStyleForNode(node.type);
+            nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
           }
 
           const styleRecord = nextDocument.styles[styleId] ?? {};
@@ -3069,7 +3037,7 @@ export function TemplateStudioClient({
           if (!styleId) {
             styleId = createStudioId("style");
             node.styleId = styleId;
-            nextDocument.styles[styleId] = getDefaultStyleForNode(node.type);
+            nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
           }
 
           const styleRecord = nextDocument.styles[styleId] ?? {};
@@ -3089,42 +3057,13 @@ export function TemplateStudioClient({
   );
 
   const addNode = (type: StudioGraphNodeType) => {
-    const nodeId = createStudioId("node");
-    const styleId = createStudioId("style");
-    const parentId =
-      selectedNode?.type === "group"
-        ? selectedNode.id
-        : (selectedNode?.parentId ?? document.graph.rootNodeIds[0] ?? null);
-
-    const firstAssetId = Object.keys(document.assets)[0];
-    const node: StudioGraphNode = {
-      id: nodeId,
-      type,
-      label: `New ${getStudioGraphNodeTypeLabel(type)}`,
-      parentId,
-      childIds: [],
-      styleId,
-      fit: type === "image" ? "cover" : undefined,
-      binding:
-        type === "text" || type === "flexibleText"
-          ? { kind: "staticText", value: "New text" }
-          : type === "image" && firstAssetId
-            ? { kind: "staticAsset", assetId: firstAssetId }
-            : undefined,
-    };
+    const plan = planStudioAddNode(document, type, selectedNode);
 
     updateDocument((nextDocument) => {
-      nextDocument.styles[styleId] = getDefaultStyleForNode(type);
-      nextDocument.graph.nodes[nodeId] = node;
-
-      if (parentId) {
-        nextDocument.graph.nodes[parentId]?.childIds.push(nodeId);
-      } else {
-        nextDocument.graph.rootNodeIds.push(nodeId);
-      }
+      applyStudioInsertNode(nextDocument, plan);
     });
 
-    selectSingleNode(nodeId);
+    selectSingleNode(plan.node.id);
     setPanelMode("layers");
   };
 
@@ -3140,53 +3079,18 @@ export function TemplateStudioClient({
       return;
     }
 
-    const nodeId = createStudioId("node");
-    const styleId = createStudioId("style");
-    const parentId =
-      selectedNode?.type === "group"
-        ? selectedNode.id
-        : (selectedNode?.parentId ??
-          selectedCardVariantRootId ??
-          document.graph.rootNodeIds[0] ??
-          null);
-
-    const node: StudioGraphNode = {
-      id: nodeId,
-      type: "text",
-      label: preset.label,
-      parentId,
-      childIds: [],
-      styleId,
-      binding: {
-        kind: "builtinField",
-        fieldId: preset.fieldId,
-      },
-      meta: {
-        exception: {
-          semanticKey: preset.semanticKey,
-          scope: "cards",
-          presetId: preset.id,
-          lockedStructure: true,
-          singleton: true,
-          builtInBindings: {
-            text: preset.fieldId,
-          },
-        },
-      },
-    };
+    const plan = planStudioAddCardContextObject(
+      document,
+      preset,
+      selectedNode,
+      selectedCardVariantRootId,
+    );
 
     updateDocument((nextDocument) => {
-      nextDocument.styles[styleId] = { ...preset.style };
-      nextDocument.graph.nodes[nodeId] = node;
-
-      if (parentId) {
-        nextDocument.graph.nodes[parentId]?.childIds.push(nodeId);
-      } else {
-        nextDocument.graph.rootNodeIds.push(nodeId);
-      }
+      applyStudioInsertNode(nextDocument, plan);
     });
 
-    selectSingleNode(nodeId);
+    selectSingleNode(plan.node.id);
     setPanelMode("layers");
     showShortcutStatus(`Added ${preset.label}`);
   };
@@ -3205,40 +3109,18 @@ export function TemplateStudioClient({
       return;
     }
 
-    const nodeId = createStudioId("node");
-    const styleId = createStudioId("style");
-    const parentId =
-      selectedNode?.type === "group"
-        ? selectedNode.id
-        : (selectedNode?.parentId ??
-          selectedCardVariantRootId ??
-          document.graph.rootNodeIds[0] ??
-          null);
-
-    const node: StudioGraphNode = {
-      id: nodeId,
-      type: "group",
-      label: preset.label,
-      parentId,
-      childIds: [],
-      styleId,
-      meta: {
-        exception: createStudioStatusCardBackgroundExceptionMeta(),
-      },
-    };
+    const plan = planStudioAddCardStatusBackground(
+      document,
+      preset,
+      selectedNode,
+      selectedCardVariantRootId,
+    );
 
     updateDocument((nextDocument) => {
-      nextDocument.styles[styleId] = { ...preset.style };
-      nextDocument.graph.nodes[nodeId] = node;
-
-      if (parentId) {
-        nextDocument.graph.nodes[parentId]?.childIds.unshift(nodeId);
-      } else {
-        nextDocument.graph.rootNodeIds.unshift(nodeId);
-      }
+      applyStudioInsertNode(nextDocument, plan);
     });
 
-    selectSingleNode(nodeId);
+    selectSingleNode(plan.node.id);
     setPanelMode("layers");
     showShortcutStatus(`Added ${preset.label}`);
   };
@@ -3288,91 +3170,17 @@ export function TemplateStudioClient({
   };
 
   const getCardInsertionParentId = (): string | null =>
-    selectedNode?.type === "group"
-      ? selectedNode.id
-      : (selectedNode?.parentId ?? document.graph.rootNodeIds[0] ?? null);
+    resolveStudioNodeInsertionParentId(document, selectedNode);
 
   const getAssetIdByLabel = (label: string): string | null =>
     assets.find(
       (asset) => asset.label.trim().toLowerCase() === label.toLowerCase(),
     )?.id ?? null;
 
-  const createSelectConsumerNode = ({
-    nextDocument,
-    parentId,
-    input,
-    kind,
-    label,
-    assetByOption,
-  }: {
-    nextDocument: StudioTemplateDocument;
-    parentId: string | null;
-    input: Extract<StudioInputDefinition, { type: "select" }>;
-    kind: "text" | "image";
-    label: string;
-    assetByOption?: Record<string, string | null>;
-  }): string => {
-    const nodeId = createStudioId("node");
-    const styleId = createStudioId("style");
-    const isImage = kind === "image";
-
-    nextDocument.styles[styleId] = isImage
-      ? {
-          position: "absolute",
-          left: 604,
-          top: 292,
-          width: 128,
-          height: 128,
-          borderRadius: 28,
-          overflow: "hidden",
-          rotateDeg: -8,
-        }
-      : {
-          position: "absolute",
-          left: 322,
-          top: 178,
-          width: 360,
-          height: 42,
-          fontSize: 18,
-          fontWeight: 700,
-          color: "#475569",
-          display: "flex",
-          alignItems: "center",
-        };
-
-    nextDocument.graph.nodes[nodeId] = {
-      id: nodeId,
-      type: isImage ? "image" : "text",
-      label,
-      parentId,
-      childIds: [],
-      styleId,
-      fit: isImage ? "cover" : undefined,
-      binding: isImage
-        ? {
-            kind: "selectAsset",
-            inputId: input.id,
-            assetByOption:
-              assetByOption ??
-              Object.fromEntries(
-                input.options.map((option) => [option.value, null]),
-              ),
-          }
-        : {
-            kind: "selectText",
-            inputId: input.id,
-            output: "label",
-          },
-    };
-
-    if (parentId) {
-      nextDocument.graph.nodes[parentId]?.childIds.push(nodeId);
-    } else {
-      nextDocument.graph.rootNodeIds.push(nodeId);
-    }
-
-    return nodeId;
-  };
+  const createSelectConsumerNode = (
+    nextDocument: StudioTemplateDocument,
+    input: StudioSelectConsumerInput,
+  ): string => createStudioSelectConsumerNode(nextDocument, input);
 
   const addSelectConsumerForInput = (
     input: StudioInputDefinition,
@@ -3387,8 +3195,7 @@ export function TemplateStudioClient({
       const currentInput = nextDocument.inputs[input.id];
       if (!currentInput || currentInput.type !== "select") return;
 
-      nextNodeId = createSelectConsumerNode({
-        nextDocument,
+      nextNodeId = createSelectConsumerNode(nextDocument, {
         parentId,
         input: currentInput,
         kind,
@@ -3446,8 +3253,7 @@ export function TemplateStudioClient({
     updateDocument((nextDocument) => {
       nextDocument.inputs[inputId] = input;
 
-      const labelNodeId = createSelectConsumerNode({
-        nextDocument,
+      const labelNodeId = createSelectConsumerNode(nextDocument, {
         parentId,
         input,
         kind: "text",
@@ -3456,8 +3262,7 @@ export function TemplateStudioClient({
       nextPrimaryNodeId = labelNodeId;
 
       if (isSticker) {
-        nextPrimaryNodeId = createSelectConsumerNode({
-          nextDocument,
+        nextPrimaryNodeId = createSelectConsumerNode(nextDocument, {
           parentId,
           input,
           kind: "image",
@@ -4751,105 +4556,21 @@ export function TemplateStudioClient({
   );
 
   const deleteSelectedNode = useCallback(() => {
-    const selectedActionNodeIds = getStudioTopLevelNodeIds(
-      document,
-      selectedNodeIds,
-    );
-
-    if (selectedActionNodeIds.length === 0) {
-      showShortcutStatus("No object selected");
+    const plan = planStudioDeleteNodes(document, selectedNodeIds);
+    if (!plan.ok) {
+      showShortcutStatus(plan.reason);
       return;
     }
-
-    const selectedActionNodes = selectedActionNodeIds
-      .map((nodeId) => document.graph.nodes[nodeId])
-      .filter(Boolean) as StudioGraphNode[];
-
-    if (selectedActionNodes.some(isStudioNodeLocked)) {
-      showShortcutStatus("Selection includes locked object");
-      return;
-    }
-
-    if (
-      selectedActionNodeIds.some(
-        (nodeId) => document.domains?.timetable?.mountNodeId === nodeId,
-      )
-    ) {
-      showShortcutStatus("Root timetable object is locked");
-      return;
-    }
-
-    const protectedCardNodeIds = new Set<string>();
-    Object.values(document.domains?.timetable?.components ?? {}).forEach(
-      (component) => {
-        Object.values(component.variants).forEach((variant) =>
-          protectedCardNodeIds.add(variant.rootNodeId),
-        );
-      },
-    );
-    Object.values(document.graph.nodes).forEach((node) => {
-      if (node.meta?.entrySlot) protectedCardNodeIds.add(node.id);
-    });
-    if (
-      selectedActionNodeIds.some((nodeId) => protectedCardNodeIds.has(nodeId))
-    ) {
-      showShortcutStatus("Card variant roots and Entry Groups are locked");
-      return;
-    }
-
-    const remainingRootIds = document.graph.rootNodeIds.filter(
-      (nodeId) => !selectedActionNodeIds.includes(nodeId),
-    );
-
-    if (remainingRootIds.length === 0) {
-      showShortcutStatus("Last root object is locked");
-      return;
-    }
-
-    const fallbackSelectionId =
-      selectedActionNodes[0]?.parentId &&
-      document.graph.nodes[selectedActionNodes[0].parentId]
-        ? selectedActionNodes[0].parentId
-        : null;
 
     updateDocument((nextDocument) => {
-      const nodeIdsToDelete = new Set<string>();
-      const styleIdsToDelete = new Set<string>();
-
-      const collectNode = (nodeId: string) => {
-        const node = nextDocument.graph.nodes[nodeId];
-        if (!node || nodeIdsToDelete.has(nodeId)) return;
-
-        nodeIdsToDelete.add(nodeId);
-        if (node.styleId) styleIdsToDelete.add(node.styleId);
-        node.childIds.forEach(collectNode);
-      };
-
-      selectedActionNodeIds.forEach(collectNode);
-
-      Object.values(nextDocument.graph.nodes).forEach((node) => {
-        node.childIds = node.childIds.filter(
-          (childId) => !nodeIdsToDelete.has(childId),
-        );
-      });
-
-      nextDocument.graph.rootNodeIds = nextDocument.graph.rootNodeIds.filter(
-        (nodeId) => !nodeIdsToDelete.has(nodeId),
-      );
-
-      nodeIdsToDelete.forEach((nodeId) => {
-        delete nextDocument.graph.nodes[nodeId];
-      });
-      styleIdsToDelete.forEach((styleId) => {
-        delete nextDocument.styles[styleId];
-      });
+      applyStudioDeleteNodes(nextDocument, plan.nodeIds);
     });
 
-    selectSingleNode(fallbackSelectionId);
+    selectSingleNode(plan.fallbackSelectionId);
     setNodePicker(null);
     showShortcutStatus(
-      `Deleted ${selectedActionNodeIds.length} ${getStudioSelectionLabel(
-        selectedActionNodeIds.length,
+      `Deleted ${plan.nodeIds.length} ${getStudioSelectionLabel(
+        plan.nodeIds.length,
       )}`,
     );
   }, [
