@@ -218,6 +218,7 @@ assert.ok(visibleGuide.includes(">100%<"));
 const disabledMarkup = renderToStaticMarkup(
   <StudioTopToolbar
     {...baseToolbarProps}
+    previewAction={{ ...baseToolbarProps.previewAction, disabled: true }}
     publishAction={{ ...baseToolbarProps.publishAction, disabled: true }}
     saveAction={{ ...baseToolbarProps.saveAction, disabled: true }}
     shareAction={{
@@ -229,8 +230,8 @@ const disabledMarkup = renderToStaticMarkup(
 );
 assert.equal(
   (disabledMarkup.match(/disabled=""/g) ?? []).length,
-  3,
-  "저장, 발행, 공유의 비활성 상태가 마크업에 반영돼야 한다.",
+  4,
+  "저장, 발행, 미리보기와 공유의 비활성 상태가 마크업에 반영돼야 한다.",
 );
 
 // --- 좌측 사이드바 기준선 ---

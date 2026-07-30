@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { StudioRenderer } from "../src/app/(root)/template-studio/_components/studio-renderer";
+import { StudioRenderer } from "../src/components/studio/canvas/studio-renderer";
 import { StudioTimetablePreview } from "../src/app/(root)/template-studio/_components/studio-timetable-preview";
 import type {
   StudioGraphNode,

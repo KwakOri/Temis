@@ -36,6 +36,7 @@
     "check:studio:settings": "tsx scripts/check-studio-settings.tsx",
     "check:studio:layers": "tsx scripts/check-studio-layers.tsx",
     "check:studio:hooks": "tsx scripts/check-studio-hooks.ts",
+    "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",
     "check:template-studio:object-variants": "tsx scripts/check-template-studio-object-variants.ts",

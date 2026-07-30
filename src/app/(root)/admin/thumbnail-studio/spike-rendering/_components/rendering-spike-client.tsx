@@ -4,7 +4,7 @@ import { toPng } from "html-to-image";
 import { domToPng } from "modern-screenshot";
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import { StudioWebFontLoader } from "@/app/(root)/template-studio/_components/studio-web-font-loader";
+import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import type { StudioTemplateDocument } from "@/types/template-studio";
 import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
 

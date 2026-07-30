@@ -165,7 +165,8 @@ export function StudioTopToolbar({
           <Settings className="h-3.5 w-3.5" />
         </button>
         <button
-          className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+          className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
+          disabled={previewAction.disabled}
           title={previewAction.title}
           type="button"
           onClick={previewAction.onClick}

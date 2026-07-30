@@ -44,10 +44,10 @@ import {
 } from "@/utils/template-studio/entry-groups";
 import { STUDIO_TEXT_WRAP_MODE_STYLE_KEY } from "@/utils/template-studio/text-wrap";
 
-import { StudioAutoText } from "./studio-auto-text";
-import { StudioWebFontLoader } from "./studio-web-font-loader";
+import { StudioAutoText } from "@/components/studio/canvas/studio-auto-text";
+import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 
-import { StudioRenderer } from "./studio-renderer";
+import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 
 export const STUDIO_TIMETABLE_DEFAULT_CANVAS_SIZE = {
   width: 4000,

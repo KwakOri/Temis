@@ -27,8 +27,8 @@ import {
 } from "@/utils/template-studio/status-card-background";
 import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
 
-import { StudioAutoText } from "./studio-auto-text";
-import { StudioWebFontLoader } from "./studio-web-font-loader";
+import { StudioAutoText } from "@/components/studio/canvas/studio-auto-text";
+import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 
 interface StudioRendererProps {
   document: StudioTemplateDocument;

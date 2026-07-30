@@ -24,8 +24,8 @@ import {
   STUDIO_RUNTIME_LOCALE_STORAGE_KEY,
   type StudioRuntimeLocale,
 } from "@/utils/template-studio/runtime-i18n";
-import { StudioRenderer } from "../studio-renderer";
-import { clampStudioPreviewScale } from "../studio-canvas-viewport";
+import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
+import { clampStudioPreviewScale } from "../../../../../components/studio/canvas/studio-canvas-viewport";
 import {
   getStudioTimetablePreviewSize,
   StudioTimetablePreview,

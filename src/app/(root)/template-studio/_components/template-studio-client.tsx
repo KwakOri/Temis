@@ -243,7 +243,7 @@ import {
 import {
   clampStudioPreviewScale,
   StudioCanvasViewport,
-} from "./studio-canvas-viewport";
+} from "../../../../components/studio/canvas/studio-canvas-viewport";
 import {
   StudioNodePickerMenu,
   type StudioPickerNode,
@@ -269,7 +269,7 @@ import {
 } from "@/components/studio/layers/studio-layer-primitives";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
-import { StudioRenderer } from "./studio-renderer";
+import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
 import {
   getStudioTimetableDayCardGeometry,
