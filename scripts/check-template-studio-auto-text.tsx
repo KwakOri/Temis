@@ -21,7 +21,10 @@ const mainTitleNode = Object.values(document.graph.nodes).find(
   (node): node is StudioGraphNode =>
     node.type === "flexibleText" && node.label === "main_title",
 );
-assert.ok(mainTitleNode?.styleId, "Sample document must author a main_title Auto Text node.");
+assert.ok(
+  mainTitleNode?.styleId,
+  "Sample document must author a main_title Auto Text node.",
+);
 const mainTitleStyle = document.styles[mainTitleNode.styleId];
 
 let runtimeValues = createStudioInitialRuntimeValues(document);
