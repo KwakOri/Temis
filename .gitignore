@@ -56,3 +56,6 @@ public/workbox-*.js.map
 .playwright-mcp/
 # local one-off refactor scripts (never committed)
 /scripts/tmp/
+
+# local git worktrees (never committed)
+/.worktrees/
