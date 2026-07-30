@@ -250,6 +250,10 @@ import { StudioImageCropModal } from "./studio-image-crop-modal";
 import { StudioHexColorPicker } from "./studio-hex-color-picker";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
+import {
+  StudioLeftSidebar,
+  type StudioPanelTab,
+} from "@/components/studio/editor-shell/studio-left-sidebar";
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
@@ -2036,6 +2040,22 @@ export function TemplateStudioClient({
       ? "layers"
       : panelMode;
   const isInputPanelActive = activePanelMode === "inputs";
+  // 좌측 패널 탭은 시간표 도메인이 소유한다. 공통 프레임은 목록만 받는다.
+  const cardsPanelTabs = useMemo<StudioPanelTab[]>(() => {
+    const tabs: StudioPanelTab[] = [
+      { id: "layers", label: "Layers", icon: <Layers3 size={14} /> },
+      { id: "presets", label: "Presets", icon: <Plus size={14} /> },
+      { id: "inputs", label: "Inputs", icon: <ListChecks size={14} /> },
+    ];
+    if (activeWorkspaceMode === "cards") {
+      tabs.push({
+        id: "timetable",
+        label: "Table",
+        icon: <CalendarDays size={14} />,
+      });
+    }
+    return tabs;
+  }, [activeWorkspaceMode]);
   const assets = useMemo(
     () => Object.values(document.assets),
     [document.assets],
@@ -9987,264 +10007,229 @@ export function TemplateStudioClient({
         </section>
       }
       leftSidebar={
-        <aside className="flex w-[260px] min-w-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--panel)]">
-          {activeWorkspaceMode === "cards" ? (
-            <div className="grid gap-2 border-b border-[var(--border)] p-2">
-              <div className="grid gap-1.5">
-                <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--fg3)]">
-                  Component Set
-                </span>
-                <div className="flex min-w-0 gap-1">
-                  <select
-                    aria-label="Component set"
-                    className="h-8 min-w-0 flex-1 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                    value={activeCardComponentId}
-                    onChange={(event) =>
-                      selectCardComponent(event.currentTarget.value)
-                    }
-                  >
-                    {cardComponentOptions.map((component) => (
-                      <option key={component.id} value={component.id}>
-                        {component.label}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    aria-label="Duplicate component set"
-                    className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-40"
-                    disabled={!cardEntryComponent}
-                    title="Duplicate component set"
-                    type="button"
-                    onClick={duplicateSelectedCardComponent}
-                  >
-                    <Copy size={13} />
-                  </button>
-                  <button
-                    aria-label="Delete component set"
-                    className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-rose-400/60 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
-                    disabled={Boolean(cardComponentDeleteReason)}
-                    title={cardComponentDeleteReason ?? "Delete component set"}
-                    type="button"
-                    onClick={deleteSelectedCardComponent}
-                  >
-                    <Trash2 size={13} />
-                  </button>
+        <StudioLeftSidebar
+          activeTabId={activePanelMode}
+          content={
+            activePanelMode === "layers" ? (
+              activeWorkspaceMode === "timetable" ? (
+                renderTimetableLayersPanel()
+              ) : (
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <div className="border-b border-[var(--border)] px-3 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
+                      Cards Layers
+                    </div>
+                    <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
+                      {cardAuthoringRootNodeIds.length} placed objects
+                    </div>
+                  </div>
+                  <div className="template-studio-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
+                    <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
+                      {getStudioLayerPanelOrder(cardAuthoringRootNodeIds).map(
+                        (nodeId) => renderLayerTree(nodeId),
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <input
-                  aria-label="Component set name"
-                  className="h-8 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:opacity-40"
-                  disabled={!cardEntryComponent}
-                  placeholder="Component set name"
-                  value={componentLabelDraft}
-                  onBlur={commitSelectedCardComponentLabel}
-                  onChange={(event) =>
-                    setComponentLabelDraft(event.currentTarget.value)
-                  }
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") event.currentTarget.blur();
-                    if (event.key === "Escape") {
-                      event.preventDefault();
-                      setComponentLabelDraft(cardEntryComponent?.label ?? "");
-                    }
-                  }}
-                />
+              )
+            ) : activePanelMode === "presets" ? (
+              activeWorkspaceMode === "timetable" ? (
+                renderTimetablePresetsPanel()
+              ) : (
+                renderCardsPresetsPanel()
+              )
+            ) : activePanelMode === "inputs" ? (
+              <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
+                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
+                  Input Blocks
+                </div>
+                <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
+                  {STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => (
+                    <button
+                      className={cn(
+                        "h-7 rounded-md text-[11px] font-bold transition",
+                        inputScopeFilter === scope
+                          ? "bg-[var(--accent)] text-white"
+                          : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                      )}
+                      key={scope}
+                      type="button"
+                      onClick={() => setInputScopeFilter(scope)}
+                    >
+                      {getInputScopeLabel(scope)}
+                      <span className="ml-1 opacity-70">
+                        {runtimeInputsByScope[scope].length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mb-3 grid grid-cols-3 gap-1">
+                  {(["text", "image", "select"] as const).map((type) => (
+                    <button
+                      className="flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                      key={type}
+                      type="button"
+                      onClick={() => addInput(type)}
+                    >
+                      <Plus size={12} />
+                      {getInputTypeLabel(type)}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid gap-2">
+                  {filteredInputs.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-[var(--field-border)] bg-[var(--field)] px-3 py-4 text-center text-[12px] font-semibold text-[var(--fg3)]">
+                      No {getInputScopeLabel(inputScopeFilter).toLowerCase()}{" "}
+                      inputs
+                    </div>
+                  ) : null}
+                  {filteredInputs.map((input, index) => (
+                    <button
+                      className={cn(
+                        "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-[12.5px] transition",
+                        selectedInputId === input.id
+                          ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--fg)]"
+                          : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg)] hover:border-[var(--accent)]",
+                      )}
+                      key={input.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedInputId(input.id);
+                        setPanelMode("inputs");
+                      }}
+                    >
+                      <span
+                        className={cn(
+                          "h-2 w-2 shrink-0 rounded-sm",
+                          index % 3 === 0
+                            ? "bg-[var(--accent)]"
+                            : index % 3 === 1
+                              ? "bg-violet-400"
+                              : "bg-orange-300",
+                        )}
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        {input.label} · {getInputTypeLabel(input.type)}
+                      </span>
+                      <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                        {input.scope}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
-                {cardStatusOptions.map((status) => (
-                  <button
-                    className={cn(
-                      "h-8 rounded-md px-2 text-[11px] font-bold transition",
-                      selectedCardStatusId === status.id
-                        ? "bg-[var(--accent)] text-white"
-                        : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                    )}
-                    key={status.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCardStatusId(status.id);
-                      const resolution = resolveStudioTimetableComponentVariant(
-                        document,
-                        cardEntryComponent,
-                        status.id,
-                      );
-                      const rootNodeId = resolution?.variant.rootNodeId;
-                      if (rootNodeId) {
-                        setSelectedNodeId(rootNodeId);
-                        setSelectedNodeIds([rootNodeId]);
+            ) : (
+              renderTimetablePanel()
+            )
+          }
+          contextHeader={
+            activeWorkspaceMode === "cards" ? (
+              <div className="grid gap-2 border-b border-[var(--border)] p-2">
+                <div className="grid gap-1.5">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--fg3)]">
+                    Component Set
+                  </span>
+                  <div className="flex min-w-0 gap-1">
+                    <select
+                      aria-label="Component set"
+                      className="h-8 min-w-0 flex-1 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                      value={activeCardComponentId}
+                      onChange={(event) =>
+                        selectCardComponent(event.currentTarget.value)
+                      }
+                    >
+                      {cardComponentOptions.map((component) => (
+                        <option key={component.id} value={component.id}>
+                          {component.label}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      aria-label="Duplicate component set"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-40"
+                      disabled={!cardEntryComponent}
+                      title="Duplicate component set"
+                      type="button"
+                      onClick={duplicateSelectedCardComponent}
+                    >
+                      <Copy size={13} />
+                    </button>
+                    <button
+                      aria-label="Delete component set"
+                      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-rose-400/60 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+                      disabled={Boolean(cardComponentDeleteReason)}
+                      title={
+                        cardComponentDeleteReason ?? "Delete component set"
+                      }
+                      type="button"
+                      onClick={deleteSelectedCardComponent}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                  <input
+                    aria-label="Component set name"
+                    className="h-8 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:opacity-40"
+                    disabled={!cardEntryComponent}
+                    placeholder="Component set name"
+                    value={componentLabelDraft}
+                    onBlur={commitSelectedCardComponentLabel}
+                    onChange={(event) =>
+                      setComponentLabelDraft(event.currentTarget.value)
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                      if (event.key === "Escape") {
+                        event.preventDefault();
+                        setComponentLabelDraft(cardEntryComponent?.label ?? "");
                       }
                     }}
-                  >
-                    {status.label}
-                  </button>
-                ))}
-              </div>
-
-              {selectedCardStatusId === "multi" ? (
-                <div className="rounded-md border border-fuchsia-400/25 bg-fuchsia-400/10 px-2 py-1.5 text-[10px] font-semibold leading-relaxed text-fuchsia-100">
-                  Multi uses two authored Entry Groups inside the shared card
-                  frame.
+                  />
                 </div>
-              ) : null}
-            </div>
-          ) : null}
 
-          <div className="flex gap-0.5 px-2 pt-2">
-            {(activeWorkspaceMode === "cards"
-              ? [
-                  { mode: "layers" as const, label: "Layers", Icon: Layers3 },
-                  { mode: "presets" as const, label: "Presets", Icon: Plus },
-                  {
-                    mode: "inputs" as const,
-                    label: "Inputs",
-                    Icon: ListChecks,
-                  },
-                  {
-                    mode: "timetable" as const,
-                    label: "Table",
-                    Icon: CalendarDays,
-                  },
-                ]
-              : [
-                  { mode: "layers" as const, label: "Layers", Icon: Layers3 },
-                  { mode: "presets" as const, label: "Presets", Icon: Plus },
-                  {
-                    mode: "inputs" as const,
-                    label: "Inputs",
-                    Icon: ListChecks,
-                  },
-                ]
-            ).map(({ mode, label, Icon }) => (
-              <button
-                className={cn(
-                  "flex h-[34px] flex-1 items-center justify-center gap-1 rounded-t-lg text-[12px] font-semibold transition",
-                  activePanelMode === mode
-                    ? "bg-[var(--field)] text-[var(--fg)]"
-                    : "text-[var(--fg2)] hover:bg-[var(--hover)]",
-                )}
-                key={mode}
-                type="button"
-                onClick={() => setPanelMode(mode)}
-              >
-                <Icon size={14} />
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="border-b border-[var(--border)]" />
+                <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
+                  {cardStatusOptions.map((status) => (
+                    <button
+                      className={cn(
+                        "h-8 rounded-md px-2 text-[11px] font-bold transition",
+                        selectedCardStatusId === status.id
+                          ? "bg-[var(--accent)] text-white"
+                          : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                      )}
+                      key={status.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCardStatusId(status.id);
+                        const resolution =
+                          resolveStudioTimetableComponentVariant(
+                            document,
+                            cardEntryComponent,
+                            status.id,
+                          );
+                        const rootNodeId = resolution?.variant.rootNodeId;
+                        if (rootNodeId) {
+                          setSelectedNodeId(rootNodeId);
+                          setSelectedNodeIds([rootNodeId]);
+                        }
+                      }}
+                    >
+                      {status.label}
+                    </button>
+                  ))}
+                </div>
 
-          {activePanelMode === "layers" ? (
-            activeWorkspaceMode === "timetable" ? (
-              renderTimetableLayersPanel()
-            ) : (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <div className="border-b border-[var(--border)] px-3 py-3">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-                    Cards Layers
-                  </div>
-                  <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
-                    {cardAuthoringRootNodeIds.length} placed objects
-                  </div>
-                </div>
-                <div className="template-studio-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
-                  <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
-                    {getStudioLayerPanelOrder(cardAuthoringRootNodeIds).map(
-                      (nodeId) => renderLayerTree(nodeId),
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          ) : activePanelMode === "presets" ? (
-            activeWorkspaceMode === "timetable" ? (
-              renderTimetablePresetsPanel()
-            ) : (
-              renderCardsPresetsPanel()
-            )
-          ) : activePanelMode === "inputs" ? (
-            <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-              <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-                Input Blocks
-              </div>
-              <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
-                {STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => (
-                  <button
-                    className={cn(
-                      "h-7 rounded-md text-[11px] font-bold transition",
-                      inputScopeFilter === scope
-                        ? "bg-[var(--accent)] text-white"
-                        : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                    )}
-                    key={scope}
-                    type="button"
-                    onClick={() => setInputScopeFilter(scope)}
-                  >
-                    {getInputScopeLabel(scope)}
-                    <span className="ml-1 opacity-70">
-                      {runtimeInputsByScope[scope].length}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="mb-3 grid grid-cols-3 gap-1">
-                {(["text", "image", "select"] as const).map((type) => (
-                  <button
-                    className="flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-                    key={type}
-                    type="button"
-                    onClick={() => addInput(type)}
-                  >
-                    <Plus size={12} />
-                    {getInputTypeLabel(type)}
-                  </button>
-                ))}
-              </div>
-              <div className="grid gap-2">
-                {filteredInputs.length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-[var(--field-border)] bg-[var(--field)] px-3 py-4 text-center text-[12px] font-semibold text-[var(--fg3)]">
-                    No {getInputScopeLabel(inputScopeFilter).toLowerCase()}{" "}
-                    inputs
+                {selectedCardStatusId === "multi" ? (
+                  <div className="rounded-md border border-fuchsia-400/25 bg-fuchsia-400/10 px-2 py-1.5 text-[10px] font-semibold leading-relaxed text-fuchsia-100">
+                    Multi uses two authored Entry Groups inside the shared card
+                    frame.
                   </div>
                 ) : null}
-                {filteredInputs.map((input, index) => (
-                  <button
-                    className={cn(
-                      "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-[12.5px] transition",
-                      selectedInputId === input.id
-                        ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--fg)]"
-                        : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg)] hover:border-[var(--accent)]",
-                    )}
-                    key={input.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedInputId(input.id);
-                      setPanelMode("inputs");
-                    }}
-                  >
-                    <span
-                      className={cn(
-                        "h-2 w-2 shrink-0 rounded-sm",
-                        index % 3 === 0
-                          ? "bg-[var(--accent)]"
-                          : index % 3 === 1
-                            ? "bg-violet-400"
-                            : "bg-orange-300",
-                      )}
-                    />
-                    <span className="min-w-0 flex-1 truncate">
-                      {input.label} · {getInputTypeLabel(input.type)}
-                    </span>
-                    <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                      {input.scope}
-                    </span>
-                  </button>
-                ))}
               </div>
-            </div>
-          ) : (
-            renderTimetablePanel()
-          )}
-        </aside>
+            ) : null
+          }
+          tabs={cardsPanelTabs}
+          onTabChange={(tabId) => setPanelMode(tabId as PanelMode)}
+        />
       }
       overlays={
         <>

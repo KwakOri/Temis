@@ -16,6 +16,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { StudioEditorShell } from "../src/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "../src/components/studio/editor-shell/studio-guide-control";
+import { StudioLeftSidebar } from "../src/components/studio/editor-shell/studio-left-sidebar";
 import { StudioTopToolbar } from "../src/components/studio/editor-shell/studio-top-toolbar";
 
 const noop = () => {};
@@ -227,6 +228,100 @@ assert.equal(
   3,
   "저장, 발행, 공유의 비활성 상태가 마크업에 반영돼야 한다.",
 );
+
+// --- 좌측 사이드바 기준선 ---
+//
+// 탭 행은 인라인 JSX에서 도메인 데이터로 바뀐 유일한 부분이다. 추출 이전
+// 시간표 탭 구성과 활성 표현을 여기에 고정한다.
+
+const TIMETABLE_CARDS_TABS = [
+  { id: "layers", label: "Layers", icon: <span>L</span> },
+  { id: "presets", label: "Presets", icon: <span>P</span> },
+  { id: "inputs", label: "Inputs", icon: <span>I</span> },
+  { id: "timetable", label: "Table", icon: <span>T</span> },
+];
+
+const sidebarMarkup = renderToStaticMarkup(
+  <StudioLeftSidebar
+    activeTabId="layers"
+    content={<div data-region="panel">panel</div>}
+    contextHeader={<div data-region="context">Component Set</div>}
+    tabs={TIMETABLE_CARDS_TABS}
+    onTabChange={noop}
+  />,
+);
+
+// 프레임 구조: 260px 고정 너비, context header → 탭 행 → 구분선 → 콘텐츠
+assert.ok(
+  sidebarMarkup.startsWith(
+    '<aside class="flex w-[260px] min-w-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--panel)]">',
+  ),
+  "좌측 사이드바는 260px 고정 너비 프레임이다.",
+);
+assert.ok(
+  sidebarMarkup.includes('<div class="flex gap-0.5 px-2 pt-2">'),
+  "탭 행 컨테이너가 유지돼야 한다.",
+);
+assert.ok(
+  sidebarMarkup.includes(
+    '</div><div class="border-b border-[var(--border)]"></div>',
+  ),
+  "탭 행과 콘텐츠 사이 구분선이 유지돼야 한다.",
+);
+
+const sidebarRegionOrder = [
+  ...sidebarMarkup.matchAll(/data-region="([a-z]+)"/g),
+].map((match) => match[1]);
+assert.deepEqual(
+  sidebarRegionOrder,
+  ["context", "panel"],
+  "context header는 탭 행보다 앞, 콘텐츠는 뒤에 온다.",
+);
+
+// 시간표 Cards 모드의 탭 4개가 순서대로 렌더된다.
+const tabLabels = [...sidebarMarkup.matchAll(/<button[^>]*>.*?<\/button>/g)]
+  .map((match) => match[0].replace(/<[^>]+>/g, ""))
+  .map((label) => label.replace(/^[LPIT]/, ""));
+assert.deepEqual(
+  tabLabels,
+  ["Layers", "Presets", "Inputs", "Table"],
+  "Cards 모드 탭 구성과 순서가 바뀌면 안 된다.",
+);
+
+// 활성 탭만 강조된다.
+const activeTabCount = (
+  sidebarMarkup.match(/bg-\[var\(--field\)\] text-\[var\(--fg\)\]/g) ?? []
+).length;
+assert.equal(activeTabCount, 1, "활성 탭 표현은 정확히 하나여야 한다.");
+
+// Timetable 모드는 Table 탭이 없다.
+const timetableModeMarkup = renderToStaticMarkup(
+  <StudioLeftSidebar
+    activeTabId="layers"
+    content={<div>panel</div>}
+    tabs={TIMETABLE_CARDS_TABS.slice(0, 3)}
+    onTabChange={noop}
+  />,
+);
+assert.ok(!timetableModeMarkup.includes(">Table<"));
+assert.ok(
+  !timetableModeMarkup.includes('data-region="context"'),
+  "context header를 넘기지 않으면 렌더되지 않는다.",
+);
+
+// 비활성 탭은 클릭할 수 없다.
+const disabledTabMarkup = renderToStaticMarkup(
+  <StudioLeftSidebar
+    activeTabId="layers"
+    content={<div>panel</div>}
+    tabs={[
+      { id: "layers", label: "Layers" },
+      { id: "presets", label: "Presets", disabled: true },
+    ]}
+    onTabChange={noop}
+  />,
+);
+assert.ok(disabledTabMarkup.includes('disabled=""'));
 
 // --- 셸 레이아웃 기준선 ---
 
