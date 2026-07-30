@@ -10,7 +10,6 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
-  ArrowLeft,
   ArrowUpRight,
   AlertTriangle,
   CalendarDays,
@@ -25,9 +24,6 @@ import {
   Minus,
   Paintbrush,
   Plus,
-  Save,
-  Send,
-  Settings,
   SlidersHorizontal,
   Trash2,
   Type,
@@ -252,6 +248,9 @@ import {
 } from "./studio-node-picker-menu";
 import { StudioImageCropModal } from "./studio-image-crop-modal";
 import { StudioHexColorPicker } from "./studio-hex-color-picker";
+import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
+import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
+
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { StudioRenderer } from "./studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
@@ -9759,172 +9758,60 @@ export function TemplateStudioClient({
       className="flex h-screen w-full flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg)]"
       style={themeStyle}
     >
-      <div className="z-10 flex h-12 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
-        <div className="flex min-w-0 shrink-0 items-center gap-1.5">
-          <button
-            className="flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            title="템플릿 목록으로"
-            type="button"
-            onClick={() => router.push("/admin/template-studio")}
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            목록
-          </button>
-          <div className="mx-0.5 h-[22px] w-px bg-[var(--border)]" />
-          <button
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={isRemoteSyncing}
-            title="Save draft to database"
-            type="button"
-            onClick={() => {
-              void saveDatabaseDraft();
-            }}
-          >
-            <Save className="h-3.5 w-3.5" />
-          </button>
-          <button
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-blue-400/40 bg-blue-500/15 text-blue-200 transition hover:bg-blue-500/25 disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={isRemoteSyncing}
-            title="Publish database document"
-            type="button"
-            onClick={() => {
-              void publishRemoteDocument();
-            }}
-          >
-            <Send className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <div className="hidden min-w-0 flex-1 items-center justify-center gap-3 text-xs text-[var(--fg2)] md:flex">
-          <button
-            className="shrink-0 rounded-md px-1.5 py-1 transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            title="Open canvas settings"
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <b className="font-semibold text-[var(--fg)]">
-              {previewCanvasSize.width}
-            </b>{" "}
-            ×{" "}
-            <b className="font-semibold text-[var(--fg)]">
-              {previewCanvasSize.height}
-            </b>
-          </button>
-          <div className="flex h-[30px] shrink-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
-            {[
-              { mode: "cards" as const, label: "Cards" },
-              { mode: "timetable" as const, label: "Timetable" },
-            ].map(({ mode, label }) => (
-              <button
-                className={cn(
-                  "h-6 rounded-md px-2.5 text-[11px] font-semibold transition",
-                  activeWorkspaceMode === mode
-                    ? "bg-[var(--accent)] text-white"
-                    : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                  mode === "timetable" &&
-                    !canPreviewTimetable &&
-                    "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
-                )}
-                disabled={mode === "timetable" && !canPreviewTimetable}
-                key={mode}
-                type="button"
-                onClick={() => {
-                  setWorkspaceMode(mode);
-                  setNodePicker(null);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <div className="mx-0.5 h-[22px] w-px shrink-0 bg-[var(--border)]" />
-          <div className="flex min-w-0 max-w-[240px] flex-1 items-center gap-2">
-            <button
-              aria-pressed={Boolean(activeGuideAsset && activeGuide.visible)}
-              className={cn(
-                "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border px-2 text-[10px] font-bold transition",
-                activeGuideAsset && activeGuide.visible
-                  ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--accent)]"
-                  : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]",
-              )}
-              title={
-                activeGuideAsset
-                  ? activeGuide.visible
-                    ? "가이드 숨기기"
-                    : "가이드 표시"
-                  : "설정에서 가이드 이미지 추가"
+      <StudioTopToolbar
+        backAction={{
+          title: "템플릿 목록으로",
+          onClick: () => router.push("/admin/template-studio"),
+        }}
+        canvasSize={{
+          width: previewCanvasSize.width,
+          height: previewCanvasSize.height,
+          title: "Open canvas settings",
+          onClick: () => setSettingsOpen(true),
+        }}
+        centerSlot={
+          <>
+            <div className="flex h-[30px] shrink-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+              {[
+                { mode: "cards" as const, label: "Cards" },
+                { mode: "timetable" as const, label: "Timetable" },
+              ].map(({ mode, label }) => (
+                <button
+                  className={cn(
+                    "h-6 rounded-md px-2.5 text-[11px] font-semibold transition",
+                    activeWorkspaceMode === mode
+                      ? "bg-[var(--accent)] text-white"
+                      : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                    mode === "timetable" &&
+                      !canPreviewTimetable &&
+                      "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
+                  )}
+                  disabled={mode === "timetable" && !canPreviewTimetable}
+                  key={mode}
+                  type="button"
+                  onClick={() => {
+                    setWorkspaceMode(mode);
+                    setNodePicker(null);
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="mx-0.5 h-[22px] w-px shrink-0 bg-[var(--border)]" />
+            <StudioGuideControl
+              hasAsset={Boolean(activeGuideAsset)}
+              opacity={activeGuide.opacity}
+              visible={Boolean(activeGuide.visible)}
+              onOpacityChange={setActiveGuideOpacity}
+              onRequestAsset={() => setSettingsOpen(true)}
+              onToggleVisible={() =>
+                setActiveGuideVisibility(!activeGuide.visible)
               }
-              type="button"
-              onClick={() => {
-                if (!activeGuideAsset) {
-                  setSettingsOpen(true);
-                  return;
-                }
-                setActiveGuideVisibility(!activeGuide.visible);
-              }}
-            >
-              <ImageIcon size={12} />
-              가이드
-            </button>
-            <input
-              aria-label="가이드 오퍼시티"
-              className="h-1 min-w-0 flex-1 cursor-pointer accent-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-35"
-              disabled={!activeGuideAsset}
-              max={100}
-              min={0}
-              type="range"
-              value={Math.round(activeGuide.opacity * 100)}
-              onChange={(event) => {
-                setActiveGuideOpacity(Number(event.currentTarget.value) / 100);
-              }}
             />
-            <span className="w-7 shrink-0 text-right text-[9px] font-bold tabular-nums text-[var(--fg3)]">
-              {Math.round(activeGuide.opacity * 100)}%
-            </span>
-          </div>
-        </div>
-
-        <div className="ml-auto flex min-w-[300px] items-center justify-end gap-2">
-          <div className="flex h-[30px] items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-1">
-            <button
-              className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-              title="Zoom out"
-              type="button"
-              onClick={() =>
-                setScale((currentScale) =>
-                  clampStudioPreviewScale(
-                    Number((currentScale - 0.1).toFixed(2)),
-                  ),
-                )
-              }
-            >
-              <Minus className="h-3.5 w-3.5" />
-            </button>
-            <span className="min-w-11 text-center text-xs font-semibold tracking-[0.01em] text-[var(--fg)]">
-              {Math.round(scale * 100)}%
-            </span>
-            <button
-              className="flex h-6 w-6 items-center justify-center rounded-md text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-              title="Zoom in"
-              type="button"
-              onClick={() =>
-                setScale((currentScale) =>
-                  clampStudioPreviewScale(
-                    Number((currentScale + 0.1).toFixed(2)),
-                  ),
-                )
-              }
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </div>
-          <button
-            className="h-[30px] rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-medium text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            type="button"
-            onClick={() => setFitRequestKey((current) => current + 1)}
-          >
-            Fit
-          </button>
+          </>
+        }
+        hiddenControls={
           <input
             accept="application/json,.json"
             className="hidden"
@@ -9937,37 +9824,49 @@ export function TemplateStudioClient({
               void importStudioJsonFile(file);
             }}
           />
-          <button
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            title="Template settings"
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <Settings className="h-3.5 w-3.5" />
-          </button>
-          <button
-            className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-xs font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            title="Open runtime preview"
-            type="button"
-            onClick={() => {
-              void openRuntimeDraftPreview();
-            }}
-          >
-            <ArrowUpRight className="h-3.5 w-3.5" />
-            Preview
-          </button>
-          <div className="mx-0.5 h-[22px] w-px bg-[var(--border)]" />
-          <button
-            className="h-[30px] rounded-lg bg-[var(--accent)] px-3.5 text-xs font-semibold tracking-[0.01em] text-white transition disabled:cursor-not-allowed disabled:opacity-45"
-            disabled={!remoteTemplateId}
-            title="Open saved preview"
-            type="button"
-            onClick={openSavedPreview}
-          >
-            공유
-          </button>
-        </div>
-      </div>
+        }
+        previewAction={{
+          title: "Open runtime preview",
+          onClick: () => {
+            void openRuntimeDraftPreview();
+          },
+        }}
+        publishAction={{
+          title: "Publish database document",
+          disabled: isRemoteSyncing,
+          onClick: () => {
+            void publishRemoteDocument();
+          },
+        }}
+        saveAction={{
+          title: "Save draft to database",
+          disabled: isRemoteSyncing,
+          onClick: () => {
+            void saveDatabaseDraft();
+          },
+        }}
+        settingsAction={{
+          title: "Template settings",
+          onClick: () => setSettingsOpen(true),
+        }}
+        shareAction={{
+          title: "Open saved preview",
+          disabled: !remoteTemplateId,
+          onClick: openSavedPreview,
+        }}
+        zoom={{
+          scale,
+          onFit: () => setFitRequestKey((current) => current + 1),
+          onZoomIn: () =>
+            setScale((currentScale) =>
+              clampStudioPreviewScale(Number((currentScale + 0.1).toFixed(2))),
+            ),
+          onZoomOut: () =>
+            setScale((currentScale) =>
+              clampStudioPreviewScale(Number((currentScale - 0.1).toFixed(2))),
+            ),
+        }}
+      />
 
       <StudioSettingsModal
         activeWorkspaceMode={activeWorkspaceMode}
