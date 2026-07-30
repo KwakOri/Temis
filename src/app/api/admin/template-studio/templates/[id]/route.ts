@@ -88,11 +88,13 @@ export async function DELETE(
     // delete — npm run cleanup:template-studio:r2-assets --template-id
     // remains the manual fallback for anything left behind.
     try {
-      await deleteFilesFromR2Prefix(buildTemplateStudioAssetTemplatePrefix(templateId));
+      await deleteFilesFromR2Prefix(
+        buildTemplateStudioAssetTemplatePrefix(templateId),
+      );
     } catch (r2Error) {
       console.error(
         `Template Studio R2 asset cleanup failed for template ${templateId}:`,
-        r2Error
+        r2Error,
       );
     }
 

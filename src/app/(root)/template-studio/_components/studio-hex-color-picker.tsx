@@ -103,8 +103,9 @@ export function StudioHexColorPicker({
   );
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<PickerPosition | null>(null);
-  const [portalThemeStyle, setPortalThemeStyle] =
-    useState<PickerThemeStyle>({});
+  const [portalThemeStyle, setPortalThemeStyle] = useState<PickerThemeStyle>(
+    {},
+  );
 
   useEffect(() => {
     const nextNormalizedValue = normalizeHexColor(value);
@@ -139,10 +140,7 @@ export function StudioHexColorPicker({
       PANEL_HEIGHT_ESTIMATE + PANEL_GAP + VIEWPORT_GAP;
     const top = fitsBelow
       ? anchor.bottom + PANEL_GAP
-      : Math.max(
-          VIEWPORT_GAP,
-          anchor.top - PANEL_HEIGHT_ESTIMATE - PANEL_GAP,
-        );
+      : Math.max(VIEWPORT_GAP, anchor.top - PANEL_HEIGHT_ESTIMATE - PANEL_GAP);
 
     setPosition({ left, top });
     const computedStyle = window.getComputedStyle(root);

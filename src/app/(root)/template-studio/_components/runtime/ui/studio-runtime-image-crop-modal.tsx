@@ -229,9 +229,7 @@ export function StudioRuntimeImageCropModal({
               showGrid
               zoom={zoom}
               onCropChange={setCrop}
-              onCropComplete={(_area, pixels) =>
-                setCroppedAreaPixels(pixels)
-              }
+              onCropComplete={(_area, pixels) => setCroppedAreaPixels(pixels)}
               onMediaLoaded={setMediaSize}
               onZoomChange={setZoom}
             />

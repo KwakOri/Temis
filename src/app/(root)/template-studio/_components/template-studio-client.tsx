@@ -3174,9 +3174,7 @@ export function TemplateStudioClient({
     });
   };
 
-  const updateSelectedNodeTextAlignment = (
-    textAlign: StudioTextAlignment,
-  ) => {
+  const updateSelectedNodeTextAlignment = (textAlign: StudioTextAlignment) => {
     if (!selectedNode) return;
 
     updateNode(selectedNode.id, (node, nextDocument) => {
@@ -7119,29 +7117,27 @@ export function TemplateStudioClient({
         </div>
       </div>
       <div className="grid grid-cols-4 gap-1.5 px-3 py-3">
-        {(["group", "text", "flexibleText", "image"] as const).map(
-          (type) => (
-            <button
-              className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-              key={type}
-              title={`Add ${getNodeTypeLabel(type)}`}
-              type="button"
-              onClick={() => addNode(type)}
-            >
-              {type === "image" ? (
-                <ImageIcon size={17} />
-              ) : type === "group" ? (
-                <Layers3 size={17} />
-              ) : type === "flexibleText" ? (
-                <span>
-                  T<span className="align-super text-[8px]">a</span>
-                </span>
-              ) : (
-                <Type size={17} />
-              )}
-            </button>
-          ),
-        )}
+        {(["group", "text", "flexibleText", "image"] as const).map((type) => (
+          <button
+            className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+            key={type}
+            title={`Add ${getNodeTypeLabel(type)}`}
+            type="button"
+            onClick={() => addNode(type)}
+          >
+            {type === "image" ? (
+              <ImageIcon size={17} />
+            ) : type === "group" ? (
+              <Layers3 size={17} />
+            ) : type === "flexibleText" ? (
+              <span>
+                T<span className="align-super text-[8px]">a</span>
+              </span>
+            ) : (
+              <Type size={17} />
+            )}
+          </button>
+        ))}
       </div>
       <div className="grid gap-3 border-t border-[var(--border)] px-3 py-3">
         {cardPresetGroups.length === 0 ? (
@@ -7186,16 +7182,12 @@ export function TemplateStudioClient({
                             return;
                           }
 
-                          if (
-                            isStudioCardStatusBackgroundPreset(definition)
-                          ) {
+                          if (isStudioCardStatusBackgroundPreset(definition)) {
                             addCardStatusBackgroundObject(definition);
                             return;
                           }
 
-                          if (
-                            isStudioCardSelectInputBundlePreset(definition)
-                          ) {
+                          if (isStudioCardSelectInputBundlePreset(definition)) {
                             addCardSelectInputBundle(definition);
                           }
                         }}
@@ -8707,10 +8699,7 @@ export function TemplateStudioClient({
                                 ),
                                 slotIndex,
                               ]
-                            : [
-                                ...currentEmptySlotIndexes.slice(1),
-                                slotIndex,
-                              ];
+                            : [...currentEmptySlotIndexes.slice(1), slotIndex];
                         nextLayout.slots = undefined;
                       });
                     }}
@@ -9549,9 +9538,7 @@ export function TemplateStudioClient({
                             {selectedNodeBuiltinField.label}
                           </span>
                           <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-                            {getInputScopeLabel(
-                              selectedNodeBuiltinField.scope,
-                            )}{" "}
+                            {getInputScopeLabel(selectedNodeBuiltinField.scope)}{" "}
                             · {selectedNodeBuiltinField.type} ·{" "}
                             {selectedNodeBuiltinField.id}
                           </span>
@@ -10662,8 +10649,7 @@ export function TemplateStudioClient({
             </>
           ) : (
             <>
-              {selectedTimetableDay &&
-              selectedTimetableDayComponentResolution
+              {selectedTimetableDay && selectedTimetableDayComponentResolution
                 ? renderInspectorSection(
                     "componentSet",
                     "Component Set",

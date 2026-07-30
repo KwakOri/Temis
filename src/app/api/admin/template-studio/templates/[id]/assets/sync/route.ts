@@ -186,7 +186,10 @@ export async function POST(
         );
       }
 
-      if (asset.byteSize !== undefined && asset.byteSize !== parsed.buffer.length) {
+      if (
+        asset.byteSize !== undefined &&
+        asset.byteSize !== parsed.buffer.length
+      ) {
         return NextResponse.json(
           { error: `asset 크기가 일치하지 않습니다: ${asset.label}` },
           { status: 400 },

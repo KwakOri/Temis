@@ -113,9 +113,7 @@ export const findStudioWeeklyMemoInput = (
     (input) =>
       input.type === "text" &&
       input.scope === "global" &&
-      STUDIO_WEEKLY_MEMO_MATCHING_LABELS.has(
-        normalizeInputLabel(input.label),
-      ),
+      STUDIO_WEEKLY_MEMO_MATCHING_LABELS.has(normalizeInputLabel(input.label)),
   ) ?? null;
 
 export const ensureStudioWeeklyMemoInput = (

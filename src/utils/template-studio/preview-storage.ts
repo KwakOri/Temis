@@ -113,7 +113,11 @@ export const writeTemplateStudioPreviewStorage = (
     key,
     serialized,
   );
-  const localError = tryWritePreviewStorage(window.localStorage, key, serialized);
+  const localError = tryWritePreviewStorage(
+    window.localStorage,
+    key,
+    serialized,
+  );
 
   if (sessionError && localError) {
     throw sessionError instanceof Error

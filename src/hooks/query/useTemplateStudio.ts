@@ -72,7 +72,9 @@ export const useSaveTemplateStudioDraft = () => {
         queryKey: queryKeys.admin.templateStudioDraft(variables.templateId),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.template.templateStudioPreview(variables.templateId),
+        queryKey: queryKeys.template.templateStudioPreview(
+          variables.templateId,
+        ),
       });
     },
   });

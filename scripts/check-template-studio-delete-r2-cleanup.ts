@@ -35,7 +35,15 @@ const assertLocalSupabaseUrl = () => {
 const upsertUser = async (id: number, email: string) => {
   const now = new Date().toISOString();
   const { error } = await supabaseAdminServer.from("users").upsert(
-    { id, created_at: now, updated_at: now, name: `R2 Cleanup Check ${id}`, email, password: "local-only", role: "admin" },
+    {
+      id,
+      created_at: now,
+      updated_at: now,
+      name: `R2 Cleanup Check ${id}`,
+      email,
+      password: "local-only",
+      role: "admin",
+    },
     { onConflict: "id" },
   );
   if (error) throw error;
@@ -48,10 +56,15 @@ const req = (
 ): NextRequest =>
   new NextRequest(url, {
     ...init,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
   });
 
-const json = async <T>(response: NextResponse): Promise<{ status: number; body: T | null }> => {
+const json = async <T>(
+  response: NextResponse,
+): Promise<{ status: number; body: T | null }> => {
   const body = await response.json().catch(() => null);
   return { status: response.status, body: body as T | null };
 };
@@ -74,13 +87,19 @@ const main = async () => {
     import("../src/app/api/admin/template-studio/templates/[id]/route"),
   ]);
 
-  const adminToken = await signJWT({ userId: ADMIN_ID, email: ADMIN_EMAIL, role: "admin" }, "1h");
+  const adminToken = await signJWT(
+    { userId: ADMIN_ID, email: ADMIN_EMAIL, role: "admin" },
+    "1h",
+  );
 
   const created = await json<{ template: { id: string } }>(
     await templatesRoute.POST(
       req(`${base}/api/admin/template-studio/templates`, adminToken, {
         method: "POST",
-        body: JSON.stringify({ name: "R2 Cleanup Check", description: "P2 verification only" }),
+        body: JSON.stringify({
+          name: "R2 Cleanup Check",
+          description: "P2 verification only",
+        }),
       }),
     ),
   );
@@ -88,9 +107,13 @@ const main = async () => {
   const templateId = created.body!.template.id;
 
   const deleteResp = await (templateItemRoute.DELETE as RouteHandler)(
-    req(`${base}/api/admin/template-studio/templates/${templateId}`, adminToken, {
-      method: "DELETE",
-    }),
+    req(
+      `${base}/api/admin/template-studio/templates/${templateId}`,
+      adminToken,
+      {
+        method: "DELETE",
+      },
+    ),
     { params: Promise.resolve({ id: templateId }) },
   );
   assert(
@@ -102,9 +125,14 @@ const main = async () => {
     .from("templates")
     .select("id")
     .eq("id", templateId);
-  assert((remaining ?? []).length === 0, "template row should be gone after delete");
+  assert(
+    (remaining ?? []).length === 0,
+    "template row should be gone after delete",
+  );
 
-  console.log("Template Studio delete R2-cleanup-failure-tolerance check passed.");
+  console.log(
+    "Template Studio delete R2-cleanup-failure-tolerance check passed.",
+  );
 };
 
 main().catch((error) => {

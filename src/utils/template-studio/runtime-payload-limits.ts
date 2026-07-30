@@ -20,7 +20,8 @@ const MAX_ENTRY_MAIN_TITLE_LENGTH = 500;
 const MAX_ENTRY_SUB_TITLE_LENGTH = 200;
 const MAX_OFFLINE_MEMO_LENGTH = 1000;
 
-const byteLength = (value: string): number => new TextEncoder().encode(value).length;
+const byteLength = (value: string): number =>
+  new TextEncoder().encode(value).length;
 
 const estimateDataUriDecodedBytes = (dataUri: string): number => {
   const base64 = dataUri.slice(dataUri.indexOf(",") + 1);
@@ -30,7 +31,7 @@ const estimateDataUriDecodedBytes = (dataUri: string): number => {
 const checkImageValue = (
   inputId: string,
   value: string,
-  diagnostics: StudioDiagnostic[]
+  diagnostics: StudioDiagnostic[],
 ): void => {
   if (!value) return;
 
@@ -65,7 +66,7 @@ const checkTextValue = (
   inputId: string,
   value: string,
   maxLength: number | undefined,
-  diagnostics: StudioDiagnostic[]
+  diagnostics: StudioDiagnostic[],
 ): void => {
   const limit = maxLength ?? DEFAULT_TEXT_INPUT_MAX_LENGTH;
   if (value.length > limit) {
@@ -82,7 +83,7 @@ const checkInputValue = (
   document: StudioTemplateDocument,
   inputId: string,
   value: string,
-  diagnostics: StudioDiagnostic[]
+  diagnostics: StudioDiagnostic[],
 ): void => {
   if (typeof value !== "string") {
     diagnostics.push({
@@ -112,7 +113,7 @@ const checkInputValue = (
  */
 export const validateStudioRuntimePayloadLimits = (
   document: StudioTemplateDocument,
-  values: StudioRuntimeValues
+  values: StudioRuntimeValues,
 ): StudioDiagnostic[] => {
   const diagnostics: StudioDiagnostic[] = [];
 
@@ -127,52 +128,56 @@ export const validateStudioRuntimePayloadLimits = (
   }
 
   Object.entries(values.global ?? {}).forEach(([inputId, value]) =>
-    checkInputValue(document, inputId, value, diagnostics)
+    checkInputValue(document, inputId, value, diagnostics),
   );
   Object.values(values.days ?? {}).forEach((dayValues) =>
     Object.entries(dayValues ?? {}).forEach(([inputId, value]) =>
-      checkInputValue(document, inputId, value, diagnostics)
-    )
+      checkInputValue(document, inputId, value, diagnostics),
+    ),
   );
   Object.values(values.entries ?? {}).forEach((entryList) =>
     (entryList ?? []).forEach((entry) =>
       Object.entries(entry ?? {}).forEach(([inputId, value]) =>
-        checkInputValue(document, inputId, value, diagnostics)
-      )
-    )
+        checkInputValue(document, inputId, value, diagnostics),
+      ),
+    ),
   );
 
-  Object.entries(values.timetable?.entriesByDay ?? {}).forEach(([dayId, entries]) => {
-    (entries ?? []).forEach((entry, index) => {
-      if ((entry.mainTitle?.length ?? 0) > MAX_ENTRY_MAIN_TITLE_LENGTH) {
-        diagnostics.push({
-          id: `runtime-main-title-too-long:${dayId}:${index}`,
-          severity: "error",
-          title: "Main title too long",
-          detail: `${dayId} entry ${index} mainTitle exceeds ${MAX_ENTRY_MAIN_TITLE_LENGTH} characters.`,
-        });
-      }
-      if ((entry.subTitle?.length ?? 0) > MAX_ENTRY_SUB_TITLE_LENGTH) {
-        diagnostics.push({
-          id: `runtime-sub-title-too-long:${dayId}:${index}`,
-          severity: "error",
-          title: "Sub title too long",
-          detail: `${dayId} entry ${index} subTitle exceeds ${MAX_ENTRY_SUB_TITLE_LENGTH} characters.`,
-        });
-      }
-    });
-  });
-
-  Object.entries(values.timetable?.offlineMemoByDay ?? {}).forEach(([dayId, memo]) => {
-    if ((memo?.length ?? 0) > MAX_OFFLINE_MEMO_LENGTH) {
-      diagnostics.push({
-        id: `runtime-offline-memo-too-long:${dayId}`,
-        severity: "error",
-        title: "Offline memo too long",
-        detail: `${dayId} offline memo exceeds ${MAX_OFFLINE_MEMO_LENGTH} characters.`,
+  Object.entries(values.timetable?.entriesByDay ?? {}).forEach(
+    ([dayId, entries]) => {
+      (entries ?? []).forEach((entry, index) => {
+        if ((entry.mainTitle?.length ?? 0) > MAX_ENTRY_MAIN_TITLE_LENGTH) {
+          diagnostics.push({
+            id: `runtime-main-title-too-long:${dayId}:${index}`,
+            severity: "error",
+            title: "Main title too long",
+            detail: `${dayId} entry ${index} mainTitle exceeds ${MAX_ENTRY_MAIN_TITLE_LENGTH} characters.`,
+          });
+        }
+        if ((entry.subTitle?.length ?? 0) > MAX_ENTRY_SUB_TITLE_LENGTH) {
+          diagnostics.push({
+            id: `runtime-sub-title-too-long:${dayId}:${index}`,
+            severity: "error",
+            title: "Sub title too long",
+            detail: `${dayId} entry ${index} subTitle exceeds ${MAX_ENTRY_SUB_TITLE_LENGTH} characters.`,
+          });
+        }
       });
-    }
-  });
+    },
+  );
+
+  Object.entries(values.timetable?.offlineMemoByDay ?? {}).forEach(
+    ([dayId, memo]) => {
+      if ((memo?.length ?? 0) > MAX_OFFLINE_MEMO_LENGTH) {
+        diagnostics.push({
+          id: `runtime-offline-memo-too-long:${dayId}`,
+          severity: "error",
+          title: "Offline memo too long",
+          detail: `${dayId} offline memo exceeds ${MAX_OFFLINE_MEMO_LENGTH} characters.`,
+        });
+      }
+    },
+  );
 
   return diagnostics;
 };

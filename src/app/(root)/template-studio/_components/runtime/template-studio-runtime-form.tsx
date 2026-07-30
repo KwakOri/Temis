@@ -196,10 +196,7 @@ export function TemplateStudioRuntimeForm({
   const canUseLocalImageStorage = Boolean(templateId && storageOwnerId);
   const localImageObjectUrlsRef = useRef<Map<string, string>>(new Map());
 
-  const setLocalImageObjectUrl = (
-    stateKey: string,
-    nextUrl: string | null,
-  ) => {
+  const setLocalImageObjectUrl = (stateKey: string, nextUrl: string | null) => {
     const previous = localImageObjectUrlsRef.current.get(stateKey);
     if (previous && previous !== nextUrl) {
       URL.revokeObjectURL(previous);
@@ -294,7 +291,9 @@ export function TemplateStudioRuntimeForm({
       if (input.scope === "global") {
         contexts.push({ input, context: {} });
       } else if (input.scope === "day") {
-        days.forEach((day) => contexts.push({ input, context: { dayId: day.id } }));
+        days.forEach((day) =>
+          contexts.push({ input, context: { dayId: day.id } }),
+        );
       } else {
         days.forEach((day) => {
           const entries = getStudioTimetableEntriesForDay(
@@ -386,7 +385,12 @@ export function TemplateStudioRuntimeForm({
 
     try {
       const record = await putStudioRuntimeImage(
-        { userId: storageOwnerId, templateId, inputId: input.id, context: imageContext },
+        {
+          userId: storageOwnerId,
+          templateId,
+          inputId: input.id,
+          context: imageContext,
+        },
         blob,
       );
       const objectUrl = URL.createObjectURL(record.blob);
@@ -434,7 +438,10 @@ export function TemplateStudioRuntimeForm({
           return persistLocalRuntimeImage(input, context, blob);
         })
         .catch((error) => {
-          console.error("Template Studio runtime image conversion failed", error);
+          console.error(
+            "Template Studio runtime image conversion failed",
+            error,
+          );
           window.alert(copy.cropFailed);
         });
       return;
@@ -821,182 +828,183 @@ export function TemplateStudioRuntimeForm({
         className="flex h-[44vh] min-h-[320px] w-full shrink-0 flex-col border-t-2 border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] text-[var(--runtime-fg)] md:h-full md:max-w-[400px] md:min-w-[300px] md:w-1/4 md:border-l-2 md:border-t-0"
         data-testid="template-studio-runtime-form"
       >
-      <div className="flex min-h-0 flex-1 flex-col">
-        <StudioRuntimeFormTabs
-          ariaLabel={copy.formSections}
-          tabs={[{ id: "basic", label: copy.basic }]}
-          value="basic"
-          onValueChange={() => undefined}
-        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <StudioRuntimeFormTabs
+            ariaLabel={copy.formSections}
+            tabs={[{ id: "basic", label: copy.basic }]}
+            value="basic"
+            onValueChange={() => undefined}
+          />
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--runtime-form-bg)] p-4">
-          <div className="grid gap-4">
-            <StudioRuntimeSectionTitle title={copy.formTitle} />
-            <StudioRuntimeWeekSelector
-              disabled={!weekStartDate}
-              label={copy.week}
-              nextLabel={copy.nextWeek}
-              previousLabel={copy.previousWeek}
-              value={weekLabel}
-              onNext={() => shiftWeek(1)}
-              onPrevious={() => shiftWeek(-1)}
-            />
-            {renderGlobalInputCards()}
-            {globalInputGroups.length === 0 ? (
-              <StudioRuntimeEmptyState compact>
-                {copy.noGlobalInputs}
-              </StudioRuntimeEmptyState>
-            ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto bg-[var(--runtime-form-bg)] p-4">
+            <div className="grid gap-4">
+              <StudioRuntimeSectionTitle title={copy.formTitle} />
+              <StudioRuntimeWeekSelector
+                disabled={!weekStartDate}
+                label={copy.week}
+                nextLabel={copy.nextWeek}
+                previousLabel={copy.previousWeek}
+                value={weekLabel}
+                onNext={() => shiftWeek(1)}
+                onPrevious={() => shiftWeek(-1)}
+              />
+              {renderGlobalInputCards()}
+              {globalInputGroups.length === 0 ? (
+                <StudioRuntimeEmptyState compact>
+                  {copy.noGlobalInputs}
+                </StudioRuntimeEmptyState>
+              ) : null}
 
-            <StudioRuntimeSectionTitle title={copy.weeklyTimetable} />
+              <StudioRuntimeSectionTitle title={copy.weeklyTimetable} />
 
-            {days.length === 0 ? (
-              <StudioRuntimeEmptyState>
-                {copy.noTimetableDays}
-              </StudioRuntimeEmptyState>
-            ) : (
-              days.map((day) => {
-                const entries = getStudioTimetableEntriesForDay(
-                  document,
-                  runtimeValues,
-                  day.id,
-                );
-                const status = getDayStatus(document, entries);
-                const addEntryDisabledReason =
-                  getStudioTimetableAddEntryDisabledReason(
+              {days.length === 0 ? (
+                <StudioRuntimeEmptyState>
+                  {copy.noTimetableDays}
+                </StudioRuntimeEmptyState>
+              ) : (
+                days.map((day) => {
+                  const entries = getStudioTimetableEntriesForDay(
                     document,
                     runtimeValues,
                     day.id,
                   );
-                const localizedAddEntryDisabledReason =
-                  getLocalizedStudioAddEntryDisabledReason(
-                    copy,
-                    addEntryDisabledReason,
+                  const status = getDayStatus(document, entries);
+                  const addEntryDisabledReason =
+                    getStudioTimetableAddEntryDisabledReason(
+                      document,
+                      runtimeValues,
+                      day.id,
+                    );
+                  const localizedAddEntryDisabledReason =
+                    getLocalizedStudioAddEntryDisabledReason(
+                      copy,
+                      addEntryDisabledReason,
+                    );
+                  const shortDayLabel = getStudioRuntimeDayLabel({
+                    locale,
+                    dayId: day.id,
+                    width: "short",
+                    fallback: day.shortLabel ?? day.label,
+                  });
+                  const longDayLabel = getStudioRuntimeDayLabel({
+                    locale,
+                    dayId: day.id,
+                    width: "long",
+                    fallback: day.label,
+                  });
+
+                  return (
+                    <StudioRuntimeDayCard
+                      dayId={day.id}
+                      key={day.id}
+                      label={shortDayLabel}
+                      memoAvailable={canUseOfflineMemo && entries.length > 0}
+                      memoDescription={copy.memoDescription}
+                      memoEnabled={status.memoEnabled}
+                      memoLabel={copy.memo}
+                      memoToggleTitle={copy.toggleOfflineMemo}
+                      memoUnavailableTitle={copy.offlineMemoUnavailable}
+                      multi={status.multi}
+                      multiLabel={copy.multi}
+                      online={status.online}
+                      onlineAriaLabel={`${longDayLabel} ${copy.online}`}
+                      settings={renderInputGroup(
+                        copy.daySettings,
+                        inputGroups.day,
+                        {
+                          dayId: day.id,
+                        },
+                      )}
+                      offlineContent={
+                        <StudioRuntimeField
+                          control="textarea"
+                          label={copy.offlineMemo}
+                          placeholder={copy.offlineMemoPlaceholder}
+                          rows={4}
+                          value={
+                            runtimeValues.timetable.offlineMemoByDay?.[
+                              day.id
+                            ] ?? ""
+                          }
+                          onValueChange={(value) =>
+                            updateOfflineMemo(day.id, value)
+                          }
+                        />
+                      }
+                      onMemoEnabledChange={(enabled) =>
+                        toggleOfflineMemo(day.id, enabled)
+                      }
+                      onOnlineChange={(online) =>
+                        updateDayBaseStatus(day.id, online)
+                      }
+                    >
+                      {entries.length === 0 ? (
+                        <StudioRuntimeEmptyState compact>
+                          {copy.noEntries}
+                        </StudioRuntimeEmptyState>
+                      ) : (
+                        entries.map((entry, entryIndex) =>
+                          renderEntryCard(
+                            day.id,
+                            entry,
+                            entryIndex,
+                            entries.length,
+                          ),
+                        )
+                      )}
+
+                      {addEntryDisabledReason === null ? (
+                        <StudioRuntimeActionButton
+                          fullWidth
+                          aria-label={copy.addEntryTo(longDayLabel)}
+                          size="compact"
+                          title={copy.addEntryTo(longDayLabel)}
+                          variant="primary"
+                          onClick={() => addEntry(day.id, entries)}
+                        >
+                          <Plus size={16} />
+                          {copy.addEntry}
+                        </StudioRuntimeActionButton>
+                      ) : null}
+                    </StudioRuntimeDayCard>
                   );
-                const shortDayLabel = getStudioRuntimeDayLabel({
-                  locale,
-                  dayId: day.id,
-                  width: "short",
-                  fallback: day.shortLabel ?? day.label,
-                });
-                const longDayLabel = getStudioRuntimeDayLabel({
-                  locale,
-                  dayId: day.id,
-                  width: "long",
-                  fallback: day.label,
-                });
-
-                return (
-                  <StudioRuntimeDayCard
-                    dayId={day.id}
-                    key={day.id}
-                    label={shortDayLabel}
-                    memoAvailable={canUseOfflineMemo && entries.length > 0}
-                    memoDescription={copy.memoDescription}
-                    memoEnabled={status.memoEnabled}
-                    memoLabel={copy.memo}
-                    memoToggleTitle={copy.toggleOfflineMemo}
-                    memoUnavailableTitle={copy.offlineMemoUnavailable}
-                    multi={status.multi}
-                    multiLabel={copy.multi}
-                    online={status.online}
-                    onlineAriaLabel={`${longDayLabel} ${copy.online}`}
-                    settings={renderInputGroup(
-                      copy.daySettings,
-                      inputGroups.day,
-                      {
-                        dayId: day.id,
-                      },
-                    )}
-                    offlineContent={
-                      <StudioRuntimeField
-                        control="textarea"
-                        label={copy.offlineMemo}
-                        placeholder={copy.offlineMemoPlaceholder}
-                        rows={4}
-                        value={
-                          runtimeValues.timetable.offlineMemoByDay?.[day.id] ??
-                          ""
-                        }
-                        onValueChange={(value) =>
-                          updateOfflineMemo(day.id, value)
-                        }
-                      />
-                    }
-                    onMemoEnabledChange={(enabled) =>
-                      toggleOfflineMemo(day.id, enabled)
-                    }
-                    onOnlineChange={(online) =>
-                      updateDayBaseStatus(day.id, online)
-                    }
-                  >
-                    {entries.length === 0 ? (
-                      <StudioRuntimeEmptyState compact>
-                        {copy.noEntries}
-                      </StudioRuntimeEmptyState>
-                    ) : (
-                      entries.map((entry, entryIndex) =>
-                        renderEntryCard(
-                          day.id,
-                          entry,
-                          entryIndex,
-                          entries.length,
-                        ),
-                      )
-                    )}
-
-                    {addEntryDisabledReason === null ? (
-                      <StudioRuntimeActionButton
-                        fullWidth
-                        aria-label={copy.addEntryTo(longDayLabel)}
-                        size="compact"
-                        title={copy.addEntryTo(longDayLabel)}
-                        variant="primary"
-                        onClick={() => addEntry(day.id, entries)}
-                      >
-                        <Plus size={16} />
-                        {copy.addEntry}
-                      </StudioRuntimeActionButton>
-                    ) : null}
-                  </StudioRuntimeDayCard>
-                );
-              })
-            )}
+                })
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="shrink-0 border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] p-4">
-        <div className="flex gap-2">
-          {onSaveValues ? (
+        <div className="shrink-0 border-t border-[var(--runtime-border)] bg-[var(--runtime-form-bg)] p-4">
+          <div className="flex gap-2">
+            {onSaveValues ? (
+              <StudioRuntimeActionButton
+                fullWidth
+                className="h-12 rounded-md text-base font-bold"
+                disabled={isSavingValues}
+                variant="primary"
+                onClick={onSaveValues}
+              >
+                {isSavingValues ? copy.saving : copy.save}
+              </StudioRuntimeActionButton>
+            ) : null}
             <StudioRuntimeActionButton
               fullWidth
               className="h-12 rounded-md text-base font-bold"
-              disabled={isSavingValues}
-              variant="primary"
-              onClick={onSaveValues}
+              disabled={!onSaveImage || isSavingImage}
+              variant={onSaveValues ? "secondary" : undefined}
+              onClick={onSaveImage}
             >
-              {isSavingValues ? copy.saving : copy.save}
+              {isSavingImage ? copy.savingImage : copy.saveImage}
             </StudioRuntimeActionButton>
-          ) : null}
-          <StudioRuntimeActionButton
-            fullWidth
-            className="h-12 rounded-md text-base font-bold"
-            disabled={!onSaveImage || isSavingImage}
-            variant={onSaveValues ? "secondary" : undefined}
-            onClick={onSaveImage}
-          >
-            {isSavingImage ? copy.savingImage : copy.saveImage}
-          </StudioRuntimeActionButton>
-          <StudioRuntimeActionButton
-            className="h-12 shrink-0 rounded-md px-4 text-base font-bold"
-            variant="ghost"
-            onClick={onReset}
-          >
-            <RotateCcw size={18} />
-          </StudioRuntimeActionButton>
+            <StudioRuntimeActionButton
+              className="h-12 shrink-0 rounded-md px-4 text-base font-bold"
+              variant="ghost"
+              onClick={onReset}
+            >
+              <RotateCcw size={18} />
+            </StudioRuntimeActionButton>
+          </div>
         </div>
-      </div>
       </aside>
       {pendingImageCrop ? (
         <StudioRuntimeImageCropModal

@@ -252,7 +252,7 @@ const normalizeStudioTimetableVariantSet = (
   const optionValues = new Set(options.map((option) => option.value));
   const defaultValue = optionValues.has(variantSet.defaultValue)
     ? variantSet.defaultValue
-    : options[0]?.value ?? "on";
+    : (options[0]?.value ?? "on");
   const activeValue =
     variantSet.activeValue && optionValues.has(variantSet.activeValue)
       ? variantSet.activeValue
@@ -297,7 +297,7 @@ export const getStudioTimetableObjectRenderableChildIds = (
     variantValue &&
     variantSet.options.some((option) => option.value === variantValue)
       ? variantValue
-      : variantSet.activeValue ?? variantSet.defaultValue;
+      : (variantSet.activeValue ?? variantSet.defaultValue);
   const activeVariantRootId = variantSet.rootByValue[resolvedValue] ?? null;
 
   if (activeVariantRootId) return [activeVariantRootId];

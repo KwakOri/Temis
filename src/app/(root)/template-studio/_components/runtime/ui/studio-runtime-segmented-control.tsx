@@ -37,7 +37,9 @@ export function StudioRuntimeSegmentedControl<T extends string>({
         className,
       )}
       role="group"
-      style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))` }}
+      style={{
+        gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))`,
+      }}
     >
       {options.map((option) => {
         const selected = option.id === value;

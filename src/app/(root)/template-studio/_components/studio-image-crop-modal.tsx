@@ -77,11 +77,7 @@ const createCroppedImage = (
         const workingContext = workingCanvas.getContext("2d");
         if (!workingContext) throw new Error("Canvas context is unavailable.");
 
-        const rotated = rotateSize(
-          image.width,
-          image.height,
-          options.rotation,
-        );
+        const rotated = rotateSize(image.width, image.height, options.rotation);
         workingCanvas.width = Math.ceil(rotated.width);
         workingCanvas.height = Math.ceil(rotated.height);
         workingContext.translate(
@@ -163,8 +159,9 @@ export function StudioImageCropModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [cropFrameSize, setCropFrameSize] =
     useState<StudioCropFrameSize | null>(null);
-  const [resizingEdge, setResizingEdge] =
-    useState<StudioCropResizeEdge | null>(null);
+  const [resizingEdge, setResizingEdge] = useState<StudioCropResizeEdge | null>(
+    null,
+  );
   const cropStageRef = useRef<HTMLDivElement | null>(null);
   const stageSizeRef = useRef<StudioCropFrameSize>({ width: 0, height: 0 });
   const cropDimensionsRef = useRef({
@@ -267,10 +264,7 @@ export function StudioImageCropModal({
           ? outputDimensionsRef.current
           : cropDimensionsRef.current;
       setCropFrameSize(
-        fitStudioCropFrame(
-          nextStageSize,
-          dimensions.width / dimensions.height,
-        ),
+        fitStudioCropFrame(nextStageSize, dimensions.width / dimensions.height),
       );
     };
 
@@ -401,8 +395,7 @@ export function StudioImageCropModal({
       pointerDelta,
     );
     const nextAspect = nextFrameSize.width / nextFrameSize.height;
-    const resizesWidth =
-      session.edge === "left" || session.edge === "right";
+    const resizesWidth = session.edge === "left" || session.edge === "right";
     const nextDimensions =
       session.mode === "fit"
         ? resizesWidth
@@ -499,8 +492,8 @@ export function StudioImageCropModal({
         : null;
   const isUpscaling = Boolean(
     selectedPixelSize &&
-      (outputWidth > selectedPixelSize.width ||
-        outputHeight > selectedPixelSize.height),
+    (outputWidth > selectedPixelSize.width ||
+      outputHeight > selectedPixelSize.height),
   );
   const fitPreviewStyle = useMemo<React.CSSProperties>(() => {
     if (!cropFrameSize || !mediaSize) return {};
@@ -554,7 +547,9 @@ export function StudioImageCropModal({
       <div className="flex max-h-[calc(100vh-72px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-[0_28px_90px_rgba(0,0,0,0.55)]">
         <header className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
           <div>
-            <h2 className="text-base font-black text-[var(--fg)]">Crop image</h2>
+            <h2 className="text-base font-black text-[var(--fg)]">
+              Crop image
+            </h2>
             <p className="mt-0.5 text-xs font-medium text-[var(--fg2)]">
               Crop selection and output resolution are configured separately.
             </p>
@@ -622,9 +617,7 @@ export function StudioImageCropModal({
                 onCropChange={setCrop}
                 onMediaLoaded={setMediaSize}
                 onRotationChange={setRotation}
-                onCropComplete={(_area, pixels) =>
-                  setCroppedAreaPixels(pixels)
-                }
+                onCropComplete={(_area, pixels) => setCroppedAreaPixels(pixels)}
                 onZoomChange={setZoom}
               />
             ) : null}
@@ -663,9 +656,7 @@ export function StudioImageCropModal({
                     <div className="pointer-events-none absolute inset-x-0 bottom-1/3 h-px bg-white/40" />
                   </div>
                 ) : null}
-                {(
-                  ["left", "right", "top", "bottom"] as const
-                ).map((edge) => {
+                {(["left", "right", "top", "bottom"] as const).map((edge) => {
                   const isHorizontal = edge === "left" || edge === "right";
                   const edgePosition =
                     edge === "left"
@@ -687,9 +678,7 @@ export function StudioImageCropModal({
                       type="button"
                       onLostPointerCapture={handleResizeEnd}
                       onPointerCancel={handleResizeEnd}
-                      onPointerDown={(event) =>
-                        handleResizeStart(event, edge)
-                      }
+                      onPointerDown={(event) => handleResizeStart(event, edge)}
                       onPointerMove={handleResizeMove}
                       onPointerUp={handleResizeEnd}
                     >
@@ -851,9 +840,7 @@ export function StudioImageCropModal({
             </button>
             <button
               className="inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--accent)] px-4 text-xs font-black text-white transition hover:brightness-110 disabled:opacity-50"
-              disabled={
-                (mode === "fill" && !croppedAreaPixels) || isProcessing
-              }
+              disabled={(mode === "fill" && !croppedAreaPixels) || isProcessing}
               type="button"
               onClick={() => void handleApply()}
             >

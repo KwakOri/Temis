@@ -115,26 +115,40 @@ const main = async () => {
       runtimeValues,
       deleteDraft: true,
     });
-    assert(published.revisionNo === 1, "First publish should create revision 1.");
+    assert(
+      published.revisionNo === 1,
+      "First publish should create revision 1.",
+    );
     assert(
       published.document.publishedRevisionNo === 1,
       "Published document should point at revision 1.",
     );
 
     const currentDocument = await getTemplateStudioCurrentDocument(template.id);
-    assert(currentDocument?.templateId === template.id, "Document fetch failed.");
+    assert(
+      currentDocument?.templateId === template.id,
+      "Document fetch failed.",
+    );
 
-    const latestRevisionNo = await getTemplateStudioLatestRevisionNo(template.id);
+    const latestRevisionNo = await getTemplateStudioLatestRevisionNo(
+      template.id,
+    );
     assert(latestRevisionNo === 1, "Latest revision number should be one.");
 
     const revisions = await listTemplateStudioRevisions(template.id);
-    assert(revisions.length === 1, "Expected one revision after first publish.");
+    assert(
+      revisions.length === 1,
+      "Expected one revision after first publish.",
+    );
 
     const draftAfterPublish = await getTemplateStudioDraft(
       template.id,
       LOCAL_ADMIN_USER_ID,
     );
-    assert(draftAfterPublish === null, "Draft should be deleted after publish.");
+    assert(
+      draftAfterPublish === null,
+      "Draft should be deleted after publish.",
+    );
 
     const asset = await upsertTemplateStudioAssetMetadata({
       templateId: template.id,

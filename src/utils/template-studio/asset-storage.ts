@@ -21,7 +21,7 @@ export const resolveTemplateStudioAssetBasePrefix = (): string => {
 
 export const sanitizeTemplateStudioPathSegment = (
   value: string,
-  fallback: string
+  fallback: string,
 ): string => {
   const normalized = value
     .trim()
@@ -39,9 +39,9 @@ export const sanitizeTemplateStudioPathSegment = (
  * objects when the template itself is deleted.
  */
 export const buildTemplateStudioAssetTemplatePrefix = (
-  templateId: string
+  templateId: string,
 ): string =>
   `${resolveTemplateStudioAssetBasePrefix()}/${sanitizeTemplateStudioPathSegment(
     templateId,
-    "template"
+    "template",
   )}`;

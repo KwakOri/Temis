@@ -103,7 +103,11 @@ export const reconcileStudioUserRuntimeValues = (
     baseRevisionNo: number | null;
   } | null,
   currentRevisionNo: number | null,
-): { runtimeValues: StudioRuntimeValues; baseRevisionNo: number | null; changed: boolean } => {
+): {
+  runtimeValues: StudioRuntimeValues;
+  baseRevisionNo: number | null;
+  changed: boolean;
+} => {
   if (!stored) {
     return {
       runtimeValues: createStudioInitialRuntimeValues(document),

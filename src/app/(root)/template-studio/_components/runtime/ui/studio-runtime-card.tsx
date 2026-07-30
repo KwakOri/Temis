@@ -24,7 +24,8 @@ const studioRuntimeCardVariants = cva(
 );
 
 export interface StudioRuntimeCardProps
-  extends React.HTMLAttributes<HTMLElement>,
+  extends
+    React.HTMLAttributes<HTMLElement>,
     VariantProps<typeof studioRuntimeCardVariants> {
   as?: "section" | "div";
 }

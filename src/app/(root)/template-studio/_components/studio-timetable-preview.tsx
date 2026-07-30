@@ -457,8 +457,7 @@ const resolveEntryCardSize = (
   layout: StudioTimetableDayCardsLayout,
   dayId: StudioTimetableDayId,
   entryCardSizeOrResolver:
-    | StudioTimetableEntryCardSize
-    | StudioTimetableEntryCardSizeResolver,
+    StudioTimetableEntryCardSize | StudioTimetableEntryCardSizeResolver,
 ) => {
   const size =
     typeof entryCardSizeOrResolver === "function"
@@ -467,7 +466,10 @@ const resolveEntryCardSize = (
   const fallback = getFallbackEntryCardSize(layout);
 
   return {
-    width: Math.max(1, Number.isFinite(size?.width) ? size.width : fallback.width),
+    width: Math.max(
+      1,
+      Number.isFinite(size?.width) ? size.width : fallback.width,
+    ),
     height: Math.max(
       1,
       Number.isFinite(size?.height) ? size.height : fallback.height,
@@ -586,18 +588,16 @@ export const getStudioTimetableDayCardGeometries = (
       return [
         day.id,
         {
-          left: getTrackOrigin(
-            layout.left,
-            columnWidths,
-            position.column,
-            columnGap,
-          ) + offset.left,
-          top: getTrackOrigin(
-            layout.top,
-            rowHeights,
-            position.row,
-            rowGap,
-          ) + offset.top,
+          left:
+            getTrackOrigin(
+              layout.left,
+              columnWidths,
+              position.column,
+              columnGap,
+            ) + offset.left,
+          top:
+            getTrackOrigin(layout.top, rowHeights, position.row, rowGap) +
+            offset.top,
           width: entryCardSize.width,
           height,
         },
@@ -693,7 +693,9 @@ const resolveTimetableObjectText = (
   object: StudioTimetableCompositionObject,
 ) => {
   if (isWeekDatesObject(object)) {
-    return resolveWeekDatesText(document, runtimeValues, object) || object.label;
+    return (
+      resolveWeekDatesText(document, runtimeValues, object) || object.label
+    );
   }
 
   const value = resolveStudioTextBinding(

@@ -22,21 +22,13 @@ assert.deepEqual(hexToHsv("#000000"), {
   saturation: 0,
   value: 0,
 });
-assert.equal(
-  hsvToHex({ hue: 120, saturation: 1, value: 1 }),
-  "#00FF00",
-);
-assert.equal(
-  hsvToHex({ hue: 240, saturation: 1, value: 1 }),
-  "#0000FF",
-);
+assert.equal(hsvToHex({ hue: 120, saturation: 1, value: 1 }), "#00FF00");
+assert.equal(hsvToHex({ hue: 240, saturation: 1, value: 1 }), "#0000FF");
 
-["#FFFFFF", "#111827", "#4F8CFF", "#F97316", "#8B5CF6"].forEach(
-  (hex) => {
-    const hsv = hexToHsv(hex);
-    assert.ok(hsv);
-    assert.equal(hsvToHex(hsv), hex);
-  },
-);
+["#FFFFFF", "#111827", "#4F8CFF", "#F97316", "#8B5CF6"].forEach((hex) => {
+  const hsv = hexToHsv(hex);
+  assert.ok(hsv);
+  assert.equal(hsvToHex(hsv), hex);
+});
 
 console.log("Template Studio HEX color checks passed.");

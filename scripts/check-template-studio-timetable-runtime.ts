@@ -205,10 +205,7 @@ const withGuerrilla = setStudioTimetableEntryGuerrilla(
   0,
   true,
 );
-assert.equal(
-  withGuerrilla.timetable.entriesByDay[dayId][0].isGuerrilla,
-  true,
-);
+assert.equal(withGuerrilla.timetable.entriesByDay[dayId][0].isGuerrilla, true);
 assert.equal(
   resolveStudioBuiltinFieldValue(document, withGuerrilla, "entry.time", {
     dayId,

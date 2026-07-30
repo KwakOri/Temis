@@ -4,10 +4,7 @@ import { ChevronRight, LocateFixed } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { cn } from "@/lib/utils";
-import {
-  StudioNodeId,
-  StudioTemplateDocument,
-} from "@/types/template-studio";
+import { StudioNodeId, StudioTemplateDocument } from "@/types/template-studio";
 
 export interface StudioPickerNode {
   id: StudioNodeId;
@@ -34,7 +31,7 @@ interface PickerTreeNode {
 
 const buildPickerTree = (
   nodes: Record<StudioNodeId, StudioPickerNode>,
-  nodeIds: StudioNodeId[]
+  nodeIds: StudioNodeId[],
 ) => {
   const included = new Set<StudioNodeId>();
   const hitOrder = new Map<StudioNodeId, number>();
@@ -45,9 +42,7 @@ const buildPickerTree = (
     let current: StudioPickerNode | null = nodes[nodeId] ?? null;
     while (current) {
       included.add(current.id);
-      current = current.parentId
-        ? nodes[current.parentId] ?? null
-        : null;
+      current = current.parentId ? (nodes[current.parentId] ?? null) : null;
     }
   });
 
@@ -123,10 +118,10 @@ export function StudioNodePickerMenu({
   }, [document, suppliedNodes]);
   const { roots, treeById, hitSet } = useMemo(
     () => buildPickerTree(nodes, nodeIds),
-    [nodeIds, nodes]
+    [nodeIds, nodes],
   );
   const [expandedIds, setExpandedIds] = useState<Set<StudioNodeId>>(
-    () => new Set(Array.from(treeById.keys()))
+    () => new Set(Array.from(treeById.keys())),
   );
 
   useEffect(() => {
@@ -172,7 +167,7 @@ export function StudioNodePickerMenu({
             "grid h-8 grid-cols-[20px_1fr_auto] items-center gap-1 rounded px-1 text-xs",
             isSelected
               ? "bg-[#274f93] text-white"
-              : "text-[#c8d6f2] hover:bg-[#182131]"
+              : "text-[#c8d6f2] hover:bg-[#182131]",
           )}
           style={{ paddingLeft: 4 + depth * 14 }}
         >
@@ -189,7 +184,7 @@ export function StudioNodePickerMenu({
               <ChevronRight
                 className={cn(
                   "h-3.5 w-3.5 transition-transform",
-                  isExpanded && "rotate-90"
+                  isExpanded && "rotate-90",
                 )}
               />
             </button>

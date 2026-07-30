@@ -41,7 +41,8 @@ const studioRuntimeActionButtonVariants = cva(
 );
 
 export interface StudioRuntimeActionButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof studioRuntimeActionButtonVariants> {}
 
 export function StudioRuntimeActionButton({

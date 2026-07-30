@@ -1,7 +1,4 @@
-import {
-  StudioNodeId,
-  StudioTemplateDocument,
-} from "@/types/template-studio";
+import { StudioNodeId, StudioTemplateDocument } from "@/types/template-studio";
 
 export type StudioGraphDropPosition = "before" | "after" | "inside";
 
@@ -55,7 +52,9 @@ const getNodeStyleNumber = (
   key: "left" | "top",
 ): number => {
   const node = document.graph.nodes[nodeId];
-  const value = node?.styleId ? document.styles[node.styleId]?.[key] : undefined;
+  const value = node?.styleId
+    ? document.styles[node.styleId]?.[key]
+    : undefined;
   return typeof value === "number" ? value : 0;
 };
 
@@ -285,11 +284,7 @@ export const moveStudioGraphNodes = (
     if (!sourceNode) return;
     sourceNode.parentId = validation.targetParentId;
 
-    if (
-      sourceNode.styleId &&
-      sourceCanvasOffsets &&
-      targetParentCanvasOffset
-    ) {
+    if (sourceNode.styleId && sourceCanvasOffsets && targetParentCanvasOffset) {
       const style = document.styles[sourceNode.styleId];
       const sourceCanvasOffset = sourceCanvasOffsets.get(sourceNodeId);
       if (style && sourceCanvasOffset) {

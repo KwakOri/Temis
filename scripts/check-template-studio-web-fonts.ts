@@ -62,10 +62,7 @@ assert.equal(
   explicitMetrics.faces[0].descriptors["descent-override"],
   "normal",
 );
-assert.equal(
-  explicitMetrics.faces[0].descriptors["line-gap-override"],
-  "0%",
-);
+assert.equal(explicitMetrics.faces[0].descriptors["line-gap-override"], "0%");
 assert.equal(explicitMetrics.faces[0].descriptors["size-adjust"], "102.5%");
 
 const invalidMetrics = parseStudioWebFontCss(`

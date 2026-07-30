@@ -12,18 +12,18 @@ import type {
  */
 export const stripStudioRuntimeImageValues = (
   document: StudioTemplateDocument,
-  values: StudioRuntimeValues
+  values: StudioRuntimeValues,
 ): { values: StudioRuntimeValues; changed: boolean } => {
   const imageInputIds = new Set(
     Object.values(document.inputs)
       .filter((input) => input.type === "image")
-      .map((input) => input.id)
+      .map((input) => input.id),
   );
 
   let changed = false;
 
   const stripRecord = (
-    record: Record<string, string> | undefined
+    record: Record<string, string> | undefined,
   ): Record<string, string> => {
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(record ?? {})) {

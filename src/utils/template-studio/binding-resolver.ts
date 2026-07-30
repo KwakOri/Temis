@@ -39,7 +39,7 @@ export const isStudioImageBinding = (binding?: StudioBinding): boolean =>
   !!binding && imageBindingKinds.has(binding.kind);
 
 export const getStudioBindingInputId = (
-  binding?: StudioBinding
+  binding?: StudioBinding,
 ): string | null => {
   if (!binding) return null;
   if (
@@ -55,10 +55,12 @@ export const getStudioBindingInputId = (
 
 export const isStudioInputCompatibleWithNode = (
   input: StudioInputDefinition,
-  node: StudioGraphNode
+  node: StudioGraphNode,
 ): boolean => {
-  if (isStudioTextNode(node)) return input.type === "text" || input.type === "select";
-  if (isStudioImageNode(node)) return input.type === "image" || input.type === "select";
+  if (isStudioTextNode(node))
+    return input.type === "text" || input.type === "select";
+  if (isStudioImageNode(node))
+    return input.type === "image" || input.type === "select";
   return false;
 };
 
@@ -77,7 +79,7 @@ export const createStudioBindingForBuiltinField = (
 
 export const createStudioBindingForInput = (
   node: StudioGraphNode,
-  input: StudioInputDefinition
+  input: StudioInputDefinition,
 ): StudioBinding | null => {
   if (!isStudioInputCompatibleWithNode(input, node)) return null;
 
@@ -89,13 +91,14 @@ export const createStudioBindingForInput = (
   }
 
   if (isStudioImageNode(node)) {
-    if (input.type === "image") return { kind: "inputImage", inputId: input.id };
+    if (input.type === "image")
+      return { kind: "inputImage", inputId: input.id };
     if (input.type === "select") {
       return {
         kind: "selectAsset",
         inputId: input.id,
         assetByOption: Object.fromEntries(
-          input.options.map((option) => [option.value, null])
+          input.options.map((option) => [option.value, null]),
         ),
       };
     }
@@ -107,7 +110,7 @@ export const createStudioBindingForInput = (
 export const getStudioSelectedOption = (
   input: StudioInputDefinition | undefined,
   values: StudioRuntimeValues,
-  context?: StudioRuntimeContext
+  context?: StudioRuntimeContext,
 ) => {
   if (!input || input.type !== "select") return null;
 
@@ -123,7 +126,7 @@ export const resolveStudioTextBinding = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
   binding?: StudioBinding,
-  context?: StudioRuntimeContext
+  context?: StudioRuntimeContext,
 ): string => {
   if (!binding) return "";
 
@@ -148,7 +151,9 @@ export const resolveStudioTextBinding = (
     const input = document.inputs[binding.inputId];
     const selectedOption = getStudioSelectedOption(input, values, context);
     if (!selectedOption) return "";
-    return binding.output === "label" ? selectedOption.label : selectedOption.value;
+    return binding.output === "label"
+      ? selectedOption.label
+      : selectedOption.value;
   }
 
   return "";
@@ -158,7 +163,7 @@ export const resolveStudioAsset = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
   binding?: StudioBinding,
-  context?: StudioRuntimeContext
+  context?: StudioRuntimeContext,
 ): StudioAsset | null => {
   if (!binding) return null;
 

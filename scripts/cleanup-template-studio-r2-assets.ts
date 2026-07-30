@@ -109,7 +109,8 @@ const parseCliOptions = (): CliOptions => {
   }
 
   const maxDeleteRaw = argMap.get("max-delete");
-  const maxDelete = typeof maxDeleteRaw === "string" ? Number(maxDeleteRaw) : 1000;
+  const maxDelete =
+    typeof maxDeleteRaw === "string" ? Number(maxDeleteRaw) : 1000;
   if (!Number.isFinite(maxDelete) || maxDelete <= 0) {
     throw new Error("--max-delete must be a positive number.");
   }
@@ -314,9 +315,8 @@ const main = async () => {
     assertSafePrefix(target.prefix, options.allowNonTestPrefix);
   });
 
-  const { deleteFilesFromR2, listFileObjectsFromR2Prefix } = await import(
-    "../src/lib/r2"
-  );
+  const { deleteFilesFromR2, listFileObjectsFromR2Prefix } =
+    await import("../src/lib/r2");
   const cutoffMs =
     options.olderThanHours > 0
       ? Date.now() - options.olderThanHours * 60 * 60 * 1000
@@ -359,7 +359,9 @@ const main = async () => {
       const modified = object.lastModified
         ? object.lastModified.toISOString()
         : "unknown";
-      console.log(`  - ${object.key} (${formatBytes(object.size)}, ${modified})`);
+      console.log(
+        `  - ${object.key} (${formatBytes(object.size)}, ${modified})`,
+      );
     });
 
     if (candidates.length > limitedCandidates.length) {
@@ -383,7 +385,9 @@ const main = async () => {
   );
 
   if (!options.apply) {
-    console.log("[template-studio:r2-cleanup] dry-run only. Add --apply to delete.");
+    console.log(
+      "[template-studio:r2-cleanup] dry-run only. Add --apply to delete.",
+    );
   }
 };
 

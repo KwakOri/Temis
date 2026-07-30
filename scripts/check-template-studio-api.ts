@@ -135,7 +135,9 @@ const callRoute = async <T>(
 ): Promise<T> => {
   const response = context
     ? await (handler as RouteHandler)(request, context)
-    : await (handler as (request: NextRequest) => Promise<NextResponse>)(request);
+    : await (handler as (request: NextRequest) => Promise<NextResponse>)(
+        request,
+      );
 
   return parseRouteResponse<T>(response, label);
 };
@@ -155,9 +157,7 @@ const main = async () => {
   ] = await Promise.all([
     import("../src/app/api/admin/template-studio/templates/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/route"),
-    import(
-      "../src/app/api/admin/template-studio/templates/[id]/assets/upload/route"
-    ),
+    import("../src/app/api/admin/template-studio/templates/[id]/assets/upload/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/draft/route"),
     import("../src/app/api/admin/template-studio/templates/[id]/publish/route"),
     import("../src/app/api/template-studio/templates/[id]/preview/route"),
@@ -191,13 +191,17 @@ const main = async () => {
     }>(
       "create template",
       templateRoutes.POST,
-      createRequest(`${routeBaseUrl}/api/admin/template-studio/templates`, token, {
-        method: "POST",
-        body: JSON.stringify({
-          name: "Template Studio API Check",
-          description: "Local API verification only.",
-        }),
-      }),
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates`,
+        token,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: "Template Studio API Check",
+            description: "Local API verification only.",
+          }),
+        },
+      ),
     );
     assert(createResponse.success, "Template create response was not success.");
     assert(createResponse.template.id, "Template create response missed id.");
@@ -209,7 +213,10 @@ const main = async () => {
     }>(
       "list templates",
       templateRoutes.GET,
-      createRequest(`${routeBaseUrl}/api/admin/template-studio/templates`, token),
+      createRequest(
+        `${routeBaseUrl}/api/admin/template-studio/templates`,
+        token,
+      ),
     );
     assert(
       listResponse.templates.some((template) => template.id === templateId),
@@ -232,7 +239,10 @@ const main = async () => {
       ),
       context,
     );
-    assert(emptyDetailResponse.source === "empty", "Initial source should be empty.");
+    assert(
+      emptyDetailResponse.source === "empty",
+      "Initial source should be empty.",
+    );
     assert(
       emptyDetailResponse.latestRevisionNo === 0,
       "Initial revision should be zero.",
@@ -361,7 +371,10 @@ const main = async () => {
       ),
       context,
     );
-    assert(publishResponse.revisionNo === 1, "Publish should create revision 1.");
+    assert(
+      publishResponse.revisionNo === 1,
+      "Publish should create revision 1.",
+    );
     assert(
       publishResponse.document.publishedRevisionNo === 1,
       "Published document should point at revision 1.",
@@ -397,7 +410,10 @@ const main = async () => {
       createRequest(publishedPreviewUrl, token),
       context,
     );
-    assert(adminPreviewResponse.success, "Published preview response was not success.");
+    assert(
+      adminPreviewResponse.success,
+      "Published preview response was not success.",
+    );
     assert(
       adminPreviewResponse.templateId === templateId,
       "Published preview template id mismatch.",
@@ -434,7 +450,8 @@ const main = async () => {
       "Detail latest revision should be one.",
     );
     assert(
-      publishedDetailResponse.assets.length === Object.keys(document.assets).length,
+      publishedDetailResponse.assets.length ===
+        Object.keys(document.assets).length,
       "Detail response should include asset metadata.",
     );
     assert(
@@ -525,7 +542,10 @@ const main = async () => {
   } finally {
     if (uploadedR2Keys.length > 0) {
       await deleteFilesFromR2(uploadedR2Keys).catch((error) => {
-        console.warn("Failed to cleanup Template Studio API check R2 keys.", error);
+        console.warn(
+          "Failed to cleanup Template Studio API check R2 keys.",
+          error,
+        );
       });
     }
 

@@ -33,12 +33,14 @@ const formatDateTime = (value: string | null | undefined) => {
   });
 };
 
-const statusBadgeStyles: Record<TemplateStudioTemplateRecord["status"], string> =
-  {
-    draft: "bg-yellow-100 text-yellow-800",
-    published: "bg-green-100 text-green-800",
-    archived: "bg-gray-200 text-gray-600",
-  };
+const statusBadgeStyles: Record<
+  TemplateStudioTemplateRecord["status"],
+  string
+> = {
+  draft: "bg-yellow-100 text-yellow-800",
+  published: "bg-green-100 text-green-800",
+  archived: "bg-gray-200 text-gray-600",
+};
 
 const statusLabels: Record<TemplateStudioTemplateRecord["status"], string> = {
   draft: "초안",
@@ -165,8 +167,7 @@ export function TemplateStudioAdminListClient() {
           className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
           href="/admin/template-studio/create"
         >
-          <Plus className="h-4 w-4" />
-          새 템플릿
+          <Plus className="h-4 w-4" />새 템플릿
         </Link>
       </AdminTabHeader>
 
@@ -190,13 +191,19 @@ export function TemplateStudioAdminListClient() {
             <tbody className="bg-white divide-y divide-gray-200">
               {templatesQuery.isLoading ? (
                 <tr>
-                  <td className="px-6 py-12 text-center text-gray-500 text-sm" colSpan={3}>
+                  <td
+                    className="px-6 py-12 text-center text-gray-500 text-sm"
+                    colSpan={3}
+                  >
                     템플릿 목록을 불러오는 중...
                   </td>
                 </tr>
               ) : templatesQuery.isError ? (
                 <tr>
-                  <td className="px-6 py-12 text-center text-red-700 text-sm" colSpan={3}>
+                  <td
+                    className="px-6 py-12 text-center text-red-700 text-sm"
+                    colSpan={3}
+                  >
                     {templatesQuery.error instanceof Error
                       ? templatesQuery.error.message
                       : "템플릿 목록을 불러오지 못했습니다."}
@@ -213,8 +220,7 @@ export function TemplateStudioAdminListClient() {
                       className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
                       href="/admin/template-studio/create"
                     >
-                      <Plus className="h-4 w-4" />
-                      첫 템플릿 만들기
+                      <Plus className="h-4 w-4" />첫 템플릿 만들기
                     </Link>
                   </td>
                 </tr>
@@ -285,8 +291,7 @@ export function TemplateStudioAdminListClient() {
                 className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
                 href="/admin/template-studio/create"
               >
-                <Plus className="h-4 w-4" />
-                첫 템플릿 만들기
+                <Plus className="h-4 w-4" />첫 템플릿 만들기
               </Link>
             </div>
           ) : (

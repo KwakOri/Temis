@@ -1,4 +1,8 @@
-import type { StudioDiagnostic, StudioRuntimeValues, StudioTemplateDocument } from "@/types/template-studio";
+import type {
+  StudioDiagnostic,
+  StudioRuntimeValues,
+  StudioTemplateDocument,
+} from "@/types/template-studio";
 
 export interface TemplateStudioRuntimeResponse {
   template: { id: string; name: string };

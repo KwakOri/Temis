@@ -50,8 +50,7 @@ export interface TemplateStudioSaveDraftPayload {
   isAutosave?: boolean;
 }
 
-export interface TemplateStudioSaveDraftResponse
-  extends TemplateStudioDraftResponse {
+export interface TemplateStudioSaveDraftResponse extends TemplateStudioDraftResponse {
   diagnostics: StudioDiagnostic[];
   migrationWarnings: string[];
 }
@@ -161,7 +160,9 @@ export class TemplateStudioService {
     );
   }
 
-  static async getDraft(templateId: string): Promise<TemplateStudioDraftResponse> {
+  static async getDraft(
+    templateId: string,
+  ): Promise<TemplateStudioDraftResponse> {
     const response = await fetch(`${this.baseUrl}/${templateId}/draft`);
     return parseJsonResponse<TemplateStudioDraftResponse>(
       response,

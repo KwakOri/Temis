@@ -54,8 +54,7 @@ type PreviewAssetSupabaseClient = {
 const previewAssetSupabase =
   supabaseAdminServer as unknown as PreviewAssetSupabaseClient;
 
-const trimSlashes = (value: string): string =>
-  value.replace(/^\/+|\/+$/g, "");
+const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 
 const sanitizePathSegment = (value: string, fallback: string): string => {
   const normalized = value
@@ -97,7 +96,10 @@ const buildPreviewAssetFolder = ({
   )}/${sanitizePathSegment(previewId, "preview")}`;
 
 const parseMappings = (rawMappingJson: FormDataEntryValue | null) => {
-  if (typeof rawMappingJson !== "string" || rawMappingJson.trim().length === 0) {
+  if (
+    typeof rawMappingJson !== "string" ||
+    rawMappingJson.trim().length === 0
+  ) {
     return null;
   }
 
@@ -292,9 +294,7 @@ export async function DELETE(request: NextRequest) {
     const previewIdParam = searchParams.get("previewId");
     const expiredOnly = searchParams.get("expired") === "true";
     const olderThanHoursParam = searchParams.get("olderThanHours");
-    const runId = runIdParam
-      ? sanitizePathSegment(runIdParam, "run")
-      : null;
+    const runId = runIdParam ? sanitizePathSegment(runIdParam, "run") : null;
     const previewId = previewIdParam
       ? sanitizePathSegment(previewIdParam, "preview")
       : null;

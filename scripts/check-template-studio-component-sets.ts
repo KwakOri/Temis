@@ -95,8 +95,7 @@ assert.equal(
 assert.ok(
   validateStudioDocument(document).some(
     (diagnostic) =>
-      diagnostic.id ===
-      `timetable-day-component-missing:${tuesdayId}:missing`,
+      diagnostic.id === `timetable-day-component-missing:${tuesdayId}:missing`,
   ),
 );
 

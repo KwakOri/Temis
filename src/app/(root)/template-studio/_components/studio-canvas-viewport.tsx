@@ -29,14 +29,9 @@ export const getStudioWheelZoomScale = ({
   const deltaMultiplier =
     deltaMode === 1 ? 16 : deltaMode === 2 ? Math.max(1, viewportHeight) : 1;
   const normalizedDelta = deltaY * deltaMultiplier;
-  const zoomDelta = Math.max(
-    -0.1,
-    Math.min(0.1, normalizedDelta * -0.001),
-  );
+  const zoomDelta = Math.max(-0.1, Math.min(0.1, normalizedDelta * -0.001));
 
-  return clampStudioPreviewScale(
-    Number((currentScale + zoomDelta).toFixed(3)),
-  );
+  return clampStudioPreviewScale(Number((currentScale + zoomDelta).toFixed(3)));
 };
 
 type StudioViewportDragMemo =

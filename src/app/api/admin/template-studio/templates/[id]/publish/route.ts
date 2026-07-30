@@ -64,7 +64,8 @@ export async function POST(
       runtimeValues: prepared.runtimeValues,
       deleteDraft: payload.deleteDraft !== false,
     });
-    const latestRevisionNo = await getTemplateStudioLatestRevisionNo(templateId);
+    const latestRevisionNo =
+      await getTemplateStudioLatestRevisionNo(templateId);
 
     return NextResponse.json({
       success: true,

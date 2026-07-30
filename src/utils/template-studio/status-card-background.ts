@@ -219,9 +219,5 @@ export const resolveStudioStatusCardBackgroundSlot = (
   }
 
   const statusId = getStudioRuntimeEntryStatusId(values, context);
-  return resolveStudioLegacyStatusCardBackgroundSlot(
-    document,
-    node,
-    statusId,
-  );
+  return resolveStudioLegacyStatusCardBackgroundSlot(document, node, statusId);
 };

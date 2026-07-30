@@ -40,8 +40,7 @@ const FONT_STRETCH_PATTERN =
   /^(normal|ultra-condensed|extra-condensed|condensed|semi-condensed|semi-expanded|expanded|extra-expanded|ultra-expanded|\d+(?:\.\d+)?%(?:\s+\d+(?:\.\d+)?%)?)$/i;
 const UNICODE_RANGE_PATTERN =
   /^U\+[0-9A-F?]{1,6}(?:-[0-9A-F]{1,6})?(?:\s*,\s*U\+[0-9A-F?]{1,6}(?:-[0-9A-F]{1,6})?)*$/i;
-const FONT_METRIC_OVERRIDE_PATTERN =
-  /^(?:normal|(?:\d+(?:\.\d+)?|\.\d+)%)$/i;
+const FONT_METRIC_OVERRIDE_PATTERN = /^(?:normal|(?:\d+(?:\.\d+)?|\.\d+)%)$/i;
 const FONT_SIZE_ADJUST_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)%$/;
 const MAX_DATA_FONT_URL_LENGTH = 140_000;
 
@@ -74,15 +73,7 @@ export type StudioWebFontParseResult =
     };
 
 export type StudioFontWeight =
-  | 100
-  | 200
-  | 300
-  | 400
-  | 500
-  | 600
-  | 700
-  | 800
-  | 900;
+  100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
 
 export interface StudioFontWeightOption {
   label: string;
@@ -102,7 +93,10 @@ const STUDIO_FONT_WEIGHT_OPTIONS: StudioFontWeightOption[] = [
 ];
 
 const toStandardFontWeight = (value: number): StudioFontWeight =>
-  Math.min(900, Math.max(100, Math.round(value / 100) * 100)) as StudioFontWeight;
+  Math.min(
+    900,
+    Math.max(100, Math.round(value / 100) * 100),
+  ) as StudioFontWeight;
 
 export const normalizeStudioFontWeight = (
   value: string | number | null | undefined,
@@ -359,9 +353,7 @@ const normalizeDescriptor = (name: string, value: string): string | null => {
       : null;
   }
   if (name === "size-adjust") {
-    return FONT_SIZE_ADJUST_PATTERN.test(value.trim())
-      ? value.trim()
-      : null;
+    return FONT_SIZE_ADJUST_PATTERN.test(value.trim()) ? value.trim() : null;
   }
   return null;
 };
@@ -497,7 +489,7 @@ export const getStudioCustomFontFamilies = (
         .flatMap((source) => {
           const result = parseStudioWebFontCss(source.cssText);
           return result.ok ? result.families : [];
-      }),
+        }),
     ),
   );
 

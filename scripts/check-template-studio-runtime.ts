@@ -14,7 +14,9 @@ const studioClient =
   supabaseAdminServer as unknown as TemplateStudioPersistenceClient;
 const untypedAdminClient = supabaseAdminServer as unknown as {
   from(table: string): {
-    delete(): { in(column: string, values: unknown[]): Promise<{ error: unknown }> };
+    delete(): {
+      in(column: string, values: unknown[]): Promise<{ error: unknown }>;
+    };
   };
 };
 import {
@@ -101,9 +103,7 @@ const main = async () => {
     await Promise.all([
       import("../src/app/api/admin/template-studio/templates/route"),
       import("../src/app/api/admin/template-studio/templates/[id]/draft/route"),
-      import(
-        "../src/app/api/admin/template-studio/templates/[id]/publish/route"
-      ),
+      import("../src/app/api/admin/template-studio/templates/[id]/publish/route"),
       import("../src/app/api/user/templates/[id]/runtime/route"),
     ]);
 
@@ -120,7 +120,11 @@ const main = async () => {
     "1h",
   );
   const otherUserToken = await signJWT(
-    { userId: LOCAL_OTHER_USER_ID, email: LOCAL_OTHER_USER_EMAIL, role: "user" },
+    {
+      userId: LOCAL_OTHER_USER_ID,
+      email: LOCAL_OTHER_USER_EMAIL,
+      role: "user",
+    },
     "1h",
   );
 
@@ -280,12 +284,19 @@ const main = async () => {
     // document has no dynamic `inputs`, so exercise a timetable-native field
     // (entry mainTitle) instead of a document-defined input.
     const firstDayId = document.domains?.timetable?.dayIds[0];
-    assert(firstDayId, "Sample document must expose at least one timetable day.");
+    assert(
+      firstDayId,
+      "Sample document must expose at least one timetable day.",
+    );
     const editedRuntimeValues = JSON.parse(
       JSON.stringify(firstGetBody.body!.runtimeValues),
     ) as typeof runtimeValues;
-    const firstDayEntries = editedRuntimeValues.timetable.entriesByDay[firstDayId] ?? [];
-    assert(firstDayEntries.length > 0, "Expected a default entry for the first day.");
+    const firstDayEntries =
+      editedRuntimeValues.timetable.entriesByDay[firstDayId] ?? [];
+    assert(
+      firstDayEntries.length > 0,
+      "Expected a default entry for the first day.",
+    );
     firstDayEntries[0].mainTitle = "Runtime check edited value";
 
     const putResp = await (runtimeRoutes.PUT as RouteHandler)(
@@ -324,7 +335,10 @@ const main = async () => {
       createRequest(
         `${routeBaseUrl}/api/user/templates/${templateId}/runtime`,
         approvedUserToken,
-        { method: "PUT", body: JSON.stringify({ runtimeValues: { bogus: true } }) },
+        {
+          method: "PUT",
+          body: JSON.stringify({ runtimeValues: { bogus: true } }),
+        },
       ),
       context,
     );
@@ -358,8 +372,9 @@ const main = async () => {
       runtimeValues: typeof runtimeValues;
     }>(otherUserGet);
     assert(
-      otherUserGetBody.body!.runtimeValues.timetable.entriesByDay[firstDayId!]?.[0]
-        ?.mainTitle !== "Runtime check edited value",
+      otherUserGetBody.body!.runtimeValues.timetable.entriesByDay[
+        firstDayId!
+      ]?.[0]?.mainTitle !== "Runtime check edited value",
       "Runtime values leaked across users.",
     );
 

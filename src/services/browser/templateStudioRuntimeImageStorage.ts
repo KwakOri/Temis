@@ -40,7 +40,9 @@ export interface StudioRuntimeImageLocator {
 }
 
 export class StudioRuntimeImageQuotaError extends Error {
-  constructor(message = "Not enough browser storage space to save this image.") {
+  constructor(
+    message = "Not enough browser storage space to save this image.",
+  ) {
     super(message);
     this.name = "StudioRuntimeImageQuotaError";
   }

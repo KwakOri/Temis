@@ -107,8 +107,7 @@ const assertLocalSupabaseUrl = () => {
   }
 };
 
-const trimSlashes = (value: string): string =>
-  value.replace(/^\/+|\/+$/g, "");
+const trimSlashes = (value: string): string => value.replace(/^\/+|\/+$/g, "");
 
 const getPreviewAssetBasePrefix = (): string =>
   process.env.TEMPLATE_STUDIO_PREVIEW_R2_BASE_PREFIX ||
@@ -119,13 +118,12 @@ const main = async () => {
   applyLocalSupabaseEnv();
   assertLocalSupabaseUrl();
 
-  const [{ uploadFileToR2, listFileKeysFromR2Prefix, deleteFilesFromR2Prefix }] =
-    await Promise.all([import("../src/lib/r2")]);
-  const { supabaseAdminServer } = await import(
-    "../src/lib/supabase-admin-server"
-  );
-  const supabase =
-    supabaseAdminServer as unknown as PreviewAssetSupabaseClient;
+  const [
+    { uploadFileToR2, listFileKeysFromR2Prefix, deleteFilesFromR2Prefix },
+  ] = await Promise.all([import("../src/lib/r2")]);
+  const { supabaseAdminServer } =
+    await import("../src/lib/supabase-admin-server");
+  const supabase = supabaseAdminServer as unknown as PreviewAssetSupabaseClient;
 
   const runId = `check-${Date.now().toString(36)}`;
   const previewId = "preview";
@@ -194,9 +192,7 @@ const main = async () => {
     );
 
     uploadedFileKey = null;
-    console.log(
-      `Template Studio preview asset check passed. runId=${runId}`,
-    );
+    console.log(`Template Studio preview asset check passed. runId=${runId}`);
   } finally {
     await deleteFilesFromR2Prefix(prefix).catch(() => null);
     try {

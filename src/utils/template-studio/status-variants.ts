@@ -17,9 +17,7 @@ import {
   ensureStudioTimetableCapabilityStatus,
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
-import {
-  ensureStudioVariantStatusCardBackgroundAssets,
-} from "@/utils/template-studio/status-card-background";
+import { ensureStudioVariantStatusCardBackgroundAssets } from "@/utils/template-studio/status-card-background";
 
 const getNodeSyncKey = (
   node: StudioGraphNode,

@@ -14,9 +14,7 @@ import { isStudioTimetableCapabilityEnabled } from "./timetable-capabilities";
 import { getStudioTimetableComposition } from "./timetable-composition";
 
 export type StudioPresetCategory =
-  | "semanticException"
-  | "inputBundle"
-  | "freeObject";
+  "semanticException" | "inputBundle" | "freeObject";
 
 export type StudioPresetCreationRule =
   | {
@@ -44,8 +42,7 @@ interface StudioPresetDefinitionBase {
   description?: string;
 }
 
-export interface StudioCardContextObjectPreset
-  extends StudioPresetDefinitionBase {
+export interface StudioCardContextObjectPreset extends StudioPresetDefinitionBase {
   scope: "cards";
   kind: "cardContextObject";
   implemented: true;
@@ -54,8 +51,7 @@ export interface StudioCardContextObjectPreset
   style: StudioStyleRecord;
 }
 
-export interface StudioCardStatusBackgroundPreset
-  extends StudioPresetDefinitionBase {
+export interface StudioCardStatusBackgroundPreset extends StudioPresetDefinitionBase {
   scope: "cards";
   kind: "cardStatusBackgroundObject";
   implemented: true;
@@ -65,16 +61,14 @@ export interface StudioCardStatusBackgroundPreset
 
 export type StudioSelectInputBundleKind = "genericSelect" | "stickerSelect";
 
-export interface StudioCardSelectInputBundlePreset
-  extends StudioPresetDefinitionBase {
+export interface StudioCardSelectInputBundlePreset extends StudioPresetDefinitionBase {
   scope: "cards";
   kind: "cardSelectInputBundle";
   implemented: true;
   bundleKind: StudioSelectInputBundleKind;
 }
 
-export interface StudioTimetableCompositionPreset
-  extends StudioPresetDefinitionBase {
+export interface StudioTimetableCompositionPreset extends StudioPresetDefinitionBase {
   scope: "timetable";
   kind: "timetableCompositionObject";
   implemented: true;
@@ -403,7 +397,9 @@ export const getStudioPresetExistingTargetId = (
     );
   }
 
-  const composition = getStudioTimetableComposition(document.domains?.timetable);
+  const composition = getStudioTimetableComposition(
+    document.domains?.timetable,
+  );
   return (
     Object.values(composition.objects).find(
       (object) =>
@@ -444,7 +440,9 @@ export const getStudioPresetCreationRule = (
       mode: "repeatable",
       idPrefix: preset.bundleKind === "stickerSelect" ? "sticker" : "select",
       labelBase:
-        preset.bundleKind === "stickerSelect" ? "Entry Sticker" : "Entry Select",
+        preset.bundleKind === "stickerSelect"
+          ? "Entry Sticker"
+          : "Entry Select",
       target: "inputBundle",
     };
   }

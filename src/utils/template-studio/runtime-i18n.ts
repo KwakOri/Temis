@@ -124,14 +124,17 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     upload: "새 이미지 업로드",
     imageTooLarge: "이미지 파일은 20MB를 넘을 수 없습니다.",
     imageStorageFailed: "이미지를 이 브라우저에 저장하지 못했습니다.",
-    imageQuotaExceeded: "브라우저 저장 공간이 부족해 이미지를 저장하지 못했습니다.",
-    imageLocalOnlyNotice: "이 이미지는 이 브라우저에만 저장되며 사이트 데이터를 삭제하면 사라집니다.",
+    imageQuotaExceeded:
+      "브라우저 저장 공간이 부족해 이미지를 저장하지 못했습니다.",
+    imageLocalOnlyNotice:
+      "이 이미지는 이 브라우저에만 저장되며 사이트 데이터를 삭제하면 사라집니다.",
     cropImage: "이미지 자르기",
     cropDescription: "프로필 영역 비율에 맞춰 표시할 부분을 선택해 주세요.",
     cropZoom: "확대",
     cropRotation: "회전",
     cropTargetFrame: "프로필 영역",
-    cropTargetDescription: "크롭 비율과 출력 크기는 에디터의 프로필 영역으로 고정됩니다.",
+    cropTargetDescription:
+      "크롭 비율과 출력 크기는 에디터의 프로필 영역으로 고정됩니다.",
     cropResetView: "보기 초기화",
     cropApply: "자르기 적용",
     cropProcessing: "처리 중...",
@@ -274,7 +277,8 @@ const copies: Record<StudioRuntimeLocale, StudioRuntimeCopy> = {
     upload: "新しい画像をアップロード",
     imageTooLarge: "画像ファイルは20MBを超えることはできません。",
     imageStorageFailed: "この画像をブラウザに保存できませんでした。",
-    imageQuotaExceeded: "ブラウザの保存容量が不足しているため画像を保存できませんでした。",
+    imageQuotaExceeded:
+      "ブラウザの保存容量が不足しているため画像を保存できませんでした。",
     imageLocalOnlyNotice:
       "この画像はこのブラウザにのみ保存され、サイトデータを削除すると失われます。",
     cropImage: "画像を切り抜く",

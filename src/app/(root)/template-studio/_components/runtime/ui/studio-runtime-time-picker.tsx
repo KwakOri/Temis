@@ -17,9 +17,7 @@ const parseTime = (value: string) => {
 
   return {
     hour:
-      Number.isInteger(rawHour) && rawHour >= 0 && rawHour <= 23
-        ? rawHour
-        : 0,
+      Number.isInteger(rawHour) && rawHour >= 0 && rawHour <= 23 ? rawHour : 0,
     minute:
       Number.isInteger(rawMinute) && rawMinute >= 0 && rawMinute <= 59
         ? rawMinute
@@ -180,9 +178,7 @@ export function StudioRuntimeTimePicker({
                         key={hour}
                         role="option"
                         type="button"
-                        onClick={() =>
-                          handleTimeSelect(hour, selectedMinute)
-                        }
+                        onClick={() => handleTimeSelect(hour, selectedMinute)}
                       >
                         {formatTimePart(hour)}
                       </button>
@@ -210,9 +206,7 @@ export function StudioRuntimeTimePicker({
                         key={minute}
                         role="option"
                         type="button"
-                        onClick={() =>
-                          handleTimeSelect(selectedHour, minute)
-                        }
+                        onClick={() => handleTimeSelect(selectedHour, minute)}
                       >
                         {formatTimePart(minute)}
                       </button>

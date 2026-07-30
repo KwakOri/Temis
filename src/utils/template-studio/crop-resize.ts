@@ -49,8 +49,10 @@ export const resizeStudioCropFrame = (
   pointerDelta: number,
   inset = STUDIO_CROP_FRAME_INSET,
 ): StudioCropFrameSize => {
-  const { minWidth, minHeight, maxWidth, maxHeight } =
-    getStudioCropFrameLimits(stageSize, inset);
+  const { minWidth, minHeight, maxWidth, maxHeight } = getStudioCropFrameLimits(
+    stageSize,
+    inset,
+  );
   const growsWidth = edge === "left" || edge === "right";
   const nextWidth = growsWidth
     ? clamp(frameSize.width + pointerDelta * 2, minWidth, maxWidth)

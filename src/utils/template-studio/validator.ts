@@ -1034,9 +1034,7 @@ const validateTimetableDomain = (
 
   const diagnostics: StudioDiagnostic[] = [];
   const nodes = document.graph.nodes;
-  const referencedComponentIds = new Set<string>([
-    timetable.entryComponentId,
-  ]);
+  const referencedComponentIds = new Set<string>([timetable.entryComponentId]);
 
   if (timetable.version !== 2) {
     diagnostics.push(

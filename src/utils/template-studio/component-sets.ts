@@ -12,9 +12,7 @@ import { createStudioId } from "@/utils/template-studio/id";
 const cloneJson = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 export type StudioTimetableDayComponentResolutionSource =
-  | "day"
-  | "default"
-  | "fallback";
+  "day" | "default" | "fallback";
 
 export interface StudioTimetableDayComponentResolution {
   componentId: StudioTimetableComponentId;
@@ -31,10 +29,7 @@ export const getStudioTimetableDayComponentId = (
   if (!timetable) return null;
 
   const requestedComponentId = timetable.days[dayId]?.componentId;
-  if (
-    requestedComponentId &&
-    timetable.components[requestedComponentId]
-  ) {
+  if (requestedComponentId && timetable.components[requestedComponentId]) {
     return requestedComponentId;
   }
 
@@ -194,8 +189,7 @@ export const cloneStudioTimetableComponentSet = (
     ...cloneJson(sourceComponent),
     id: componentId,
     label:
-      label?.trim() ||
-      getUniqueComponentLabel(document, sourceComponent.label),
+      label?.trim() || getUniqueComponentLabel(document, sourceComponent.label),
     frame: sourceComponent.frame
       ? { ...sourceComponent.frame }
       : sourceComponent.frame,

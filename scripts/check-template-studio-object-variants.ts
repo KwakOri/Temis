@@ -243,11 +243,7 @@ assert.equal(
 );
 assert.deepEqual(Object.keys(onlineBackground.assetSlots ?? {}), ["asset"]);
 assert.deepEqual(Object.keys(offlineBackground.assetSlots ?? {}), ["asset"]);
-setStudioStatusCardBackgroundAssetSlot(
-  onlineBackground,
-  "asset_b2",
-  "contain",
-);
+setStudioStatusCardBackgroundAssetSlot(onlineBackground, "asset_b2", "contain");
 assert.equal(onlineBackground.assetSlots?.asset?.assetId, "asset_b2");
 assert.equal(onlineBackground.assetSlots?.asset?.fit, "contain");
 assert.equal(
@@ -265,19 +261,15 @@ assert.ok(
 );
 assert.equal(statusBackgroundPreset.style.backgroundColor, "transparent");
 assert.equal(
-  getStudioPresetExistingTargetId(
-    cardVariantDocument,
-    statusBackgroundPreset,
-    { cardRootNodeId: cardComponent.variants.online.rootNodeId },
-  ),
+  getStudioPresetExistingTargetId(cardVariantDocument, statusBackgroundPreset, {
+    cardRootNodeId: cardComponent.variants.online.rootNodeId,
+  }),
   onlineBackground.id,
 );
 assert.equal(
-  getStudioPresetExistingTargetId(
-    cardVariantDocument,
-    statusBackgroundPreset,
-    { cardRootNodeId: cardComponent.variants.offline.rootNodeId },
-  ),
+  getStudioPresetExistingTargetId(cardVariantDocument, statusBackgroundPreset, {
+    cardRootNodeId: cardComponent.variants.offline.rootNodeId,
+  }),
   offlineBackground.id,
   "Card singleton lookup must stay inside the selected status variant.",
 );
@@ -344,9 +336,8 @@ assert.equal(
   "transparent",
 );
 assert.equal(
-  legacyBackgroundMigration.document.styles[
-    migratedOfflineBackground.styleId!
-  ]?.backgroundColor,
+  legacyBackgroundMigration.document.styles[migratedOfflineBackground.styleId!]
+    ?.backgroundColor,
   "transparent",
 );
 assert.deepEqual(Object.keys(migratedOnlineBackground.assetSlots ?? {}), [
