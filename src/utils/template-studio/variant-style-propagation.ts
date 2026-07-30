@@ -7,6 +7,7 @@ import type {
   StudioTimetableStatusId,
 } from "@/types/template-studio";
 import { createStudioId } from "@/utils/template-studio/id";
+import { STUDIO_TEXT_WRAP_MODE_STYLE_KEY } from "@/utils/template-studio/text-wrap";
 
 export type StudioVariantStyleScope =
   "layout" | "typography" | "appearance" | "visual" | "all";
@@ -46,6 +47,7 @@ const TYPOGRAPHY_STYLE_KEYS = new Set([
   "textTransform",
   "whiteSpace",
   "wordBreak",
+  STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
 ]);
 
 export const pickStudioVariantStyleScope = (

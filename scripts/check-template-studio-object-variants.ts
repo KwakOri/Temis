@@ -14,6 +14,10 @@ import {
   getStudioTimetableObjectRuntimeVariantValue,
   setStudioTimetableObjectActiveVariantValue,
 } from "../src/utils/template-studio/timetable-composition";
+import {
+  getStudioTextWrapMode,
+  STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
+} from "../src/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 import {
   getStudioNodeRuntimeContext,
@@ -30,7 +34,10 @@ import {
   isStudioStatusCardBackgroundNode,
   setStudioStatusCardBackgroundAssetSlot,
 } from "../src/utils/template-studio/status-card-background";
-import { applyStudioVariantStyle } from "../src/utils/template-studio/variant-style-propagation";
+import {
+  applyStudioVariantStyle,
+  pickStudioVariantStyleScope,
+} from "../src/utils/template-studio/variant-style-propagation";
 import {
   getStudioPresetExistingTargetId,
   isStudioCardStatusBackgroundPreset,
@@ -496,6 +503,9 @@ stylePropagationDocument.styles[onlineMainTitle.styleId].fontSize = 55;
 stylePropagationDocument.styles[onlineMainTitle.styleId].textAlign = "center";
 stylePropagationDocument.styles[onlineMainTitle.styleId].justifyContent =
   "center";
+stylePropagationDocument.styles[onlineMainTitle.styleId][
+  STUDIO_TEXT_WRAP_MODE_STYLE_KEY
+] = "single";
 const stylePropagationResult = applyStudioVariantStyle(
   stylePropagationDocument,
   {
@@ -520,9 +530,35 @@ assert.equal(
   "center",
 );
 assert.equal(
+  stylePropagationDocument.styles[offlineMainTitle.styleId][
+    STUDIO_TEXT_WRAP_MODE_STYLE_KEY
+  ],
+  "single",
+  "Typography propagation must copy the Auto Text line break mode.",
+);
+assert.equal(
   stylePropagationDocument.styles[offlineMainTitle.styleId].left,
   offlineLeftBefore,
   "Visual propagation must not copy layout geometry.",
+);
+
+assert.equal(
+  getStudioTextWrapMode(undefined),
+  "preserve",
+  "Auto Text must keep the legacy line break behavior when no mode is stored.",
+);
+assert.equal(
+  getStudioTextWrapMode({ [STUDIO_TEXT_WRAP_MODE_STYLE_KEY]: "single" }),
+  "single",
+);
+assert.equal(
+  STUDIO_TEXT_WRAP_MODE_STYLE_KEY in
+    pickStudioVariantStyleScope(
+      { [STUDIO_TEXT_WRAP_MODE_STYLE_KEY]: "single", left: 10 },
+      "layout",
+    ),
+  false,
+  "Line break mode must not travel with Position & Size propagation.",
 );
 
 const multiValues = createStudioInitialRuntimeValues(multiDocument, {

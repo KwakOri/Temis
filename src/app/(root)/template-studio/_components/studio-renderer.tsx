@@ -2,7 +2,6 @@
 
 import React from "react";
 
-import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import { cn } from "@/lib/utils";
 import {
   StudioAsset,
@@ -28,6 +27,7 @@ import {
 } from "@/utils/template-studio/status-card-background";
 import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
 
+import { StudioAutoText } from "./studio-auto-text";
 import { StudioWebFontLoader } from "./studio-web-font-loader";
 
 interface StudioRendererProps {
@@ -46,7 +46,9 @@ interface StudioRendererProps {
 const toCssStyle = (styleRecord?: StudioStyleRecord): React.CSSProperties => {
   if (!styleRecord) return { position: "absolute" };
 
-  const { rotateDeg, ...rest } = styleRecord;
+  const { rotateDeg, textWrapMode, ...rest } = styleRecord;
+  // textWrapMode는 Auto Text 렌더 옵션이므로 CSS 선언으로 흘리지 않는다.
+  void textWrapMode;
   const style = { ...rest } as React.CSSProperties;
 
   if (!style.position) {
@@ -60,15 +62,6 @@ const toCssStyle = (styleRecord?: StudioStyleRecord): React.CSSProperties => {
   }
 
   return style;
-};
-
-const getNumericStyleValue = (
-  styleRecord: StudioStyleRecord | undefined,
-  key: string,
-  fallback: number,
-): number => {
-  const value = styleRecord?.[key];
-  return typeof value === "number" ? value : fallback;
 };
 
 const resolveStudioAssetSlot = (
@@ -216,25 +209,22 @@ export function StudioRenderer({
     );
 
     if (node.type === "flexibleText") {
-      const maxFontSize = getNumericStyleValue(styleRecord, "fontSize", 24);
-
       return (
         <div key={node.id} {...commonProps}>
-          <AutoResizeText
+          <StudioAutoText
             className="m-0 block w-full leading-tight"
-            maxFontSize={maxFontSize}
+            defaultMaxFontSize={24}
             minFontSize={10}
-            multiline
-            style={{
+            styleRecord={styleRecord}
+            text={text || " "}
+            textStyle={{
               color: style.color,
               fontFamily: style.fontFamily,
               fontWeight: style.fontWeight,
               letterSpacing: 0,
               lineHeight: style.lineHeight ?? 1.08,
             }}
-          >
-            {text || " "}
-          </AutoResizeText>
+          />
           {children}
         </div>
       );

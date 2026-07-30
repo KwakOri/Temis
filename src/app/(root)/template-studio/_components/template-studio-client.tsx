@@ -227,6 +227,11 @@ import {
   applyStudioVariantStyle,
   type StudioVariantStyleScope,
 } from "@/utils/template-studio/variant-style-propagation";
+import {
+  getStudioTextWrapMode,
+  STUDIO_TEXT_WRAP_MODE_OPTIONS,
+  STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
+} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import {
   getStudioCustomFontFamilies,
@@ -9177,6 +9182,11 @@ export function TemplateStudioClient({
       document,
       selectedFontFamily,
     );
+    const selectedTextWrapMode = getStudioTextWrapMode(styleRecord);
+    const selectedTextWrapModeDescription =
+      STUDIO_TEXT_WRAP_MODE_OPTIONS.find(
+        (option) => option.value === selectedTextWrapMode,
+      )?.description ?? "";
 
     const bindingInputId = getStudioBindingInputId(selectedNode.binding);
     const bindingBuiltinFieldId =
@@ -9669,6 +9679,30 @@ export function TemplateStudioClient({
                   value={getStudioTextAlignment(styleRecord)}
                   onChange={updateSelectedNodeTextAlignment}
                 />
+                {selectedNode.type === "flexibleText" ? (
+                  <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                    <span>Line Breaks</span>
+                    <select
+                      className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                      value={selectedTextWrapMode}
+                      onChange={(event) =>
+                        updateSelectedNodeStyle(
+                          STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
+                          event.currentTarget.value,
+                        )
+                      }
+                    >
+                      {STUDIO_TEXT_WRAP_MODE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] font-medium text-[var(--fg3)]">
+                      {selectedTextWrapModeDescription}
+                    </span>
+                  </label>
+                ) : null}
                 <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                   <span>Color</span>
                   <StudioHexColorPicker

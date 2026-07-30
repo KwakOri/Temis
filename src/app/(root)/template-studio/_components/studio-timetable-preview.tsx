@@ -42,8 +42,9 @@ import {
   getStudioTimetableComponentFrame,
   resolveStudioTimetableDayVariantStatus,
 } from "@/utils/template-studio/entry-groups";
-import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
+import { STUDIO_TEXT_WRAP_MODE_STYLE_KEY } from "@/utils/template-studio/text-wrap";
 
+import { StudioAutoText } from "./studio-auto-text";
 import { StudioWebFontLoader } from "./studio-web-font-loader";
 
 import { StudioRenderer } from "./studio-renderer";
@@ -754,6 +755,7 @@ const getTimetableObjectStyle = (
   delete styleRecord.assetPosition;
   delete styleRecord.assetGap;
   delete styleRecord.assetSize;
+  delete styleRecord[STUDIO_TEXT_WRAP_MODE_STYLE_KEY];
   const backgroundSlot = object.assetSlots?.background;
   const backgroundAsset =
     resolveTimetableAssetSlot(document, runtimeValues, backgroundSlot) ??
@@ -1047,15 +1049,14 @@ export function StudioTimetablePreview({
           />
         ) : null}
         {object.kind === "flexibleText" ? (
-          <AutoResizeText
+          <StudioAutoText
             className="min-w-0"
-            maxFontSize={getNumericStyleValue(object.style, "fontSize", 48)}
+            defaultMaxFontSize={48}
             minFontSize={8}
-            multiline
-            style={{ margin: 0 }}
-          >
-            {text}
-          </AutoResizeText>
+            styleRecord={object.style}
+            text={text}
+            textStyle={{ margin: 0 }}
+          />
         ) : (
           <span className="min-w-0">{text}</span>
         )}
