@@ -54,3 +54,5 @@ public/workbox-*.js.map
 # local browser automation artifacts
 .playwright-cli/
 .playwright-mcp/
+# local one-off refactor scripts (never committed)
+/scripts/tmp/

@@ -139,7 +139,6 @@ import {
   planStudioAddCardContextObject,
   planStudioAddCardStatusBackground,
   planStudioAddNode,
-  getStudioDefaultNodeStyle,
   planStudioDeleteNodes,
   resolveStudioNodeInsertionParentId,
   type StudioSelectConsumerInput,
@@ -148,6 +147,18 @@ import {
   getStudioDataDropPosition,
   getStudioLayerPanelOrder,
 } from "@/utils/template-studio/layer-order";
+import {
+  applyStudioNodeFitParent,
+  applyStudioNodeOffset,
+  applyStudioNodeStyleValue,
+  applyStudioNodeTextAlignment,
+  getStudioTextAlignment,
+  getStudioTextJustifyContent,
+  getStudioVariantStyleMessage,
+  planStudioNudgeNodes,
+  resolveStudioDragTargetNodeIds,
+  type StudioTextAlignment,
+} from "@/utils/template-studio/node-style-commands";
 import {
   isStudioFillParentLayout,
   isStudioPlacedTimetableCompositionObject,
@@ -236,10 +247,7 @@ import {
   setStudioTimetableEntryStatus,
   validateStudioRuntimeValuesForDocument,
 } from "@/utils/template-studio/timetable-runtime";
-import {
-  applyStudioTimetableComponentFrames,
-  getStudioTimetableComponentFrame,
-} from "@/utils/template-studio/entry-groups";
+import { applyStudioTimetableComponentFrames } from "@/utils/template-studio/entry-groups";
 import {
   ensureStudioTimetableCapabilityStatus,
   getStudioAvailableTimetableStatuses,
@@ -727,34 +735,6 @@ const getStudioStyleString = (
   const value = styleRecord[key];
   return typeof value === "string" ? value : fallback;
 };
-
-type StudioTextAlignment = "left" | "center" | "right";
-
-const getStudioTextAlignment = (
-  styleRecord: StudioStyleRecord,
-): StudioTextAlignment => {
-  const value = styleRecord.textAlign;
-  if (value === "center" || value === "right") return value;
-  if (value === "left") return value;
-
-  const justifyContent = getStudioStyleString(
-    styleRecord,
-    "justifyContent",
-    "flex-start",
-  );
-  if (justifyContent === "center") return "center";
-  if (justifyContent === "flex-end" || justifyContent === "end") {
-    return "right";
-  }
-  return "left";
-};
-
-const getStudioTextJustifyContent = (textAlign: StudioTextAlignment) =>
-  textAlign === "left"
-    ? "flex-start"
-    : textAlign === "right"
-      ? "flex-end"
-      : "center";
 
 const normalizeStudioDimension = (value: number, fallback: number) => {
   if (!Number.isFinite(value)) return fallback;
@@ -2791,66 +2771,16 @@ export function TemplateStudioClient({
     value: string | number | undefined,
   ) => {
     if (!selectedNode) return;
-
     updateNode(selectedNode.id, (node, nextDocument) => {
-      if (
-        isStudioFillParentLayout(node.layoutMode) &&
-        ["left", "top", "width", "height"].includes(key)
-      ) {
-        return;
-      }
-
-      const component = Object.values(
-        nextDocument.domains?.timetable?.components ?? {},
-      ).find((candidate) =>
-        Object.values(candidate.variants).some(
-          (variant) => variant.rootNodeId === node.id,
-        ),
-      );
-      if (
-        component &&
-        ["left", "top", "width", "height"].includes(key) &&
-        typeof value === "number"
-      ) {
-        component.frame = {
-          ...getStudioTimetableComponentFrame(nextDocument, component),
-          [key]: value,
-        };
-      }
-
-      let styleId = node.styleId;
-      if (!styleId) {
-        styleId = createStudioId("style");
-        node.styleId = styleId;
-        nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
-      }
-
-      nextDocument.styles[styleId] = {
-        ...nextDocument.styles[styleId],
-        [key]: value,
-      };
+      applyStudioNodeStyleValue(nextDocument, node, key, value);
     });
   };
-
   const updateSelectedNodeTextAlignment = (textAlign: StudioTextAlignment) => {
     if (!selectedNode) return;
-
     updateNode(selectedNode.id, (node, nextDocument) => {
-      let styleId = node.styleId;
-      if (!styleId) {
-        styleId = createStudioId("style");
-        node.styleId = styleId;
-        nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
-      }
-
-      nextDocument.styles[styleId] = {
-        ...nextDocument.styles[styleId],
-        textAlign,
-        justifyContent: getStudioTextJustifyContent(textAlign),
-      };
+      applyStudioNodeTextAlignment(nextDocument, node, textAlign);
     });
   };
-
   const applySelectedNodeStyleToStatuses = (options: {
     targetStatusIds: StudioTimetableStatusId[];
     scope: StudioVariantStyleScope;
@@ -2858,31 +2788,35 @@ export function TemplateStudioClient({
     applyToAllMultiSlots: boolean;
   }) => {
     if (!selectedNode || !cardEntryComponent) return;
-    let appliedNodeCount = 0;
-    let appliedStatusCount = 0;
-    let skippedStatusCount = 0;
+
+    let outcome = {
+      appliedNodeCount: 0,
+      appliedStatusCount: 0,
+      skippedStatusCount: 0,
+    };
+
     updateDocument((nextDocument) => {
       const nextComponent =
         nextDocument.domains?.timetable?.components[cardEntryComponent.id];
       if (!nextComponent) return;
+
       const result = applyStudioVariantStyle(nextDocument, {
         component: nextComponent,
         sourceNodeId: selectedNode.id,
         sourceStatusId: selectedCardStatusId,
         ...options,
       });
-      appliedNodeCount = result.appliedNodeCount;
-      appliedStatusCount = result.appliedStatusIds.length;
-      skippedStatusCount = result.skippedStatusIds.length;
-    });
-    setStylePropagationOpen(false);
-    showShortcutStatus(
-      appliedNodeCount > 0
-        ? `Applied ${appliedNodeCount} style update(s) to ${appliedStatusCount} status(es)${skippedStatusCount > 0 ? ` · ${skippedStatusCount} skipped` : ""}`
-        : "No matching status objects were found",
-    );
-  };
 
+      outcome = {
+        appliedNodeCount: result.appliedNodeCount,
+        appliedStatusCount: result.appliedStatusIds.length,
+        skippedStatusCount: result.skippedStatusIds.length,
+      };
+    });
+
+    setStylePropagationOpen(false);
+    showShortcutStatus(getStudioVariantStyleMessage(outcome));
+  };
   const toggleSelectedNodeFitParent = () => {
     if (!selectedNode) return;
 
@@ -2893,29 +2827,14 @@ export function TemplateStudioClient({
     );
 
     updateNode(selectedNode.id, (node, nextDocument) => {
-      let styleId = node.styleId;
-      if (!styleId) {
-        styleId = createStudioId("style");
-        node.styleId = styleId;
-        nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
-      }
-
-      const style = nextDocument.styles[styleId] ?? {};
-      node.layoutMode = shouldFillParent ? "fillParent" : "fixed";
-      nextDocument.styles[styleId] = {
-        ...style,
-        left: 0,
-        top: 0,
-        ...(shouldFillParent
-          ? {}
-          : {
-              width: resolvedGeometry.width,
-              height: resolvedGeometry.height,
-            }),
-      };
+      applyStudioNodeFitParent(
+        nextDocument,
+        node,
+        shouldFillParent,
+        resolvedGeometry,
+      );
     });
   };
-
   const updateCardCanvasSize = (nextSize: {
     width?: number;
     height?: number;
@@ -2978,48 +2897,22 @@ export function TemplateStudioClient({
     nodeId: string,
     delta: { deltaX: number; deltaY: number },
   ) => {
-    const targetNodeIds = selectedNodeIdsRef.current.includes(nodeId)
-      ? getStudioTopLevelNodeIds(
-          documentRef.current,
-          selectedNodeIdsRef.current,
-        )
-      : [nodeId];
+    const targetNodeIds = resolveStudioDragTargetNodeIds(
+      documentRef.current,
+      selectedNodeIdsRef.current,
+      nodeId,
+    );
 
     updateDocument(
       (nextDocument) => {
-        targetNodeIds.forEach((targetNodeId) => {
-          const node = nextDocument.graph.nodes[targetNodeId];
-          if (
-            !node ||
-            isStudioNodeLocked(node) ||
-            isStudioFillParentLayout(node.layoutMode)
-          ) {
-            return;
-          }
-
-          let styleId = node.styleId;
-          if (!styleId) {
-            styleId = createStudioId("style");
-            node.styleId = styleId;
-            nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
-          }
-
-          const styleRecord = nextDocument.styles[styleId] ?? {};
-          const left =
-            typeof styleRecord.left === "number" ? styleRecord.left : 0;
-          const top = typeof styleRecord.top === "number" ? styleRecord.top : 0;
-
-          nextDocument.styles[styleId] = {
-            ...styleRecord,
-            left: Number((left + delta.deltaX).toFixed(2)),
-            top: Number((top + delta.deltaY).toFixed(2)),
-          };
+        applyStudioNodeOffset(nextDocument, targetNodeIds, delta, {
+          round: true,
+          skipFillParent: true,
         });
       },
       { history: false },
     );
   };
-
   const moveNodeByKeyboard = useCallback(
     (nodeIds: string[], deltaX: number, deltaY: number) => {
       const targetNodeIds = getStudioTopLevelNodeIds(
@@ -3029,33 +2922,14 @@ export function TemplateStudioClient({
       if (targetNodeIds.length === 0) return;
 
       updateDocument((nextDocument) => {
-        targetNodeIds.forEach((nodeId) => {
-          const node = nextDocument.graph.nodes[nodeId];
-          if (!node || isStudioNodeLocked(node)) return;
-
-          let styleId = node.styleId;
-          if (!styleId) {
-            styleId = createStudioId("style");
-            node.styleId = styleId;
-            nextDocument.styles[styleId] = getStudioDefaultNodeStyle(node.type);
-          }
-
-          const styleRecord = nextDocument.styles[styleId] ?? {};
-          const left =
-            typeof styleRecord.left === "number" ? styleRecord.left : 0;
-          const top = typeof styleRecord.top === "number" ? styleRecord.top : 0;
-
-          nextDocument.styles[styleId] = {
-            ...styleRecord,
-            left: left + deltaX,
-            top: top + deltaY,
-          };
+        applyStudioNodeOffset(nextDocument, targetNodeIds, {
+          deltaX,
+          deltaY,
         });
       });
     },
     [updateDocument],
   );
-
   const addNode = (type: StudioGraphNodeType) => {
     const plan = planStudioAddNode(document, type, selectedNode);
 
@@ -4993,35 +4867,16 @@ export function TemplateStudioClient({
 
   const nudgeSelectedNode = useCallback(
     (deltaX: number, deltaY: number) => {
-      const selectedActionNodeIds = getStudioTopLevelNodeIds(
-        document,
-        selectedNodeIds,
-      );
-      if (selectedActionNodeIds.length === 0) return;
-
-      const selectedActionNodes = selectedActionNodeIds
-        .map((nodeId) => document.graph.nodes[nodeId])
-        .filter(Boolean) as StudioGraphNode[];
-
-      if (selectedActionNodes.some(isStudioNodeLocked)) {
-        showShortcutStatus("Selection includes locked object");
+      const plan = planStudioNudgeNodes(document, selectedNodeIds);
+      if (!plan.ok) {
+        if (plan.reason) showShortcutStatus(plan.reason);
         return;
       }
 
-      if (
-        selectedActionNodes.some((node) =>
-          isStudioFillParentLayout(node.layoutMode),
-        )
-      ) {
-        showShortcutStatus("Disable Fit to move this object");
-        return;
-      }
-
-      moveNodeByKeyboard(selectedActionNodeIds, deltaX, deltaY);
+      moveNodeByKeyboard(plan.nodeIds, deltaX, deltaY);
     },
     [document, moveNodeByKeyboard, selectedNodeIds, showShortcutStatus],
   );
-
   const moveSelectedNodeLayer = useCallback(
     (command: StudioLayerMoveCommand) => {
       const plan = planStudioLayerMove(
