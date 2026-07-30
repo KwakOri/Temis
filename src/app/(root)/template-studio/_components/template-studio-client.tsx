@@ -13,7 +13,6 @@ import {
   ArrowUpRight,
   AlertTriangle,
   CalendarDays,
-  ChevronRight,
   CheckCircle2,
   Copy,
   EyeOff,
@@ -106,6 +105,7 @@ import {
   validateStudioGraphMove,
   type StudioGraphDropPosition,
 } from "@/utils/template-studio/graph-editor";
+import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
 import { createStudioId } from "@/utils/template-studio/id";
 import {
   getStudioDataDropPosition,
@@ -258,6 +258,12 @@ import {
   type StudioPropertyItem,
 } from "@/components/studio/editor-shell/studio-properties-panel";
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
+import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
+import {
+  StudioLayerDropIndicator,
+  StudioLayerPanelFrame,
+  StudioLayerRow,
+} from "@/components/studio/layers/studio-layer-primitives";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { StudioRenderer } from "./studio-renderer";
@@ -843,14 +849,6 @@ const getStudioOpacityPercent = (value: unknown): number => {
   return Math.min(Math.max(Math.round(percent), 0), 100);
 };
 
-const getStudioLayerDropPositionLabel = (
-  position: StudioGraphDropPosition,
-): string => {
-  if (position === "before") return "Above";
-  if (position === "after") return "Below";
-  return "Inside";
-};
-
 const getStudioNodeBounds = (
   document: StudioTemplateDocument,
   nodeId: string,
@@ -1099,11 +1097,6 @@ const getDefaultStyleForNode = (
     display: "flex",
     alignItems: "center",
   };
-};
-
-const getNodeTypeLabel = (type: StudioGraphNodeType) => {
-  if (type === "flexibleText") return "Auto Text";
-  return type[0].toUpperCase() + type.slice(1);
 };
 
 const getInputTypeLabel = (type: StudioInputType) => {
@@ -3386,7 +3379,7 @@ export function TemplateStudioClient({
     const node: StudioGraphNode = {
       id: nodeId,
       type,
-      label: `New ${getNodeTypeLabel(type)}`,
+      label: `New ${getStudioGraphNodeTypeLabel(type)}`,
       parentId,
       childIds: [],
       styleId,
@@ -6490,195 +6483,6 @@ export function TemplateStudioClient({
     [getLayerDropValidation, scheduleLayerGroupAutoExpand],
   );
 
-  const renderLayerDropIndicator = (
-    nodeId: string,
-    depth: number,
-    position: "before" | "after",
-  ) => {
-    const isActive =
-      layerDropState?.nodeId === nodeId && layerDropState.position === position;
-    if (!isActive) return null;
-
-    const blockedReason = layerDropState.blockedReason;
-
-    return (
-      <div
-        className={cn(
-          "my-1 flex h-4 items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.06em]",
-          blockedReason ? "text-rose-300" : "text-[var(--accent)]",
-        )}
-        style={{ marginLeft: Math.min(10 + depth * 20, 70) }}
-        title={blockedReason ?? getStudioLayerDropPositionLabel(position)}
-        onDragOver={(event) =>
-          handleLayerIndicatorDragOver(event, nodeId, position)
-        }
-        onDrop={(event) => handleLayerDrop(event, nodeId)}
-      >
-        <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
-          )}
-        />
-        <span
-          className={cn(
-            "h-0.5 min-w-0 flex-1 rounded-full",
-            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
-          )}
-        />
-        <span
-          className={cn(
-            "rounded px-1.5 py-0.5",
-            blockedReason
-              ? "bg-rose-400/15 text-rose-300"
-              : "bg-[var(--sel)] text-[var(--accent)]",
-          )}
-        >
-          {blockedReason
-            ? "Blocked"
-            : getStudioLayerDropPositionLabel(position)}
-        </span>
-      </div>
-    );
-  };
-
-  const renderLayerTree = (
-    nodeId: string,
-    depth = 0,
-    visitedNodeIds: Set<string> = new Set(),
-  ): React.ReactNode => {
-    const node = nodes[nodeId];
-    if (!node) return null;
-
-    if (visitedNodeIds.has(nodeId)) {
-      return (
-        <div
-          className="rounded px-2 py-1 text-[11px] font-semibold text-rose-300"
-          key={`${nodeId}:cycle`}
-          style={{ marginLeft: Math.min(10 + depth * 20, 70) }}
-        >
-          Cycle: {node.label}
-        </div>
-      );
-    }
-
-    const nextVisitedNodeIds = new Set(visitedNodeIds);
-    nextVisitedNodeIds.add(nodeId);
-    const activeDropState =
-      layerDropState?.nodeId === node.id ? layerDropState : null;
-    const isInsideDropActive = activeDropState?.position === "inside";
-    const isCutLayerNode = cutLayerNodeIdsSet.has(node.id);
-    const isCollapsibleGroup =
-      node.type === "group" && node.childIds.length > 0;
-    const isLayerGroupCollapsed = collapsedLayerGroupIdsSet.has(node.id);
-
-    return (
-      <div className="min-w-0 max-w-full overflow-hidden" key={node.id}>
-        {renderLayerDropIndicator(node.id, depth, "before")}
-        <button
-          className={cn(
-            "flex h-[34px] w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-[7px] px-2 text-left text-[12.5px] font-medium transition-colors",
-            node.locked
-              ? "cursor-default"
-              : "cursor-grab active:cursor-grabbing",
-            selectedNodeIdsSet.has(node.id)
-              ? "bg-[var(--sel)] font-semibold text-[var(--fg)]"
-              : "text-[var(--fg2)] hover:bg-[var(--hover)]",
-            isInsideDropActive &&
-              (activeDropState?.blockedReason
-                ? "ring-1 ring-inset ring-rose-400/80"
-                : "ring-1 ring-inset ring-[var(--accent)]"),
-            isCutLayerNode && "opacity-[0.45]",
-          )}
-          style={{ paddingLeft: Math.min(10 + depth * 20, 70) }}
-          type="button"
-          title={activeDropState?.blockedReason ?? node.label}
-          draggable={!node.locked}
-          onDragEnd={clearLayerDragState}
-          onDragOver={(event) => handleLayerDragOver(event, node.id)}
-          onDragStart={(event) => handleLayerDragStart(event, node.id)}
-          onDrop={(event) => handleLayerDrop(event, node.id)}
-          onClick={(event) => {
-            if (event.shiftKey) {
-              selectLayerNodeRange(node.id, event.metaKey || event.ctrlKey);
-            } else if (event.metaKey || event.ctrlKey) {
-              toggleNodeSelection(node.id);
-            } else {
-              selectSingleNode(node.id);
-            }
-            setPanelMode("layers");
-          }}
-        >
-          <span
-            className={cn(
-              "flex h-5 w-4 shrink-0 items-center justify-center rounded text-[var(--fg3)] transition",
-              isCollapsibleGroup
-                ? "hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-                : "opacity-0",
-            )}
-            title={
-              isCollapsibleGroup
-                ? isLayerGroupCollapsed
-                  ? "Expand group"
-                  : "Collapse group"
-                : undefined
-            }
-            onClick={(event) => {
-              if (!isCollapsibleGroup) return;
-              event.preventDefault();
-              event.stopPropagation();
-              toggleLayerGroupCollapsed(node.id);
-            }}
-            onMouseDown={(event) => {
-              if (isCollapsibleGroup) event.stopPropagation();
-            }}
-          >
-            <ChevronRight
-              className={cn(
-                "h-3.5 w-3.5 transition-transform",
-                !isLayerGroupCollapsed && "rotate-90",
-              )}
-            />
-          </span>
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center text-[var(--fg2)]">
-            {node.type === "image" ? (
-              <ImageIcon size={14} />
-            ) : node.type === "group" ? (
-              <Layers3 size={14} />
-            ) : (
-              <Type size={14} />
-            )}
-          </span>
-          <span className="block min-w-0 flex-1 truncate">{node.label}</span>
-          {node.locked ? (
-            <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
-          ) : null}
-          {isInsideDropActive ? (
-            <span
-              className={cn(
-                "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.05em]",
-                activeDropState?.blockedReason
-                  ? "bg-rose-400/15 text-rose-300"
-                  : "bg-[var(--sel)] text-[var(--accent)]",
-              )}
-            >
-              {activeDropState?.blockedReason ? "Blocked" : "Inside"}
-            </span>
-          ) : null}
-          <span className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
-            {getNodeTypeLabel(node.type)}
-          </span>
-        </button>
-        {renderLayerDropIndicator(node.id, depth, "after")}
-        {!isLayerGroupCollapsed
-          ? getStudioLayerPanelOrder(node.childIds).map((childId) =>
-              renderLayerTree(childId, depth + 1, nextVisitedNodeIds),
-            )
-          : null}
-      </div>
-    );
-  };
-
   const renderTimetableLayerRow = ({
     id,
     label,
@@ -6713,92 +6517,47 @@ export function TemplateStudioClient({
     onDragOver?: (event: React.DragEvent<HTMLButtonElement>) => void;
     onDragStart?: (event: React.DragEvent<HTMLButtonElement>) => void;
     onDrop?: (event: React.DragEvent<HTMLButtonElement>) => void;
-  }) => {
-    const isSelected = selectedTimetableLayerId === id;
-
-    return (
-      <button
-        className={cn(
-          "flex h-[34px] w-full min-w-0 max-w-full items-center gap-2 overflow-hidden rounded-[7px] px-2 text-left text-[12.5px] font-medium transition-colors",
-          disabled
-            ? "cursor-not-allowed opacity-45"
-            : draggable
-              ? "cursor-grab active:cursor-grabbing"
-              : "cursor-default",
-          !disabled &&
-            (isSelected
-              ? "bg-[var(--sel)] font-semibold text-[var(--fg)]"
-              : "text-[var(--fg2)] hover:bg-[var(--hover)]"),
-          hidden && "opacity-55",
-          blockedReason && "ring-1 ring-inset ring-rose-400/80",
-        )}
-        disabled={disabled}
-        draggable={draggable && !disabled}
-        key={id}
-        style={{ paddingLeft: Math.min(10 + depth * 20, 70) }}
-        title={blockedReason ?? label}
-        type="button"
-        onDragEnd={onDragEnd}
-        onDragOver={onDragOver}
-        onDragStart={onDragStart}
-        onDrop={onDrop}
-        onClick={() => {
-          setSelectedTimetableLayerId(id);
-          onSelect?.();
-        }}
-      >
-        <span
-          className={cn(
-            "flex h-5 w-4 shrink-0 items-center justify-center rounded text-[var(--fg3)] transition",
-            collapsible
-              ? "hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-              : "opacity-0",
-          )}
-          title={
-            collapsible
-              ? collapsed
-                ? "Expand group"
-                : "Collapse group"
-              : undefined
-          }
-          onClick={(event) => {
-            if (!collapsible) return;
-            event.preventDefault();
-            event.stopPropagation();
-            onToggleCollapsed?.();
-          }}
-          onMouseDown={(event) => {
-            if (collapsible) event.stopPropagation();
-          }}
-        >
-          <ChevronRight
-            className={cn(
-              "h-3.5 w-3.5 transition-transform",
-              collapsible && !collapsed && "rotate-90",
-            )}
-          />
-        </span>
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center text-[var(--fg2)]">
-          {type === "group" ? (
-            <Layers3 size={14} />
-          ) : type === "day" ? (
-            <CalendarDays size={14} />
-          ) : type === "block" || type === "image" ? (
-            <ImageIcon size={14} />
-          ) : (
-            <Type size={14} />
-          )}
-        </span>
-        <span className="block min-w-0 flex-1 truncate">{label}</span>
-        {hidden ? (
+  }) => (
+    <StudioLayerRow
+      blockedReason={blockedReason}
+      collapsed={collapsed}
+      collapsible={collapsible}
+      depth={depth}
+      disabled={disabled}
+      draggable={draggable}
+      hidden={hidden}
+      icon={
+        type === "group" ? (
+          <Layers3 size={14} />
+        ) : type === "day" ? (
+          <CalendarDays size={14} />
+        ) : type === "block" || type === "image" ? (
+          <ImageIcon size={14} />
+        ) : (
+          <Type size={14} />
+        )
+      }
+      key={id}
+      label={label}
+      ring={blockedReason ? "blocked" : "none"}
+      selected={selectedTimetableLayerId === id}
+      stateIcon={
+        hidden ? (
           <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
-        ) : null}
-        <span className="shrink-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
-          {type}
-        </span>
-      </button>
-    );
-  };
+        ) : null
+      }
+      typeLabel={type}
+      onDragEnd={onDragEnd}
+      onDragOver={onDragOver}
+      onDragStart={onDragStart}
+      onDrop={onDrop}
+      onToggleCollapsed={onToggleCollapsed}
+      onClick={() => {
+        setSelectedTimetableLayerId(id);
+        onSelect?.();
+      }}
+    />
+  );
 
   const renderTimetableDropIndicator = (
     layerId: string,
@@ -6811,47 +6570,17 @@ export function TemplateStudioClient({
       timetableLayerDropState.position === position;
     if (!isActive) return null;
 
-    const blockedReason = timetableLayerDropState?.blockedReason;
-
     return (
-      <div
-        className={cn(
-          "my-1 flex h-4 items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.06em]",
-          blockedReason ? "text-rose-300" : "text-[var(--accent)]",
-        )}
+      <StudioLayerDropIndicator
+        blockedReason={timetableLayerDropState?.blockedReason}
+        depth={depth}
         key={`${layerId}:${position}:drop`}
-        style={{ marginLeft: Math.min(10 + depth * 20, 70) }}
-        title={blockedReason ?? getStudioLayerDropPositionLabel(position)}
+        position={position}
         onDragOver={(event) =>
           handleTimetableLayerIndicatorDragOver(event, layerId, position, dayId)
         }
         onDrop={(event) => handleTimetableLayerDrop(event, layerId, dayId)}
-      >
-        <span
-          className={cn(
-            "h-1.5 w-1.5 shrink-0 rounded-full",
-            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
-          )}
-        />
-        <span
-          className={cn(
-            "h-0.5 min-w-0 flex-1 rounded-full",
-            blockedReason ? "bg-rose-400" : "bg-[var(--accent)]",
-          )}
-        />
-        <span
-          className={cn(
-            "rounded px-1.5 py-0.5",
-            blockedReason
-              ? "bg-rose-400/15 text-rose-300"
-              : "bg-[var(--sel)] text-[var(--accent)]",
-          )}
-        >
-          {blockedReason
-            ? "Blocked"
-            : getStudioLayerDropPositionLabel(position)}
-        </span>
-      </div>
+      />
     );
   };
 
@@ -6986,23 +6715,14 @@ export function TemplateStudioClient({
   };
 
   const renderTimetableLayersPanel = () => (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <div className="border-b border-[var(--border)] px-3 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-          Timetable Layers
-        </div>
-        <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
-          {timetableComposition.rootObjectIds.length} placed objects
-        </div>
-      </div>
-      <div className="template-studio-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
-        <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
-          {getStudioLayerPanelOrder(timetableComposition.rootObjectIds).map(
-            (objectId) => renderTimetableCompositionLayerTree(objectId),
-          )}
-        </div>
-      </div>
-    </div>
+    <StudioLayerPanelFrame
+      summary={`${timetableComposition.rootObjectIds.length} placed objects`}
+      title="Timetable Layers"
+    >
+      {getStudioLayerPanelOrder(timetableComposition.rootObjectIds).map(
+        (objectId) => renderTimetableCompositionLayerTree(objectId),
+      )}
+    </StudioLayerPanelFrame>
   );
 
   const renderTimetablePresetsPanel = () => (
@@ -7102,7 +6822,7 @@ export function TemplateStudioClient({
           <button
             className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
             key={type}
-            title={`Add ${getNodeTypeLabel(type)}`}
+            title={`Add ${getStudioGraphNodeTypeLabel(type)}`}
             type="button"
             onClick={() => addNode(type)}
           >
@@ -10505,23 +10225,35 @@ export function TemplateStudioClient({
               activeWorkspaceMode === "timetable" ? (
                 renderTimetableLayersPanel()
               ) : (
-                <div className="flex min-h-0 flex-1 flex-col">
-                  <div className="border-b border-[var(--border)] px-3 py-3">
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-                      Cards Layers
-                    </div>
-                    <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
-                      {cardAuthoringRootNodeIds.length} placed objects
-                    </div>
-                  </div>
-                  <div className="template-studio-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-2 pb-3">
-                    <div className="grid min-w-0 max-w-full gap-0.5 overflow-hidden">
-                      {getStudioLayerPanelOrder(cardAuthoringRootNodeIds).map(
-                        (nodeId) => renderLayerTree(nodeId),
-                      )}
-                    </div>
-                  </div>
-                </div>
+                <StudioLayerPanel
+                  collapsedNodeIds={collapsedLayerGroupIdsSet}
+                  cutNodeIds={cutLayerNodeIdsSet}
+                  dropState={layerDropState}
+                  graph={document.graph}
+                  rootNodeIds={cardAuthoringRootNodeIds}
+                  selectedNodeIds={selectedNodeIdsSet}
+                  summary={`${cardAuthoringRootNodeIds.length} placed objects`}
+                  title="Cards Layers"
+                  onDragEnd={clearLayerDragState}
+                  onDragOver={handleLayerDragOver}
+                  onDragStart={handleLayerDragStart}
+                  onDrop={handleLayerDrop}
+                  onIndicatorDragOver={handleLayerIndicatorDragOver}
+                  onSelect={(nodeId, event) => {
+                    if (event.shiftKey) {
+                      selectLayerNodeRange(
+                        nodeId,
+                        event.metaKey || event.ctrlKey,
+                      );
+                    } else if (event.metaKey || event.ctrlKey) {
+                      toggleNodeSelection(nodeId);
+                    } else {
+                      selectSingleNode(nodeId);
+                    }
+                    setPanelMode("layers");
+                  }}
+                  onToggleCollapsed={toggleLayerGroupCollapsed}
+                />
               )
             ) : activePanelMode === "presets" ? (
               activeWorkspaceMode === "timetable" ? (
@@ -10796,7 +10528,7 @@ export function TemplateStudioClient({
               : activeWorkspaceMode === "timetable"
                 ? "Timetable"
                 : selectedNode
-                  ? getNodeTypeLabel(selectedNode.type)
+                  ? getStudioGraphNodeTypeLabel(selectedNode.type)
                   : "Cards",
             summary: isInputPanelActive
               ? selectedInput
