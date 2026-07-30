@@ -15,7 +15,7 @@
     "Unpurchased",
     "yanz"
   ],
-  "kiroAgent.agentAutonomy": "Supervised",
+  "kiroAgent.agentAutonomy": "Autopilot",
   "editor.tabSize": 2,
   "editor.detectIndentation": false,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
