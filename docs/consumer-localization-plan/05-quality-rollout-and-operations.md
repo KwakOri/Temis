@@ -26,7 +26,13 @@ scripts/check-i18n-catalog.ts
 scripts/check-i18n-hardcoded-copy.ts
 scripts/check-i18n-route-links.ts
 scripts/check-i18n-content-readiness.ts
+scripts/check-i18n-api-response-shape.ts
 ```
+
+`check-i18n-api-response-shape.ts`는 소비자 공개 API route가 `select("*")`를
+사용하지 않고, 응답 타입에 base 텍스트 컬럼과 translation 컬럼이 함께 있지
+않은지 검사한다. 이 조합은 데이터가 정상인 상태에서도 화면에 한국어를 남기므로
+정적 단계에서 막는다.
 
 hardcoded copy 검사는 주석, 로그, 테스트 fixture, 사용자/템플릿 콘텐츠를
 allowlist로 구분한다. 첫 릴리스부터 저장소 전체를 오류 처리하지 않고 신규/변경
@@ -64,6 +70,27 @@ npm run check:pilot-e2e
 - `?lang` compatibility와 query 보존
 - redirect loop 없음
 
+#### maintenance 모드 조합
+
+`src/middleware.ts`가 maintenance redirect와 locale 판정을 함께 담당하므로
+([02 §2.4](./02-locale-routing-and-messages.md#24-기존-middleware와의-합성))
+두 기능이 동시에 켜진 조합을 별도로 검증한다. 단일 기능 테스트로는 드러나지
+않는 loop가 여기서 발생한다.
+
+| maintenance | 요청 URL      | 기대 동작                            |
+| ----------- | ------------- | ------------------------------------ |
+| off         | `/en/shop`    | 통과                                 |
+| off         | `/shop`       | `/{resolvedLocale}/shop`로 308 1회   |
+| on          | `/en/shop`    | `/en`으로 redirect (locale 보존)     |
+| on          | `/en`         | 통과. 재 redirect 없음               |
+| on          | `/`           | `/{resolvedLocale}`로 redirect 1회   |
+| on          | `/admin/...`  | maintenance·locale 판정 모두 미적용  |
+| on          | `/api/...`    | maintenance·locale 판정 모두 미적용  |
+| on          | `/manifest.json`, `/icons/*`, `/fonts/*` | 판정 미적용         |
+
+- maintenance redirect가 locale을 `ko`로 되돌리지 않는지 확인한다.
+- redirect chain 길이를 단정한다. 2회 이상이면 실패로 처리한다.
+
 ### 3.2 navigation
 
 - 동적 template/portfolio ID 보존
@@ -88,11 +115,25 @@ npm run check:pilot-e2e
 
 - locale allowlist와 invalid locale 400
 - stable error code/status
-- translation → ko → base fallback
+- content fallback 순서 (translation → ko → base) 가 preview 경로에서만 동작
+- 미번역 콘텐츠·템플릿의 공개 locale 응답 차단
 - 응답의 `content_locale`
 - 권한/판매 filter가 translation join으로 우회되지 않음
 - preference API가 token 사용자만 변경
 - locale별 query/cache 격리
+
+#### 응답 shape
+
+[03 §3.1](./03-content-and-template-contracts.md#31-응답-shape-계약)의 계약을
+응답 단위로 검증한다. 이 검사가 없으면 translation은 정상인데 화면에만 한국어가
+남는 상태를 놓친다.
+
+- `en`/`ja` 응답 body에 base 한국어 텍스트 컬럼이 존재하지 않는다.
+- 번역된 텍스트가 base 컬럼과 같은 필드명으로 온다.
+- 응답에 소비자가 사용하지 않는 콘텐츠 컬럼
+  (`shop_templates.title`, `features`, `requirements`,
+  `templates.detailed_description`)이 포함되지 않는다.
+- `include=source` 같은 preview 파라미터가 소비자 경로에서 거부된다.
 
 ### 3.5 Template Studio
 
@@ -103,16 +144,29 @@ npm run check:pilot-e2e
 - invalid node/input/option localization 진단
 - locale 변경 후 saved runtime value 유지
 - week/date/crop/image 저장 회귀
+- `savePreviewImage()`의 PNG 결과 회귀 (`html-to-image` `toPng`)
+- 폰트 stack 변경과 `antialiased` 적용 전후의 PNG 비교
+  ([02 §11.3](./02-locale-routing-and-messages.md#113-png-출력물-회귀-주의))
+  - Legacy와 다른 라이브러리를 쓰므로 Legacy 결과로 갈음하지 않는다
+  - `savePreviewImage()`는 `style: { transform: "none" }`을 넘기므로 폰트 관련
+    inline style 주입 방식이 Legacy 경로와 다르게 동작할 수 있다
 
 ### 3.6 Legacy
 
 - `AppLocale ↔ TLanOpt` adapter
 - 공통 UI ko/en/ja
-- template source placeholder fallback
+- 활성 템플릿의 locale별 label/placeholder 완전성
 - locale별 explicit placeholder
 - `weekdayOption`/`monthOption` 불변
 - localStorage key와 저장 JSON 불변
-- file pilot별 PNG 결과 회귀
+- file pilot별 PNG 결과 회귀 (`useTimeTableState.downloadImage()`,
+  `modern-screenshot` `domToPng`)
+- 폰트 stack 변경과 `antialiased` 적용 전후의 PNG 비교
+  ([02 §11.3](./02-locale-routing-and-messages.md#113-png-출력물-회귀-주의))
+  - 폰트 변경은 `weekdayOption` 불변과 별개로 저장 이미지를 바꾼다
+  - 변경 전 기준 PNG를 먼저 확보한 뒤 폰트 작업을 진행한다
+  - 파일럿에 자체 CSS로 `html`에 폰트 스무딩을 지정하지 않은 템플릿을 최소 하나
+    포함한다. `f156601a-...`, `24a5b103-...`만 보면 변화가 없어 오판한다
 
 ## 4. 브라우저 E2E
 
@@ -162,6 +216,19 @@ npm run check:pilot-e2e
 - color만으로 locale/상태를 구분하지 않음
 - 200% zoom에서도 핵심 흐름 가능
 
+### 폰트
+
+[02 §11](./02-locale-routing-and-messages.md#11-폰트와-typography)에서 택한
+전략이 실제로 적용되는지 확인한다. 검증만 하고 대응 작업이 없으면 "기기마다
+서체가 다르다"는 현재 상태가 그대로 일본어로 확대된다.
+
+- ko/en/ja가 같은 `font-family` stack을 사용한다. locale별로 서체가 바뀌지 않는다.
+- 웹폰트를 도입한 경우 CJK subset이 실제로 로드되고 초기 로드 예산을 넘지 않는다.
+- 시스템 fallback stack을 택한 경우 stack이 명시적으로 정의되어 있고, 검증은
+  stack 중 가장 좁은 자폭 기준으로 수행한다.
+- 웹폰트 로드 실패 시 fallback 서체에서도 레이아웃이 깨지지 않는다.
+- 폰트 로딩 중 layout shift가 핵심 화면에서 허용 범위 안이다.
+
 pseudo-locale은 문자열 확장과 누락 발견용으로만 사용한다. 실제 일본어
 typography 검증을 대체하지 않는다.
 
@@ -179,6 +246,7 @@ typography 검증을 대체하지 않는다.
 - sitemap에 공개 locale만 포함
 - 인증/마이페이지/템플릿 실행은 기존 정책대로 noindex 여부 확인
 - fallback 한국어 콘텐츠를 영어/일본어 canonical로 노출하지 않음
+- 미번역 상품·포트폴리오·템플릿의 상세 URL을 공개하지 않음
 
 ## 7. PWA/cache 검증
 
@@ -255,7 +323,17 @@ client 환경변수만으로 권한/콘텐츠 조건을 보호하지 않는다.
 
 ### 9.3 rollback
 
-- en/ja locale flag를 끄고 `/ko`로 307/308 정책에 따라 이동
+redirect 상태 코드는 아래로 확정한다. 롤백 가능성이 있는 redirect에 308을 쓰면
+브라우저가 영구 캐시하기 때문에 flag를 되돌려도 사용자가 이전 동작으로 돌아오지
+못한다.
+
+| redirect                            | 코드 | 이유                                      |
+| ----------------------------------- | ---- | ----------------------------------------- |
+| unprefixed → `/{locale}` (정상 이행) | 308  | 영구 URL 구조 변경. SEO 신호를 넘긴다     |
+| en/ja 비활성화 → `/ko` (롤백)        | 307  | 일시적. flag를 켜면 되돌려야 한다         |
+| maintenance → `/{locale}`            | 307  | 일시적 상태                               |
+
+- en/ja locale flag를 끄고 `/ko`로 **307**로 이동한다. 308을 쓰지 않는다.
 - localized DB join을 끄고 base column 사용
 - email locale flag를 끄고 한국어 template 사용
 - locale path foundation 자체 문제면 unprefixed 한국어 compatibility route로
@@ -270,14 +348,30 @@ client 환경변수만으로 권한/콘텐츠 조건을 보호하지 않는다.
 locale dimension을 포함해 다음을 수집한다.
 
 - route 404/redirect loop 비율
-- catalog/message missing error
+- redirect chain 길이 2회 이상 발생 건수
 - 알 수 없는 API error code
-- translation fallback 사용률
 - 상점 list/detail API 오류와 latency
 - 로그인/구매 요청/템플릿 저장 성공률
 - client hydration error
 - PWA cache/update error
 - 이메일 template locale별 발송/실패
+
+fallback 지표는 두 계층을 분리해 수집한다. 하나로 합치면 "일어나선 안 되는 일"과
+"줄여 가는 중인 일"이 같은 그래프에 섞인다.
+
+| 지표                        | 계층            | 목표값                       |
+| --------------------------- | --------------- | ---------------------------- |
+| message key missing         | message catalog | 0. 발생 시 알림              |
+| catalog load 실패           | message catalog | 0. 발생 시 알림              |
+| content fallback 사용률     | DB 콘텐츠       | 이행 중 감소, 공개 시 0      |
+| `content_locale` 불일치     | DB 콘텐츠       | 0                            |
+
+호환 계층 제거 판단용 지표는 Phase 0에서 기준선을 계측한 뒤 §11의 임계값과
+비교한다.
+
+- `?lang` 유입 건수
+- unprefixed consumer URL 직접 유입 건수
+- `temis.platform.locale` localStorage 읽기 건수
 
 개인정보, 인증 token, 주문 본문, email 본문을 로그에 남기지 않는다.
 
@@ -287,27 +381,50 @@ locale dimension을 포함해 다음을 수집한다.
 
 - [ ] P0 화면 message 100%
 - [ ] 판매 중 상품 content 100%
+- [ ] 영어에서 노출할 모든 활성 Studio/Legacy 템플릿 100%
+- [ ] 필수 거래 이메일 100%
 - [ ] 영어 E2E 전체 통과
 - [ ] 전문 검수 완료
-- [ ] fallback rate 목표 이하
+- [ ] 공개 경로 content fallback 0건
+- [ ] 공개 API 응답에 base 한국어 텍스트 컬럼 0건 (§3.4 응답 shape 통과)
 - [ ] SEO/PWA smoke 완료
 
 ### `/ja` 공개
 
 - [ ] P0 화면 message 100%
 - [ ] 판매 중 상품 content 100%
+- [ ] 일본어에서 노출할 모든 활성 Studio/Legacy 템플릿 100%
+- [ ] 필수 거래 이메일 100%
 - [ ] 일본어 E2E 전체 통과
 - [ ] 일본어 locale 검수 완료
 - [ ] 모바일 typography/overflow 완료
-- [ ] fallback rate 목표 이하
+- [ ] 폰트 전략이 적용되고 §5 폰트 검증을 통과
+- [ ] 공개 경로 content fallback 0건
+- [ ] 공개 API 응답에 base 한국어 텍스트 컬럼 0건
 
 ### 호환 계층 제거
 
-- [ ] `?lang` 유입률이 제거 기준 이하
-- [ ] `temis.platform.locale` read 사용률이 제거 기준 이하
+제거 기준은 Phase 0에서 계측한 기준선을 분모로 사용한다. 절대값이 아니라
+기준선 대비 비율로 판단해야 트래픽 규모 변화에 영향을 받지 않는다.
+
+| 대상                       | 임계값                                   | 관측 기간 |
+| -------------------------- | ---------------------------------------- | --------- |
+| `?lang` query 유입         | Phase 0 기준선의 1% 이하                 | 연속 4주  |
+| unprefixed URL 직접 유입   | Phase 0 기준선의 5% 이하                 | 연속 4주  |
+| `temis.platform.locale` read | Phase 0 기준선의 1% 이하                | 연속 4주  |
+
+기준선이 애초에 작으면(예: 주당 수십 건 미만) 비율 대신 절대값 0에 가까운
+구간을 기준으로 삼고, 그 판단 근거를 릴리즈 노트에 남긴다.
+
+- [ ] `?lang` 유입률이 위 임계값 이하
+- [ ] unprefixed URL 직접 유입률이 위 임계값 이하
+- [ ] `temis.platform.locale` read 사용률이 위 임계값 이하
 - [ ] 지원 중인 bookmark/email link가 locale path로 전환
 - [ ] Studio 관리자 Preview가 명시 locale로 검증됨
 - [ ] rollback 기간 종료
+
+unprefixed URL redirect 자체는 제거하지 않는다. 외부 링크는 통제할 수 없으므로
+308 redirect는 영구 유지한다. 제거 대상은 `?lang` 해석과 localStorage 읽기다.
 
 ## 12. 최종 인수 테스트
 

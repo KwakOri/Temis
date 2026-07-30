@@ -1,6 +1,6 @@
 # Temis 소비자 서비스 다국어 지원 통합 계획
 
-최종 수정: 2026-07-30
+최종 수정: 2026-07-31
 
 ## 1. 문서 목적
 
@@ -15,6 +15,9 @@ Temis의 관리자 화면을 제외한 소비자용 웹 서비스와 사용자�
 - `temis.platform.locale`과 `temis_platform_locale`는 호환 입력으로 보존한다.
 - Studio 런타임이 독립적으로 소유하던 locale 상태는 전역 locale을 소비하도록
   전환한다.
+- 관리자 페이지를 제외하고 소비자에게 노출되는 제품·운영·템플릿 저작
+  콘텐츠 전체를 번역한다.
+- 영어·일본어는 해당 소비자 노출 범위의 번역이 끝나기 전까지 비공개로 한다.
 - 검증 없이 모든 페이지를 한 번에 전환하지 않고 화면군별 완료 기준을 통과하며
   순차 배포한다.
 
@@ -27,8 +30,8 @@ Temis의 관리자 화면을 제외한 소비자용 웹 서비스와 사용자�
    일치한다.
 4. 템플릿 이름·설명 같은 운영 콘텐츠는 locale별 원문을 저장하고 명시적으로
    번역할 수 있다.
-5. 사용자가 작성한 이름, 메모, 방송 제목과 템플릿 캔버스의 디자인 텍스트는
-   자동 번역하지 않는다.
+5. 템플릿 제작자가 제공한 라벨과 캔버스 문구는 명시적으로 번역하고, 사용자가
+   작성한 이름, 메모, 방송 제목은 원문과 저장값을 유지한다.
 6. 기존 한국어 서비스와 기존 템플릿 저장값·권한·구매 흐름을 깨지 않고
    점진적으로 전환한다.
 
@@ -36,23 +39,23 @@ Temis의 관리자 화면을 제외한 소비자용 웹 서비스와 사용자�
 
 ### 포함
 
-| 화면군      | 대표 경로                                                       | 주요 대상                                         |
-| ----------- | --------------------------------------------------------------- | ------------------------------------------------- |
-| 메인/탐색   | `/`, `/portfolio`, `/work-schedule`                             | 내비게이션, 랜딩 카피, 목록·상세, 필터, 상태      |
-| 인증/계정   | `/auth`, `/auth/signup`, `/auth/verify`, `/auth/reset-password` | 폼, 검증, 오류, 리다이렉트 안내                   |
-| 상점/주문   | `/shop`, `/shop/[id]`, `/custom-order`                          | 상품 메타데이터, 요금, 구매·주문 폼, 진행 상태    |
-| 마이페이지  | `/my-page`                                                      | 구매/작업 템플릿, 주문 이력, 프로필, Twitter 연결 |
-| 접근/설치   | `/access-denied`, `/mobile-install`                             | 보호 라우트, PWA 설치 안내                        |
-| Studio 실행 | `/template-studio/[templateId]`                                 | 런타임 플랫폼 UI와 locale 저장 통합               |
-| Legacy 실행 | `/time-table/[id]`, `/team-time-table/[id]`, `/thumbnails/[id]` | 공통 편집 UI, 템플릿별 입력 라벨, 날짜 표시 경계  |
-| 고객 접점   | 인증·권한 부여 이메일                                           | 제목, 본문, 링크의 locale                         |
+| 화면군      | 대표 경로                                                       | 주요 대상                                             |
+| ----------- | --------------------------------------------------------------- | ----------------------------------------------------- |
+| 메인/탐색   | `/`, `/portfolio`, `/work-schedule`                             | 내비게이션, 랜딩 카피, 목록·상세, 필터, 상태          |
+| 인증/계정   | `/auth`, `/auth/signup`, `/auth/verify`, `/auth/reset-password` | 폼, 검증, 오류, 리다이렉트 안내                       |
+| 상점/주문   | `/shop`, `/shop/[id]`, `/custom-order`                          | 상품 메타데이터, 요금, 구매·주문 폼, 진행 상태        |
+| 마이페이지  | `/my-page`                                                      | 구매/작업 템플릿, 주문 이력, 프로필, Twitter 연결     |
+| 접근/설치   | `/access-denied`, `/mobile-install`                             | 보호 라우트, PWA 설치 안내                            |
+| Studio 실행 | `/template-studio/[templateId]`                                 | 런타임 플랫폼 UI와 locale 저장 통합                   |
+| Legacy 실행 | `/time-table/[id]`, `/team-time-table/[id]`, `/thumbnails/[id]` | 공통 편집 UI, 템플릿별 입력·정적 문구, 날짜 표시 경계 |
+| 고객 접점   | 인증·권한 부여 이메일                                           | 제목, 본문, 링크의 locale                             |
 
 ### 제외
 
 - `/admin/**` 화면의 내비게이션, 폼, 버튼, 관리자용 오류 카피 번역
 - Template Studio 편집기와 관리자 Preview 자체의 전면 번역
 - 사용자가 입력한 텍스트의 자동 번역
-- 템플릿 캔버스의 정적 디자인 텍스트 자동 번역
+- 사용자가 입력한 콘텐츠의 기계 번역
 - 환율 계산과 통화 환전
 - 사용자 시간대 설정 및 방송 시간의 자동 시간대 변환
 - 번역 관리 SaaS 도입
@@ -61,6 +64,11 @@ Temis의 관리자 화면을 제외한 소비자용 웹 서비스와 사용자�
 관리자 UI 번역은 제외하지만 소비자에게 노출되는 locale별 상품 콘텐츠를
 입력하기 위한 최소 데이터 계약은 포함한다. 실제 관리자 입력 UI는 후속
 관리자 작업 또는 검증된 import 절차로 제공한다.
+
+이 문서의 주요 제품 방향은 2026-07-30에 확정되었다. 2026-07-31에 계획을
+코드베이스와 대조 검토해 구현 계약을 좁혔다. 확정 내용과 해석 경계는
+[확정된 의사결정](./00-confirmed-decisions.md)을 기준으로 하며, 검토에서 추가된
+결정은 같은 문서 §4.1에 있다.
 
 ## 4. 핵심 결정
 
@@ -72,13 +80,19 @@ Temis의 관리자 화면을 제외한 소비자용 웹 서비스와 사용자�
 | 소비자 URL         | locale prefix 필수: `/ko/...`, `/en/...`, `/ja/...`                           |
 | 관리자/API URL     | `/admin/**`, `/api/**`를 prefix 없이 유지                                     |
 | 번역 런타임        | App Router의 locale segment + `next-intl` 도입을 기본안으로 사용              |
+| middleware         | 기존 `src/middleware.ts`에 maintenance·locale 판정을 합성                     |
 | URL 진실 공급원    | 현재 요청의 locale path                                                       |
 | 선호 저장          | cookie를 즉시 사용하고 로그인 사용자는 `users.preferred_locale`에 동기화      |
 | 기존 저장 호환     | `temis_platform_locale`, `temis.platform.locale`, `?lang=`를 이행 기간에 읽음 |
 | 플랫폼 메시지      | locale별 정적 message catalog                                                 |
 | DB 콘텐츠          | 도메인별 translation table                                                    |
+| 번역 대상 판정     | 스키마 컬럼이 아니라 실제 렌더링 지점 기준                                    |
+| fallback           | `message fallback`은 production 금지, `content fallback`은 preview·rollback 한정 |
 | API 오류           | 안정적인 error code를 반환하고 UI에서 번역                                    |
-| 템플릿 저작 콘텐츠 | 원문 fallback + 명시적 locale 번역, 자동 번역 금지                            |
+| API 응답           | 요청 locale 텍스트만 반환하고 base 컬럼을 함께 내려보내지 않음                |
+| redirect 코드      | 이행 308, 롤백 307, maintenance 307                                           |
+| 템플릿 저작 콘텐츠 | 모든 활성 소비자 템플릿에 명시적 locale 번역 제공, 사용자 입력은 원문 유지    |
+| 폰트               | locale별 서체를 교체하지 않고 단일 stack을 공유                               |
 | 가격               | 저장 통화인 KRW를 locale 형식으로 표시, 환전하지 않음                         |
 | 시간               | 날짜/타임스탬프만 locale 포맷; 방송 시각은 wall-clock 값 유지                 |
 
@@ -121,25 +135,32 @@ services → React Query(locale in queryKey) → /api
 
 | 단계            | 작업                                                                  | 배포 관문                          |
 | --------------- | --------------------------------------------------------------------- | ---------------------------------- |
-| 0. 기준선       | 문자열·라우트·데이터 inventory, 번역 용어집, 핵심 E2E 고정            | 기존 ko 회귀 테스트 통과           |
-| 1. 기반         | locale route, provider, catalog, formatter, navigation, 호환 redirect | `/ko`에서 기존 기능 동일           |
+| 0. 기준선       | inventory, 용어집, 핵심 E2E 고정, 유입 계측, 원문 정본화, 폰트 전략 선택 | 기존 ko 회귀 테스트 통과           |
+| 1. 기반         | locale route, middleware 합성, provider, catalog, formatter, navigation, 호환 redirect, 폰트 | `/ko`에서 기존 기능 동일           |
 | 2. 핵심 일반 UI | 메인, 인증, 공통 보호 UI, 상점, 마이페이지                            | ko/en/ja 핵심 구매 여정 통과       |
 | 3. 템플릿 UI    | Studio 전역 locale 연결, Legacy 공통 UI와 파일럿 템플릿               | 양 엔진 저장·이미지 출력 회귀 없음 |
 | 4. 운영 콘텐츠  | 사용자 선호 locale, 상품·포트폴리오 translation table, locale API     | fallback과 캐시 격리 검증          |
 | 5. 보조 접점    | 맞춤 주문, 작업 일정, 설치 안내, 거래 이메일                          | locale별 고객 여정 완결            |
 | 6. 출시         | 시각·접근성·SEO·PWA 검증, 점진 노출, 모니터링                         | locale별 go/no-go 승인             |
 
-영어와 일본어 경로는 해당 단계의 필수 message와 콘텐츠가 모두 준비되기
-전에는 공개하지 않는다. 미번역 상태로 한국어 fallback을 보여 주는 URL을
-검색엔진에 노출하지 않는다.
+영어와 일본어 경로는 해당 locale에서 소비자에게 노출할 모든 제품 UI, 운영
+콘텐츠, 활성 템플릿, 거래 이메일이 준비되기 전에는 공개하지 않는다. 미번역
+상태로 한국어 fallback을 보여 주는 URL을 검색엔진에 노출하지 않는다.
 
 ## 7. 문서 구성
 
-1. [현황, 범위, 기존 결정 통합](./01-current-state-and-scope.md)
-2. [locale, 라우팅, 메시지 아키텍처](./02-locale-routing-and-messages.md)
-3. [콘텐츠와 템플릿 번역 계약](./03-content-and-template-contracts.md)
-4. [화면군별 마이그레이션 계획](./04-surface-migration-plan.md)
-5. [검증, 배포, 운영 계획](./05-quality-rollout-and-operations.md)
+1. [확정된 의사결정](./00-confirmed-decisions.md)
+2. [현황, 범위, 기존 결정 통합](./01-current-state-and-scope.md)
+3. [locale, 라우팅, 메시지 아키텍처](./02-locale-routing-and-messages.md)
+4. [콘텐츠와 템플릿 번역 계약](./03-content-and-template-contracts.md)
+5. [화면군별 마이그레이션 계획](./04-surface-migration-plan.md)
+6. [검증, 배포, 운영 계획](./05-quality-rollout-and-operations.md)
+7. [일반 도메인 en/ja 다국어 개발 계획](./06-general-domain-i18n-implementation-plan.md)
+
+00~05는 전체 범위의 설계와 계약이다. 06은 그중 **일반 도메인만 먼저 개발하기
+위한 실행 계획**이다. Template Studio 계열 작업이 진행 중이므로 파일이 겹치지
+않는 영역을 우선 개발한다. 06은 개발 순서만 좁힌 것이고 공개 시점을 정하지
+않는다. 현재 착수 대상은 06이다.
 
 ## 8. 기존 문서와의 관계
 
@@ -160,16 +181,21 @@ services → React Query(locale in queryKey) → /api
 
 - [ ] 소비자 공개 경로가 `/ko`, `/en`, `/ja`에서 동등하게 동작한다.
 - [ ] `/admin/**`와 `/api/**` 경로가 locale routing의 영향을 받지 않는다.
+- [ ] maintenance 모드가 켜진 상태에서도 locale이 보존되고 redirect loop가 없다.
 - [ ] 언어 변경 시 현재 페이지, path parameter, query parameter가 보존된다.
 - [ ] 새로고침, 로그인, 로그아웃, 다른 기기 로그인 후 선호 locale 규칙이
       문서와 일치한다.
 - [ ] `<html lang>`, canonical, `hreflang`, 페이지 metadata가 locale과 일치한다.
 - [ ] message key 누락과 지원하지 않는 locale이 CI에서 차단된다.
 - [ ] 상점/마이페이지의 locale별 데이터가 React Query cache에서 섞이지 않는다.
+- [ ] 공개 API 응답에 base 한국어 텍스트 컬럼이 함께 실려 나가지 않는다.
 - [ ] API의 사용자 노출 오류가 error code를 통해 번역된다.
-- [ ] Studio와 Legacy 템플릿 모두 플랫폼 UI는 번역되지만 사용자 입력과
-      캔버스 원문은 임의로 바뀌지 않는다.
+- [ ] Studio와 Legacy의 모든 활성 소비자 템플릿에서 플랫폼 UI와 제작자가
+      제공한 저작 문구가 번역된다.
+- [ ] 사용자 입력은 locale 변경 후에도 원문과 저장값을 유지한다.
 - [ ] locale별 날짜·숫자·KRW 형식이 일관되고 방송 시각 값이 변하지 않는다.
+- [ ] 세 locale이 같은 폰트 stack을 사용하고 폰트 변경이 Legacy·Studio 저장
+      PNG를 의도치 않게 바꾸지 않는다.
 - [ ] ko/en/ja에서 인증 → 상점 → 구매 요청 → 마이페이지 → 템플릿 실행의
       핵심 브라우저 흐름을 통과한다.
 - [ ] 영어·일본어에서 320px 모바일과 주요 데스크톱 폭의 레이아웃이 깨지지 않는다.

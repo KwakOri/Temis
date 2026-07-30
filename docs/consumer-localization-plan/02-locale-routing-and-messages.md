@@ -84,6 +84,56 @@ DB column, redirect URL에 연결하지 않는다.
 bridge가 한 번 cookie로 복사한다. 이후에는 쓰지 않고 두 릴리스 뒤 읽기
 지원도 제거한다.
 
+### 2.4 기존 middleware와의 합성
+
+`src/middleware.ts`가 이미 존재하고 maintenance 모드 redirect를 담당한다.
+Next.js는 프로젝트당 미들웨어 파일 하나만 허용하므로 locale 미들웨어를 새
+파일로 추가할 수 없다. 기존 파일 안에서 두 관심사를 합성한다.
+
+현재 동작에서 그대로 두면 깨지는 지점:
+
+| 현재 동작                                     | locale prefix 도입 후 문제                                      |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| maintenance 시 `/` 외 전 경로를 `/`로 redirect | `/en/shop` → `/` 로 가며 locale이 소실된다                      |
+| redirect 목적지가 `/`                          | `/`는 다시 locale resolver의 redirect 대상이라 2단 redirect가 된다 |
+| matcher가 `/admin`을 제외하지 않음             | locale 판정이 관리자 경로에까지 적용된다                        |
+| matcher가 확장자 일부만 제외                   | `/fonts/**`, `/icons/**`, `/landing/**`, `manifest*`가 통과한다  |
+
+확정 합성 순서:
+
+```text
+request
+  │
+  1. 정적/제외 경로 판정 (/admin, /api, /_next, public asset, manifest, robots, sitemap)
+  │     → 즉시 next() : locale·maintenance 판정 모두 건너뛴다
+  │
+  2. maintenance 모드 판정
+  │     → 차단 대상이면 /{resolvedLocale} 로 redirect (locale 보존)
+  │     → 이미 /{locale} 루트면 next() : redirect loop 방지
+  │
+  3. locale 판정
+        → prefixed URL이면 통과
+        → unprefixed URL이면 §2.3 우선순위로 308 redirect
+```
+
+규칙:
+
+- maintenance redirect 목적지는 `/`가 아니라 `/{resolvedLocale}`이다. locale
+  결정에는 §2.3의 우선순위를 재사용한다.
+- maintenance 통과 조건은 "pathname이 `/`인지"가 아니라 "pathname이 locale
+  루트인지"로 바꾼다. `/ko`, `/en`, `/ja` 모두 통과해야 한다.
+- 제외 경로 판정을 두 관심사보다 먼저 수행해 관리자·API·정적 자산이 어느
+  쪽 redirect에도 걸리지 않게 한다.
+- matcher는 negative lookahead 하나에 모든 조건을 밀어 넣지 않고, matcher로
+  1차 축소한 뒤 함수 안에서 명시적 allowlist로 재판정한다. 정규식만으로
+  판정하면 동적 slug와 확장자 예외를 구분하지 못한다.
+- `next-intl`을 도입하는 경우에도 그 미들웨어를 단독 export하지 않고 위 3단계
+  중 3번 위치에서 호출하는 형태로 감싼다.
+
+이 합성은 maintenance 모드와 locale redirect가 동시에 켜진 조합에서만 드러나는
+loop를 만들 수 있으므로 [05 §3.1](./05-quality-rollout-and-operations.md#31-locale-resolution)의
+전용 테스트 대상이다.
+
 ## 3. App Router 구조
 
 목표 구조는 소비자와 관리자의 root layout을 분리한다.
@@ -223,14 +273,30 @@ payload로 보내지 않는다.
 - HTML 문자열은 기본 금지한다. rich text가 필요하면 허용 tag callback을 사용한다.
 - translator note가 필요한 message는 인접 metadata 또는 용어집에 문맥을 기록한다.
 
-### 6.3 타입과 fallback
+### 6.3 타입과 message fallback
+
+이 계획에서 "fallback"은 두 개의 다른 규칙을 가리킨다. 같은 단어로 부르면
+구현 시 서로의 규칙을 적용하게 되므로 문서 전체에서 아래 용어로 구분한다.
+
+| 용어             | 대상             | 규칙                                                     | 정의 위치            |
+| ---------------- | ---------------- | -------------------------------------------------------- | -------------------- |
+| message fallback | message catalog  | production에서 **금지**. 누락은 CI가 차단한다            | 이 절                |
+| content fallback | DB 운영 콘텐츠   | preview·rollback에서만 허용. 공개 판정에 사용하지 않는다 | [03 §2.4](./03-content-and-template-contracts.md#24-content-fallback) |
+
+message fallback 규칙:
 
 - ko catalog를 구조 기준으로 사용한다.
 - en/ja에 누락·추가 key가 있으면 CI를 실패시킨다.
-- production UI에서 locale 간 runtime fallback을 하지 않는다.
+- production UI에서 locale 간 message fallback을 하지 않는다. 누락 key는
+  화면에 다른 언어를 표시하는 대신 빌드/CI 단계에서 막는다.
 - catalog load 자체가 실패하면 오류를 기록하고 `ko` fail-safe 페이지를
-  제공하되 해당 locale 출시 관문을 실패 처리한다.
+  제공하되 해당 locale 출시 관문을 실패 처리한다. 이것은 장애 대응이며
+  message fallback 허용이 아니다.
 - 테스트용 pseudo-locale은 production locale allowlist에 넣지 않는다.
+
+[05 §10](./05-quality-rollout-and-operations.md#10-모니터링)의 모니터링 지표는
+두 용어를 분리해 수집한다. message 계층의 지표는 "발생하면 안 되는 사건"이고,
+content 계층의 지표는 "이행 기간 동안 줄여야 하는 비율"이다.
 
 ## 7. Studio runtime 통합
 
@@ -241,10 +307,15 @@ payload로 보내지 않는다.
    selector persistence를 제거한다.
 3. shell은 `useLocale()`과 전역 language selector를 사용한다.
 4. `StudioRuntimeCopy` key를 `studio-runtime.json`으로 옮긴다.
-5. formatter 함수는 전역 formatter를 사용하되 timetable date의 UTC 계산
+5. `getLocalizedStudioAddEntryDisabledReason()`의 영어 원문 분기를 제거한다.
+   entry 추가 불가 사유를 반환하는 상위 코드가 문장 대신 안정적인 code
+   (`MULTI_REQUIRED`, `MAX_ENTRIES`, `DAY_NOT_SELECTED`)를 반환하고, UI가 그
+   code로 message key를 찾는다. 원문을 key로 쓰는 유일한 잔존 지점이므로
+   catalog 이관과 같은 단계에서 없앤다.
+6. formatter 함수는 전역 formatter를 사용하되 timetable date의 UTC 계산
    규칙은 기존 utility에 남긴다.
-6. 기존 `?lang` URL은 route compatibility redirect로만 처리한다.
-7. 두 릴리스 동안 adapter test를 유지한 뒤 중복 상수와 copy map을 제거한다.
+7. 기존 `?lang` URL은 route compatibility redirect로만 처리한다.
+8. 두 릴리스 동안 adapter test를 유지한 뒤 중복 상수와 copy map을 제거한다.
 
 관리자 Preview가 같은 runtime shell을 재사용한다는 점에 주의한다. 관리자
 Preview에는 admin 고정 locale 또는 명시적 preview locale prop을 전달해
@@ -302,3 +373,67 @@ consumer provider가 없어서 깨지지 않게 한다.
   manifest를 제공한다. 구현 PoC에서 설치·업데이트 동작을 비교해 결정한다.
 - PWA cache는 locale path/query가 cache key에 포함되는지 검증하고, rollout
   시 cache version을 올려 기존 한국어 응답의 교차 노출을 방지한다.
+
+## 11. 폰트와 typography
+
+### 11.1 현재 상태
+
+`src/app/layout.tsx`는 Geist / Geist Mono를 `subsets: ["latin"]`으로만
+선언한다. 한글과 일본어 glyph는 전부 OS 시스템 폰트 fallback으로 렌더링되고
+있다. 즉 지금도 한국어 화면의 실제 서체는 기기마다 다르다.
+
+일본어를 추가하면 이 문제가 커진다. 같은 문자열이 기기별로 다른 서체·자폭으로
+렌더링되므로, 레이아웃 검증 결과를 재현할 수 없다.
+
+### 11.2 결정
+
+- 폰트는 locale별로 교체하지 않고, 하나의 fallback stack에 CJK 폰트를 추가해
+  세 locale이 같은 stack을 공유한다. locale마다 다른 서체를 쓰면 언어 전환 시
+  레이아웃이 흔들린다.
+- 한국어·일본어 웹폰트를 새로 로드할 경우 `next/font`의 subset 지정과
+  `display: swap`을 사용하고, 초기 로드 크기 예산을 먼저 정한 뒤 도입한다.
+  CJK 폰트는 latin 대비 파일이 크므로 무조건 추가하지 않는다.
+- 웹폰트를 추가하지 않고 시스템 fallback stack을 명시적으로 정의하는 선택도
+  허용한다. 이 경우 "서체가 기기별로 다르다"는 것을 알려진 제약으로 문서화하고
+  레이아웃 검증을 가장 좁은 자폭 기준으로 수행한다.
+- 둘 중 어느 쪽을 택하든 `font-family` 값을 한 곳에서 정의하고 컴포넌트가
+  개별적으로 폰트를 지정하지 않게 한다.
+
+### 11.3 PNG 출력물 회귀 주의
+
+소비자 화면에는 DOM을 PNG로 저장하는 경로가 두 개 있고, 서로 다른 라이브러리를
+쓴다.
+
+| 경로              | 구현 지점                                                    | 라이브러리                      |
+| ----------------- | ------------------------------------------------------------ | ------------------------------- |
+| Legacy 시간표 저장 | `src/hooks/useTimeTableState.ts`의 `downloadImage()`          | `modern-screenshot` `domToPng`  |
+| Studio 런타임 저장 | `template-studio-runtime-shell.tsx`의 `savePreviewImage()`    | `html-to-image` `toPng`         |
+
+폰트 stack이나 `-webkit-font-smoothing` 값이 바뀌면 **두 경로의 저장 결과
+이미지가 모두 변한다.** 이는 `weekdayOption`/`monthOption`을 불변으로 유지하는
+것과는 별개의 리스크이며, Legacy만의 문제가 아니다. 두 라이브러리는 스타일
+직렬화 방식이 달라 같은 변경에도 영향 정도가 다를 수 있으므로 각각 확인한다.
+
+따라서 폰트 관련 변경은 다음을 만족해야 한다.
+
+- 번역 작업 commit과 분리한다.
+- 변경 전후 PNG를 Legacy 파일럿 템플릿과 Studio 런타임 양쪽에서 비교한다
+  ([05 §3.5](./05-quality-rollout-and-operations.md#35-template-studio),
+  [05 §3.6](./05-quality-rollout-and-operations.md#36-legacy)).
+- `src/app/layout.tsx`의 `$antialiased` 오타 수정도 여기에 해당한다. 오타를
+  고치면 `body`에 Tailwind `antialiased`가 실제로 적용되기 시작해 텍스트 두께가
+  변하므로, 단순 오타 수정으로 취급하지 않고 PNG 회귀 확인 대상에 넣는다.
+
+영향 범위에 예외가 있다. 아래 두 Legacy 템플릿은 자체 CSS에서 `html` 선택자에
+이미 `-webkit-font-smoothing: antialiased`를 전역으로 지정하고 있어 오타 수정의
+영향을 받지 않는다.
+
+```text
+src/app/(root)/time-table/f156601a-2c4b-479c-bec7-19aed782d812/_styles/index.css
+src/app/(root)/time-table/24a5b103-4940-427b-b9f7-f1ae766ddbdd/_styles/index.css
+```
+
+두 파일은 `html`에 전역으로 규칙을 걸기 때문에 해당 템플릿 페이지가 로드되는
+동안 다른 화면에도 영향을 준다. PNG 비교 대상 파일럿을 고를 때 이 두 템플릿만
+보면 "변화 없음"이라는 잘못된 결론이 나온다. 자체 CSS에 폰트 스무딩 지정이 없는
+템플릿을 최소 하나 포함한다.
