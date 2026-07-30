@@ -231,6 +231,7 @@ import {
   getStudioTextWrapMode,
   STUDIO_TEXT_WRAP_MODE_OPTIONS,
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
+  type StudioTextWrapMode,
 } from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import {
@@ -1311,6 +1312,45 @@ function TextAlignmentField({ value, onChange }: TextAlignmentFieldProps) {
         ))}
       </div>
     </div>
+  );
+}
+
+interface LineBreakFieldProps {
+  value: StudioTextWrapMode;
+  onChange: (value: StudioTextWrapMode) => void;
+}
+
+/**
+ * Auto Text의 줄바꿈 모드 컨트롤. Cards graph 노드와 Timetable composition
+ * 오브젝트 인스펙터가 같은 컨트롤을 쓴다.
+ */
+function LineBreakField({ value, onChange }: LineBreakFieldProps) {
+  const description = STUDIO_TEXT_WRAP_MODE_OPTIONS.find(
+    (option) => option.value === value,
+  )?.description;
+
+  return (
+    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>Line Breaks</span>
+      <select
+        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+        value={value}
+        onChange={(event) =>
+          onChange(event.currentTarget.value as StudioTextWrapMode)
+        }
+      >
+        {STUDIO_TEXT_WRAP_MODE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {description ? (
+        <span className="text-[10px] font-medium text-[var(--fg3)]">
+          {description}
+        </span>
+      ) : null}
+    </label>
   );
 }
 
@@ -9031,6 +9071,14 @@ export function TemplateStudioClient({
             });
           }}
         />
+        {object.kind === "flexibleText" ? (
+          <LineBreakField
+            value={getStudioTextWrapMode(styleRecord)}
+            onChange={(mode) =>
+              updateTimetableTextStyle(STUDIO_TEXT_WRAP_MODE_STYLE_KEY, mode)
+            }
+          />
+        ) : null}
         <NumberField
           label="Line Height"
           value={Number(styleRecord.lineHeight ?? 1.2)}
@@ -9183,10 +9231,6 @@ export function TemplateStudioClient({
       selectedFontFamily,
     );
     const selectedTextWrapMode = getStudioTextWrapMode(styleRecord);
-    const selectedTextWrapModeDescription =
-      STUDIO_TEXT_WRAP_MODE_OPTIONS.find(
-        (option) => option.value === selectedTextWrapMode,
-      )?.description ?? "";
 
     const bindingInputId = getStudioBindingInputId(selectedNode.binding);
     const bindingBuiltinFieldId =
@@ -9680,28 +9724,15 @@ export function TemplateStudioClient({
                   onChange={updateSelectedNodeTextAlignment}
                 />
                 {selectedNode.type === "flexibleText" ? (
-                  <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                    <span>Line Breaks</span>
-                    <select
-                      className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                      value={selectedTextWrapMode}
-                      onChange={(event) =>
-                        updateSelectedNodeStyle(
-                          STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
-                          event.currentTarget.value,
-                        )
-                      }
-                    >
-                      {STUDIO_TEXT_WRAP_MODE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-[10px] font-medium text-[var(--fg3)]">
-                      {selectedTextWrapModeDescription}
-                    </span>
-                  </label>
+                  <LineBreakField
+                    value={selectedTextWrapMode}
+                    onChange={(mode) =>
+                      updateSelectedNodeStyle(
+                        STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
+                        mode,
+                      )
+                    }
+                  />
                 ) : null}
                 <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
                   <span>Color</span>

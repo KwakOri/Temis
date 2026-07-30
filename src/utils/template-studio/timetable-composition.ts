@@ -1,12 +1,13 @@
 import {
   StudioInputId,
+  StudioRuntimeValues,
+  StudioTemplateDocument,
   StudioTimetableAssetSlot,
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
+  StudioTimetableCompositionObjectId,
   StudioTimetableDomain,
   StudioTimetableObjectPresetId,
-  StudioRuntimeValues,
-  StudioTemplateDocument,
 } from "@/types/template-studio";
 import { getStudioRuntimeInputValue } from "@/utils/template-studio/input-values";
 import {
@@ -417,7 +418,10 @@ export const normalizeStudioTimetableCompositionObject = (
     };
   }
 
-  if (presetId === "weeklyMemo" && object.kind === "text") {
+  if (
+    presetId === "weeklyMemo" &&
+    (object.kind === "text" || object.kind === "flexibleText")
+  ) {
     const inputId =
       object.binding?.kind === "inputText" ? object.binding.inputId : undefined;
 
@@ -446,11 +450,7 @@ export const normalizeStudioTimetableCompositionObject = (
         ? object.style.borderRadius
         : 56;
     const maskShape =
-      maskRadius >= 9999
-        ? "circle"
-        : maskRadius <= 0
-          ? "rectangle"
-          : "rounded";
+      maskRadius >= 9999 ? "circle" : maskRadius <= 0 ? "rectangle" : "rounded";
 
     return {
       ...object,
@@ -472,7 +472,10 @@ export const normalizeStudioTimetableCompositionObject = (
     };
   }
 
-  if (presetId === "artistProfileText" && object.kind === "text") {
+  if (
+    presetId === "artistProfileText" &&
+    (object.kind === "text" || object.kind === "flexibleText")
+  ) {
     const inputId =
       object.binding?.kind === "inputText" ? object.binding.inputId : undefined;
     const assetSlot = object.assetSlots?.asset;
@@ -524,8 +527,9 @@ const getStudioProfileBlockChildIds = (groupId: string) => ({
 const createStudioProfileBlockGroupFromLegacyObject = (
   object: StudioTimetableCompositionObject,
 ) => {
-  const { backPlateId, userImageId, frameId } =
-    getStudioProfileBlockChildIds(object.id);
+  const { backPlateId, userImageId, frameId } = getStudioProfileBlockChildIds(
+    object.id,
+  );
   const geometry = getStudioTimetableCompositionObjectGeometry(object);
   const profileImageSlot = object.assetSlots?.profileImage;
   const profileFrameSlot = object.assetSlots?.profileFrame;
@@ -743,13 +747,12 @@ const createStudioStructuredTextGroupFromLegacyObject = (
       ...commonChildStyle,
       backgroundColor: object.style.backgroundColor,
     },
-    assetSlots: legacyAssetSlot
-      ? { asset: { ...legacyAssetSlot } }
-      : undefined,
+    assetSlots: legacyAssetSlot ? { asset: { ...legacyAssetSlot } } : undefined,
   };
   const text: StudioTimetableCompositionObject = {
     id: textId,
-    kind: presetId === "weeklyMemo" ? "flexibleText" : "text",
+    // 구조화 텍스트 프리셋은 박스 안에서 자동 리사이즈되는 Auto Text를 쓴다.
+    kind: "flexibleText",
     label:
       presetId === "artistProfileText"
         ? "artist_text_object"
@@ -960,7 +963,8 @@ const normalizeStudioTimetableComposition = (
 ): StudioTimetableComposition => {
   const objects: StudioTimetableComposition["objects"] = Object.fromEntries(
     Object.entries(composition?.objects ?? {}).map(([objectId, object]) => {
-      const normalizedObject = normalizeStudioTimetableCompositionObject(object);
+      const normalizedObject =
+        normalizeStudioTimetableCompositionObject(object);
       return [
         objectId,
         {
@@ -1023,10 +1027,7 @@ const normalizeStudioTimetableComposition = (
         objects,
         "artistProfileText",
       );
-    } else if (
-      object.presetId === "topObject" &&
-      object.kind === "topObject"
-    ) {
+    } else if (object.presetId === "topObject" && object.kind === "topObject") {
       converted = createStudioTopObjectGroupFromLegacyObject(object);
     }
 
@@ -1219,9 +1220,7 @@ export const createStudioStructuredTextPresetObjects = (
   );
   const baseLabel = isWeeklyMemo ? "Weekly Memo" : "Artist";
   const label = suffix === 1 ? baseLabel : `${baseLabel} ${suffix}`;
-  const width = isWeeklyMemo
-    ? STUDIO_WEEKLY_MEMO_WIDTH
-    : STUDIO_ARTIST_WIDTH;
+  const width = isWeeklyMemo ? STUDIO_WEEKLY_MEMO_WIDTH : STUDIO_ARTIST_WIDTH;
   const height = isWeeklyMemo
     ? STUDIO_WEEKLY_MEMO_HEIGHT
     : STUDIO_ARTIST_HEIGHT;
@@ -1302,7 +1301,8 @@ export const createStudioStructuredTextPresetObjects = (
   };
   const textObject: StudioTimetableCompositionObject = {
     id: onChildIds.textId,
-    kind: isWeeklyMemo ? "flexibleText" : "text",
+    // 구조화 텍스트 프리셋은 박스 안에서 자동 리사이즈되는 Auto Text를 쓴다.
+    kind: "flexibleText",
     label: isWeeklyMemo ? "weekly_memo_text_object" : "artist_text_object",
     parentId: onGroupId,
     structuredRole: "text",
@@ -1408,10 +1408,7 @@ export const createStudioTopObjectPresetObjects = (
       overflow: "visible",
     },
     meta: {
-      exception: createStudioTopObjectExceptionMeta(
-        options.assetId,
-        "contain",
-      ),
+      exception: createStudioTopObjectExceptionMeta(options.assetId, "contain"),
     },
   };
   const onGroup = createStudioVariantStateGroup(
@@ -1757,3 +1754,62 @@ export const getStudioTimetableCompositionObjectGeometry = (
   width: getNumericStyleValue(object, "width", 0),
   height: getNumericStyleValue(object, "height", 0),
 });
+
+const STUDIO_STRUCTURED_TEXT_PRESET_IDS =
+  new Set<StudioTimetableObjectPresetId>(["weeklyMemo", "artistProfileText"]);
+
+const findStudioStructuredTextPresetId = (
+  composition: StudioTimetableComposition,
+  object: StudioTimetableCompositionObject,
+): StudioTimetableObjectPresetId | null => {
+  let current: StudioTimetableCompositionObject | undefined = object;
+  const visitedObjectIds = new Set<StudioTimetableCompositionObjectId>();
+
+  while (current && !visitedObjectIds.has(current.id)) {
+    visitedObjectIds.add(current.id);
+    if (
+      current.presetId &&
+      STUDIO_STRUCTURED_TEXT_PRESET_IDS.has(current.presetId)
+    ) {
+      return current.presetId;
+    }
+    current = current.parentId
+      ? composition.objects[current.parentId]
+      : undefined;
+  }
+
+  return null;
+};
+
+/**
+ * 구조화 텍스트 프리셋(`Weekly Memo`, `Artist`)의 텍스트 자식을 Auto Text로 올린다.
+ *
+ * `Artist`는 과거에 고정 크기 `text`로 저장돼서 박스를 넘치면 잘렸다. 신규 생성은
+ * 이제 `flexibleText`로 만들지만, 이미 저장된 문서는 여기서 한 번 올려준다.
+ */
+export const ensureStudioStructuredTextFlexibleKind = (
+  composition: StudioTimetableComposition,
+): string[] => {
+  const upgradedCountByPreset = new Map<
+    StudioTimetableObjectPresetId,
+    number
+  >();
+
+  Object.values(composition.objects).forEach((object) => {
+    if (object.structuredRole !== "text" || object.kind !== "text") return;
+
+    const presetId = findStudioStructuredTextPresetId(composition, object);
+    if (!presetId) return;
+
+    object.kind = "flexibleText";
+    upgradedCountByPreset.set(
+      presetId,
+      (upgradedCountByPreset.get(presetId) ?? 0) + 1,
+    );
+  });
+
+  return Array.from(upgradedCountByPreset.entries()).map(
+    ([presetId, count]) =>
+      `Upgraded ${count} ${getStudioTimetablePresetLabel(presetId)} text object(s) to Auto Text.`,
+  );
+};

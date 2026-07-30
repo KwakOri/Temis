@@ -1,16 +1,19 @@
 import { StudioTemplateDocument } from "@/types/template-studio";
-import {
-  ensureStudioTimetableCapabilityStatus,
-  getStudioTimetableCapabilities,
-} from "@/utils/template-studio/timetable-capabilities";
-import { getStudioTimetableComposition } from "@/utils/template-studio/timetable-composition";
+import { ensureStudioTimetableEntryGroupContract } from "@/utils/template-studio/entry-groups";
 import {
   ensureStudioTimetableVariantInput,
   isStudioTimetableVariantInputCompatible,
 } from "@/utils/template-studio/preset-inputs";
-import { ensureStudioTimetableEntryGroupContract } from "@/utils/template-studio/entry-groups";
-import { ensureStudioIndependentStatusVariants } from "@/utils/template-studio/status-variants";
 import { ensureStudioStatusCardBackgroundBaseColors } from "@/utils/template-studio/status-card-background";
+import { ensureStudioIndependentStatusVariants } from "@/utils/template-studio/status-variants";
+import {
+  ensureStudioTimetableCapabilityStatus,
+  getStudioTimetableCapabilities,
+} from "@/utils/template-studio/timetable-capabilities";
+import {
+  ensureStudioStructuredTextFlexibleKind,
+  getStudioTimetableComposition,
+} from "@/utils/template-studio/timetable-composition";
 
 export const STUDIO_TEMPLATE_DOCUMENT_SCHEMA = "studio_template_document";
 export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 6;
@@ -127,6 +130,9 @@ export const migrateStudioTemplateDocument = (
       warnings.push("Added default timetable composition.");
     }
     timetable.composition = getStudioTimetableComposition(timetable);
+    warnings.push(
+      ...ensureStudioStructuredTextFlexibleKind(timetable.composition),
+    );
     warnings.push(...ensureStudioTimetableEntryGroupContract(document));
     warnings.push(...ensureStudioIndependentStatusVariants(document));
     if (typeof value.version === "number" && value.version < 6) {
