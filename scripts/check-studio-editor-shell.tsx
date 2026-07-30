@@ -17,6 +17,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { StudioEditorShell } from "../src/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "../src/components/studio/editor-shell/studio-guide-control";
 import { StudioLeftSidebar } from "../src/components/studio/editor-shell/studio-left-sidebar";
+import {
+  StudioPropertiesPanel,
+  type StudioPropertyItem,
+} from "../src/components/studio/editor-shell/studio-properties-panel";
 import { StudioTopToolbar } from "../src/components/studio/editor-shell/studio-top-toolbar";
 
 const noop = () => {};
@@ -386,5 +390,185 @@ const shellWithoutOverlays = renderToStaticMarkup(
 );
 assert.ok(shellWithoutOverlays.includes("<main"));
 assert.ok(!shellWithoutOverlays.includes("undefined"));
+
+// --- 우측 속성 패널 기준선 ---
+//
+// 섹션 목록은 인라인 JSX에서 도메인 배열로 바뀐 부분이다. 추출 이전 시간표
+// Cards 모드의 섹션 구성과 순서를 여기에 고정한다.
+
+const TIMETABLE_CARDS_SECTIONS = [
+  "position:Position",
+  "layout:Layout",
+  "appearance:Appearance",
+  "binding:Binding",
+  "typography:Typography",
+  "diagnostics:Diagnostics",
+];
+
+const cardsSectionItems: StudioPropertyItem[] = TIMETABLE_CARDS_SECTIONS.map(
+  (id) => ({
+    id,
+    title: id.split(":")[1],
+    open: true,
+    content: <div data-section={id}>{id}</div>,
+    onToggle: noop,
+  }),
+);
+
+const baseSelectionHeader = {
+  icon: "T",
+  title: "Text",
+  summary: "1 selected",
+  renameValue: "Card title",
+  onRenameChange: noop,
+};
+
+const panelMarkup = renderToStaticMarkup(
+  <StudioPropertiesPanel
+    header={baseSelectionHeader}
+    sections={cardsSectionItems}
+  />,
+);
+
+// 프레임 구조: 280px 고정 너비와 패널 자체 스크롤
+assert.ok(
+  panelMarkup.startsWith(
+    '<aside class="template-studio-scrollbar w-[280px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-[var(--border)] bg-[var(--panel)]">',
+  ),
+  "우측 패널은 280px 고정 너비이고 패널 안에서만 스크롤한다.",
+);
+
+// 선택 헤더: 아이콘 배지 → 이름 → 선택 개수
+assert.ok(
+  panelMarkup.includes(
+    '<div class="border-b border-[var(--border)] px-4 py-3">' +
+      '<div class="mb-3 flex items-center gap-2">' +
+      '<span class="flex h-[18px] w-[18px] items-center justify-center rounded-[5px] bg-[var(--sel)] text-[11px] font-extrabold text-[var(--accent)]">T</span>' +
+      '<span class="text-[12.5px] font-semibold text-[var(--fg)]">Text</span>' +
+      '<span class="ml-auto text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">1 selected</span>' +
+      "</div>",
+  ),
+  "선택 헤더는 아이콘 배지, 이름, 선택 개수를 이 순서로 유지한다.",
+);
+
+// 이름 변경 입력: 값이 그대로 들어가고 기본은 활성 상태다.
+assert.ok(
+  panelMarkup.includes(
+    '<div class="flex h-[34px] items-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5">',
+  ),
+  "이름 변경 입력 행의 프레임이 유지돼야 한다.",
+);
+assert.ok(
+  panelMarkup.includes(
+    '<input class="min-w-0 flex-1 bg-transparent text-[12.5px] font-semibold text-[var(--fg)] outline-none disabled:text-[var(--fg3)]" value="Card title"/>',
+  ),
+  "이름 변경 입력은 넘긴 값을 그대로 보여준다.",
+);
+
+// 섹션은 넘긴 순서대로 렌더된다.
+const sectionOrder = [...panelMarkup.matchAll(/data-section="([^"]+)"/g)].map(
+  (match) => match[1],
+);
+assert.deepEqual(
+  sectionOrder,
+  TIMETABLE_CARDS_SECTIONS,
+  "Cards 모드 섹션 구성과 순서가 바뀌면 안 된다.",
+);
+
+// 섹션 프레임과 접힘 표현
+assert.ok(
+  panelMarkup.includes('<section class="border-b border-[var(--border)]">'),
+  "섹션은 아래쪽 구분선을 가진 section 프레임을 쓴다.",
+);
+assert.equal(
+  (panelMarkup.match(/rotate-90/g) ?? []).length,
+  TIMETABLE_CARDS_SECTIONS.length,
+  "열린 섹션의 chevron은 모두 90도 회전한다.",
+);
+
+// 선택이 없을 때의 이름 변경 입력은 비활성이다.
+const emptySelectionMarkup = renderToStaticMarkup(
+  <StudioPropertiesPanel
+    header={{
+      ...baseSelectionHeader,
+      icon: <span>I</span>,
+      title: "Cards",
+      summary: "0 selected",
+      renameDisabled: true,
+      renameValue: "No selection",
+    }}
+    sections={[
+      {
+        kind: "block",
+        id: "cards:emptySelection",
+        content: (
+          <p className="p-4 text-sm font-medium text-[var(--fg2)]">
+            Select an object from the canvas or layer tree.
+          </p>
+        ),
+      },
+    ]}
+  />,
+);
+assert.ok(
+  emptySelectionMarkup.includes('disabled="" value="No selection"'),
+  "선택이 없으면 이름 변경 입력이 비활성이어야 한다.",
+);
+
+// block 항목은 접이식 프레임 없이 그대로 렌더된다.
+assert.ok(
+  emptySelectionMarkup.includes(
+    '<p class="p-4 text-sm font-medium text-[var(--fg2)]">Select an object from the canvas or layer tree.</p>',
+  ),
+  "block 항목은 섹션 프레임 없이 그대로 렌더된다.",
+);
+assert.ok(
+  !emptySelectionMarkup.includes("<section"),
+  "block 항목을 섹션 프레임으로 감싸면 안 된다.",
+);
+
+// 접힌 섹션은 내용을 렌더하지 않고, 배지와 도메인 버튼은 유지된다.
+const collapsedMarkup = renderToStaticMarkup(
+  <StudioPropertiesPanel
+    header={baseSelectionHeader}
+    sections={[
+      {
+        id: "binding:Binding",
+        title: "Binding",
+        badge: "Dynamic",
+        open: false,
+        content: <div data-section="binding">binding</div>,
+        onToggle: noop,
+      },
+      {
+        id: "position:Position",
+        title: "Position",
+        action: <button type="button">Fit</button>,
+        open: true,
+        content: <div data-section="position">position</div>,
+        onToggle: noop,
+      },
+    ]}
+  />,
+);
+assert.ok(
+  !collapsedMarkup.includes('data-section="binding"'),
+  "접힌 섹션은 내용을 렌더하지 않는다.",
+);
+assert.ok(
+  collapsedMarkup.includes(">Dynamic</span>"),
+  "섹션 배지가 유지돼야 한다.",
+);
+assert.ok(
+  collapsedMarkup.includes(
+    '<div class="pr-4"><button type="button">Fit</button></div>',
+  ),
+  "섹션 제목 행의 도메인 버튼이 유지돼야 한다.",
+);
+assert.equal(
+  (collapsedMarkup.match(/rotate-90/g) ?? []).length,
+  1,
+  "열린 섹션만 chevron이 회전한다.",
+);
 
 console.log("Studio editor shell baseline checks passed.");
