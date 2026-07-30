@@ -1,7 +1,8 @@
 "use client";
 
 import { Check } from "lucide-react";
-import {
+// jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
+import React, {
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
