@@ -160,6 +160,22 @@ import {
   type StudioTextAlignment,
 } from "@/utils/template-studio/node-style-commands";
 import {
+  applyStudioDeleteTimetableObject,
+  applyStudioTimetableObjectFitParent,
+  applyStudioTimetableObjectOffset,
+  applyStudioTimetableObjectPosition,
+  getStudioTimetableDayCardLayerId,
+  getStudioTimetableDeleteMessage,
+  getStudioTimetableOrderedDayIds,
+  isStudioPlacedTimetableObject,
+  planStudioDeleteTimetableObject,
+  reorderStudioIdList,
+  resolveStudioTimetableLayerTarget,
+  roundStudioCoordinate,
+  setStudioTimetableDayOffset,
+  type StudioTimetableObjectPosition,
+} from "@/utils/template-studio/timetable-commands";
+import {
   isStudioFillParentLayout,
   isStudioPlacedTimetableCompositionObject,
   resolveStudioGraphNodeGeometry,
@@ -3449,6 +3465,15 @@ export function TemplateStudioClient({
     [updateDocument],
   );
 
+  /** 기본값과 dayOffsets를 펼친 day cards 레이아웃 초안. */
+  const createTimetableDayCardsLayoutDraft = (
+    timetable: StudioTimetableDomain,
+  ) => ({
+    ...STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT,
+    ...(timetable.dayCardsLayout ?? {}),
+    dayOffsets: { ...(timetable.dayCardsLayout?.dayOffsets ?? {}) },
+  });
+
   const toggleTimetableObjectFitParent = useCallback(
     (objectId: string) => {
       updateDocument((nextDocument) => {
@@ -3457,33 +3482,21 @@ export function TemplateStudioClient({
 
         const composition = ensureStudioTimetableComposition(timetable);
         const object = composition.objects[objectId];
-        if (!object || !isStudioPlacedTimetableCompositionObject(object))
-          return;
+        if (!isStudioPlacedTimetableObject(object)) return;
 
-        const shouldFillParent = !isStudioFillParentLayout(object.layoutMode);
-        const resolvedGeometry = resolveStudioTimetableObjectGeometry(
-          composition,
-          objectId,
-          getStudioTimetablePreviewSize(timetable),
+        applyStudioTimetableObjectFitParent(
+          object,
+          !isStudioFillParentLayout(object.layoutMode),
+          resolveStudioTimetableObjectGeometry(
+            composition,
+            objectId,
+            getStudioTimetablePreviewSize(timetable),
+          ),
         );
-
-        object.layoutMode = shouldFillParent ? "fillParent" : "fixed";
-        object.style = {
-          ...object.style,
-          left: 0,
-          top: 0,
-          ...(shouldFillParent
-            ? {}
-            : {
-                width: resolvedGeometry.width,
-                height: resolvedGeometry.height,
-              }),
-        };
       });
     },
     [updateDocument],
   );
-
   const addTimetablePresetObject = useCallback(
     (preset: StudioTimetableCompositionPreset) => {
       const existingObjectId = getStudioPresetExistingTargetId(
@@ -3761,28 +3774,22 @@ export function TemplateStudioClient({
       targetObjectId: string,
       position: "before" | "after",
     ) => {
-      if (sourceObjectId === targetObjectId) return;
-
       updateDocument((nextDocument) => {
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
 
         const composition = ensureStudioTimetableComposition(timetable);
-        const rootObjectIds = composition.rootObjectIds.filter(
-          (objectId) => composition.objects[objectId],
+        const nextRootObjectIds = reorderStudioIdList(
+          composition.rootObjectIds.filter(
+            (objectId) => composition.objects[objectId],
+          ),
+          sourceObjectId,
+          targetObjectId,
+          position,
         );
-        const sourceIndex = rootObjectIds.indexOf(sourceObjectId);
-        const targetIndex = rootObjectIds.indexOf(targetObjectId);
-        if (sourceIndex < 0 || targetIndex < 0) return;
+        if (!nextRootObjectIds) return;
 
-        const [movedObjectId] = rootObjectIds.splice(sourceIndex, 1);
-        const adjustedTargetIndex =
-          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
-        const insertIndex =
-          position === "after" ? adjustedTargetIndex + 1 : adjustedTargetIndex;
-
-        rootObjectIds.splice(insertIndex, 0, movedObjectId);
-        composition.rootObjectIds = rootObjectIds;
+        composition.rootObjectIds = nextRootObjectIds;
       });
 
       setSelectedTimetableLayerId(sourceObjectId);
@@ -3790,51 +3797,39 @@ export function TemplateStudioClient({
     },
     [showShortcutStatus, updateDocument],
   );
-
   const moveTimetableDayLayer = useCallback(
     (
       sourceDayId: StudioTimetableDayId,
       targetDayId: StudioTimetableDayId,
       position: "before" | "after",
     ) => {
-      if (sourceDayId === targetDayId) return;
-
       updateDocument((nextDocument) => {
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
 
-        const orderedDayIds = timetable.dayIds
-          .filter((dayId) => timetable.days[dayId])
-          .sort(
-            (leftDayId, rightDayId) =>
-              timetable.days[leftDayId].order -
-              timetable.days[rightDayId].order,
-          );
-        const sourceIndex = orderedDayIds.indexOf(sourceDayId);
-        const targetIndex = orderedDayIds.indexOf(targetDayId);
-        if (sourceIndex < 0 || targetIndex < 0) return;
+        const nextDayIds = reorderStudioIdList(
+          getStudioTimetableOrderedDayIds(timetable),
+          sourceDayId,
+          targetDayId,
+          position,
+        );
+        if (!nextDayIds) return;
 
-        const [movedDayId] = orderedDayIds.splice(sourceIndex, 1);
-        const adjustedTargetIndex =
-          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
-        const insertIndex =
-          position === "after" ? adjustedTargetIndex + 1 : adjustedTargetIndex;
-
-        orderedDayIds.splice(insertIndex, 0, movedDayId);
-        timetable.dayIds = orderedDayIds;
-        orderedDayIds.forEach((dayId, order) => {
+        timetable.dayIds = nextDayIds;
+        nextDayIds.forEach((dayId, order) => {
           timetable.days[dayId].order = order;
         });
       });
 
-      setSelectedTimetableLayerId(`day-card:${sourceDayId}`);
+      setSelectedTimetableLayerId(
+        getStudioTimetableDayCardLayerId(sourceDayId),
+      );
       setSelectedRuntimeDayId(sourceDayId);
       setSelectedRuntimeEntryIndex(0);
       showShortcutStatus("Moved day card container");
     },
     [showShortcutStatus, updateDocument],
   );
-
   const selectTimetableCanvasLayer = useCallback((layerId: string) => {
     setSelectedTimetableLayerId(layerId);
     setPanelMode("layers");
@@ -3849,145 +3844,99 @@ export function TemplateStudioClient({
   const updateTimetableLayerPosition = useCallback(
     (
       layerId: string,
-      nextPosition: {
-        left?: number;
-        top?: number;
-        width?: number;
-        height?: number;
-        rotateDeg?: number;
-      },
+      nextPosition: StudioTimetableObjectPosition,
       options: UpdateOptions = {},
     ) => {
       updateDocument((nextDocument) => {
         const timetable = nextDocument.domains?.timetable;
         if (!timetable) return;
 
-        const layout = {
-          ...STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT,
-          ...(timetable.dayCardsLayout ?? {}),
-          dayOffsets: {
-            ...(timetable.dayCardsLayout?.dayOffsets ?? {}),
-          },
-        };
         const composition = ensureStudioTimetableComposition(timetable);
         const object = composition.objects[layerId];
-        const getEntryCardSizeForDay = (dayId: StudioTimetableDayId) =>
-          getStudioTimetableEntryCardSize(
-            nextDocument,
-            getStudioTimetableDayComponent(nextDocument, dayId),
+
+        if (isStudioPlacedTimetableObject(object)) {
+          applyStudioTimetableObjectPosition(
+            object,
+            nextPosition,
+            getStudioTimetableCompositionObjectGeometry(object),
           );
-
-        if (isStudioPlacedTimetableCompositionObject(object)) {
-          const updatesBounds =
-            nextPosition.left !== undefined ||
-            nextPosition.top !== undefined ||
-            nextPosition.width !== undefined ||
-            nextPosition.height !== undefined;
-          if (updatesBounds && isStudioFillParentLayout(object.layoutMode)) {
-            return;
-          }
-
-          const currentGeometry =
-            getStudioTimetableCompositionObjectGeometry(object);
-
-          object.style = {
-            ...object.style,
-            left: Number(
-              (nextPosition.left ?? currentGeometry.left).toFixed(2),
-            ),
-            top: Number((nextPosition.top ?? currentGeometry.top).toFixed(2)),
-            width: Number(
-              (nextPosition.width ?? currentGeometry.width).toFixed(2),
-            ),
-            height: Number(
-              (nextPosition.height ?? currentGeometry.height).toFixed(2),
-            ),
-            rotateDeg: Number(
-              (
-                nextPosition.rotateDeg ??
-                (typeof object.style.rotateDeg === "number"
-                  ? object.style.rotateDeg
-                  : 0)
-              ).toFixed(2),
-            ),
-          };
           return;
         }
 
-        if (layerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
-          layout.left = Number((nextPosition.left ?? layout.left).toFixed(2));
-          layout.top = Number((nextPosition.top ?? layout.top).toFixed(2));
-          const dayCardsObject =
-            composition.objects[STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID];
+        const layout = createTimetableDayCardsLayoutDraft(timetable);
+        const target = resolveStudioTimetableLayerTarget(layerId);
+
+        if (target.kind === "dayCards") {
+          layout.left = roundStudioCoordinate(nextPosition.left ?? layout.left);
+          layout.top = roundStudioCoordinate(nextPosition.top ?? layout.top);
+
+          const dayCardsObject = composition.objects[layerId];
           if (dayCardsObject && nextPosition.rotateDeg !== undefined) {
             dayCardsObject.style = {
               ...dayCardsObject.style,
-              rotateDeg: Number(nextPosition.rotateDeg.toFixed(2)),
+              rotateDeg: roundStudioCoordinate(nextPosition.rotateDeg),
             };
           }
+
           timetable.dayCardsLayout = layout;
           return;
         }
 
-        if (!layerId.startsWith("day-card:")) return;
+        if (target.kind !== "dayCard") return;
 
-        const dayId = layerId.replace(/^day-card:/, "") as StudioTimetableDayId;
-        const orderedDayIds = timetable.dayIds
-          .filter((currentDayId) => timetable.days[currentDayId])
-          .sort(
-            (leftDayId, rightDayId) =>
-              timetable.days[leftDayId].order -
-              timetable.days[rightDayId].order,
-          );
+        const { dayId } = target;
+        const orderedDayIds = getStudioTimetableOrderedDayIds(timetable);
         const dayIndex = orderedDayIds.indexOf(dayId);
         if (dayIndex < 0) return;
 
-        const currentOffset = layout.dayOffsets[dayId] ?? { left: 0, top: 0 };
-        const orderedDays = orderedDayIds
-          .map((currentDayId) => timetable.days[currentDayId])
-          .filter(Boolean);
+        const getEntryCardSizeForDay = (currentDayId: StudioTimetableDayId) =>
+          getStudioTimetableEntryCardSize(
+            nextDocument,
+            getStudioTimetableDayComponent(nextDocument, currentDayId),
+          );
+        const getEntryCountForDay = (currentDayId: StudioTimetableDayId) =>
+          getStudioTimetableEntriesForDay(
+            nextDocument,
+            runtimeValues,
+            currentDayId,
+          ).length;
+
+        // 보정 값을 뺀 기준 좌표를 알아야 새 보정 값을 구할 수 있다.
         const dayGeometry =
           getStudioTimetableDayCardGeometries(
             layout,
-            orderedDays,
-            (currentDayId) =>
-              getStudioTimetableEntriesForDay(
-                nextDocument,
-                runtimeValues,
-                currentDayId,
-              ).length,
+            orderedDayIds
+              .map((currentDayId) => timetable.days[currentDayId])
+              .filter(Boolean),
+            getEntryCountForDay,
             getEntryCardSizeForDay,
           )[dayId] ??
           getStudioTimetableDayCardGeometry(
             layout,
             dayId,
             dayIndex,
-            getStudioTimetableEntriesForDay(nextDocument, runtimeValues, dayId)
-              .length,
+            getEntryCountForDay(dayId),
             getEntryCardSizeForDay(dayId),
           );
+        const currentOffset = layout.dayOffsets[dayId] ?? { left: 0, top: 0 };
         const baseLeft = dayGeometry.left - currentOffset.left;
         const baseTop = dayGeometry.top - currentOffset.top;
-        layout.dayOffsets[dayId] = {
-          left: Number(
-            (nextPosition.left !== undefined
+
+        setStudioTimetableDayOffset(layout, dayId, {
+          left:
+            nextPosition.left !== undefined
               ? nextPosition.left - baseLeft
-              : currentOffset.left
-            ).toFixed(2),
-          ),
-          top: Number(
-            (nextPosition.top !== undefined
+              : currentOffset.left,
+          top:
+            nextPosition.top !== undefined
               ? nextPosition.top - baseTop
-              : currentOffset.top
-            ).toFixed(2),
-          ),
-        };
+              : currentOffset.top,
+        });
         timetable.dayCardsLayout = layout;
       }, options);
     },
     [runtimeValues, updateDocument],
   );
-
   const updateTimetableDayCardsLayout = useCallback(
     (
       recipe: (layout: StudioTimetableDayCardsLayout) => void,
@@ -4012,51 +3961,38 @@ export function TemplateStudioClient({
           const timetable = nextDocument.domains?.timetable;
           if (!timetable) return;
 
-          const layout = {
-            ...STUDIO_TIMETABLE_DEFAULT_DAY_CARDS_LAYOUT,
-            ...(timetable.dayCardsLayout ?? {}),
-            dayOffsets: {
-              ...(timetable.dayCardsLayout?.dayOffsets ?? {}),
-            },
-          };
           const composition = ensureStudioTimetableComposition(timetable);
           const object = composition.objects[layerId];
 
-          if (isStudioPlacedTimetableCompositionObject(object)) {
-            if (isStudioFillParentLayout(object.layoutMode)) return;
-
-            const currentGeometry =
-              getStudioTimetableCompositionObjectGeometry(object);
-
-            object.style = {
-              ...object.style,
-              left: Number((currentGeometry.left + delta.deltaX).toFixed(2)),
-              top: Number((currentGeometry.top + delta.deltaY).toFixed(2)),
-            };
+          if (isStudioPlacedTimetableObject(object)) {
+            applyStudioTimetableObjectOffset(
+              object,
+              delta,
+              getStudioTimetableCompositionObjectGeometry(object),
+            );
             return;
           }
 
-          if (layerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
-            layout.left = Number((layout.left + delta.deltaX).toFixed(2));
-            layout.top = Number((layout.top + delta.deltaY).toFixed(2));
+          const layout = createTimetableDayCardsLayoutDraft(timetable);
+          const target = resolveStudioTimetableLayerTarget(layerId);
+
+          if (target.kind === "dayCards") {
+            layout.left = roundStudioCoordinate(layout.left + delta.deltaX);
+            layout.top = roundStudioCoordinate(layout.top + delta.deltaY);
             timetable.dayCardsLayout = layout;
             return;
           }
 
-          if (!layerId.startsWith("day-card:")) return;
+          if (target.kind !== "dayCard") return;
 
-          const dayId = layerId.replace(
-            /^day-card:/,
-            "",
-          ) as StudioTimetableDayId;
-          const currentOffset = layout.dayOffsets[dayId] ?? {
+          const currentOffset = layout.dayOffsets[target.dayId] ?? {
             left: 0,
             top: 0,
           };
-          layout.dayOffsets[dayId] = {
-            left: Number((currentOffset.left + delta.deltaX).toFixed(2)),
-            top: Number((currentOffset.top + delta.deltaY).toFixed(2)),
-          };
+          setStudioTimetableDayOffset(layout, target.dayId, {
+            left: currentOffset.left + delta.deltaX,
+            top: currentOffset.top + delta.deltaY,
+          });
           timetable.dayCardsLayout = layout;
         },
         { history: false },
@@ -4064,7 +4000,6 @@ export function TemplateStudioClient({
     },
     [updateDocument],
   );
-
   const resolveTimetableDragLayerId = useCallback(
     ({
       targetNodeId,
@@ -4456,127 +4391,37 @@ export function TemplateStudioClient({
   ]);
 
   const deleteSelectedTimetableObject = useCallback(() => {
-    const selectedObjectId = selectedTimetableLayerId;
-
-    if (!selectedObjectId) {
-      showShortcutStatus("No timetable object selected");
+    const plan = planStudioDeleteTimetableObject(
+      timetableComposition,
+      selectedTimetableLayerId,
+    );
+    if (!plan.ok) {
+      showShortcutStatus(plan.reason);
       return;
     }
-
-    if (selectedObjectId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID) {
-      showShortcutStatus("Day Card Containers is locked");
-      return;
-    }
-
-    if (selectedObjectId.startsWith("day-card:")) {
-      showShortcutStatus("Generated day cards are locked");
-      return;
-    }
-
-    const selectedObject = timetableComposition.objects[selectedObjectId];
-
-    if (!selectedObject) {
-      showShortcutStatus("Timetable object not found");
-      return;
-    }
-
-    const objectIdsToDelete = new Set<string>();
-    const collectObject = (objectId: string) => {
-      const object = timetableComposition.objects[objectId];
-      if (!object || objectIdsToDelete.has(objectId)) return;
-
-      objectIdsToDelete.add(objectId);
-      (object.childIds ?? []).forEach(collectObject);
-    };
-
-    collectObject(selectedObjectId);
-
-    if (objectIdsToDelete.size === 0) {
-      showShortcutStatus("Timetable delete failed");
-      return;
-    }
-
-    const fallbackSelectionId =
-      selectedObject.parentId &&
-      !objectIdsToDelete.has(selectedObject.parentId) &&
-      timetableComposition.objects[selectedObject.parentId]
-        ? selectedObject.parentId
-        : STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID;
 
     updateDocument((nextDocument) => {
       const timetable = nextDocument.domains?.timetable;
       if (!timetable) return;
 
-      const composition = ensureStudioTimetableComposition(timetable);
-      const nextObjectIdsToDelete = new Set<string>();
-      const collectNextObject = (objectId: string) => {
-        const object = composition.objects[objectId];
-        if (!object || nextObjectIdsToDelete.has(objectId)) return;
-
-        nextObjectIdsToDelete.add(objectId);
-        (object.childIds ?? []).forEach(collectNextObject);
-      };
-
-      collectNextObject(selectedObjectId);
-
-      if (nextObjectIdsToDelete.has(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID)) {
-        nextObjectIdsToDelete.delete(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
-      }
-
-      Object.values(composition.objects).forEach((object) => {
-        if (!object.childIds) return;
-        object.childIds = object.childIds.filter(
-          (childId) => !nextObjectIdsToDelete.has(childId),
-        );
-        if (object.variantSet) {
-          Object.entries(object.variantSet.rootByValue).forEach(
-            ([value, rootObjectId]) => {
-              if (rootObjectId && nextObjectIdsToDelete.has(rootObjectId)) {
-                object.variantSet!.rootByValue[value] = null;
-              }
-            },
-          );
-
-          const activeRootId =
-            object.variantSet.rootByValue[
-              object.variantSet.activeValue ?? object.variantSet.defaultValue
-            ];
-          if (!activeRootId) {
-            const nextActiveOption = object.variantSet.options.find(
-              (option) => object.variantSet?.rootByValue[option.value],
-            );
-            object.variantSet.activeValue =
-              nextActiveOption?.value ?? object.variantSet.defaultValue;
-          }
-        }
-      });
-
-      composition.rootObjectIds = composition.rootObjectIds.filter(
-        (objectId) => !nextObjectIdsToDelete.has(objectId),
+      applyStudioDeleteTimetableObject(
+        ensureStudioTimetableComposition(timetable),
+        plan.objectIds,
       );
-
-      nextObjectIdsToDelete.forEach((objectId) => {
-        delete composition.objects[objectId];
-      });
     });
 
-    setSelectedTimetableLayerId(fallbackSelectionId);
+    setSelectedTimetableLayerId(plan.fallbackSelectionId);
     setCollapsedTimetableLayerIds((currentLayerIds) =>
-      currentLayerIds.filter((layerId) => !objectIdsToDelete.has(layerId)),
+      currentLayerIds.filter((layerId) => !plan.objectIds.includes(layerId)),
     );
     setNodePicker(null);
-    showShortcutStatus(
-      `Deleted ${objectIdsToDelete.size} timetable ${
-        objectIdsToDelete.size === 1 ? "object" : "objects"
-      }`,
-    );
+    showShortcutStatus(getStudioTimetableDeleteMessage(plan.objectIds.length));
   }, [
     selectedTimetableLayerId,
     showShortcutStatus,
     timetableComposition,
     updateDocument,
   ]);
-
   const deleteActiveSelection = useCallback(() => {
     if (activeWorkspaceMode === "timetable") {
       deleteSelectedTimetableObject();

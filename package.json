@@ -39,6 +39,7 @@
     "check:studio:graph-commands": "tsx scripts/check-studio-graph-commands.ts",
     "check:studio:node-commands": "tsx scripts/check-studio-node-commands.ts",
     "check:studio:node-style-commands": "tsx scripts/check-studio-node-style-commands.ts",
+    "check:studio:timetable-commands": "tsx scripts/check-studio-timetable-commands.ts",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",
