@@ -176,6 +176,12 @@ import {
   type StudioTimetableObjectPosition,
 } from "@/utils/template-studio/timetable-commands";
 import {
+  getStudioTimetablePresetMessage,
+  insertStudioTimetablePresetObject,
+  relinkStudioTimetablePresetInput,
+  type StudioTimetablePresetInsertResult,
+} from "@/utils/template-studio/timetable-preset-commands";
+import {
   isStudioFillParentLayout,
   isStudioPlacedTimetableCompositionObject,
   resolveStudioGraphNodeGeometry,
@@ -190,11 +196,7 @@ import {
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
 import {
-  ensureStudioArtistProfileTextInput,
   ensureStudioPresetImageInput,
-  ensureStudioTimetableVariantInput,
-  ensureStudioWeeklyMemoInput,
-  isStudioTimetableVariantInputCompatible,
   STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
   STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL,
   STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
@@ -219,12 +221,6 @@ import {
   createSampleStudioDocument,
 } from "@/utils/template-studio/sample-document";
 import {
-  bindStudioArtistProfileTextObjectToInput,
-  bindStudioWeeklyMemoObjectToInput,
-  createStudioProfileBlockPresetObjects,
-  createStudioStructuredTextPresetObjects,
-  createStudioTopObjectPresetObjects,
-  createStudioTimetablePresetObject,
   ensureStudioTimetableComposition,
   getStudioTimetableComposition,
   getStudioTimetableCompositionObjectGeometry,
@@ -818,36 +814,6 @@ const getStudioOpacityPercent = (value: unknown): number => {
   if (!Number.isFinite(parsedValue)) return 100;
   const percent = parsedValue <= 1 ? parsedValue * 100 : parsedValue;
   return Math.min(Math.max(Math.round(percent), 0), 100);
-};
-
-const findTimetableStructuredTextObject = (
-  composition: StudioTimetableComposition,
-  rootObject: StudioTimetableCompositionObject | undefined,
-) => {
-  if (!rootObject) return null;
-
-  const visitedObjectIds = new Set<string>();
-  const queue = [...(rootObject.childIds ?? [])];
-
-  while (queue.length > 0) {
-    const objectId = queue.shift();
-    if (!objectId || visitedObjectIds.has(objectId)) continue;
-    visitedObjectIds.add(objectId);
-
-    const object = composition.objects[objectId];
-    if (!object) continue;
-
-    if (
-      object.structuredRole === "text" &&
-      (object.kind === "text" || object.kind === "flexibleText")
-    ) {
-      return object;
-    }
-
-    queue.push(...(object.childIds ?? []));
-  }
-
-  return null;
 };
 
 const normalizeRuntimeValuesForTimetableCapabilities = (
@@ -3505,269 +3471,52 @@ export function TemplateStudioClient({
       );
 
       if (preset.singleton && existingObjectId) {
-        let linkedPresetInput = false;
-
-        if (
-          preset.timetableObjectPresetId === "weeklyMemo" ||
-          preset.timetableObjectPresetId === "artistProfileText" ||
-          preset.timetableObjectPresetId === "topObject"
-        ) {
-          updateDocument((nextDocument) => {
-            const timetable = nextDocument.domains?.timetable;
-            if (!timetable) return;
-
-            const composition = ensureStudioTimetableComposition(timetable);
-            const rootObject = composition.objects[existingObjectId];
-            if (
-              !rootObject?.variantSet ||
-              isStudioTimetableVariantInputCompatible(
-                nextDocument,
-                rootObject.variantSet.inputId,
-              )
-            ) {
-              return;
-            }
-
-            const variantInput = ensureStudioTimetableVariantInput(
-              nextDocument,
-              preset.timetableObjectPresetId,
-            );
-            if (!variantInput) return;
-
-            rootObject.variantSet.inputId = variantInput.inputId;
-            linkedPresetInput = true;
-          });
-        }
-
-        if (
-          preset.timetableObjectPresetId === "weeklyMemo" ||
-          preset.timetableObjectPresetId === "artistProfileText"
-        ) {
-          updateDocument((nextDocument) => {
-            const timetable = nextDocument.domains?.timetable;
-            if (!timetable) return;
-
-            const composition = ensureStudioTimetableComposition(timetable);
-            const rootObject = composition.objects[existingObjectId];
-            const object =
-              rootObject?.kind === "group"
-                ? findTimetableStructuredTextObject(composition, rootObject)
-                : rootObject;
-            if (
-              !object ||
-              (object.kind !== "text" && object.kind !== "flexibleText")
-            ) {
-              return;
-            }
-
-            const { inputId } =
-              preset.timetableObjectPresetId === "weeklyMemo"
-                ? ensureStudioWeeklyMemoInput(nextDocument)
-                : ensureStudioArtistProfileTextInput(nextDocument);
-            if (
-              object.binding?.kind !== "inputText" ||
-              object.binding.inputId !== inputId
-            ) {
-              if (preset.timetableObjectPresetId === "weeklyMemo") {
-                bindStudioWeeklyMemoObjectToInput(object, inputId);
-              } else {
-                bindStudioArtistProfileTextObjectToInput(object, inputId);
-              }
-              linkedPresetInput = true;
-            }
-          });
-        }
-
-        if (preset.timetableObjectPresetId === "profileBlock") {
-          updateDocument((nextDocument) => {
-            const timetable = nextDocument.domains?.timetable;
-            if (!timetable) return;
-
-            const composition = ensureStudioTimetableComposition(timetable);
-            const group = composition.objects[existingObjectId];
-            const userImageObject = group?.childIds
-              ?.map((childId) => composition.objects[childId])
-              .find((child) => child?.profileRole === "userImage");
-            if (!userImageObject) return;
-
-            const currentSlot = userImageObject.assetSlots?.asset;
-            const defaultUrl = currentSlot?.assetId
-              ? (nextDocument.assets[currentSlot.assetId]?.src ?? "")
-              : "";
-            const { inputId } = ensureStudioPresetImageInput(nextDocument, {
-              label: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
-              scope: "global",
-              placeholder: "Paste profile image URL",
-              defaultUrl,
-            });
-
-            if (currentSlot?.inputId !== inputId) {
-              setStudioTimetableObjectAssetInputSlot(
-                userImageObject,
-                "asset",
-                inputId,
-                currentSlot?.fit ?? "cover",
-              );
-              linkedPresetInput = true;
-            }
-          });
-        }
+        let linkedInput = false;
+        updateDocument((nextDocument) => {
+          linkedInput = relinkStudioTimetablePresetInput(
+            nextDocument,
+            preset,
+            existingObjectId,
+          );
+        });
 
         setSelectedTimetableLayerId(existingObjectId);
         setPanelMode("layers");
         showShortcutStatus(
-          linkedPresetInput
-            ? `Linked ${preset.label} to input`
-            : `Selected existing ${preset.label}`,
+          getStudioTimetablePresetMessage(preset.label, {
+            existing: true,
+            linkedInput,
+          }),
         );
         return;
       }
 
-      let insertedObjectId: string | null = null;
-      let linkedPresetInput = false;
-
+      const insertion: { result: StudioTimetablePresetInsertResult | null } = {
+        result: null,
+      };
       updateDocument((nextDocument) => {
-        const timetable = nextDocument.domains?.timetable;
-        if (!timetable) return;
-
-        const composition = ensureStudioTimetableComposition(timetable);
-        const presetTextInput =
-          preset.timetableObjectPresetId === "weeklyMemo"
-            ? ensureStudioWeeklyMemoInput(nextDocument)
-            : preset.timetableObjectPresetId === "artistProfileText"
-              ? ensureStudioArtistProfileTextInput(nextDocument)
-              : null;
-        const variantInput =
-          preset.timetableObjectPresetId === "weeklyMemo" ||
-          preset.timetableObjectPresetId === "artistProfileText" ||
-          preset.timetableObjectPresetId === "topObject"
-            ? ensureStudioTimetableVariantInput(
-                nextDocument,
-                preset.timetableObjectPresetId,
-              )
-            : null;
-        const assetIds = Object.keys(nextDocument.assets);
-        const findAssetId = (keywords: string[]) =>
-          Object.values(nextDocument.assets).find((asset) => {
-            const searchable = `${asset.id} ${asset.label}`.toLowerCase();
-            return keywords.some((keyword) => searchable.includes(keyword));
-          })?.id;
-        const profileImageAssetId =
-          findAssetId(["profile", "avatar", "portrait", "photo"]) ??
-          assetIds[0];
-        const backPlateAssetId =
-          findAssetId(["back_plate", "back plate", "backplate", "plate"]) ??
-          assetIds[0];
-        const frameAssetId =
-          findAssetId(["frame", "border"]) ?? assetIds[1] ?? assetIds[0];
-
-        if (preset.timetableObjectPresetId === "profileBlock") {
-          const { inputId } = ensureStudioPresetImageInput(nextDocument, {
-            label: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
-            scope: "global",
-            placeholder: "Paste profile image URL",
-            defaultUrl: profileImageAssetId
-              ? (nextDocument.assets[profileImageAssetId]?.src ?? "")
-              : "",
-          });
-          const { group, children } = createStudioProfileBlockPresetObjects(
-            composition,
-            {
-              inputId,
-              backPlateAssetId,
-              frameAssetId,
-            },
-          );
-
-          composition.objects[group.id] = group;
-          children.forEach((child) => {
-            composition.objects[child.id] = child;
-          });
-          composition.rootObjectIds.push(group.id);
-          insertedObjectId = group.id;
-          linkedPresetInput = true;
-          return;
-        }
-
-        if (
-          preset.timetableObjectPresetId === "weeklyMemo" ||
-          preset.timetableObjectPresetId === "artistProfileText"
-        ) {
-          const { group, children } = createStudioStructuredTextPresetObjects(
-            preset.timetableObjectPresetId,
-            composition,
-            {
-              inputId: presetTextInput?.inputId,
-              variantInputId: variantInput?.inputId,
-            },
-          );
-          composition.objects[group.id] = group;
-          children.forEach((child) => {
-            composition.objects[child.id] = child;
-          });
-          composition.rootObjectIds.push(group.id);
-          insertedObjectId = group.id;
-          linkedPresetInput = Boolean(presetTextInput || variantInput);
-          return;
-        }
-
-        const defaultAssetId =
-          preset.timetableObjectPresetId === "topObject"
-            ? (assetIds[1] ?? assetIds[0])
-            : undefined;
-        if (preset.timetableObjectPresetId === "topObject") {
-          const { group, children } = createStudioTopObjectPresetObjects(
-            composition,
-            {
-              assetId: defaultAssetId,
-              variantInputId: variantInput?.inputId,
-            },
-          );
-          composition.objects[group.id] = group;
-          children.forEach((child) => {
-            composition.objects[child.id] = child;
-          });
-          composition.rootObjectIds.push(group.id);
-          insertedObjectId = group.id;
-          linkedPresetInput = Boolean(variantInput);
-          return;
-        }
-
-        const object = createStudioTimetablePresetObject(
-          preset.timetableObjectPresetId,
-          composition,
-          {
-            inputId: presetTextInput?.inputId,
-            assetId: defaultAssetId,
-          },
+        insertion.result = insertStudioTimetablePresetObject(
+          nextDocument,
+          preset,
         );
-
-        composition.objects[object.id] = object;
-        if (preset.timetableObjectPresetId === "board") {
-          composition.rootObjectIds.unshift(object.id);
-        } else {
-          composition.rootObjectIds.push(object.id);
-        }
-        insertedObjectId = object.id;
-        linkedPresetInput = Boolean(presetTextInput);
       });
 
-      if (!insertedObjectId) {
+      if (!insertion.result) {
         showShortcutStatus("Timetable is not available");
         return;
       }
 
-      setSelectedTimetableLayerId(insertedObjectId);
+      setSelectedTimetableLayerId(insertion.result.objectId);
       setPanelMode("layers");
       showShortcutStatus(
-        linkedPresetInput
-          ? `Added ${preset.label} with input`
-          : `Added ${preset.label}`,
+        getStudioTimetablePresetMessage(preset.label, {
+          existing: false,
+          linkedInput: insertion.result.linkedInput,
+        }),
       );
     },
     [document, showShortcutStatus, updateDocument],
   );
-
   const moveTimetableRootObjectLayer = useCallback(
     (
       sourceObjectId: string,
