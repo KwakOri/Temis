@@ -4,7 +4,10 @@ import type {
   StudioRuntimeValues,
   StudioTimetableDomain,
 } from "../src/types/template-studio";
-import { migrateStudioTemplateDocument } from "../src/utils/template-studio/migrations";
+import {
+  migrateStudioTemplateDocument,
+  STUDIO_TEMPLATE_DOCUMENT_VERSION,
+} from "../src/utils/template-studio/migrations";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 import { cloneStudioComponentVariant } from "../src/utils/template-studio/component-variants";
 import {
@@ -306,7 +309,10 @@ const legacyBackgroundMigration = migrateStudioTemplateDocument(
 if (!legacyBackgroundMigration.ok) {
   throw new Error(legacyBackgroundMigration.message);
 }
-assert.equal(legacyBackgroundMigration.document.version, 6);
+assert.equal(
+  legacyBackgroundMigration.document.version,
+  STUDIO_TEMPLATE_DOCUMENT_VERSION,
+);
 assert.ok(
   legacyBackgroundMigration.warnings.some((warning) =>
     warning.includes("status background asset maps"),
@@ -607,7 +613,10 @@ delete legacyDocument.graph.nodes[legacyGroup.id];
 
 const legacyMigration = migrateStudioTemplateDocument(legacyDocument);
 if (!legacyMigration.ok) throw new Error(legacyMigration.message);
-assert.equal(legacyMigration.document.version, 6);
+assert.equal(
+  legacyMigration.document.version,
+  STUDIO_TEMPLATE_DOCUMENT_VERSION,
+);
 const migratedLegacyComponent =
   legacyMigration.document.domains!.timetable!.components.defaultEntryCard;
 assert.ok(migratedLegacyComponent.frame);

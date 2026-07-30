@@ -33,6 +33,13 @@ export type StudioDayLabelFormat =
   | "koreanLong"
   | "koreanShort";
 
+/**
+ * 제품과 문서 도메인 종류.
+ *
+ * `template_engine`(렌더링 엔진)과는 다른 축이다. 두 값을 하나로 합치지 않는다.
+ */
+export type StudioTemplateKind = "timetable" | "thumbnail";
+
 export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
 export type StudioBuiltinFieldType = "text" | "boolean" | "status";
@@ -117,6 +124,64 @@ export interface StudioExceptionObjectMeta {
   capabilityFlags?: StudioTimetableCapabilityKey[];
 }
 
+export interface StudioTextFill {
+  type: "solid";
+  color: string;
+  opacity: number;
+}
+
+export interface StudioTextStroke {
+  id: string;
+  label?: string;
+  enabled: boolean;
+  color: string;
+  /**
+   * glyph 바깥으로 보이는 실효 두께.
+   *
+   * 중앙 정렬 CSS stroke는 절반이 glyph 안쪽으로 들어가므로 렌더러가 2배로
+   * 변환한다. 인스펙터 표시와 effect outset 계산은 이 값을 그대로 쓴다.
+   */
+  outset: number;
+  opacity: number;
+}
+
+export interface StudioTextShadow {
+  enabled: boolean;
+  color: string;
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+  opacity: number;
+}
+
+/**
+ * 적용 출처만 기록한다. 렌더링은 노드에 복사된 값을 기준으로 하므로 프리셋을
+ * 수정해도 기존 문서가 바뀌지 않는다.
+ *
+ * `builtin`은 코드 registry의 ID와 version, `custom`은 저장된 row의 ID와
+ * version을 뜻한다. 두 출처의 ID가 우연히 같아도 `source`로 구분한다.
+ */
+export interface StudioTextPresetReference {
+  source: "builtin" | "custom";
+  presetId: string;
+  presetVersion: number;
+}
+
+/**
+ * 순서가 있는 다중 효과는 scalar `StudioStyleRecord`로 표현할 수 없어 노드
+ * 필드에 둔다.
+ *
+ * 주의: 시간표의 `applyStudioVariantStyle()`은 `document.styles`만 복사하므로
+ * 이 값은 상태 variant 사이에 자동 전파되지 않는다. 시간표가 공용 텍스트 효과를
+ * 채택할 때 전파 유틸을 함께 확장해야 한다.
+ */
+export interface StudioTextAppearance {
+  fill: StudioTextFill;
+  strokes: StudioTextStroke[];
+  shadow?: StudioTextShadow;
+  presetRef?: StudioTextPresetReference;
+}
+
 export interface StudioGraphNodeMeta {
   semantic?: StudioSemanticMeta;
   exception?: StudioExceptionObjectMeta;
@@ -161,12 +226,34 @@ export interface StudioGraphNode {
   assetSlots?: Record<string, StudioTimetableAssetSlot>;
   fit?: StudioImageFit;
   locked?: boolean;
+  /** `text`와 `flexibleText`에만 유효하다. */
+  textAppearance?: StudioTextAppearance;
   meta?: StudioGraphNodeMeta;
 }
 
 export interface StudioNodeGraph {
   rootNodeIds: StudioNodeId[];
   nodes: Record<StudioNodeId, StudioGraphNode>;
+}
+
+/** 사용자 입력 폼의 배치 정보. 값 자체에는 영향을 주지 않는다. */
+export interface StudioInputPresentation {
+  order?: number;
+  groupId?: string;
+  helpText?: string;
+}
+
+/**
+ * 사용자에게 허용할 이미지 조작 범위.
+ *
+ * 사용자 UI의 권한만 제어하고 이미지 스타일을 대체하지 않는다.
+ */
+export interface StudioImageInputPolicy {
+  allowFitChange: boolean;
+  allowFocusChange: boolean;
+  allowReplace?: boolean;
+  allowCrop?: boolean;
+  recommendedAspectRatio?: number;
 }
 
 export interface StudioInputBase {
@@ -176,6 +263,7 @@ export interface StudioInputBase {
   label: string;
   description?: string;
   required?: boolean;
+  presentation?: StudioInputPresentation;
 }
 
 export interface StudioBuiltinFieldDefinition {
@@ -200,6 +288,7 @@ export interface StudioImageInputDefinition extends StudioInputBase {
   type: "image";
   defaultUrl?: string;
   placeholder?: string;
+  policy?: StudioImageInputPolicy;
 }
 
 export interface StudioSelectOption {
@@ -406,18 +495,43 @@ export interface StudioTimetableRuntimeValues {
   offlineMemoByDay?: Record<StudioTimetableDayId, string>;
 }
 
+/**
+ * 썸네일 도메인.
+ *
+ * 시간표의 일자, 항목, 카드 상태, Component Set, capability 같은 데이터는
+ * 넣지 않는다. 사용자 입력값은 `StudioRuntimeValues.global`에 둔다.
+ */
+export interface StudioThumbnailDomain {
+  version: 1;
+  export: {
+    defaultFormat: "png";
+    transparentBackground: boolean;
+  };
+  guide?: StudioTimetableGuideResource;
+}
+
 export interface StudioTemplateDomains {
   timetable?: StudioTimetableDomain;
+  thumbnail?: StudioThumbnailDomain;
+}
+
+/**
+ * canonical 문서의 metadata.
+ *
+ * `kind`는 필수다. `kind`가 없는 레거시 입력은 로드와 migration 경계에서만
+ * 허용하고 `getStudioTemplateKind()`로 흡수한다.
+ */
+export interface StudioTemplateMetadata {
+  editor: "template-studio";
+  kind: StudioTemplateKind;
+  name: string;
+  description?: string;
 }
 
 export interface StudioTemplateDocument {
   schema: "studio_template_document";
-  version: 6;
-  metadata: {
-    editor: "template-studio";
-    name: string;
-    description?: string;
-  };
+  version: 7;
+  metadata: StudioTemplateMetadata;
   canvas: StudioCanvasConfig;
   graph: StudioNodeGraph;
   inputs: Record<StudioInputId, StudioInputDefinition>;

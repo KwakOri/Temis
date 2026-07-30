@@ -25,6 +25,7 @@ import {
   isStudioTimetableStatusAvailable,
 } from "@/utils/template-studio/timetable-capabilities";
 import { isStudioStatusCardBackgroundNode } from "@/utils/template-studio/status-card-background";
+import { isStudioTemplateKind } from "@/utils/template-studio/template-kind";
 import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
 import { getStudioVariantEntryGroups } from "@/utils/template-studio/entry-groups";
 import { getStudioOfflineMemoTextNode } from "@/utils/template-studio/status-variants";
@@ -1806,6 +1807,96 @@ const validateTimetableDomain = (
   return diagnostics;
 };
 
+/**
+ * 템플릿 종류와 도메인의 일치를 검사한다.
+ *
+ * 하나의 문서가 두 도메인을 동시에 활성화하지 않는다는 불변식을 지킨다.
+ */
+const validateTemplateKindContract = (
+  document: StudioTemplateDocument,
+): StudioDiagnostic[] => {
+  const diagnostics: StudioDiagnostic[] = [];
+  const kind = document.metadata?.kind;
+
+  if (!isStudioTemplateKind(kind)) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "template-kind-missing",
+        "Missing template kind",
+        "The document metadata needs kind set to timetable or thumbnail.",
+      ),
+    );
+    return diagnostics;
+  }
+
+  const hasTimetable = Boolean(document.domains?.timetable);
+  const hasThumbnail = Boolean(document.domains?.thumbnail);
+
+  if (hasTimetable && hasThumbnail) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "template-kind-both-domains",
+        "Two active domains",
+        "A document activates either the timetable or the thumbnail domain, not both.",
+      ),
+    );
+  }
+
+  if (kind === "thumbnail" && hasTimetable) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "template-kind-domain-mismatch:thumbnail",
+        "Thumbnail document has a timetable domain",
+        "A thumbnail document must not carry domains.timetable.",
+      ),
+    );
+  }
+
+  if (kind === "timetable" && hasThumbnail) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "template-kind-domain-mismatch:timetable",
+        "Timetable document has a thumbnail domain",
+        "A timetable document must not carry domains.thumbnail.",
+      ),
+    );
+  }
+
+  if (kind === "thumbnail" && !hasThumbnail) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        "template-kind-domain-missing:thumbnail",
+        "Missing thumbnail domain",
+        "A thumbnail document needs domains.thumbnail.",
+      ),
+    );
+  }
+
+  return diagnostics;
+};
+
+/**
+ * `textAppearance`는 텍스트 노드에만 유효하다.
+ */
+const validateTextAppearance = (node: StudioGraphNode): StudioDiagnostic[] => {
+  if (!node.textAppearance) return [];
+  if (isStudioTextNode(node)) return [];
+
+  return [
+    createDiagnostic(
+      "warning",
+      `text-appearance-unsupported:${node.id}`,
+      "Text appearance on a non-text node",
+      `${node.label} is not a text node, so its text appearance is ignored.`,
+    ),
+  ];
+};
+
 export const validateStudioDocument = (
   document: StudioTemplateDocument,
 ): StudioDiagnostic[] => {
@@ -1813,7 +1904,10 @@ export const validateStudioDocument = (
   const nodes = document.graph.nodes;
   const inputConsumers = collectStudioInputConsumers(document);
 
-  diagnostics.push(...validateGraphIntegrity(document));
+  diagnostics.push(
+    ...validateTemplateKindContract(document),
+    ...validateGraphIntegrity(document),
+  );
 
   (document.resources?.webFonts ?? []).forEach((source, index) => {
     if (
@@ -1936,6 +2030,7 @@ export const validateStudioDocument = (
     diagnostics.push(
       ...validateBinding(document, node),
       ...validateGraphNodeAssetSlots(document, node),
+      ...validateTextAppearance(node),
     );
   });
 

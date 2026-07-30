@@ -59,9 +59,10 @@ const ensureIndependentSampleVariants = (
 export const createSampleStudioDocument = (): StudioTemplateDocument =>
   ensureIndependentSampleVariants({
     schema: "studio_template_document",
-    version: 6,
+    version: 7,
     metadata: {
       editor: "template-studio",
+      kind: "timetable",
       name: "Template Studio Sample",
       description: "Cards and timetable sample document",
     },

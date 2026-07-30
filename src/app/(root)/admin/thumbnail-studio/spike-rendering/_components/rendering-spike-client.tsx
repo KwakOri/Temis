@@ -32,9 +32,10 @@ const RASTERIZERS: Rasterizer[] = ["html-to-image", "modern-screenshot"];
 
 const createSpikeDocument = (): StudioTemplateDocument => ({
   schema: "studio_template_document",
-  version: 6,
+  version: 7,
   metadata: {
     editor: "template-studio",
+    kind: "thumbnail",
     name: "Rendering Spike",
   },
   canvas: { width: 640, height: 360, background: "#ffffff" },

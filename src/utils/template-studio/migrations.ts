@@ -11,12 +11,18 @@ import {
   getStudioTimetableCapabilities,
 } from "@/utils/template-studio/timetable-capabilities";
 import {
+  getStudioTemplateKind,
+  isStudioTemplateKind,
+} from "@/utils/template-studio/template-kind";
+import {
   ensureStudioStructuredTextFlexibleKind,
   getStudioTimetableComposition,
 } from "@/utils/template-studio/timetable-composition";
 
 export const STUDIO_TEMPLATE_DOCUMENT_SCHEMA = "studio_template_document";
-export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 6;
+export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 7;
+
+const SUPPORTED_SOURCE_VERSIONS = new Set([1, 2, 3, 4, 5, 6, 7]);
 
 export type StudioTemplateDocumentMigrationResult =
   | {
@@ -65,12 +71,8 @@ export const migrateStudioTemplateDocument = (
   }
 
   if (
-    value.version !== 1 &&
-    value.version !== 2 &&
-    value.version !== 3 &&
-    value.version !== 4 &&
-    value.version !== 5 &&
-    value.version !== STUDIO_TEMPLATE_DOCUMENT_VERSION
+    typeof value.version !== "number" ||
+    !SUPPORTED_SOURCE_VERSIONS.has(value.version)
   ) {
     return {
       ok: false,
@@ -101,6 +103,15 @@ export const migrateStudioTemplateDocument = (
       `Migrated Template Studio document from version ${value.version} to version ${STUDIO_TEMPLATE_DOCUMENT_VERSION}.`,
     );
   }
+
+  // v7부터 canonical 문서는 종류를 명시한다. 종류가 없던 문서는 도메인으로
+  // 판정하고, 판정할 수 없으면 시간표로 둔다. 기존 문서는 모두 시간표였다.
+  if (!isStudioTemplateKind(document.metadata.kind)) {
+    const resolvedKind = getStudioTemplateKind(document) ?? "timetable";
+    document.metadata.kind = resolvedKind;
+    warnings.push(`Recorded template kind ${resolvedKind} on the document.`);
+  }
+
   const timetable = document.domains?.timetable;
 
   if (timetable) {

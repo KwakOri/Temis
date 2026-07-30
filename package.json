@@ -31,6 +31,7 @@
     "check:personalized-template-flow": "tsx scripts/check-personalized-template-flow.ts",
     "check:template-studio:preview-assets": "tsx scripts/check-template-studio-preview-assets.ts",
     "check:template-studio:auto-text": "tsx scripts/check-template-studio-auto-text.tsx",
+    "check:template-studio:template-kind": "tsx scripts/check-template-studio-template-kind.ts",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",
     "check:template-studio:object-variants": "tsx scripts/check-template-studio-object-variants.ts",
