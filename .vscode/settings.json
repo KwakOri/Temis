@@ -22,6 +22,12 @@
   "editor.formatOnSave": true,
   "editor.formatOnSaveMode": "modifications",
   "prettier.requireConfig": true,
+  // organize-imports on save가 import 블록을 통째로 재정렬하면서 무관한 diff를
+  // 만들고, jsx "preserve" 환경에서 필요한 React import까지 제거해 체크
+  // 스크립트를 깨뜨렸다. 정렬은 Prettier에 맡기고 이 액션은 끈다.
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "never"
+  },
   "[typescript]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
