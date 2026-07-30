@@ -107,8 +107,31 @@ import {
   validateStudioGraphMove,
   type StudioGraphDropPosition,
 } from "@/utils/template-studio/graph-editor";
+import {
+  applyStudioDuplicateNodes,
+  applyStudioGroupNodes,
+  applyStudioLayerMove,
+  applyStudioToggleNodeLock,
+  applyStudioUngroupNodes,
+  getStudioLayerMoveMessage,
+  planStudioDuplicateNodes,
+  planStudioGroupNodes,
+  planStudioLayerMove,
+  planStudioToggleNodeLock,
+  planStudioUngroupNodes,
+  type StudioLayerMoveCommand,
+} from "@/utils/template-studio/graph-commands";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
+import {
+  getStudioTopLevelNodeIds,
+  isStudioNodeLocked,
+} from "@/utils/template-studio/graph-nodes";
 import { createStudioId } from "@/utils/template-studio/id";
+import {
+  createStudioNodeClipboardPayload,
+  insertStudioClipboardSubtree,
+  type StudioNodeClipboardPayload,
+} from "@/utils/template-studio/node-clipboard";
 import {
   getStudioDataDropPosition,
   getStudioLayerPanelOrder,
@@ -359,24 +382,6 @@ interface UpdateOptions {
   history?: boolean;
 }
 
-interface StudioEditorCopyClipboardPayload {
-  kind: "copy";
-  rootNodeIds: string[];
-  nodes: Record<string, StudioGraphNode>;
-  styles: Record<string, StudioStyleRecord>;
-}
-
-interface StudioEditorCutClipboardPayload {
-  kind: "cut";
-  rootNodeIds: string[];
-  primaryNodeId: string | null;
-}
-
-type StudioEditorClipboardPayload =
-  StudioEditorCopyClipboardPayload | StudioEditorCutClipboardPayload;
-
-type StudioLayerMoveCommand = "forward" | "backward" | "front" | "back";
-
 const STUDIO_LAYER_AUTO_EXPAND_DELAY_MS = 550;
 const STUDIO_DATABASE_TARGET_LABEL =
   process.env.NEXT_PUBLIC_SUPABASE_TARGET === "local"
@@ -447,8 +452,6 @@ const cloneRuntimeValues = (
   runtimeValues: StudioRuntimeValues,
 ): StudioRuntimeValues =>
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
-
-const cloneJson = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 const DATA_IMAGE_URL_PATTERN = /^data:(image\/[^;,]+)((?:;[^,]+)*),([\s\S]*)$/;
 const DATA_IMAGE_EXTENSION: Record<string, string> = {
@@ -686,44 +689,6 @@ const isStudioShortcutEditingTarget = (target: EventTarget | null): boolean =>
   target instanceof HTMLElement &&
   Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 
-const isStudioNodeLocked = (node: StudioGraphNode | null | undefined) =>
-  Boolean(node?.locked);
-
-const getStudioCopiedNodeLabel = (label: string) =>
-  label.endsWith(" Copy") ? label : `${label} Copy`;
-
-const isStudioNodeDescendantOf = (
-  document: StudioTemplateDocument,
-  nodeId: string,
-  maybeAncestorId: string,
-): boolean => {
-  let current = document.graph.nodes[nodeId];
-
-  while (current?.parentId) {
-    if (current.parentId === maybeAncestorId) return true;
-    current = document.graph.nodes[current.parentId];
-  }
-
-  return false;
-};
-
-const getStudioTopLevelNodeIds = (
-  document: StudioTemplateDocument,
-  nodeIds: string[],
-): string[] => {
-  const selected = new Set(nodeIds);
-
-  return nodeIds.filter(
-    (nodeId) =>
-      document.graph.nodes[nodeId] &&
-      !Array.from(selected).some(
-        (otherNodeId) =>
-          otherNodeId !== nodeId &&
-          isStudioNodeDescendantOf(document, nodeId, otherNodeId),
-      ),
-  );
-};
-
 const getStudioEditableNodeIds = (document: StudioTemplateDocument): string[] =>
   Object.keys(document.graph.nodes).filter(
     (nodeId) =>
@@ -848,25 +813,6 @@ const getStudioOpacityPercent = (value: unknown): number => {
   return Math.min(Math.max(Math.round(percent), 0), 100);
 };
 
-const getStudioNodeBounds = (
-  document: StudioTemplateDocument,
-  nodeId: string,
-) => {
-  const { left, top, width, height } = resolveStudioGraphNodeGeometry(
-    document,
-    nodeId,
-  );
-
-  return {
-    left,
-    top,
-    right: left + width,
-    bottom: top + height,
-    width,
-    height,
-  };
-};
-
 const findTimetableStructuredTextObject = (
   composition: StudioTimetableComposition,
   rootObject: StudioTimetableCompositionObject | undefined,
@@ -937,122 +883,6 @@ const getStudioTimetableObjectMaskShape = (
   if (radius >= 9999) return "circle";
   if (radius <= 0) return "rectangle";
   return "rounded";
-};
-
-const getStudioCombinedBounds = (
-  document: StudioTemplateDocument,
-  nodeIds: string[],
-) => {
-  const bounds = nodeIds.map((nodeId) => getStudioNodeBounds(document, nodeId));
-  const left = Math.min(...bounds.map((bound) => bound.left));
-  const top = Math.min(...bounds.map((bound) => bound.top));
-  const right = Math.max(...bounds.map((bound) => bound.right));
-  const bottom = Math.max(...bounds.map((bound) => bound.bottom));
-
-  return {
-    left,
-    top,
-    width: Math.max(1, right - left),
-    height: Math.max(1, bottom - top),
-  };
-};
-
-const createStudioNodeClipboardPayload = (
-  document: StudioTemplateDocument,
-  rootNodeIds: string | string[],
-): StudioEditorCopyClipboardPayload | null => {
-  const requestedRootNodeIds = Array.isArray(rootNodeIds)
-    ? rootNodeIds
-    : [rootNodeIds];
-  const topLevelRootNodeIds = getStudioTopLevelNodeIds(
-    document,
-    requestedRootNodeIds,
-  );
-
-  if (topLevelRootNodeIds.length === 0) return null;
-
-  const payload: StudioEditorCopyClipboardPayload = {
-    kind: "copy",
-    rootNodeIds: topLevelRootNodeIds,
-    nodes: {},
-    styles: {},
-  };
-
-  const collectNode = (nodeId: string) => {
-    const node = document.graph.nodes[nodeId];
-    if (!node || payload.nodes[nodeId]) return;
-
-    payload.nodes[nodeId] = cloneJson(node);
-    if (node.styleId && document.styles[node.styleId]) {
-      payload.styles[node.styleId] = cloneJson(document.styles[node.styleId]);
-    }
-
-    node.childIds.forEach(collectNode);
-  };
-
-  topLevelRootNodeIds.forEach(collectNode);
-  return payload;
-};
-
-const insertStudioClipboardSubtree = (
-  nextDocument: StudioTemplateDocument,
-  payload: StudioEditorCopyClipboardPayload,
-  sourceNodeId: string,
-  parentId: string | null,
-  offsetRoot: boolean,
-): string | null => {
-  const sourceNode = payload.nodes[sourceNodeId];
-  if (!sourceNode) return null;
-
-  const nextNodeId = createStudioId("node");
-  let nextStyleId: string | undefined;
-
-  if (sourceNode.styleId) {
-    nextStyleId = createStudioId("style");
-    const sourceStyle = payload.styles[sourceNode.styleId] ?? {};
-    nextDocument.styles[nextStyleId] = cloneJson(sourceStyle);
-
-    if (offsetRoot) {
-      const nextStyle = nextDocument.styles[nextStyleId];
-      const left = typeof nextStyle.left === "number" ? nextStyle.left : 0;
-      const top = typeof nextStyle.top === "number" ? nextStyle.top : 0;
-
-      nextDocument.styles[nextStyleId] = {
-        ...nextStyle,
-        left: left + 24,
-        top: top + 24,
-      };
-    }
-  }
-
-  const nextNode: StudioGraphNode = {
-    ...cloneJson(sourceNode),
-    id: nextNodeId,
-    label: offsetRoot
-      ? getStudioCopiedNodeLabel(sourceNode.label)
-      : sourceNode.label,
-    parentId,
-    childIds: [],
-    styleId: nextStyleId,
-    meta: sourceNode.meta?.entrySlot
-      ? { ...cloneJson(sourceNode.meta), entrySlot: undefined }
-      : cloneJson(sourceNode.meta),
-  };
-
-  nextDocument.graph.nodes[nextNodeId] = nextNode;
-  nextNode.childIds = sourceNode.childIds
-    .map((childId) =>
-      insertStudioClipboardSubtree(
-        nextDocument,
-        payload,
-        childId,
-        nextNodeId,
-        false,
-      ),
-    )
-    .filter(Boolean) as string[];
-
-  return nextNodeId;
 };
 
 const getDefaultStyleForNode = (
@@ -1451,7 +1281,7 @@ export function TemplateStudioClient({
   const [selectedCardComponentId, setSelectedCardComponentId] =
     useState<StudioTimetableComponentId>("");
   const [componentLabelDraft, setComponentLabelDraft] = useState("");
-  const clipboardPayloadRef = useRef<StudioEditorClipboardPayload | null>(null);
+  const clipboardPayloadRef = useRef<StudioNodeClipboardPayload | null>(null);
   const layerDragStateRef = useRef<StudioLayerDragState | null>(null);
   const timetableLayerDragStateRef =
     useRef<StudioTimetableLayerDragState | null>(null);
@@ -5412,76 +5242,26 @@ export function TemplateStudioClient({
   }, [document, selectedNodeId, selectedNodeIds, showShortcutStatus]);
 
   const duplicateSelectedNode = useCallback(() => {
-    const selectedActionNodeIds = getStudioTopLevelNodeIds(
-      document,
-      selectedNodeIds,
-    );
-
-    if (selectedActionNodeIds.length === 0) {
-      showShortcutStatus("No object selected");
-      return;
-    }
-
-    const payload = createStudioNodeClipboardPayload(
-      document,
-      selectedActionNodeIds,
-    );
-    if (!payload) {
-      showShortcutStatus("Duplicate failed");
-      return;
-    }
-
-    const sourceRoot = payload.nodes[payload.rootNodeIds[0]];
-    if (!sourceRoot) {
-      showShortcutStatus("Duplicate failed");
+    const plan = planStudioDuplicateNodes(document, selectedNodeIds);
+    if (!plan.ok) {
+      showShortcutStatus(plan.reason);
       return;
     }
 
     let duplicateRootIds: string[] = [];
-
     updateDocument((nextDocument) => {
-      const parentNode = sourceRoot.parentId
-        ? nextDocument.graph.nodes[sourceRoot.parentId]
-        : null;
-      const parentId = parentNode?.id ?? null;
-      const siblings = parentNode
-        ? parentNode.childIds
-        : nextDocument.graph.rootNodeIds;
-
-      duplicateRootIds = payload.rootNodeIds
-        .map((rootNodeId) =>
-          insertStudioClipboardSubtree(
-            nextDocument,
-            payload,
-            rootNodeId,
-            parentId,
-            true,
-          ),
-        )
-        .filter(Boolean) as string[];
-
-      if (duplicateRootIds.length === 0) return;
-
-      const selectedIndexes = selectedActionNodeIds
-        .map((nodeId) => siblings.indexOf(nodeId))
-        .filter((index) => index >= 0);
-      const insertIndex =
-        selectedIndexes.length > 0
-          ? Math.max(...selectedIndexes) + 1
-          : siblings.length;
-
-      siblings.splice(insertIndex, 0, ...duplicateRootIds);
+      duplicateRootIds = applyStudioDuplicateNodes(nextDocument, plan);
     });
 
-    if (duplicateRootIds.length > 0) {
-      applyNodeSelection(duplicateRootIds, duplicateRootIds.at(-1));
-      setPanelMode("layers");
-      showShortcutStatus(
-        `Duplicated ${duplicateRootIds.length} ${getStudioSelectionLabel(
-          duplicateRootIds.length,
-        )}`,
-      );
-    }
+    if (duplicateRootIds.length === 0) return;
+
+    applyNodeSelection(duplicateRootIds, duplicateRootIds.at(-1));
+    setPanelMode("layers");
+    showShortcutStatus(
+      `Duplicated ${duplicateRootIds.length} ${getStudioSelectionLabel(
+        duplicateRootIds.length,
+      )}`,
+    );
   }, [
     applyNodeSelection,
     document,
@@ -5523,210 +5303,54 @@ export function TemplateStudioClient({
 
   const moveSelectedNodeLayer = useCallback(
     (command: StudioLayerMoveCommand) => {
-      if (!selectedNode) {
-        showShortcutStatus("No object selected");
-        return;
-      }
-
-      if (isStudioNodeLocked(selectedNode)) {
-        showShortcutStatus("Object is locked");
-        return;
-      }
-
-      const parentNode = selectedNode.parentId
-        ? document.graph.nodes[selectedNode.parentId]
-        : null;
-      const siblings = parentNode?.childIds ?? document.graph.rootNodeIds;
-      const currentIndex = siblings.indexOf(selectedNode.id);
-
-      if (currentIndex < 0) {
-        showShortcutStatus("Layer move failed");
-        return;
-      }
-
-      const targetIndex =
-        command === "front"
-          ? siblings.length - 1
-          : command === "back"
-            ? 0
-            : command === "forward"
-              ? Math.min(currentIndex + 1, siblings.length - 1)
-              : Math.max(currentIndex - 1, 0);
-
-      if (targetIndex === currentIndex) {
-        showShortcutStatus(
-          command === "front" || command === "forward"
-            ? "Already at front"
-            : "Already at back",
-        );
+      const plan = planStudioLayerMove(
+        document,
+        selectedNode?.id ?? null,
+        command,
+      );
+      if (!plan.ok) {
+        showShortcutStatus(plan.reason);
         return;
       }
 
       updateDocument((nextDocument) => {
-        const nextParentNode = selectedNode.parentId
-          ? nextDocument.graph.nodes[selectedNode.parentId]
-          : null;
-        const nextSiblings = nextParentNode
-          ? nextParentNode.childIds
-          : nextDocument.graph.rootNodeIds;
-        const nextCurrentIndex = nextSiblings.indexOf(selectedNode.id);
-        if (nextCurrentIndex < 0) return;
-
-        const [nodeId] = nextSiblings.splice(nextCurrentIndex, 1);
-        nextSiblings.splice(targetIndex, 0, nodeId);
+        applyStudioLayerMove(nextDocument, plan);
       });
-
-      showShortcutStatus(
-        command === "front"
-          ? "Brought to front"
-          : command === "back"
-            ? "Sent to back"
-            : command === "forward"
-              ? "Brought forward"
-              : "Sent backward",
-      );
+      showShortcutStatus(getStudioLayerMoveMessage(command));
     },
-    [
-      document.graph.nodes,
-      document.graph.rootNodeIds,
-      selectedNode,
-      showShortcutStatus,
-      updateDocument,
-    ],
+    [document, selectedNode, showShortcutStatus, updateDocument],
   );
 
   const toggleSelectedNodeLock = useCallback(() => {
-    const selectedActionNodeIds = getStudioTopLevelNodeIds(
-      document,
-      selectedNodeIds,
-    );
-
-    if (selectedActionNodeIds.length === 0) {
-      showShortcutStatus("No object selected");
+    const plan = planStudioToggleNodeLock(document, selectedNodeIds);
+    if (!plan.ok) {
+      showShortcutStatus(plan.reason);
       return;
     }
 
-    const selectedActionNodes = selectedActionNodeIds
-      .map((nodeId) => document.graph.nodes[nodeId])
-      .filter(Boolean) as StudioGraphNode[];
-    const nextLocked = selectedActionNodes.some((node) => !node.locked);
-
     updateDocument((nextDocument) => {
-      selectedActionNodeIds.forEach((nodeId) => {
-        const node = nextDocument.graph.nodes[nodeId];
-        if (!node) return;
-        node.locked = nextLocked;
-      });
+      applyStudioToggleNodeLock(nextDocument, plan);
     });
-
     showShortcutStatus(
-      `${nextLocked ? "Locked" : "Unlocked"} ${
-        selectedActionNodeIds.length
-      } ${getStudioSelectionLabel(selectedActionNodeIds.length)}`,
+      `${plan.nextLocked ? "Locked" : "Unlocked"} ${
+        plan.nodeIds.length
+      } ${getStudioSelectionLabel(plan.nodeIds.length)}`,
     );
   }, [document, selectedNodeIds, showShortcutStatus, updateDocument]);
 
   const groupSelectedNodes = useCallback(() => {
-    const selectedActionNodeIds = getStudioTopLevelNodeIds(
-      document,
-      selectedNodeIds,
-    );
-
-    if (selectedActionNodeIds.length < 2) {
-      showShortcutStatus("Select multiple objects to group");
+    const plan = planStudioGroupNodes(document, selectedNodeIds);
+    if (!plan.ok) {
+      showShortcutStatus(plan.reason);
       return;
     }
-
-    const selectedActionNodes = selectedActionNodeIds
-      .map((nodeId) => document.graph.nodes[nodeId])
-      .filter(Boolean) as StudioGraphNode[];
-
-    if (selectedActionNodes.some((node) => node.meta?.entrySlot)) {
-      showShortcutStatus("Entry Groups cannot be grouped");
-      return;
-    }
-
-    if (selectedActionNodes.some(isStudioNodeLocked)) {
-      showShortcutStatus("Selection includes locked object");
-      return;
-    }
-
-    const parentId = selectedActionNodes[0]?.parentId ?? null;
-    if (selectedActionNodes.some((node) => node.parentId !== parentId)) {
-      showShortcutStatus("Group objects must share a parent");
-      return;
-    }
-
-    const siblings = parentId
-      ? (document.graph.nodes[parentId]?.childIds ?? [])
-      : document.graph.rootNodeIds;
-    const orderedNodeIds = siblings.filter((nodeId) =>
-      selectedActionNodeIds.includes(nodeId),
-    );
-
-    if (orderedNodeIds.length < 2) {
-      showShortcutStatus("Group failed");
-      return;
-    }
-
-    const groupNodeId = createStudioId("node");
-    const groupStyleId = createStudioId("style");
-    const bounds = getStudioCombinedBounds(document, orderedNodeIds);
-    const insertIndex = Math.min(
-      ...orderedNodeIds.map((nodeId) => siblings.indexOf(nodeId)),
-    );
 
     updateDocument((nextDocument) => {
-      const nextSiblings = parentId
-        ? nextDocument.graph.nodes[parentId]?.childIds
-        : nextDocument.graph.rootNodeIds;
-      if (!nextSiblings) return;
-
-      nextDocument.styles[groupStyleId] = {
-        position: "absolute",
-        left: bounds.left,
-        top: bounds.top,
-        width: bounds.width,
-        height: bounds.height,
-      };
-
-      nextDocument.graph.nodes[groupNodeId] = {
-        id: groupNodeId,
-        type: "group",
-        label: "Group",
-        parentId,
-        childIds: orderedNodeIds,
-        styleId: groupStyleId,
-      };
-
-      orderedNodeIds.forEach((nodeId) => {
-        const node = nextDocument.graph.nodes[nodeId];
-        if (!node) return;
-
-        node.parentId = groupNodeId;
-        if (node.styleId) {
-          const style = nextDocument.styles[node.styleId] ?? {};
-          const left = typeof style.left === "number" ? style.left : 0;
-          const top = typeof style.top === "number" ? style.top : 0;
-          nextDocument.styles[node.styleId] = {
-            ...style,
-            left: left - bounds.left,
-            top: top - bounds.top,
-          };
-        }
-      });
-
-      const selectedSet = new Set(orderedNodeIds);
-      const nextChildren = nextSiblings.filter(
-        (nodeId) => !selectedSet.has(nodeId),
-      );
-      nextChildren.splice(insertIndex, 0, groupNodeId);
-      nextSiblings.splice(0, nextSiblings.length, ...nextChildren);
+      applyStudioGroupNodes(nextDocument, plan);
     });
-
-    applyNodeSelection([groupNodeId], groupNodeId);
+    applyNodeSelection([plan.groupNodeId], plan.groupNodeId);
     setPanelMode("layers");
-    showShortcutStatus(`Grouped ${orderedNodeIds.length} objects`);
+    showShortcutStatus(`Grouped ${plan.orderedNodeIds.length} objects`);
   }, [
     applyNodeSelection,
     document,
@@ -5736,102 +5360,25 @@ export function TemplateStudioClient({
   ]);
 
   const ungroupSelectedNodes = useCallback(() => {
-    const selectedActionNodeIds = getStudioTopLevelNodeIds(
-      document,
-      selectedNodeIds,
-    );
-    const groupNodeIds = selectedActionNodeIds.filter(
-      (nodeId) => document.graph.nodes[nodeId]?.type === "group",
-    );
-
-    if (groupNodeIds.length === 0) {
-      showShortcutStatus("No group selected");
+    const plan = planStudioUngroupNodes(document, selectedNodeIds);
+    if (!plan.ok) {
+      showShortcutStatus(plan.reason);
       return;
     }
 
-    if (
-      groupNodeIds.some(
-        (nodeId) => document.domains?.timetable?.mountNodeId === nodeId,
-      )
-    ) {
-      showShortcutStatus("Root timetable object is locked");
-      return;
-    }
-
-    if (
-      groupNodeIds.some(
-        (nodeId) => document.graph.nodes[nodeId]?.meta?.entrySlot,
-      )
-    ) {
-      showShortcutStatus("Entry Groups cannot be ungrouped");
-      return;
-    }
-
-    const groupNodes = groupNodeIds
-      .map((nodeId) => document.graph.nodes[nodeId])
-      .filter(Boolean) as StudioGraphNode[];
-
-    if (groupNodes.some(isStudioNodeLocked)) {
-      showShortcutStatus("Selection includes locked group");
-      return;
-    }
-
-    const releasedNodeIds: string[] = [];
-
+    let releasedNodeIds: string[] = [];
     updateDocument((nextDocument) => {
-      groupNodeIds.forEach((groupNodeId) => {
-        const groupNode = nextDocument.graph.nodes[groupNodeId];
-        if (!groupNode || groupNode.type !== "group") return;
-
-        const parentId = groupNode.parentId;
-        const siblings = parentId
-          ? nextDocument.graph.nodes[parentId]?.childIds
-          : nextDocument.graph.rootNodeIds;
-        if (!siblings) return;
-
-        const groupIndex = siblings.indexOf(groupNodeId);
-        const groupStyle = groupNode.styleId
-          ? nextDocument.styles[groupNode.styleId]
-          : undefined;
-        const groupLeft =
-          typeof groupStyle?.left === "number" ? groupStyle.left : 0;
-        const groupTop =
-          typeof groupStyle?.top === "number" ? groupStyle.top : 0;
-        const childIds = [...groupNode.childIds];
-
-        childIds.forEach((childId) => {
-          const childNode = nextDocument.graph.nodes[childId];
-          if (!childNode) return;
-
-          childNode.parentId = parentId;
-          if (childNode.styleId) {
-            const childStyle = nextDocument.styles[childNode.styleId] ?? {};
-            const left =
-              typeof childStyle.left === "number" ? childStyle.left : 0;
-            const top = typeof childStyle.top === "number" ? childStyle.top : 0;
-            nextDocument.styles[childNode.styleId] = {
-              ...childStyle,
-              left: left + groupLeft,
-              top: top + groupTop,
-            };
-          }
-        });
-
-        if (groupIndex >= 0) {
-          siblings.splice(groupIndex, 1, ...childIds);
-        }
-
-        if (groupNode.styleId) delete nextDocument.styles[groupNode.styleId];
-        delete nextDocument.graph.nodes[groupNodeId];
-        releasedNodeIds.push(...childIds);
-      });
+      releasedNodeIds = applyStudioUngroupNodes(
+        nextDocument,
+        plan.groupNodeIds,
+      );
     });
 
-    if (releasedNodeIds.length > 0) {
-      applyNodeSelection(releasedNodeIds, releasedNodeIds.at(-1));
-      setPanelMode("layers");
-      showShortcutStatus(`Ungrouped ${groupNodeIds.length} group`);
-    }
+    if (releasedNodeIds.length === 0) return;
+
+    applyNodeSelection(releasedNodeIds, releasedNodeIds.at(-1));
+    setPanelMode("layers");
+    showShortcutStatus(`Ungrouped ${plan.groupNodeIds.length} group`);
   }, [
     applyNodeSelection,
     document,
