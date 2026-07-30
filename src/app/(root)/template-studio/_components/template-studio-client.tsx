@@ -248,6 +248,7 @@ import {
 } from "./studio-node-picker-menu";
 import { StudioImageCropModal } from "./studio-image-crop-modal";
 import { StudioHexColorPicker } from "./studio-hex-color-picker";
+import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
 
@@ -9754,159 +9755,238 @@ export function TemplateStudioClient({
   };
 
   return (
-    <main
-      className="flex h-screen w-full flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg)]"
-      style={themeStyle}
-    >
-      <StudioTopToolbar
-        backAction={{
-          title: "템플릿 목록으로",
-          onClick: () => router.push("/admin/template-studio"),
-        }}
-        canvasSize={{
-          width: previewCanvasSize.width,
-          height: previewCanvasSize.height,
-          title: "Open canvas settings",
-          onClick: () => setSettingsOpen(true),
-        }}
-        centerSlot={
-          <>
-            <div className="flex h-[30px] shrink-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
-              {[
-                { mode: "cards" as const, label: "Cards" },
-                { mode: "timetable" as const, label: "Timetable" },
-              ].map(({ mode, label }) => (
-                <button
-                  className={cn(
-                    "h-6 rounded-md px-2.5 text-[11px] font-semibold transition",
-                    activeWorkspaceMode === mode
-                      ? "bg-[var(--accent)] text-white"
-                      : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                    mode === "timetable" &&
-                      !canPreviewTimetable &&
-                      "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
-                  )}
-                  disabled={mode === "timetable" && !canPreviewTimetable}
-                  key={mode}
-                  type="button"
-                  onClick={() => {
-                    setWorkspaceMode(mode);
+    <StudioEditorShell
+      canvas={
+        <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
+          <StudioCanvasViewport
+            canvasHeight={previewCanvasSize.height}
+            canvasWidth={previewCanvasSize.width}
+            fitRequestKey={fitRequestKey}
+            scale={scale}
+            onScaleChange={setScale}
+            onMoveNode={
+              activeWorkspaceMode === "cards"
+                ? moveCanvasNode
+                : moveTimetableCanvasLayer
+            }
+            onMoveNodeStart={
+              activeWorkspaceMode === "cards"
+                ? (nodeId) => {
+                    const targetNodeIds = selectedNodeIdsRef.current.includes(
+                      nodeId,
+                    )
+                      ? getStudioTopLevelNodeIds(
+                          documentRef.current,
+                          selectedNodeIdsRef.current,
+                        )
+                      : [nodeId];
+                    const hasLockedTarget = targetNodeIds.some((targetNodeId) =>
+                      isStudioNodeLocked(
+                        documentRef.current.graph.nodes[targetNodeId],
+                      ),
+                    );
+
+                    if (hasLockedTarget) {
+                      showShortcutStatus("Selection includes locked object");
+                      return false;
+                    }
+
+                    const hasFitTarget = targetNodeIds.some((targetNodeId) =>
+                      isStudioFillParentLayout(
+                        documentRef.current.graph.nodes[targetNodeId]
+                          ?.layoutMode,
+                      ),
+                    );
+                    if (hasFitTarget) {
+                      showShortcutStatus("Disable Fit to move this object");
+                      return false;
+                    }
+
+                    captureHistory();
+                    return true;
+                  }
+                : (layerId) => {
+                    const composition = getStudioTimetableComposition(
+                      documentRef.current.domains?.timetable,
+                    );
+                    const object = composition.objects[layerId];
+
+                    if (!object && !layerId.startsWith("day-card:")) {
+                      return false;
+                    }
+
+                    if (object?.locked) {
+                      showShortcutStatus("Object is locked");
+                      return false;
+                    }
+
+                    if (isStudioFillParentLayout(object?.layoutMode)) {
+                      showShortcutStatus("Disable Fit to move this object");
+                      return false;
+                    }
+
+                    selectTimetableCanvasLayer(layerId);
+                    captureHistory();
+                    return true;
+                  }
+            }
+            onOpenNodePicker={({ clientX, clientY, nodeIds }) => {
+              const selectableNodeIds =
+                activeWorkspaceMode === "cards"
+                  ? nodeIds.filter((nodeId) => document.graph.nodes[nodeId])
+                  : nodeIds.filter((nodeId) => timetablePickerNodes[nodeId]);
+              const uniqueNodeIds = [...new Set(selectableNodeIds)];
+              if (uniqueNodeIds.length === 0) {
+                setNodePicker(null);
+                return;
+              }
+
+              setNodePicker({
+                x: clientX,
+                y: clientY,
+                nodeIds: uniqueNodeIds,
+              });
+            }}
+            resolveDragNodeId={
+              activeWorkspaceMode === "timetable"
+                ? resolveTimetableDragLayerId
+                : undefined
+            }
+            onSelectNode={
+              activeWorkspaceMode === "cards"
+                ? (nodeId) => {
+                    if (selectedNodeIdsRef.current.includes(nodeId)) {
+                      return;
+                    }
+
+                    selectSingleNode(nodeId);
+                    setNodePicker(null);
+                  }
+                : selectTimetableCanvasLayer
+            }
+          >
+            {activeWorkspaceMode === "timetable" ? (
+              <div
+                className="relative"
+                style={{
+                  width: previewCanvasSize.width,
+                  height: previewCanvasSize.height,
+                }}
+              >
+                <StudioTimetablePreview
+                  document={document}
+                  onSelectLayer={selectTimetableCanvasLayer}
+                  runtimeValues={runtimeValues}
+                  selectedLayerId={selectedTimetableLayerId}
+                  variantMode="authoring"
+                />
+                {timetableGuideAsset && timetableGuide.visible ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
+                    data-studio-timetable-guide="true"
+                    draggable={false}
+                    src={timetableGuideAsset.src}
+                    style={{
+                      objectFit: "fill",
+                      opacity: timetableGuide.opacity,
+                    }}
+                  />
+                ) : null}
+              </div>
+            ) : (
+              <div
+                className="relative"
+                style={{
+                  width: document.canvas.width,
+                  height: document.canvas.height,
+                }}
+              >
+                <StudioRenderer
+                  document={document}
+                  rootNodeIds={cardAuthoringRootNodeIds}
+                  runtimeContext={
+                    activeRuntimeDayId
+                      ? {
+                          dayId: activeRuntimeDayId,
+                          entryIndex: 0,
+                        }
+                      : undefined
+                  }
+                  runtimeValues={cardAuthoringRuntimeValues}
+                  selectedNodeId={selectedNodeId}
+                  selectedNodeIds={selectedNodeIds}
+                  onSelectNode={(nodeId, event) => {
+                    if (!nodeId) {
+                      selectSingleNode(null);
+                      setNodePicker(null);
+                      return;
+                    }
+
+                    if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
+                      toggleNodeSelection(nodeId);
+                    } else {
+                      selectSingleNode(nodeId);
+                    }
                     setNodePicker(null);
                   }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="mx-0.5 h-[22px] w-px shrink-0 bg-[var(--border)]" />
-            <StudioGuideControl
-              hasAsset={Boolean(activeGuideAsset)}
-              opacity={activeGuide.opacity}
-              visible={Boolean(activeGuide.visible)}
-              onOpacityChange={setActiveGuideOpacity}
-              onRequestAsset={() => setSettingsOpen(true)}
-              onToggleVisible={() =>
-                setActiveGuideVisibility(!activeGuide.visible)
+                />
+                {cardsGuideAsset && cardsGuide.visible ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
+                    data-studio-cards-guide="true"
+                    draggable={false}
+                    src={cardsGuideAsset.src}
+                    style={{
+                      objectFit: "fill",
+                      opacity: cardsGuide.opacity,
+                    }}
+                  />
+                ) : null}
+              </div>
+            )}
+          </StudioCanvasViewport>
+
+          {nodePicker ? (
+            <StudioNodePickerMenu
+              document={activeWorkspaceMode === "cards" ? document : undefined}
+              nodes={
+                activeWorkspaceMode === "timetable"
+                  ? timetablePickerNodes
+                  : undefined
               }
+              nodeIds={nodePicker.nodeIds}
+              position={{ x: nodePicker.x, y: nodePicker.y }}
+              selectedNodeId={
+                activeWorkspaceMode === "cards"
+                  ? selectedNodeId
+                  : selectedTimetableLayerId
+              }
+              onClose={() => setNodePicker(null)}
+              onSelectNode={(nodeId) => {
+                if (activeWorkspaceMode === "cards") {
+                  selectSingleNode(nodeId);
+                } else {
+                  selectTimetableCanvasLayer(nodeId);
+                }
+                setNodePicker(null);
+              }}
             />
-          </>
-        }
-        hiddenControls={
-          <input
-            accept="application/json,.json"
-            className="hidden"
-            ref={jsonImportInputRef}
-            type="file"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              if (!file) return;
-              void importStudioJsonFile(file);
-            }}
-          />
-        }
-        previewAction={{
-          title: "Open runtime preview",
-          onClick: () => {
-            void openRuntimeDraftPreview();
-          },
-        }}
-        publishAction={{
-          title: "Publish database document",
-          disabled: isRemoteSyncing,
-          onClick: () => {
-            void publishRemoteDocument();
-          },
-        }}
-        saveAction={{
-          title: "Save draft to database",
-          disabled: isRemoteSyncing,
-          onClick: () => {
-            void saveDatabaseDraft();
-          },
-        }}
-        settingsAction={{
-          title: "Template settings",
-          onClick: () => setSettingsOpen(true),
-        }}
-        shareAction={{
-          title: "Open saved preview",
-          disabled: !remoteTemplateId,
-          onClick: openSavedPreview,
-        }}
-        zoom={{
-          scale,
-          onFit: () => setFitRequestKey((current) => current + 1),
-          onZoomIn: () =>
-            setScale((currentScale) =>
-              clampStudioPreviewScale(Number((currentScale + 0.1).toFixed(2))),
-            ),
-          onZoomOut: () =>
-            setScale((currentScale) =>
-              clampStudioPreviewScale(Number((currentScale - 0.1).toFixed(2))),
-            ),
-        }}
-      />
+          ) : null}
 
-      <StudioSettingsModal
-        activeWorkspaceMode={activeWorkspaceMode}
-        databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
-        document={document}
-        inputCount={inputs.length}
-        isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
-        objectCount={activeObjectCount}
-        open={settingsOpen}
-        theme={theme}
-        onCardsCanvasChange={updateCardCanvasSize}
-        onCardsGuideRemove={removeCardsGuide}
-        onCardsGuideUpload={uploadCardsGuide}
-        onClose={() => setSettingsOpen(false)}
-        onExportJson={exportStudioJson}
-        onImportJson={() => jsonImportInputRef.current?.click()}
-        onReloadTemplate={() => {
-          void loadRemoteTemplate();
-        }}
-        onThemeChange={setTheme}
-        onTimetableCapabilityChange={setTimetableCapability}
-        onTimetableCanvasChange={updateTimetableCanvasSize}
-        onTimetableGuideRemove={removeTimetableGuide}
-        onTimetableGuideUpload={uploadTimetableGuide}
-        onWebFontsChange={updateWebFonts}
-      />
-      {stylePropagationOpen ? (
-        <StudioApplyStyleDialog
-          open
-          sourceStatusId={selectedCardStatusId}
-          statuses={cardStatusOptions.map((status) => ({
-            id: status.id,
-            label: status.label,
-          }))}
-          onApply={applySelectedNodeStyleToStatuses}
-          onClose={() => setStylePropagationOpen(false)}
-        />
-      ) : null}
-
-      <div className="flex min-h-0 flex-1">
+          {shortcutMessage ? (
+            <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-semibold text-[var(--fg)] shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+              {shortcutMessage}
+            </div>
+          ) : null}
+        </section>
+      }
+      leftSidebar={
         <aside className="flex w-[260px] min-w-0 shrink-0 flex-col overflow-hidden border-r border-[var(--border)] bg-[var(--panel)]">
           {activeWorkspaceMode === "cards" ? (
             <div className="grid gap-2 border-b border-[var(--border)] p-2">
@@ -10165,236 +10245,61 @@ export function TemplateStudioClient({
             renderTimetablePanel()
           )}
         </aside>
-
-        <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
-          <StudioCanvasViewport
-            canvasHeight={previewCanvasSize.height}
-            canvasWidth={previewCanvasSize.width}
-            fitRequestKey={fitRequestKey}
-            scale={scale}
-            onScaleChange={setScale}
-            onMoveNode={
-              activeWorkspaceMode === "cards"
-                ? moveCanvasNode
-                : moveTimetableCanvasLayer
-            }
-            onMoveNodeStart={
-              activeWorkspaceMode === "cards"
-                ? (nodeId) => {
-                    const targetNodeIds = selectedNodeIdsRef.current.includes(
-                      nodeId,
-                    )
-                      ? getStudioTopLevelNodeIds(
-                          documentRef.current,
-                          selectedNodeIdsRef.current,
-                        )
-                      : [nodeId];
-                    const hasLockedTarget = targetNodeIds.some((targetNodeId) =>
-                      isStudioNodeLocked(
-                        documentRef.current.graph.nodes[targetNodeId],
-                      ),
-                    );
-
-                    if (hasLockedTarget) {
-                      showShortcutStatus("Selection includes locked object");
-                      return false;
-                    }
-
-                    const hasFitTarget = targetNodeIds.some((targetNodeId) =>
-                      isStudioFillParentLayout(
-                        documentRef.current.graph.nodes[targetNodeId]
-                          ?.layoutMode,
-                      ),
-                    );
-                    if (hasFitTarget) {
-                      showShortcutStatus("Disable Fit to move this object");
-                      return false;
-                    }
-
-                    captureHistory();
-                    return true;
-                  }
-                : (layerId) => {
-                    const composition = getStudioTimetableComposition(
-                      documentRef.current.domains?.timetable,
-                    );
-                    const object = composition.objects[layerId];
-
-                    if (!object && !layerId.startsWith("day-card:")) {
-                      return false;
-                    }
-
-                    if (object?.locked) {
-                      showShortcutStatus("Object is locked");
-                      return false;
-                    }
-
-                    if (isStudioFillParentLayout(object?.layoutMode)) {
-                      showShortcutStatus("Disable Fit to move this object");
-                      return false;
-                    }
-
-                    selectTimetableCanvasLayer(layerId);
-                    captureHistory();
-                    return true;
-                  }
-            }
-            onOpenNodePicker={({ clientX, clientY, nodeIds }) => {
-              const selectableNodeIds =
-                activeWorkspaceMode === "cards"
-                  ? nodeIds.filter((nodeId) => document.graph.nodes[nodeId])
-                  : nodeIds.filter((nodeId) => timetablePickerNodes[nodeId]);
-              const uniqueNodeIds = [...new Set(selectableNodeIds)];
-              if (uniqueNodeIds.length === 0) {
-                setNodePicker(null);
-                return;
-              }
-
-              setNodePicker({
-                x: clientX,
-                y: clientY,
-                nodeIds: uniqueNodeIds,
-              });
+      }
+      overlays={
+        <>
+          <StudioSettingsModal
+            activeWorkspaceMode={activeWorkspaceMode}
+            databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
+            document={document}
+            inputCount={inputs.length}
+            isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
+            objectCount={activeObjectCount}
+            open={settingsOpen}
+            theme={theme}
+            onCardsCanvasChange={updateCardCanvasSize}
+            onCardsGuideRemove={removeCardsGuide}
+            onCardsGuideUpload={uploadCardsGuide}
+            onClose={() => setSettingsOpen(false)}
+            onExportJson={exportStudioJson}
+            onImportJson={() => jsonImportInputRef.current?.click()}
+            onReloadTemplate={() => {
+              void loadRemoteTemplate();
             }}
-            resolveDragNodeId={
-              activeWorkspaceMode === "timetable"
-                ? resolveTimetableDragLayerId
-                : undefined
-            }
-            onSelectNode={
-              activeWorkspaceMode === "cards"
-                ? (nodeId) => {
-                    if (selectedNodeIdsRef.current.includes(nodeId)) {
-                      return;
-                    }
-
-                    selectSingleNode(nodeId);
-                    setNodePicker(null);
-                  }
-                : selectTimetableCanvasLayer
-            }
-          >
-            {activeWorkspaceMode === "timetable" ? (
-              <div
-                className="relative"
-                style={{
-                  width: previewCanvasSize.width,
-                  height: previewCanvasSize.height,
-                }}
-              >
-                <StudioTimetablePreview
-                  document={document}
-                  onSelectLayer={selectTimetableCanvasLayer}
-                  runtimeValues={runtimeValues}
-                  selectedLayerId={selectedTimetableLayerId}
-                  variantMode="authoring"
-                />
-                {timetableGuideAsset && timetableGuide.visible ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
-                    data-studio-timetable-guide="true"
-                    draggable={false}
-                    src={timetableGuideAsset.src}
-                    style={{
-                      objectFit: "fill",
-                      opacity: timetableGuide.opacity,
-                    }}
-                  />
-                ) : null}
-              </div>
-            ) : (
-              <div
-                className="relative"
-                style={{
-                  width: document.canvas.width,
-                  height: document.canvas.height,
-                }}
-              >
-                <StudioRenderer
-                  document={document}
-                  rootNodeIds={cardAuthoringRootNodeIds}
-                  runtimeContext={
-                    activeRuntimeDayId
-                      ? {
-                          dayId: activeRuntimeDayId,
-                          entryIndex: 0,
-                        }
-                      : undefined
-                  }
-                  runtimeValues={cardAuthoringRuntimeValues}
-                  selectedNodeId={selectedNodeId}
-                  selectedNodeIds={selectedNodeIds}
-                  onSelectNode={(nodeId, event) => {
-                    if (!nodeId) {
-                      selectSingleNode(null);
-                      setNodePicker(null);
-                      return;
-                    }
-
-                    if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
-                      toggleNodeSelection(nodeId);
-                    } else {
-                      selectSingleNode(nodeId);
-                    }
-                    setNodePicker(null);
-                  }}
-                />
-                {cardsGuideAsset && cardsGuide.visible ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
-                    data-studio-cards-guide="true"
-                    draggable={false}
-                    src={cardsGuideAsset.src}
-                    style={{
-                      objectFit: "fill",
-                      opacity: cardsGuide.opacity,
-                    }}
-                  />
-                ) : null}
-              </div>
-            )}
-          </StudioCanvasViewport>
-
-          {nodePicker ? (
-            <StudioNodePickerMenu
-              document={activeWorkspaceMode === "cards" ? document : undefined}
-              nodes={
-                activeWorkspaceMode === "timetable"
-                  ? timetablePickerNodes
-                  : undefined
-              }
-              nodeIds={nodePicker.nodeIds}
-              position={{ x: nodePicker.x, y: nodePicker.y }}
-              selectedNodeId={
-                activeWorkspaceMode === "cards"
-                  ? selectedNodeId
-                  : selectedTimetableLayerId
-              }
-              onClose={() => setNodePicker(null)}
-              onSelectNode={(nodeId) => {
-                if (activeWorkspaceMode === "cards") {
-                  selectSingleNode(nodeId);
-                } else {
-                  selectTimetableCanvasLayer(nodeId);
-                }
-                setNodePicker(null);
+            onThemeChange={setTheme}
+            onTimetableCapabilityChange={setTimetableCapability}
+            onTimetableCanvasChange={updateTimetableCanvasSize}
+            onTimetableGuideRemove={removeTimetableGuide}
+            onTimetableGuideUpload={uploadTimetableGuide}
+            onWebFontsChange={updateWebFonts}
+          />
+          {stylePropagationOpen ? (
+            <StudioApplyStyleDialog
+              open
+              sourceStatusId={selectedCardStatusId}
+              statuses={cardStatusOptions.map((status) => ({
+                id: status.id,
+                label: status.label,
+              }))}
+              onApply={applySelectedNodeStyleToStatuses}
+              onClose={() => setStylePropagationOpen(false)}
+            />
+          ) : null}
+          {pendingImageCrop ? (
+            <StudioImageCropModal
+              imageSrc={pendingImageCrop.imageSrc}
+              initialHeight={pendingImageCrop.initialHeight}
+              initialWidth={pendingImageCrop.initialWidth}
+              onCancel={() => setPendingImageCrop(null)}
+              onApply={(croppedImageSrc) => {
+                pendingImageCrop.onApply(croppedImageSrc);
+                setPendingImageCrop(null);
               }}
             />
           ) : null}
-
-          {shortcutMessage ? (
-            <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-semibold text-[var(--fg)] shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-              {shortcutMessage}
-            </div>
-          ) : null}
-        </section>
-
+        </>
+      }
+      propertiesPanel={
         <aside className="template-studio-scrollbar w-[280px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-[var(--border)] bg-[var(--panel)]">
           <div className="border-b border-[var(--border)] px-4 py-3">
             <div className="mb-3 flex items-center gap-2">
@@ -10982,19 +10887,123 @@ export function TemplateStudioClient({
             ),
           )}
         </aside>
-      </div>
-      {pendingImageCrop ? (
-        <StudioImageCropModal
-          imageSrc={pendingImageCrop.imageSrc}
-          initialHeight={pendingImageCrop.initialHeight}
-          initialWidth={pendingImageCrop.initialWidth}
-          onCancel={() => setPendingImageCrop(null)}
-          onApply={(croppedImageSrc) => {
-            pendingImageCrop.onApply(croppedImageSrc);
-            setPendingImageCrop(null);
+      }
+      themeStyle={themeStyle}
+      topToolbar={
+        <StudioTopToolbar
+          backAction={{
+            title: "템플릿 목록으로",
+            onClick: () => router.push("/admin/template-studio"),
+          }}
+          canvasSize={{
+            width: previewCanvasSize.width,
+            height: previewCanvasSize.height,
+            title: "Open canvas settings",
+            onClick: () => setSettingsOpen(true),
+          }}
+          centerSlot={
+            <>
+              <div className="flex h-[30px] shrink-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+                {[
+                  { mode: "cards" as const, label: "Cards" },
+                  { mode: "timetable" as const, label: "Timetable" },
+                ].map(({ mode, label }) => (
+                  <button
+                    className={cn(
+                      "h-6 rounded-md px-2.5 text-[11px] font-semibold transition",
+                      activeWorkspaceMode === mode
+                        ? "bg-[var(--accent)] text-white"
+                        : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                      mode === "timetable" &&
+                        !canPreviewTimetable &&
+                        "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
+                    )}
+                    disabled={mode === "timetable" && !canPreviewTimetable}
+                    key={mode}
+                    type="button"
+                    onClick={() => {
+                      setWorkspaceMode(mode);
+                      setNodePicker(null);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="mx-0.5 h-[22px] w-px shrink-0 bg-[var(--border)]" />
+              <StudioGuideControl
+                hasAsset={Boolean(activeGuideAsset)}
+                opacity={activeGuide.opacity}
+                visible={Boolean(activeGuide.visible)}
+                onOpacityChange={setActiveGuideOpacity}
+                onRequestAsset={() => setSettingsOpen(true)}
+                onToggleVisible={() =>
+                  setActiveGuideVisibility(!activeGuide.visible)
+                }
+              />
+            </>
+          }
+          hiddenControls={
+            <input
+              accept="application/json,.json"
+              className="hidden"
+              ref={jsonImportInputRef}
+              type="file"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                void importStudioJsonFile(file);
+              }}
+            />
+          }
+          previewAction={{
+            title: "Open runtime preview",
+            onClick: () => {
+              void openRuntimeDraftPreview();
+            },
+          }}
+          publishAction={{
+            title: "Publish database document",
+            disabled: isRemoteSyncing,
+            onClick: () => {
+              void publishRemoteDocument();
+            },
+          }}
+          saveAction={{
+            title: "Save draft to database",
+            disabled: isRemoteSyncing,
+            onClick: () => {
+              void saveDatabaseDraft();
+            },
+          }}
+          settingsAction={{
+            title: "Template settings",
+            onClick: () => setSettingsOpen(true),
+          }}
+          shareAction={{
+            title: "Open saved preview",
+            disabled: !remoteTemplateId,
+            onClick: openSavedPreview,
+          }}
+          zoom={{
+            scale,
+            onFit: () => setFitRequestKey((current) => current + 1),
+            onZoomIn: () =>
+              setScale((currentScale) =>
+                clampStudioPreviewScale(
+                  Number((currentScale + 0.1).toFixed(2)),
+                ),
+              ),
+            onZoomOut: () =>
+              setScale((currentScale) =>
+                clampStudioPreviewScale(
+                  Number((currentScale - 0.1).toFixed(2)),
+                ),
+              ),
           }}
         />
-      ) : null}
-    </main>
+      }
+    />
   );
 }

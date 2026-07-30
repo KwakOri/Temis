@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { StudioEditorShell } from "../src/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "../src/components/studio/editor-shell/studio-guide-control";
 import { StudioTopToolbar } from "../src/components/studio/editor-shell/studio-top-toolbar";
 
@@ -226,5 +227,69 @@ assert.equal(
   3,
   "저장, 발행, 공유의 비활성 상태가 마크업에 반영돼야 한다.",
 );
+
+// --- 셸 레이아웃 기준선 ---
+
+const shellMarkup = renderToStaticMarkup(
+  <StudioEditorShell
+    canvas={<section data-region="canvas">canvas</section>}
+    leftSidebar={<aside data-region="left">left</aside>}
+    overlays={<div data-region="overlay">overlay</div>}
+    propertiesPanel={<aside data-region="right">right</aside>}
+    themeStyle={{ ["--bg" as string]: "#000000" }}
+    topToolbar={<div data-region="toolbar">toolbar</div>}
+  />,
+);
+
+// 추출 전 최상위 구조를 그대로 유지한다.
+assert.ok(
+  shellMarkup.startsWith(
+    '<main class="flex h-screen w-full flex-col overflow-hidden bg-[var(--bg)] text-[var(--fg)]"',
+  ),
+  "셸 최상단은 전체 화면 높이를 소유하는 main이다.",
+);
+assert.ok(
+  shellMarkup.includes('style="--bg:#000000"'),
+  "테마 CSS 변수가 main에 적용된다.",
+);
+assert.ok(
+  shellMarkup.includes('<div class="flex min-h-0 flex-1">'),
+  "본문은 남은 높이를 채우는 flex 컨테이너다.",
+);
+
+// 영역 순서: 상단 바 → (좌측 → 캔버스 → 우측) → 오버레이
+const regionOrder = [...shellMarkup.matchAll(/data-region="([a-z]+)"/g)].map(
+  (match) => match[1],
+);
+assert.deepEqual(
+  regionOrder,
+  ["toolbar", "left", "canvas", "right", "overlay"],
+  "셸의 영역 렌더 순서가 바뀌면 레이아웃이 깨진다.",
+);
+
+// 본문 컨테이너의 자식과 중첩을 정확히 고정한다.
+// 느슨한 부분 문자열 검사로는 영역이 컨테이너 밖으로 빠져나가는 회귀를 놓친다.
+assert.ok(
+  shellMarkup.includes(
+    '<div class="flex min-h-0 flex-1">' +
+      '<aside data-region="left">left</aside>' +
+      '<section data-region="canvas">canvas</section>' +
+      '<aside data-region="right">right</aside>' +
+      "</div>",
+  ),
+  "본문 컨테이너는 좌측·캔버스·우측 세 영역만 순서대로 감싼다.",
+);
+
+// 오버레이는 선택 항목이다.
+const shellWithoutOverlays = renderToStaticMarkup(
+  <StudioEditorShell
+    canvas={<section>canvas</section>}
+    leftSidebar={<aside>left</aside>}
+    propertiesPanel={<aside>right</aside>}
+    topToolbar={<div>toolbar</div>}
+  />,
+);
+assert.ok(shellWithoutOverlays.includes("<main"));
+assert.ok(!shellWithoutOverlays.includes("undefined"));
 
 console.log("Studio editor shell baseline checks passed.");
