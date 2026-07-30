@@ -1467,8 +1467,20 @@ export const getStudioTimetablePresetLabel = (
   return "Day Card Containers";
 };
 
+/**
+ * 단일 오브젝트 하나로 삽입되는 프리셋.
+ *
+ * 나머지 프리셋은 그룹 + 자식 묶음(bundle)으로 만들어져야 한다:
+ * `Weekly Memo`/`Artist`는 `createStudioStructuredTextPresetObjects`,
+ * `Profile Block`은 `createStudioProfileBlockPresetObjects`,
+ * `Top Object`는 `createStudioTopObjectPresetObjects`를 쓴다.
+ * 여기에 구조화 프리셋을 다시 허용하면 "구조화 텍스트는 항상 Auto Text"라는
+ * 불변식이 깨지므로 타입으로 막는다.
+ */
+export type StudioSingleObjectPresetId = "dayCards" | "board" | "weekDates";
+
 export const createStudioTimetablePresetObject = (
-  presetId: StudioTimetableObjectPresetId,
+  presetId: StudioSingleObjectPresetId,
   composition: StudioTimetableComposition,
   options: {
     inputId?: StudioInputId;
@@ -1477,18 +1489,7 @@ export const createStudioTimetablePresetObject = (
 ): StudioTimetableCompositionObject => {
   if (presetId === "dayCards") return createStudioTimetableDayCardsObject();
 
-  const baseId =
-    presetId === "board"
-      ? "board"
-      : presetId === "weekDates"
-        ? "week-dates"
-        : presetId === "weeklyMemo"
-          ? "weekly-memo"
-          : presetId === "profileBlock"
-            ? "profile-block"
-            : presetId === "artistProfileText"
-              ? "artist-profile-text"
-              : "top-object";
+  const baseId = presetId === "board" ? "board" : "week-dates";
   const { objectId, suffix } = getUniqueTimetableObjectId(
     Object.keys(composition.objects),
     baseId,
@@ -1554,148 +1555,12 @@ export const createStudioTimetablePresetObject = (
     };
   }
 
-  if (presetId === "profileBlock") {
-    return {
-      id: objectId,
-      kind: "profileBlock",
-      label,
-      presetId,
-      style: {
-        position: "absolute",
-        left: 360,
-        top: 470,
-        width: 420,
-        height: 420,
-        borderRadius: 56,
-        backgroundColor: "#dbeafe",
-        opacity: 1,
-        overflow: "hidden",
-      },
-      assetSlots: options.assetId
-        ? {
-            profileImage: {
-              assetId: options.assetId,
-              fit: "cover",
-            },
-          }
-        : undefined,
-      meta: {
-        exception: createStudioProfileBlockExceptionMeta(
-          options.assetId,
-          "cover",
-          true,
-          undefined,
-          "contain",
-          56,
-          "rounded",
-        ),
-      },
-    };
-  }
-
-  if (presetId === "artistProfileText") {
-    return {
-      id: objectId,
-      kind: "text",
-      label,
-      presetId,
-      style: {
-        position: "absolute",
-        left: 840,
-        top: 470,
-        width: 1200,
-        height: 180,
-        color: "#172033",
-        display: "flex",
-        alignItems: "center",
-        fontSize: 64,
-        fontWeight: 800,
-        lineHeight: 1.12,
-        assetMode: "visible",
-        assetPosition: "left",
-        assetSize: 160,
-        assetGap: 32,
-        opacity: 1,
-      },
-      binding: options.inputId
-        ? {
-            kind: "inputText",
-            inputId: options.inputId,
-          }
-        : {
-            kind: "staticText",
-            value: "Artist profile",
-          },
-      meta: {
-        exception: createStudioArtistProfileTextExceptionMeta(options.inputId),
-      },
-    };
-  }
-
-  if (presetId === "topObject") {
-    return {
-      id: objectId,
-      kind: "topObject",
-      label,
-      presetId,
-      style: {
-        position: "absolute",
-        left: 3060,
-        top: 260,
-        width: 420,
-        height: 420,
-        borderRadius: 0,
-        opacity: 1,
-        overflow: "visible",
-      },
-      assetSlots: options.assetId
-        ? {
-            asset: {
-              assetId: options.assetId,
-              fit: "contain",
-            },
-          }
-        : undefined,
-      meta: {
-        exception: createStudioTopObjectExceptionMeta(
-          options.assetId,
-          "contain",
-        ),
-      },
-    };
-  }
-
-  return {
-    id: objectId,
-    kind: "text",
-    label,
-    presetId,
-    style: {
-      position: "absolute",
-      left: 360,
-      top: 1770,
-      width: 1500,
-      height: 110,
-      color: "#475569",
-      display: "flex",
-      alignItems: "center",
-      fontSize: 48,
-      fontWeight: 700,
-      opacity: 1,
-    },
-    binding: options.inputId
-      ? {
-          kind: "inputText",
-          inputId: options.inputId,
-        }
-      : {
-          kind: "staticText",
-          value: "Weekly memo",
-        },
-    meta: {
-      exception: createStudioWeeklyMemoExceptionMeta(options.inputId),
-    },
-  };
+  const unsupportedPresetId: never = presetId;
+  throw new Error(
+    `createStudioTimetablePresetObject does not create ${String(
+      unsupportedPresetId,
+    )}; use the dedicated bundle creator instead.`,
+  );
 };
 
 export const bindStudioWeeklyMemoObjectToInput = (

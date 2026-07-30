@@ -118,6 +118,7 @@ import {
 } from "@/utils/template-studio/layer-order";
 import {
   isStudioFillParentLayout,
+  isStudioPlacedTimetableCompositionObject,
   resolveStudioGraphNodeGeometry,
   resolveStudioTimetableObjectGeometry,
 } from "@/utils/template-studio/object-layout";
@@ -861,15 +862,6 @@ const getStudioNodeBounds = (
     height,
   };
 };
-
-const isPlacedTimetableCompositionObject = (
-  object: StudioTimetableCompositionObject | undefined,
-) =>
-  object?.kind === "group" ||
-  object?.kind === "image" ||
-  object?.kind === "text" ||
-  object?.kind === "profileBlock" ||
-  object?.kind === "topObject";
 
 const findTimetableStructuredTextObject = (
   composition: StudioTimetableComposition,
@@ -1929,7 +1921,7 @@ export function TemplateStudioClient({
     const compositionObject =
       timetableComposition.objects[selectedTimetableLayerId];
 
-    if (isPlacedTimetableCompositionObject(compositionObject)) {
+    if (isStudioPlacedTimetableCompositionObject(compositionObject)) {
       return resolveStudioTimetableObjectGeometry(
         timetableComposition,
         compositionObject.id,
@@ -4098,7 +4090,8 @@ export function TemplateStudioClient({
 
         const composition = ensureStudioTimetableComposition(timetable);
         const object = composition.objects[objectId];
-        if (!object || !isPlacedTimetableCompositionObject(object)) return;
+        if (!object || !isStudioPlacedTimetableCompositionObject(object))
+          return;
 
         const shouldFillParent = !isStudioFillParentLayout(object.layoutMode);
         const resolvedGeometry = resolveStudioTimetableObjectGeometry(
@@ -4517,7 +4510,7 @@ export function TemplateStudioClient({
             getStudioTimetableDayComponent(nextDocument, dayId),
           );
 
-        if (isPlacedTimetableCompositionObject(object)) {
+        if (isStudioPlacedTimetableCompositionObject(object)) {
           const updatesBounds =
             nextPosition.left !== undefined ||
             nextPosition.top !== undefined ||
@@ -4662,7 +4655,7 @@ export function TemplateStudioClient({
           const composition = ensureStudioTimetableComposition(timetable);
           const object = composition.objects[layerId];
 
-          if (isPlacedTimetableCompositionObject(object)) {
+          if (isStudioPlacedTimetableCompositionObject(object)) {
             if (isStudioFillParentLayout(object.layoutMode)) return;
 
             const currentGeometry =
@@ -10945,7 +10938,7 @@ export function TemplateStudioClient({
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-[var(--fg2)]">
-                        {isPlacedTimetableCompositionObject(
+                        {isStudioPlacedTimetableCompositionObject(
                           selectedTimetableCompositionObject ?? undefined,
                         ) ? (
                           <>
@@ -10997,7 +10990,7 @@ export function TemplateStudioClient({
                           </>
                         )}
                       </div>
-                      {isPlacedTimetableCompositionObject(
+                      {isStudioPlacedTimetableCompositionObject(
                         selectedTimetableCompositionObject ?? undefined,
                       ) || isSelectedDayCardsObject ? (
                         <NumberField
@@ -11017,7 +11010,7 @@ export function TemplateStudioClient({
                     </div>,
                     undefined,
                     selectedTimetableCompositionObject &&
-                      isPlacedTimetableCompositionObject(
+                      isStudioPlacedTimetableCompositionObject(
                         selectedTimetableCompositionObject,
                       ) ? (
                       <FitParentButton

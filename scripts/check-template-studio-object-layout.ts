@@ -3,13 +3,16 @@ import assert from "node:assert/strict";
 import type {
   StudioTemplateDocument,
   StudioTimetableComposition,
+  StudioTimetableCompositionObject,
 } from "../src/types/template-studio";
 import {
   getStudioObjectRenderStyle,
+  isStudioPlacedTimetableCompositionObject,
   resolveStudioGraphNodeGeometry,
   resolveStudioTimetableObjectGeometry,
 } from "../src/utils/template-studio/object-layout";
 import {
+  createStudioStructuredTextPresetObjects,
   createStudioTimetablePresetObject,
   getStudioTimetableComposition,
 } from "../src/utils/template-studio/timetable-composition";
@@ -109,21 +112,19 @@ const composition: StudioTimetableComposition = {
 };
 
 assert.deepEqual(
-  resolveStudioTimetableObjectGeometry(
-    composition,
-    "image",
-    { width: 4000, height: 2250 },
-  ),
+  resolveStudioTimetableObjectGeometry(composition, "image", {
+    width: 4000,
+    height: 2250,
+  }),
   { left: 0, top: 0, width: 420, height: 360 },
 );
 
 composition.objects.group.layoutMode = "fillParent";
 assert.deepEqual(
-  resolveStudioTimetableObjectGeometry(
-    composition,
-    "image",
-    { width: 4000, height: 2250 },
-  ),
+  resolveStudioTimetableObjectGeometry(composition, "image", {
+    width: 4000,
+    height: 2250,
+  }),
   { left: 0, top: 0, width: 4000, height: 2250 },
 );
 
@@ -139,11 +140,10 @@ assert.equal(board.assetSlots?.asset?.inputId, undefined);
 assert.equal(board.assetSlots?.asset?.fit, "cover");
 assert.equal(board.meta?.exception?.semanticKey, "board");
 assert.deepEqual(
-  resolveStudioTimetableObjectGeometry(
-    composition,
-    board.id,
-    { width: 4096, height: 2304 },
-  ),
+  resolveStudioTimetableObjectGeometry(composition, board.id, {
+    width: 4096,
+    height: 2304,
+  }),
   { left: 0, top: 0, width: 4096, height: 2304 },
   "Board must fill the current timetable canvas without a runtime input.",
 );
@@ -201,9 +201,8 @@ assert.deepEqual(composition.rootObjectIds, timetableRootObjectIdsBeforeGuide);
 const repeatableDocument = createSampleStudioDocument();
 const repeatableTimetable = repeatableDocument.domains?.timetable;
 assert.ok(repeatableTimetable);
-const repeatableComposition = getStudioTimetableComposition(
-  repeatableTimetable,
-);
+const repeatableComposition =
+  getStudioTimetableComposition(repeatableTimetable);
 const weekDatesPreset = STUDIO_PRESET_DEFINITIONS.find(
   (preset) => preset.id === "weekDates",
 );
@@ -250,14 +249,68 @@ assert.equal(
 );
 
 weekDatesObjects[0].meta!.exception!.singleton = true;
-const normalizedRepeatableComposition = getStudioTimetableComposition(
-  repeatableTimetable,
-);
+const normalizedRepeatableComposition =
+  getStudioTimetableComposition(repeatableTimetable);
 assert.equal(
   normalizedRepeatableComposition.objects[weekDatesObjects[0].id].meta
     ?.exception?.singleton,
   false,
   "Legacy Week Dates metadata must normalize to repeatable.",
 );
+
+// --- 배치 가능 오브젝트 판정 ---
+
+const asCompositionObject = (
+  kind: StudioTimetableCompositionObject["kind"],
+): StudioTimetableCompositionObject => ({
+  id: `probe-${kind}`,
+  kind,
+  label: kind,
+  style: {},
+});
+
+(
+  [
+    "group",
+    "image",
+    "text",
+    "flexibleText",
+    "profileBlock",
+    "topObject",
+  ] as const
+).forEach((kind) => {
+  assert.equal(
+    isStudioPlacedTimetableCompositionObject(asCompositionObject(kind)),
+    true,
+    `${kind} must expose canvas placement controls.`,
+  );
+});
+
+assert.equal(
+  isStudioPlacedTimetableCompositionObject(
+    asCompositionObject("generatedDayCards"),
+  ),
+  false,
+  "Generated day cards use the day-cards layout path, not direct placement.",
+);
+assert.equal(isStudioPlacedTimetableCompositionObject(undefined), false);
+
+// 실제 Artist 프리셋의 Auto Text 자식도 배치 가능해야 한다.
+const artistPresetObjects = createStudioStructuredTextPresetObjects(
+  "artistProfileText",
+  { rootObjectIds: [], objects: {} },
+);
+const artistTextChildren = artistPresetObjects.children.filter(
+  (object) => object.structuredRole === "text",
+);
+assert.ok(artistTextChildren.length > 0);
+artistTextChildren.forEach((object) => {
+  assert.equal(object.kind, "flexibleText");
+  assert.equal(
+    isStudioPlacedTimetableCompositionObject(object),
+    true,
+    "Artist Auto Text must keep Position, Rotate, and Fit Parent controls.",
+  );
+});
 
 console.log("Template Studio object layout checks passed.");

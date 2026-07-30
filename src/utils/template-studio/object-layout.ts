@@ -3,6 +3,7 @@ import {
   StudioStyleRecord,
   StudioTemplateDocument,
   StudioTimetableComposition,
+  StudioTimetableCompositionObject,
 } from "@/types/template-studio";
 
 export type StudioObjectGeometry = {
@@ -19,6 +20,22 @@ const getStyleNumber = (
 
 export const isStudioFillParentLayout = (layoutMode: unknown) =>
   layoutMode === "fillParent";
+
+/**
+ * 캔버스 좌표를 직접 갖는 Timetable composition 오브젝트인지 판정한다.
+ *
+ * Position/Rotate/Fit Parent 컨트롤과 캔버스 드래그가 이 판정을 공유한다.
+ * `generatedDayCards`는 day-cards 레이아웃 경로로 배치되므로 제외한다.
+ */
+export const isStudioPlacedTimetableCompositionObject = (
+  object: StudioTimetableCompositionObject | undefined,
+): object is StudioTimetableCompositionObject =>
+  object?.kind === "group" ||
+  object?.kind === "image" ||
+  object?.kind === "text" ||
+  object?.kind === "flexibleText" ||
+  object?.kind === "profileBlock" ||
+  object?.kind === "topObject";
 
 export const getStudioObjectRenderStyle = (
   style: StudioStyleRecord,
