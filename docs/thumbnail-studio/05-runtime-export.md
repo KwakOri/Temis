@@ -1,7 +1,9 @@
 # Phase 5. 사용자 런타임과 PNG 내보내기
 
 상태: 계획 완료, 구현 전  
-선행 단계: [Phase 4 — 입력, 이미지와 에셋](./04-inputs-assets.md)  
+선행 단계:
+[Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md),
+[Phase 4 — 입력, 이미지와 에셋](./04-inputs-assets.md)  
 후속 단계: [Phase 6 — 저장, 발행과 카탈로그 통합](./06-persistence-catalog.md)
 
 ## 1. 목표
@@ -196,8 +198,25 @@ Thumbnail Studio는 `StudioRuntimeValues.global`만 사용한다.
 
 ## 9. 내보내기
 
-기존 `template-studio-runtime-shell.tsx`의 HTML 기반 `toPng` 흐름을 공용 export
-controller로 분리한다.
+저장소에는 `html-to-image`와 `modern-screenshot`이 함께 있으므로 기존
+`toPng` 호출을 그대로 표준으로 간주하지 않는다.
+
+[Phase 0A 선행 스파이크](./00a-rendering-feasibility-spike.md)에서 선택한 PNG
+라이브러리와 옵션만 공용 export controller 안에서 사용한다.
+
+```text
+Thumbnail runtime
+Admin preview
+Template Studio runtime
+        ↓
+StudioPngExporter
+        ↓
+Phase 0A에서 선택한 rasterizer 하나
+```
+
+UI 컴포넌트가 `html-to-image` 또는 `modern-screenshot`을 직접 import하지 않게
+한다. 기존 Legacy TimeTable 경로의 라이브러리 통합은 별도 범위로 둘 수 있지만,
+신규 Studio export 경로에서는 두 라이브러리를 혼용하지 않는다.
 
 ```ts
 type StudioPngExportOptions = {
@@ -355,7 +374,7 @@ Phase 6에서 실제 API와 권한 경로를 최종 연결한다.
 6. 사용자 image 입력
 7. focus와 crop
 8. render readiness
-9. 공용 PNG export controller
+9. Phase 0A 결정에 따른 공용 PNG export controller
 10. 다운로드 UI
 11. 관리자 preview
 12. runtime 오류와 빈 상태
@@ -367,6 +386,8 @@ Phase 6에서 실제 API와 권한 경로를 최종 연결한다.
 - text, image와 select 변경이 미리보기에 즉시 반영된다.
 - 사용자가 템플릿 레이어와 위치를 변경할 수 없다.
 - preview와 PNG가 같은 renderer를 사용한다.
+- 신규 Studio export가 선택된 rasterizer 하나만 사용한다.
+- Phase 0A에서 확인한 stroke와 shadow 표현이 PNG에 유지된다.
 - web font와 image 준비 전 PNG 생성을 시작하지 않는다.
 - 결과 PNG가 원본 canvas 크기를 사용한다.
 - 투명 배경 설정이 PNG에 반영된다.

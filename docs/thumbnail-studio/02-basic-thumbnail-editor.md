@@ -59,7 +59,43 @@ Phase 6 이전에는 임시 또는 로컬 문서로 화면을 실행할 수 있�
 
 시간표 전용 상단 전환, `Component Set`, 상태와 `Table` 탭은 렌더링하지 않는다.
 
-## 3. 빈 문서 팩토리
+## 3. 노드 타입 dispatch 강화
+
+`shape`를 union에 추가하기 전에 현재 노드 타입 처리의 fallback을 제거한다.
+
+현재 renderer와 기본값 함수는 알려지지 않은 새 타입을 텍스트로 처리할 수 있다.
+이 상태에서 `shape`를 추가하면 컴파일 오류 없이 빈 텍스트 노드처럼 렌더링될 수
+있다.
+
+노드 정의를 exhaustive registry로 구성한다.
+
+```ts
+const STUDIO_NODE_DEFINITIONS = {
+  group: { ... },
+  text: { ... },
+  flexibleText: { ... },
+  image: { ... },
+  shape: { ... },
+} satisfies Record<StudioGraphNodeType, StudioNodeDefinition>;
+```
+
+registry 책임:
+
+- 표시 label
+- 아이콘 또는 icon key
+- 기본 style factory
+- 기본 binding factory
+- 허용 inspector section
+- 자식 허용 여부
+
+renderer는 모든 타입을 명시적으로 처리하고 마지막 fallback으로 텍스트를
+렌더링하지 않는다. switch를 사용한다면 `assertNever`로 누락을 컴파일 단계에서
+잡는다.
+
+노드 추가 메뉴와 picker의 타입 목록도 별도 문자열 배열을 하드코딩하지 않고
+registry에서 만든다.
+
+## 4. 빈 문서 팩토리
 
 신규 함수:
 
@@ -87,7 +123,7 @@ createThumbnailStudioDocument(options?: {
 초기 문서는 캔버스 자체를 표현하기 위한 불필요한 root node를 만들지 않는다.
 사용자가 추가한 노드만 graph에 들어간다.
 
-## 4. 노드 추가
+## 5. 노드 추가
 
 ### 추가 메뉴
 
@@ -126,6 +162,11 @@ Text:
 - 64px
 - 700 weight
 - 왼쪽 정렬
+- 기본 binding: `{ kind: "staticText", value: "New text" }`
+
+기본 binding은 현재 Template Studio의 노드 추가 동작과 동일하게 제공한다.
+binding이 없다고 현재 validator가 바로 발행을 차단하는 것은 아니지만, 새 텍스트가
+빈 상태로 생성되거나 기존 편집 동작과 달라지는 것을 방지한다.
 
 Image:
 
@@ -142,7 +183,7 @@ Group:
 - 투명 배경
 - overflow visible
 
-## 5. 선택과 조작
+## 6. 선택과 조작
 
 ### 선택
 
@@ -173,7 +214,7 @@ Group:
 현재 뷰포트가 제공하지 않는 resize/rotate overlay는 공통 Studio 선택 overlay로
 추출하거나 추가한다. Thumbnail Studio 전용 overlay를 별도로 만들지 않는다.
 
-## 6. 레이어 기능
+## 7. 레이어 기능
 
 ### 트리
 
@@ -220,7 +261,7 @@ Group:
 - `src/utils/template-studio/layer-order.ts`
 - `src/utils/template-studio/object-layout.ts`
 
-## 7. 공통 문서 명령
+## 8. 공통 문서 명령
 
 모든 변경은 명령 단위로 실행한다.
 
@@ -248,7 +289,7 @@ type StudioGraphCommand =
 
 시간표 정규화는 공통 명령 내부에서 실행하지 않는다.
 
-## 8. 편집 이력
+## 9. 편집 이력
 
 이력에 포함:
 
@@ -270,7 +311,7 @@ type StudioGraphCommand =
 
 복사 자체는 이력을 만들지 않고, 붙여넣기와 잘라내기 완료가 이력을 만든다.
 
-## 9. Canvas 인스펙터
+## 10. Canvas 인스펙터
 
 선택 노드가 없을 때 표시한다.
 
@@ -288,7 +329,7 @@ type StudioGraphCommand =
 - 캔버스 밖 노드 경고 표시 가능
 - 전체 비율 조정은 후속 기능
 
-## 10. 공통 Transform 인스펙터
+## 11. 공통 Transform 인스펙터
 
 필드:
 
@@ -309,7 +350,7 @@ type StudioGraphCommand =
 
 잠긴 노드는 편집 필드를 비활성화한다.
 
-## 11. 노드별 기본 인스펙터
+## 12. 노드별 기본 인스펙터
 
 ### Text
 
@@ -351,7 +392,7 @@ type StudioGraphCommand =
 - overflow
 - layout mode
 
-## 12. 정렬과 분배
+## 13. 정렬과 분배
 
 단일 선택:
 
@@ -367,7 +408,7 @@ type StudioGraphCommand =
 
 그룹 안의 노드는 부모의 좌표계를 기준으로 계산한다.
 
-## 13. 복사와 붙여넣기
+## 14. 복사와 붙여넣기
 
 복사 snapshot:
 
@@ -388,7 +429,7 @@ type StudioGraphCommand =
 
 다른 문서 간 붙여넣기는 초기 범위에서 보장하지 않는다.
 
-## 14. 미리보기
+## 15. 미리보기
 
 관리자 편집 화면의 preview는 현재 메모리 문서를 사용한다.
 
@@ -401,11 +442,12 @@ type StudioGraphCommand =
 Phase 6의 저장 기반 preview와 구분하기 위해 개발 중에는 draft preview임을
 표시한다.
 
-## 15. 파일 변경 계획
+## 16. 파일 변경 계획
 
 신규:
 
 - `src/utils/thumbnail-studio/document-factory.ts`
+- `src/utils/template-studio/node-definitions.ts`
 - `src/utils/thumbnail-studio/node-defaults.ts`
 - `src/app/(root)/admin/thumbnail-studio/_components/thumbnail-studio-client.tsx`
 - `src/app/(root)/admin/thumbnail-studio/_components/thumbnail-layer-tabs.tsx`
@@ -422,26 +464,29 @@ Phase 6의 저장 기반 preview와 구분하기 위해 개발 중에는 draft p
 
 Phase 1에서 만든 공통 경로와 이름이 다르면 해당 구조를 따른다.
 
-## 16. 구현 순서
+## 17. 구현 순서
 
-1. 빈 썸네일 문서 팩토리
-2. 관리자 편집 route와 Adapter 연결
-3. Layers 탭과 빈 캔버스
-4. 노드 추가
-5. 선택과 이동
-6. Transform 인스펙터
-7. 레이어 순서와 잠금·숨김
-8. resize와 rotate
-9. 그룹화와 그룹 해제
-10. 복사·붙여넣기와 복제
-11. Canvas 인스펙터
-12. 정렬과 분배
-13. 기본 preview
+1. exhaustive 노드 정의 registry와 renderer dispatch
+2. 빈 썸네일 문서 팩토리
+3. 관리자 편집 route와 Adapter 연결
+4. Layers 탭과 빈 캔버스
+5. 기본 binding을 포함한 노드 추가
+6. 선택과 이동
+7. Transform 인스펙터
+8. 레이어 순서와 잠금·숨김
+9. resize와 rotate
+10. 그룹화와 그룹 해제
+11. 복사·붙여넣기와 복제
+12. Canvas 인스펙터
+13. 정렬과 분배
+14. 기본 preview
 
-## 17. 완료 조건
+## 18. 완료 조건
 
 - 시간표 도메인 없이 빈 썸네일 문서가 열린다.
+- 모든 `StudioGraphNodeType`이 registry와 renderer에서 exhaustive하게 처리된다.
 - Text, Auto-fit Text, Image, Rectangle와 Group을 추가할 수 있다.
+- 새 Text와 Auto-fit Text가 기본 `staticText` binding을 가진다.
 - 좌측 레이어와 캔버스 선택이 동기화된다.
 - 노드를 이동, resize, rotate, 복제와 삭제할 수 있다.
 - 레이어 순서, 잠금, 숨김과 그룹 구조를 편집할 수 있다.
@@ -450,7 +495,7 @@ Phase 1에서 만든 공통 경로와 이름이 다르면 해당 구조를 따�
 - 캔버스 크기와 배경을 설정할 수 있다.
 - 시간표 전용 UI와 상태가 썸네일 문서 변경에 개입하지 않는다.
 
-## 18. 이 단계에서 하지 않는 일
+## 19. 이 단계에서 하지 않는 일
 
 - 다중 외곽선
 - 텍스트 효과 프리셋

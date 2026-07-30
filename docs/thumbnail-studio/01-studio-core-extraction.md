@@ -1,7 +1,9 @@
 # Phase 1. Studio Core와 Adapter 분리
 
 상태: 계획 완료, 구현 전  
-선행 단계: [Phase 0 — 제품 계약과 문서 모델](./00-product-contract.md)  
+선행 단계:
+[Phase 0 — 제품 계약과 문서 모델](./00-product-contract.md),
+[Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md)  
 후속 단계: [Phase 2 — 썸네일 기본 편집기](./02-basic-thumbnail-editor.md)
 
 ## 1. 목표
@@ -43,6 +45,38 @@ Thumbnail Studio가 사용할 수 있게 한다.
 
 `StudioCanvasViewport`와 `StudioRenderer`는 이미 별도 컴포넌트이므로 공통 기반의
 출발점으로 사용한다.
+
+### 2.1 추출 전 시간표 UI 기준선
+
+공통화 작업을 시작하기 전에 현재 Template Studio의 주요 UI와 동작을 기준선으로
+기록한다. 추출 후 깨진 화면을 새 기준으로 굳히지 않기 위한 선행 작업이다.
+
+필수 기준 요소:
+
+- 상단 `Cards / Timetable` 전환
+- 캔버스 크기와 guide control
+- 좌측 `Component Set`과 상태 선택
+- `Layers`, `Presets`, `Inputs`, `Table` 탭
+- 시간표 레이어 트리
+- 우측 Component Set과 시간표 속성 섹션
+- 저장, 발행, Preview와 공유
+- 줌과 Fit
+
+기준선 산출물:
+
+- 대표 화면의 브라우저 screenshot
+- 요소별 표시 조건 목록
+- 핵심 전환과 선택 동작의 짧은 smoke 시나리오
+- 추출 후 동일 여부를 확인할 최소 guard
+
+현재 `TemplateStudioClient` 전체는 `useRouter`, React Query와 브라우저 상태에
+의존하므로 `renderToStaticMarkup` 하나로 억지로 렌더링하지 않는다.
+
+첫 번째 추출에서 순수 presentational shell을 만든 뒤, 해당 컴포넌트는
+`renderToStaticMarkup` 기반의 마크업 guard를 추가할 수 있다. 실제 관리자 route는
+얇은 브라우저 smoke로 보완한다.
+
+이 기준선은 상세 테스트 체계 구축이 아니라 대형 컴포넌트 분리의 안전 조건이다.
 
 ## 3. 목표 구성
 
@@ -386,6 +420,7 @@ Phase 1에서는 최소 골격만 만든다.
 
 작은 diff로 다음 순서를 지킨다.
 
+0. 현재 Template Studio UI 기준선과 smoke guard 기록
 1. 공통 시각 primitive 추출
 2. `StudioEditorShell` 추출 후 기존 Template Studio 연결
 3. 상단 도구 모음 추출 후 기존 callback 연결
@@ -432,6 +467,7 @@ Phase 1에서는 최소 골격만 만든다.
 - Thumbnail Studio 우측에 시간표 전용 속성이 없다.
 - 공통 컴포넌트가 `StudioTimetableDomain`을 import하지 않는다.
 - 기존 Template Studio의 시간표 Adapter가 기존 기능을 계속 제공한다.
+- 추출 전 기록한 시간표 UI 기준 요소가 추출 후에도 유지된다.
 - 빈 썸네일 문서가 공통 캔버스와 레이어 패널에 나타난다.
 - 공통 UI 변경이 두 편집기에 함께 반영되는 단일 구현 구조다.
 

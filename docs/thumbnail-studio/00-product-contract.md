@@ -2,7 +2,8 @@
 
 상태: 계획 완료, 구현 전  
 선행 단계: 없음  
-후속 단계: [Phase 1 — Studio Core와 Adapter 분리](./01-studio-core-extraction.md)
+후속 단계:
+[Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md)
 
 ## 1. 목표
 
@@ -69,7 +70,7 @@ templates.template_kind = "timetable" | "thumbnail";
 문서:
 
 ```ts
-interface StudioTemplateMetadata {
+interface CanonicalStudioTemplateMetadata {
   editor: "template-studio";
   kind: StudioTemplateKind;
   name: string;
@@ -80,14 +81,34 @@ interface StudioTemplateMetadata {
 `template_engine`은 렌더링 엔진을 뜻하고, `template_kind`는 제품과 문서 도메인을
 뜻한다. 두 값을 하나의 컬럼으로 합치지 않는다.
 
+### 레거시 호환 resolver
+
+기존 v6 문서에는 `metadata.kind`가 없다. 로드와 migration 경계에서는 kind가 없는
+문서를 받을 수 있어야 한다.
+
+```ts
+getStudioTemplateKind(document, context?): StudioTemplateKind | null
+```
+
+판정 순서:
+
+1. 유효한 `metadata.kind`
+2. `domains.timetable`이 있으면 `timetable`
+3. API 또는 DB가 전달한 명시적 kind
+4. 판정할 수 없으면 `null`
+
+v7 migration과 신규 document factory가 반환하는 canonical 문서에서는 kind를
+필수로 한다. 애플리케이션 전체에서 kind를 영구 optional로 두지 않고, 레거시
+입력 경계만 resolver로 흡수한다.
+
 ### 종류와 도메인 불변식
 
 - `kind="timetable"` 문서는 `domains.timetable`을 가질 수 있다.
 - `kind="thumbnail"` 문서는 `domains.thumbnail`을 가진다.
 - 하나의 문서가 두 도메인을 동시에 활성화하지 않는다.
 - API가 요청한 종류와 문서 metadata의 종류가 다르면 저장과 발행을 거부한다.
-- 기존 문서는 migration에서 `domains.timetable` 존재 여부로 `timetable`을
-  추론한다.
+- 기존 문서는 compatibility resolver와 migration에서 `domains.timetable` 존재
+  여부로 `timetable`을 추론한다.
 
 ## 5. 썸네일 도메인 계약
 
@@ -174,6 +195,10 @@ type StudioGraphNodeType =
 
 타원, 선, 임의 path는 초기 범위에서 제외한다.
 
+`shape`를 union에 추가하기 전에 renderer, 기본값, label과 picker의 노드 타입
+dispatch를 exhaustive registry 또는 `assertNever` switch로 바꾼다. 새 타입을
+텍스트 fallback으로 조용히 처리하지 않는다.
+
 ### 논리 노드 원칙
 
 - 하나의 텍스트는 그래프 노드 하나다.
@@ -232,11 +257,19 @@ Phase 0에서 고정할 원칙:
 
 - 단색 채우기
 - 여러 외곽선
+- 외곽선 두께는 glyph 바깥으로 보이는 실효 두께로 저장
 - 그림자 하나
 - 효과 프리셋
 - 자동 크기 텍스트와 효과 레이어의 측정 결과 공유
 - 프리셋 적용 시 값 복사
 - 작성, 런타임과 PNG에서 같은 렌더러 사용
+
+중앙 정렬 CSS stroke를 선택하면 renderer가 저장된 실효 두께의 2배를 CSS
+`stroke-width`로 사용한다. 선택 영역과 effect outset은 저장된 실효 두께를
+그대로 사용한다.
+
+최종 DOM/SVG 렌더링 방식과 PNG 라이브러리는
+[Phase 0A 선행 스파이크](./00a-rendering-feasibility-spike.md)에서 확정한다.
 
 그라데이션, 글로우와 여러 그림자는 후속 확장으로 둔다.
 
@@ -263,9 +296,20 @@ Phase 0에서 고정할 원칙:
 
 - 프리셋에는 폰트, 간격, 채우기, 외곽선과 그림자를 포함할 수 있다.
 - 적용할 때 노드에 현재 값을 복사한다.
-- 노드에는 `presetId`와 `presetVersion`을 출처로 기록할 수 있다.
+- 노드에는 `source`, `presetId`와 `presetVersion`을 출처로 기록할 수 있다.
 - 프리셋 수정이 기존 문서에 자동 전파되지 않는다.
 - 사용자 개인 프리셋과 팀 소유권은 초기 범위에서 제외한다.
+
+```ts
+type StudioTextPresetReference = {
+  source: "builtin" | "custom";
+  presetId: string;
+  presetVersion: number;
+};
+```
+
+`builtin` version은 코드 registry가 명시적으로 관리하고, `custom` version은
+저장된 preset row의 version을 의미한다.
 
 프리셋의 DB 저장은 Phase 6에서 결정한다. Phase 3에서는 코드 또는 문서 내
 프리셋만으로 기능을 완성할 수 있어야 한다.
@@ -279,11 +323,12 @@ Phase 0에서 고정할 원칙:
 
 v6 → v7 migration:
 
-1. 기존 문서에 `metadata.kind="timetable"` 추가
-2. 기존 시간표 도메인과 리소스 유지
-3. 새 선택 필드는 기본값으로 보완
-4. 기존 스타일과 바인딩 변경 없음
-5. migration을 여러 번 적용해도 결과가 달라지지 않음
+1. compatibility resolver로 기존 문서 kind 판정
+2. 기존 문서에 `metadata.kind="timetable"` 추가
+3. 기존 시간표 도메인과 리소스 유지
+4. 새 선택 필드는 기본값으로 보완
+5. 기존 스타일과 바인딩 변경 없음
+6. migration을 여러 번 적용해도 결과가 달라지지 않음
 
 구현 시점에 다른 작업이 문서 버전을 먼저 올렸다면 숫자만 현재 버전에 맞춰
 재조정하고 같은 migration 의미를 유지한다.
@@ -296,6 +341,7 @@ v6 → v7 migration:
 - `src/utils/template-studio/migrations.ts`
 - `src/utils/template-studio/validator.ts`
 - `src/utils/template-studio/input-values.ts`
+- 신규 `src/utils/template-studio/template-kind.ts`
 
 빈 문서:
 
@@ -307,21 +353,25 @@ DB 종류는 Phase 6에서 적용한다.
 ## 14. 구현 순서
 
 1. `StudioTemplateKind`와 metadata 종류 정의
-2. `StudioThumbnailDomain` 정의
-3. 목표 v7 문서 타입 정의
-4. v6 문서 migration 규칙 정의
-5. 썸네일 빈 문서 팩토리 계약 정의
-6. validator의 종류·도메인 일치 규칙 정의
-7. 입력 표시와 이미지 정책 타입 정의
-8. 이후 단계가 참조할 기본값 상수 정의
+2. 레거시 호환 `getStudioTemplateKind` resolver 정의
+3. `StudioThumbnailDomain` 정의
+4. 목표 v7 canonical 문서 타입 정의
+5. v6 문서 migration 규칙 정의
+6. 썸네일 빈 문서 팩토리 계약 정의
+7. validator의 종류·도메인 일치 규칙 정의
+8. 입력 표시와 이미지 정책 타입 정의
+9. stroke 실효 두께와 preset 출처 계약 정의
+10. 이후 단계가 참조할 기본값 상수 정의
 
 ## 15. 완료 조건
 
 - Template Studio와 Thumbnail Studio의 역할과 권한이 구분돼 있다.
 - 관리자와 사용자 라우트가 확정돼 있다.
 - 템플릿 엔진과 템플릿 종류의 의미가 분리돼 있다.
+- 기존 kind 없는 문서를 읽는 resolver와 canonical 문서의 필수 kind가 구분돼 있다.
 - 썸네일 문서가 시간표 도메인 없이 생성될 수 있다.
 - 초기 노드, 입력, 캔버스와 내보내기 범위가 확정돼 있다.
+- stroke 실효 두께와 preset 출처 의미가 확정돼 있다.
 - v6 시간표 문서의 기본 migration 방향이 정의돼 있다.
 - Phase 1~6이 동일한 타입 계약을 참조할 수 있다.
 

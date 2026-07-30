@@ -1,7 +1,9 @@
 # Phase 3. 고급 텍스트 표현
 
 상태: 계획 완료, 구현 전  
-선행 단계: [Phase 2 — 썸네일 기본 편집기](./02-basic-thumbnail-editor.md)  
+선행 단계:
+[Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md),
+[Phase 2 — 썸네일 기본 편집기](./02-basic-thumbnail-editor.md)  
 후속 단계: [Phase 4 — 입력, 이미지와 에셋](./04-inputs-assets.md)
 
 ## 1. 목표
@@ -17,7 +19,7 @@
 
 - 단색 텍스트 채우기
 - 여러 아웃스트로크
-- 아웃스트로크별 색상, 두께, 투명도와 순서
+- 아웃스트로크별 색상, 바깥쪽 실효 두께, 투명도와 순서
 - 그림자 하나
 - 텍스트 효과 프리셋
 - 자동 크기와 줄바꿈 공유
@@ -48,7 +50,7 @@ interface StudioTextStroke {
   label?: string;
   enabled: boolean;
   color: string;
-  width: number;
+  outset: number;
   opacity: number;
 }
 
@@ -66,6 +68,7 @@ interface StudioTextAppearance {
   strokes: StudioTextStroke[];
   shadow?: StudioTextShadow;
   presetRef?: {
+    source: "builtin" | "custom";
     presetId: string;
     presetVersion: number;
   };
@@ -123,6 +126,25 @@ resolveStudioTextAppearance(
 
 렌더러와 인스펙터 모두 resolver를 사용하고 fallback 규칙을 복제하지 않는다.
 
+### 4.1 시간표 상태 전파 제약
+
+`textAppearance`는 배열과 순서가 있는 구조라 현재 scalar
+`StudioStyleRecord`에 넣지 않고 노드 필드에 둔다.
+
+현재 시간표의 `applyStudioVariantStyle()`은 `document.styles[styleId]`만
+복사하므로 `textAppearance`는 Online/Multi 등 다른 상태로 자동 전파되지 않는다.
+
+Thumbnail Studio 초기 구현에는 상태 variant가 없어 문제가 되지 않는다. 향후
+시간표가 공용 텍스트 효과를 채택할 때 다음 변경이 필요하다.
+
+- `appearance`와 `all` scope에서 `textAppearance` deep copy
+- 복사한 stroke의 ID 재생성
+- `Apply style to other statuses`에 효과 포함 여부 표시
+- 상태별 효과를 유지할 때는 전파 제외 선택
+
+Phase 3에서는 이 제약을 문서와 코드 주석에 남기고 시간표 전파 동작을 암묵적으로
+확장하지 않는다.
+
 ## 5. 공용 텍스트 렌더러
 
 신규 역할:
@@ -173,8 +195,8 @@ StudioTextRenderer
 예시:
 
 ```text
-stroke[0] 12px black
-stroke[1] 6px white
+stroke[0] outset 12px black
+stroke[1] outset 6px white
 foreground yellow
 ```
 
@@ -188,21 +210,31 @@ foreground yellow
 
 인스펙터의 목록 순서와 실제 앞뒤 순서를 UI 설명으로 명확히 표시한다.
 
-## 7. CSS 표현
+## 7. 렌더링 표현
 
-DOM 렌더링 기본:
+[Phase 0A 선행 스파이크](./00a-rendering-feasibility-spike.md)에서 선택한 표현과
+PNG 라이브러리를 이 단계의 기준으로 사용한다.
+
+DOM effect layer가 선택된 경우 기본 표현:
 
 - `-webkit-text-stroke`
 - `paint-order`
 - 동일 텍스트 중첩
 - `text-shadow`
 
-두꺼운 outer stroke를 표현할 때 CSS stroke가 glyph 안쪽까지 침범하는 부분은
-위에 놓인 다음 레이어와 foreground가 덮는다.
+저장된 `outset`은 glyph 바깥으로 보이는 실효 두께다. 중앙 정렬 CSS stroke를
+사용하면 다음 변환을 한 곳에서 수행한다.
 
-브라우저별 표현 차이가 제품 품질을 만족하지 못하는 경우에만 SVG text 또는
-Canvas 렌더링을 후속 검토한다. 초기 구현에 새 그래픽 프레임워크를 도입하지
-않는다.
+```ts
+const STUDIO_TEXT_STROKE_CSS_SCALE = 2;
+const cssStrokeWidth = stroke.outset * STUDIO_TEXT_STROKE_CSS_SCALE;
+```
+
+stroke가 glyph 안쪽까지 침범하는 부분은 위에 놓인 다음 레이어와 foreground가
+덮는다. renderer, preview와 export가 같은 변환 함수를 사용한다.
+
+스파이크에서 DOM 결과가 기준을 만족하지 못했다면 여기서 SVG 또는 Canvas
+결정을 그대로 따른다. Phase 3 중간에 임의로 다른 방식을 섞지 않는다.
 
 ## 8. 텍스트 측정
 
@@ -259,7 +291,7 @@ type StudioEffectOutset = {
 
 고려 값:
 
-- 최대 stroke width
+- 최대 stroke `outset`
 - shadow offset
 - shadow blur
 - 회전 전 로컬 영역
@@ -288,7 +320,7 @@ type StudioEffectOutset = {
 - 이름
 - 활성화
 - 색상
-- 두께
+- 바깥쪽 실효 두께
 - 투명도
 - 복제
 - 삭제
@@ -297,7 +329,7 @@ type StudioEffectOutset = {
 초기 stroke 제한:
 
 - 0~8개
-- width 0~64px
+- outset 0~64px
 - opacity 0~1
 
 제한은 과도한 DOM과 PNG 생성 비용을 방지하기 위한 제품 기본값이다. 상수로
@@ -326,6 +358,7 @@ type StudioEffectOutset = {
 ```ts
 interface StudioTextEffectPreset {
   id: string;
+  source: "builtin" | "custom";
   version: number;
   label: string;
   previewText: string;
@@ -355,8 +388,12 @@ Phase 3 저장 방식:
 1. preset typography를 현재 style에 복사
 2. appearance를 deep copy
 3. 새 stroke ID 생성
-4. `presetRef` 기록
+4. `source`, `presetId`, `presetVersion`을 `presetRef`에 기록
 5. 이후 preset 수정과 노드 분리
+
+`builtin`은 코드 registry ID와 registry가 명시한 version을 사용한다.
+`custom`은 DB row ID와 row version을 사용한다. 두 출처의 ID가 우연히 같아도
+`source`로 구분한다.
 
 ## 12. 폰트 로딩
 
@@ -417,33 +454,42 @@ mode 차이:
 - `src/utils/template-studio/validator.ts`
 - Phase 2의 Thumbnail inspector
 
+향후 시간표 효과 도입 시 수정:
+
+- `src/utils/template-studio/variant-style-propagation.ts`
+
 ## 15. 구현 순서
 
-1. appearance 타입과 resolver
-2. 고정 크기 `StudioTextRenderer`
-3. 단일 stroke
-4. 여러 stroke와 순서
-5. shadow
-6. 공용 text layout 측정
-7. flexibleText 연결
-8. effect outset 계산
-9. Thumbnail inspector
-10. preset registry와 preview
-11. 현재 텍스트에서 preset 생성
-12. runtime/export가 사용할 renderer API 확정
+1. Phase 0A에서 선택한 renderer와 PNG 결정 확인
+2. appearance 타입, stroke 실효 두께와 resolver
+3. 고정 크기 `StudioTextRenderer`
+4. 단일 stroke
+5. 여러 stroke와 순서
+6. shadow
+7. 공용 text layout 측정
+8. flexibleText 연결
+9. effect outset 계산
+10. Thumbnail inspector
+11. source가 구분된 preset registry와 preview
+12. 현재 텍스트에서 preset 생성
+13. runtime/export가 사용할 renderer API 확정
 
 ## 16. 완료 조건
 
 - 하나의 텍스트 노드에 여러 stroke를 추가할 수 있다.
-- stroke별 색상, 두께, 투명도와 순서를 바꿀 수 있다.
+- stroke별 색상, 바깥쪽 실효 두께, 투명도와 순서를 바꿀 수 있다.
+- renderer CSS 값과 effect outset이 같은 실효 두께 계약을 사용한다.
 - 그림자를 설정할 수 있다.
 - 레이어 패널에는 텍스트가 하나만 표시된다.
 - 효과 레이어가 선택과 pointer event를 방해하지 않는다.
 - flexibleText의 모든 효과 레이어가 같은 font size와 줄바꿈을 사용한다.
 - 두꺼운 효과가 불필요하게 잘리지 않는다.
 - preset 적용 후 원본 preset 변경이 노드에 자동 전파되지 않는다.
+- builtin/custom preset 출처와 version 의미가 구분된다.
 - 관리자, runtime과 export가 같은 `StudioTextRenderer`를 사용할 계약이 완성된다.
 - 기존 appearance 없는 시간표 텍스트가 기존 style fallback으로 렌더링된다.
+- 시간표 variant style 전파가 `textAppearance`를 아직 복사하지 않는다는 제약이
+  명시돼 있다.
 
 ## 17. 이 단계에서 하지 않는 일
 

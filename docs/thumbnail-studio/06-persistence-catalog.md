@@ -34,6 +34,10 @@ templates.template_kind = "timetable" | "thumbnail";
 
 저장 서비스가 템플릿 kind와 문서 metadata kind를 함께 확인한다.
 
+기존 kind 없는 문서를 읽는 동안에는
+`getStudioTemplateKind(document, dbContext)`를 사용한다. 신규 생성과 migration이
+끝난 canonical 문서는 `metadata.kind`를 반드시 기록한다.
+
 ## 3. DB 변경 계획
 
 ### `templates.template_kind`
@@ -44,7 +48,8 @@ templates.template_kind = "timetable" | "thumbnail";
 2. 기존 `template_engine="studio"` 행을 `timetable`로 backfill
 3. 신규 썸네일 행을 `thumbnail`로 생성
 4. 유효 값 check constraint
-5. API와 운영 화면 전환 후 not-null 정책 검토
+5. kind 없는 Studio row가 없는지 확인
+6. API와 운영 화면 전환 후 Studio row의 not-null 정책 적용
 
 Legacy 템플릿은 제품 의미를 확인한 뒤 `legacy` 전용 kind를 둘지 null을 유지할지
 결정한다. Studio 기능 구현 때문에 Legacy 행을 임의로 분류하지 않는다.
@@ -75,6 +80,21 @@ v2_studio_text_effect_presets
 
 코드 기본 preset만으로 운영하기로 결정하면 이 테이블은 만들지 않는다. 이 결정은
 원격 migration 전에 확정한다.
+
+문서의 preset 출처는 저장 위치 결정과 무관하게 처음부터 구분한다.
+
+```ts
+type StudioTextPresetReference = {
+  source: "builtin" | "custom";
+  presetId: string;
+  presetVersion: number;
+};
+```
+
+- `builtin`: 코드 registry ID와 registry version
+- `custom`: `v2_studio_text_effect_presets.id`와 row version
+
+따라서 코드 preset을 DB로 복사하더라도 기존 문서의 출처 의미가 바뀌지 않는다.
 
 ### 원격 변경 제한
 
@@ -113,6 +133,16 @@ type TemplateStudioTemplateRecord = {
 - thumbnail은 `domains.thumbnail` 존재
 - thumbnail은 활성 timetable domain 없음
 - timetable은 기존 validator 규칙 유지
+
+레거시 문서를 읽을 때:
+
+1. DB kind와 compatibility resolver로 kind 판정
+2. document migration
+3. canonical metadata kind 기록
+4. 저장 시점부터 필수 invariant 적용
+
+kind가 없는 새 문서의 저장은 허용하지 않는다. optional 호환은 기존 문서의
+읽기와 migration 경계에만 둔다.
 
 공통 persistence service 안에 썸네일 렌더링 로직을 넣지 않는다.
 
@@ -373,19 +403,21 @@ preview API가 kind를 반환하고 Thumbnail preview page가 kind를 검증한�
 ## 15. 적용 순서
 
 1. DB migration 작성
-2. 로컬 DB에 kind와 preset 정책 적용
-3. Supabase generated type 갱신
-4. persistence record에 kind 추가
-5. create/list/get API에 kind 적용
-6. draft/save/publish invariant 적용
-7. asset upload/sync 연결
-8. Thumbnail 관리자 목록과 생성 연결
-9. runtime API kind 적용
-10. 사용자 canonical route 연결
-11. Template Hub 종류 표시와 route 연결
-12. 상품과 접근 권한 흐름 연결
-13. 기존 timetable row와 route 호환 유지
-14. 운영 적용 계획 확정
+2. compatibility kind resolver와 document migration 연결
+3. 로컬 DB에 kind와 preset 정책 적용
+4. Supabase generated type 갱신
+5. persistence record에 kind 추가
+6. create/list/get API에 kind 적용
+7. draft/save/publish invariant 적용
+8. asset upload/sync 연결
+9. Thumbnail 관리자 목록과 생성 연결
+10. runtime API kind 적용
+11. 사용자 canonical route 연결
+12. Template Hub 종류 표시와 route 연결
+13. 상품과 접근 권한 흐름 연결
+14. 기존 timetable row와 route 호환 유지
+15. Studio kind backfill 완료 후 필수화
+16. 운영 적용 계획 확정
 
 ## 16. 파일 변경 계획
 
@@ -397,6 +429,7 @@ DB:
 Server:
 
 - `src/services/server/templateStudioPersistenceService.ts`
+- `src/utils/template-studio/template-kind.ts`
 - Studio admin API routes
 - user runtime API
 - `src/services/server/templateHubService.ts`
@@ -420,6 +453,8 @@ UI:
 
 - Studio 템플릿이 timetable과 thumbnail kind로 구분된다.
 - 기존 timetable row가 올바른 kind로 유지된다.
+- 기존 kind 없는 문서는 resolver와 migration을 통해 읽힌다.
+- 신규 canonical 문서는 kind 없이 저장되지 않는다.
 - Thumbnail 관리자 목록에서 thumbnail만 조회된다.
 - 썸네일 문서를 초안 저장하고 발행할 수 있다.
 - asset과 font reference가 발행 문서에서 유효하다.
@@ -427,6 +462,7 @@ UI:
 - Template Hub가 종류에 맞는 편집 및 실행 route를 연다.
 - 판매와 접근 권한이 기존 공통 구조를 사용한다.
 - 레거시 thumbnail 데이터가 자동 변경되거나 삭제되지 않는다.
+- preset reference가 builtin/custom 출처와 version을 구분한다.
 - 원격 DB 적용은 별도 사용자 승인 후 수행된다.
 
 ## 18. 이 단계에서 하지 않는 일

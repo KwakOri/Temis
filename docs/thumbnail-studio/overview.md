@@ -250,6 +250,9 @@ Thumbnail Studio Adapter
 
 작성 화면만 별도 방식으로 효과를 그리면 실제 다운로드 결과가 달라질 수 있으므로, 표현 기능은 편집기 UI가 아니라 공용 렌더러에 구현한다.
 
+동일한 렌더러 사용은 필요 조건이지만 충분 조건은 아니다. PNG rasterizer가
+공용 renderer의 CSS와 폰트를 보존하는지는 Phase 0A에서 별도로 확인한다.
+
 ### 4.4 논리 오브젝트와 시각 효과 레이어 분리
 
 중첩 아웃스트로크를 구현하기 위해 동일한 텍스트를 여러 그래프 노드로 복제하지 않는다.
@@ -264,11 +267,17 @@ Thumbnail Studio Adapter
 - 접근성 텍스트가 중복 노출되지 않음
 - 복사·붙여넣기와 그룹화가 한 오브젝트 기준으로 동작함
 
-### 4.5 초기에는 DOM 기반 렌더링 유지
+### 4.5 DOM 기반을 우선하되 PNG 충실도 먼저 확인
 
-현재 Studio의 DOM 렌더러와 HTML 기반 PNG 내보내기를 유지한다.
+현재 Studio의 DOM 렌더러를 첫 후보로 사용한다. 다만 같은 DOM을 사용해도
+PNG rasterizer가 stroke, shadow와 웹 폰트를 다르게 처리할 수 있으므로
+[Phase 0A 선행 스파이크](./00a-rendering-feasibility-spike.md)에서 실제 결과를
+먼저 비교한다.
 
-초기 기능을 위해 Fabric.js, Konva.js 같은 별도 캔버스 프레임워크를 도입하지 않는다. 현재 구조로 구현하기 어려운 마스크, 브러시, 왜곡 같은 기능이 실제 제품 요구가 되었을 때 렌더링 백엔드 변경을 별도로 검토한다.
+`html-to-image`와 `modern-screenshot` 중 표준 하나를 선택하고, DOM effect layer가
+기준을 만족하지 못할 때만 SVG text 또는 Canvas 대안을 검토한다. 초기 기능을
+위해 Fabric.js, Konva.js 같은 별도 캔버스 프레임워크를 선제적으로 도입하지
+않는다.
 
 ## 5. 기능 범위
 
@@ -465,7 +474,7 @@ Thumbnail Studio Adapter
 - 활성화 여부
 - 이름
 - 색상
-- 두께
+- glyph 바깥쪽 실효 두께
 - 투명도
 - 표시 순서
 
@@ -538,6 +547,7 @@ Thumbnail Studio Adapter
 
 ```ts
 type StudioTextPresetReference = {
+  source: "builtin" | "custom";
   presetId: string;
   presetVersion: number;
 };
@@ -661,7 +671,9 @@ type StudioTextPresetReference = {
 
 #### PNG 내보내기
 
-기존 HTML 기반 PNG 생성 흐름을 재사용한다.
+Phase 0A에서 선택한 PNG 라이브러리와 옵션을 공용 export controller로 감싸
+재사용한다. 신규 Studio UI가 `html-to-image`와 `modern-screenshot`을 각각 직접
+호출하지 않는다.
 
 내보내기 시 보장할 기능:
 
@@ -773,6 +785,10 @@ type StudioTemplateDocument = {
 
 한 문서에서 `thumbnail`과 `timetable` 도메인을 동시에 사용하지 않는 것을 기본 규칙으로 한다. 템플릿 레코드의 `template_kind`와 문서 도메인이 일치해야 한다.
 
+기존 v6 문서에는 `metadata.kind`가 없으므로 로드와 migration 경계에서는
+`getStudioTemplateKind()`가 metadata, timetable domain과 DB context 순으로 kind를
+판정한다. migration 이후 canonical v7 문서와 신규 문서는 kind를 필수로 기록한다.
+
 ### 7.2 썸네일 도메인
 
 ```ts
@@ -811,12 +827,16 @@ type StudioTextStroke = {
   name?: string;
   enabled: boolean;
   color: string;
-  width: number;
+  outset: number;
   opacity: number;
 };
 ```
 
 일반 배치와 단순 CSS 속성은 기존 스타일 레코드를 계속 사용하고, 배열이나 순서가 필요한 표현은 구조화된 속성으로 분리한다.
+
+`outset`은 glyph 바깥으로 보이는 실효 두께다. 중앙 정렬 CSS stroke를 사용할
+경우 renderer가 CSS 값으로 변환할 때 2배 하고, 선택 영역과 effect outset은
+저장된 값을 그대로 사용한다.
 
 장기적으로 표현 모델은 텍스트 외 이미지 필터나 도형 효과로 확장할 수 있지만, 초기에는 텍스트 효과만 다룬다.
 
@@ -983,12 +1003,32 @@ template_kind: "timetable" | "thumbnail"
 - 초기 기능과 후속 기능의 경계
 - 작성 화면과 사용자 화면의 정보 구조
 
+### Phase 0A. 텍스트 효과와 PNG 렌더링 스파이크
+
+목표: 공용 셸과 텍스트 효과를 본격 구현하기 전에 화면과 PNG의 표현 충실도를
+확인하고 표준 렌더링 경로를 결정한다.
+
+비교:
+
+- DOM effect layer + `html-to-image`
+- DOM effect layer + `modern-screenshot`
+- 두 경로가 기준을 만족하지 못할 때 SVG text 또는 Canvas
+
+결과물:
+
+- 표준 PNG 라이브러리 하나
+- 텍스트 효과 렌더링 방식
+- stroke 실효 두께 변환 규칙
+- 웹 폰트, shadow와 투명 배경 지원 범위
+- Phase 3과 Phase 5가 사용할 결정 기록
+
 ### Phase 1. Studio Core 최소 분리
 
 목표: 시간표 전용 로직 없이 빈 썸네일 편집기를 실행할 수 있는 공통 기반을 만든다.
 
 구현 기능:
 
+- 추출 전 시간표 편집기 UI 기준선
 - Template Studio와 Thumbnail Studio가 함께 사용하는 공통 편집기 셸
 - 시작·중앙·끝 확장 영역을 가진 공통 상단 도구 모음
 - 선택적 context header와 탭을 받는 공통 왼쪽 사이드바
@@ -1023,7 +1063,9 @@ template_kind: "timetable" | "thumbnail"
 
 구현 기능:
 
+- exhaustive 노드 정의 registry와 renderer dispatch
 - 텍스트 추가와 편집
+- 텍스트 노드의 기본 `staticText` binding
 - 자동 크기 텍스트
 - 이미지 추가와 교체
 - 기본 도형 추가
@@ -1050,12 +1092,14 @@ template_kind: "timetable" | "thumbnail"
 - 공용 `StudioTextRenderer`
 - 텍스트 측정 결과 공유
 - 단색 채우기
-- 다중 아웃스트로크
+- 실효 두께 계약을 사용하는 다중 아웃스트로크
 - 외곽선 추가, 삭제, 복제, 순서 변경
 - 텍스트 그림자
 - 효과 확장 범위 계산
 - 텍스트 효과 인스펙터
 - 효과 프리셋 생성과 적용
+- builtin/custom preset 출처 기록
+- 시간표 variant 전파 제약 기록
 - 프리셋 버전 출처 기록
 
 완료 상태:
@@ -1157,6 +1201,18 @@ template_kind: "timetable" | "thumbnail"
 
 ## 14. 주요 리스크와 대응 방향
 
+### PNG rasterizer가 텍스트 효과를 다르게 그리는 문제
+
+같은 DOM renderer를 사용해도 SVG `foreignObject` 직렬화와 Canvas rasterize
+과정에서 stroke, shadow와 웹 폰트가 화면과 다르게 나올 수 있다.
+
+대응:
+
+- Phase 0A에서 `html-to-image`와 `modern-screenshot` 실제 결과 비교
+- 표준 PNG 라이브러리 하나 선택
+- DOM 결과가 불충분하면 Phase 3 전에 SVG text 또는 Canvas 결정
+- Phase 5까지 결정을 미루지 않음
+
 ### 텍스트 레이어 간 미세한 위치 차이
 
 브라우저가 각 효과 레이어의 글자를 따로 배치하면 외곽선이 어긋날 수 있다.
@@ -1183,9 +1239,21 @@ template_kind: "timetable" | "thumbnail"
 
 대응:
 
+- 추출 전 주요 시간표 UI와 동작 기준선 기록
 - Thumbnail Studio에 필요한 수직 기능만 먼저 추출
 - 시간표 전용 상태와 패널은 유지
 - 공통 모듈별로 기존 시간표와 새 썸네일이 순차적으로 사용
+
+### 노드 필드 효과가 시간표 상태로 전파되지 않는 문제
+
+초기 `textAppearance`는 노드 필드이며 현재 시간표의 variant style 전파는
+`document.styles`만 복사한다.
+
+대응:
+
+- Thumbnail Studio 초기 범위에서는 시간표 상태 전파를 암묵적으로 변경하지 않음
+- 시간표가 공용 효과를 채택할 때 `appearance/all` 전파 범위를 명시적으로 확장
+- deep copy와 stroke ID 재생성
 
 ### 프리셋 수정으로 발행 결과가 바뀌는 문제
 
@@ -1194,7 +1262,7 @@ template_kind: "timetable" | "thumbnail"
 대응:
 
 - 적용 시 설정 복사
-- 프리셋 ID와 버전은 출처로만 기록
+- builtin/custom source, 프리셋 ID와 버전은 출처로만 기록
 - 기존 문서 자동 갱신 금지
 
 ### 저장 모델 중복
@@ -1209,11 +1277,13 @@ template_kind: "timetable" | "thumbnail"
 
 ### 편집기와 내보내기 결과 차이
 
-렌더러가 여러 개로 나뉘면 폰트, 이미지, 효과 표현이 달라질 수 있다.
+렌더러가 여러 개로 나뉘거나 rasterizer가 해당 CSS를 보존하지 못하면 폰트,
+이미지와 효과 표현이 달라질 수 있다.
 
 대응:
 
 - 관리자, 사용자, PNG가 동일한 공용 렌더러 사용
+- Phase 0A에서 선택한 rasterizer를 공용 export controller로 단일화
 - 편집 전용 선택 UI만 렌더 결과에서 분리
 
 ## 15. 기능 우선순위
@@ -1305,6 +1375,7 @@ template_kind: "timetable" | "thumbnail"
 
 ```text
 템플릿 종류와 썸네일 문서 계약
+→ PNG와 텍스트 효과 렌더링 스파이크
 → 최소 Studio Core 분리
 → 빈 Thumbnail Studio
 → 기본 오브젝트와 레이어 편집

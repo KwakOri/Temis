@@ -1,7 +1,7 @@
 # Thumbnail Studio 개발 문서
 
 최종 수정: 2026-07-30  
-상태: 전체 계획 수립, Phase 0~6 구현 전
+상태: 전체 계획 수립, Phase 0·0A·1~6 구현 전
 
 ## 1. 목표
 
@@ -108,12 +108,13 @@ Thumbnail Studio Adapter
 ## 5. 단계별 문서
 
 1. [Phase 0 — 제품 계약과 문서 모델](./00-product-contract.md)
-2. [Phase 1 — Studio Core와 Adapter 분리](./01-studio-core-extraction.md)
-3. [Phase 2 — 썸네일 기본 편집기](./02-basic-thumbnail-editor.md)
-4. [Phase 3 — 고급 텍스트 표현](./03-text-effects.md)
-5. [Phase 4 — 입력, 이미지와 에셋](./04-inputs-assets.md)
-6. [Phase 5 — 사용자 런타임과 PNG 내보내기](./05-runtime-export.md)
-7. [Phase 6 — 저장, 발행과 카탈로그 통합](./06-persistence-catalog.md)
+2. [Phase 0A — 텍스트 효과와 PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md)
+3. [Phase 1 — Studio Core와 Adapter 분리](./01-studio-core-extraction.md)
+4. [Phase 2 — 썸네일 기본 편집기](./02-basic-thumbnail-editor.md)
+5. [Phase 3 — 고급 텍스트 표현](./03-text-effects.md)
+6. [Phase 4 — 입력, 이미지와 에셋](./04-inputs-assets.md)
+7. [Phase 5 — 사용자 런타임과 PNG 내보내기](./05-runtime-export.md)
+8. [Phase 6 — 저장, 발행과 카탈로그 통합](./06-persistence-catalog.md)
 
 전체 기능 범위와 배경 설명은
 [전체 기능 계획](./overview.md)에 정리한다.
@@ -122,6 +123,8 @@ Thumbnail Studio Adapter
 
 ```text
 Phase 0: 제품 계약
+    ↓
+Phase 0A: PNG와 텍스트 효과 렌더링 스파이크
     ↓
 Phase 1: Studio Core 분리
     ↓
@@ -136,6 +139,9 @@ Phase 5: 사용자 런타임과 PNG
 Phase 6: 저장·발행·카탈로그
 ```
 
+Phase 0A에서 PNG 표준 라이브러리와 텍스트 효과 렌더링 방식을 확정한다. 같은
+DOM renderer를 사용한다는 이유만으로 화면과 PNG가 동일하다고 가정하지 않는다.
+
 Phase 1을 건너뛰고 Thumbnail Studio 화면을 먼저 복제하지 않는다. 그렇게 하면
 상단의 `Cards / Timetable` 전환, 좌측의 `Component Set`, 우측의 시간표 속성과
 같은 전용 기능이 새 편집기에 유입되거나 공통 UI가 두 벌로 갈라진다.
@@ -149,6 +155,7 @@ Phase 5에서 발행 문서 사용 흐름을 만들고, Phase 6에서 기존 Stu
 | 단계 | 상태 | 핵심 결과 |
 | --- | --- | --- |
 | 00. 제품 계약 | 계획 완료 | 템플릿 종류, 권한, 노드와 문서 계약 |
+| 0A. 렌더링 스파이크 | 실행 전 | PNG 표준 라이브러리와 텍스트 효과 방식 결정 |
 | 01. Studio Core | 계획 완료 | 공통 셸과 Timetable/Thumbnail Adapter |
 | 02. 기본 편집기 | 계획 완료 | 썸네일 문서와 기본 오브젝트 편집 |
 | 03. 텍스트 효과 | 계획 완료 | 공용 텍스트 렌더러와 다중 아웃스트로크 |
@@ -169,6 +176,8 @@ Phase 5에서 발행 문서 사용 흐름을 만들고, Phase 6에서 기존 Stu
 - 사용자 편집 권한: 공개된 입력 필드만
 - 초기 결과 저장: 별도 저장 없이 PNG 다운로드
 - 텍스트 프리셋: 프로젝트 공용, 적용 시 노드에 복사
+- 프리셋 출처: `builtin`과 `custom`을 명시
+- stroke 두께: glyph 바깥쪽 실효 두께
 - 초기 도형: 사각형과 둥근 사각형
 - 초기 내보내기: PNG
 
@@ -178,6 +187,7 @@ Phase 5에서 발행 문서 사용 흐름을 만들고, Phase 6에서 기존 Stu
 - 공통 UI를 파일 복사로 나누지 않는다.
 - 공통 컴포넌트에 시간표 도메인 상태를 넣지 않는다.
 - 작성 화면, 사용자 미리보기와 PNG가 같은 렌더러를 사용한다.
+- PNG rasterizer가 해당 렌더러의 핵심 효과를 보존하는지 먼저 확인한다.
 - 텍스트 효과를 여러 실제 그래프 노드로 만들지 않는다.
 - 썸네일 화면에서 직접 HTTP 요청을 만들지 않는다.
 - 원격 DB 변경은 사용자 명시 요청 없이 실행하지 않는다.
