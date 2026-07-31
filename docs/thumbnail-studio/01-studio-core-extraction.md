@@ -1,6 +1,6 @@
 # Phase 1. Studio Core와 Adapter 분리
 
-상태: 계획 완료, 구현 전  
+상태: 구현 진행 중. §14 완료 조건 충족, §12 9번 정리 진행 중 (→ [§16 구현 현황](#16-구현-현황))  
 선행 단계:
 [Phase 0 — 제품 계약과 문서 모델](./00-product-contract.md),
 [Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md)  
@@ -481,3 +481,123 @@ Phase 1에서는 최소 골격만 만든다.
 - Template Hub 통합
 - 대규모 디렉터리 재배치
 - 상세 테스트 계획 작성
+
+## 16. 구현 현황
+
+기준 시점: 2026-07-31. 아래 수치는 그 시점에 파일을 세어 적은 것이다.
+
+### 16.1 §12 추출 순서
+
+| 단계 | 상태 | 결과 |
+| --- | --- | --- |
+| 0. 기준선과 smoke guard | 완료 | `npm run check:studio:*` 25종 |
+| 1. 공통 시각 primitive | 완료 | `src/components/studio/layers/studio-layer-primitives.tsx` |
+| 2. `StudioEditorShell` | 완료 | `src/components/studio/editor-shell/studio-editor-shell.tsx` |
+| 3. 상단 도구 모음 | 완료 | `studio-top-toolbar.tsx`, `studio-guide-control.tsx` |
+| 4. 좌측 sidebar frame | 완료 | `studio-left-sidebar.tsx` |
+| 5. 우측 properties frame과 section | 완료 | `studio-properties-panel.tsx`, `inspector/*` |
+| 6. settings frame | 완료 | `settings/*` 4개 파일 |
+| 7. 일반 graph용 layer panel | 완료 | `layers/studio-layer-panel.tsx` |
+| 8. selection/history/clipboard 훅 | 완료 | `src/hooks/studio/*` |
+| 9. Timetable Adapter 형태로 정리 | 진행 중 | → §16.4 |
+| 10. 최소 Thumbnail Adapter | 완료 | `thumbnail-studio-client.tsx` (643줄) |
+
+되돌리기 한 단위는 `src/stores/studio/studio-editor-store.ts` 한 곳이 소유한다.
+탭이나 테마처럼 되돌리기가 되살리지 않는 값은 같은 store의 제네릭 `view`
+슬라이스에 둔다. 편집기마다 낱말이 다르므로 공용 store 타입에 박아 넣지 않는다.
+
+### 16.2 §14 완료 조건
+
+10개 조건을 모두 확인했다.
+
+- 두 편집기가 같은 셸과 같은 상·좌·우 프레임을 쓴다.
+- Thumbnail Studio에 `Cards / Timetable` 전환, `Component Set`, 상태와 `Table`
+  탭, 시간표 전용 속성이 없다.
+- 공통 컴포넌트가 `StudioTimetableDomain`을 import하지 않는다.
+- 빈 썸네일 문서가 공통 캔버스와 레이어 패널에 나타난다.
+- §2.1 기준 요소 9개에 각각 가드가 붙어 있다.
+
+### 16.3 문서와 다르게 간 곳
+
+세 곳 모두 §3이 허용한 "실제 경로 조정" 범위다.
+
+- `timetable-studio-adapter.tsx`와 `thumbnail-studio-adapter.tsx` 파일을 따로
+  두지 않았다. 두 client가 그 역할을 한다.
+- `inspector/studio-transform-section.tsx` 대신
+  `studio-inspector-section.tsx`와 `studio-inspector-fields.tsx`로 갈랐다.
+- `studio-canvas-viewport.tsx`를 template-studio 폴더가 아니라
+  `src/components/studio/canvas/`에 두어 두 편집기가 공유한다. §13이 적은
+  것보다 공통화가 한 단계 더 나아간 결과다.
+
+무른 곳이 한 군데 있다. 공통 `StudioRenderer`가 `StudioTimetableAssetSlot`
+타입과 `status-card-background` 유틸에 의존한다. §14의 문구는 지켰지만 에셋
+자리의 모양과 상태 카드 배경 판단이라는 시간표에서 온 개념이 공통 렌더러에
+남아 있다. 모양 자체는 도메인과 무관하므로 Phase 2에서 노드 registry를
+exhaustive하게 만들 때 이름을 함께 일반화한다.
+
+### 16.4 9번에 남은 정리
+
+`template-studio-client.tsx`는 10,596줄에서 5,889줄로 줄었다. 아직 어댑터라기보다
+공통 셸을 쓰는 큰 client다. 본문 5,160줄을 성격별로 묶으면 다음과 같다.
+
+| 묶음 | 줄수 | 블록 | 갈 곳 |
+| --- | --- | --- | --- |
+| `render*` 화면 그리기 | 838 | 11 | 패널 컴포넌트 |
+| 메인 JSX return | 741 | 1 | 셸 슬롯별 분리 |
+| 시간표 명령 감싸기 | 722 | 31 | 명령 훅 |
+| 노드·그래프 명령 | 423 | 10 | `graph-commands`의 plan/apply |
+| 저장·불러오기·에셋 동기화 | 387 | 5 | 지속성 훅 |
+| 카드 레이어 드래그 | 319 | 8 | 시간표와 같은 형태의 훅 |
+| 입력 관련 | 270 | 16 | 일부만 |
+| `build*` 섹션 조립 | 182 | 4 | 남는 것이 맞다 |
+| 잔 블록 120개 | 1,274 | 120 | 대부분 남는다 |
+
+정리 순서와 이유:
+
+1. **카드 레이어 드래그 319줄.** 시간표 쪽(`use-studio-timetable-layer-drag`)과
+   구조가 같은데 카드만 client에 남아 있다. 같은 규칙이 두 군데로 갈라져 있어서,
+   한쪽만 고치면 카드와 시간표의 끌어 옮기기 반응이 달라진다.
+2. **`render*` 838줄.** 스코프 의존이 얕은 표시 코드다. 컴포넌트로 나가면
+   마크업 가드를 붙일 수 있다.
+3. **저장·불러오기 387줄.** "발행 전에 에셋이 동기화되어야 한다" 같은 순서
+   규칙이 지금은 검증 밖에 있다.
+4. **`ungroupSelectedNodes` 239줄.** 다른 명령은 순수 함수로 옮겼는데 이것만
+   client에 남아 그래프 구조를 바꾸는 규칙이 가드 밖에 있다.
+5. **시간표 명령 722줄.** 대부분 `updateDocument` 얇은 감싸기다. 하나하나의
+   이득은 작지만 개수가 많다.
+
+바닥은 2,500~3,300줄로 본다. 셸·훅·store에 넘길 props 배선과 문서 상태
+파생값은 어댑터가 갖고 있어야 하므로 그 아래로는 줄지 않는다.
+
+### 16.5 가드 목록
+
+판단 로직은 순수 함수로 두고 계약을 검증한다. 이 저장소에는 DOM 테스트 환경이
+없어서 훅을 직접 부를 수 없기 때문이다. 컴포넌트는
+`renderToStaticMarkup` 마크업으로 규칙을 값으로 고정한다.
+
+가드를 새로 쓸 때는 회귀를 일부러 심어 검사가 실제로 잡는지 확인한다. 못 잡으면
+그 변형이 무해한 것인지, 검사가 그 경로를 타지 않는 것인지 갈라서 판단하고
+후자면 검사를 고친다.
+
+```text
+npm run check:studio:editor-shell         셸과 상단·좌우 프레임
+npm run check:studio:thumbnail-shell      썸네일 편집기에 없어야 하는 것
+npm run check:studio:layers               공통 레이어 패널
+npm run check:studio:timetable-layer-panel  시간표 레이어 트리
+npm run check:studio:timetable-layer-drag   시간표 레이어 끌어 옮기기
+npm run check:studio:hooks                선택과 이력
+npm run check:studio:editor-store         되돌리기 한 단위
+npm run check:studio:settings             설정 모달
+npm run check:studio:inspector-fields     공통 속성 칸
+npm run check:studio:card-node-inspector  카드 노드 인스펙터
+npm run check:studio:input-inspector      입력 인스펙터
+npm run check:studio:timetable-inspector  시간표 인스펙터
+npm run check:studio:timetable-object-controls
+npm run check:studio:timetable-asset-slot / -specs
+npm run check:studio:timetable-components
+npm run check:studio:day-cards-layout
+npm run check:studio:timetable-selection
+npm run check:studio:graph-commands / node-commands / node-style-commands
+npm run check:studio:timetable-commands / timetable-presets
+npm run check:studio:input-commands / clipboard-commands
+```
