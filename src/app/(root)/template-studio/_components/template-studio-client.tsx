@@ -15,7 +15,6 @@ import {
   CalendarDays,
   CheckCircle2,
   Copy,
-  EyeOff,
   Image as ImageIcon,
   Layers3,
   ListChecks,
@@ -53,7 +52,6 @@ import type {
 } from "@/services/templateStudioService";
 import {
   StudioBuiltinFieldId,
-  StudioDayLabelFormat,
   StudioGraphNode,
   StudioGraphNodeType,
   StudioImageFit,
@@ -85,9 +83,7 @@ import {
   isStudioTextNode,
 } from "@/utils/template-studio/binding-resolver";
 import {
-  isStudioDayLabelBuiltinField,
   normalizeStudioDayLabelFormat,
-  STUDIO_DAY_LABEL_FORMAT_OPTIONS,
   getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
 } from "@/utils/template-studio/builtin-fields";
@@ -324,10 +320,11 @@ import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel"
 import {
   StudioLayerDropIndicator,
   StudioLayerPanelFrame,
-  StudioLayerRow,
 } from "@/components/studio/layers/studio-layer-primitives";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
+import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
+import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
 import {
@@ -4667,82 +4664,6 @@ export function TemplateStudioClient({
     [getLayerDropValidation, scheduleLayerGroupAutoExpand],
   );
 
-  const renderTimetableLayerRow = ({
-    id,
-    label,
-    type,
-    depth = 0,
-    disabled = false,
-    hidden = false,
-    collapsible = false,
-    collapsed = false,
-    draggable = false,
-    blockedReason = null,
-    onToggleCollapsed,
-    onSelect,
-    onDragEnd,
-    onDragOver,
-    onDragStart,
-    onDrop,
-  }: {
-    id: string;
-    label: string;
-    type: string;
-    depth?: number;
-    disabled?: boolean;
-    hidden?: boolean;
-    collapsible?: boolean;
-    collapsed?: boolean;
-    draggable?: boolean;
-    blockedReason?: string | null;
-    onToggleCollapsed?: () => void;
-    onSelect?: () => void;
-    onDragEnd?: (event: React.DragEvent<HTMLButtonElement>) => void;
-    onDragOver?: (event: React.DragEvent<HTMLButtonElement>) => void;
-    onDragStart?: (event: React.DragEvent<HTMLButtonElement>) => void;
-    onDrop?: (event: React.DragEvent<HTMLButtonElement>) => void;
-  }) => (
-    <StudioLayerRow
-      blockedReason={blockedReason}
-      collapsed={collapsed}
-      collapsible={collapsible}
-      depth={depth}
-      disabled={disabled}
-      draggable={draggable}
-      hidden={hidden}
-      icon={
-        type === "group" ? (
-          <Layers3 size={14} />
-        ) : type === "day" ? (
-          <CalendarDays size={14} />
-        ) : type === "block" || type === "image" ? (
-          <ImageIcon size={14} />
-        ) : (
-          <Type size={14} />
-        )
-      }
-      key={id}
-      label={label}
-      ring={blockedReason ? "blocked" : "none"}
-      selected={selectedTimetableLayerId === id}
-      stateIcon={
-        hidden ? (
-          <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
-        ) : null
-      }
-      typeLabel={type}
-      onDragEnd={onDragEnd}
-      onDragOver={onDragOver}
-      onDragStart={onDragStart}
-      onDrop={onDrop}
-      onToggleCollapsed={onToggleCollapsed}
-      onClick={() => {
-        setSelectedTimetableLayerId(id);
-        onSelect?.();
-      }}
-    />
-  );
-
   const renderTimetableDropIndicator = (
     layerId: string,
     depth: number,
@@ -4809,32 +4730,42 @@ export function TemplateStudioClient({
         {isRoot
           ? renderTimetableDropIndicator(object.id, depth, "before")
           : null}
-        {renderTimetableLayerRow({
-          id: object.id,
-          label: object.label,
-          type,
-          depth,
-          hidden,
-          collapsible:
+        <StudioTimetableLayerRow
+          blockedReason={blockedReason}
+          collapsed={isCollapsed}
+          collapsible={
             isGeneratedDayCards ||
-            (object.kind === "group" && childIds.length > 0),
-          collapsed: isCollapsed,
-          draggable: isRoot,
-          blockedReason,
-          onDragEnd: isRoot ? clearTimetableLayerDragState : undefined,
-          onDragOver: isRoot
-            ? (event) => handleTimetableLayerDragOver(event, object.id)
-            : undefined,
-          onDragStart: isRoot
-            ? (event) => handleTimetableLayerDragStart(event, object.id)
-            : undefined,
-          onDrop: isRoot
-            ? (event) => handleTimetableLayerDrop(event, object.id)
-            : undefined,
-          onToggleCollapsed: isGroup
-            ? () => toggleTimetableLayerCollapsed(object.id)
-            : undefined,
-        })}
+            (object.kind === "group" && childIds.length > 0)
+          }
+          depth={depth}
+          draggable={isRoot}
+          hidden={hidden}
+          id={object.id}
+          key={object.id}
+          label={object.label}
+          selectedLayerId={selectedTimetableLayerId}
+          type={type}
+          onDragEnd={isRoot ? clearTimetableLayerDragState : undefined}
+          onDragOver={
+            isRoot
+              ? (event) => handleTimetableLayerDragOver(event, object.id)
+              : undefined
+          }
+          onDragStart={
+            isRoot
+              ? (event) => handleTimetableLayerDragStart(event, object.id)
+              : undefined
+          }
+          onDrop={
+            isRoot
+              ? (event) => handleTimetableLayerDrop(event, object.id)
+              : undefined
+          }
+          onSelectLayer={setSelectedTimetableLayerId}
+          onToggleCollapsed={
+            isGroup ? () => toggleTimetableLayerCollapsed(object.id) : undefined
+          }
+        />
         {!isCollapsed && isGeneratedDayCards
           ? timetableDays.map((day) => {
               const layerId = `day-card:${day.id}`;
@@ -4851,26 +4782,32 @@ export function TemplateStudioClient({
                     "before",
                     day.id,
                   )}
-                  {renderTimetableLayerRow({
-                    id: layerId,
-                    label: `${day.shortLabel ?? day.label} Card`,
-                    type: "day",
-                    depth: depth + 1,
-                    hidden,
-                    draggable: true,
-                    blockedReason: dayBlockedReason,
-                    onDragEnd: clearTimetableLayerDragState,
-                    onDragOver: (event) =>
-                      handleTimetableLayerDragOver(event, layerId, day.id),
-                    onDragStart: (event) =>
-                      handleTimetableLayerDragStart(event, layerId, day.id),
-                    onDrop: (event) =>
-                      handleTimetableLayerDrop(event, layerId, day.id),
-                    onSelect: () => {
+                  <StudioTimetableLayerRow
+                    blockedReason={dayBlockedReason}
+                    depth={depth + 1}
+                    draggable
+                    hidden={hidden}
+                    id={layerId}
+                    key={layerId}
+                    label={`${day.shortLabel ?? day.label} Card`}
+                    selectedLayerId={selectedTimetableLayerId}
+                    type="day"
+                    onDragEnd={clearTimetableLayerDragState}
+                    onDragOver={(event) =>
+                      handleTimetableLayerDragOver(event, layerId, day.id)
+                    }
+                    onDragStart={(event) =>
+                      handleTimetableLayerDragStart(event, layerId, day.id)
+                    }
+                    onDrop={(event) =>
+                      handleTimetableLayerDrop(event, layerId, day.id)
+                    }
+                    onSelectLayer={setSelectedTimetableLayerId}
+                    onSelect={() => {
                       setSelectedRuntimeDayId(day.id);
                       setSelectedRuntimeEntryIndex(0);
-                    },
-                  })}
+                    }}
+                  />
                   {renderTimetableDropIndicator(
                     layerId,
                     depth + 1,
@@ -6363,42 +6300,6 @@ export function TemplateStudioClient({
     );
   };
 
-  const renderDayLabelFormatControl = ({
-    fieldId,
-    value,
-    onChange,
-  }: {
-    fieldId: StudioBuiltinFieldId;
-    value?: StudioDayLabelFormat;
-    onChange: (format: StudioDayLabelFormat) => void;
-  }) => {
-    if (!isStudioDayLabelBuiltinField(fieldId)) return null;
-
-    const normalizedValue = normalizeStudioDayLabelFormat(value);
-
-    return (
-      <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-        <span>Day Format</span>
-        <select
-          className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-          value={normalizedValue}
-          onChange={(event) =>
-            onChange(event.currentTarget.value as StudioDayLabelFormat)
-          }
-        >
-          {STUDIO_DAY_LABEL_FORMAT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label} · {option.preview}
-            </option>
-          ))}
-        </select>
-        <span className="text-[10px] font-medium leading-relaxed text-[var(--fg3)]">
-          Stored on this text binding only.
-        </span>
-      </label>
-    );
-  };
-
   const renderTimetableDayCardsLayoutControls = () => {
     const timetable = document.domains?.timetable;
     if (!timetable) return null;
@@ -7422,30 +7323,30 @@ export function TemplateStudioClient({
                           {selectedNodeBuiltinField.id}
                         </span>
                       </div>
-                      {selectedNode.binding?.kind === "builtinField"
-                        ? renderDayLabelFormatControl({
-                            fieldId: selectedNode.binding.fieldId,
-                            value: selectedNode.binding.dayLabelFormat,
-                            onChange: (dayLabelFormat) =>
-                              updateNode(selectedNode.id, (node) => {
-                                if (node.binding?.kind !== "builtinField")
-                                  return;
+                      {selectedNode.binding?.kind === "builtinField" ? (
+                        <StudioDayLabelFormatField
+                          fieldId={selectedNode.binding.fieldId}
+                          value={selectedNode.binding.dayLabelFormat}
+                          onChange={(dayLabelFormat) =>
+                            updateNode(selectedNode.id, (node) => {
+                              if (node.binding?.kind !== "builtinField") return;
 
-                                const normalizedFormat =
-                                  normalizeStudioDayLabelFormat(dayLabelFormat);
-                                node.binding =
-                                  normalizedFormat === "default"
-                                    ? {
-                                        kind: "builtinField",
-                                        fieldId: node.binding.fieldId,
-                                      }
-                                    : {
-                                        ...node.binding,
-                                        dayLabelFormat: normalizedFormat,
-                                      };
-                              }),
-                          })
-                        : null}
+                              const normalizedFormat =
+                                normalizeStudioDayLabelFormat(dayLabelFormat);
+                              node.binding =
+                                normalizedFormat === "default"
+                                  ? {
+                                      kind: "builtinField",
+                                      fieldId: node.binding.fieldId,
+                                    }
+                                  : {
+                                      ...node.binding,
+                                      dayLabelFormat: normalizedFormat,
+                                    };
+                            })
+                          }
+                        />
+                      ) : null}
                     </>
                   ) : selectedNodeBoundInput ? (
                     <div className="grid min-w-0 gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
@@ -7815,40 +7716,41 @@ export function TemplateStudioClient({
                             </span>
                           </div>
                           {selectedTimetableTextObject.binding?.kind ===
-                          "builtinField"
-                            ? renderDayLabelFormatControl({
-                                fieldId:
-                                  selectedTimetableTextObject.binding.fieldId,
-                                value:
-                                  selectedTimetableTextObject.binding
-                                    .dayLabelFormat,
-                                onChange: (dayLabelFormat) =>
-                                  updateTimetableCompositionObject(
-                                    selectedTimetableTextObject.id,
-                                    (object) => {
-                                      if (
-                                        object.binding?.kind !== "builtinField"
-                                      )
-                                        return;
+                          "builtinField" ? (
+                            <StudioDayLabelFormatField
+                              fieldId={
+                                selectedTimetableTextObject.binding.fieldId
+                              }
+                              value={
+                                selectedTimetableTextObject.binding
+                                  .dayLabelFormat
+                              }
+                              onChange={(dayLabelFormat) =>
+                                updateTimetableCompositionObject(
+                                  selectedTimetableTextObject.id,
+                                  (object) => {
+                                    if (object.binding?.kind !== "builtinField")
+                                      return;
 
-                                      const normalizedFormat =
-                                        normalizeStudioDayLabelFormat(
-                                          dayLabelFormat,
-                                        );
-                                      object.binding =
-                                        normalizedFormat === "default"
-                                          ? {
-                                              kind: "builtinField",
-                                              fieldId: object.binding.fieldId,
-                                            }
-                                          : {
-                                              ...object.binding,
-                                              dayLabelFormat: normalizedFormat,
-                                            };
-                                    },
-                                  ),
-                              })
-                            : null}
+                                    const normalizedFormat =
+                                      normalizeStudioDayLabelFormat(
+                                        dayLabelFormat,
+                                      );
+                                    object.binding =
+                                      normalizedFormat === "default"
+                                        ? {
+                                            kind: "builtinField",
+                                            fieldId: object.binding.fieldId,
+                                          }
+                                        : {
+                                            ...object.binding,
+                                            dayLabelFormat: normalizedFormat,
+                                          };
+                                  },
+                                )
+                              }
+                            />
+                          ) : null}
                           {isSelectedWeekDatesObject
                             ? renderTimetableWeekDatesFormatControls(
                                 selectedTimetableTextObject,
