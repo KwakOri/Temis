@@ -149,7 +149,6 @@ import {
   applyStudioNodeOffset,
   applyStudioNodeStyleValue,
   applyStudioNodeTextAlignment,
-  getStudioOpacityPercent,
   getStudioTextAlignment,
   getStudioTextJustifyContent,
   getStudioVariantStyleMessage,
@@ -193,14 +192,7 @@ import {
   setStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
-import {
-  ensureStudioPresetImageInput,
-  STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
-  STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL,
-  STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
-  STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL,
-  STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
-} from "@/utils/template-studio/preset-inputs";
+import { ensureStudioPresetImageInput } from "@/utils/template-studio/preset-inputs";
 import {
   getStudioPresetExistingTargetId,
   getStudioPresetCreationRule,
@@ -227,10 +219,6 @@ import {
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
 import {
-  setStudioTimetableObjectAssetInputSlot,
-  setStudioTimetableObjectAssetSlot,
-  setStudioTimetableObjectBackgroundAssetSlot,
-  setStudioTimetableObjectBackgroundInputSlot,
   setStudioTimetableObjectMaskSlot,
   setStudioTimetableObjectVisibilitySlot,
   type StudioSemanticMaskShape,
@@ -319,6 +307,10 @@ import {
   getStudioInputScopeLabel,
   STUDIO_INPUT_SCOPE_OPTIONS,
 } from "@/utils/template-studio/input-scope";
+import {
+  resolveStudioTimetableAssetSlotSpec,
+  type StudioTimetableAssetSlotKind,
+} from "@/utils/template-studio/timetable-asset-slot-specs";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
 import {
   StudioLayerDropIndicator,
@@ -329,6 +321,10 @@ import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
 import { StudioInputInspector } from "./studio-input-inspector";
+import {
+  StudioTimetableOpacityField,
+  StudioTimetableVisibilityField,
+} from "./studio-timetable-object-controls";
 import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
 import { StudioTimetableDayCardsLayoutControls } from "./studio-timetable-day-cards-layout-controls";
 import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
@@ -5269,34 +5265,24 @@ export function TemplateStudioClient({
   const renderTimetableVisibilitySlot = (
     object: StudioTimetableCompositionObject,
   ) => (
-    <label className="flex items-center justify-between gap-3 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
-      <span>Visible</span>
-      <input
-        checked={!object.hidden}
-        className="h-4 w-4 accent-[var(--accent)]"
-        type="checkbox"
-        onChange={(event) => {
-          const visible = event.currentTarget.checked;
-          updateTimetableCompositionObject(object.id, (currentObject) => {
-            setStudioTimetableObjectVisibilitySlot(currentObject, visible);
-          });
-        }}
-      />
-    </label>
+    <StudioTimetableVisibilityField
+      hidden={object.hidden}
+      onChange={(visible) =>
+        updateTimetableCompositionObject(object.id, (currentObject) => {
+          setStudioTimetableObjectVisibilitySlot(currentObject, visible);
+        })
+      }
+    />
   );
 
   const renderTimetableOpacityControl = (
     object: StudioTimetableCompositionObject,
   ) => (
-    <StudioNumberField
-      label="Opacity"
-      value={getStudioOpacityPercent(object.style.opacity)}
-      onChange={(value) =>
+    <StudioTimetableOpacityField
+      opacity={object.style.opacity}
+      onChange={(opacity) =>
         updateTimetableCompositionObject(object.id, (currentObject) => {
-          currentObject.style = {
-            ...currentObject.style,
-            opacity: Math.min(Math.max(value, 0), 100) / 100,
-          };
+          currentObject.style = { ...currentObject.style, opacity };
         })
       }
     />
@@ -5455,226 +5441,52 @@ export function TemplateStudioClient({
     );
   };
 
+  /**
+   * 종류에 맞는 이미지 자리를 그린다.
+   *
+   * 어떤 자리를 읽고 쓸지는 순수 함수가 정한다. 여기서는 문서를 바꾸는 방법만
+   * 이어 붙인다.
+   */
+  const renderTimetableAssetSlotOfKind = (
+    object: StudioTimetableCompositionObject,
+    kind: StudioTimetableAssetSlotKind,
+  ) =>
+    renderTimetableAssetSlot({
+      object,
+      ...resolveStudioTimetableAssetSlotSpec(object, kind),
+    });
+
   const renderTimetableBackgroundAssetSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const backgroundSlot = object.assetSlots?.background;
-
-    return renderTimetableAssetSlot({
-      object,
-      label: "Background Asset",
-      assetId: backgroundSlot?.assetId ?? object.backgroundAssetId,
-      inputId: backgroundSlot?.inputId,
-      fit: backgroundSlot?.fit ?? object.backgroundFit,
-      inputLabel: STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectBackgroundAssetSlot(
-          currentObject,
-          assetId,
-          fit,
-        );
-      },
-      onUpdateInput: (currentObject, inputId, fit) => {
-        setStudioTimetableObjectBackgroundInputSlot(
-          currentObject,
-          inputId,
-          fit,
-        );
-      },
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "background");
 
   const renderTimetableProfileImageSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const profileImageSlot = object.assetSlots?.profileImage;
-
-    return renderTimetableAssetSlot({
-      object,
-      label: "Profile Image",
-      assetId: profileImageSlot?.assetId,
-      inputId: profileImageSlot?.inputId,
-      fit: profileImageSlot?.fit,
-      inputLabel: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectAssetSlot(
-          currentObject,
-          "profileImage",
-          assetId,
-          fit,
-        );
-      },
-      onUpdateInput: (currentObject, inputId, fit) => {
-        setStudioTimetableObjectAssetInputSlot(
-          currentObject,
-          "profileImage",
-          inputId,
-          fit,
-        );
-      },
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "profileImage");
 
   const renderTimetableProfileFrameSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const profileFrameSlot = object.assetSlots?.profileFrame;
-
-    return renderTimetableAssetSlot({
-      object,
-      label: "Frame Asset",
-      assetId: profileFrameSlot?.assetId,
-      inputId: profileFrameSlot?.inputId,
-      fit: profileFrameSlot?.fit,
-      defaultFit: "contain",
-      inputLabel: STUDIO_PROFILE_BLOCK_FRAME_INPUT_LABEL,
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectAssetSlot(
-          currentObject,
-          "profileFrame",
-          assetId,
-          fit,
-        );
-      },
-      onUpdateInput: (currentObject, inputId, fit) => {
-        setStudioTimetableObjectAssetInputSlot(
-          currentObject,
-          "profileFrame",
-          inputId,
-          fit,
-        );
-      },
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "profileFrame");
 
   const renderTimetableProfileChildAssetSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const assetSlot = object.assetSlots?.asset;
-    const role = object.profileRole;
-    const isUserImage = role === "userImage";
-    const label =
-      role === "backPlate"
-        ? "Back Plate Asset"
-        : role === "frame"
-          ? "Frame Asset"
-          : "User Image";
-
-    return renderTimetableAssetSlot({
-      object,
-      label,
-      assetId: assetSlot?.assetId,
-      inputId: assetSlot?.inputId,
-      fit: assetSlot?.fit,
-      defaultFit: isUserImage ? "cover" : "contain",
-      inputLabel: STUDIO_PROFILE_BLOCK_IMAGE_INPUT_LABEL,
-      sourceLocked: isUserImage ? "input" : "asset",
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectAssetSlot(currentObject, "asset", assetId, fit);
-      },
-      onUpdateInput: isUserImage
-        ? (currentObject, inputId, fit) => {
-            setStudioTimetableObjectAssetInputSlot(
-              currentObject,
-              "asset",
-              inputId,
-              fit,
-            );
-          }
-        : undefined,
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "profileChild");
 
   const renderTimetableStructuredBackgroundAssetSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const assetSlot = object.assetSlots?.asset;
-
-    return renderTimetableAssetSlot({
-      object,
-      label: "Background Asset",
-      assetId: assetSlot?.assetId,
-      fit: assetSlot?.fit,
-      defaultFit: "cover",
-      inputLabel: STUDIO_WEEKLY_MEMO_BACKGROUND_INPUT_LABEL,
-      sourceLocked: "asset",
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectAssetSlot(currentObject, "asset", assetId, fit);
-      },
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "structuredBackground");
 
   const renderTimetableTopObjectAssetSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const assetSlot = object.assetSlots?.asset;
-
-    return renderTimetableAssetSlot({
-      object,
-      label: "Object Asset",
-      assetId: assetSlot?.assetId,
-      inputId: assetSlot?.inputId,
-      fit: assetSlot?.fit,
-      defaultFit: "contain",
-      inputLabel: STUDIO_TOP_OBJECT_IMAGE_INPUT_LABEL,
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectAssetSlot(currentObject, "asset", assetId, fit);
-      },
-      onUpdateInput: (currentObject, inputId, fit) => {
-        setStudioTimetableObjectAssetInputSlot(
-          currentObject,
-          "asset",
-          inputId,
-          fit,
-        );
-      },
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "topObject");
 
   const renderTimetableBoardAssetSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const assetSlot = object.assetSlots?.asset;
-
-    return renderTimetableAssetSlot({
-      object,
-      label: "Board Image",
-      assetId: assetSlot?.assetId,
-      fit: assetSlot?.fit,
-      defaultFit: "cover",
-      sourceLocked: "asset",
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectAssetSlot(currentObject, "asset", assetId, fit);
-      },
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "board");
 
   const renderTimetableArtistProfileTextAssetSlot = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const assetSlot = object.assetSlots?.asset;
-
-    return renderTimetableAssetSlot({
-      object,
-      label: "Text Asset",
-      assetId: assetSlot?.assetId,
-      inputId: assetSlot?.inputId,
-      fit: assetSlot?.fit,
-      defaultFit: "contain",
-      inputLabel: STUDIO_ARTIST_PROFILE_TEXT_ASSET_INPUT_LABEL,
-      onUpdateAsset: (currentObject, assetId, fit) => {
-        setStudioTimetableObjectAssetSlot(currentObject, "asset", assetId, fit);
-      },
-      onUpdateInput: (currentObject, inputId, fit) => {
-        setStudioTimetableObjectAssetInputSlot(
-          currentObject,
-          "asset",
-          inputId,
-          fit,
-        );
-      },
-    });
-  };
+  ) => renderTimetableAssetSlotOfKind(object, "artistProfileText");
 
   const renderTimetableWeekDatesFormatControls = (
     object: StudioTimetableCompositionObject,
