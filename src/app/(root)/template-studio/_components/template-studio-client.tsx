@@ -1,12 +1,9 @@
 "use client";
 
 import {
-  AlignCenter,
   AlignHorizontalJustifyCenter,
   AlignHorizontalJustifyEnd,
   AlignHorizontalJustifyStart,
-  AlignLeft,
-  AlignRight,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyStart,
@@ -289,16 +286,12 @@ import {
 } from "@/utils/template-studio/variant-style-propagation";
 import {
   getStudioTextWrapMode,
-  STUDIO_TEXT_WRAP_MODE_OPTIONS,
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
-  type StudioTextWrapMode,
 } from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import {
   getStudioCustomFontFamilies,
   getStudioFontWeightOptions,
-  normalizeStudioFontWeight,
-  type StudioFontWeightOption,
 } from "@/utils/template-studio/web-fonts";
 
 import {
@@ -322,6 +315,15 @@ import {
   type StudioPropertyItem,
 } from "@/components/studio/editor-shell/studio-properties-panel";
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
+import {
+  StudioFitParentButton,
+  StudioFontWeightField,
+  StudioLineBreakField,
+  StudioNumberField,
+  StudioTextAlignmentField,
+  StudioTextareaField,
+  StudioTextField,
+} from "@/components/studio/inspector/studio-inspector-fields";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
 import {
   StudioLayerDropIndicator,
@@ -849,294 +851,6 @@ const getStudioTimetableObjectMaskShape = (
   if (radius <= 0) return "rectangle";
   return "rounded";
 };
-
-interface NumberFieldProps {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  disabled?: boolean;
-}
-
-function NumberField({ label, value, onChange, disabled }: NumberFieldProps) {
-  const [draftValue, setDraftValue] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const displayValue = isEditing
-    ? draftValue
-    : String(Number.isFinite(value) ? value : 0);
-  const commitValue = useCallback(
-    (nextDraftValue: string) => {
-      const trimmedValue = nextDraftValue.trim();
-      const parsedValue =
-        trimmedValue === "" ? 0 : Number(trimmedValue.replace(/,/g, ""));
-
-      if (!Number.isFinite(parsedValue)) {
-        setDraftValue(String(Number.isFinite(value) ? value : 0));
-        setIsEditing(false);
-        return;
-      }
-
-      onChange(parsedValue);
-      setDraftValue(String(parsedValue));
-      setIsEditing(false);
-    },
-    [onChange, value],
-  );
-  const nudgeValue = useCallback(
-    (delta: number) => {
-      const parsedDraft = Number(draftValue.trim().replace(/,/g, ""));
-      const baseValue =
-        isEditing && Number.isFinite(parsedDraft)
-          ? parsedDraft
-          : Number.isFinite(value)
-            ? value
-            : 0;
-      const nextValue = Number((baseValue + delta).toFixed(2));
-
-      onChange(nextValue);
-      setDraftValue(String(nextValue));
-      setIsEditing(false);
-    },
-    [draftValue, isEditing, onChange, value],
-  );
-
-  useEffect(() => {
-    if (isEditing) return;
-    setDraftValue(String(Number.isFinite(value) ? value : 0));
-  }, [isEditing, value]);
-
-  return (
-    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-      <span>{label}</span>
-      <input
-        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:text-[var(--fg3)] disabled:opacity-70"
-        disabled={disabled}
-        inputMode="decimal"
-        type="text"
-        value={displayValue}
-        onBlur={(event) => commitValue(event.currentTarget.value)}
-        onChange={(event) => {
-          setIsEditing(true);
-          setDraftValue(event.currentTarget.value);
-        }}
-        onFocus={(event) => {
-          setIsEditing(true);
-          setDraftValue(event.currentTarget.value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.currentTarget.blur();
-            return;
-          }
-
-          if (event.key === "Escape") {
-            setDraftValue(String(Number.isFinite(value) ? value : 0));
-            setIsEditing(false);
-            event.currentTarget.blur();
-            return;
-          }
-
-          if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-            event.preventDefault();
-            nudgeValue(
-              (event.key === "ArrowUp" ? 1 : -1) * (event.shiftKey ? 10 : 1),
-            );
-          }
-        }}
-      />
-    </label>
-  );
-}
-
-function FitParentButton({
-  active,
-  onClick,
-}: {
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      aria-pressed={active}
-      className={cn(
-        "h-7 rounded-md border px-2.5 text-[10px] font-bold uppercase tracking-[0.05em] transition",
-        active
-          ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--accent)]"
-          : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]",
-      )}
-      title={active ? "Use fixed size" : "Fill parent"}
-      type="button"
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick();
-      }}
-    >
-      Fit
-    </button>
-  );
-}
-
-interface FontWeightFieldProps {
-  options: StudioFontWeightOption[];
-  value: string | number | null | undefined;
-  onChange: (value: number) => void;
-}
-
-function FontWeightField({ options, value, onChange }: FontWeightFieldProps) {
-  const normalizedValue = normalizeStudioFontWeight(value);
-  const selectedWeight = options.reduce(
-    (closest, option) =>
-      Math.abs(option.value - normalizedValue) <
-      Math.abs(closest.value - normalizedValue)
-        ? option
-        : closest,
-    options[0],
-  ).value;
-
-  return (
-    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-      <span>Weight</span>
-      <select
-        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-        value={selectedWeight}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-        onFocus={() => {
-          if (selectedWeight !== normalizedValue) onChange(selectedWeight);
-        }}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-interface TextAlignmentFieldProps {
-  value: StudioTextAlignment;
-  onChange: (value: StudioTextAlignment) => void;
-}
-
-function TextAlignmentField({ value, onChange }: TextAlignmentFieldProps) {
-  const options = [
-    { value: "left" as const, label: "Align left", Icon: AlignLeft },
-    { value: "center" as const, label: "Align center", Icon: AlignCenter },
-    { value: "right" as const, label: "Align right", Icon: AlignRight },
-  ];
-
-  return (
-    <div className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-      <span>Alignment</span>
-      <div className="grid h-8 min-w-0 grid-cols-3 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
-        {options.map(({ value: optionValue, label, Icon }) => (
-          <button
-            aria-label={label}
-            aria-pressed={value === optionValue}
-            className={cn(
-              "flex min-w-0 items-center justify-center rounded-[5px] transition",
-              value === optionValue
-                ? "bg-[var(--accent)] text-white"
-                : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-            )}
-            key={optionValue}
-            title={label}
-            type="button"
-            onClick={() => onChange(optionValue)}
-          >
-            <Icon className="h-3.5 w-3.5" />
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-interface LineBreakFieldProps {
-  value: StudioTextWrapMode;
-  onChange: (value: StudioTextWrapMode) => void;
-}
-
-/**
- * Auto Text의 줄바꿈 모드 컨트롤. Cards graph 노드와 Timetable composition
- * 오브젝트 인스펙터가 같은 컨트롤을 쓴다.
- */
-function LineBreakField({ value, onChange }: LineBreakFieldProps) {
-  const description = STUDIO_TEXT_WRAP_MODE_OPTIONS.find(
-    (option) => option.value === value,
-  )?.description;
-
-  return (
-    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-      <span>Line Breaks</span>
-      <select
-        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-        value={value}
-        onChange={(event) =>
-          onChange(event.currentTarget.value as StudioTextWrapMode)
-        }
-      >
-        {STUDIO_TEXT_WRAP_MODE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-      {description ? (
-        <span className="text-[10px] font-medium text-[var(--fg3)]">
-          {description}
-        </span>
-      ) : null}
-    </label>
-  );
-}
-
-interface TextFieldProps {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-}
-
-function TextField({ label, value, onChange, placeholder }: TextFieldProps) {
-  return (
-    <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-      <span>{label}</span>
-      <input
-        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)]"
-        placeholder={placeholder}
-        type="text"
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </label>
-  );
-}
-
-interface TextareaFieldProps extends TextFieldProps {
-  rows?: number;
-}
-
-function TextareaField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  rows = 4,
-}: TextareaFieldProps) {
-  return (
-    <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-      <span>{label}</span>
-      <textarea
-        className="min-h-20 resize-y rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)]"
-        placeholder={placeholder}
-        rows={rows}
-        value={value}
-        onChange={(event) => onChange(event.currentTarget.value)}
-      />
-    </label>
-  );
-}
 
 interface TemplateStudioClientProps {
   initialRemoteTemplateId?: string | null;
@@ -5083,7 +4797,7 @@ export function TemplateStudioClient({
     if (input.type === "text") {
       if (input.multiline) {
         return (
-          <TextareaField
+          <StudioTextareaField
             key={runtimeInputKey}
             label={input.label}
             placeholder={input.placeholder}
@@ -5097,7 +4811,7 @@ export function TemplateStudioClient({
       }
 
       return (
-        <TextField
+        <StudioTextField
           key={runtimeInputKey}
           label={input.label}
           placeholder={input.placeholder}
@@ -5112,7 +4826,7 @@ export function TemplateStudioClient({
     if (input.type === "image") {
       return (
         <div className="grid gap-2" key={runtimeInputKey}>
-          <TextField
+          <StudioTextField
             label={input.label}
             placeholder={input.placeholder}
             value={value}
@@ -5506,7 +5220,7 @@ export function TemplateStudioClient({
           </button>
         ) : null}
 
-        <TextField
+        <StudioTextField
           label="Label"
           value={input.label}
           onChange={(value) =>
@@ -5538,7 +5252,7 @@ export function TemplateStudioClient({
 
         {input.type === "text" && (
           <>
-            <TextField
+            <StudioTextField
               label="Placeholder"
               value={input.placeholder ?? ""}
               onChange={(value) =>
@@ -5550,7 +5264,7 @@ export function TemplateStudioClient({
               }
             />
             {input.multiline ? (
-              <TextareaField
+              <StudioTextareaField
                 label="Default"
                 rows={input.minRows ?? 4}
                 value={input.defaultValue ?? ""}
@@ -5563,7 +5277,7 @@ export function TemplateStudioClient({
                 }
               />
             ) : (
-              <TextField
+              <StudioTextField
                 label="Default"
                 value={input.defaultValue ?? ""}
                 onChange={(value) =>
@@ -5597,7 +5311,7 @@ export function TemplateStudioClient({
               />
             </label>
             {input.multiline ? (
-              <NumberField
+              <StudioNumberField
                 label="Rows"
                 value={Number(input.minRows ?? 4)}
                 onChange={(value) =>
@@ -5612,7 +5326,7 @@ export function TemplateStudioClient({
                 }
               />
             ) : null}
-            <NumberField
+            <StudioNumberField
               label="Max Length"
               value={Number(input.maxLength ?? 0)}
               onChange={(value) =>
@@ -5630,7 +5344,7 @@ export function TemplateStudioClient({
         )}
 
         {input.type === "image" && (
-          <TextField
+          <StudioTextField
             label="Default URL"
             value={input.defaultUrl ?? ""}
             onChange={(value) =>
@@ -5791,7 +5505,7 @@ export function TemplateStudioClient({
   const renderTimetableOpacityControl = (
     object: StudioTimetableCompositionObject,
   ) => (
-    <NumberField
+    <StudioNumberField
       label="Opacity"
       value={getStudioOpacityPercent(object.style.opacity)}
       onChange={(value) =>
@@ -6542,7 +6256,7 @@ export function TemplateStudioClient({
 
         {layout.gridPreset === "custom" ? (
           <div className="grid grid-cols-2 gap-2">
-            <NumberField
+            <StudioNumberField
               label="Columns"
               value={columns}
               onChange={(value) =>
@@ -6561,7 +6275,7 @@ export function TemplateStudioClient({
                 })
               }
             />
-            <NumberField
+            <StudioNumberField
               label="Rows"
               value={rows}
               onChange={(value) =>
@@ -6584,7 +6298,7 @@ export function TemplateStudioClient({
         ) : null}
 
         <div className="grid grid-cols-2 gap-2">
-          <NumberField
+          <StudioNumberField
             label="Gap X"
             value={layout.columnGap ?? layout.dayGap}
             onChange={(value) =>
@@ -6594,7 +6308,7 @@ export function TemplateStudioClient({
               })
             }
           />
-          <NumberField
+          <StudioNumberField
             label="Gap Y"
             value={layout.rowGap ?? layout.dayGap}
             onChange={(value) =>
@@ -6725,7 +6439,7 @@ export function TemplateStudioClient({
           </select>
         </label>
         <div className="grid grid-cols-2 gap-2">
-          <NumberField
+          <StudioNumberField
             label="Asset Size"
             value={Number(object.style.assetSize ?? 160)}
             onChange={(value) =>
@@ -6737,7 +6451,7 @@ export function TemplateStudioClient({
               })
             }
           />
-          <NumberField
+          <StudioNumberField
             label="Asset Gap"
             value={Number(object.style.assetGap ?? 32)}
             onChange={(value) =>
@@ -6788,7 +6502,7 @@ export function TemplateStudioClient({
             <option value="circle">Circle</option>
           </select>
         </label>
-        <NumberField
+        <StudioNumberField
           label="Radius"
           value={radius}
           onChange={(value) =>
@@ -6849,18 +6563,18 @@ export function TemplateStudioClient({
           </select>
         </label>
         <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-          <NumberField
+          <StudioNumberField
             label="Size"
             value={Number(styleRecord.fontSize ?? 16)}
             onChange={(value) => updateTimetableTextStyle("fontSize", value)}
           />
-          <FontWeightField
+          <StudioFontWeightField
             options={fontWeightOptions}
             value={styleRecord.fontWeight ?? 700}
             onChange={(value) => updateTimetableTextStyle("fontWeight", value)}
           />
         </div>
-        <TextAlignmentField
+        <StudioTextAlignmentField
           value={textAlign}
           onChange={(value) => {
             updateTimetableCompositionObject(object.id, (currentObject) => {
@@ -6879,14 +6593,14 @@ export function TemplateStudioClient({
           }}
         />
         {object.kind === "flexibleText" ? (
-          <LineBreakField
+          <StudioLineBreakField
             value={getStudioTextWrapMode(styleRecord)}
             onChange={(mode) =>
               updateTimetableTextStyle(STUDIO_TEXT_WRAP_MODE_STYLE_KEY, mode)
             }
           />
         ) : null}
-        <NumberField
+        <StudioNumberField
           label="Line Height"
           value={Number(styleRecord.lineHeight ?? 1.2)}
           onChange={(value) => updateTimetableTextStyle("lineHeight", value)}
@@ -7086,19 +6800,19 @@ export function TemplateStudioClient({
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <NumberField
+            <StudioNumberField
               disabled={isSelectedNodeFitParent}
               label="X"
               value={selectedNodeGeometry.left}
               onChange={(value) => updateSelectedNodeStyle("left", value)}
             />
-            <NumberField
+            <StudioNumberField
               disabled={isSelectedNodeFitParent}
               label="Y"
               value={selectedNodeGeometry.top}
               onChange={(value) => updateSelectedNodeStyle("top", value)}
             />
-            <NumberField
+            <StudioNumberField
               label="Rotate"
               value={Number(styleRecord.rotateDeg ?? 0)}
               onChange={(value) => updateSelectedNodeStyle("rotateDeg", value)}
@@ -7106,7 +6820,7 @@ export function TemplateStudioClient({
           </div>
         </div>,
         undefined,
-        <FitParentButton
+        <StudioFitParentButton
           active={isSelectedNodeFitParent}
           onClick={toggleSelectedNodeFitParent}
         />,
@@ -7116,13 +6830,13 @@ export function TemplateStudioClient({
         "layout",
         "Layout",
         <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-          <NumberField
+          <StudioNumberField
             disabled={isSelectedNodeFitParent}
             label="W"
             value={selectedNodeGeometry.width}
             onChange={(value) => updateSelectedNodeStyle("width", value)}
           />
-          <NumberField
+          <StudioNumberField
             disabled={isSelectedNodeFitParent}
             label="H"
             value={selectedNodeGeometry.height}
@@ -7142,7 +6856,7 @@ export function TemplateStudioClient({
         "appearance",
         "Appearance",
         <div className="grid grid-cols-2 gap-2">
-          <NumberField
+          <StudioNumberField
             label="Opacity"
             value={opacityPercent}
             onChange={(value) =>
@@ -7152,7 +6866,7 @@ export function TemplateStudioClient({
               )
             }
           />
-          <NumberField
+          <StudioNumberField
             label="Radius"
             value={Number(styleRecord.borderRadius ?? 0)}
             onChange={(value) => updateSelectedNodeStyle("borderRadius", value)}
@@ -7499,14 +7213,14 @@ export function TemplateStudioClient({
                 </select>
               </label>
               <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-                <NumberField
+                <StudioNumberField
                   label="Size"
                   value={Number(styleRecord.fontSize ?? 16)}
                   onChange={(value) =>
                     updateSelectedNodeStyle("fontSize", value)
                   }
                 />
-                <FontWeightField
+                <StudioFontWeightField
                   options={selectedFontWeightOptions}
                   value={styleRecord.fontWeight ?? 700}
                   onChange={(value) =>
@@ -7514,12 +7228,12 @@ export function TemplateStudioClient({
                   }
                 />
               </div>
-              <TextAlignmentField
+              <StudioTextAlignmentField
                 value={getStudioTextAlignment(styleRecord)}
                 onChange={updateSelectedNodeTextAlignment}
               />
               {selectedNode.type === "flexibleText" ? (
-                <LineBreakField
+                <StudioLineBreakField
                   value={selectedTextWrapMode}
                   onChange={(mode) =>
                     updateSelectedNodeStyle(
@@ -7801,7 +7515,7 @@ export function TemplateStudioClient({
                           selectedTimetableBoundInput,
                         )
                       ) : (
-                        <TextField
+                        <StudioTextField
                           label="Content"
                           value={selectedTimetableTextValue}
                           onChange={(value) =>
@@ -7926,7 +7640,7 @@ export function TemplateStudioClient({
                     "Position",
                     <div className="grid gap-2">
                       <div className="grid grid-cols-2 gap-2">
-                        <NumberField
+                        <StudioNumberField
                           disabled={isSelectedTimetableObjectFitParent}
                           label="X"
                           value={selectedTimetableLayerGeometry.left}
@@ -7937,7 +7651,7 @@ export function TemplateStudioClient({
                             )
                           }
                         />
-                        <NumberField
+                        <StudioNumberField
                           disabled={isSelectedTimetableObjectFitParent}
                           label="Y"
                           value={selectedTimetableLayerGeometry.top}
@@ -7954,7 +7668,7 @@ export function TemplateStudioClient({
                           selectedTimetableCompositionObject ?? undefined,
                         ) ? (
                           <>
-                            <NumberField
+                            <StudioNumberField
                               disabled={isSelectedTimetableObjectFitParent}
                               label="W"
                               value={selectedTimetableLayerGeometry.width}
@@ -7965,7 +7679,7 @@ export function TemplateStudioClient({
                                 )
                               }
                             />
-                            <NumberField
+                            <StudioNumberField
                               disabled={isSelectedTimetableObjectFitParent}
                               label="H"
                               value={selectedTimetableLayerGeometry.height}
@@ -8005,7 +7719,7 @@ export function TemplateStudioClient({
                       {isStudioPlacedTimetableCompositionObject(
                         selectedTimetableCompositionObject ?? undefined,
                       ) || isSelectedDayCardsObject ? (
-                        <NumberField
+                        <StudioNumberField
                           label="Rotate"
                           value={Number(
                             selectedTimetableCompositionObject?.style
@@ -8025,7 +7739,7 @@ export function TemplateStudioClient({
                       isStudioPlacedTimetableCompositionObject(
                         selectedTimetableCompositionObject,
                       ) ? (
-                      <FitParentButton
+                      <StudioFitParentButton
                         active={isSelectedTimetableObjectFitParent}
                         onClick={() =>
                           toggleTimetableObjectFitParent(

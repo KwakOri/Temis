@@ -45,6 +45,7 @@
     "check:studio:clipboard-commands": "tsx scripts/check-studio-clipboard-commands.ts",
     "check:studio:timetable-components": "tsx scripts/check-studio-timetable-components.tsx",
     "check:studio:document-store": "tsx scripts/check-studio-document-store.ts",
+    "check:studio:inspector-fields": "tsx scripts/check-studio-inspector-fields.tsx",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",
