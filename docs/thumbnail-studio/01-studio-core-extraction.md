@@ -1,6 +1,6 @@
 # Phase 1. Studio Core와 Adapter 분리
 
-상태: 구현 진행 중. §14 완료 조건 충족, §12 9번 정리 진행 중 (→ [§16 구현 현황](#16-구현-현황))  
+상태: 구현 진행 중. §14 완료 조건 충족, §12 9번 마무리 단계 (→ [§16 구현 현황](#16-구현-현황))  
 선행 단계:
 [Phase 0 — 제품 계약과 문서 모델](./00-product-contract.md),
 [Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md)  
@@ -486,11 +486,14 @@ Phase 1에서는 최소 골격만 만든다.
 
 기준 시점: 2026-07-31. 아래 수치는 그 시점에 파일을 세어 적은 것이다.
 
+블록 크기를 잴 때는 `useEffect(`처럼 이름 뒤에 공백이 없는 호출도 블록 시작으로
+본다. 처음 셀 때 이것을 놓쳐 200줄짜리 단축키 effect가 앞 블록에 붙어 잡혔다.
+
 ### 16.1 §12 추출 순서
 
 | 단계 | 상태 | 결과 |
 | --- | --- | --- |
-| 0. 기준선과 smoke guard | 완료 | `npm run check:studio:*` 28종 |
+| 0. 기준선과 smoke guard | 완료 | `npm run check:studio:*` 31종 |
 | 1. 공통 시각 primitive | 완료 | `src/components/studio/layers/studio-layer-primitives.tsx` |
 | 2. `StudioEditorShell` | 완료 | `src/components/studio/editor-shell/studio-editor-shell.tsx` |
 | 3. 상단 도구 모음 | 완료 | `studio-top-toolbar.tsx`, `studio-guide-control.tsx` |
@@ -537,38 +540,34 @@ exhaustive하게 만들 때 이름을 함께 일반화한다.
 
 ### 16.4 9번에 남은 정리
 
-`template-studio-client.tsx`는 10,596줄에서 5,187줄로 줄었다. 아직 어댑터라기보다
-공통 셸을 쓰는 큰 client다. 본문 4,478줄을 성격별로 묶으면 다음과 같다.
+`template-studio-client.tsx`는 10,596줄에서 4,020줄로 줄었다. 본문 3,441줄을
+성격별로 묶으면 다음과 같다.
 
-| 묶음 | 줄수 | 블록 | 갈 곳 |
+| 묶음 | 줄수 | 블록 | 판단 |
 | --- | --- | --- | --- |
-| 메인 JSX return | 741 | 1 | 셸 슬롯별 분리 |
-| 시간표 명령 감싸기 | 722 | 31 | 명령 훅 |
-| 저장·불러오기·에셋 동기화 | 483 | 8 | 지속성 훅 |
-| 노드·그래프 명령 | 423 | 10 | `graph-commands`의 plan/apply |
-| `render*` 화면 그리기 | 441 | 9 | 패널 컴포넌트 |
-| 입력 관련 | 270 | 16 | 일부만 |
+| 시간표·카드 명령 | 756 | 48 | 남은 큰 묶음. 아래 1번 |
+| 메인 JSX return | 681 | 1 | 배선이라 남는다. 아래 3번 |
+| `render*` 화면 그리기 | 325 | 9 | 이미지 자리만 남았다. 아래 2번 |
+| 노드·그래프 명령 | 274 | 15 | 대부분 순수 함수 감싸기 |
+| 입력 관련 | 194 | 15 | 남는 것이 맞다 |
 | `build*` 섹션 조립 | 182 | 4 | 남는 것이 맞다 |
-| 잔 블록 115개 | 1,212 | 115 | 대부분 남는다 |
+| 잔 블록 92개 | 1,025 | 92 | 문서 상태 파생값이 대부분 |
 
-이미 옮긴 것은 §16.5에 있다. 남은 것의 순서와 이유:
+이미 옮긴 것은 §16.5에 있다. 남은 것:
 
-1. **저장·불러오기 483줄.** "발행 전에 에셋이 동기화되어야 한다" 같은 순서
-   규칙이 지금은 검증 밖에 있다. 원격 문서 한 벌을 다루는 규칙이 한 훅에 모여야
-   한다.
-2. **`ungroupSelectedNodes` 239줄.** 다른 명령은 순수 함수로 옮겼는데 이것만
-   client에 남아 그래프 구조를 바꾸는 규칙이 가드 밖에 있다.
-3. **`renderTimetablePanel` 154줄과 `renderTimetableAssetSlot` 133줄.** 앞은
-   요일·일정 편집 패널이고 뒤는 이미지 자리에 문서 변경을 이어 붙이는 배선이다.
-   배선은 컴포넌트로 옮겨도 props만 늘어나므로, 문서를 바꾸는 부분을 명령 쪽으로
-   먼저 옮긴 뒤에 다룬다.
-4. **시간표 명령 722줄.** 대부분 `updateDocument` 얇은 감싸기다. 하나하나의
-   이득은 작지만 개수가 많다.
-5. **메인 JSX return 741줄.** 셸 슬롯별로 나눌 수 있지만, 위의 정리가 끝나면
-   남는 것이 배선뿐이라 마지막에 본다.
+1. **시간표·카드 명령 756줄(48블록).** Component Set 명령, 카드 프리셋 삽입,
+   일정 늘리기·줄이기, capability, 가이드 이미지가 남았다. 객체·레이어 명령은
+   어댑터 훅으로 옮겼다. 남은 것도 같은 훅 계열로 모으면 되지만, 하나하나가 작고
+   `updateDocument` 감싸기라 이득은 줄수만큼 크지 않다.
+2. **`renderTimetableAssetSlot` 133줄과 `renderStatusCardBackgroundAssetSlot`
+   58줄.** 표시부는 이미 공통 칸으로 나가 있고 남은 것은 문서를 바꾸는 배선이다.
+   컴포넌트로 옮겨도 props만 늘어난다. 그 배선을 명령 쪽으로 옮긴 뒤에 다룬다.
+3. **메인 JSX return 681줄.** 판단이 들어 있던 부분(캔버스에서 무엇을 끌 수
+   있는지)은 순수 함수로 뺐다. 남은 것은 셸에 값을 넘기는 배선이라 슬롯별로 쪼개도
+   props 이름만 옮겨 다닌다. 지금은 나누지 않는 것으로 판단했다.
 
-바닥은 2,500~3,300줄로 본다. 셸·훅·store에 넘길 props 배선과 문서 상태
-파생값은 어댑터가 갖고 있어야 하므로 그 아래로는 줄지 않는다.
+바닥은 3,000줄 근처로 본다. 셸·훅·store에 넘길 props 배선과 문서 상태 파생값은
+어댑터가 갖고 있어야 하므로 그 아래로는 줄지 않는다.
 
 ### 16.5 client에서 옮긴 것
 
@@ -580,6 +579,11 @@ exhaustive하게 만들 때 이름을 함께 일반화한다.
 | 미리보기 값 편집 | `studio-runtime-input-panel` | 범위별 묶음을 미리보기 패널과 시간표 패널이 각각 그렸다 |
 | 카드 배경 이미지 자리 | `studio-status-card-background-slot` | 같은 이미지 자리 칸이 두 벌 있었다 |
 | 프리셋 목록 | `studio-preset-panels` | 넣을 수 없는 프리셋을 누를 수 있게 보이는지에 가드가 없었다 |
+| 저장·발행·미리보기 | `use-studio-template-persistence` + `asset-sync` | 같은 순서가 세 곳에 적혀 있어 새 경로에서 사진 올리기를 빼먹기 쉬웠다 |
+| 편집기 단축키 | `use-studio-keyboard-shortcuts` + `keyboard-shortcuts` | 단축키 표 200줄이 effect 안에 있어 검증할 수 없었다 |
+| 시간표 객체·레이어 명령 | `_hooks/use-timetable-object-commands` | 요일 카드 보정 좌표 뺄셈이 client 안에 있었다 |
+| 요일·일정 편집 패널 | `studio-timetable-day-panel` | 일정이 여러 개일 때 상태를 못 바꾸는 규칙에 가드가 없었다 |
+| 캔버스 끌기 허용 판단 | `layer-drag` | 판단 75줄이 메인 JSX 안에 박혀 있었다 |
 
 접힘 목록에서 하나를 빼는 일과 자동 펼침까지 기다리는 시간은 두 편집기가 같아야
 하므로 `layer-order.ts`가 갖는다. 옮기기 전에는 카드와 시간표에 같은 함수가 따로
@@ -604,6 +608,9 @@ npm run check:studio:timetable-layer-panel  시간표 레이어 트리
 npm run check:studio:timetable-layer-drag   시간표 레이어 끌어 옮기기
 npm run check:studio:preset-panels        프리셋 목록
 npm run check:studio:runtime-input-panel  미리보기 값 편집
+npm run check:studio:timetable-day-panel  요일·일정 편집
+npm run check:studio:asset-sync           사진 올리기와 다시 올릴지 판단
+npm run check:studio:keyboard-shortcuts   단축키 표
 npm run check:studio:hooks                선택과 이력
 npm run check:studio:editor-store         되돌리기 한 단위
 npm run check:studio:settings             설정 모달
