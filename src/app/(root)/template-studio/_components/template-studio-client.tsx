@@ -87,7 +87,6 @@ import {
   deleteStudioTimetableComponentSet,
   getStudioTimetableComponentSetDeleteReason,
   getStudioTimetableDayComponent,
-  resolveStudioTimetableDayComponent,
 } from "@/utils/template-studio/component-sets";
 import {} from "@/utils/template-studio/date-template";
 import {
@@ -289,6 +288,7 @@ import {
   resolveStudioTimetableAssetSlotSpec,
   type StudioTimetableAssetSlotKind,
 } from "@/utils/template-studio/timetable-asset-slot-specs";
+import { resolveStudioTimetableSelection } from "@/utils/template-studio/timetable-selection";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
 import {
   StudioLayerDropIndicator,
@@ -1097,82 +1097,36 @@ export function TemplateStudioClient({
 
     return pickerNodes;
   }, [timetableComposition.objects, timetableDays]);
-  const selectedTimetableCompositionObject = selectedTimetableLayerId
-    ? (timetableComposition.objects[selectedTimetableLayerId] ?? null)
-    : null;
-  const selectedTimetableDayId = selectedTimetableLayerId?.startsWith(
-    "day-card:",
-  )
-    ? (selectedTimetableLayerId.replace(
-        /^day-card:/,
-        "",
-      ) as StudioTimetableDayId)
-    : null;
-  const selectedTimetableDay = selectedTimetableDayId
-    ? (document.domains?.timetable?.days[selectedTimetableDayId] ?? null)
-    : null;
-  const selectedTimetableDayComponentResolution = selectedTimetableDayId
-    ? resolveStudioTimetableDayComponent(document, selectedTimetableDayId)
-    : null;
-  const selectedTimetableVariantSet =
-    selectedTimetableCompositionObject?.variantSet ?? null;
-  const isSelectedTimetableObjectFitParent = isStudioFillParentLayout(
-    selectedTimetableCompositionObject?.layoutMode,
+  const timetableSelection = useMemo(
+    () =>
+      resolveStudioTimetableSelection(
+        document,
+        timetableComposition,
+        selectedTimetableLayerId,
+      ),
+    [document, selectedTimetableLayerId, timetableComposition],
   );
-  const selectedTimetableTextObject =
-    selectedTimetableCompositionObject?.kind === "text" ||
-    selectedTimetableCompositionObject?.kind === "flexibleText"
-      ? selectedTimetableCompositionObject
-      : null;
-  const selectedTimetableBindingInputId = selectedTimetableTextObject
-    ? getStudioBindingInputId(selectedTimetableTextObject.binding)
-    : null;
-  const selectedTimetableBoundInput = selectedTimetableBindingInputId
-    ? (document.inputs[selectedTimetableBindingInputId] ?? null)
-    : null;
-  const selectedTimetableTextValue =
-    selectedTimetableTextObject?.binding?.kind === "staticText"
-      ? selectedTimetableTextObject.binding.value
-      : (selectedTimetableTextObject?.label ?? "");
-  const selectedTimetableBuiltinField =
-    selectedTimetableTextObject?.binding?.kind === "builtinField"
-      ? getStudioBuiltinField(selectedTimetableTextObject.binding.fieldId)
-      : null;
-  const isSelectedWeekDatesObject =
-    selectedTimetableCompositionObject?.presetId === "weekDates" ||
-    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
-      "weekDates";
-  const isSelectedWeeklyMemoObject =
-    selectedTimetableCompositionObject?.presetId === "weeklyMemo" ||
-    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
-      "weeklyMemo";
-  const isSelectedProfileBlockObject =
-    selectedTimetableCompositionObject?.presetId === "profileBlock" ||
-    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
-      "profileBlock";
-  const isSelectedLegacyProfileBlockObject =
-    isSelectedProfileBlockObject &&
-    selectedTimetableCompositionObject?.kind === "profileBlock";
-  const isSelectedProfileChildObject =
-    selectedTimetableCompositionObject?.kind === "image" &&
-    Boolean(selectedTimetableCompositionObject.profileRole);
-  const isSelectedStructuredBackgroundObject =
-    selectedTimetableCompositionObject?.kind === "image" &&
-    selectedTimetableCompositionObject.structuredRole === "background";
-  const isSelectedArtistProfileTextObject =
-    selectedTimetableCompositionObject?.presetId === "artistProfileText" ||
-    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
-      "artistProfileText";
-  const isSelectedTopObject =
-    selectedTimetableCompositionObject?.presetId === "topObject" ||
-    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
-      "topObject";
-  const isSelectedBoardObject =
-    selectedTimetableCompositionObject?.presetId === "board" ||
-    selectedTimetableCompositionObject?.meta?.exception?.semanticKey ===
-      "board";
-  const isSelectedDayCardsObject =
-    selectedTimetableLayerId === STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID;
+  const {
+    object: selectedTimetableCompositionObject,
+    dayId: selectedTimetableDayId,
+    day: selectedTimetableDay,
+    dayComponentResolution: selectedTimetableDayComponentResolution,
+    textObject: selectedTimetableTextObject,
+    boundInput: selectedTimetableBoundInput,
+    builtinField: selectedTimetableBuiltinField,
+    textValue: selectedTimetableTextValue,
+    variantSet: selectedTimetableVariantSet,
+    isFitParent: isSelectedTimetableObjectFitParent,
+    isDayCards: isSelectedDayCardsObject,
+    isWeekDates: isSelectedWeekDatesObject,
+    isWeeklyMemo: isSelectedWeeklyMemoObject,
+    isLegacyProfileBlock: isSelectedLegacyProfileBlockObject,
+    isProfileChild: isSelectedProfileChildObject,
+    isStructuredBackground: isSelectedStructuredBackgroundObject,
+    isArtistProfileText: isSelectedArtistProfileTextObject,
+    isTopObject: isSelectedTopObject,
+    isBoard: isSelectedBoardObject,
+  } = timetableSelection;
   const getTimetableEntryCardSizeForDay = useCallback(
     (dayId: StudioTimetableDayId) =>
       getStudioTimetableEntryCardSize(
