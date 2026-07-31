@@ -128,6 +128,15 @@ import {
 } from "@/utils/template-studio/graph-nodes";
 import { createStudioId } from "@/utils/template-studio/id";
 import {
+  applyStudioAddSelectOption,
+  applyStudioRemoveSelectOption,
+  applyStudioSelectOptionValue,
+  collectStudioInputConsumers,
+  createStudioInputDefinition,
+  getStudioInputTypeLabel,
+  type StudioInputConsumerReference,
+} from "@/utils/template-studio/input-commands";
+import {
   createStudioNodeClipboardPayload,
   insertStudioClipboardSubtree,
   type StudioNodeClipboardPayload,
@@ -341,14 +350,6 @@ import {
 type PanelMode = "layers" | "inputs" | "presets" | "timetable";
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";
-
-interface StudioInputConsumerReference {
-  id: string;
-  workspaceMode: WorkspaceMode;
-  targetId: string;
-  label: string;
-  detail: string;
-}
 
 type InspectorSectionKey =
   | "componentSet"
@@ -801,14 +802,6 @@ const createStudioDayCardSlots = (
 ): Array<StudioTimetableDayId | null> =>
   Array.from({ length: slotCount }, (_, index) => dayIds[index] ?? null);
 
-const formatStudioSlotName = (slotName: string): string =>
-  slotName
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/[-_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-
 const getStudioOpacityPercent = (value: unknown): number => {
   const parsedValue = Number(value ?? 1);
   if (!Number.isFinite(parsedValue)) return 100;
@@ -856,12 +849,6 @@ const getStudioTimetableObjectMaskShape = (
   if (radius >= 9999) return "circle";
   if (radius <= 0) return "rectangle";
   return "rounded";
-};
-
-const getInputTypeLabel = (type: StudioInputType) => {
-  if (type === "text") return "Text";
-  if (type === "image") return "Image";
-  return "Select";
 };
 
 interface NumberFieldProps {
@@ -1783,86 +1770,10 @@ export function TemplateStudioClient({
       ),
     [document],
   );
-  const inputConsumers = useMemo(() => {
-    const consumers = Object.values(document.graph.nodes).reduce<
-      Record<string, StudioInputConsumerReference[]>
-    >((acc, node) => {
-      const inputId = getStudioBindingInputId(node.binding);
-      if (inputId) {
-        acc[inputId] = [
-          ...(acc[inputId] ?? []),
-          {
-            id: `cards:${node.id}:binding`,
-            workspaceMode: "cards",
-            targetId: node.id,
-            label: node.label,
-            detail: "Cards · Binding",
-          },
-        ];
-      }
-
-      Object.entries(node.assetSlots ?? {}).forEach(([slotName, slot]) => {
-        if (!slot.inputId) return;
-        acc[slot.inputId] = [
-          ...(acc[slot.inputId] ?? []),
-          {
-            id: `cards:${node.id}:slot:${slotName}`,
-            workspaceMode: "cards",
-            targetId: node.id,
-            label: node.label,
-            detail: `Cards · ${formatStudioSlotName(slotName)}`,
-          },
-        ];
-      });
-
-      return acc;
-    }, {});
-
-    Object.values(timetableComposition.objects).forEach((object) => {
-      if (object.variantSet?.inputId) {
-        consumers[object.variantSet.inputId] = [
-          ...(consumers[object.variantSet.inputId] ?? []),
-          {
-            id: `timetable:${object.id}:variant`,
-            workspaceMode: "timetable",
-            targetId: object.id,
-            label: object.label,
-            detail: "Timetable · Object State",
-          },
-        ];
-      }
-
-      const inputId = getStudioBindingInputId(object.binding);
-      if (inputId) {
-        consumers[inputId] = [
-          ...(consumers[inputId] ?? []),
-          {
-            id: `timetable:${object.id}:binding`,
-            workspaceMode: "timetable",
-            targetId: object.id,
-            label: object.label,
-            detail: "Timetable · Binding",
-          },
-        ];
-      }
-
-      Object.entries(object.assetSlots ?? {}).forEach(([slotName, slot]) => {
-        if (!slot.inputId) return;
-        consumers[slot.inputId] = [
-          ...(consumers[slot.inputId] ?? []),
-          {
-            id: `timetable:${object.id}:slot:${slotName}`,
-            workspaceMode: "timetable",
-            targetId: object.id,
-            label: object.label,
-            detail: `Timetable · ${formatStudioSlotName(slotName)}`,
-          },
-        ];
-      });
-    });
-
-    return consumers;
-  }, [document.graph.nodes, timetableComposition.objects]);
+  const inputConsumers = useMemo(
+    () => collectStudioInputConsumers(document, timetableComposition),
+    [document, timetableComposition],
+  );
   const diagnostics = useMemo(
     () => [
       ...validateStudioDocument(document),
@@ -2982,49 +2893,17 @@ export function TemplateStudioClient({
   };
 
   const addInput = (type: StudioInputType) => {
-    const inputId = createStudioId("input");
-    const base = {
-      id: inputId,
-      scope: inputScopeFilter,
-      label: `New ${getInputTypeLabel(type)} Input`,
-    };
-
-    const input: StudioInputDefinition =
-      type === "text"
-        ? {
-            ...base,
-            type: "text",
-            placeholder: "Enter text",
-            defaultValue: "New value",
-            maxLength: 48,
-          }
-        : type === "image"
-          ? {
-              ...base,
-              type: "image",
-              placeholder: "Paste image URL",
-              defaultUrl: "",
-            }
-          : {
-              ...base,
-              type: "select",
-              defaultValue: "option-a",
-              options: [
-                { value: "option-a", label: "Option A" },
-                { value: "option-b", label: "Option B" },
-              ],
-            };
+    const input = createStudioInputDefinition(type, inputScopeFilter);
 
     updateDocument((nextDocument) => {
-      nextDocument.inputs[inputId] = input;
+      nextDocument.inputs[input.id] = input;
     });
     setRuntimeValues((currentValues) =>
       addRuntimeDefaultForInput(document, currentValues, input),
     );
-    setSelectedInputId(inputId);
+    setSelectedInputId(input.id);
     setPanelMode("inputs");
   };
-
   const getCardInsertionParentId = (): string | null =>
     resolveStudioNodeInsertionParentId(document, selectedNode);
 
@@ -3045,13 +2924,13 @@ export function TemplateStudioClient({
     if (input.type !== "select") return;
 
     const parentId = getCardInsertionParentId();
-    let nextNodeId: string | null = null;
+    const inserted: { nodeId: string | null } = { nodeId: null };
 
     updateDocument((nextDocument) => {
       const currentInput = nextDocument.inputs[input.id];
       if (!currentInput || currentInput.type !== "select") return;
 
-      nextNodeId = createSelectConsumerNode(nextDocument, {
+      inserted.nodeId = createStudioSelectConsumerNode(nextDocument, {
         parentId,
         input: currentInput,
         kind,
@@ -3062,15 +2941,12 @@ export function TemplateStudioClient({
       });
     });
 
-    if (nextNodeId) {
-      selectSingleNode(nextNodeId);
-      setPanelMode("layers");
-      showShortcutStatus(
-        `Added ${kind === "image" ? "image" : "text"} consumer`,
-      );
-    }
-  };
+    if (!inserted.nodeId) return;
 
+    selectSingleNode(inserted.nodeId);
+    setPanelMode("layers");
+    showShortcutStatus(`Added ${kind === "image" ? "image" : "text"} consumer`);
+  };
   const addCardSelectInputBundle = (
     preset: StudioCardSelectInputBundlePreset,
   ) => {
@@ -3290,123 +3166,51 @@ export function TemplateStudioClient({
     optionIndex: number,
     value: string,
   ) => {
-    let previousValue: string | null = null;
+    const outcome: { previousValue: string | null } = { previousValue: null };
 
     updateDocument((nextDocument) => {
-      const input = nextDocument.inputs[inputId];
-      if (!input || input.type !== "select") return;
-
-      const currentOption = input.options[optionIndex];
-      if (!currentOption) return;
-
-      previousValue = currentOption.value;
-      input.options = input.options.map((option, index) =>
-        index === optionIndex ? { ...option, value } : option,
-      );
-
-      if (input.defaultValue === previousValue) {
-        input.defaultValue = value;
-      }
-
-      Object.values(nextDocument.graph.nodes).forEach((node) => {
-        if (
-          node.binding?.kind !== "selectAsset" ||
-          node.binding.inputId !== inputId ||
-          previousValue === null
-        ) {
-          return;
-        }
-
-        const mappedAssetId = node.binding.assetByOption[previousValue];
-        delete node.binding.assetByOption[previousValue];
-        node.binding.assetByOption[value] = mappedAssetId ?? null;
-      });
+      outcome.previousValue =
+        applyStudioSelectOptionValue(nextDocument, inputId, optionIndex, value)
+          ?.previousValue ?? null;
     });
 
-    if (previousValue !== null && previousValue !== value) {
-      const runtimePreviousValue = previousValue;
-      setRuntimeValues((currentValues) =>
-        replaceRuntimeInputValue(
-          currentValues,
-          inputId,
-          runtimePreviousValue,
-          value,
-        ),
-      );
-    }
-  };
+    const previousValue = outcome.previousValue;
+    if (previousValue === null || previousValue === value) return;
 
+    setRuntimeValues((currentValues) =>
+      replaceRuntimeInputValue(currentValues, inputId, previousValue, value),
+    );
+  };
   const addSelectOption = (inputId: string) => {
     updateDocument((nextDocument) => {
-      const input = nextDocument.inputs[inputId];
-      if (!input || input.type !== "select") return;
-
-      const optionNumber = input.options.length + 1;
-      const option: StudioSelectOption = {
-        label: `Option ${optionNumber}`,
-        value: `option-${optionNumber}`,
-      };
-
-      input.options = [...input.options, option];
-      Object.values(nextDocument.graph.nodes).forEach((node) => {
-        if (
-          node.binding?.kind === "selectAsset" &&
-          node.binding.inputId === inputId
-        ) {
-          node.binding.assetByOption[option.value] = null;
-        }
-      });
+      applyStudioAddSelectOption(nextDocument, inputId);
     });
   };
-
   const removeSelectOption = (inputId: string, optionIndex: number) => {
-    let removedValue: string | null = null;
-    let nextDefaultValue: string | null = null;
+    const outcome: {
+      result: { removedValue: string; nextDefaultValue: string } | null;
+    } = { result: null };
 
     updateDocument((nextDocument) => {
-      const input = nextDocument.inputs[inputId];
-      if (!input || input.type !== "select" || input.options.length <= 1) {
-        return;
-      }
-
-      const currentOption = input.options[optionIndex];
-      if (!currentOption) return;
-
-      removedValue = currentOption.value;
-      const nextOptions = input.options.filter(
-        (_, index) => index !== optionIndex,
+      outcome.result = applyStudioRemoveSelectOption(
+        nextDocument,
+        inputId,
+        optionIndex,
       );
-      input.options = nextOptions;
-
-      if (!nextOptions.some((option) => option.value === input.defaultValue)) {
-        input.defaultValue = nextOptions[0]?.value ?? "";
-      }
-      nextDefaultValue = input.defaultValue ?? nextOptions[0]?.value ?? "";
-
-      Object.values(nextDocument.graph.nodes).forEach((node) => {
-        if (
-          node.binding?.kind === "selectAsset" &&
-          node.binding.inputId === inputId
-        ) {
-          delete node.binding.assetByOption[currentOption.value];
-        }
-      });
     });
 
-    if (removedValue !== null && nextDefaultValue !== null) {
-      const runtimeRemovedValue = removedValue;
-      const runtimeNextDefaultValue = nextDefaultValue;
-      setRuntimeValues((currentValues) =>
-        replaceRuntimeInputValue(
-          currentValues,
-          inputId,
-          runtimeRemovedValue,
-          runtimeNextDefaultValue,
-        ),
-      );
-    }
-  };
+    if (!outcome.result) return;
 
+    const { removedValue, nextDefaultValue } = outcome.result;
+    setRuntimeValues((currentValues) =>
+      replaceRuntimeInputValue(
+        currentValues,
+        inputId,
+        removedValue,
+        nextDefaultValue,
+      ),
+    );
+  };
   const updateTimetableCompositionObject = useCallback(
     (
       objectId: string,
@@ -6269,8 +6073,8 @@ export function TemplateStudioClient({
           {input.label}
         </span>
         <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-          {getInputScopeLabel(input.scope)} · {getInputTypeLabel(input.type)} ·{" "}
-          {input.id}
+          {getInputScopeLabel(input.scope)} ·{" "}
+          {getStudioInputTypeLabel(input.type)} · {input.id}
         </span>
       </div>
       <button
@@ -7829,7 +7633,7 @@ export function TemplateStudioClient({
                             <option key={input.id} value={`input:${input.id}`}>
                               {input.label} · Custom ·{" "}
                               {getInputScopeLabel(input.scope)} ·{" "}
-                              {getInputTypeLabel(input.type)}
+                              {getStudioInputTypeLabel(input.type)}
                             </option>
                           ))}
                         </optgroup>
@@ -7887,7 +7691,7 @@ export function TemplateStudioClient({
                       </span>
                       <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
                         {getInputScopeLabel(selectedNodeBoundInput.scope)} ·{" "}
-                        {getInputTypeLabel(selectedNodeBoundInput.type)} ·{" "}
+                        {getStudioInputTypeLabel(selectedNodeBoundInput.type)} ·{" "}
                         {selectedNodeBoundInput.id}
                       </span>
                     </div>
@@ -8909,7 +8713,7 @@ export function TemplateStudioClient({
                       onClick={() => addInput(type)}
                     >
                       <Plus size={12} />
-                      {getInputTypeLabel(type)}
+                      {getStudioInputTypeLabel(type)}
                     </button>
                   ))}
                 </div>
@@ -8946,7 +8750,7 @@ export function TemplateStudioClient({
                         )}
                       />
                       <span className="min-w-0 flex-1 truncate">
-                        {input.label} · {getInputTypeLabel(input.type)}
+                        {input.label} · {getStudioInputTypeLabel(input.type)}
                       </span>
                       <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
                         {input.scope}
@@ -9136,7 +8940,7 @@ export function TemplateStudioClient({
             ),
             title: isInputPanelActive
               ? selectedInput
-                ? getInputTypeLabel(selectedInput.type)
+                ? getStudioInputTypeLabel(selectedInput.type)
                 : "Inputs"
               : activeWorkspaceMode === "timetable"
                 ? "Timetable"
