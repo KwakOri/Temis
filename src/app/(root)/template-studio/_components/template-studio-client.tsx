@@ -29,10 +29,12 @@ import React, {
 import { useStudioDocumentHistory } from "@/hooks/studio/use-studio-document-history";
 import { useStudioClipboard } from "@/hooks/studio/use-studio-clipboard";
 import {
-  createStudioDocumentStore,
-  type StudioDocumentStore,
-  StudioDocumentStoreProvider,
-} from "@/stores/studio/studio-document-store";
+  captureStudioEditorSnapshot,
+  createStudioEditorStore,
+  type StudioEditorSnapshot,
+  type StudioEditorStore,
+  StudioEditorStoreProvider,
+} from "@/stores/studio/studio-editor-store";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
   useCreateTemplateStudioTemplate,
@@ -393,16 +395,6 @@ interface StudioTimetableLayerDropState {
   layerId: string;
   position: "before" | "after";
   blockedReason?: string | null;
-}
-
-interface StudioEditorHistorySnapshot {
-  document: StudioTemplateDocument;
-  runtimeValues: StudioRuntimeValues;
-  selectedNodeId: string | null;
-  selectedNodeIds: string[];
-  selectedInputId: StudioInputId | null;
-  selectedRuntimeDayId: string;
-  selectedRuntimeEntryIndex: number;
 }
 
 interface UpdateOptions {
@@ -818,23 +810,39 @@ export function TemplateStudioClient({
   initialRemoteTemplateId = null,
 }: TemplateStudioClientProps) {
   const router = useRouter();
-  const studioStoreRef = useRef<StudioDocumentStore | null>(null);
+  const studioStoreRef = useRef<StudioEditorStore | null>(null);
   if (!studioStoreRef.current) {
-    studioStoreRef.current = createStudioDocumentStore({
+    studioStoreRef.current = createStudioEditorStore({
       document: createSampleStudioDocument(),
       runtimeValues: createInitialStudioRuntimeValues(
         createSampleStudioDocument(),
       ),
+      selectedNodeIds: ["node_c3"],
+      selectedRuntimeDayId: "mon",
     });
   }
   const studioStore = studioStoreRef.current;
   const document = useStore(studioStore, (state) => state.document);
   const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
-  const setDocument = studioStore.getState().setDocument;
-  const setRuntimeValues = studioStore.getState().setRuntimeValues;
-  const [selectedInputId, setSelectedInputId] = useState<StudioInputId | null>(
-    null,
+  const selectedInputId = useStore(
+    studioStore,
+    (state) => state.selectedInputId,
   );
+  const selectedRuntimeDayId = useStore(
+    studioStore,
+    (state) => state.selectedRuntimeDayId,
+  );
+  const selectedRuntimeEntryIndex = useStore(
+    studioStore,
+    (state) => state.selectedRuntimeEntryIndex,
+  );
+  const {
+    setDocument,
+    setRuntimeValues,
+    setSelectedInputId,
+    setSelectedRuntimeDayId,
+    setSelectedRuntimeEntryIndex,
+  } = studioStore.getState();
   const [panelMode, setPanelMode] = useState<PanelMode>("layers");
   const [theme, setTheme] = useState<StudioTheme>("dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -869,8 +877,6 @@ export function TemplateStudioClient({
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
     initialRemoteTemplateId,
   );
-  const [selectedRuntimeDayId, setSelectedRuntimeDayId] = useState("mon");
-  const [selectedRuntimeEntryIndex, setSelectedRuntimeEntryIndex] = useState(0);
   const [selectedCardStatusId, setSelectedCardStatusId] =
     useState<StudioTimetableStatusId>("online");
   const [selectedCardComponentId, setSelectedCardComponentId] =
@@ -889,8 +895,6 @@ export function TemplateStudioClient({
   const {
     selectedNodeId,
     selectedNodeIds,
-    selectedNodeIdRef,
-    selectedNodeIdsRef,
     applySelection: applyNodeSelection,
     selectSingleNode,
     toggleNodeSelection,
@@ -898,17 +902,9 @@ export function TemplateStudioClient({
     restoreSelection,
   } = useStudioSelection({
     getVisibleNodeIds: useCallback(() => visibleLayerNodeIdsRef.current, []),
-    hasNode: useCallback(
-      (nodeId: string) =>
-        Boolean(studioStore.getState().document.graph.nodes[nodeId]),
-      [studioStore],
-    ),
-    initialNodeIds: ["node_c3"],
     onStatusMessage: setShortcutMessage,
+    store: studioStore,
   });
-  const selectedInputIdRef = useRef<StudioInputId | null>(selectedInputId);
-  const selectedRuntimeDayIdRef = useRef(selectedRuntimeDayId);
-  const selectedRuntimeEntryIndexRef = useRef(selectedRuntimeEntryIndex);
   const templateStudioTemplateQuery = useTemplateStudioTemplate(
     remoteTemplateId ?? undefined,
   );
@@ -924,18 +920,6 @@ export function TemplateStudioClient({
     setRemoteTemplateId(nextTemplateId);
     autoLoadedRemoteTemplateIdRef.current = null;
   }, [initialRemoteTemplateId]);
-
-  useEffect(() => {
-    selectedInputIdRef.current = selectedInputId;
-  }, [selectedInputId]);
-
-  useEffect(() => {
-    selectedRuntimeDayIdRef.current = selectedRuntimeDayId;
-  }, [selectedRuntimeDayId]);
-
-  useEffect(() => {
-    selectedRuntimeEntryIndexRef.current = selectedRuntimeEntryIndex;
-  }, [selectedRuntimeEntryIndex]);
 
   useEffect(
     () => () => {
@@ -1517,7 +1501,7 @@ export function TemplateStudioClient({
       setPanelMode("inputs");
       showShortcutStatus(`Selected input: ${input.label}`);
     },
-    [showShortcutStatus, studioStore],
+    [setSelectedInputId, showShortcutStatus, studioStore],
   );
 
   const jumpToInputConsumer = useCallback(
@@ -1594,41 +1578,23 @@ export function TemplateStudioClient({
       return;
     }
 
-    applyNodeSelection(nodeIds, selectedNodeIdRef.current);
+    applyNodeSelection(nodeIds, studioStore.getState().selectedNodeId);
     setPanelMode("layers");
     showShortcutStatus(`Selected ${nodeIds.length} objects`);
-  }, [applyNodeSelection, selectedNodeIdRef, showShortcutStatus, studioStore]);
+  }, [applyNodeSelection, showShortcutStatus, studioStore]);
 
-  const createHistorySnapshot = useCallback((): StudioEditorHistorySnapshot => {
-    return {
-      document: cloneDocument(studioStore.getState().document),
-      runtimeValues: cloneRuntimeValues(studioStore.getState().runtimeValues),
-      selectedNodeId: selectedNodeIdRef.current,
-      selectedNodeIds: [...selectedNodeIdsRef.current],
-      selectedInputId: selectedInputIdRef.current,
-      selectedRuntimeDayId: selectedRuntimeDayIdRef.current,
-      selectedRuntimeEntryIndex: selectedRuntimeEntryIndexRef.current,
-    };
-  }, [selectedNodeIdRef, selectedNodeIdsRef, studioStore]);
+  const createHistorySnapshot = useCallback(
+    (): StudioEditorSnapshot =>
+      captureStudioEditorSnapshot(studioStore.getState()),
+    [studioStore],
+  );
 
   const restoreHistorySnapshot = useCallback(
-    (snapshot: StudioEditorHistorySnapshot) => {
-      const nextDocument = cloneDocument(snapshot.document);
-      const nextRuntimeValues = cloneRuntimeValues(snapshot.runtimeValues);
-
-      selectedInputIdRef.current = snapshot.selectedInputId;
-      selectedRuntimeDayIdRef.current = snapshot.selectedRuntimeDayId;
-      selectedRuntimeEntryIndexRef.current = snapshot.selectedRuntimeEntryIndex;
-
-      setDocument(nextDocument);
-      setRuntimeValues(nextRuntimeValues);
-      restoreSelection(snapshot.selectedNodeIds, snapshot.selectedNodeId);
-      setSelectedInputId(snapshot.selectedInputId);
-      setSelectedRuntimeDayId(snapshot.selectedRuntimeDayId);
-      setSelectedRuntimeEntryIndex(snapshot.selectedRuntimeEntryIndex);
+    (snapshot: StudioEditorSnapshot) => {
+      studioStore.getState().restoreSnapshot(snapshot);
       setNodePicker(null);
     },
-    [restoreSelection, setDocument, setRuntimeValues],
+    [studioStore],
   );
 
   const {
@@ -1724,9 +1690,9 @@ export function TemplateStudioClient({
 
       captureHistory();
 
-      selectedInputIdRef.current = nextSelectedInputId;
-      selectedRuntimeDayIdRef.current = nextRuntimeDayId;
-      selectedRuntimeEntryIndexRef.current = 0;
+      studioStore.getState().selectedInputId = nextSelectedInputId;
+      studioStore.getState().selectedRuntimeDayId = nextRuntimeDayId;
+      studioStore.getState().selectedRuntimeEntryIndex = 0;
 
       setDocument(nextDocument);
       setRuntimeValues(nextRuntimeValues);
@@ -1763,7 +1729,11 @@ export function TemplateStudioClient({
       restoreSelection,
       setDocument,
       setRuntimeValues,
+      setSelectedInputId,
+      setSelectedRuntimeDayId,
+      setSelectedRuntimeEntryIndex,
       showShortcutStatus,
+      studioStore,
     ],
   );
 
@@ -1800,9 +1770,9 @@ export function TemplateStudioClient({
 
       captureHistory();
 
-      selectedInputIdRef.current = nextSelectedInputId;
-      selectedRuntimeDayIdRef.current = nextRuntimeDayId;
-      selectedRuntimeEntryIndexRef.current = 0;
+      studioStore.getState().selectedInputId = nextSelectedInputId;
+      studioStore.getState().selectedRuntimeDayId = nextRuntimeDayId;
+      studioStore.getState().selectedRuntimeEntryIndex = 0;
 
       setDocument(nextDocument);
       setRuntimeValues(normalizedRuntimeValues);
@@ -1826,7 +1796,11 @@ export function TemplateStudioClient({
       restoreSelection,
       setDocument,
       setRuntimeValues,
+      setSelectedInputId,
+      setSelectedRuntimeDayId,
+      setSelectedRuntimeEntryIndex,
       showShortcutStatus,
+      studioStore,
     ],
   );
 
@@ -2426,7 +2400,7 @@ export function TemplateStudioClient({
   ) => {
     const targetNodeIds = resolveStudioDragTargetNodeIds(
       studioStore.getState().document,
-      selectedNodeIdsRef.current,
+      studioStore.getState().selectedNodeIds,
       nodeId,
     );
 
@@ -3015,18 +2989,26 @@ export function TemplateStudioClient({
       setSelectedRuntimeEntryIndex(0);
       showShortcutStatus("Moved day card container");
     },
-    [showShortcutStatus, updateDocument],
+    [
+      setSelectedRuntimeDayId,
+      setSelectedRuntimeEntryIndex,
+      showShortcutStatus,
+      updateDocument,
+    ],
   );
-  const selectTimetableCanvasLayer = useCallback((layerId: string) => {
-    setSelectedTimetableLayerId(layerId);
-    setPanelMode("layers");
+  const selectTimetableCanvasLayer = useCallback(
+    (layerId: string) => {
+      setSelectedTimetableLayerId(layerId);
+      setPanelMode("layers");
 
-    if (!layerId.startsWith("day-card:")) return;
+      if (!layerId.startsWith("day-card:")) return;
 
-    const dayId = layerId.replace(/^day-card:/, "");
-    setSelectedRuntimeDayId(dayId);
-    setSelectedRuntimeEntryIndex(0);
-  }, []);
+      const dayId = layerId.replace(/^day-card:/, "");
+      setSelectedRuntimeDayId(dayId);
+      setSelectedRuntimeEntryIndex(0);
+    },
+    [setSelectedRuntimeDayId, setSelectedRuntimeEntryIndex],
+  );
 
   const updateTimetableLayerPosition = useCallback(
     (
@@ -3635,12 +3617,12 @@ export function TemplateStudioClient({
       [studioStore],
     ),
     getSelectedNodeIds: useCallback(
-      () => selectedNodeIdsRef.current,
-      [selectedNodeIdsRef],
+      () => studioStore.getState().selectedNodeIds,
+      [studioStore],
     ),
     getSelectedNodeId: useCallback(
-      () => selectedNodeIdRef.current,
-      [selectedNodeIdRef],
+      () => studioStore.getState().selectedNodeId,
+      [studioStore],
     ),
     updateDocument,
     onSelect: applyNodeSelection,
@@ -4172,10 +4154,12 @@ export function TemplateStudioClient({
         return;
       }
 
-      const sourceNodeIds = selectedNodeIdsRef.current.includes(nodeId)
+      const sourceNodeIds = studioStore
+        .getState()
+        .selectedNodeIds.includes(nodeId)
         ? getStudioTopLevelNodeIds(
             studioStore.getState().document,
-            selectedNodeIdsRef.current,
+            studioStore.getState().selectedNodeIds,
           )
         : [nodeId];
       const hasLockedSource = sourceNodeIds.some((sourceNodeId) =>
@@ -4190,7 +4174,7 @@ export function TemplateStudioClient({
         return;
       }
 
-      if (!selectedNodeIdsRef.current.includes(nodeId)) {
+      if (!studioStore.getState().selectedNodeIds.includes(nodeId)) {
         selectSingleNode(nodeId);
       }
 
@@ -4202,7 +4186,7 @@ export function TemplateStudioClient({
       };
       setLayerDropState(null);
     },
-    [selectedNodeIdsRef, selectSingleNode, showShortcutStatus, studioStore],
+    [selectSingleNode, showShortcutStatus, studioStore],
   );
 
   const handleLayerDragOver = useCallback(
@@ -6533,7 +6517,7 @@ export function TemplateStudioClient({
   ];
 
   return (
-    <StudioDocumentStoreProvider value={studioStore}>
+    <StudioEditorStoreProvider value={studioStore}>
       <StudioEditorShell
         canvas={
           <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
@@ -6551,12 +6535,12 @@ export function TemplateStudioClient({
               onMoveNodeStart={
                 activeWorkspaceMode === "cards"
                   ? (nodeId) => {
-                      const targetNodeIds = selectedNodeIdsRef.current.includes(
-                        nodeId,
-                      )
+                      const targetNodeIds = studioStore
+                        .getState()
+                        .selectedNodeIds.includes(nodeId)
                         ? getStudioTopLevelNodeIds(
                             studioStore.getState().document,
-                            selectedNodeIdsRef.current,
+                            studioStore.getState().selectedNodeIds,
                           )
                         : [nodeId];
                       const hasLockedTarget = targetNodeIds.some(
@@ -6638,7 +6622,9 @@ export function TemplateStudioClient({
               onSelectNode={
                 activeWorkspaceMode === "cards"
                   ? (nodeId) => {
-                      if (selectedNodeIdsRef.current.includes(nodeId)) {
+                      if (
+                        studioStore.getState().selectedNodeIds.includes(nodeId)
+                      ) {
                         return;
                       }
 
@@ -7254,6 +7240,6 @@ export function TemplateStudioClient({
           />
         }
       />
-    </StudioDocumentStoreProvider>
+    </StudioEditorStoreProvider>
   );
 }

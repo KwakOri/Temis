@@ -44,7 +44,7 @@
     "check:studio:input-commands": "tsx scripts/check-studio-input-commands.ts",
     "check:studio:clipboard-commands": "tsx scripts/check-studio-clipboard-commands.ts",
     "check:studio:timetable-components": "tsx scripts/check-studio-timetable-components.tsx",
-    "check:studio:document-store": "tsx scripts/check-studio-document-store.ts",
+    "check:studio:editor-store": "tsx scripts/check-studio-editor-store.ts",
     "check:studio:inspector-fields": "tsx scripts/check-studio-inspector-fields.tsx",
     "check:studio:card-node-inspector": "tsx scripts/check-studio-card-node-inspector.tsx",
     "check:studio:day-cards-layout": "tsx scripts/check-studio-day-cards-layout.tsx",
