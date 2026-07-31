@@ -49,6 +49,7 @@
     "check:studio:card-node-inspector": "tsx scripts/check-studio-card-node-inspector.tsx",
     "check:studio:day-cards-layout": "tsx scripts/check-studio-day-cards-layout.tsx",
     "check:studio:input-inspector": "tsx scripts/check-studio-input-inspector.tsx",
+    "check:studio:timetable-asset-slot": "tsx scripts/check-studio-timetable-asset-slot.tsx",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
     "check:template-studio:object-layout": "tsx scripts/check-template-studio-object-layout.ts",

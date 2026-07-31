@@ -326,6 +326,7 @@ import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
 import { StudioInputInspector } from "./studio-input-inspector";
+import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
 import { StudioTimetableDayCardsLayoutControls } from "./studio-timetable-day-cards-layout-controls";
 import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
@@ -5234,17 +5235,19 @@ export function TemplateStudioClient({
       fit: StudioImageFit,
     ) => void;
   }) => {
-    const source = sourceLocked ?? (inputId ? "input" : "asset");
-    const input = inputId ? document.inputs[inputId] : null;
-    const hasMissingAsset = Boolean(assetId && !document.assets[assetId]);
-    const hasMissingInput = Boolean(
-      inputId && (!input || input.type !== "image"),
-    );
-    const hasSource = Boolean(assetId || inputId);
-    const activateInputSource = () => {
+    /**
+     * 사용자 이미지 입력을 만들어 이 자리에 묶는다.
+     *
+     * 입력을 만드는 일과 자리를 묶는 일은 한 동작이라 한 번의 문서 변경으로
+     * 처리한다. 그래야 한 클릭이 undo 두 단계로 쌓이지 않는다.
+     */
+    const useInputSource = () => {
       if (!onUpdateInput) return;
 
-      const defaultUrl = assetId ? (document.assets[assetId]?.src ?? "") : "";
+      const currentDocument = studioStore.getState().document;
+      const defaultUrl = assetId
+        ? (currentDocument.assets[assetId]?.src ?? "")
+        : "";
 
       updateDocument((nextDocument) => {
         const timetable = nextDocument.domains?.timetable;
@@ -5268,150 +5271,63 @@ export function TemplateStudioClient({
       showShortcutStatus(`Linked ${label} to input`);
     };
 
+    const uploadAsset = (file: File) => {
+      const cropGeometry = resolveStudioTimetableObjectGeometry(
+        timetableComposition,
+        object.id,
+        getStudioTimetablePreviewSize(document.domains?.timetable),
+      );
+
+      requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
+        createTemplateAssetFromDataUrl(
+          file,
+          croppedSrc,
+          inputLabel,
+          (nextDocument, nextAssetId) => {
+            const timetable = nextDocument.domains?.timetable;
+            if (!timetable) return;
+
+            const composition = ensureStudioTimetableComposition(timetable);
+            const currentObject = composition.objects[object.id];
+            if (!currentObject) return;
+
+            onUpdateAsset(currentObject, nextAssetId, fit ?? defaultFit);
+          },
+        );
+      });
+    };
+
     return (
-      <>
-        {onUpdateInput && !sourceLocked ? (
-          <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-            <span>{label} Source</span>
-            <select
-              className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-              value={source}
-              onChange={(event) => {
-                if (event.currentTarget.value === "input") {
-                  activateInputSource();
-                  return;
-                }
+      <StudioTimetableAssetSlotFields
+        assetId={assetId}
+        assets={assets}
+        boundInput={inputId ? (document.inputs[inputId] ?? null) : null}
+        canUseInput={Boolean(onUpdateInput)}
+        defaultFit={defaultFit}
+        fit={fit}
+        hasAsset={Boolean(assetId && document.assets[assetId])}
+        inputId={inputId}
+        label={label}
+        renderInputSourceSlot={renderTimetableInputSourceSlot}
+        sourceLocked={sourceLocked}
+        onSelectAsset={(nextAssetId) =>
+          updateTimetableCompositionObject(object.id, (currentObject) => {
+            onUpdateAsset(currentObject, nextAssetId, fit ?? defaultFit);
+          })
+        }
+        onSelectFit={(nextFit) =>
+          updateTimetableCompositionObject(object.id, (currentObject) => {
+            if (inputId && onUpdateInput) {
+              onUpdateInput(currentObject, inputId, nextFit);
+              return;
+            }
 
-                updateTimetableCompositionObject(object.id, (currentObject) => {
-                  onUpdateAsset(
-                    currentObject,
-                    assetId ?? null,
-                    fit ?? defaultFit,
-                  );
-                });
-              }}
-            >
-              <option value="asset">Template Asset</option>
-              <option value="input">User Input</option>
-            </select>
-          </label>
-        ) : null}
-        {source === "asset" ? (
-          <div className="grid gap-2">
-            <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-              <span>{label}</span>
-              <select
-                className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
-                disabled={assets.length === 0 && !assetId}
-                value={assetId ?? ""}
-                onChange={(event) => {
-                  const nextAssetId = event.currentTarget.value || null;
-                  updateTimetableCompositionObject(
-                    object.id,
-                    (currentObject) => {
-                      onUpdateAsset(
-                        currentObject,
-                        nextAssetId,
-                        fit ?? defaultFit,
-                      );
-                    },
-                  );
-                }}
-              >
-                <option value="">None</option>
-                {hasMissingAsset ? (
-                  <option value={assetId ?? ""}>Missing asset</option>
-                ) : null}
-                {assets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]">
-              <Upload size={13} />
-              Upload Asset
-              <input
-                accept="image/*"
-                className="hidden"
-                type="file"
-                onChange={(event) => {
-                  const file = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  if (!file) return;
-
-                  const cropGeometry = resolveStudioTimetableObjectGeometry(
-                    timetableComposition,
-                    object.id,
-                    getStudioTimetablePreviewSize(document.domains?.timetable),
-                  );
-                  requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
-                    createTemplateAssetFromDataUrl(
-                      file,
-                      croppedSrc,
-                      inputLabel,
-                      (nextDocument, nextAssetId) => {
-                        const timetable = nextDocument.domains?.timetable;
-                        if (!timetable) return;
-
-                        const composition =
-                          ensureStudioTimetableComposition(timetable);
-                        const currentObject = composition.objects[object.id];
-                        if (!currentObject) return;
-
-                        onUpdateAsset(
-                          currentObject,
-                          nextAssetId,
-                          fit ?? defaultFit,
-                        );
-                      },
-                    );
-                  });
-                }}
-              />
-            </label>
-          </div>
-        ) : input && input.type === "image" ? (
-          renderTimetableInputSourceSlot(input)
-        ) : hasMissingInput ? (
-          <div className="rounded-md border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-200">
-            Missing image input: {inputId}
-          </div>
-        ) : source === "input" && onUpdateInput ? (
-          <button
-            className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-            type="button"
-            onClick={activateInputSource}
-          >
-            <Plus size={12} />
-            Create user image input
-          </button>
-        ) : null}
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Fit</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
-            disabled={!hasSource}
-            value={fit ?? defaultFit}
-            onChange={(event) => {
-              const nextFit = event.currentTarget.value as StudioImageFit;
-              updateTimetableCompositionObject(object.id, (currentObject) => {
-                if (inputId && onUpdateInput) {
-                  onUpdateInput(currentObject, inputId, nextFit);
-                  return;
-                }
-
-                onUpdateAsset(currentObject, assetId ?? null, nextFit);
-              });
-            }}
-          >
-            <option value="cover">Cover</option>
-            <option value="contain">Contain</option>
-            <option value="fill">Fill</option>
-          </select>
-        </label>
-      </>
+            onUpdateAsset(currentObject, assetId ?? null, nextFit);
+          })
+        }
+        onUploadFile={uploadAsset}
+        onUseInputSource={useInputSource}
+      />
     );
   };
 
