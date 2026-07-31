@@ -490,7 +490,7 @@ Phase 1에서는 최소 골격만 만든다.
 
 | 단계 | 상태 | 결과 |
 | --- | --- | --- |
-| 0. 기준선과 smoke guard | 완료 | `npm run check:studio:*` 25종 |
+| 0. 기준선과 smoke guard | 완료 | `npm run check:studio:*` 28종 |
 | 1. 공통 시각 primitive | 완료 | `src/components/studio/layers/studio-layer-primitives.tsx` |
 | 2. `StudioEditorShell` | 완료 | `src/components/studio/editor-shell/studio-editor-shell.tsx` |
 | 3. 상단 도구 모음 | 완료 | `studio-top-toolbar.tsx`, `studio-guide-control.tsx` |
@@ -537,39 +537,55 @@ exhaustive하게 만들 때 이름을 함께 일반화한다.
 
 ### 16.4 9번에 남은 정리
 
-`template-studio-client.tsx`는 10,596줄에서 5,889줄로 줄었다. 아직 어댑터라기보다
-공통 셸을 쓰는 큰 client다. 본문 5,160줄을 성격별로 묶으면 다음과 같다.
+`template-studio-client.tsx`는 10,596줄에서 5,187줄로 줄었다. 아직 어댑터라기보다
+공통 셸을 쓰는 큰 client다. 본문 4,478줄을 성격별로 묶으면 다음과 같다.
 
 | 묶음 | 줄수 | 블록 | 갈 곳 |
 | --- | --- | --- | --- |
-| `render*` 화면 그리기 | 838 | 11 | 패널 컴포넌트 |
 | 메인 JSX return | 741 | 1 | 셸 슬롯별 분리 |
 | 시간표 명령 감싸기 | 722 | 31 | 명령 훅 |
+| 저장·불러오기·에셋 동기화 | 483 | 8 | 지속성 훅 |
 | 노드·그래프 명령 | 423 | 10 | `graph-commands`의 plan/apply |
-| 저장·불러오기·에셋 동기화 | 387 | 5 | 지속성 훅 |
-| 카드 레이어 드래그 | 319 | 8 | 시간표와 같은 형태의 훅 |
+| `render*` 화면 그리기 | 441 | 9 | 패널 컴포넌트 |
 | 입력 관련 | 270 | 16 | 일부만 |
 | `build*` 섹션 조립 | 182 | 4 | 남는 것이 맞다 |
-| 잔 블록 120개 | 1,274 | 120 | 대부분 남는다 |
+| 잔 블록 115개 | 1,212 | 115 | 대부분 남는다 |
 
-정리 순서와 이유:
+이미 옮긴 것은 §16.5에 있다. 남은 것의 순서와 이유:
 
-1. **카드 레이어 드래그 319줄.** 시간표 쪽(`use-studio-timetable-layer-drag`)과
-   구조가 같은데 카드만 client에 남아 있다. 같은 규칙이 두 군데로 갈라져 있어서,
-   한쪽만 고치면 카드와 시간표의 끌어 옮기기 반응이 달라진다.
-2. **`render*` 838줄.** 스코프 의존이 얕은 표시 코드다. 컴포넌트로 나가면
-   마크업 가드를 붙일 수 있다.
-3. **저장·불러오기 387줄.** "발행 전에 에셋이 동기화되어야 한다" 같은 순서
-   규칙이 지금은 검증 밖에 있다.
-4. **`ungroupSelectedNodes` 239줄.** 다른 명령은 순수 함수로 옮겼는데 이것만
+1. **저장·불러오기 483줄.** "발행 전에 에셋이 동기화되어야 한다" 같은 순서
+   규칙이 지금은 검증 밖에 있다. 원격 문서 한 벌을 다루는 규칙이 한 훅에 모여야
+   한다.
+2. **`ungroupSelectedNodes` 239줄.** 다른 명령은 순수 함수로 옮겼는데 이것만
    client에 남아 그래프 구조를 바꾸는 규칙이 가드 밖에 있다.
-5. **시간표 명령 722줄.** 대부분 `updateDocument` 얇은 감싸기다. 하나하나의
+3. **`renderTimetablePanel` 154줄과 `renderTimetableAssetSlot` 133줄.** 앞은
+   요일·일정 편집 패널이고 뒤는 이미지 자리에 문서 변경을 이어 붙이는 배선이다.
+   배선은 컴포넌트로 옮겨도 props만 늘어나므로, 문서를 바꾸는 부분을 명령 쪽으로
+   먼저 옮긴 뒤에 다룬다.
+4. **시간표 명령 722줄.** 대부분 `updateDocument` 얇은 감싸기다. 하나하나의
    이득은 작지만 개수가 많다.
+5. **메인 JSX return 741줄.** 셸 슬롯별로 나눌 수 있지만, 위의 정리가 끝나면
+   남는 것이 배선뿐이라 마지막에 본다.
 
 바닥은 2,500~3,300줄로 본다. 셸·훅·store에 넘길 props 배선과 문서 상태
 파생값은 어댑터가 갖고 있어야 하므로 그 아래로는 줄지 않는다.
 
-### 16.5 가드 목록
+### 16.5 client에서 옮긴 것
+
+| 옮긴 것 | 간 곳 | 그때 고친 문제 |
+| --- | --- | --- |
+| 시간표 레이어 드래그 | `use-studio-timetable-layer-drag` + `timetable-layer-drag` | 자동 펼침 타이머 정리가 client의 정리 effect에 섞여 있었다 |
+| 시간표 레이어 트리 | `studio-timetable-layer-panel` | 트리 구조와 집을 수 있는 범위에 가드가 없었다 |
+| 카드 레이어 드래그 | `use-studio-layer-drag` + `layer-drag` | 좌표 뒤집기가 검증과 이동 두 곳에 있었다. 검증 쪽은 그래프가 위/아래를 구분하지 않아 우연히 무해했다 |
+| 미리보기 값 편집 | `studio-runtime-input-panel` | 범위별 묶음을 미리보기 패널과 시간표 패널이 각각 그렸다 |
+| 카드 배경 이미지 자리 | `studio-status-card-background-slot` | 같은 이미지 자리 칸이 두 벌 있었다 |
+| 프리셋 목록 | `studio-preset-panels` | 넣을 수 없는 프리셋을 누를 수 있게 보이는지에 가드가 없었다 |
+
+접힘 목록에서 하나를 빼는 일과 자동 펼침까지 기다리는 시간은 두 편집기가 같아야
+하므로 `layer-order.ts`가 갖는다. 옮기기 전에는 카드와 시간표에 같은 함수가 따로
+있었다.
+
+### 16.6 가드 목록
 
 판단 로직은 순수 함수로 두고 계약을 검증한다. 이 저장소에는 DOM 테스트 환경이
 없어서 훅을 직접 부를 수 없기 때문이다. 컴포넌트는
@@ -583,8 +599,11 @@ exhaustive하게 만들 때 이름을 함께 일반화한다.
 npm run check:studio:editor-shell         셸과 상단·좌우 프레임
 npm run check:studio:thumbnail-shell      썸네일 편집기에 없어야 하는 것
 npm run check:studio:layers               공통 레이어 패널
+npm run check:studio:layer-drag           카드 레이어 끌어 옮기기
 npm run check:studio:timetable-layer-panel  시간표 레이어 트리
 npm run check:studio:timetable-layer-drag   시간표 레이어 끌어 옮기기
+npm run check:studio:preset-panels        프리셋 목록
+npm run check:studio:runtime-input-panel  미리보기 값 편집
 npm run check:studio:hooks                선택과 이력
 npm run check:studio:editor-store         되돌리기 한 단위
 npm run check:studio:settings             설정 모달
@@ -600,4 +619,10 @@ npm run check:studio:timetable-selection
 npm run check:studio:graph-commands / node-commands / node-style-commands
 npm run check:studio:timetable-commands / timetable-presets
 npm run check:studio:input-commands / clipboard-commands
+npm run check:template-studio:layer-order   레이어 순서와 접힘 규칙
 ```
+
+마크업으로는 콜백 안에서 무엇을 하는지 볼 수 없다. 그 부분은 두 가지로 덮는다.
+판단 로직은 순수 함수로 빼서 값으로 검증하고, 종류별로 다른 길을 부르는지는 만들어진
+요소 나무에서 단추를 직접 눌러 확인한다. 값을 넘기는 배선 자체가 검사 밖에 남을 때는
+그 사실을 가드 머리말에 적는다.
