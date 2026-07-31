@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { StudioStatusCardBackgroundSlot } from "../src/app/(root)/template-studio/_components/studio-status-card-background-slot";
 import {
   StudioTimetableAssetSlotFields,
   type StudioTimetableAssetSlotFieldsProps,
@@ -18,7 +19,9 @@ import type {
   StudioAsset,
   StudioImageFit,
   StudioInputDefinition,
+  StudioTimetableAssetSlot,
 } from "../src/types/template-studio";
+const noop = () => {};
 
 const ASSETS: StudioAsset[] = [
   { id: "asset_a", label: "Asset A", src: "a.png" },
@@ -311,4 +314,119 @@ assert.deepEqual(
   "파일을 고르지 않으면 아무것도 하지 않는다.",
 );
 
+// --- 상태 카드 배경 자리 ---
+//
+// 카드는 상태마다 배경이 다르다. 어느 상태를 편집하는 중인지 자리 위에 없으면
+// 온라인 배경을 고치려다 오프라인 배경을 바꾼다.
+//
+// 이 자리는 시간표 이미지 자리와 같은 칸을 쓴다. 예전에는 같은 칸을 각각
+// 그렸고 그래서 한쪽만 고쳐지는 일이 있었다.
+const statusSlotCalls: {
+  assets: Array<[string | null, StudioImageFit]>;
+  fits: StudioImageFit[];
+  uploads: string[];
+} = { assets: [], fits: [], uploads: [] };
+const statusSlotElement = (
+  <StudioStatusCardBackgroundSlot
+    assets={ASSETS}
+    hasAsset
+    slot={{ assetId: "asset_a", fit: "contain" } as StudioTimetableAssetSlot}
+    statusLabel="Online"
+    onSelectAsset={(assetId, fit) =>
+      statusSlotCalls.assets.push([assetId, fit])
+    }
+    onSelectFit={(fit) => statusSlotCalls.fits.push(fit)}
+    onUploadFile={(file) => statusSlotCalls.uploads.push(file.name)}
+  />
+);
+const statusSlotMarkup = renderToStaticMarkup(statusSlotElement);
+assert.ok(
+  statusSlotMarkup.includes("Online layout"),
+  "지금 편집 중인 상태를 자리 위에 적는다.",
+);
+assert.equal(
+  statusSlotMarkup.includes("Source</span>"),
+  false,
+  "카드 배경은 사용자 입력을 출처로 쓸 수 없다. 사용자가 바꾸는 것은 일정 내용이고 배경은 템플릿이 정한다.",
+);
+assert.ok(
+  statusSlotMarkup.includes("Upload Asset"),
+  "배경도 새 파일을 올릴 수 있다.",
+);
+assert.ok(
+  statusSlotMarkup.includes('value="contain" selected=""'),
+  "저장해 둔 Fit이 고른 상태로 보여야 한다.",
+);
+assert.ok(
+  statusSlotMarkup.includes(">Asset A</option>"),
+  "고를 수 있는 템플릿 에셋을 보여준다.",
+);
+assert.equal(
+  renderToStaticMarkup(
+    <StudioStatusCardBackgroundSlot
+      assets={ASSETS}
+      hasAsset={false}
+      slot={{ assetId: "asset_missing" } as StudioTimetableAssetSlot}
+      statusLabel="Offline"
+      onSelectAsset={noop}
+      onSelectFit={noop}
+      onUploadFile={noop}
+    />,
+  ).includes(">Missing asset</option>"),
+  true,
+  "문서에서 사라진 에셋은 끊어진 것으로 알린다.",
+);
+assert.ok(
+  renderToStaticMarkup(
+    <StudioStatusCardBackgroundSlot
+      assets={ASSETS}
+      hasAsset={false}
+      slot={null}
+      statusLabel="Offline"
+      onSelectAsset={noop}
+      onSelectFit={noop}
+      onUploadFile={noop}
+    />,
+  ).includes('disabled=""'),
+  "배경을 고르지 않았으면 Fit을 바꿀 수 없다. 쓰이지 않는 값이 문서에 남는다.",
+);
+// 두 자리가 같은 칸을 쓰는지는 넘기는 props로 본다. 마크업만 보면 비슷하게
+// 생긴 칸을 따로 그려도 통과한다.
+const statusSlotTree = StudioStatusCardBackgroundSlot(
+  statusSlotElement.props as React.ComponentProps<
+    typeof StudioStatusCardBackgroundSlot
+  > satisfies React.ComponentProps<typeof StudioStatusCardBackgroundSlot>,
+);
+const sharedFieldsProps = findAll(
+  statusSlotTree,
+  (props) => "canUseInput" in props,
+)[0]?.props as unknown as StudioTimetableAssetSlotFieldsProps | undefined;
+assert.ok(
+  sharedFieldsProps,
+  "상태 카드 배경 자리는 시간표 이미지 자리와 같은 칸을 쓴다.",
+);
+assert.equal(
+  sharedFieldsProps.canUseInput,
+  false,
+  "카드 배경 자리에는 사용자 입력을 쓸 수 없다고 칸에 알린다.",
+);
+assert.equal(
+  sharedFieldsProps.fit,
+  "contain",
+  "저장해 둔 Fit을 칸에 그대로 넘긴다.",
+);
+// 에셋을 바꿀 때 지금 Fit을 함께 넘겨야 한다. 넘기지 않으면 저장해 둔 Fit이
+// 기본값으로 돌아간다.
+sharedFieldsProps.onSelectAsset("asset_b");
+assert.deepEqual(
+  statusSlotCalls.assets,
+  [["asset_b", "contain"]],
+  "에셋을 바꿀 때 저장해 둔 Fit을 함께 넘긴다.",
+);
+sharedFieldsProps.onSelectFit("fill");
+assert.deepEqual(
+  statusSlotCalls.fits,
+  ["fill"],
+  "Fit만 바꾸는 길도 이어져 있다.",
+);
 console.log("Studio timetable asset slot baseline checks passed.");

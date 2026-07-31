@@ -14,7 +14,6 @@ import {
   Plus,
   Trash2,
   Type,
-  Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "zustand";
@@ -286,6 +285,7 @@ import {
   StudioRuntimeInputGroups,
   StudioRuntimeInputPanel,
 } from "./studio-runtime-input-panel";
+import { StudioStatusCardBackgroundSlot } from "./studio-status-card-background-slot";
 import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
@@ -4393,102 +4393,56 @@ export function TemplateStudioClient({
       (candidate) => candidate.id === selectedCardStatusId,
     );
     const slot = node.assetSlots?.asset;
-    const assetId = slot?.assetId ?? "";
-    const hasMissingAsset = Boolean(assetId && !document.assets[assetId]);
     const statusLabel = status?.label ?? selectedCardStatusId;
 
+    const applyBackgroundSlot = (
+      nextAssetId: string | null,
+      nextFit: StudioImageFit,
+    ) => {
+      updateNode(node.id, (currentNode) => {
+        setStudioStatusCardBackgroundAssetSlot(
+          currentNode,
+          nextAssetId,
+          nextFit,
+        );
+      });
+    };
+
     return (
-      <div className="grid gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field-bg)] p-2">
-        <div className="text-[11px] font-bold text-[var(--fg)]">
-          {statusLabel} layout
-        </div>
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Asset</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
-            disabled={assets.length === 0 && !assetId}
-            value={assetId}
-            onChange={(event) => {
-              const nextAssetId = event.currentTarget.value || null;
-              updateNode(node.id, (currentNode) => {
+      <StudioStatusCardBackgroundSlot
+        assets={assets}
+        hasAsset={Boolean(slot?.assetId && document.assets[slot.assetId])}
+        slot={slot}
+        statusLabel={statusLabel}
+        onSelectAsset={applyBackgroundSlot}
+        onSelectFit={(nextFit) =>
+          applyBackgroundSlot(slot?.assetId ?? null, nextFit)
+        }
+        onUploadFile={(file) => {
+          const cropGeometry = resolveStudioGraphNodeGeometry(
+            document,
+            node.id,
+          );
+
+          requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
+            createTemplateAssetFromDataUrl(
+              file,
+              croppedSrc,
+              `${node.label} ${statusLabel}`,
+              (nextDocument, nextAssetId) => {
+                const currentNode = nextDocument.graph.nodes[node.id];
+                if (!currentNode) return;
+
                 setStudioStatusCardBackgroundAssetSlot(
                   currentNode,
                   nextAssetId,
                   slot?.fit ?? "cover",
                 );
-              });
-            }}
-          >
-            <option value="">None</option>
-            {hasMissingAsset ? (
-              <option value={assetId}>Missing asset</option>
-            ) : null}
-            {assets.map((asset) => (
-              <option key={asset.id} value={asset.id}>
-                {asset.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="inline-flex h-8 cursor-pointer items-center justify-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]">
-          <Upload size={13} />
-          Upload Asset
-          <input
-            accept="image/*"
-            className="hidden"
-            type="file"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              if (!file) return;
-
-              const cropGeometry = resolveStudioGraphNodeGeometry(
-                document,
-                node.id,
-              );
-              requestStudioImageCrop(file, cropGeometry, (croppedSrc) => {
-                createTemplateAssetFromDataUrl(
-                  file,
-                  croppedSrc,
-                  `${node.label} ${statusLabel}`,
-                  (nextDocument, nextAssetId) => {
-                    const currentNode = nextDocument.graph.nodes[node.id];
-                    if (!currentNode) return;
-
-                    setStudioStatusCardBackgroundAssetSlot(
-                      currentNode,
-                      nextAssetId,
-                      slot?.fit ?? "cover",
-                    );
-                  },
-                );
-              });
-            }}
-          />
-        </label>
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Fit</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
-            disabled={!assetId}
-            value={slot?.fit ?? "cover"}
-            onChange={(event) => {
-              const nextFit = event.currentTarget.value as StudioImageFit;
-              updateNode(node.id, (currentNode) => {
-                setStudioStatusCardBackgroundAssetSlot(
-                  currentNode,
-                  assetId || null,
-                  nextFit,
-                );
-              });
-            }}
-          >
-            <option value="cover">Cover</option>
-            <option value="contain">Contain</option>
-            <option value="fill">Fill</option>
-          </select>
-        </label>
-      </div>
+              },
+            );
+          });
+        }}
+      />
     );
   };
 

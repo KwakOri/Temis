@@ -40,8 +40,13 @@ export interface StudioTimetableAssetSlotFieldsProps {
   /** 사용자 이미지 입력을 만들어 이 자리에 묶는다. */
   onUseInputSource: () => void;
   onUploadFile: (file: File) => void;
-  /** 묶인 입력의 편집 UI. 입력 패널과 같은 것을 쓰도록 받아서 놓는다. */
-  renderInputSourceSlot: (input: StudioInputDefinition) => React.ReactNode;
+  /**
+   * 묶인 입력의 편집 UI. 입력 패널과 같은 것을 쓰도록 받아서 놓는다.
+   *
+   * 사용자 입력을 출처로 쓸 수 없는 자리(`canUseInput`이 거짓)에서는 부르지
+   * 않으므로 넘기지 않아도 된다.
+   */
+  renderInputSourceSlot?: (input: StudioInputDefinition) => React.ReactNode;
 }
 
 /**
@@ -68,7 +73,7 @@ export function StudioTimetableAssetSlotFields({
   onSelectFit,
   onUseInputSource,
   onUploadFile,
-  renderInputSourceSlot,
+  renderInputSourceSlot = () => null,
 }: StudioTimetableAssetSlotFieldsProps) {
   const source: StudioAssetSlotSource =
     sourceLocked ?? (inputId ? "input" : "asset");
