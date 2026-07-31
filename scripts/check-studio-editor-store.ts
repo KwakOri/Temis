@@ -13,6 +13,7 @@ import assert from "node:assert/strict";
 import {
   captureStudioEditorSnapshot,
   createStudioEditorStore,
+  createStudioViewSetter,
   type StudioEditorSnapshot,
 } from "../src/stores/studio/studio-editor-store";
 import type {
@@ -55,11 +56,18 @@ const createRuntimeValues = (value = "one"): StudioRuntimeValues =>
     entries: {},
   }) as unknown as StudioRuntimeValues;
 
+/** 가드가 쓰는 표본 뷰 설정. 편집기마다 모양이 다르므로 여기서 정한다. */
+interface TestView {
+  panelMode: "layers" | "inputs";
+  scale: number;
+}
+
 const createStore = () =>
-  createStudioEditorStore({
+  createStudioEditorStore<TestView>({
     document: createDocument("base"),
     runtimeValues: createRuntimeValues(),
     selectedNodeIds: ["a"],
+    view: { panelMode: "layers", scale: 0.8 },
   });
 
 // --- 되돌리기 한 단위의 구성 ---
@@ -229,10 +237,11 @@ assert.deepEqual(
 
 // --- 처음 상태 ---
 
-const initialStore = createStudioEditorStore({
+const initialStore = createStudioEditorStore<TestView>({
   document: createDocument("init"),
   runtimeValues: createRuntimeValues(),
   selectedNodeIds: ["a", "b"],
+  view: { panelMode: "layers", scale: 0.8 },
 });
 assert.equal(
   initialStore.getState().selectedNodeId,
@@ -243,9 +252,10 @@ assert.equal(initialStore.getState().selectedRuntimeDayId, "mon");
 assert.equal(initialStore.getState().selectedRuntimeEntryIndex, 0);
 assert.equal(initialStore.getState().selectedInputId, null);
 
-const emptyStore = createStudioEditorStore({
+const emptyStore = createStudioEditorStore<TestView>({
   document: createDocument("init"),
   runtimeValues: createRuntimeValues(),
+  view: { panelMode: "layers", scale: 0.8 },
 });
 assert.deepEqual(emptyStore.getState().selectedNodeIds, []);
 assert.equal(emptyStore.getState().selectedNodeId, null);
@@ -321,5 +331,78 @@ assert.equal(notifications, 1, "구독을 끊은 뒤에는 알리지 않는다."
 // 타입만 확인한다. 스냅샷 타입이 store 상태에 그대로 들어가야 한다.
 const typedSnapshot: StudioEditorSnapshot = snapshot;
 assert.ok(typedSnapshot);
+
+// --- 뷰 설정은 되돌리기와 무관하다 ---
+//
+// 되돌리기가 탭이나 확대 배율을 함께 되돌리면 편집 흐름이 끊긴다.
+
+assert.ok(
+  !("view" in snapshot),
+  "뷰 설정은 되돌리기 한 단위에 들어가지 않는다.",
+);
+
+const viewStore = createStore();
+const viewSnapshot = captureStudioEditorSnapshot(viewStore.getState());
+
+viewStore.getState().setView({ panelMode: "inputs" });
+assert.equal(
+  viewStore.getState().view.panelMode,
+  "inputs",
+  "뷰 설정의 일부만 바꿀 수 있다.",
+);
+assert.equal(
+  viewStore.getState().view.scale,
+  0.8,
+  "바꾸지 않은 뷰 값은 그대로 남는다.",
+);
+
+viewStore.getState().restoreSnapshot(viewSnapshot);
+assert.equal(
+  viewStore.getState().view.panelMode,
+  "inputs",
+  "되돌려도 뷰 설정은 되돌아가지 않는다.",
+);
+
+viewStore.getState().setView((currentView) => ({
+  scale: currentView.scale * 2,
+}));
+assert.equal(
+  viewStore.getState().view.scale,
+  1.6,
+  "직전 값을 받아 바꾸는 형태도 쓸 수 있다.",
+);
+
+// --- setState와 같은 모양의 뷰 setter ---
+
+const setterStore = createStore();
+const setScale = createStudioViewSetter(setterStore, "scale");
+const setPanelMode = createStudioViewSetter(setterStore, "panelMode");
+
+setScale(1.5);
+assert.equal(setterStore.getState().view.scale, 1.5, "값을 그대로 넣는다.");
+
+setScale((currentScale) => currentScale + 0.5);
+assert.equal(
+  setterStore.getState().view.scale,
+  2,
+  "직전 값을 받아 바꾼다. 그래서 store로 옮겨도 쓰는 쪽 코드가 그대로다.",
+);
+
+setPanelMode("inputs");
+assert.equal(
+  setterStore.getState().view.scale,
+  2,
+  "한 값을 바꿔도 다른 뷰 값은 그대로다.",
+);
+assert.equal(setterStore.getState().view.panelMode, "inputs");
+
+const viewIsolationFirst = createStore();
+const viewIsolationSecond = createStore();
+viewIsolationFirst.getState().setView({ panelMode: "inputs" });
+assert.equal(
+  viewIsolationSecond.getState().view.panelMode,
+  "layers",
+  "한 편집기의 뷰 설정이 다른 편집기로 새지 않는다.",
+);
 
 console.log("Studio editor store baseline checks passed.");

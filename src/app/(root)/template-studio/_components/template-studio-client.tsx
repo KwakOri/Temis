@@ -31,6 +31,7 @@ import { useStudioClipboard } from "@/hooks/studio/use-studio-clipboard";
 import {
   captureStudioEditorSnapshot,
   createStudioEditorStore,
+  createStudioViewSetter,
   type StudioEditorSnapshot,
   type StudioEditorStore,
   StudioEditorStoreProvider,
@@ -395,6 +396,29 @@ interface StudioTimetableLayerDropState {
   layerId: string;
   position: "before" | "after";
   blockedReason?: string | null;
+}
+
+/**
+ * Template Studio의 뷰 설정.
+ *
+ * 되돌리기가 되살리지 않는 값만 담는다. 탭, 테마, 인스펙터 접힘처럼 편집기마다
+ * 낱말이 다른 값이라 공용 store 타입에 박아 넣지 않고 편집기가 정한다.
+ *
+ * 한 번의 조작 동안만 사는 값은 담지 않는다. 드래그 중인 레이어나 열려 있는
+ * 모달은 되돌리기와도 무관하고 다른 화면이 읽지도 않는다.
+ */
+interface TemplateStudioView {
+  panelMode: PanelMode;
+  theme: StudioTheme;
+  workspaceMode: WorkspaceMode;
+  inspectorSections: Record<InspectorSectionKey, boolean>;
+  inputScopeFilter: StudioInputScope;
+  scale: number;
+  collapsedLayerGroupIds: string[];
+  collapsedTimetableLayerIds: string[];
+  selectedTimetableLayerId: string | null;
+  selectedCardStatusId: StudioTimetableStatusId;
+  selectedCardComponentId: StudioTimetableComponentId;
 }
 
 interface UpdateOptions {
@@ -810,15 +834,30 @@ export function TemplateStudioClient({
   initialRemoteTemplateId = null,
 }: TemplateStudioClientProps) {
   const router = useRouter();
-  const studioStoreRef = useRef<StudioEditorStore | null>(null);
+  const studioStoreRef = useRef<StudioEditorStore<TemplateStudioView> | null>(
+    null,
+  );
   if (!studioStoreRef.current) {
-    studioStoreRef.current = createStudioEditorStore({
+    studioStoreRef.current = createStudioEditorStore<TemplateStudioView>({
       document: createSampleStudioDocument(),
       runtimeValues: createInitialStudioRuntimeValues(
         createSampleStudioDocument(),
       ),
       selectedNodeIds: ["node_c3"],
       selectedRuntimeDayId: "mon",
+      view: {
+        panelMode: "layers",
+        theme: "dark",
+        workspaceMode: "cards",
+        inspectorSections: DEFAULT_INSPECTOR_SECTIONS,
+        inputScopeFilter: "global",
+        scale: 0.8,
+        collapsedLayerGroupIds: [],
+        collapsedTimetableLayerIds: [],
+        selectedTimetableLayerId: STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
+        selectedCardStatusId: "online",
+        selectedCardComponentId: "",
+      },
     });
   }
   const studioStore = studioStoreRef.current;
@@ -843,44 +882,84 @@ export function TemplateStudioClient({
     setSelectedRuntimeDayId,
     setSelectedRuntimeEntryIndex,
   } = studioStore.getState();
-  const [panelMode, setPanelMode] = useState<PanelMode>("layers");
-  const [theme, setTheme] = useState<StudioTheme>("dark");
+  const {
+    panelMode,
+    theme,
+    workspaceMode,
+    inspectorSections,
+    inputScopeFilter,
+    scale,
+    collapsedLayerGroupIds,
+    collapsedTimetableLayerIds,
+    selectedTimetableLayerId,
+    selectedCardStatusId,
+    selectedCardComponentId,
+  } = useStore(studioStore, (state) => state.view);
+  const {
+    setPanelMode,
+    setTheme,
+    setWorkspaceMode,
+    setInspectorSections,
+    setInputScopeFilter,
+    setScale,
+    setCollapsedLayerGroupIds,
+    setCollapsedTimetableLayerIds,
+    setSelectedTimetableLayerId,
+    setSelectedCardStatusId,
+    setSelectedCardComponentId,
+  } = useMemo(
+    () => ({
+      setPanelMode: createStudioViewSetter(studioStore, "panelMode"),
+      setTheme: createStudioViewSetter(studioStore, "theme"),
+      setWorkspaceMode: createStudioViewSetter(studioStore, "workspaceMode"),
+      setInspectorSections: createStudioViewSetter(
+        studioStore,
+        "inspectorSections",
+      ),
+      setInputScopeFilter: createStudioViewSetter(
+        studioStore,
+        "inputScopeFilter",
+      ),
+      setScale: createStudioViewSetter(studioStore, "scale"),
+      setCollapsedLayerGroupIds: createStudioViewSetter(
+        studioStore,
+        "collapsedLayerGroupIds",
+      ),
+      setCollapsedTimetableLayerIds: createStudioViewSetter(
+        studioStore,
+        "collapsedTimetableLayerIds",
+      ),
+      setSelectedTimetableLayerId: createStudioViewSetter(
+        studioStore,
+        "selectedTimetableLayerId",
+      ),
+      setSelectedCardStatusId: createStudioViewSetter(
+        studioStore,
+        "selectedCardStatusId",
+      ),
+      setSelectedCardComponentId: createStudioViewSetter(
+        studioStore,
+        "selectedCardComponentId",
+      ),
+    }),
+    [studioStore],
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stylePropagationOpen, setStylePropagationOpen] = useState(false);
-  const [inspectorSections, setInspectorSections] = useState<
-    Record<InspectorSectionKey, boolean>
-  >(DEFAULT_INSPECTOR_SECTIONS);
-  const [workspaceMode, setWorkspaceMode] = useState<WorkspaceMode>("cards");
-  const [inputScopeFilter, setInputScopeFilter] =
-    useState<StudioInputScope>("global");
-  const [scale, setScale] = useState(0.8);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
   const [pendingImageCrop, setPendingImageCrop] =
     useState<PendingStudioImageCrop | null>(null);
   const [layerDropState, setLayerDropState] =
     useState<StudioLayerDropState | null>(null);
-  const [collapsedLayerGroupIds, setCollapsedLayerGroupIds] = useState<
-    string[]
-  >([]);
-  const [collapsedTimetableLayerIds, setCollapsedTimetableLayerIds] = useState<
-    string[]
-  >([]);
   const [timetableLayerDragState, setTimetableLayerDragState] =
     useState<StudioTimetableLayerDragState | null>(null);
   const [timetableLayerDropState, setTimetableLayerDropState] =
     useState<StudioTimetableLayerDropState | null>(null);
-  const [selectedTimetableLayerId, setSelectedTimetableLayerId] = useState<
-    string | null
-  >(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
     initialRemoteTemplateId,
   );
-  const [selectedCardStatusId, setSelectedCardStatusId] =
-    useState<StudioTimetableStatusId>("online");
-  const [selectedCardComponentId, setSelectedCardComponentId] =
-    useState<StudioTimetableComponentId>("");
   const [componentLabelDraft, setComponentLabelDraft] = useState("");
   const layerDragStateRef = useRef<StudioLayerDragState | null>(null);
   const timetableLayerDragStateRef =
@@ -1027,7 +1106,11 @@ export function TemplateStudioClient({
     if (selectedCardComponentId !== activeCardComponentId) {
       setSelectedCardComponentId(activeCardComponentId);
     }
-  }, [activeCardComponentId, selectedCardComponentId]);
+  }, [
+    activeCardComponentId,
+    selectedCardComponentId,
+    setSelectedCardComponentId,
+  ]);
   useEffect(() => {
     setComponentLabelDraft(cardEntryComponent?.label ?? "");
   }, [cardEntryComponent?.id, cardEntryComponent?.label]);
@@ -1039,7 +1122,7 @@ export function TemplateStudioClient({
     }
 
     setSelectedCardStatusId(cardStatusOptions[0]?.id ?? "online");
-  }, [cardStatusOptions, selectedCardStatusId]);
+  }, [cardStatusOptions, selectedCardStatusId, setSelectedCardStatusId]);
   const cardPresetGroups = useMemo(
     () =>
       getStudioPresetGroups(document, "cards", {
@@ -1501,7 +1584,13 @@ export function TemplateStudioClient({
       setPanelMode("inputs");
       showShortcutStatus(`Selected input: ${input.label}`);
     },
-    [setSelectedInputId, showShortcutStatus, studioStore],
+    [
+      setInputScopeFilter,
+      setPanelMode,
+      setSelectedInputId,
+      showShortcutStatus,
+      studioStore,
+    ],
   );
 
   const jumpToInputConsumer = useCallback(
@@ -1552,24 +1641,40 @@ export function TemplateStudioClient({
       setSelectedTimetableLayerId(object.id);
       showShortcutStatus(`Selected object: ${object.label}`);
     },
-    [selectSingleNode, showShortcutStatus, studioStore],
+    [
+      selectSingleNode,
+      setCollapsedLayerGroupIds,
+      setPanelMode,
+      setSelectedTimetableLayerId,
+      setWorkspaceMode,
+      showShortcutStatus,
+      studioStore,
+    ],
   );
 
-  const toggleLayerGroupCollapsed = useCallback((nodeId: string) => {
-    setCollapsedLayerGroupIds((currentNodeIds) =>
-      currentNodeIds.includes(nodeId)
-        ? currentNodeIds.filter((currentNodeId) => currentNodeId !== nodeId)
-        : [...currentNodeIds, nodeId],
-    );
-  }, []);
+  const toggleLayerGroupCollapsed = useCallback(
+    (nodeId: string) => {
+      setCollapsedLayerGroupIds((currentNodeIds) =>
+        currentNodeIds.includes(nodeId)
+          ? currentNodeIds.filter((currentNodeId) => currentNodeId !== nodeId)
+          : [...currentNodeIds, nodeId],
+      );
+    },
+    [setCollapsedLayerGroupIds],
+  );
 
-  const toggleTimetableLayerCollapsed = useCallback((layerId: string) => {
-    setCollapsedTimetableLayerIds((currentLayerIds) =>
-      currentLayerIds.includes(layerId)
-        ? currentLayerIds.filter((currentLayerId) => currentLayerId !== layerId)
-        : [...currentLayerIds, layerId],
-    );
-  }, []);
+  const toggleTimetableLayerCollapsed = useCallback(
+    (layerId: string) => {
+      setCollapsedTimetableLayerIds((currentLayerIds) =>
+        currentLayerIds.includes(layerId)
+          ? currentLayerIds.filter(
+              (currentLayerId) => currentLayerId !== layerId,
+            )
+          : [...currentLayerIds, layerId],
+      );
+    },
+    [setCollapsedTimetableLayerIds],
+  );
 
   const selectAllEditableNodes = useCallback(() => {
     const nodeIds = getStudioEditableNodeIds(studioStore.getState().document);
@@ -1581,7 +1686,7 @@ export function TemplateStudioClient({
     applyNodeSelection(nodeIds, studioStore.getState().selectedNodeId);
     setPanelMode("layers");
     showShortcutStatus(`Selected ${nodeIds.length} objects`);
-  }, [applyNodeSelection, showShortcutStatus, studioStore]);
+  }, [applyNodeSelection, setPanelMode, showShortcutStatus, studioStore]);
 
   const createHistorySnapshot = useCallback(
     (): StudioEditorSnapshot =>
@@ -1658,7 +1763,7 @@ export function TemplateStudioClient({
         ? `Exported JSON with ${diagnosticsSummary.warningCount} warning(s)`
         : "Exported JSON",
     );
-  }, [showShortcutStatus, studioStore]);
+  }, [setInspectorSections, showShortcutStatus, studioStore]);
 
   const importStudioJsonFile = useCallback(
     async (file: File) => {
@@ -1727,11 +1832,16 @@ export function TemplateStudioClient({
     [
       captureHistory,
       restoreSelection,
+      setCollapsedLayerGroupIds,
+      setCollapsedTimetableLayerIds,
       setDocument,
+      setPanelMode,
       setRuntimeValues,
       setSelectedInputId,
       setSelectedRuntimeDayId,
       setSelectedRuntimeEntryIndex,
+      setSelectedTimetableLayerId,
+      setWorkspaceMode,
       showShortcutStatus,
       studioStore,
     ],
@@ -1794,11 +1904,16 @@ export function TemplateStudioClient({
     [
       captureHistory,
       restoreSelection,
+      setCollapsedLayerGroupIds,
+      setCollapsedTimetableLayerIds,
       setDocument,
+      setPanelMode,
       setRuntimeValues,
       setSelectedInputId,
       setSelectedRuntimeDayId,
       setSelectedRuntimeEntryIndex,
+      setSelectedTimetableLayerId,
+      setWorkspaceMode,
       showShortcutStatus,
       studioStore,
     ],
@@ -2152,7 +2267,12 @@ export function TemplateStudioClient({
         restoreSelection([rootNodeId], rootNodeId);
       }
     },
-    [restoreSelection, selectedCardStatusId, studioStore],
+    [
+      restoreSelection,
+      selectedCardStatusId,
+      setSelectedCardComponentId,
+      studioStore,
+    ],
   );
 
   const duplicateSelectedCardComponent = () => {
@@ -2927,7 +3047,13 @@ export function TemplateStudioClient({
         }),
       );
     },
-    [document, showShortcutStatus, updateDocument],
+    [
+      document,
+      setPanelMode,
+      setSelectedTimetableLayerId,
+      showShortcutStatus,
+      updateDocument,
+    ],
   );
   const moveTimetableRootObjectLayer = useCallback(
     (
@@ -2956,7 +3082,7 @@ export function TemplateStudioClient({
       setSelectedTimetableLayerId(sourceObjectId);
       showShortcutStatus("Moved timetable layer");
     },
-    [showShortcutStatus, updateDocument],
+    [setSelectedTimetableLayerId, showShortcutStatus, updateDocument],
   );
   const moveTimetableDayLayer = useCallback(
     (
@@ -2992,6 +3118,7 @@ export function TemplateStudioClient({
     [
       setSelectedRuntimeDayId,
       setSelectedRuntimeEntryIndex,
+      setSelectedTimetableLayerId,
       showShortcutStatus,
       updateDocument,
     ],
@@ -3007,7 +3134,12 @@ export function TemplateStudioClient({
       setSelectedRuntimeDayId(dayId);
       setSelectedRuntimeEntryIndex(0);
     },
-    [setSelectedRuntimeDayId, setSelectedRuntimeEntryIndex],
+    [
+      setPanelMode,
+      setSelectedRuntimeDayId,
+      setSelectedRuntimeEntryIndex,
+      setSelectedTimetableLayerId,
+    ],
   );
 
   const updateTimetableLayerPosition = useCallback(
@@ -3246,7 +3378,7 @@ export function TemplateStudioClient({
         timetableLayerAutoExpandTargetRef.current = null;
       }, STUDIO_LAYER_AUTO_EXPAND_DELAY_MS);
     },
-    [],
+    [setCollapsedTimetableLayerIds],
   );
 
   const handleTimetableLayerDragStart = (
@@ -3592,6 +3724,8 @@ export function TemplateStudioClient({
     showShortcutStatus(getStudioTimetableDeleteMessage(plan.objectIds.length));
   }, [
     selectedTimetableLayerId,
+    setCollapsedTimetableLayerIds,
+    setSelectedTimetableLayerId,
     showShortcutStatus,
     timetableComposition,
     updateDocument,
@@ -3627,7 +3761,7 @@ export function TemplateStudioClient({
     updateDocument,
     onSelect: applyNodeSelection,
     onStatusMessage: showShortcutStatus,
-    onAfterPaste: useCallback(() => setPanelMode("layers"), []),
+    onAfterPaste: useCallback(() => setPanelMode("layers"), [setPanelMode]),
   });
 
   const cutLayerNodeIdsSet = useMemo(() => {
@@ -3671,6 +3805,7 @@ export function TemplateStudioClient({
     applyNodeSelection,
     document,
     selectedNodeIds,
+    setPanelMode,
     showShortcutStatus,
     updateDocument,
   ]);
@@ -3741,6 +3876,7 @@ export function TemplateStudioClient({
     applyNodeSelection,
     document,
     selectedNodeIds,
+    setPanelMode,
     showShortcutStatus,
     updateDocument,
   ]);
@@ -3769,6 +3905,7 @@ export function TemplateStudioClient({
     applyNodeSelection,
     document,
     selectedNodeIds,
+    setPanelMode,
     showShortcutStatus,
     updateDocument,
   ]);
@@ -3976,10 +4113,11 @@ export function TemplateStudioClient({
     saveDatabaseDraft,
     selectAllEditableNodes,
     selectSingleNode,
+    setScale,
     showShortcutStatus,
     toggleSelectedNodeLock,
-    ungroupSelectedNodes,
     undoEditorState,
+    ungroupSelectedNodes,
   ]);
 
   const toggleInspectorSection = (sectionKey: InspectorSectionKey) => {
@@ -4142,7 +4280,7 @@ export function TemplateStudioClient({
         layerAutoExpandTargetRef.current = null;
       }, STUDIO_LAYER_AUTO_EXPAND_DELAY_MS);
     },
-    [],
+    [setCollapsedLayerGroupIds],
   );
 
   const handleLayerDragStart = useCallback(
@@ -4296,6 +4434,8 @@ export function TemplateStudioClient({
       getLayerDropPositionFromEvent,
       getLayerDropValidation,
       layerDropState,
+      setCollapsedLayerGroupIds,
+      setPanelMode,
       showShortcutStatus,
       updateDocument,
     ],

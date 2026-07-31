@@ -43,6 +43,7 @@ import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
   captureStudioEditorSnapshot,
   createStudioEditorStore,
+  createStudioViewSetter,
   type StudioEditorSnapshot,
   type StudioEditorStore,
   StudioEditorStoreProvider,
@@ -64,6 +65,19 @@ import {
 
 type ThumbnailPanelMode = "layers" | "presets" | "inputs";
 type ThumbnailTheme = "dark" | "light";
+
+/**
+ * Thumbnail Studio의 뷰 설정.
+ *
+ * 되돌리기가 되살리지 않는 값만 담는다. 탭 이름이 시간표와 다르므로 공용 store
+ * 타입에 박아 넣지 않고 이 편집기가 정한다.
+ */
+interface ThumbnailStudioView {
+  panelMode: ThumbnailPanelMode;
+  theme: ThumbnailTheme;
+  scale: number;
+  collapsedNodeIds: string[];
+}
 
 const THUMBNAIL_PANEL_TABS: StudioPanelTab[] = [
   { id: "layers", label: "Layers", icon: <Layers3 size={14} /> },
@@ -119,22 +133,42 @@ const LIGHT_THEME_STYLE = {
  */
 export function ThumbnailStudioClient() {
   const router = useRouter();
-  const studioStoreRef = useRef<StudioEditorStore | null>(null);
+  const studioStoreRef = useRef<StudioEditorStore<ThumbnailStudioView> | null>(
+    null,
+  );
   if (!studioStoreRef.current) {
     const initialDocument = createThumbnailStudioDocument();
-    studioStoreRef.current = createStudioEditorStore({
+    studioStoreRef.current = createStudioEditorStore<ThumbnailStudioView>({
       document: initialDocument,
       runtimeValues: createInitialStudioRuntimeValues(initialDocument),
+      view: {
+        panelMode: "layers",
+        theme: "dark",
+        scale: 0.8,
+        collapsedNodeIds: [],
+      },
     });
   }
   const studioStore = studioStoreRef.current;
   const document = useStore(studioStore, (state) => state.document);
-  const [panelMode, setPanelMode] = useState<ThumbnailPanelMode>("layers");
-  const [theme, setTheme] = useState<ThumbnailTheme>("dark");
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [scale, setScale] = useState(0.8);
   const [fitRequestKey, setFitRequestKey] = useState(0);
-  const [collapsedNodeIds, setCollapsedNodeIds] = useState<string[]>([]);
+  const { panelMode, theme, scale, collapsedNodeIds } = useStore(
+    studioStore,
+    (state) => state.view,
+  );
+  const { setPanelMode, setTheme, setScale, setCollapsedNodeIds } = useMemo(
+    () => ({
+      setPanelMode: createStudioViewSetter(studioStore, "panelMode"),
+      setTheme: createStudioViewSetter(studioStore, "theme"),
+      setScale: createStudioViewSetter(studioStore, "scale"),
+      setCollapsedNodeIds: createStudioViewSetter(
+        studioStore,
+        "collapsedNodeIds",
+      ),
+    }),
+    [studioStore],
+  );
 
   const collapsedNodeIdsSet = useMemo(
     () => new Set(collapsedNodeIds),
