@@ -13,7 +13,6 @@ import {
   Paintbrush,
   Plus,
   Trash2,
-  Type,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "zustand";
@@ -179,10 +178,6 @@ import {
   getStudioPresetExistingTargetId,
   getStudioPresetCreationRule,
   getStudioPresetGroups,
-  isStudioCardContextObjectPreset,
-  isStudioCardSelectInputBundlePreset,
-  isStudioCardStatusBackgroundPreset,
-  isStudioTimetableCompositionPreset,
   type StudioCardSelectInputBundlePreset,
   type StudioCardStatusBackgroundPreset,
   type StudioCardContextObjectPreset,
@@ -280,6 +275,10 @@ import { StudioInputInspector } from "./studio-input-inspector";
 import { buildStudioTimetableInspectorSections } from "./studio-timetable-inspector";
 import {} from "./studio-timetable-object-inspector-controls";
 import {} from "./studio-timetable-object-controls";
+import {
+  StudioCardsPresetsPanel,
+  StudioTimetablePresetsPanel,
+} from "./studio-preset-panels";
 import {
   StudioRuntimeInputField,
   StudioRuntimeInputGroups,
@@ -3821,187 +3820,20 @@ export function TemplateStudioClient({
   });
 
   const renderTimetablePresetsPanel = () => (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-b border-[var(--border)] px-3 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-          Timetable Presets
-        </div>
-        <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
-          {timetablePresetGroups.reduce(
-            (count, group) => count + group.presets.length,
-            0,
-          )}{" "}
-          presets
-        </div>
-      </div>
-      <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-3">
-        {timetablePresetGroups.length === 0 ? (
-          <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-3 text-xs font-semibold text-[var(--fg3)]">
-            No presets yet.
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {timetablePresetGroups.map((group) => (
-              <section className="grid gap-1.5" key={group.title}>
-                <div className="px-1 text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
-                  {group.title}
-                </div>
-                {group.presets.map(
-                  ({ definition, disabledReason, existingTargetId }) => {
-                    const canInsert =
-                      isStudioTimetableCompositionPreset(definition) &&
-                      !disabledReason;
-                    const statusLabel =
-                      disabledReason ??
-                      (existingTargetId ? "Added" : definition.typeLabel);
-
-                    return (
-                      <button
-                        className={cn(
-                          "flex min-h-12 w-full items-center gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-left transition",
-                          canInsert
-                            ? "hover:border-[var(--accent)] hover:bg-[var(--hover)]"
-                            : "cursor-not-allowed opacity-55",
-                        )}
-                        disabled={!canInsert}
-                        key={definition.id}
-                        title={definition.description ?? definition.label}
-                        type="button"
-                        onClick={() => {
-                          if (!isStudioTimetableCompositionPreset(definition)) {
-                            return;
-                          }
-                          addTimetablePresetObject(definition);
-                        }}
-                      >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[var(--sel)] text-[var(--accent)]">
-                          <Type size={15} />
-                        </span>
-                        <span className="grid min-w-0 flex-1 gap-0.5">
-                          <span className="truncate text-[12px] font-bold text-[var(--fg)]">
-                            {definition.label}
-                          </span>
-                          <span className="truncate text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                            {statusLabel}
-                          </span>
-                        </span>
-                        {existingTargetId ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-300" />
-                        ) : (
-                          <Plus className="h-3.5 w-3.5 shrink-0 text-[var(--fg2)]" />
-                        )}
-                      </button>
-                    );
-                  },
-                )}
-              </section>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    <StudioTimetablePresetsPanel
+      groups={timetablePresetGroups}
+      onInsertPreset={addTimetablePresetObject}
+    />
   );
 
   const renderCardsPresetsPanel = () => (
-    <div className="template-studio-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <div className="border-b border-[var(--border)] px-3 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-          Cards Presets
-        </div>
-        <div className="mt-1 text-[11px] font-medium text-[var(--fg3)]">
-          Add objects and reusable bundles
-        </div>
-      </div>
-      <div className="grid grid-cols-4 gap-1.5 px-3 py-3">
-        {(["group", "text", "flexibleText", "image"] as const).map((type) => (
-          <button
-            className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-            key={type}
-            title={`Add ${getStudioGraphNodeTypeLabel(type)}`}
-            type="button"
-            onClick={() => addNode(type)}
-          >
-            {type === "image" ? (
-              <ImageIcon size={17} />
-            ) : type === "group" ? (
-              <Layers3 size={17} />
-            ) : type === "flexibleText" ? (
-              <span>
-                T<span className="align-super text-[8px]">a</span>
-              </span>
-            ) : (
-              <Type size={17} />
-            )}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-3 border-t border-[var(--border)] px-3 py-3">
-        {cardPresetGroups.length === 0 ? (
-          <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-xs font-semibold text-[var(--fg3)]">
-            No card presets yet.
-          </div>
-        ) : (
-          cardPresetGroups.map((group) => (
-            <section className="grid gap-1.5" key={group.title}>
-              <div className="text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--fg3)]">
-                {group.title}
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {group.presets.map(
-                  ({ definition, disabledReason, existingTargetId }) => {
-                    const canInsert =
-                      (isStudioCardContextObjectPreset(definition) ||
-                        isStudioCardStatusBackgroundPreset(definition) ||
-                        isStudioCardSelectInputBundlePreset(definition)) &&
-                      !disabledReason;
-
-                    return (
-                      <button
-                        className={cn(
-                          "flex h-9 min-w-0 items-center justify-center gap-1 rounded-[8px] border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-bold text-[var(--fg2)] transition",
-                          canInsert
-                            ? "hover:border-[var(--accent)] hover:text-[var(--fg)]"
-                            : "cursor-not-allowed opacity-55",
-                        )}
-                        disabled={!canInsert}
-                        key={definition.id}
-                        title={
-                          disabledReason ??
-                          (existingTargetId
-                            ? `Select existing ${definition.label}`
-                            : `Add ${definition.label}`)
-                        }
-                        type="button"
-                        onClick={() => {
-                          if (isStudioCardContextObjectPreset(definition)) {
-                            addCardContextObject(definition);
-                            return;
-                          }
-
-                          if (isStudioCardStatusBackgroundPreset(definition)) {
-                            addCardStatusBackgroundObject(definition);
-                            return;
-                          }
-
-                          if (isStudioCardSelectInputBundlePreset(definition)) {
-                            addCardSelectInputBundle(definition);
-                          }
-                        }}
-                      >
-                        <span className="truncate">{definition.label}</span>
-                        {existingTargetId ? (
-                          <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-300" />
-                        ) : null}
-                      </button>
-                    );
-                  },
-                )}
-              </div>
-            </section>
-          ))
-        )}
-      </div>
-    </div>
+    <StudioCardsPresetsPanel
+      groups={cardPresetGroups}
+      onAddContextObject={addCardContextObject}
+      onAddNode={addNode}
+      onAddSelectInputBundle={addCardSelectInputBundle}
+      onAddStatusBackground={addCardStatusBackgroundObject}
+    />
   );
 
   /**

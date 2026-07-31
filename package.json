@@ -36,6 +36,7 @@
     "check:studio:settings": "tsx scripts/check-studio-settings.tsx",
     "check:studio:layers": "tsx scripts/check-studio-layers.tsx",
     "check:studio:layer-drag": "tsx scripts/check-studio-layer-drag.ts",
+    "check:studio:preset-panels": "tsx scripts/check-studio-preset-panels.tsx",
     "check:studio:hooks": "tsx scripts/check-studio-hooks.ts",
     "check:studio:graph-commands": "tsx scripts/check-studio-graph-commands.ts",
     "check:studio:node-commands": "tsx scripts/check-studio-node-commands.ts",
