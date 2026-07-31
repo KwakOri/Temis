@@ -199,6 +199,69 @@ export const setStudioTimetableDayOffset = (
   };
 };
 
+/**
+ * 요일 카드를 옮겼을 때 저장할 보정 값을 정한다.
+ *
+ * 요일 카드는 자동 배치 위에 보정 값으로 얹혀 있다. 화면에서 읽은 위치를 그대로
+ * 저장하면 자동 배치가 정한 좌표에 그 값이 한 번 더 더해져, 카드를 옮길 때마다
+ * 배치 간격만큼 더 밀린다. 그래서 지금 보정 값을 빼서 기준 좌표를 구하고, 새
+ * 위치에서 그 기준을 뺀 차이를 저장한다.
+ *
+ * 한쪽만 옮겼으면 다른 쪽 보정 값은 그대로 둔다. 위아래만 옮겼는데 좌우가 기준
+ * 자리로 돌아가면 안 된다.
+ */
+export const planStudioTimetableDayCardOffset = (
+  dayGeometry: { left: number; top: number },
+  currentOffset: { left: number; top: number },
+  nextPosition: { left?: number; top?: number },
+): { left: number; top: number } => {
+  const baseLeft = dayGeometry.left - currentOffset.left;
+  const baseTop = dayGeometry.top - currentOffset.top;
+  return {
+    left:
+      nextPosition.left !== undefined
+        ? nextPosition.left - baseLeft
+        : currentOffset.left,
+    top:
+      nextPosition.top !== undefined
+        ? nextPosition.top - baseTop
+        : currentOffset.top,
+  };
+};
+/**
+ * 캔버스에서 무엇을 집었는지 정한다.
+ *
+ * 지금 고른 레이어가 그 자리에 겹쳐 있으면 그것을 계속 잡는다. 그러지 않으면 겹친
+ * 객체 위에서 끌 때마다 선택이 다른 것으로 튀어 옮기던 것을 놓친다.
+ *
+ * 다음은 요일 카드 묶음이고, 그다음이 개별 요일 카드다. 묶음을 먼저 보는 것은
+ * 요일 카드가 묶음 안에서만 움직이기 때문이다.
+ */
+export const resolveStudioTimetableDragLayerId = ({
+  selectedLayerId,
+  targetNodeId,
+  targetNodeIds,
+  nodeIdsAtPoint,
+}: {
+  selectedLayerId: string | null;
+  targetNodeId: string | null;
+  targetNodeIds: string[];
+  nodeIdsAtPoint: string[];
+}): string | null => {
+  const hitLayerIds = Array.from(
+    new Set([...targetNodeIds, ...nodeIdsAtPoint]),
+  );
+  if (selectedLayerId && hitLayerIds.includes(selectedLayerId)) {
+    return selectedLayerId;
+  }
+  if (hitLayerIds.includes(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID)) {
+    return STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID;
+  }
+  const dayCardLayerId = hitLayerIds.find((layerId) =>
+    layerId.startsWith(STUDIO_TIMETABLE_DAY_CARD_LAYER_PREFIX),
+  );
+  return dayCardLayerId ?? targetNodeId;
+};
 // --- 시간표 객체 삭제 ---
 
 export interface StudioDeleteTimetableObjectPlan {

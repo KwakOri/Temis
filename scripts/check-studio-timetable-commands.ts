@@ -24,11 +24,14 @@ import {
   getStudioTimetableDeleteMessage,
   getStudioTimetableOrderedDayIds,
   planStudioDeleteTimetableObject,
+  planStudioTimetableDayCardOffset,
   reorderStudioIdList,
+  resolveStudioTimetableDragLayerId,
   resolveStudioTimetableLayerTarget,
   roundStudioCoordinate,
   setStudioTimetableDayOffset,
 } from "../src/utils/template-studio/timetable-commands";
+import { STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID } from "../src/utils/template-studio/timetable-composition";
 
 const createObject = (
   id: string,
@@ -420,4 +423,106 @@ assert.equal(
   "Offline memo disabled",
 );
 
+// --- 요일 카드 보정 좌표 ---
+//
+// 요일 카드는 자동 배치 위에 보정 값으로 얹혀 있다. 화면에서 읽은 위치를 그대로
+// 저장하면 자동 배치 좌표에 한 번 더 더해져, 옮길 때마다 배치 간격만큼 더 밀린다.
+assert.deepEqual(
+  planStudioTimetableDayCardOffset(
+    { left: 130, top: 40 },
+    { left: 30, top: 10 },
+    { left: 150, top: 60 },
+  ),
+  { left: 50, top: 30 },
+  "기준 좌표(100, 30)를 빼서 새 보정 값을 구한다. 지금 보정 값을 빼지 않으면 옮긴 거리가 두 번 더해진다.",
+);
+assert.deepEqual(
+  planStudioTimetableDayCardOffset(
+    { left: 100, top: 30 },
+    { left: 0, top: 0 },
+    { left: 100, top: 30 },
+  ),
+  { left: 0, top: 0 },
+  "제자리에 놓으면 보정 값이 없다.",
+);
+assert.deepEqual(
+  planStudioTimetableDayCardOffset(
+    { left: 130, top: 40 },
+    { left: 30, top: 10 },
+    { top: 60 },
+  ),
+  { left: 30, top: 30 },
+  "위아래만 옮겼으면 좌우 보정 값은 그대로 둔다. 함께 지우면 카드가 기준 자리로 돌아간다.",
+);
+assert.deepEqual(
+  planStudioTimetableDayCardOffset(
+    { left: 130, top: 40 },
+    { left: 30, top: 10 },
+    {},
+  ),
+  { left: 30, top: 10 },
+  "옮긴 것이 없으면 보정 값도 그대로다.",
+);
+assert.deepEqual(
+  planStudioTimetableDayCardOffset(
+    { left: 100, top: 30 },
+    { left: 0, top: 0 },
+    { left: 60, top: 10 },
+  ),
+  { left: -40, top: -20 },
+  "기준보다 앞으로 옮기면 보정 값이 음수가 된다.",
+);
+// --- 캔버스에서 무엇을 집었는지 ---
+//
+// 겹친 객체 위에서 끌 때 선택이 다른 것으로 튀면 옮기던 것을 놓친다.
+assert.equal(
+  resolveStudioTimetableDragLayerId({
+    selectedLayerId: "board",
+    targetNodeId: "weekDates",
+    targetNodeIds: ["weekDates"],
+    nodeIdsAtPoint: ["board", "weekDates"],
+  }),
+  "board",
+  "지금 고른 레이어가 그 자리에 겹쳐 있으면 그것을 계속 잡는다.",
+);
+assert.equal(
+  resolveStudioTimetableDragLayerId({
+    selectedLayerId: "board",
+    targetNodeId: "weekDates",
+    targetNodeIds: ["weekDates"],
+    nodeIdsAtPoint: ["weekDates"],
+  }),
+  "weekDates",
+  "고른 것이 그 자리에 없으면 가리킨 것을 잡는다.",
+);
+assert.equal(
+  resolveStudioTimetableDragLayerId({
+    selectedLayerId: null,
+    targetNodeId: "weekDates",
+    targetNodeIds: [],
+    nodeIdsAtPoint: ["day-card:mon", STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID],
+  }),
+  STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
+  "요일 카드보다 그 묶음을 먼저 잡는다. 카드는 묶음 안에서만 움직인다.",
+);
+assert.equal(
+  resolveStudioTimetableDragLayerId({
+    selectedLayerId: null,
+    targetNodeId: "weekDates",
+    targetNodeIds: [],
+    nodeIdsAtPoint: ["day-card:tue"],
+  }),
+  "day-card:tue",
+  "묶음이 없으면 요일 카드를 잡는다.",
+);
+assert.equal(
+  resolveStudioTimetableDragLayerId({
+    selectedLayerId: null,
+    targetNodeId: null,
+    targetNodeIds: [],
+    nodeIdsAtPoint: [],
+  }),
+  null,
+  "아무것도 없는 자리에서는 잡을 것이 없다.",
+);
 console.log("Studio timetable command baseline checks passed.");
