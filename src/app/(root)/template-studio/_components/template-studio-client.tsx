@@ -1,12 +1,6 @@
 "use client";
 
 import {
-  AlignHorizontalJustifyCenter,
-  AlignHorizontalJustifyEnd,
-  AlignHorizontalJustifyStart,
-  AlignVerticalJustifyCenter,
-  AlignVerticalJustifyEnd,
-  AlignVerticalJustifyStart,
   ArrowUpRight,
   AlertTriangle,
   CalendarDays,
@@ -15,7 +9,6 @@ import {
   Image as ImageIcon,
   Layers3,
   ListChecks,
-  Lock,
   Minus,
   Paintbrush,
   Plus,
@@ -80,14 +73,11 @@ import {
   createStudioBindingForBuiltinField,
   createStudioBindingForInput,
   getStudioBindingInputId,
-  isStudioBuiltinFieldCompatibleWithNode,
   isStudioImageNode,
-  isStudioInputCompatibleWithNode,
   isStudioTextNode,
 } from "@/utils/template-studio/binding-resolver";
 import {
   normalizeStudioDayLabelFormat,
-  getStudioAvailableBuiltinFields,
   getStudioBuiltinField,
 } from "@/utils/template-studio/builtin-fields";
 import {
@@ -156,6 +146,7 @@ import {
   applyStudioNodeOffset,
   applyStudioNodeStyleValue,
   applyStudioNodeTextAlignment,
+  getStudioOpacityPercent,
   getStudioTextAlignment,
   getStudioTextJustifyContent,
   getStudioVariantStyleMessage,
@@ -248,10 +239,7 @@ import {
   getStudioTemplateExportFilename,
   parseStudioTemplateExportJson,
 } from "@/utils/template-studio/serialization";
-import {
-  isStudioStatusCardBackgroundNode,
-  setStudioStatusCardBackgroundAssetSlot,
-} from "@/utils/template-studio/status-card-background";
+import { setStudioStatusCardBackgroundAssetSlot } from "@/utils/template-studio/status-card-background";
 import {
   addStudioTimetableEntry,
   getStudioTimetableAddEntryDisabledReason,
@@ -324,6 +312,10 @@ import {
   StudioTextareaField,
   StudioTextField,
 } from "@/components/studio/inspector/studio-inspector-fields";
+import {
+  getStudioInputScopeLabel,
+  STUDIO_INPUT_SCOPE_OPTIONS,
+} from "@/utils/template-studio/input-scope";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
 import {
   StudioLayerDropIndicator,
@@ -331,6 +323,7 @@ import {
 } from "@/components/studio/layers/studio-layer-primitives";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
+import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
 import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
@@ -729,18 +722,6 @@ const getStudioEditableNodeIds = (document: StudioTemplateDocument): string[] =>
       document.domains?.timetable?.mountNodeId !== nodeId,
   );
 
-const STUDIO_INPUT_SCOPE_OPTIONS: StudioInputScope[] = [
-  "global",
-  "day",
-  "entry",
-];
-
-const getInputScopeLabel = (scope: StudioInputScope): string => {
-  if (scope === "global") return "Global";
-  if (scope === "day") return "Day";
-  return "Entry";
-};
-
 const getStudioStyleString = (
   styleRecord: StudioStyleRecord,
   key: string,
@@ -802,13 +783,6 @@ const createStudioDayCardSlots = (
   slotCount: number,
 ): Array<StudioTimetableDayId | null> =>
   Array.from({ length: slotCount }, (_, index) => dayIds[index] ?? null);
-
-const getStudioOpacityPercent = (value: unknown): number => {
-  const parsedValue = Number(value ?? 1);
-  if (!Number.isFinite(parsedValue)) return 100;
-  const percent = parsedValue <= 1 ? parsedValue * 100 : parsedValue;
-  return Math.min(Math.max(Math.round(percent), 0), 100);
-};
 
 const normalizeRuntimeValuesForTimetableCapabilities = (
   values: StudioRuntimeValues,
@@ -1490,36 +1464,6 @@ export function TemplateStudioClient({
       ...validateStudioRuntimeValuesForDocument(document, runtimeValues),
     ],
     [document, runtimeValues],
-  );
-  const compatibleInputs = useMemo(() => {
-    if (!selectedNode) return [];
-    return inputs.filter((input) =>
-      isStudioInputCompatibleWithNode(input, selectedNode),
-    );
-  }, [inputs, selectedNode]);
-  const compatibleBuiltinFields = useMemo(() => {
-    if (!selectedNode) return [];
-    return getStudioAvailableBuiltinFields(document).filter((field) =>
-      isStudioBuiltinFieldCompatibleWithNode(field, selectedNode),
-    );
-  }, [document, selectedNode]);
-  const compatibleBuiltinFieldGroups = useMemo(
-    () =>
-      STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => ({
-        scope,
-        fields: compatibleBuiltinFields.filter(
-          (field) => field.scope === scope,
-        ),
-      })).filter((group) => group.fields.length > 0),
-    [compatibleBuiltinFields],
-  );
-  const compatibleInputGroups = useMemo(
-    () =>
-      STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => ({
-        scope,
-        inputs: compatibleInputs.filter((input) => input.scope === scope),
-      })).filter((group) => group.inputs.length > 0),
-    [compatibleInputs],
   );
   const selectedNodeBindingInputId = selectedNode
     ? getStudioBindingInputId(selectedNode.binding)
@@ -5529,7 +5473,7 @@ export function TemplateStudioClient({
           {input.label}
         </span>
         <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-          {getInputScopeLabel(input.scope)} ·{" "}
+          {getStudioInputScopeLabel(input.scope)} ·{" "}
           {getStudioInputTypeLabel(input.type)} · {input.id}
         </span>
       </div>
@@ -6721,573 +6665,22 @@ export function TemplateStudioClient({
     );
   };
 
-  const buildNodeInspectorSections = (): StudioPropertyItem[] => {
-    const styleRecord = selectedNode?.styleId
-      ? (document.styles[selectedNode.styleId] ?? {})
-      : {};
-
-    if (!selectedNode) {
-      return [
-        {
-          kind: "block",
-          id: "cards:emptySelection",
-          content: (
-            <p className="p-4 text-sm font-medium text-[var(--fg2)]">
-              Select an object from the canvas or layer tree.
-            </p>
-          ),
-        },
-      ];
-    }
-
-    const selectedFontFamily = String(styleRecord.fontFamily ?? "Inter");
-    const selectedStatusBackground =
-      isStudioStatusCardBackgroundNode(selectedNode);
-    const selectedStatusBackgroundColor = String(
-      styleRecord.backgroundColor ?? "transparent",
-    );
-    const isSelectedNodeFitParent = isStudioFillParentLayout(
-      selectedNode.layoutMode,
-    );
-    const selectedNodeGeometry = resolveStudioGraphNodeGeometry(
+  const buildNodeInspectorSections = (): StudioPropertyItem[] =>
+    buildStudioCardNodeInspectorSections({
       document,
-      selectedNode.id,
-    );
-    const selectedFontWeightOptions = getStudioFontWeightOptions(
-      document,
-      selectedFontFamily,
-    );
-    const selectedTextWrapMode = getStudioTextWrapMode(styleRecord);
-
-    const bindingInputId = getStudioBindingInputId(selectedNode.binding);
-    const bindingBuiltinFieldId =
-      selectedNode.binding?.kind === "builtinField"
-        ? selectedNode.binding.fieldId
-        : null;
-    const isBoundBinding = Boolean(bindingInputId || bindingBuiltinFieldId);
-    const compatibleBindingCount =
-      compatibleBuiltinFields.length + compatibleInputs.length;
-    const bindingSourceValue = bindingBuiltinFieldId
-      ? `builtin:${bindingBuiltinFieldId}`
-      : bindingInputId
-        ? `input:${bindingInputId}`
-        : "";
-    const opacityPercent = getStudioOpacityPercent(styleRecord.opacity);
-    const alignActions = [
-      { title: "Align left", Icon: AlignHorizontalJustifyStart },
-      { title: "Align center", Icon: AlignHorizontalJustifyCenter },
-      { title: "Align right", Icon: AlignHorizontalJustifyEnd },
-      { title: "Align top", Icon: AlignVerticalJustifyStart },
-      { title: "Align middle", Icon: AlignVerticalJustifyCenter },
-      { title: "Align bottom", Icon: AlignVerticalJustifyEnd },
-    ];
-
-    const sections: (StudioPropertyItem | null)[] = [
-      buildInspectorSection(
-        "position",
-        "Position",
-        <div className="grid gap-2">
-          <div className="mb-1 grid grid-cols-6 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
-            {alignActions.map(({ title, Icon }) => (
-              <button
-                className="flex h-6 items-center justify-center rounded text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-                key={title}
-                title={title}
-                type="button"
-              >
-                <Icon className="h-3.5 w-3.5" />
-              </button>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <StudioNumberField
-              disabled={isSelectedNodeFitParent}
-              label="X"
-              value={selectedNodeGeometry.left}
-              onChange={(value) => updateSelectedNodeStyle("left", value)}
-            />
-            <StudioNumberField
-              disabled={isSelectedNodeFitParent}
-              label="Y"
-              value={selectedNodeGeometry.top}
-              onChange={(value) => updateSelectedNodeStyle("top", value)}
-            />
-            <StudioNumberField
-              label="Rotate"
-              value={Number(styleRecord.rotateDeg ?? 0)}
-              onChange={(value) => updateSelectedNodeStyle("rotateDeg", value)}
-            />
-          </div>
-        </div>,
-        undefined,
-        <StudioFitParentButton
-          active={isSelectedNodeFitParent}
-          onClick={toggleSelectedNodeFitParent}
-        />,
-      ),
-
-      buildInspectorSection(
-        "layout",
-        "Layout",
-        <div className="grid grid-cols-[1fr_1fr_auto] gap-2">
-          <StudioNumberField
-            disabled={isSelectedNodeFitParent}
-            label="W"
-            value={selectedNodeGeometry.width}
-            onChange={(value) => updateSelectedNodeStyle("width", value)}
-          />
-          <StudioNumberField
-            disabled={isSelectedNodeFitParent}
-            label="H"
-            value={selectedNodeGeometry.height}
-            onChange={(value) => updateSelectedNodeStyle("height", value)}
-          />
-          <button
-            className="mt-[21px] flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:text-[var(--fg)]"
-            title="Lock aspect ratio"
-            type="button"
-          >
-            <Lock className="h-3.5 w-3.5" />
-          </button>
-        </div>,
-      ),
-
-      buildInspectorSection(
-        "appearance",
-        "Appearance",
-        <div className="grid grid-cols-2 gap-2">
-          <StudioNumberField
-            label="Opacity"
-            value={opacityPercent}
-            onChange={(value) =>
-              updateSelectedNodeStyle(
-                "opacity",
-                Math.min(Math.max(value, 0), 100) / 100,
-              )
-            }
-          />
-          <StudioNumberField
-            label="Radius"
-            value={Number(styleRecord.borderRadius ?? 0)}
-            onChange={(value) => updateSelectedNodeStyle("borderRadius", value)}
-          />
-          {selectedStatusBackground ? (
-            <div className="col-span-2 grid gap-1.5">
-              <span className="text-[11px] font-semibold text-[var(--fg2)]">
-                Base Color
-              </span>
-              <StudioHexColorPicker
-                allowTransparent
-                ariaLabel="Background base color"
-                fallbackColor="#FFFFFF"
-                value={selectedStatusBackgroundColor}
-                onChange={(backgroundColor) =>
-                  updateSelectedNodeStyle("backgroundColor", backgroundColor)
-                }
-              />
-              <span className="text-[9px] font-semibold leading-relaxed text-[var(--fg3)]">
-                Drawn behind the selected background asset.
-              </span>
-            </div>
-          ) : null}
-        </div>,
-      ),
-
-      selectedStatusBackground
-        ? buildInspectorSection(
-            "statusAssets",
-            "Background Asset",
-            renderStatusCardBackgroundAssetSlot(selectedNode),
-          )
-        : null,
-
-      isStudioTextNode(selectedNode) || isStudioImageNode(selectedNode)
-        ? buildInspectorSection(
-            "binding",
-            "Binding",
-            <div className="grid min-w-0 gap-3">
-              <div className="grid w-full min-w-0 grid-cols-2 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
-                <button
-                  className={cn(
-                    "h-7 rounded-[5px] text-[11.5px] font-semibold transition",
-                    !isBoundBinding
-                      ? "bg-[var(--accent)] text-white"
-                      : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                  )}
-                  type="button"
-                  onClick={setSelectedNodeStaticBinding}
-                >
-                  Static
-                </button>
-                <button
-                  className={cn(
-                    "h-7 rounded-[5px] text-[11.5px] font-semibold transition",
-                    isBoundBinding
-                      ? "bg-[var(--accent)] text-white"
-                      : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                    compatibleBindingCount === 0 &&
-                      "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
-                  )}
-                  disabled={compatibleBindingCount === 0}
-                  type="button"
-                  onClick={() => {
-                    if (compatibleBuiltinFields[0]) {
-                      bindSelectedNodeToBuiltinField(
-                        compatibleBuiltinFields[0].id,
-                      );
-                    } else if (compatibleInputs[0]) {
-                      bindSelectedNodeToInput(compatibleInputs[0].id);
-                    }
-                  }}
-                >
-                  Bound
-                </button>
-              </div>
-
-              {!isBoundBinding ? (
-                <>
-                  {isStudioTextNode(selectedNode) && (
-                    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                      <span>Static text</span>
-                      <textarea
-                        className="min-h-20 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                        value={
-                          selectedNode.binding?.kind === "staticText"
-                            ? selectedNode.binding.value
-                            : ""
-                        }
-                        onChange={(event) =>
-                          updateNode(selectedNode.id, (node) => {
-                            node.binding = {
-                              kind: "staticText",
-                              value: event.currentTarget.value,
-                            };
-                          })
-                        }
-                      />
-                    </label>
-                  )}
-
-                  {isStudioImageNode(selectedNode) && (
-                    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                      <span>Static asset</span>
-                      <select
-                        className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
-                        disabled={assets.length === 0}
-                        value={
-                          selectedNode.binding?.kind === "staticAsset"
-                            ? selectedNode.binding.assetId
-                            : (assets[0]?.id ?? "")
-                        }
-                        onChange={(event) =>
-                          updateNode(selectedNode.id, (node) => {
-                            node.binding = {
-                              kind: "staticAsset",
-                              assetId: event.currentTarget.value,
-                            };
-                          })
-                        }
-                      >
-                        {assets.length === 0 ? (
-                          <option value="">No asset</option>
-                        ) : null}
-                        {assets.map((asset) => (
-                          <option key={asset.id} value={asset.id}>
-                            {asset.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                </>
-              ) : (
-                <>
-                  <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                    <span>Binding Source</span>
-                    <select
-                      className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:text-[var(--fg3)]"
-                      disabled={compatibleBindingCount === 0}
-                      value={bindingSourceValue}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value;
-                        if (value.startsWith("builtin:")) {
-                          bindSelectedNodeToBuiltinField(
-                            value.replace(
-                              /^builtin:/,
-                              "",
-                            ) as StudioBuiltinFieldId,
-                          );
-                          return;
-                        }
-
-                        if (value.startsWith("input:")) {
-                          bindSelectedNodeToInput(value.replace(/^input:/, ""));
-                        }
-                      }}
-                    >
-                      {compatibleBindingCount === 0 ? (
-                        <option value="">No compatible binding</option>
-                      ) : null}
-                      {compatibleBuiltinFieldGroups.map((group) => (
-                        <optgroup
-                          key={`builtin:${group.scope}`}
-                          label={`Built-in · ${getInputScopeLabel(group.scope)}`}
-                        >
-                          {group.fields.map((field) => (
-                            <option
-                              key={field.id}
-                              value={`builtin:${field.id}`}
-                            >
-                              {field.label} · Built-in ·{" "}
-                              {getInputScopeLabel(field.scope)} · {field.type}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                      {compatibleInputGroups.map((group) => (
-                        <optgroup
-                          key={`input:${group.scope}`}
-                          label={`Custom · ${getInputScopeLabel(group.scope)}`}
-                        >
-                          {group.inputs.map((input) => (
-                            <option key={input.id} value={`input:${input.id}`}>
-                              {input.label} · Custom ·{" "}
-                              {getInputScopeLabel(input.scope)} ·{" "}
-                              {getStudioInputTypeLabel(input.type)}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
-                  </label>
-
-                  {selectedNodeBuiltinField ? (
-                    <>
-                      <div className="grid min-w-0 gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                          Built-in Source
-                        </span>
-                        <span className="truncate text-xs font-semibold text-[var(--fg)]">
-                          {selectedNodeBuiltinField.label}
-                        </span>
-                        <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-                          {getInputScopeLabel(selectedNodeBuiltinField.scope)} ·{" "}
-                          {selectedNodeBuiltinField.type} ·{" "}
-                          {selectedNodeBuiltinField.id}
-                        </span>
-                      </div>
-                      {selectedNode.binding?.kind === "builtinField" ? (
-                        <StudioDayLabelFormatField
-                          fieldId={selectedNode.binding.fieldId}
-                          value={selectedNode.binding.dayLabelFormat}
-                          onChange={(dayLabelFormat) =>
-                            updateNode(selectedNode.id, (node) => {
-                              if (node.binding?.kind !== "builtinField") return;
-
-                              const normalizedFormat =
-                                normalizeStudioDayLabelFormat(dayLabelFormat);
-                              node.binding =
-                                normalizedFormat === "default"
-                                  ? {
-                                      kind: "builtinField",
-                                      fieldId: node.binding.fieldId,
-                                    }
-                                  : {
-                                      ...node.binding,
-                                      dayLabelFormat: normalizedFormat,
-                                    };
-                            })
-                          }
-                        />
-                      ) : null}
-                    </>
-                  ) : selectedNodeBoundInput ? (
-                    <div className="grid min-w-0 gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                        Custom Input Source
-                      </span>
-                      <span className="truncate text-xs font-semibold text-[var(--fg)]">
-                        {selectedNodeBoundInput.label}
-                      </span>
-                      <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-                        {getInputScopeLabel(selectedNodeBoundInput.scope)} ·{" "}
-                        {getStudioInputTypeLabel(selectedNodeBoundInput.type)} ·{" "}
-                        {selectedNodeBoundInput.id}
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {selectedNode.binding?.kind === "selectText" && (
-                    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                      <span>Select Output</span>
-                      <select
-                        className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                        value={selectedNode.binding.output}
-                        onChange={(event) =>
-                          updateNode(selectedNode.id, (node) => {
-                            if (node.binding?.kind !== "selectText") return;
-                            node.binding.output = event.currentTarget.value as
-                              "label" | "value";
-                          })
-                        }
-                      >
-                        <option value="label">Label</option>
-                        <option value="value">Value</option>
-                      </select>
-                    </label>
-                  )}
-
-                  {selectedNode.binding?.kind === "selectAsset" &&
-                    (() => {
-                      const input =
-                        document.inputs[selectedNode.binding.inputId];
-                      if (!input || input.type !== "select") return null;
-
-                      return (
-                        <div className="grid min-w-0 gap-2">
-                          {input.options.map((option) => (
-                            <label
-                              className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]"
-                              key={option.value}
-                            >
-                              <span>{option.label}</span>
-                              <select
-                                className="h-8 w-full min-w-0 max-w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                                value={
-                                  selectedNode.binding?.kind === "selectAsset"
-                                    ? (selectedNode.binding.assetByOption[
-                                        option.value
-                                      ] ?? "")
-                                    : ""
-                                }
-                                onChange={(event) =>
-                                  updateNode(selectedNode.id, (node) => {
-                                    if (node.binding?.kind !== "selectAsset")
-                                      return;
-                                    node.binding.assetByOption[option.value] =
-                                      event.currentTarget.value || null;
-                                  })
-                                }
-                              >
-                                <option value="">None</option>
-                                {assets.map((asset) => (
-                                  <option key={asset.id} value={asset.id}>
-                                    {asset.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                </>
-              )}
-            </div>,
-            "Dynamic",
-          )
-        : null,
-
-      isStudioTextNode(selectedNode)
-        ? buildInspectorSection(
-            "typography",
-            "Typography",
-            <div className="grid gap-2">
-              <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                <span>Font</span>
-                <select
-                  className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                  value={selectedFontFamily}
-                  onChange={(event) =>
-                    updateSelectedNodeStyle(
-                      "fontFamily",
-                      event.currentTarget.value,
-                    )
-                  }
-                >
-                  {fontFamilies.map((fontFamily) => (
-                    <option key={fontFamily} value={fontFamily}>
-                      {fontFamily}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-                <StudioNumberField
-                  label="Size"
-                  value={Number(styleRecord.fontSize ?? 16)}
-                  onChange={(value) =>
-                    updateSelectedNodeStyle("fontSize", value)
-                  }
-                />
-                <StudioFontWeightField
-                  options={selectedFontWeightOptions}
-                  value={styleRecord.fontWeight ?? 700}
-                  onChange={(value) =>
-                    updateSelectedNodeStyle("fontWeight", value)
-                  }
-                />
-              </div>
-              <StudioTextAlignmentField
-                value={getStudioTextAlignment(styleRecord)}
-                onChange={updateSelectedNodeTextAlignment}
-              />
-              {selectedNode.type === "flexibleText" ? (
-                <StudioLineBreakField
-                  value={selectedTextWrapMode}
-                  onChange={(mode) =>
-                    updateSelectedNodeStyle(
-                      STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
-                      mode,
-                    )
-                  }
-                />
-              ) : null}
-              <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                <span>Color</span>
-                <StudioHexColorPicker
-                  ariaLabel="Card text color"
-                  value={String(styleRecord.color ?? "#111827")}
-                  onChange={(color) => updateSelectedNodeStyle("color", color)}
-                />
-              </label>
-            </div>,
-          )
-        : null,
-
-      isStudioImageNode(selectedNode)
-        ? {
-            kind: "block",
-            id: "cards:imageFit",
-            content: (
-              <div className="px-4 pb-4">
-                <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-                  <span>Fit</span>
-                  <select
-                    className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                    value={selectedNode.fit ?? "cover"}
-                    onChange={(event) =>
-                      updateNode(selectedNode.id, (node) => {
-                        node.fit = event.currentTarget.value as
-                          "cover" | "contain" | "fill";
-                      })
-                    }
-                  >
-                    <option value="cover">Cover</option>
-                    <option value="contain">Contain</option>
-                    <option value="fill">Fill</option>
-                  </select>
-                </label>
-              </div>
-            ),
-          }
-        : null,
-    ];
-
-    return sections.filter(
-      (section): section is StudioPropertyItem => section !== null,
-    );
-  };
+      selectedNode,
+      fontFamilies,
+      isSectionOpen: (sectionKey) => inspectorSections[sectionKey],
+      onToggleSection: toggleInspectorSection,
+      renderStatusBackgroundAssetSlot: renderStatusCardBackgroundAssetSlot,
+      updateNode,
+      updateStyle: updateSelectedNodeStyle,
+      updateTextAlignment: updateSelectedNodeTextAlignment,
+      toggleFitParent: toggleSelectedNodeFitParent,
+      setStaticBinding: setSelectedNodeStaticBinding,
+      bindToInput: bindSelectedNodeToInput,
+      bindToBuiltinField: bindSelectedNodeToBuiltinField,
+    });
 
   /**
    * 우측 속성 패널에 넘길 섹션 배열.
@@ -7341,8 +6734,10 @@ export function TemplateStudioClient({
                         {selectedNodeBuiltinField.label}
                       </div>
                       <div>
-                        {getInputScopeLabel(selectedNodeBuiltinField.scope)} ·{" "}
-                        {selectedNodeBuiltinField.type}
+                        {getStudioInputScopeLabel(
+                          selectedNodeBuiltinField.scope,
+                        )}{" "}
+                        · {selectedNodeBuiltinField.type}
                       </div>
                       <p className="leading-relaxed text-[var(--fg3)]">
                         Built-in fields come from timetable runtime data and are
@@ -7461,7 +6856,7 @@ export function TemplateStudioClient({
                               {selectedTimetableBuiltinField.label}
                             </span>
                             <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-                              {getInputScopeLabel(
+                              {getStudioInputScopeLabel(
                                 selectedTimetableBuiltinField.scope,
                               )}{" "}
                               · {selectedTimetableBuiltinField.type} ·{" "}
@@ -8125,7 +7520,7 @@ export function TemplateStudioClient({
                         type="button"
                         onClick={() => setInputScopeFilter(scope)}
                       >
-                        {getInputScopeLabel(scope)}
+                        {getStudioInputScopeLabel(scope)}
                         <span className="ml-1 opacity-70">
                           {runtimeInputsByScope[scope].length}
                         </span>
@@ -8148,7 +7543,10 @@ export function TemplateStudioClient({
                   <div className="grid gap-2">
                     {filteredInputs.length === 0 ? (
                       <div className="rounded-lg border border-dashed border-[var(--field-border)] bg-[var(--field)] px-3 py-4 text-center text-[12px] font-semibold text-[var(--fg3)]">
-                        No {getInputScopeLabel(inputScopeFilter).toLowerCase()}{" "}
+                        No{" "}
+                        {getStudioInputScopeLabel(
+                          inputScopeFilter,
+                        ).toLowerCase()}{" "}
                         inputs
                       </div>
                     ) : null}

@@ -262,3 +262,19 @@ export const getStudioVariantStyleMessage = ({
     skippedStatusCount > 0 ? ` · ${skippedStatusCount} skipped` : "";
   return `Applied ${appliedNodeCount} style update(s) to ${appliedStatusCount} status(es)${skippedSuffix}`;
 };
+
+// --- 투명도 표시 ---
+
+/**
+ * 투명도를 0~100 백분율로 읽는다.
+ *
+ * 문서에는 0~1로 저장하지만 사람은 백분율로 읽고 쓴다. 이미 1보다 큰 값이
+ * 들어와 있으면 백분율로 저장된 것으로 보고 그대로 쓴다. 값이 없으면 불투명으로
+ * 본다.
+ */
+export const getStudioOpacityPercent = (value: unknown): number => {
+  const parsedValue = Number(value ?? 1);
+  if (!Number.isFinite(parsedValue)) return 100;
+  const percent = parsedValue <= 1 ? parsedValue * 100 : parsedValue;
+  return Math.min(Math.max(Math.round(percent), 0), 100);
+};
