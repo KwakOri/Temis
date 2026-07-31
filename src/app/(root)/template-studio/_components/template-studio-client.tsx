@@ -60,7 +60,6 @@ import {
   StudioInputType,
   StudioRuntimeValues,
   StudioSelectOption,
-  StudioStyleRecord,
   StudioTemplateDocument,
   StudioWebFontSource,
   StudioTimetableCapabilityKey,
@@ -90,11 +89,7 @@ import {
   getStudioTimetableDayComponent,
   resolveStudioTimetableDayComponent,
 } from "@/utils/template-studio/component-sets";
-import {
-  STUDIO_WEEK_DATE_FORMAT_PRESETS,
-  STUDIO_WEEK_DATE_LONG_TEMPLATE,
-  STUDIO_WEEK_DATE_TEMPLATE_TOKENS,
-} from "@/utils/template-studio/date-template";
+import {} from "@/utils/template-studio/date-template";
 import {
   moveStudioGraphNodes,
   validateStudioGraphMove,
@@ -149,8 +144,6 @@ import {
   applyStudioNodeOffset,
   applyStudioNodeStyleValue,
   applyStudioNodeTextAlignment,
-  getStudioTextAlignment,
-  getStudioTextJustifyContent,
   getStudioVariantStyleMessage,
   planStudioNudgeNodes,
   resolveStudioDragTargetNodeIds,
@@ -215,14 +208,9 @@ import {
   getStudioTimetableComposition,
   getStudioTimetableCompositionObjectGeometry,
   getStudioTimetableObjectRenderableChildIds,
-  setStudioTimetableObjectActiveVariantValue,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
-import {
-  setStudioTimetableObjectMaskSlot,
-  setStudioTimetableObjectVisibilitySlot,
-  type StudioSemanticMaskShape,
-} from "@/utils/template-studio/semantic-slots";
+import { setStudioTimetableObjectVisibilitySlot } from "@/utils/template-studio/semantic-slots";
 import {
   createStudioTemplateExportPayload,
   getStudioTemplateBlockingDiagnostics,
@@ -263,15 +251,9 @@ import {
   applyStudioVariantStyle,
   type StudioVariantStyleScope,
 } from "@/utils/template-studio/variant-style-propagation";
-import {
-  getStudioTextWrapMode,
-  STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
-} from "@/utils/template-studio/text-wrap";
+import {} from "@/utils/template-studio/text-wrap";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
-import {
-  getStudioCustomFontFamilies,
-  getStudioFontWeightOptions,
-} from "@/utils/template-studio/web-fonts";
+import { getStudioCustomFontFamilies } from "@/utils/template-studio/web-fonts";
 
 import {
   clampStudioPreviewScale,
@@ -282,7 +264,6 @@ import {
   type StudioPickerNode,
 } from "./studio-node-picker-menu";
 import { StudioImageCropModal } from "./studio-image-crop-modal";
-import { StudioHexColorPicker } from "./studio-hex-color-picker";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import { StudioGuideControl } from "@/components/studio/editor-shell/studio-guide-control";
 import {
@@ -296,10 +277,7 @@ import {
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
 import {
   StudioFitParentButton,
-  StudioFontWeightField,
-  StudioLineBreakField,
   StudioNumberField,
-  StudioTextAlignmentField,
   StudioTextareaField,
   StudioTextField,
 } from "@/components/studio/inspector/studio-inspector-fields";
@@ -321,6 +299,13 @@ import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
 import { StudioInputInspector } from "./studio-input-inspector";
+import {
+  StudioTimetableArtistProfileTextAssetLayoutControls,
+  StudioTimetableObjectVariantControls,
+  StudioTimetableProfileMaskControls,
+  StudioTimetableTextTypographyControls,
+  StudioTimetableWeekDatesFormatControls,
+} from "./studio-timetable-object-inspector-controls";
 import {
   StudioTimetableOpacityField,
   StudioTimetableVisibilityField,
@@ -735,49 +720,9 @@ const getStudioEditableNodeIds = (document: StudioTemplateDocument): string[] =>
       document.domains?.timetable?.mountNodeId !== nodeId,
   );
 
-const getStudioStyleString = (
-  styleRecord: StudioStyleRecord,
-  key: string,
-  fallback: string,
-) => {
-  const value = styleRecord[key];
-  return typeof value === "string" ? value : fallback;
-};
-
 const normalizeStudioDimension = (value: number, fallback: number) => {
   if (!Number.isFinite(value)) return fallback;
   return Math.max(1, Number(value.toFixed(2)));
-};
-
-const getStudioWeekDatePreset = (presetId: string) =>
-  STUDIO_WEEK_DATE_FORMAT_PRESETS.find((preset) => preset.id === presetId) ??
-  null;
-
-const getStudioWeekDateTemplateValue = (
-  object: StudioTimetableCompositionObject,
-) => {
-  const template = getStudioStyleString(object.style, "dateRangeTemplate", "");
-  if (template) return template;
-
-  const format = getStudioStyleString(object.style, "dateRangeFormat", "long");
-  return (
-    getStudioWeekDatePreset(format)?.template ?? STUDIO_WEEK_DATE_LONG_TEMPLATE
-  );
-};
-
-const getStudioWeekDatePresetValue = (
-  object: StudioTimetableCompositionObject,
-) => {
-  const template = getStudioStyleString(object.style, "dateRangeTemplate", "");
-  const format = getStudioStyleString(object.style, "dateRangeFormat", "long");
-
-  if (!template && getStudioWeekDatePreset(format)) return format;
-
-  return (
-    STUDIO_WEEK_DATE_FORMAT_PRESETS.find(
-      (preset) => preset.template === template,
-    )?.id ?? "custom"
-  );
 };
 
 const normalizeRuntimeValuesForTimetableCapabilities = (
@@ -808,19 +753,6 @@ const normalizeRuntimeValuesForTimetableCapabilities = (
     ),
   },
 });
-
-const getStudioTimetableObjectMaskShape = (
-  object: StudioTimetableCompositionObject,
-): StudioSemanticMaskShape => {
-  const radius =
-    typeof object.style.borderRadius === "number"
-      ? object.style.borderRadius
-      : 0;
-
-  if (radius >= 9999) return "circle";
-  if (radius <= 0) return "rectangle";
-  return "rounded";
-};
 
 interface TemplateStudioClientProps {
   initialRemoteTemplateId?: string | null;
@@ -5040,52 +4972,14 @@ export function TemplateStudioClient({
 
   const renderTimetableObjectVariantControls = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const variantSet = object.variantSet;
-    if (!variantSet) return null;
-
-    const activeValue = variantSet.activeValue ?? variantSet.defaultValue;
-
-    return (
-      <div className="grid gap-2">
-        <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
-          {variantSet.options.map((option) => {
-            const selected = option.value === activeValue;
-
-            return (
-              <button
-                className={cn(
-                  "h-8 rounded-md text-xs font-bold transition",
-                  selected
-                    ? "bg-[var(--accent)] text-white"
-                    : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                )}
-                key={option.value}
-                type="button"
-                onClick={() =>
-                  updateTimetableCompositionObject(object.id, (currentObject) =>
-                    setStudioTimetableObjectActiveVariantValue(
-                      currentObject,
-                      option.value,
-                    ),
-                  )
-                }
-              >
-                {option.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2 text-[11px] font-semibold text-[var(--fg2)]">
-          Editing state:{" "}
-          <span className="text-[var(--fg)]">
-            {variantSet.options.find((option) => option.value === activeValue)
-              ?.label ?? activeValue}
-          </span>
-        </div>
-      </div>
-    );
-  };
+  ) => (
+    <StudioTimetableObjectVariantControls
+      object={object}
+      onUpdateObject={(recipe) =>
+        updateTimetableCompositionObject(object.id, recipe)
+      }
+    />
+  );
 
   const renderTimetablePanel = () => {
     const timetable = document.domains?.timetable;
@@ -5490,78 +5384,14 @@ export function TemplateStudioClient({
 
   const renderTimetableWeekDatesFormatControls = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const templateValue = getStudioWeekDateTemplateValue(object);
-    const presetValue = getStudioWeekDatePresetValue(object);
-    const updateTemplate = (dateRangeTemplate: string) => {
-      updateTimetableCompositionObject(object.id, (currentObject) => {
-        currentObject.style = {
-          ...currentObject.style,
-          dateRangeFormat: "custom",
-          dateRangeTemplate,
-        };
-      });
-    };
-
-    return (
-      <div className="grid gap-2">
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Date Format</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            value={presetValue}
-            onChange={(event) => {
-              const dateRangeFormat = event.currentTarget.value;
-              const preset = getStudioWeekDatePreset(dateRangeFormat);
-              updateTimetableCompositionObject(object.id, (currentObject) => {
-                currentObject.style = {
-                  ...currentObject.style,
-                  dateRangeFormat,
-                  dateRangeTemplate:
-                    preset?.template ??
-                    getStudioWeekDateTemplateValue(currentObject),
-                };
-              });
-            }}
-          >
-            {STUDIO_WEEK_DATE_FORMAT_PRESETS.map((preset) => (
-              <option key={preset.id} value={preset.id}>
-                {preset.label}
-              </option>
-            ))}
-            <option value="custom">Custom template</option>
-          </select>
-        </label>
-
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Template</span>
-          <textarea
-            className="min-h-20 resize-y rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 py-2 font-mono text-[11px] font-semibold leading-relaxed text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            spellCheck={false}
-            value={templateValue}
-            onChange={(event) => updateTemplate(event.currentTarget.value)}
-          />
-        </label>
-
-        <div className="grid grid-cols-2 gap-1.5">
-          {STUDIO_WEEK_DATE_TEMPLATE_TOKENS.map((token) => (
-            <button
-              className="h-7 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-1.5 font-mono text-[10px] font-semibold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-              key={token}
-              title={token}
-              type="button"
-              onClick={() => {
-                const separator = templateValue.trim().length > 0 ? " " : "";
-                updateTemplate(`${templateValue}${separator}${token}`);
-              }}
-            >
-              {token}
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  };
+  ) => (
+    <StudioTimetableWeekDatesFormatControls
+      object={object}
+      onUpdateObject={(recipe) =>
+        updateTimetableCompositionObject(object.id, recipe)
+      }
+    />
+  );
 
   const renderTimetableDayCardsLayoutControls = () => {
     const timetable = document.domains?.timetable;
@@ -5578,237 +5408,38 @@ export function TemplateStudioClient({
 
   const renderTimetableArtistProfileTextAssetLayoutControls = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const assetMode = getStudioStyleString(
-      object.style,
-      "assetMode",
-      "visible",
-    );
-    const assetPosition = getStudioStyleString(
-      object.style,
-      "assetPosition",
-      "left",
-    );
-
-    return (
-      <div className="grid gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field-bg)] p-2">
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Asset Mode</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            value={assetMode}
-            onChange={(event) => {
-              const assetModeValue = event.currentTarget.value;
-              updateTimetableCompositionObject(object.id, (currentObject) => {
-                currentObject.style = {
-                  ...currentObject.style,
-                  assetMode: assetModeValue,
-                };
-              });
-            }}
-          >
-            <option value="visible">Visible</option>
-            <option value="hidden">Hidden</option>
-          </select>
-        </label>
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Asset Position</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            disabled={assetMode === "hidden"}
-            value={assetPosition}
-            onChange={(event) => {
-              const assetPositionValue = event.currentTarget.value;
-              updateTimetableCompositionObject(object.id, (currentObject) => {
-                currentObject.style = {
-                  ...currentObject.style,
-                  assetPosition: assetPositionValue,
-                };
-              });
-            }}
-          >
-            <option value="left">Left</option>
-            <option value="right">Right</option>
-          </select>
-        </label>
-        <div className="grid grid-cols-2 gap-2">
-          <StudioNumberField
-            label="Asset Size"
-            value={Number(object.style.assetSize ?? 160)}
-            onChange={(value) =>
-              updateTimetableCompositionObject(object.id, (currentObject) => {
-                currentObject.style = {
-                  ...currentObject.style,
-                  assetSize: Math.max(24, value),
-                };
-              })
-            }
-          />
-          <StudioNumberField
-            label="Asset Gap"
-            value={Number(object.style.assetGap ?? 32)}
-            onChange={(value) =>
-              updateTimetableCompositionObject(object.id, (currentObject) => {
-                currentObject.style = {
-                  ...currentObject.style,
-                  assetGap: Math.max(0, value),
-                };
-              })
-            }
-          />
-        </div>
-      </div>
-    );
-  };
+  ) => (
+    <StudioTimetableArtistProfileTextAssetLayoutControls
+      object={object}
+      onUpdateObject={(recipe) =>
+        updateTimetableCompositionObject(object.id, recipe)
+      }
+    />
+  );
 
   const renderTimetableProfileMaskControls = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const radius =
-      typeof object.style.borderRadius === "number"
-        ? object.style.borderRadius
-        : 0;
-    const shape = getStudioTimetableObjectMaskShape(object);
-
-    const updateMask = (nextShape: StudioSemanticMaskShape) => {
-      const nextRadius =
-        nextShape === "circle" ? 9999 : nextShape === "rectangle" ? 0 : 56;
-
-      updateTimetableCompositionObject(object.id, (currentObject) => {
-        setStudioTimetableObjectMaskSlot(currentObject, nextShape, nextRadius);
-      });
-    };
-
-    return (
-      <div className="grid gap-2">
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Mask</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            value={shape}
-            onChange={(event) =>
-              updateMask(event.currentTarget.value as StudioSemanticMaskShape)
-            }
-          >
-            <option value="rectangle">Rectangle</option>
-            <option value="rounded">Rounded</option>
-            <option value="circle">Circle</option>
-          </select>
-        </label>
-        <StudioNumberField
-          label="Radius"
-          value={radius}
-          onChange={(value) =>
-            updateTimetableCompositionObject(object.id, (currentObject) => {
-              setStudioTimetableObjectMaskSlot(
-                currentObject,
-                value >= 9999 ? "circle" : value <= 0 ? "rectangle" : "rounded",
-                value,
-              );
-            })
-          }
-        />
-      </div>
-    );
-  };
+  ) => (
+    <StudioTimetableProfileMaskControls
+      object={object}
+      onUpdateObject={(recipe) =>
+        updateTimetableCompositionObject(object.id, recipe)
+      }
+    />
+  );
 
   const renderTimetableTextTypographyControls = (
     object: StudioTimetableCompositionObject,
-  ) => {
-    const styleRecord = object.style;
-    const fontFamily = String(styleRecord.fontFamily ?? "Inter");
-    const textAlign = getStudioTextAlignment(styleRecord);
-    const fontWeightOptions = getStudioFontWeightOptions(document, fontFamily);
-    const updateTimetableTextStyle = (
-      key: string,
-      value: string | number | undefined,
-    ) => {
-      updateTimetableCompositionObject(object.id, (currentObject) => {
-        if (
-          currentObject.kind !== "text" &&
-          currentObject.kind !== "flexibleText"
-        ) {
-          return;
-        }
-        currentObject.style = {
-          ...currentObject.style,
-          [key]: value,
-        };
-      });
-    };
-
-    return (
-      <div className="grid gap-2">
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Font</span>
-          <select
-            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-            value={fontFamily}
-            onChange={(event) =>
-              updateTimetableTextStyle("fontFamily", event.currentTarget.value)
-            }
-          >
-            {fontFamilies.map((fontFamily) => (
-              <option key={fontFamily} value={fontFamily}>
-                {fontFamily}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="grid grid-cols-[1.3fr_1fr] gap-2">
-          <StudioNumberField
-            label="Size"
-            value={Number(styleRecord.fontSize ?? 16)}
-            onChange={(value) => updateTimetableTextStyle("fontSize", value)}
-          />
-          <StudioFontWeightField
-            options={fontWeightOptions}
-            value={styleRecord.fontWeight ?? 700}
-            onChange={(value) => updateTimetableTextStyle("fontWeight", value)}
-          />
-        </div>
-        <StudioTextAlignmentField
-          value={textAlign}
-          onChange={(value) => {
-            updateTimetableCompositionObject(object.id, (currentObject) => {
-              if (
-                currentObject.kind !== "text" &&
-                currentObject.kind !== "flexibleText"
-              ) {
-                return;
-              }
-              currentObject.style = {
-                ...currentObject.style,
-                textAlign: value,
-                justifyContent: getStudioTextJustifyContent(value),
-              };
-            });
-          }}
-        />
-        {object.kind === "flexibleText" ? (
-          <StudioLineBreakField
-            value={getStudioTextWrapMode(styleRecord)}
-            onChange={(mode) =>
-              updateTimetableTextStyle(STUDIO_TEXT_WRAP_MODE_STYLE_KEY, mode)
-            }
-          />
-        ) : null}
-        <StudioNumberField
-          label="Line Height"
-          value={Number(styleRecord.lineHeight ?? 1.2)}
-          onChange={(value) => updateTimetableTextStyle("lineHeight", value)}
-        />
-        <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-          <span>Color</span>
-          <StudioHexColorPicker
-            ariaLabel="Timetable text color"
-            value={String(styleRecord.color ?? "#111827")}
-            onChange={(color) => updateTimetableTextStyle("color", color)}
-          />
-        </label>
-      </div>
-    );
-  };
+  ) => (
+    <StudioTimetableTextTypographyControls
+      document={document}
+      fontFamilies={fontFamilies}
+      object={object}
+      onUpdateObject={(recipe) =>
+        updateTimetableCompositionObject(object.id, recipe)
+      }
+    />
+  );
 
   const renderStatusCardBackgroundAssetSlot = (node: StudioGraphNode) => {
     const status = cardStatusOptions.find(
