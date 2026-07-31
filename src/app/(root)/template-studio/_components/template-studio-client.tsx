@@ -285,10 +285,6 @@ import {
 } from "@/utils/template-studio/timetable-asset-slot-specs";
 import { resolveStudioTimetableSelection } from "@/utils/template-studio/timetable-selection";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
-import {
-  StudioLayerDropIndicator,
-  StudioLayerPanelFrame,
-} from "@/components/studio/layers/studio-layer-primitives";
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
@@ -297,7 +293,7 @@ import { buildStudioTimetableInspectorSections } from "./studio-timetable-inspec
 import {} from "./studio-timetable-object-inspector-controls";
 import {} from "./studio-timetable-object-controls";
 import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
-import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
+import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
 import {
@@ -1361,10 +1357,6 @@ export function TemplateStudioClient({
   const collapsedLayerGroupIdsSet = useMemo(
     () => new Set(collapsedLayerGroupIds),
     [collapsedLayerGroupIds],
-  );
-  const collapsedTimetableLayerIdsSet = useMemo(
-    () => new Set(collapsedTimetableLayerIds),
-    [collapsedTimetableLayerIds],
   );
   const visibleLayerNodeIds = useMemo(() => {
     const nextNodeIds: string[] = [];
@@ -4149,188 +4141,6 @@ export function TemplateStudioClient({
     [getLayerDropValidation, scheduleLayerGroupAutoExpand],
   );
 
-  const renderTimetableDropIndicator = (
-    layerId: string,
-    depth: number,
-    position: "before" | "after",
-    dayId?: StudioTimetableDayId,
-  ) => {
-    const isActive =
-      timetableLayerDropState?.layerId === layerId &&
-      timetableLayerDropState.position === position;
-    if (!isActive) return null;
-
-    return (
-      <StudioLayerDropIndicator
-        blockedReason={timetableLayerDropState?.blockedReason}
-        depth={depth}
-        key={`${layerId}:${position}:drop`}
-        position={position}
-        onDragOver={(event) =>
-          handleTimetableLayerIndicatorDragOver(event, layerId, position, dayId)
-        }
-        onDrop={(event) => handleTimetableLayerDrop(event, layerId, dayId)}
-      />
-    );
-  };
-
-  const renderTimetableCompositionLayerTree = (
-    objectId: string,
-    depth = 0,
-    parentHidden = false,
-    visitedObjectIds = new Set<string>(),
-  ): React.ReactNode => {
-    if (visitedObjectIds.has(objectId)) return null;
-
-    const object = timetableComposition.objects[objectId];
-    if (!object) return null;
-
-    const nextVisitedObjectIds = new Set(visitedObjectIds);
-    nextVisitedObjectIds.add(objectId);
-    const isRoot = depth === 0;
-    const isGeneratedDayCards = object.kind === "generatedDayCards";
-    const childIds =
-      object.kind === "group"
-        ? getStudioTimetableObjectRenderableChildIds(object)
-        : [];
-    const isGroup = isGeneratedDayCards || object.kind === "group";
-    const isCollapsed = collapsedTimetableLayerIdsSet.has(object.id);
-    const hidden = parentHidden || Boolean(object.hidden);
-    const blockedReason =
-      isRoot && timetableLayerDropState?.layerId === objectId
-        ? timetableLayerDropState.blockedReason
-        : null;
-    const type = isGroup
-      ? "group"
-      : object.kind === "profileBlock"
-        ? "block"
-        : object.kind === "image" || object.kind === "topObject"
-          ? "image"
-          : object.kind === "flexibleText"
-            ? "auto text"
-            : "text";
-
-    return (
-      <React.Fragment key={object.id}>
-        {isRoot
-          ? renderTimetableDropIndicator(object.id, depth, "before")
-          : null}
-        <StudioTimetableLayerRow
-          blockedReason={blockedReason}
-          collapsed={isCollapsed}
-          collapsible={
-            isGeneratedDayCards ||
-            (object.kind === "group" && childIds.length > 0)
-          }
-          depth={depth}
-          draggable={isRoot}
-          hidden={hidden}
-          id={object.id}
-          key={object.id}
-          label={object.label}
-          selectedLayerId={selectedTimetableLayerId}
-          type={type}
-          onDragEnd={isRoot ? clearTimetableLayerDragState : undefined}
-          onDragOver={
-            isRoot
-              ? (event) => handleTimetableLayerDragOver(event, object.id)
-              : undefined
-          }
-          onDragStart={
-            isRoot
-              ? (event) => handleTimetableLayerDragStart(event, object.id)
-              : undefined
-          }
-          onDrop={
-            isRoot
-              ? (event) => handleTimetableLayerDrop(event, object.id)
-              : undefined
-          }
-          onSelectLayer={setSelectedTimetableLayerId}
-          onToggleCollapsed={
-            isGroup ? () => toggleTimetableLayerCollapsed(object.id) : undefined
-          }
-        />
-        {!isCollapsed && isGeneratedDayCards
-          ? timetableDays.map((day) => {
-              const layerId = `day-card:${day.id}`;
-              const dayBlockedReason =
-                timetableLayerDropState?.layerId === layerId
-                  ? timetableLayerDropState.blockedReason
-                  : null;
-
-              return (
-                <React.Fragment key={day.id}>
-                  {renderTimetableDropIndicator(
-                    layerId,
-                    depth + 1,
-                    "before",
-                    day.id,
-                  )}
-                  <StudioTimetableLayerRow
-                    blockedReason={dayBlockedReason}
-                    depth={depth + 1}
-                    draggable
-                    hidden={hidden}
-                    id={layerId}
-                    key={layerId}
-                    label={`${day.shortLabel ?? day.label} Card`}
-                    selectedLayerId={selectedTimetableLayerId}
-                    type="day"
-                    onDragEnd={clearTimetableLayerDragState}
-                    onDragOver={(event) =>
-                      handleTimetableLayerDragOver(event, layerId, day.id)
-                    }
-                    onDragStart={(event) =>
-                      handleTimetableLayerDragStart(event, layerId, day.id)
-                    }
-                    onDrop={(event) =>
-                      handleTimetableLayerDrop(event, layerId, day.id)
-                    }
-                    onSelectLayer={setSelectedTimetableLayerId}
-                    onSelect={() => {
-                      setSelectedRuntimeDayId(day.id);
-                      setSelectedRuntimeEntryIndex(0);
-                    }}
-                  />
-                  {renderTimetableDropIndicator(
-                    layerId,
-                    depth + 1,
-                    "after",
-                    day.id,
-                  )}
-                </React.Fragment>
-              );
-            })
-          : null}
-        {!isCollapsed && object.kind === "group"
-          ? getStudioLayerPanelOrder(childIds).map((childId) =>
-              renderTimetableCompositionLayerTree(
-                childId,
-                depth + 1,
-                hidden,
-                nextVisitedObjectIds,
-              ),
-            )
-          : null}
-        {isRoot
-          ? renderTimetableDropIndicator(object.id, depth, "after")
-          : null}
-      </React.Fragment>
-    );
-  };
-
-  const renderTimetableLayersPanel = () => (
-    <StudioLayerPanelFrame
-      summary={`${timetableComposition.rootObjectIds.length} placed objects`}
-      title="Timetable Layers"
-    >
-      {getStudioLayerPanelOrder(timetableComposition.rootObjectIds).map(
-        (objectId) => renderTimetableCompositionLayerTree(objectId),
-      )}
-    </StudioLayerPanelFrame>
-  );
-
   const renderTimetablePresetsPanel = () => (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-b border-[var(--border)] px-3 py-3">
@@ -5582,7 +5392,21 @@ export function TemplateStudioClient({
             content={
               activePanelMode === "layers" ? (
                 activeWorkspaceMode === "timetable" ? (
-                  renderTimetableLayersPanel()
+                  <StudioTimetableLayerPanel
+                    collapsedLayerIds={collapsedTimetableLayerIds}
+                    composition={timetableComposition}
+                    days={timetableDays}
+                    dropState={timetableLayerDropState}
+                    selectedLayerId={selectedTimetableLayerId}
+                    onFocusDay={focusTimetableRuntimeDay}
+                    onIndicatorDragOver={handleTimetableLayerIndicatorDragOver}
+                    onLayerDragEnd={clearTimetableLayerDragState}
+                    onLayerDragOver={handleTimetableLayerDragOver}
+                    onLayerDragStart={handleTimetableLayerDragStart}
+                    onLayerDrop={handleTimetableLayerDrop}
+                    onSelectLayer={setSelectedTimetableLayerId}
+                    onToggleCollapsed={toggleTimetableLayerCollapsed}
+                  />
                 ) : (
                   <StudioLayerPanel
                     collapsedNodeIds={collapsedLayerGroupIdsSet}
