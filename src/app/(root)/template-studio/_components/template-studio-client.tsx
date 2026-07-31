@@ -36,6 +36,7 @@ import {
   type StudioEditorStore,
   StudioEditorStoreProvider,
 } from "@/stores/studio/studio-editor-store";
+import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import { useStudioTimetableLayerDrag } from "@/hooks/studio/use-studio-timetable-layer-drag";
 import {
@@ -88,11 +89,6 @@ import {
 } from "@/utils/template-studio/component-sets";
 import {} from "@/utils/template-studio/date-template";
 import {
-  moveStudioGraphNodes,
-  validateStudioGraphMove,
-  type StudioGraphDropPosition,
-} from "@/utils/template-studio/graph-editor";
-import {
   applyStudioDuplicateNodes,
   applyStudioGroupNodes,
   applyStudioLayerMove,
@@ -132,10 +128,7 @@ import {
   resolveStudioNodeInsertionParentId,
   type StudioSelectConsumerInput,
 } from "@/utils/template-studio/node-commands";
-import {
-  getStudioDataDropPosition,
-  getStudioLayerPanelOrder,
-} from "@/utils/template-studio/layer-order";
+import { getStudioLayerPanelOrder } from "@/utils/template-studio/layer-order";
 import {
   applyStudioNodeFitParent,
   applyStudioNodeOffset,
@@ -337,17 +330,6 @@ interface PendingStudioImageCrop {
   onApply: (croppedImageSrc: string) => void;
 }
 
-interface StudioLayerDragState {
-  primaryNodeId: string;
-  nodeIds: string[];
-}
-
-interface StudioLayerDropState {
-  nodeId: string;
-  position: StudioGraphDropPosition;
-  blockedReason?: string | null;
-}
-
 /**
  * Template Studio의 뷰 설정.
  *
@@ -375,7 +357,6 @@ interface UpdateOptions {
   history?: boolean;
 }
 
-const STUDIO_LAYER_AUTO_EXPAND_DELAY_MS = 550;
 const STUDIO_DATABASE_TARGET_LABEL =
   process.env.NEXT_PUBLIC_SUPABASE_TARGET === "local"
     ? "Local DB"
@@ -847,16 +828,11 @@ export function TemplateStudioClient({
   const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
   const [pendingImageCrop, setPendingImageCrop] =
     useState<PendingStudioImageCrop | null>(null);
-  const [layerDropState, setLayerDropState] =
-    useState<StudioLayerDropState | null>(null);
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
     initialRemoteTemplateId,
   );
   const [componentLabelDraft, setComponentLabelDraft] = useState("");
-  const layerDragStateRef = useRef<StudioLayerDragState | null>(null);
-  const layerAutoExpandTimerRef = useRef<number | null>(null);
-  const layerAutoExpandTargetRef = useRef<string | null>(null);
   const jsonImportInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoadedRemoteTemplateIdRef = useRef<string | null>(null);
   const visibleLayerNodeIdsRef = useRef<string[]>([]);
@@ -888,15 +864,6 @@ export function TemplateStudioClient({
     setRemoteTemplateId(nextTemplateId);
     autoLoadedRemoteTemplateIdRef.current = null;
   }, [initialRemoteTemplateId]);
-
-  useEffect(
-    () => () => {
-      if (layerAutoExpandTimerRef.current !== null) {
-        window.clearTimeout(layerAutoExpandTimerRef.current);
-      }
-    },
-    [],
-  );
 
   const nodes = document.graph.nodes;
   const selectedNode = selectedNodeId ? (nodes[selectedNodeId] ?? null) : null;
@@ -3822,324 +3789,35 @@ export function TemplateStudioClient({
     onToggle: () => toggleInspectorSection(sectionKey),
   });
 
-  const getLayerDropPositionFromEvent = useCallback(
-    (
-      event: React.DragEvent<HTMLElement>,
-      targetNodeId: string,
-    ): StudioGraphDropPosition => {
-      const bounds = event.currentTarget.getBoundingClientRect();
-      const offsetRatio =
-        bounds.height > 0 ? (event.clientY - bounds.top) / bounds.height : 0.5;
-      const targetNode =
-        studioStore.getState().document.graph.nodes[targetNodeId];
-
-      if (targetNode?.type !== "group") {
-        return offsetRatio < 0.5 ? "before" : "after";
-      }
-
-      if (offsetRatio < 0.25) return "before";
-      if (offsetRatio > 0.75) return "after";
-      return "inside";
-    },
-    [studioStore],
-  );
-
-  const getLayerDropValidation = useCallback(
-    (
-      sourceNodeIds: string[],
-      targetNodeId: string,
-      position: StudioGraphDropPosition,
-    ) => {
-      const validation = validateStudioGraphMove(
-        studioStore.getState().document,
-        {
-          sourceNodeIds,
-          targetNodeId,
-          position: getStudioDataDropPosition(position),
-        },
-      );
-
-      if (!validation.ok) return validation;
-
-      const timetableMountNodeId =
-        studioStore.getState().document.domains?.timetable?.mountNodeId;
-      const mountNode = timetableMountNodeId
-        ? studioStore.getState().document.graph.nodes[timetableMountNodeId]
-        : null;
-
-      if (
-        timetableMountNodeId &&
-        validation.sourceNodeIds.includes(timetableMountNodeId) &&
-        validation.targetParentId !== (mountNode?.parentId ?? null)
-      ) {
-        return {
-          ...validation,
-          ok: false,
-          reason: "Root timetable object is locked",
-        };
-      }
-
-      const protectedCardNodeIds = new Set<string>();
-      Object.values(
-        studioStore.getState().document.domains?.timetable?.components ?? {},
-      ).forEach((component) => {
-        Object.values(component.variants).forEach((variant) =>
-          protectedCardNodeIds.add(variant.rootNodeId),
-        );
-      });
-      Object.values(studioStore.getState().document.graph.nodes).forEach(
-        (node) => {
-          if (node.meta?.entrySlot) protectedCardNodeIds.add(node.id);
-        },
-      );
-      const movesProtectedStructure = validation.sourceNodeIds.some(
-        (nodeId) => {
-          if (!protectedCardNodeIds.has(nodeId)) return false;
-          const node = studioStore.getState().document.graph.nodes[nodeId];
-          return validation.targetParentId !== (node?.parentId ?? null);
-        },
-      );
-      if (movesProtectedStructure) {
-        return {
-          ...validation,
-          ok: false,
-          reason: "Card variant roots and Entry Groups cannot be reparented",
-        };
-      }
-
-      return validation;
-    },
-    [studioStore],
-  );
-
-  const clearLayerDragState = useCallback(() => {
-    if (layerAutoExpandTimerRef.current !== null) {
-      window.clearTimeout(layerAutoExpandTimerRef.current);
-      layerAutoExpandTimerRef.current = null;
-    }
-    layerAutoExpandTargetRef.current = null;
-    layerDragStateRef.current = null;
-    setLayerDropState(null);
-  }, []);
-
-  const scheduleLayerGroupAutoExpand = useCallback(
-    (nodeId: string, shouldExpand: boolean) => {
-      if (!shouldExpand) {
-        if (layerAutoExpandTargetRef.current === nodeId) {
-          if (layerAutoExpandTimerRef.current !== null) {
-            window.clearTimeout(layerAutoExpandTimerRef.current);
-            layerAutoExpandTimerRef.current = null;
-          }
-          layerAutoExpandTargetRef.current = null;
-        }
-        return;
-      }
-
-      if (layerAutoExpandTargetRef.current === nodeId) return;
-
-      if (layerAutoExpandTimerRef.current !== null) {
-        window.clearTimeout(layerAutoExpandTimerRef.current);
-      }
-
-      layerAutoExpandTargetRef.current = nodeId;
-      layerAutoExpandTimerRef.current = window.setTimeout(() => {
-        setCollapsedLayerGroupIds((currentNodeIds) =>
-          currentNodeIds.includes(nodeId)
-            ? currentNodeIds.filter((currentNodeId) => currentNodeId !== nodeId)
-            : currentNodeIds,
-        );
-        layerAutoExpandTimerRef.current = null;
-        layerAutoExpandTargetRef.current = null;
-      }, STUDIO_LAYER_AUTO_EXPAND_DELAY_MS);
-    },
-    [setCollapsedLayerGroupIds],
-  );
-
-  const handleLayerDragStart = useCallback(
-    (event: React.DragEvent<HTMLElement>, nodeId: string) => {
-      const node = studioStore.getState().document.graph.nodes[nodeId];
-      if (!node || isStudioNodeLocked(node)) {
-        event.preventDefault();
-        showShortcutStatus("Object is locked");
-        return;
-      }
-
-      const sourceNodeIds = studioStore
-        .getState()
-        .selectedNodeIds.includes(nodeId)
-        ? getStudioTopLevelNodeIds(
-            studioStore.getState().document,
-            studioStore.getState().selectedNodeIds,
-          )
-        : [nodeId];
-      const hasLockedSource = sourceNodeIds.some((sourceNodeId) =>
-        isStudioNodeLocked(
-          studioStore.getState().document.graph.nodes[sourceNodeId],
-        ),
-      );
-
-      if (hasLockedSource) {
-        event.preventDefault();
-        showShortcutStatus("Selection includes locked object");
-        return;
-      }
-
-      if (!studioStore.getState().selectedNodeIds.includes(nodeId)) {
-        selectSingleNode(nodeId);
-      }
-
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", nodeId);
-      layerDragStateRef.current = {
-        primaryNodeId: nodeId,
-        nodeIds: sourceNodeIds,
-      };
-      setLayerDropState(null);
-    },
-    [selectSingleNode, showShortcutStatus, studioStore],
-  );
-
-  const handleLayerDragOver = useCallback(
-    (event: React.DragEvent<HTMLElement>, targetNodeId: string) => {
-      const layerDragState = layerDragStateRef.current;
-      if (!layerDragState) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const position = getLayerDropPositionFromEvent(event, targetNodeId);
-      const validation = getLayerDropValidation(
-        layerDragState.nodeIds,
-        targetNodeId,
-        position,
-      );
-      const targetNode =
-        studioStore.getState().document.graph.nodes[targetNodeId];
-
-      scheduleLayerGroupAutoExpand(
-        targetNodeId,
-        validation.ok &&
-          position === "inside" &&
-          targetNode?.type === "group" &&
-          targetNode.childIds.length > 0 &&
-          collapsedLayerGroupIds.includes(targetNodeId),
-      );
-
-      event.dataTransfer.dropEffect = validation.ok ? "move" : "none";
-      setLayerDropState({
-        nodeId: targetNodeId,
-        position,
-        blockedReason: validation.ok ? null : validation.reason,
-      });
-    },
-    [
-      collapsedLayerGroupIds,
-      getLayerDropPositionFromEvent,
-      getLayerDropValidation,
-      scheduleLayerGroupAutoExpand,
-      studioStore,
-    ],
-  );
-
-  const handleLayerDrop = useCallback(
-    (event: React.DragEvent<HTMLElement>, targetNodeId: string) => {
-      const layerDragState = layerDragStateRef.current;
-      if (!layerDragState) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const position =
-        layerDropState?.nodeId === targetNodeId
-          ? layerDropState.position
-          : getLayerDropPositionFromEvent(event, targetNodeId);
-      const validation = getLayerDropValidation(
-        layerDragState.nodeIds,
-        targetNodeId,
-        position,
-      );
-
-      if (!validation.ok) {
-        showShortcutStatus(validation.reason ?? "Layer move blocked");
-        clearLayerDragState();
-        return;
-      }
-
-      let moveResult = validation;
-      const graphPosition = getStudioDataDropPosition(position);
-      updateDocument((nextDocument) => {
-        moveResult = moveStudioGraphNodes(nextDocument, {
-          sourceNodeIds: layerDragState.nodeIds,
-          targetNodeId,
-          position: graphPosition,
-          preserveCanvasPosition: true,
-        });
-      });
-
-      if (!moveResult.ok) {
-        showShortcutStatus(moveResult.reason ?? "Layer move failed");
-      } else {
-        applyNodeSelection(
-          moveResult.sourceNodeIds,
-          moveResult.sourceNodeIds.includes(layerDragState.primaryNodeId)
-            ? layerDragState.primaryNodeId
-            : moveResult.sourceNodeIds.at(-1),
-        );
-        if (position === "inside") {
-          setCollapsedLayerGroupIds((currentNodeIds) =>
-            currentNodeIds.filter((nodeId) => nodeId !== targetNodeId),
-          );
-        }
-        setPanelMode("layers");
-        showShortcutStatus(
-          `Moved ${moveResult.sourceNodeIds.length} ${getStudioSelectionLabel(
-            moveResult.sourceNodeIds.length,
-          )}`,
-        );
-      }
-
-      clearLayerDragState();
-    },
-    [
-      applyNodeSelection,
-      clearLayerDragState,
-      getLayerDropPositionFromEvent,
-      getLayerDropValidation,
-      layerDropState,
-      setCollapsedLayerGroupIds,
-      setPanelMode,
-      showShortcutStatus,
-      updateDocument,
-    ],
-  );
-
-  const handleLayerIndicatorDragOver = useCallback(
-    (
-      event: React.DragEvent<HTMLElement>,
-      targetNodeId: string,
-      position: "before" | "after",
-    ) => {
-      const layerDragState = layerDragStateRef.current;
-      if (!layerDragState) return;
-
-      event.preventDefault();
-      event.stopPropagation();
-
-      const validation = getLayerDropValidation(
-        layerDragState.nodeIds,
-        targetNodeId,
-        position,
-      );
-      scheduleLayerGroupAutoExpand(targetNodeId, false);
-      event.dataTransfer.dropEffect = validation.ok ? "move" : "none";
-      setLayerDropState({
-        nodeId: targetNodeId,
-        position,
-        blockedReason: validation.ok ? null : validation.reason,
-      });
-    },
-    [getLayerDropValidation, scheduleLayerGroupAutoExpand],
-  );
+  const {
+    dropState: layerDropState,
+    clearDragState: clearLayerDragState,
+    handleDragStart: handleLayerDragStart,
+    handleDragOver: handleLayerDragOver,
+    handleIndicatorDragOver: handleLayerIndicatorDragOver,
+    handleDrop: handleLayerDrop,
+  } = useStudioLayerDrag({
+    getDocument: useCallback(
+      () => studioStore.getState().document,
+      [studioStore],
+    ),
+    getSelectedNodeIds: useCallback(
+      () => studioStore.getState().selectedNodeIds,
+      [studioStore],
+    ),
+    getCollapsedNodeIds: useCallback(
+      () => collapsedLayerGroupIds,
+      [collapsedLayerGroupIds],
+    ),
+    setCollapsedNodeIds: setCollapsedLayerGroupIds,
+    updateDocument,
+    onSelect: applyNodeSelection,
+    onSelectSingleNode: selectSingleNode,
+    onStatusMessage: showShortcutStatus,
+    // 옮긴 결과를 보려면 레이어 탭이어야 한다. 다른 탭에서 끌어다 놓으면
+    // 무슨 일이 일어났는지 보이지 않는다.
+    onAfterMove: useCallback(() => setPanelMode("layers"), [setPanelMode]),
+  });
 
   const renderTimetablePresetsPanel = () => (
     <div className="flex min-h-0 flex-1 flex-col">

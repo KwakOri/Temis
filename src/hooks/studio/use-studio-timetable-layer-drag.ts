@@ -6,7 +6,10 @@ import type {
   StudioTimetableDayId,
 } from "@/types/template-studio";
 import {
-  expandStudioTimetableLayer,
+  expandStudioCollapsedLayerId,
+  STUDIO_LAYER_AUTO_EXPAND_DELAY_MS,
+} from "@/utils/template-studio/layer-order";
+import {
   getStudioTimetableLayerDropBlockedReason,
   getStudioTimetableLayerDropPosition,
   planStudioTimetableLayerDrop,
@@ -14,8 +17,6 @@ import {
   type StudioTimetableLayerDragState,
   type StudioTimetableLayerDropState,
 } from "@/utils/template-studio/timetable-layer-drag";
-/** 접힌 묶음 위에 머물 때 저절로 펼치기까지 기다리는 시간. */
-export const STUDIO_TIMETABLE_LAYER_AUTO_EXPAND_DELAY_MS = 550;
 export interface StudioTimetableLayerDragOptions {
   /**
    * 지금 접혀 있는 레이어 id를 읽는다.
@@ -93,7 +94,7 @@ export function useStudioTimetableLayerDrag({
   onFocusDay,
   onMoveRootLayer,
   onMoveDayLayer,
-  autoExpandDelayMs = STUDIO_TIMETABLE_LAYER_AUTO_EXPAND_DELAY_MS,
+  autoExpandDelayMs = STUDIO_LAYER_AUTO_EXPAND_DELAY_MS,
 }: StudioTimetableLayerDragOptions): StudioTimetableLayerDrag {
   const [dragState, setDragState] =
     useState<StudioTimetableLayerDragState | null>(null);
@@ -154,7 +155,7 @@ export function useStudioTimetableLayerDrag({
       autoExpandTargetRef.current = layerId;
       autoExpandTimerRef.current = window.setTimeout(() => {
         setCollapsedLayerIds((currentLayerIds) =>
-          expandStudioTimetableLayer(currentLayerIds, layerId),
+          expandStudioCollapsedLayerId(currentLayerIds, layerId),
         );
         autoExpandTimerRef.current = null;
         autoExpandTargetRef.current = null;

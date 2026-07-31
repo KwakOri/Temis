@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 
 import {
+  expandStudioCollapsedLayerId,
   getStudioDataDropPosition,
   getStudioLayerPanelOrder,
   getStudioPaintOrder,
+  STUDIO_LAYER_AUTO_EXPAND_DELAY_MS,
 } from "../src/utils/template-studio/layer-order";
 import {
   createStudioProfileBlockPresetObjects,
@@ -40,6 +42,29 @@ assert.deepEqual(
 assert.equal(getStudioDataDropPosition("before"), "after");
 assert.equal(getStudioDataDropPosition("after"), "before");
 assert.equal(getStudioDataDropPosition("inside"), "inside");
+
+// 접힘 목록 규칙. 카드와 시간표 레이어 패널이 같은 함수를 쓴다.
+const collapsedIds = ["dayCards", "profile"];
+assert.deepEqual(
+  expandStudioCollapsedLayerId(collapsedIds, "dayCards"),
+  ["profile"],
+  "펼친 레이어만 목록에서 빠진다.",
+);
+assert.equal(
+  expandStudioCollapsedLayerId(collapsedIds, "board"),
+  collapsedIds,
+  "바뀐 것이 없으면 받은 배열을 그대로 돌려준다. 새 배열을 만들면 끌고 있는 동안 트리가 계속 다시 그려진다.",
+);
+assert.deepEqual(
+  collapsedIds,
+  ["dayCards", "profile"],
+  "접힘 목록을 제자리에서 고치지 않는다.",
+);
+assert.equal(
+  STUDIO_LAYER_AUTO_EXPAND_DELAY_MS,
+  550,
+  "자동 펼침까지 기다리는 시간은 두 편집기가 같아야 한다. 스치기만 해도 펼쳐지면 트리가 출렁여 놓을 자리를 못 찾는다.",
+);
 
 const { group } = createStudioProfileBlockPresetObjects(
   { rootObjectIds: [], objects: {} },

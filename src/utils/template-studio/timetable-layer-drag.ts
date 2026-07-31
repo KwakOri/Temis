@@ -78,21 +78,6 @@ export const shouldAutoExpandStudioTimetableLayer = ({
   !blockedReason &&
   targetObjectKind === "generatedDayCards" &&
   collapsed;
-/**
- * 접힘 목록에서 한 레이어를 뺀다.
- *
- * 이미 펼쳐져 있으면 받은 배열을 그대로 돌려준다. 자동 펼침은 끌고 있는 동안
- * 여러 번 불리므로, 바뀐 것이 없을 때 새 배열을 만들면 트리가 계속 다시 그려진다.
- */
-export const expandStudioTimetableLayer = (
-  collapsedLayerIds: string[],
-  layerId: string,
-): string[] =>
-  collapsedLayerIds.includes(layerId)
-    ? collapsedLayerIds.filter(
-        (collapsedLayerId) => collapsedLayerId !== layerId,
-      )
-    : collapsedLayerIds;
 /** 드롭한 결과 무엇을 옮길지. `none`이면 아무것도 하지 않는다. */
 export type StudioTimetableLayerDropPlan =
   | { kind: "none" }

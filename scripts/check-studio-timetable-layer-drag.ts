@@ -11,7 +11,6 @@
 import assert from "node:assert/strict";
 import type { StudioTimetableDayId } from "../src/types/template-studio";
 import {
-  expandStudioTimetableLayer,
   getStudioTimetableLayerDropBlockedReason,
   getStudioTimetableLayerDropPosition,
   planStudioTimetableLayerDrop,
@@ -154,18 +153,6 @@ assert.equal(
   }),
   false,
   "요일 카드 행 위에서는 그 묶음을 펼치지 않는다.",
-);
-// --- 접힘 목록 기준선 ---
-const collapsedLayerIds = ["dayCards", "profile"];
-assert.deepEqual(
-  expandStudioTimetableLayer(collapsedLayerIds, "dayCards"),
-  ["profile"],
-  "펼친 레이어만 목록에서 빠진다.",
-);
-assert.equal(
-  expandStudioTimetableLayer(collapsedLayerIds, "board"),
-  collapsedLayerIds,
-  "바뀐 것이 없으면 받은 배열을 그대로 돌려준다. 새 배열을 만들면 끌고 있는 동안 트리가 계속 다시 그려진다.",
 );
 // --- 드롭 결과 기준선 ---
 const rootDrop: StudioTimetableLayerDropState = {
