@@ -78,10 +78,7 @@ import {
   isStudioImageNode,
   isStudioTextNode,
 } from "@/utils/template-studio/binding-resolver";
-import {
-  normalizeStudioDayLabelFormat,
-  getStudioBuiltinField,
-} from "@/utils/template-studio/builtin-fields";
+import { getStudioBuiltinField } from "@/utils/template-studio/builtin-fields";
 import {
   cloneStudioTimetableComponentSet,
   deleteStudioTimetableComponentSet,
@@ -209,7 +206,6 @@ import {
   getStudioTimetableObjectRenderableChildIds,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
-import { setStudioTimetableObjectVisibilitySlot } from "@/utils/template-studio/semantic-slots";
 import {
   createStudioTemplateExportPayload,
   getStudioTemplateBlockingDiagnostics,
@@ -275,8 +271,6 @@ import {
 } from "@/components/studio/editor-shell/studio-properties-panel";
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
 import {
-  StudioFitParentButton,
-  StudioNumberField,
   StudioTextareaField,
   StudioTextField,
 } from "@/components/studio/inspector/studio-inspector-fields";
@@ -297,21 +291,11 @@ import {
 
 import { StudioApplyStyleDialog } from "./studio-apply-style-dialog";
 import { buildStudioCardNodeInspectorSections } from "./studio-card-node-inspector";
-import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
 import { StudioInputInspector } from "./studio-input-inspector";
-import {
-  StudioTimetableArtistProfileTextAssetLayoutControls,
-  StudioTimetableObjectVariantControls,
-  StudioTimetableProfileMaskControls,
-  StudioTimetableTextTypographyControls,
-  StudioTimetableWeekDatesFormatControls,
-} from "./studio-timetable-object-inspector-controls";
-import {
-  StudioTimetableOpacityField,
-  StudioTimetableVisibilityField,
-} from "./studio-timetable-object-controls";
+import { buildStudioTimetableInspectorSections } from "./studio-timetable-inspector";
+import {} from "./studio-timetable-object-inspector-controls";
+import {} from "./studio-timetable-object-controls";
 import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
-import { StudioTimetableDayCardsLayoutControls } from "./studio-timetable-day-cards-layout-controls";
 import { StudioTimetableLayerRow } from "./studio-timetable-layer-row";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
@@ -1110,22 +1094,6 @@ export function TemplateStudioClient({
     object: selectedTimetableCompositionObject,
     dayId: selectedTimetableDayId,
     day: selectedTimetableDay,
-    dayComponentResolution: selectedTimetableDayComponentResolution,
-    textObject: selectedTimetableTextObject,
-    boundInput: selectedTimetableBoundInput,
-    builtinField: selectedTimetableBuiltinField,
-    textValue: selectedTimetableTextValue,
-    variantSet: selectedTimetableVariantSet,
-    isFitParent: isSelectedTimetableObjectFitParent,
-    isDayCards: isSelectedDayCardsObject,
-    isWeekDates: isSelectedWeekDatesObject,
-    isWeeklyMemo: isSelectedWeeklyMemoObject,
-    isLegacyProfileBlock: isSelectedLegacyProfileBlockObject,
-    isProfileChild: isSelectedProfileChildObject,
-    isStructuredBackground: isSelectedStructuredBackgroundObject,
-    isArtistProfileText: isSelectedArtistProfileTextObject,
-    isTopObject: isSelectedTopObject,
-    isBoard: isSelectedBoardObject,
   } = timetableSelection;
   const getTimetableEntryCardSizeForDay = useCallback(
     (dayId: StudioTimetableDayId) =>
@@ -4924,17 +4892,6 @@ export function TemplateStudioClient({
     );
   };
 
-  const renderTimetableObjectVariantControls = (
-    object: StudioTimetableCompositionObject,
-  ) => (
-    <StudioTimetableObjectVariantControls
-      object={object}
-      onUpdateObject={(recipe) =>
-        updateTimetableCompositionObject(object.id, recipe)
-      }
-    />
-  );
-
   const renderTimetablePanel = () => {
     const timetable = document.domains?.timetable;
 
@@ -5110,32 +5067,6 @@ export function TemplateStudioClient({
     />
   );
 
-  const renderTimetableVisibilitySlot = (
-    object: StudioTimetableCompositionObject,
-  ) => (
-    <StudioTimetableVisibilityField
-      hidden={object.hidden}
-      onChange={(visible) =>
-        updateTimetableCompositionObject(object.id, (currentObject) => {
-          setStudioTimetableObjectVisibilitySlot(currentObject, visible);
-        })
-      }
-    />
-  );
-
-  const renderTimetableOpacityControl = (
-    object: StudioTimetableCompositionObject,
-  ) => (
-    <StudioTimetableOpacityField
-      opacity={object.style.opacity}
-      onChange={(opacity) =>
-        updateTimetableCompositionObject(object.id, (currentObject) => {
-          currentObject.style = { ...currentObject.style, opacity };
-        })
-      }
-    />
-  );
-
   const renderTimetableInputSourceSlot = (input: StudioInputDefinition) => (
     <div className="grid gap-3">
       <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
@@ -5304,97 +5235,6 @@ export function TemplateStudioClient({
       ...resolveStudioTimetableAssetSlotSpec(object, kind),
     });
 
-  const renderTimetableBackgroundAssetSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "background");
-
-  const renderTimetableProfileImageSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "profileImage");
-
-  const renderTimetableProfileFrameSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "profileFrame");
-
-  const renderTimetableProfileChildAssetSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "profileChild");
-
-  const renderTimetableStructuredBackgroundAssetSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "structuredBackground");
-
-  const renderTimetableTopObjectAssetSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "topObject");
-
-  const renderTimetableBoardAssetSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "board");
-
-  const renderTimetableArtistProfileTextAssetSlot = (
-    object: StudioTimetableCompositionObject,
-  ) => renderTimetableAssetSlotOfKind(object, "artistProfileText");
-
-  const renderTimetableWeekDatesFormatControls = (
-    object: StudioTimetableCompositionObject,
-  ) => (
-    <StudioTimetableWeekDatesFormatControls
-      object={object}
-      onUpdateObject={(recipe) =>
-        updateTimetableCompositionObject(object.id, recipe)
-      }
-    />
-  );
-
-  const renderTimetableDayCardsLayoutControls = () => {
-    const timetable = document.domains?.timetable;
-    if (!timetable) return null;
-
-    return (
-      <StudioTimetableDayCardsLayoutControls
-        days={timetableDays}
-        layout={getStudioTimetableDayCardsLayout(timetable)}
-        onUpdateLayout={updateTimetableDayCardsLayout}
-      />
-    );
-  };
-
-  const renderTimetableArtistProfileTextAssetLayoutControls = (
-    object: StudioTimetableCompositionObject,
-  ) => (
-    <StudioTimetableArtistProfileTextAssetLayoutControls
-      object={object}
-      onUpdateObject={(recipe) =>
-        updateTimetableCompositionObject(object.id, recipe)
-      }
-    />
-  );
-
-  const renderTimetableProfileMaskControls = (
-    object: StudioTimetableCompositionObject,
-  ) => (
-    <StudioTimetableProfileMaskControls
-      object={object}
-      onUpdateObject={(recipe) =>
-        updateTimetableCompositionObject(object.id, recipe)
-      }
-    />
-  );
-
-  const renderTimetableTextTypographyControls = (
-    object: StudioTimetableCompositionObject,
-  ) => (
-    <StudioTimetableTextTypographyControls
-      document={document}
-      fontFamilies={fontFamilies}
-      object={object}
-      onUpdateObject={(recipe) =>
-        updateTimetableCompositionObject(object.id, recipe)
-      }
-    />
-  );
-
   const renderStatusCardBackgroundAssetSlot = (node: StudioGraphNode) => {
     const status = cardStatusOptions.find(
       (candidate) => candidate.id === selectedCardStatusId,
@@ -5521,6 +5361,35 @@ export function TemplateStudioClient({
    *
    * 공통 프레임은 순서대로 렌더만 하므로 표시 조건과 순서는 여기서 정한다.
    */
+  const buildTimetableInspectorSections = (): StudioPropertyItem[] =>
+    buildStudioTimetableInspectorSections({
+      activeRuntimeDayLabel: activeRuntimeDay?.label ?? null,
+      activeRuntimeEntry,
+      activeRuntimeEntryIndex,
+      componentOptions: cardComponentOptions,
+      dayCardsLayout: document.domains?.timetable
+        ? getStudioTimetableDayCardsLayout(document.domains.timetable)
+        : null,
+      days: timetableDays,
+      document,
+      fontFamilies,
+      getEntryCardSize: getTimetableEntryCardSizeForDay,
+      isSectionOpen: (sectionKey) => inspectorSections[sectionKey],
+      layerGeometry: selectedTimetableLayerGeometry,
+      renderAssetSlot: renderTimetableAssetSlotOfKind,
+      renderInputSourceSlot: renderTimetableInputSourceSlot,
+      renderPreviewInputs: renderRuntimePreviewInputs,
+      selectedLayerId: selectedTimetableLayerId,
+      selectedLayerLabel: selectedTimetableLayerLabel,
+      selection: timetableSelection,
+      onAssignComponentSet: assignComponentSetToSelectedDay,
+      onToggleFitParent: toggleTimetableObjectFitParent,
+      onToggleSection: toggleInspectorSection,
+      onUpdateDayCardsLayout: updateTimetableDayCardsLayout,
+      onUpdateLayerPosition: updateTimetableLayerPosition,
+      onUpdateObject: updateTimetableCompositionObject,
+    });
+
   const buildPropertySections = (): StudioPropertyItem[] => [
     ...(!isInputPanelActive &&
     activeWorkspaceMode === "cards" &&
@@ -5602,424 +5471,7 @@ export function TemplateStudioClient({
                 ]
               : []),
           ]
-        : [
-            ...(selectedTimetableDay && selectedTimetableDayComponentResolution
-              ? [
-                  buildInspectorSection(
-                    "componentSet",
-                    "Component Set",
-                    <div className="grid gap-2">
-                      <label className="grid gap-1.5">
-                        <span className="text-[10px] font-bold text-[var(--fg2)]">
-                          {selectedTimetableDay.label} layout
-                        </span>
-                        <select
-                          className="h-9 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                          value={
-                            selectedTimetableDayComponentResolution.componentId
-                          }
-                          onChange={(event) =>
-                            assignComponentSetToSelectedDay(
-                              event.currentTarget.value,
-                            )
-                          }
-                        >
-                          {cardComponentOptions.map((component) => (
-                            <option key={component.id} value={component.id}>
-                              {component.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <div className="flex items-center justify-between rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2.5 py-2 text-[10px] font-semibold text-[var(--fg3)]">
-                        <span>
-                          {selectedTimetableDayComponentResolution.source ===
-                          "default"
-                            ? "Default set"
-                            : "Day override"}
-                        </span>
-                        <span>
-                          {
-                            getTimetableEntryCardSizeForDay(
-                              selectedTimetableDay.id,
-                            ).width
-                          }{" "}
-                          ×{" "}
-                          {
-                            getTimetableEntryCardSizeForDay(
-                              selectedTimetableDay.id,
-                            ).height
-                          }
-                        </span>
-                      </div>
-                      <p className="text-[10px] font-medium leading-relaxed text-[var(--fg3)]">
-                        This set controls all status layouts for the selected
-                        day.
-                      </p>
-                    </div>,
-                  ),
-                ]
-              : []),
-
-            ...(selectedTimetableCompositionObject &&
-            selectedTimetableVariantSet
-              ? [
-                  buildInspectorSection(
-                    "settings",
-                    "Object State",
-                    renderTimetableObjectVariantControls(
-                      selectedTimetableCompositionObject,
-                    ),
-                  ),
-                ]
-              : []),
-
-            ...(selectedTimetableTextObject
-              ? [
-                  buildInspectorSection(
-                    "input",
-                    "Text",
-                    <div className="grid gap-2">
-                      {selectedTimetableBuiltinField ? (
-                        <>
-                          <div className="grid gap-1.5 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
-                            <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                              Built-in Source
-                            </span>
-                            <span className="truncate text-xs font-semibold text-[var(--fg)]">
-                              {selectedTimetableBuiltinField.label}
-                            </span>
-                            <span className="truncate text-[11px] font-medium text-[var(--fg3)]">
-                              {getStudioInputScopeLabel(
-                                selectedTimetableBuiltinField.scope,
-                              )}{" "}
-                              · {selectedTimetableBuiltinField.type} ·{" "}
-                              {selectedTimetableBuiltinField.id}
-                            </span>
-                          </div>
-                          {selectedTimetableTextObject.binding?.kind ===
-                          "builtinField" ? (
-                            <StudioDayLabelFormatField
-                              fieldId={
-                                selectedTimetableTextObject.binding.fieldId
-                              }
-                              value={
-                                selectedTimetableTextObject.binding
-                                  .dayLabelFormat
-                              }
-                              onChange={(dayLabelFormat) =>
-                                updateTimetableCompositionObject(
-                                  selectedTimetableTextObject.id,
-                                  (object) => {
-                                    if (object.binding?.kind !== "builtinField")
-                                      return;
-
-                                    const normalizedFormat =
-                                      normalizeStudioDayLabelFormat(
-                                        dayLabelFormat,
-                                      );
-                                    object.binding =
-                                      normalizedFormat === "default"
-                                        ? {
-                                            kind: "builtinField",
-                                            fieldId: object.binding.fieldId,
-                                          }
-                                        : {
-                                            ...object.binding,
-                                            dayLabelFormat: normalizedFormat,
-                                          };
-                                  },
-                                )
-                              }
-                            />
-                          ) : null}
-                          {isSelectedWeekDatesObject
-                            ? renderTimetableWeekDatesFormatControls(
-                                selectedTimetableTextObject,
-                              )
-                            : null}
-                        </>
-                      ) : selectedTimetableBoundInput ? (
-                        renderTimetableInputSourceSlot(
-                          selectedTimetableBoundInput,
-                        )
-                      ) : (
-                        <StudioTextField
-                          label="Content"
-                          value={selectedTimetableTextValue}
-                          onChange={(value) =>
-                            updateTimetableCompositionObject(
-                              selectedTimetableTextObject.id,
-                              (object) => {
-                                object.binding = {
-                                  kind: "staticText",
-                                  value,
-                                };
-                              },
-                            )
-                          }
-                        />
-                      )}
-                    </div>,
-                  ),
-                ]
-              : []),
-
-            ...(selectedTimetableBoundInput
-              ? [
-                  buildInspectorSection(
-                    "runtime",
-                    "Preview Inputs",
-                    renderRuntimePreviewInputs(),
-                  ),
-                ]
-              : []),
-
-            ...(isSelectedDayCardsObject
-              ? [
-                  buildInspectorSection(
-                    "layout",
-                    "Layout",
-                    renderTimetableDayCardsLayoutControls(),
-                  ),
-                ]
-              : []),
-
-            ...(selectedTimetableCompositionObject
-              ? [
-                  buildInspectorSection(
-                    "appearance",
-                    "Appearance",
-                    <div className="grid gap-2">
-                      {renderTimetableVisibilitySlot(
-                        selectedTimetableCompositionObject,
-                      )}
-                      {renderTimetableOpacityControl(
-                        selectedTimetableCompositionObject,
-                      )}
-                      {isSelectedWeeklyMemoObject &&
-                      selectedTimetableCompositionObject.kind !== "group"
-                        ? renderTimetableBackgroundAssetSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedLegacyProfileBlockObject
-                        ? renderTimetableProfileImageSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedLegacyProfileBlockObject
-                        ? renderTimetableProfileFrameSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedLegacyProfileBlockObject
-                        ? renderTimetableProfileMaskControls(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedProfileChildObject
-                        ? renderTimetableProfileChildAssetSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedStructuredBackgroundObject
-                        ? renderTimetableStructuredBackgroundAssetSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {selectedTimetableCompositionObject.profileRole ===
-                      "userImage"
-                        ? renderTimetableProfileMaskControls(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedArtistProfileTextObject &&
-                      selectedTimetableCompositionObject.kind !== "group"
-                        ? renderTimetableArtistProfileTextAssetSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedArtistProfileTextObject &&
-                      selectedTimetableCompositionObject.kind !== "group"
-                        ? renderTimetableArtistProfileTextAssetLayoutControls(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedTopObject &&
-                      selectedTimetableCompositionObject.kind !== "group"
-                        ? renderTimetableTopObjectAssetSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                      {isSelectedBoardObject
-                        ? renderTimetableBoardAssetSlot(
-                            selectedTimetableCompositionObject,
-                          )
-                        : null}
-                    </div>,
-                  ),
-                ]
-              : []),
-
-            ...(selectedTimetableLayerGeometry && selectedTimetableLayerId
-              ? [
-                  buildInspectorSection(
-                    "position",
-                    "Position",
-                    <div className="grid gap-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <StudioNumberField
-                          disabled={isSelectedTimetableObjectFitParent}
-                          label="X"
-                          value={selectedTimetableLayerGeometry.left}
-                          onChange={(value) =>
-                            updateTimetableLayerPosition(
-                              selectedTimetableLayerId,
-                              { left: value },
-                            )
-                          }
-                        />
-                        <StudioNumberField
-                          disabled={isSelectedTimetableObjectFitParent}
-                          label="Y"
-                          value={selectedTimetableLayerGeometry.top}
-                          onChange={(value) =>
-                            updateTimetableLayerPosition(
-                              selectedTimetableLayerId,
-                              { top: value },
-                            )
-                          }
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-[11px] font-semibold text-[var(--fg2)]">
-                        {isStudioPlacedTimetableCompositionObject(
-                          selectedTimetableCompositionObject ?? undefined,
-                        ) ? (
-                          <>
-                            <StudioNumberField
-                              disabled={isSelectedTimetableObjectFitParent}
-                              label="W"
-                              value={selectedTimetableLayerGeometry.width}
-                              onChange={(value) =>
-                                updateTimetableLayerPosition(
-                                  selectedTimetableLayerId,
-                                  { width: value },
-                                )
-                              }
-                            />
-                            <StudioNumberField
-                              disabled={isSelectedTimetableObjectFitParent}
-                              label="H"
-                              value={selectedTimetableLayerGeometry.height}
-                              onChange={(value) =>
-                                updateTimetableLayerPosition(
-                                  selectedTimetableLayerId,
-                                  { height: value },
-                                )
-                              }
-                            />
-                          </>
-                        ) : (
-                          <>
-                            <div className="grid min-w-0 gap-1.5">
-                              <span>W</span>
-                              <div className="flex h-8 w-full min-w-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]">
-                                <span className="min-w-0 truncate">
-                                  {Math.round(
-                                    selectedTimetableLayerGeometry.width,
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="grid min-w-0 gap-1.5">
-                              <span>H</span>
-                              <div className="flex h-8 w-full min-w-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg3)]">
-                                <span className="min-w-0 truncate">
-                                  {Math.round(
-                                    selectedTimetableLayerGeometry.height,
-                                  )}
-                                </span>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {isStudioPlacedTimetableCompositionObject(
-                        selectedTimetableCompositionObject ?? undefined,
-                      ) || isSelectedDayCardsObject ? (
-                        <StudioNumberField
-                          label="Rotate"
-                          value={Number(
-                            selectedTimetableCompositionObject?.style
-                              .rotateDeg ?? 0,
-                          )}
-                          onChange={(value) =>
-                            updateTimetableLayerPosition(
-                              selectedTimetableLayerId,
-                              { rotateDeg: value },
-                            )
-                          }
-                        />
-                      ) : null}
-                    </div>,
-                    undefined,
-                    selectedTimetableCompositionObject &&
-                      isStudioPlacedTimetableCompositionObject(
-                        selectedTimetableCompositionObject,
-                      ) ? (
-                      <StudioFitParentButton
-                        active={isSelectedTimetableObjectFitParent}
-                        onClick={() =>
-                          toggleTimetableObjectFitParent(
-                            selectedTimetableCompositionObject.id,
-                          )
-                        }
-                      />
-                    ) : undefined,
-                  ),
-                ]
-              : []),
-
-            ...(selectedTimetableTextObject
-              ? [
-                  buildInspectorSection(
-                    "typography",
-                    "Typography",
-                    renderTimetableTextTypographyControls(
-                      selectedTimetableTextObject,
-                    ),
-                  ),
-                ]
-              : []),
-
-            buildInspectorSection(
-              "runtime",
-              "Timetable Context",
-              <div className="grid gap-2 text-xs font-semibold text-[var(--fg2)]">
-                <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2">
-                  Layer:{" "}
-                  <span className="text-[var(--fg)]">
-                    {selectedTimetableLayerLabel}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2">
-                  Day:{" "}
-                  <span className="text-[var(--fg)]">
-                    {activeRuntimeDay?.label ?? "None"}
-                  </span>
-                </div>
-                <div className="rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-3 py-2">
-                  Entry:{" "}
-                  <span className="text-[var(--fg)]">
-                    {activeRuntimeEntry
-                      ? `${activeRuntimeEntryIndex + 1} · ${activeRuntimeEntry.statusId}`
-                      : "None"}
-                  </span>
-                </div>
-              </div>,
-            ),
-          ]),
+        : buildTimetableInspectorSections()),
 
     buildInspectorSection(
       "diagnostics",
