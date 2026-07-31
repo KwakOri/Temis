@@ -37,6 +37,7 @@
     "check:studio:layers": "tsx scripts/check-studio-layers.tsx",
     "check:studio:layer-drag": "tsx scripts/check-studio-layer-drag.ts",
     "check:studio:asset-sync": "tsx scripts/check-studio-asset-sync.ts",
+    "check:studio:keyboard-shortcuts": "tsx scripts/check-studio-keyboard-shortcuts.ts",
     "check:studio:preset-panels": "tsx scripts/check-studio-preset-panels.tsx",
     "check:studio:hooks": "tsx scripts/check-studio-hooks.ts",
     "check:studio:graph-commands": "tsx scripts/check-studio-graph-commands.ts",

@@ -34,6 +34,7 @@ import {
   type StudioEditorStore,
   StudioEditorStoreProvider,
 } from "@/stores/studio/studio-editor-store";
+import { useStudioKeyboardShortcuts } from "@/hooks/studio/use-studio-keyboard-shortcuts";
 import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import { useStudioTemplatePersistence } from "@/hooks/studio/use-studio-template-persistence";
@@ -552,10 +553,6 @@ const replaceRuntimeInputValue = (
     ]),
   ),
 });
-
-const isStudioShortcutEditingTarget = (target: EventTarget | null): boolean =>
-  target instanceof HTMLElement &&
-  Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
 
 const getStudioEditableNodeIds = (document: StudioTemplateDocument): string[] =>
   Object.keys(document.graph.nodes).filter(
@@ -3048,207 +3045,62 @@ export function TemplateStudioClient({
     return () => window.clearTimeout(timeout);
   }, [shortcutMessage]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const key = event.key.toLowerCase();
-      const isModKey = event.metaKey || event.ctrlKey;
-      const isEditingTarget = isStudioShortcutEditingTarget(event.target);
-      const isRedoShortcut =
-        (isModKey && key === "z" && event.shiftKey) ||
-        (event.ctrlKey && !event.metaKey && key === "y");
-      const isUndoShortcut = isModKey && key === "z" && !event.shiftKey;
-
-      if (isEditingTarget) return;
-
-      if (key === "escape" && cancelNodeCut()) {
-        event.preventDefault();
-        event.stopPropagation();
-        showShortcutStatus("Cut canceled");
-        return;
-      }
-
-      if (isUndoShortcut || isRedoShortcut) {
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.repeat) return;
-        if (isRedoShortcut) {
-          redoEditorState();
-        } else {
-          undoEditorState();
-        }
-        return;
-      }
-
-      if (isModKey && !event.altKey && key === "s") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) void saveDatabaseDraft();
-        return;
-      }
-
-      if (isModKey && !event.altKey && key === "a") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) selectAllEditableNodes();
-        return;
-      }
-
-      if (isModKey && !event.altKey && key === "c") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) copySelectedNode();
-        return;
-      }
-
-      if (isModKey && !event.altKey && key === "x") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) cutSelectedNode();
-        return;
-      }
-
-      if (isModKey && !event.altKey && key === "v") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) pasteClipboardNode();
-        return;
-      }
-
-      if (isModKey && !event.altKey && key === "d") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) duplicateSelectedNode();
-        return;
-      }
-
-      if (isModKey && !event.altKey && key === "g") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.repeat) return;
-        if (event.shiftKey) {
-          ungroupSelectedNodes();
-        } else {
-          groupSelectedNodes();
-        }
-        return;
-      }
-
-      if (isModKey && event.shiftKey && !event.altKey && key === "l") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) toggleSelectedNodeLock();
-        return;
-      }
-
-      if (
-        isModKey &&
-        !event.altKey &&
-        (event.key === "]" || event.key === "[")
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        if (event.repeat) return;
-
-        if (event.key === "]") {
-          moveSelectedNodeLayer(event.shiftKey ? "front" : "forward");
-        } else {
-          moveSelectedNodeLayer(event.shiftKey ? "back" : "backward");
-        }
-        return;
-      }
-
-      if (event.key === "Backspace" || event.key === "Delete") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (!event.repeat) deleteActiveSelection();
-        return;
-      }
-
-      if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        if (nodePicker) {
-          setNodePicker(null);
-        } else {
-          selectSingleNode(null);
-        }
-        return;
-      }
-
-      if (!isModKey && !event.altKey && event.key.startsWith("Arrow")) {
-        const step = event.shiftKey ? 10 : 1;
-        const deltaByKey: Record<string, [number, number]> = {
-          ArrowUp: [0, -step],
-          ArrowDown: [0, step],
-          ArrowLeft: [-step, 0],
-          ArrowRight: [step, 0],
-        };
-        const delta = deltaByKey[event.key];
-        if (!delta) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-        nudgeSelectedNode(delta[0], delta[1]);
-        return;
-      }
-
-      if (!isModKey) return;
-
-      if (key === "=" || key === "+") {
-        event.preventDefault();
-        event.stopPropagation();
-        setScale((currentScale) =>
-          clampStudioPreviewScale(Number((currentScale + 0.1).toFixed(2))),
-        );
-        return;
-      }
-
-      if (key === "-") {
-        event.preventDefault();
-        event.stopPropagation();
-        setScale((currentScale) =>
-          clampStudioPreviewScale(Number((currentScale - 0.1).toFixed(2))),
-        );
-        return;
-      }
-
-      if (key === "0") {
-        event.preventDefault();
-        event.stopPropagation();
-        setFitRequestKey((current) => current + 1);
-        return;
-      }
-
-      if (key === "1") {
-        event.preventDefault();
-        event.stopPropagation();
-        setScale(1);
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    cancelNodeCut,
-    copySelectedNode,
-    cutSelectedNode,
-    deleteActiveSelection,
-    duplicateSelectedNode,
-    groupSelectedNodes,
-    moveSelectedNodeLayer,
-    nodePicker,
-    nudgeSelectedNode,
-    pasteClipboardNode,
-    redoEditorState,
-    saveDatabaseDraft,
-    selectAllEditableNodes,
-    selectSingleNode,
-    setScale,
-    showShortcutStatus,
-    toggleSelectedNodeLock,
-    undoEditorState,
-    ungroupSelectedNodes,
-  ]);
+  useStudioKeyboardShortcuts({
+    hasCutNodes: cutNodeIds.length > 0,
+    isNodePickerOpen: Boolean(nodePicker),
+    handlers: useMemo(
+      () => ({
+        undo: undoEditorState,
+        redo: redoEditorState,
+        saveDraft: () => void saveDatabaseDraft(),
+        selectAll: selectAllEditableNodes,
+        copy: copySelectedNode,
+        cut: cutSelectedNode,
+        paste: pasteClipboardNode,
+        duplicate: duplicateSelectedNode,
+        group: groupSelectedNodes,
+        ungroup: ungroupSelectedNodes,
+        toggleLock: toggleSelectedNodeLock,
+        moveLayer: moveSelectedNodeLayer,
+        delete: deleteActiveSelection,
+        cancelCut: cancelNodeCut,
+        closeNodePicker: () => setNodePicker(null),
+        clearSelection: () => selectSingleNode(null),
+        nudge: nudgeSelectedNode,
+        zoomIn: () =>
+          setScale((currentScale) =>
+            clampStudioPreviewScale(Number((currentScale + 0.1).toFixed(2))),
+          ),
+        zoomOut: () =>
+          setScale((currentScale) =>
+            clampStudioPreviewScale(Number((currentScale - 0.1).toFixed(2))),
+          ),
+        zoomToFit: () => setFitRequestKey((currentKey) => currentKey + 1),
+        zoomReset: () => setScale(1),
+        onStatusMessage: showShortcutStatus,
+      }),
+      [
+        cancelNodeCut,
+        copySelectedNode,
+        cutSelectedNode,
+        deleteActiveSelection,
+        duplicateSelectedNode,
+        groupSelectedNodes,
+        moveSelectedNodeLayer,
+        nudgeSelectedNode,
+        pasteClipboardNode,
+        redoEditorState,
+        saveDatabaseDraft,
+        selectAllEditableNodes,
+        selectSingleNode,
+        setScale,
+        showShortcutStatus,
+        toggleSelectedNodeLock,
+        undoEditorState,
+        ungroupSelectedNodes,
+      ],
+    ),
+  });
 
   const toggleInspectorSection = (sectionKey: InspectorSectionKey) => {
     setInspectorSections((currentSections) => ({
