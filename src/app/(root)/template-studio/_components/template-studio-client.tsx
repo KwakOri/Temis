@@ -27,6 +27,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useStore } from "zustand";
 import React, {
   useCallback,
   useEffect,
@@ -37,6 +38,11 @@ import React, {
 
 import { useStudioDocumentHistory } from "@/hooks/studio/use-studio-document-history";
 import { useStudioClipboard } from "@/hooks/studio/use-studio-clipboard";
+import {
+  createStudioDocumentStore,
+  type StudioDocumentStore,
+  StudioDocumentStoreProvider,
+} from "@/stores/studio/studio-document-store";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
   useCreateTemplateStudioTemplate,
@@ -1140,12 +1146,20 @@ export function TemplateStudioClient({
   initialRemoteTemplateId = null,
 }: TemplateStudioClientProps) {
   const router = useRouter();
-  const [document, setDocument] = useState<StudioTemplateDocument>(() =>
-    createSampleStudioDocument(),
-  );
-  const [runtimeValues, setRuntimeValues] = useState<StudioRuntimeValues>(() =>
-    createInitialStudioRuntimeValues(createSampleStudioDocument()),
-  );
+  const studioStoreRef = useRef<StudioDocumentStore | null>(null);
+  if (!studioStoreRef.current) {
+    studioStoreRef.current = createStudioDocumentStore({
+      document: createSampleStudioDocument(),
+      runtimeValues: createInitialStudioRuntimeValues(
+        createSampleStudioDocument(),
+      ),
+    });
+  }
+  const studioStore = studioStoreRef.current;
+  const document = useStore(studioStore, (state) => state.document);
+  const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
+  const setDocument = studioStore.getState().setDocument;
+  const setRuntimeValues = studioStore.getState().setRuntimeValues;
   const [selectedInputId, setSelectedInputId] = useState<StudioInputId | null>(
     null,
   );
@@ -1199,8 +1213,6 @@ export function TemplateStudioClient({
   const timetableLayerAutoExpandTargetRef = useRef<string | null>(null);
   const jsonImportInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoadedRemoteTemplateIdRef = useRef<string | null>(null);
-  const documentRef = useRef(document);
-  const runtimeValuesRef = useRef(runtimeValues);
   const visibleLayerNodeIdsRef = useRef<string[]>([]);
   const {
     selectedNodeId,
@@ -1215,8 +1227,9 @@ export function TemplateStudioClient({
   } = useStudioSelection({
     getVisibleNodeIds: useCallback(() => visibleLayerNodeIdsRef.current, []),
     hasNode: useCallback(
-      (nodeId: string) => Boolean(documentRef.current.graph.nodes[nodeId]),
-      [],
+      (nodeId: string) =>
+        Boolean(studioStore.getState().document.graph.nodes[nodeId]),
+      [studioStore],
     ),
     initialNodeIds: ["node_c3"],
     onStatusMessage: setShortcutMessage,
@@ -1239,14 +1252,6 @@ export function TemplateStudioClient({
     setRemoteTemplateId(nextTemplateId);
     autoLoadedRemoteTemplateIdRef.current = null;
   }, [initialRemoteTemplateId]);
-
-  useEffect(() => {
-    documentRef.current = document;
-  }, [document]);
-
-  useEffect(() => {
-    runtimeValuesRef.current = runtimeValues;
-  }, [runtimeValues]);
 
   useEffect(() => {
     selectedInputIdRef.current = selectedInputId;
@@ -1858,7 +1863,7 @@ export function TemplateStudioClient({
 
   const jumpToInput = useCallback(
     (inputId: StudioInputId) => {
-      const input = documentRef.current.inputs[inputId];
+      const input = studioStore.getState().document.inputs[inputId];
 
       if (!input) {
         showShortcutStatus("Input no longer exists");
@@ -1870,7 +1875,7 @@ export function TemplateStudioClient({
       setPanelMode("inputs");
       showShortcutStatus(`Selected input: ${input.label}`);
     },
-    [showShortcutStatus],
+    [showShortcutStatus, studioStore],
   );
 
   const jumpToInputConsumer = useCallback(
@@ -1878,7 +1883,8 @@ export function TemplateStudioClient({
       setNodePicker(null);
 
       if (consumer.workspaceMode === "cards") {
-        const node = documentRef.current.graph.nodes[consumer.targetId];
+        const node =
+          studioStore.getState().document.graph.nodes[consumer.targetId];
 
         if (!node) {
           showShortcutStatus("Consumer object no longer exists");
@@ -1890,7 +1896,8 @@ export function TemplateStudioClient({
         while (parentId) {
           ancestorIds.push(parentId);
           parentId =
-            documentRef.current.graph.nodes[parentId]?.parentId ?? null;
+            studioStore.getState().document.graph.nodes[parentId]?.parentId ??
+            null;
         }
 
         setWorkspaceMode("cards");
@@ -1904,7 +1911,7 @@ export function TemplateStudioClient({
       }
 
       const composition = getStudioTimetableComposition(
-        documentRef.current.domains?.timetable,
+        studioStore.getState().document.domains?.timetable,
       );
       const object = composition.objects[consumer.targetId];
 
@@ -1919,7 +1926,7 @@ export function TemplateStudioClient({
       setSelectedTimetableLayerId(object.id);
       showShortcutStatus(`Selected object: ${object.label}`);
     },
-    [selectSingleNode, showShortcutStatus],
+    [selectSingleNode, showShortcutStatus, studioStore],
   );
 
   const toggleLayerGroupCollapsed = useCallback((nodeId: string) => {
@@ -1939,7 +1946,7 @@ export function TemplateStudioClient({
   }, []);
 
   const selectAllEditableNodes = useCallback(() => {
-    const nodeIds = getStudioEditableNodeIds(documentRef.current);
+    const nodeIds = getStudioEditableNodeIds(studioStore.getState().document);
     if (nodeIds.length === 0) {
       showShortcutStatus("No editable objects");
       return;
@@ -1948,27 +1955,25 @@ export function TemplateStudioClient({
     applyNodeSelection(nodeIds, selectedNodeIdRef.current);
     setPanelMode("layers");
     showShortcutStatus(`Selected ${nodeIds.length} objects`);
-  }, [applyNodeSelection, selectedNodeIdRef, showShortcutStatus]);
+  }, [applyNodeSelection, selectedNodeIdRef, showShortcutStatus, studioStore]);
 
   const createHistorySnapshot = useCallback((): StudioEditorHistorySnapshot => {
     return {
-      document: cloneDocument(documentRef.current),
-      runtimeValues: cloneRuntimeValues(runtimeValuesRef.current),
+      document: cloneDocument(studioStore.getState().document),
+      runtimeValues: cloneRuntimeValues(studioStore.getState().runtimeValues),
       selectedNodeId: selectedNodeIdRef.current,
       selectedNodeIds: [...selectedNodeIdsRef.current],
       selectedInputId: selectedInputIdRef.current,
       selectedRuntimeDayId: selectedRuntimeDayIdRef.current,
       selectedRuntimeEntryIndex: selectedRuntimeEntryIndexRef.current,
     };
-  }, [selectedNodeIdRef, selectedNodeIdsRef]);
+  }, [selectedNodeIdRef, selectedNodeIdsRef, studioStore]);
 
   const restoreHistorySnapshot = useCallback(
     (snapshot: StudioEditorHistorySnapshot) => {
       const nextDocument = cloneDocument(snapshot.document);
       const nextRuntimeValues = cloneRuntimeValues(snapshot.runtimeValues);
 
-      documentRef.current = nextDocument;
-      runtimeValuesRef.current = nextRuntimeValues;
       selectedInputIdRef.current = snapshot.selectedInputId;
       selectedRuntimeDayIdRef.current = snapshot.selectedRuntimeDayId;
       selectedRuntimeEntryIndexRef.current = snapshot.selectedRuntimeEntryIndex;
@@ -1981,7 +1986,7 @@ export function TemplateStudioClient({
       setSelectedRuntimeEntryIndex(snapshot.selectedRuntimeEntryIndex);
       setNodePicker(null);
     },
-    [restoreSelection],
+    [restoreSelection, setDocument, setRuntimeValues],
   );
 
   const {
@@ -2002,12 +2007,12 @@ export function TemplateStudioClient({
   }, [redoDocumentHistory, showShortcutStatus]);
 
   const exportStudioJson = useCallback(() => {
-    const currentDocument = documentRef.current;
+    const currentDocument = studioStore.getState().document;
     const exportDiagnostics = [
       ...validateStudioDocument(currentDocument),
       ...validateStudioRuntimeValuesForDocument(
         currentDocument,
-        runtimeValuesRef.current,
+        studioStore.getState().runtimeValues,
       ),
     ];
     const blockingDiagnostics =
@@ -2028,7 +2033,7 @@ export function TemplateStudioClient({
 
     const payload = createStudioTemplateExportPayload(
       currentDocument,
-      runtimeValuesRef.current,
+      studioStore.getState().runtimeValues,
     );
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json",
@@ -2045,7 +2050,7 @@ export function TemplateStudioClient({
         ? `Exported JSON with ${diagnosticsSummary.warningCount} warning(s)`
         : "Exported JSON",
     );
-  }, [showShortcutStatus]);
+  }, [showShortcutStatus, studioStore]);
 
   const importStudioJsonFile = useCallback(
     async (file: File) => {
@@ -2077,8 +2082,6 @@ export function TemplateStudioClient({
 
       captureHistory();
 
-      documentRef.current = nextDocument;
-      runtimeValuesRef.current = nextRuntimeValues;
       selectedInputIdRef.current = nextSelectedInputId;
       selectedRuntimeDayIdRef.current = nextRuntimeDayId;
       selectedRuntimeEntryIndexRef.current = 0;
@@ -2113,7 +2116,13 @@ export function TemplateStudioClient({
               : "Imported JSON",
       );
     },
-    [captureHistory, restoreSelection, showShortcutStatus],
+    [
+      captureHistory,
+      restoreSelection,
+      setDocument,
+      setRuntimeValues,
+      showShortcutStatus,
+    ],
   );
 
   const ensureRemoteTemplateId = useCallback(async (): Promise<string> => {
@@ -2121,7 +2130,7 @@ export function TemplateStudioClient({
       return remoteTemplateId;
     }
 
-    const currentDocument = documentRef.current;
+    const currentDocument = studioStore.getState().document;
     const created = await createTemplateStudioTemplateMutation.mutateAsync({
       name: currentDocument.metadata.name.trim() || "Untitled Template",
       description: currentDocument.metadata.description ?? "",
@@ -2129,7 +2138,7 @@ export function TemplateStudioClient({
 
     setRemoteTemplateId(created.template.id);
     return created.template.id;
-  }, [createTemplateStudioTemplateMutation, remoteTemplateId]);
+  }, [createTemplateStudioTemplateMutation, remoteTemplateId, studioStore]);
 
   const applyRemoteTemplateState = useCallback(
     (
@@ -2149,8 +2158,6 @@ export function TemplateStudioClient({
 
       captureHistory();
 
-      documentRef.current = nextDocument;
-      runtimeValuesRef.current = normalizedRuntimeValues;
       selectedInputIdRef.current = nextSelectedInputId;
       selectedRuntimeDayIdRef.current = nextRuntimeDayId;
       selectedRuntimeEntryIndexRef.current = 0;
@@ -2172,7 +2179,13 @@ export function TemplateStudioClient({
       setNodePicker(null);
       showShortcutStatus(message);
     },
-    [captureHistory, restoreSelection, showShortcutStatus],
+    [
+      captureHistory,
+      restoreSelection,
+      setDocument,
+      setRuntimeValues,
+      showShortcutStatus,
+    ],
   );
 
   useEffect(() => {
@@ -2210,7 +2223,7 @@ export function TemplateStudioClient({
 
   const ensureTemplateStudioAssetsSynced = useCallback(
     async (templateId: string): Promise<StudioTemplateDocument> => {
-      const currentDocument = documentRef.current;
+      const currentDocument = studioStore.getState().document;
       const nextDocument = cloneDocument(currentDocument);
       const remoteAssetsById = new Map(
         (templateStudioTemplateQuery.data?.assets ?? []).map((asset) => [
@@ -2320,7 +2333,6 @@ export function TemplateStudioClient({
         return currentDocument;
       }
 
-      documentRef.current = nextDocument;
       setDocument(nextDocument);
 
       if (syncAssets.length > 0) {
@@ -2330,7 +2342,9 @@ export function TemplateStudioClient({
       return nextDocument;
     },
     [
+      setDocument,
       showShortcutStatus,
+      studioStore,
       syncTemplateStudioAssetsMutation,
       templateStudioTemplateQuery.data?.assets,
     ],
@@ -2387,7 +2401,7 @@ export function TemplateStudioClient({
         templateId,
         payload: {
           document: nextDocument,
-          runtimeValues: runtimeValuesRef.current,
+          runtimeValues: studioStore.getState().runtimeValues,
           baseRevisionNo: latestRevisionNo,
           isAutosave: false,
         },
@@ -2403,6 +2417,7 @@ export function TemplateStudioClient({
     ensureTemplateStudioAssetsSynced,
     saveTemplateStudioDraftMutation,
     showShortcutStatus,
+    studioStore,
     templateStudioTemplateQuery.data?.latestRevisionNo,
   ]);
 
@@ -2415,7 +2430,7 @@ export function TemplateStudioClient({
           templateId,
           payload: {
             document: nextDocument,
-            runtimeValues: runtimeValuesRef.current,
+            runtimeValues: studioStore.getState().runtimeValues,
           },
         },
       );
@@ -2430,6 +2445,7 @@ export function TemplateStudioClient({
     ensureTemplateStudioAssetsSynced,
     publishTemplateStudioDocumentMutation,
     showShortcutStatus,
+    studioStore,
   ]);
 
   const openRuntimeDraftPreview = useCallback(async () => {
@@ -2443,7 +2459,7 @@ export function TemplateStudioClient({
         templateId,
         payload: {
           document: syncedDocument,
-          runtimeValues: runtimeValuesRef.current,
+          runtimeValues: studioStore.getState().runtimeValues,
           baseRevisionNo: latestRevisionNo,
           isAutosave: false,
         },
@@ -2466,6 +2482,7 @@ export function TemplateStudioClient({
     ensureTemplateStudioAssetsSynced,
     saveTemplateStudioDraftMutation,
     showShortcutStatus,
+    studioStore,
     templateStudioTemplateQuery.data?.latestRevisionNo,
   ]);
 
@@ -2492,18 +2509,17 @@ export function TemplateStudioClient({
         captureHistory();
       }
 
-      const nextDocument = cloneDocument(documentRef.current);
+      const nextDocument = cloneDocument(studioStore.getState().document);
       updater(nextDocument);
       applyStudioTimetableComponentFrames(nextDocument);
-      documentRef.current = nextDocument;
       setDocument(nextDocument);
     },
-    [captureHistory],
+    [captureHistory, setDocument, studioStore],
   );
 
   const selectCardComponent = useCallback(
     (componentId: StudioTimetableComponentId) => {
-      const nextDocument = documentRef.current;
+      const nextDocument = studioStore.getState().document;
       const component =
         nextDocument.domains?.timetable?.components[componentId];
       if (!component) return;
@@ -2520,7 +2536,7 @@ export function TemplateStudioClient({
         restoreSelection([rootNodeId], rootNodeId);
       }
     },
-    [restoreSelection, selectedCardStatusId],
+    [restoreSelection, selectedCardStatusId, studioStore],
   );
 
   const duplicateSelectedCardComponent = () => {
@@ -2569,7 +2585,7 @@ export function TemplateStudioClient({
   const deleteSelectedCardComponent = () => {
     if (!activeCardComponentId) return;
     const reason = getStudioTimetableComponentSetDeleteReason(
-      documentRef.current,
+      studioStore.getState().document,
       activeCardComponentId,
     );
     if (reason) {
@@ -2591,7 +2607,7 @@ export function TemplateStudioClient({
       return;
     }
 
-    const timetable = documentRef.current.domains?.timetable;
+    const timetable = studioStore.getState().document.domains?.timetable;
     const fallbackComponentId = timetable?.entryComponentId;
     if (fallbackComponentId) selectCardComponent(fallbackComponentId);
     showShortcutStatus("Component set deleted");
@@ -2767,7 +2783,7 @@ export function TemplateStudioClient({
     delta: { deltaX: number; deltaY: number },
   ) => {
     const targetNodeIds = resolveStudioDragTargetNodeIds(
-      documentRef.current,
+      studioStore.getState().document,
       selectedNodeIdsRef.current,
       nodeId,
     );
@@ -2785,7 +2801,7 @@ export function TemplateStudioClient({
   const moveNodeByKeyboard = useCallback(
     (nodeIds: string[], deltaX: number, deltaY: number) => {
       const targetNodeIds = getStudioTopLevelNodeIds(
-        documentRef.current,
+        studioStore.getState().document,
         nodeIds,
       );
       if (targetNodeIds.length === 0) return;
@@ -2797,7 +2813,7 @@ export function TemplateStudioClient({
         });
       });
     },
-    [updateDocument],
+    [studioStore, updateDocument],
   );
   const addNode = (type: StudioGraphNodeType) => {
     const plan = planStudioAddNode(document, type, selectedNode);
@@ -3840,7 +3856,7 @@ export function TemplateStudioClient({
 
   const setTimetableCapability = useCallback(
     (capabilityKey: StudioTimetableCapabilityKey, enabled: boolean) => {
-      const currentDocument = documentRef.current;
+      const currentDocument = studioStore.getState().document;
       const timetable = currentDocument.domains?.timetable;
       if (!timetable) return;
 
@@ -3850,8 +3866,9 @@ export function TemplateStudioClient({
       if (
         capabilityKey === "multi" &&
         !enabled &&
-        getStudioTimetableDaysWithMultipleEntries(runtimeValuesRef.current)
-          .length > 0
+        getStudioTimetableDaysWithMultipleEntries(
+          studioStore.getState().runtimeValues,
+        ).length > 0
       ) {
         showShortcutStatus(
           "Remove extra entries before disabling Multi Status",
@@ -3876,12 +3893,10 @@ export function TemplateStudioClient({
       }
 
       const nextRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
-        cloneRuntimeValues(runtimeValuesRef.current),
+        cloneRuntimeValues(studioStore.getState().runtimeValues),
         nextCapabilities,
       );
 
-      documentRef.current = nextDocument;
-      runtimeValuesRef.current = nextRuntimeValues;
       setDocument(nextDocument);
       setRuntimeValues(nextRuntimeValues);
       showShortcutStatus(
@@ -3890,7 +3905,13 @@ export function TemplateStudioClient({
         }`,
       );
     },
-    [captureHistory, showShortcutStatus],
+    [
+      captureHistory,
+      setDocument,
+      setRuntimeValues,
+      showShortcutStatus,
+      studioStore,
+    ],
   );
 
   const deleteSelectedNode = useCallback(() => {
@@ -3967,7 +3988,10 @@ export function TemplateStudioClient({
     paste: pasteClipboardNode,
     cancelCut: cancelNodeCut,
   } = useStudioClipboard({
-    getDocument: useCallback(() => documentRef.current, []),
+    getDocument: useCallback(
+      () => studioStore.getState().document,
+      [studioStore],
+    ),
     getSelectedNodeIds: useCallback(
       () => selectedNodeIdsRef.current,
       [selectedNodeIdsRef],
@@ -4364,23 +4388,27 @@ export function TemplateStudioClient({
     onToggle: () => toggleInspectorSection(sectionKey),
   });
 
-  const getLayerDropPositionFromEvent = (
-    event: React.DragEvent<HTMLElement>,
-    targetNodeId: string,
-  ): StudioGraphDropPosition => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const offsetRatio =
-      bounds.height > 0 ? (event.clientY - bounds.top) / bounds.height : 0.5;
-    const targetNode = documentRef.current.graph.nodes[targetNodeId];
+  const getLayerDropPositionFromEvent = useCallback(
+    (
+      event: React.DragEvent<HTMLElement>,
+      targetNodeId: string,
+    ): StudioGraphDropPosition => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      const offsetRatio =
+        bounds.height > 0 ? (event.clientY - bounds.top) / bounds.height : 0.5;
+      const targetNode =
+        studioStore.getState().document.graph.nodes[targetNodeId];
 
-    if (targetNode?.type !== "group") {
-      return offsetRatio < 0.5 ? "before" : "after";
-    }
+      if (targetNode?.type !== "group") {
+        return offsetRatio < 0.5 ? "before" : "after";
+      }
 
-    if (offsetRatio < 0.25) return "before";
-    if (offsetRatio > 0.75) return "after";
-    return "inside";
-  };
+      if (offsetRatio < 0.25) return "before";
+      if (offsetRatio > 0.75) return "after";
+      return "inside";
+    },
+    [studioStore],
+  );
 
   const getLayerDropValidation = useCallback(
     (
@@ -4388,18 +4416,21 @@ export function TemplateStudioClient({
       targetNodeId: string,
       position: StudioGraphDropPosition,
     ) => {
-      const validation = validateStudioGraphMove(documentRef.current, {
-        sourceNodeIds,
-        targetNodeId,
-        position: getStudioDataDropPosition(position),
-      });
+      const validation = validateStudioGraphMove(
+        studioStore.getState().document,
+        {
+          sourceNodeIds,
+          targetNodeId,
+          position: getStudioDataDropPosition(position),
+        },
+      );
 
       if (!validation.ok) return validation;
 
       const timetableMountNodeId =
-        documentRef.current.domains?.timetable?.mountNodeId;
+        studioStore.getState().document.domains?.timetable?.mountNodeId;
       const mountNode = timetableMountNodeId
-        ? documentRef.current.graph.nodes[timetableMountNodeId]
+        ? studioStore.getState().document.graph.nodes[timetableMountNodeId]
         : null;
 
       if (
@@ -4416,19 +4447,21 @@ export function TemplateStudioClient({
 
       const protectedCardNodeIds = new Set<string>();
       Object.values(
-        documentRef.current.domains?.timetable?.components ?? {},
+        studioStore.getState().document.domains?.timetable?.components ?? {},
       ).forEach((component) => {
         Object.values(component.variants).forEach((variant) =>
           protectedCardNodeIds.add(variant.rootNodeId),
         );
       });
-      Object.values(documentRef.current.graph.nodes).forEach((node) => {
-        if (node.meta?.entrySlot) protectedCardNodeIds.add(node.id);
-      });
+      Object.values(studioStore.getState().document.graph.nodes).forEach(
+        (node) => {
+          if (node.meta?.entrySlot) protectedCardNodeIds.add(node.id);
+        },
+      );
       const movesProtectedStructure = validation.sourceNodeIds.some(
         (nodeId) => {
           if (!protectedCardNodeIds.has(nodeId)) return false;
-          const node = documentRef.current.graph.nodes[nodeId];
+          const node = studioStore.getState().document.graph.nodes[nodeId];
           return validation.targetParentId !== (node?.parentId ?? null);
         },
       );
@@ -4442,7 +4475,7 @@ export function TemplateStudioClient({
 
       return validation;
     },
-    [],
+    [studioStore],
   );
 
   const clearLayerDragState = useCallback(() => {
@@ -4490,7 +4523,7 @@ export function TemplateStudioClient({
 
   const handleLayerDragStart = useCallback(
     (event: React.DragEvent<HTMLElement>, nodeId: string) => {
-      const node = documentRef.current.graph.nodes[nodeId];
+      const node = studioStore.getState().document.graph.nodes[nodeId];
       if (!node || isStudioNodeLocked(node)) {
         event.preventDefault();
         showShortcutStatus("Object is locked");
@@ -4499,12 +4532,14 @@ export function TemplateStudioClient({
 
       const sourceNodeIds = selectedNodeIdsRef.current.includes(nodeId)
         ? getStudioTopLevelNodeIds(
-            documentRef.current,
+            studioStore.getState().document,
             selectedNodeIdsRef.current,
           )
         : [nodeId];
       const hasLockedSource = sourceNodeIds.some((sourceNodeId) =>
-        isStudioNodeLocked(documentRef.current.graph.nodes[sourceNodeId]),
+        isStudioNodeLocked(
+          studioStore.getState().document.graph.nodes[sourceNodeId],
+        ),
       );
 
       if (hasLockedSource) {
@@ -4525,7 +4560,7 @@ export function TemplateStudioClient({
       };
       setLayerDropState(null);
     },
-    [selectSingleNode, selectedNodeIdsRef, showShortcutStatus],
+    [selectedNodeIdsRef, selectSingleNode, showShortcutStatus, studioStore],
   );
 
   const handleLayerDragOver = useCallback(
@@ -4542,7 +4577,8 @@ export function TemplateStudioClient({
         targetNodeId,
         position,
       );
-      const targetNode = documentRef.current.graph.nodes[targetNodeId];
+      const targetNode =
+        studioStore.getState().document.graph.nodes[targetNodeId];
 
       scheduleLayerGroupAutoExpand(
         targetNodeId,
@@ -4562,8 +4598,10 @@ export function TemplateStudioClient({
     },
     [
       collapsedLayerGroupIds,
+      getLayerDropPositionFromEvent,
       getLayerDropValidation,
       scheduleLayerGroupAutoExpand,
+      studioStore,
     ],
   );
 
@@ -4629,6 +4667,7 @@ export function TemplateStudioClient({
     [
       applyNodeSelection,
       clearLayerDragState,
+      getLayerDropPositionFromEvent,
       getLayerDropValidation,
       layerDropState,
       showShortcutStatus,
@@ -8072,714 +8111,724 @@ export function TemplateStudioClient({
   ];
 
   return (
-    <StudioEditorShell
-      canvas={
-        <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
-          <StudioCanvasViewport
-            canvasHeight={previewCanvasSize.height}
-            canvasWidth={previewCanvasSize.width}
-            fitRequestKey={fitRequestKey}
-            scale={scale}
-            onScaleChange={setScale}
-            onMoveNode={
-              activeWorkspaceMode === "cards"
-                ? moveCanvasNode
-                : moveTimetableCanvasLayer
-            }
-            onMoveNodeStart={
-              activeWorkspaceMode === "cards"
-                ? (nodeId) => {
-                    const targetNodeIds = selectedNodeIdsRef.current.includes(
-                      nodeId,
-                    )
-                      ? getStudioTopLevelNodeIds(
-                          documentRef.current,
-                          selectedNodeIdsRef.current,
-                        )
-                      : [nodeId];
-                    const hasLockedTarget = targetNodeIds.some((targetNodeId) =>
-                      isStudioNodeLocked(
-                        documentRef.current.graph.nodes[targetNodeId],
-                      ),
-                    );
-
-                    if (hasLockedTarget) {
-                      showShortcutStatus("Selection includes locked object");
-                      return false;
-                    }
-
-                    const hasFitTarget = targetNodeIds.some((targetNodeId) =>
-                      isStudioFillParentLayout(
-                        documentRef.current.graph.nodes[targetNodeId]
-                          ?.layoutMode,
-                      ),
-                    );
-                    if (hasFitTarget) {
-                      showShortcutStatus("Disable Fit to move this object");
-                      return false;
-                    }
-
-                    captureHistory();
-                    return true;
-                  }
-                : (layerId) => {
-                    const composition = getStudioTimetableComposition(
-                      documentRef.current.domains?.timetable,
-                    );
-                    const object = composition.objects[layerId];
-
-                    if (!object && !layerId.startsWith("day-card:")) {
-                      return false;
-                    }
-
-                    if (object?.locked) {
-                      showShortcutStatus("Object is locked");
-                      return false;
-                    }
-
-                    if (isStudioFillParentLayout(object?.layoutMode)) {
-                      showShortcutStatus("Disable Fit to move this object");
-                      return false;
-                    }
-
-                    selectTimetableCanvasLayer(layerId);
-                    captureHistory();
-                    return true;
-                  }
-            }
-            onOpenNodePicker={({ clientX, clientY, nodeIds }) => {
-              const selectableNodeIds =
+    <StudioDocumentStoreProvider value={studioStore}>
+      <StudioEditorShell
+        canvas={
+          <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
+            <StudioCanvasViewport
+              canvasHeight={previewCanvasSize.height}
+              canvasWidth={previewCanvasSize.width}
+              fitRequestKey={fitRequestKey}
+              scale={scale}
+              onScaleChange={setScale}
+              onMoveNode={
                 activeWorkspaceMode === "cards"
-                  ? nodeIds.filter((nodeId) => document.graph.nodes[nodeId])
-                  : nodeIds.filter((nodeId) => timetablePickerNodes[nodeId]);
-              const uniqueNodeIds = [...new Set(selectableNodeIds)];
-              if (uniqueNodeIds.length === 0) {
-                setNodePicker(null);
-                return;
+                  ? moveCanvasNode
+                  : moveTimetableCanvasLayer
               }
+              onMoveNodeStart={
+                activeWorkspaceMode === "cards"
+                  ? (nodeId) => {
+                      const targetNodeIds = selectedNodeIdsRef.current.includes(
+                        nodeId,
+                      )
+                        ? getStudioTopLevelNodeIds(
+                            studioStore.getState().document,
+                            selectedNodeIdsRef.current,
+                          )
+                        : [nodeId];
+                      const hasLockedTarget = targetNodeIds.some(
+                        (targetNodeId) =>
+                          isStudioNodeLocked(
+                            studioStore.getState().document.graph.nodes[
+                              targetNodeId
+                            ],
+                          ),
+                      );
 
-              setNodePicker({
-                x: clientX,
-                y: clientY,
-                nodeIds: uniqueNodeIds,
-              });
-            }}
-            resolveDragNodeId={
-              activeWorkspaceMode === "timetable"
-                ? resolveTimetableDragLayerId
-                : undefined
-            }
-            onSelectNode={
-              activeWorkspaceMode === "cards"
-                ? (nodeId) => {
-                    if (selectedNodeIdsRef.current.includes(nodeId)) {
-                      return;
+                      if (hasLockedTarget) {
+                        showShortcutStatus("Selection includes locked object");
+                        return false;
+                      }
+
+                      const hasFitTarget = targetNodeIds.some((targetNodeId) =>
+                        isStudioFillParentLayout(
+                          studioStore.getState().document.graph.nodes[
+                            targetNodeId
+                          ]?.layoutMode,
+                        ),
+                      );
+                      if (hasFitTarget) {
+                        showShortcutStatus("Disable Fit to move this object");
+                        return false;
+                      }
+
+                      captureHistory();
+                      return true;
                     }
+                  : (layerId) => {
+                      const composition = getStudioTimetableComposition(
+                        studioStore.getState().document.domains?.timetable,
+                      );
+                      const object = composition.objects[layerId];
 
-                    selectSingleNode(nodeId);
-                    setNodePicker(null);
-                  }
-                : selectTimetableCanvasLayer
-            }
-          >
-            {activeWorkspaceMode === "timetable" ? (
-              <div
-                className="relative"
-                style={{
-                  width: previewCanvasSize.width,
-                  height: previewCanvasSize.height,
-                }}
-              >
-                <StudioTimetablePreview
-                  document={document}
-                  onSelectLayer={selectTimetableCanvasLayer}
-                  runtimeValues={runtimeValues}
-                  selectedLayerId={selectedTimetableLayerId}
-                  variantMode="authoring"
-                />
-                {timetableGuideAsset && timetableGuide.visible ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
-                    data-studio-timetable-guide="true"
-                    draggable={false}
-                    src={timetableGuideAsset.src}
-                    style={{
-                      objectFit: "fill",
-                      opacity: timetableGuide.opacity,
-                    }}
-                  />
-                ) : null}
-              </div>
-            ) : (
-              <div
-                className="relative"
-                style={{
-                  width: document.canvas.width,
-                  height: document.canvas.height,
-                }}
-              >
-                <StudioRenderer
-                  document={document}
-                  rootNodeIds={cardAuthoringRootNodeIds}
-                  runtimeContext={
-                    activeRuntimeDayId
-                      ? {
-                          dayId: activeRuntimeDayId,
-                          entryIndex: 0,
-                        }
-                      : undefined
-                  }
-                  runtimeValues={cardAuthoringRuntimeValues}
-                  selectedNodeId={selectedNodeId}
-                  selectedNodeIds={selectedNodeIds}
-                  onSelectNode={(nodeId, event) => {
-                    if (!nodeId) {
-                      selectSingleNode(null);
-                      setNodePicker(null);
-                      return;
+                      if (!object && !layerId.startsWith("day-card:")) {
+                        return false;
+                      }
+
+                      if (object?.locked) {
+                        showShortcutStatus("Object is locked");
+                        return false;
+                      }
+
+                      if (isStudioFillParentLayout(object?.layoutMode)) {
+                        showShortcutStatus("Disable Fit to move this object");
+                        return false;
+                      }
+
+                      selectTimetableCanvasLayer(layerId);
+                      captureHistory();
+                      return true;
                     }
+              }
+              onOpenNodePicker={({ clientX, clientY, nodeIds }) => {
+                const selectableNodeIds =
+                  activeWorkspaceMode === "cards"
+                    ? nodeIds.filter((nodeId) => document.graph.nodes[nodeId])
+                    : nodeIds.filter((nodeId) => timetablePickerNodes[nodeId]);
+                const uniqueNodeIds = [...new Set(selectableNodeIds)];
+                if (uniqueNodeIds.length === 0) {
+                  setNodePicker(null);
+                  return;
+                }
 
-                    if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
-                      toggleNodeSelection(nodeId);
-                    } else {
-                      selectSingleNode(nodeId);
-                    }
-                    setNodePicker(null);
-                  }}
-                />
-                {cardsGuideAsset && cardsGuide.visible ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt=""
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
-                    data-studio-cards-guide="true"
-                    draggable={false}
-                    src={cardsGuideAsset.src}
-                    style={{
-                      objectFit: "fill",
-                      opacity: cardsGuide.opacity,
-                    }}
-                  />
-                ) : null}
-              </div>
-            )}
-          </StudioCanvasViewport>
-
-          {nodePicker ? (
-            <StudioNodePickerMenu
-              document={activeWorkspaceMode === "cards" ? document : undefined}
-              nodes={
+                setNodePicker({
+                  x: clientX,
+                  y: clientY,
+                  nodeIds: uniqueNodeIds,
+                });
+              }}
+              resolveDragNodeId={
                 activeWorkspaceMode === "timetable"
-                  ? timetablePickerNodes
+                  ? resolveTimetableDragLayerId
                   : undefined
               }
-              nodeIds={nodePicker.nodeIds}
-              position={{ x: nodePicker.x, y: nodePicker.y }}
-              selectedNodeId={
+              onSelectNode={
                 activeWorkspaceMode === "cards"
-                  ? selectedNodeId
-                  : selectedTimetableLayerId
-              }
-              onClose={() => setNodePicker(null)}
-              onSelectNode={(nodeId) => {
-                if (activeWorkspaceMode === "cards") {
-                  selectSingleNode(nodeId);
-                } else {
-                  selectTimetableCanvasLayer(nodeId);
-                }
-                setNodePicker(null);
-              }}
-            />
-          ) : null}
+                  ? (nodeId) => {
+                      if (selectedNodeIdsRef.current.includes(nodeId)) {
+                        return;
+                      }
 
-          {shortcutMessage ? (
-            <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-semibold text-[var(--fg)] shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
-              {shortcutMessage}
-            </div>
-          ) : null}
-        </section>
-      }
-      leftSidebar={
-        <StudioLeftSidebar
-          activeTabId={activePanelMode}
-          content={
-            activePanelMode === "layers" ? (
-              activeWorkspaceMode === "timetable" ? (
-                renderTimetableLayersPanel()
-              ) : (
-                <StudioLayerPanel
-                  collapsedNodeIds={collapsedLayerGroupIdsSet}
-                  cutNodeIds={cutLayerNodeIdsSet}
-                  dropState={layerDropState}
-                  graph={document.graph}
-                  rootNodeIds={cardAuthoringRootNodeIds}
-                  selectedNodeIds={selectedNodeIdsSet}
-                  summary={`${cardAuthoringRootNodeIds.length} placed objects`}
-                  title="Cards Layers"
-                  onDragEnd={clearLayerDragState}
-                  onDragOver={handleLayerDragOver}
-                  onDragStart={handleLayerDragStart}
-                  onDrop={handleLayerDrop}
-                  onIndicatorDragOver={handleLayerIndicatorDragOver}
-                  onSelect={(nodeId, event) => {
-                    if (event.shiftKey) {
-                      selectLayerNodeRange(
-                        nodeId,
-                        event.metaKey || event.ctrlKey,
-                      );
-                    } else if (event.metaKey || event.ctrlKey) {
-                      toggleNodeSelection(nodeId);
-                    } else {
                       selectSingleNode(nodeId);
+                      setNodePicker(null);
                     }
-                    setPanelMode("layers");
+                  : selectTimetableCanvasLayer
+              }
+            >
+              {activeWorkspaceMode === "timetable" ? (
+                <div
+                  className="relative"
+                  style={{
+                    width: previewCanvasSize.width,
+                    height: previewCanvasSize.height,
                   }}
-                  onToggleCollapsed={toggleLayerGroupCollapsed}
-                />
-              )
-            ) : activePanelMode === "presets" ? (
-              activeWorkspaceMode === "timetable" ? (
-                renderTimetablePresetsPanel()
-              ) : (
-                renderCardsPresetsPanel()
-              )
-            ) : activePanelMode === "inputs" ? (
-              <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
-                <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-                  Input Blocks
-                </div>
-                <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
-                  {STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => (
-                    <button
-                      className={cn(
-                        "h-7 rounded-md text-[11px] font-bold transition",
-                        inputScopeFilter === scope
-                          ? "bg-[var(--accent)] text-white"
-                          : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                      )}
-                      key={scope}
-                      type="button"
-                      onClick={() => setInputScopeFilter(scope)}
-                    >
-                      {getInputScopeLabel(scope)}
-                      <span className="ml-1 opacity-70">
-                        {runtimeInputsByScope[scope].length}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-                <div className="mb-3 grid grid-cols-3 gap-1">
-                  {(["text", "image", "select"] as const).map((type) => (
-                    <button
-                      className="flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-                      key={type}
-                      type="button"
-                      onClick={() => addInput(type)}
-                    >
-                      <Plus size={12} />
-                      {getStudioInputTypeLabel(type)}
-                    </button>
-                  ))}
-                </div>
-                <div className="grid gap-2">
-                  {filteredInputs.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-[var(--field-border)] bg-[var(--field)] px-3 py-4 text-center text-[12px] font-semibold text-[var(--fg3)]">
-                      No {getInputScopeLabel(inputScopeFilter).toLowerCase()}{" "}
-                      inputs
-                    </div>
-                  ) : null}
-                  {filteredInputs.map((input, index) => (
-                    <button
-                      className={cn(
-                        "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-[12.5px] transition",
-                        selectedInputId === input.id
-                          ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--fg)]"
-                          : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg)] hover:border-[var(--accent)]",
-                      )}
-                      key={input.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedInputId(input.id);
-                        setPanelMode("inputs");
-                      }}
-                    >
-                      <span
-                        className={cn(
-                          "h-2 w-2 shrink-0 rounded-sm",
-                          index % 3 === 0
-                            ? "bg-[var(--accent)]"
-                            : index % 3 === 1
-                              ? "bg-violet-400"
-                              : "bg-orange-300",
-                        )}
-                      />
-                      <span className="min-w-0 flex-1 truncate">
-                        {input.label} · {getStudioInputTypeLabel(input.type)}
-                      </span>
-                      <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
-                        {input.scope}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              renderTimetablePanel()
-            )
-          }
-          contextHeader={
-            activeWorkspaceMode === "cards" ? (
-              <div className="grid gap-2 border-b border-[var(--border)] p-2">
-                <div className="grid gap-1.5">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--fg3)]">
-                    Component Set
-                  </span>
-                  <div className="flex min-w-0 gap-1">
-                    <select
-                      aria-label="Component set"
-                      className="h-8 min-w-0 flex-1 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                      value={activeCardComponentId}
-                      onChange={(event) =>
-                        selectCardComponent(event.currentTarget.value)
-                      }
-                    >
-                      {cardComponentOptions.map((component) => (
-                        <option key={component.id} value={component.id}>
-                          {component.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      aria-label="Duplicate component set"
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-40"
-                      disabled={!cardEntryComponent}
-                      title="Duplicate component set"
-                      type="button"
-                      onClick={duplicateSelectedCardComponent}
-                    >
-                      <Copy size={13} />
-                    </button>
-                    <button
-                      aria-label="Delete component set"
-                      className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-rose-400/60 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
-                      disabled={Boolean(cardComponentDeleteReason)}
-                      title={
-                        cardComponentDeleteReason ?? "Delete component set"
-                      }
-                      type="button"
-                      onClick={deleteSelectedCardComponent}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                  <input
-                    aria-label="Component set name"
-                    className="h-8 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:opacity-40"
-                    disabled={!cardEntryComponent}
-                    placeholder="Component set name"
-                    value={componentLabelDraft}
-                    onBlur={commitSelectedCardComponentLabel}
-                    onChange={(event) =>
-                      setComponentLabelDraft(event.currentTarget.value)
-                    }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.currentTarget.blur();
-                      if (event.key === "Escape") {
-                        event.preventDefault();
-                        setComponentLabelDraft(cardEntryComponent?.label ?? "");
-                      }
-                    }}
+                >
+                  <StudioTimetablePreview
+                    document={document}
+                    onSelectLayer={selectTimetableCanvasLayer}
+                    runtimeValues={runtimeValues}
+                    selectedLayerId={selectedTimetableLayerId}
+                    variantMode="authoring"
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
-                  {cardStatusOptions.map((status) => (
-                    <button
-                      className={cn(
-                        "h-8 rounded-md px-2 text-[11px] font-bold transition",
-                        selectedCardStatusId === status.id
-                          ? "bg-[var(--accent)] text-white"
-                          : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                      )}
-                      key={status.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedCardStatusId(status.id);
-                        const resolution =
-                          resolveStudioTimetableComponentVariant(
-                            document,
-                            cardEntryComponent,
-                            status.id,
-                          );
-                        const rootNodeId = resolution?.variant.rootNodeId;
-                        if (rootNodeId) {
-                          restoreSelection([rootNodeId], rootNodeId);
-                        }
+                  {timetableGuideAsset && timetableGuide.visible ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt=""
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
+                      data-studio-timetable-guide="true"
+                      draggable={false}
+                      src={timetableGuideAsset.src}
+                      style={{
+                        objectFit: "fill",
+                        opacity: timetableGuide.opacity,
                       }}
-                    >
-                      {status.label}
-                    </button>
-                  ))}
+                    />
+                  ) : null}
                 </div>
+              ) : (
+                <div
+                  className="relative"
+                  style={{
+                    width: document.canvas.width,
+                    height: document.canvas.height,
+                  }}
+                >
+                  <StudioRenderer
+                    document={document}
+                    rootNodeIds={cardAuthoringRootNodeIds}
+                    runtimeContext={
+                      activeRuntimeDayId
+                        ? {
+                            dayId: activeRuntimeDayId,
+                            entryIndex: 0,
+                          }
+                        : undefined
+                    }
+                    runtimeValues={cardAuthoringRuntimeValues}
+                    selectedNodeId={selectedNodeId}
+                    selectedNodeIds={selectedNodeIds}
+                    onSelectNode={(nodeId, event) => {
+                      if (!nodeId) {
+                        selectSingleNode(null);
+                        setNodePicker(null);
+                        return;
+                      }
 
-                {selectedCardStatusId === "multi" ? (
-                  <div className="rounded-md border border-fuchsia-400/25 bg-fuchsia-400/10 px-2 py-1.5 text-[10px] font-semibold leading-relaxed text-fuchsia-100">
-                    Multi uses two authored Entry Groups inside the shared card
-                    frame.
-                  </div>
-                ) : null}
-              </div>
-            ) : null
-          }
-          tabs={cardsPanelTabs}
-          onTabChange={(tabId) => setPanelMode(tabId as PanelMode)}
-        />
-      }
-      overlays={
-        <>
-          <StudioSettingsModal
-            activeWorkspaceMode={activeWorkspaceMode}
-            databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
-            document={document}
-            inputCount={inputs.length}
-            isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
-            objectCount={activeObjectCount}
-            open={settingsOpen}
-            theme={theme}
-            onCardsCanvasChange={updateCardCanvasSize}
-            onCardsGuideRemove={removeCardsGuide}
-            onCardsGuideUpload={uploadCardsGuide}
-            onClose={() => setSettingsOpen(false)}
-            onExportJson={exportStudioJson}
-            onImportJson={() => jsonImportInputRef.current?.click()}
-            onReloadTemplate={() => {
-              void loadRemoteTemplate();
-            }}
-            onThemeChange={setTheme}
-            onTimetableCapabilityChange={setTimetableCapability}
-            onTimetableCanvasChange={updateTimetableCanvasSize}
-            onTimetableGuideRemove={removeTimetableGuide}
-            onTimetableGuideUpload={uploadTimetableGuide}
-            onWebFontsChange={updateWebFonts}
-          />
-          {stylePropagationOpen ? (
-            <StudioApplyStyleDialog
-              open
-              sourceStatusId={selectedCardStatusId}
-              statuses={cardStatusOptions.map((status) => ({
-                id: status.id,
-                label: status.label,
-              }))}
-              onApply={applySelectedNodeStyleToStatuses}
-              onClose={() => setStylePropagationOpen(false)}
-            />
-          ) : null}
-          {pendingImageCrop ? (
-            <StudioImageCropModal
-              imageSrc={pendingImageCrop.imageSrc}
-              initialHeight={pendingImageCrop.initialHeight}
-              initialWidth={pendingImageCrop.initialWidth}
-              onCancel={() => setPendingImageCrop(null)}
-              onApply={(croppedImageSrc) => {
-                pendingImageCrop.onApply(croppedImageSrc);
-                setPendingImageCrop(null);
-              }}
-            />
-          ) : null}
-        </>
-      }
-      propertiesPanel={
-        <StudioPropertiesPanel
-          header={{
-            icon: isInputPanelActive ? (
-              <ListChecks size={12} />
-            ) : activeWorkspaceMode === "timetable" ? (
-              <CalendarDays size={12} />
-            ) : selectedNode?.type === "image" ? (
-              <ImageIcon size={12} />
-            ) : selectedNode?.type === "group" ? (
-              <Layers3 size={12} />
-            ) : (
-              "T"
-            ),
-            title: isInputPanelActive
-              ? selectedInput
-                ? getStudioInputTypeLabel(selectedInput.type)
-                : "Inputs"
-              : activeWorkspaceMode === "timetable"
-                ? "Timetable"
-                : selectedNode
-                  ? getStudioGraphNodeTypeLabel(selectedNode.type)
-                  : "Cards",
-            summary: isInputPanelActive
-              ? selectedInput
-                ? "1 selected"
-                : `${filteredInputs.length} visible`
-              : activeWorkspaceMode === "timetable"
-                ? selectedTimetableLayerId
-                  ? "1 selected"
-                  : "Composition"
-                : `${selectedNodeIds.length} selected`,
-            renameDisabled: isInputPanelActive
-              ? !selectedInput
-              : activeWorkspaceMode === "timetable"
-                ? !selectedTimetableCompositionObject
-                : !selectedNode,
-            renameValue: isInputPanelActive
-              ? (selectedInput?.label ?? "No input selected")
-              : activeWorkspaceMode === "timetable"
-                ? selectedTimetableLayerLabel
-                : (selectedNode?.label ?? "No selection"),
-            onRenameChange: (label) => {
-              if (isInputPanelActive) {
-                if (!selectedInput) return;
-                updateInput(selectedInput.id, (input) => ({
-                  ...input,
-                  label,
-                }));
-                return;
-              }
-
-              if (activeWorkspaceMode === "timetable") {
-                if (!selectedTimetableCompositionObject) return;
-                updateTimetableCompositionObject(
-                  selectedTimetableCompositionObject.id,
-                  (object) => {
-                    object.label = label;
-                  },
-                );
-                return;
-              }
-
-              if (!selectedNode) return;
-              updateNode(selectedNode.id, (node) => {
-                node.label = label;
-              });
-            },
-          }}
-          sections={buildPropertySections()}
-        />
-      }
-      themeStyle={themeStyle}
-      topToolbar={
-        <StudioTopToolbar
-          backAction={{
-            title: "템플릿 목록으로",
-            onClick: () => router.push("/admin/template-studio"),
-          }}
-          canvasSize={{
-            width: previewCanvasSize.width,
-            height: previewCanvasSize.height,
-            title: "Open canvas settings",
-            onClick: () => setSettingsOpen(true),
-          }}
-          centerSlot={
-            <>
-              <div className="flex h-[30px] shrink-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
-                {[
-                  { mode: "cards" as const, label: "Cards" },
-                  { mode: "timetable" as const, label: "Timetable" },
-                ].map(({ mode, label }) => (
-                  <button
-                    className={cn(
-                      "h-6 rounded-md px-2.5 text-[11px] font-semibold transition",
-                      activeWorkspaceMode === mode
-                        ? "bg-[var(--accent)] text-white"
-                        : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
-                      mode === "timetable" &&
-                        !canPreviewTimetable &&
-                        "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
-                    )}
-                    disabled={mode === "timetable" && !canPreviewTimetable}
-                    key={mode}
-                    type="button"
-                    onClick={() => {
-                      setWorkspaceMode(mode);
+                      if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
+                        toggleNodeSelection(nodeId);
+                      } else {
+                        selectSingleNode(nodeId);
+                      }
                       setNodePicker(null);
                     }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div className="mx-0.5 h-[22px] w-px shrink-0 bg-[var(--border)]" />
-              <StudioGuideControl
-                hasAsset={Boolean(activeGuideAsset)}
-                opacity={activeGuide.opacity}
-                visible={Boolean(activeGuide.visible)}
-                onOpacityChange={setActiveGuideOpacity}
-                onRequestAsset={() => setSettingsOpen(true)}
-                onToggleVisible={() =>
-                  setActiveGuideVisibility(!activeGuide.visible)
+                  />
+                  {cardsGuideAsset && cardsGuide.visible ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      alt=""
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 z-[60] h-full w-full select-none"
+                      data-studio-cards-guide="true"
+                      draggable={false}
+                      src={cardsGuideAsset.src}
+                      style={{
+                        objectFit: "fill",
+                        opacity: cardsGuide.opacity,
+                      }}
+                    />
+                  ) : null}
+                </div>
+              )}
+            </StudioCanvasViewport>
+
+            {nodePicker ? (
+              <StudioNodePickerMenu
+                document={
+                  activeWorkspaceMode === "cards" ? document : undefined
                 }
+                nodes={
+                  activeWorkspaceMode === "timetable"
+                    ? timetablePickerNodes
+                    : undefined
+                }
+                nodeIds={nodePicker.nodeIds}
+                position={{ x: nodePicker.x, y: nodePicker.y }}
+                selectedNodeId={
+                  activeWorkspaceMode === "cards"
+                    ? selectedNodeId
+                    : selectedTimetableLayerId
+                }
+                onClose={() => setNodePicker(null)}
+                onSelectNode={(nodeId) => {
+                  if (activeWorkspaceMode === "cards") {
+                    selectSingleNode(nodeId);
+                  } else {
+                    selectTimetableCanvasLayer(nodeId);
+                  }
+                  setNodePicker(null);
+                }}
               />
-            </>
-          }
-          hiddenControls={
-            <input
-              accept="application/json,.json"
-              className="hidden"
-              ref={jsonImportInputRef}
-              type="file"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (!file) return;
-                void importStudioJsonFile(file);
+            ) : null}
+
+            {shortcutMessage ? (
+              <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-xs font-semibold text-[var(--fg)] shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+                {shortcutMessage}
+              </div>
+            ) : null}
+          </section>
+        }
+        leftSidebar={
+          <StudioLeftSidebar
+            activeTabId={activePanelMode}
+            content={
+              activePanelMode === "layers" ? (
+                activeWorkspaceMode === "timetable" ? (
+                  renderTimetableLayersPanel()
+                ) : (
+                  <StudioLayerPanel
+                    collapsedNodeIds={collapsedLayerGroupIdsSet}
+                    cutNodeIds={cutLayerNodeIdsSet}
+                    dropState={layerDropState}
+                    graph={document.graph}
+                    rootNodeIds={cardAuthoringRootNodeIds}
+                    selectedNodeIds={selectedNodeIdsSet}
+                    summary={`${cardAuthoringRootNodeIds.length} placed objects`}
+                    title="Cards Layers"
+                    onDragEnd={clearLayerDragState}
+                    onDragOver={handleLayerDragOver}
+                    onDragStart={handleLayerDragStart}
+                    onDrop={handleLayerDrop}
+                    onIndicatorDragOver={handleLayerIndicatorDragOver}
+                    onSelect={(nodeId, event) => {
+                      if (event.shiftKey) {
+                        selectLayerNodeRange(
+                          nodeId,
+                          event.metaKey || event.ctrlKey,
+                        );
+                      } else if (event.metaKey || event.ctrlKey) {
+                        toggleNodeSelection(nodeId);
+                      } else {
+                        selectSingleNode(nodeId);
+                      }
+                      setPanelMode("layers");
+                    }}
+                    onToggleCollapsed={toggleLayerGroupCollapsed}
+                  />
+                )
+              ) : activePanelMode === "presets" ? (
+                activeWorkspaceMode === "timetable" ? (
+                  renderTimetablePresetsPanel()
+                ) : (
+                  renderCardsPresetsPanel()
+                )
+              ) : activePanelMode === "inputs" ? (
+                <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto p-4">
+                  <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
+                    Input Blocks
+                  </div>
+                  <div className="mb-3 grid grid-cols-3 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
+                    {STUDIO_INPUT_SCOPE_OPTIONS.map((scope) => (
+                      <button
+                        className={cn(
+                          "h-7 rounded-md text-[11px] font-bold transition",
+                          inputScopeFilter === scope
+                            ? "bg-[var(--accent)] text-white"
+                            : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                        )}
+                        key={scope}
+                        type="button"
+                        onClick={() => setInputScopeFilter(scope)}
+                      >
+                        {getInputScopeLabel(scope)}
+                        <span className="ml-1 opacity-70">
+                          {runtimeInputsByScope[scope].length}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mb-3 grid grid-cols-3 gap-1">
+                    {(["text", "image", "select"] as const).map((type) => (
+                      <button
+                        className="flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[11px] font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
+                        key={type}
+                        type="button"
+                        onClick={() => addInput(type)}
+                      >
+                        <Plus size={12} />
+                        {getStudioInputTypeLabel(type)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid gap-2">
+                    {filteredInputs.length === 0 ? (
+                      <div className="rounded-lg border border-dashed border-[var(--field-border)] bg-[var(--field)] px-3 py-4 text-center text-[12px] font-semibold text-[var(--fg3)]">
+                        No {getInputScopeLabel(inputScopeFilter).toLowerCase()}{" "}
+                        inputs
+                      </div>
+                    ) : null}
+                    {filteredInputs.map((input, index) => (
+                      <button
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-[12.5px] transition",
+                          selectedInputId === input.id
+                            ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--fg)]"
+                            : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg)] hover:border-[var(--accent)]",
+                        )}
+                        key={input.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedInputId(input.id);
+                          setPanelMode("inputs");
+                        }}
+                      >
+                        <span
+                          className={cn(
+                            "h-2 w-2 shrink-0 rounded-sm",
+                            index % 3 === 0
+                              ? "bg-[var(--accent)]"
+                              : index % 3 === 1
+                                ? "bg-violet-400"
+                                : "bg-orange-300",
+                          )}
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {input.label} · {getStudioInputTypeLabel(input.type)}
+                        </span>
+                        <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                          {input.scope}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                renderTimetablePanel()
+              )
+            }
+            contextHeader={
+              activeWorkspaceMode === "cards" ? (
+                <div className="grid gap-2 border-b border-[var(--border)] p-2">
+                  <div className="grid gap-1.5">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--fg3)]">
+                      Component Set
+                    </span>
+                    <div className="flex min-w-0 gap-1">
+                      <select
+                        aria-label="Component set"
+                        className="h-8 min-w-0 flex-1 rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                        value={activeCardComponentId}
+                        onChange={(event) =>
+                          selectCardComponent(event.currentTarget.value)
+                        }
+                      >
+                        {cardComponentOptions.map((component) => (
+                          <option key={component.id} value={component.id}>
+                            {component.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        aria-label="Duplicate component set"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={!cardEntryComponent}
+                        title="Duplicate component set"
+                        type="button"
+                        onClick={duplicateSelectedCardComponent}
+                      >
+                        <Copy size={13} />
+                      </button>
+                      <button
+                        aria-label="Delete component set"
+                        className="flex size-8 shrink-0 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-rose-400/60 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+                        disabled={Boolean(cardComponentDeleteReason)}
+                        title={
+                          cardComponentDeleteReason ?? "Delete component set"
+                        }
+                        type="button"
+                        onClick={deleteSelectedCardComponent}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    <input
+                      aria-label="Component set name"
+                      className="h-8 w-full rounded-md border border-[var(--field-border)] bg-[var(--field)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:opacity-40"
+                      disabled={!cardEntryComponent}
+                      placeholder="Component set name"
+                      value={componentLabelDraft}
+                      onBlur={commitSelectedCardComponentLabel}
+                      onChange={(event) =>
+                        setComponentLabelDraft(event.currentTarget.value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") event.currentTarget.blur();
+                        if (event.key === "Escape") {
+                          event.preventDefault();
+                          setComponentLabelDraft(
+                            cardEntryComponent?.label ?? "",
+                          );
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1">
+                    {cardStatusOptions.map((status) => (
+                      <button
+                        className={cn(
+                          "h-8 rounded-md px-2 text-[11px] font-bold transition",
+                          selectedCardStatusId === status.id
+                            ? "bg-[var(--accent)] text-white"
+                            : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                        )}
+                        key={status.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCardStatusId(status.id);
+                          const resolution =
+                            resolveStudioTimetableComponentVariant(
+                              document,
+                              cardEntryComponent,
+                              status.id,
+                            );
+                          const rootNodeId = resolution?.variant.rootNodeId;
+                          if (rootNodeId) {
+                            restoreSelection([rootNodeId], rootNodeId);
+                          }
+                        }}
+                      >
+                        {status.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedCardStatusId === "multi" ? (
+                    <div className="rounded-md border border-fuchsia-400/25 bg-fuchsia-400/10 px-2 py-1.5 text-[10px] font-semibold leading-relaxed text-fuchsia-100">
+                      Multi uses two authored Entry Groups inside the shared
+                      card frame.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null
+            }
+            tabs={cardsPanelTabs}
+            onTabChange={(tabId) => setPanelMode(tabId as PanelMode)}
+          />
+        }
+        overlays={
+          <>
+            <StudioSettingsModal
+              activeWorkspaceMode={activeWorkspaceMode}
+              databaseTargetLabel={STUDIO_DATABASE_TARGET_LABEL}
+              document={document}
+              inputCount={inputs.length}
+              isReloadDisabled={!remoteTemplateId || isRemoteSyncing}
+              objectCount={activeObjectCount}
+              open={settingsOpen}
+              theme={theme}
+              onCardsCanvasChange={updateCardCanvasSize}
+              onCardsGuideRemove={removeCardsGuide}
+              onCardsGuideUpload={uploadCardsGuide}
+              onClose={() => setSettingsOpen(false)}
+              onExportJson={exportStudioJson}
+              onImportJson={() => jsonImportInputRef.current?.click()}
+              onReloadTemplate={() => {
+                void loadRemoteTemplate();
               }}
+              onThemeChange={setTheme}
+              onTimetableCapabilityChange={setTimetableCapability}
+              onTimetableCanvasChange={updateTimetableCanvasSize}
+              onTimetableGuideRemove={removeTimetableGuide}
+              onTimetableGuideUpload={uploadTimetableGuide}
+              onWebFontsChange={updateWebFonts}
             />
-          }
-          previewAction={{
-            title: "Open runtime preview",
-            onClick: () => {
-              void openRuntimeDraftPreview();
-            },
-          }}
-          publishAction={{
-            title: "Publish database document",
-            disabled: isRemoteSyncing,
-            onClick: () => {
-              void publishRemoteDocument();
-            },
-          }}
-          saveAction={{
-            title: "Save draft to database",
-            disabled: isRemoteSyncing,
-            onClick: () => {
-              void saveDatabaseDraft();
-            },
-          }}
-          settingsAction={{
-            title: "Template settings",
-            onClick: () => setSettingsOpen(true),
-          }}
-          shareAction={{
-            title: "Open saved preview",
-            disabled: !remoteTemplateId,
-            onClick: openSavedPreview,
-          }}
-          zoom={{
-            scale,
-            onFit: () => setFitRequestKey((current) => current + 1),
-            onZoomIn: () =>
-              setScale((currentScale) =>
-                clampStudioPreviewScale(
-                  Number((currentScale + 0.1).toFixed(2)),
-                ),
+            {stylePropagationOpen ? (
+              <StudioApplyStyleDialog
+                open
+                sourceStatusId={selectedCardStatusId}
+                statuses={cardStatusOptions.map((status) => ({
+                  id: status.id,
+                  label: status.label,
+                }))}
+                onApply={applySelectedNodeStyleToStatuses}
+                onClose={() => setStylePropagationOpen(false)}
+              />
+            ) : null}
+            {pendingImageCrop ? (
+              <StudioImageCropModal
+                imageSrc={pendingImageCrop.imageSrc}
+                initialHeight={pendingImageCrop.initialHeight}
+                initialWidth={pendingImageCrop.initialWidth}
+                onCancel={() => setPendingImageCrop(null)}
+                onApply={(croppedImageSrc) => {
+                  pendingImageCrop.onApply(croppedImageSrc);
+                  setPendingImageCrop(null);
+                }}
+              />
+            ) : null}
+          </>
+        }
+        propertiesPanel={
+          <StudioPropertiesPanel
+            header={{
+              icon: isInputPanelActive ? (
+                <ListChecks size={12} />
+              ) : activeWorkspaceMode === "timetable" ? (
+                <CalendarDays size={12} />
+              ) : selectedNode?.type === "image" ? (
+                <ImageIcon size={12} />
+              ) : selectedNode?.type === "group" ? (
+                <Layers3 size={12} />
+              ) : (
+                "T"
               ),
-            onZoomOut: () =>
-              setScale((currentScale) =>
-                clampStudioPreviewScale(
-                  Number((currentScale - 0.1).toFixed(2)),
+              title: isInputPanelActive
+                ? selectedInput
+                  ? getStudioInputTypeLabel(selectedInput.type)
+                  : "Inputs"
+                : activeWorkspaceMode === "timetable"
+                  ? "Timetable"
+                  : selectedNode
+                    ? getStudioGraphNodeTypeLabel(selectedNode.type)
+                    : "Cards",
+              summary: isInputPanelActive
+                ? selectedInput
+                  ? "1 selected"
+                  : `${filteredInputs.length} visible`
+                : activeWorkspaceMode === "timetable"
+                  ? selectedTimetableLayerId
+                    ? "1 selected"
+                    : "Composition"
+                  : `${selectedNodeIds.length} selected`,
+              renameDisabled: isInputPanelActive
+                ? !selectedInput
+                : activeWorkspaceMode === "timetable"
+                  ? !selectedTimetableCompositionObject
+                  : !selectedNode,
+              renameValue: isInputPanelActive
+                ? (selectedInput?.label ?? "No input selected")
+                : activeWorkspaceMode === "timetable"
+                  ? selectedTimetableLayerLabel
+                  : (selectedNode?.label ?? "No selection"),
+              onRenameChange: (label) => {
+                if (isInputPanelActive) {
+                  if (!selectedInput) return;
+                  updateInput(selectedInput.id, (input) => ({
+                    ...input,
+                    label,
+                  }));
+                  return;
+                }
+
+                if (activeWorkspaceMode === "timetable") {
+                  if (!selectedTimetableCompositionObject) return;
+                  updateTimetableCompositionObject(
+                    selectedTimetableCompositionObject.id,
+                    (object) => {
+                      object.label = label;
+                    },
+                  );
+                  return;
+                }
+
+                if (!selectedNode) return;
+                updateNode(selectedNode.id, (node) => {
+                  node.label = label;
+                });
+              },
+            }}
+            sections={buildPropertySections()}
+          />
+        }
+        themeStyle={themeStyle}
+        topToolbar={
+          <StudioTopToolbar
+            backAction={{
+              title: "템플릿 목록으로",
+              onClick: () => router.push("/admin/template-studio"),
+            }}
+            canvasSize={{
+              width: previewCanvasSize.width,
+              height: previewCanvasSize.height,
+              title: "Open canvas settings",
+              onClick: () => setSettingsOpen(true),
+            }}
+            centerSlot={
+              <>
+                <div className="flex h-[30px] shrink-0 items-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+                  {[
+                    { mode: "cards" as const, label: "Cards" },
+                    { mode: "timetable" as const, label: "Timetable" },
+                  ].map(({ mode, label }) => (
+                    <button
+                      className={cn(
+                        "h-6 rounded-md px-2.5 text-[11px] font-semibold transition",
+                        activeWorkspaceMode === mode
+                          ? "bg-[var(--accent)] text-white"
+                          : "text-[var(--fg2)] hover:bg-[var(--hover)] hover:text-[var(--fg)]",
+                        mode === "timetable" &&
+                          !canPreviewTimetable &&
+                          "cursor-not-allowed opacity-45 hover:bg-transparent hover:text-[var(--fg2)]",
+                      )}
+                      disabled={mode === "timetable" && !canPreviewTimetable}
+                      key={mode}
+                      type="button"
+                      onClick={() => {
+                        setWorkspaceMode(mode);
+                        setNodePicker(null);
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="mx-0.5 h-[22px] w-px shrink-0 bg-[var(--border)]" />
+                <StudioGuideControl
+                  hasAsset={Boolean(activeGuideAsset)}
+                  opacity={activeGuide.opacity}
+                  visible={Boolean(activeGuide.visible)}
+                  onOpacityChange={setActiveGuideOpacity}
+                  onRequestAsset={() => setSettingsOpen(true)}
+                  onToggleVisible={() =>
+                    setActiveGuideVisibility(!activeGuide.visible)
+                  }
+                />
+              </>
+            }
+            hiddenControls={
+              <input
+                accept="application/json,.json"
+                className="hidden"
+                ref={jsonImportInputRef}
+                type="file"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  void importStudioJsonFile(file);
+                }}
+              />
+            }
+            previewAction={{
+              title: "Open runtime preview",
+              onClick: () => {
+                void openRuntimeDraftPreview();
+              },
+            }}
+            publishAction={{
+              title: "Publish database document",
+              disabled: isRemoteSyncing,
+              onClick: () => {
+                void publishRemoteDocument();
+              },
+            }}
+            saveAction={{
+              title: "Save draft to database",
+              disabled: isRemoteSyncing,
+              onClick: () => {
+                void saveDatabaseDraft();
+              },
+            }}
+            settingsAction={{
+              title: "Template settings",
+              onClick: () => setSettingsOpen(true),
+            }}
+            shareAction={{
+              title: "Open saved preview",
+              disabled: !remoteTemplateId,
+              onClick: openSavedPreview,
+            }}
+            zoom={{
+              scale,
+              onFit: () => setFitRequestKey((current) => current + 1),
+              onZoomIn: () =>
+                setScale((currentScale) =>
+                  clampStudioPreviewScale(
+                    Number((currentScale + 0.1).toFixed(2)),
+                  ),
                 ),
-              ),
-          }}
-        />
-      }
-    />
+              onZoomOut: () =>
+                setScale((currentScale) =>
+                  clampStudioPreviewScale(
+                    Number((currentScale - 0.1).toFixed(2)),
+                  ),
+                ),
+            }}
+          />
+        }
+      />
+    </StudioDocumentStoreProvider>
   );
 }
