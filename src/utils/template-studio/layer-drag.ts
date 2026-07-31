@@ -2,7 +2,10 @@ import type {
   StudioGraphNode,
   StudioNodeId,
   StudioTemplateDocument,
+  StudioTimetableCompositionObject,
 } from "@/types/template-studio";
+import { isStudioNodeLocked } from "@/utils/template-studio/graph-nodes";
+import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
 import {
   validateStudioGraphMove,
   type StudioGraphDropPosition,
@@ -220,4 +223,54 @@ export const planStudioLayerDrop = (
     primaryNodeId: dragState.primaryNodeId,
     expandTargetGroup: position === "inside",
   };
+};
+/**
+ * 캔버스에서 이 노드를 끌 수 있는지 본다.
+ *
+ * 잠근 객체는 끌 수 없다. 부모를 채우도록 해 둔 객체도 끌 수 없다. 그 객체의
+ * 자리는 부모가 정하므로, 끌어서 옮기면 다음에 다시 그릴 때 원래 자리로 돌아간다.
+ * 사용자에게는 옮기기가 튕긴 것으로 보인다.
+ *
+ * 여러 개를 함께 끌 때는 하나라도 막히면 전부 막는다. 일부만 움직이면 함께 고른
+ * 것들의 자리 관계가 깨진다.
+ */
+export const getStudioCanvasNodeDragBlockedReason = (
+  document: StudioTemplateDocument,
+  nodeIds: StudioNodeId[],
+): string | null => {
+  const nodes = nodeIds.map((nodeId) => document.graph.nodes[nodeId]);
+  if (nodes.some((node) => isStudioNodeLocked(node))) {
+    return "Selection includes locked object";
+  }
+  if (nodes.some((node) => isStudioFillParentLayout(node?.layoutMode))) {
+    return "Disable Fit to move this object";
+  }
+  return null;
+};
+/**
+ * 캔버스에서 이 시간표 레이어를 끌 수 있는지 본다.
+ *
+ * composition에 없는 id는 요일 카드일 때만 받는다. 요일 카드는 객체가 아니라 요일
+ * 목록에서 만들어지므로 objects에 없다.
+ *
+ * `blocked`는 이유를 알리고 끌지 않는다는 뜻이고, `missing`은 우리가 다룰 대상이
+ * 아니라는 뜻이다. 둘을 같이 다루면 빈 자리를 끌 때마다 안내가 뜬다.
+ */
+export const getStudioTimetableCanvasDragBlock = (
+  object: StudioTimetableCompositionObject | null | undefined,
+  layerId: string,
+):
+  | { kind: "allowed" }
+  | { kind: "missing" }
+  | { kind: "blocked"; reason: string } => {
+  if (!object) {
+    return layerId.startsWith("day-card:")
+      ? { kind: "allowed" }
+      : { kind: "missing" };
+  }
+  if (object.locked) return { kind: "blocked", reason: "Object is locked" };
+  if (isStudioFillParentLayout(object.layoutMode)) {
+    return { kind: "blocked", reason: "Disable Fit to move this object" };
+  }
+  return { kind: "allowed" };
 };

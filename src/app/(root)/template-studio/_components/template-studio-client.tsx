@@ -96,10 +96,7 @@ import {
   type StudioLayerMoveCommand,
 } from "@/utils/template-studio/graph-commands";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
-import {
-  getStudioTopLevelNodeIds,
-  isStudioNodeLocked,
-} from "@/utils/template-studio/graph-nodes";
+import { getStudioTopLevelNodeIds } from "@/utils/template-studio/graph-nodes";
 import { createStudioId } from "@/utils/template-studio/id";
 import {
   applyStudioAddSelectOption,
@@ -143,6 +140,10 @@ import {
   resolveStudioGraphNodeGeometry,
   resolveStudioTimetableObjectGeometry,
 } from "@/utils/template-studio/object-layout";
+import {
+  getStudioCanvasNodeDragBlockedReason,
+  getStudioTimetableCanvasDragBlock,
+} from "@/utils/template-studio/layer-drag";
 import { getStudioSelectionLabel } from "@/utils/template-studio/selection";
 import {
   getStudioInputDefaultValue,
@@ -2827,6 +2828,69 @@ export function TemplateStudioClient({
     />
   );
 
+  /**
+   * 캔버스에서 카드 객체를 끌기 시작한다.
+   *
+   * 고른 것 중 하나를 집었으면 고른 것 전부를 옮긴다. 하나라도 끌 수 없으면 전부
+   * 막는다. 일부만 움직이면 함께 고른 것들의 자리 관계가 깨진다.
+   */
+  const beginCanvasNodeMove = useCallback(
+    (nodeId: string) => {
+      const currentDocument = studioStore.getState().document;
+      const selectedIds = studioStore.getState().selectedNodeIds;
+      const targetNodeIds = selectedIds.includes(nodeId)
+        ? getStudioTopLevelNodeIds(currentDocument, selectedIds)
+        : [nodeId];
+      const blockedReason = getStudioCanvasNodeDragBlockedReason(
+        currentDocument,
+        targetNodeIds,
+      );
+
+      if (blockedReason) {
+        showShortcutStatus(blockedReason);
+        return false;
+      }
+
+      captureHistory();
+      return true;
+    },
+    [captureHistory, showShortcutStatus, studioStore],
+  );
+
+  /**
+   * 캔버스에서 시간표 레이어를 끌기 시작한다.
+   *
+   * 끌기 전에 그 레이어를 고른다. 고르지 않은 것을 끌면 속성 패널이 다른 것을
+   * 보여준 채로 값이 바뀐다.
+   */
+  const beginTimetableCanvasLayerMove = useCallback(
+    (layerId: string) => {
+      const composition = getStudioTimetableComposition(
+        studioStore.getState().document.domains?.timetable,
+      );
+      const block = getStudioTimetableCanvasDragBlock(
+        composition.objects[layerId],
+        layerId,
+      );
+
+      if (block.kind === "missing") return false;
+      if (block.kind === "blocked") {
+        showShortcutStatus(block.reason);
+        return false;
+      }
+
+      selectTimetableCanvasLayer(layerId);
+      captureHistory();
+      return true;
+    },
+    [
+      captureHistory,
+      selectTimetableCanvasLayer,
+      showShortcutStatus,
+      studioStore,
+    ],
+  );
+
   const renderTimetablePanel = () => (
     <StudioTimetableDayPanel
       activeDay={activeRuntimeDay ?? null}
@@ -3290,68 +3354,8 @@ export function TemplateStudioClient({
               }
               onMoveNodeStart={
                 activeWorkspaceMode === "cards"
-                  ? (nodeId) => {
-                      const targetNodeIds = studioStore
-                        .getState()
-                        .selectedNodeIds.includes(nodeId)
-                        ? getStudioTopLevelNodeIds(
-                            studioStore.getState().document,
-                            studioStore.getState().selectedNodeIds,
-                          )
-                        : [nodeId];
-                      const hasLockedTarget = targetNodeIds.some(
-                        (targetNodeId) =>
-                          isStudioNodeLocked(
-                            studioStore.getState().document.graph.nodes[
-                              targetNodeId
-                            ],
-                          ),
-                      );
-
-                      if (hasLockedTarget) {
-                        showShortcutStatus("Selection includes locked object");
-                        return false;
-                      }
-
-                      const hasFitTarget = targetNodeIds.some((targetNodeId) =>
-                        isStudioFillParentLayout(
-                          studioStore.getState().document.graph.nodes[
-                            targetNodeId
-                          ]?.layoutMode,
-                        ),
-                      );
-                      if (hasFitTarget) {
-                        showShortcutStatus("Disable Fit to move this object");
-                        return false;
-                      }
-
-                      captureHistory();
-                      return true;
-                    }
-                  : (layerId) => {
-                      const composition = getStudioTimetableComposition(
-                        studioStore.getState().document.domains?.timetable,
-                      );
-                      const object = composition.objects[layerId];
-
-                      if (!object && !layerId.startsWith("day-card:")) {
-                        return false;
-                      }
-
-                      if (object?.locked) {
-                        showShortcutStatus("Object is locked");
-                        return false;
-                      }
-
-                      if (isStudioFillParentLayout(object?.layoutMode)) {
-                        showShortcutStatus("Disable Fit to move this object");
-                        return false;
-                      }
-
-                      selectTimetableCanvasLayer(layerId);
-                      captureHistory();
-                      return true;
-                    }
+                  ? beginCanvasNodeMove
+                  : beginTimetableCanvasLayerMove
               }
               onOpenNodePicker={({ clientX, clientY, nodeIds }) => {
                 const selectableNodeIds =

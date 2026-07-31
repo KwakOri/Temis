@@ -13,12 +13,15 @@ import assert from "node:assert/strict";
 import type {
   StudioGraphNode,
   StudioTemplateDocument,
+  StudioTimetableCompositionObject,
 } from "../src/types/template-studio";
 import {
+  getStudioCanvasNodeDragBlockedReason,
   getStudioLayerDropPosition,
   getStudioLayerPointerRatio,
   planStudioLayerDrop,
   resolveStudioLayerDropPosition,
+  getStudioTimetableCanvasDragBlock,
   shouldAutoExpandStudioLayerGroup,
   validateStudioLayerMove,
 } from "../src/utils/template-studio/layer-drag";
@@ -338,5 +341,87 @@ assert.equal(
   ).params.position,
   "before",
   "표시선을 그려 둔 자리와 놓인 자리가 다르면 포인터로 다시 계산한 위치를 뒤집어 쓴다.",
+);
+// --- 캔버스에서 끌 수 있는지 ---
+//
+// 부모를 채우도록 해 둔 객체는 자리를 부모가 정한다. 끌어서 옮기면 다음에 다시
+// 그릴 때 원래 자리로 돌아가므로, 사용자에게는 옮기기가 튕긴 것으로 보인다.
+const canvasDocument = createDocument(
+  [
+    createNode("plain"),
+    createNode("locked", { locked: true } as Partial<StudioGraphNode>),
+    createNode("fit", { layoutMode: "fillParent" } as Partial<StudioGraphNode>),
+  ],
+  ["plain", "locked", "fit"],
+);
+assert.equal(
+  getStudioCanvasNodeDragBlockedReason(canvasDocument, ["plain"]),
+  null,
+  "여느 객체는 캔버스에서 끌 수 있다.",
+);
+assert.equal(
+  getStudioCanvasNodeDragBlockedReason(canvasDocument, ["locked"]),
+  "Selection includes locked object",
+  "잠근 객체는 끌 수 없다.",
+);
+assert.equal(
+  getStudioCanvasNodeDragBlockedReason(canvasDocument, ["fit"]),
+  "Disable Fit to move this object",
+  "부모를 채우는 객체는 자리를 부모가 정한다. 끌어도 원래 자리로 돌아간다.",
+);
+assert.equal(
+  getStudioCanvasNodeDragBlockedReason(canvasDocument, ["plain", "locked"]),
+  "Selection includes locked object",
+  "여러 개 중 하나라도 막히면 전부 막는다. 일부만 움직이면 자리 관계가 깨진다.",
+);
+assert.equal(
+  getStudioCanvasNodeDragBlockedReason(canvasDocument, ["plain", "fit"]),
+  "Disable Fit to move this object",
+  "부모를 채우는 객체가 섞여 있어도 전부 막는다.",
+);
+assert.equal(
+  getStudioCanvasNodeDragBlockedReason(canvasDocument, []),
+  null,
+  "고른 것이 없으면 막을 것도 없다.",
+);
+// 시간표 쪽은 composition에 없는 id를 요일 카드일 때만 받는다. 요일 카드는 객체가
+// 아니라 요일 목록에서 만들어지므로 objects에 없다.
+const timetableObject = (
+  overrides: Partial<StudioTimetableCompositionObject> = {},
+) =>
+  ({
+    id: "board",
+    kind: "image",
+    label: "Board",
+    style: {},
+    ...overrides,
+  }) as StudioTimetableCompositionObject;
+assert.deepEqual(
+  getStudioTimetableCanvasDragBlock(timetableObject(), "board"),
+  { kind: "allowed" },
+  "여느 시간표 객체는 끌 수 있다.",
+);
+assert.deepEqual(
+  getStudioTimetableCanvasDragBlock(undefined, "day-card:mon"),
+  { kind: "allowed" },
+  "요일 카드는 객체가 없어도 끌 수 있다.",
+);
+assert.deepEqual(
+  getStudioTimetableCanvasDragBlock(undefined, "ghost"),
+  { kind: "missing" },
+  "우리가 다룰 대상이 아닌 것은 조용히 넘긴다. 안내를 띄우면 빈 자리를 끌 때마다 뜬다.",
+);
+assert.deepEqual(
+  getStudioTimetableCanvasDragBlock(timetableObject({ locked: true }), "board"),
+  { kind: "blocked", reason: "Object is locked" },
+  "잠근 시간표 객체는 끌 수 없다.",
+);
+assert.deepEqual(
+  getStudioTimetableCanvasDragBlock(
+    timetableObject({ layoutMode: "fillParent" }),
+    "board",
+  ),
+  { kind: "blocked", reason: "Disable Fit to move this object" },
+  "부모를 채우는 시간표 객체도 끌 수 없다.",
 );
 console.log("Studio card layer drag baseline checks passed.");
