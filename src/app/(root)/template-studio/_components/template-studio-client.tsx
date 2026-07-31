@@ -9,7 +9,6 @@ import {
   Image as ImageIcon,
   Layers3,
   ListChecks,
-  Minus,
   Paintbrush,
   Plus,
   Trash2,
@@ -251,11 +250,11 @@ import {
 } from "./studio-preset-panels";
 import {
   StudioRuntimeInputField,
-  StudioRuntimeInputGroups,
   StudioRuntimeInputPanel,
 } from "./studio-runtime-input-panel";
 import { StudioStatusCardBackgroundSlot } from "./studio-status-card-background-slot";
 import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
+import { StudioTimetableDayPanel } from "./studio-timetable-day-panel";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
 import { StudioSettingsModal } from "./studio-settings-modal";
@@ -2828,159 +2827,37 @@ export function TemplateStudioClient({
     />
   );
 
-  const renderTimetablePanel = () => {
-    const timetable = document.domains?.timetable;
-
-    if (!timetable) {
-      return (
-        <div className="p-4 text-sm font-medium text-[var(--fg2)]">
-          No timetable domain
-        </div>
-      );
-    }
-
-    const addEntryDisabledReason = activeRuntimeDayId
-      ? getStudioTimetableAddEntryDisabledReason(
-          document,
-          runtimeValues,
-          activeRuntimeDayId,
-        )
-      : "Select a day first";
-    const canAddEntry = addEntryDisabledReason === null;
-
-    return (
-      <div className="template-studio-scrollbar min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="mb-3 grid gap-1">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-            Day Cards
-          </div>
-          <div className="text-[12px] font-semibold text-[var(--fg)]">
-            {timetableDays.length} days · {activeRuntimeEntries.length}/
-            {maxRuntimeEntries} entries
-          </div>
-        </div>
-
-        <div className="mb-4 grid grid-cols-7 gap-1">
-          {timetableDays.map((day) => (
-            <button
-              className={cn(
-                "h-9 rounded-lg border text-[11px] font-bold transition",
-                activeRuntimeDayId === day.id
-                  ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--fg)]"
-                  : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)] hover:text-[var(--fg)]",
-              )}
-              key={day.id}
-              type="button"
-              onClick={() => {
-                setSelectedRuntimeDayId(day.id);
-                setSelectedRuntimeEntryIndex(0);
-              }}
-            >
-              {day.shortLabel ?? day.label.slice(0, 3)}
-            </button>
-          ))}
-        </div>
-
-        <div className="mb-4 grid gap-2">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--fg2)]">
-              {activeRuntimeDay?.label ?? "Day"} Entries
-            </div>
-            <button
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-45"
-              disabled={!canAddEntry}
-              title={addEntryDisabledReason ?? "Add entry"}
-              type="button"
-              onClick={addEntryToActiveDay}
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-
-          {activeRuntimeEntries.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-[var(--field-border)] bg-[var(--field)] px-3 py-4 text-center text-xs font-semibold text-[var(--fg2)]">
-              Empty day
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              {activeRuntimeEntries.map((entry, entryIndex) => {
-                const isActive = activeRuntimeEntryIndex === entryIndex;
-
-                return (
-                  <div
-                    className={cn(
-                      "grid gap-2 rounded-lg border p-2 transition",
-                      isActive
-                        ? "border-[var(--accent)] bg-[var(--sel)]"
-                        : "border-[var(--field-border)] bg-[var(--field)]",
-                    )}
-                    key={entry.id}
-                  >
-                    <button
-                      className="flex items-center gap-2 text-left"
-                      type="button"
-                      onClick={() => setSelectedRuntimeEntryIndex(entryIndex)}
-                    >
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--panel)] text-[10px] font-extrabold text-[var(--fg2)]">
-                        {entryIndex + 1}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-xs font-bold text-[var(--fg)]">
-                        {entry.id}
-                      </span>
-                    </button>
-
-                    <div className="grid grid-cols-[1fr_auto] gap-1.5">
-                      <select
-                        className="h-8 min-w-0 rounded-md border border-[var(--field-border)] bg-[var(--panel)] px-2 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                        value={entry.statusId}
-                        disabled={activeRuntimeEntries.length > 1}
-                        onChange={(event) =>
-                          updateEntryStatus(
-                            activeRuntimeDayId,
-                            entryIndex,
-                            event.currentTarget
-                              .value as StudioTimetableStatusId,
-                          )
-                        }
-                      >
-                        {statusOptions.map((status) => (
-                          <option key={status.id} value={status.id}>
-                            {status.label}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        className="flex h-8 w-8 items-center justify-center rounded-md border border-[var(--field-border)] bg-[var(--panel)] text-[var(--fg2)] transition hover:border-rose-400/60 hover:text-rose-300"
-                        title="Remove entry"
-                        type="button"
-                        onClick={() =>
-                          removeEntry(activeRuntimeDayId, entryIndex)
-                        }
-                      >
-                        <Minus size={14} />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="grid gap-4 border-t border-[var(--border)] pt-4">
-          <StudioRuntimeInputGroups
-            activeDayId={activeRuntimeDayId}
-            activeEntry={activeRuntimeEntry}
-            activeEntryIndex={activeRuntimeEntryIndex}
-            inputsByScope={runtimeInputsByScope}
-            runtimeValues={runtimeValues}
-            onChangeInput={updateRuntimeInputValue}
-            onRequestImageCrop={requestRuntimeImageCrop}
-          />
-        </div>
-      </div>
-    );
-  };
+  const renderTimetablePanel = () => (
+    <StudioTimetableDayPanel
+      activeDay={activeRuntimeDay ?? null}
+      activeDayId={activeRuntimeDayId}
+      activeEntry={activeRuntimeEntry}
+      activeEntryIndex={activeRuntimeEntryIndex}
+      addEntryDisabledReason={
+        activeRuntimeDayId
+          ? getStudioTimetableAddEntryDisabledReason(
+              document,
+              runtimeValues,
+              activeRuntimeDayId,
+            )
+          : "Select a day first"
+      }
+      days={timetableDays}
+      entries={activeRuntimeEntries}
+      hasTimetable={Boolean(document.domains?.timetable)}
+      inputsByScope={runtimeInputsByScope}
+      maxEntries={maxRuntimeEntries}
+      runtimeValues={runtimeValues}
+      statusOptions={statusOptions}
+      onAddEntry={addEntryToActiveDay}
+      onChangeInput={updateRuntimeInputValue}
+      onRemoveEntry={removeEntry}
+      onRequestImageCrop={requestRuntimeImageCrop}
+      onSelectDay={focusTimetableRuntimeDay}
+      onSelectEntryIndex={setSelectedRuntimeEntryIndex}
+      onUpdateEntryStatus={updateEntryStatus}
+    />
+  );
 
   const renderInputInspector = (input: StudioInputDefinition | null) => (
     <StudioInputInspector
