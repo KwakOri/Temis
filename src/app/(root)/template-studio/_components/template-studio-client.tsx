@@ -37,6 +37,7 @@ import {
   StudioEditorStoreProvider,
 } from "@/stores/studio/studio-editor-store";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
+import { useStudioTimetableLayerDrag } from "@/hooks/studio/use-studio-timetable-layer-drag";
 import {
   useCreateTemplateStudioTemplate,
   usePublishTemplateStudioDocument,
@@ -348,18 +349,6 @@ interface StudioLayerDragState {
 interface StudioLayerDropState {
   nodeId: string;
   position: StudioGraphDropPosition;
-  blockedReason?: string | null;
-}
-
-interface StudioTimetableLayerDragState {
-  layerId: string;
-  scope: "root" | "day";
-  dayId?: StudioTimetableDayId;
-}
-
-interface StudioTimetableLayerDropState {
-  layerId: string;
-  position: "before" | "after";
   blockedReason?: string | null;
 }
 
@@ -864,22 +853,14 @@ export function TemplateStudioClient({
     useState<PendingStudioImageCrop | null>(null);
   const [layerDropState, setLayerDropState] =
     useState<StudioLayerDropState | null>(null);
-  const [timetableLayerDragState, setTimetableLayerDragState] =
-    useState<StudioTimetableLayerDragState | null>(null);
-  const [timetableLayerDropState, setTimetableLayerDropState] =
-    useState<StudioTimetableLayerDropState | null>(null);
   const [shortcutMessage, setShortcutMessage] = useState<string | null>(null);
   const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
     initialRemoteTemplateId,
   );
   const [componentLabelDraft, setComponentLabelDraft] = useState("");
   const layerDragStateRef = useRef<StudioLayerDragState | null>(null);
-  const timetableLayerDragStateRef =
-    useRef<StudioTimetableLayerDragState | null>(null);
   const layerAutoExpandTimerRef = useRef<number | null>(null);
   const layerAutoExpandTargetRef = useRef<string | null>(null);
-  const timetableLayerAutoExpandTimerRef = useRef<number | null>(null);
-  const timetableLayerAutoExpandTargetRef = useRef<string | null>(null);
   const jsonImportInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoadedRemoteTemplateIdRef = useRef<string | null>(null);
   const visibleLayerNodeIdsRef = useRef<string[]>([]);
@@ -916,9 +897,6 @@ export function TemplateStudioClient({
     () => () => {
       if (layerAutoExpandTimerRef.current !== null) {
         window.clearTimeout(layerAutoExpandTimerRef.current);
-      }
-      if (timetableLayerAutoExpandTimerRef.current !== null) {
-        window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
       }
     },
     [],
@@ -3185,189 +3163,41 @@ export function TemplateStudioClient({
     [selectedTimetableLayerId],
   );
 
-  const clearTimetableLayerDragState = useCallback(() => {
-    if (timetableLayerAutoExpandTimerRef.current !== null) {
-      window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
-      timetableLayerAutoExpandTimerRef.current = null;
-    }
-    timetableLayerAutoExpandTargetRef.current = null;
-    timetableLayerDragStateRef.current = null;
-    setTimetableLayerDragState(null);
-    setTimetableLayerDropState(null);
-  }, []);
-
-  const scheduleTimetableLayerAutoExpand = useCallback(
-    (layerId: string, shouldExpand: boolean) => {
-      if (!shouldExpand) {
-        if (timetableLayerAutoExpandTargetRef.current === layerId) {
-          if (timetableLayerAutoExpandTimerRef.current !== null) {
-            window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
-            timetableLayerAutoExpandTimerRef.current = null;
-          }
-          timetableLayerAutoExpandTargetRef.current = null;
-        }
-        return;
-      }
-
-      if (timetableLayerAutoExpandTargetRef.current === layerId) return;
-
-      if (timetableLayerAutoExpandTimerRef.current !== null) {
-        window.clearTimeout(timetableLayerAutoExpandTimerRef.current);
-      }
-
-      timetableLayerAutoExpandTargetRef.current = layerId;
-      timetableLayerAutoExpandTimerRef.current = window.setTimeout(() => {
-        setCollapsedTimetableLayerIds((currentLayerIds) =>
-          currentLayerIds.includes(layerId)
-            ? currentLayerIds.filter(
-                (currentLayerId) => currentLayerId !== layerId,
-              )
-            : currentLayerIds,
-        );
-        timetableLayerAutoExpandTimerRef.current = null;
-        timetableLayerAutoExpandTargetRef.current = null;
-      }, STUDIO_LAYER_AUTO_EXPAND_DELAY_MS);
-    },
-    [setCollapsedTimetableLayerIds],
-  );
-
-  const handleTimetableLayerDragStart = (
-    event: React.DragEvent<HTMLButtonElement>,
-    layerId: string,
-    dayId?: StudioTimetableDayId,
-  ) => {
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", layerId);
-    const dragState: StudioTimetableLayerDragState = {
-      layerId,
-      scope: dayId ? "day" : "root",
-      dayId,
-    };
-    timetableLayerDragStateRef.current = dragState;
-    setTimetableLayerDragState(dragState);
-    setSelectedTimetableLayerId(layerId);
-    if (dayId) {
+  /**
+   * 요일 카드를 골랐을 때 미리보기가 그 요일을 보게 한다.
+   *
+   * 요일이 바뀌면 일정 자리도 처음으로 돌린다. 요일마다 일정 수가 다르므로
+   * 자리를 그대로 두면 없는 일정을 가리킨 채로 남는다.
+   */
+  const focusTimetableRuntimeDay = useCallback(
+    (dayId: StudioTimetableDayId) => {
       setSelectedRuntimeDayId(dayId);
       setSelectedRuntimeEntryIndex(0);
-    }
-  };
-
-  const getTimetableLayerDropBlockedReason = (
-    dragState: StudioTimetableLayerDragState,
-    layerId: string,
-    dayId?: StudioTimetableDayId,
-  ): string | null => {
-    if (dragState.scope === "root") {
-      if (dayId) return "Cannot move root layer into day cards";
-      if (dragState.layerId === layerId) return "Already here";
-      return null;
-    }
-
-    if (!dayId) return "Cannot move day card outside its group";
-    if (dragState.dayId === dayId) return "Already here";
-    return null;
-  };
-
-  const handleTimetableLayerDragOver = (
-    event: React.DragEvent<HTMLElement>,
-    layerId: string,
-    dayId?: StudioTimetableDayId,
-  ) => {
-    const dragState =
-      timetableLayerDragStateRef.current ?? timetableLayerDragState;
-    if (!dragState) return;
-
-    event.preventDefault();
-    const rect = event.currentTarget.getBoundingClientRect();
-    const position =
-      event.clientY < rect.top + rect.height / 2 ? "before" : "after";
-    const blockedReason = getTimetableLayerDropBlockedReason(
-      dragState,
-      layerId,
-      dayId,
-    );
-    const targetObject = timetableComposition.objects[layerId];
-
-    scheduleTimetableLayerAutoExpand(
-      layerId,
-      !dayId &&
-        !blockedReason &&
-        targetObject?.kind === "generatedDayCards" &&
-        collapsedTimetableLayerIds.includes(layerId),
-    );
-
-    event.dataTransfer.dropEffect = blockedReason ? "none" : "move";
-    setTimetableLayerDropState({
-      layerId,
-      position,
-      blockedReason,
-    });
-  };
-
-  const handleTimetableLayerDrop = (
-    event: React.DragEvent<HTMLElement>,
-    targetLayerId: string,
-    targetDayId?: StudioTimetableDayId,
-  ) => {
-    event.preventDefault();
-    const dragState =
-      timetableLayerDragStateRef.current ?? timetableLayerDragState;
-    const dropState = timetableLayerDropState;
-    clearTimetableLayerDragState();
-
-    if (
-      !dragState ||
-      !dropState ||
-      dropState.layerId !== targetLayerId ||
-      dropState.blockedReason
-    ) {
-      return;
-    }
-
-    if (dragState.scope === "root") {
-      if (targetDayId || dragState.layerId === targetLayerId) return;
-
-      moveTimetableRootObjectLayer(
-        dragState.layerId,
-        targetLayerId,
-        getStudioDataDropPosition(dropState.position),
-      );
-      return;
-    }
-
-    if (!dragState.dayId || !targetDayId || dragState.dayId === targetDayId) {
-      return;
-    }
-
-    moveTimetableDayLayer(dragState.dayId, targetDayId, dropState.position);
-  };
-
-  const handleTimetableLayerIndicatorDragOver = (
-    event: React.DragEvent<HTMLElement>,
-    layerId: string,
-    position: "before" | "after",
-    dayId?: StudioTimetableDayId,
-  ) => {
-    const dragState =
-      timetableLayerDragStateRef.current ?? timetableLayerDragState;
-    if (!dragState) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const blockedReason = getTimetableLayerDropBlockedReason(
-      dragState,
-      layerId,
-      dayId,
-    );
-    scheduleTimetableLayerAutoExpand(layerId, false);
-    event.dataTransfer.dropEffect = blockedReason ? "none" : "move";
-    setTimetableLayerDropState({
-      layerId,
-      position,
-      blockedReason,
-    });
-  };
+    },
+    [setSelectedRuntimeDayId, setSelectedRuntimeEntryIndex],
+  );
+  const {
+    dropState: timetableLayerDropState,
+    clearDragState: clearTimetableLayerDragState,
+    handleDragStart: handleTimetableLayerDragStart,
+    handleDragOver: handleTimetableLayerDragOver,
+    handleIndicatorDragOver: handleTimetableLayerIndicatorDragOver,
+    handleDrop: handleTimetableLayerDrop,
+  } = useStudioTimetableLayerDrag({
+    getCollapsedLayerIds: useCallback(
+      () => collapsedTimetableLayerIds,
+      [collapsedTimetableLayerIds],
+    ),
+    setCollapsedLayerIds: setCollapsedTimetableLayerIds,
+    getLayerObjectKind: useCallback(
+      (layerId: string) => timetableComposition.objects[layerId]?.kind ?? null,
+      [timetableComposition],
+    ),
+    onSelectLayer: setSelectedTimetableLayerId,
+    onFocusDay: focusTimetableRuntimeDay,
+    onMoveRootLayer: moveTimetableRootObjectLayer,
+    onMoveDayLayer: moveTimetableDayLayer,
+  });
 
   const bindSelectedNodeToInput = (inputId: StudioInputId) => {
     if (!selectedNode) return;

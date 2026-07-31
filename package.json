@@ -53,6 +53,7 @@
     "check:studio:timetable-asset-slot-specs": "tsx scripts/check-studio-timetable-asset-slot-specs.ts",
     "check:studio:timetable-object-controls": "tsx scripts/check-studio-timetable-object-controls.tsx",
     "check:studio:timetable-selection": "tsx scripts/check-studio-timetable-selection.ts",
+    "check:studio:timetable-layer-drag": "tsx scripts/check-studio-timetable-layer-drag.ts",
     "check:studio:timetable-inspector": "tsx scripts/check-studio-timetable-inspector.tsx",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",
