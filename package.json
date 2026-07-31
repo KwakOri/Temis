@@ -42,6 +42,7 @@
     "check:studio:timetable-commands": "tsx scripts/check-studio-timetable-commands.ts",
     "check:studio:timetable-presets": "tsx scripts/check-studio-timetable-presets.ts",
     "check:studio:input-commands": "tsx scripts/check-studio-input-commands.ts",
+    "check:studio:clipboard-commands": "tsx scripts/check-studio-clipboard-commands.ts",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
     "check:template-studio:layer-order": "tsx scripts/check-template-studio-layer-order.ts",

@@ -37,6 +37,7 @@ import React, {
 } from "react";
 
 import { useStudioDocumentHistory } from "@/hooks/studio/use-studio-document-history";
+import { useStudioClipboard } from "@/hooks/studio/use-studio-clipboard";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
   useCreateTemplateStudioTemplate,
@@ -136,11 +137,6 @@ import {
   getStudioInputTypeLabel,
   type StudioInputConsumerReference,
 } from "@/utils/template-studio/input-commands";
-import {
-  createStudioNodeClipboardPayload,
-  insertStudioClipboardSubtree,
-  type StudioNodeClipboardPayload,
-} from "@/utils/template-studio/node-clipboard";
 import {
   applyStudioDeleteNodes,
   applyStudioInsertNode,
@@ -1173,7 +1169,6 @@ export function TemplateStudioClient({
     useState<PendingStudioImageCrop | null>(null);
   const [layerDropState, setLayerDropState] =
     useState<StudioLayerDropState | null>(null);
-  const [cutNodeIds, setCutNodeIds] = useState<string[]>([]);
   const [collapsedLayerGroupIds, setCollapsedLayerGroupIds] = useState<
     string[]
   >([]);
@@ -1198,7 +1193,6 @@ export function TemplateStudioClient({
   const [selectedCardComponentId, setSelectedCardComponentId] =
     useState<StudioTimetableComponentId>("");
   const [componentLabelDraft, setComponentLabelDraft] = useState("");
-  const clipboardPayloadRef = useRef<StudioNodeClipboardPayload | null>(null);
   const layerDragStateRef = useRef<StudioLayerDragState | null>(null);
   const timetableLayerDragStateRef =
     useRef<StudioTimetableLayerDragState | null>(null);
@@ -1825,21 +1819,6 @@ export function TemplateStudioClient({
     () => STUDIO_THEMES[theme] as React.CSSProperties,
     [theme],
   );
-  const cutLayerNodeIdsSet = useMemo(() => {
-    const nextNodeIds = new Set<string>();
-
-    const collectNode = (nodeId: string) => {
-      if (nextNodeIds.has(nodeId)) return;
-      const node = document.graph.nodes[nodeId];
-      if (!node) return;
-
-      nextNodeIds.add(nodeId);
-      node.childIds.forEach(collectNode);
-    };
-
-    cutNodeIds.forEach(collectNode);
-    return nextNodeIds;
-  }, [cutNodeIds, document.graph.nodes]);
   const collapsedLayerGroupIdsSet = useMemo(
     () => new Set(collapsedLayerGroupIds),
     [collapsedLayerGroupIds],
@@ -3984,255 +3963,43 @@ export function TemplateStudioClient({
     deleteSelectedNode();
   }, [activeWorkspaceMode, deleteSelectedNode, deleteSelectedTimetableObject]);
 
-  const copySelectedNode = useCallback(() => {
-    const selectedActionNodeIds = getStudioTopLevelNodeIds(
-      document,
-      selectedNodeIds,
-    );
-
-    if (selectedActionNodeIds.length === 0) {
-      showShortcutStatus("No object selected");
-      return;
-    }
-
-    const payload = createStudioNodeClipboardPayload(
-      document,
-      selectedActionNodeIds,
-    );
-    if (!payload) {
-      showShortcutStatus("Copy failed");
-      return;
-    }
-
-    clipboardPayloadRef.current = payload;
-    setCutNodeIds([]);
-    showShortcutStatus(
-      `Copied ${payload.rootNodeIds.length} ${getStudioSelectionLabel(
-        payload.rootNodeIds.length,
-      )}`,
-    );
-  }, [document, selectedNodeIds, showShortcutStatus]);
-
-  const pasteClipboardNode = useCallback(() => {
-    const payload = clipboardPayloadRef.current;
-    if (!payload) {
-      showShortcutStatus("Nothing to paste");
-      return;
-    }
-
-    if (payload.kind === "cut") {
-      const currentDocument = documentRef.current;
-      const sourceNodeIds = getStudioTopLevelNodeIds(
-        currentDocument,
-        payload.rootNodeIds,
-      );
-
-      if (sourceNodeIds.length === 0) {
-        clipboardPayloadRef.current = null;
-        setCutNodeIds([]);
-        showShortcutStatus("Cut source is missing");
-        return;
-      }
-
-      const sourceNodes = sourceNodeIds
-        .map((nodeId) => currentDocument.graph.nodes[nodeId])
-        .filter(Boolean) as StudioGraphNode[];
-
-      if (sourceNodes.some(isStudioNodeLocked)) {
-        showShortcutStatus("Selection includes locked object");
-        return;
-      }
-
-      const selectedTargetId = selectedNodeIdRef.current;
-      const selectedTargetNode =
-        selectedTargetId && currentDocument.graph.nodes[selectedTargetId]
-          ? currentDocument.graph.nodes[selectedTargetId]
-          : null;
-      const targetNodeId = selectedTargetNode?.id ?? null;
-
-      if (!targetNodeId) {
-        showShortcutStatus("Select a destination before pasting cut objects");
-        return;
-      }
-
-      const validation = validateStudioGraphMove(currentDocument, {
-        sourceNodeIds,
-        targetNodeId,
-        position: "after",
-      });
-
-      if (!validation.ok) {
-        showShortcutStatus(validation.reason ?? "Paste move blocked");
-        return;
-      }
-
-      const timetableMountNodeId =
-        currentDocument.domains?.timetable?.mountNodeId;
-      if (
-        timetableMountNodeId &&
-        validation.sourceNodeIds.includes(timetableMountNodeId)
-      ) {
-        const currentParentId =
-          currentDocument.graph.nodes[timetableMountNodeId]?.parentId ?? null;
-        if (validation.targetParentId !== currentParentId) {
-          showShortcutStatus(
-            "Root timetable object cannot move to another parent",
-          );
-          return;
-        }
-      }
-
-      let moveResult = validation;
-      updateDocument((nextDocument) => {
-        moveResult = moveStudioGraphNodes(nextDocument, {
-          sourceNodeIds,
-          targetNodeId,
-          position: "after",
-          preserveCanvasPosition: true,
-        });
-      });
-
-      if (!moveResult.ok) {
-        showShortcutStatus(moveResult.reason ?? "Paste move failed");
-        return;
-      }
-
-      clipboardPayloadRef.current = null;
-      setCutNodeIds([]);
-      applyNodeSelection(
-        moveResult.sourceNodeIds,
-        moveResult.sourceNodeIds.includes(payload.primaryNodeId ?? "")
-          ? payload.primaryNodeId
-          : moveResult.sourceNodeIds.at(-1),
-      );
-      setPanelMode("layers");
-      showShortcutStatus(
-        `Moved ${moveResult.sourceNodeIds.length} ${getStudioSelectionLabel(
-          moveResult.sourceNodeIds.length,
-        )}`,
-      );
-      return;
-    }
-
-    const sourceRoot = payload.nodes[payload.rootNodeIds[0]];
-    if (!sourceRoot) {
-      showShortcutStatus("Paste failed");
-      return;
-    }
-
-    let pastedRootIds: string[] = [];
-
-    updateDocument((nextDocument) => {
-      const sourceParentId = selectedNode?.parentId ?? sourceRoot.parentId;
-      const parentNode =
-        sourceParentId &&
-        !isStudioNodeLocked(nextDocument.graph.nodes[sourceParentId])
-          ? nextDocument.graph.nodes[sourceParentId]
-          : null;
-      const parentId = parentNode?.id ?? null;
-      const siblings = parentNode
-        ? parentNode.childIds
-        : nextDocument.graph.rootNodeIds;
-
-      pastedRootIds = payload.rootNodeIds
-        .map((rootNodeId) =>
-          insertStudioClipboardSubtree(
-            nextDocument,
-            payload,
-            rootNodeId,
-            parentId,
-            true,
-          ),
-        )
-        .filter(Boolean) as string[];
-
-      if (pastedRootIds.length === 0) return;
-      const selectedSiblingIndex =
-        selectedNode?.parentId === parentId
-          ? siblings.indexOf(selectedNode.id)
-          : -1;
-      const sourceSiblingIndex = siblings.indexOf(payload.rootNodeIds[0]);
-      const insertIndex =
-        selectedSiblingIndex >= 0
-          ? selectedSiblingIndex + 1
-          : sourceSiblingIndex >= 0
-            ? sourceSiblingIndex + 1
-            : siblings.length;
-
-      siblings.splice(insertIndex, 0, ...pastedRootIds);
-    });
-
-    if (pastedRootIds.length > 0) {
-      applyNodeSelection(pastedRootIds, pastedRootIds.at(-1));
-      setPanelMode("layers");
-      showShortcutStatus(
-        `Pasted ${pastedRootIds.length} ${getStudioSelectionLabel(
-          pastedRootIds.length,
-        )}`,
-      );
-    }
-  }, [
-    applyNodeSelection,
-    selectedNode,
-    selectedNodeIdRef,
-    showShortcutStatus,
+  const {
+    cutNodeIds,
+    copy: copySelectedNode,
+    cut: cutSelectedNode,
+    paste: pasteClipboardNode,
+    cancelCut: cancelNodeCut,
+  } = useStudioClipboard({
+    getDocument: useCallback(() => documentRef.current, []),
+    getSelectedNodeIds: useCallback(
+      () => selectedNodeIdsRef.current,
+      [selectedNodeIdsRef],
+    ),
+    getSelectedNodeId: useCallback(
+      () => selectedNodeIdRef.current,
+      [selectedNodeIdRef],
+    ),
     updateDocument,
-  ]);
+    onSelect: applyNodeSelection,
+    onStatusMessage: showShortcutStatus,
+    onAfterPaste: useCallback(() => setPanelMode("layers"), []),
+  });
 
-  const cutSelectedNode = useCallback(() => {
-    const selectedActionNodeIds = getStudioTopLevelNodeIds(
-      document,
-      selectedNodeIds,
-    );
+  const cutLayerNodeIdsSet = useMemo(() => {
+    const nextNodeIds = new Set<string>();
 
-    if (selectedActionNodeIds.length === 0) {
-      showShortcutStatus("No object selected");
-      return;
-    }
+    const collectNode = (nodeId: string) => {
+      if (nextNodeIds.has(nodeId)) return;
+      const node = document.graph.nodes[nodeId];
+      if (!node) return;
 
-    const selectedActionNodes = selectedActionNodeIds
-      .map((nodeId) => document.graph.nodes[nodeId])
-      .filter(Boolean) as StudioGraphNode[];
-
-    const cardVariantRootIds = new Set(
-      Object.values(document.domains?.timetable?.components ?? {}).flatMap(
-        (component) =>
-          Object.values(component.variants).map(
-            (variant) => variant.rootNodeId,
-          ),
-      ),
-    );
-    if (
-      selectedActionNodes.some(
-        (node) => node.meta?.entrySlot || cardVariantRootIds.has(node.id),
-      )
-    ) {
-      showShortcutStatus("Card variant roots and Entry Groups cannot be cut");
-      return;
-    }
-
-    if (selectedActionNodes.some(isStudioNodeLocked)) {
-      showShortcutStatus("Selection includes locked object");
-      return;
-    }
-
-    const primaryNodeId =
-      selectedNodeId && selectedActionNodeIds.includes(selectedNodeId)
-        ? selectedNodeId
-        : (selectedActionNodeIds.at(-1) ?? null);
-
-    clipboardPayloadRef.current = {
-      kind: "cut",
-      rootNodeIds: selectedActionNodeIds,
-      primaryNodeId,
+      nextNodeIds.add(nodeId);
+      node.childIds.forEach(collectNode);
     };
-    setCutNodeIds(selectedActionNodeIds);
-    showShortcutStatus(
-      `Cut ${selectedActionNodeIds.length} ${getStudioSelectionLabel(
-        selectedActionNodeIds.length,
-      )}`,
-    );
-  }, [document, selectedNodeId, selectedNodeIds, showShortcutStatus]);
+
+    cutNodeIds.forEach(collectNode);
+    return nextNodeIds;
+  }, [cutNodeIds, document.graph.nodes]);
 
   const duplicateSelectedNode = useCallback(() => {
     const plan = planStudioDuplicateNodes(document, selectedNodeIds);
@@ -4381,11 +4148,9 @@ export function TemplateStudioClient({
 
       if (isEditingTarget) return;
 
-      if (key === "escape" && clipboardPayloadRef.current?.kind === "cut") {
+      if (key === "escape" && cancelNodeCut()) {
         event.preventDefault();
         event.stopPropagation();
-        clipboardPayloadRef.current = null;
-        setCutNodeIds([]);
         showShortcutStatus("Cut canceled");
         return;
       }
@@ -4552,6 +4317,7 @@ export function TemplateStudioClient({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
+    cancelNodeCut,
     copySelectedNode,
     cutSelectedNode,
     deleteActiveSelection,
