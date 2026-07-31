@@ -36,6 +36,7 @@ import {
 } from "@/stores/studio/studio-editor-store";
 import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
+import { useStudioTemplatePersistence } from "@/hooks/studio/use-studio-template-persistence";
 import { useStudioTimetableLayerDrag } from "@/hooks/studio/use-studio-timetable-layer-drag";
 import {
   useCreateTemplateStudioTemplate,
@@ -45,10 +46,6 @@ import {
   useTemplateStudioTemplate,
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
-import type {
-  TemplateStudioUploadedAsset,
-  TemplateStudioUploadAssetPayload,
-} from "@/services/templateStudioService";
 import {
   StudioBuiltinFieldId,
   StudioGraphNode,
@@ -194,13 +191,6 @@ import {
   getStudioTimetableObjectRenderableChildIds,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
-import {
-  createStudioTemplateExportPayload,
-  getStudioTemplateBlockingDiagnostics,
-  getStudioTemplateDiagnosticsSummary,
-  getStudioTemplateExportFilename,
-  parseStudioTemplateExportJson,
-} from "@/utils/template-studio/serialization";
 import { setStudioStatusCardBackgroundAssetSlot } from "@/utils/template-studio/status-card-background";
 import {
   addStudioTimetableEntry,
@@ -426,102 +416,6 @@ const cloneRuntimeValues = (
   runtimeValues: StudioRuntimeValues,
 ): StudioRuntimeValues =>
   JSON.parse(JSON.stringify(runtimeValues)) as StudioRuntimeValues;
-
-const DATA_IMAGE_URL_PATTERN = /^data:(image\/[^;,]+)((?:;[^,]+)*),([\s\S]*)$/;
-const DATA_IMAGE_EXTENSION: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/svg+xml": "svg",
-  "image/webp": "webp",
-};
-
-type StudioDataImagePayload = {
-  buffer: ArrayBuffer;
-  extension: string;
-  mimeType: string;
-};
-
-const copyBytesToArrayBuffer = (bytes: Uint8Array): ArrayBuffer => {
-  const buffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(buffer).set(bytes);
-  return buffer;
-};
-
-const parseStudioDataImageUrl = (
-  src: string,
-): StudioDataImagePayload | null => {
-  const match = src.match(DATA_IMAGE_URL_PATTERN);
-  if (!match) return null;
-
-  const mimeType = match[1];
-  const extension = DATA_IMAGE_EXTENSION[mimeType];
-  if (!extension) return null;
-
-  const parameters = match[2]
-    .split(";")
-    .map((parameter) => parameter.trim().toLowerCase())
-    .filter(Boolean);
-  const data = match[3];
-
-  try {
-    const bytes = parameters.includes("base64")
-      ? Uint8Array.from(window.atob(data), (character) =>
-          character.charCodeAt(0),
-        )
-      : new TextEncoder().encode(decodeURIComponent(data));
-    if (bytes.byteLength === 0) return null;
-
-    return {
-      buffer: copyBytesToArrayBuffer(bytes),
-      extension,
-      mimeType,
-    };
-  } catch {
-    return null;
-  }
-};
-
-const bytesToHex = (bytes: ArrayBuffer): string =>
-  Array.from(new Uint8Array(bytes))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-
-const getStudioDataImageMetadata = async (
-  src: string,
-): Promise<{
-  byteSize: number;
-  contentHash: string | null;
-  mimeType: string;
-} | null> => {
-  const parsed = parseStudioDataImageUrl(src);
-  if (!parsed) return null;
-
-  if (!globalThis.crypto?.subtle) {
-    return {
-      byteSize: parsed.buffer.byteLength,
-      contentHash: null,
-      mimeType: parsed.mimeType,
-    };
-  }
-
-  try {
-    const digest = await globalThis.crypto.subtle.digest(
-      "SHA-256",
-      parsed.buffer,
-    );
-    return {
-      byteSize: parsed.buffer.byteLength,
-      contentHash: bytesToHex(digest),
-      mimeType: parsed.mimeType,
-    };
-  } catch {
-    return {
-      byteSize: parsed.buffer.byteLength,
-      contentHash: null,
-      mimeType: parsed.mimeType,
-    };
-  }
-};
 
 const getUniqueStudioInputLabel = (
   document: StudioTemplateDocument,
@@ -1506,150 +1400,13 @@ export function TemplateStudioClient({
     showShortcutStatus(redoDocumentHistory() ? "Redo" : "Nothing to redo");
   }, [redoDocumentHistory, showShortcutStatus]);
 
-  const exportStudioJson = useCallback(() => {
-    const currentDocument = studioStore.getState().document;
-    const exportDiagnostics = [
-      ...validateStudioDocument(currentDocument),
-      ...validateStudioRuntimeValuesForDocument(
-        currentDocument,
-        studioStore.getState().runtimeValues,
-      ),
-    ];
-    const blockingDiagnostics =
-      getStudioTemplateBlockingDiagnostics(exportDiagnostics);
-    const diagnosticsSummary =
-      getStudioTemplateDiagnosticsSummary(exportDiagnostics);
-
-    if (blockingDiagnostics.length > 0) {
-      setInspectorSections((currentSections) => ({
-        ...currentSections,
-        diagnostics: true,
-      }));
-      showShortcutStatus(
-        `Export blocked: ${diagnosticsSummary.errorCount} error(s) · ${diagnosticsSummary.firstError?.title ?? "Check diagnostics"}`,
-      );
-      return;
-    }
-
-    const payload = createStudioTemplateExportPayload(
-      currentDocument,
-      studioStore.getState().runtimeValues,
-    );
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = window.document.createElement("a");
-
-    anchor.href = url;
-    anchor.download = getStudioTemplateExportFilename(currentDocument);
-    anchor.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 0);
-    showShortcutStatus(
-      diagnosticsSummary.warningCount > 0
-        ? `Exported JSON with ${diagnosticsSummary.warningCount} warning(s)`
-        : "Exported JSON",
-    );
-  }, [setInspectorSections, showShortcutStatus, studioStore]);
-
-  const importStudioJsonFile = useCallback(
-    async (file: File) => {
-      let source = "";
-
-      try {
-        source = await file.text();
-      } catch {
-        showShortcutStatus("Import failed: could not read file");
-        return;
-      }
-
-      const importResult = parseStudioTemplateExportJson(source);
-
-      if (!importResult.ok) {
-        showShortcutStatus(`Import failed: ${importResult.message}`);
-        return;
-      }
-
-      const nextDocument = cloneDocument(importResult.document);
-      const nextRuntimeValues = normalizeRuntimeValuesForTimetableCapabilities(
-        cloneRuntimeValues(importResult.runtimeValues),
-        getStudioTimetableCapabilities(nextDocument.domains?.timetable),
-      );
-      const nextSelectedNodeId = nextDocument.graph.rootNodeIds[0] ?? null;
-      const nextSelectedInputId = Object.keys(nextDocument.inputs)[0] ?? null;
-      const nextRuntimeDayId =
-        nextDocument.domains?.timetable?.dayIds[0] ?? "mon";
-
-      captureHistory();
-
-      studioStore.getState().selectedInputId = nextSelectedInputId;
-      studioStore.getState().selectedRuntimeDayId = nextRuntimeDayId;
-      studioStore.getState().selectedRuntimeEntryIndex = 0;
-
-      setDocument(nextDocument);
-      setRuntimeValues(nextRuntimeValues);
-      restoreSelection(
-        nextSelectedNodeId ? [nextSelectedNodeId] : [],
-        nextSelectedNodeId,
-      );
-      setSelectedInputId(nextSelectedInputId);
-      setSelectedRuntimeDayId(nextRuntimeDayId);
-      setSelectedRuntimeEntryIndex(0);
-      setWorkspaceMode("cards");
-      setPanelMode("layers");
-      setSelectedTimetableLayerId(STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID);
-      setCollapsedLayerGroupIds([]);
-      setCollapsedTimetableLayerIds([]);
-      setNodePicker(null);
-
-      const warningCount = importResult.diagnostics.filter(
-        (diagnostic) => diagnostic.severity === "warning",
-      ).length;
-      const migrationWarningCount = importResult.migrationWarnings.length;
-      showShortcutStatus(
-        importResult.usedRuntimeFallback
-          ? "Imported JSON with default runtime values"
-          : migrationWarningCount > 0
-            ? `Imported JSON with ${migrationWarningCount} migration note(s)`
-            : warningCount > 0
-              ? `Imported JSON with ${warningCount} warning(s)`
-              : "Imported JSON",
-      );
-    },
-    [
-      captureHistory,
-      restoreSelection,
-      setCollapsedLayerGroupIds,
-      setCollapsedTimetableLayerIds,
-      setDocument,
-      setPanelMode,
-      setRuntimeValues,
-      setSelectedInputId,
-      setSelectedRuntimeDayId,
-      setSelectedRuntimeEntryIndex,
-      setSelectedTimetableLayerId,
-      setWorkspaceMode,
-      showShortcutStatus,
-      studioStore,
-    ],
-  );
-
-  const ensureRemoteTemplateId = useCallback(async (): Promise<string> => {
-    if (remoteTemplateId) {
-      return remoteTemplateId;
-    }
-
-    const currentDocument = studioStore.getState().document;
-    const created = await createTemplateStudioTemplateMutation.mutateAsync({
-      name: currentDocument.metadata.name.trim() || "Untitled Template",
-      description: currentDocument.metadata.description ?? "",
-    });
-
-    setRemoteTemplateId(created.template.id);
-    return created.template.id;
-  }, [createTemplateStudioTemplateMutation, remoteTemplateId, studioStore]);
-
-  const applyRemoteTemplateState = useCallback(
+  /**
+   * 문서 한 벌을 갈아끼운다.
+   *
+   * 불러오기와 JSON 가져오기가 같은 함수를 쓴다. 한쪽에만 초기화를 더하면 두
+   * 경로에서 편집기 상태가 달라진다.
+   */
+  const replaceEditorDocument = useCallback(
     (
       nextDocument: StudioTemplateDocument,
       nextRuntimeValues: StudioRuntimeValues,
@@ -1706,317 +1463,51 @@ export function TemplateStudioClient({
     ],
   );
 
-  useEffect(() => {
-    if (!initialRemoteTemplateId) return;
-    if (remoteTemplateId !== initialRemoteTemplateId) return;
-    if (autoLoadedRemoteTemplateIdRef.current === initialRemoteTemplateId) {
-      return;
-    }
-
-    const remoteTemplate = templateStudioTemplateQuery.data;
-    if (!remoteTemplate) return;
-
-    autoLoadedRemoteTemplateIdRef.current = initialRemoteTemplateId;
-
-    const source = remoteTemplate.draft ?? remoteTemplate.document;
-    if (!source) {
-      showShortcutStatus("Database template is empty");
-      return;
-    }
-
-    applyRemoteTemplateState(
-      cloneDocument(source.document),
-      cloneRuntimeValues(source.runtimeValues),
-      remoteTemplate.draft
-        ? "Loaded database draft"
-        : "Loaded published document",
-    );
-  }, [
-    applyRemoteTemplateState,
-    initialRemoteTemplateId,
-    remoteTemplateId,
-    showShortcutStatus,
-    templateStudioTemplateQuery.data,
-  ]);
-
-  const ensureTemplateStudioAssetsSynced = useCallback(
-    async (templateId: string): Promise<StudioTemplateDocument> => {
-      const currentDocument = studioStore.getState().document;
-      const nextDocument = cloneDocument(currentDocument);
-      const remoteAssetsById = new Map(
-        (templateStudioTemplateQuery.data?.assets ?? []).map((asset) => [
-          asset.assetId,
-          asset,
-        ]),
-      );
-      const syncAssets: TemplateStudioUploadAssetPayload[] = [];
-      let changed = false;
-
-      const applySyncedAsset = (asset: TemplateStudioUploadedAsset) => {
-        const currentAsset = nextDocument.assets[asset.id];
-        if (!currentAsset) return;
-
-        nextDocument.assets[asset.id] = {
-          ...currentAsset,
-          src: asset.publicUrl ?? asset.src,
-          storageProvider: asset.storageProvider ?? "r2",
-          storagePath: asset.storagePath,
-          publicUrl: asset.publicUrl ?? asset.src,
-          contentHash: asset.contentHash,
-          mimeType: asset.mimeType,
-          byteSize: asset.byteSize,
-          lastSyncedAt: asset.lastSyncedAt ?? undefined,
-        };
-        changed = true;
-      };
-
-      for (const asset of Object.values(nextDocument.assets)) {
-        const remoteAsset = remoteAssetsById.get(asset.id);
-        const remoteUrl = remoteAsset?.publicUrl ?? null;
-
-        if (DATA_IMAGE_URL_PATTERN.test(asset.src)) {
-          const localMetadata = await getStudioDataImageMetadata(asset.src);
-          const canReuseRemote =
-            Boolean(localMetadata?.contentHash) &&
-            remoteAsset?.storageProvider === "r2" &&
-            remoteUrl &&
-            remoteAsset.contentHash === localMetadata?.contentHash &&
-            remoteAsset.mimeType === localMetadata.mimeType &&
-            remoteAsset.byteSize === localMetadata.byteSize;
-
-          if (canReuseRemote && localMetadata?.contentHash && remoteUrl) {
-            applySyncedAsset({
-              id: asset.id,
-              label: asset.label,
-              src: remoteUrl,
-              storageProvider: "r2",
-              storagePath: remoteAsset.storagePath,
-              publicUrl: remoteUrl,
-              contentHash: localMetadata.contentHash,
-              mimeType: localMetadata.mimeType,
-              byteSize: localMetadata.byteSize,
-              uploaded: false,
-              lastSyncedAt: remoteAsset.lastSyncedAt,
-            });
-            continue;
-          }
-
-          syncAssets.push({
-            assetId: asset.id,
-            label: asset.label,
-            src: asset.src,
-            localContentHash: localMetadata?.contentHash ?? undefined,
-            mimeType: localMetadata?.mimeType,
-            byteSize: localMetadata?.byteSize,
-          });
-          continue;
-        }
-
-        if (
-          remoteAsset?.storageProvider === "r2" &&
-          remoteUrl &&
-          (asset.src === remoteUrl ||
-            asset.publicUrl === remoteUrl ||
-            asset.storagePath === remoteAsset.storagePath ||
-            (asset.contentHash &&
-              remoteAsset.contentHash &&
-              asset.contentHash === remoteAsset.contentHash))
-        ) {
-          applySyncedAsset({
-            id: asset.id,
-            label: asset.label,
-            src: remoteUrl,
-            storageProvider: "r2",
-            storagePath: remoteAsset.storagePath,
-            publicUrl: remoteUrl,
-            contentHash: remoteAsset.contentHash ?? undefined,
-            mimeType: remoteAsset.mimeType,
-            byteSize: remoteAsset.byteSize ?? 0,
-            uploaded: false,
-            lastSyncedAt: remoteAsset.lastSyncedAt,
-          });
-        }
-      }
-
-      if (syncAssets.length > 0) {
-        showShortcutStatus(`Syncing ${syncAssets.length} asset(s)`);
-        const synced = await syncTemplateStudioAssetsMutation.mutateAsync({
-          templateId,
-          assets: syncAssets,
-        });
-        synced.assets.forEach(applySyncedAsset);
-      }
-
-      if (!changed) {
-        return currentDocument;
-      }
-
-      setDocument(nextDocument);
-
-      if (syncAssets.length > 0) {
-        showShortcutStatus(`Synced ${syncAssets.length} asset(s)`);
-      }
-
-      return nextDocument;
-    },
-    [
-      setDocument,
-      showShortcutStatus,
-      studioStore,
-      syncTemplateStudioAssetsMutation,
-      templateStudioTemplateQuery.data?.assets,
-    ],
-  );
-
-  const loadRemoteTemplate = useCallback(async () => {
-    if (!remoteTemplateId) {
-      showShortcutStatus("Select a database template first");
-      return;
-    }
-
-    try {
-      const result = await templateStudioTemplateQuery.refetch();
-      const remoteTemplate = result.data;
-
-      if (!remoteTemplate) {
-        showShortcutStatus("Database template load failed");
-        return;
-      }
-
-      const source = remoteTemplate.draft ?? remoteTemplate.document;
-
-      if (!source) {
-        showShortcutStatus("Database template is empty");
-        return;
-      }
-
-      applyRemoteTemplateState(
-        cloneDocument(source.document),
-        cloneRuntimeValues(source.runtimeValues),
-        remoteTemplate.draft
-          ? "Loaded database draft"
-          : "Loaded published document",
-      );
-    } catch (error) {
-      console.error("Template Studio database load failed:", error);
-      showShortcutStatus("Database load failed");
-    }
-  }, [
-    applyRemoteTemplateState,
-    remoteTemplateId,
-    showShortcutStatus,
-    templateStudioTemplateQuery,
-  ]);
-
-  const saveDatabaseDraft = useCallback(async () => {
-    try {
-      const templateId = await ensureRemoteTemplateId();
-      const latestRevisionNo =
-        templateStudioTemplateQuery.data?.latestRevisionNo ?? null;
-      const nextDocument = await ensureTemplateStudioAssetsSynced(templateId);
-
-      await saveTemplateStudioDraftMutation.mutateAsync({
-        templateId,
-        payload: {
-          document: nextDocument,
-          runtimeValues: studioStore.getState().runtimeValues,
-          baseRevisionNo: latestRevisionNo,
-          isAutosave: false,
-        },
-      });
-
-      showShortcutStatus("Draft saved to database");
-    } catch (error) {
-      console.error("Template Studio database draft save failed:", error);
-      showShortcutStatus("Database draft save failed");
-    }
-  }, [
-    ensureRemoteTemplateId,
-    ensureTemplateStudioAssetsSynced,
-    saveTemplateStudioDraftMutation,
-    showShortcutStatus,
-    studioStore,
-    templateStudioTemplateQuery.data?.latestRevisionNo,
-  ]);
-
-  const publishRemoteDocument = useCallback(async () => {
-    try {
-      const templateId = await ensureRemoteTemplateId();
-      const nextDocument = await ensureTemplateStudioAssetsSynced(templateId);
-      const published = await publishTemplateStudioDocumentMutation.mutateAsync(
-        {
-          templateId,
-          payload: {
-            document: nextDocument,
-            runtimeValues: studioStore.getState().runtimeValues,
-          },
-        },
-      );
-
-      showShortcutStatus(`Published revision ${published.revisionNo}`);
-    } catch (error) {
-      console.error("Template Studio publish failed:", error);
-      showShortcutStatus("Publish failed");
-    }
-  }, [
-    ensureRemoteTemplateId,
-    ensureTemplateStudioAssetsSynced,
-    publishTemplateStudioDocumentMutation,
-    showShortcutStatus,
-    studioStore,
-  ]);
-
-  const openRuntimeDraftPreview = useCallback(async () => {
-    try {
-      const templateId = await ensureRemoteTemplateId();
-      const syncedDocument = await ensureTemplateStudioAssetsSynced(templateId);
-      const latestRevisionNo =
-        templateStudioTemplateQuery.data?.latestRevisionNo ?? null;
-
-      await saveTemplateStudioDraftMutation.mutateAsync({
-        templateId,
-        payload: {
-          document: syncedDocument,
-          runtimeValues: studioStore.getState().runtimeValues,
-          baseRevisionNo: latestRevisionNo,
-          isAutosave: false,
-        },
-      });
-
-      const previewUrl = `/admin/template-studio/${templateId}/preview`;
-      const previewWindow = window.open(previewUrl, "_blank");
-
-      if (!previewWindow) {
-        window.location.assign(previewUrl);
-      }
-
-      showShortcutStatus("Saved draft preview");
-    } catch (error) {
-      console.error("Template Studio preview open failed:", error);
-      showShortcutStatus("Preview open failed");
-    }
-  }, [
-    ensureRemoteTemplateId,
-    ensureTemplateStudioAssetsSynced,
-    saveTemplateStudioDraftMutation,
-    showShortcutStatus,
-    studioStore,
-    templateStudioTemplateQuery.data?.latestRevisionNo,
-  ]);
-
-  const openSavedPreview = useCallback(() => {
-    if (!remoteTemplateId) {
-      showShortcutStatus("Save or publish a database template first");
-      return;
-    }
-
-    const previewUrl = `/admin/template-studio/${remoteTemplateId}/preview`;
-    const previewWindow = window.open(previewUrl, "_blank");
-
-    if (!previewWindow) {
-      window.location.assign(previewUrl);
-    }
-  }, [remoteTemplateId, showShortcutStatus]);
+  const {
+    exportJson: exportStudioJson,
+    importJsonFile: importStudioJsonFile,
+    loadRemoteTemplate,
+    saveDraft: saveDatabaseDraft,
+    publish: publishRemoteDocument,
+    openDraftPreview: openRuntimeDraftPreview,
+    openSavedPreview,
+  } = useStudioTemplatePersistence({
+    getDocument: useCallback(
+      () => studioStore.getState().document,
+      [studioStore],
+    ),
+    getRuntimeValues: useCallback(
+      () => studioStore.getState().runtimeValues,
+      [studioStore],
+    ),
+    setDocument,
+    templateId: remoteTemplateId,
+    onTemplateIdChange: setRemoteTemplateId,
+    initialTemplateId: initialRemoteTemplateId,
+    getRemoteTemplate: useCallback(
+      () => templateStudioTemplateQuery.data,
+      [templateStudioTemplateQuery.data],
+    ),
+    refetchRemoteTemplate: useCallback(
+      () => templateStudioTemplateQuery.refetch(),
+      [templateStudioTemplateQuery],
+    ),
+    createRemoteTemplate: createTemplateStudioTemplateMutation.mutateAsync,
+    saveRemoteDraft: saveTemplateStudioDraftMutation.mutateAsync,
+    publishRemoteDocument: publishTemplateStudioDocumentMutation.mutateAsync,
+    syncRemoteAssets: syncTemplateStudioAssetsMutation.mutateAsync,
+    onReplaceDocument: replaceEditorDocument,
+    onStatusMessage: showShortcutStatus,
+    // 무엇이 내보내기를 막았는지 보여줘야 고칠 수 있다.
+    onExportBlocked: useCallback(
+      () =>
+        setInspectorSections((currentSections) => ({
+          ...currentSections,
+          diagnostics: true,
+        })),
+      [setInspectorSections],
+    ),
+  });
 
   const updateDocument = useCallback(
     (
