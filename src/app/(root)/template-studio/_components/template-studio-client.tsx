@@ -171,11 +171,11 @@ import { getStudioSelectionLabel } from "@/utils/template-studio/selection";
 import {
   getStudioInputDefaultValue,
   getStudioInputsForScope,
-  getStudioRuntimeInputValue,
   setStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
 import { ensureStudioPresetImageInput } from "@/utils/template-studio/preset-inputs";
+import { resolveStudioRuntimeCropSize } from "@/utils/template-studio/runtime-image-crop";
 import {
   getStudioPresetExistingTargetId,
   getStudioPresetCreationRule,
@@ -265,10 +265,6 @@ import {
 } from "@/components/studio/editor-shell/studio-properties-panel";
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
 import {
-  StudioTextareaField,
-  StudioTextField,
-} from "@/components/studio/inspector/studio-inspector-fields";
-import {
   getStudioInputScopeLabel,
   STUDIO_INPUT_SCOPE_OPTIONS,
 } from "@/utils/template-studio/input-scope";
@@ -285,6 +281,11 @@ import { StudioInputInspector } from "./studio-input-inspector";
 import { buildStudioTimetableInspectorSections } from "./studio-timetable-inspector";
 import {} from "./studio-timetable-object-inspector-controls";
 import {} from "./studio-timetable-object-controls";
+import {
+  StudioRuntimeInputField,
+  StudioRuntimeInputGroups,
+  StudioRuntimeInputPanel,
+} from "./studio-runtime-input-panel";
 import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
@@ -4003,212 +4004,46 @@ export function TemplateStudioClient({
     </div>
   );
 
-  const renderRuntimeInput = (
-    input: StudioInputDefinition,
-    context: StudioRuntimeContext = {},
+  /**
+   * 미리보기용 사진을 자를 창을 띄운다.
+   *
+   * 자를 크기는 지금 고른 객체를 따라간다. 템플릿이 정한 자리와 다른 비율로
+   * 들어가면 미리보기가 실제 결과와 달라진다.
+   */
+  const requestRuntimeImageCrop = (
+    file: File,
+    onApply: (croppedImageSrc: string) => void,
   ) => {
-    const value = getStudioRuntimeInputValue(input, runtimeValues, context);
-    const runtimeInputKey = [
-      input.id,
-      context.dayId ?? "global",
-      context.entryIndex ?? "none",
-    ].join(":");
+    const selectedGeometry =
+      activeWorkspaceMode === "timetable"
+        ? selectedTimetableLayerGeometry
+        : selectedNode
+          ? resolveStudioGraphNodeGeometry(document, selectedNode.id)
+          : null;
 
-    if (input.type === "text") {
-      if (input.multiline) {
-        return (
-          <StudioTextareaField
-            key={runtimeInputKey}
-            label={input.label}
-            placeholder={input.placeholder}
-            rows={input.minRows ?? 4}
-            value={value}
-            onChange={(nextValue) =>
-              updateRuntimeInputValue(input, nextValue, context)
-            }
-          />
-        );
-      }
-
-      return (
-        <StudioTextField
-          key={runtimeInputKey}
-          label={input.label}
-          placeholder={input.placeholder}
-          value={value}
-          onChange={(nextValue) =>
-            updateRuntimeInputValue(input, nextValue, context)
-          }
-        />
-      );
-    }
-
-    if (input.type === "image") {
-      return (
-        <div className="grid gap-2" key={runtimeInputKey}>
-          <StudioTextField
-            label={input.label}
-            placeholder={input.placeholder}
-            value={value}
-            onChange={(nextValue) =>
-              updateRuntimeInputValue(input, nextValue, context)
-            }
-          />
-          <label className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded border border-[#303848] bg-[#111827] px-3 text-xs font-bold text-[#c8d6f2] transition-colors hover:bg-[#1a2230]">
-            <Upload size={14} />
-            Upload
-            <input
-              accept="image/*"
-              className="hidden"
-              type="file"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (!file) return;
-                const selectedGeometry =
-                  activeWorkspaceMode === "timetable"
-                    ? selectedTimetableLayerGeometry
-                    : selectedNode
-                      ? resolveStudioGraphNodeGeometry(
-                          document,
-                          selectedNode.id,
-                        )
-                      : null;
-                requestStudioImageCrop(
-                  file,
-                  selectedGeometry ?? { width: 400, height: 400 },
-                  (croppedImageSrc) =>
-                    updateRuntimeInputValue(input, croppedImageSrc, context),
-                );
-              }}
-            />
-          </label>
-        </div>
-      );
-    }
-
-    return (
-      <label
-        className="grid gap-1 text-xs font-semibold text-[#8fa6cf]"
-        key={runtimeInputKey}
-      >
-        <span>{input.label}</span>
-        <select
-          className="h-9 rounded border border-[#303848] bg-[#111827] px-2 text-sm text-[#e5eefc] outline-none focus:border-[#4f8cff]"
-          value={value}
-          onChange={(event) =>
-            updateRuntimeInputValue(input, event.currentTarget.value, context)
-          }
-        >
-          {input.options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+    requestStudioImageCrop(
+      file,
+      resolveStudioRuntimeCropSize(selectedGeometry),
+      onApply,
     );
   };
 
-  const renderRuntimeInputGroup = (
-    title: string,
-    scopedInputs: StudioInputDefinition[],
-    context: StudioRuntimeContext = {},
-  ) => {
-    if (scopedInputs.length === 0) return null;
-
-    return (
-      <div className="grid gap-2">
-        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#9fb5df]">
-          {title}
-        </h3>
-        <div className="grid gap-3">
-          {scopedInputs.map((input) => renderRuntimeInput(input, context))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderRuntimePreviewInputs = () => {
-    const hasScopedInputs =
-      runtimeInputsByScope.day.length > 0 ||
-      runtimeInputsByScope.entry.length > 0;
-
-    return (
-      <div className="grid gap-4">
-        <div className="flex justify-end">
-          <button
-            className="h-7 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2.5 text-[11px] font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-            type="button"
-            onClick={resetRuntimeValues}
-          >
-            Reset
-          </button>
-        </div>
-
-        {hasScopedInputs && timetableDays.length > 0 ? (
-          <div className="grid gap-2 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2">
-            <label className="grid gap-1 text-[11px] font-semibold text-[var(--fg2)]">
-              <span>Day Context</span>
-              <select
-                className="h-8 rounded-md border border-[var(--field-border)] bg-[var(--panel)] px-2 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                value={activeRuntimeDayId}
-                onChange={(event) =>
-                  setSelectedRuntimeDayId(event.currentTarget.value)
-                }
-              >
-                {timetableDays.map((day) => (
-                  <option key={day.id} value={day.id}>
-                    {day.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {runtimeInputsByScope.entry.length > 0 ? (
-              <label className="grid gap-1 text-[11px] font-semibold text-[var(--fg2)]">
-                <span>Entry Context</span>
-                <select
-                  className="h-8 rounded-md border border-[var(--field-border)] bg-[var(--panel)] px-2 text-xs font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-                  disabled={activeRuntimeEntries.length === 0}
-                  value={activeRuntimeEntryIndex}
-                  onChange={(event) =>
-                    setSelectedRuntimeEntryIndex(
-                      Number(event.currentTarget.value),
-                    )
-                  }
-                >
-                  {activeRuntimeEntries.length === 0 ? (
-                    <option value={0}>No entries</option>
-                  ) : null}
-                  {activeRuntimeEntries.map((entry, entryIndex) => (
-                    <option key={entryIndex} value={entryIndex}>
-                      Entry {entryIndex + 1} · {entry.id.slice(-6)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-          </div>
-        ) : null}
-
-        {renderRuntimeInputGroup("Global", runtimeInputsByScope.global)}
-
-        {activeRuntimeDayId
-          ? renderRuntimeInputGroup("Day", runtimeInputsByScope.day, {
-              dayId: activeRuntimeDayId,
-            })
-          : null}
-
-        {activeRuntimeDayId && activeRuntimeEntry
-          ? renderRuntimeInputGroup("Entry", runtimeInputsByScope.entry, {
-              dayId: activeRuntimeDayId,
-              entryIndex: activeRuntimeEntryIndex,
-            })
-          : null}
-      </div>
-    );
-  };
+  const renderRuntimePreviewInputs = () => (
+    <StudioRuntimeInputPanel
+      activeDayId={activeRuntimeDayId}
+      activeEntries={activeRuntimeEntries}
+      activeEntry={activeRuntimeEntry}
+      activeEntryIndex={activeRuntimeEntryIndex}
+      days={timetableDays}
+      inputsByScope={runtimeInputsByScope}
+      runtimeValues={runtimeValues}
+      onChangeInput={updateRuntimeInputValue}
+      onRequestImageCrop={requestRuntimeImageCrop}
+      onReset={resetRuntimeValues}
+      onSelectDay={setSelectedRuntimeDayId}
+      onSelectEntryIndex={setSelectedRuntimeEntryIndex}
+    />
+  );
 
   const renderTimetablePanel = () => {
     const timetable = document.domains?.timetable;
@@ -4350,20 +4185,15 @@ export function TemplateStudioClient({
         </div>
 
         <div className="grid gap-4 border-t border-[var(--border)] pt-4">
-          {renderRuntimeInputGroup("Global", runtimeInputsByScope.global)}
-
-          {activeRuntimeDayId
-            ? renderRuntimeInputGroup("Day", runtimeInputsByScope.day, {
-                dayId: activeRuntimeDayId,
-              })
-            : null}
-
-          {activeRuntimeDayId && activeRuntimeEntry
-            ? renderRuntimeInputGroup("Entry", runtimeInputsByScope.entry, {
-                dayId: activeRuntimeDayId,
-                entryIndex: activeRuntimeEntryIndex,
-              })
-            : null}
+          <StudioRuntimeInputGroups
+            activeDayId={activeRuntimeDayId}
+            activeEntry={activeRuntimeEntry}
+            activeEntryIndex={activeRuntimeEntryIndex}
+            inputsByScope={runtimeInputsByScope}
+            runtimeValues={runtimeValues}
+            onChangeInput={updateRuntimeInputValue}
+            onRequestImageCrop={requestRuntimeImageCrop}
+          />
         </div>
       </div>
     );
@@ -4407,7 +4237,12 @@ export function TemplateStudioClient({
         <ArrowUpRight size={12} />
         Open in Inputs
       </button>
-      {renderRuntimeInput(input)}
+      <StudioRuntimeInputField
+        input={input}
+        runtimeValues={runtimeValues}
+        onChange={updateRuntimeInputValue}
+        onRequestImageCrop={requestRuntimeImageCrop}
+      />
     </div>
   );
 
