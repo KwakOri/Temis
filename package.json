@@ -65,7 +65,7 @@
     "check:studio:node-definitions": "tsx scripts/check-studio-node-definitions.tsx",
     "check:studio:rasterizer": "tsx scripts/check-studio-rasterizer.ts",
     "check:studio:text-appearance": "tsx scripts/check-studio-text-appearance.ts",
-    "check:studio:text-renderer": "tsx scripts/check-studio-text-renderer.tsx",
+    "check:studio:text": "tsx scripts/check-studio-text.tsx",
     "check:studio:transform-commands": "tsx scripts/check-studio-transform-commands.ts",
     "check:studio:align-commands": "tsx scripts/check-studio-align-commands.ts",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",

@@ -25,9 +25,8 @@ import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import { getStudioObjectRenderStyle } from "@/utils/template-studio/object-layout";
 import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
 
-import { StudioAutoText } from "@/components/studio/canvas/studio-auto-text";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
-import { StudioTextRenderer } from "@/components/studio/text/studio-text-renderer";
+import { StudioText } from "@/components/studio/text/studio-text";
 
 interface StudioRendererProps {
   document: StudioTemplateDocument;
@@ -235,14 +234,19 @@ export function StudioRenderer({
 
         return (
           <div key={node.id} {...commonProps}>
-            <StudioAutoText
+            <StudioText
+              appearance={resolveStudioTextAppearance(node, styleRecord)}
+              autoFit={{
+                maxFontSize:
+                  typeof styleRecord?.fontSize === "number"
+                    ? styleRecord.fontSize
+                    : 24,
+                minFontSize: 10,
+                styleRecord,
+              }}
               className="m-0 block w-full leading-tight"
-              defaultMaxFontSize={24}
-              minFontSize={10}
-              styleRecord={styleRecord}
-              text={text || " "}
-              textStyle={{
-                color: style.color,
+              text={text}
+              typography={{
                 fontFamily: style.fontFamily,
                 fontWeight: style.fontWeight,
                 letterSpacing: 0,
@@ -264,7 +268,7 @@ export function StudioRenderer({
 
         return (
           <div key={node.id} {...commonProps}>
-            <StudioTextRenderer
+            <StudioText
               appearance={resolveStudioTextAppearance(node, styleRecord)}
               text={text}
             />

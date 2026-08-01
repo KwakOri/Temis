@@ -11,15 +11,18 @@
  *
  * 이 검사가 덮지 못하는 범위:
  * - 겹쳐 그린 글자가 실제로 어긋나지 않는지. 그것은 스파이크 페이지에서 눈으로 판정한다.
- * - 자동 크기 텍스트(`flexibleText`). 공용 측정은 §15 7~8번이고 아직 연결하지 않았다.
+ * - 맞춤 여유가 실제 탐색에 적용되는지. 크기 계산은 브라우저 effect에서 일어나므로 서버
+ *   렌더 마크업에 나타나지 않는다. 여유를 정하는 순수 함수는 값으로 검증하고, 그 값이
+ *   실제로 넘겨지는지는 스파이크 페이지의 측정 표로 본다.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 // jsx: "preserve" 환경이라 클래식 변환용 React 심볼이 스코프에 있어야 한다.
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { StudioRenderer } from "../src/components/studio/canvas/studio-renderer";
-import { StudioTextRenderer } from "../src/components/studio/text/studio-text-renderer";
+import { StudioText } from "../src/components/studio/text/studio-text";
 import type {
   StudioGraphNode,
   StudioRuntimeValues,
@@ -28,6 +31,10 @@ import type {
   StudioTextStroke,
 } from "../src/types/template-studio";
 import { resolveStudioTextAppearance } from "../src/utils/template-studio/text-appearance";
+import {
+  getStudioTextFitBounds,
+  STUDIO_TEXT_FIT_MARGIN_PX,
+} from "../src/utils/template-studio/text-layout";
 import { createThumbnailStudioDocument } from "../src/utils/thumbnail-studio/document-factory";
 
 const TEXT = "Rendered";
@@ -63,7 +70,7 @@ const render = (
   text = TEXT,
 ): string =>
   renderToStaticMarkup(
-    <StudioTextRenderer
+    <StudioText
       appearance={resolveStudioTextAppearance(node, style)}
       text={text}
     />,
@@ -345,4 +352,180 @@ assert.ok(
   "공용 렌더러도 같은 두께 변환을 거쳐야 한다.",
 );
 
-console.log("Studio text renderer baseline checks passed.");
+/**
+ * 자동 크기 노드도 공용 렌더러를 거쳐 효과를 그려야 한다.
+ *
+ * 처음 이 가드를 쓸 때 고정 크기 노드만 확인해서, 자동 크기 갈래가 노드의 효과를 읽지 않게
+ * 되는 회귀를 잡지 못했다. 두 갈래는 서로 다른 자리이므로 각각 봐야 한다.
+ */
+const autoFitDocumentMarkup = renderDocument(
+  createNode({
+    type: "flexibleText",
+    textAppearance: appearance({ strokes: [stroke("outer", 6)] }),
+  }),
+  { color: "#111827", fontSize: 42 },
+);
+assert.ok(
+  autoFitDocumentMarkup.includes('data-effect-layer="stroke:outer"'),
+  "자동 크기 노드의 저장된 효과가 그려져야 한다.",
+);
+assert.ok(
+  autoFitDocumentMarkup.includes("-webkit-text-stroke:12px"),
+  "자동 크기 갈래도 같은 두께 변환을 거쳐야 한다.",
+);
+
+const autoFitPlainDocumentMarkup = renderDocument(
+  createNode({ type: "flexibleText" }),
+  { color: "#111827", fontSize: 42 },
+);
+assert.ok(
+  !autoFitPlainDocumentMarkup.includes("data-effect-layer"),
+  "효과가 없는 자동 크기 노드에 레이어가 생기면 기존 문서의 배치가 달라진다.",
+);
+assert.ok(
+  autoFitPlainDocumentMarkup.includes("white-space:pre"),
+  "자동 크기의 줄바꿈 정책이 바뀌면 기존 문서의 줄바꿈과 크기가 함께 바뀐다.",
+);
+
+const autoFitSingleLineMarkup = renderDocument(
+  createNode({ type: "flexibleText" }),
+  { color: "#111827", fontSize: 42, textWrapMode: "single" },
+);
+assert.ok(
+  autoFitSingleLineMarkup.includes("white-space:nowrap"),
+  "single 줄바꿈 모드는 개행을 무시하고 한 줄 측정을 사용해야 한다.",
+);
+
+// --- 상자에 맞춘 크기 ---
+
+const renderAutoFit = (
+  node: Pick<StudioGraphNode, "textAppearance">,
+  style: StudioStyleRecord | undefined,
+): string =>
+  renderToStaticMarkup(
+    <StudioText
+      appearance={resolveStudioTextAppearance(node, style)}
+      autoFit={{ maxFontSize: 42, minFontSize: 10, styleRecord: style }}
+      text={TEXT}
+    />,
+  );
+
+const autoFitPlainMarkup = renderAutoFit({}, { color: "#111827" });
+assert.ok(
+  !autoFitPlainMarkup.includes("data-effect-layer"),
+  "효과가 없으면 자동 크기 경로에도 레이어가 없어야 한다.",
+);
+assert.ok(
+  autoFitPlainMarkup.includes("color:#111827"),
+  "효과가 없으면 style의 색을 글자 요소에 그대로 준다.",
+);
+
+const autoFitEffectMarkup = renderAutoFit(
+  {
+    textAppearance: appearance({
+      strokes: [stroke("outer", 6), stroke("inner", 3, { color: "#ffffff" })],
+    }),
+  },
+  {},
+);
+
+/**
+ * 크기를 재는 요소는 하나다.
+ *
+ * 레이어마다 자동 크기 컴포넌트를 쓰면 각자 크기를 재고 폰트 로드 시점에 따라 결과가 갈린다.
+ * 그러면 겹쳐 그린 글자가 어긋난다. 글자 요소가 하나라는 것으로 그것을 막는다.
+ */
+assert.equal(
+  (autoFitEffectMarkup.match(/<p[\s>]/g) ?? []).length,
+  1,
+  "자동 크기 경로에서 크기를 재는 요소는 하나여야 한다.",
+);
+
+// 레이어가 그 요소 안에 있어야 크기를 물려받는다.
+assert.ok(
+  autoFitEffectMarkup.indexOf('data-effect-layer="stroke:outer"') <
+    autoFitEffectMarkup.indexOf("</p>"),
+  "레이어가 글자 요소 밖에 있으면 정한 크기를 물려받지 못한다.",
+);
+assert.deepEqual(
+  [...autoFitEffectMarkup.matchAll(/data-effect-layer="([^"]+)"/g)].map(
+    (match) => match[1],
+  ),
+  ["stroke:outer", "stroke:inner", "fill"],
+  "두꺼운 외곽선부터 그리고 채우기를 마지막에 덮는다.",
+);
+assert.ok(
+  autoFitEffectMarkup.includes("color:transparent"),
+  "크기를 재는 요소는 지울 수 없으므로 색을 비우고 위에 겹친 레이어가 보이게 한다.",
+);
+assert.equal(
+  (autoFitEffectMarkup.match(/aria-hidden="true"/g) ?? []).length,
+  3,
+  "겹쳐 그린 레이어는 모두 낭독에서 빠진다. 읽히는 글자는 크기를 재는 요소 하나다.",
+);
+assert.equal(
+  (autoFitEffectMarkup.match(/pointer-events:none/g) ?? []).length,
+  3,
+  "겹쳐 그린 레이어는 클릭을 먹지 않아야 한다.",
+);
+assert.ok(
+  autoFitEffectMarkup.includes("-webkit-text-stroke:12px"),
+  "자동 크기 경로도 같은 두께 변환을 거쳐야 한다.",
+);
+
+// --- 맞춤 여유 ---
+
+assert.ok(
+  STUDIO_TEXT_FIT_MARGIN_PX > 0,
+  "여유가 0이면 탐색 결과가 맞춤 경계에 붙는다. 그 상태에서는 화면과 내려받은 이미지가 어긋난다.",
+);
+assert.deepEqual(
+  getStudioTextFitBounds({ width: 380, height: 74 }),
+  {
+    width: 380 - STUDIO_TEXT_FIT_MARGIN_PX,
+    height: 74 - STUDIO_TEXT_FIT_MARGIN_PX,
+  },
+  "여유는 가로와 세로에 모두 적용한다. 어긋난 장면이 모두 세로가 빡빡한 쪽이었다.",
+);
+assert.deepEqual(
+  getStudioTextFitBounds({ width: 380, height: 74, margin: 0 }),
+  { width: 380, height: 74 },
+  "여유를 0으로 넘기면 지금까지의 동작과 같아야 한다. 이 컴포넌트를 쓰는 화면이 200곳이 넘는다.",
+);
+assert.deepEqual(
+  getStudioTextFitBounds({ width: 1, height: 1, margin: 10 }),
+  { width: 1, height: 1 },
+  "여유를 뺀 뒤에도 1px은 남긴다. 0이 되면 어떤 크기도 맞지 않아 글자가 갑자기 최소 크기까지 작아진다.",
+);
+assert.deepEqual(
+  getStudioTextFitBounds({ width: 100, height: 50, margin: -5 }),
+  { width: 100, height: 50 },
+  "음수 여유는 상자를 넓히지 않는다.",
+);
+assert.deepEqual(
+  getStudioTextFitBounds({ width: 100, height: 50, margin: Number.NaN }),
+  { width: 100, height: 50 },
+  "숫자가 아닌 여유는 없는 것으로 본다.",
+);
+
+/**
+ * 여유를 넘기는 배선.
+ *
+ * 크기 계산은 브라우저 effect에서 일어나므로 서버 렌더 마크업으로는 볼 수 없다. 그래서
+ * 원본에서 확인한다. 약한 검사지만 값을 빼먹는 것은 잡는다.
+ */
+assert.ok(
+  readFileSync(
+    "src/components/AutoResizeTextCard/AutoResizeText.tsx",
+    "utf8",
+  ).includes("fitMargin = 0"),
+  "여유의 기본값이 0이 아니면 이 컴포넌트를 쓰는 200곳이 넘는 화면의 글자 크기가 함께 바뀐다.",
+);
+assert.ok(
+  readFileSync("src/components/studio/text/studio-text.tsx", "utf8").includes(
+    "fitMargin={STUDIO_TEXT_FIT_MARGIN_PX}",
+  ),
+  "Studio 경로는 여유를 넘겨야 한다. 넘기지 않으면 탐색 결과가 맞춤 경계에 붙는다.",
+);
+
+console.log("Studio text baseline checks passed.");

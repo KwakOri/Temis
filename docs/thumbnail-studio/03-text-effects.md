@@ -517,6 +517,22 @@ Phase 1·2의 실제 경로로 맞춰 둔 것이다. 렌더러와 Auto Text는 r
 12. 현재 텍스트에서 preset 생성
 13. runtime/export가 사용할 renderer API 확정
 
+### 현재 구현 상태 (2026-08-01)
+
+§15 1~8번은 코드에 반영됐다. 고정 크기와 `flexibleText`는 `StudioText` 하나를
+공유하고, 자동 크기 경로는 `AutoResizeText`가 한 번만 측정한 `<p>` 안에 효과
+레이어를 겹쳐 그린다. 따라서 레이어마다 별도 측정을 하지 않아 모든 레이어가 같은
+font size와 줄바꿈을 사용한다.
+
+§7의 공용 측정은 기존 시간표 화면의 동작을 보존하기 위해 `AutoResizeText`를
+호환 측정 어댑터로 유지하는 방식으로 구현했다. `fitMargin`의 기본값은 0이라
+기존 호출부는 그대로이고, Studio 경로만 `STUDIO_TEXT_FIT_MARGIN_PX`를 넘긴다.
+별도의 직렬화된 `StudioTextLayout` 객체는 현재 렌더러 계약에 필요하지 않아 만들지
+않았다. 효과 레이어가 측정 결과를 직접 상속하는 현재 구조가 같은 목적을 달성한다.
+
+§8은 공용 `StudioText`를 `StudioRenderer`, 시간표 미리보기와 렌더링 스파이크에
+연결했고, `preserve`(기본값)와 `single` 줄바꿈 모드를 각각 유지한다.
+
 ## 16. 완료 조건
 
 - 하나의 텍스트 노드에 여러 stroke를 추가할 수 있다.

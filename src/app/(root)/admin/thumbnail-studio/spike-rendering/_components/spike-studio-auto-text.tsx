@@ -3,7 +3,8 @@
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
-import { StudioAutoText } from "@/components/studio/canvas/studio-auto-text";
+import { StudioText } from "@/components/studio/text/studio-text";
+import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
 
 import type { SpikeScene } from "./spike-scenes";
 import type { SpikeTextMeasurement } from "./spike-text";
@@ -101,17 +102,21 @@ export function SpikeStudioAutoText({
         alignItems: "center",
       }}
     >
-      <StudioAutoText
-        className="m-0 block w-full leading-tight"
-        defaultMaxFontSize={24}
-        minFontSize={10}
-        styleRecord={{
-          fontSize: scene.fontSize ?? scene.autoFit?.max,
-          ...(scene.textWrapMode ? { textWrapMode: scene.textWrapMode } : {}),
+      <StudioText
+        appearance={resolveStudioTextAppearance(
+          {},
+          { color: scene.fill.color },
+        )}
+        autoFit={{
+          maxFontSize: scene.fontSize ?? scene.autoFit?.max ?? 24,
+          minFontSize: 10,
+          styleRecord: scene.textWrapMode
+            ? { textWrapMode: scene.textWrapMode }
+            : undefined,
         }}
+        className="m-0 block w-full leading-tight"
         text={scene.text}
-        textStyle={{
-          color: scene.fill.color,
+        typography={{
           fontFamily: `"${scene.fontFamily}"`,
           fontWeight: scene.fontWeight,
           letterSpacing: 0,

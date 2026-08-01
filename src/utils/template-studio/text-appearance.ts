@@ -192,7 +192,14 @@ const readLegacyStroke = (
  * 렌더러가 이미 CSS로 흘린다. 채우기 투명도로 한 번 더 적용하면 두 번 곱해진다.
  */
 export const resolveStudioTextAppearance = (
-  node: StudioGraphNode,
+  /**
+   * 효과를 담을 수 있는 것.
+   *
+   * 그래프 노드 전체를 요구하지 않는다. 시간표 composition 오브젝트도 글자를 그리고
+   * (§5의 후속 사용 지점), 그쪽은 `StudioGraphNode`가 아니다. 읽는 값이 하나뿐이라
+   * 그 하나만 요구한다.
+   */
+  node: Pick<StudioGraphNode, "textAppearance">,
   style: StudioStyleRecord | undefined,
 ): ResolvedStudioTextAppearance => {
   const appearance = node.textAppearance;
@@ -247,5 +254,6 @@ export const shouldRenderStudioTextEffectLayers = (
  *
  * 인스펙터가 "아직 기본 표현"과 "효과를 저장했다"를 구분할 때 쓴다.
  */
-export const hasStudioTextAppearance = (node: StudioGraphNode): boolean =>
-  Boolean(node.textAppearance);
+export const hasStudioTextAppearance = (
+  node: Pick<StudioGraphNode, "textAppearance">,
+): boolean => Boolean(node.textAppearance);

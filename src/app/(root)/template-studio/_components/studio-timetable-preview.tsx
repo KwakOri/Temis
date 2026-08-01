@@ -39,13 +39,14 @@ import {
   resolveStudioTimetableComponentVariant,
 } from "@/utils/template-studio/timetable-runtime";
 import { createStudioStatusCardBackgroundSlotResolver } from "@/utils/template-studio/status-card-background";
+import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
 import {
   getStudioTimetableComponentFrame,
   resolveStudioTimetableDayVariantStatus,
 } from "@/utils/template-studio/entry-groups";
 import { STUDIO_TEXT_WRAP_MODE_STYLE_KEY } from "@/utils/template-studio/text-wrap";
 
-import { StudioAutoText } from "@/components/studio/canvas/studio-auto-text";
+import { StudioText } from "@/components/studio/text/studio-text";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
@@ -1061,13 +1062,24 @@ export function StudioTimetablePreview({
           />
         ) : null}
         {object.kind === "flexibleText" ? (
-          <StudioAutoText
+          <StudioText
+            /*
+             * composition 오브젝트는 아직 구조화된 효과를 담지 않는다. 시간표가 공용
+             * 텍스트 효과를 채택하는 것은 후속 범위다(03 문서 §4.1). 그래서 효과 없는
+             * 것으로 보고 style에서 색만 읽는다.
+             */
+            appearance={resolveStudioTextAppearance({}, object.style)}
+            autoFit={{
+              maxFontSize:
+                typeof object.style.fontSize === "number"
+                  ? object.style.fontSize
+                  : 48,
+              minFontSize: 8,
+              styleRecord: object.style,
+            }}
             className="min-w-0"
-            defaultMaxFontSize={48}
-            minFontSize={8}
-            styleRecord={object.style}
             text={text}
-            textStyle={{ margin: 0 }}
+            typography={{ margin: 0 }}
           />
         ) : (
           <span className="min-w-0">{text}</span>

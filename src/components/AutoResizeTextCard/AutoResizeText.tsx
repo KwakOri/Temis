@@ -1,6 +1,8 @@
-'use client';
+"use client";
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
+
+import { getStudioTextFitBounds } from "@/utils/template-studio/text-layout";
 
 interface Props extends React.HTMLAttributes<HTMLParagraphElement> {
   children: string;
@@ -11,6 +13,27 @@ interface Props extends React.HTMLAttributes<HTMLParagraphElement> {
 
   multiline?: boolean;
   maxLines?: number;
+  /**
+   * 맞춤 판정에서 상자에서 덜어낼 여유(px).
+   *
+   * 탐색은 상자에 맞는 최대 크기를 찾으므로 결과가 항상 맞춤 경계 직전이다. 그 상태에서는
+   * 측정과 래스터화가 조금만 달라도 결과가 어긋난다. 여유를 주면 경계에서 떨어진다.
+   *
+   * 기본값은 0이다. 이 컴포넌트를 쓰는 화면이 200곳이 넘으므로, 값을 넘기지 않으면 지금과
+   * 똑같이 동작해야 한다.
+   */
+  fitMargin?: number;
+  /**
+   * 정한 크기를 물려받아 겹쳐 그릴 레이어.
+   *
+   * 글자 요소 안에 그대로 들어가므로 CSS 상속으로 같은 `font-size`를 쓴다. 텍스트 효과를
+   * 레이어로 그릴 때, 레이어마다 이 컴포넌트를 따로 쓰면 각자 크기를 재고 폰트 로드 시점에
+   * 따라 결과가 갈린다. 그러면 겹쳐 그린 글자가 어긋난다.
+   *
+   * 레이어는 `position: absolute`로 이 요소를 덮어야 한다. 흐름에 끼면 상자 크기가 커져서
+   * 맞춤 판정이 달라진다.
+   */
+  overlay?: React.ReactNode;
 }
 
 const rmPx = (pixel: string) => Number(pixel.slice(0, -2));
@@ -37,17 +60,19 @@ const AutoResizeText: React.FC<Props> = ({
   className,
   multiline = false,
   maxLines,
+  fitMargin = 0,
+  overlay,
   ...props
 }) => {
   const textRef = useRef<HTMLParagraphElement>(null);
   const [fontSize, setFontSize] = useState(maxFontSize);
   const normalizedMaxLines =
-    typeof maxLines === 'number' && Number.isFinite(maxLines) && maxLines > 0
+    typeof maxLines === "number" && Number.isFinite(maxLines) && maxLines > 0
       ? Math.floor(maxLines)
       : undefined;
   const hasLineLimit = normalizedMaxLines !== undefined;
   const displayText = hasLineLimit
-    ? children.replace(/[\r\n]+/g, ' ')
+    ? children.replace(/[\r\n]+/g, " ")
     : children;
 
   useEffect(() => {
@@ -61,25 +86,42 @@ const AutoResizeText: React.FC<Props> = ({
       // padding 값을 객체로 변환
 
       // 사용 가능한 공간 계산 (padding 고려)
-      const { availableHeight, availableWidth } = getAvailableLength(parent);
+      const parentLength = getAvailableLength(parent);
 
       // 최소 크기 확인
-      if (availableWidth <= 0 || availableHeight <= 0) {
+      if (
+        parentLength.availableWidth <= 0 ||
+        parentLength.availableHeight <= 0
+      ) {
         setFontSize(minFontSize);
         return;
       }
 
+      /**
+       * 맞춤 경계에서 떨어뜨린다.
+       *
+       * 여유를 넘기지 않으면 0이므로 지금까지의 동작과 같다.
+       */
+      const { width: availableWidth, height: availableHeight } =
+        getStudioTextFitBounds({
+          width: parentLength.availableWidth,
+          height: parentLength.availableHeight,
+          margin: fitMargin,
+        });
+
       if (hasLineLimit) {
         el.style.width = `${availableWidth}px`;
-        el.style.whiteSpace = 'normal';
-        el.style.wordBreak = 'break-word';
-        el.style.overflowWrap = 'break-word';
+        el.style.whiteSpace = "normal";
+        el.style.wordBreak = "break-word";
+        el.style.overflowWrap = "break-word";
 
         const fitsAtFontSize = (candidateFontSize: number) => {
           el.style.fontSize = `${candidateFontSize}px`;
 
           const computedStyle = window.getComputedStyle(el);
-          const computedLineHeight = Number.parseFloat(computedStyle.lineHeight);
+          const computedLineHeight = Number.parseFloat(
+            computedStyle.lineHeight,
+          );
           const lineHeight =
             Number.isFinite(computedLineHeight) && computedLineHeight > 0
               ? computedLineHeight
@@ -119,13 +161,13 @@ const AutoResizeText: React.FC<Props> = ({
 
       // multiline 지원을 위한 스타일 설정
       if (multiline) {
-        el.style.whiteSpace = 'pre';
-        el.style.wordBreak = 'break-word';
-        el.style.overflowWrap = 'break-word';
+        el.style.whiteSpace = "pre";
+        el.style.wordBreak = "break-word";
+        el.style.overflowWrap = "break-word";
       } else {
-        el.style.whiteSpace = 'nowrap';
-        el.style.wordBreak = 'normal';
-        el.style.overflowWrap = 'normal';
+        el.style.whiteSpace = "nowrap";
+        el.style.wordBreak = "normal";
+        el.style.overflowWrap = "normal";
       }
 
       // 새로운 접근: textRef와 부모 크기를 직접 비교하여 fontSize 조정
@@ -172,6 +214,7 @@ const AutoResizeText: React.FC<Props> = ({
     };
   }, [
     displayText,
+    fitMargin,
     hasLineLimit,
     maxFontSize,
     minFontSize,
@@ -185,23 +228,23 @@ const AutoResizeText: React.FC<Props> = ({
       className={className}
       style={{
         fontSize: `${Math.floor(fontSize)}px`,
-        whiteSpace: hasLineLimit ? 'normal' : multiline ? 'pre' : 'nowrap',
+        whiteSpace: hasLineLimit ? "normal" : multiline ? "pre" : "nowrap",
         wordBreak: hasLineLimit
-          ? 'break-word'
+          ? "break-word"
           : multiline
-          ? 'break-word'
-          : 'normal',
+            ? "break-word"
+            : "normal",
         overflowWrap: hasLineLimit
-          ? 'break-word'
+          ? "break-word"
           : multiline
-          ? 'break-word'
-          : 'normal',
-        overflow: 'visible',
+            ? "break-word"
+            : "normal",
+        overflow: "visible",
         ...(hasLineLimit
           ? {
-              width: '100%',
-              maxWidth: '100%',
-              boxSizing: 'border-box' as const,
+              width: "100%",
+              maxWidth: "100%",
+              boxSizing: "border-box" as const,
             }
           : {}),
         ...style,
@@ -209,6 +252,12 @@ const AutoResizeText: React.FC<Props> = ({
       {...props}
     >
       {displayText}
+      {/*
+       * 레이어는 이 요소 안에 들어가므로 정한 `font-size`를 물려받는다. 그래서 크기를 한 번만
+       * 재고 모든 레이어가 같은 값을 쓴다. 레이어가 `position: absolute`로 이 요소를 덮는
+       * 것은 넘기는 쪽의 책임이다.
+       */}
+      {overlay}
     </p>
   );
 };
