@@ -28,7 +28,9 @@ import {
   getStudioTextStrokeBands,
   hasStudioTextAppearance,
   resolveStudioTextAppearance,
+  shouldRenderStudioTextEffectLayers,
   STUDIO_TEXT_STROKE_CSS_SCALE,
+  toStudioCssColor,
   toStudioCssStrokeWidth,
 } from "../src/utils/template-studio/text-appearance";
 import {
@@ -293,6 +295,82 @@ assert.deepEqual(
   }).strokes,
   [],
   "읽을 수 없는 값은 무시한다. 억지로 해석하면 없던 외곽선이 생긴다.",
+);
+
+// --- 투명도를 섞은 CSS 색 ---
+
+assert.equal(
+  toStudioCssColor("#0f172a", 1),
+  "#0f172a",
+  "불투명하면 색을 그대로 쓴다. 굳이 rgba로 바꾸면 저장한 값과 화면 값이 달라 보인다.",
+);
+assert.equal(toStudioCssColor("#0f172a", 0.65), "rgba(15, 23, 42, 0.65)");
+assert.equal(
+  toStudioCssColor("#fff", 0.5),
+  "rgba(255, 255, 255, 0.5)",
+  "세 자리 hex도 다뤄야 한다.",
+);
+assert.equal(
+  toStudioCssColor("#0f172a", 0),
+  "rgba(15, 23, 42, 0)",
+  "완전 투명도 표현할 수 있어야 한다.",
+);
+assert.equal(
+  toStudioCssColor("#0f172a", -1),
+  "rgba(15, 23, 42, 0)",
+  "음수 투명도는 0으로 가둔다.",
+);
+assert.equal(
+  toStudioCssColor("rebeccapurple", 0.5),
+  "rebeccapurple",
+  "쪼갤 수 없는 색은 그대로 준다. 억지로 문자열을 만들면 CSS가 선언 전체를 버려서 그림자가 사라진다.",
+);
+assert.equal(toStudioCssColor("rgb(1, 2, 3)", 0.5), "rgb(1, 2, 3)");
+assert.equal(
+  toStudioCssColor("#0f172a", Number.NaN),
+  "#0f172a",
+  "투명도가 숫자가 아니면 불투명으로 본다.",
+);
+
+// --- 효과 레이어를 그릴지 ---
+
+const layeredAppearance = createTextNode({ textAppearance: appearance });
+assert.equal(
+  shouldRenderStudioTextEffectLayers(
+    resolveStudioTextAppearance(layeredAppearance, {}),
+  ),
+  true,
+);
+assert.equal(
+  shouldRenderStudioTextEffectLayers(
+    resolveStudioTextAppearance(
+      createTextNode({
+        textAppearance: {
+          fill: { type: "solid", color: "#111827", opacity: 1 },
+          strokes: [],
+        },
+      }),
+      {},
+    ),
+  ),
+  false,
+  "저장된 효과가 비어 있으면 레이어를 만들지 않는다.",
+);
+
+/**
+ * 예전 scalar 외곽선은 레이어로 다시 그리지 않는다.
+ *
+ * 그 값은 style 선언으로 이미 그려지고 있다. 레이어를 더하면 같은 외곽선이 두 번 그려져
+ * 두께가 두 배로 보인다.
+ */
+assert.equal(
+  shouldRenderStudioTextEffectLayers(
+    resolveStudioTextAppearance(createTextNode(), {
+      WebkitTextStroke: "12px #111827",
+    }),
+  ),
+  false,
+  "예전 값에 레이어를 더하면 외곽선이 두 번 그려진다.",
 );
 
 // --- 스파이크가 승격된 계산을 그대로 쓴다 ---

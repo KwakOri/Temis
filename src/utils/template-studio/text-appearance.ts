@@ -27,6 +27,39 @@ export const toStudioCssStrokeWidth = (outset: number): number =>
     : 0;
 
 /**
+ * 투명도를 색에 섞어 CSS 색 값으로 만든다.
+ *
+ * 그림자는 레이어 투명도로 다룰 수 없다. 같은 레이어가 글자와 외곽선도 함께 그리므로,
+ * 레이어를 흐리게 하면 그림자만이 아니라 전부 흐려진다. 그래서 색 자체에 alpha를 넣는다.
+ *
+ * `#rgb`와 `#rrggbb`만 alpha를 넣을 수 있다. 이름 있는 색이나 `rgb()` 표기는 안전하게
+ * 쪼갤 수 없으므로 색을 그대로 준다. 억지로 문자열을 만들면 CSS가 선언 전체를 버려서
+ * 그림자가 사라진다.
+ */
+export const toStudioCssColor = (color: string, opacity = 1): string => {
+  const normalizedOpacity = Number.isFinite(opacity) ? opacity : 1;
+  if (normalizedOpacity >= 1) return color;
+
+  const clampedOpacity = Math.max(normalizedOpacity, 0);
+  const hex = color.trim().replace("#", "");
+  const isShortHex = /^[0-9a-f]{3}$/i.test(hex);
+  const isLongHex = /^[0-9a-f]{6}$/i.test(hex);
+  if (!isShortHex && !isLongHex) return color;
+
+  const fullHex = isShortHex
+    ? hex
+        .split("")
+        .map((part) => part + part)
+        .join("")
+    : hex;
+  const value = Number.parseInt(fullHex, 16);
+
+  return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${
+    value & 255
+  }, ${clampedOpacity})`;
+};
+
+/**
  * 그릴 수 있는 stroke인지.
  *
  * 꺼 둔 것과 두께가 0 이하인 것은 그리지 않는다. 두께 0을 레이어로 만들면 아무것도 보이지
@@ -191,6 +224,23 @@ export const resolveStudioTextAppearance = (
     source: "legacyStyle",
   };
 };
+
+/**
+ * 효과 레이어를 겹쳐 그려야 하는지.
+ *
+ * 구조화된 효과가 저장돼 있을 때만 참이다. `legacyStyle`에서 읽은 stroke는 이미 style
+ * 선언으로 그려지고 있으므로 레이어를 더하면 같은 외곽선이 두 번 그려진다. legacy 값은
+ * 인스펙터가 지금 상태를 보여주기 위해 읽는 것이고 렌더러가 다시 그리지 않는다.
+ *
+ * 남은 제약: 인스펙터에서 효과를 저장하는 순간 예전 scalar 선언을 style에서 지워야 한다.
+ * 지우지 않으면 그때부터 CSS 선언과 효과 레이어가 함께 그려진다. 그 처리는 인스펙터를
+ * 만드는 단계(§15 10번)에서 한다.
+ */
+export const shouldRenderStudioTextEffectLayers = (
+  appearance: ResolvedStudioTextAppearance,
+): boolean =>
+  appearance.source === "appearance" &&
+  (appearance.strokes.length > 0 || Boolean(appearance.shadow));
 
 /**
  * 이 노드에 구조화된 효과가 저장돼 있는지.

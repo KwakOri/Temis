@@ -16,6 +16,7 @@ import {
   resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
 import { getStudioNodeBackgroundAssetSlot } from "@/utils/template-studio/graph-nodes";
+import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
 import {
   getStudioRuntimeInputValue,
   type StudioRuntimeContext,
@@ -26,6 +27,7 @@ import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-group
 
 import { StudioAutoText } from "@/components/studio/canvas/studio-auto-text";
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
+import { StudioTextRenderer } from "@/components/studio/text/studio-text-renderer";
 
 interface StudioRendererProps {
   document: StudioTemplateDocument;
@@ -262,7 +264,10 @@ export function StudioRenderer({
 
         return (
           <div key={node.id} {...commonProps}>
-            {text || "\u00a0"}
+            <StudioTextRenderer
+              appearance={resolveStudioTextAppearance(node, styleRecord)}
+              text={text}
+            />
             {children}
           </div>
         );
