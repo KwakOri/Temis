@@ -1,8 +1,8 @@
 # Thumbnail Studio 개발 문서
 
-최종 수정: 2026-07-31  
-상태: 전체 계획 수립. Phase 1 구현 진행 중(완료 조건 충족, Adapter 정리 남음),
-Phase 0·0A·2~6 구현 전
+최종 수정: 2026-08-01  
+상태: 전체 계획 수립. Phase 0A 실행 완료, Phase 2 구현 완료, Phase 1 구현 진행
+중(완료 조건 충족, Adapter 정리 남음), Phase 0·3~6 구현 전
 
 ## 1. 목표
 
@@ -142,6 +142,9 @@ Phase 6: 저장·발행·카탈로그
 
 Phase 0A에서 PNG 표준 라이브러리와 텍스트 효과 렌더링 방식을 확정한다. 같은
 DOM renderer를 사용한다는 이유만으로 화면과 PNG가 동일하다고 가정하지 않는다.
+실행 결과 `modern-screenshot`과 DOM effect layer로 정했고, 자동 크기 텍스트가
+줄바꿈 경계에서 취약하다는 제한을 함께 기록했다. Phase 3과 Phase 5는
+[§11 결정 기록](./00a-rendering-feasibility-spike.md#11-결정-기록)을 기준으로 구현한다.
 
 Phase 1을 건너뛰고 Thumbnail Studio 화면을 먼저 복제하지 않는다. 그렇게 하면
 상단의 `Cards / Timetable` 전환, 좌측의 `Component Set`, 우측의 시간표 속성과
@@ -156,9 +159,9 @@ Phase 5에서 발행 문서 사용 흐름을 만들고, Phase 6에서 기존 Stu
 | 단계 | 상태 | 핵심 결과 |
 | --- | --- | --- |
 | 00. 제품 계약 | 계획 완료 | 템플릿 종류, 권한, 노드와 문서 계약 |
-| 0A. 렌더링 스파이크 | 실행 전 | PNG 표준 라이브러리와 텍스트 효과 방식 결정 |
-| 01. Studio Core | 계획 완료 | 공통 셸과 Timetable/Thumbnail Adapter |
-| 02. 기본 편집기 | 계획 완료 | 썸네일 문서와 기본 오브젝트 편집 |
+| 0A. 렌더링 스파이크 | 실행 완료 | `modern-screenshot`과 DOM effect layer 결정 |
+| 01. Studio Core | 구현 진행 중 | 공통 셸과 Timetable/Thumbnail Adapter |
+| 02. 기본 편집기 | 구현 완료 | 썸네일 문서와 기본 오브젝트 편집 |
 | 03. 텍스트 효과 | 계획 완료 | 공용 텍스트 렌더러와 다중 아웃스트로크 |
 | 04. 입력·에셋 | 계획 완료 | 사용자 입력 바인딩과 이미지 워크플로 |
 | 05. 런타임·PNG | 계획 완료 | 제한형 사용자 편집과 이미지 다운로드 |

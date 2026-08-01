@@ -1,6 +1,6 @@
 # Phase 0A. 텍스트 효과와 PNG 렌더링 선행 스파이크
 
-상태: 계획 완료, 실행 전  
+상태: 실행 완료. §9 완료 조건 충족 (→ [§11 결정 기록](#11-결정-기록))  
 선행 단계: [Phase 0 — 제품 계약과 문서 모델](./00-product-contract.md)  
 후속 단계: [Phase 1 — Studio Core와 Adapter 분리](./01-studio-core-extraction.md)
 
