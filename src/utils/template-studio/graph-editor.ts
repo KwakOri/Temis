@@ -58,7 +58,13 @@ const getNodeStyleNumber = (
   return typeof value === "number" ? value : 0;
 };
 
-const getParentCanvasOffset = (
+/**
+ * 이 부모 안의 좌표 0,0이 캔버스에서 어디인지.
+ *
+ * 부모를 거슬러 올라가며 좌표를 더한다. 부모 좌표계와 캔버스 좌표계를 오갈 때
+ * 쓴다. 이 값을 빼먹으면 묶음 안에 넣은 객체가 묶음만큼 밀려난다.
+ */
+export const getStudioParentCanvasOffset = (
   document: StudioTemplateDocument,
   parentId: StudioNodeId | null,
 ): { left: number; top: number } => {
@@ -81,7 +87,10 @@ const getNodeCanvasOffset = (
   nodeId: StudioNodeId,
 ): { left: number; top: number } => {
   const node = document.graph.nodes[nodeId];
-  const parentOffset = getParentCanvasOffset(document, node?.parentId ?? null);
+  const parentOffset = getStudioParentCanvasOffset(
+    document,
+    node?.parentId ?? null,
+  );
 
   return {
     left: parentOffset.left + getNodeStyleNumber(document, nodeId, "left"),
@@ -247,7 +256,7 @@ export const moveStudioGraphNodes = (
       )
     : null;
   const targetParentCanvasOffset = params.preserveCanvasPosition
-    ? getParentCanvasOffset(document, validation.targetParentId)
+    ? getStudioParentCanvasOffset(document, validation.targetParentId)
     : null;
 
   document.graph.rootNodeIds = document.graph.rootNodeIds.filter(

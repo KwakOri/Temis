@@ -1,6 +1,6 @@
 "use client";
 
-import { Image as ImageIcon, Layers3, Lock, Type } from "lucide-react";
+import { EyeOff, Lock } from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React, { type ReactNode } from "react";
 
@@ -10,8 +10,9 @@ import {
   StudioLayerPanelFrame,
   StudioLayerRow,
 } from "@/components/studio/layers/studio-layer-primitives";
+import { StudioNodeTypeIcon } from "@/components/studio/node-type-icon";
 import { cn } from "@/lib/utils";
-import type { StudioGraphNode, StudioNodeGraph } from "@/types/template-studio";
+import type { StudioNodeGraph } from "@/types/template-studio";
 import type { StudioGraphDropPosition } from "@/utils/template-studio/graph-editor";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
 import { getStudioLayerPanelOrder } from "@/utils/template-studio/layer-order";
@@ -55,12 +56,6 @@ export interface StudioLayerPanelProps {
     position: "before" | "after",
   ) => void;
 }
-
-const StudioGraphNodeIcon = ({ type }: { type: StudioGraphNode["type"] }) => {
-  if (type === "image") return <ImageIcon size={14} />;
-  if (type === "group") return <Layers3 size={14} />;
-  return <Type size={14} />;
-};
 
 /**
  * 일반 그래프용 공통 레이어 패널.
@@ -147,7 +142,8 @@ export function StudioLayerPanel({
           cut={cutNodeIds?.has(node.id) ?? false}
           depth={depth}
           draggable={!node.locked}
-          icon={<StudioGraphNodeIcon type={node.type} />}
+          hidden={node.hidden ?? false}
+          icon={<StudioNodeTypeIcon type={node.type} />}
           label={node.label}
           ring={
             isInsideDropActive
@@ -158,9 +154,14 @@ export function StudioLayerPanel({
           }
           selected={selectedNodeIds.has(node.id)}
           stateIcon={
-            node.locked ? (
-              <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
-            ) : null
+            <>
+              {node.hidden ? (
+                <EyeOff className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
+              ) : null}
+              {node.locked ? (
+                <Lock className="h-3.5 w-3.5 shrink-0 text-[var(--fg3)]" />
+              ) : null}
+            </>
           }
           typeLabel={getStudioGraphNodeTypeLabel(node.type)}
           onClick={(event) => onSelect(node.id, event)}

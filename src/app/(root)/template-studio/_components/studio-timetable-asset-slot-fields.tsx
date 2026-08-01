@@ -12,7 +12,7 @@ import type {
 
 export type StudioAssetSlotSource = "asset" | "input";
 
-export interface StudioTimetableAssetSlotFieldsProps {
+export interface StudioAssetSlotFieldsProps {
   /** 이 자리의 이름. 예: `Background Asset` */
   label: string;
   /** 지금 고른 템플릿 에셋. */
@@ -58,7 +58,7 @@ export interface StudioTimetableAssetSlotFieldsProps {
  * Fit은 출처가 있을 때만 바꿀 수 있다. 출처가 없는 상태에서 Fit만 저장하면
  * 문서에 쓰이지 않는 값이 남는다.
  */
-export function StudioTimetableAssetSlotFields({
+export function StudioAssetSlotFields({
   label,
   assetId,
   inputId,
@@ -74,7 +74,7 @@ export function StudioTimetableAssetSlotFields({
   onUseInputSource,
   onUploadFile,
   renderInputSourceSlot = () => null,
-}: StudioTimetableAssetSlotFieldsProps) {
+}: StudioAssetSlotFieldsProps) {
   const source: StudioAssetSlotSource =
     sourceLocked ?? (inputId ? "input" : "asset");
   const hasMissingAsset = Boolean(assetId && !hasAsset);

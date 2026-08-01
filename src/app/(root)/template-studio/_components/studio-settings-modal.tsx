@@ -24,7 +24,7 @@ import {
 } from "@/utils/template-studio/timetable-guide";
 import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
 
-import { StudioHexColorPicker } from "./studio-hex-color-picker";
+import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 
 type WorkspaceMode = "cards" | "timetable";
 type StudioTheme = "dark" | "light";

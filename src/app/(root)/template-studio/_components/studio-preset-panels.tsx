@@ -1,13 +1,8 @@
 "use client";
-import {
-  CheckCircle2,
-  Image as ImageIcon,
-  Layers3,
-  Plus,
-  Type,
-} from "lucide-react";
+import { CheckCircle2, Plus, Type } from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
 import React from "react";
+import { StudioNodeTypeIcon } from "@/components/studio/node-type-icon";
 import { cn } from "@/lib/utils";
 import type { StudioGraphNodeType } from "@/types/template-studio";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
@@ -133,28 +128,19 @@ export function StudioTimetablePresetsPanel({
 }
 
 /** 카드 편집에서 곧바로 놓을 수 있는 객체 종류. */
+/**
+ * 카드에 곧바로 놓을 수 있는 종류.
+ *
+ * 카드 한 장 안에는 도형을 두지 않는다. 카드 배경은 상태별 그림 자리를 가진
+ * 전용 프리셋이 담당하므로, 여기에 도형을 더하면 같은 일을 하는 두 가지 방법이
+ * 생긴다. 아이콘과 이름은 노드 정의표에서 온다.
+ */
 const STUDIO_CARD_NODE_TYPES = [
   "group",
   "text",
   "flexibleText",
   "image",
 ] as const satisfies readonly StudioGraphNodeType[];
-
-const getStudioCardNodeTypeIcon = (
-  type: (typeof STUDIO_CARD_NODE_TYPES)[number],
-): React.ReactNode => {
-  if (type === "image") return <ImageIcon size={17} />;
-  if (type === "group") return <Layers3 size={17} />;
-  // 글자 길이에 맞춰 늘어나는 글자. 여느 글자와 구별되게 작은 a를 붙인다.
-  if (type === "flexibleText") {
-    return (
-      <span>
-        T<span className="align-super text-[8px]">a</span>
-      </span>
-    );
-  }
-  return <Type size={17} />;
-};
 
 export interface StudioCardsPresetsPanelProps {
   groups: StudioPresetGroup[];
@@ -199,7 +185,7 @@ export function StudioCardsPresetsPanel({
             type="button"
             onClick={() => onAddNode(type)}
           >
-            {getStudioCardNodeTypeIcon(type)}
+            <StudioNodeTypeIcon size={17} type={type} />
           </button>
         ))}
       </div>

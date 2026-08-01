@@ -42,7 +42,7 @@ import {
 } from "@/utils/template-studio/timetable-object-style";
 import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
 
-import { StudioHexColorPicker } from "./studio-hex-color-picker";
+import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 
 /** 시간표 객체 하나를 바꾼다. 문서 갱신과 이력은 호출한 쪽이 소유한다. */
 export type StudioTimetableObjectUpdater = (
@@ -264,8 +264,7 @@ export function StudioTimetableProfileMaskControls({
   );
 }
 
-export interface StudioTimetableTextTypographyControlsProps
-  extends StudioTimetableObjectControlProps {
+export interface StudioTimetableTextTypographyControlsProps extends StudioTimetableObjectControlProps {
   /** 폰트 굵기 후보를 찾는 데 쓴다. */
   document: StudioTemplateDocument;
   fontFamilies: string[];
@@ -287,10 +286,7 @@ export function StudioTimetableTextTypographyControls({
   const fontFamily = String(styleRecord.fontFamily ?? "Inter");
   const fontWeightOptions = getStudioFontWeightOptions(document, fontFamily);
 
-  const updateTextStyle = (
-    key: string,
-    value: string | number | undefined,
-  ) => {
+  const updateTextStyle = (key: string, value: string | number | undefined) => {
     onUpdateObject((currentObject) => {
       if (
         currentObject.kind !== "text" &&

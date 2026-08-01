@@ -5,26 +5,23 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import {
   StudioAsset,
+  StudioAssetSlot,
   StudioGraphNode,
   StudioRuntimeValues,
   StudioStyleRecord,
   StudioTemplateDocument,
-  StudioTimetableAssetSlot,
 } from "@/types/template-studio";
 import {
   resolveStudioAsset,
   resolveStudioTextBinding,
 } from "@/utils/template-studio/binding-resolver";
+import { getStudioNodeBackgroundAssetSlot } from "@/utils/template-studio/graph-nodes";
 import {
   getStudioRuntimeInputValue,
   type StudioRuntimeContext,
 } from "@/utils/template-studio/input-values";
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import { getStudioObjectRenderStyle } from "@/utils/template-studio/object-layout";
-import {
-  isStudioStatusCardBackgroundNode,
-  resolveStudioStatusCardBackgroundSlot,
-} from "@/utils/template-studio/status-card-background";
 import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
 
 import { StudioAutoText } from "@/components/studio/canvas/studio-auto-text";
@@ -37,6 +34,17 @@ interface StudioRendererProps {
   runtimeContext?: StudioRuntimeContext;
   selectedNodeId?: string | null;
   selectedNodeIds?: string[];
+  /**
+   * 노드 배경으로 그릴 그림 자리를 도메인 규칙으로 정한다.
+   *
+   * 기본값은 노드에 붙은 배경 자리를 그대로 쓴다. 시간표의 상태 카드 배경처럼
+   * 상태에 따라 자리를 더 따져야 하는 도메인만 이 함수를 넘긴다. 그 판단을 공통
+   * 렌더러가 갖고 있으면 썸네일 문서를 그릴 때도 시간표 개념을 통과한다.
+   */
+  resolveNodeBackgroundAssetSlot?: (
+    node: StudioGraphNode,
+    context: StudioRuntimeContext | undefined,
+  ) => StudioAssetSlot | null;
   onSelectNode?: (
     nodeId: string,
     event?: React.MouseEvent<HTMLDivElement>,
@@ -64,10 +72,10 @@ const toCssStyle = (styleRecord?: StudioStyleRecord): React.CSSProperties => {
   return style;
 };
 
-const resolveStudioAssetSlot = (
+const resolveStudioAssetSlotAsset = (
   document: StudioTemplateDocument,
   values: StudioRuntimeValues,
-  slot: StudioTimetableAssetSlot | null | undefined,
+  slot: StudioAssetSlot | null | undefined,
   context?: StudioRuntimeContext,
 ): StudioAsset | null => {
   if (!slot) return null;
@@ -89,9 +97,8 @@ const resolveStudioAssetSlot = (
   return slot.assetId ? (document.assets[slot.assetId] ?? null) : null;
 };
 
-const getBackgroundSizeForFit = (
-  fit: StudioTimetableAssetSlot["fit"],
-): string => (fit === "fill" ? "100% 100%" : (fit ?? "cover"));
+const getBackgroundSizeForFit = (fit: StudioAssetSlot["fit"]): string =>
+  fit === "fill" ? "100% 100%" : (fit ?? "cover");
 
 export function StudioRenderer({
   document,
@@ -100,6 +107,7 @@ export function StudioRenderer({
   runtimeContext,
   selectedNodeId,
   selectedNodeIds = [],
+  resolveNodeBackgroundAssetSlot,
   onSelectNode,
 }: StudioRendererProps) {
   const selectedNodeIdsSet = new Set(selectedNodeIds);
@@ -108,6 +116,10 @@ export function StudioRenderer({
     node: StudioGraphNode,
     inheritedContext: StudioRuntimeContext | undefined,
   ): React.ReactNode => {
+    // 감춘 노드는 자손까지 함께 빠진다. 부모를 감췄는데 자식만 남으면 트리에서
+    // 감춘 것과 화면에 남은 것이 어긋난다.
+    if (node.hidden) return null;
+
     const nodeRuntimeContext = getStudioNodeRuntimeContext(
       node,
       inheritedContext,
@@ -118,27 +130,22 @@ export function StudioRenderer({
     const style = toCssStyle(
       getStudioObjectRenderStyle(styleRecord ?? {}, node.layoutMode),
     );
-    const statusBackgroundSlot = isStudioStatusCardBackgroundNode(node)
-      ? resolveStudioStatusCardBackgroundSlot(
-          document,
-          runtimeValues,
-          nodeRuntimeContext,
-          node,
-        )
-      : null;
-    const statusBackgroundAsset = resolveStudioAssetSlot(
+    const backgroundSlot = resolveNodeBackgroundAssetSlot
+      ? resolveNodeBackgroundAssetSlot(node, nodeRuntimeContext)
+      : getStudioNodeBackgroundAssetSlot(node);
+    const backgroundAsset = resolveStudioAssetSlotAsset(
       document,
       runtimeValues,
-      statusBackgroundSlot,
+      backgroundSlot,
       nodeRuntimeContext,
     );
-    const resolvedStyle = statusBackgroundAsset
+    const resolvedStyle = backgroundAsset
       ? {
           ...style,
-          backgroundImage: `url(${JSON.stringify(statusBackgroundAsset.src)})`,
+          backgroundImage: `url(${JSON.stringify(backgroundAsset.src)})`,
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          backgroundSize: getBackgroundSizeForFit(statusBackgroundSlot?.fit),
+          backgroundSize: getBackgroundSizeForFit(backgroundSlot?.fit),
         }
       : style;
     const isSelected =
@@ -164,78 +171,125 @@ export function StudioRenderer({
       style: resolvedStyle,
     };
 
-    if (node.type === "group") {
-      return (
-        <div key={node.id} {...commonProps}>
-          {children}
-        </div>
-      );
-    }
+    /**
+     * 종류마다 그리는 법을 명시적으로 가른다.
+     *
+     * 모르는 종류를 글자로 그리는 마지막 갈래를 두지 않는다. 그 갈래가 있으면
+     * union에 새로 넣은 종류가 빈 글자처럼 조용히 그려지고, 그 위에 나머지 기능을
+     * 쌓게 된다.
+     */
+    switch (node.type) {
+      case "group":
+        return (
+          <div key={node.id} {...commonProps}>
+            {children}
+          </div>
+        );
 
-    if (node.type === "image") {
-      const asset = resolveStudioAsset(
-        document,
-        runtimeValues,
-        node.binding,
-        nodeRuntimeContext,
-      );
+      case "shape":
+        // 도형은 style이 곧 표현이다. 채움과 테두리, 둥근 정도를 style이 갖는다.
+        return (
+          <div key={node.id} {...commonProps} data-studio-shape-node="true">
+            {children}
+          </div>
+        );
 
-      return (
-        <div key={node.id} {...commonProps}>
-          {asset?.src ? (
-            // eslint-disable-next-line @next/next/no-img-element -- Runtime image inputs are plain URL/data sources in Template Studio.
-            <img
-              alt={asset.label}
-              className="h-full w-full"
-              draggable={false}
-              src={asset.src}
-              style={{ objectFit: node.fit ?? "cover" }}
+      case "image": {
+        const asset = resolveStudioAsset(
+          document,
+          runtimeValues,
+          node.binding,
+          nodeRuntimeContext,
+        );
+
+        return (
+          <div key={node.id} {...commonProps}>
+            {asset?.src ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Runtime image inputs are plain URL/data sources in Template Studio.
+              <img
+                alt={asset.label}
+                className="h-full w-full"
+                draggable={false}
+                src={asset.src}
+                style={{ objectFit: node.fit ?? "cover" }}
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
+                No image
+              </div>
+            )}
+            {children}
+          </div>
+        );
+      }
+
+      case "flexibleText": {
+        const text = resolveStudioTextBinding(
+          document,
+          runtimeValues,
+          node.binding,
+          nodeRuntimeContext,
+        );
+
+        return (
+          <div key={node.id} {...commonProps}>
+            <StudioAutoText
+              className="m-0 block w-full leading-tight"
+              defaultMaxFontSize={24}
+              minFontSize={10}
+              styleRecord={styleRecord}
+              text={text || " "}
+              textStyle={{
+                color: style.color,
+                fontFamily: style.fontFamily,
+                fontWeight: style.fontWeight,
+                letterSpacing: 0,
+                lineHeight: style.lineHeight ?? 1.08,
+              }}
             />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">
-              No image
-            </div>
-          )}
-          {children}
-        </div>
-      );
+            {children}
+          </div>
+        );
+      }
+
+      case "text": {
+        const text = resolveStudioTextBinding(
+          document,
+          runtimeValues,
+          node.binding,
+          nodeRuntimeContext,
+        );
+
+        return (
+          <div key={node.id} {...commonProps}>
+            {text || "\u00a0"}
+            {children}
+          </div>
+        );
+      }
+
+      default: {
+        /**
+         * 종류가 늘었는데 위에 갈래를 더하지 않으면 이 대입에서 컴파일이 깨진다.
+         *
+         * 화면에서는 예외를 던지지 않는다. 문서 한 곳이 어긋났다고 편집기 전체가
+         * 흰 화면이 되면 되돌릴 방법조차 없어진다. 대신 무엇을 못 그렸는지 눈에
+         * 보이게 남긴다.
+         */
+        const unhandledNodeType: never = node.type;
+        return (
+          <div
+            key={node.id}
+            {...commonProps}
+            data-studio-unsupported-node-type={String(unhandledNodeType)}
+          >
+            <span className="flex h-full w-full items-center justify-center bg-rose-100 text-xs font-bold text-rose-600">
+              Unsupported node
+            </span>
+          </div>
+        );
+      }
     }
-
-    const text = resolveStudioTextBinding(
-      document,
-      runtimeValues,
-      node.binding,
-      nodeRuntimeContext,
-    );
-
-    if (node.type === "flexibleText") {
-      return (
-        <div key={node.id} {...commonProps}>
-          <StudioAutoText
-            className="m-0 block w-full leading-tight"
-            defaultMaxFontSize={24}
-            minFontSize={10}
-            styleRecord={styleRecord}
-            text={text || " "}
-            textStyle={{
-              color: style.color,
-              fontFamily: style.fontFamily,
-              fontWeight: style.fontWeight,
-              letterSpacing: 0,
-              lineHeight: style.lineHeight ?? 1.08,
-            }}
-          />
-          {children}
-        </div>
-      );
-    }
-
-    return (
-      <div key={node.id} {...commonProps}>
-        {text || "\u00a0"}
-        {children}
-      </div>
-    );
   };
 
   return (

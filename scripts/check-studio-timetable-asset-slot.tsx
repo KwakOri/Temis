@@ -12,14 +12,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { StudioStatusCardBackgroundSlot } from "../src/app/(root)/template-studio/_components/studio-status-card-background-slot";
 import {
-  StudioTimetableAssetSlotFields,
-  type StudioTimetableAssetSlotFieldsProps,
+  StudioAssetSlotFields,
+  type StudioAssetSlotFieldsProps,
 } from "../src/app/(root)/template-studio/_components/studio-timetable-asset-slot-fields";
 import type {
   StudioAsset,
   StudioImageFit,
   StudioInputDefinition,
-  StudioTimetableAssetSlot,
+  StudioAssetSlot,
 } from "../src/types/template-studio";
 const noop = () => {};
 
@@ -47,8 +47,8 @@ const textInput = (): StudioInputDefinition =>
   }) as StudioInputDefinition;
 
 const createProps = (
-  overrides: Partial<StudioTimetableAssetSlotFieldsProps> = {},
-): StudioTimetableAssetSlotFieldsProps => ({
+  overrides: Partial<StudioAssetSlotFieldsProps> = {},
+): StudioAssetSlotFieldsProps => ({
   label: "Background Asset",
   assets: ASSETS,
   boundInput: null,
@@ -65,11 +65,9 @@ const createProps = (
 });
 
 const markupOf = (
-  overrides: Partial<StudioTimetableAssetSlotFieldsProps> = {},
+  overrides: Partial<StudioAssetSlotFieldsProps> = {},
 ): string =>
-  renderToStaticMarkup(
-    <StudioTimetableAssetSlotFields {...createProps(overrides)} />,
-  );
+  renderToStaticMarkup(<StudioAssetSlotFields {...createProps(overrides)} />);
 
 /** 만들어진 요소 나무에서 조건에 맞는 요소를 모은다. */
 const findAll = (
@@ -244,7 +242,7 @@ const calls = {
   uploads: [] as string[],
 };
 
-const element = StudioTimetableAssetSlotFields(
+const element = StudioAssetSlotFields(
   createProps({
     assetId: "asset_a",
     onSelectAsset: (assetId) => calls.assets.push(assetId),
@@ -330,7 +328,7 @@ const statusSlotElement = (
   <StudioStatusCardBackgroundSlot
     assets={ASSETS}
     hasAsset
-    slot={{ assetId: "asset_a", fit: "contain" } as StudioTimetableAssetSlot}
+    slot={{ assetId: "asset_a", fit: "contain" } as StudioAssetSlot}
     statusLabel="Online"
     onSelectAsset={(assetId, fit) =>
       statusSlotCalls.assets.push([assetId, fit])
@@ -366,7 +364,7 @@ assert.equal(
     <StudioStatusCardBackgroundSlot
       assets={ASSETS}
       hasAsset={false}
-      slot={{ assetId: "asset_missing" } as StudioTimetableAssetSlot}
+      slot={{ assetId: "asset_missing" } as StudioAssetSlot}
       statusLabel="Offline"
       onSelectAsset={noop}
       onSelectFit={noop}
@@ -400,7 +398,7 @@ const statusSlotTree = StudioStatusCardBackgroundSlot(
 const sharedFieldsProps = findAll(
   statusSlotTree,
   (props) => "canUseInput" in props,
-)[0]?.props as unknown as StudioTimetableAssetSlotFieldsProps | undefined;
+)[0]?.props as unknown as StudioAssetSlotFieldsProps | undefined;
 assert.ok(
   sharedFieldsProps,
   "상태 카드 배경 자리는 시간표 이미지 자리와 같은 칸을 쓴다.",

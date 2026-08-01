@@ -9,6 +9,11 @@ import React, {
   useState,
 } from "react";
 
+import {
+  getStudioVisibleCanvasCenter,
+  type StudioCanvasPoint,
+} from "@/utils/template-studio/canvas-viewport-geometry";
+
 const STUDIO_PREVIEW_SCALE_MIN = 0.1;
 const STUDIO_PREVIEW_SCALE_MAX = 2;
 
@@ -49,11 +54,24 @@ type StudioViewportDragMemo =
     }
   | null;
 
+export interface StudioCanvasViewportHandle {
+  /**
+   * 지금 화면에 보이는 캔버스 좌표의 중앙.
+   *
+   * 새 객체를 지금 보고 있는 자리에 놓기 위해 쓴다. 확대와 밀기는 뷰포트가 갖고 있어서
+   * 밖에서는 계산할 수 없다. 값을 구독하지 않고 필요할 때 읽는다. 밀 때마다 알리면
+   * 끌고 있는 동안 편집기 전체가 다시 그려진다.
+   */
+  getVisibleCanvasCenter: () => StudioCanvasPoint;
+}
+
 interface StudioCanvasViewportProps {
   canvasWidth: number;
   canvasHeight: number;
   scale: number;
   fitRequestKey: number;
+  /** 뷰포트만 아는 값을 밖에서 읽을 통로 */
+  handleRef?: React.MutableRefObject<StudioCanvasViewportHandle | null>;
   onScaleChange: React.Dispatch<React.SetStateAction<number>>;
   onMoveNode?: (
     nodeId: string,
@@ -106,6 +124,7 @@ export function StudioCanvasViewport({
   canvasHeight,
   scale,
   fitRequestKey,
+  handleRef,
   onScaleChange,
   onMoveNode,
   onMoveNodeStart,
@@ -140,6 +159,31 @@ export function StudioCanvasViewport({
     const animationFrame = window.requestAnimationFrame(fitToViewport);
     return () => window.cancelAnimationFrame(animationFrame);
   }, [fitRequestKey, fitToViewport]);
+
+  const getVisibleCanvasCenter = useCallback((): StudioCanvasPoint => {
+    const viewportRect = viewportRef.current?.getBoundingClientRect();
+    const canvasRect = canvasRootRef.current?.getBoundingClientRect();
+
+    if (!viewportRect || !canvasRect) {
+      return { x: canvasWidth / 2, y: canvasHeight / 2 };
+    }
+
+    return getStudioVisibleCanvasCenter({
+      viewportRect,
+      canvasRect,
+      canvasWidth,
+      canvasHeight,
+      scale,
+    });
+  }, [canvasHeight, canvasWidth, scale]);
+
+  useEffect(() => {
+    if (!handleRef) return;
+    handleRef.current = { getVisibleCanvasCenter };
+    return () => {
+      handleRef.current = null;
+    };
+  }, [getVisibleCanvasCenter, handleRef]);
 
   useEffect(() => {
     const updateMobileState = () => {

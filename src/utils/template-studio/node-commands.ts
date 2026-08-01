@@ -5,6 +5,7 @@ import type {
   StudioStyleRecord,
   StudioTemplateDocument,
 } from "@/types/template-studio";
+import { assertStudioNever } from "@/utils/template-studio/assert-never";
 import type { StudioCommandPlan } from "@/utils/template-studio/graph-commands";
 import {
   getStudioTopLevelNodeIds,
@@ -12,54 +13,77 @@ import {
 } from "@/utils/template-studio/graph-nodes";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
 import { createStudioId } from "@/utils/template-studio/id";
+import { getStudioNodeDefinition } from "@/utils/template-studio/node-definitions";
 import type {
   StudioCardContextObjectPreset,
   StudioCardStatusBackgroundPreset,
 } from "@/utils/template-studio/preset-registry";
 import { createStudioStatusCardBackgroundExceptionMeta } from "@/utils/template-studio/status-card-background";
 
-/** 새 노드의 기본 style. 종류마다 눈에 보이는 크기로 시작한다. */
+/**
+ * 카드 문서에 넣는 새 노드의 기본 style.
+ *
+ * 카드 한 장은 캔버스보다 훨씬 작으므로 썸네일 기본 크기를 그대로 쓸 수 없다.
+ * 그래서 정의표의 기본 크기와 따로 둔다. 정의표에만 있는 종류는 그쪽 값을 쓴다.
+ *
+ * 종류마다 갈래를 명시한다. 모르는 종류를 글자 style로 받아 주면 새로 넣은 도형이
+ * 글자 크기와 굵기를 갖고 태어나 인스펙터가 엉뚱한 칸을 보여준다.
+ */
 export const getStudioDefaultNodeStyle = (
   type: StudioGraphNodeType,
 ): StudioStyleRecord => {
-  if (type === "group") {
-    return {
-      position: "absolute",
-      left: 80,
-      top: 80,
-      width: 320,
-      height: 220,
-      backgroundColor: "transparent",
-      border: "1px solid rgba(148, 163, 184, 0.45)",
-      borderRadius: 8,
-    };
-  }
+  switch (type) {
+    case "group":
+      return {
+        position: "absolute",
+        left: 80,
+        top: 80,
+        width: 320,
+        height: 220,
+        backgroundColor: "transparent",
+        border: "1px solid rgba(148, 163, 184, 0.45)",
+        borderRadius: 8,
+      };
 
-  if (type === "image") {
-    return {
-      position: "absolute",
-      left: 100,
-      top: 100,
-      width: 180,
-      height: 140,
-      backgroundColor: "#e2e8f0",
-      borderRadius: 8,
-      overflow: "hidden",
-    };
-  }
+    case "image":
+      return {
+        position: "absolute",
+        left: 100,
+        top: 100,
+        width: 180,
+        height: 140,
+        backgroundColor: "#e2e8f0",
+        borderRadius: 8,
+        overflow: "hidden",
+      };
 
-  return {
-    position: "absolute",
-    left: 120,
-    top: 120,
-    width: 240,
-    height: 56,
-    color: "#111827",
-    fontSize: type === "flexibleText" ? 32 : 20,
-    fontWeight: type === "flexibleText" ? 800 : 700,
-    display: "flex",
-    alignItems: "center",
-  };
+    case "shape":
+      return {
+        ...getStudioNodeDefinition("shape").createDefaultStyle(),
+        left: 100,
+        top: 100,
+        width: 180,
+        height: 120,
+      };
+
+    case "text":
+    case "flexibleText":
+      return {
+        position: "absolute",
+        left: 120,
+        top: 120,
+        width: 240,
+        height: 56,
+        color: "#111827",
+        fontSize: type === "flexibleText" ? 32 : 20,
+        fontWeight: type === "flexibleText" ? 800 : 700,
+        display: "flex",
+        alignItems: "center",
+      };
+
+    default:
+      return assertStudioNever(type);
+  }
 };
 
 /**
@@ -128,6 +152,7 @@ export const planStudioAddNode = (
   const styleId = createStudioId("style");
   const parentId = resolveStudioNodeInsertionParentId(document, selectedNode);
   const firstAssetId = Object.keys(document.assets)[0];
+  const definition = getStudioNodeDefinition(type);
 
   return {
     node: {
@@ -137,13 +162,12 @@ export const planStudioAddNode = (
       parentId,
       childIds: [],
       styleId,
-      fit: type === "image" ? "cover" : undefined,
+      fit: definition.defaultFit,
       binding:
-        type === "text" || type === "flexibleText"
-          ? { kind: "staticText", value: "New text" }
-          : type === "image" && firstAssetId
-            ? { kind: "staticAsset", assetId: firstAssetId }
-            : undefined,
+        definition.createDefaultBinding() ??
+        (type === "image" && firstAssetId
+          ? { kind: "staticAsset", assetId: firstAssetId }
+          : undefined),
     },
     styleId,
     style: getStudioDefaultNodeStyle(type),

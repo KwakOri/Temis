@@ -1,4 +1,5 @@
 import type {
+  StudioAssetSlot,
   StudioGraphNode,
   StudioTemplateDocument,
 } from "@/types/template-studio";
@@ -7,6 +8,35 @@ import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-l
 export const isStudioNodeLocked = (
   node: StudioGraphNode | null | undefined,
 ): boolean => Boolean(node?.locked);
+
+/**
+ * 편집 중 감춘 노드인지.
+ *
+ * 조상이 감춰져 있으면 자식도 그려지지 않는다. 그 판단은 트리를 타고 내려가는
+ * 렌더러가 하고, 여기서는 노드 하나의 표시만 본다.
+ */
+export const isStudioNodeHidden = (
+  node: StudioGraphNode | null | undefined,
+): boolean => Boolean(node?.hidden);
+
+/**
+ * 노드 배경으로 그릴 그림 자리의 이름.
+ *
+ * 노드 하나에 배경 그림 자리는 하나다. 이름을 도메인마다 다르게 두면 같은 칸을
+ * 두 벌 만들게 된다.
+ */
+export const STUDIO_NODE_BACKGROUND_ASSET_SLOT = "asset";
+
+/**
+ * 노드 배경으로 그릴 그림 자리.
+ *
+ * 어떤 도메인의 노드인지 모른다. 시간표의 상태 카드 배경처럼 도메인이 자리를 더
+ * 따져야 하면 렌더러에 판단 함수를 넘긴다.
+ */
+export const getStudioNodeBackgroundAssetSlot = (
+  node: StudioGraphNode | null | undefined,
+): StudioAssetSlot | null =>
+  node?.assetSlots?.[STUDIO_NODE_BACKGROUND_ASSET_SLOT] ?? null;
 
 /** `nodeId`가 `maybeAncestorId`의 자손인지. */
 export const isStudioNodeDescendantOf = (

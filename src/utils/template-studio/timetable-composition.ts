@@ -2,7 +2,7 @@ import {
   StudioInputId,
   StudioRuntimeValues,
   StudioTemplateDocument,
-  StudioTimetableAssetSlot,
+  StudioAssetSlot,
   StudioTimetableComposition,
   StudioTimetableCompositionObject,
   StudioTimetableCompositionObjectId,
@@ -147,7 +147,7 @@ const createStudioStructuredGroupExceptionMeta = (
 const createStudioArtistProfileTextExceptionMeta = (
   inputId?: StudioInputId,
   visible = true,
-  assetSlot?: StudioTimetableAssetSlot,
+  assetSlot?: StudioAssetSlot,
 ) => ({
   semanticKey: "artistProfileText" as const,
   scope: "timetable" as const,

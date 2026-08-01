@@ -40,6 +40,13 @@ export interface StudioNumberFieldProps {
   value: number;
   onChange: (value: number) => void;
   disabled?: boolean;
+  /**
+   * 여러 개를 골랐고 값이 갈렸는지.
+   *
+   * 갈렸을 때 첫 번째 값을 보여주면 고른 것 전부가 그 값이라고 읽힌다. 그래서 칸을
+   * 비우고 갈렸다고 알린다. 적어 넣으면 고른 것 전부에 그 값이 들어간다.
+   */
+  mixed?: boolean;
 }
 
 /**
@@ -47,20 +54,23 @@ export interface StudioNumberFieldProps {
  *
  * 입력 중에는 사람이 적은 글자를 그대로 보여주고, 초점을 잃거나 Enter를 누를 때
  * 한 번만 값을 넘긴다. 그래서 `12.`처럼 아직 완성되지 않은 입력이 0으로
- * 튀지 않는다. Escape는 편집을 버리고, 위아래 화살표는 1씩(Shift와 함께 10씩)
- * 값을 올리고 내린다.
+ * 튀지 않는다. 값이 한 번만 넘어가므로 초점을 받고 잃는 사이가 되돌리기 한 단위가 된다.
+ * Escape는 편집을 버리고, 위아래 화살표는 1씩(Shift와 함께 10씩) 값을 올리고 내린다.
  */
 export function StudioNumberField({
   label,
   value,
   onChange,
   disabled,
+  mixed = false,
 }: StudioNumberFieldProps) {
   const [draftValue, setDraftValue] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const displayValue = isEditing
     ? draftValue
-    : getStudioNumberFieldDisplayValue(value);
+    : mixed
+      ? ""
+      : getStudioNumberFieldDisplayValue(value);
   const commitValue = useCallback(
     (nextDraftValue: string) => {
       const parsedValue = parseStudioNumberFieldValue(nextDraftValue);
@@ -101,9 +111,10 @@ export function StudioNumberField({
     <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
       <span>{label}</span>
       <input
-        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:text-[var(--fg3)] disabled:opacity-70"
+        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:text-[var(--fg3)] disabled:opacity-70"
         disabled={disabled}
         inputMode="decimal"
+        placeholder={mixed ? "Mixed" : undefined}
         type="text"
         value={displayValue}
         onBlur={(event) => commitValue(event.currentTarget.value)}
@@ -333,6 +344,50 @@ export function StudioTextField({
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
       />
+    </label>
+  );
+}
+
+export interface StudioSelectFieldOption {
+  value: string;
+  label: string;
+}
+
+export interface StudioSelectFieldProps {
+  label: string;
+  value: string;
+  options: StudioSelectFieldOption[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+/**
+ * 정해진 값 가운데 하나를 고르는 칸.
+ *
+ * 이미지 맞춤이나 넘침 처리처럼 후보가 정해진 값에 쓴다. 두 편집기가 같은 칸을 쓴다.
+ */
+export function StudioSelectField({
+  label,
+  value,
+  options,
+  onChange,
+  disabled,
+}: StudioSelectFieldProps) {
+  return (
+    <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+      <span>{label}</span>
+      <select
+        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-70"
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
   );
 }

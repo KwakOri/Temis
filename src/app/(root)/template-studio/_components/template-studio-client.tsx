@@ -171,7 +171,10 @@ import {
   getStudioTimetableObjectRenderableChildIds,
   STUDIO_TIMETABLE_DAY_CARDS_OBJECT_ID,
 } from "@/utils/template-studio/timetable-composition";
-import { setStudioStatusCardBackgroundAssetSlot } from "@/utils/template-studio/status-card-background";
+import {
+  createStudioStatusCardBackgroundSlotResolver,
+  setStudioStatusCardBackgroundAssetSlot,
+} from "@/utils/template-studio/status-card-background";
 import {
   addStudioTimetableEntry,
   getStudioTimetableAddEntryDisabledReason,
@@ -233,8 +236,8 @@ import {
   STUDIO_INPUT_SCOPE_OPTIONS,
 } from "@/utils/template-studio/input-scope";
 import {
-  resolveStudioTimetableAssetSlotSpec,
-  type StudioTimetableAssetSlotKind,
+  resolveStudioAssetSlotSpec,
+  type StudioAssetSlotKind,
 } from "@/utils/template-studio/timetable-asset-slot-specs";
 import { resolveStudioTimetableSelection } from "@/utils/template-studio/timetable-selection";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
@@ -254,7 +257,7 @@ import {
   StudioRuntimeInputPanel,
 } from "./studio-runtime-input-panel";
 import { StudioStatusCardBackgroundSlot } from "./studio-status-card-background-slot";
-import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
+import { StudioAssetSlotFields } from "./studio-timetable-asset-slot-fields";
 import { StudioTimetableDayPanel } from "./studio-timetable-day-panel";
 import { StudioTimetableLayerPanel } from "./studio-timetable-layer-panel";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
@@ -3064,7 +3067,7 @@ export function TemplateStudioClient({
     };
 
     return (
-      <StudioTimetableAssetSlotFields
+      <StudioAssetSlotFields
         assetId={assetId}
         assets={assets}
         boundInput={inputId ? (document.inputs[inputId] ?? null) : null}
@@ -3105,11 +3108,11 @@ export function TemplateStudioClient({
    */
   const renderTimetableAssetSlotOfKind = (
     object: StudioTimetableCompositionObject,
-    kind: StudioTimetableAssetSlotKind,
+    kind: StudioAssetSlotKind,
   ) =>
     renderTimetableAssetSlot({
       object,
-      ...resolveStudioTimetableAssetSlotSpec(object, kind),
+      ...resolveStudioAssetSlotSpec(object, kind),
     });
 
   const renderStatusCardBackgroundAssetSlot = (node: StudioGraphNode) => {
@@ -3435,6 +3438,10 @@ export function TemplateStudioClient({
                 >
                   <StudioRenderer
                     document={document}
+                    resolveNodeBackgroundAssetSlot={createStudioStatusCardBackgroundSlotResolver(
+                      document,
+                      cardAuthoringRuntimeValues,
+                    )}
                     rootNodeIds={cardAuthoringRootNodeIds}
                     runtimeContext={
                       activeRuntimeDayId

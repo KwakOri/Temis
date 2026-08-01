@@ -22,7 +22,7 @@ import { normalizeStudioDayLabelFormat } from "@/utils/template-studio/builtin-f
 import { getStudioInputScopeLabel } from "@/utils/template-studio/input-scope";
 import { setStudioTimetableObjectVisibilitySlot } from "@/utils/template-studio/semantic-slots";
 import { isStudioPlacedTimetableCompositionObject } from "@/utils/template-studio/object-layout";
-import type { StudioTimetableAssetSlotKind } from "@/utils/template-studio/timetable-asset-slot-specs";
+import type { StudioAssetSlotKind } from "@/utils/template-studio/timetable-asset-slot-specs";
 import type { StudioTimetableSelection } from "@/utils/template-studio/timetable-selection";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
@@ -106,7 +106,7 @@ export interface StudioTimetableInspectorModel {
   /** 이미지 자리 편집. 파일 올리기와 잘라내기 배선이 필요해 받아서 놓는다. */
   renderAssetSlot: (
     object: StudioTimetableCompositionObject,
-    kind: StudioTimetableAssetSlotKind,
+    kind: StudioAssetSlotKind,
   ) => React.ReactNode;
   /** 묶인 입력 편집. 입력 패널과 같은 UI를 쓴다. */
   renderInputSourceSlot: (input: StudioInputDefinition) => React.ReactNode;

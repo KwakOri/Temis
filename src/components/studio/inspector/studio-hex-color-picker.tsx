@@ -66,6 +66,16 @@ type PickerThemeStyle = CSSProperties &
 export interface StudioHexColorPickerProps {
   value: string;
   onChange: (value: string) => void;
+  /**
+   * 연속 조작 한 묶음이 시작될 때 한 번 불린다.
+   *
+   * 색을 끌어서 고르는 동안 `onChange`는 매 프레임 불린다. 그때마다 이력을 쌓으면
+   * 되돌리기가 수백 단계 쌓여 쓸 수 없게 된다. 그래서 되돌리기 한 단위를 여기서
+   * 시작하고 `onChange`는 이력 없이 문서만 고치게 한다.
+   *
+   * 한 묶음은 색 패널을 열고 닫을 때까지, 또는 값 칸에 적어 한 번 확정할 때까지다.
+   */
+  onChangeStart?: () => void;
   allowTransparent?: boolean;
   ariaLabel?: string;
   className?: string;
@@ -84,6 +94,7 @@ const getInitialHsv = (value: string, fallbackColor: string): HsvColor =>
 export function StudioHexColorPicker({
   value,
   onChange,
+  onChangeStart,
   allowTransparent = false,
   ariaLabel = "Color",
   className,
@@ -185,9 +196,29 @@ export function StudioHexColorPicker({
     };
   }, [open, updatePosition]);
 
+  /**
+   * 연속 조작 한 묶음이 이미 시작됐는지.
+   *
+   * 끌어서 색을 고르는 동안 값이 계속 바뀌므로 첫 변경에서만 묶음을 시작한다.
+   */
+  const changeGroupStartedRef = useRef(false);
+
+  useEffect(() => {
+    // 패널을 열고 닫는 것이 한 묶음의 경계다.
+    changeGroupStartedRef.current = false;
+  }, [open]);
+
+  const commitColor = (nextValue: string) => {
+    if (!changeGroupStartedRef.current) {
+      changeGroupStartedRef.current = true;
+      onChangeStart?.();
+    }
+    onChange(nextValue);
+  };
+
   const applyHsv = (nextHsv: HsvColor) => {
     setHsv(nextHsv);
-    onChange(hsvToHex(nextHsv));
+    commitColor(hsvToHex(nextHsv));
   };
 
   const updateSaturationAndValue = (
@@ -209,8 +240,10 @@ export function StudioHexColorPicker({
 
   const commitDraft = () => {
     if (allowTransparent && draft.trim().toLowerCase() === "transparent") {
-      onChange("transparent");
+      commitColor("transparent");
       setDraft("TRANSPARENT");
+      // 적어서 한 번 확정하는 것은 그 자체로 한 묶음이다.
+      changeGroupStartedRef.current = false;
       return true;
     }
 
@@ -221,7 +254,8 @@ export function StudioHexColorPicker({
     }
 
     setDraft(normalized);
-    onChange(normalized);
+    commitColor(normalized);
+    changeGroupStartedRef.current = false;
     return true;
   };
 
@@ -344,7 +378,7 @@ export function StudioHexColorPicker({
                   key={preset}
                   style={{ backgroundColor: preset }}
                   type="button"
-                  onClick={() => onChange(preset)}
+                  onClick={() => commitColor(preset)}
                 >
                   {resolvedHex === preset && !isTransparent ? (
                     <Check
@@ -370,7 +404,7 @@ export function StudioHexColorPicker({
                       : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)]",
                   )}
                   type="button"
-                  onClick={() => onChange("transparent")}
+                  onClick={() => commitColor("transparent")}
                 >
                   Transparent
                 </button>
@@ -428,12 +462,12 @@ export function StudioHexColorPicker({
             allowTransparent &&
             nextDraft.trim().toLowerCase() === "transparent"
           ) {
-            onChange("transparent");
+            commitColor("transparent");
             return;
           }
           const normalized = normalizeHexColor(nextDraft);
           if (/^#?[0-9a-f]{6}$/i.test(nextDraft.trim()) && normalized) {
-            onChange(normalized);
+            commitColor(normalized);
           }
         }}
         onKeyDown={handleDraftKeyDown}

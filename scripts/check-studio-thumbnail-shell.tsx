@@ -91,12 +91,11 @@ const THUMBNAIL_BASELINE = [
   ">Fit<",
   'title="Thumbnail settings"',
   ">Layers<",
-  ">Presets<",
+  ">Assets<",
   ">Inputs<",
   ">Thumbnail Layers<",
   ">0 placed objects<",
-  ">Thumbnail<",
-  ">0 selected<",
+  ">Canvas<",
   "Select an object from the canvas or layer tree.",
 ];
 
@@ -115,7 +114,7 @@ const tabLabels = [
 ].map((match) => match[1]);
 assert.deepEqual(
   tabLabels,
-  ["Layers", "Presets", "Inputs"],
+  ["Layers", "Assets", "Text", "Inputs"],
   "썸네일 탭 구성과 순서가 바뀌면 안 된다.",
 );
 assert.equal(
@@ -124,11 +123,20 @@ assert.equal(
   "활성 탭 표현은 정확히 하나여야 한다.",
 );
 
-// 저장, 발행과 미리보기는 아직 비활성이다.
+/**
+ * 저장과 발행은 아직 비활성이고, 미리보기는 열린다.
+ *
+ * 개수로 센다. `className`에 `disabled:` 유틸리티가 들어 있어서 문자열 포함 검사는
+ * 언제나 참이 된다.
+ */
 assert.equal(
   (markup.match(/disabled=""/g) ?? []).length,
-  4,
-  "저장·발행·미리보기와 이름 변경 입력이 비활성이어야 한다.",
+  12,
+  "저장·발행·이름 변경 입력과 고른 것이 없을 때의 레이어 명령 9개가 비활성이어야 한다.",
+);
+assert.ok(
+  markup.includes('title="Open draft preview"'),
+  "미리보기는 저장 없이도 열려야 한다. 저장이 없다고 미리보기까지 막으면 만든 결과를 확인할 방법이 없다.",
 );
 
 // --- 시간표 전용 요소가 없다 ---
@@ -179,6 +187,35 @@ for (const filePath of sharedFiles) {
   assert.ok(
     !source.includes("template-studio/_components"),
     `공통 컴포넌트가 route 폴더를 참조한다: ${filePath}`,
+  );
+}
+
+/**
+ * 캔버스 컴포넌트는 시간표를 아예 모른다.
+ *
+ * 공통 렌더러가 상태 카드 배경 판단과 시간표 이름의 에셋 자리 타입을 들고 있었다.
+ * `StudioTimetableDomain`은 없었으니 위 검사는 통과했지만, 썸네일 문서를 그릴 때도
+ * 시간표에서 온 개념을 통과하고 있었다. 배경 자리 판단은 도메인이 함수로 넘긴다.
+ */
+/**
+ * import 문 전체를 한 덩어리로 모은다.
+ *
+ * 줄 단위로 보면 여러 줄에 걸친 import의 가운데 줄을 놓친다. 처음 이 검사를 줄
+ * 단위로 썼다가 `StudioTimetableAssetSlot`을 되살린 회귀를 잡지 못했다.
+ */
+const collectImportStatements = (source: string): string =>
+  (source.match(/import[\s\S]*?from\s+"[^"]+";/g) ?? []).join("\n");
+
+for (const filePath of collectFiles("src/components/studio/canvas")) {
+  const imports = collectImportStatements(readFileSync(filePath, "utf8"));
+
+  assert.ok(
+    !imports.includes("status-card-background"),
+    `공통 캔버스가 상태 카드 배경 판단을 참조한다: ${filePath}`,
+  );
+  assert.ok(
+    !/\bStudioTimetable\w+/.test(imports),
+    `공통 캔버스가 시간표 타입을 import한다: ${filePath}`,
   );
 }
 

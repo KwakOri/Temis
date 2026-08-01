@@ -17,7 +17,7 @@ import {
 } from "@/utils/template-studio/semantic-slots";
 
 /** 시간표 객체가 가진 이미지 자리의 종류. */
-export type StudioTimetableAssetSlotKind =
+export type StudioAssetSlotKind =
   | "background"
   | "profileImage"
   | "profileFrame"
@@ -33,7 +33,7 @@ export type StudioTimetableAssetSlotKind =
  * 어떤 이름으로 보여주고, 지금 값을 어디서 읽고, 바꿀 때 어떤 자리에 쓰는지를
  * 담는다. 화면을 만들지 않으므로 값으로 확인할 수 있다.
  */
-export interface StudioTimetableAssetSlotSpec {
+export interface StudioAssetSlotSpec {
   label: string;
   assetId?: string | null;
   inputId?: string | null;
@@ -60,14 +60,11 @@ export interface StudioTimetableAssetSlotSpec {
 const createNamedAssetSlotSpec = (
   object: StudioTimetableCompositionObject,
   slotName: string,
-  spec: Omit<
-    StudioTimetableAssetSlotSpec,
-    "onUpdateAsset" | "onUpdateInput"
-  > & {
+  spec: Omit<StudioAssetSlotSpec, "onUpdateAsset" | "onUpdateInput"> & {
     /** 사용자 입력으로 바꿀 수 있는 자리인지. */
     allowInput?: boolean;
   },
-): StudioTimetableAssetSlotSpec => {
+): StudioAssetSlotSpec => {
   const slot = object.assetSlots?.[slotName];
   const { allowInput = true, ...rest } = spec;
 
@@ -108,10 +105,10 @@ const getStudioProfileChildLabel = (role: string | undefined): string => {
  * 배경과 판 같은 자리는 출처를 에셋으로 고정한다. 사용자 입력을 받지 않는
  * 자리이기 때문이다.
  */
-export const resolveStudioTimetableAssetSlotSpec = (
+export const resolveStudioAssetSlotSpec = (
   object: StudioTimetableCompositionObject,
-  kind: StudioTimetableAssetSlotKind,
-): StudioTimetableAssetSlotSpec => {
+  kind: StudioAssetSlotKind,
+): StudioAssetSlotSpec => {
   if (kind === "background") {
     const slot = object.assetSlots?.background;
 

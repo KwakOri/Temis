@@ -15,7 +15,7 @@ import {
   StudioTimetableDayCardsFillOrder,
   StudioTimetableDayCardsGridPreset,
   StudioTimetableDomain,
-  StudioTimetableAssetSlot,
+  StudioAssetSlot,
   StudioTimetableComponentDefinition,
   StudioTimetableCompositionObject,
 } from "@/types/template-studio";
@@ -38,6 +38,7 @@ import {
   getStudioTimetableEntriesForDay,
   resolveStudioTimetableComponentVariant,
 } from "@/utils/template-studio/timetable-runtime";
+import { createStudioStatusCardBackgroundSlotResolver } from "@/utils/template-studio/status-card-background";
 import {
   getStudioTimetableComponentFrame,
   resolveStudioTimetableDayVariantStatus,
@@ -713,7 +714,7 @@ const isArtistProfileTextObject = (object: StudioTimetableCompositionObject) =>
 const resolveTimetableAssetSlot = (
   document: StudioTemplateDocument,
   runtimeValues: StudioRuntimeValues,
-  slot?: StudioTimetableAssetSlot,
+  slot?: StudioAssetSlot,
 ): StudioAsset | null => {
   if (!slot) return null;
 
@@ -799,6 +800,12 @@ export function StudioTimetablePreview({
   variantMode = "runtime",
 }: StudioTimetablePreviewProps) {
   const timetable = document.domains?.timetable;
+  // 상태 카드 배경은 지금 상태에 따라 그림 자리가 달라진다. 이 판단은 시간표에서
+  // 온 개념이므로 공통 렌더러가 아니라 도메인이 만들어 넘긴다.
+  const resolveCardBackgroundAssetSlot = useMemo(
+    () => createStudioStatusCardBackgroundSlotResolver(document, runtimeValues),
+    [document, runtimeValues],
+  );
   const days = useMemo(() => {
     if (!timetable) return [];
     return timetable.dayIds
@@ -956,6 +963,9 @@ export function StudioTimetablePreview({
                       >
                         <StudioRenderer
                           document={document}
+                          resolveNodeBackgroundAssetSlot={
+                            resolveCardBackgroundAssetSlot
+                          }
                           rootNodeIds={[resolution.variant.rootNodeId]}
                           runtimeContext={{ dayId: day.id, entryIndex: 0 }}
                           runtimeValues={runtimeValues}

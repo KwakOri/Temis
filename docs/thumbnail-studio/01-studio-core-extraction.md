@@ -493,7 +493,7 @@ Phase 1에서는 최소 골격만 만든다.
 
 | 단계 | 상태 | 결과 |
 | --- | --- | --- |
-| 0. 기준선과 smoke guard | 완료 | `npm run check:studio:*` 31종 |
+| 0. 기준선과 smoke guard | 완료 | `npm run check:studio:*` 31종 (Phase 2에서 36종) |
 | 1. 공통 시각 primitive | 완료 | `src/components/studio/layers/studio-layer-primitives.tsx` |
 | 2. `StudioEditorShell` | 완료 | `src/components/studio/editor-shell/studio-editor-shell.tsx` |
 | 3. 상단 도구 모음 | 완료 | `studio-top-toolbar.tsx`, `studio-guide-control.tsx` |
@@ -532,15 +532,22 @@ Phase 1에서는 최소 골격만 만든다.
   `src/components/studio/canvas/`에 두어 두 편집기가 공유한다. §13이 적은
   것보다 공통화가 한 단계 더 나아간 결과다.
 
-무른 곳이 한 군데 있다. 공통 `StudioRenderer`가 `StudioTimetableAssetSlot`
-타입과 `status-card-background` 유틸에 의존한다. §14의 문구는 지켰지만 에셋
+무른 곳이 한 군데 있었다. 공통 `StudioRenderer`가 `StudioTimetableAssetSlot`
+타입과 `status-card-background` 유틸에 의존했다. §14의 문구는 지켰지만 에셋
 자리의 모양과 상태 카드 배경 판단이라는 시간표에서 온 개념이 공통 렌더러에
-남아 있다. 모양 자체는 도메인과 무관하므로 Phase 2에서 노드 registry를
-exhaustive하게 만들 때 이름을 함께 일반화한다.
+남아 있었다.
+
+**Phase 2에서 해결했다.** 타입은 `StudioAssetSlot`으로 개명했고, 상태 카드 배경
+판단은 렌더러에서 빼서 시간표가 `resolveNodeBackgroundAssetSlot`으로 넘긴다.
+`check:studio:thumbnail-shell`이 `src/components/studio/canvas/**`에서
+`status-card-background` import와 `StudioTimetable*` 타입 import를 막는다. 자세한
+내용은 [Phase 2 §20.4](./02-basic-thumbnail-editor.md#204-공통-렌더러의-시간표-의존-정리)에
+있다.
 
 ### 16.4 9번에 남은 정리
 
-`template-studio-client.tsx`는 10,596줄에서 4,020줄로 줄었다. 본문 3,441줄을
+`template-studio-client.tsx`는 10,596줄에서 4,020줄로 줄었다. Phase 2에서 배경 자리
+판단 함수를 넘기는 배선이 붙어 4,026줄이 됐다. 본문 3,441줄을
 성격별로 묶으면 다음과 같다.
 
 | 묶음 | 줄수 | 블록 | 판단 |
@@ -633,3 +640,6 @@ npm run check:template-studio:layer-order   레이어 순서와 접힘 규칙
 판단 로직은 순수 함수로 빼서 값으로 검증하고, 종류별로 다른 길을 부르는지는 만들어진
 요소 나무에서 단추를 직접 눌러 확인한다. 값을 넘기는 배선 자체가 검사 밖에 남을 때는
 그 사실을 가드 머리말에 적는다.
+
+Phase 2에서 다섯 종을 더해 36종이 됐다. 목록은
+[Phase 2 §20.6](./02-basic-thumbnail-editor.md#206-가드-목록)에 있다.

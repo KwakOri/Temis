@@ -5,8 +5,8 @@ import {
   Layers3,
   ListChecks,
   Monitor,
-  Plus,
   Type,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useStore } from "zustand";
@@ -19,26 +19,30 @@ import React, {
   useState,
 } from "react";
 
-import { StudioCanvasViewport } from "@/components/studio/canvas/studio-canvas-viewport";
+import {
+  StudioCanvasViewport,
+  type StudioCanvasViewportHandle,
+} from "@/components/studio/canvas/studio-canvas-viewport";
 import { StudioRenderer } from "@/components/studio/canvas/studio-renderer";
+import { StudioSelectionOverlay } from "@/components/studio/canvas/studio-selection-overlay";
 import { StudioEditorShell } from "@/components/studio/editor-shell/studio-editor-shell";
 import {
   StudioLeftSidebar,
   type StudioPanelTab,
 } from "@/components/studio/editor-shell/studio-left-sidebar";
-import {
-  StudioPropertiesPanel,
-  type StudioPropertyItem,
-} from "@/components/studio/editor-shell/studio-properties-panel";
+import { StudioPropertiesPanel } from "@/components/studio/editor-shell/studio-properties-panel";
 import { StudioTopToolbar } from "@/components/studio/editor-shell/studio-top-toolbar";
 import { StudioLayerPanel } from "@/components/studio/layers/studio-layer-panel";
-import { StudioLayerPanelFrame } from "@/components/studio/layers/studio-layer-primitives";
+import { StudioNodeTypeIcon } from "@/components/studio/node-type-icon";
 import { StudioSettingsDialog } from "@/components/studio/settings/studio-settings-dialog";
 import {
   StudioGuideLayerSettings,
   StudioSettingsNumberField,
 } from "@/components/studio/settings/studio-settings-fields";
+import { useStudioClipboard } from "@/hooks/studio/use-studio-clipboard";
 import { useStudioDocumentHistory } from "@/hooks/studio/use-studio-document-history";
+import { useStudioKeyboardShortcuts } from "@/hooks/studio/use-studio-keyboard-shortcuts";
+import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
 import {
   captureStudioEditorSnapshot,
@@ -49,21 +53,39 @@ import {
   StudioEditorStoreProvider,
 } from "@/stores/studio/studio-editor-store";
 import type {
-  StudioGraphNodeType,
+  StudioGraphNode,
   StudioTemplateDocument,
   StudioWebFontSource,
 } from "@/types/template-studio";
+import { getStudioParentCanvasOffset } from "@/utils/template-studio/graph-editor";
+import { getStudioTopLevelNodeIds } from "@/utils/template-studio/graph-nodes";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
-import { createInitialStudioRuntimeValues } from "@/utils/template-studio/sample-document";
-import { createStudioId } from "@/utils/template-studio/id";
 import { getStudioLayerPanelOrder } from "@/utils/template-studio/layer-order";
+import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-layout";
+import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
+import { createInitialStudioRuntimeValues } from "@/utils/template-studio/sample-document";
+import {
+  getStudioNodeIdsOutsideCanvas,
+  type StudioResizeGeometry,
+} from "@/utils/template-studio/transform-commands";
 import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
 import {
   createThumbnailStudioDocument,
   THUMBNAIL_CANVAS_PRESETS,
 } from "@/utils/thumbnail-studio/document-factory";
 
-type ThumbnailPanelMode = "layers" | "presets" | "inputs";
+import { buildThumbnailInspectorSections } from "./thumbnail-inspector";
+import {
+  ThumbnailAddMenu,
+  ThumbnailLayerCommandBar,
+  ThumbnailPlaceholderTab,
+} from "./thumbnail-layer-tabs";
+import {
+  useThumbnailNodeCommands,
+  type ThumbnailUpdateOptions,
+} from "../_hooks/use-thumbnail-node-commands";
+
+type ThumbnailPanelMode = "layers" | "assets" | "textPresets" | "inputs";
 type ThumbnailTheme = "dark" | "light";
 
 /**
@@ -77,19 +99,16 @@ interface ThumbnailStudioView {
   theme: ThumbnailTheme;
   scale: number;
   collapsedNodeIds: string[];
+  /** 열어둔 속성 섹션. 접힘은 되돌리기 대상이 아니다. */
+  openSections: Record<string, boolean>;
+  aspectRatioLocked: boolean;
 }
 
 const THUMBNAIL_PANEL_TABS: StudioPanelTab[] = [
   { id: "layers", label: "Layers", icon: <Layers3 size={14} /> },
-  { id: "presets", label: "Presets", icon: <Plus size={14} /> },
+  { id: "assets", label: "Assets", icon: <ImageIcon size={14} /> },
+  { id: "textPresets", label: "Text", icon: <Type size={14} /> },
   { id: "inputs", label: "Inputs", icon: <ListChecks size={14} /> },
-];
-
-const THUMBNAIL_NODE_TYPES: StudioGraphNodeType[] = [
-  "group",
-  "text",
-  "flexibleText",
-  "image",
 ];
 
 const DARK_THEME_STYLE = {
@@ -124,14 +143,29 @@ const LIGHT_THEME_STYLE = {
   "--fg3": "#8092ac",
 } as React.CSSProperties;
 
+const cloneDocument = (document: StudioTemplateDocument) =>
+  JSON.parse(JSON.stringify(document)) as StudioTemplateDocument;
+
+export interface ThumbnailStudioClientProps {
+  /**
+   * 편집 중인 템플릿 id.
+   *
+   * 원격 저장은 Phase 6에서 온다. 그때까지는 어떤 문서를 편집하는지 화면에 보여주는
+   * 데만 쓴다. 저장이 없다는 이유로 편집 자체가 막히면 안 된다.
+   */
+  templateId?: string;
+}
+
 /**
- * Thumbnail Studio 최소 골격.
+ * Thumbnail Studio 편집기.
  *
- * Phase 1에서는 공통 셸이 시간표 없이도 동작하는지 확인하는 것이 목적이다.
- * 빈 문서로 시작하고 저장은 하지 않는다. `Cards / Timetable` 전환, Component
- * Set, 상태 선택과 `Table` 탭을 공통 컴포넌트에 넘기지 않는다.
+ * 공통 셸과 공통 명령을 쓰는 어댑터다. 시간표 도메인은 만들지도, 읽지도 않는다.
+ * `Cards / Timetable` 전환, Component Set, 상태 선택과 `Table` 탭을 공통 컴포넌트에
+ * 넘기지 않는다.
  */
-export function ThumbnailStudioClient() {
+export function ThumbnailStudioClient({
+  templateId,
+}: ThumbnailStudioClientProps = {}) {
   const router = useRouter();
   const studioStoreRef = useRef<StudioEditorStore<ThumbnailStudioView> | null>(
     null,
@@ -146,18 +180,35 @@ export function ThumbnailStudioClient() {
         theme: "dark",
         scale: 0.8,
         collapsedNodeIds: [],
+        openSections: {},
+        aspectRatioLocked: false,
       },
     });
   }
   const studioStore = studioStoreRef.current;
   const document = useStore(studioStore, (state) => state.document);
+  const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
-  const { panelMode, theme, scale, collapsedNodeIds } = useStore(
-    studioStore,
-    (state) => state.view,
-  );
-  const { setPanelMode, setTheme, setScale, setCollapsedNodeIds } = useMemo(
+  const [statusMessage, setStatusMessage] = useState("Local draft");
+  const viewportHandleRef = useRef<StudioCanvasViewportHandle | null>(null);
+  const {
+    panelMode,
+    theme,
+    scale,
+    collapsedNodeIds,
+    openSections,
+    aspectRatioLocked,
+  } = useStore(studioStore, (state) => state.view);
+  const {
+    setPanelMode,
+    setTheme,
+    setScale,
+    setCollapsedNodeIds,
+    setOpenSections,
+    setAspectRatioLocked,
+  } = useMemo(
     () => ({
       setPanelMode: createStudioViewSetter(studioStore, "panelMode"),
       setTheme: createStudioViewSetter(studioStore, "theme"),
@@ -165,6 +216,11 @@ export function ThumbnailStudioClient() {
       setCollapsedNodeIds: createStudioViewSetter(
         studioStore,
         "collapsedNodeIds",
+      ),
+      setOpenSections: createStudioViewSetter(studioStore, "openSections"),
+      setAspectRatioLocked: createStudioViewSetter(
+        studioStore,
+        "aspectRatioLocked",
       ),
     }),
     [studioStore],
@@ -192,6 +248,10 @@ export function ThumbnailStudioClient() {
   const visibleNodeIdsRef = useRef<string[]>([]);
   visibleNodeIdsRef.current = visibleNodeIds;
 
+  const showStatus = useCallback((message: string) => {
+    if (message) setStatusMessage(message);
+  }, []);
+
   const {
     selectedNodeId,
     selectedNodeIds,
@@ -201,6 +261,7 @@ export function ThumbnailStudioClient() {
     selectNodeRange,
   } = useStudioSelection({
     getVisibleNodeIds: useCallback(() => visibleNodeIdsRef.current, []),
+    onStatusMessage: showStatus,
     store: studioStore,
   });
 
@@ -208,16 +269,26 @@ export function ThumbnailStudioClient() {
     () => new Set(selectedNodeIds),
     [selectedNodeIds],
   );
-  // 썸네일에는 아직 사용자 입력이 없다. 렌더러 계약을 맞추기 위한 빈 값이다.
-  const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
   const selectedNode = selectedNodeId
     ? (document.graph.nodes[selectedNodeId] ?? null)
     : null;
+  /**
+   * 조상이 함께 선택된 노드를 걷어낸 목록.
+   *
+   * 묶음과 그 자식을 같이 고른 상태에서 좌표를 바꾸면 자식이 두 번 움직인다.
+   */
+  const selectedTopLevelNodes = useMemo(
+    (): StudioGraphNode[] =>
+      getStudioTopLevelNodeIds(document, selectedNodeIds)
+        .map((nodeId) => document.graph.nodes[nodeId])
+        .filter(Boolean) as StudioGraphNode[],
+    [document, selectedNodeIds],
+  );
 
   const {
     capture: captureHistory,
-    undo,
-    redo,
+    undo: undoDocumentHistory,
+    redo: redoDocumentHistory,
   } = useStudioDocumentHistory({
     createSnapshot: useCallback(
       (): StudioEditorSnapshot =>
@@ -232,63 +303,131 @@ export function ThumbnailStudioClient() {
     ),
   });
 
+  /**
+   * 문서를 바꾼다.
+   *
+   * 되돌리기 한 단위는 기본적으로 이 함수가 시작한다. 끌기와 색 고르기처럼 값이 연속으로
+   * 바뀌는 조작은 시작할 때 한 번만 이력을 쌓고 그 뒤에는 `history: false`로 부른다.
+   * 매 프레임 쌓으면 되돌리기가 수백 단계 쌓여 쓸 수 없게 된다.
+   */
   const updateDocument = useCallback(
-    (mutate: (draft: StudioTemplateDocument) => void) => {
-      captureHistory();
+    (
+      mutate: (draft: StudioTemplateDocument) => void,
+      options: ThumbnailUpdateOptions = {},
+    ) => {
+      if (options.history !== false) captureHistory();
 
-      const next = JSON.parse(
-        JSON.stringify(studioStore.getState().document),
-      ) as StudioTemplateDocument;
+      const next = cloneDocument(studioStore.getState().document);
       mutate(next);
       studioStore.getState().setDocument(next);
     },
     [captureHistory, studioStore],
   );
 
-  const addNode = useCallback(
-    (type: StudioGraphNodeType) => {
-      const nodeId = createStudioId("node");
-      updateDocument((draft) => {
-        draft.graph.nodes[nodeId] = {
-          id: nodeId,
-          type,
-          label: `New ${getStudioGraphNodeTypeLabel(type)}`,
-          parentId: null,
-          childIds: [],
-          ...(type === "text" || type === "flexibleText"
-            ? { binding: { kind: "staticText" as const, value: "Text" } }
-            : {}),
-        };
-        draft.graph.rootNodeIds.push(nodeId);
-        draft.styles[nodeId] = {
-          left: 80,
-          top: 80,
-          width: type === "group" ? 320 : 240,
-          height: type === "group" ? 200 : 80,
-          ...(type === "text" || type === "flexibleText"
-            ? { fontSize: 32, fontWeight: 700, color: "#111827" }
-            : {}),
-        };
-        draft.graph.nodes[nodeId].styleId = nodeId;
-      });
-      selectSingleNode(nodeId);
-    },
-    [selectSingleNode, updateDocument],
-  );
+  const commands = useThumbnailNodeCommands({
+    getDocument: useCallback(
+      () => studioStore.getState().document,
+      [studioStore],
+    ),
+    getSelectedNodeIds: useCallback(
+      () => studioStore.getState().selectedNodeIds,
+      [studioStore],
+    ),
+    getSelectedNodeId: useCallback(
+      () => studioStore.getState().selectedNodeId,
+      [studioStore],
+    ),
+    getViewportCenter: useCallback(
+      () => viewportHandleRef.current?.getVisibleCanvasCenter() ?? null,
+      [],
+    ),
+    updateDocument,
+    captureHistory,
+    applySelection,
+    selectSingleNode,
+    onStatusMessage: showStatus,
+  });
 
-  const moveNode = useCallback(
-    (nodeId: string, delta: { deltaX: number; deltaY: number }) => {
-      updateDocument((draft) => {
-        const styleId = draft.graph.nodes[nodeId]?.styleId;
-        if (!styleId) return;
-        const style = draft.styles[styleId];
-        if (!style) return;
-        style.left = Number(style.left ?? 0) + delta.deltaX;
-        style.top = Number(style.top ?? 0) + delta.deltaY;
-      });
-    },
-    [updateDocument],
-  );
+  const clipboard = useStudioClipboard({
+    getDocument: useCallback(
+      () => studioStore.getState().document,
+      [studioStore],
+    ),
+    getSelectedNodeIds: useCallback(
+      () => studioStore.getState().selectedNodeIds,
+      [studioStore],
+    ),
+    getSelectedNodeId: useCallback(
+      () => studioStore.getState().selectedNodeId,
+      [studioStore],
+    ),
+    updateDocument,
+    onSelect: applySelection,
+    onStatusMessage: showStatus,
+    onAfterPaste: useCallback(() => setPanelMode("layers"), [setPanelMode]),
+  });
+
+  const layerDrag = useStudioLayerDrag({
+    getDocument: useCallback(
+      () => studioStore.getState().document,
+      [studioStore],
+    ),
+    getSelectedNodeIds: useCallback(
+      () => studioStore.getState().selectedNodeIds,
+      [studioStore],
+    ),
+    getCollapsedNodeIds: useCallback(
+      () => studioStore.getState().view.collapsedNodeIds,
+      [studioStore],
+    ),
+    setCollapsedNodeIds,
+    updateDocument,
+    onSelect: applySelection,
+    onSelectSingleNode: selectSingleNode,
+    onStatusMessage: showStatus,
+  });
+
+  const undo = useCallback(() => {
+    showStatus(undoDocumentHistory() ? "Undo" : "Nothing to undo");
+  }, [showStatus, undoDocumentHistory]);
+
+  const redo = useCallback(() => {
+    showStatus(redoDocumentHistory() ? "Redo" : "Nothing to redo");
+  }, [redoDocumentHistory, showStatus]);
+
+  useStudioKeyboardShortcuts({
+    hasCutNodes: clipboard.cutNodeIds.length > 0,
+    isNodePickerOpen: false,
+    handlers: useMemo(
+      () => ({
+        undo,
+        redo,
+        // 원격 저장은 Phase 6에서 온다. 그때까지 단축키는 지금 상태만 알린다.
+        saveDraft: () =>
+          showStatus("Thumbnail saving arrives with persistence"),
+        selectAll: commands.selectAll,
+        copy: clipboard.copy,
+        cut: clipboard.cut,
+        paste: clipboard.paste,
+        duplicate: commands.duplicateNodes,
+        group: commands.groupNodes,
+        ungroup: commands.ungroupNodes,
+        toggleLock: commands.toggleLock,
+        moveLayer: commands.moveLayer,
+        delete: commands.deleteNodes,
+        cancelCut: clipboard.cancelCut,
+        closeNodePicker: () => {},
+        clearSelection: () => selectSingleNode(null),
+        nudge: commands.nudgeNodes,
+        zoomIn: () => setScale((current) => Math.min(current + 0.1, 4)),
+        zoomOut: () => setScale((current) => Math.max(current - 0.1, 0.1)),
+        zoomToFit: () => setFitRequestKey((current) => current + 1),
+        zoomReset: () => setScale(1),
+        onStatusMessage: showStatus,
+      }),
+      [clipboard, commands, redo, selectSingleNode, setScale, showStatus, undo],
+    ),
+  });
 
   // 지워진 노드가 선택에 남지 않도록 문서가 바뀔 때 한 번 정리한다.
   useEffect(() => {
@@ -298,159 +437,246 @@ export function ThumbnailStudioClient() {
     if (hasMissingNode) applySelection(selectedNodeIds);
   }, [applySelection, document.graph.nodes, selectedNodeIds]);
 
-  const propertySections: StudioPropertyItem[] = selectedNode
-    ? [
-        {
-          id: `position:Position`,
-          title: "Position",
-          open: true,
-          onToggle: () => {},
-          content: (
-            <div className="grid grid-cols-2 gap-2">
-              <StudioSettingsNumberField
-                label="X"
-                value={Number(
-                  document.styles[selectedNode.styleId ?? ""]?.left ?? 0,
-                )}
-                onChange={(left) =>
-                  updateDocument((draft) => {
-                    const style = draft.styles[selectedNode.styleId ?? ""];
-                    if (style) style.left = left;
-                  })
-                }
-              />
-              <StudioSettingsNumberField
-                label="Y"
-                value={Number(
-                  document.styles[selectedNode.styleId ?? ""]?.top ?? 0,
-                )}
-                onChange={(top) =>
-                  updateDocument((draft) => {
-                    const style = draft.styles[selectedNode.styleId ?? ""];
-                    if (style) style.top = top;
-                  })
-                }
-              />
-            </div>
-          ),
-        },
-      ]
-    : [
-        {
-          kind: "block",
-          id: "thumbnail:emptySelection",
-          content: (
-            <p className="p-4 text-sm font-medium text-[var(--fg2)]">
-              Select an object from the canvas or layer tree.
-            </p>
-          ),
-        },
-      ];
+  /**
+   * 고른 것을 감싸는 사각형. 캔버스 좌표 기준이다.
+   *
+   * 묶음 안의 노드는 좌표가 부모 기준이므로 조상 좌표를 더해야 화면에 겹쳐 그릴 수 있다.
+   */
+  const selectionBounds = useMemo((): StudioResizeGeometry | null => {
+    if (selectedTopLevelNodes.length === 0) return null;
+
+    const boxes = selectedTopLevelNodes.map((node) => {
+      const offset = getStudioParentCanvasOffset(document, node.parentId);
+      const geometry = resolveStudioGraphNodeGeometry(document, node.id);
+      return {
+        left: offset.left + geometry.left,
+        top: offset.top + geometry.top,
+        width: geometry.width,
+        height: geometry.height,
+      };
+    });
+    const left = Math.min(...boxes.map((box) => box.left));
+    const top = Math.min(...boxes.map((box) => box.top));
+
+    return {
+      left,
+      top,
+      width: Math.max(...boxes.map((box) => box.left + box.width)) - left,
+      height: Math.max(...boxes.map((box) => box.top + box.height)) - top,
+    };
+  }, [document, selectedTopLevelNodes]);
+
+  const isSingleSelection = selectedTopLevelNodes.length === 1;
+  const singleSelectedNode = isSingleSelection
+    ? selectedTopLevelNodes[0]
+    : null;
+  const canTransformSelection = Boolean(
+    singleSelectedNode &&
+    !singleSelectedNode.locked &&
+    !isStudioFillParentLayout(singleSelectedNode.layoutMode),
+  );
+  const selectionRotateDeg = singleSelectedNode?.styleId
+    ? Number(document.styles[singleSelectedNode.styleId]?.rotateDeg ?? 0)
+    : 0;
+
+  const outsideCanvasNodeIds = useMemo(
+    () => getStudioNodeIdsOutsideCanvas(document),
+    [document],
+  );
+
+  const propertySections = buildThumbnailInspectorSections({
+    document,
+    selectedNodes: selectedTopLevelNodes,
+    selectedNode,
+    openSections,
+    onToggleSection: (sectionId) =>
+      setOpenSections((current) => ({
+        ...current,
+        [sectionId]: !(current[sectionId] ?? true),
+      })),
+    aspectRatioLocked,
+    onAspectRatioLockedChange: setAspectRatioLocked,
+    canvasPresets: THUMBNAIL_CANVAS_PRESETS,
+    outsideCanvasNodeIds,
+    commands,
+    captureHistory,
+    onFitCanvas: () => setFitRequestKey((current) => current + 1),
+  });
+
+  const leftPanelContent =
+    panelMode === "layers" ? (
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <ThumbnailLayerCommandBar
+          hasGroupSelection={selectedTopLevelNodes.some(
+            (node) => node.type === "group",
+          )}
+          hasMultiSelection={selectedTopLevelNodes.length > 1}
+          hasSelection={selectedTopLevelNodes.length > 0}
+          // 고른 것이 없을 때 `every`는 참이다. 그대로 쓰면 아무것도 고르지 않았는데
+          // 단추가 "되살리기"로 보인다.
+          isHidden={
+            selectedTopLevelNodes.length > 0 &&
+            selectedTopLevelNodes.every((node) => node.hidden)
+          }
+          isLocked={
+            selectedTopLevelNodes.length > 0 &&
+            selectedTopLevelNodes.every((node) => node.locked)
+          }
+          onDelete={commands.deleteNodes}
+          onGroup={commands.groupNodes}
+          onMoveLayer={commands.moveLayer}
+          onToggleHidden={commands.toggleHidden}
+          onToggleLock={commands.toggleLock}
+          onUngroup={commands.ungroupNodes}
+        />
+        <StudioLayerPanel
+          collapsedNodeIds={collapsedNodeIdsSet}
+          cutNodeIds={new Set(clipboard.cutNodeIds)}
+          dropState={layerDrag.dropState}
+          graph={document.graph}
+          rootNodeIds={document.graph.rootNodeIds}
+          selectedNodeIds={selectedNodeIdsSet}
+          summary={`${Object.keys(document.graph.nodes).length} placed objects`}
+          title="Thumbnail Layers"
+          onDragEnd={layerDrag.clearDragState}
+          onDragOver={layerDrag.handleDragOver}
+          onDragStart={layerDrag.handleDragStart}
+          onDrop={layerDrag.handleDrop}
+          onIndicatorDragOver={layerDrag.handleIndicatorDragOver}
+          onSelect={(nodeId, event) => {
+            if (event.shiftKey) {
+              selectNodeRange(nodeId, event.metaKey || event.ctrlKey);
+            } else if (event.metaKey || event.ctrlKey) {
+              toggleNodeSelection(nodeId);
+            } else {
+              selectSingleNode(nodeId);
+            }
+          }}
+          onToggleCollapsed={(nodeId) =>
+            setCollapsedNodeIds((current) =>
+              current.includes(nodeId)
+                ? current.filter((id) => id !== nodeId)
+                : [...current, nodeId],
+            )
+          }
+        />
+      </div>
+    ) : panelMode === "assets" ? (
+      <ThumbnailPlaceholderTab
+        description="Uploading and managing thumbnail images arrives with the asset library."
+        summary={`${Object.keys(document.assets).length} assets`}
+        title="Thumbnail Assets"
+      />
+    ) : panelMode === "textPresets" ? (
+      <ThumbnailPlaceholderTab
+        description="Reusable outline and shadow presets arrive with the text effects step."
+        summary="0 presets"
+        title="Text Presets"
+      />
+    ) : (
+      <ThumbnailPlaceholderTab
+        description="User input fields arrive with the thumbnail runtime."
+        summary={`${Object.keys(document.inputs).length} inputs`}
+        title="Thumbnail Inputs"
+      />
+    );
 
   return (
     <StudioEditorStoreProvider value={studioStore}>
-      <>
-        <StudioEditorShell
-          canvas={
-            <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
-              <StudioCanvasViewport
-                canvasHeight={document.canvas.height}
-                canvasWidth={document.canvas.width}
-                fitRequestKey={fitRequestKey}
-                scale={scale}
-                onMoveNode={moveNode}
-                onScaleChange={setScale}
-                onSelectNode={selectSingleNode}
+      <StudioEditorShell
+        canvas={
+          <section className="relative min-w-0 flex-1 overflow-hidden bg-[var(--canvas)]">
+            <StudioCanvasViewport
+              canvasHeight={document.canvas.height}
+              canvasWidth={document.canvas.width}
+              fitRequestKey={fitRequestKey}
+              handleRef={viewportHandleRef}
+              scale={scale}
+              onMoveNode={commands.moveNodeByDrag}
+              onMoveNodeStart={commands.beginNodeMove}
+              onScaleChange={setScale}
+              onSelectNode={(nodeId) => {
+                if (studioStore.getState().selectedNodeIds.includes(nodeId)) {
+                  return;
+                }
+                selectSingleNode(nodeId);
+              }}
+            >
+              <div
+                className="relative"
+                style={{
+                  width: document.canvas.width,
+                  height: document.canvas.height,
+                }}
               >
                 <StudioRenderer
                   document={document}
                   runtimeValues={runtimeValues}
                   selectedNodeId={selectedNodeId}
                   selectedNodeIds={selectedNodeIds}
-                  onSelectNode={(nodeId) => selectSingleNode(nodeId)}
-                />
-              </StudioCanvasViewport>
-            </section>
-          }
-          leftSidebar={
-            <StudioLeftSidebar
-              activeTabId={panelMode}
-              content={
-                panelMode === "layers" ? (
-                  <StudioLayerPanel
-                    collapsedNodeIds={collapsedNodeIdsSet}
-                    graph={document.graph}
-                    rootNodeIds={document.graph.rootNodeIds}
-                    selectedNodeIds={selectedNodeIdsSet}
-                    summary={`${document.graph.rootNodeIds.length} placed objects`}
-                    title="Thumbnail Layers"
-                    onDragEnd={() => {}}
-                    onDragOver={() => {}}
-                    onDragStart={() => {}}
-                    onDrop={() => {}}
-                    onIndicatorDragOver={() => {}}
-                    onSelect={(nodeId, event) => {
-                      if (event.shiftKey) {
-                        selectNodeRange(nodeId, event.metaKey || event.ctrlKey);
-                      } else if (event.metaKey || event.ctrlKey) {
-                        toggleNodeSelection(nodeId);
-                      } else {
-                        selectSingleNode(nodeId);
-                      }
-                    }}
-                    onToggleCollapsed={(nodeId) =>
-                      setCollapsedNodeIds((current) =>
-                        current.includes(nodeId)
-                          ? current.filter((id) => id !== nodeId)
-                          : [...current, nodeId],
-                      )
+                  onSelectNode={(nodeId, event) => {
+                    if (!nodeId) {
+                      selectSingleNode(null);
+                      return;
                     }
+                    if (event?.shiftKey || event?.metaKey || event?.ctrlKey) {
+                      toggleNodeSelection(nodeId);
+                    } else {
+                      selectSingleNode(nodeId);
+                    }
+                  }}
+                />
+                {selectionBounds ? (
+                  <StudioSelectionOverlay
+                    bounds={selectionBounds}
+                    lockAspectRatio={aspectRatioLocked}
+                    rotateDeg={isSingleSelection ? selectionRotateDeg : 0}
+                    scale={scale}
+                    showHandles={canTransformSelection}
+                    onResize={(geometry) => {
+                      if (!singleSelectedNode) return;
+                      // overlay는 캔버스 좌표로 계산한다. 저장은 부모 좌표계다.
+                      const parentOffset = getStudioParentCanvasOffset(
+                        document,
+                        singleSelectedNode.parentId,
+                      );
+                      commands.setGeometry(
+                        singleSelectedNode.id,
+                        {
+                          left: geometry.left - parentOffset.left,
+                          top: geometry.top - parentOffset.top,
+                          width: geometry.width,
+                          height: geometry.height,
+                        },
+                        { history: false },
+                      );
+                    }}
+                    onRotate={(rotateDeg) => {
+                      if (!singleSelectedNode) return;
+                      commands.setRotation(singleSelectedNode.id, rotateDeg, {
+                        history: false,
+                      });
+                    }}
+                    onTransformEnd={() => showStatus("Transformed")}
+                    // 한 번의 크기 조절과 한 번의 회전이 각각 되돌리기 한 단위다.
+                    onTransformStart={captureHistory}
                   />
-                ) : panelMode === "presets" ? (
-                  <StudioLayerPanelFrame
-                    summary="Add objects to the thumbnail"
-                    title="Thumbnail Presets"
-                  >
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {THUMBNAIL_NODE_TYPES.map((type) => (
-                        <button
-                          className="flex h-10 items-center justify-center rounded-[9px] border border-[var(--field-border)] bg-[var(--field)] text-xs font-bold text-[var(--fg2)] transition hover:border-[var(--accent)] hover:text-[var(--fg)]"
-                          key={type}
-                          title={`Add ${getStudioGraphNodeTypeLabel(type)}`}
-                          type="button"
-                          onClick={() => addNode(type)}
-                        >
-                          {type === "image" ? (
-                            <ImageIcon size={17} />
-                          ) : type === "group" ? (
-                            <Layers3 size={17} />
-                          ) : type === "flexibleText" ? (
-                            <span>
-                              T<span className="align-super text-[8px]">a</span>
-                            </span>
-                          ) : (
-                            <Type size={17} />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </StudioLayerPanelFrame>
-                ) : (
-                  <StudioLayerPanelFrame
-                    summary="0 inputs"
-                    title="Thumbnail Inputs"
-                  >
-                    <p className="px-2 text-[11px] font-medium text-[var(--fg3)]">
-                      Inputs arrive with the thumbnail runtime.
-                    </p>
-                  </StudioLayerPanelFrame>
-                )
-              }
-              tabs={THUMBNAIL_PANEL_TABS}
-              onTabChange={(tabId) => setPanelMode(tabId as ThumbnailPanelMode)}
-            />
-          }
-          overlays={
+                ) : null}
+              </div>
+            </StudioCanvasViewport>
+          </section>
+        }
+        leftSidebar={
+          <StudioLeftSidebar
+            activeTabId={panelMode}
+            content={leftPanelContent}
+            contextHeader={<ThumbnailAddMenu onAddNode={commands.addNode} />}
+            tabs={THUMBNAIL_PANEL_TABS}
+            onTabChange={(tabId) => setPanelMode(tabId as ThumbnailPanelMode)}
+          />
+        }
+        overlays={
+          <>
             <StudioSettingsDialog
               common={{
                 theme,
@@ -472,7 +698,7 @@ export function ThumbnailStudioClient() {
                   onImportJson: () => {},
                 },
                 documentInfo: {
-                  databaseTargetLabel: "not connected",
+                  databaseTargetLabel: templateId ?? "not connected",
                   schemaLabel: `${document.schema} v${document.version}`,
                   objectCount: Object.keys(document.graph.nodes).length,
                   inputCount: Object.keys(document.inputs).length,
@@ -498,8 +724,9 @@ export function ThumbnailStudioClient() {
                           label="Width"
                           value={document.canvas.width}
                           onChange={(width) =>
-                            updateDocument((draft) => {
-                              draft.canvas.width = width;
+                            commands.setCanvasSize({
+                              width,
+                              height: document.canvas.height,
                             })
                           }
                         />
@@ -507,8 +734,9 @@ export function ThumbnailStudioClient() {
                           label="Height"
                           value={document.canvas.height}
                           onChange={(height) =>
-                            updateDocument((draft) => {
-                              draft.canvas.height = height;
+                            commands.setCanvasSize({
+                              width: document.canvas.width,
+                              height,
                             })
                           }
                         />
@@ -520,9 +748,9 @@ export function ThumbnailStudioClient() {
                             key={preset.id}
                             type="button"
                             onClick={() =>
-                              updateDocument((draft) => {
-                                draft.canvas.width = preset.width;
-                                draft.canvas.height = preset.height;
+                              commands.setCanvasSize({
+                                width: preset.width,
+                                height: preset.height,
                               })
                             }
                           >
@@ -545,99 +773,131 @@ export function ThumbnailStudioClient() {
               title="Settings"
               onClose={() => setSettingsOpen(false)}
             />
-          }
-          propertiesPanel={
-            <StudioPropertiesPanel
-              header={{
-                icon:
-                  selectedNode?.type === "image" ? (
-                    <ImageIcon size={12} />
-                  ) : selectedNode?.type === "group" ? (
-                    <Layers3 size={12} />
-                  ) : (
-                    "T"
-                  ),
-                title: selectedNode
-                  ? getStudioGraphNodeTypeLabel(selectedNode.type)
-                  : "Thumbnail",
-                summary: `${selectedNodeIds.length} selected`,
-                renameDisabled: !selectedNode,
-                renameValue: selectedNode?.label ?? "No selection",
-                onRenameChange: (label) => {
-                  if (!selectedNode) return;
-                  updateDocument((draft) => {
-                    const node = draft.graph.nodes[selectedNode.id];
-                    if (node) node.label = label;
-                  });
-                },
-              }}
-              sections={propertySections}
-            />
-          }
-          themeStyle={theme === "dark" ? DARK_THEME_STYLE : LIGHT_THEME_STYLE}
-          topToolbar={
-            <StudioTopToolbar
-              backAction={{
-                title: "관리자 홈으로",
-                onClick: () => router.push("/admin"),
-              }}
-              canvasSize={{
-                width: document.canvas.width,
-                height: document.canvas.height,
-                title: "Open canvas settings",
-                onClick: () => setSettingsOpen(true),
-              }}
-              previewAction={{
-                disabled: true,
-                title: "Thumbnail preview arrives with the runtime",
-                onClick: () => {},
-              }}
-              publishAction={{
-                disabled: true,
-                title: "Thumbnail publishing arrives with persistence",
-                onClick: () => {},
-              }}
-              saveAction={{
-                disabled: true,
-                title: "Thumbnail saving arrives with persistence",
-                onClick: () => {},
-              }}
-              centerSlot={
-                <div className="flex h-[30px] shrink-0 items-center gap-1">
+            {previewOpen ? (
+              <div
+                className="fixed inset-0 z-[120] flex flex-col items-center justify-center gap-3 bg-black/80 p-6"
+                data-thumbnail-draft-preview="true"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="rounded-md bg-amber-400/20 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.06em] text-amber-200">
+                    Draft preview
+                  </span>
+                  <span className="text-[11px] font-semibold text-white/70">
+                    {document.canvas.width} × {document.canvas.height}
+                  </span>
                   <button
-                    className="h-[26px] rounded-md px-2.5 text-[11px] font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-                    title="Undo"
+                    aria-label="Close draft preview"
+                    className="flex h-7 w-7 items-center justify-center rounded-md bg-white/10 text-white transition hover:bg-white/20"
                     type="button"
-                    onClick={() => undo()}
+                    onClick={() => setPreviewOpen(false)}
                   >
-                    Undo
-                  </button>
-                  <button
-                    className="h-[26px] rounded-md px-2.5 text-[11px] font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
-                    title="Redo"
-                    type="button"
-                    onClick={() => redo()}
-                  >
-                    Redo
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
-              }
-              settingsAction={{
-                title: "Thumbnail settings",
-                onClick: () => setSettingsOpen(true),
-              }}
-              zoom={{
-                scale,
-                onZoomIn: () =>
-                  setScale((current) => Math.min(current + 0.1, 4)),
-                onZoomOut: () =>
-                  setScale((current) => Math.max(current - 0.1, 0.1)),
-                onFit: () => setFitRequestKey((current) => current + 1),
-              }}
-            />
-          }
-        />
-      </>
+                <div className="max-h-full max-w-full overflow-auto">
+                  {/* 선택선과 조작 손잡이 없이 지금 메모리에 있는 문서를 그린다. */}
+                  <StudioRenderer
+                    document={document}
+                    runtimeValues={runtimeValues}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </>
+        }
+        propertiesPanel={
+          <StudioPropertiesPanel
+            header={{
+              icon: selectedNode ? (
+                <StudioNodeTypeIcon size={12} type={selectedNode.type} />
+              ) : (
+                <Monitor size={12} />
+              ),
+              title: selectedNode
+                ? getStudioGraphNodeTypeLabel(selectedNode.type)
+                : "Canvas",
+              summary: selectedNode
+                ? `${selectedNodeIds.length} selected`
+                : statusMessage,
+              renameDisabled: !selectedNode,
+              renameValue: selectedNode?.label ?? "No selection",
+              onRenameChange: (label) => {
+                if (!selectedNode) return;
+                commands.renameNode(selectedNode.id, label);
+              },
+            }}
+            sections={propertySections}
+          />
+        }
+        themeStyle={theme === "dark" ? DARK_THEME_STYLE : LIGHT_THEME_STYLE}
+        topToolbar={
+          <StudioTopToolbar
+            backAction={{
+              title: "관리자 홈으로",
+              onClick: () => router.push("/admin"),
+            }}
+            canvasSize={{
+              width: document.canvas.width,
+              height: document.canvas.height,
+              title: "Open canvas settings",
+              onClick: () => setSettingsOpen(true),
+            }}
+            centerSlot={
+              <div className="flex h-[30px] shrink-0 items-center gap-1">
+                <span
+                  className="max-w-[190px] truncate rounded-md bg-[var(--field)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)]"
+                  data-thumbnail-status="true"
+                  title={statusMessage}
+                >
+                  {statusMessage}
+                </span>
+                <button
+                  className="h-[26px] rounded-md px-2.5 text-[11px] font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+                  title="Undo"
+                  type="button"
+                  onClick={undo}
+                >
+                  Undo
+                </button>
+                <button
+                  className="h-[26px] rounded-md px-2.5 text-[11px] font-semibold text-[var(--fg2)] transition hover:bg-[var(--hover)] hover:text-[var(--fg)]"
+                  title="Redo"
+                  type="button"
+                  onClick={redo}
+                >
+                  Redo
+                </button>
+              </div>
+            }
+            previewAction={{
+              label: "Preview",
+              title: "Open draft preview",
+              onClick: () => setPreviewOpen(true),
+            }}
+            publishAction={{
+              disabled: true,
+              title: "Thumbnail publishing arrives with persistence",
+              onClick: () => {},
+            }}
+            saveAction={{
+              disabled: true,
+              title: "Thumbnail saving arrives with persistence",
+              onClick: () => {},
+            }}
+            settingsAction={{
+              title: "Thumbnail settings",
+              onClick: () => setSettingsOpen(true),
+            }}
+            zoom={{
+              scale,
+              onZoomIn: () => setScale((current) => Math.min(current + 0.1, 4)),
+              onZoomOut: () =>
+                setScale((current) => Math.max(current - 0.1, 0.1)),
+              onFit: () => setFitRequestKey((current) => current + 1),
+            }}
+          />
+        }
+      />
     </StudioEditorStoreProvider>
   );
 }

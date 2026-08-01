@@ -411,3 +411,51 @@ export const applyStudioToggleNodeLock = (
     node.locked = plan.nextLocked;
   });
 };
+
+// --- 숨김 토글 ---
+
+export interface StudioToggleHiddenPlan {
+  nodeIds: string[];
+  nextHidden: boolean;
+}
+
+/**
+ * 감출지 되살릴지 정한다.
+ *
+ * 하나라도 보이는 것이 있으면 전부 감춘다. 잠금과 같은 규칙이다. 섞여 있을 때 각각
+ * 뒤집으면 여러 개를 고른 상태에서 무엇이 감춰질지 예측할 수 없다.
+ *
+ * 잠긴 노드도 감출 수 있다. 감추기는 문서 구조를 바꾸지 않고 보이는 것만 바꾸므로,
+ * 잠근 배경을 잠시 치우고 그 뒤를 보는 것이 흔한 작업이다.
+ */
+export const planStudioToggleNodeHidden = (
+  document: StudioTemplateDocument,
+  selectedNodeIds: string[],
+): StudioCommandPlan<StudioToggleHiddenPlan> => {
+  const nodeIds = getStudioTopLevelNodeIds(document, selectedNodeIds);
+
+  if (nodeIds.length === 0) {
+    return { ok: false, reason: "No object selected" };
+  }
+
+  const nodes = nodeIds
+    .map((nodeId) => document.graph.nodes[nodeId])
+    .filter(Boolean) as StudioGraphNode[];
+
+  return { ok: true, nodeIds, nextHidden: nodes.some((node) => !node.hidden) };
+};
+
+export const applyStudioToggleNodeHidden = (
+  draft: StudioTemplateDocument,
+  plan: StudioToggleHiddenPlan,
+): void => {
+  plan.nodeIds.forEach((nodeId) => {
+    const node = draft.graph.nodes[nodeId];
+    if (!node) return;
+    node.hidden = plan.nextHidden;
+  });
+};
+
+/** 잠금·숨김 토글 결과 안내 문구. */
+export const getStudioNodeVisibilityMessage = (nextHidden: boolean): string =>
+  nextHidden ? "Hidden" : "Shown";

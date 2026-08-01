@@ -60,7 +60,7 @@ import {
 import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
 
 import { StudioDayLabelFormatField } from "./studio-day-label-format-field";
-import { StudioHexColorPicker } from "./studio-hex-color-picker";
+import { StudioHexColorPicker } from "@/components/studio/inspector/studio-hex-color-picker";
 
 /** 카드 노드 인스펙터가 쓰는 섹션 키. */
 export type StudioCardNodeInspectorSectionKey =

@@ -9,8 +9,8 @@ import assert from "node:assert/strict";
 
 import type { StudioTimetableCompositionObject } from "../src/types/template-studio";
 import {
-  resolveStudioTimetableAssetSlotSpec,
-  type StudioTimetableAssetSlotKind,
+  resolveStudioAssetSlotSpec,
+  type StudioAssetSlotKind,
 } from "../src/utils/template-studio/timetable-asset-slot-specs";
 
 const createObject = (
@@ -26,23 +26,23 @@ const createObject = (
 
 /** spec대로 문서를 바꾼 뒤 객체에 남은 자리를 본다. */
 const applyAsset = (
-  kind: StudioTimetableAssetSlotKind,
+  kind: StudioAssetSlotKind,
   object: StudioTimetableCompositionObject,
   assetId: string | null,
   fit: "cover" | "contain" | "fill" = "cover",
 ): StudioTimetableCompositionObject => {
-  const spec = resolveStudioTimetableAssetSlotSpec(object, kind);
+  const spec = resolveStudioAssetSlotSpec(object, kind);
   spec.onUpdateAsset(object, assetId, fit);
   return object;
 };
 
 const applyInput = (
-  kind: StudioTimetableAssetSlotKind,
+  kind: StudioAssetSlotKind,
   object: StudioTimetableCompositionObject,
   inputId: string,
   fit: "cover" | "contain" | "fill" = "cover",
 ): StudioTimetableCompositionObject => {
-  const spec = resolveStudioTimetableAssetSlotSpec(object, kind);
+  const spec = resolveStudioAssetSlotSpec(object, kind);
   if (!spec.onUpdateInput) throw new Error(`${kind}: 입력으로 바꿀 수 없다`);
   spec.onUpdateInput(object, inputId, fit);
   return object;
@@ -51,48 +51,47 @@ const applyInput = (
 // --- 자리 이름 ---
 
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "background").label,
+  resolveStudioAssetSlotSpec(createObject(), "background").label,
   "Background Asset",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "profileImage").label,
+  resolveStudioAssetSlotSpec(createObject(), "profileImage").label,
   "Profile Image",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "profileFrame").label,
+  resolveStudioAssetSlotSpec(createObject(), "profileFrame").label,
   "Frame Asset",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "topObject").label,
+  resolveStudioAssetSlotSpec(createObject(), "topObject").label,
   "Object Asset",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "board").label,
+  resolveStudioAssetSlotSpec(createObject(), "board").label,
   "Board Image",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "artistProfileText")
-    .label,
+  resolveStudioAssetSlotSpec(createObject(), "artistProfileText").label,
   "Text Asset",
 );
 
 // 프로필 자식은 역할에 따라 이름이 달라진다.
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(
+  resolveStudioAssetSlotSpec(
     createObject({ profileRole: "backPlate" } as never),
     "profileChild",
   ).label,
   "Back Plate Asset",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(
+  resolveStudioAssetSlotSpec(
     createObject({ profileRole: "frame" } as never),
     "profileChild",
   ).label,
   "Frame Asset",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(
+  resolveStudioAssetSlotSpec(
     createObject({ profileRole: "userImage" } as never),
     "profileChild",
   ).label,
@@ -111,26 +110,26 @@ const readObject = createObject({
 } as never);
 
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(readObject, "background").assetId,
+  resolveStudioAssetSlotSpec(readObject, "background").assetId,
   "bg",
   "배경 자리의 값을 읽는다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(readObject, "background").fit,
+  resolveStudioAssetSlotSpec(readObject, "background").fit,
   "contain",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(readObject, "profileImage").assetId,
+  resolveStudioAssetSlotSpec(readObject, "profileImage").assetId,
   "photo",
   "프로필 사진 자리의 값을 읽는다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(readObject, "profileFrame").inputId,
+  resolveStudioAssetSlotSpec(readObject, "profileFrame").inputId,
   "input_frame",
   "묶인 입력도 읽는다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(readObject, "board").assetId,
+  resolveStudioAssetSlotSpec(readObject, "board").assetId,
   "generic",
   "이름 없는 자리는 asset을 쓴다.",
 );
@@ -141,19 +140,19 @@ const legacyObject = createObject({
   backgroundFit: "fill",
 } as never);
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(legacyObject, "background").assetId,
+  resolveStudioAssetSlotSpec(legacyObject, "background").assetId,
   "legacy",
   "예전 문서의 배경 값도 읽는다. 안 읽으면 기존 템플릿의 배경이 사라진다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(legacyObject, "background").fit,
+  resolveStudioAssetSlotSpec(legacyObject, "background").fit,
   "fill",
 );
 
 // --- 기본 Fit ---
 
-const defaultFitOf = (kind: StudioTimetableAssetSlotKind) =>
-  resolveStudioTimetableAssetSlotSpec(createObject(), kind).defaultFit;
+const defaultFitOf = (kind: StudioAssetSlotKind) =>
+  resolveStudioAssetSlotSpec(createObject(), kind).defaultFit;
 
 assert.equal(
   defaultFitOf("profileFrame"),
@@ -175,7 +174,7 @@ assert.equal(
 );
 
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(
+  resolveStudioAssetSlotSpec(
     createObject({ profileRole: "userImage" } as never),
     "profileChild",
   ).defaultFit,
@@ -183,7 +182,7 @@ assert.equal(
   "사용자 사진은 자리를 채운다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(
+  resolveStudioAssetSlotSpec(
     createObject({ profileRole: "frame" } as never),
     "profileChild",
   ).defaultFit,
@@ -194,7 +193,7 @@ assert.equal(
 // --- 출처 고정 ---
 
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(
+  resolveStudioAssetSlotSpec(
     createObject({ profileRole: "userImage" } as never),
     "profileChild",
   ).sourceLocked,
@@ -202,7 +201,7 @@ assert.equal(
   "사용자 사진 자리는 입력으로 고정한다. 템플릿 에셋이 박히면 발행 후에도 남는다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(
+  resolveStudioAssetSlotSpec(
     createObject({ profileRole: "frame" } as never),
     "profileChild",
   ).sourceLocked,
@@ -210,27 +209,24 @@ assert.equal(
   "테두리는 템플릿이 정하므로 에셋으로 고정한다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "structuredBackground")
+  resolveStudioAssetSlotSpec(createObject(), "structuredBackground")
     .sourceLocked,
   "asset",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "board").sourceLocked,
+  resolveStudioAssetSlotSpec(createObject(), "board").sourceLocked,
   "asset",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "background")
-    .sourceLocked,
+  resolveStudioAssetSlotSpec(createObject(), "background").sourceLocked,
   undefined,
   "배경은 사용자 입력과 템플릿 에셋 중 고를 수 있다.",
 );
 
 // --- 사용자 입력으로 바꿀 수 있는 자리 ---
 
-const canUseInput = (
-  kind: StudioTimetableAssetSlotKind,
-  object = createObject(),
-) => Boolean(resolveStudioTimetableAssetSlotSpec(object, kind).onUpdateInput);
+const canUseInput = (kind: StudioAssetSlotKind, object = createObject()) =>
+  Boolean(resolveStudioAssetSlotSpec(object, kind).onUpdateInput);
 
 assert.equal(canUseInput("background"), true);
 assert.equal(canUseInput("profileImage"), true);
@@ -283,7 +279,7 @@ for (const kind of [
   "topObject",
   "board",
   "artistProfileText",
-] as StudioTimetableAssetSlotKind[]) {
+] as StudioAssetSlotKind[]) {
   const object = applyAsset(kind, createObject(), "shared");
   assert.deepEqual(
     object.assetSlots?.asset,
@@ -316,11 +312,8 @@ const inputLabels = (
     "profileFrame",
     "topObject",
     "artistProfileText",
-  ] as StudioTimetableAssetSlotKind[]
-).map(
-  (kind) =>
-    resolveStudioTimetableAssetSlotSpec(createObject(), kind).inputLabel,
-);
+  ] as StudioAssetSlotKind[]
+).map((kind) => resolveStudioAssetSlotSpec(createObject(), kind).inputLabel);
 
 assert.ok(
   inputLabels.every(Boolean),
@@ -332,7 +325,7 @@ assert.equal(
   "자리마다 다른 입력 이름을 쓴다. 같으면 입력 목록에서 구분되지 않는다.",
 );
 assert.equal(
-  resolveStudioTimetableAssetSlotSpec(createObject(), "board").inputLabel,
+  resolveStudioAssetSlotSpec(createObject(), "board").inputLabel,
   undefined,
   "사용자 입력을 받지 않는 자리에는 입력 이름이 없다.",
 );

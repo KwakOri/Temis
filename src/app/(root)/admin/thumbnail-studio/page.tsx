@@ -5,10 +5,10 @@ export const metadata = {
 };
 
 /**
- * Thumbnail Studio 최소 화면.
+ * 새 썸네일 문서 편집 화면.
  *
- * Phase 1에서는 빈 문서로 시작하고 저장하지 않는다. 문서를 불러오는
- * `[templateId]/edit` 경로는 저장 경로가 생기는 단계에서 추가한다.
+ * 빈 문서로 시작한다. 원격 저장은 Phase 6에서 오므로 아직 어디에도 저장하지 않는다.
+ * 저장한 문서를 여는 경로는 `[templateId]/edit`다.
  */
 export default function ThumbnailStudioPage() {
   return <ThumbnailStudioClient />;

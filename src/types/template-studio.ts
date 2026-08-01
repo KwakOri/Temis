@@ -43,7 +43,15 @@ export type StudioTemplateKind = "timetable" | "thumbnail";
 export type StudioInputScope = "global" | "day" | "entry";
 export type StudioInputType = "text" | "image" | "select";
 export type StudioBuiltinFieldType = "text" | "boolean" | "status";
-export type StudioGraphNodeType = "group" | "text" | "image" | "flexibleText";
+/**
+ * 그래프 노드의 종류.
+ *
+ * 여기에 값을 더하면 `STUDIO_NODE_DEFINITIONS`(node-definitions.ts)와 공통
+ * 렌더러의 분기가 컴파일 단계에서 함께 깨진다. 그래야 새 종류가 빈 글자처럼
+ * 그려지는 일이 없다.
+ */
+export type StudioGraphNodeType =
+  "group" | "text" | "image" | "flexibleText" | "shape";
 export type StudioObjectLayoutMode = "fixed" | "fillParent";
 export type StudioImageFit = "cover" | "contain" | "fill";
 export type StudioTimetableBaseStatus = "online" | "offline";
@@ -223,9 +231,16 @@ export interface StudioGraphNode {
   layoutMode?: StudioObjectLayoutMode;
   styleId?: StudioStyleId;
   binding?: StudioBinding;
-  assetSlots?: Record<string, StudioTimetableAssetSlot>;
+  assetSlots?: Record<string, StudioAssetSlot>;
   fit?: StudioImageFit;
   locked?: boolean;
+  /**
+   * 편집 중 화면에서 감춘 노드.
+   *
+   * 문서에서 지우는 것이 아니라 그리지 않는 것이다. 미리보기와 내보내기에서도
+   * 같이 빠진다. 감춘 것이 결과물에만 나타나면 사용자는 왜 나왔는지 알 수 없다.
+   */
+  hidden?: boolean;
   /** `text`와 `flexibleText`에만 유효하다. */
   textAppearance?: StudioTextAppearance;
   meta?: StudioGraphNodeMeta;
@@ -325,6 +340,19 @@ export interface StudioAsset {
 
 export type StudioAssetMap = Record<StudioAssetId, StudioAsset>;
 
+/**
+ * 노드나 오브젝트가 그림 하나를 끼우는 자리.
+ *
+ * 문서에 담긴 정적 에셋을 쓸 수도 있고 사용자 입력에서 받을 수도 있다. 자리의
+ * 모양 자체는 도메인과 무관하므로 공통 렌더러가 이 타입만 알면 된다. 시간표
+ * 이름을 달고 있으면 썸네일에서 같은 칸을 쓸 때마다 시간표 개념을 끌고 온다.
+ */
+export interface StudioAssetSlot {
+  assetId?: StudioAssetId | null;
+  inputId?: StudioInputId | null;
+  fit?: StudioImageFit;
+}
+
 export interface StudioTimetableDayDefinition {
   id: StudioTimetableDayId;
   label: string;
@@ -410,12 +438,6 @@ export interface StudioTimetableDayCardsLayout {
   dayOffsets?: Record<StudioTimetableDayId, StudioTimetableDayCardOffset>;
 }
 
-export interface StudioTimetableAssetSlot {
-  assetId?: StudioAssetId | null;
-  inputId?: StudioInputId | null;
-  fit?: StudioImageFit;
-}
-
 export interface StudioTimetableObjectVariantOption {
   value: string;
   label: string;
@@ -442,7 +464,7 @@ export interface StudioTimetableCompositionObject {
   structuredRole?: StudioTimetableStructuredObjectRole;
   style: StudioStyleRecord;
   binding?: StudioBinding;
-  assetSlots?: Record<string, StudioTimetableAssetSlot>;
+  assetSlots?: Record<string, StudioAssetSlot>;
   backgroundAssetId?: StudioAssetId | null;
   backgroundFit?: StudioImageFit;
   locked?: boolean;

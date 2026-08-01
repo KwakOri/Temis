@@ -4,15 +4,15 @@ import React from "react";
 import type {
   StudioAsset,
   StudioImageFit,
-  StudioTimetableAssetSlot,
+  StudioAssetSlot,
 } from "@/types/template-studio";
-import { StudioTimetableAssetSlotFields } from "./studio-timetable-asset-slot-fields";
+import { StudioAssetSlotFields } from "./studio-timetable-asset-slot-fields";
 
 export interface StudioStatusCardBackgroundSlotProps {
   /** 지금 편집 중인 상태의 이름. 예: `Online` */
   statusLabel: string;
   /** 이 상태에 붙은 배경 자리. 아직 없으면 비운다. */
-  slot: StudioTimetableAssetSlot | null | undefined;
+  slot: StudioAssetSlot | null | undefined;
   assets: StudioAsset[];
   /** 고른 에셋이 문서에 있는지. 없으면 끊어진 것으로 보여준다. */
   hasAsset: boolean;
@@ -49,7 +49,7 @@ export function StudioStatusCardBackgroundSlot({
       <div className="text-[11px] font-bold text-[var(--fg)]">
         {statusLabel} layout
       </div>
-      <StudioTimetableAssetSlotFields
+      <StudioAssetSlotFields
         assetId={assetId}
         assets={assets}
         boundInput={null}

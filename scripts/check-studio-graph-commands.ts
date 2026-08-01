@@ -15,12 +15,15 @@ import {
   applyStudioDuplicateNodes,
   applyStudioGroupNodes,
   applyStudioLayerMove,
+  applyStudioToggleNodeHidden,
   applyStudioToggleNodeLock,
   applyStudioUngroupNodes,
   getStudioLayerMoveMessage,
+  getStudioNodeVisibilityMessage,
   planStudioDuplicateNodes,
   planStudioGroupNodes,
   planStudioLayerMove,
+  planStudioToggleNodeHidden,
   planStudioToggleNodeLock,
   planStudioUngroupNodes,
 } from "../src/utils/template-studio/graph-commands";
@@ -503,5 +506,83 @@ assert.equal(unlockPlan.nextLocked, false, "전부 잠겨 있으면 잠금을 �
 applyStudioToggleNodeLock(allLockedDocument, unlockPlan);
 assert.equal(allLockedDocument.graph.nodes.a.locked, false);
 assert.equal(allLockedDocument.graph.nodes.b.locked, false);
+
+// --- 숨김 토글 ---
+
+expectFail(
+  planStudioToggleNodeHidden(createDocument(), []),
+  "No object selected",
+  "선택이 없으면 감출 수 없다.",
+);
+
+const hidePlan = planStudioToggleNodeHidden(createDocument(), ["a", "b"]);
+assert.ok(hidePlan.ok);
+assert.equal(hidePlan.nextHidden, true, "보이는 게 섞여 있으면 감춘다.");
+
+const partiallyHiddenDocument = createDocument();
+partiallyHiddenDocument.graph.nodes.a.hidden = true;
+const partialHiddenPlan = planStudioToggleNodeHidden(partiallyHiddenDocument, [
+  "a",
+  "b",
+]);
+assert.ok(partialHiddenPlan.ok);
+assert.equal(
+  partialHiddenPlan.nextHidden,
+  true,
+  "섞여 있을 때 각각 뒤집으면 여러 개를 고른 상태에서 무엇이 감춰질지 예측할 수 없다.",
+);
+
+const allHiddenDocument = createDocument();
+allHiddenDocument.graph.nodes.a.hidden = true;
+allHiddenDocument.graph.nodes.b.hidden = true;
+const showPlan = planStudioToggleNodeHidden(allHiddenDocument, ["a", "b"]);
+assert.ok(showPlan.ok);
+assert.equal(showPlan.nextHidden, false, "전부 감춰져 있으면 되살린다.");
+applyStudioToggleNodeHidden(allHiddenDocument, showPlan);
+assert.equal(allHiddenDocument.graph.nodes.a.hidden, false);
+assert.equal(allHiddenDocument.graph.nodes.b.hidden, false);
+
+/**
+ * 잠긴 노드도 감출 수 있다.
+ *
+ * 감추기는 문서 구조를 바꾸지 않고 보이는 것만 바꾼다. 잠근 배경을 잠시 치우고 그 뒤를
+ * 보는 것이 흔한 작업이므로 잠금과 같은 규칙으로 막지 않는다.
+ */
+const lockedHiddenDocument = createDocument();
+lockedHiddenDocument.graph.nodes.a.locked = true;
+const lockedHiddenPlan = planStudioToggleNodeHidden(lockedHiddenDocument, [
+  "a",
+]);
+assert.ok(lockedHiddenPlan.ok, "잠긴 노드도 감출 수 있어야 한다.");
+applyStudioToggleNodeHidden(lockedHiddenDocument, lockedHiddenPlan);
+assert.equal(lockedHiddenDocument.graph.nodes.a.hidden, true);
+assert.equal(
+  lockedHiddenDocument.graph.nodes.a.locked,
+  true,
+  "감추기가 잠금을 건드리면 안 된다.",
+);
+
+// 조상과 자손을 같이 골라도 한 번만 다룬다.
+const nestedHiddenDocument = createDocument();
+nestedHiddenDocument.graph.nodes.a = createNode("a", {
+  type: "group",
+  childIds: ["nested"],
+});
+nestedHiddenDocument.graph.nodes.nested = createNode("nested", {
+  parentId: "a",
+});
+const nestedHiddenPlan = planStudioToggleNodeHidden(nestedHiddenDocument, [
+  "a",
+  "nested",
+]);
+assert.ok(nestedHiddenPlan.ok);
+assert.deepEqual(
+  nestedHiddenPlan.nodeIds,
+  ["a"],
+  "조상이 함께 선택되면 자손은 대상에서 빠진다. 렌더러가 조상만 보고도 자손을 함께 감춘다.",
+);
+
+assert.equal(getStudioNodeVisibilityMessage(true), "Hidden");
+assert.equal(getStudioNodeVisibilityMessage(false), "Shown");
 
 console.log("Studio graph command baseline checks passed.");
