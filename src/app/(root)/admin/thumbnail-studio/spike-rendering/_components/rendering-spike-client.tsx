@@ -2,7 +2,8 @@
 
 import { toPng } from "html-to-image";
 import { domToPng } from "modern-screenshot";
-import { useCallback, useMemo, useRef, useState } from "react";
+// jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
+import React, { useCallback, useMemo, useRef, useState } from "react";
 
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import type { StudioTemplateDocument } from "@/types/template-studio";
@@ -17,6 +18,7 @@ import {
   toCssStrokeWidth,
   type SpikeScene,
 } from "./spike-scenes";
+import { SpikeStudioAutoText } from "./spike-studio-auto-text";
 import { SpikeText, type SpikeTextMeasurement } from "./spike-text";
 
 type Rasterizer = "html-to-image" | "modern-screenshot";
@@ -181,6 +183,17 @@ export function RenderingSpikeClient() {
           지원 브라우저: Chrome · 테스트 환경: macOS · Windows 래스터화 차이는
           이 스파이크에서 확인하지 않는다.
         </p>
+        <p className="max-w-[900px] rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm leading-relaxed text-amber-100">
+          장면은 두 렌더 경로로 나뉜다. 01~11은 Phase 3 렌더러의 프로토타입 (
+          <code>SpikeText</code>)이고, 12~15는 <b>지금 제품이 쓰는 경로</b>(
+          <code>StudioAutoText</code> → <code>AutoResizeText</code>)다. 두
+          경로는 크기를 정하는 방법이 다르다. 프로토타입은 이분 탐색과{" "}
+          <code>pre-wrap</code>을 쓰고, 제품은 0.5px씩 줄이는 선형 탐색과{" "}
+          <code>white-space: pre</code>를 쓴다. 제품 경로는 자동 줄바꿈을 하지
+          않으므로 프로토타입에서 본 &ldquo;줄이 밀리는&rdquo; 현상을 그대로
+          적용해 읽으면 안 된다. 12~15는 시간표 카드의 실제 박스와 글자 크기를
+          옮겨 왔다.
+        </p>
         <button
           className="w-fit rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500"
           onClick={() => void generateAll()}
@@ -312,10 +325,17 @@ export function RenderingSpikeClient() {
                       background: scene.canvasBackground ?? "transparent",
                     }}
                   >
-                    <SpikeText
-                      onMeasure={(value) => handleMeasure(scene.id, value)}
-                      scene={scene}
-                    />
+                    {scene.textEngine === "studioAutoText" ? (
+                      <SpikeStudioAutoText
+                        onMeasure={(value) => handleMeasure(scene.id, value)}
+                        scene={scene}
+                      />
+                    ) : (
+                      <SpikeText
+                        onMeasure={(value) => handleMeasure(scene.id, value)}
+                        scene={scene}
+                      />
+                    )}
                   </div>
                   {overlayImage ? (
                     // 완전히 일치하면 전체가 검정으로 보인다.
@@ -384,15 +404,27 @@ export function RenderingSpikeClient() {
                   구조적 지표
                 </h3>
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-slate-300">
+                  <dt className="text-slate-500">렌더 경로</dt>
+                  <dd>
+                    {scene.textEngine === "studioAutoText" ? (
+                      <span className="font-bold text-amber-300">
+                        제품 (StudioAutoText → AutoResizeText)
+                      </span>
+                    ) : (
+                      "프로토타입 (SpikeText)"
+                    )}
+                  </dd>
                   <dt className="text-slate-500">폰트</dt>
                   <dd>
                     {scene.fontFamily} / {scene.fontWeight}
                   </dd>
                   <dt className="text-slate-500">크기 정책</dt>
                   <dd>
-                    {scene.autoFit
-                      ? `자동 (${scene.autoFit.min}~${scene.autoFit.max})`
-                      : `고정 ${scene.fontSize}px`}
+                    {scene.textEngine === "studioAutoText"
+                      ? `자동, 최대 ${scene.fontSize}px에서 0.5px씩 축소 (white-space: pre)`
+                      : scene.autoFit
+                        ? `자동 (${scene.autoFit.min}~${scene.autoFit.max})`
+                        : `고정 ${scene.fontSize}px`}
                   </dd>
                   <dt className="text-slate-500">측정 font size</dt>
                   <dd>{measurement ? `${measurement.fontSize}px` : "-"}</dd>

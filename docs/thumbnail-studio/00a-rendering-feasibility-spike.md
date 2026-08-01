@@ -223,10 +223,37 @@ Phase 3의 공용 측정에 안전 여유를 둔다.
 
 `template-studio-runtime-shell.tsx`가 `html-to-image`를 직접 사용하고, 시간표
 카드의 `main_title`과 `sub_title`은 `AutoResizeText` 기반 자동 크기 텍스트다.
-이번에 확인한 조건과 같다.
 
 Thumbnail Studio와 별개로 현재 제품에서 재현되는지 확인이 필요하다. 재현되면
 Phase 5의 export controller 통합을 기다리지 않고 먼저 고칠 후보다.
+
+**추가 확인(2026-08-01): 제품 경로는 이 스파이크의 프로토타입과 조건이 다르다.**
+
+처음에는 "이번에 확인한 조건과 같다"고 적었는데, 코드를 확인해 보니 두 경로가
+크기를 정하는 방법과 줄이 나뉘는 조건이 서로 다르다.
+
+| | 프로토타입(`SpikeText`) | 제품(`StudioAutoText` → `AutoResizeText`) |
+| --- | --- | --- |
+| 크기 탐색 | 0.5px 단위 이분 탐색 | 최대값에서 0.5px씩 줄이는 선형 탐색 |
+| 줄바꿈 | `white-space: pre-wrap` (자동 줄바꿈) | `white-space: pre` (개행에서만) |
+| 렌더 크기 | 탐색 결과 그대로 | `Math.floor()` 적용 |
+
+`StudioAutoText`는 `maxLines`를 넘기지 않는다. `AutoResizeText`의 이분 탐색은
+`maxLines`가 있을 때만 동작하므로 제품 경로는 선형 탐색을 탄다.
+
+따라서 프로토타입에서 본 "마지막 단어가 다음 줄로 밀린다"는 현상은 제품 경로에
+그대로 적용되지 않는다. 자동 줄바꿈을 하지 않으므로 sub-pixel 차이가 줄 수를
+바꿀 수 없다. 남는 위험은 폭 맞춤 판정이 경계에서 뒤집혀 최종 크기가 한 단계
+달라지는 쪽이고, 렌더의 `Math.floor()`가 그 일부를 흡수한다.
+
+프로토타입 결과를 제품 결과로 읽지 않도록 스파이크 페이지에 제품 경로 장면을
+추가했다(12~15). 시간표 카드의 실제 박스와 글자 크기를 옮겨 왔다.
+
+- `style_main_title`: 380 × 74 / 42px / 800
+- `style_sub_title`: 360 × 42 / 18px / 600
+
+두 라스터라이저를 나란히 만들고 차이 겹침으로 판정한다. 확인할 것은 줄 수보다
+**최종 font size와 glyph 위치가 두 라스터라이저에서 같은지**다.
 
 ### 판정 기준
 
@@ -254,3 +281,27 @@ Phase 3의 공용 텍스트 렌더러를 만든 뒤 같은 표본으로 재검�
 - stroke `outset` 변환 상수
 - 띠 두께와 effect outset 계산
 - 표본 시나리오
+
+### 다음에 할 일
+
+스파이크 페이지 `/admin/thumbnail-studio/spike-rendering`에서 장면 12~15를
+확인한다. Chrome에서 열고 "PNG 생성"을 누른 뒤 두 라스터라이저에 차이 겹침을
+적용한다.
+
+- 최종 font size가 두 라스터라이저에서 같은가
+- glyph 위치가 화면 대비 1px 이내인가
+- 웹 폰트가 fallback으로 바뀌지 않았는가
+
+`html-to-image`에서만 어긋나면 `template-studio-runtime-shell.tsx`를
+`modern-screenshot`으로 바꾼다. 어긋나지 않아도 표준을 하나로 두기 위해 바꾸는
+편이 낫다. 지금은 한 제품에 두 라스터라이저가 공존한다.
+
+```text
+html-to-image      runtime/template-studio-runtime-shell.tsx   사용자 PNG
+                   components/TimeTable/TweetPreviewModal.tsx  레거시 시간표
+modern-screenshot  hooks/useTimeTableState.ts                  레거시 시간표
+```
+
+확인은 `/admin/template-studio/[templateId]/preview`에서도 할 수 있다. 그 화면은
+사용자 화면과 같은 셸을 쓰고 PNG 다운로드도 조건부가 아니다. 다만 저장된 draft나
+published 문서가 있어야 열린다.

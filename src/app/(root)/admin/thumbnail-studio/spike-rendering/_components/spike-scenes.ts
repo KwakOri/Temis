@@ -54,6 +54,20 @@ export interface SpikeScene {
   canvas: { width: number; height: number };
   /** null이면 투명 배경 */
   canvasBackground: string | null;
+  /**
+   * 이 장면을 무엇으로 그릴지.
+   *
+   * `spike`는 Phase 3 렌더러의 프로토타입(`SpikeText`)이다. 자체 이분 탐색과
+   * `pre-wrap`을 쓴다.
+   *
+   * `studioAutoText`는 지금 제품이 쓰는 경로다. `StudioRenderer`가 `flexibleText`를
+   * `StudioAutoText` → `AutoResizeText`로 그리고, 그쪽은 `maxLines` 없이 불리므로
+   * 0.5px씩 줄이는 선형 탐색과 `white-space: pre`를 쓴다. 두 경로는 크기를 정하는
+   * 방법도, 줄이 나뉘는 조건도 다르므로 프로토타입 결과를 제품 결과로 읽으면 안 된다.
+   */
+  textEngine?: "spike" | "studioAutoText";
+  /** `studioAutoText` 장면에서 줄바꿈 모드를 지정한다. */
+  textWrapMode?: "preserve" | "single";
 }
 
 /** 메트릭 오버라이드가 주입되는 임포트 폰트 */
@@ -290,6 +304,87 @@ export const SPIKE_SCENES: SpikeScene[] = [
     box: { left: -20, top: -10, width: 400, height: 120 },
     canvas: CANVAS,
     canvasBackground: "#f97316",
+  },
+
+  /*
+   * 아래 장면은 지금 제품이 쓰는 Auto Text 경로를 그대로 그린다.
+   *
+   * 박스와 글자 크기는 `createSampleStudioDocument()`의 시간표 카드 값을 옮겼다.
+   * `style_main_title`은 380×74 / 42px / 800, `style_sub_title`은 360×42 / 18px / 600이다.
+   * 값을 바꾸면 재 본 결과가 제품과 달라진다.
+   *
+   * 확인하려는 것은 사용자가 내려받는 PNG가 화면과 같은지다. 시간표 런타임은
+   * `html-to-image`를 쓰고 스파이크가 표준으로 정한 것은 `modern-screenshot`이다.
+   */
+  {
+    id: "product-main-title-long",
+    title: "12. 제품 Auto Text — 긴 제목 (개행 없음)",
+    verifies:
+      "제품 경로. 폭 맞춤 경계에서 두 라스터라이저가 같은 최종 크기를 내는지",
+    text: "정규 3집 발매 기념 쇼케이스 스페셜 무대",
+    fontFamily: SPIKE_IMPORTED_FONT_FAMILY,
+    fontWeight: 800,
+    fontSize: 42,
+    lineHeight: 1.08,
+    align: "left",
+    fill: { color: "#111827", opacity: 1 },
+    strokes: [],
+    box: { left: 40, top: 140, width: 380, height: 74 },
+    canvas: CANVAS,
+    canvasBackground: "#ffffff",
+    textEngine: "studioAutoText",
+  },
+  {
+    id: "product-main-title-newline",
+    title: "13. 제품 Auto Text — 개행이 있는 제목",
+    verifies:
+      "제품 경로는 `white-space: pre`이므로 명시적 개행에서만 줄이 나뉜다. 줄 수가 화면과 PNG에서 같은지",
+    text: "정규 3집 발매 기념\n쇼케이스 스페셜 무대",
+    fontFamily: SPIKE_IMPORTED_FONT_FAMILY,
+    fontWeight: 800,
+    fontSize: 42,
+    lineHeight: 1.08,
+    align: "left",
+    fill: { color: "#111827", opacity: 1 },
+    strokes: [],
+    box: { left: 40, top: 140, width: 380, height: 74 },
+    canvas: CANVAS,
+    canvasBackground: "#ffffff",
+    textEngine: "studioAutoText",
+  },
+  {
+    id: "product-sub-title",
+    title: "14. 제품 Auto Text — 부제목 (작은 박스)",
+    verifies: "제품 경로. 작은 박스에서 최소 크기 보정까지 내려가는지",
+    text: "게스트와 함께하는 특별 코너 포함",
+    fontFamily: SPIKE_IMPORTED_FONT_FAMILY,
+    fontWeight: 600,
+    fontSize: 18,
+    lineHeight: 1.08,
+    align: "left",
+    fill: { color: "#475569", opacity: 1 },
+    strokes: [],
+    box: { left: 40, top: 160, width: 360, height: 42 },
+    canvas: CANVAS,
+    canvasBackground: "#ffffff",
+    textEngine: "studioAutoText",
+  },
+  {
+    id: "product-main-title-short",
+    title: "15. 제품 Auto Text — 줄일 필요 없는 제목 (대조군)",
+    verifies: "12~14와 달리 탐색이 최대 크기에서 끝난다. 경계에 붙지 않는 경우",
+    text: "쇼케이스",
+    fontFamily: SPIKE_IMPORTED_FONT_FAMILY,
+    fontWeight: 800,
+    fontSize: 42,
+    lineHeight: 1.08,
+    align: "left",
+    fill: { color: "#111827", opacity: 1 },
+    strokes: [],
+    box: { left: 40, top: 140, width: 380, height: 74 },
+    canvas: CANVAS,
+    canvasBackground: "#ffffff",
+    textEngine: "studioAutoText",
   },
 ];
 
