@@ -2017,6 +2017,60 @@ const validateStudioInputPresentation = (
   return diagnostics;
 };
 
+const validateStudioImageInputDefinition = (
+  input: StudioInputDefinition,
+): StudioDiagnostic[] => {
+  if (input.type !== "image" || input.policy === undefined) return [];
+
+  const diagnostics: StudioDiagnostic[] = [];
+  const policy = input.policy as unknown as Record<string, unknown>;
+  const requiredBooleanKeys = ["allowFitChange", "allowFocusChange"];
+  const optionalBooleanKeys = ["allowReplace", "allowCrop"];
+
+  requiredBooleanKeys.forEach((key) => {
+    if (typeof policy[key] !== "boolean") {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `image-input-policy-${key}-invalid:${input.id}`,
+          "Invalid image input policy",
+          `${input.label} has ${key} that must be a boolean when policy is present.`,
+        ),
+      );
+    }
+  });
+
+  optionalBooleanKeys.forEach((key) => {
+    if (policy[key] !== undefined && typeof policy[key] !== "boolean") {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `image-input-policy-${key}-invalid:${input.id}`,
+          "Invalid image input policy",
+          `${input.label} has ${key} that must be a boolean when present.`,
+        ),
+      );
+    }
+  });
+
+  const ratio = policy.recommendedAspectRatio;
+  if (
+    ratio !== undefined &&
+    (typeof ratio !== "number" || !Number.isFinite(ratio) || ratio <= 0)
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `image-input-policy-aspect-ratio-invalid:${input.id}`,
+        "Invalid image input aspect ratio",
+        `${input.label} has a recommendedAspectRatio that must be a finite positive number when present.`,
+      ),
+    );
+  }
+
+  return diagnostics;
+};
+
 const validateStudioSelectInputDefinition = (
   input: StudioInputDefinition,
 ): StudioDiagnostic[] => {
@@ -2208,6 +2262,7 @@ export const validateStudioDocument = (
   Object.values(document.inputs).forEach((input) => {
     diagnostics.push(
       ...validateStudioInputPresentation(document, input),
+      ...validateStudioImageInputDefinition(input),
       ...validateStudioSelectInputDefinition(input),
     );
     const consumers = inputConsumers[input.id] ?? [];

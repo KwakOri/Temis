@@ -11,6 +11,7 @@ import {
   getThumbnailStudioInputGroupId,
   normalizeThumbnailStudioInputPresentation,
 } from "@/utils/thumbnail-studio/input-order";
+import { normalizeThumbnailStudioInputDefinition } from "@/utils/thumbnail-studio/image-input-policy";
 import { createStudioId } from "@/utils/template-studio/id";
 
 const cloneStudioInputDefinition = (
@@ -82,9 +83,9 @@ export const applyThumbnailStudioUpdateInput = (
   );
   next.id = inputId;
   next.scope = "global";
-  draft.inputs[inputId] = next;
+  draft.inputs[inputId] = normalizeThumbnailStudioInputDefinition(next);
   normalizeThumbnailStudioInputPresentation(draft);
-  return next;
+  return draft.inputs[inputId];
 };
 
 /** input을 삭제한다. consumer 해제와 preview materialize는 후속 binding command가 담당한다. */
@@ -145,6 +146,10 @@ export const applyThumbnailStudioDuplicateInput = (
   };
   if (duplicate.type === "select") {
     duplicate = ensureUniqueSelectOptions(duplicate);
+  }
+
+  if (duplicate.type === "image") {
+    duplicate = normalizeThumbnailStudioInputDefinition(duplicate);
   }
 
   draft.inputs[nextId] = duplicate;

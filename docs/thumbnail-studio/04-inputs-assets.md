@@ -1,6 +1,6 @@
 # Phase 4. 입력, 이미지와 에셋
 
-상태: 패키지 1~9 구현 및 자동 검증 완료, 브라우저 클릭 실측 대기
+상태: 패키지 1~10 구현 및 자동 검증 완료, 브라우저 클릭 실측 대기
 
 선행 단계: [Phase 3 — 고급 텍스트 표현](./03-text-effects.md)
 
@@ -303,7 +303,7 @@ border radius는 실제 이미지 픽셀을 clip해야 하며 opacity는 rendere
 - `allowFocusChange`
 - `allowCrop`
 - `recommendedAspectRatio`
-- 안내 문구
+- `presentation.helpText` 안내 문구
 
 수치와 boolean은 기존 `StudioImageInputPolicy`를 확장 또는 정규화해서 사용한다.
 권장 비율은 유한한 양수만 저장한다.

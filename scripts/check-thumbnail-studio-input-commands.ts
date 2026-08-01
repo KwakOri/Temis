@@ -24,6 +24,10 @@ import {
   setThumbnailStudioPreviewInputValue,
   syncThumbnailStudioPreviewValues,
 } from "../src/utils/thumbnail-studio/input-preview";
+import {
+  getStudioImageInputPolicy,
+  normalizeStudioInputHelpText,
+} from "../src/utils/thumbnail-studio/image-input-policy";
 import { getThumbnailStudioInputDefinitions } from "../src/utils/thumbnail-studio/input-order";
 import { validateStudioDocument } from "../src/utils/template-studio/validator";
 
@@ -82,6 +86,46 @@ const updated = applyThumbnailStudioUpdateInput(document, added.id, (input) => {
 assert.equal(updated?.label, "Choice");
 assert.equal(updated?.scope, "global", "Thumbnail commands keep inputs global");
 assert.equal(document.inputs[added.id]?.scope, "global");
+
+const updatedImage = applyThumbnailStudioUpdateInput(
+  document,
+  "image",
+  (input) =>
+    input.type === "image"
+      ? {
+          ...input,
+          policy: {
+            allowFitChange: false,
+            allowFocusChange: true,
+            allowReplace: false,
+            allowCrop: undefined,
+            recommendedAspectRatio: Number.NaN,
+          },
+          presentation: {
+            ...(input.presentation ?? {}),
+            helpText: "  Use a landscape image.  ",
+          },
+        }
+      : input,
+);
+assert.deepEqual(updatedImage?.type === "image" ? updatedImage.policy : null, {
+  allowReplace: false,
+  allowFitChange: false,
+  allowFocusChange: true,
+  allowCrop: true,
+});
+assert.equal(updatedImage?.presentation?.helpText, "Use a landscape image.");
+assert.deepEqual(
+  getStudioImageInputPolicy(undefined),
+  {
+    allowReplace: true,
+    allowFitChange: true,
+    allowFocusChange: true,
+    allowCrop: true,
+  },
+  "An image input without a policy uses the permissive runtime defaults",
+);
+assert.equal(normalizeStudioInputHelpText("  "), undefined);
 
 const duplicate = applyThumbnailStudioDuplicateInput(document, added.id);
 assert.ok(duplicate);
@@ -261,5 +305,32 @@ if (selectInput.type === "select") {
     diagnosticIds.includes(`select-default-value-invalid:${selectInput.id}`),
   );
 }
+
+const invalidPolicyDocument = createDocument();
+const invalidImage = invalidPolicyDocument.inputs.image;
+assert.equal(invalidImage.type, "image");
+if (invalidImage.type === "image") {
+  invalidImage.policy = {
+    allowFitChange: true,
+    allowFocusChange: true,
+    recommendedAspectRatio: 0,
+  };
+  invalidImage.presentation = {
+    helpText: 42 as unknown as string,
+  };
+}
+assert.ok(
+  validateStudioDocument(invalidPolicyDocument).some(
+    (diagnostic) =>
+      diagnostic.id === "image-input-policy-aspect-ratio-invalid:image",
+  ),
+  "A non-positive recommended aspect ratio must be diagnosed",
+);
+assert.ok(
+  validateStudioDocument(invalidPolicyDocument).some(
+    (diagnostic) => diagnostic.id === "input-presentation-help-invalid:image",
+  ),
+  "An image input help text with a non-string value must be diagnosed",
+);
 
 console.log("Thumbnail Studio input command checks passed.");

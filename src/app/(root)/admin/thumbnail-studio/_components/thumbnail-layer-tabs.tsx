@@ -39,6 +39,10 @@ import {
   getThumbnailStudioInputGroups,
   getThumbnailStudioInputGroupId,
 } from "@/utils/thumbnail-studio/input-order";
+import {
+  getStudioImageInputPolicy,
+  normalizeStudioImageInputPolicy,
+} from "@/utils/thumbnail-studio/image-input-policy";
 import type { ThumbnailStudioInputConsumerReference } from "@/utils/thumbnail-studio/input-consumers";
 import type { ThumbnailStudioAssetConsumerReference } from "@/utils/thumbnail-studio/asset-consumers";
 import {
@@ -380,6 +384,10 @@ export function ThumbnailInputPanel({
               const inputConsumers = consumers[input.id] ?? [];
               const previewValue = getPreviewValue(input, previewValues);
               const isSelected = selectedInputId === input.id;
+              const imagePolicy =
+                input.type === "image"
+                  ? getStudioImageInputPolicy(input.policy)
+                  : null;
               return (
                 <div
                   className={`grid gap-2 rounded-xl border p-2 ${isSelected ? "border-[var(--accent)] bg-[var(--sel)]" : "border-[var(--field-border)] bg-[var(--field-bg)]"}`}
@@ -563,40 +571,114 @@ export function ThumbnailInputPanel({
                     </div>
                   ) : null}
                   {input.type === "image" ? (
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <ThumbnailInputLabel label="Default URL">
-                        <input
-                          className={INPUT_FIELD_CLASS}
-                          placeholder={input.placeholder}
-                          value={input.defaultUrl ?? ""}
-                          onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "image"
-                                ? {
-                                    ...current,
-                                    defaultUrl: event.currentTarget.value,
-                                  }
-                                : current,
-                            )
-                          }
-                        />
-                      </ThumbnailInputLabel>
-                      <ThumbnailInputLabel label="Placeholder">
-                        <input
-                          className={INPUT_FIELD_CLASS}
-                          value={input.placeholder ?? ""}
-                          onChange={(event) =>
-                            onUpdate(input.id, (current) =>
-                              current.type === "image"
-                                ? {
-                                    ...current,
-                                    placeholder: event.currentTarget.value,
-                                  }
-                                : current,
-                            )
-                          }
-                        />
-                      </ThumbnailInputLabel>
+                    <div
+                      className="grid gap-1.5"
+                      data-thumbnail-image-input-policy="true"
+                    >
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <ThumbnailInputLabel label="Default URL">
+                          <input
+                            className={INPUT_FIELD_CLASS}
+                            placeholder={input.placeholder}
+                            value={input.defaultUrl ?? ""}
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) =>
+                                current.type === "image"
+                                  ? {
+                                      ...current,
+                                      defaultUrl: event.currentTarget.value,
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </ThumbnailInputLabel>
+                        <ThumbnailInputLabel label="Placeholder">
+                          <input
+                            className={INPUT_FIELD_CLASS}
+                            value={input.placeholder ?? ""}
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) =>
+                                current.type === "image"
+                                  ? {
+                                      ...current,
+                                      placeholder: event.currentTarget.value,
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </ThumbnailInputLabel>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1.5">
+                        <span className="col-span-2 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                          Runtime image policy
+                        </span>
+                        {(
+                          [
+                            ["allowReplace", "Allow replace"],
+                            ["allowFitChange", "Allow fit change"],
+                            ["allowFocusChange", "Allow focus change"],
+                            ["allowCrop", "Allow crop"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <label
+                            className="flex items-center gap-1.5 text-[10px] font-semibold text-[var(--fg2)]"
+                            key={key}
+                          >
+                            <input
+                              checked={imagePolicy?.[key] ?? true}
+                              type="checkbox"
+                              onChange={(event) =>
+                                onUpdate(input.id, (current) =>
+                                  current.type === "image"
+                                    ? {
+                                        ...current,
+                                        policy: normalizeStudioImageInputPolicy(
+                                          {
+                                            ...getStudioImageInputPolicy(
+                                              current.policy,
+                                            ),
+                                            [key]: event.currentTarget.checked,
+                                          },
+                                        ),
+                                      }
+                                    : current,
+                                )
+                              }
+                            />
+                            {label}
+                          </label>
+                        ))}
+                        <ThumbnailInputLabel label="Recommended aspect ratio">
+                          <input
+                            className={INPUT_FIELD_CLASS}
+                            inputMode="decimal"
+                            min={0}
+                            step="any"
+                            type="number"
+                            value={imagePolicy?.recommendedAspectRatio ?? ""}
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) => {
+                                if (current.type !== "image") return current;
+                                const raw = event.currentTarget.value.trim();
+                                const recommendedAspectRatio = raw
+                                  ? Number(raw)
+                                  : undefined;
+                                return {
+                                  ...current,
+                                  policy: normalizeStudioImageInputPolicy({
+                                    ...getStudioImageInputPolicy(
+                                      current.policy,
+                                    ),
+                                    recommendedAspectRatio,
+                                  }),
+                                };
+                              })
+                            }
+                          />
+                        </ThumbnailInputLabel>
+                      </div>
                     </div>
                   ) : null}
                   {input.type === "select" ? (

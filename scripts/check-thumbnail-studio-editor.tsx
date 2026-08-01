@@ -21,6 +21,7 @@ import { buildThumbnailInspectorSections } from "../src/app/(root)/admin/thumbna
 import {
   ThumbnailAddMenu,
   ThumbnailLayerCommandBar,
+  ThumbnailInputPanel,
 } from "../src/app/(root)/admin/thumbnail-studio/_components/thumbnail-layer-tabs";
 import type { ThumbnailNodeCommands } from "../src/app/(root)/admin/thumbnail-studio/_hooks/use-thumbnail-node-commands";
 import type {
@@ -280,6 +281,66 @@ const createInspectorDocument = (): StudioTemplateDocument => {
   };
   return document;
 };
+
+const imageInputPanelDocument = createThumbnailStudioDocument();
+imageInputPanelDocument.inputs.image = {
+  id: "image",
+  type: "image",
+  scope: "global",
+  label: "Hero image",
+  defaultUrl: "data:image/png;base64,hero",
+  policy: {
+    allowReplace: false,
+    allowFitChange: true,
+    allowFocusChange: false,
+    allowCrop: true,
+    recommendedAspectRatio: 16 / 9,
+  },
+  presentation: { order: 0, helpText: "Choose a landscape image." },
+};
+const imageInputPanelMarkup = renderToStaticMarkup(
+  <ThumbnailInputPanel
+    consumers={{}}
+    document={imageInputPanelDocument}
+    onAdd={() => {}}
+    onAddOption={() => {}}
+    onDelete={() => {}}
+    onDuplicate={() => {}}
+    onMove={() => {}}
+    onPreviewChange={() => {}}
+    onRemoveOption={() => {}}
+    onRenameGroup={() => {}}
+    onResetPreview={() => {}}
+    onSelectInput={() => {}}
+    onSelectOptionValue={() => {}}
+    onSetGroup={() => {}}
+    onUpdate={() => {}}
+    previewValues={{
+      global: { image: "" },
+      days: {},
+      entries: {},
+      timetable: { entriesByDay: {} },
+    }}
+    selectedInputId="image"
+  />,
+);
+assert.ok(
+  imageInputPanelMarkup.includes('data-thumbnail-image-input-policy="true"'),
+  "Image inputs must expose their runtime policy editor",
+);
+for (const label of [
+  "Allow replace",
+  "Allow fit change",
+  "Allow focus change",
+  "Allow crop",
+  "Recommended aspect ratio",
+  "Help text",
+]) {
+  assert.ok(
+    imageInputPanelMarkup.includes(label),
+    `Image input panel must expose ${label}`,
+  );
+}
 
 const createCommandsStub = (calls: string[] = []): ThumbnailNodeCommands =>
   ({
