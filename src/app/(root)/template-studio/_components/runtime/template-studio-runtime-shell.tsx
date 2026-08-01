@@ -1,7 +1,7 @@
 "use client";
 
-import { toPng } from "html-to-image";
 import { ChevronLeft } from "lucide-react";
+import { domToPng } from "modern-screenshot";
 import Link from "next/link";
 import React, {
   useCallback,
@@ -335,10 +335,25 @@ export function TemplateStudioRuntimeShell({
 
     setIsSavingImage(true);
     try {
-      const dataUrl = await toPng(element, {
-        cacheBust: true,
+      // 폰트가 준비되기 전에 캡처하면 fallback 폰트가 결과 이미지에 굳는다. 화면에는
+      // 제대로 보이므로 사용자는 내려받은 파일을 열어 보고서야 알게 된다.
+      if (window.document.fonts) {
+        await window.document.fonts.ready;
+      }
+
+      /**
+       * 래스터라이저는 `modern-screenshot` 하나로 둔다.
+       *
+       * Phase 0A 스파이크가 표준으로 정한 것이고, 시간표 카드와 같은 조건의 장면에서
+       * `html-to-image`보다 화면과 더 잘 맞았다. 자동 크기 텍스트는 상자에 겨우 맞는
+       * 크기에서 멈추므로, 글자 전진폭이 조금만 달라도 결과가 화면과 어긋난다.
+       *
+       * 옵션 대응: `pixelRatio` → `scale`, `cacheBust` → `fetch.bypassingCache`.
+       */
+      const dataUrl = await domToPng(element, {
+        fetch: { bypassingCache: true },
         height: previewSize.height,
-        pixelRatio: 1,
+        scale: 1,
         style: {
           transform: "none",
         },

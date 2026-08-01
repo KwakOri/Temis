@@ -282,26 +282,51 @@ Phase 3의 공용 텍스트 렌더러를 만든 뒤 같은 표본으로 재검�
 - 띠 두께와 effect outset 계산
 - 표본 시나리오
 
-### 다음에 할 일
+### 제품 경로 확인 결과 (2026-08-01, Chrome / macOS)
 
-스파이크 페이지 `/admin/thumbnail-studio/spike-rendering`에서 장면 12~15를
-확인한다. Chrome에서 열고 "PNG 생성"을 누른 뒤 두 라스터라이저에 차이 겹침을
-적용한다.
+장면 12~15를 두 라스터라이저로 만들고 차이 겹침으로 판정했다.
 
-- 최종 font size가 두 라스터라이저에서 같은가
-- glyph 위치가 화면 대비 1px 이내인가
-- 웹 폰트가 fallback으로 바뀌지 않았는가
+- 기능은 두 라이브러리 모두 정상이었다. 웹 폰트 fallback이나 캡처 실패는 없었다.
+- 줄일 필요가 없는 대조군(15)은 두 라이브러리가 같았다.
+- 상자에 겨우 맞는 크기에서 멈추는 장면에서는 `modern-screenshot`이 화면과 더 잘
+  맞았다. 자동 크기 텍스트는 탐색이 항상 맞춤 경계 직전에서 끝나므로 글자 전진폭이
+  조금만 달라도 결과가 어긋난다. 프로토타입에서 본 "줄이 밀리는" 형태는 아니고,
+  최종 크기와 글자 위치가 어긋나는 형태다.
 
-`html-to-image`에서만 어긋나면 `template-studio-runtime-shell.tsx`를
-`modern-screenshot`으로 바꾼다. 어긋나지 않아도 표준을 하나로 두기 위해 바꾸는
-편이 낫다. 지금은 한 제품에 두 라스터라이저가 공존한다.
+결론은 `modern-screenshot`으로 통일이다. 조건은 이미 표준이 그것이었고, 제품 경로에서
+더 잘 맞는 것까지 확인됐다.
+
+### 통일 결과
+
+`template-studio-runtime-shell.tsx`를 `modern-screenshot`으로 바꿨다. 이 셸은
+사용자 화면(`/template-studio/[templateId]`)과 관리자 미리보기
+(`/admin/template-studio/[templateId]/preview`)가 함께 쓰므로 두 화면이 같이 바뀐다.
+
+옵션 대응:
+
+| html-to-image | modern-screenshot |
+| --- | --- |
+| `pixelRatio: 1` | `scale: 1` |
+| `cacheBust: true` | `fetch: { bypassingCache: true }` |
+| `style`, `width`, `height` | 같음 |
+
+캡처 전에 `document.fonts.ready`를 기다리는 단계를 함께 넣었다. 런타임 셸에는 이 단계가
+없었다. 준비 전에 캡처하면 fallback 폰트가 결과 이미지에 굳는데, 화면에는 제대로 보이므로
+사용자는 파일을 열어 보고서야 알게 된다. 스파이크의 캡처 절차에는 원래 이 단계가 있었다.
+
+되돌아가지 않도록 `npm run check:studio:rasterizer`를 붙였다. 런타임 셸이
+`modern-screenshot`을 쓰는지, 폰트 대기가 캡처보다 먼저 오는지, `html-to-image`를 새로
+쓰는 파일이 생기지 않았는지를 본다.
+
+### 남은 래스터라이저 분기
 
 ```text
-html-to-image      runtime/template-studio-runtime-shell.tsx   사용자 PNG
-                   components/TimeTable/TweetPreviewModal.tsx  레거시 시간표
-modern-screenshot  hooks/useTimeTableState.ts                  레거시 시간표
+html-to-image      admin/thumbnail-studio/spike-rendering/...   두 라이브러리 비교가 목적
+                   components/TimeTable/TweetPreviewModal.tsx   레거시 시간표 공유
+modern-screenshot  template-studio/.../runtime/...-shell.tsx    Studio 사용자 PNG
+                   hooks/useTimeTableState.ts                   레거시 시간표
 ```
 
-확인은 `/admin/template-studio/[templateId]/preview`에서도 할 수 있다. 그 화면은
-사용자 화면과 같은 셸을 쓰고 PNG 다운로드도 조건부가 아니다. 다만 저장된 draft나
-published 문서가 있어야 열린다.
+레거시 시간표 공유 화면은 Studio 문서를 쓰지 않고 이번에 결과를 확인하지도 않았으므로
+바꾸지 않았다. 확인 없이 사용자에게 나가는 이미지 경로를 바꾸지 않는다. 가드는 이 두
+곳을 허용 목록으로 두고 새로 늘어나는 것만 막는다.

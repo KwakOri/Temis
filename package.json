@@ -63,6 +63,7 @@
     "check:studio:timetable-layer-panel": "tsx scripts/check-studio-timetable-layer-panel.tsx",
     "check:studio:timetable-inspector": "tsx scripts/check-studio-timetable-inspector.tsx",
     "check:studio:node-definitions": "tsx scripts/check-studio-node-definitions.tsx",
+    "check:studio:rasterizer": "tsx scripts/check-studio-rasterizer.ts",
     "check:studio:transform-commands": "tsx scripts/check-studio-transform-commands.ts",
     "check:studio:align-commands": "tsx scripts/check-studio-align-commands.ts",
     "check:studio:thumbnail-shell": "tsx scripts/check-studio-thumbnail-shell.tsx",
