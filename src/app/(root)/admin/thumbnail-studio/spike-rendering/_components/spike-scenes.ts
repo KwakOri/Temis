@@ -2,18 +2,22 @@
  * Phase 0A 스파이크 표본 데이터.
  *
  * 이 파일은 렌더링 방식과 PNG 라이브러리를 결정하기 위한 일회용 자료다.
- * 결정이 끝나면 stroke 변환 상수와 표본 시나리오만 정식 모듈로 승격하고
- * 나머지는 제거한다.
+ * 남은 것은 표본 시나리오다. stroke 변환 상수와 띠 두께 계산은
+ * `utils/template-studio/text-appearance.ts`로 승격했고 여기서는 그것을 다시 내보낸다.
  */
 
 /**
- * 저장하는 stroke 두께는 glyph 바깥으로 보이는 실효 두께(outset)다.
- * 중앙 정렬 CSS stroke는 절반이 glyph 안쪽으로 들어가므로 2배로 변환한다.
+ * stroke 변환과 띠 두께 계산은 정식 모듈로 승격됐다.
+ *
+ * 스파이크가 자기 복사본을 들고 있으면 제품 값과 갈라진다. 그러면 이 페이지에서 맞다고
+ * 판정한 것이 제품에서 맞다는 보장이 없어진다. 여기서는 승격된 것을 그대로 쓴다.
  */
-export const STUDIO_TEXT_STROKE_CSS_SCALE = 2;
+import { getStudioTextStrokeBands } from "@/utils/template-studio/text-appearance";
 
-export const toCssStrokeWidth = (outset: number): number =>
-  outset * STUDIO_TEXT_STROKE_CSS_SCALE;
+export {
+  STUDIO_TEXT_STROKE_CSS_SCALE,
+  toStudioCssStrokeWidth as toCssStrokeWidth,
+} from "@/utils/template-studio/text-appearance";
 
 export interface SpikeStroke {
   id: string;
@@ -389,21 +393,23 @@ export const SPIKE_SCENES: SpikeScene[] = [
 ];
 
 /**
- * 화면에 보이는 띠 두께를 계산한다.
+ * 화면에 보이는 띠 두께.
  *
- * outset은 glyph 표면에서부터 측정한 값이므로, 사용자가 실제로 보는 띠는
- * 인접한 두 outset의 차이다. 가장 안쪽 stroke만 자신의 outset 전체가 보인다.
- * 음수면 해당 stroke가 더 두꺼운 stroke에 완전히 가려진다는 뜻이다.
+ * 계산은 승격된 `getStudioTextStrokeBands`가 한다. 스파이크의 stroke에는 켜고 끄는 값이
+ * 없으므로 모두 켜진 것으로 맞춰서 넘긴다.
  */
 export const getSpikeStrokeBands = (
   strokes: SpikeStroke[],
 ): Array<{ stroke: SpikeStroke; band: number; hidden: boolean }> => {
-  const ordered = [...strokes].sort((a, b) => b.outset - a.outset);
-  return ordered.map((item, index) => {
-    const next = ordered[index + 1];
-    const band = next ? item.outset - next.outset : item.outset;
-    return { stroke: item, band, hidden: band <= 0 };
-  });
+  const byId = new Map(strokes.map((item) => [item.id, item]));
+
+  return getStudioTextStrokeBands(
+    strokes.map((item) => ({ ...item, enabled: true })),
+  ).map(({ stroke, band, hidden }) => ({
+    stroke: byId.get(stroke.id) ?? strokes[0],
+    band,
+    hidden,
+  }));
 };
 
 /** 효과가 논리 박스 밖으로 나가는 최대 범위 */

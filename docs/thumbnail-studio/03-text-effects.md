@@ -270,11 +270,40 @@ type StudioTextLayout = {
 관련 변경:
 
 - `src/components/AutoResizeTextCard/AutoResizeText.tsx`
-- `src/app/(root)/template-studio/_components/studio-auto-text.tsx`
+- `src/components/studio/canvas/studio-auto-text.tsx`
 - 신규 공용 text layout utility 또는 hook
 
 기존 컴포넌트는 새 공용 측정 결과를 사용하는 wrapper로 줄이거나, 시간표에서
 기존 API를 유지하는 호환 adapter를 둔다.
+
+### 8.1 현재 제품 경로
+
+`StudioAutoText`는 `AutoResizeText`에 위임하고 `maxLines`를 넘기지 않는다. 그래서
+지금 제품은 이분 탐색이 아니라 최대값에서 0.5px씩 줄이는 선형 탐색을 타고,
+`white-space: pre`로 렌더한다. 즉 자동 줄바꿈을 하지 않고 명시적 개행에서만 줄이
+나뉜다. 렌더 시점에 `Math.floor()`가 한 번 더 걸린다.
+
+공용 측정으로 옮길 때 이 동작을 바꾸면 기존 시간표 문서의 줄바꿈과 크기가 함께
+바뀐다. 줄바꿈 정책을 바꿀 것인지, 기존 문서에는 유지할 것인지를 먼저 정한다.
+
+### 8.2 맞춤 여유
+
+[Phase 0A §11](./00a-rendering-feasibility-spike.md#11-결정-기록)이 요구한 항목이다.
+
+탐색이 찾은 크기를 그대로 쓰지 않는다. 탐색은 상자에 맞는 최대 크기를 찾으므로
+결과가 항상 맞춤 경계 직전이다. 그 상태에서는 측정과 래스터화가 조금만 달라도
+결과가 어긋난다.
+
+- 탐색 결과를 한 단계 내리거나 비율로 축소한다.
+- 또는 맞춤 판정에 여유 픽셀을 적용해 경계에 붙지 않게 한다.
+- 여유값은 상수로 관리한다. 호출부마다 다른 값을 쓰면 같은 문서가 화면과 결과물에서
+  다르게 나온다.
+
+여유는 폭과 높이에 모두 적용한다. 2026-08-01 제품 경로 측정에서 두 라스터라이저가
+어긋난 장면은 모두 세로가 빡빡한 쪽이었다. 두 줄이 상자 높이를 거의 채우는 제목과,
+상자 높이가 줄 높이에 가까운 부제목이다. 폭에만 여유를 두면 그 두 경우가 남는다.
+
+공용 렌더러를 만든 뒤 같은 장면으로 재확인한다.
 
 ## 9. 효과 바깥 영역
 
@@ -447,16 +476,30 @@ mode 차이:
 수정:
 
 - `src/types/template-studio.ts`
-- `src/app/(root)/template-studio/_components/studio-renderer.tsx`
-- `src/app/(root)/template-studio/_components/studio-auto-text.tsx`
+- `src/components/studio/canvas/studio-renderer.tsx`
+- `src/components/studio/canvas/studio-auto-text.tsx`
 - `src/components/AutoResizeTextCard/AutoResizeText.tsx`
 - `src/utils/template-studio/migrations.ts`
 - `src/utils/template-studio/validator.ts`
 - Phase 2의 Thumbnail inspector
+  (`src/app/(root)/admin/thumbnail-studio/_components/thumbnail-inspector.tsx`)
 
 향후 시간표 효과 도입 시 수정:
 
 - `src/utils/template-studio/variant-style-propagation.ts`
+
+Phase 1에서 만든 공통 경로와 이름이 다르면 해당 구조를 따른다. 위 목록은
+Phase 1·2의 실제 경로로 맞춰 둔 것이다. 렌더러와 Auto Text는 route 폴더가 아니라
+`src/components/studio/`에 있고, 두 편집기가 함께 쓴다. route 폴더에 같은 파일을 다시
+만들면 `check:studio:thumbnail-shell`이 막는다.
+
+이미 있는 것:
+
+- `StudioTextFill`, `StudioTextStroke`, `StudioTextShadow`,
+  `StudioTextAppearance`, `StudioTextPresetReference` 타입
+- `StudioGraphNode.textAppearance` 필드
+- stroke `outset` 변환 규칙과 띠 두께 계산의 검증된 구현
+  (`spike-rendering/_components/spike-scenes.ts`). §15 2번에서 정식 모듈로 승격한다.
 
 ## 15. 구현 순서
 
@@ -466,7 +509,7 @@ mode 차이:
 4. 단일 stroke
 5. 여러 stroke와 순서
 6. shadow
-7. 공용 text layout 측정
+7. 공용 text layout 측정과 §8.2 맞춤 여유
 8. flexibleText 연결
 9. effect outset 계산
 10. Thumbnail inspector
@@ -483,6 +526,8 @@ mode 차이:
 - 레이어 패널에는 텍스트가 하나만 표시된다.
 - 효과 레이어가 선택과 pointer event를 방해하지 않는다.
 - flexibleText의 모든 효과 레이어가 같은 font size와 줄바꿈을 사용한다.
+- 자동 크기 결과가 맞춤 경계에 붙지 않는다. 여유가 폭과 높이에 모두 적용되고
+  상수 한 곳에서 관리된다(§8.2).
 - 두꺼운 효과가 불필요하게 잘리지 않는다.
 - preset 적용 후 원본 preset 변경이 노드에 자동 전파되지 않는다.
 - builtin/custom preset 출처와 version 의미가 구분된다.
