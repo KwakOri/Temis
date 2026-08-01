@@ -92,9 +92,14 @@ type StudioTextPresetReference = {
 ```
 
 - `builtin`: 코드 registry ID와 registry version
-- `custom`: `v2_studio_text_effect_presets.id`와 row version
+- `custom`: builtin이 아닌 preset 출처. Phase 3에서는 편집기 세션 ID와 version,
+  이 Phase에서 원격 저장을 채택한 뒤 생성되는 preset은
+  `v2_studio_text_effect_presets.id`와 row version
 
 따라서 코드 preset을 DB로 복사하더라도 기존 문서의 출처 의미가 바뀌지 않는다.
+Phase 3 세션 preset을 가리키는 과거 `presetRef`는 영속 row로 자동 변환하지 않는다.
+`presetRef`는 렌더 입력이 아니라 출처 기록이므로 preset을 찾지 못해도 노드에 복사된
+appearance로 동일하게 렌더한다.
 
 ### 원격 변경 제한
 

@@ -15,6 +15,11 @@ import type {
  */
 export const STUDIO_TEXT_STROKE_CSS_SCALE = 2;
 
+/** 외부 JSON이 validator를 우회해도 renderer가 만드는 효과 레이어의 상한. */
+export const STUDIO_TEXT_MAX_STROKES = 8;
+export const STUDIO_TEXT_MAX_OUTSET = 64;
+export const STUDIO_TEXT_MAX_OPACITY = 1;
+
 /**
  * 실효 두께를 CSS stroke 두께로 바꾼다.
  *
@@ -59,28 +64,32 @@ export const toStudioCssColor = (color: string, opacity = 1): string => {
   }, ${clampedOpacity})`;
 };
 
-/**
- * 그릴 수 있는 stroke인지.
- *
- * 꺼 둔 것과 두께가 0 이하인 것은 그리지 않는다. 두께 0을 레이어로 만들면 아무것도 보이지
- * 않는 레이어가 쌓여서, 순서를 바꿔도 화면이 그대로인 것처럼 보인다.
- */
-const isDrawableStroke = (stroke: StudioTextStroke): boolean =>
-  stroke.enabled && Number.isFinite(stroke.outset) && stroke.outset > 0;
-
-/**
- * 그릴 순서대로 정렬한 stroke.
- *
- * 두꺼운 것이 먼저다. 렌더러는 이 순서대로 뒤에서 앞으로 겹쳐 그린다. 얇은 것을 먼저
- * 그리면 두꺼운 것이 그 위를 덮어서 안쪽 stroke가 사라진다.
- *
- * 인스펙터의 목록에는 이 결과를 쓰지 않는다. 꺼 둔 stroke도 목록에는 남아야 사용자가 다시
- * 켤 수 있다.
- */
+/** 저장된 뒤→앞 순서와 disabled 항목을 포함한 stroke 목록을 복사한다. */
 export const getStudioOrderedTextStrokes = (
   strokes: readonly StudioTextStroke[],
+): StudioTextStroke[] => (Array.isArray(strokes) ? [...strokes] : []);
+
+const isDrawableStudioTextStroke = (
+  stroke: StudioTextStroke | undefined,
+): stroke is StudioTextStroke =>
+  Boolean(
+    stroke &&
+    stroke.enabled === true &&
+    Number.isFinite(stroke.opacity) &&
+    stroke.opacity > 0 &&
+    stroke.opacity <= STUDIO_TEXT_MAX_OPACITY &&
+    Number.isFinite(stroke.outset) &&
+    stroke.outset > 0 &&
+    stroke.outset <= STUDIO_TEXT_MAX_OUTSET,
+  );
+
+/** 저장 목록과 분리된 renderer용 stroke 목록이다. 순서를 바꾸거나 8개를 넘기지 않는다. */
+export const getStudioDrawableTextStrokes = (
+  strokes: readonly StudioTextStroke[],
 ): StudioTextStroke[] =>
-  [...strokes].filter(isDrawableStroke).sort((a, b) => b.outset - a.outset);
+  getStudioOrderedTextStrokes(strokes)
+    .filter(isDrawableStudioTextStroke)
+    .slice(0, STUDIO_TEXT_MAX_STROKES);
 
 export interface StudioTextStrokeBand {
   stroke: StudioTextStroke;
@@ -103,12 +112,20 @@ export const getStudioTextStrokeBands = (
   strokes: readonly StudioTextStroke[],
 ): StudioTextStrokeBand[] => {
   const ordered = getStudioOrderedTextStrokes(strokes);
+  const bands = new Array<StudioTextStrokeBand>(ordered.length);
+  let frontMostOutset = 0;
 
-  return ordered.map((stroke, index) => {
-    const next = ordered[index + 1];
-    const band = next ? stroke.outset - next.outset : stroke.outset;
-    return { stroke, band, hidden: band <= 0 };
-  });
+  // A later stroke can be thicker than the immediately following one. Walk from front to
+  // back so a stroke is compared with every layer that can cover it, not just its neighbour.
+  for (let index = ordered.length - 1; index >= 0; index -= 1) {
+    const stroke = ordered[index];
+    const drawable = isDrawableStudioTextStroke(stroke);
+    const band = drawable ? Math.max(0, stroke.outset - frontMostOutset) : 0;
+    bands[index] = { stroke, band, hidden: band <= 0 };
+    if (drawable) frontMostOutset = Math.max(frontMostOutset, stroke.outset);
+  }
+
+  return bands;
 };
 
 export interface ResolvedStudioTextFill {
@@ -124,7 +141,7 @@ export interface ResolvedStudioTextFill {
 
 export interface ResolvedStudioTextAppearance {
   fill: ResolvedStudioTextFill;
-  /** 그릴 순서대로 정렬된 stroke. 두꺼운 것이 먼저다. */
+  /** 저장된 뒤→앞 순서를 유지한 전체 stroke 목록. 비활성 항목도 포함한다. */
   strokes: StudioTextStroke[];
   shadow?: StudioTextShadow;
   presetRef?: StudioTextPresetReference;
@@ -178,6 +195,115 @@ const readLegacyStroke = (
   };
 };
 
+const splitLegacyShadowList = (value: string): string[] => {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === "(") depth += 1;
+    if (character === ")") depth = Math.max(0, depth - 1);
+    if (character === "," && depth === 0) {
+      parts.push(value.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+
+  parts.push(value.slice(start).trim());
+  return parts.filter(Boolean);
+};
+
+const LEGACY_SHADOW_LENGTH = /^(-?(?:\d+(?:\.\d+)?|\.\d+))(?:px)?$/i;
+
+const splitLegacyShadowTokens = (value: string): string[] => {
+  const tokens: string[] = [];
+  let depth = 0;
+  let start = 0;
+
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === "(") depth += 1;
+    if (character === ")") depth = Math.max(0, depth - 1);
+    if (/\s/.test(character) && depth === 0) {
+      if (start < index) tokens.push(value.slice(start, index));
+      start = index + 1;
+    }
+  }
+
+  if (start < value.length) tokens.push(value.slice(start));
+  return tokens;
+};
+
+/** 지원 가능한 단일 scalar `textShadow`를 구조화 shadow로 읽는다. */
+export const parseLegacyStudioTextShadow = (
+  style: StudioStyleRecord | undefined,
+): StudioTextShadow | null => {
+  const value = readStyleString(style, "textShadow");
+  if (!value || value === "none") return null;
+
+  const shadows = splitLegacyShadowList(value);
+  if (shadows.length !== 1) return null;
+
+  const tokens = splitLegacyShadowTokens(shadows[0]);
+  if (tokens.length < 2 || tokens.length > 4) return null;
+
+  const isLength = (token: string) => LEGACY_SHADOW_LENGTH.test(token);
+  const allLengths = tokens.every(isLength);
+  const colorFirst = !allLengths && !isLength(tokens[0]);
+  const colorLast = !allLengths && !isLength(tokens[tokens.length - 1]);
+  const lengthTokens = allLengths
+    ? tokens
+    : colorFirst
+      ? tokens.slice(1)
+      : colorLast
+        ? tokens.slice(0, tokens.length - 1)
+        : [];
+  const color = allLengths
+    ? "currentColor"
+    : colorFirst
+      ? tokens[0]
+      : colorLast
+        ? tokens[tokens.length - 1]
+        : null;
+  if (!color || lengthTokens.length < 2 || lengthTokens.length > 3) return null;
+  if (!lengthTokens.every(isLength)) return null;
+
+  const offsetX = Number.parseFloat(
+    lengthTokens[0].match(LEGACY_SHADOW_LENGTH)?.[1] ?? "NaN",
+  );
+  const offsetY = Number.parseFloat(
+    lengthTokens[1].match(LEGACY_SHADOW_LENGTH)?.[1] ?? "NaN",
+  );
+  const blur = Number.parseFloat(
+    lengthTokens[2]?.match(LEGACY_SHADOW_LENGTH)?.[1] ?? "0",
+  );
+  if (
+    !Number.isFinite(offsetX) ||
+    !Number.isFinite(offsetY) ||
+    !Number.isFinite(blur) ||
+    blur < 0
+  ) {
+    return null;
+  }
+
+  return {
+    enabled: true,
+    color: color.trim(),
+    offsetX,
+    offsetY,
+    blur,
+    opacity: 1,
+  };
+};
+
+export const hasLegacyStudioTextShadow = (
+  style: StudioStyleRecord | undefined,
+): boolean => {
+  const value = readStyleString(style, "textShadow");
+  return Boolean(value && value !== "none");
+};
+
 /**
  * 텍스트 노드가 실제로 그릴 표현을 정한다.
  *
@@ -221,6 +347,7 @@ export const resolveStudioTextAppearance = (
   }
 
   const legacyStroke = readLegacyStroke(style);
+  const legacyShadow = parseLegacyStudioTextShadow(style);
 
   return {
     fill: {
@@ -228,6 +355,7 @@ export const resolveStudioTextAppearance = (
       opacity: 1,
     },
     strokes: legacyStroke ? [legacyStroke] : [],
+    shadow: legacyShadow ?? undefined,
     source: "legacyStyle",
   };
 };
@@ -236,8 +364,9 @@ export const resolveStudioTextAppearance = (
  * 효과 레이어를 겹쳐 그려야 하는지.
  *
  * 구조화된 효과가 저장돼 있을 때만 참이다. `legacyStyle`에서 읽은 stroke는 이미 style
- * 선언으로 그려지고 있으므로 레이어를 더하면 같은 외곽선이 두 번 그려진다. legacy 값은
- * 인스펙터가 지금 상태를 보여주기 위해 읽는 것이고 렌더러가 다시 그리지 않는다.
+ * 선언으로 그려지고 있으므로 레이어를 더하면 같은 외곽선이 두 번 그려진다. `legacy scalar
+ * text appearance` 값은 인스펙터가 지금 상태를 보여주기 위해 읽는 것이고 렌더러가 다시
+ * 그리지 않는다.
  *
  * 남은 제약: 인스펙터에서 효과를 저장하는 순간 예전 scalar 선언을 style에서 지워야 한다.
  * 지우지 않으면 그때부터 CSS 선언과 효과 레이어가 함께 그려진다. 그 처리는 인스펙터를
@@ -247,7 +376,8 @@ export const shouldRenderStudioTextEffectLayers = (
   appearance: ResolvedStudioTextAppearance,
 ): boolean =>
   appearance.source === "appearance" &&
-  (appearance.strokes.length > 0 || Boolean(appearance.shadow));
+  (getStudioDrawableTextStrokes(appearance.strokes).length > 0 ||
+    Boolean(appearance.shadow));
 
 /**
  * 이 노드에 구조화된 효과가 저장돼 있는지.

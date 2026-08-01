@@ -54,31 +54,84 @@ import {
 } from "@/stores/studio/studio-editor-store";
 import type {
   StudioGraphNode,
+  StudioInputDefinition,
+  StudioInputType,
+  StudioRuntimeValues,
   StudioTemplateDocument,
   StudioWebFontSource,
 } from "@/types/template-studio";
 import { getStudioParentCanvasOffset } from "@/utils/template-studio/graph-editor";
-import { getStudioTopLevelNodeIds } from "@/utils/template-studio/graph-nodes";
+import {
+  getStudioNodeVisualBoundsInCanvas,
+  getStudioGroupOverflowDiagnostics,
+  getStudioTopLevelNodeIds,
+} from "@/utils/template-studio/graph-nodes";
 import { getStudioGraphNodeTypeLabel } from "@/utils/template-studio/graph-node-label";
+import { createStudioId } from "@/utils/template-studio/id";
 import { getStudioLayerPanelOrder } from "@/utils/template-studio/layer-order";
 import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-layout";
 import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
-import { createInitialStudioRuntimeValues } from "@/utils/template-studio/sample-document";
+import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
+import { getStudioTextEffectOutset } from "@/utils/template-studio/text-effect-outset";
 import {
+  getStudioNodeIdsClippedByCanvas,
   getStudioNodeIdsOutsideCanvas,
   type StudioResizeGeometry,
 } from "@/utils/template-studio/transform-commands";
 import { getStudioWebFontSources } from "@/utils/template-studio/web-fonts";
 import {
+  StudioImageCropModal,
+  type StudioImageCropOutputSize,
+} from "@/app/(root)/template-studio/_components/studio-image-crop-modal";
+import { applyThumbnailStudioDeleteInputWithMaterialize } from "@/utils/thumbnail-studio/binding-commands";
+import {
   createThumbnailStudioDocument,
   THUMBNAIL_CANVAS_PRESETS,
 } from "@/utils/thumbnail-studio/document-factory";
+import {
+  STUDIO_TEXT_EFFECT_PRESETS,
+  type StudioTextEffectPreset,
+} from "@/utils/thumbnail-studio/text-effect-presets";
+import {
+  applyStudioAddSelectOption,
+  applyStudioRemoveSelectOption,
+  applyStudioSelectOptionValue,
+} from "@/utils/template-studio/input-commands";
+import {
+  applyThumbnailStudioAddInput,
+  applyThumbnailStudioDuplicateInput,
+  applyThumbnailStudioMoveInput,
+  applyThumbnailStudioRenameInputGroup,
+  applyThumbnailStudioSetInputGroup,
+  applyThumbnailStudioUpdateInput,
+} from "@/utils/thumbnail-studio/input-commands";
+import { collectThumbnailStudioInputConsumers } from "@/utils/thumbnail-studio/input-consumers";
+import {
+  applyThumbnailStudioAddAssets,
+  applyThumbnailStudioAddImageNodeForAsset,
+  applyThumbnailStudioCropImageAsset,
+  applyThumbnailStudioDeleteUnusedAsset,
+  applyThumbnailStudioRemoveUnusedAssets,
+  applyThumbnailStudioRenameAsset,
+  applyThumbnailStudioReplaceImageAsset,
+} from "@/utils/thumbnail-studio/asset-commands";
+import { collectThumbnailStudioAssetConsumers } from "@/utils/thumbnail-studio/asset-consumers";
+import { importThumbnailStudioAssetFiles } from "@/utils/thumbnail-studio/asset-policy";
+import { planStudioNodeInsertion } from "@/utils/thumbnail-studio/node-defaults";
+import {
+  createThumbnailStudioPreviewValues,
+  setThumbnailStudioPreviewInputValue,
+  syncThumbnailStudioPreviewValues,
+  type ThumbnailPreviewMode,
+} from "@/utils/thumbnail-studio/input-preview";
 
 import { buildThumbnailInspectorSections } from "./thumbnail-inspector";
 import {
   ThumbnailAddMenu,
+  ThumbnailAssetPanel,
+  ThumbnailInputPanel,
   ThumbnailLayerCommandBar,
-  ThumbnailPlaceholderTab,
+  ThumbnailTextPresetPanel,
 } from "./thumbnail-layer-tabs";
 import {
   useThumbnailNodeCommands,
@@ -102,6 +155,21 @@ interface ThumbnailStudioView {
   /** 열어둔 속성 섹션. 접힘은 되돌리기 대상이 아니다. */
   openSections: Record<string, boolean>;
   aspectRatioLocked: boolean;
+  /** 문서 history와 분리된 현재 편집기 세션 preset. */
+  customTextPresets: StudioTextEffectPreset[];
+  /** document/history와 분리된 Thumbnail global input preview. */
+  previewMode: ThumbnailPreviewMode;
+  previewValues: StudioRuntimeValues;
+  /** 사용자가 default와 다르게 편집한 global input만 추적한다. */
+  previewEditedInputIds: string[];
+}
+
+interface PendingThumbnailImageCrop {
+  nodeId: string;
+  sourceAssetId: string;
+  imageSrc: string;
+  initialWidth: number;
+  initialHeight: number;
 }
 
 const THUMBNAIL_PANEL_TABS: StudioPanelTab[] = [
@@ -172,9 +240,11 @@ export function ThumbnailStudioClient({
   );
   if (!studioStoreRef.current) {
     const initialDocument = createThumbnailStudioDocument();
+    const initialPreviewValues =
+      createThumbnailStudioPreviewValues(initialDocument);
     studioStoreRef.current = createStudioEditorStore<ThumbnailStudioView>({
       document: initialDocument,
-      runtimeValues: createInitialStudioRuntimeValues(initialDocument),
+      runtimeValues: initialPreviewValues,
       view: {
         panelMode: "layers",
         theme: "dark",
@@ -182,16 +252,25 @@ export function ThumbnailStudioClient({
         collapsedNodeIds: [],
         openSections: {},
         aspectRatioLocked: false,
+        customTextPresets: [],
+        previewMode: "defaults",
+        previewValues: initialPreviewValues,
+        previewEditedInputIds: [],
       },
     });
   }
   const studioStore = studioStoreRef.current;
   const document = useStore(studioStore, (state) => state.document);
-  const runtimeValues = useStore(studioStore, (state) => state.runtimeValues);
+  const selectedInputId = useStore(
+    studioStore,
+    (state) => state.selectedInputId,
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [fitRequestKey, setFitRequestKey] = useState(0);
   const [statusMessage, setStatusMessage] = useState("Local draft");
+  const [pendingImageCrop, setPendingImageCrop] =
+    useState<PendingThumbnailImageCrop | null>(null);
   const viewportHandleRef = useRef<StudioCanvasViewportHandle | null>(null);
   const {
     panelMode,
@@ -200,6 +279,8 @@ export function ThumbnailStudioClient({
     collapsedNodeIds,
     openSections,
     aspectRatioLocked,
+    customTextPresets,
+    previewValues,
   } = useStore(studioStore, (state) => state.view);
   const {
     setPanelMode,
@@ -208,6 +289,7 @@ export function ThumbnailStudioClient({
     setCollapsedNodeIds,
     setOpenSections,
     setAspectRatioLocked,
+    setCustomTextPresets,
   } = useMemo(
     () => ({
       setPanelMode: createStudioViewSetter(studioStore, "panelMode"),
@@ -222,7 +304,17 @@ export function ThumbnailStudioClient({
         studioStore,
         "aspectRatioLocked",
       ),
+      setCustomTextPresets: createStudioViewSetter(
+        studioStore,
+        "customTextPresets",
+      ),
     }),
+    [studioStore],
+  );
+
+  const setSelectedInputId = useCallback(
+    (inputId: string | null) =>
+      studioStore.getState().setSelectedInputId(inputId),
     [studioStore],
   );
 
@@ -298,6 +390,22 @@ export function ThumbnailStudioClient({
     restoreSnapshot: useCallback(
       (snapshot: StudioEditorSnapshot) => {
         studioStore.getState().restoreSnapshot(snapshot);
+        studioStore.getState().setView((currentView) => {
+          const previewEditedInputIds =
+            currentView.previewEditedInputIds.filter((inputId) =>
+              Boolean(snapshot.document.inputs[inputId]),
+            );
+          return {
+            previewEditedInputIds,
+            previewMode:
+              previewEditedInputIds.length > 0 ? "session" : "defaults",
+            previewValues: syncThumbnailStudioPreviewValues(
+              snapshot.document,
+              currentView.previewValues,
+              previewEditedInputIds,
+            ),
+          };
+        });
       },
       [studioStore],
     ),
@@ -320,9 +428,432 @@ export function ThumbnailStudioClient({
       const next = cloneDocument(studioStore.getState().document);
       mutate(next);
       studioStore.getState().setDocument(next);
+      studioStore.getState().setView((currentView) => {
+        const previewEditedInputIds = currentView.previewEditedInputIds.filter(
+          (inputId) => Boolean(next.inputs[inputId]),
+        );
+        return {
+          previewEditedInputIds,
+          previewMode:
+            previewEditedInputIds.length > 0 ? "session" : "defaults",
+          previewValues: syncThumbnailStudioPreviewValues(
+            next,
+            currentView.previewValues,
+            previewEditedInputIds,
+          ),
+        };
+      });
     },
     [captureHistory, studioStore],
   );
+
+  const inputConsumers = useMemo(
+    () => collectThumbnailStudioInputConsumers(document),
+    [document],
+  );
+  const assetConsumers = useMemo(
+    () => collectThumbnailStudioAssetConsumers(document),
+    [document],
+  );
+
+  const addInput = useCallback(
+    (type: StudioInputType) => {
+      let createdId = "";
+      updateDocument((draft) => {
+        createdId = applyThumbnailStudioAddInput(draft, type).id;
+      });
+      if (createdId) {
+        setSelectedInputId(createdId);
+        showStatus(`${type} input added`);
+      }
+    },
+    [setSelectedInputId, showStatus, updateDocument],
+  );
+
+  const updateInput = useCallback(
+    (
+      inputId: string,
+      updater: (input: StudioInputDefinition) => StudioInputDefinition,
+    ) => {
+      updateDocument((draft) => {
+        applyThumbnailStudioUpdateInput(draft, inputId, updater);
+      });
+    },
+    [updateDocument],
+  );
+
+  const updateSelectOptionValue = useCallback(
+    (inputId: string, optionIndex: number, value: string) => {
+      const input = studioStore.getState().document.inputs[inputId];
+      const nextValue = value.trim();
+      if (
+        input?.type !== "select" ||
+        !nextValue ||
+        input.options.some(
+          (option, index) =>
+            index !== optionIndex && option.value === nextValue,
+        )
+      ) {
+        showStatus("Select option values must be non-empty and unique");
+        return;
+      }
+      if (input.options[optionIndex]?.value === nextValue) return;
+      updateDocument((draft) => {
+        applyStudioSelectOptionValue(draft, inputId, optionIndex, nextValue);
+      });
+    },
+    [showStatus, studioStore, updateDocument],
+  );
+
+  const addSelectOption = useCallback(
+    (inputId: string) => {
+      updateDocument((draft) => {
+        applyStudioAddSelectOption(draft, inputId);
+      });
+    },
+    [updateDocument],
+  );
+
+  const removeSelectOption = useCallback(
+    (inputId: string, optionIndex: number) => {
+      updateDocument((draft) => {
+        applyStudioRemoveSelectOption(draft, inputId, optionIndex);
+      });
+    },
+    [updateDocument],
+  );
+
+  const deleteInput = useCallback(
+    (inputId: string) => {
+      const consumers = inputConsumers[inputId] ?? [];
+      if (consumers.some((consumer) => consumer.locked)) {
+        showStatus("Cannot delete an input used by a locked object");
+        return;
+      }
+      if (
+        consumers.length > 0 &&
+        !window.confirm(
+          `This input is used by ${consumers.length} object(s). Delete it and keep their current preview values?`,
+        )
+      ) {
+        return;
+      }
+      const previewValues = studioStore.getState().view.previewValues;
+      const nextDocument = cloneDocument(studioStore.getState().document);
+      if (
+        !applyThumbnailStudioDeleteInputWithMaterialize(
+          nextDocument,
+          previewValues,
+          inputId,
+        )
+      ) {
+        showStatus(
+          "Cannot delete this input because a current value or fallback is missing",
+        );
+        return;
+      }
+      updateDocument((draft) => {
+        Object.assign(draft, nextDocument);
+      });
+      if (selectedInputId === inputId) setSelectedInputId(null);
+    },
+    [
+      inputConsumers,
+      selectedInputId,
+      setSelectedInputId,
+      showStatus,
+      studioStore,
+      updateDocument,
+    ],
+  );
+
+  const duplicateInput = useCallback(
+    (inputId: string) => {
+      let duplicateId = "";
+      updateDocument((draft) => {
+        duplicateId =
+          applyThumbnailStudioDuplicateInput(draft, inputId)?.id ?? "";
+      });
+      if (duplicateId) setSelectedInputId(duplicateId);
+    },
+    [setSelectedInputId, updateDocument],
+  );
+
+  const moveInput = useCallback(
+    (inputId: string, targetIndex: number) => {
+      updateDocument((draft) => {
+        applyThumbnailStudioMoveInput(draft, inputId, targetIndex);
+      });
+    },
+    [updateDocument],
+  );
+
+  const setInputGroup = useCallback(
+    (inputId: string, groupId: string | null) => {
+      const nextGroup =
+        groupId === "__new__" ? window.prompt("New input group name") : groupId;
+      if (groupId === "__new__" && !nextGroup?.trim()) return;
+      updateDocument((draft) => {
+        applyThumbnailStudioSetInputGroup(draft, inputId, nextGroup);
+      });
+    },
+    [updateDocument],
+  );
+
+  const renameInputGroup = useCallback(
+    (fromGroupId: string, toGroupId: string) => {
+      updateDocument((draft) => {
+        applyThumbnailStudioRenameInputGroup(draft, fromGroupId, toGroupId);
+      });
+    },
+    [updateDocument],
+  );
+
+  const updatePreviewInput = useCallback(
+    (inputId: string, value: string) => {
+      studioStore.getState().setView((currentView) => {
+        const previewEditedInputIds =
+          currentView.previewEditedInputIds.includes(inputId)
+            ? currentView.previewEditedInputIds
+            : [...currentView.previewEditedInputIds, inputId];
+        return {
+          previewMode: "session",
+          previewEditedInputIds,
+          previewValues: setThumbnailStudioPreviewInputValue(
+            studioStore.getState().document,
+            currentView.previewValues,
+            inputId,
+            value,
+          ),
+        };
+      });
+    },
+    [studioStore],
+  );
+
+  const resetPreviewInput = useCallback(
+    (inputId?: string) => {
+      studioStore.getState().setView((currentView) => {
+        const previewEditedInputIds = inputId
+          ? currentView.previewEditedInputIds.filter((id) => id !== inputId)
+          : [];
+        return {
+          previewMode:
+            previewEditedInputIds.length > 0 ? "session" : "defaults",
+          previewEditedInputIds,
+          previewValues: syncThumbnailStudioPreviewValues(
+            studioStore.getState().document,
+            currentView.previewValues,
+            previewEditedInputIds,
+          ),
+        };
+      });
+    },
+    [studioStore],
+  );
+
+  const importAssets = useCallback(
+    async (files: File[]) => {
+      const result = await importThumbnailStudioAssetFiles(
+        files,
+        Object.keys(studioStore.getState().document.assets),
+      );
+      if (result.assets.length > 0) {
+        updateDocument((draft) => {
+          applyThumbnailStudioAddAssets(draft, result.assets);
+        });
+      }
+      if (result.failures.length > 0) {
+        showStatus(
+          `Imported ${result.assets.length}; ${result.failures.length} failed: ${result.failures[0]?.reason}`,
+        );
+      } else {
+        showStatus(`Imported ${result.assets.length} image asset(s)`);
+      }
+    },
+    [showStatus, studioStore, updateDocument],
+  );
+
+  const addImageNodeFromAsset = useCallback(
+    (assetId: string) => {
+      const currentDocument = studioStore.getState().document;
+      const currentSelectedNodeId = studioStore.getState().selectedNodeId;
+      const currentSelectedNode = currentSelectedNodeId
+        ? currentDocument.graph.nodes[currentSelectedNodeId]
+        : null;
+      const plan = planStudioNodeInsertion({
+        document: currentDocument,
+        type: "image",
+        selectedNode: currentSelectedNode,
+        viewportCenter: viewportHandleRef.current?.getVisibleCanvasCenter(),
+      });
+      const nodeId = createStudioId("node");
+      const styleId = createStudioId("style");
+      let added = false;
+      updateDocument((draft) => {
+        added = Boolean(
+          applyThumbnailStudioAddImageNodeForAsset({
+            draft,
+            assetId,
+            nodeId,
+            styleId,
+            plan,
+          }),
+        );
+      });
+      if (added) {
+        selectSingleNode(nodeId);
+        showStatus("Image asset added to canvas");
+      }
+    },
+    [selectSingleNode, showStatus, studioStore, updateDocument],
+  );
+
+  const replaceSelectedImageAsset = useCallback(
+    (assetId: string) => {
+      const nodeId = studioStore.getState().selectedNodeId;
+      const node = nodeId
+        ? studioStore.getState().document.graph.nodes[nodeId]
+        : null;
+      if (!node || node.type !== "image" || node.locked) {
+        showStatus("Select one unlocked image object to replace");
+        return;
+      }
+      updateDocument((draft) => {
+        applyThumbnailStudioReplaceImageAsset(draft, node.id, assetId);
+      });
+      showStatus("Image asset replaced");
+    },
+    [showStatus, studioStore, updateDocument],
+  );
+
+  const requestImageCrop = useCallback(
+    (nodeId: string) => {
+      const currentDocument = studioStore.getState().document;
+      const node = currentDocument.graph.nodes[nodeId];
+      const sourceAssetId =
+        node?.binding?.kind === "staticAsset" ? node.binding.assetId : null;
+      const sourceAsset = sourceAssetId
+        ? currentDocument.assets[sourceAssetId]
+        : null;
+      if (
+        !node ||
+        node.type !== "image" ||
+        node.locked ||
+        !sourceAssetId ||
+        !sourceAsset
+      ) {
+        showStatus("Select one unlocked static image to crop");
+        return;
+      }
+
+      const geometry = resolveStudioGraphNodeGeometry(currentDocument, node.id);
+      setPendingImageCrop({
+        nodeId: node.id,
+        sourceAssetId,
+        imageSrc: sourceAsset.src,
+        initialWidth: Math.max(1, geometry.width || sourceAsset.width || 1),
+        initialHeight: Math.max(1, geometry.height || sourceAsset.height || 1),
+      });
+    },
+    [showStatus, studioStore],
+  );
+
+  const applyImageCrop = useCallback(
+    (croppedImageSrc: string, outputSize: StudioImageCropOutputSize) => {
+      const pending = pendingImageCrop;
+      if (!pending) return;
+
+      const currentDocument = studioStore.getState().document;
+      const currentNode = currentDocument.graph.nodes[pending.nodeId];
+      if (
+        !currentNode ||
+        currentNode.type !== "image" ||
+        currentNode.locked ||
+        currentNode.binding?.kind !== "staticAsset" ||
+        currentNode.binding.assetId !== pending.sourceAssetId
+      ) {
+        setPendingImageCrop(null);
+        showStatus("Crop canceled because the image source changed");
+        return;
+      }
+
+      let applied = false;
+      updateDocument((draft) => {
+        let derivedAssetId = createStudioId("asset");
+        while (draft.assets[derivedAssetId]) {
+          derivedAssetId = createStudioId("asset");
+        }
+        applied = applyThumbnailStudioCropImageAsset(draft, {
+          nodeId: pending.nodeId,
+          sourceAssetId: pending.sourceAssetId,
+          derivedAssetId,
+          croppedImageSrc,
+          width: outputSize.width,
+          height: outputSize.height,
+        });
+      });
+      setPendingImageCrop(null);
+      showStatus(
+        applied ? "Image crop applied" : "Image crop could not be applied",
+      );
+    },
+    [pendingImageCrop, showStatus, studioStore, updateDocument],
+  );
+
+  const renameAsset = useCallback(
+    (assetId: string, label: string) => {
+      const asset = studioStore.getState().document.assets[assetId];
+      if (!asset || asset.label === label.trim()) return;
+      updateDocument((draft) => {
+        applyThumbnailStudioRenameAsset(draft, assetId, label);
+      });
+    },
+    [studioStore, updateDocument],
+  );
+
+  const locateAssetConsumer = useCallback(
+    (nodeId: string) => {
+      if (!studioStore.getState().document.graph.nodes[nodeId]) return;
+      selectSingleNode(nodeId);
+      setPanelMode("layers");
+      showStatus("Selected the first asset use");
+    },
+    [selectSingleNode, setPanelMode, showStatus, studioStore],
+  );
+
+  const deleteAsset = useCallback(
+    (assetId: string) => {
+      const consumers = assetConsumers[assetId] ?? [];
+      if (consumers.length > 0) {
+        showStatus(
+          `Cannot delete this asset while it has ${consumers.length} use(s)`,
+        );
+        return;
+      }
+      updateDocument((draft) => {
+        applyThumbnailStudioDeleteUnusedAsset(draft, assetId);
+      });
+      showStatus("Unused asset removed from the document");
+    },
+    [assetConsumers, showStatus, updateDocument],
+  );
+
+  const removeUnusedAssets = useCallback(() => {
+    const unusedCount = Object.keys(
+      studioStore.getState().document.assets,
+    ).filter((assetId) => (assetConsumers[assetId] ?? []).length === 0).length;
+    if (unusedCount === 0) {
+      showStatus("There are no unused assets");
+      return;
+    }
+    if (!window.confirm(`Remove ${unusedCount} unused asset(s)?`)) return;
+    let removedCount = 0;
+    updateDocument((draft) => {
+      removedCount = applyThumbnailStudioRemoveUnusedAssets(draft).length;
+    });
+    showStatus(`Removed ${removedCount} unused asset(s)`);
+  }, [assetConsumers, showStatus, studioStore, updateDocument]);
 
   const commands = useThumbnailNodeCommands({
     getDocument: useCallback(
@@ -346,7 +877,21 @@ export function ThumbnailStudioClient({
     applySelection,
     selectSingleNode,
     onStatusMessage: showStatus,
+    getPreviewValues: useCallback(
+      () => studioStore.getState().view.previewValues,
+      [studioStore],
+    ),
+    getCustomTextPresets: useCallback(
+      () => studioStore.getState().view.customTextPresets,
+      [studioStore],
+    ),
+    setCustomTextPresets,
   });
+
+  const textPresets = useMemo(
+    () => [...STUDIO_TEXT_EFFECT_PRESETS, ...customTextPresets],
+    [customTextPresets],
+  );
 
   const clipboard = useStudioClipboard({
     getDocument: useCallback(
@@ -479,8 +1024,57 @@ export function ThumbnailStudioClient({
     ? Number(document.styles[singleSelectedNode.styleId]?.rotateDeg ?? 0)
     : 0;
 
+  const selectionVisualBounds = useMemo((): StudioResizeGeometry | null => {
+    if (selectedTopLevelNodes.length === 0) return null;
+
+    const hasEffect = (node: StudioGraphNode): boolean => {
+      if (node.hidden) return false;
+
+      if (node.type === "text" || node.type === "flexibleText") {
+        const style = node.styleId ? document.styles[node.styleId] : undefined;
+        const outset = getStudioTextEffectOutset(
+          resolveStudioTextAppearance(node, style),
+        );
+        if (
+          Math.max(outset.top, outset.right, outset.bottom, outset.left) > 0
+        ) {
+          return true;
+        }
+      }
+      return node.childIds.some((childId) => {
+        const child = document.graph.nodes[childId];
+        return child ? hasEffect(child) : false;
+      });
+    };
+    if (!selectedTopLevelNodes.some(hasEffect)) return null;
+
+    const boxes = selectedTopLevelNodes.map((node) => {
+      const visual = getStudioNodeVisualBoundsInCanvas(document, node.id);
+      return {
+        left: visual.left,
+        top: visual.top,
+        width: visual.width,
+        height: visual.height,
+      };
+    });
+    const left = Math.min(...boxes.map((box) => box.left));
+    const top = Math.min(...boxes.map((box) => box.top));
+    const right = Math.max(...boxes.map((box) => box.left + box.width));
+    const bottom = Math.max(...boxes.map((box) => box.top + box.height));
+
+    return { left, top, width: right - left, height: bottom - top };
+  }, [document, selectedTopLevelNodes]);
+
   const outsideCanvasNodeIds = useMemo(
     () => getStudioNodeIdsOutsideCanvas(document),
+    [document],
+  );
+  const clippedCanvasNodeIds = useMemo(
+    () => getStudioNodeIdsClippedByCanvas(document),
+    [document],
+  );
+  const groupOverflowDiagnostics = useMemo(
+    () => getStudioGroupOverflowDiagnostics(document),
     [document],
   );
 
@@ -498,9 +1092,23 @@ export function ThumbnailStudioClient({
     onAspectRatioLockedChange: setAspectRatioLocked,
     canvasPresets: THUMBNAIL_CANVAS_PRESETS,
     outsideCanvasNodeIds,
+    clippedCanvasNodeIds,
+    groupOverflowDiagnostics,
     commands,
     captureHistory,
     onFitCanvas: () => setFitRequestKey((current) => current + 1),
+    onCreateInput: (nodeId) => {
+      const inputId = commands.createInputFromNode(nodeId);
+      if (!inputId) return;
+      setSelectedInputId(inputId);
+      setPanelMode("inputs");
+      showStatus("Input created and connected");
+    },
+    onOpenInput: (inputId) => {
+      setSelectedInputId(inputId);
+      setPanelMode("inputs");
+    },
+    onCropImage: requestImageCrop,
   });
 
   const leftPanelContent =
@@ -562,22 +1170,62 @@ export function ThumbnailStudioClient({
         />
       </div>
     ) : panelMode === "assets" ? (
-      <ThumbnailPlaceholderTab
-        description="Uploading and managing thumbnail images arrives with the asset library."
-        summary={`${Object.keys(document.assets).length} assets`}
-        title="Thumbnail Assets"
+      <ThumbnailAssetPanel
+        assets={Object.values(document.assets)}
+        consumers={assetConsumers}
+        selectedImageNode={
+          singleSelectedNode?.type === "image" ? singleSelectedNode : null
+        }
+        onAddNode={addImageNodeFromAsset}
+        onDelete={deleteAsset}
+        onImport={importAssets}
+        onLocate={locateAssetConsumer}
+        onRemoveUnused={removeUnusedAssets}
+        onRename={renameAsset}
+        onReplaceSelected={replaceSelectedImageAsset}
       />
     ) : panelMode === "textPresets" ? (
-      <ThumbnailPlaceholderTab
-        description="Reusable outline and shadow presets arrive with the text effects step."
-        summary="0 presets"
-        title="Text Presets"
+      <ThumbnailTextPresetPanel
+        presets={textPresets}
+        selectedTextNode={
+          singleSelectedNode &&
+          (singleSelectedNode.type === "text" ||
+            singleSelectedNode.type === "flexibleText")
+            ? singleSelectedNode
+            : null
+        }
+        onApply={(preset) => {
+          if (singleSelectedNode) {
+            commands.applyTextPreset(singleSelectedNode.id, preset);
+          }
+        }}
+        onCreate={() => {
+          if (singleSelectedNode)
+            commands.createTextPreset(singleSelectedNode.id);
+        }}
+        onDuplicate={commands.duplicateTextPreset}
+        onRename={commands.renameTextPreset}
+        onDelete={commands.deleteTextPreset}
       />
     ) : (
-      <ThumbnailPlaceholderTab
-        description="User input fields arrive with the thumbnail runtime."
-        summary={`${Object.keys(document.inputs).length} inputs`}
-        title="Thumbnail Inputs"
+      <ThumbnailInputPanel
+        consumers={inputConsumers}
+        document={document}
+        previewValues={previewValues}
+        selectedInputId={selectedInputId}
+        onAdd={addInput}
+        onAddOption={addSelectOption}
+        onDelete={deleteInput}
+        onDuplicate={duplicateInput}
+        onMove={moveInput}
+        onPreviewChange={updatePreviewInput}
+        onRemoveOption={removeSelectOption}
+        onRenameGroup={renameInputGroup}
+        onResetPreview={resetPreviewInput}
+        onSelectInput={setSelectedInputId}
+        onSelectOptionValue={updateSelectOptionValue}
+        onSetGroup={setInputGroup}
+        onUpdate={updateInput}
       />
     );
 
@@ -611,7 +1259,7 @@ export function ThumbnailStudioClient({
               >
                 <StudioRenderer
                   document={document}
-                  runtimeValues={runtimeValues}
+                  runtimeValues={previewValues}
                   selectedNodeId={selectedNodeId}
                   selectedNodeIds={selectedNodeIds}
                   onSelectNode={(nodeId, event) => {
@@ -629,6 +1277,7 @@ export function ThumbnailStudioClient({
                 {selectionBounds ? (
                   <StudioSelectionOverlay
                     bounds={selectionBounds}
+                    visualBounds={selectionVisualBounds ?? undefined}
                     lockAspectRatio={aspectRatioLocked}
                     rotateDeg={isSingleSelection ? selectionRotateDeg : 0}
                     scale={scale}
@@ -798,10 +1447,19 @@ export function ThumbnailStudioClient({
                   {/* 선택선과 조작 손잡이 없이 지금 메모리에 있는 문서를 그린다. */}
                   <StudioRenderer
                     document={document}
-                    runtimeValues={runtimeValues}
+                    runtimeValues={previewValues}
                   />
                 </div>
               </div>
+            ) : null}
+            {pendingImageCrop ? (
+              <StudioImageCropModal
+                imageSrc={pendingImageCrop.imageSrc}
+                initialHeight={pendingImageCrop.initialHeight}
+                initialWidth={pendingImageCrop.initialWidth}
+                onCancel={() => setPendingImageCrop(null)}
+                onApply={applyImageCrop}
+              />
             ) : null}
           </>
         }

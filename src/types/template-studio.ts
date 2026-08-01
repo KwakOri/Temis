@@ -166,8 +166,9 @@ export interface StudioTextShadow {
  * 적용 출처만 기록한다. 렌더링은 노드에 복사된 값을 기준으로 하므로 프리셋을
  * 수정해도 기존 문서가 바뀌지 않는다.
  *
- * `builtin`은 코드 registry의 ID와 version, `custom`은 저장된 row의 ID와
- * version을 뜻한다. 두 출처의 ID가 우연히 같아도 `source`로 구분한다.
+ * Phase 3에서 `custom`은 현재 Thumbnail Studio 편집기 세션의 preset ID와
+ * version을 뜻한다. Phase 6에서 원격 DB row를 도입하면 그 row ID/version 의미가
+ * 추가된다. 두 출처의 ID가 우연히 같아도 `source`로 구분한다.
  */
 export interface StudioTextPresetReference {
   source: "builtin" | "custom";
@@ -190,11 +191,22 @@ export interface StudioTextAppearance {
   presetRef?: StudioTextPresetReference;
 }
 
+/**
+ * 동적 바인딩을 끊을 때 돌아갈 편집 시점의 정적 값.
+ *
+ * 현재 값으로 materialize하는 해제와 구분하기 위해 노드 메타에 보존한다. 입력
+ * 정의나 런타임 값에 섞지 않아 preview/history 계약도 오염시키지 않는다.
+ */
+export type StudioBindingFallback =
+  | { kind: "staticText"; value: string }
+  | { kind: "staticAsset"; assetId: StudioAssetId };
+
 export interface StudioGraphNodeMeta {
   semantic?: StudioSemanticMeta;
   exception?: StudioExceptionObjectMeta;
   entrySlot?: StudioEntrySlotMeta;
   variantSyncKey?: string;
+  bindingFallback?: StudioBindingFallback;
 }
 
 export interface StudioEntrySlotMeta {
@@ -329,6 +341,8 @@ export interface StudioAsset {
   id: StudioAssetId;
   label: string;
   src: string;
+  width?: number;
+  height?: number;
   storageProvider?: string;
   storagePath?: string;
   publicUrl?: string;

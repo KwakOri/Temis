@@ -3,6 +3,7 @@ import {
   StudioDiagnostic,
   StudioExceptionObjectMeta,
   StudioGraphNode,
+  StudioInputDefinition,
   StudioNodeId,
   StudioSemanticPresetScope,
   StudioTemplateDocument,
@@ -29,6 +30,7 @@ import { isStudioTemplateKind } from "@/utils/template-studio/template-kind";
 import { parseStudioWebFontCss } from "@/utils/template-studio/web-fonts";
 import { getStudioVariantEntryGroups } from "@/utils/template-studio/entry-groups";
 import { getStudioOfflineMemoTextNode } from "@/utils/template-studio/status-variants";
+import { validateStudioTextAppearance } from "@/utils/template-studio/text-appearance-commands";
 
 const createDiagnostic = (
   severity: StudioDiagnostic["severity"],
@@ -784,6 +786,50 @@ const validateBinding = (
   }
 
   return diagnostics;
+};
+
+const validateBindingFallback = (
+  document: StudioTemplateDocument,
+  node: StudioGraphNode,
+): StudioDiagnostic[] => {
+  const fallback = node.meta?.bindingFallback;
+  if (!fallback) return [];
+
+  if (fallback.kind === "staticText" && !isStudioTextNode(node)) {
+    return [
+      createDiagnostic(
+        "error",
+        `binding-fallback-node-type:${node.id}`,
+        "Fallback does not match node",
+        `${node.label} stores a text fallback but is not a text node.`,
+      ),
+    ];
+  }
+
+  if (fallback.kind === "staticAsset") {
+    if (!isStudioImageNode(node)) {
+      return [
+        createDiagnostic(
+          "error",
+          `binding-fallback-node-type:${node.id}`,
+          "Fallback does not match node",
+          `${node.label} stores an image fallback but is not an image node.`,
+        ),
+      ];
+    }
+    if (!document.assets[fallback.assetId]) {
+      return [
+        createDiagnostic(
+          "error",
+          `binding-fallback-asset-missing:${node.id}`,
+          "Missing binding fallback asset",
+          `${node.label} falls back to ${fallback.assetId}, but that asset does not exist.`,
+        ),
+      ];
+    }
+  }
+
+  return [];
 };
 
 const validateGraphNodeAssetSlots = (
@@ -1885,16 +1931,140 @@ const validateTemplateKindContract = (
  */
 const validateTextAppearance = (node: StudioGraphNode): StudioDiagnostic[] => {
   if (!node.textAppearance) return [];
-  if (isStudioTextNode(node)) return [];
+  if (!isStudioTextNode(node)) {
+    return [
+      createDiagnostic(
+        "warning",
+        `text-appearance-unsupported:${node.id}`,
+        "Text appearance on a non-text node",
+        `${node.label} is not a text node, so its text appearance is ignored.`,
+      ),
+    ];
+  }
 
-  return [
+  return validateStudioTextAppearance(node.textAppearance).map((item) =>
     createDiagnostic(
-      "warning",
-      `text-appearance-unsupported:${node.id}`,
-      "Text appearance on a non-text node",
-      `${node.label} is not a text node, so its text appearance is ignored.`,
+      "error",
+      `text-appearance-invalid:${node.id}:${item.code}`,
+      "Invalid text appearance",
+      `${node.label}: ${item.message}`,
     ),
-  ];
+  );
+};
+
+const validateStudioInputPresentation = (
+  document: StudioTemplateDocument,
+  input: StudioInputDefinition,
+): StudioDiagnostic[] => {
+  const diagnostics: StudioDiagnostic[] = [];
+  const presentation = input.presentation;
+
+  if (presentation?.order !== undefined) {
+    if (
+      typeof presentation.order !== "number" ||
+      !Number.isFinite(presentation.order)
+    ) {
+      diagnostics.push(
+        createDiagnostic(
+          "error",
+          `input-presentation-order-invalid:${input.id}`,
+          "Invalid input presentation order",
+          `${input.label} has an input order that must be a finite number.`,
+        ),
+      );
+    }
+  }
+
+  if (
+    presentation?.groupId !== undefined &&
+    typeof presentation.groupId !== "string"
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `input-presentation-group-invalid:${input.id}`,
+        "Invalid input group",
+        `${input.label} has a groupId that must be a string when present.`,
+      ),
+    );
+  }
+
+  if (
+    presentation?.helpText !== undefined &&
+    typeof presentation.helpText !== "string"
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `input-presentation-help-invalid:${input.id}`,
+        "Invalid input help text",
+        `${input.label} has helpText that must be a string when present.`,
+      ),
+    );
+  }
+
+  if (document.metadata.kind === "thumbnail" && input.scope !== "global") {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `thumbnail-input-scope-invalid:${input.id}`,
+        "Thumbnail input must be global",
+        `${input.label} uses ${input.scope} scope, but Thumbnail Studio only supports global inputs.`,
+      ),
+    );
+  }
+
+  return diagnostics;
+};
+
+const validateStudioSelectInputDefinition = (
+  input: StudioInputDefinition,
+): StudioDiagnostic[] => {
+  if (input.type !== "select") return [];
+
+  const diagnostics: StudioDiagnostic[] = [];
+  const optionValues = input.options.map((option) => option.value);
+  const nonEmptyOptionValues = optionValues.filter(
+    (value) => value.trim().length > 0,
+  );
+
+  if (nonEmptyOptionValues.length !== optionValues.length) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `select-option-value-empty:${input.id}`,
+        "Empty select option value",
+        `${input.label} has an option whose value is empty.`,
+      ),
+    );
+  }
+
+  if (new Set(optionValues).size !== optionValues.length) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `select-option-value-duplicate:${input.id}`,
+        "Duplicate select option value",
+        `${input.label} needs a unique value for every option.`,
+      ),
+    );
+  }
+
+  if (
+    input.defaultValue !== undefined &&
+    !optionValues.includes(input.defaultValue)
+  ) {
+    diagnostics.push(
+      createDiagnostic(
+        "error",
+        `select-default-value-invalid:${input.id}`,
+        "Invalid select default value",
+        `${input.label} uses ${input.defaultValue} as its default, but that option does not exist.`,
+      ),
+    );
+  }
+
+  return diagnostics;
 };
 
 export const validateStudioDocument = (
@@ -2029,12 +2199,17 @@ export const validateStudioDocument = (
 
     diagnostics.push(
       ...validateBinding(document, node),
+      ...validateBindingFallback(document, node),
       ...validateGraphNodeAssetSlots(document, node),
       ...validateTextAppearance(node),
     );
   });
 
   Object.values(document.inputs).forEach((input) => {
+    diagnostics.push(
+      ...validateStudioInputPresentation(document, input),
+      ...validateStudioSelectInputDefinition(input),
+    );
     const consumers = inputConsumers[input.id] ?? [];
 
     if (consumers.length === 0) {

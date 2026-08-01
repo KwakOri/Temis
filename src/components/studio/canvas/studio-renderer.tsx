@@ -24,6 +24,11 @@ import {
 import { getStudioPaintOrder } from "@/utils/template-studio/layer-order";
 import { getStudioObjectRenderStyle } from "@/utils/template-studio/object-layout";
 import { getStudioNodeRuntimeContext } from "@/utils/template-studio/entry-groups";
+import {
+  formatStudioImageObjectPosition,
+  getStudioImageBorderRadius,
+  getStudioImageObjectPosition,
+} from "@/utils/thumbnail-studio/image-object-position";
 
 import { StudioWebFontLoader } from "@/components/studio/canvas/studio-web-font-loader";
 import { StudioText } from "@/components/studio/text/studio-text";
@@ -202,6 +207,7 @@ export function StudioRenderer({
           node.binding,
           nodeRuntimeContext,
         );
+        const objectPosition = getStudioImageObjectPosition(styleRecord);
 
         return (
           <div key={node.id} {...commonProps}>
@@ -212,7 +218,12 @@ export function StudioRenderer({
                 className="h-full w-full"
                 draggable={false}
                 src={asset.src}
-                style={{ objectFit: node.fit ?? "cover" }}
+                style={{
+                  objectFit: node.fit ?? "cover",
+                  objectPosition:
+                    formatStudioImageObjectPosition(objectPosition),
+                  borderRadius: getStudioImageBorderRadius(styleRecord),
+                }}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-slate-100 text-xs font-semibold text-slate-400">

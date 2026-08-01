@@ -291,7 +291,8 @@ responsive preview frame
 
 텍스트 effect outset이 캔버스 바깥으로 나가더라도 최종 이미지는 canvas 경계에서
 잘리는 것이 정상이다. 캔버스 안의 group overflow 때문에 의도치 않게 잘리는
-문제와 구분한다.
+문제와 구분한다. effect outset을 적용한 `visualBounds`는 이 진단에만 사용하고,
+fixed-size export root의 width/height를 자동으로 확장하지 않는다.
 
 ## 12. 파일 이름
 

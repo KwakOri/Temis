@@ -262,11 +262,13 @@ Phase 0에서 고정할 원칙:
 - 효과 프리셋
 - 자동 크기 텍스트와 효과 레이어의 측정 결과 공유
 - 프리셋 적용 시 값 복사
-- 작성, 런타임과 PNG에서 같은 렌더러 사용
+- graph 기반 작성, 런타임과 PNG에서 `StudioRenderer` → `StudioText` 경로 공유
+- graph 밖 시간표 composition도 같은 `StudioText` 표현 사용
 
 중앙 정렬 CSS stroke를 선택하면 renderer가 저장된 실효 두께의 2배를 CSS
-`stroke-width`로 사용한다. 선택 영역과 effect outset은 저장된 실효 두께를
-그대로 사용한다.
+`stroke-width`로 사용한다. resize와 저장에는 논리 텍스트 박스를 사용하고,
+effect outset을 적용한 시각 박스는 선택 효과와 clipping/overflow/PNG 진단에만
+사용한다.
 
 최종 DOM/SVG 렌더링 방식과 PNG 라이브러리는
 [Phase 0A 선행 스파이크](./00a-rendering-feasibility-spike.md)에서 확정한다.
@@ -308,11 +310,13 @@ type StudioTextPresetReference = {
 };
 ```
 
-`builtin` version은 코드 registry가 명시적으로 관리하고, `custom` version은
-저장된 preset row의 version을 의미한다.
+`builtin` version은 코드 registry가 명시적으로 관리한다. Phase 3의 `custom`은
+편집기 세션에서 만든 ID와 version을 사용하고, Phase 6에서 원격 저장을 도입한 이후
+새 custom preset은 저장된 row의 ID와 version을 사용할 수 있다.
 
-프리셋의 DB 저장은 Phase 6에서 결정한다. Phase 3에서는 코드 또는 문서 내
-프리셋만으로 기능을 완성할 수 있어야 한다.
+프리셋의 DB 저장은 Phase 6에서 결정한다. Phase 3에서는 builtin 코드 registry와
+브라우저 편집 세션 상태만으로 기능을 완성한다. custom preset의 생성·이름 변경·삭제는
+문서 history에 넣지 않고, 노드에 적용하는 동작만 history 한 단계로 기록한다.
 
 ## 12. 문서 버전
 

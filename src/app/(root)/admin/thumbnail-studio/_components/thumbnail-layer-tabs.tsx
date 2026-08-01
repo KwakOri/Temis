@@ -8,21 +8,49 @@ import {
   Eye,
   EyeOff,
   Group,
+  ImagePlus,
   Lock,
+  LocateFixed,
+  Pencil,
+  Search,
   Trash2,
   Ungroup,
   Unlock,
+  Upload,
 } from "lucide-react";
 // jsx: "preserve" 환경의 체크 스크립트가 클래식 변환을 타므로 React 심볼이 필요하다.
-import React, { type ReactNode } from "react";
+import React, { type ReactNode, useMemo, useRef, useState } from "react";
 
+import { StudioText } from "@/components/studio/text/studio-text";
 import { StudioLayerPanelFrame } from "@/components/studio/layers/studio-layer-primitives";
 import { StudioNodeTypeIcon } from "@/components/studio/node-type-icon";
-import type { StudioGraphNodeType } from "@/types/template-studio";
+import type {
+  StudioGraphNode,
+  StudioGraphNodeType,
+  StudioAsset,
+  StudioInputDefinition,
+  StudioInputType,
+  StudioRuntimeValues,
+  StudioTemplateDocument,
+} from "@/types/template-studio";
+import { getStudioInputDefaultValue } from "@/utils/template-studio/input-values";
+import { getStudioInputTypeLabel } from "@/utils/template-studio/input-commands";
+import {
+  getThumbnailStudioInputGroups,
+  getThumbnailStudioInputGroupId,
+} from "@/utils/thumbnail-studio/input-order";
+import type { ThumbnailStudioInputConsumerReference } from "@/utils/thumbnail-studio/input-consumers";
+import type { ThumbnailStudioAssetConsumerReference } from "@/utils/thumbnail-studio/asset-consumers";
+import {
+  getThumbnailStudioAssetStorageStatus,
+  THUMBNAIL_STUDIO_ASSET_ACCEPT,
+} from "@/utils/thumbnail-studio/asset-policy";
 import {
   getStudioNodeDefinitions,
   type StudioNodeDefinition,
 } from "@/utils/template-studio/node-definitions";
+import { resolveStudioTextAppearance } from "@/utils/template-studio/text-appearance";
+import type { StudioTextEffectPreset } from "@/utils/thumbnail-studio/text-effect-presets";
 
 export interface ThumbnailAddMenuProps {
   onAddNode: (type: StudioGraphNodeType) => void;
@@ -220,6 +248,856 @@ export function ThumbnailPlaceholderTab({
       <p className="px-2 text-[11px] font-medium leading-5 text-[var(--fg3)]">
         {description}
       </p>
+    </StudioLayerPanelFrame>
+  );
+}
+
+export interface ThumbnailInputPanelProps {
+  document: StudioTemplateDocument;
+  selectedInputId: string | null;
+  previewValues: StudioRuntimeValues;
+  consumers: Record<string, ThumbnailStudioInputConsumerReference[]>;
+  onSelectInput: (inputId: string | null) => void;
+  onAdd: (type: StudioInputType) => void;
+  onUpdate: (
+    inputId: string,
+    updater: (input: StudioInputDefinition) => StudioInputDefinition,
+  ) => void;
+  onSelectOptionValue: (
+    inputId: string,
+    optionIndex: number,
+    value: string,
+  ) => void;
+  onAddOption: (inputId: string) => void;
+  onRemoveOption: (inputId: string, optionIndex: number) => void;
+  onDuplicate: (inputId: string) => void;
+  onDelete: (inputId: string) => void;
+  onMove: (inputId: string, targetIndex: number) => void;
+  onSetGroup: (inputId: string, groupId: string | null) => void;
+  onRenameGroup: (fromGroupId: string, toGroupId: string) => void;
+  onPreviewChange: (inputId: string, value: string) => void;
+  onResetPreview: (inputId?: string) => void;
+}
+
+const INPUT_FIELD_CLASS =
+  "h-8 min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]";
+const INPUT_TEXTAREA_CLASS =
+  "min-h-16 min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]";
+
+const ThumbnailInputLabel = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) => (
+  <label className="grid min-w-0 gap-1 text-[10px] font-semibold text-[var(--fg2)]">
+    <span>{label}</span>
+    {children}
+  </label>
+);
+
+const getPreviewValue = (
+  input: StudioInputDefinition,
+  values: StudioRuntimeValues,
+) => values.global?.[input.id] ?? getStudioInputDefaultValue(input);
+
+/** Thumbnail에서만 쓰는 global input 편집/preview 패널. */
+export function ThumbnailInputPanel({
+  document,
+  selectedInputId,
+  previewValues,
+  consumers,
+  onSelectInput,
+  onAdd,
+  onUpdate,
+  onSelectOptionValue,
+  onAddOption,
+  onRemoveOption,
+  onDuplicate,
+  onDelete,
+  onMove,
+  onSetGroup,
+  onRenameGroup,
+  onPreviewChange,
+  onResetPreview,
+}: ThumbnailInputPanelProps) {
+  const groups = getThumbnailStudioInputGroups(document);
+  const allGroups = groups
+    .map((group) => group.groupId)
+    .filter((groupId): groupId is string => Boolean(groupId));
+
+  return (
+    <StudioLayerPanelFrame
+      summary={`${Object.keys(document.inputs).length} global inputs`}
+      title="Thumbnail Inputs"
+    >
+      <div className="grid gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
+          {(["text", "select", "image"] as StudioInputType[]).map((type) => (
+            <button
+              className="h-8 rounded-lg border border-[var(--accent)] bg-[var(--sel)] text-[10px] font-bold text-[var(--fg)] hover:bg-[var(--hover)]"
+              data-thumbnail-input-add={type}
+              key={type}
+              type="button"
+              onClick={() => onAdd(type)}
+            >
+              + {getStudioInputTypeLabel(type)}
+            </button>
+          ))}
+        </div>
+        {groups.length === 0 ? (
+          <p className="px-1 text-[10px] leading-4 text-[var(--fg3)]">
+            Add a text, select, or image input. Thumbnail inputs are global
+            only.
+          </p>
+        ) : null}
+        {groups.map((group) => (
+          <div className="grid gap-1.5" key={group.groupId ?? "ungrouped"}>
+            <div className="flex items-center gap-1.5 px-1">
+              {group.groupId ? (
+                <input
+                  aria-label={`${group.groupId} group name`}
+                  className="h-6 min-w-0 flex-1 bg-transparent text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg2)] outline-none"
+                  defaultValue={group.groupId}
+                  onBlur={(event) => {
+                    const next = event.currentTarget.value.trim();
+                    if (next && next !== group.groupId) {
+                      onRenameGroup(group.groupId as string, next);
+                    }
+                  }}
+                />
+              ) : (
+                <span className="flex-1 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                  Ungrouped
+                </span>
+              )}
+              <span className="text-[10px] text-[var(--fg3)]">
+                {group.inputs.length}
+              </span>
+            </div>
+            {group.inputs.map((input, inputIndex) => {
+              const inputConsumers = consumers[input.id] ?? [];
+              const previewValue = getPreviewValue(input, previewValues);
+              const isSelected = selectedInputId === input.id;
+              return (
+                <div
+                  className={`grid gap-2 rounded-xl border p-2 ${isSelected ? "border-[var(--accent)] bg-[var(--sel)]" : "border-[var(--field-border)] bg-[var(--field-bg)]"}`}
+                  data-thumbnail-input-id={input.id}
+                  key={input.id}
+                  onClick={() => onSelectInput(input.id)}
+                >
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <input
+                      aria-label={`${input.label} label`}
+                      className="h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-1 text-xs font-bold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                      value={input.label}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) =>
+                        onUpdate(input.id, (current) => ({
+                          ...current,
+                          label: event.currentTarget.value,
+                        }))
+                      }
+                    />
+                    <span className="rounded bg-[var(--field)] px-1.5 py-1 text-[9px] font-bold uppercase text-[var(--fg3)]">
+                      {getStudioInputTypeLabel(input.type)}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <ThumbnailInputLabel label="Description">
+                      <input
+                        className={INPUT_FIELD_CLASS}
+                        value={input.description ?? ""}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) =>
+                          onUpdate(input.id, (current) => ({
+                            ...current,
+                            description: event.currentTarget.value || undefined,
+                          }))
+                        }
+                      />
+                    </ThumbnailInputLabel>
+                    <ThumbnailInputLabel label="Help text">
+                      <input
+                        className={INPUT_FIELD_CLASS}
+                        value={input.presentation?.helpText ?? ""}
+                        onChange={(event) =>
+                          onUpdate(input.id, (current) => ({
+                            ...current,
+                            presentation: {
+                              ...(current.presentation ?? {}),
+                              helpText: event.currentTarget.value || undefined,
+                            },
+                          }))
+                        }
+                      />
+                    </ThumbnailInputLabel>
+                    <ThumbnailInputLabel label="Group">
+                      <select
+                        className={INPUT_FIELD_CLASS}
+                        value={getThumbnailStudioInputGroupId(input) ?? ""}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) =>
+                          onSetGroup(
+                            input.id,
+                            event.currentTarget.value || null,
+                          )
+                        }
+                      >
+                        <option value="">Ungrouped</option>
+                        {allGroups.map((groupId) => (
+                          <option key={groupId} value={groupId}>
+                            {groupId}
+                          </option>
+                        ))}
+                        <option value="__new__">New group…</option>
+                      </select>
+                    </ThumbnailInputLabel>
+                    <label className="flex items-end gap-1.5 pb-1 text-[10px] font-semibold text-[var(--fg2)]">
+                      <input
+                        checked={Boolean(input.required)}
+                        type="checkbox"
+                        onChange={(event) =>
+                          onUpdate(input.id, (current) => ({
+                            ...current,
+                            required: event.currentTarget.checked,
+                          }))
+                        }
+                      />
+                      Required
+                    </label>
+                  </div>
+                  {input.type === "text" ? (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <ThumbnailInputLabel label="Default">
+                        <input
+                          className={INPUT_FIELD_CLASS}
+                          value={input.defaultValue ?? ""}
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "text"
+                                ? {
+                                    ...current,
+                                    defaultValue: event.currentTarget.value,
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      </ThumbnailInputLabel>
+                      <ThumbnailInputLabel label="Placeholder">
+                        <input
+                          className={INPUT_FIELD_CLASS}
+                          value={input.placeholder ?? ""}
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "text"
+                                ? {
+                                    ...current,
+                                    placeholder: event.currentTarget.value,
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      </ThumbnailInputLabel>
+                      <ThumbnailInputLabel label="Max length">
+                        <input
+                          className={INPUT_FIELD_CLASS}
+                          inputMode="numeric"
+                          type="number"
+                          value={input.maxLength ?? ""}
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "text"
+                                ? {
+                                    ...current,
+                                    maxLength: event.currentTarget.value
+                                      ? Number(event.currentTarget.value)
+                                      : undefined,
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      </ThumbnailInputLabel>
+                      <ThumbnailInputLabel label="Min rows">
+                        <input
+                          className={INPUT_FIELD_CLASS}
+                          inputMode="numeric"
+                          min={1}
+                          type="number"
+                          value={input.minRows ?? ""}
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "text"
+                                ? {
+                                    ...current,
+                                    minRows: event.currentTarget.value
+                                      ? Number(event.currentTarget.value)
+                                      : undefined,
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      </ThumbnailInputLabel>
+                      <label className="flex items-end gap-1.5 pb-1 text-[10px] font-semibold text-[var(--fg2)]">
+                        <input
+                          checked={Boolean(input.multiline)}
+                          type="checkbox"
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "text"
+                                ? {
+                                    ...current,
+                                    multiline: event.currentTarget.checked,
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                        Multiline
+                      </label>
+                    </div>
+                  ) : null}
+                  {input.type === "image" ? (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <ThumbnailInputLabel label="Default URL">
+                        <input
+                          className={INPUT_FIELD_CLASS}
+                          placeholder={input.placeholder}
+                          value={input.defaultUrl ?? ""}
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "image"
+                                ? {
+                                    ...current,
+                                    defaultUrl: event.currentTarget.value,
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      </ThumbnailInputLabel>
+                      <ThumbnailInputLabel label="Placeholder">
+                        <input
+                          className={INPUT_FIELD_CLASS}
+                          value={input.placeholder ?? ""}
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "image"
+                                ? {
+                                    ...current,
+                                    placeholder: event.currentTarget.value,
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      </ThumbnailInputLabel>
+                    </div>
+                  ) : null}
+                  {input.type === "select" ? (
+                    <div className="grid gap-1.5">
+                      <ThumbnailInputLabel label="Default option">
+                        <select
+                          className={INPUT_FIELD_CLASS}
+                          value={
+                            input.defaultValue ?? input.options[0]?.value ?? ""
+                          }
+                          onChange={(event) =>
+                            onUpdate(input.id, (current) =>
+                              current.type === "select"
+                                ? {
+                                    ...current,
+                                    defaultValue: event.currentTarget.value,
+                                  }
+                                : current,
+                            )
+                          }
+                        >
+                          {input.options.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </ThumbnailInputLabel>
+                      {input.options.map((option, optionIndex) => (
+                        <div
+                          className="grid grid-cols-[1fr_1fr_auto] gap-1"
+                          key={`${input.id}:${option.value}`}
+                        >
+                          <input
+                            aria-label={`${option.label} value`}
+                            className={INPUT_FIELD_CLASS}
+                            value={option.value}
+                            onChange={(event) =>
+                              onSelectOptionValue(
+                                input.id,
+                                optionIndex,
+                                event.currentTarget.value,
+                              )
+                            }
+                          />
+                          <input
+                            aria-label={`${option.label} label`}
+                            className={INPUT_FIELD_CLASS}
+                            value={option.label}
+                            onChange={(event) =>
+                              onUpdate(input.id, (current) =>
+                                current.type === "select"
+                                  ? {
+                                      ...current,
+                                      options: current.options.map(
+                                        (item, index) =>
+                                          index === optionIndex
+                                            ? {
+                                                ...item,
+                                                label:
+                                                  event.currentTarget.value,
+                                              }
+                                            : item,
+                                      ),
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                          <button
+                            className="h-8 rounded-md border border-[var(--field-border)] px-2 text-[10px] text-[var(--fg2)] disabled:opacity-40"
+                            disabled={input.options.length <= 1}
+                            type="button"
+                            onClick={() =>
+                              onRemoveOption(input.id, optionIndex)
+                            }
+                          >
+                            −
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        className="h-7 rounded-md border border-dashed border-[var(--field-border)] text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)]"
+                        type="button"
+                        onClick={() => onAddOption(input.id)}
+                      >
+                        + Add option
+                      </button>
+                    </div>
+                  ) : null}
+                  <div className="grid gap-1.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                        Preview value
+                      </span>
+                      <button
+                        className="text-[10px] font-semibold text-[var(--accent)] hover:underline"
+                        type="button"
+                        onClick={() => onResetPreview(input.id)}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                    {input.type === "select" ? (
+                      <select
+                        className={INPUT_FIELD_CLASS}
+                        value={previewValue}
+                        onChange={(event) =>
+                          onPreviewChange(input.id, event.currentTarget.value)
+                        }
+                      >
+                        {input.options.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    ) : input.type === "text" && input.multiline ? (
+                      <textarea
+                        className={INPUT_TEXTAREA_CLASS}
+                        placeholder={input.placeholder}
+                        rows={input.minRows ?? 3}
+                        value={previewValue}
+                        onChange={(event) =>
+                          onPreviewChange(input.id, event.currentTarget.value)
+                        }
+                      />
+                    ) : (
+                      <input
+                        className={INPUT_FIELD_CLASS}
+                        placeholder={input.placeholder}
+                        type={input.type === "image" ? "url" : "text"}
+                        value={previewValue}
+                        onChange={(event) =>
+                          onPreviewChange(input.id, event.currentTarget.value)
+                        }
+                      />
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--fg3)]">
+                    <span>
+                      {inputConsumers.length} consumer
+                      {inputConsumers.length === 1 ? "" : "s"}
+                      {input.required ? " · required" : ""}
+                    </span>
+                    <span className="flex gap-1">
+                      <button
+                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
+                        type="button"
+                        onClick={() =>
+                          onMove(
+                            input.id,
+                            group.firstInputIndex + inputIndex - 1,
+                          )
+                        }
+                      >
+                        ↑
+                      </button>
+                      <button
+                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
+                        type="button"
+                        onClick={() =>
+                          onMove(
+                            input.id,
+                            group.firstInputIndex + inputIndex + 1,
+                          )
+                        }
+                      >
+                        ↓
+                      </button>
+                      <button
+                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)]"
+                        type="button"
+                        onClick={() => onDuplicate(input.id)}
+                      >
+                        Copy
+                      </button>
+                      <button
+                        className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold text-red-300 hover:border-red-300"
+                        type="button"
+                        onClick={() => onDelete(input.id)}
+                      >
+                        Delete
+                      </button>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </StudioLayerPanelFrame>
+  );
+}
+
+export interface ThumbnailAssetPanelProps {
+  assets: readonly StudioAsset[];
+  consumers: Record<string, ThumbnailStudioAssetConsumerReference[]>;
+  selectedImageNode: StudioGraphNode | null;
+  onImport: (files: File[]) => void;
+  onAddNode: (assetId: string) => void;
+  onReplaceSelected: (assetId: string) => void;
+  onRename: (assetId: string, label: string) => void;
+  onLocate: (nodeId: string) => void;
+  onDelete: (assetId: string) => void;
+  onRemoveUnused: () => void;
+}
+
+const formatAssetByteSize = (byteSize?: number): string => {
+  if (!byteSize || !Number.isFinite(byteSize)) return "Size unknown";
+  if (byteSize < 1024) return `${byteSize} B`;
+  if (byteSize < 1024 * 1024) return `${Math.round(byteSize / 1024)} KiB`;
+  return `${(byteSize / (1024 * 1024)).toFixed(1)} MiB`;
+};
+
+/** Phase 4 local authoring asset library. 원격 저장 명령은 포함하지 않는다. */
+export function ThumbnailAssetPanel({
+  assets,
+  consumers,
+  selectedImageNode,
+  onImport,
+  onAddNode,
+  onReplaceSelected,
+  onRename,
+  onLocate,
+  onDelete,
+  onRemoveUnused,
+}: ThumbnailAssetPanelProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [query, setQuery] = useState("");
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const visibleAssets = useMemo(
+    () =>
+      [...assets]
+        .reverse()
+        .filter((asset) =>
+          normalizedQuery
+            ? asset.label.toLocaleLowerCase().includes(normalizedQuery)
+            : true,
+        ),
+    [assets, normalizedQuery],
+  );
+
+  return (
+    <StudioLayerPanelFrame
+      summary={`${assets.length} asset${assets.length === 1 ? "" : "s"}`}
+      title="Thumbnail Assets"
+    >
+      <div className="grid gap-2">
+        <input
+          accept={THUMBNAIL_STUDIO_ASSET_ACCEPT}
+          className="hidden"
+          multiple
+          ref={fileInputRef}
+          type="file"
+          onChange={(event) => {
+            const files = Array.from(event.currentTarget.files ?? []);
+            event.currentTarget.value = "";
+            if (files.length > 0) onImport(files);
+          }}
+        />
+        <div className="grid grid-cols-2 gap-1.5">
+          <button
+            className="flex h-8 items-center justify-center gap-1 rounded-lg border border-[var(--accent)] bg-[var(--sel)] text-[10px] font-bold text-[var(--fg)] hover:bg-[var(--hover)]"
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" /> Import
+          </button>
+          <button
+            className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)]"
+            type="button"
+            onClick={onRemoveUnused}
+          >
+            Remove unused
+          </button>
+        </div>
+        <label className="relative">
+          <Search className="pointer-events-none absolute left-2 top-2 h-3.5 w-3.5 text-[var(--fg3)]" />
+          <input
+            aria-label="Search thumbnail assets"
+            className="h-8 w-full rounded-lg border border-[var(--field-border)] bg-[var(--field)] pl-7 pr-2 text-xs text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+            placeholder="Search assets"
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+          />
+        </label>
+        {visibleAssets.length === 0 ? (
+          <p className="px-1 text-[10px] leading-4 text-[var(--fg3)]">
+            Import a PNG, JPEG, or WebP image up to 10 MiB.
+          </p>
+        ) : null}
+        {visibleAssets.map((asset) => {
+          const assetConsumers = consumers[asset.id] ?? [];
+          const firstNodeConsumer = assetConsumers.find(
+            (consumer) => consumer.nodeId,
+          );
+          const status = getThumbnailStudioAssetStorageStatus(asset);
+          return (
+            <div
+              className="grid grid-cols-[64px_1fr] gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field-bg)] p-2"
+              data-thumbnail-asset-id={asset.id}
+              key={asset.id}
+            >
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-lg bg-[var(--field)]">
+                {/* Thumbnail Studio는 공용 document src/data URL을 그대로 미리본다. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  alt=""
+                  className="h-full w-full object-cover"
+                  src={asset.src}
+                />
+              </div>
+              <div className="grid min-w-0 gap-1.5">
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-bold text-[var(--fg)]">
+                    {asset.label}
+                  </div>
+                  <div className="truncate text-[9px] uppercase text-[var(--fg3)]">
+                    {asset.mimeType ?? "image"} ·{" "}
+                    {formatAssetByteSize(asset.byteSize)} · {status}
+                  </div>
+                  <div className="text-[9px] text-[var(--fg3)]">
+                    {assetConsumers.length} use
+                    {assetConsumers.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    className="rounded border border-[var(--field-border)] p-1 text-[var(--fg2)] hover:border-[var(--accent)]"
+                    title="Add image node"
+                    type="button"
+                    onClick={() => onAddNode(asset.id)}
+                  >
+                    <ImagePlus className="h-3 w-3" />
+                  </button>
+                  <button
+                    className="rounded border border-[var(--field-border)] px-1.5 text-[9px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:opacity-40"
+                    disabled={!selectedImageNode || selectedImageNode.locked}
+                    type="button"
+                    onClick={() => onReplaceSelected(asset.id)}
+                  >
+                    Replace
+                  </button>
+                  <button
+                    className="rounded border border-[var(--field-border)] p-1 text-[var(--fg2)] hover:border-[var(--accent)]"
+                    title="Rename asset"
+                    type="button"
+                    onClick={() => {
+                      const label = window.prompt("Asset name", asset.label);
+                      if (label?.trim()) onRename(asset.id, label);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  <button
+                    className="rounded border border-[var(--field-border)] p-1 text-[var(--fg2)] hover:border-[var(--accent)] disabled:opacity-40"
+                    disabled={!firstNodeConsumer?.nodeId}
+                    title="Locate first use"
+                    type="button"
+                    onClick={() => {
+                      if (firstNodeConsumer?.nodeId) {
+                        onLocate(firstNodeConsumer.nodeId);
+                      }
+                    }}
+                  >
+                    <LocateFixed className="h-3 w-3" />
+                  </button>
+                  <button
+                    className="rounded border border-[var(--field-border)] p-1 text-red-300 hover:border-red-300"
+                    title="Delete asset"
+                    type="button"
+                    onClick={() => onDelete(asset.id)}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </StudioLayerPanelFrame>
+  );
+}
+
+export interface ThumbnailTextPresetPanelProps {
+  presets: readonly StudioTextEffectPreset[];
+  selectedTextNode: StudioGraphNode | null;
+  onApply: (preset: StudioTextEffectPreset) => void;
+  onCreate: () => void;
+  onDuplicate: (presetId: string) => void;
+  onRename: (presetId: string, label: string) => void;
+  onDelete: (presetId: string) => void;
+}
+
+/**
+ * 내장/세션 텍스트 preset 목록.
+ *
+ * 미리보기는 별도 CSS를 복제하지 않고 실제 StudioText를 사용한다. 그래야 preset 카드와
+ * 캔버스가 다른 stroke 순서나 shadow 처리를 보여주는 일이 없다.
+ */
+export function ThumbnailTextPresetPanel({
+  presets,
+  selectedTextNode,
+  onApply,
+  onCreate,
+  onDuplicate,
+  onRename,
+  onDelete,
+}: ThumbnailTextPresetPanelProps) {
+  const canEditSelectedText = Boolean(
+    selectedTextNode && !selectedTextNode.locked,
+  );
+
+  return (
+    <StudioLayerPanelFrame
+      summary={`${presets.length} presets`}
+      title="Text Presets"
+    >
+      <div className="grid gap-2">
+        <button
+          className="h-8 rounded-lg border border-[var(--accent)] bg-[var(--sel)] text-[11px] font-semibold text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={!canEditSelectedText}
+          type="button"
+          onClick={onCreate}
+        >
+          Save current text as preset
+        </button>
+        {!selectedTextNode ? (
+          <p className="px-1 text-[10px] leading-4 text-[var(--fg3)]">
+            Select one text node to apply or save a preset.
+          </p>
+        ) : null}
+        {presets.map((preset) => (
+          <div
+            className="grid gap-2 rounded-xl border border-[var(--field-border)] bg-[var(--field)] p-2"
+            data-thumbnail-text-preset={preset.id}
+            key={`${preset.source}:${preset.id}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              {preset.source === "custom" ? (
+                <input
+                  aria-label={`${preset.label} preset name`}
+                  className="h-7 min-w-0 flex-1 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-2 text-[11px] font-semibold text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                  value={preset.label}
+                  onChange={(event) =>
+                    onRename(preset.id, event.currentTarget.value)
+                  }
+                />
+              ) : (
+                <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-[var(--fg2)]">
+                  {preset.label}
+                </span>
+              )}
+              <span className="text-[9px] uppercase tracking-[0.05em] text-[var(--fg3)]">
+                {preset.source} v{preset.version}
+              </span>
+            </div>
+            <div className="flex min-h-14 items-center justify-center overflow-hidden rounded-lg bg-[var(--canvas)] px-2 py-2">
+              <StudioText
+                appearance={resolveStudioTextAppearance(
+                  { textAppearance: preset.appearance },
+                  preset.typography,
+                )}
+                text={preset.previewText}
+                typography={preset.typography as React.CSSProperties}
+              />
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                className="h-7 flex-1 rounded-md border border-[var(--accent)] bg-[var(--sel)] text-[10px] font-semibold text-[var(--fg)] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={!canEditSelectedText}
+                type="button"
+                onClick={() => onApply(preset)}
+              >
+                Apply
+              </button>
+              {preset.source === "custom" ? (
+                <>
+                  <button
+                    className="h-7 rounded-md border border-[var(--field-border)] px-2 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)]"
+                    type="button"
+                    onClick={() => onDuplicate(preset.id)}
+                  >
+                    Copy
+                  </button>
+                  <button
+                    className="h-7 rounded-md border border-[var(--field-border)] px-2 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)]"
+                    type="button"
+                    onClick={() => onDelete(preset.id)}
+                  >
+                    Delete
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
     </StudioLayerPanelFrame>
   );
 }

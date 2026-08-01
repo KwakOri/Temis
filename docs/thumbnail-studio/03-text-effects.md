@@ -1,6 +1,6 @@
 # Phase 3. 고급 텍스트 표현
 
-상태: 계획 완료, 구현 전  
+상태: §15 1~13 구현 완료 — 코드·회귀 검증 완료. 브라우저 실측은 기존 기록 범위만 유지
 선행 단계:
 [Phase 0A — PNG 렌더링 선행 스파이크](./00a-rendering-feasibility-spike.md),
 [Phase 2 — 썸네일 기본 편집기](./02-basic-thumbnail-editor.md)  
@@ -111,8 +111,17 @@ record에 둔다.
 기존 문서 호환:
 
 - `textAppearance`가 없으면 `style.color`를 solid fill로 해석한다.
-- 기존 `WebkitTextStroke` 같은 scalar 값이 있다면 legacy fallback으로만 읽는다.
-- 새 편집기에서 효과를 저장하는 순간 구조화된 `textAppearance`를 생성한다.
+- 기존 `WebkitTextStroke`, `webkitTextStroke`, `textShadow`는
+  `legacy scalar text appearance` fallback으로만 읽는다. 이것은 별도의 구형 템플릿
+  시스템이 아니라 `StudioTemplateDocument.textAppearance` 도입 전의 style scalar 표현이다.
+- 새 편집기에서 효과를 처음 저장하는 순간 resolver 결과를 기준으로 구조화된
+  `textAppearance`를 생성한다. fill만 바꿔도 기존 stroke를 잃지 않아야 한다.
+- 이 materialize 명령은 `WebkitTextStroke`와 `webkitTextStroke`를 모두 style에서
+  제거한다. 남겨 두면 구조화 레이어와 scalar CSS가 이중 렌더된다. command가 기존 style을
+  병합할 때도 제거 결과를 다시 적용해 scalar가 되살아나지 않게 한다.
+- 기존 scalar `textShadow`가 있으면 지원하는 단일 shadow 형식으로 materialize한 뒤
+  제거한다. 해석할 수 없는 값은 조용히 버리지 않고 진단을 표시해 구조화 효과 저장을
+  막는다. 여러 shadow를 구조화 모델로 축소하지 않는다.
 - 기존 시간표 문서는 자동으로 시각 결과가 바뀌지 않아야 한다.
 
 공용 resolver:
@@ -147,17 +156,24 @@ Phase 3에서는 이 제약을 문서와 코드 주석에 남기고 시간표 �
 
 ## 5. 공용 텍스트 렌더러
 
-신규 역할:
+공용 역할은 실제 구현 이름을 기준으로 둘로 나눈다.
 
 ```text
-StudioTextRenderer
-├── text content resolve
-├── typography style resolve
-├── text layout measure
-├── effect outset calculate
+StudioRenderer
+├── graph node / binding / style resolve
+├── authoring selection wrapper
+└── StudioText 호출
+
+StudioText
+├── fixed / flexible text layout
 ├── visual effect layers
 └── accessible foreground layer
 ```
+
+문서에서 계획명으로 사용하던 `StudioTextRenderer`는 별도 컴포넌트를 새로 만들라는
+뜻이 아니다. 현재 구현명인 `StudioText`가 공용 텍스트 표현 계약을 소유하고,
+`StudioRenderer`가 graph 문서 해석을 소유한다. effect outset은 렌더 DOM을 만드는
+책임이 아니라 geometry 진단 utility의 책임이다.
 
 사용 지점:
 
@@ -165,7 +181,7 @@ StudioTextRenderer
 - Thumbnail Studio 관리자 캔버스
 - Thumbnail 사용자 런타임
 - PNG export DOM
-- 향후 `StudioTimetablePreview`의 일반 텍스트
+- `StudioTimetablePreview`의 graph text와 composition `flexibleText`
 
 초기에는 시간표 미리보기 전체를 한 번에 교체하지 않는다. 기존 결과를 유지하면서
 일반 graph text부터 공용 렌더러를 사용한다.
@@ -190,7 +206,14 @@ StudioTextRenderer
 - foreground만 실제 텍스트로 노출한다.
 - 모든 레이어가 동일한 typography와 layout 결과를 사용한다.
 
-아웃스트로크는 가장 바깥쪽에서 가장 안쪽 순으로 뒤에 그린다.
+`appearance.strokes` 배열은 실제 뒤에서 앞으로 그릴 순서인 저장 목록이다. Inspector는
+disabled 항목과 비정상 외부 입력도 원래 배열 순서로 표시해 다시 켜거나 수정할 수 있다.
+renderer는 별도 drawable 목록을 사용해 `enabled === false`, `opacity <= 0`,
+`outset <= 0`, 유효하지 않은 수치를 제외하고 최대 8개만 그린다. drawable 목록도
+`outset`으로 재정렬하지 않는다. Inspector drag 순서가 저장 배열과 화면 결과를 함께 바꾼다.
+
+정상적인 중첩은 가장 바깥쪽에서 가장 안쪽 순으로 둔다. 더 두꺼운 stroke를 앞쪽으로
+옮기면 뒤의 얇은 stroke를 가릴 수 있으며, 인스펙터는 보이는 띠 두께와 가려짐을 알려준다.
 
 예시:
 
@@ -270,7 +293,7 @@ type StudioTextLayout = {
 관련 변경:
 
 - `src/components/AutoResizeTextCard/AutoResizeText.tsx`
-- `src/components/studio/canvas/studio-auto-text.tsx`
+- `src/components/studio/text/studio-text.tsx`
 - 신규 공용 text layout utility 또는 hook
 
 기존 컴포넌트는 새 공용 측정 결과를 사용하는 wrapper로 줄이거나, 시간표에서
@@ -278,10 +301,10 @@ type StudioTextLayout = {
 
 ### 8.1 현재 제품 경로
 
-`StudioAutoText`는 `AutoResizeText`에 위임하고 `maxLines`를 넘기지 않는다. 그래서
-지금 제품은 이분 탐색이 아니라 최대값에서 0.5px씩 줄이는 선형 탐색을 타고,
-`white-space: pre`로 렌더한다. 즉 자동 줄바꿈을 하지 않고 명시적 개행에서만 줄이
-나뉜다. 렌더 시점에 `Math.floor()`가 한 번 더 걸린다.
+현재 `StudioText`의 autoFit 경로는 `AutoResizeText`에 위임하고 `maxLines`를 넘기지
+않는다. 그래서 지금 제품은 이분 탐색이 아니라 최대값에서 0.5px씩 줄이는 선형 탐색을
+타고, `white-space: pre`로 렌더한다. 즉 자동 줄바꿈을 하지 않고 명시적 개행에서만
+줄이 나뉜다. 렌더 시점에 `Math.floor()`가 한 번 더 걸린다.
 
 공용 측정으로 옮길 때 이 동작을 바꾸면 기존 시간표 문서의 줄바꿈과 크기가 함께
 바뀐다. 줄바꿈 정책을 바꿀 것인지, 기존 문서에는 유지할 것인지를 먼저 정한다.
@@ -307,7 +330,7 @@ type StudioTextLayout = {
 
 ## 9. 효과 바깥 영역
 
-효과가 논리 텍스트 박스 밖으로 나가는 최대 범위를 계산한다.
+효과가 논리 텍스트 박스 밖으로 나가는 최대 범위를 회전 전 로컬 좌표계에서 계산한다.
 
 ```ts
 type StudioEffectOutset = {
@@ -320,21 +343,56 @@ type StudioEffectOutset = {
 
 고려 값:
 
-- 최대 stroke `outset`
-- shadow offset
-- shadow blur
+- 켜져 있고 보이는 stroke의 최대 `outset`
+- 켜져 있고 보이는 shadow의 offset과 blur
 - 회전 전 로컬 영역
+
+초기 계산 계약:
+
+```ts
+const strokeOutset = maxDrawableStrokeOutset;
+const shadowBlurOutset = drawableShadow ? drawableShadow.blur : 0;
+const shadowOffsetX = drawableShadow ? drawableShadow.offsetX : 0;
+const shadowOffsetY = drawableShadow ? drawableShadow.offsetY : 0;
+
+top = strokeOutset + max(0, shadowBlurOutset - shadowOffsetY);
+right = strokeOutset + max(0, shadowBlurOutset + shadowOffsetX);
+bottom = strokeOutset + max(0, shadowBlurOutset + shadowOffsetY);
+left = strokeOutset + max(0, shadowBlurOutset - shadowOffsetX);
+```
+
+shadow는 현재 가장 뒤의 stroke 레이어에 적용되므로 stroke와 shadow 범위가 누적된다.
+stroke가 없으면 `strokeOutset`은 0이다. disabled 또는 opacity 0인 효과는 시각 범위를
+늘리지 않는다. 음수, `NaN`과 무한대는 저장 명령과 validator가 거부하고, 순수 함수도
+안전하게 0으로 정규화한다.
+
+CSS blur에는 엄밀한 마지막 픽셀 경계가 없으므로 `blur`를 바깥 영역으로 사용하는 것은
+제품의 운용상 경계다. 장면 13·14 재검증과 캔버스 경계 표본에서 잘림이 보이면 별도 안전
+상수를 한 곳에 추가하고 화면, runtime과 PNG가 함께 사용한다.
 
 용도:
 
 - 효과 clipping 방지
-- 선택 표시
+- 선택 효과 표시
 - 그룹 overflow 경고
 - PNG 캡처 경계
 - 캔버스 밖 효과 경고
 
 문서의 X, Y, width와 height는 논리 텍스트 박스 기준으로 유지한다. effect outset을
 문서 프레임 값에 더해 저장하지 않는다.
+
+편집기 geometry는 다음 두 경계를 구분한다.
+
+- `logicalBounds`: 선택, 이동, resize handle과 저장 좌표
+- `visualBounds`: 효과 표시와 clipping/overflow/PNG 진단
+
+`visualBounds`를 기존 resize용 `selectionBounds`에 넣지 않는다. 회전 노드는 먼저 로컬
+박스에 outset을 적용한 뒤 부모 회전을 포함한 canvas bounds로 변환한다. diagnostic box는
+회전된 selection overlay 내부에서 역회전하지 않고 canvas 좌표 sibling으로 그린다. 최종
+PNG 크기는 canvas로 고정하고 effect 때문에 자동 확장하지 않는다. `visualBounds`가
+`left < 0`, `top < 0`, `right > canvas.width`, `bottom > canvas.height`인 부분 canvas
+clipping은 기존 완전한 canvas 밖 진단과 별도로 표시한다. `overflow: hidden` 또는
+`overflow: clip` 그룹은 자식 visual bounds와 group logical bounds를 비교해 별도 진단한다.
 
 ## 10. 인스펙터
 
@@ -362,7 +420,9 @@ type StudioEffectOutset = {
 - opacity 0~1
 
 제한은 과도한 DOM과 PNG 생성 비용을 방지하기 위한 제품 기본값이다. 상수로
-관리한다.
+관리한다. UI input뿐 아니라 document command와 validator에도 같은 제한을 적용한다.
+외부 JSON이나 이전 세션이 UI를 우회해 잘못된 값을 넣어도 renderer가 무제한 레이어를
+만들면 안 된다.
 
 ### Shadow
 
@@ -379,6 +439,16 @@ type StudioEffectOutset = {
 - 색상 picker
 - 변경 즉시 canvas 반영
 - 한 번의 연속 조작을 하나의 history transaction으로 기록
+
+Phase 3의 구조화 효과 편집은 텍스트 노드 하나를 선택했을 때만 제공한다. 기존 Text
+섹션의 scalar typography는 다중 선택을 계속 지원할 수 있지만, 순서가 있는 stroke 배열의
+mixed state를 암묵적으로 합치거나 한 노드의 배열로 다른 노드를 덮지 않는다.
+
+첫 구조화 변경은 공용 materialize 명령을 통과한다. fill, stroke와 shadow의 추가·수정·
+삭제·복제·순서 변경은 모두 이 명령 계층에서 제한과 legacy scalar text appearance 제거를
+적용한다. preset 적용도 같은 경로를 사용한다. locked node는 UI disabled 상태와 무관하게
+command 계층에서도 문서와 history를 바꾸지 않는다. stroke row drag 한 번은 한 번의
+appearance command/history 단계로 저장된다.
 
 ## 11. 텍스트 효과 프리셋
 
@@ -409,20 +479,39 @@ interface StudioTextEffectPreset {
 Phase 3 저장 방식:
 
 - 기본 preset은 코드 registry
-- 편집 중 만든 preset은 문서 내부 또는 브라우저 개발 상태
+- 편집 중 만든 custom preset은 Thumbnail Studio client의 편집기 세션 상태
 - 원격 공용 preset 저장은 Phase 6
 
 적용:
 
-1. preset typography를 현재 style에 복사
+1. 허용된 typography 키만 현재 style에 복사
 2. appearance를 deep copy
 3. 새 stroke ID 생성
 4. `source`, `presetId`, `presetVersion`을 `presetRef`에 기록
 5. 이후 preset 수정과 노드 분리
+6. style과 node 변경을 한 `updateDocument` 안에서 처리해 undo 한 단계로 기록
 
 `builtin`은 코드 registry ID와 registry가 명시한 version을 사용한다.
-`custom`은 DB row ID와 row version을 사용한다. 두 출처의 ID가 우연히 같아도
-`source`로 구분한다.
+Phase 3의 `custom`은 편집기 세션에서 생성한 ID와 version을 사용한다. 두 출처의 ID가
+우연히 같아도 `source`로 구분한다. Phase 6에서 원격 저장을 도입하면 새 custom preset은
+DB row ID와 row version을 사용할 수 있지만, Phase 3의 세션 presetRef도 렌더링과 무관한
+출처 기록으로 안전하게 남는다.
+
+기본 registry와 custom preview는 모두 `StudioText`를 사용한다. preview 전용으로 효과를
+다시 CSS로 구현하지 않는다. `typography`는 font family, size, weight, line height, letter
+spacing, alignment와 wrap policy의 명시된 allowlist만 복사하며 geometry와 position은
+포함하지 않는다.
+
+### 11.1 Phase 3 custom preset 세션 계약
+
+- custom preset은 Thumbnail Studio client의 편집기 세션 상태에만 둔다.
+- route가 unmount되거나 페이지를 새로 열면 사라진다.
+- 생성과 복제는 새 preset ID를 만들고 version 1에서 시작한다.
+- 이름 변경은 표현을 바꾸지 않으므로 version을 올리지 않는다.
+- 생성·복제·이름 변경·삭제는 문서 history 대상이 아니다.
+- 노드에 적용하는 동작만 문서 history 한 단계로 기록한다.
+- preset을 삭제하거나 이름을 바꿔도 이미 적용된 노드의 appearance는 바뀌지 않는다.
+- 삭제된 preset을 가리키는 `presetRef`가 남아도 렌더링은 복사된 노드 값을 사용한다.
 
 ## 12. 폰트 로딩
 
@@ -442,44 +531,48 @@ Phase 3 저장 방식:
 
 ## 13. Renderer API 경계
 
-`StudioRenderer`가 텍스트 세부 DOM을 직접 만들지 않고 공용 컴포넌트에 위임한다.
+`StudioRenderer`가 graph node, binding과 style을 해석한 뒤 텍스트 세부 DOM을
+`StudioText`에 위임한다.
 
 ```ts
-<StudioTextRenderer
-  node={node}
-  style={style}
-  content={resolvedText}
-  mode="authoring" | "runtime" | "export"
+<StudioText
+  text={resolvedText}
+  appearance={resolveStudioTextAppearance(node, style)}
+  typography={typography}
+  autoFit={autoFit}
 />
 ```
 
-mode 차이:
+호출 경계:
 
-- authoring: 선택 wrapper와 진단 표시 허용
-- runtime: 편집 UI 없음
-- export: animation과 임시 cursor 없음
+- graph 기반 authoring, runtime과 export: `StudioRenderer` → `StudioText`
+- 시간표 composition의 `flexibleText`: composition resolver → `StudioText`
+- 렌더링 스파이크: 표본 adapter → `StudioText`
 
-텍스트 시각 결과와 layout 계산은 mode별로 달라지지 않는다.
+선택 wrapper, cursor와 진단 표시는 `StudioText` 밖의 authoring UI가 소유한다. 시각 결과와
+layout 계산에 실제 mode 차이가 없으므로 단지 문서 예시를 맞추기 위한 `mode` prop을 새로
+추가하지 않는다. export는 runtime과 같은 DOM을 캡처하고 animation, selection overlay와
+임시 cursor는 캡처 root 밖에 둔다.
 
 ## 14. 파일 변경 계획
 
 신규:
 
-- `src/components/studio/text/studio-text-renderer.tsx`
-- `src/components/studio/text/studio-text-effect-layers.tsx`
-- `src/utils/template-studio/text-appearance.ts`
-- `src/utils/template-studio/text-layout.ts`
 - `src/utils/template-studio/text-effect-outset.ts`
 - `src/utils/thumbnail-studio/text-effect-presets.ts`
 - Thumbnail Studio text inspector components
+
+이미 구현되어 계속 사용하는 공용 파일:
+
+- `src/components/studio/text/studio-text.tsx`
+- `src/utils/template-studio/text-appearance.ts`
+- `src/utils/template-studio/text-layout.ts`
 
 수정:
 
 - `src/types/template-studio.ts`
 - `src/components/studio/canvas/studio-renderer.tsx`
-- `src/components/studio/canvas/studio-auto-text.tsx`
 - `src/components/AutoResizeTextCard/AutoResizeText.tsx`
-- `src/utils/template-studio/migrations.ts`
 - `src/utils/template-studio/validator.ts`
 - Phase 2의 Thumbnail inspector
   (`src/app/(root)/admin/thumbnail-studio/_components/thumbnail-inspector.tsx`)
@@ -499,13 +592,13 @@ Phase 1·2의 실제 경로로 맞춰 둔 것이다. 렌더러와 Auto Text는 r
   `StudioTextAppearance`, `StudioTextPresetReference` 타입
 - `StudioGraphNode.textAppearance` 필드
 - stroke `outset` 변환 규칙과 띠 두께 계산의 검증된 구현
-  (`spike-rendering/_components/spike-scenes.ts`). §15 2번에서 정식 모듈로 승격한다.
+  (`src/utils/template-studio/text-appearance.ts`). 렌더링 스파이크도 이 공용 계산을 사용한다.
 
 ## 15. 구현 순서
 
 1. Phase 0A에서 선택한 renderer와 PNG 결정 확인
 2. appearance 타입, stroke 실효 두께와 resolver
-3. 고정 크기 `StudioTextRenderer`
+3. 고정 크기 `StudioText`
 4. 단일 stroke
 5. 여러 stroke와 순서
 6. shadow
@@ -517,12 +610,31 @@ Phase 1·2의 실제 경로로 맞춰 둔 것이다. 렌더러와 Auto Text는 r
 12. 현재 텍스트에서 preset 생성
 13. runtime/export가 사용할 renderer API 확정
 
+§15 9~13 상세 순서:
+
+1. 장면 13·14를 현재 `StudioText` 경로로 다시 측정하고 기준선을 기록한다.
+2. stroke 저장 순서를 실제 렌더 순서로 확정하고 renderer/band 테스트를 맞춘다.
+3. effect outset 순수 함수와 비정상 값, 방향별 shadow, stroke+shadow 테스트를 추가한다.
+4. `logicalBounds`와 `visualBounds`를 분리해 선택 효과, group/canvas overflow와 PNG 진단에
+   연결한다.
+5. `legacy scalar text appearance` materialize, appearance 명령, 범위 제한과 validator를 만든다.
+6. 단일 선택 Text inspector와 연속 조작 history를 연결한다.
+7. builtin registry, `StudioText` preview와 원자적 preset 적용을 만든다.
+8. 세션 custom preset 생성·복제·이름 변경·삭제·적용을 만든다.
+9. `StudioText`/`StudioRenderer` 경계를 문서와 호출부에 확정하고 회귀 검증한다.
+10. 장면 13·14를 최종 재검증한 뒤에만 스파이크 임시 코드를 제거한다.
+
 ### 현재 구현 상태 (2026-08-01)
 
-§15 1~8번은 코드에 반영됐다. 고정 크기와 `flexibleText`는 `StudioText` 하나를
+§15 1~13번은 코드에 반영됐다. 고정 크기와 `flexibleText`는 `StudioText` 하나를
 공유하고, 자동 크기 경로는 `AutoResizeText`가 한 번만 측정한 `<p>` 안에 효과
 레이어를 겹쳐 그린다. 따라서 레이어마다 별도 측정을 하지 않아 모든 레이어가 같은
 font size와 줄바꿈을 사용한다.
+
+저장 stroke 목록과 renderer drawable stroke 목록은 분리되어 disabled stroke도 Inspector에서
+복구·수정·복제·삭제·drag할 수 있다. canvas clipping과 group overflow는 logical bounds를
+바꾸지 않는 진단으로만 계산하고, resize handle과 저장 좌표는 계속 logical bounds를 쓴다.
+회전 visual bounds는 canvas sibling diagnostic box와 부모 회전 누적 geometry를 사용한다.
 
 §7의 공용 측정은 기존 시간표 화면의 동작을 보존하기 위해 `AutoResizeText`를
 호환 측정 어댑터로 유지하는 방식으로 구현했다. `fitMargin`의 기본값은 0이라
@@ -530,8 +642,9 @@ font size와 줄바꿈을 사용한다.
 별도의 직렬화된 `StudioTextLayout` 객체는 현재 렌더러 계약에 필요하지 않아 만들지
 않았다. 효과 레이어가 측정 결과를 직접 상속하는 현재 구조가 같은 목적을 달성한다.
 
-§8은 공용 `StudioText`를 `StudioRenderer`, 시간표 미리보기와 렌더링 스파이크에
-연결했고, `preserve`(기본값)와 `single` 줄바꿈 모드를 각각 유지한다.
+§8은 공용 `StudioText`를 `StudioRenderer`와 시간표 미리보기에 연결했고, 최종 제거 전
+스파이크에서 같은 제품 경로를 실측했다. `preserve`(기본값)와 `single` 줄바꿈 모드는
+각각 유지한다.
 
 ## 16. 완료 조건
 
@@ -545,9 +658,17 @@ font size와 줄바꿈을 사용한다.
 - 자동 크기 결과가 맞춤 경계에 붙지 않는다. 여유가 폭과 높이에 모두 적용되고
   상수 한 곳에서 관리된다(§8.2).
 - 두꺼운 효과가 불필요하게 잘리지 않는다.
+- logical bounds가 canvas 안이어도 visual effect의 부분 canvas clipping을 진단한다.
+- `overflow: hidden`/`clip` 그룹에서 자식 visual bounds가 잘리는 것을 별도로 진단한다.
+- `legacy scalar text appearance`를 첫 구조화 변경과 preset 적용에서 실제 style 저장값에서
+  제거하고, 지원하지 않는 scalar는 원본을 보존한 채 materialize를 차단한다.
+- disabled stroke도 Inspector의 저장 배열 순서로 다시 활성화·수정·복제·삭제·drag할 수
+  있고, renderer는 유효한 drawable stroke를 저장 순서대로 최대 8개만 그린다.
+- locked node의 새 텍스트 효과와 preset command는 document와 history를 바꾸지 않는다.
 - preset 적용 후 원본 preset 변경이 노드에 자동 전파되지 않는다.
 - builtin/custom preset 출처와 version 의미가 구분된다.
-- 관리자, runtime과 export가 같은 `StudioTextRenderer`를 사용할 계약이 완성된다.
+- graph 기반 관리자, runtime과 export가 `StudioRenderer` → `StudioText` 경로를 공유하고,
+  시간표 composition도 같은 `StudioText` 표현을 사용한다.
 - 기존 appearance 없는 시간표 텍스트가 기존 style fallback으로 렌더링된다.
 - 시간표 variant style 전파가 `textAppearance`를 아직 복사하지 않는다는 제약이
   명시돼 있다.

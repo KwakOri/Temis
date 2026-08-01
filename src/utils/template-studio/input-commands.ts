@@ -85,11 +85,21 @@ export const applyStudioSelectOptionValue = (
   if (!currentOption) return null;
 
   const previousValue = currentOption.value;
+  const nextValue = value.trim();
+  if (
+    !nextValue ||
+    input.options.some(
+      (option, index) => index !== optionIndex && option.value === nextValue,
+    )
+  ) {
+    return null;
+  }
+  if (previousValue === nextValue) return { previousValue };
   input.options = input.options.map((option, index) =>
-    index === optionIndex ? { ...option, value } : option,
+    index === optionIndex ? { ...option, value: nextValue } : option,
   );
 
-  if (input.defaultValue === previousValue) input.defaultValue = value;
+  if (input.defaultValue === previousValue) input.defaultValue = nextValue;
 
   Object.values(draft.graph.nodes).forEach((node) => {
     if (
@@ -101,7 +111,7 @@ export const applyStudioSelectOptionValue = (
 
     const mappedAssetId = node.binding.assetByOption[previousValue];
     delete node.binding.assetByOption[previousValue];
-    node.binding.assetByOption[value] = mappedAssetId ?? null;
+    node.binding.assetByOption[nextValue] = mappedAssetId ?? null;
   });
 
   return { previousValue };

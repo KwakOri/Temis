@@ -20,6 +20,13 @@
 - 토큰 미주입 상태의 `supabase ...`(bare command) 실행은 지양한다.
 - 원격 DB 변경 명령(`db push --linked`, 원격 대상 migration 복구/롤백 등)은 사용자 명시 요청이 있을 때만 실행한다.
 
+## 개발 검증 및 로컬 서비스 규칙
+
+- 저장소에 큰 이미지 자산이 많으므로 개발 중 production build 및 build test는 기본 검증에서 제외한다.
+- 대신 `npm run lint`, `npx tsc --noEmit`, 관련 `check:*` 스크립트와 브라우저 실측을 우선한다.
+- sandbox에서 `tsx` IPC가 `EPERM`이면 같은 검사를 `node --import tsx scripts/<check-file>` 방식으로 실행한다.
+- `npm run dev:local`은 기본적으로 local database, API gateway/PostgREST, Auth만 띄우고 Realtime, Storage, Studio, mail, analytics 등 선택 서비스를 제외한다. 선택 서비스가 필요한 작업에서만 `SUPABASE_START_EXCLUDE`를 명시적으로 덮어쓴다.
+
 ## 안전 규칙
 
 - 운영/스테이징 DB에 영향이 있는 명령은 목적과 대상(ref)을 먼저 확인한다.

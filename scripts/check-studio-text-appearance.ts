@@ -7,7 +7,7 @@
  *    실효 두께이고 CSS는 그 두 배를 받는다. 이 변환이 렌더러·인스펙터·효과 바깥 영역에서
  *    갈리면 인스펙터에 적은 숫자와 화면에 보이는 두께가 달라진다.
  * 2. 구조화된 효과가 없는 기존 문서의 시각 결과가 바뀌지 않는 것. 시간표 문서에는
- *    `textAppearance`가 없으므로 전부 legacy 경로를 탄다. 여기서 기본색을 채워 넣으면
+ *    `textAppearance`가 없으므로 전부 legacy scalar text appearance 경로를 탄다. 여기서 기본색을 채워 넣으면
  *    색을 지정하지 않고 물려받던 글자의 색이 조용히 바뀐다.
  *
  * 이 검사가 덮지 못하는 범위:
@@ -24,6 +24,7 @@ import type {
   StudioTextStroke,
 } from "../src/types/template-studio";
 import {
+  getStudioDrawableTextStrokes,
   getStudioOrderedTextStrokes,
   getStudioTextStrokeBands,
   hasStudioTextAppearance,
@@ -33,11 +34,6 @@ import {
   toStudioCssColor,
   toStudioCssStrokeWidth,
 } from "../src/utils/template-studio/text-appearance";
-import {
-  STUDIO_TEXT_STROKE_CSS_SCALE as SPIKE_SCALE,
-  toCssStrokeWidth as spikeToCssStrokeWidth,
-  getSpikeStrokeBands,
-} from "../src/app/(root)/admin/thumbnail-studio/spike-rendering/_components/spike-scenes";
 
 const createTextNode = (
   overrides: Partial<StudioGraphNode> = {},
@@ -86,8 +82,8 @@ const orderedStrokes = getStudioOrderedTextStrokes([
 ]);
 assert.deepEqual(
   orderedStrokes.map((item) => item.id),
-  ["outer", "mid", "inner"],
-  "두꺼운 것을 먼저 그린다. 얇은 것을 먼저 그리면 두꺼운 것이 그 위를 덮어 안쪽 stroke가 사라진다.",
+  ["inner", "outer", "mid"],
+  "저장 배열은 뒤→앞 렌더 순서다. outset은 z-order를 바꾸지 않는다.",
 );
 
 assert.deepEqual(
@@ -95,15 +91,15 @@ assert.deepEqual(
     stroke("on", 8),
     stroke("off", 12, { enabled: false }),
   ]).map((item) => item.id),
-  ["on"],
-  "꺼 둔 stroke는 그리지 않는다.",
+  ["on", "off"],
+  "stored order includes disabled strokes for the inspector.",
 );
 assert.deepEqual(
-  getStudioOrderedTextStrokes([stroke("zero", 0), stroke("real", 6)]).map(
+  getStudioDrawableTextStrokes([stroke("zero", 0), stroke("real", 6)]).map(
     (item) => item.id,
   ),
   ["real"],
-  "두께가 0인 stroke를 레이어로 만들면 순서를 바꿔도 화면이 그대로인 것처럼 보인다.",
+  "drawable strokes exclude zero outset while stored order remains available to the inspector.",
 );
 
 // 원본 배열을 건드리지 않는다. 인스펙터 목록은 저장 순서를 유지해야 한다.
@@ -135,6 +131,22 @@ assert.deepEqual(
   getStudioTextStrokeBands([stroke("only", 10)]).map(({ band }) => band),
   [10],
   "하나뿐이면 자기 두께가 그대로 보인다.",
+);
+
+assert.deepEqual(
+  getStudioTextStrokeBands([
+    stroke("enabled", 8),
+    stroke("disabled-front", 16, { enabled: false }),
+  ]).map(({ stroke: item, band, hidden }) => ({
+    id: item.id,
+    band,
+    hidden,
+  })),
+  [
+    { id: "enabled", band: 8, hidden: false },
+    { id: "disabled-front", band: 0, hidden: true },
+  ],
+  "disabled stroke는 Inspector 행으로 남지만 다른 stroke를 가리는 계산에는 참여하지 않는다.",
 );
 
 assert.deepEqual(
@@ -172,8 +184,8 @@ assert.equal(resolved.source, "appearance");
 assert.deepEqual(resolved.fill, { color: "#fde047", opacity: 0.8 });
 assert.deepEqual(
   resolved.strokes.map((item) => item.id),
-  ["outer", "inner"],
-  "resolver가 그릴 순서로 정렬해서 준다. 렌더러가 다시 정렬하면 두 곳이 갈린다.",
+  ["inner", "outer"],
+  "resolver는 저장된 뒤→앞 순서를 그대로 보존한다.",
 );
 assert.equal(resolved.shadow?.blur, 18);
 assert.deepEqual(resolved.presetRef, {
@@ -373,26 +385,22 @@ assert.equal(
   "예전 값에 레이어를 더하면 외곽선이 두 번 그려진다.",
 );
 
-// --- 스파이크가 승격된 계산을 그대로 쓴다 ---
-
-assert.equal(
-  SPIKE_SCALE,
-  STUDIO_TEXT_STROKE_CSS_SCALE,
-  "스파이크가 자기 배수를 들고 있으면 그 페이지에서 맞다고 판정한 것이 제품에서 맞다는 보장이 없다.",
-);
-assert.equal(spikeToCssStrokeWidth(7), toStudioCssStrokeWidth(7));
 assert.deepEqual(
-  getSpikeStrokeBands([
-    { id: "s-outer", color: "#111827", outset: 12, opacity: 1 },
-    { id: "s-mid", color: "#ffffff", outset: 8, opacity: 1 },
-    { id: "s-inner", color: "#ef4444", outset: 4, opacity: 1 },
-  ]).map(({ stroke: item, band }) => ({ id: item.id, band })),
+  getStudioTextStrokeBands([
+    stroke("outer", 12),
+    stroke("middle", 4),
+    stroke("front", 8),
+  ]).map(({ stroke: item, band, hidden }) => ({
+    id: item.id,
+    band,
+    hidden,
+  })),
   [
-    { id: "s-outer", band: 4 },
-    { id: "s-mid", band: 4 },
-    { id: "s-inner", band: 4 },
+    { id: "outer", band: 4, hidden: false },
+    { id: "middle", band: 0, hidden: true },
+    { id: "front", band: 8, hidden: false },
   ],
-  "스파이크의 띠 두께도 승격된 계산을 거쳐야 한다.",
+  "a later thicker stroke hides earlier layers even when it is not adjacent",
 );
 
 console.log("Studio text appearance baseline checks passed.");

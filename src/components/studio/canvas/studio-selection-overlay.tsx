@@ -16,6 +16,8 @@ import {
 export interface StudioSelectionOverlayProps {
   /** 고른 것을 감싸는 사각형. 캔버스 좌표 기준이다. */
   bounds: StudioResizeGeometry;
+  /** 효과를 포함한 진단용 사각형. resize handle과 저장 geometry에는 사용하지 않는다. */
+  visualBounds?: StudioResizeGeometry;
   rotateDeg?: number;
   /** 캔버스 확대 비율. 손잡이는 화면에서 같은 크기로 보여야 한다. */
   scale: number;
@@ -63,6 +65,7 @@ const getHandleOffset = (
  */
 export function StudioSelectionOverlay({
   bounds,
+  visualBounds,
   rotateDeg = 0,
   scale,
   showHandles = true,
@@ -132,106 +135,121 @@ export function StudioSelectionOverlay({
   );
 
   return (
-    <div
-      className="pointer-events-none absolute z-50"
-      data-studio-selection-overlay="true"
-      style={{
-        left: bounds.left,
-        top: bounds.top,
-        width: bounds.width,
-        height: bounds.height,
-        transform: rotateDeg ? `rotate(${rotateDeg}deg)` : undefined,
-      }}
-    >
-      <div
-        className="absolute inset-0 border-[var(--accent,#4f8cff)]"
-        style={{ borderWidth }}
-      />
-
-      {showHandles ? (
-        <>
-          {STUDIO_RESIZE_HANDLES.map((handle) => {
-            const offset = getHandleOffset(handle);
-
-            return (
-              <button
-                aria-label={`Resize ${handle}`}
-                className="pointer-events-auto absolute rounded-[2px] border border-[var(--accent,#4f8cff)] bg-white"
-                data-studio-resize-handle={handle}
-                key={handle}
-                style={{
-                  left: offset.left,
-                  top: offset.top,
-                  width: handleSize,
-                  height: handleSize,
-                  marginLeft: -handleSize / 2,
-                  marginTop: -handleSize / 2,
-                  cursor: HANDLE_CURSOR[handle],
-                }}
-                type="button"
-                onPointerDown={(event) =>
-                  beginPointerDrag(event, ({ deltaX, deltaY, shiftKey }) => {
-                    // 회전한 객체는 화면의 오른쪽이 객체의 오른쪽이 아니다.
-                    const localDelta = rotateStudioDelta({
-                      deltaX: deltaX / scale,
-                      deltaY: deltaY / scale,
-                      rotateDeg,
-                    });
-
-                    onResize?.(
-                      resolveStudioResizeGeometry({
-                        start: bounds,
-                        handle,
-                        deltaX: localDelta.deltaX,
-                        deltaY: localDelta.deltaY,
-                        lockAspectRatio: lockAspectRatio || shiftKey,
-                      }),
-                    );
-                  })
-                }
-              />
-            );
-          })}
-
-          <button
-            aria-label="Rotate selection"
-            className={cn(
-              "pointer-events-auto absolute rounded-full border border-[var(--accent,#4f8cff)] bg-white",
-            )}
-            data-studio-rotate-handle="true"
-            style={{
-              left: "50%",
-              top: 0,
-              width: handleSize,
-              height: handleSize,
-              marginLeft: -handleSize / 2,
-              marginTop: -(handleSize * 3),
-              cursor: "grab",
-            }}
-            type="button"
-            onPointerDown={(event) => {
-              const overlayRect =
-                event.currentTarget.parentElement?.getBoundingClientRect();
-              const center = overlayRect
-                ? {
-                    x: overlayRect.left + overlayRect.width / 2,
-                    y: overlayRect.top + overlayRect.height / 2,
-                  }
-                : { x: event.clientX, y: event.clientY };
-
-              beginPointerDrag(event, ({ clientX, clientY, shiftKey }) =>
-                onRotate?.(
-                  getStudioPointerRotationDeg({
-                    center,
-                    pointer: { x: clientX, y: clientY },
-                    snapToStep: shiftKey,
-                  }),
-                ),
-              );
-            }}
-          />
-        </>
+    <>
+      {visualBounds ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute z-50 border border-dashed border-[var(--accent,#4f8cff)] opacity-60"
+          data-studio-visual-bounds="true"
+          style={{
+            left: visualBounds.left,
+            top: visualBounds.top,
+            width: visualBounds.width,
+            height: visualBounds.height,
+          }}
+        />
       ) : null}
-    </div>
+      <div
+        className="pointer-events-none absolute z-50"
+        data-studio-selection-overlay="true"
+        style={{
+          left: bounds.left,
+          top: bounds.top,
+          width: bounds.width,
+          height: bounds.height,
+          transform: rotateDeg ? `rotate(${rotateDeg}deg)` : undefined,
+        }}
+      >
+        <div
+          className="absolute inset-0 border-[var(--accent,#4f8cff)]"
+          style={{ borderWidth }}
+        />
+
+        {showHandles ? (
+          <>
+            {STUDIO_RESIZE_HANDLES.map((handle) => {
+              const offset = getHandleOffset(handle);
+
+              return (
+                <button
+                  aria-label={`Resize ${handle}`}
+                  className="pointer-events-auto absolute rounded-[2px] border border-[var(--accent,#4f8cff)] bg-white"
+                  data-studio-resize-handle={handle}
+                  key={handle}
+                  style={{
+                    left: offset.left,
+                    top: offset.top,
+                    width: handleSize,
+                    height: handleSize,
+                    marginLeft: -handleSize / 2,
+                    marginTop: -handleSize / 2,
+                    cursor: HANDLE_CURSOR[handle],
+                  }}
+                  type="button"
+                  onPointerDown={(event) =>
+                    beginPointerDrag(event, ({ deltaX, deltaY, shiftKey }) => {
+                      // 회전한 객체는 화면의 오른쪽이 객체의 오른쪽이 아니다.
+                      const localDelta = rotateStudioDelta({
+                        deltaX: deltaX / scale,
+                        deltaY: deltaY / scale,
+                        rotateDeg,
+                      });
+
+                      onResize?.(
+                        resolveStudioResizeGeometry({
+                          start: bounds,
+                          handle,
+                          deltaX: localDelta.deltaX,
+                          deltaY: localDelta.deltaY,
+                          lockAspectRatio: lockAspectRatio || shiftKey,
+                        }),
+                      );
+                    })
+                  }
+                />
+              );
+            })}
+
+            <button
+              aria-label="Rotate selection"
+              className={cn(
+                "pointer-events-auto absolute rounded-full border border-[var(--accent,#4f8cff)] bg-white",
+              )}
+              data-studio-rotate-handle="true"
+              style={{
+                left: "50%",
+                top: 0,
+                width: handleSize,
+                height: handleSize,
+                marginLeft: -handleSize / 2,
+                marginTop: -(handleSize * 3),
+                cursor: "grab",
+              }}
+              type="button"
+              onPointerDown={(event) => {
+                const overlayRect =
+                  event.currentTarget.parentElement?.getBoundingClientRect();
+                const center = overlayRect
+                  ? {
+                      x: overlayRect.left + overlayRect.width / 2,
+                      y: overlayRect.top + overlayRect.height / 2,
+                    }
+                  : { x: event.clientX, y: event.clientY };
+
+                beginPointerDrag(event, ({ clientX, clientY, shiftKey }) =>
+                  onRotate?.(
+                    getStudioPointerRotationDeg({
+                      center,
+                      pointer: { x: clientX, y: clientY },
+                      snapToStep: shiftKey,
+                    }),
+                  ),
+                );
+              }}
+            />
+          </>
+        ) : null}
+      </div>
+    </>
   );
 }

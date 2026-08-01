@@ -7,6 +7,7 @@ import AutoResizeText from "@/components/AutoResizeTextCard/AutoResizeText";
 import type { StudioStyleRecord } from "@/types/template-studio";
 import {
   shouldRenderStudioTextEffectLayers,
+  getStudioDrawableTextStrokes,
   toStudioCssColor,
   toStudioCssStrokeWidth,
   type ResolvedStudioTextAppearance,
@@ -95,7 +96,7 @@ const getShadowCss = (
  * - 효과 레이어는 클릭을 먹지 않고 보조기기에도 읽히지 않는다.
  * - 읽히는 글자는 foreground 하나다. 레이어마다 같은 글자를 노출하면 화면 낭독기가 같은
  *   문장을 여러 번 읽는다.
- * - 외곽선은 두꺼운 것부터 뒤에 그린다. 순서는 resolver가 정한다.
+ * - 외곽선은 appearance.strokes의 저장된 뒤→앞 순서로 그린다.
  * - 그림자는 가장 뒤 레이어에서 한 번만 그린다. 레이어마다 그리면 그림자가 겹쳐 짙어진다.
  *
  * 자동 크기일 때는 크기를 한 번만 재고 레이어가 그 값을 물려받는다. 레이어마다 재면 폰트
@@ -114,7 +115,12 @@ export function StudioText({
   const content = text || EMPTY_TEXT_PLACEHOLDER;
   const hasEffectLayers = shouldRenderStudioTextEffectLayers(appearance);
   const shadowCss = getShadowCss(appearance);
-  const { strokes, fill } = appearance;
+  const { fill } = appearance;
+  const strokes = getStudioDrawableTextStrokes(appearance.strokes);
+  const shadowLayerIndex = strokes.findIndex(
+    (stroke) => stroke.opacity > 0 && Number.isFinite(stroke.opacity),
+  );
+  const shadowOnForeground = shadowLayerIndex < 0;
   const fillStyle: React.CSSProperties = {
     ...(fill.color ? { color: fill.color } : {}),
     opacity: fill.opacity,
@@ -137,7 +143,7 @@ export function StudioText({
         ...typography,
         ...getStrokeLayerStyle(stroke.color, stroke.outset, stroke.opacity),
         // 가장 뒤 레이어에서만 그림자를 그린다.
-        textShadow: index === 0 ? shadowCss : undefined,
+        textShadow: index === shadowLayerIndex ? shadowCss : undefined,
       }}
     >
       {content}
@@ -172,7 +178,7 @@ export function StudioText({
                   pointerEvents: "none",
                   ...typography,
                   ...fillStyle,
-                  textShadow: strokes.length === 0 ? shadowCss : undefined,
+                  textShadow: shadowOnForeground ? shadowCss : undefined,
                 }}
               >
                 {content}
@@ -201,7 +207,18 @@ export function StudioText({
   }
 
   if (!hasEffectLayers) {
-    return <>{content}</>;
+    if (appearance.source === "legacyStyle") return <>{content}</>;
+
+    return (
+      <span
+        className={className}
+        data-studio-text-node="true"
+        data-effect-layer="foreground"
+        style={{ ...typography, ...fillStyle }}
+      >
+        {content}
+      </span>
+    );
   }
 
   return (
@@ -225,7 +242,7 @@ export function StudioText({
           ...typography,
           ...fillStyle,
           // 외곽선이 없으면 이 레이어가 가장 뒤이므로 그림자를 여기서 그린다.
-          textShadow: strokes.length === 0 ? shadowCss : undefined,
+          textShadow: shadowOnForeground ? shadowCss : undefined,
         }}
       >
         {content}

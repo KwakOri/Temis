@@ -24,13 +24,11 @@ const STUDIO_RUNTIME_SHELL =
 /**
  * `html-to-image`가 아직 남아 있어도 되는 곳.
  *
- * 스파이크 페이지는 두 라이브러리를 나란히 비교하는 것이 목적이므로 둘 다 있어야 한다.
  * 레거시 시간표 공유 화면은 Studio 문서를 쓰지 않고 이번에 결과를 확인하지도 않았다.
- * 부분집합으로 본다. 스파이크 폴더는 Phase 3 재검증 뒤 사라지므로 목록에서 빠지는 것은
- * 정상이고, 새로 늘어나는 것만 막는다.
+ * 부분집합으로 본다. 렌더링 스파이크 폴더는 Phase 3 최종 재검증 뒤 제거했으므로 목록에는
+ * 남아 있지 않아야 하고, 새로 늘어나는 것만 막는다.
  */
 const HTML_TO_IMAGE_ALLOWLIST = new Set([
-  "src/app/(root)/admin/thumbnail-studio/spike-rendering/_components/rendering-spike-client.tsx",
   "src/components/TimeTable/TweetPreviewModal.tsx",
 ]);
 

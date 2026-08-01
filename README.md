@@ -35,6 +35,10 @@ npm run dev:remote
 `dev:local`:
 
 - starts or reuses the Docker local Supabase stack
+- starts only the local database, API gateway/PostgREST, and Auth services by default;
+  Realtime, Storage, Studio, mail, analytics, and other optional services stay excluded
+- override the exclusion list only when a feature explicitly needs an optional service with
+  `SUPABASE_START_EXCLUDE`
 - applies pending local migrations
 - injects the local API URL, publishable key, and secret key into the server
   runtime (no Supabase key is exposed through `NEXT_PUBLIC_*`)
@@ -67,6 +71,13 @@ Dump mode additionally:
 Tip: pass Next.js args through the command, e.g. `npm run dev:local -- -p 3001`.
 Tip: override copied schemas with `SUPABASE_REMOTE_DUMP_SCHEMAS` (comma-separated).
 Tip: override excluded services with `SUPABASE_START_EXCLUDE` (comma-separated, empty string to disable exclusions).
+
+## Development Verification
+
+The repository contains large image assets, so production build tests are intentionally
+excluded from the normal development loop. Prefer `npm run lint`, `npx tsc --noEmit`, and
+the focused `check:*` scripts. If the sandbox reports an `tsx` IPC `EPERM`, run the same
+check with `node --import tsx scripts/<check-file>`.
 
 ### Remote target
 

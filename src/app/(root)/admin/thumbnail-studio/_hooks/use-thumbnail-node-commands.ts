@@ -5,7 +5,11 @@ import { useCallback, useMemo } from "react";
 import type {
   StudioGraphNodeType,
   StudioImageFit,
+  StudioRuntimeValues,
   StudioTemplateDocument,
+  StudioTextAppearance,
+  StudioTextShadow,
+  StudioTextStroke,
 } from "@/types/template-studio";
 import {
   applyStudioNodePositions,
@@ -45,6 +49,7 @@ import {
   applyStudioNodeOffset,
   applyStudioNodeStyleValue,
   applyStudioNodeTextAlignment,
+  ensureStudioNodeStyleId,
   planStudioNudgeNodes,
   resolveStudioDragTargetNodeIds,
   type StudioTextAlignment,
@@ -59,6 +64,41 @@ import {
   createStudioThumbnailNode,
   planStudioNodeInsertion,
 } from "@/utils/thumbnail-studio/node-defaults";
+import {
+  createDefaultStudioTextShadow,
+  createDefaultStudioTextStroke,
+  isStudioTextOpacity,
+  isStudioTextOutset,
+  materializeStudioTextAppearance,
+  removeLegacyStudioTextAppearanceScalars,
+  STUDIO_TEXT_MAX_OUTSET,
+  STUDIO_TEXT_MAX_STROKES,
+  validateStudioTextAppearance,
+} from "@/utils/template-studio/text-appearance-commands";
+import {
+  applyThumbnailStudioBindNodeToInput,
+  applyThumbnailStudioCreateInputForNode,
+  applyThumbnailStudioMaterializeNodeBinding,
+  applyThumbnailStudioRestoreNodeBindingFallback,
+  applyThumbnailStudioSetSelectAssetMapping,
+  applyThumbnailStudioSetSelectTextOutput,
+} from "@/utils/thumbnail-studio/binding-commands";
+import {
+  cloneStudioTextEffectPreset,
+  isStudioBuiltinTextEffectPresetVersionValid,
+  pickStudioTextPresetTypography,
+  type StudioTextEffectPreset,
+} from "@/utils/thumbnail-studio/text-effect-presets";
+import {
+  createStudioCustomTextPreset,
+  deleteStudioCustomTextPreset,
+  duplicateStudioCustomTextPreset,
+  renameStudioCustomTextPreset,
+} from "@/utils/thumbnail-studio/text-preset-session";
+import {
+  formatStudioImageObjectPosition,
+  parseStudioImageObjectPosition,
+} from "@/utils/thumbnail-studio/image-object-position";
 
 /** 되돌리기 한 단위를 이 변경이 시작하는지. 끌고 있는 중이면 시작하지 않는다. */
 export interface ThumbnailUpdateOptions {
@@ -81,6 +121,13 @@ export interface ThumbnailNodeCommandsOptions {
   applySelection: (nodeIds: string[], primaryNodeId?: string | null) => void;
   selectSingleNode: (nodeId: string | null) => void;
   onStatusMessage: (message: string) => void;
+  getPreviewValues?: () => StudioRuntimeValues;
+  getCustomTextPresets?: () => StudioTextEffectPreset[];
+  setCustomTextPresets?: (
+    value:
+      | StudioTextEffectPreset[]
+      | ((current: StudioTextEffectPreset[]) => StudioTextEffectPreset[]),
+  ) => void;
 }
 
 export interface ThumbnailNodeCommands {
@@ -121,6 +168,45 @@ export interface ThumbnailNodeCommands {
   setImageFit: (nodeId: string, fit: StudioImageFit) => void;
   setStaticText: (nodeId: string, value: string) => void;
   setImageAsset: (nodeId: string, assetId: string | null) => void;
+  setStaticBinding: (
+    nodeId: string,
+    strategy?: "materialize" | "restore",
+  ) => void;
+  createInputFromNode: (nodeId: string) => string | null;
+  bindNodeToInput: (nodeId: string, inputId: string) => void;
+  setSelectTextOutput: (nodeId: string, output: "label" | "value") => void;
+  setSelectAssetMapping: (
+    nodeId: string,
+    optionValue: string,
+    assetId: string | null,
+  ) => void;
+  materializeTextAppearance: (nodeId: string) => void;
+  setTextFill: (
+    nodeId: string,
+    patch: Partial<StudioTextAppearance["fill"]>,
+    options?: ThumbnailUpdateOptions,
+  ) => void;
+  addTextStroke: (nodeId: string) => void;
+  updateTextStroke: (
+    nodeId: string,
+    strokeId: string,
+    patch: Partial<StudioTextStroke>,
+    options?: ThumbnailUpdateOptions,
+  ) => void;
+  duplicateTextStroke: (nodeId: string, strokeId: string) => void;
+  deleteTextStroke: (nodeId: string, strokeId: string) => void;
+  moveTextStroke: (nodeId: string, strokeId: string, toIndex: number) => void;
+  setTextShadow: (
+    nodeId: string,
+    patch: Partial<StudioTextShadow>,
+    options?: ThumbnailUpdateOptions,
+  ) => void;
+  removeTextShadow: (nodeId: string) => void;
+  applyTextPreset: (nodeId: string, preset: StudioTextEffectPreset) => void;
+  createTextPreset: (nodeId: string, label?: string) => void;
+  duplicateTextPreset: (presetId: string) => void;
+  renameTextPreset: (presetId: string, label: string) => void;
+  deleteTextPreset: (presetId: string) => void;
   alignNodes: (axis: StudioAlignAxis, alignment: StudioAlignment) => void;
   distributeNodes: (axis: StudioAlignAxis) => void;
   setCanvasSize: (size: { width: number; height: number }) => void;
@@ -131,6 +217,11 @@ export interface ThumbnailNodeCommands {
   setCanvasName: (name: string) => void;
   selectAll: () => void;
 }
+
+type StudioTextAppearanceMutator = (
+  appearance: StudioTextAppearance,
+  style: Record<string, string | number | undefined>,
+) => void;
 
 /**
  * 썸네일 편집기의 문서 명령.
@@ -149,7 +240,447 @@ export function useThumbnailNodeCommands({
   applySelection,
   selectSingleNode,
   onStatusMessage,
+  getPreviewValues,
+  getCustomTextPresets,
+  setCustomTextPresets,
 }: ThumbnailNodeCommandsOptions): ThumbnailNodeCommands {
+  const applyTextAppearanceMutation = useCallback(
+    (
+      nodeId: string,
+      mutate: StudioTextAppearanceMutator,
+      options?: ThumbnailUpdateOptions,
+    ) => {
+      const document = getDocument();
+      const node = document.graph.nodes[nodeId];
+      if (!node || (node.type !== "text" && node.type !== "flexibleText")) {
+        onStatusMessage("Text appearance requires one text node");
+        return false;
+      }
+      if (node.locked) {
+        onStatusMessage("Locked text cannot change appearance");
+        return false;
+      }
+
+      const currentStyle = node.styleId
+        ? document.styles[node.styleId]
+        : undefined;
+      const current = materializeStudioTextAppearance(node, currentStyle);
+      if (!current.ok) {
+        onStatusMessage(
+          current.diagnostics[0]?.message ?? "Text appearance is invalid",
+        );
+        return false;
+      }
+
+      const nextStyle = { ...current.style };
+      const nextAppearance = JSON.parse(
+        JSON.stringify(current.appearance),
+      ) as StudioTextAppearance;
+      mutate(nextAppearance, nextStyle);
+      const diagnostics = validateStudioTextAppearance(nextAppearance);
+      if (diagnostics.length > 0) {
+        onStatusMessage(
+          diagnostics[0]?.message ?? "Text appearance is invalid",
+        );
+        return false;
+      }
+
+      updateDocument((draft) => {
+        const draftNode = draft.graph.nodes[nodeId];
+        if (!draftNode) return;
+        const styleId = ensureStudioNodeStyleId(draft, draftNode);
+        const draftStyle = removeLegacyStudioTextAppearanceScalars({
+          ...(draft.styles[styleId] ?? {}),
+          ...nextStyle,
+        });
+        draftNode.textAppearance = nextAppearance;
+        draft.styles[styleId] = draftStyle;
+      }, options);
+      return true;
+    },
+    [getDocument, onStatusMessage, updateDocument],
+  );
+
+  const materializeTextAppearance = useCallback(
+    (nodeId: string) => {
+      applyTextAppearanceMutation(nodeId, () => {});
+    },
+    [applyTextAppearanceMutation],
+  );
+
+  const setTextFill = useCallback(
+    (
+      nodeId: string,
+      patch: Partial<StudioTextAppearance["fill"]>,
+      options?: ThumbnailUpdateOptions,
+    ) => {
+      applyTextAppearanceMutation(
+        nodeId,
+        (appearance) => {
+          if (typeof patch.color === "string") {
+            appearance.fill.color = patch.color;
+          }
+          if (typeof patch.opacity === "number") {
+            appearance.fill.opacity = patch.opacity;
+          }
+        },
+        options,
+      );
+    },
+    [applyTextAppearanceMutation],
+  );
+
+  const addTextStroke = useCallback(
+    (nodeId: string) => {
+      const document = getDocument();
+      const node = document.graph.nodes[nodeId];
+      const style = node?.styleId ? document.styles[node.styleId] : undefined;
+      const current = node
+        ? materializeStudioTextAppearance(node, style)
+        : { ok: false as const, diagnostics: [] };
+      if (!current.ok) {
+        onStatusMessage(
+          current.diagnostics[0]?.message ?? "Text appearance is invalid",
+        );
+        return;
+      }
+      if (current.appearance.strokes.length >= STUDIO_TEXT_MAX_STROKES) {
+        onStatusMessage(
+          `Text supports at most ${STUDIO_TEXT_MAX_STROKES} strokes.`,
+        );
+        return;
+      }
+
+      applyTextAppearanceMutation(nodeId, (appearance) => {
+        appearance.strokes.push(
+          createDefaultStudioTextStroke(createStudioId("stroke")),
+        );
+      });
+    },
+    [applyTextAppearanceMutation, getDocument, onStatusMessage],
+  );
+
+  const updateTextStroke = useCallback(
+    (
+      nodeId: string,
+      strokeId: string,
+      patch: Partial<StudioTextStroke>,
+      options?: ThumbnailUpdateOptions,
+    ) => {
+      if (patch.outset !== undefined && !isStudioTextOutset(patch.outset)) {
+        onStatusMessage(
+          `Stroke outset must be between 0 and ${STUDIO_TEXT_MAX_OUTSET}.`,
+        );
+        return;
+      }
+      if (patch.opacity !== undefined && !isStudioTextOpacity(patch.opacity)) {
+        onStatusMessage("Stroke opacity must be between 0 and 1.");
+        return;
+      }
+      applyTextAppearanceMutation(
+        nodeId,
+        (appearance) => {
+          const stroke = appearance.strokes.find(({ id }) => id === strokeId);
+          if (!stroke) return;
+          if (typeof patch.label === "string") stroke.label = patch.label;
+          if (typeof patch.enabled === "boolean")
+            stroke.enabled = patch.enabled;
+          if (typeof patch.color === "string") stroke.color = patch.color;
+          if (typeof patch.outset === "number") {
+            stroke.outset = patch.outset;
+          }
+          if (typeof patch.opacity === "number") {
+            stroke.opacity = patch.opacity;
+          }
+        },
+        options,
+      );
+    },
+    [applyTextAppearanceMutation, onStatusMessage],
+  );
+
+  const duplicateTextStroke = useCallback(
+    (nodeId: string, strokeId: string) => {
+      const document = getDocument();
+      const node = document.graph.nodes[nodeId];
+      const style = node?.styleId ? document.styles[node.styleId] : undefined;
+      const current = node
+        ? materializeStudioTextAppearance(node, style)
+        : { ok: false as const, diagnostics: [] };
+      if (!current.ok) {
+        onStatusMessage(
+          current.diagnostics[0]?.message ?? "Text appearance is invalid",
+        );
+        return;
+      }
+      if (current.appearance.strokes.length >= STUDIO_TEXT_MAX_STROKES) {
+        onStatusMessage(
+          `Text supports at most ${STUDIO_TEXT_MAX_STROKES} strokes.`,
+        );
+        return;
+      }
+
+      applyTextAppearanceMutation(nodeId, (appearance) => {
+        const index = appearance.strokes.findIndex(({ id }) => id === strokeId);
+        if (index < 0) return;
+        const copy = {
+          ...appearance.strokes[index],
+          id: createStudioId("stroke"),
+        };
+        appearance.strokes.splice(index + 1, 0, copy);
+      });
+    },
+    [applyTextAppearanceMutation, getDocument, onStatusMessage],
+  );
+
+  const deleteTextStroke = useCallback(
+    (nodeId: string, strokeId: string) => {
+      applyTextAppearanceMutation(nodeId, (appearance) => {
+        appearance.strokes = appearance.strokes.filter(
+          ({ id }) => id !== strokeId,
+        );
+      });
+    },
+    [applyTextAppearanceMutation],
+  );
+
+  const moveTextStroke = useCallback(
+    (nodeId: string, strokeId: string, toIndex: number) => {
+      applyTextAppearanceMutation(nodeId, (appearance) => {
+        const fromIndex = appearance.strokes.findIndex(
+          ({ id }) => id === strokeId,
+        );
+        if (fromIndex < 0) return;
+        const [stroke] = appearance.strokes.splice(fromIndex, 1);
+        const nextIndex = Math.max(
+          0,
+          Math.min(appearance.strokes.length, Math.trunc(toIndex)),
+        );
+        appearance.strokes.splice(nextIndex, 0, stroke);
+      });
+    },
+    [applyTextAppearanceMutation],
+  );
+
+  const setTextShadow = useCallback(
+    (
+      nodeId: string,
+      patch: Partial<StudioTextShadow>,
+      options?: ThumbnailUpdateOptions,
+    ) => {
+      if (
+        (patch.offsetX !== undefined &&
+          (typeof patch.offsetX !== "number" ||
+            !Number.isFinite(patch.offsetX))) ||
+        (patch.offsetY !== undefined &&
+          (typeof patch.offsetY !== "number" ||
+            !Number.isFinite(patch.offsetY))) ||
+        (patch.blur !== undefined &&
+          (typeof patch.blur !== "number" ||
+            !Number.isFinite(patch.blur) ||
+            patch.blur < 0))
+      ) {
+        onStatusMessage(
+          "Text shadow offsets must be finite and blur non-negative.",
+        );
+        return;
+      }
+      if (patch.opacity !== undefined && !isStudioTextOpacity(patch.opacity)) {
+        onStatusMessage("Text shadow opacity must be between 0 and 1.");
+        return;
+      }
+      applyTextAppearanceMutation(
+        nodeId,
+        (appearance) => {
+          const shadow = appearance.shadow ?? createDefaultStudioTextShadow();
+          if (typeof patch.enabled === "boolean")
+            shadow.enabled = patch.enabled;
+          if (typeof patch.color === "string") shadow.color = patch.color;
+          if (typeof patch.offsetX === "number") {
+            shadow.offsetX = patch.offsetX;
+          }
+          if (typeof patch.offsetY === "number") {
+            shadow.offsetY = patch.offsetY;
+          }
+          if (typeof patch.blur === "number") {
+            shadow.blur = patch.blur;
+          }
+          if (typeof patch.opacity === "number") {
+            shadow.opacity = patch.opacity;
+          }
+          appearance.shadow = shadow;
+        },
+        options,
+      );
+    },
+    [applyTextAppearanceMutation, onStatusMessage],
+  );
+
+  const removeTextShadow = useCallback(
+    (nodeId: string) => {
+      applyTextAppearanceMutation(nodeId, (appearance) => {
+        delete appearance.shadow;
+      });
+    },
+    [applyTextAppearanceMutation],
+  );
+
+  const applyTextPreset = useCallback(
+    (nodeId: string, preset: StudioTextEffectPreset) => {
+      const document = getDocument();
+      const node = document.graph.nodes[nodeId];
+      if (!node || (node.type !== "text" && node.type !== "flexibleText")) {
+        onStatusMessage("Text preset requires one text node");
+        return;
+      }
+      if (node.locked) {
+        onStatusMessage("Locked text cannot apply a preset");
+        return;
+      }
+      if (
+        (preset.source === "builtin" &&
+          !isStudioBuiltinTextEffectPresetVersionValid(preset)) ||
+        (preset.source === "custom" &&
+          (!Number.isInteger(preset.version) || preset.version < 1))
+      ) {
+        onStatusMessage("Text preset version is invalid");
+        return;
+      }
+      const currentStyle = node.styleId
+        ? document.styles[node.styleId]
+        : undefined;
+      const current = materializeStudioTextAppearance(node, currentStyle);
+      if (!current.ok) {
+        onStatusMessage(
+          current.diagnostics[0]?.message ?? "Text appearance is invalid",
+        );
+        return;
+      }
+      const copied = cloneStudioTextEffectPreset(preset);
+      const diagnostics = validateStudioTextAppearance(copied.appearance);
+      if (diagnostics.length > 0) {
+        onStatusMessage(
+          diagnostics[0]?.message ?? "Text preset appearance is invalid",
+        );
+        return;
+      }
+
+      updateDocument((draft) => {
+        const draftNode = draft.graph.nodes[nodeId];
+        if (!draftNode) return;
+        const styleId = ensureStudioNodeStyleId(draft, draftNode);
+        const nextStyle = removeLegacyStudioTextAppearanceScalars({
+          ...(draft.styles[styleId] ?? {}),
+          ...(current.style ?? {}),
+        });
+        Object.assign(
+          nextStyle,
+          pickStudioTextPresetTypography(copied.typography),
+        );
+        const nextAppearance = copied.appearance;
+        nextAppearance.strokes = nextAppearance.strokes.map((stroke) => ({
+          ...stroke,
+          id: createStudioId("stroke"),
+        }));
+        nextAppearance.presetRef = {
+          source: copied.source,
+          presetId: copied.id,
+          presetVersion: copied.version,
+        };
+        draftNode.textAppearance = nextAppearance;
+        draft.styles[styleId] = nextStyle;
+      });
+      onStatusMessage(`Applied text preset: ${preset.label}`);
+    },
+    [getDocument, onStatusMessage, updateDocument],
+  );
+
+  const createTextPreset = useCallback(
+    (nodeId: string, label?: string) => {
+      if (!getCustomTextPresets || !setCustomTextPresets) {
+        onStatusMessage("Custom text presets are unavailable in this session");
+        return;
+      }
+      const document = getDocument();
+      const node = document.graph.nodes[nodeId];
+      if (!node || (node.type !== "text" && node.type !== "flexibleText")) {
+        onStatusMessage("Custom preset requires one text node");
+        return;
+      }
+      if (node.locked) {
+        onStatusMessage("Locked text cannot create a preset");
+        return;
+      }
+      const style = node.styleId ? document.styles[node.styleId] : undefined;
+      const current = materializeStudioTextAppearance(node, style);
+      if (!current.ok) {
+        onStatusMessage(
+          current.diagnostics[0]?.message ?? "Text appearance is invalid",
+        );
+        return;
+      }
+      const previewText =
+        node.binding?.kind === "staticText" && node.binding.value.trim() !== ""
+          ? node.binding.value
+          : node.label || "Aa";
+      const preset = createStudioCustomTextPreset({
+        id: createStudioId("text-preset"),
+        label: label?.trim() || node.label || "Custom Text",
+        previewText,
+        typography: pickStudioTextPresetTypography(style ?? {}),
+        appearance: current.appearance,
+      });
+      setCustomTextPresets((presets) => [...presets, preset]);
+      onStatusMessage(`Saved text preset: ${preset.label}`);
+    },
+    [getCustomTextPresets, getDocument, onStatusMessage, setCustomTextPresets],
+  );
+
+  const duplicateTextPreset = useCallback(
+    (presetId: string) => {
+      if (!getCustomTextPresets || !setCustomTextPresets) {
+        onStatusMessage("Custom text presets are unavailable in this session");
+        return;
+      }
+      const source = getCustomTextPresets().find(
+        (preset) => preset.source === "custom" && preset.id === presetId,
+      );
+      if (!source) {
+        onStatusMessage("Only custom text presets can be duplicated");
+        return;
+      }
+      const copy = duplicateStudioCustomTextPreset(
+        source,
+        createStudioId("text-preset"),
+      );
+      setCustomTextPresets((presets) => [...presets, copy]);
+    },
+    [getCustomTextPresets, onStatusMessage, setCustomTextPresets],
+  );
+
+  const renameTextPreset = useCallback(
+    (presetId: string, label: string) => {
+      if (!getCustomTextPresets || !setCustomTextPresets) return;
+      setCustomTextPresets((presets) =>
+        presets.map((preset) =>
+          preset.source === "custom" && preset.id === presetId
+            ? renameStudioCustomTextPreset(preset, label)
+            : preset,
+        ),
+      );
+    },
+    [getCustomTextPresets, setCustomTextPresets],
+  );
+
+  const deleteTextPreset = useCallback(
+    (presetId: string) => {
+      if (!getCustomTextPresets || !setCustomTextPresets) return;
+      setCustomTextPresets((presets) =>
+        deleteStudioCustomTextPreset(presets, presetId),
+      );
+    },
+    [getCustomTextPresets, setCustomTextPresets],
+  );
   const addNode = useCallback(
     (type: StudioGraphNodeType) => {
       const document = getDocument();
@@ -401,13 +932,25 @@ export function useThumbnailNodeCommands({
       value: string | number | undefined,
       options?: ThumbnailUpdateOptions,
     ) => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
+
       updateDocument((draft) => {
         const node = draft.graph.nodes[nodeId];
-        if (!node) return;
-        applyStudioNodeStyleValue(draft, node, key, value);
+        if (!node || node.locked) return;
+
+        const nextValue =
+          node.type === "image" &&
+          key === "objectPosition" &&
+          value !== undefined
+            ? formatStudioImageObjectPosition(
+                parseStudioImageObjectPosition(value),
+              )
+            : value;
+        applyStudioNodeStyleValue(draft, node, key, nextValue);
       }, options);
     },
-    [updateDocument],
+    [getDocument, updateDocument],
   );
 
   const setGeometry = useCallback(
@@ -476,34 +1019,130 @@ export function useThumbnailNodeCommands({
 
   const setImageFit = useCallback(
     (nodeId: string, fit: StudioImageFit) => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
       updateDocument((draft) => {
         const node = draft.graph.nodes[nodeId];
-        if (node) node.fit = fit;
+        if (node && !node.locked) node.fit = fit;
       });
     },
-    [updateDocument],
+    [getDocument, updateDocument],
   );
 
   const setStaticText = useCallback(
     (nodeId: string, value: string) => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
       updateDocument((draft) => {
         const node = draft.graph.nodes[nodeId];
-        if (!node) return;
+        if (!node || node.locked) return;
         node.binding = { kind: "staticText", value };
       });
     },
-    [updateDocument],
+    [getDocument, updateDocument],
   );
 
   const setImageAsset = useCallback(
     (nodeId: string, assetId: string | null) => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
       updateDocument((draft) => {
         const node = draft.graph.nodes[nodeId];
-        if (!node) return;
+        if (!node || node.locked) return;
         node.binding = assetId ? { kind: "staticAsset", assetId } : undefined;
       });
     },
-    [updateDocument],
+    [getDocument, updateDocument],
+  );
+
+  const setStaticBinding = useCallback(
+    (nodeId: string, strategy: "materialize" | "restore" = "materialize") => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
+      const values = getPreviewValues?.() ?? {
+        global: {},
+        days: {},
+        entries: {},
+        timetable: {
+          weekStartDate: undefined,
+          entriesByDay: {},
+          offlineMemoByDay: {},
+        },
+      };
+      updateDocument((draft) => {
+        if (strategy === "restore") {
+          applyThumbnailStudioRestoreNodeBindingFallback(draft, nodeId);
+        } else {
+          applyThumbnailStudioMaterializeNodeBinding(draft, values, nodeId);
+        }
+      });
+    },
+    [getDocument, getPreviewValues, updateDocument],
+  );
+
+  const createInputFromNode = useCallback(
+    (nodeId: string): string | null => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return null;
+      const values = getPreviewValues?.() ?? {
+        global: {},
+        days: {},
+        entries: {},
+        timetable: {
+          weekStartDate: undefined,
+          entriesByDay: {},
+          offlineMemoByDay: {},
+        },
+      };
+      let createdId: string | null = null;
+      updateDocument((draft) => {
+        createdId = applyThumbnailStudioCreateInputForNode(
+          draft,
+          values,
+          nodeId,
+        );
+      });
+      return createdId;
+    },
+    [getDocument, getPreviewValues, updateDocument],
+  );
+
+  const bindNodeToInput = useCallback(
+    (nodeId: string, inputId: string) => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
+      updateDocument((draft) => {
+        applyThumbnailStudioBindNodeToInput(draft, nodeId, inputId);
+      });
+    },
+    [getDocument, updateDocument],
+  );
+
+  const setSelectTextOutput = useCallback(
+    (nodeId: string, output: "label" | "value") => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
+      updateDocument((draft) => {
+        applyThumbnailStudioSetSelectTextOutput(draft, nodeId, output);
+      });
+    },
+    [getDocument, updateDocument],
+  );
+
+  const setSelectAssetMapping = useCallback(
+    (nodeId: string, optionValue: string, assetId: string | null) => {
+      const currentNode = getDocument().graph.nodes[nodeId];
+      if (!currentNode || currentNode.locked) return;
+      updateDocument((draft) => {
+        applyThumbnailStudioSetSelectAssetMapping(
+          draft,
+          nodeId,
+          optionValue,
+          assetId,
+        );
+      });
+    },
+    [getDocument, updateDocument],
   );
 
   const alignNodes = useCallback(
@@ -615,6 +1254,25 @@ export function useThumbnailNodeCommands({
       setImageFit,
       setStaticText,
       setImageAsset,
+      setStaticBinding,
+      createInputFromNode,
+      bindNodeToInput,
+      setSelectTextOutput,
+      setSelectAssetMapping,
+      materializeTextAppearance,
+      setTextFill,
+      addTextStroke,
+      updateTextStroke,
+      duplicateTextStroke,
+      deleteTextStroke,
+      moveTextStroke,
+      setTextShadow,
+      removeTextShadow,
+      applyTextPreset,
+      createTextPreset,
+      duplicateTextPreset,
+      renameTextPreset,
+      deleteTextPreset,
       alignNodes,
       distributeNodes,
       setCanvasSize,
@@ -643,8 +1301,27 @@ export function useThumbnailNodeCommands({
       setImageFit,
       setRotation,
       setStaticText,
+      setStaticBinding,
+      createInputFromNode,
+      bindNodeToInput,
+      setSelectTextOutput,
+      setSelectAssetMapping,
       setStyleValue,
       setTextAlignment,
+      setTextFill,
+      addTextStroke,
+      updateTextStroke,
+      duplicateTextStroke,
+      deleteTextStroke,
+      moveTextStroke,
+      setTextShadow,
+      removeTextShadow,
+      materializeTextAppearance,
+      applyTextPreset,
+      createTextPreset,
+      duplicateTextPreset,
+      renameTextPreset,
+      deleteTextPreset,
       toggleFitParent,
       toggleHidden,
       toggleLock,

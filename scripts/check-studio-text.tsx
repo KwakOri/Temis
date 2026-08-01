@@ -10,10 +10,10 @@
  *    객체를 고를 수 없고, 레이어마다 글자를 노출하면 화면 낭독기가 같은 문장을 여러 번 읽는다.
  *
  * 이 검사가 덮지 못하는 범위:
- * - 겹쳐 그린 글자가 실제로 어긋나지 않는지. 그것은 스파이크 페이지에서 눈으로 판정한다.
+ * - 겹쳐 그린 글자가 실제로 어긋나지 않는지. 최종 브라우저 실측과 PNG glyph bounds로 판정한다.
  * - 맞춤 여유가 실제 탐색에 적용되는지. 크기 계산은 브라우저 effect에서 일어나므로 서버
  *   렌더 마크업에 나타나지 않는다. 여유를 정하는 순수 함수는 값으로 검증하고, 그 값이
- *   실제로 넘겨지는지는 스파이크 페이지의 측정 표로 본다.
+ *   실제로 넘겨지는지는 최종 측정 표와 브라우저 경로로 본다.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -184,8 +184,45 @@ const layerOrder = [
 ].map((match) => match[1]);
 assert.deepEqual(
   layerOrder,
-  ["stroke:outer", "stroke:mid", "stroke:inner", "foreground"],
-  "두꺼운 외곽선을 먼저 그리고 글자를 마지막에 그린다. 순서가 뒤집히면 안쪽 외곽선이 사라진다.",
+  ["stroke:inner", "stroke:outer", "stroke:mid", "foreground"],
+  "appearance.strokes의 저장된 뒤→앞 순서를 그대로 그린다. outset으로 정렬하면 안 된다.",
+);
+
+const oversizedStrokeMarkup = render(
+  createNode({
+    textAppearance: appearance({
+      strokes: Array.from({ length: 10 }, (_, index) =>
+        stroke(`stroke-${index}`, index + 1),
+      ),
+    }),
+  }),
+  {},
+);
+assert.equal(
+  (oversizedStrokeMarkup.match(/data-effect-layer="stroke:/g) ?? []).length,
+  8,
+  "external JSON cannot make the renderer create more than eight stroke layers",
+);
+
+const invalidNumericStrokeMarkup = render(
+  createNode({
+    textAppearance: appearance({
+      strokes: [
+        stroke("too-wide", 65),
+        stroke("over-opacity", 2, { opacity: 1.1 }),
+        stroke("not-finite", Number.NaN),
+        stroke("valid", 4),
+      ],
+    }),
+  }),
+  {},
+);
+assert.deepEqual(
+  [...invalidNumericStrokeMarkup.matchAll(/data-effect-layer="([^"]+)"/g)].map(
+    (match) => match[1],
+  ),
+  ["stroke:valid", "foreground"],
+  "renderer skips numeric stroke values outside the validator contract",
 );
 
 // 꺼 둔 외곽선은 레이어를 만들지 않는다.
@@ -452,7 +489,7 @@ assert.deepEqual(
     (match) => match[1],
   ),
   ["stroke:outer", "stroke:inner", "fill"],
-  "두꺼운 외곽선부터 그리고 채우기를 마지막에 덮는다.",
+  "저장된 외곽선 순서를 유지하고 채우기를 마지막에 덮는다.",
 );
 assert.ok(
   autoFitEffectMarkup.includes("color:transparent"),

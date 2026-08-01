@@ -835,8 +835,13 @@ type StudioTextStroke = {
 일반 배치와 단순 CSS 속성은 기존 스타일 레코드를 계속 사용하고, 배열이나 순서가 필요한 표현은 구조화된 속성으로 분리한다.
 
 `outset`은 glyph 바깥으로 보이는 실효 두께다. 중앙 정렬 CSS stroke를 사용할
-경우 renderer가 CSS 값으로 변환할 때 2배 하고, 선택 영역과 effect outset은
-저장된 값을 그대로 사용한다.
+경우 renderer가 CSS 값으로 변환할 때 2배 한다. resize와 저장에는 논리 텍스트
+박스를 사용하고, effect outset을 적용한 시각 박스는 선택 효과와 clipping/overflow/PNG
+진단에만 사용한다.
+
+`strokes` 배열은 실제 뒤에서 앞으로 그릴 순서다. renderer가 `outset`으로 다시
+정렬하지 않으므로 inspector의 순서 변경과 화면 결과가 일치한다. 비정상적인 두께
+순서로 stroke가 가려지면 inspector가 이를 진단한다.
 
 장기적으로 표현 모델은 텍스트 외 이미지 필터나 도형 효과로 확장할 수 있지만, 초기에는 텍스트 효과만 다룬다.
 
@@ -1089,7 +1094,7 @@ template_kind: "timetable" | "thumbnail"
 
 구현 기능:
 
-- 공용 `StudioTextRenderer`
+- graph 문서를 해석하는 `StudioRenderer`와 공용 텍스트 표현 `StudioText`
 - 텍스트 측정 결과 공유
 - 단색 채우기
 - 실효 두께 계약을 사용하는 다중 아웃스트로크
@@ -1102,9 +1107,19 @@ template_kind: "timetable" | "thumbnail"
 - 시간표 variant 전파 제약 기록
 - 프리셋 버전 출처 기록
 
+Phase 3의 custom preset은 편집기 세션 상태에만 저장한다. 생성·복제·이름 변경·삭제는
+문서 history 대상이 아니며, 노드 적용만 appearance deep copy와 새 stroke ID를 포함해
+history 한 단계로 기록한다. 원격 preset DB는 Phase 6 범위다.
+
 완료 상태:
 
 - 하나의 텍스트 노드에 여러 외곽선을 겹쳐 표현할 수 있다.
+- 저장된 disabled stroke도 Inspector에서 복구·수정·복제·삭제·drag할 수 있고,
+  renderer는 저장 순서대로 유효한 drawable layer를 최대 8개만 그린다.
+- `legacy scalar text appearance`는 첫 구조화 변경과 preset 적용 시 style 저장값에서
+  제거되며, 지원하지 않는 값은 원본을 보존한 채 materialize를 차단한다.
+- logical bounds를 바꾸지 않고 canvas clipping과 hidden/clip group overflow를 진단한다.
+- locked node의 텍스트 효과와 preset command는 document와 history를 변경하지 않는다.
 - 자동 크기 텍스트에서도 모든 시각 레이어의 글자 크기와 줄바꿈이 일치한다.
 - 작성 캔버스와 범용 런타임 렌더러가 같은 텍스트 결과를 사용한다.
 

@@ -325,6 +325,7 @@ export interface StudioTextFieldProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  disabled?: boolean;
 }
 
 /** 한 줄 글자 입력. */
@@ -333,12 +334,14 @@ export function StudioTextField({
   value,
   onChange,
   placeholder,
+  disabled,
 }: StudioTextFieldProps) {
   return (
     <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
       <span>{label}</span>
       <input
-        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)]"
+        className="h-8 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-70"
+        disabled={disabled}
         placeholder={placeholder}
         type="text"
         value={value}
@@ -402,13 +405,15 @@ export function StudioTextareaField({
   value,
   onChange,
   placeholder,
+  disabled,
   rows = 4,
 }: StudioTextareaFieldProps) {
   return (
     <label className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
       <span>{label}</span>
       <textarea
-        className="min-h-20 resize-y rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)]"
+        className="min-h-20 resize-y rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-2 text-xs font-medium text-[var(--fg)] outline-none placeholder:text-[var(--fg3)] focus:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-70"
+        disabled={disabled}
         placeholder={placeholder}
         rows={rows}
         value={value}

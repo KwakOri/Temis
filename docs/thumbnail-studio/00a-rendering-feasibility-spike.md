@@ -162,7 +162,7 @@ cssStrokeWidth = outset * 2;
 
 실행일: 2026-07-30  
 실행 환경: macOS, Chrome  
-스파이크 페이지: `/admin/thumbnail-studio/spike-rendering`
+검증 당시 스파이크 페이지: `/admin/thumbnail-studio/spike-rendering` (최종 실측 후 제거)
 
 Phase 3과 Phase 5는 이 절을 기준으로 구현한다.
 
@@ -221,8 +221,9 @@ Phase 3의 공용 측정에 안전 여유를 둔다.
 
 **기존 시간표 PNG 내보내기에 동일한 위험이 있다.**
 
-`template-studio-runtime-shell.tsx`가 `html-to-image`를 직접 사용하고, 시간표
-카드의 `main_title`과 `sub_title`은 `AutoResizeText` 기반 자동 크기 텍스트다.
+이 위험을 처음 확인할 당시 `template-studio-runtime-shell.tsx`가 `html-to-image`를
+직접 사용했고, 시간표 카드의 `main_title`과 `sub_title`은 `AutoResizeText` 기반 자동
+크기 텍스트였다. 아래 통일 결과에서 runtime shell은 `modern-screenshot`으로 바뀌었다.
 
 Thumbnail Studio와 별개로 현재 제품에서 재현되는지 확인이 필요하다. 재현되면
 Phase 5의 export controller 통합을 기다리지 않고 먼저 고칠 후보다.
@@ -232,14 +233,14 @@ Phase 5의 export controller 통합을 기다리지 않고 먼저 고칠 후보�
 처음에는 "이번에 확인한 조건과 같다"고 적었는데, 코드를 확인해 보니 두 경로가
 크기를 정하는 방법과 줄이 나뉘는 조건이 서로 다르다.
 
-| | 프로토타입(`SpikeText`) | 제품(`StudioAutoText` → `AutoResizeText`) |
+| | 프로토타입(`SpikeText`) | 제품(`StudioText` → `AutoResizeText`) |
 | --- | --- | --- |
 | 크기 탐색 | 0.5px 단위 이분 탐색 | 최대값에서 0.5px씩 줄이는 선형 탐색 |
 | 줄바꿈 | `white-space: pre-wrap` (자동 줄바꿈) | `white-space: pre` (개행에서만) |
 | 렌더 크기 | 탐색 결과 그대로 | `Math.floor()` 적용 |
 
-`StudioAutoText`는 `maxLines`를 넘기지 않는다. `AutoResizeText`의 이분 탐색은
-`maxLines`가 있을 때만 동작하므로 제품 경로는 선형 탐색을 탄다.
+현재 `StudioText`의 autoFit 경로는 `maxLines`를 넘기지 않는다. `AutoResizeText`의
+이분 탐색은 `maxLines`가 있을 때만 동작하므로 제품 경로는 선형 탐색을 탄다.
 
 따라서 프로토타입에서 본 "마지막 단어가 다음 줄로 밀린다"는 현상은 제품 경로에
 그대로 적용되지 않는다. 자동 줄바꿈을 하지 않으므로 sub-pixel 차이가 줄 수를
@@ -276,8 +277,9 @@ Phase 5의 export controller 통합을 기다리지 않고 먼저 고칠 후보�
 
 ### 스파이크 코드 처리
 
-Phase 3의 공용 텍스트 렌더러를 만든 뒤 같은 표본으로 재검증할 때까지 스파이크
-페이지를 유지한다. 재검증이 끝나면 `spike-rendering` 폴더를 제거한다.
+Phase 3의 공용 텍스트 렌더러를 만든 뒤 같은 표본으로 재검증했다. §15 13번의 renderer
+경계와 runtime/export/accessibility 회귀 검증, 장면 13·14 최종 재검증이 모두 끝났으므로
+`spike-rendering` 임시 폴더를 제거했다.
 
 승격 대상:
 
@@ -311,6 +313,57 @@ Phase 3의 공용 텍스트 렌더러를 만든 뒤 같은 표본으로 재검�
 모두 세로가 빡빡한 쪽이었으므로 여유는 높이에도 적용한다. 공용 텍스트 렌더러를 만든 뒤
 같은 장면(13, 14)으로 재확인한다.
 
+### Phase 3 장면 13·14 재검증 절차
+
+2026-08-01 현재 장면 13·14의 제품 표본은 이미 `StudioText` → `AutoResizeText` 경로를
+사용한다. 스파이크 컴포넌트 이름과 화면 설명의 과거 표기를 실제 구현명인 `StudioText`로
+정리한 뒤 결과를 기록한다.
+
+재검증은 §15 9~13 구현 전 기준선과 구현 완료 후 최종 결과를 같은 환경에서 각각 남긴다.
+
+기록 항목:
+
+- 실행일, Chrome 버전, macOS 버전과 사용 font family/weight
+- live DOM의 computed font size, line height, 줄 수와 content width/height
+- `document.fonts.ready` 완료 여부와 fallback 발생 여부
+- `modern-screenshot` PNG와 live DOM의 줄 수·줄바꿈 지점 일치 여부
+- live DOM 대비 PNG glyph alpha bounding box의 상·우·하·좌 차이
+- `mix-blend-mode: difference` 겹침 판정과 필요 시 PNG 첨부 경로
+
+PNG에는 CSS font size 메타데이터가 없으므로 “PNG font size를 측정했다”고 기록하지
+않는다. font size는 live DOM의 computed value로 기록하고, PNG와의 크기·위치 일치는 glyph
+alpha bounding box와 줄 경계를 근거로 판정한다. 원시 픽셀 diff는 안티앨리어싱 차이 때문에
+계속 참고값으로만 사용한다.
+
+합격 조건:
+
+- live DOM computed font size가 예상값과 일치
+- 줄 수와 명시적 개행 위치가 완전 일치
+- PNG glyph bounding box가 live DOM 기준 1px 이내
+- 웹 폰트 fallback 없음
+
+기준선과 최종 결과는 이 문서의 아래 표에 실제 숫자로 남긴다. 두 행 모두 DOM font size와
+줄 수, live/PNG glyph bbox, fallback 판정을 기록한 뒤에만 스파이크를 제거한다.
+
+| 시점 | 장면 | DOM font size / line height | 줄 수 | 콘텐츠 크기 | live / PNG glyph bbox | fallback | 판정 |
+| --- | --- | ---: | ---: | ---: | --- | --- | --- |
+| §15 9~13 구현 전 | 13 | 10px / 10.8px | 2 | 380 × 22 | `x=40..131,y=165..185` / `x=40..131,y=165..185` (Δ0px) | 없음 | 통과 |
+| §15 9~13 구현 전 | 14 | 10px / 10.8px | 1 | 360 × 11 | `x=41..185,y=175..185` / `x=41..185,y=175..184` (Δ1px) | 없음 | 통과 |
+| §15 13 완료 후 | 13 | 10px / 10.8px | 2 | 380 × 22 | `x=40..131,y=165..185` / `x=40..131,y=165..185` (Δ0px) | 없음 | 통과 |
+| §15 13 완료 후 | 14 | 10px / 10.8px | 1 | 360 × 11 | `x=41..185,y=175..185` / `x=41..185,y=175..184` (Δ1px) | 없음 | 통과 |
+
+실측은 2026-08-01, macOS 15.6.1, Codex in-app Chrome에서 수행했다. `StudioText` →
+`AutoResizeText` 표본의 `data-load-state="loaded"`, `document.fonts.status="loaded"`와
+두 weight의 `document.fonts.check()`를 확인했다. live DOM 캡처와 PNG 모두 캔버스 내부
+좌표의 glyph alpha/ink bbox를 threshold 200으로 비교했다. 장면 13은 live/PNG가
+`x=40..131, y=165..185`로 일치했고, 장면 14는 live `x=41..185, y=175..185`와 PNG
+`x=41..185, y=175..184`로 세로 끝점만 1px 차이였다. 장면 13의 명시적 개행은 두
+렌더링 모두 두 줄 경계로 일치했다. live DOM 캡처는 in-app 브라우저의 JPEG viewport를
+캔버스 CSS 크기로 환산해 기록했으며, JPEG 압축으로 생긴 한계 픽셀은 합격 오차에 포함했다.
+§15 9~13 구현 전 행은 이 두 장면에서 효과가 없어 렌더 동작이 바뀌지 않는 기준선임을 diff로
+확인한 뒤 같은 표본을 실측한 값이다. 네 행 모두 실측값과 판정을 갖췄으므로
+`spike-rendering` 임시 폴더를 제거했다.
+
 ### 통일 결과
 
 `template-studio-runtime-shell.tsx`를 `modern-screenshot`으로 바꿨다. 이 셸은
@@ -336,12 +389,11 @@ Phase 3의 공용 텍스트 렌더러를 만든 뒤 같은 표본으로 재검�
 ### 남은 래스터라이저 분기
 
 ```text
-html-to-image      admin/thumbnail-studio/spike-rendering/...   두 라이브러리 비교가 목적
-                   components/TimeTable/TweetPreviewModal.tsx   레거시 시간표 공유
+html-to-image      components/TimeTable/TweetPreviewModal.tsx   레거시 시간표 공유
 modern-screenshot  template-studio/.../runtime/...-shell.tsx    Studio 사용자 PNG
                    hooks/useTimeTableState.ts                   레거시 시간표
 ```
 
-레거시 시간표 공유 화면은 Studio 문서를 쓰지 않고 이번에 결과를 확인하지도 않았으므로
-바꾸지 않았다. 확인 없이 사용자에게 나가는 이미지 경로를 바꾸지 않는다. 가드는 이 두
+레거시 시간표 공유 화면은 Studio 문서를 쓰지 않고 이번에 결과를 확인하지 않았으므로
+바꾸지 않았다. 확인 없이 사용자에게 나가는 이미지 경로를 바꾸지 않는다. 가드는 이 한
 곳을 허용 목록으로 두고 새로 늘어나는 것만 막는다.

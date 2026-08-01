@@ -1,5 +1,8 @@
 import type { StudioTemplateDocument } from "@/types/template-studio";
-import { getStudioNodeBounds } from "@/utils/template-studio/graph-nodes";
+import {
+  getStudioNodeBounds,
+  getStudioNodeVisualBoundsInCanvas,
+} from "@/utils/template-studio/graph-nodes";
 
 /** 크기를 줄일 수 있는 한계. 0이 되면 화면에서 사라지고 다시 잡을 수 없다. */
 export const STUDIO_MIN_NODE_SIZE = 4;
@@ -210,5 +213,28 @@ export const getStudioNodeIdsOutsideCanvas = (
       bounds.bottom <= 0 ||
       bounds.left >= document.canvas.width ||
       bounds.top >= document.canvas.height
+    );
+  });
+
+/** logical bounds는 캔버스 안이어도 effect visual bounds가 경계를 넘는 경우를 진단한다. */
+export const getStudioNodeIdsClippedByCanvas = (
+  document: StudioTemplateDocument,
+): string[] =>
+  document.graph.rootNodeIds.filter((nodeId) => {
+    const node = document.graph.nodes[nodeId];
+    if (!node || node.hidden) return false;
+
+    const bounds = getStudioNodeVisualBoundsInCanvas(document, nodeId);
+    const intersectsCanvas =
+      bounds.right > 0 &&
+      bounds.bottom > 0 &&
+      bounds.left < document.canvas.width &&
+      bounds.top < document.canvas.height;
+    return (
+      intersectsCanvas &&
+      (bounds.left < 0 ||
+        bounds.top < 0 ||
+        bounds.right > document.canvas.width ||
+        bounds.bottom > document.canvas.height)
     );
   });

@@ -22,12 +22,20 @@ import {
   type StudioCropResizeEdge,
 } from "@/utils/template-studio/crop-resize";
 
+export interface StudioImageCropOutputSize {
+  width: number;
+  height: number;
+}
+
 interface StudioImageCropModalProps {
   imageSrc: string;
   initialWidth: number;
   initialHeight: number;
   onCancel: () => void;
-  onApply: (croppedImageSrc: string) => void;
+  onApply: (
+    croppedImageSrc: string,
+    outputSize: StudioImageCropOutputSize,
+  ) => void;
 }
 
 interface StudioCropResizeSession {
@@ -453,15 +461,17 @@ export function StudioImageCropModal({
     if ((mode === "fill" && !croppedAreaPixels) || isProcessing) return;
     setIsProcessing(true);
     try {
-      onApply(
-        await createCroppedImage(imageSrc, {
-          mode,
-          outputWidth,
-          outputHeight,
-          pixelCrop: croppedAreaPixels,
-          rotation,
-        }),
-      );
+      const croppedImageSrc = await createCroppedImage(imageSrc, {
+        mode,
+        outputWidth,
+        outputHeight,
+        pixelCrop: croppedAreaPixels,
+        rotation,
+      });
+      onApply(croppedImageSrc, {
+        width: outputWidth,
+        height: outputHeight,
+      });
     } catch (error) {
       console.error("Template Studio image crop failed:", error);
     } finally {

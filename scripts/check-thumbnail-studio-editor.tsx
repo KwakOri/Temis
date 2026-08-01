@@ -247,7 +247,10 @@ const createInspectorDocument = (): StudioTemplateDocument => {
       binding: { kind: "staticText", value: "Hello" },
     }),
     shape: createNode("shape", "shape"),
-    image: createNode("image", "image", { fit: "cover" }),
+    image: createNode("image", "image", {
+      fit: "cover",
+      binding: { kind: "staticAsset", assetId: "asset" },
+    }),
     group: createNode("group", "group"),
   };
   document.styles = {
@@ -259,8 +262,21 @@ const createInspectorDocument = (): StudioTemplateDocument => {
       height: 200,
       backgroundColor: "#4f8cff",
     },
-    image_style: { left: 70, top: 80, width: 400, height: 300 },
+    image_style: {
+      left: 70,
+      top: 80,
+      width: 400,
+      height: 300,
+      objectPosition: "25% 75%",
+      borderRadius: 18,
+      opacity: 0.8,
+    },
     group_style: { left: 90, top: 100, width: 600, height: 400 },
+  };
+  document.assets.asset = {
+    id: "asset",
+    label: "Asset",
+    src: "data:image/png;base64,YXNzZXQ=",
   };
   return document;
 };
@@ -302,11 +318,15 @@ const buildSections = ({
   document,
   selectedNodeIds,
   outsideCanvasNodeIds = [],
+  clippedCanvasNodeIds = [],
+  groupOverflowDiagnostics = [],
   calls = [],
 }: {
   document: StudioTemplateDocument;
   selectedNodeIds: string[];
   outsideCanvasNodeIds?: string[];
+  clippedCanvasNodeIds?: string[];
+  groupOverflowDiagnostics?: Array<{ groupId: string; childIds: string[] }>;
   calls?: string[];
 }) => {
   const selectedNodes = selectedNodeIds.map(
@@ -325,9 +345,14 @@ const buildSections = ({
       { id: "youtube", label: "YouTube", width: 1280, height: 720 },
     ],
     outsideCanvasNodeIds,
+    clippedCanvasNodeIds,
+    groupOverflowDiagnostics,
     commands: createCommandsStub(calls),
     captureHistory: () => calls.push("captureHistory"),
     onFitCanvas: () => calls.push("fitCanvas"),
+    onCreateInput: () => calls.push("createInput"),
+    onOpenInput: () => calls.push("openInput"),
+    onCropImage: () => calls.push("cropImage"),
   });
 };
 
@@ -339,8 +364,8 @@ const sectionIdsFor = (selectedNodeIds: string[]): string[] =>
 
 assert.deepEqual(
   sectionIdsFor(["text"]),
-  ["transform", "layout", "text", "binding"],
-  "글자 노드의 섹션 구성이 바뀌면 안 된다.",
+  ["transform", "layout", "binding", "text"],
+  "글자 노드에 binding inspector가 한 번만 있어야 한다.",
 );
 assert.deepEqual(
   sectionIdsFor(["shape"]),
@@ -350,10 +375,47 @@ assert.deepEqual(
 assert.deepEqual(sectionIdsFor(["image"]), [
   "transform",
   "layout",
-  "image",
   "binding",
+  "image",
 ]);
 assert.deepEqual(sectionIdsFor(["group"]), ["transform", "layout", "group"]);
+
+const imageSection = buildSections({
+  document: inspectorDocument,
+  selectedNodeIds: ["image"],
+}).find((item) => item.id === "image");
+assert.ok(imageSection && imageSection.kind !== "block");
+const imageMarkup = renderToStaticMarkup(<>{imageSection.content}</>);
+for (const label of [
+  "Asset",
+  "Fit",
+  "Focus X %",
+  "Focus Y %",
+  "Border radius",
+  "Crop image",
+]) {
+  assert.ok(
+    imageMarkup.includes(label),
+    `이미지 Inspector에 ${label}이 있어야 한다.`,
+  );
+}
+
+const lockedImageDocument = createInspectorDocument();
+lockedImageDocument.graph.nodes.image.locked = true;
+const lockedImageSection = buildSections({
+  document: lockedImageDocument,
+  selectedNodeIds: ["image"],
+}).find((item) => item.id === "image");
+assert.ok(lockedImageSection && lockedImageSection.kind !== "block");
+assert.equal(
+  (
+    renderToStaticMarkup(<>{lockedImageSection.content}</>).match(
+      /disabled=""/g,
+    ) ?? []
+  ).length,
+  6,
+  "잠근 이미지의 Asset·Fit·Crop·Focus X·Focus Y·Border radius가 모두 비활성이어야 한다.",
+);
 
 // 고른 것이 없으면 캔버스 속성을 보여준다.
 assert.deepEqual(
@@ -456,6 +518,26 @@ assert.equal(
   0,
   "잠기지 않은 노드는 좌표를 바꿀 수 있어야 한다.",
 );
+const lockedBinding = buildSections({
+  document: lockedDocument,
+  selectedNodeIds: ["text"],
+}).find((item) => item.id === "binding");
+const lockedText = buildSections({
+  document: lockedDocument,
+  selectedNodeIds: ["text"],
+}).find((item) => item.id === "text");
+assert.ok(lockedBinding && lockedBinding.kind !== "block");
+assert.ok(lockedText && lockedText.kind !== "block");
+assert.match(
+  renderToStaticMarkup(<>{lockedBinding.content}</>),
+  /<textarea[^>]*disabled=""/,
+  "잠근 text의 static binding 내용은 편집할 수 없어야 한다.",
+);
+assert.match(
+  renderToStaticMarkup(<>{lockedText.content}</>),
+  /<textarea[^>]*disabled=""/,
+  "잠근 text의 Content는 편집할 수 없어야 한다.",
+);
 
 // --- 정렬과 분배 단추 ---
 
@@ -534,6 +616,30 @@ assert.ok(
   canvasMarkup.includes("They are kept, not deleted."),
   "캔버스 밖 노드를 지우지 않는다는 것을 알려야 한다. 지우면 되돌릴 수 없는 손실이 된다.",
 );
+const clippingCanvasMarkup = renderToStaticMarkup(
+  <>
+    {
+      (
+        buildSections({
+          document: inspectorDocument,
+          selectedNodeIds: [],
+          clippedCanvasNodeIds: ["text"],
+          groupOverflowDiagnostics: [{ groupId: "group", childIds: ["text"] }],
+        }).find((item) => item.id === "canvas") as {
+          content: React.ReactNode;
+        }
+      ).content
+    }
+  </>,
+);
+assert.ok(
+  clippingCanvasMarkup.includes(
+    'data-thumbnail-canvas-clipping-warning="true"',
+  ),
+);
+assert.ok(
+  clippingCanvasMarkup.includes('data-thumbnail-group-overflow-warning="true"'),
+);
 assert.ok(
   !renderToStaticMarkup(
     <>
@@ -550,6 +656,26 @@ assert.ok(
     </>,
   ).includes('data-thumbnail-outside-canvas-warning="true"'),
   "밖으로 나간 노드가 없으면 경고를 띄우지 않는다.",
+);
+
+const effectDocument = createInspectorDocument();
+effectDocument.graph.nodes.text.textAppearance = {
+  fill: { type: "solid", color: "#fff", opacity: 1 },
+  strokes: [
+    { id: "disabled", enabled: false, color: "#000", outset: 4, opacity: 1 },
+    { id: "enabled", enabled: true, color: "#000", outset: 8, opacity: 1 },
+  ],
+};
+const effectSection = buildSections({
+  document: effectDocument,
+  selectedNodeIds: ["text"],
+}).find((item) => item.id === "text");
+assert.ok(effectSection && effectSection.kind !== "block");
+const effectMarkup = renderToStaticMarkup(<>{effectSection.content}</>);
+assert.equal(
+  (effectMarkup.match(/draggable="true"/g) ?? []).length,
+  2,
+  "disabled stroke is still a draggable stored layer",
 );
 
 // --- 선택 overlay ---

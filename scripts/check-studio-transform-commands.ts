@@ -7,17 +7,26 @@
  * 이 검사가 덮지 못하는 범위:
  * - 손잡이를 실제로 잡았을 때 포인터 이벤트가 캔버스 밀기로 번지지 않는지. 그것은
  *   `check:studio:thumbnail-editor`가 overlay 마크업으로 본다.
- * - 조상이 회전한 상태에서 겹쳐 그리는 선의 위치. 지금은 조상 회전을 다루지 않는다.
+ * - 실제 브라우저에서 회전 CSS와 PNG가 일치하는지. geometry corner 계산은 여기서 본다.
  */
 import assert from "node:assert/strict";
 
-import type { StudioTemplateDocument } from "../src/types/template-studio";
+import type {
+  StudioTemplateDocument,
+  StudioTextAppearance,
+} from "../src/types/template-studio";
 import { getStudioVisibleCanvasCenter } from "../src/utils/template-studio/canvas-viewport-geometry";
+import {
+  getStudioGroupOverflowDiagnostics,
+  getStudioNodeVisualBounds,
+  getStudioNodeVisualBoundsInCanvas,
+} from "../src/utils/template-studio/graph-nodes";
 import {
   getStudioSharedNumberValue,
   getStudioSharedStringValue,
 } from "../src/utils/template-studio/multi-selection";
 import {
+  getStudioNodeIdsClippedByCanvas,
   getStudioNodeIdsOutsideCanvas,
   getStudioPointerRotationDeg,
   normalizeStudioCanvasSize,
@@ -28,6 +37,7 @@ import {
   STUDIO_MIN_NODE_SIZE,
   STUDIO_RESIZE_HANDLES,
 } from "../src/utils/template-studio/transform-commands";
+import { getStudioVisualBounds } from "../src/utils/template-studio/text-effect-outset";
 
 const START = { left: 100, top: 50, width: 200, height: 100 };
 
@@ -317,6 +327,11 @@ assert.deepEqual(
   ["outside"],
   "완전히 밖으로 나간 것만 알린다. 걸쳐 있는 것은 아직 보이므로 알릴 이유가 없고, 감춘 것은 애초에 그리지 않는다.",
 );
+assert.deepEqual(
+  getStudioNodeIdsClippedByCanvas(createDocument()),
+  ["partial"],
+  "partial clipping is diagnosed separately and fully outside nodes keep the old warning",
+);
 
 // 캔버스를 줄이면 알림 대상이 늘어난다. 그래도 노드는 지우지 않는다.
 const shrunkDocument = createDocument();
@@ -327,6 +342,316 @@ assert.equal(
   Object.keys(shrunkDocument.graph.nodes).length,
   4,
   "캔버스를 줄여도 노드는 남아야 한다. 지우면 되돌릴 수 없는 손실이 된다.",
+);
+
+const textAppearance: StudioTextAppearance = {
+  fill: { type: "solid", color: "#fff", opacity: 1 },
+  strokes: [],
+  shadow: {
+    enabled: true,
+    color: "#000",
+    offsetX: 80,
+    offsetY: 0,
+    blur: 0,
+    opacity: 1,
+  },
+};
+const clippedDocument = createDocument();
+clippedDocument.canvas.width = 200;
+clippedDocument.canvas.height = 200;
+clippedDocument.graph.rootNodeIds = ["text"];
+clippedDocument.graph.nodes = {
+  text: {
+    id: "text",
+    type: "text",
+    label: "text",
+    parentId: null,
+    childIds: [],
+    styleId: "text-style",
+    textAppearance,
+  },
+};
+clippedDocument.styles = {
+  "text-style": { left: 50, top: 50, width: 100, height: 40 },
+};
+assert.deepEqual(
+  getStudioNodeIdsOutsideCanvas(clippedDocument),
+  [],
+  "logical text bounds remain inside the canvas",
+);
+assert.deepEqual(
+  getStudioNodeIdsClippedByCanvas(clippedDocument),
+  ["text"],
+  "one-sided visual shadow clipping is diagnosed separately from fully outside nodes",
+);
+
+const rotatedTextDocument = createDocument();
+rotatedTextDocument.graph.rootNodeIds = ["text"];
+rotatedTextDocument.graph.nodes = {
+  text: {
+    id: "text",
+    type: "text",
+    label: "text",
+    parentId: null,
+    childIds: [],
+    styleId: "text-style",
+    textAppearance: {
+      ...textAppearance,
+      shadow: { ...textAppearance.shadow!, offsetX: 20 },
+    },
+  },
+};
+rotatedTextDocument.styles = {
+  "text-style": { left: 100, top: 60, width: 80, height: 40, rotateDeg: 30 },
+};
+const rotatedTextBounds = getStudioNodeVisualBoundsInCanvas(
+  rotatedTextDocument,
+  "text",
+);
+const expectedRotatedTextBounds = getStudioVisualBounds({
+  logicalBounds: { left: 100, top: 60, width: 80, height: 40 },
+  appearance: rotatedTextDocument.graph.nodes.text.textAppearance,
+  rotateDeg: 30,
+});
+assert.deepEqual(
+  rotatedTextBounds,
+  expectedRotatedTextBounds,
+  "rotated text visual bounds stay in canvas coordinates instead of being inverse-rotated inside selection",
+);
+
+const rotatedGroupDocument = createDocument();
+rotatedGroupDocument.graph.rootNodeIds = ["group"];
+rotatedGroupDocument.graph.nodes = {
+  group: {
+    id: "group",
+    type: "group",
+    label: "group",
+    parentId: null,
+    childIds: ["child"],
+    styleId: "group-style",
+  },
+  child: {
+    id: "child",
+    type: "text",
+    label: "child",
+    parentId: "group",
+    childIds: [],
+    styleId: "child-style",
+    textAppearance: {
+      fill: { type: "solid", color: "#fff", opacity: 1 },
+      strokes: [],
+    },
+  },
+};
+rotatedGroupDocument.styles = {
+  "group-style": {
+    left: 100,
+    top: 100,
+    width: 100,
+    height: 100,
+    rotateDeg: 45,
+  },
+  "child-style": { left: 0, top: 40, width: 50, height: 20 },
+};
+const rotatedChildBounds = getStudioNodeVisualBoundsInCanvas(
+  rotatedGroupDocument,
+  "child",
+);
+assert.ok(Math.abs(rotatedChildBounds.left - 107.573593) < 0.00001);
+assert.ok(Math.abs(rotatedChildBounds.top - 107.573593) < 0.00001);
+assert.ok(Math.abs(rotatedChildBounds.right - 157.071068) < 0.00001);
+assert.ok(Math.abs(rotatedChildBounds.bottom - 157.071068) < 0.00001);
+
+const overflowDocument = createDocument();
+overflowDocument.graph.rootNodeIds = ["group"];
+overflowDocument.graph.nodes = {
+  group: {
+    id: "group",
+    type: "group",
+    label: "group",
+    parentId: null,
+    childIds: ["child"],
+    styleId: "group-style",
+  },
+  child: {
+    id: "child",
+    type: "text",
+    label: "child",
+    parentId: "group",
+    childIds: [],
+    styleId: "child-style",
+    textAppearance: {
+      fill: { type: "solid", color: "#fff", opacity: 1 },
+      strokes: [
+        { id: "stroke", enabled: true, color: "#000", outset: 10, opacity: 1 },
+      ],
+    },
+  },
+};
+overflowDocument.styles = {
+  "group-style": {
+    left: 20,
+    top: 20,
+    width: 100,
+    height: 100,
+    overflow: "clip",
+  },
+  "child-style": { left: 90, top: 10, width: 30, height: 30 },
+};
+assert.deepEqual(getStudioGroupOverflowDiagnostics(overflowDocument), [
+  { groupId: "group", childIds: ["child"] },
+]);
+
+const hiddenChildDocument = createDocument();
+hiddenChildDocument.graph.rootNodeIds = ["group"];
+hiddenChildDocument.graph.nodes = {
+  group: {
+    id: "group",
+    type: "group",
+    label: "group",
+    parentId: null,
+    childIds: ["hidden-child"],
+    styleId: "hidden-group-style",
+  },
+  "hidden-child": {
+    id: "hidden-child",
+    type: "text",
+    label: "hidden child",
+    parentId: "group",
+    childIds: [],
+    styleId: "hidden-child-style",
+    hidden: true,
+    textAppearance: {
+      fill: { type: "solid", color: "#fff", opacity: 1 },
+      strokes: [
+        {
+          id: "hidden-stroke",
+          enabled: true,
+          color: "#000",
+          outset: 20,
+          opacity: 1,
+        },
+      ],
+    },
+  },
+};
+hiddenChildDocument.styles = {
+  "hidden-group-style": {
+    left: 950,
+    top: 20,
+    width: 40,
+    height: 40,
+    overflow: "clip",
+  },
+  "hidden-child-style": { left: 100, top: 0, width: 30, height: 30 },
+};
+assert.deepEqual(
+  getStudioNodeVisualBounds(hiddenChildDocument, "group"),
+  { left: 950, top: 20, right: 990, bottom: 60, width: 40, height: 40 },
+  "hidden child does not expand its group visual bounds",
+);
+assert.deepEqual(
+  getStudioNodeIdsClippedByCanvas(hiddenChildDocument),
+  [],
+  "hidden child does not create a canvas clipping warning",
+);
+assert.deepEqual(
+  getStudioGroupOverflowDiagnostics(hiddenChildDocument),
+  [],
+  "hidden child does not create a group overflow warning",
+);
+
+const hiddenGroupDocument = createDocument();
+hiddenGroupDocument.graph.rootNodeIds = ["hidden-group"];
+hiddenGroupDocument.graph.nodes = {
+  "hidden-group": {
+    id: "hidden-group",
+    type: "group",
+    label: "hidden group",
+    parentId: null,
+    childIds: ["visible-child"],
+    styleId: "hidden-group-style",
+    hidden: true,
+  },
+  "visible-child": {
+    id: "visible-child",
+    type: "shape",
+    label: "visible child",
+    parentId: "hidden-group",
+    childIds: [],
+    styleId: "overflowing-child-style",
+  },
+};
+hiddenGroupDocument.styles = {
+  "hidden-group-style": {
+    left: 950,
+    top: 20,
+    width: 40,
+    height: 40,
+    overflow: "clip",
+  },
+  "overflowing-child-style": { left: 100, top: 0, width: 30, height: 30 },
+};
+assert.deepEqual(
+  getStudioGroupOverflowDiagnostics(hiddenGroupDocument),
+  [],
+  "a hidden group does not report overflow from a visible child",
+);
+
+const hiddenAncestorGroupDocument = createDocument();
+hiddenAncestorGroupDocument.graph.rootNodeIds = ["hidden-ancestor"];
+hiddenAncestorGroupDocument.graph.nodes = {
+  "hidden-ancestor": {
+    id: "hidden-ancestor",
+    type: "group",
+    label: "hidden ancestor",
+    parentId: null,
+    childIds: ["nested-group"],
+    styleId: "hidden-ancestor-style",
+    hidden: true,
+  },
+  "nested-group": {
+    id: "nested-group",
+    type: "group",
+    label: "nested group",
+    parentId: "hidden-ancestor",
+    childIds: ["nested-child"],
+    styleId: "nested-group-style",
+  },
+  "nested-child": {
+    id: "nested-child",
+    type: "shape",
+    label: "nested child",
+    parentId: "nested-group",
+    childIds: [],
+    styleId: "nested-overflowing-child-style",
+  },
+};
+hiddenAncestorGroupDocument.styles = {
+  "hidden-ancestor-style": {
+    left: 950,
+    top: 20,
+    width: 40,
+    height: 40,
+  },
+  "nested-group-style": {
+    left: 0,
+    top: 0,
+    width: 40,
+    height: 40,
+    overflow: "hidden",
+  },
+  "nested-overflowing-child-style": {
+    left: 100,
+    top: 0,
+    width: 30,
+    height: 30,
+  },
+};
+assert.deepEqual(
+  getStudioGroupOverflowDiagnostics(hiddenAncestorGroupDocument),
+  [],
+  "a group below a hidden ancestor does not report overflow",
 );
 
 // --- 보이는 영역의 중앙 ---

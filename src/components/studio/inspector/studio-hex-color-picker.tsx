@@ -208,7 +208,12 @@ export function StudioHexColorPicker({
     changeGroupStartedRef.current = false;
   }, [open]);
 
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
   const commitColor = (nextValue: string) => {
+    if (disabled) return;
     if (!changeGroupStartedRef.current) {
       changeGroupStartedRef.current = true;
       onChangeStart?.();
@@ -217,6 +222,7 @@ export function StudioHexColorPicker({
   };
 
   const applyHsv = (nextHsv: HsvColor) => {
+    if (disabled) return;
     setHsv(nextHsv);
     commitColor(hsvToHex(nextHsv));
   };
@@ -224,6 +230,7 @@ export function StudioHexColorPicker({
   const updateSaturationAndValue = (
     event: ReactPointerEvent<HTMLDivElement>,
   ) => {
+    if (disabled) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     applyHsv({
       ...hsv,
@@ -239,6 +246,7 @@ export function StudioHexColorPicker({
   };
 
   const commitDraft = () => {
+    if (disabled) return false;
     if (allowTransparent && draft.trim().toLowerCase() === "transparent") {
       commitColor("transparent");
       setDraft("TRANSPARENT");
@@ -300,6 +308,7 @@ export function StudioHexColorPicker({
               aria-valuemin={0}
               aria-valuenow={Math.round(hsv.value * 100)}
               aria-valuetext={`${Math.round(hsv.saturation * 100)}% saturation, ${Math.round(hsv.value * 100)}% brightness`}
+              aria-disabled={disabled}
               className="relative h-36 cursor-crosshair overflow-hidden rounded-lg border border-white/15 outline-none focus:ring-2 focus:ring-[var(--accent)]"
               role="slider"
               tabIndex={0}
@@ -360,6 +369,7 @@ export function StudioHexColorPicker({
                 min={0}
                 step={1}
                 type="range"
+                disabled={disabled}
                 value={Math.round(hsv.hue)}
                 onChange={(event) =>
                   applyHsv({
@@ -377,6 +387,7 @@ export function StudioHexColorPicker({
                   className="relative h-6 rounded-md border border-white/20 shadow-sm transition hover:scale-105"
                   key={preset}
                   style={{ backgroundColor: preset }}
+                  disabled={disabled}
                   type="button"
                   onClick={() => commitColor(preset)}
                 >
@@ -403,6 +414,7 @@ export function StudioHexColorPicker({
                       ? "border-[var(--accent)] bg-[var(--sel)] text-[var(--accent)]"
                       : "border-[var(--field-border)] bg-[var(--field)] text-[var(--fg2)] hover:border-[var(--accent)]",
                   )}
+                  disabled={disabled}
                   type="button"
                   onClick={() => commitColor("transparent")}
                 >

@@ -18,6 +18,7 @@ import {
   ensureStudioStructuredTextFlexibleKind,
   getStudioTimetableComposition,
 } from "@/utils/template-studio/timetable-composition";
+import { normalizeThumbnailStudioInputPresentation } from "@/utils/thumbnail-studio/input-order";
 
 export const STUDIO_TEMPLATE_DOCUMENT_SCHEMA = "studio_template_document";
 export const STUDIO_TEMPLATE_DOCUMENT_VERSION = 7;
@@ -110,6 +111,12 @@ export const migrateStudioTemplateDocument = (
     const resolvedKind = getStudioTemplateKind(document) ?? "timetable";
     document.metadata.kind = resolvedKind;
     warnings.push(`Recorded template kind ${resolvedKind} on the document.`);
+  }
+
+  if (document.metadata.kind === "thumbnail") {
+    if (normalizeThumbnailStudioInputPresentation(document)) {
+      warnings.push("Normalized thumbnail input presentation order.");
+    }
   }
 
   const timetable = document.domains?.timetable;

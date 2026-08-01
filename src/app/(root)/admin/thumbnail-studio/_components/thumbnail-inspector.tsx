@@ -30,6 +30,13 @@ import type {
   StudioStyleRecord,
   StudioTemplateDocument,
 } from "@/types/template-studio";
+import {
+  getStudioBindingInputId,
+  isStudioImageNode,
+  isStudioInputCompatibleWithNode,
+  isStudioTextNode,
+} from "@/utils/template-studio/binding-resolver";
+import { getStudioInputTypeLabel } from "@/utils/template-studio/input-commands";
 import type {
   StudioAlignAxis,
   StudioAlignment,
@@ -44,14 +51,28 @@ import {
   type StudioTextAlignment,
 } from "@/utils/template-studio/node-style-commands";
 import { hasStudioNodeInspectorSection } from "@/utils/template-studio/node-definitions";
+import type { StudioGroupOverflowDiagnostic } from "@/utils/template-studio/graph-nodes";
 import { resolveStudioGraphNodeGeometry } from "@/utils/template-studio/object-layout";
 import { isStudioFillParentLayout } from "@/utils/template-studio/object-layout";
+import {
+  getStudioTextStrokeBands,
+  parseLegacyStudioTextShadow,
+  resolveStudioTextAppearance,
+} from "@/utils/template-studio/text-appearance";
+import {
+  STUDIO_TEXT_MAX_OUTSET,
+  STUDIO_TEXT_MAX_STROKES,
+} from "@/utils/template-studio/text-appearance-commands";
 import {
   getStudioTextWrapMode,
   STUDIO_TEXT_WRAP_MODE_STYLE_KEY,
   type StudioTextWrapMode,
 } from "@/utils/template-studio/text-wrap";
 import { getStudioFontWeightOptions } from "@/utils/template-studio/web-fonts";
+import {
+  getStudioImageBorderRadius,
+  getStudioImageObjectPosition,
+} from "@/utils/thumbnail-studio/image-object-position";
 import type { ThumbnailCanvasPreset } from "@/utils/thumbnail-studio/document-factory";
 
 import type { ThumbnailNodeCommands } from "../_hooks/use-thumbnail-node-commands";
@@ -69,10 +90,17 @@ export interface ThumbnailInspectorParams {
   canvasPresets: ThumbnailCanvasPreset[];
   /** 캔버스 밖으로 나간 노드. 지우지 않고 알리기만 한다. */
   outsideCanvasNodeIds: string[];
+  /** logical bounds는 안쪽이어도 effect visual bounds가 잘리는 노드. */
+  clippedCanvasNodeIds: string[];
+  /** overflow hidden/clip 그룹에서 잘릴 자식 진단. */
+  groupOverflowDiagnostics: StudioGroupOverflowDiagnostic[];
   commands: ThumbnailNodeCommands;
   /** 연속 조작 한 묶음을 시작한다. 색 고르기가 부른다. */
   captureHistory: () => void;
   onFitCanvas: () => void;
+  onCreateInput: (nodeId: string) => void;
+  onOpenInput: (inputId: string) => void;
+  onCropImage: (nodeId: string) => void;
 }
 
 const getNodeStyle = (
@@ -137,6 +165,7 @@ const IMAGE_FIT_OPTIONS = [
 const OVERFLOW_OPTIONS = [
   { value: "visible", label: "Visible" },
   { value: "hidden", label: "Hidden" },
+  { value: "clip", label: "Clip" },
 ];
 
 /**
@@ -158,9 +187,14 @@ export const buildThumbnailInspectorSections = ({
   onAspectRatioLockedChange,
   canvasPresets,
   outsideCanvasNodeIds,
+  clippedCanvasNodeIds,
+  groupOverflowDiagnostics,
   commands,
   captureHistory,
   onFitCanvas,
+  onCreateInput,
+  onOpenInput,
+  onCropImage,
 }: ThumbnailInspectorParams): StudioPropertyItem[] => {
   const section = (
     id: string,
@@ -184,6 +218,8 @@ export const buildThumbnailInspectorSections = ({
       section,
       canvasPresets,
       outsideCanvasNodeIds,
+      clippedCanvasNodeIds,
+      groupOverflowDiagnostics,
       commands,
       captureHistory,
       onFitCanvas,
@@ -371,6 +407,244 @@ export const buildThumbnailInspectorSections = ({
     ),
   );
 
+  if (isStudioTextNode(selectedNode) || isStudioImageNode(selectedNode)) {
+    const compatibleInputs = Object.values(document.inputs).filter(
+      (input) =>
+        input.scope === "global" &&
+        isStudioInputCompatibleWithNode(input, selectedNode),
+    );
+    const bindingInputId = getStudioBindingInputId(selectedNode.binding);
+    const selectedBoundInput = bindingInputId
+      ? (document.inputs[bindingInputId] ?? null)
+      : null;
+    const isBoundBinding = Boolean(bindingInputId);
+    const bindingSourceValue = bindingInputId ? `input:${bindingInputId}` : "";
+    const assets = Object.values(document.assets);
+    const selectedAssetBinding =
+      selectedNode.binding?.kind === "selectAsset"
+        ? selectedNode.binding
+        : null;
+
+    sections.push(
+      section(
+        "binding",
+        "Binding",
+        <div className="grid min-w-0 gap-3">
+          <div className="grid grid-cols-2 gap-0.5 rounded-lg border border-[var(--field-border)] bg-[var(--field)] p-0.5">
+            <button
+              className={`h-7 rounded-[5px] text-[11px] font-semibold transition ${!isBoundBinding ? "bg-[var(--accent)] text-white" : "text-[var(--fg2)] hover:bg-[var(--hover)]"}`}
+              disabled={isLocked}
+              type="button"
+              onClick={() => commands.setStaticBinding(selectedNode.id)}
+            >
+              Static
+            </button>
+            <button
+              className={`h-7 rounded-[5px] text-[11px] font-semibold transition ${isBoundBinding ? "bg-[var(--accent)] text-white" : "text-[var(--fg2)] hover:bg-[var(--hover)]"}`}
+              disabled={isLocked || compatibleInputs.length === 0}
+              type="button"
+              onClick={() => {
+                if (compatibleInputs[0]) {
+                  commands.bindNodeToInput(
+                    selectedNode.id,
+                    compatibleInputs[0].id,
+                  );
+                }
+              }}
+            >
+              Bound
+            </button>
+          </div>
+
+          {!isBoundBinding ? (
+            <>
+              {isStudioTextNode(selectedNode) ? (
+                <StudioTextareaField
+                  disabled={isLocked}
+                  label="Static text"
+                  placeholder="Text shown on the thumbnail"
+                  rows={3}
+                  value={
+                    selectedNode.binding?.kind === "staticText"
+                      ? selectedNode.binding.value
+                      : ""
+                  }
+                  onChange={(value) =>
+                    commands.setStaticText(selectedNode.id, value)
+                  }
+                />
+              ) : (
+                <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                  <span>Static asset</span>
+                  <select
+                    className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                    disabled={isLocked || assets.length === 0}
+                    value={
+                      selectedNode.binding?.kind === "staticAsset"
+                        ? selectedNode.binding.assetId
+                        : ""
+                    }
+                    onChange={(event) =>
+                      commands.setImageAsset(
+                        selectedNode.id,
+                        event.currentTarget.value || null,
+                      )
+                    }
+                  >
+                    <option value="">Select an asset</option>
+                    {assets.map((asset) => (
+                      <option key={asset.id} value={asset.id}>
+                        {asset.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button
+                className="h-8 rounded-lg border border-dashed border-[var(--field-border)] text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={isLocked}
+                type="button"
+                onClick={() => onCreateInput(selectedNode.id)}
+              >
+                Create input from current value
+              </button>
+            </>
+          ) : (
+            <>
+              <label className="grid min-w-0 gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
+                <span>Global input source</span>
+                <select
+                  className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                  disabled={isLocked || compatibleInputs.length === 0}
+                  value={bindingSourceValue}
+                  onChange={(event) =>
+                    commands.bindNodeToInput(
+                      selectedNode.id,
+                      event.currentTarget.value.replace(/^input:/, ""),
+                    )
+                  }
+                >
+                  {compatibleInputs.map((input) => (
+                    <option key={input.id} value={`input:${input.id}`}>
+                      {input.label} · {getStudioInputTypeLabel(input.type)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {selectedBoundInput ? (
+                <div className="grid min-w-0 gap-1 rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] px-3 py-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                    Global source
+                  </span>
+                  <span className="truncate text-xs font-semibold text-[var(--fg)]">
+                    {selectedBoundInput.label}
+                  </span>
+                  <span className="truncate text-[10px] font-medium text-[var(--fg3)]">
+                    {getStudioInputTypeLabel(selectedBoundInput.type)} ·{" "}
+                    {selectedBoundInput.id}
+                  </span>
+                  <button
+                    className="justify-self-start text-[10px] font-semibold text-[var(--accent)] hover:underline"
+                    type="button"
+                    onClick={() => onOpenInput(selectedBoundInput.id)}
+                  >
+                    Open in Inputs
+                  </button>
+                </div>
+              ) : null}
+              {selectedNode.binding?.kind === "selectText" ? (
+                <StudioSelectField
+                  disabled={isLocked}
+                  label="Select output"
+                  options={[
+                    { value: "label", label: "Label" },
+                    { value: "value", label: "Value" },
+                  ]}
+                  value={selectedNode.binding.output}
+                  onChange={(value) =>
+                    commands.setSelectTextOutput(
+                      selectedNode.id,
+                      value as "label" | "value",
+                    )
+                  }
+                />
+              ) : null}
+              {selectedNode.binding?.kind === "selectAsset" &&
+              selectedBoundInput?.type === "select" ? (
+                <div className="grid min-w-0 gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--fg3)]">
+                    Asset mapping
+                  </span>
+                  {selectedBoundInput.options.map((option) => (
+                    <label
+                      className="grid min-w-0 gap-1 text-[10px] font-semibold text-[var(--fg2)]"
+                      key={option.value}
+                    >
+                      <span>{option.label}</span>
+                      <select
+                        className="h-8 w-full min-w-0 rounded-lg border border-[var(--field-border)] bg-[var(--field)] px-2 text-xs font-medium text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                        disabled={isLocked}
+                        value={
+                          selectedAssetBinding?.assetByOption[option.value] ??
+                          ""
+                        }
+                        onChange={(event) =>
+                          commands.setSelectAssetMapping(
+                            selectedNode.id,
+                            option.value,
+                            event.currentTarget.value || null,
+                          )
+                        }
+                      >
+                        <option value="">None</option>
+                        {assets.map((asset) => (
+                          <option key={asset.id} value={asset.id}>
+                            {asset.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          )}
+
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-[var(--field-border)] pt-2">
+            {selectedNode.meta?.bindingFallback ? (
+              <button
+                className="rounded-md border border-[var(--field-border)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:opacity-40"
+                disabled={isLocked}
+                type="button"
+                onClick={() =>
+                  commands.setStaticBinding(selectedNode.id, "restore")
+                }
+              >
+                Restore original
+              </button>
+            ) : null}
+            {isBoundBinding ? (
+              <button
+                className="rounded-md border border-[var(--field-border)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:opacity-40"
+                disabled={isLocked}
+                type="button"
+                onClick={() => commands.setStaticBinding(selectedNode.id)}
+              >
+                Use current preview
+              </button>
+            ) : null}
+            <span className="text-[10px] leading-4 text-[var(--fg3)]">
+              Static keeps the current or original value; bound uses a global
+              input.
+            </span>
+          </div>
+        </div>,
+        undefined,
+        isLocked ? "Locked" : isBoundBinding ? "Dynamic" : undefined,
+      ),
+    );
+  }
+
   if (hasStudioNodeInspectorSection(selectedNode.type, "text")) {
     const fontSize = getStudioSharedNumberValue(
       styles.map((style) => style.fontSize),
@@ -391,6 +665,31 @@ export const buildThumbnailInspectorSections = ({
       "#111827",
     );
     const primaryStyle = styles[0] ?? {};
+    const isSingleTextNode =
+      selectedNodes.length === 1 &&
+      (selectedNode.type === "text" || selectedNode.type === "flexibleText");
+    const resolvedTextAppearance = isSingleTextNode
+      ? resolveStudioTextAppearance(selectedNode, primaryStyle)
+      : null;
+    const legacyTextShadow = isSingleTextNode
+      ? parseLegacyStudioTextShadow(primaryStyle)
+      : null;
+    const inspectorAppearance = isSingleTextNode
+      ? (selectedNode.textAppearance ?? {
+          fill: {
+            type: "solid" as const,
+            color: resolvedTextAppearance?.fill.color ?? color.value,
+            opacity: resolvedTextAppearance?.fill.opacity ?? 1,
+          },
+          strokes: resolvedTextAppearance?.strokes ?? [],
+          ...(resolvedTextAppearance?.shadow
+            ? { shadow: resolvedTextAppearance.shadow }
+            : {}),
+        })
+      : null;
+    const inspectorStrokes = inspectorAppearance?.strokes ?? [];
+    const inspectorShadow =
+      inspectorAppearance?.shadow ?? legacyTextShadow ?? undefined;
     const textValue =
       selectedNode.binding?.kind === "staticText"
         ? selectedNode.binding.value
@@ -402,6 +701,7 @@ export const buildThumbnailInspectorSections = ({
         "Text",
         <div className="grid gap-2">
           <StudioTextareaField
+            disabled={isLocked}
             label="Content"
             placeholder="Text shown on the thumbnail"
             rows={3}
@@ -453,20 +753,341 @@ export const buildThumbnailInspectorSections = ({
             />
           ) : null}
           <div className="grid gap-1.5 text-[11px] font-semibold text-[var(--fg2)]">
-            <span>Color</span>
+            <span>{isSingleTextNode ? "Fill" : "Color"}</span>
             <StudioHexColorPicker
-              ariaLabel="Text color"
-              value={color.value}
+              ariaLabel={isSingleTextNode ? "Text fill" : "Text color"}
+              disabled={isLocked}
+              value={
+                isSingleTextNode
+                  ? (inspectorAppearance?.fill.color ?? color.value)
+                  : color.value
+              }
               onChange={(value) =>
-                selectedNodes.forEach((node) =>
-                  commands.setStyleValue(node.id, "color", value, {
-                    history: false,
-                  }),
-                )
+                isSingleTextNode
+                  ? commands.setTextFill(
+                      selectedNode.id,
+                      { color: value },
+                      { history: false },
+                    )
+                  : selectedNodes.forEach((node) =>
+                      commands.setStyleValue(node.id, "color", value, {
+                        history: false,
+                      }),
+                    )
               }
               onChangeStart={captureHistory}
             />
           </div>
+          {isSingleTextNode && inspectorAppearance ? (
+            <StudioNumberField
+              disabled={isLocked}
+              label="Fill opacity %"
+              value={inspectorAppearance.fill.opacity * 100}
+              onChange={(value) =>
+                commands.setTextFill(selectedNode.id, { opacity: value / 100 })
+              }
+            />
+          ) : null}
+          {isSingleTextNode && inspectorAppearance ? (
+            <div className="grid gap-2 rounded-xl border border-[var(--field-border)] p-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold text-[var(--fg2)]">
+                  Strokes
+                </span>
+                <button
+                  className="rounded-md border border-[var(--field-border)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={
+                    isLocked ||
+                    inspectorStrokes.length >= STUDIO_TEXT_MAX_STROKES
+                  }
+                  type="button"
+                  onClick={() => commands.addTextStroke(selectedNode.id)}
+                >
+                  Add
+                </button>
+              </div>
+              {inspectorStrokes.length === 0 ? (
+                <p className="text-[10px] text-[var(--fg3)]">No strokes</p>
+              ) : (
+                getStudioTextStrokeBands(inspectorStrokes).map(
+                  ({ stroke, band, hidden }, index) => (
+                    <div
+                      className="grid gap-2 rounded-lg bg-[var(--field)] p-2"
+                      data-thumbnail-text-stroke-id={stroke.id}
+                      draggable={!isLocked}
+                      key={stroke.id}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const draggedStrokeId = event.dataTransfer.getData(
+                          "text/x-studio-text-stroke",
+                        );
+                        if (draggedStrokeId) {
+                          commands.moveTextStroke(
+                            selectedNode.id,
+                            draggedStrokeId,
+                            index,
+                          );
+                        }
+                      }}
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData(
+                          "text/x-studio-text-stroke",
+                          stroke.id,
+                        );
+                        event.dataTransfer.effectAllowed = "move";
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <input
+                          aria-label={`${stroke.label ?? "Stroke"} enabled`}
+                          checked={stroke.enabled}
+                          disabled={isLocked}
+                          type="checkbox"
+                          onChange={(event) =>
+                            commands.updateTextStroke(
+                              selectedNode.id,
+                              stroke.id,
+                              {
+                                enabled: event.currentTarget.checked,
+                              },
+                            )
+                          }
+                        />
+                        <input
+                          aria-label={`${stroke.label ?? "Stroke"} name`}
+                          className="h-6 min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 text-[10px] font-semibold text-[var(--fg2)] outline-none focus:border-[var(--accent)]"
+                          disabled={isLocked}
+                          value={stroke.label ?? `Stroke ${index + 1}`}
+                          onChange={(event) =>
+                            commands.updateTextStroke(
+                              selectedNode.id,
+                              stroke.id,
+                              {
+                                label: event.currentTarget.value,
+                              },
+                            )
+                          }
+                        />
+                        <button
+                          className={ICON_BUTTON_CLASS}
+                          disabled={isLocked || index === 0}
+                          title="Move stroke back"
+                          type="button"
+                          onClick={() =>
+                            commands.moveTextStroke(
+                              selectedNode.id,
+                              stroke.id,
+                              index - 1,
+                            )
+                          }
+                        >
+                          ↑
+                        </button>
+                        <button
+                          className={ICON_BUTTON_CLASS}
+                          disabled={
+                            isLocked || index === inspectorStrokes.length - 1
+                          }
+                          title="Move stroke front"
+                          type="button"
+                          onClick={() =>
+                            commands.moveTextStroke(
+                              selectedNode.id,
+                              stroke.id,
+                              index + 1,
+                            )
+                          }
+                        >
+                          ↓
+                        </button>
+                      </div>
+                      <StudioHexColorPicker
+                        ariaLabel={`${stroke.label ?? "Stroke"} color`}
+                        disabled={isLocked}
+                        value={stroke.color}
+                        onChange={(value) =>
+                          commands.updateTextStroke(
+                            selectedNode.id,
+                            stroke.id,
+                            { color: value },
+                            { history: false },
+                          )
+                        }
+                        onChangeStart={captureHistory}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <StudioNumberField
+                          disabled={isLocked}
+                          label={`Outset (0–${STUDIO_TEXT_MAX_OUTSET})`}
+                          value={stroke.outset}
+                          onChange={(value) =>
+                            commands.updateTextStroke(
+                              selectedNode.id,
+                              stroke.id,
+                              {
+                                outset: value,
+                              },
+                            )
+                          }
+                        />
+                        <StudioNumberField
+                          disabled={isLocked}
+                          label={`Opacity ${Math.round(stroke.opacity * 100)}%`}
+                          value={stroke.opacity * 100}
+                          onChange={(value) =>
+                            commands.updateTextStroke(
+                              selectedNode.id,
+                              stroke.id,
+                              {
+                                opacity: value / 100,
+                              },
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-[var(--fg3)]">
+                        <span>
+                          {hidden
+                            ? "Covered by another stroke"
+                            : `Visible band ${Math.max(0, band).toFixed(1)}`}
+                        </span>
+                        <span className="flex gap-1">
+                          <button
+                            className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)] disabled:opacity-40"
+                            disabled={
+                              isLocked ||
+                              inspectorStrokes.length >= STUDIO_TEXT_MAX_STROKES
+                            }
+                            type="button"
+                            onClick={() =>
+                              commands.duplicateTextStroke(
+                                selectedNode.id,
+                                stroke.id,
+                              )
+                            }
+                          >
+                            Duplicate
+                          </button>
+                          <button
+                            className="rounded border border-[var(--field-border)] px-1.5 py-0.5 font-semibold hover:border-[var(--accent)] disabled:opacity-40"
+                            disabled={isLocked}
+                            type="button"
+                            onClick={() =>
+                              commands.deleteTextStroke(
+                                selectedNode.id,
+                                stroke.id,
+                              )
+                            }
+                          >
+                            Delete
+                          </button>
+                        </span>
+                      </div>
+                    </div>
+                  ),
+                )
+              )}
+            </div>
+          ) : null}
+          {isSingleTextNode && inspectorAppearance ? (
+            <div className="grid gap-2 rounded-xl border border-[var(--field-border)] p-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold text-[var(--fg2)]">
+                  Shadow
+                </span>
+                {inspectorShadow ? (
+                  <button
+                    className="rounded-md border border-[var(--field-border)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)]"
+                    disabled={isLocked}
+                    type="button"
+                    onClick={() => commands.removeTextShadow(selectedNode.id)}
+                  >
+                    Remove
+                  </button>
+                ) : (
+                  <button
+                    className="rounded-md border border-[var(--field-border)] px-2 py-1 text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:opacity-40"
+                    disabled={isLocked}
+                    type="button"
+                    onClick={() => commands.setTextShadow(selectedNode.id, {})}
+                  >
+                    Add
+                  </button>
+                )}
+              </div>
+              {inspectorShadow ? (
+                <>
+                  <label className="flex items-center gap-2 text-[10px] font-semibold text-[var(--fg2)]">
+                    <input
+                      checked={inspectorShadow.enabled}
+                      disabled={isLocked}
+                      type="checkbox"
+                      onChange={(event) =>
+                        commands.setTextShadow(selectedNode.id, {
+                          enabled: event.currentTarget.checked,
+                        })
+                      }
+                    />
+                    Enabled
+                  </label>
+                  <StudioHexColorPicker
+                    ariaLabel="Text shadow color"
+                    disabled={isLocked}
+                    value={inspectorShadow.color}
+                    onChange={(value) =>
+                      commands.setTextShadow(
+                        selectedNode.id,
+                        { color: value },
+                        { history: false },
+                      )
+                    }
+                    onChangeStart={captureHistory}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <StudioNumberField
+                      disabled={isLocked}
+                      label="X"
+                      value={inspectorShadow.offsetX}
+                      onChange={(value) =>
+                        commands.setTextShadow(selectedNode.id, {
+                          offsetX: value,
+                        })
+                      }
+                    />
+                    <StudioNumberField
+                      disabled={isLocked}
+                      label="Y"
+                      value={inspectorShadow.offsetY}
+                      onChange={(value) =>
+                        commands.setTextShadow(selectedNode.id, {
+                          offsetY: value,
+                        })
+                      }
+                    />
+                    <StudioNumberField
+                      disabled={isLocked}
+                      label="Blur"
+                      value={inspectorShadow.blur}
+                      onChange={(value) =>
+                        commands.setTextShadow(selectedNode.id, { blur: value })
+                      }
+                    />
+                    <StudioNumberField
+                      disabled={isLocked}
+                      label={`Opacity ${Math.round(inspectorShadow.opacity * 100)}%`}
+                      value={inspectorShadow.opacity * 100}
+                      onChange={(value) =>
+                        commands.setTextShadow(selectedNode.id, {
+                          opacity: value / 100,
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              ) : null}
+            </div>
+          ) : null}
         </div>,
         undefined,
         color.mixed ? "Mixed" : undefined,
@@ -480,6 +1101,8 @@ export const buildThumbnailInspectorSections = ({
       selectedNode.binding?.kind === "staticAsset"
         ? selectedNode.binding.assetId
         : "";
+    const imageStyle = getNodeStyle(document, selectedNode);
+    const imagePosition = getStudioImageObjectPosition(imageStyle);
 
     sections.push(
       section(
@@ -487,6 +1110,7 @@ export const buildThumbnailInspectorSections = ({
         "Image",
         <div className="grid gap-2">
           <StudioSelectField
+            disabled={isLocked}
             label="Asset"
             options={[
               { value: "", label: "None" },
@@ -501,6 +1125,7 @@ export const buildThumbnailInspectorSections = ({
             }
           />
           <StudioSelectField
+            disabled={isLocked}
             label="Fit"
             options={IMAGE_FIT_OPTIONS}
             value={selectedNode.fit ?? "cover"}
@@ -508,6 +1133,54 @@ export const buildThumbnailInspectorSections = ({
               commands.setImageFit(selectedNode.id, fit as StudioImageFit)
             }
           />
+          <button
+            className="h-8 rounded-lg border border-dashed border-[var(--field-border)] text-[10px] font-semibold text-[var(--fg2)] hover:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={
+              isLocked || !currentAssetId || !document.assets[currentAssetId]
+            }
+            type="button"
+            onClick={() => onCropImage(selectedNode.id)}
+          >
+            Crop image
+          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <StudioNumberField
+              disabled={isLocked}
+              label="Focus X %"
+              value={imagePosition.x}
+              onChange={(value) =>
+                commands.setStyleValue(
+                  selectedNode.id,
+                  "objectPosition",
+                  `${value}% ${imagePosition.y}%`,
+                )
+              }
+            />
+            <StudioNumberField
+              disabled={isLocked}
+              label="Focus Y %"
+              value={imagePosition.y}
+              onChange={(value) =>
+                commands.setStyleValue(
+                  selectedNode.id,
+                  "objectPosition",
+                  `${imagePosition.x}% ${value}%`,
+                )
+              }
+            />
+            <StudioNumberField
+              disabled={isLocked}
+              label="Border radius"
+              value={getStudioImageBorderRadius(imageStyle)}
+              onChange={(value) =>
+                commands.setStyleValue(
+                  selectedNode.id,
+                  "borderRadius",
+                  Math.max(0, value),
+                )
+              }
+            />
+          </div>
           <p className="text-[10px] font-medium leading-4 text-[var(--fg3)]">
             Uploading and cropping arrive with the asset library.
           </p>
@@ -641,19 +1314,6 @@ export const buildThumbnailInspectorSections = ({
     );
   }
 
-  if (hasStudioNodeInspectorSection(selectedNode.type, "binding")) {
-    sections.push(
-      section(
-        "binding",
-        "Binding",
-        <p className="text-[11px] font-medium leading-5 text-[var(--fg3)]">
-          User inputs arrive with the thumbnail runtime. Text and images use the
-          value stored in this document for now.
-        </p>,
-      ),
-    );
-  }
-
   return sections;
 };
 
@@ -662,6 +1322,8 @@ const buildCanvasSections = ({
   section,
   canvasPresets,
   outsideCanvasNodeIds,
+  clippedCanvasNodeIds,
+  groupOverflowDiagnostics,
   commands,
   captureHistory,
   onFitCanvas,
@@ -676,6 +1338,8 @@ const buildCanvasSections = ({
   ) => StudioPropertyItem;
   canvasPresets: ThumbnailCanvasPreset[];
   outsideCanvasNodeIds: string[];
+  clippedCanvasNodeIds: string[];
+  groupOverflowDiagnostics: StudioGroupOverflowDiagnostic[];
   commands: ThumbnailNodeCommands;
   captureHistory: () => void;
   onFitCanvas: () => void;
@@ -747,6 +1411,27 @@ const buildCanvasSections = ({
         >
           {outsideCanvasNodeIds.length} object(s) sit outside the canvas. They
           are kept, not deleted.
+        </p>
+      ) : null}
+      {clippedCanvasNodeIds.length > 0 ? (
+        <p
+          className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-2 text-[10px] font-semibold leading-4 text-amber-200"
+          data-thumbnail-canvas-clipping-warning="true"
+        >
+          {clippedCanvasNodeIds.length} object(s) have visual effects clipped by
+          the canvas edge.
+        </p>
+      ) : null}
+      {groupOverflowDiagnostics.length > 0 ? (
+        <p
+          className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-2.5 py-2 text-[10px] font-semibold leading-4 text-amber-200"
+          data-thumbnail-group-overflow-warning="true"
+        >
+          {groupOverflowDiagnostics.reduce(
+            (count, diagnostic) => count + diagnostic.childIds.length,
+            0,
+          )}{" "}
+          child visual bounds overflow a hidden or clipped group.
         </p>
       ) : null}
     </div>,
