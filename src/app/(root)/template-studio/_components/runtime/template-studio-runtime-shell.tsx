@@ -344,9 +344,10 @@ export function TemplateStudioRuntimeShell({
       /**
        * 래스터라이저는 `modern-screenshot` 하나로 둔다.
        *
-       * Phase 0A 스파이크가 표준으로 정한 것이고, 시간표 카드와 같은 조건의 장면에서
-       * `html-to-image`보다 화면과 더 잘 맞았다. 자동 크기 텍스트는 상자에 겨우 맞는
-       * 크기에서 멈추므로, 글자 전진폭이 조금만 달라도 결과가 화면과 어긋난다.
+       * Phase 0A 스파이크가 표준으로 정한 것이고, 시간표 카드와 같은 조건으로 재 봤을 때
+       * `html-to-image`보다 화면과 더 잘 맞거나 같았다. 어긋난 장면은 자동 크기 글자가
+       * 상자 높이를 거의 채우는 쪽이었다. 두 줄짜리 제목과 높이가 빡빡한 부제목이다.
+       * 화면에서는 아무 문제가 없고 내려받은 파일에서만 드러나므로 눈에 띄기까지 오래 걸린다.
        *
        * 옵션 대응: `pixelRatio` → `scale`, `cacheBust` → `fetch.bypassingCache`.
        */
