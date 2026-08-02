@@ -286,10 +286,13 @@ const CardStreamingDate = ({
 };
 
 const CardStreamingTime = ({
+  day,
   time,
   currentTheme,
   isGuerrilla,
 }: CardStreamingTimeProps) => {
+  const isOdd = day % 2 === 1;
+  const textColor = isOdd ? '#333118' : '#432418';
   const koTime = { AM: '오전', PM: '오후' };
   const [prefix, suffix] = formatTime(time, 'half').split(' ');
   const koPrefix = koTime[prefix as keyof typeof koTime];
@@ -297,7 +300,7 @@ const CardStreamingTime = ({
     <p
       style={{
         fontFamily: COMP_FONTS.STREAMING_TIME,
-        color: COMP_COLORS.STREAMING_TIME,
+        color: textColor,
         width: 440,
         height: 108,
         lineHeight: 1,
