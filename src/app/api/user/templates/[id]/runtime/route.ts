@@ -31,6 +31,7 @@ const UUID_REGEX =
 type AuthorizedContext = {
   userId: number;
   templateName: string;
+  templateKind: "timetable" | "thumbnail";
 };
 
 /**
@@ -68,7 +69,11 @@ async function authorize(
     return NextResponse.json({ error: "Invalid user" }, { status: 400 });
   }
 
-  return { userId, templateName: template.name };
+  return {
+    userId,
+    templateName: template.name,
+    templateKind: template.templateKind,
+  };
 }
 
 export async function GET(
@@ -98,6 +103,18 @@ export async function GET(
       return NextResponse.json(
         { error: "Invalid template kind" },
         { status: 400 },
+      );
+    }
+    if (requestedKind && auth.templateKind !== requestedKind) {
+      return NextResponse.json(
+        { error: "Template kind mismatch" },
+        { status: 404 },
+      );
+    }
+    if (!requestedKind && auth.templateKind === "thumbnail") {
+      return NextResponse.json(
+        { error: "Thumbnail runtime requires the thumbnail route" },
+        { status: 404 },
       );
     }
 
@@ -243,7 +260,7 @@ export async function PUT(
       );
     }
 
-    if (getStudioTemplateKind(documentRecord.document) === "thumbnail") {
+    if (auth.templateKind === "thumbnail") {
       return NextResponse.json(
         { error: "Thumbnail runtime values are browser-local" },
         { status: 405 },

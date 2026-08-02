@@ -3,6 +3,11 @@ import {
   createTemplateStudioTemplate,
   listTemplateStudioTemplates,
 } from "@/services/server/templateStudioPersistenceService";
+import { isStudioTemplateKind } from "@/utils/template-studio/template-kind";
+import {
+  THUMBNAIL_CANVAS_PRESETS,
+  createThumbnailStudioDocument,
+} from "@/utils/thumbnail-studio/document-factory";
 import { NextRequest, NextResponse } from "next/server";
 
 const getStringField = (
@@ -20,7 +25,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const templates = await listTemplateStudioTemplates();
+    const rawKind = request.nextUrl.searchParams.get("kind");
+    if (rawKind && !isStudioTemplateKind(rawKind)) {
+      return NextResponse.json(
+        { error: "유효한 Template Studio 템플릿 종류가 필요합니다." },
+        { status: 400 },
+      );
+    }
+    const templates = await listTemplateStudioTemplates(undefined, {
+      templateKind:
+        rawKind && isStudioTemplateKind(rawKind) ? rawKind : undefined,
+    });
 
     return NextResponse.json({
       success: true,
@@ -53,6 +68,15 @@ export async function POST(request: NextRequest) {
     const payload = body as Record<string, unknown>;
     const name = getStringField(payload, "name");
     const description = getStringField(payload, "description") ?? "";
+    const templateKind = payload.templateKind;
+    const canvasPresetId = getStringField(payload, "canvasPresetId");
+
+    if (templateKind !== undefined && !isStudioTemplateKind(templateKind)) {
+      return NextResponse.json(
+        { error: "유효한 Template Studio 템플릿 종류가 필요합니다." },
+        { status: 400 },
+      );
+    }
 
     if (!name) {
       return NextResponse.json(
@@ -61,10 +85,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (
+      canvasPresetId &&
+      (!isStudioTemplateKind(templateKind) || templateKind !== "thumbnail")
+    ) {
+      return NextResponse.json(
+        { error: "canvasPresetId는 썸네일 템플릿에서만 사용할 수 있습니다." },
+        { status: 400 },
+      );
+    }
+    const canvasPreset = canvasPresetId
+      ? THUMBNAIL_CANVAS_PRESETS.find((preset) => preset.id === canvasPresetId)
+      : undefined;
+    if (canvasPresetId && !canvasPreset) {
+      return NextResponse.json(
+        { error: "유효한 썸네일 캔버스 프리셋이 필요합니다." },
+        { status: 400 },
+      );
+    }
+
     const template = await createTemplateStudioTemplate({
       name,
       description,
       createdBy: actor.userId,
+      templateKind: isStudioTemplateKind(templateKind)
+        ? templateKind
+        : "timetable",
+      initialDocument: canvasPreset
+        ? createThumbnailStudioDocument({
+            name,
+            description,
+            width: canvasPreset.width,
+            height: canvasPreset.height,
+          })
+        : undefined,
     });
 
     return NextResponse.json({

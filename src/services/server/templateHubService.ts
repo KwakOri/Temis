@@ -13,6 +13,7 @@ import {
   type TemplateSaleBlockReason,
   type TemplateSalesType,
 } from "@/types/template-hub";
+import { isStudioTemplateKind } from "@/utils/template-studio/template-kind";
 
 // 순수 판정 로직은 DB client를 import하지 않는 별도 모듈에 있다(remediation
 // 02단계) — `scripts/check-template-hub-sale-readiness.ts`가 Supabase
@@ -51,7 +52,7 @@ export class TemplateHubParamError extends Error {
 const parseIntParam = (
   raw: string | null,
   name: string,
-  { min, max }: { min: number; max: number }
+  { min, max }: { min: number; max: number },
 ): number | undefined => {
   if (raw === null || raw.trim() === "") return undefined;
 
@@ -63,7 +64,7 @@ const parseIntParam = (
 
   if (value < min || value > max) {
     throw new TemplateHubParamError(
-      `${name} 파라미터는 ${min} 이상 ${max} 이하여야 합니다.`
+      `${name} 파라미터는 ${min} 이상 ${max} 이하여야 합니다.`,
     );
   }
 
@@ -73,13 +74,13 @@ const parseIntParam = (
 const parseEnumParam = <T extends string>(
   raw: string | null,
   name: string,
-  allowed: readonly T[]
+  allowed: readonly T[],
 ): T | undefined => {
   if (raw === null || raw.trim() === "") return undefined;
 
   if (!allowed.includes(raw as T)) {
     throw new TemplateHubParamError(
-      `${name} 파라미터는 ${allowed.join(", ")} 중 하나여야 합니다.`
+      `${name} 파라미터는 ${allowed.join(", ")} 중 하나여야 합니다.`,
     );
   }
 
@@ -88,13 +89,13 @@ const parseEnumParam = <T extends string>(
 
 const parseBooleanParam = (
   raw: string | null,
-  name: string
+  name: string,
 ): boolean | undefined => {
   if (raw === null || raw.trim() === "") return undefined;
 
   if (raw !== "true" && raw !== "false") {
     throw new TemplateHubParamError(
-      `${name} 파라미터는 true 또는 false여야 합니다.`
+      `${name} 파라미터는 true 또는 false여야 합니다.`,
     );
   }
 
@@ -103,7 +104,7 @@ const parseBooleanParam = (
 
 /** query string을 목록 파라미터로 정규화한다. 잘못된 값은 400으로 이어진다. */
 export const parseTemplateHubListParams = (
-  searchParams: URLSearchParams
+  searchParams: URLSearchParams,
 ): Required<Pick<TemplateHubListParams, "limit" | "offset">> &
   TemplateHubListParams => {
   const limit =
@@ -124,21 +125,25 @@ export const parseTemplateHubListParams = (
     limit,
     offset,
     search,
-    engine: parseEnumParam(searchParams.get("engine"), "engine", TEMPLATE_ENGINES),
+    engine: parseEnumParam(
+      searchParams.get("engine"),
+      "engine",
+      TEMPLATE_ENGINES,
+    ),
     publicationStatus: parseEnumParam(
       searchParams.get("publicationStatus"),
       "publicationStatus",
-      TEMPLATE_PUBLICATION_STATUSES
+      TEMPLATE_PUBLICATION_STATUSES,
     ),
     salesType: parseEnumParam(
       searchParams.get("salesType"),
       "salesType",
-      TEMPLATE_SALES_TYPES
+      TEMPLATE_SALES_TYPES,
     ),
     saleStatus: parseEnumParam(
       searchParams.get("saleStatus"),
       "saleStatus",
-      TEMPLATE_SALE_STATUSES
+      TEMPLATE_SALE_STATUSES,
     ),
     hasProduct: parseBooleanParam(searchParams.get("hasProduct"), "hasProduct"),
   };
@@ -166,32 +171,27 @@ type TemplateHubRow = {
   name: string | null;
   description: string | null;
   template_engine: string | null;
+  template_kind: string | null;
   status: string | null;
   is_public: boolean | null;
   created_at: string;
   updated_at: string;
-  shop_templates:
-    | Array<{
-        id: string;
-        is_shop_visible: boolean | null;
-        template_plans:
-          | Array<{
-              id: string;
-              plan: string | null;
-              price: number | null;
-              shop_template_id: string | null;
-            }>
-          | null;
-      }>
-    | null;
-  template_artists:
-    | Array<{
-        artist_id: string;
-        is_primary: boolean | null;
-        display_order: number | null;
-        artist: { id: string; name: string | null } | null;
-      }>
-    | null;
+  shop_templates: Array<{
+    id: string;
+    is_shop_visible: boolean | null;
+    template_plans: Array<{
+      id: string;
+      plan: string | null;
+      price: number | null;
+      shop_template_id: string | null;
+    }> | null;
+  }> | null;
+  template_artists: Array<{
+    artist_id: string;
+    is_primary: boolean | null;
+    display_order: number | null;
+    artist: { id: string; name: string | null } | null;
+  }> | null;
 };
 
 const TEMPLATE_HUB_SELECT = `
@@ -199,6 +199,7 @@ const TEMPLATE_HUB_SELECT = `
   name,
   description,
   template_engine,
+  template_kind,
   status,
   is_public,
   created_at,
@@ -227,13 +228,16 @@ const TEMPLATE_HUB_SELECT = `
 const normalizeEngine = (value: string | null): TemplateEngine =>
   value === "studio" ? "studio" : "legacy";
 
+const normalizeTemplateKind = (value: string | null) =>
+  isStudioTemplateKind(value) ? value : null;
+
 const normalizePublicationStatus = (
-  value: string | null
+  value: string | null,
 ): TemplatePublicationStatus =>
   value === "published" || value === "archived" ? value : "draft";
 
 const normalizeLinkedArtists = (
-  row: TemplateHubRow
+  row: TemplateHubRow,
 ): TemplateHubLinkedArtist[] =>
   (row.template_artists ?? [])
     .slice()
@@ -256,7 +260,7 @@ const normalizeLinkedArtists = (
  * 다른 템플릿에만 걸린 규칙은 계산에 넣지 않는다.
  */
 const fetchRoyaltyCoverage = async (
-  rows: TemplateHubRow[]
+  rows: TemplateHubRow[],
 ): Promise<Map<string, Set<string>>> => {
   const coverage = new Map<string, Set<string>>();
   for (const row of rows) {
@@ -266,9 +270,9 @@ const fetchRoyaltyCoverage = async (
   const artistIds = Array.from(
     new Set(
       rows.flatMap((row) =>
-        (row.template_artists ?? []).map((relation) => relation.artist_id)
-      )
-    )
+        (row.template_artists ?? []).map((relation) => relation.artist_id),
+      ),
+    ),
   );
 
   if (artistIds.length === 0) {
@@ -296,7 +300,8 @@ const fetchRoyaltyCoverage = async (
 
     if (!templateIdSet.has(rule.template_id)) continue;
 
-    const bucket = templateRuleArtists.get(rule.template_id) ?? new Set<string>();
+    const bucket =
+      templateRuleArtists.get(rule.template_id) ?? new Set<string>();
     bucket.add(rule.artist_id);
     templateRuleArtists.set(rule.template_id, bucket);
   }
@@ -322,7 +327,7 @@ const fetchRoyaltyCoverage = async (
 
 const toHubItem = (
   row: TemplateHubRow,
-  artistIdsWithRoyalty: ReadonlySet<string>
+  artistIdsWithRoyalty: ReadonlySet<string>,
 ): TemplateHubItem => {
   // shop_templates는 템플릿당 한 건 사용한다. 여러 건이 있어도 첫 행을 기준으로
   // 삼아 관계 데이터 때문에 목록이 깨지지 않게 한다.
@@ -331,7 +336,7 @@ const toHubItem = (
 
   const purchasablePlanCount = shopProductId
     ? (shopTemplate?.template_plans ?? []).filter((plan) =>
-        isPurchasablePlan(plan, shopProductId)
+        isPurchasablePlan(plan, shopProductId),
       ).length
     : 0;
 
@@ -353,6 +358,7 @@ const toHubItem = (
     name: row.name ?? "",
     description: row.description ?? "",
     templateEngine: normalizeEngine(row.template_engine),
+    templateKind: normalizeTemplateKind(row.template_kind),
     publicationStatus,
     salesType,
     shopProductId,
@@ -389,7 +395,7 @@ type FilterableQuery<T> = {
 
 const applyListViewFilters = <T extends FilterableQuery<T>>(
   query: T,
-  params: TemplateHubListParams
+  params: TemplateHubListParams,
 ): T => {
   let next = query;
 
@@ -417,7 +423,7 @@ const applyListViewFilters = <T extends FilterableQuery<T>>(
 
 const countWithSearch = async (
   search: string | undefined,
-  narrow?: { column: string; value: string | boolean }
+  narrow?: { column: string; value: string | boolean },
 ): Promise<number> => {
   let query = supabase
     .from("templates")
@@ -437,7 +443,7 @@ const countWithSearch = async (
  * 집계와 같아진다.
  */
 const fetchCounts = async (
-  search: string | undefined
+  search: string | undefined,
 ): Promise<TemplateHubListResponse["counts"]> => {
   const sellingQuery = () => {
     let query = supabase
@@ -476,26 +482,24 @@ const fetchCounts = async (
  */
 /** 필터만 적용한 정확한 전체 건수. `fetchListPage`가 범위 밖 offset을 받았을 때만 별도로 쓴다. */
 const countListPage = async (
-  params: TemplateHubListParams
+  params: TemplateHubListParams,
 ): Promise<number> => {
   const { count, error } = await applyListViewFilters(
     supabase
       .from("template_hub_list")
       .select("id", { count: "exact", head: true }),
-    params
+    params,
   );
   if (error) throw error;
   return count ?? 0;
 };
 
 const fetchListPage = async (
-  params: TemplateHubListParams & { limit: number; offset: number }
+  params: TemplateHubListParams & { limit: number; offset: number },
 ): Promise<{ ids: string[]; total: number }> => {
   let query = applyListViewFilters(
-    supabase
-      .from("template_hub_list")
-      .select("id", { count: "exact" }),
-    params
+    supabase.from("template_hub_list").select("id", { count: "exact" }),
+    params,
   );
 
   // 같은 updated_at을 가진 행이 페이지마다 뒤바뀌지 않도록 id를 보조 정렬 기준으로 쓴다.
@@ -524,13 +528,15 @@ const fetchListPage = async (
   };
 };
 
-const buildItems = async (rows: TemplateHubRow[]): Promise<TemplateHubItem[]> => {
+const buildItems = async (
+  rows: TemplateHubRow[],
+): Promise<TemplateHubItem[]> => {
   if (rows.length === 0) return [];
 
   const royaltyCoverage = await fetchRoyaltyCoverage(rows);
 
   return rows.map((row) =>
-    toHubItem(row, royaltyCoverage.get(row.id) ?? new Set<string>())
+    toHubItem(row, royaltyCoverage.get(row.id) ?? new Set<string>()),
   );
 };
 
@@ -548,7 +554,7 @@ const fetchRowsByIds = async (ids: string[]): Promise<TemplateHubRow[]> => {
     (data ?? []).map((row) => [
       (row as unknown as TemplateHubRow).id,
       row as unknown as TemplateHubRow,
-    ])
+    ]),
   );
 
   return ids
@@ -557,7 +563,7 @@ const fetchRowsByIds = async (ids: string[]): Promise<TemplateHubRow[]> => {
 };
 
 export const listTemplateHubTemplates = async (
-  params: TemplateHubListParams & { limit: number; offset: number }
+  params: TemplateHubListParams & { limit: number; offset: number },
 ): Promise<TemplateHubListResponse> => {
   const [counts, page] = await Promise.all([
     fetchCounts(params.search),
@@ -568,14 +574,18 @@ export const listTemplateHubTemplates = async (
 
   return {
     items: await buildItems(rows),
-    pagination: { limit: params.limit, offset: params.offset, total: page.total },
+    pagination: {
+      limit: params.limit,
+      offset: params.offset,
+      total: page.total,
+    },
     counts,
   };
 };
 
 /** 단건 Hub item. mutation 응답과 readiness 재검증에 사용한다. */
 export const getTemplateHubItem = async (
-  templateId: string
+  templateId: string,
 ): Promise<TemplateHubItem | null> => {
   const { data, error } = await supabase
     .from("templates")
@@ -644,7 +654,7 @@ const rpcErrorCode = (error: { code?: string | null } | null): string | null =>
  */
 export const updateTemplateSalesType = async (
   templateId: string,
-  salesType: TemplateSalesType
+  salesType: TemplateSalesType,
 ): Promise<TemplateHubItem> => {
   const current = await getTemplateHubItem(templateId);
   if (!current) throw new TemplateHubNotFoundError();
@@ -670,7 +680,7 @@ export const updateTemplateSalesType = async (
     }
     if (code === TEMPLATE_HUB_RPC_ERRCODE.SALE_MUST_STOP_FIRST) {
       throw new TemplateHubSaleMustStopFirstError(
-        error.message || "맞춤 제작으로 변경하려면 먼저 판매를 중지해 주세요."
+        error.message || "맞춤 제작으로 변경하려면 먼저 판매를 중지해 주세요.",
       );
     }
     throw error;
@@ -693,7 +703,7 @@ export const updateTemplateSalesType = async (
  */
 export const updateTemplateSaleVisibility = async (
   templateId: string,
-  visible: boolean
+  visible: boolean,
 ): Promise<TemplateHubItem> => {
   const current = await getTemplateHubItem(templateId);
   if (!current) throw new TemplateHubNotFoundError();
@@ -720,7 +730,7 @@ export const updateTemplateSaleVisibility = async (
     if (code === TEMPLATE_HUB_RPC_ERRCODE.SALE_NOT_READY) {
       const latest = await getTemplateHubItem(templateId);
       throw new TemplateHubSaleNotReadyError(
-        latest?.saleReadiness.reasons ?? []
+        latest?.saleReadiness.reasons ?? [],
       );
     }
     throw error;

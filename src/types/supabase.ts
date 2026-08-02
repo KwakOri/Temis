@@ -1353,6 +1353,7 @@ export type Database = {
           is_shop_visible: boolean
           name: string
           status: string
+          template_kind?: string | null
           template_engine: string
           thumbnail_url: string
           updated_at: string
@@ -1367,6 +1368,7 @@ export type Database = {
           is_shop_visible?: boolean
           name: string
           status?: string
+          template_kind?: string | null
           template_engine?: string
           thumbnail_url?: string
           updated_at?: string
@@ -1381,6 +1383,7 @@ export type Database = {
           is_shop_visible?: boolean
           name?: string
           status?: string
+          template_kind?: string | null
           template_engine?: string
           thumbnail_url?: string
           updated_at?: string
@@ -1535,6 +1538,7 @@ export type Database = {
           sale_status: string | null
           shop_template_id: string | null
           status: string | null
+          template_kind: string | null
           template_engine: string | null
           updated_at: string | null
         }
@@ -1552,6 +1556,7 @@ export type Database = {
           name: string | null
           shop_template_id: string | null
           status: string | null
+          template_kind: string | null
           template_engine: string | null
           updated_at: string | null
         }

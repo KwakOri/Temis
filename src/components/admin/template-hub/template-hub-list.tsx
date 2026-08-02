@@ -47,7 +47,9 @@ const SaleMismatchWarning = ({ item }: { item: TemplateHubItem }) => {
   return (
     <span
       className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-700"
-      title={item.saleReadiness.reasons.map((reason) => reason.message).join("\n")}
+      title={item.saleReadiness.reasons
+        .map((reason) => reason.message)
+        .join("\n")}
     >
       <AlertTriangle className="h-3 w-3" />
       판매 조건 불일치
@@ -193,13 +195,22 @@ export const TemplateHubList = ({
                         {item.name}
                       </span>
                       <EngineBadge engine={item.templateEngine} />
+                      {item.templateKind ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                          {item.templateKind === "thumbnail"
+                            ? "썸네일"
+                            : "시간표"}
+                        </span>
+                      ) : null}
                     </div>
                     {item.description && (
                       <p className="mt-1 truncate text-xs text-gray-500">
                         {item.description}
                       </p>
                     )}
-                    <p className="mt-1 truncate text-xs text-gray-400">{item.id}</p>
+                    <p className="mt-1 truncate text-xs text-gray-400">
+                      {item.id}
+                    </p>
                   </div>
                 </td>
                 <td className="px-4 py-4 align-top">

@@ -44,6 +44,7 @@ export async function POST(
     const prepared = validateTemplateStudioDocumentForPersistence(
       payload.document,
       payload.runtimeValues,
+      { expectedTemplateKind: template.templateKind },
     );
 
     if (!prepared.ok) {
@@ -62,6 +63,7 @@ export async function POST(
       userId: actor.userId,
       document: prepared.document,
       runtimeValues: prepared.runtimeValues,
+      templateKind: template.templateKind,
       deleteDraft: payload.deleteDraft !== false,
     });
     const latestRevisionNo =

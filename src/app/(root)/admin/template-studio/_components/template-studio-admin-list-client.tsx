@@ -7,6 +7,7 @@ import {
 } from "@/hooks/query/useTemplateStudio";
 import { cn } from "@/lib/utils";
 import type { TemplateStudioTemplateRecord } from "@/services/server/templateStudioPersistenceService";
+import type { StudioTemplateKind } from "@/types/template-studio";
 import {
   ArrowUpRight,
   Edit,
@@ -67,15 +68,17 @@ const RowActions = ({
   template,
   onDelete,
   isDeleting,
+  basePath,
 }: {
   template: TemplateStudioTemplateRecord;
   onDelete: (template: TemplateStudioTemplateRecord) => void;
   isDeleting: boolean;
+  basePath: string;
 }) => (
   <div className="flex flex-wrap items-center gap-2">
     <Link
       className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-      href={`/admin/template-studio/${template.id}/edit`}
+      href={`${basePath}/${template.id}/edit`}
     >
       <Edit className="h-3.5 w-3.5" />
       수정
@@ -83,7 +86,7 @@ const RowActions = ({
     {template.status === "published" ? (
       <Link
         className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium transition-colors bg-[#F5F0ED] text-[#2d2d2d] border border-[#E6DBD4] hover:bg-[#EDE5E0]"
-        href={`/admin/template-studio/${template.id}/preview`}
+        href={`${basePath}/${template.id}/preview`}
       >
         <Eye className="h-3.5 w-3.5" />
         미리보기
@@ -99,7 +102,7 @@ const RowActions = ({
     )}
     <Link
       className="inline-flex h-8 w-8 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-      href={`/admin/template-studio/${template.id}/edit`}
+      href={`${basePath}/${template.id}/edit`}
       target="_blank"
       title="새 탭에서 열기"
     >
@@ -118,8 +121,17 @@ const RowActions = ({
   </div>
 );
 
-export function TemplateStudioAdminListClient() {
-  const templatesQuery = useTemplateStudioTemplates();
+export function TemplateStudioAdminListClient({
+  templateKind = "timetable",
+}: {
+  templateKind?: StudioTemplateKind;
+} = {}) {
+  const isThumbnail = templateKind === "thumbnail";
+  const basePath = isThumbnail
+    ? "/admin/thumbnail-studio"
+    : "/admin/template-studio";
+  const createHref = `${basePath}/create`;
+  const templatesQuery = useTemplateStudioTemplates(templateKind);
   const deleteTemplateMutation = useDeleteTemplateStudioTemplate();
   const templates = templatesQuery.data?.templates ?? [];
 
@@ -138,9 +150,13 @@ export function TemplateStudioAdminListClient() {
   return (
     <div className="space-y-4 sm:space-y-6">
       <AdminTabHeader
-        description="시간표 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
+        description={
+          isThumbnail
+            ? "썸네일 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
+            : "시간표 템플릿을 만들고 초안, 게시, 미리보기 상태를 관리하세요"
+        }
         icon={LayoutTemplate}
-        title="Template Studio"
+        title={isThumbnail ? "Thumbnail Studio" : "Template Studio"}
       >
         <div className="bg-quaternary px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border">
           <span className="text-[#F4FDFF] font-semibold text-sm sm:text-base">
@@ -165,7 +181,7 @@ export function TemplateStudioAdminListClient() {
         </button>
         <Link
           className="bg-primary text-[#F4FDFF] px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium text-sm sm:text-base hover:bg-secondary transition-colors whitespace-nowrap inline-flex items-center gap-1.5"
-          href="/admin/template-studio/create"
+          href={createHref}
         >
           <Plus className="h-4 w-4" />새 템플릿
         </Link>
@@ -214,11 +230,13 @@ export function TemplateStudioAdminListClient() {
                   <td className="px-6 py-12 text-center" colSpan={3}>
                     <LayoutTemplate className="mx-auto h-10 w-10 text-gray-300 mb-3" />
                     <p className="text-gray-500 text-sm mb-4">
-                      아직 생성된 Template Studio 템플릿이 없습니다.
+                      {isThumbnail
+                        ? "아직 생성된 Thumbnail Studio 템플릿이 없습니다."
+                        : "아직 생성된 Template Studio 템플릿이 없습니다."}
                     </p>
                     <Link
                       className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
-                      href="/admin/template-studio/create"
+                      href={createHref}
                     >
                       <Plus className="h-4 w-4" />첫 템플릿 만들기
                     </Link>
@@ -250,6 +268,7 @@ export function TemplateStudioAdminListClient() {
                     </td>
                     <td className="px-4 py-4 align-top">
                       <RowActions
+                        basePath={basePath}
                         isDeleting={
                           deleteTemplateMutation.isPending &&
                           deleteTemplateMutation.variables === template.id
@@ -285,11 +304,13 @@ export function TemplateStudioAdminListClient() {
             <div className="px-4 py-12 text-center">
               <LayoutTemplate className="mx-auto h-10 w-10 text-gray-300 mb-3" />
               <p className="text-gray-500 text-sm mb-4">
-                아직 생성된 Template Studio 템플릿이 없습니다.
+                {isThumbnail
+                  ? "아직 생성된 Thumbnail Studio 템플릿이 없습니다."
+                  : "아직 생성된 Template Studio 템플릿이 없습니다."}
               </p>
               <Link
                 className="inline-flex items-center gap-1.5 bg-primary text-[#F4FDFF] px-4 py-2 rounded-md font-medium text-sm hover:bg-secondary transition-colors"
-                href="/admin/template-studio/create"
+                href={createHref}
               >
                 <Plus className="h-4 w-4" />첫 템플릿 만들기
               </Link>
@@ -314,6 +335,7 @@ export function TemplateStudioAdminListClient() {
                   </p>
                 </div>
                 <RowActions
+                  basePath={basePath}
                   isDeleting={
                     deleteTemplateMutation.isPending &&
                     deleteTemplateMutation.variables === template.id

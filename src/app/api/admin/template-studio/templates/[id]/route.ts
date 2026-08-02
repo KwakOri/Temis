@@ -14,6 +14,7 @@ import {
 } from "@/services/server/templateStudioPersistenceService";
 import { deleteFilesFromR2Prefix } from "@/lib/r2";
 import { buildTemplateStudioAssetTemplatePrefix } from "@/utils/template-studio/asset-storage";
+import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(
@@ -42,6 +43,17 @@ export async function GET(
       getTemplateStudioLatestRevisionNo(templateId),
       listTemplateStudioAssetMetadata(templateId),
     ]);
+
+    if (
+      (document &&
+        getStudioTemplateKind(document.document) !== template.templateKind) ||
+      (draft && getStudioTemplateKind(draft.document) !== template.templateKind)
+    ) {
+      return NextResponse.json(
+        { error: "Template Studio document kind does not match the template." },
+        { status: 422 },
+      );
+    }
 
     return NextResponse.json({
       success: true,

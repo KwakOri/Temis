@@ -44,6 +44,14 @@ import { useStudioDocumentHistory } from "@/hooks/studio/use-studio-document-his
 import { useStudioKeyboardShortcuts } from "@/hooks/studio/use-studio-keyboard-shortcuts";
 import { useStudioLayerDrag } from "@/hooks/studio/use-studio-layer-drag";
 import { useStudioSelection } from "@/hooks/studio/use-studio-selection";
+import { useStudioTemplatePersistence } from "@/hooks/studio/use-studio-template-persistence";
+import {
+  useCreateTemplateStudioTemplate,
+  usePublishTemplateStudioDocument,
+  useSaveTemplateStudioDraft,
+  useSyncTemplateStudioAssets,
+  useTemplateStudioTemplate,
+} from "@/hooks/query/useTemplateStudio";
 import {
   captureStudioEditorSnapshot,
   createStudioEditorStore,
@@ -223,8 +231,8 @@ export interface ThumbnailStudioClientProps {
   /**
    * 편집 중인 템플릿 id.
    *
-   * 원격 저장은 Phase 6에서 온다. 그때까지는 어떤 문서를 편집하는지 화면에 보여주는
-   * 데만 쓴다. 저장이 없다는 이유로 편집 자체가 막히면 안 된다.
+   * id가 있으면 저장된 draft/게시 문서를 불러오고, 없으면 첫 저장 때 Template Studio
+   * parent row를 만든다.
    */
   templateId?: string;
 }
@@ -240,6 +248,9 @@ export function ThumbnailStudioClient({
   templateId,
 }: ThumbnailStudioClientProps = {}) {
   const router = useRouter();
+  const [remoteTemplateId, setRemoteTemplateId] = useState<string | null>(
+    templateId ?? null,
+  );
   const studioStoreRef = useRef<StudioEditorStore<ThumbnailStudioView> | null>(
     null,
   );
@@ -265,6 +276,15 @@ export function ThumbnailStudioClient({
     });
   }
   const studioStore = studioStoreRef.current;
+  const templateStudioTemplateQuery = useTemplateStudioTemplate(
+    remoteTemplateId ?? undefined,
+  );
+  const createTemplateStudioTemplateMutation =
+    useCreateTemplateStudioTemplate();
+  const saveTemplateStudioDraftMutation = useSaveTemplateStudioDraft();
+  const publishTemplateStudioDocumentMutation =
+    usePublishTemplateStudioDocument();
+  const syncTemplateStudioAssetsMutation = useSyncTemplateStudioAssets();
   const document = useStore(studioStore, (state) => state.document);
   const selectedInputId = useStore(
     studioStore,
@@ -277,6 +297,9 @@ export function ThumbnailStudioClient({
   const [pendingImageCrop, setPendingImageCrop] =
     useState<PendingThumbnailImageCrop | null>(null);
   const viewportHandleRef = useRef<StudioCanvasViewportHandle | null>(null);
+  useEffect(() => {
+    setRemoteTemplateId(templateId ?? null);
+  }, [templateId]);
   const {
     panelMode,
     theme,
@@ -348,6 +371,54 @@ export function ThumbnailStudioClient({
   const showStatus = useCallback((message: string) => {
     if (message) setStatusMessage(message);
   }, []);
+
+  const setDocumentForPersistence = useCallback(
+    (nextDocument: StudioTemplateDocument) => {
+      studioStore.getState().setDocument(nextDocument);
+      studioStore.getState().setView((currentView) => ({
+        previewValues: syncThumbnailStudioPreviewValues(
+          nextDocument,
+          currentView.previewValues,
+          currentView.previewEditedInputIds,
+        ),
+      }));
+    },
+    [studioStore],
+  );
+
+  const replaceEditorDocument = useCallback(
+    (
+      nextDocument: StudioTemplateDocument,
+      nextRuntimeValues: StudioRuntimeValues,
+      message: string,
+    ) => {
+      const editedInputIds = Object.keys(nextRuntimeValues.global ?? {});
+      const previewValues = syncThumbnailStudioPreviewValues(
+        nextDocument,
+        nextRuntimeValues,
+        editedInputIds,
+      );
+      const nextSelectedNodeId = nextDocument.graph.rootNodeIds[0] ?? null;
+      const nextSelectedInputId = Object.keys(nextDocument.inputs)[0] ?? null;
+
+      studioStore.getState().setDocument(nextDocument);
+      studioStore.getState().setRuntimeValues(previewValues);
+      studioStore
+        .getState()
+        .replaceSelection(
+          nextSelectedNodeId ? [nextSelectedNodeId] : [],
+          nextSelectedNodeId,
+        );
+      studioStore.getState().setSelectedInputId(nextSelectedInputId);
+      studioStore.getState().setView({
+        previewValues,
+        previewEditedInputIds: editedInputIds,
+        previewMode: editedInputIds.length > 0 ? "session" : "defaults",
+      });
+      showStatus(message);
+    },
+    [showStatus, studioStore],
+  );
 
   const {
     selectedNodeId,
@@ -994,6 +1065,55 @@ export function ThumbnailStudioClient({
     showStatus(redoDocumentHistory() ? "Redo" : "Nothing to redo");
   }, [redoDocumentHistory, showStatus]);
 
+  const handleTemplateIdChange = useCallback(
+    (nextTemplateId: string) => {
+      setRemoteTemplateId(nextTemplateId);
+      if (!templateId) {
+        router.replace(`/admin/thumbnail-studio/${nextTemplateId}/edit`);
+      }
+    },
+    [router, templateId],
+  );
+
+  const thumbnailPersistence = useStudioTemplatePersistence({
+    getDocument: useCallback(
+      () => studioStore.getState().document,
+      [studioStore],
+    ),
+    getRuntimeValues: useCallback(
+      () => studioStore.getState().view.previewValues,
+      [studioStore],
+    ),
+    setDocument: setDocumentForPersistence,
+    templateId: remoteTemplateId,
+    onTemplateIdChange: handleTemplateIdChange,
+    initialTemplateId: templateId ?? null,
+    getRemoteTemplate: useCallback(
+      () => templateStudioTemplateQuery.data,
+      [templateStudioTemplateQuery.data],
+    ),
+    refetchRemoteTemplate: useCallback(
+      () => templateStudioTemplateQuery.refetch(),
+      [templateStudioTemplateQuery],
+    ),
+    createRemoteTemplate: createTemplateStudioTemplateMutation.mutateAsync,
+    saveRemoteDraft: saveTemplateStudioDraftMutation.mutateAsync,
+    publishRemoteDocument: publishTemplateStudioDocumentMutation.mutateAsync,
+    syncRemoteAssets: syncTemplateStudioAssetsMutation.mutateAsync,
+    onReplaceDocument: replaceEditorDocument,
+    onStatusMessage: showStatus,
+    onExportBlocked: () => showStatus("Export blocked: check diagnostics"),
+    previewPathForTemplate: (nextTemplateId) =>
+      `/admin/thumbnail-studio/${nextTemplateId}/preview`,
+  });
+
+  const isRemoteSyncing =
+    createTemplateStudioTemplateMutation.isPending ||
+    saveTemplateStudioDraftMutation.isPending ||
+    publishTemplateStudioDocumentMutation.isPending ||
+    syncTemplateStudioAssetsMutation.isPending ||
+    templateStudioTemplateQuery.isFetching;
+
   useStudioKeyboardShortcuts({
     hasCutNodes: clipboard.cutNodeIds.length > 0,
     isNodePickerOpen: false,
@@ -1001,9 +1121,7 @@ export function ThumbnailStudioClient({
       () => ({
         undo,
         redo,
-        // 원격 저장은 Phase 6에서 온다. 그때까지 단축키는 지금 상태만 알린다.
-        saveDraft: () =>
-          showStatus("Thumbnail saving arrives with persistence"),
+        saveDraft: () => void thumbnailPersistence.saveDraft(),
         selectAll: commands.selectAll,
         copy: clipboard.copy,
         cut: clipboard.cut,
@@ -1024,7 +1142,16 @@ export function ThumbnailStudioClient({
         zoomReset: () => setScale(1),
         onStatusMessage: showStatus,
       }),
-      [clipboard, commands, redo, selectSingleNode, setScale, showStatus, undo],
+      [
+        clipboard,
+        commands,
+        redo,
+        selectSingleNode,
+        setScale,
+        showStatus,
+        thumbnailPersistence,
+        undo,
+      ],
     ),
   });
 
@@ -1396,7 +1523,7 @@ export function ThumbnailStudioClient({
                   onImportJson: () => {},
                 },
                 documentInfo: {
-                  databaseTargetLabel: templateId ?? "not connected",
+                  databaseTargetLabel: remoteTemplateId ?? "not connected",
                   schemaLabel: `${document.schema} v${document.version}`,
                   objectCount: Object.keys(document.graph.nodes).length,
                   inputCount: Object.keys(document.inputs).length,
@@ -1483,13 +1610,13 @@ export function ThumbnailStudioClient({
                   <span className="text-[11px] font-semibold text-white/70">
                     {document.canvas.width} × {document.canvas.height}
                   </span>
-                  {templateId ? (
+                  {remoteTemplateId ? (
                     <button
                       className="h-7 rounded-md bg-white/10 px-2 text-[10px] font-bold text-white transition hover:bg-white/20"
                       type="button"
                       onClick={() =>
                         router.push(
-                          `/admin/thumbnail-studio/${templateId}/preview`,
+                          `/admin/thumbnail-studio/${remoteTemplateId}/preview`,
                         )
                       }
                     >
@@ -1595,14 +1722,14 @@ export function ThumbnailStudioClient({
               onClick: () => setPreviewOpen(true),
             }}
             publishAction={{
-              disabled: true,
-              title: "Thumbnail publishing arrives with persistence",
-              onClick: () => {},
+              disabled: isRemoteSyncing,
+              title: "Publish thumbnail template",
+              onClick: () => void thumbnailPersistence.publish(),
             }}
             saveAction={{
-              disabled: true,
-              title: "Thumbnail saving arrives with persistence",
-              onClick: () => {},
+              disabled: isRemoteSyncing,
+              title: "Save thumbnail draft",
+              onClick: () => void thumbnailPersistence.saveDraft(),
             }}
             settingsAction={{
               title: "Thumbnail settings",

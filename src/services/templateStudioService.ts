@@ -8,6 +8,7 @@ import type {
   StudioDiagnostic,
   StudioRuntimeValues,
   StudioTemplateDocument,
+  StudioTemplateKind,
 } from "@/types/template-studio";
 
 export interface TemplateStudioTemplateListResponse {
@@ -18,6 +19,8 @@ export interface TemplateStudioTemplateListResponse {
 export interface TemplateStudioCreateTemplatePayload {
   name: string;
   description?: string;
+  templateKind?: StudioTemplateKind;
+  canvasPresetId?: string;
 }
 
 export interface TemplateStudioCreateTemplateResponse {
@@ -125,8 +128,11 @@ const parseJsonResponse = async <T>(
 export class TemplateStudioService {
   private static baseUrl = "/api/admin/template-studio/templates";
 
-  static async listTemplates(): Promise<TemplateStudioTemplateListResponse> {
-    const response = await fetch(this.baseUrl);
+  static async listTemplates(
+    templateKind?: StudioTemplateKind,
+  ): Promise<TemplateStudioTemplateListResponse> {
+    const query = templateKind ? `?kind=${templateKind}` : "";
+    const response = await fetch(`${this.baseUrl}${query}`);
     return parseJsonResponse<TemplateStudioTemplateListResponse>(
       response,
       "Template Studio 템플릿 목록을 불러오는데 실패했습니다.",

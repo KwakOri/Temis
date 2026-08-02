@@ -7,13 +7,16 @@ import {
   TemplateStudioUploadAssetPayload,
 } from "@/services/templateStudioService";
 import { TemplateStudioRuntimeService } from "@/services/templateStudioRuntimeService";
-import type { StudioRuntimeValues } from "@/types/template-studio";
+import type {
+  StudioRuntimeValues,
+  StudioTemplateKind,
+} from "@/types/template-studio";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export const useTemplateStudioTemplates = () =>
+export const useTemplateStudioTemplates = (templateKind?: StudioTemplateKind) =>
   useQuery({
-    queryKey: queryKeys.admin.templateStudioTemplates(),
-    queryFn: () => TemplateStudioService.listTemplates(),
+    queryKey: queryKeys.admin.templateStudioTemplates(templateKind),
+    queryFn: () => TemplateStudioService.listTemplates(templateKind),
     staleTime: 2 * 60 * 1000,
     gcTime: 5 * 60 * 1000,
   });

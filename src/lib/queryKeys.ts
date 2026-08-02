@@ -106,8 +106,14 @@ export const queryKeys = {
       [...queryKeys.admin.templateHub(), "list", params] as const,
     templateHubItem: (templateId: string) =>
       [...queryKeys.admin.templateHub(), "item", templateId] as const,
-    templateStudioTemplates: () =>
-      [...queryKeys.admin.all, "templateStudioTemplates"] as const,
+    templateStudioTemplates: (templateKind?: "timetable" | "thumbnail") =>
+      templateKind
+        ? ([
+            ...queryKeys.admin.all,
+            "templateStudioTemplates",
+            templateKind,
+          ] as const)
+        : ([...queryKeys.admin.all, "templateStudioTemplates"] as const),
     templateStudioTemplate: (templateId: string) =>
       [...queryKeys.admin.templateStudioTemplates(), templateId] as const,
     templateStudioDraft: (templateId: string) =>

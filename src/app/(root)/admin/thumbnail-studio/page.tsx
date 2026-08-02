@@ -1,15 +1,20 @@
-import { ThumbnailStudioClient } from "./_components/thumbnail-studio-client";
+import { TemplateStudioAdminListClient } from "../template-studio/_components/template-studio-admin-list-client";
+import AdminDashboardShell from "@/components/admin/AdminDashboardShell";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export const metadata = {
   title: "Thumbnail Studio",
 };
 
 /**
- * 새 썸네일 문서 편집 화면.
- *
- * 빈 문서로 시작한다. 원격 저장은 Phase 6에서 오므로 아직 어디에도 저장하지 않는다.
- * 저장한 문서를 여는 경로는 `[templateId]/edit`다.
+ * 썸네일 Template Studio 템플릿 목록.
  */
 export default function ThumbnailStudioPage() {
-  return <ThumbnailStudioClient />;
+  return (
+    <ProtectedRoute>
+      <AdminDashboardShell>
+        <TemplateStudioAdminListClient templateKind="thumbnail" />
+      </AdminDashboardShell>
+    </ProtectedRoute>
+  );
 }

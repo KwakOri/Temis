@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 import type {
   StudioRuntimeValues,
   StudioTemplateDocument,
+  StudioTemplateKind,
 } from "@/types/template-studio";
 import type {
   TemplateStudioSaveDraftPayload,
@@ -25,6 +26,7 @@ import {
   parseStudioTemplateExportJson,
 } from "@/utils/template-studio/serialization";
 import { validateStudioRuntimeValuesForDocument } from "@/utils/template-studio/timetable-runtime";
+import { getStudioTemplateKind } from "@/utils/template-studio/template-kind";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 /** 원격에 저장해 둔 문서 한 벌. 초안이 있으면 초안을 먼저 본다. */
 export interface StudioRemoteTemplateSnapshot {
@@ -50,6 +52,8 @@ export interface StudioTemplatePersistenceOptions {
   onTemplateIdChange: (templateId: string) => void;
   /** 주소로 들어온 템플릿. 화면을 처음 열 때 한 번 불러온다. */
   initialTemplateId?: string | null;
+  /** 편집기 종류에 맞는 관리자 미리보기 경로. */
+  previewPathForTemplate?: (templateId: string) => string;
   getRemoteTemplate: () => StudioRemoteTemplateSnapshot | null | undefined;
   refetchRemoteTemplate: () => Promise<{
     data?: StudioRemoteTemplateSnapshot | null;
@@ -57,6 +61,7 @@ export interface StudioTemplatePersistenceOptions {
   createRemoteTemplate: (input: {
     name: string;
     description: string;
+    templateKind?: StudioTemplateKind;
   }) => Promise<{ template: { id: string } }>;
   saveRemoteDraft: (input: {
     templateId: string;
@@ -136,6 +141,8 @@ export function useStudioTemplatePersistence({
   onReplaceDocument,
   onStatusMessage,
   onExportBlocked,
+  previewPathForTemplate = (nextTemplateId) =>
+    `/admin/template-studio/${nextTemplateId}/preview`,
 }: StudioTemplatePersistenceOptions): StudioTemplatePersistence {
   const exportJson = useCallback(() => {
     const currentDocument = getDocument();
@@ -216,6 +223,7 @@ export function useStudioTemplatePersistence({
     const created = await createRemoteTemplate({
       name: currentDocument.metadata.name.trim() || "Untitled Template",
       description: currentDocument.metadata.description ?? "",
+      templateKind: getStudioTemplateKind(currentDocument) ?? "timetable",
     });
     onTemplateIdChange(created.template.id);
     return created.template.id;
@@ -351,12 +359,15 @@ export function useStudioTemplatePersistence({
     onStatusMessage,
     publishRemoteDocument,
   ]);
-  const openPreviewWindow = useCallback((nextTemplateId: string) => {
-    const previewUrl = `/admin/template-studio/${nextTemplateId}/preview`;
-    const previewWindow = window.open(previewUrl, "_blank");
-    // 새 창이 막혔으면 지금 창에서 연다. 아무 일도 일어나지 않는 것보다 낫다.
-    if (!previewWindow) window.location.assign(previewUrl);
-  }, []);
+  const openPreviewWindow = useCallback(
+    (nextTemplateId: string) => {
+      const previewUrl = previewPathForTemplate(nextTemplateId);
+      const previewWindow = window.open(previewUrl, "_blank");
+      // 새 창이 막혔으면 지금 창에서 연다. 아무 일도 일어나지 않는 것보다 낫다.
+      if (!previewWindow) window.location.assign(previewUrl);
+    },
+    [previewPathForTemplate],
+  );
   const openDraftPreview = useCallback(async () => {
     try {
       const nextTemplateId = await ensureTemplateId();

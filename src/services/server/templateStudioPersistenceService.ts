@@ -4,12 +4,17 @@ import {
   StudioDiagnostic,
   StudioRuntimeValues,
   StudioTemplateDocument,
+  StudioTemplateKind,
 } from "@/types/template-studio";
 import { createStudioInitialRuntimeValues } from "@/utils/template-studio/input-values";
 import {
   migrateStudioTemplateDocument,
   STUDIO_TEMPLATE_DOCUMENT_VERSION,
 } from "@/utils/template-studio/migrations";
+import {
+  getStudioTemplateKind,
+  isStudioTemplateKind,
+} from "@/utils/template-studio/template-kind";
 import { validateStudioDocument } from "@/utils/template-studio/validator";
 import {
   isStudioRuntimeValuesLike,
@@ -68,6 +73,7 @@ type TemplateStudioTemplateRow = {
   name: string;
   description: string;
   status: TemplateStudioTemplateStatus;
+  template_kind: StudioTemplateKind | null;
   created_by: number | null;
   created_at: string;
   updated_at: string;
@@ -143,6 +149,7 @@ export type TemplateStudioTemplateRecord = {
   name: string;
   description: string;
   status: TemplateStudioTemplateStatus;
+  templateKind: StudioTemplateKind;
   createdBy: number | null;
   createdAt: string;
   updatedAt: string;
@@ -255,7 +262,7 @@ const TEMPLATE_STUDIO_REVISION_COLUMNS =
 const TEMPLATE_STUDIO_ASSET_COLUMNS =
   "id, template_id, asset_id, storage_provider, storage_path, public_url, content_hash, mime_type, width, height, byte_size, created_by, created_at, updated_at, last_synced_at";
 const TEMPLATE_STUDIO_TEMPLATE_COLUMNS =
-  "id, name, description, status, created_by, created_at, updated_at";
+  "id, name, description, status, template_kind, created_by, created_at, updated_at";
 const TEMPLATE_STUDIO_USER_STATE_COLUMNS =
   "id, template_id, user_id, base_revision_no, runtime_values, version, created_at, updated_at";
 
@@ -289,6 +296,7 @@ export const validateTemplateStudioDocumentForPersistence = (
   runtimeValues: unknown,
   options: {
     allowRuntimeFallback?: boolean;
+    expectedTemplateKind?: StudioTemplateKind;
   } = {},
 ): TemplateStudioDocumentPreparationResult => {
   const migrationResult = migrateTemplateStudioDocumentForPersistence(value);
@@ -301,6 +309,16 @@ export const validateTemplateStudioDocumentForPersistence = (
   }
 
   const document = migrationResult.document;
+  const resolvedTemplateKind = getStudioTemplateKind(document);
+  if (
+    options.expectedTemplateKind &&
+    resolvedTemplateKind !== options.expectedTemplateKind
+  ) {
+    return {
+      ok: false,
+      message: `Template Studio document kind must be ${options.expectedTemplateKind}.`,
+    };
+  }
   const documentDiagnostics = validateStudioDocument(document);
   const diagnostics = isStudioRuntimeValuesLike(runtimeValues)
     ? [
@@ -372,6 +390,12 @@ const toTemplateRecord = (
   name: row.name,
   description: row.description,
   status: row.status,
+  // Migration 6 backfills all existing studio rows as timetable. Keep the
+  // fallback for a short compatibility window while older local databases
+  // are being migrated.
+  templateKind: isStudioTemplateKind(row.template_kind)
+    ? row.template_kind
+    : "timetable",
   createdBy: row.created_by,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -478,6 +502,9 @@ export const createTemplateStudioTemplate = async (
     description?: string;
     status?: TemplateStudioTemplateStatus;
     createdBy?: number | null;
+    templateKind?: StudioTemplateKind;
+    initialDocument?: StudioTemplateDocument;
+    initialRuntimeValues?: StudioRuntimeValues;
   },
   client?: TemplateStudioPersistenceClient,
 ): Promise<TemplateStudioTemplateRecord> => {
@@ -488,6 +515,7 @@ export const createTemplateStudioTemplate = async (
       name: input.name,
       description: input.description ?? "",
       template_engine: "studio",
+      template_kind: input.templateKind ?? "timetable",
       status: input.status ?? "draft",
       created_by: input.createdBy ?? null,
       is_public: false,
@@ -503,7 +531,37 @@ export const createTemplateStudioTemplate = async (
     );
   }
 
-  return toTemplateRecord(data);
+  const template = toTemplateRecord(data);
+  if (
+    input.initialDocument &&
+    input.createdBy !== null &&
+    input.createdBy !== undefined
+  ) {
+    const prepared = validateTemplateStudioDocumentForPersistence(
+      input.initialDocument,
+      input.initialRuntimeValues,
+      {
+        allowRuntimeFallback: true,
+        expectedTemplateKind: template.templateKind,
+      },
+    );
+    if (!prepared.ok) {
+      throw new TemplateStudioPersistenceError(prepared.message);
+    }
+    await saveTemplateStudioDraft(
+      {
+        templateId: template.id,
+        userId: input.createdBy,
+        document: prepared.document,
+        runtimeValues: prepared.runtimeValues,
+        templateKind: template.templateKind,
+        isAutosave: false,
+      },
+      supabase,
+    );
+  }
+
+  return template;
 };
 
 export const getTemplateStudioTemplate = async (
@@ -524,16 +582,39 @@ export const getTemplateStudioTemplate = async (
 
 export const listTemplateStudioTemplates = async (
   client?: TemplateStudioPersistenceClient,
+  options: { templateKind?: StudioTemplateKind } = {},
 ): Promise<TemplateStudioTemplateRecord[]> => {
   const supabase = getClient(client);
-  const { data, error } = await supabase
+  let query = supabase
     .from<TemplateStudioTemplateRow[]>("templates")
     .select(TEMPLATE_STUDIO_TEMPLATE_COLUMNS)
-    .eq("template_engine", "studio")
-    .order("updated_at", { ascending: false });
+    .eq("template_engine", "studio");
+  if (options.templateKind) {
+    query = query.eq("template_kind", options.templateKind);
+  }
+  const { data, error } = await query.order("updated_at", { ascending: false });
 
   throwOnError("Failed to list Template Studio templates", error);
   return (data ?? []).map(toTemplateRecord);
+};
+
+export const assertTemplateStudioTemplateKind = async (
+  templateId: string,
+  expectedTemplateKind: StudioTemplateKind,
+  client?: TemplateStudioPersistenceClient,
+): Promise<TemplateStudioTemplateRecord> => {
+  const template = await getTemplateStudioTemplate(templateId, client);
+  if (!template) {
+    throw new TemplateStudioPersistenceError(
+      `Template Studio template ${templateId} does not exist.`,
+    );
+  }
+  if (template.templateKind !== expectedTemplateKind) {
+    throw new TemplateStudioPersistenceError(
+      `Template Studio template kind must be ${expectedTemplateKind}.`,
+    );
+  }
+  return template;
 };
 
 export const deleteTemplateStudioTemplate = async (
@@ -609,18 +690,27 @@ export const saveTemplateStudioDraft = async (
     runtimeValues: StudioRuntimeValues;
     baseRevisionNo?: number | null;
     isAutosave?: boolean;
+    templateKind?: StudioTemplateKind;
   },
   client?: TemplateStudioPersistenceClient,
 ): Promise<TemplateStudioDraftRecord> => {
   const prepared = validateTemplateStudioDocumentForPersistence(
     input.document,
     input.runtimeValues,
+    { expectedTemplateKind: input.templateKind },
   );
   if (!prepared.ok) {
     throw new TemplateStudioPersistenceError(prepared.message);
   }
 
   const supabase = getClient(client);
+  if (input.templateKind) {
+    await assertTemplateStudioTemplateKind(
+      input.templateId,
+      input.templateKind,
+      supabase,
+    );
+  }
   const { data, error } = await supabase
     .from<TemplateStudioDraftRow>("template_studio_document_drafts")
     .upsert(
@@ -726,6 +816,7 @@ export const publishTemplateStudioDocument = async (
     runtimeValues: StudioRuntimeValues;
     source?: TemplateStudioRevisionSource;
     deleteDraft?: boolean;
+    templateKind?: StudioTemplateKind;
   },
   client?: TemplateStudioPersistenceClient,
 ): Promise<{
@@ -735,12 +826,20 @@ export const publishTemplateStudioDocument = async (
   const prepared = validateTemplateStudioDocumentForPersistence(
     input.document,
     input.runtimeValues,
+    { expectedTemplateKind: input.templateKind },
   );
   if (!prepared.ok) {
     throw new TemplateStudioPersistenceError(prepared.message);
   }
 
   const supabase = getClient(client);
+  if (input.templateKind) {
+    await assertTemplateStudioTemplateKind(
+      input.templateId,
+      input.templateKind,
+      supabase,
+    );
+  }
   const { data: revisionNo, error } = await supabase.rpc<number>(
     "publish_template_studio_document",
     {

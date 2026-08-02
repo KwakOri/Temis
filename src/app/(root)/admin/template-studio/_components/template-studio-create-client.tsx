@@ -1,16 +1,27 @@
 "use client";
 
 import { useCreateTemplateStudioTemplate } from "@/hooks/query/useTemplateStudio";
+import type { StudioTemplateKind } from "@/types/template-studio";
+import { THUMBNAIL_CANVAS_PRESETS } from "@/utils/thumbnail-studio/document-factory";
 import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
-export function TemplateStudioCreateClient() {
+export function TemplateStudioCreateClient({
+  templateKind = "timetable",
+}: {
+  templateKind?: StudioTemplateKind;
+} = {}) {
   const router = useRouter();
+  const isThumbnail = templateKind === "thumbnail";
+  const basePath = isThumbnail
+    ? "/admin/thumbnail-studio"
+    : "/admin/template-studio";
   const createTemplateMutation = useCreateTemplateStudioTemplate();
   const [name, setName] = useState("Untitled Template");
   const [description, setDescription] = useState("");
+  const [canvasPresetId, setCanvasPresetId] = useState("youtube");
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -21,8 +32,10 @@ export function TemplateStudioCreateClient() {
       const created = await createTemplateMutation.mutateAsync({
         name: name.trim() || "Untitled Template",
         description: description.trim(),
+        templateKind,
+        ...(isThumbnail ? { canvasPresetId } : {}),
       });
-      router.replace(`/admin/template-studio/${created.template.id}/edit`);
+      router.replace(`${basePath}/${created.template.id}/edit`);
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -37,10 +50,10 @@ export function TemplateStudioCreateClient() {
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-10">
         <Link
           className="inline-flex w-fit items-center gap-2 text-sm font-semibold text-slate-400 transition hover:text-white"
-          href="/admin/template-studio"
+          href={basePath}
         >
           <ArrowLeft className="h-4 w-4" />
-          Template Studio 목록
+          {isThumbnail ? "Thumbnail Studio 목록" : "Template Studio 목록"}
         </Link>
 
         <header>
@@ -48,7 +61,9 @@ export function TemplateStudioCreateClient() {
             Create
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">
-            새 Template Studio 템플릿
+            {isThumbnail
+              ? "새 Thumbnail Studio 템플릿"
+              : "새 Template Studio 템플릿"}
           </h1>
           <p className="mt-2 text-sm text-slate-400">
             기본 정보를 만든 뒤 editor에서 캔버스와 입력값을 구성합니다.
@@ -69,6 +84,27 @@ export function TemplateStudioCreateClient() {
             />
           </label>
 
+          {isThumbnail ? (
+            <label className="grid gap-2">
+              <span className="text-sm font-bold text-slate-300">
+                캔버스 프리셋
+              </span>
+              <select
+                className="h-11 rounded-md border border-slate-700 bg-slate-950 px-3 text-sm font-semibold text-white outline-none focus:border-blue-400"
+                value={canvasPresetId}
+                onChange={(event) =>
+                  setCanvasPresetId(event.currentTarget.value)
+                }
+              >
+                {THUMBNAIL_CANVAS_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label} · {preset.width} × {preset.height}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+
           <label className="grid gap-2">
             <span className="text-sm font-bold text-slate-300">설명</span>
             <textarea
@@ -88,7 +124,7 @@ export function TemplateStudioCreateClient() {
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Link
               className="inline-flex h-10 items-center rounded-md border border-slate-700 px-4 text-sm font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white"
-              href="/admin/template-studio"
+              href={basePath}
             >
               취소
             </Link>

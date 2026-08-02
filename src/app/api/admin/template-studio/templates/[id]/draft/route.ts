@@ -89,6 +89,7 @@ export async function PUT(
     const prepared = validateTemplateStudioDocumentForPersistence(
       payload.document,
       payload.runtimeValues,
+      { expectedTemplateKind: template.templateKind },
     );
 
     if (!prepared.ok) {
@@ -107,6 +108,7 @@ export async function PUT(
       userId: actor.userId,
       document: prepared.document,
       runtimeValues: prepared.runtimeValues,
+      templateKind: template.templateKind,
       baseRevisionNo: getPositiveIntegerOrNull(payload.baseRevisionNo),
       isAutosave: payload.isAutosave !== false,
     });

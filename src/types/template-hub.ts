@@ -6,6 +6,8 @@
  * 이 모듈의 camelCase 모델로 정규화한다.
  */
 
+import type { StudioTemplateKind } from "@/types/template-studio";
+
 export type TemplateEngine = "legacy" | "studio";
 
 export type TemplatePublicationStatus = "draft" | "published" | "archived";
@@ -14,10 +16,7 @@ export type TemplatePublicationStatus = "draft" | "published" | "archived";
 export type TemplateSalesType = "general" | "custom";
 
 export type TemplateSaleStatus =
-  | "selling"
-  | "ready"
-  | "blocked"
-  | "unconfigured";
+  "selling" | "ready" | "blocked" | "unconfigured";
 
 export const TEMPLATE_ENGINES: readonly TemplateEngine[] = ["legacy", "studio"];
 
@@ -70,6 +69,7 @@ export type TemplateHubItem = {
   name: string;
   description: string;
   templateEngine: TemplateEngine;
+  templateKind: StudioTemplateKind | null;
   publicationStatus: TemplatePublicationStatus;
   salesType: TemplateSalesType;
   shopProductId: string | null;
@@ -151,7 +151,7 @@ export type UpdateTemplateSaleInput = {
  * 상태를 숨기지 않기 위해 `selling`을 최우선으로 판정한다.
  */
 export const resolveTemplateSaleStatus = (
-  item: Pick<TemplateHubItem, "isShopVisible" | "hasProduct" | "saleReadiness">
+  item: Pick<TemplateHubItem, "isShopVisible" | "hasProduct" | "saleReadiness">,
 ): TemplateSaleStatus => {
   if (item.isShopVisible) return "selling";
   if (item.saleReadiness.ready) return "ready";
@@ -161,5 +161,5 @@ export const resolveTemplateSaleStatus = (
 
 /** 판매 중이지만 판매 조건을 만족하지 않는 데이터 이상 상태. */
 export const hasSaleConditionMismatch = (
-  item: Pick<TemplateHubItem, "isShopVisible" | "saleReadiness">
+  item: Pick<TemplateHubItem, "isShopVisible" | "saleReadiness">,
 ): boolean => item.isShopVisible && !item.saleReadiness.ready;

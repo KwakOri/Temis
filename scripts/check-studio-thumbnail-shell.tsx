@@ -15,6 +15,7 @@ import { join } from "node:path";
 // jsx: "preserve" 환경이라 클래식 변환용 React 심볼이 스코프에 있어야 한다.
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 type ModuleWithLoader = typeof Module & {
   _load: (request: string, parent: unknown, isMain: boolean) => unknown;
@@ -45,7 +46,18 @@ const { ThumbnailStudioClient } =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require("../src/app/(root)/admin/thumbnail-studio/_components/thumbnail-studio-client") as typeof import("../src/app/(root)/admin/thumbnail-studio/_components/thumbnail-studio-client");
 
-const markup = renderToStaticMarkup(<ThumbnailStudioClient />);
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { gcTime: 0 },
+    mutations: { gcTime: 0 },
+  },
+});
+const markup = renderToStaticMarkup(
+  <QueryClientProvider client={queryClient}>
+    <ThumbnailStudioClient />
+  </QueryClientProvider>,
+);
+queryClient.clear();
 
 // --- 공통 셸을 쓴다 ---
 
@@ -124,15 +136,15 @@ assert.equal(
 );
 
 /**
- * 저장과 발행은 아직 비활성이고, 미리보기는 열린다.
+ * 저장과 발행은 영속화 연결 후 활성이고, 미리보기는 열린다.
  *
  * 개수로 센다. `className`에 `disabled:` 유틸리티가 들어 있어서 문자열 포함 검사는
  * 언제나 참이 된다.
  */
 assert.equal(
   (markup.match(/disabled=""/g) ?? []).length,
-  12,
-  "저장·발행·이름 변경 입력과 고른 것이 없을 때의 레이어 명령 9개가 비활성이어야 한다.",
+  10,
+  "이름 변경 입력과 고른 것이 없을 때의 레이어 명령 9개가 비활성이어야 한다.",
 );
 assert.ok(
   markup.includes('title="Open draft preview"'),
