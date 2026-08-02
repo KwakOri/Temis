@@ -2071,6 +2071,100 @@ const validateStudioImageInputDefinition = (
   return diagnostics;
 };
 
+const GENERIC_STUDIO_FONT_FAMILIES = new Set([
+  "cursive",
+  "fantasy",
+  "monospace",
+  "sans-serif",
+  "serif",
+  "system-ui",
+  "ui-monospace",
+  "ui-rounded",
+  "ui-serif",
+  "-apple-system",
+  "blinkmacsystemfont",
+  "inherit",
+  "initial",
+  "revert",
+  "unset",
+]);
+
+const getStudioFontFamilyNames = (value: unknown): string[] => {
+  if (typeof value !== "string") return [];
+  const names: string[] = [];
+  let quote: string | null = null;
+  let start = 0;
+  for (let index = 0; index <= value.length; index += 1) {
+    const character = value[index];
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character !== "," && index !== value.length) continue;
+    const name = value
+      .slice(start, index)
+      .trim()
+      .replace(/^['"]|['"]$/g, "")
+      .trim();
+    if (name) names.push(name);
+    start = index + 1;
+  }
+  return names.filter(
+    (name, index, all) =>
+      all.findIndex(
+        (candidate) =>
+          candidate.toLocaleLowerCase() === name.toLocaleLowerCase(),
+      ) === index,
+  );
+};
+
+const validateStudioFontReferences = (
+  document: StudioTemplateDocument,
+): StudioDiagnostic[] => {
+  const declaredFamilies = new Set(
+    (document.resources?.webFonts ?? [])
+      .flatMap((source) => {
+        const parsed = parseStudioWebFontCss(source.cssText);
+        return parsed.ok ? parsed.families : [];
+      })
+      .map((family) => family.toLocaleLowerCase()),
+  );
+  const diagnostics: StudioDiagnostic[] = [];
+
+  Object.values(document.graph.nodes).forEach((node) => {
+    if (node.type !== "text" && node.type !== "flexibleText") return;
+    const fontFamily = node.styleId
+      ? document.styles[node.styleId]?.fontFamily
+      : undefined;
+    getStudioFontFamilyNames(fontFamily).forEach((family) => {
+      const normalized = family.toLocaleLowerCase();
+      if (
+        GENERIC_STUDIO_FONT_FAMILIES.has(normalized) ||
+        declaredFamilies.has(normalized)
+      ) {
+        return;
+      }
+      diagnostics.push(
+        createDiagnostic(
+          "warning",
+          "font-family-fallback:" + node.id + ":" + normalized,
+          "Font family may be missing",
+          node.label +
+            " uses " +
+            family +
+            ", but no document web font source declares it. The renderer will use the next font-family fallback.",
+        ),
+      );
+    });
+  });
+
+  return diagnostics;
+};
+
 const validateStudioSelectInputDefinition = (
   input: StudioInputDefinition,
 ): StudioDiagnostic[] => {
@@ -2131,6 +2225,7 @@ export const validateStudioDocument = (
   diagnostics.push(
     ...validateTemplateKindContract(document),
     ...validateGraphIntegrity(document),
+    ...validateStudioFontReferences(document),
   );
 
   (document.resources?.webFonts ?? []).forEach((source, index) => {

@@ -15,6 +15,7 @@ import {
 
 export interface StudioWebFontSettingsProps {
   sources: StudioWebFontSource[];
+  usageBySourceId?: Record<string, string[]>;
   onChange: (sources: StudioWebFontSource[]) => void;
 }
 
@@ -26,6 +27,7 @@ export interface StudioWebFontSettingsProps {
  */
 export function StudioWebFontSettings({
   sources,
+  usageBySourceId,
   onChange,
 }: StudioWebFontSettingsProps) {
   const [fontLabel, setFontLabel] = useState("");
@@ -79,6 +81,7 @@ export function StudioWebFontSettings({
           {sources.map((source) => {
             const parsed = parseStudioWebFontCss(source.cssText);
             const fontFamily = parsed.ok ? parsed.families[0] : undefined;
+            const usage = usageBySourceId?.[source.id] ?? [];
             const weightOptions = parsed.ok
               ? getStudioParsedFontWeightOptions(parsed.faces, fontFamily)
               : [];
@@ -142,6 +145,16 @@ export function StudioWebFontSettings({
                         ? weightOptions.map((option) => option.value).join(", ")
                         : "Invalid CSS"}
                     </div>
+                    {usageBySourceId ? (
+                      <div
+                        className="mt-1 text-[9px] font-medium leading-4 text-[var(--fg3)]"
+                        data-studio-font-usage={source.id}
+                      >
+                        {usage.length > 0
+                          ? `${usage.length} use${usage.length === 1 ? "" : "s"}: ${usage.join(", ")}`
+                          : "No document uses this font"}
+                      </div>
+                    ) : null}
                   </div>
                   <button
                     className="text-[var(--fg2)] hover:text-[var(--fg)]"

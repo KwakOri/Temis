@@ -248,5 +248,7 @@ assert.ok(markup.includes('accept="image/png,image/jpeg,image/webp"'));
 assert.ok(markup.includes("Import"));
 assert.ok(markup.includes("Remove unused"));
 assert.ok(markup.includes('data-thumbnail-asset-id="replacement"'));
+assert.ok(markup.includes(`data-thumbnail-asset-consumers="${localAsset.id}"`));
+assert.ok(markup.includes("Select option · hero"));
 
 console.log("Thumbnail Studio asset checks passed.");

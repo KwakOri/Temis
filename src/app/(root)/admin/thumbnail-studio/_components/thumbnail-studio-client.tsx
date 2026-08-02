@@ -117,6 +117,11 @@ import {
 } from "@/utils/thumbnail-studio/asset-commands";
 import { collectThumbnailStudioAssetConsumers } from "@/utils/thumbnail-studio/asset-consumers";
 import { importThumbnailStudioAssetFiles } from "@/utils/thumbnail-studio/asset-policy";
+import {
+  collectThumbnailStudioFontConsumers,
+  getThumbnailStudioFontChangeImpacts,
+  getThumbnailStudioFontUsageBySource,
+} from "@/utils/thumbnail-studio/font-consumers";
 import { planStudioNodeInsertion } from "@/utils/thumbnail-studio/node-defaults";
 import {
   createThumbnailStudioPreviewValues,
@@ -454,6 +459,18 @@ export function ThumbnailStudioClient({
   const assetConsumers = useMemo(
     () => collectThumbnailStudioAssetConsumers(document),
     [document],
+  );
+  const fontConsumers = useMemo(
+    () => collectThumbnailStudioFontConsumers(document, customTextPresets),
+    [customTextPresets, document],
+  );
+  const fontUsageBySourceId = useMemo(
+    () =>
+      getThumbnailStudioFontUsageBySource(
+        getStudioWebFontSources(document),
+        fontConsumers,
+      ),
+    [document, fontConsumers],
   );
 
   const addInput = useCallback(
@@ -854,6 +871,43 @@ export function ThumbnailStudioClient({
     });
     showStatus(`Removed ${removedCount} unused asset(s)`);
   }, [assetConsumers, showStatus, studioStore, updateDocument]);
+
+  const updateWebFonts = useCallback(
+    (webFonts: StudioWebFontSource[]) => {
+      const currentDocument = studioStore.getState().document;
+      const currentSources = getStudioWebFontSources(currentDocument);
+      const impacts = getThumbnailStudioFontChangeImpacts(
+        currentSources,
+        webFonts,
+        fontConsumers,
+      );
+      if (impacts.length > 0) {
+        const impactSummary = impacts
+          .map(
+            (impact) =>
+              `${impact.fontFamily} (${impact.consumers.length} use${impact.consumers.length === 1 ? "" : "s"})`,
+          )
+          .join(", ");
+        const shouldContinue = window.confirm(
+          `This change removes or disables ${impactSummary}. Existing text will use the next font-family fallback. Continue?`,
+        );
+        if (!shouldContinue) return;
+      }
+
+      updateDocument((draft) => {
+        draft.resources = {
+          ...draft.resources,
+          webFonts,
+        };
+      });
+      if (impacts.length > 0) {
+        showStatus(
+          `${impacts.map((impact) => impact.fontFamily).join(", ")} will use its font-family fallback`,
+        );
+      }
+    },
+    [fontConsumers, showStatus, studioStore, updateDocument],
+  );
 
   const commands = useThumbnailNodeCommands({
     getDocument: useCallback(
@@ -1332,13 +1386,8 @@ export function ThumbnailStudioClient({
                 onThemeChange: setTheme,
                 webFonts: {
                   sources: getStudioWebFontSources(document),
-                  onChange: (sources: StudioWebFontSource[]) =>
-                    updateDocument((draft) => {
-                      draft.resources = {
-                        ...draft.resources,
-                        webFonts: sources,
-                      };
-                    }),
+                  usageBySourceId: fontUsageBySourceId,
+                  onChange: updateWebFonts,
                 },
                 data: {
                   isReloadDisabled: true,

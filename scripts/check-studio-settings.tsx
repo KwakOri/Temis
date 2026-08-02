@@ -17,10 +17,31 @@ import { StudioSettingsModal } from "../src/app/(root)/template-studio/_componen
 import { buildStudioCommonSettingsSections } from "../src/components/studio/settings/studio-common-settings";
 import { StudioSettingsDialog } from "../src/components/studio/settings/studio-settings-dialog";
 import { StudioGuideLayerSettings } from "../src/components/studio/settings/studio-settings-fields";
+import { StudioWebFontSettings } from "../src/components/studio/settings/studio-web-font-settings";
 import type { StudioTimetableCapabilityKey } from "../src/types/template-studio";
 import { createSampleStudioDocument } from "../src/utils/template-studio/sample-document";
 
 const noop = () => {};
+
+const fontUsageMarkup = renderToStaticMarkup(
+  <StudioWebFontSettings
+    sources={[
+      {
+        id: "font-brand",
+        label: "Brand Sans",
+        cssText:
+          "@font-face { font-family: 'Brand Sans'; src: url('https://example.com/brand.woff2'); }",
+        enabled: true,
+      },
+    ]}
+    usageBySourceId={{
+      "font-brand": ["Title · Text node typography"],
+    }}
+    onChange={noop}
+  />,
+);
+assert.ok(fontUsageMarkup.includes('data-studio-font-usage="font-brand"'));
+assert.ok(fontUsageMarkup.includes("Title · Text node typography"));
 
 // --- 공통 설정 섹션 기준선 ---
 //

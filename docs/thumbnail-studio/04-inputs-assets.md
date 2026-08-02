@@ -1,6 +1,11 @@
 # Phase 4. 입력, 이미지와 에셋
 
-상태: 패키지 1~10 구현 및 자동 검증 완료, 브라우저 클릭 실측 대기
+상태: 패키지 1~12 구현 및 자동 검증 완료, 브라우저 실측 가능 범위 통과
+
+브라우저에서 실측 가능한 텍스트·이미지 preview, clipping/group 진단, 잠금, stroke
+표시, 회전 visual bounds와 draft preview는 정상 동작을 확인했다. legacy scalar 주입,
+실제 custom font fallback fixture, crop·PNG parity처럼 현재 브라우저 흐름에서 직접
+재현할 수 없는 항목은 자동 회귀 검증으로 대체한다.
 
 선행 단계: [Phase 3 — 고급 텍스트 표현](./03-text-effects.md)
 
@@ -324,6 +329,7 @@ document default에 미리 저장하지 않는다.
 - 삭제/비활성화 전 영향 확인
 - fallback family 결과 안내
 - 삭제 후 dangling font reference 진단
+- Assets 탭에서 노드, select mapping, asset slot과 guide의 사용 위치 표시
 
 세션 custom preset은 document에 저장되지 않으므로 document font 삭제 확인에서 별도
 세션 consumer로 표시한다.
@@ -408,10 +414,12 @@ validator, fixture를 같은 패키지에서 함께 갱신한다.
 - preview/default 분리와 document/history 불변
 - local asset MIME, 크기, decode 검증
 - 사용 중 asset/font 삭제 영향 수집
+- `check:thumbnail-studio:font-consumers`의 font consumer와 fallback 진단
 - object-position parse/clamp와 실제 `<img>` style
 - crop 파생 asset과 원본/다른 consumer 불변
 - hidden group과 hidden ancestor의 overflow 진단 제외
 - locked node 명령의 document/history 불변
+- Thumbnail input → binding resolver → `StudioRenderer`와 preview/history handoff 통합
 
 ### 공통 정적 검증
 
@@ -424,6 +432,10 @@ validator, fixture를 같은 패키지에서 함께 갱신한다.
 
 sandbox에서 `tsx` IPC가 `EPERM`이면 `node --import tsx scripts/<check-file>` 방식으로
 같은 검사를 실행한다. 저장소 정책에 따라 production build는 기본 검증에서 제외한다.
+
+Package 11의 font consumer 회귀는 `check:thumbnail-studio:font-consumers`로,
+Package 12의 자동 handoff 회귀는 `check:thumbnail-studio:integration`으로 실행한다.
+이 검사는 브라우저의 실제 클릭, 폰트 로딩과 PNG 픽셀 parity를 대신하지 않는다.
 
 ### 브라우저 실측
 
@@ -440,6 +452,24 @@ sandbox에서 `tsx` IPC가 `EPERM`이면 `node --import tsx scripts/<check-file>
 9. authoring 캔버스와 `StudioRenderer` image 위치/clip 일치
 10. console error와 hydration warning 없음
 
+최근 in-app browser 실측에서 다음을 확인했다.
+
+- text input preview 변경과 document undo/redo 경계
+- image input URL preview와 draft preview 렌더링
+- logical bounds가 캔버스 안에 있어도 visual effect clipping 경고가 표시됨
+- `overflow: hidden` group의 child overflow 경고와 hidden child 제외
+- locked text의 fill, stroke, shadow 명령 UI 비활성화
+- disabled stroke가 Inspector에 남고 drawable stroke의 band 가림 계산에 참여하지 않음
+- 회전 텍스트 visual bounds box가 logical selection과 분리되어 표시됨
+- 브라우저 console error/warning 없음
+
+다음 항목은 브라우저에서 직접 재현할 수 없어 자동 검증으로 대체했다.
+
+- legacy scalar shadow materialize와 색상·opacity parity
+- 실제 web font source의 disable/delete fallback 경고
+- crop의 원본/다중 consumer 불변과 PNG 픽셀 parity
+- native stroke drag reorder와 drag 한 단계 undo의 자동화 adapter 범위
+
 ## 17. 완료 조건
 
 - global text, image와 select input을 생성·복제·편집·정렬·group화·삭제할 수 있다.
@@ -452,7 +482,8 @@ sandbox에서 `tsx` IPC가 `EPERM`이면 `node --import tsx scripts/<check-file>
 - image input별 runtime 편집 권한과 권장 비율을 설정할 수 있다.
 - 사용 중 asset과 font를 안전하게 진단하고 dangling reference를 만들지 않는다.
 - day/entry input이 Thumbnail UI에 나타나지 않고 validator 정책이 명확하다.
-- 자동 검사와 브라우저 실측 시나리오가 모두 통과한다.
+- 자동 검사와 브라우저에서 실측 가능한 시나리오가 모두 통과한다. 브라우저에서
+  재현 경로가 없는 항목은 해당 자동 회귀 검증으로 대체한다.
 - Phase 5가 `StudioRuntimeValues.global`, binding resolver와 image policy를 추가 변환 없이
   사용할 수 있다.
 

@@ -1006,6 +1006,19 @@ export function ThumbnailAssetPanel({
                     {assetConsumers.length} use
                     {assetConsumers.length === 1 ? "" : "s"}
                   </div>
+                  {assetConsumers.length > 0 ? (
+                    <div
+                      className="mt-1 grid gap-0.5 text-[9px] leading-3 text-[var(--fg3)]"
+                      data-thumbnail-asset-consumers={asset.id}
+                    >
+                      {assetConsumers.map((consumer) => (
+                        <div key={consumer.id}>
+                          {consumer.label} · {consumer.detail}
+                          {consumer.locked ? " · locked" : ""}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <button

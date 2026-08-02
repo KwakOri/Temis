@@ -24,6 +24,8 @@ export interface StudioCommonSettingsModel {
   onThemeChange: (theme: StudioSettingsTheme) => void;
   webFonts: {
     sources: StudioWebFontSource[];
+    /** optional document-specific usage details, used by Thumbnail Studio */
+    usageBySourceId?: Record<string, string[]>;
     onChange: (sources: StudioWebFontSource[]) => void;
   };
   data: {
@@ -60,6 +62,7 @@ export function buildStudioCommonSettingsSections(
       content: (
         <StudioWebFontSettings
           sources={model.webFonts.sources}
+          usageBySourceId={model.webFonts.usageBySourceId}
           onChange={model.webFonts.onChange}
         />
       ),
